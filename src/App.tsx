@@ -3,7 +3,12 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import Index from "./pages/Index.tsx";
+import WorkspaceLayout from "./components/layout/WorkspaceLayout";
+import Home from "./pages/Home";
+import MyAgents from "./pages/MyAgents";
+import AgentsList from "./pages/AgentsList";
+import AgentBuilder from "./pages/AgentBuilder";
+import PlaceholderPage from "./pages/PlaceholderPage";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -15,8 +20,19 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          <Route element={<WorkspaceLayout />}>
+            <Route path="/" element={<Home />} />
+            <Route path="/marketplace" element={<PlaceholderPage title="Marketplace" />} />
+            <Route path="/my-agents" element={<MyAgents />} />
+            <Route path="/agents" element={<AgentsList />} />
+            <Route path="/agents/:id" element={<AgentBuilder />} />
+            <Route path="/knowledge" element={<PlaceholderPage title="Workspace Knowledge" />} />
+            <Route path="/settings" element={<PlaceholderPage title="Workspace Settings" />} />
+            <Route path="/templates" element={<PlaceholderPage title="Template Store" />} />
+            <Route path="/tools" element={<PlaceholderPage title="Tool Store" />} />
+            <Route path="/api-keys" element={<PlaceholderPage title="API Keys" />} />
+            <Route path="/docs" element={<PlaceholderPage title="Document Center" />} />
+          </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
