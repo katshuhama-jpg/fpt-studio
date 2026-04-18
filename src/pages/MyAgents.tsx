@@ -83,8 +83,8 @@ export default function MyAgents() {
           <div className="max-w-3xl mx-auto px-6 py-10 space-y-6 animate-fade-up">
             {/* Welcome */}
             <div className="text-center py-8">
-              <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-coral flex items-center justify-center mb-4 shadow-elev">
-                <Sparkles size={28} className="text-accent-foreground" />
+              <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-brand flex items-center justify-center mb-4 shadow-elev">
+                <Sparkles size={28} className="text-primary-foreground" />
               </div>
               <h2 className="font-display text-2xl font-semibold mb-2">How can I help today?</h2>
               <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">

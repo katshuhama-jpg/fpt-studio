@@ -13,7 +13,7 @@ const agents = [
     convs: 1240, success: 88, channels: ["Web", "FB"], updated: "3d ago", accent: "bg-primary-glow" },
   { id: "sales", name: "Sales Lead Qualifier", emoji: "🎯", bg: "bg-primary-soft", status: "Draft",
     desc: "Lead scoring, BANT qualification and CRM hand-off.", model: "Claude 3.5",
-    convs: 0, success: 0, channels: [], updated: "Just now", accent: "bg-gradient-coral" },
+    convs: 0, success: 0, channels: [], updated: "Just now", accent: "bg-gradient-brand" },
   { id: "ops", name: "IT Helpdesk", emoji: "🛠️", bg: "bg-accent-soft", status: "Published",
     desc: "Password reset, VPN setup and ticket triage for L1 support.", model: "Gemini 1.5 Flash",
     convs: 967, success: 79, channels: ["Teams"], updated: "1w ago", accent: "bg-accent" },
