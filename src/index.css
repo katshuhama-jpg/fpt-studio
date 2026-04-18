@@ -139,6 +139,15 @@
   .focus-ring {
     @apply outline-none ring-offset-2 ring-offset-background focus-visible:ring-2 focus-visible:ring-ring;
   }
+
+  .ds-input {
+    @apply w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-base;
+  }
+  .ds-input:focus { @apply outline-none border-ring ring-2 ring-ring/30; }
+
+  .btn-ghost {
+    @apply inline-flex items-center gap-1 px-2.5 h-7 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base;
+  }
 }
 
 @layer utilities {
