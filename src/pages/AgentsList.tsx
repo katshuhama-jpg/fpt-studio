@@ -1,0 +1,159 @@
+import { Link } from "react-router-dom";
+import { Plus, Search, Filter, MoreVertical, MessageSquare, Activity, Layers } from "lucide-react";
+
+const agents = [
+  { id: "cskh", name: "Banking ABC — Customer Care", emoji: "🏦", bg: "bg-primary-soft", status: "Published",
+    desc: "24/7 multilingual customer support with card-lock and product Q&A.", model: "Gemini 1.5 Pro",
+    convs: 2841, success: 84, channels: ["Web", "Zalo"], updated: "2h ago", accent: "bg-primary" },
+  { id: "hr", name: "HR Onboarding Bot", emoji: "🤝", bg: "bg-accent-soft", status: "Draft",
+    desc: "New-joiner onboarding, policy lookup and meeting scheduling.", model: "GPT-4o mini",
+    convs: 412, success: 91, channels: ["Slack"], updated: "1d ago", accent: "bg-accent" },
+  { id: "faq", name: "Product FAQ Assistant", emoji: "📦", bg: "bg-surface-muted", status: "Published",
+    desc: "Product manuals, troubleshooting and warranty information.", model: "FPT.AI LLM",
+    convs: 1240, success: 88, channels: ["Web", "FB"], updated: "3d ago", accent: "bg-primary-glow" },
+  { id: "sales", name: "Sales Lead Qualifier", emoji: "🎯", bg: "bg-primary-soft", status: "Draft",
+    desc: "Lead scoring, BANT qualification and CRM hand-off.", model: "Claude 3.5",
+    convs: 0, success: 0, channels: [], updated: "Just now", accent: "bg-gradient-coral" },
+  { id: "ops", name: "IT Helpdesk", emoji: "🛠️", bg: "bg-accent-soft", status: "Published",
+    desc: "Password reset, VPN setup and ticket triage for L1 support.", model: "Gemini 1.5 Flash",
+    convs: 967, success: 79, channels: ["Teams"], updated: "1w ago", accent: "bg-accent" },
+];
+
+const tabs = ["All agents", "Published", "Draft", "Shared with me"] as const;
+
+export default function AgentsList() {
+  return (
+    <div className="px-8 py-8 max-w-[1280px] mx-auto animate-fade-up">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
+        <div>
+          <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">Agents</h1>
+          <p className="text-sm text-muted-foreground">
+            Manage every agent in this workspace — build, test, deploy and monitor.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button className="h-10 px-3.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base">
+            <Layers size={14} /> Templates
+          </button>
+          <button className="h-10 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 shadow-soft transition-base">
+            <Plus size={15} /> New Agent
+          </button>
+        </div>
+      </div>
+
+      {/* Toolbar */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-5 pb-4 border-b border-border">
+        <div className="flex items-center gap-1">
+          {tabs.map((t, i) => (
+            <button
+              key={t}
+              className={`px-3 h-8 rounded-lg text-sm font-medium transition-base ${
+                i === 0 ? "bg-primary-soft text-primary" : "text-muted-foreground hover:bg-surface-muted"
+              }`}
+            >
+              {t} {i === 0 && <span className="ml-1 text-[10px] opacity-70">5</span>}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              placeholder="Search agents…"
+              className="h-9 w-56 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+            />
+          </div>
+          <button className="h-9 w-9 rounded-lg border border-border bg-surface hover:bg-surface-muted flex items-center justify-center transition-base">
+            <Filter size={14} />
+          </button>
+        </div>
+      </div>
+
+      {/* Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Create card */}
+        <Link
+          to="/agents/cskh"
+          className="rounded-xl border-2 border-dashed border-border hover:border-primary/40 hover:bg-primary-soft/30 transition-base flex flex-col items-center justify-center min-h-[220px] p-6 group"
+        >
+          <div className="w-12 h-12 rounded-xl bg-primary-soft text-primary flex items-center justify-center mb-3 group-hover:scale-110 transition-base">
+            <Plus size={22} />
+          </div>
+          <div className="font-display font-semibold text-base mb-1">Create new agent</div>
+          <div className="text-xs text-muted-foreground text-center max-w-[200px]">
+            Start from scratch or use a marketplace template.
+          </div>
+        </Link>
+
+        {agents.map(a => (
+          <Link
+            key={a.id}
+            to={`/agents/${a.id}`}
+            className="group relative overflow-hidden rounded-xl border border-border bg-surface hover:border-primary/30 hover:shadow-elev transition-base"
+          >
+            <div className={`absolute inset-x-0 top-0 h-1 ${a.accent}`} aria-hidden />
+            <div className="p-5">
+              <div className="flex items-start gap-3 mb-3">
+                <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-lg shrink-0 ${a.bg}`}>
+                  {a.emoji}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <h3 className="font-semibold text-sm truncate">{a.name}</h3>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[10px]">
+                    <span
+                      className={`font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                        a.status === "Published"
+                          ? "bg-primary-soft text-primary"
+                          : "bg-surface-muted text-muted-foreground"
+                      }`}
+                    >
+                      {a.status}
+                    </span>
+                    <span className="text-muted-foreground">· {a.model}</span>
+                  </div>
+                </div>
+                <button className="opacity-0 group-hover:opacity-100 transition-base text-muted-foreground hover:text-foreground p-1">
+                  <MoreVertical size={14} />
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed mb-4 line-clamp-2 min-h-[32px]">{a.desc}</p>
+
+              {/* Stats */}
+              <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
+                <div className="flex items-center gap-1.5">
+                  <MessageSquare size={12} className="text-muted-foreground" />
+                  <span className="text-xs">
+                    <b className="font-display">{a.convs.toLocaleString()}</b>
+                    <span className="text-muted-foreground ml-1">convs</span>
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Activity size={12} className="text-muted-foreground" />
+                  <span className="text-xs">
+                    <b className="font-display">{a.success}%</b>
+                    <span className="text-muted-foreground ml-1">resolved</span>
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5 mt-3 text-[10px] text-muted-foreground">
+                <span>Updated {a.updated}</span>
+                {a.channels.length > 0 && (
+                  <>
+                    <span>·</span>
+                    {a.channels.map(c => (
+                      <span key={c} className="px-1.5 py-0.5 rounded bg-surface-muted">{c}</span>
+                    ))}
+                  </>
+                )}
+              </div>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
