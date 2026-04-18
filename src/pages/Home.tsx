@@ -241,7 +241,7 @@ const recommended = [
     icon: ShoppingCart,
     iconColor: "text-primary",
     bg: "bg-primary-soft",
-    accent: "bg-gradient-coral",
+    accent: "bg-gradient-brand",
     tags: ["Sales", "E-comm"],
   },
 ];
