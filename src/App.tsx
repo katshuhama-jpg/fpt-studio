@@ -22,12 +22,12 @@ const App = () => (
         <Routes>
           <Route element={<WorkspaceLayout />}>
             <Route path="/" element={<Home />} />
-            <Route path="/marketplace" element={<PlaceholderPage title="Marketplace" />} />
             <Route path="/my-agents" element={<MyAgents />} />
             <Route path="/agents" element={<AgentsList />} />
             <Route path="/agents/:id" element={<AgentBuilder />} />
+            <Route path="/agents/:id/tasks/:taskId" element={<TaskEditor />} />
             <Route path="/knowledge" element={<PlaceholderPage title="Workspace Knowledge" />} />
-            <Route path="/settings" element={<PlaceholderPage title="Workspace Settings" />} />
+            <Route path="/settings" element={<WorkspaceSettings />} />
             <Route path="/templates" element={<PlaceholderPage title="Template Store" />} />
             <Route path="/tools" element={<PlaceholderPage title="Tool Store" />} />
             <Route path="/api-keys" element={<PlaceholderPage title="API Keys" />} />
