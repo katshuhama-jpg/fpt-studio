@@ -8,6 +8,8 @@ import Home from "./pages/Home";
 import MyAgents from "./pages/MyAgents";
 import AgentsList from "./pages/AgentsList";
 import AgentBuilder from "./pages/AgentBuilder";
+import TaskEditor from "./pages/TaskEditor";
+import WorkspaceSettings from "./pages/WorkspaceSettings";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import NotFound from "./pages/NotFound.tsx";
 
