@@ -107,10 +107,14 @@ export default function AgentBuilder() {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setAiChatOpen(true)}
-            className="h-9 px-3 rounded-lg border border-primary/30 bg-primary-soft text-primary hover:bg-primary-soft/70 text-sm font-medium flex items-center gap-1.5 transition-base"
+            onClick={() => setAiChatOpen(v => !v)}
+            className={`h-9 px-3 rounded-lg border text-sm font-medium flex items-center gap-1.5 transition-base ${
+              aiChatOpen
+                ? "border-primary bg-primary text-primary-foreground hover:bg-primary-glow"
+                : "border-primary/30 bg-primary-soft text-primary hover:bg-primary-soft/70"
+            }`}
           >
-            <Sparkles size={13} /> Edit with AI
+            <Sparkles size={13} /> Refine with AI
           </button>
           <button className="h-9 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base">
             <Save size={13} /> Save
@@ -126,36 +130,57 @@ export default function AgentBuilder() {
 
       {/* Body */}
       <div className="flex flex-1 overflow-hidden relative">
-        {/* Left nav (agent-only) */}
-        <aside className="w-[220px] border-r border-border bg-surface overflow-y-auto shrink-0">
-          <div className="p-3 space-y-5">
-            {nav.map(group => (
-              <div key={group.label}>
-                <div className="px-2 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  {group.label}
+        {/* Left nav (agent-only) — hidden when AI chat is open */}
+        {!aiChatOpen && (
+          <aside className="w-[220px] border-r border-border bg-surface overflow-y-auto shrink-0">
+            <div className="p-3 space-y-5">
+              {nav.map(group => (
+                <div key={group.label}>
+                  <div className="px-2 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {group.label}
+                  </div>
+                  <div className="space-y-0.5">
+                    {group.items.map((it: any) => (
+                      <button
+                        key={it.id}
+                        onClick={() => setSection(it.id)}
+                        className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-base ${
+                          section === it.id
+                            ? "bg-primary-soft text-primary font-medium"
+                            : "text-foreground hover:bg-surface-muted"
+                        }`}
+                      >
+                        <it.icon size={14} className="shrink-0" />
+                        <span className="flex-1 text-left truncate">{it.label}</span>
+                        {it.status === "done" && <CheckCircle2 size={11} className="text-success" />}
+                        {it.status === "warn" && <span className="w-1.5 h-1.5 rounded-full bg-warning" />}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="space-y-0.5">
-                  {group.items.map((it: any) => (
-                    <button
-                      key={it.id}
-                      onClick={() => setSection(it.id)}
-                      className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-base ${
-                        section === it.id
-                          ? "bg-primary-soft text-primary font-medium"
-                          : "text-foreground hover:bg-surface-muted"
-                      }`}
-                    >
-                      <it.icon size={14} className="shrink-0" />
-                      <span className="flex-1 text-left truncate">{it.label}</span>
-                      {it.status === "done" && <CheckCircle2 size={11} className="text-success" />}
-                      {it.status === "warn" && <span className="w-1.5 h-1.5 rounded-full bg-warning" />}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </aside>
+              ))}
+            </div>
+            <div className="p-3 pt-0">
+              <button
+                onClick={() => setAiChatOpen(true)}
+                className="w-full h-9 rounded-lg border border-primary/30 bg-primary-soft text-primary hover:bg-primary-soft/70 text-xs font-medium flex items-center justify-center gap-1.5 transition-base"
+              >
+                <Sparkles size={12} /> Refine with AI
+              </button>
+            </div>
+          </aside>
+        )}
+
+        {/* AI chat sidebar — replaces left nav when active */}
+        {aiChatOpen && (
+          <AiBuildSidebar
+            onClose={() => setAiChatOpen(false)}
+            contextLabel={currentSectionLabel}
+            sections={nav.flatMap(g => g.items)}
+            currentSection={section}
+            onSectionChange={setSection}
+          />
+        )}
 
         {/* Content + Preview */}
         <div className="flex-1 flex overflow-hidden">
@@ -171,101 +196,125 @@ export default function AgentBuilder() {
 
           {tab === "develop" && <PreviewPanel />}
         </div>
-
-        {/* AI build chat overlay (covers left nav + content; preview stays) */}
-        {aiChatOpen && <AiBuildOverlay onClose={() => setAiChatOpen(false)} contextLabel={currentSectionLabel} />}
       </div>
     </div>
   );
 }
 
-/* ============ AI BUILD OVERLAY ============ */
-function AiBuildOverlay({ onClose, contextLabel }: { onClose: () => void; contextLabel: string }) {
+/* ============ AI BUILD SIDEBAR (left chat panel) ============ */
+function AiBuildSidebar({
+  onClose, contextLabel, sections, currentSection, onSectionChange,
+}: {
+  onClose: () => void;
+  contextLabel: string;
+  sections: any[];
+  currentSection: string;
+  onSectionChange: (s: string) => void;
+}) {
   const quickActions = [
     "Tighten the system prompt",
     "Add a guardrail against legal advice",
     "Draft 5 opening questions",
     "Make tone more formal",
-    "Translate persona to Vietnamese",
   ];
   return (
-    <div className="absolute inset-0 z-30 flex">
-      <div className="w-[calc(100%-320px)] bg-surface border-r border-border shadow-pop flex flex-col animate-fade-up">
-        <div className="h-12 px-4 border-b border-border flex items-center gap-2 shrink-0">
-          <div className="w-7 h-7 rounded-md bg-gradient-brand flex items-center justify-center">
-            <Sparkles size={13} className="text-primary-foreground" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-semibold">Edit agent with AI</div>
-            <div className="text-[10px] text-muted-foreground">
-              Editing in context: <span className="text-primary font-medium">@{contextLabel}</span>
-            </div>
-          </div>
-          <button onClick={onClose} className="h-8 w-8 rounded-md hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base">
-            <X size={15} />
-          </button>
+    <aside className="w-[360px] border-r border-border bg-surface flex flex-col shrink-0 animate-fade-up">
+      {/* Header */}
+      <div className="h-12 px-3 border-b border-border flex items-center gap-2 shrink-0">
+        <div className="w-7 h-7 rounded-md bg-gradient-brand flex items-center justify-center">
+          <Sparkles size={13} className="text-primary-foreground" />
         </div>
-
-        <div className="flex-1 overflow-y-auto p-5 space-y-3 bg-gradient-soft">
-          <div className="max-w-2xl mx-auto space-y-3">
-            <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 text-sm">
-              Hi Nam — I'm focused on <b>{contextLabel}</b>. Tell me what to change and I'll propose a diff you can approve.
-            </div>
-
-            {/* Example diff card */}
-            <div className="rounded-xl border border-primary/30 bg-primary-soft/40 p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles size={12} className="text-primary" />
-                <span className="text-[11px] font-semibold text-primary">Proposed change · System prompt</span>
-              </div>
-              <div className="space-y-1 font-mono text-[11px]">
-                <div className="bg-destructive/10 text-destructive px-2 py-1 rounded line-through">
-                  − Help customers 24/7 in a friendly tone.
-                </div>
-                <div className="bg-success/10 text-success px-2 py-1 rounded">
-                  + Help customers 24/7 in a professional, empathetic tone. Verify identity before any sensitive action.
-                </div>
-              </div>
-              <div className="flex items-center gap-2 mt-2">
-                <button className="h-7 px-3 rounded-md bg-primary text-primary-foreground text-[11px] font-medium">Apply</button>
-                <button className="h-7 px-3 rounded-md hover:bg-surface-muted text-[11px] text-muted-foreground">Discard</button>
-                <span className="ml-auto text-[10px] text-muted-foreground">Touches 1 field</span>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-1.5 pt-1">
-              {quickActions.map(s => (
-                <button key={s} className="text-[11px] px-2.5 py-1 rounded-full bg-surface border border-border hover:bg-primary-soft hover:text-primary hover:border-primary/30 transition-base">
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-semibold leading-tight">Refine with AI</div>
+          <div className="text-[10px] text-muted-foreground leading-tight">Chat to edit your agent</div>
         </div>
+        <button onClick={onClose} className="h-8 w-8 rounded-md hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base">
+          <X size={15} />
+        </button>
+      </div>
 
-        <div className="border-t border-border p-3 shrink-0 bg-surface">
-          <div className="max-w-2xl mx-auto">
-            <div className="flex items-end gap-2 rounded-xl border border-border bg-surface focus-within:border-primary focus-within:ring-glow transition-base p-1.5">
-              <span className="text-[10px] font-medium text-primary bg-primary-soft px-2 py-1 rounded-md ml-1 shrink-0">
-                @{contextLabel}
-              </span>
-              <textarea
-                rows={1}
-                placeholder={`Update this ${contextLabel.toLowerCase()} for me…`}
-                className="flex-1 resize-none bg-transparent text-sm placeholder:text-muted-foreground outline-none py-1.5 max-h-32"
-              />
-              <button className="h-8 w-8 rounded-md bg-primary text-primary-foreground hover:bg-primary-glow flex items-center justify-center transition-base">
-                <Send size={13} />
-              </button>
-            </div>
-            <div className="text-[10px] text-muted-foreground mt-1.5 px-1">
-              Type <code className="font-mono">@</code> to switch context to another section (Knowledge, Tools, Tasks…).
-            </div>
-          </div>
+      {/* Context picker */}
+      <div className="px-3 py-2 border-b border-border bg-surface-muted/40 shrink-0">
+        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+          Editing context
+        </div>
+        <div className="flex flex-wrap gap-1">
+          {sections.map((s: any) => (
+            <button
+              key={s.id}
+              onClick={() => onSectionChange(s.id)}
+              className={`text-[11px] px-2 py-1 rounded-md flex items-center gap-1 transition-base ${
+                currentSection === s.id
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-surface border border-border hover:bg-primary-soft hover:text-primary"
+              }`}
+            >
+              <s.icon size={10} />@{s.label}
+            </button>
+          ))}
         </div>
       </div>
-      <div className="flex-1" onClick={onClose} />
-    </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-3">
+        <div className="bg-surface-muted/60 border border-border rounded-2xl rounded-bl-sm px-3 py-2.5 text-[13px]">
+          Hi Nam — I'm focused on <b>@{contextLabel}</b>. Tell me what to change and I'll propose a diff you can approve.
+        </div>
+
+        {/* Diff card */}
+        <div className="rounded-xl border border-primary/30 bg-primary-soft/40 p-2.5">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <Sparkles size={11} className="text-primary" />
+            <span className="text-[10px] font-semibold text-primary">Proposed change · System prompt</span>
+          </div>
+          <div className="space-y-1 font-mono text-[10.5px]">
+            <div className="bg-destructive/10 text-destructive px-2 py-1 rounded line-through">
+              − Help customers 24/7 in a friendly tone.
+            </div>
+            <div className="bg-success/10 text-success px-2 py-1 rounded">
+              + Help customers 24/7 in a professional, empathetic tone. Verify identity before any sensitive action.
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 mt-2">
+            <button className="h-7 px-2.5 rounded-md bg-primary text-primary-foreground text-[11px] font-medium">Apply</button>
+            <button className="h-7 px-2.5 rounded-md hover:bg-surface-muted text-[11px] text-muted-foreground">Discard</button>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-1.5 pt-1">
+          {quickActions.map(s => (
+            <button key={s} className="text-[10.5px] px-2 py-1 rounded-full bg-surface border border-border hover:bg-primary-soft hover:text-primary hover:border-primary/30 transition-base">
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Composer */}
+      <div className="border-t border-border p-2.5 shrink-0 bg-surface">
+        <div className="rounded-xl border border-border bg-surface focus-within:border-primary focus-within:ring-glow transition-base p-1.5">
+          <div className="flex items-center gap-1 mb-1">
+            <span className="text-[10px] font-medium text-primary bg-primary-soft px-1.5 py-0.5 rounded">
+              @{contextLabel}
+            </span>
+            <span className="text-[10px] text-muted-foreground">context</span>
+          </div>
+          <div className="flex items-end gap-1.5">
+            <textarea
+              rows={2}
+              placeholder={`Update ${contextLabel.toLowerCase()}…`}
+              className="flex-1 resize-none bg-transparent text-[13px] placeholder:text-muted-foreground outline-none px-1 py-0.5 max-h-32"
+            />
+            <button className="h-7 w-7 rounded-md bg-primary text-primary-foreground hover:bg-primary-glow flex items-center justify-center transition-base shrink-0">
+              <Send size={12} />
+            </button>
+          </div>
+        </div>
+        <div className="text-[10px] text-muted-foreground mt-1.5 px-1">
+          Tip: pick a chip above to switch the section being edited.
+        </div>
+      </div>
+    </aside>
   );
 }
 
