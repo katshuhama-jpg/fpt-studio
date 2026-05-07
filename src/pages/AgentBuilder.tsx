@@ -107,10 +107,14 @@ export default function AgentBuilder() {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setAiChatOpen(true)}
-            className="h-9 px-3 rounded-lg border border-primary/30 bg-primary-soft text-primary hover:bg-primary-soft/70 text-sm font-medium flex items-center gap-1.5 transition-base"
+            onClick={() => setAiChatOpen(v => !v)}
+            className={`h-9 px-3 rounded-lg border text-sm font-medium flex items-center gap-1.5 transition-base ${
+              aiChatOpen
+                ? "border-primary bg-primary text-primary-foreground hover:bg-primary-glow"
+                : "border-primary/30 bg-primary-soft text-primary hover:bg-primary-soft/70"
+            }`}
           >
-            <Sparkles size={13} /> Edit with AI
+            <Sparkles size={13} /> Refine with AI
           </button>
           <button className="h-9 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base">
             <Save size={13} /> Save
