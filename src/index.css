@@ -64,14 +64,14 @@
 
     --radius: 0.625rem;                 /* 10px — preset radius */
 
-    /* ----- Sidebar: dark zinc-950, like preset ----- */
-    --sidebar-background: 240 6% 10%;
-    --sidebar-foreground: 240 5% 75%;
+    /* ----- Sidebar: bright/light mode ----- */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 240 10% 20%;
     --sidebar-primary: 231 75% 49%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 6% 16%;          /* hover/active bg */
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 240 5% 18%;
+    --sidebar-accent: 231 90% 96%;          /* hover/active bg — primary soft */
+    --sidebar-accent-foreground: 231 75% 42%;
+    --sidebar-border: 40 10% 88%;
     --sidebar-ring: 231 75% 49%;
 
     /* ----- Gradients ----- */
