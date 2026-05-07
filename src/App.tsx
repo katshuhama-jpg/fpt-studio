@@ -35,7 +35,7 @@ const App = () => (
             <Route path="/templates" element={<PlaceholderPage title="Template Store" />} />
             <Route path="/tools" element={<PlaceholderPage title="Tool Store" />} />
             <Route path="/api-keys" element={<PlaceholderPage title="API Keys" />} />
-            <Route path="/docs" element={<PlaceholderPage title="Document Center" />} />
+            <Route path="/docs" element={<PlaceholderPage title="Help Center" />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

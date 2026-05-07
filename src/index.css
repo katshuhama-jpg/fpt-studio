@@ -64,15 +64,15 @@
 
     --radius: 0.75rem;                  /* 12px — DS xl alias */
 
-    /* ----- Sidebar: dark slate ----- */
-    --sidebar-background: 222 47% 11%;  /* slate-900 */
-    --sidebar-foreground: 215 20% 65%;  /* slate-400 */
-    --sidebar-primary: 0 0% 100%;
-    --sidebar-primary-foreground: 222 47% 11%;
-    --sidebar-accent: 217 33% 17%;      /* slate-800 */
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217 33% 17%;
-    --sidebar-ring: 221 83% 53%;
+    /* ----- Sidebar: bright (light mode) ----- */
+    --sidebar-background: 0 0% 100%;            /* white */
+    --sidebar-foreground: 215 25% 27%;          /* slate-700 */
+    --sidebar-primary: 230 75% 49%;             /* blue-600 #203BDC */
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 230 100% 96%;             /* blue-50 #EEF1FF */
+    --sidebar-accent-foreground: 230 75% 30%;   /* blue-800 */
+    --sidebar-border: 214 32% 91%;              /* slate-200 */
+    --sidebar-ring: 230 75% 49%;
 
     /* ----- Gradients ----- */
     --gradient-hero: radial-gradient(80% 60% at 10% 0%, hsl(221 83% 53% / 0.06), transparent 60%),
