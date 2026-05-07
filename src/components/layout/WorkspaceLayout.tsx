@@ -2,7 +2,7 @@ import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
   Home, Sparkles, Bot, BookOpen, Settings, LayoutTemplate,
   Wrench, ChevronsLeft, ChevronsRight, Search, Bell, Plus,
-  ChevronRight, FileText, KeyRound, LogOut, User, ChevronDown,
+  ChevronRight, LifeBuoy, KeyRound, LogOut, User, ChevronDown,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -35,7 +35,7 @@ const groups: Group[] = [
 ];
 
 const utilityItems: Item[] = [
-  { to: "/docs", label: "Docs", icon: FileText },
+  { to: "/help", label: "Help Center", icon: LifeBuoy },
 ];
 
 export default function WorkspaceLayout() {
