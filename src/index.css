@@ -28,11 +28,11 @@
     --popover-foreground: 240 10% 8%;
 
     /* ----- Brand: vibrant indigo-blue (preset primary) ----- */
-    --primary: 232 83% 60%;             /* indigo-blue 500/600 */
+    --primary: 231 75% 49%;             /* #203BDC */
     --primary-foreground: 0 0% 100%;
-    --primary-soft: 232 90% 96%;
-    --primary-glow: 232 90% 66%;
-    --primary-strong: 232 75% 48%;
+    --primary-soft: 231 90% 96%;
+    --primary-glow: 231 82% 56%;
+    --primary-strong: 231 68% 42%;
 
     /* ----- Accent: emerald (matches preset's green pill) ----- */
     --accent: 152 60% 42%;
@@ -75,7 +75,7 @@
     --sidebar-ring: 232 83% 60%;
 
     /* ----- Gradients ----- */
-    --gradient-hero: radial-gradient(80% 60% at 10% 0%, hsl(232 83% 60% / 0.08), transparent 60%),
+    --gradient-hero: radial-gradient(80% 60% at 10% 0%, hsl(231 75% 49% / 0.08), transparent 60%),
                      radial-gradient(60% 50% at 90% 10%, hsl(152 60% 42% / 0.06), transparent 60%),
                      linear-gradient(180deg, hsl(40 24% 98%) 0%, hsl(40 18% 95%) 100%);
     --gradient-brand: linear-gradient(135deg, hsl(232 83% 60%), hsl(232 75% 48%));
