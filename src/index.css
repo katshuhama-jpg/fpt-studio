@@ -3,95 +3,125 @@
 @tailwind utilities;
 
 /* ===========================================================
-   FPT AI Agents — Design System v2
-   Palette: "FPT Blue Light" (corporate, Linear/Notion vibe)
-   - Primary: FPT Blue #0072CE
-   - Surfaces: white + cool gray
-   - Density: comfortable (14px base, 16px controls)
+   Design System — shadcn preset b37sR6ujw inspired
+   - Warm off-white canvas
+   - Near-black sidebar (zinc-950 vibe)
+   - Vibrant indigo-blue primary
+   - Geist / Inter typography, generous radius (0.625rem)
    All colors HSL.
    =========================================================== */
 
 @layer base {
   :root {
-    /* ----- Surfaces ----- */
-    --background: 220 20% 98.5%;          /* app canvas, very light cool gray */
-    --foreground: 222 25% 14%;            /* near-black */
+    /* ----- Surfaces (warm off-white canvas, like the preset) ----- */
+    --background: 40 24% 97%;           /* warm cream */
+    --foreground: 240 10% 8%;
 
-    --surface: 0 0% 100%;                 /* card white */
-    --surface-muted: 220 18% 96%;         /* subtle panel */
-    --surface-sunken: 220 16% 93%;        /* deeper panel */
+    --surface: 0 0% 100%;
+    --surface-muted: 40 18% 95%;
+    --surface-sunken: 40 16% 92%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 25% 14%;
+    --card-foreground: 240 10% 8%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 25% 14%;
+    --popover-foreground: 240 10% 8%;
 
-    /* ----- Brand: FPT Blue ----- */
-    --primary: 207 100% 40%;              /* #0072CE */
+    /* ----- Brand: vibrant indigo-blue (preset primary) ----- */
+    --primary: 232 83% 60%;             /* indigo-blue 500/600 */
     --primary-foreground: 0 0% 100%;
-    --primary-soft: 207 90% 95%;          /* tinted bg */
-    --primary-glow: 207 100% 48%;
-    --primary-strong: 211 100% 30%;       /* #003B7A — for nav active */
+    --primary-soft: 232 90% 96%;
+    --primary-glow: 232 90% 66%;
+    --primary-strong: 232 75% 48%;
 
-    /* ----- Accent: warm orange (FPT secondary) ----- */
-    --accent: 22 95% 55%;                 /* #F58220 */
+    /* ----- Accent: emerald (matches preset's green pill) ----- */
+    --accent: 152 60% 42%;
     --accent-foreground: 0 0% 100%;
-    --accent-soft: 22 95% 95%;
+    --accent-soft: 152 55% 94%;
 
     /* ----- Neutrals ----- */
-    --secondary: 220 16% 95%;
-    --secondary-foreground: 222 22% 20%;
+    --secondary: 40 14% 93%;
+    --secondary-foreground: 240 10% 14%;
 
-    --muted: 220 14% 94%;
-    --muted-foreground: 220 10% 44%;
+    --muted: 40 14% 93%;
+    --muted-foreground: 240 5% 45%;
 
-    --destructive: 358 75% 52%;
+    --destructive: 358 75% 55%;
     --destructive-foreground: 0 0% 100%;
     --destructive-soft: 358 90% 96%;
 
-    --success: 152 60% 38%;
+    --success: 152 60% 42%;
     --success-soft: 152 55% 94%;
     --warning: 38 92% 50%;
     --warning-soft: 38 95% 94%;
-    --info: 207 100% 45%;
-    --info-soft: 207 95% 95%;
+    --info: 232 83% 60%;
+    --info-soft: 232 90% 96%;
 
-    --border: 220 14% 90%;
-    --border-strong: 220 12% 82%;
-    --input: 220 14% 90%;
-    --ring: 207 100% 45%;
+    --border: 40 10% 88%;
+    --border-strong: 40 8% 80%;
+    --input: 40 10% 88%;
+    --ring: 232 83% 60%;
 
-    --radius: 10px;
+    --radius: 0.625rem;                 /* 10px — preset radius */
 
-    /* ----- Sidebar (white/light, 2-level) ----- */
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 222 18% 30%;
-    --sidebar-primary: 207 100% 40%;
+    /* ----- Sidebar: dark zinc-950, like preset ----- */
+    --sidebar-background: 240 6% 10%;
+    --sidebar-foreground: 240 5% 75%;
+    --sidebar-primary: 232 83% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 207 90% 96%;             /* hover/active bg */
-    --sidebar-accent-foreground: 207 100% 32%; /* active text */
-    --sidebar-border: 220 14% 92%;
-    --sidebar-ring: 207 100% 45%;
+    --sidebar-accent: 240 6% 16%;          /* hover/active bg */
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 240 5% 18%;
+    --sidebar-ring: 232 83% 60%;
 
     /* ----- Gradients ----- */
-    --gradient-hero: radial-gradient(80% 60% at 10% 0%, hsl(207 100% 50% / 0.10), transparent 60%),
-                     radial-gradient(60% 50% at 90% 10%, hsl(22 95% 55% / 0.07), transparent 60%),
-                     linear-gradient(180deg, hsl(220 25% 99%) 0%, hsl(220 18% 97%) 100%);
-    --gradient-brand: linear-gradient(135deg, hsl(207 100% 40%), hsl(211 100% 30%));
-    --gradient-soft: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(220 18% 97%) 100%);
+    --gradient-hero: radial-gradient(80% 60% at 10% 0%, hsl(232 83% 60% / 0.08), transparent 60%),
+                     radial-gradient(60% 50% at 90% 10%, hsl(152 60% 42% / 0.06), transparent 60%),
+                     linear-gradient(180deg, hsl(40 24% 98%) 0%, hsl(40 18% 95%) 100%);
+    --gradient-brand: linear-gradient(135deg, hsl(232 83% 60%), hsl(232 75% 48%));
+    --gradient-soft: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(40 18% 96%) 100%);
 
     /* ----- Shadows (soft, layered) ----- */
-    --shadow-xs: 0 1px 2px hsl(220 30% 18% / 0.04);
-    --shadow-sm: 0 1px 2px hsl(220 30% 18% / 0.05), 0 2px 6px hsl(220 30% 18% / 0.04);
-    --shadow-md: 0 4px 12px hsl(220 30% 18% / 0.06), 0 2px 4px hsl(220 30% 18% / 0.04);
-    --shadow-lg: 0 16px 40px hsl(220 30% 18% / 0.10), 0 4px 12px hsl(220 30% 18% / 0.05);
-    --shadow-glow: 0 0 0 4px hsl(207 100% 45% / 0.14);
-    --shadow-focus: 0 0 0 3px hsl(207 100% 45% / 0.20);
+    --shadow-xs: 0 1px 2px hsl(240 10% 8% / 0.04);
+    --shadow-sm: 0 1px 2px hsl(240 10% 8% / 0.05), 0 2px 6px hsl(240 10% 8% / 0.04);
+    --shadow-md: 0 4px 12px hsl(240 10% 8% / 0.06), 0 2px 4px hsl(240 10% 8% / 0.04);
+    --shadow-lg: 0 16px 40px hsl(240 10% 8% / 0.10), 0 4px 12px hsl(240 10% 8% / 0.05);
+    --shadow-glow: 0 0 0 4px hsl(232 83% 60% / 0.16);
+    --shadow-focus: 0 0 0 3px hsl(232 83% 60% / 0.22);
 
     /* ----- Motion ----- */
     --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
     --transition: all 160ms var(--ease-out);
+  }
+
+  .dark {
+    --background: 240 8% 8%;
+    --foreground: 40 10% 96%;
+    --surface: 240 6% 11%;
+    --surface-muted: 240 6% 14%;
+    --surface-sunken: 240 6% 9%;
+    --card: 240 6% 11%;
+    --card-foreground: 40 10% 96%;
+    --popover: 240 6% 11%;
+    --popover-foreground: 40 10% 96%;
+    --primary: 232 83% 66%;
+    --primary-foreground: 240 10% 8%;
+    --primary-soft: 232 50% 22%;
+    --primary-glow: 232 90% 72%;
+    --primary-strong: 232 75% 56%;
+    --secondary: 240 6% 16%;
+    --secondary-foreground: 40 10% 96%;
+    --muted: 240 6% 16%;
+    --muted-foreground: 240 5% 65%;
+    --border: 240 5% 20%;
+    --border-strong: 240 5% 28%;
+    --input: 240 5% 20%;
+    --ring: 232 83% 66%;
+    --sidebar-background: 240 8% 6%;
+    --sidebar-foreground: 240 5% 75%;
+    --sidebar-accent: 240 6% 14%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 240 5% 14%;
   }
 }
 
@@ -102,7 +132,7 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    font-family: 'Geist', 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
     font-feature-settings: 'cv11', 'ss01', 'ss03';
     font-size: 14px;
     line-height: 1.5;
@@ -110,14 +140,13 @@
   }
 
   h1, h2, h3, h4, h5 {
-    font-family: 'Inter Tight', 'Inter', sans-serif;
-    letter-spacing: -0.018em;
+    font-family: 'Geist', 'Inter Tight', 'Inter', sans-serif;
+    letter-spacing: -0.02em;
     @apply text-foreground font-semibold;
   }
 
-  ::selection { background: hsl(var(--primary) / 0.20); }
+  ::selection { background: hsl(var(--primary) / 0.22); }
 
-  /* Scrollbar */
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: hsl(var(--border-strong)); border-radius: 8px; border: 2px solid hsl(var(--background)); }
@@ -125,24 +154,22 @@
 }
 
 @layer components {
-  /* ----- Cards / Surfaces ----- */
   .surface-card {
-    @apply bg-card border border-border rounded-[10px];
+    @apply bg-card border border-border rounded-[var(--radius)];
     box-shadow: var(--shadow-xs);
     transition: var(--transition);
   }
   .surface-card:hover { box-shadow: var(--shadow-sm); border-color: hsl(var(--border-strong)); }
 
   .surface-card-elevated {
-    @apply bg-card border border-border rounded-[10px];
+    @apply bg-card border border-border rounded-[var(--radius)];
     box-shadow: var(--shadow-md);
   }
 
   .surface-panel {
-    @apply bg-surface-muted border border-border rounded-[10px];
+    @apply bg-surface-muted border border-border rounded-[var(--radius)];
   }
 
-  /* ----- Chips / Badges ----- */
   .chip {
     @apply inline-flex items-center gap-1.5 rounded-full text-xs font-medium px-2.5 py-1 border border-border bg-secondary text-secondary-foreground;
   }
@@ -152,7 +179,6 @@
   .chip-warning { background: hsl(var(--warning-soft)); color: hsl(var(--warning)); border-color: hsl(var(--warning) / 0.25); }
   .chip-danger  { background: hsl(var(--destructive-soft)); color: hsl(var(--destructive)); border-color: hsl(var(--destructive) / 0.2); }
 
-  /* ----- Buttons (utility classes — for legacy usage; prefer shadcn Button) ----- */
   .btn-primary {
     @apply inline-flex items-center gap-2 h-9 px-4 rounded-[8px] bg-primary text-primary-foreground text-sm font-medium transition-base;
     box-shadow: var(--shadow-xs);
@@ -167,7 +193,6 @@
     @apply inline-flex items-center gap-1.5 h-8 px-2.5 rounded-[8px] text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base;
   }
 
-  /* ----- Inputs ----- */
   .ds-input {
     @apply w-full rounded-[8px] border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-base;
     height: 36px;
@@ -179,7 +204,6 @@
   }
   .ds-textarea:focus { @apply outline-none border-ring; box-shadow: var(--shadow-focus); }
 
-  /* ----- Misc ----- */
   .grid-dots {
     background-image: radial-gradient(hsl(var(--border-strong)) 1px, transparent 1px);
     background-size: 18px 18px;
@@ -189,18 +213,15 @@
     @apply outline-none ring-offset-2 ring-offset-background focus-visible:ring-2 focus-visible:ring-ring;
   }
 
-  /* Section heading */
   .section-eyebrow {
     @apply text-[11px] font-semibold uppercase tracking-wider text-muted-foreground;
   }
 
-  /* Stat number */
   .stat-num {
-    font-family: 'Inter Tight', sans-serif;
+    font-family: 'Geist', 'Inter Tight', sans-serif;
     @apply text-2xl font-semibold tracking-tight text-foreground;
   }
 
-  /* Divider with label */
   .divider-label {
     @apply flex items-center gap-3 text-xs font-medium text-muted-foreground;
   }
@@ -210,8 +231,8 @@
 }
 
 @layer utilities {
-  .font-display { font-family: 'Inter Tight', sans-serif; }
-  .font-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+  .font-display { font-family: 'Geist', 'Inter Tight', sans-serif; }
+  .font-mono { font-family: 'Geist Mono', 'JetBrains Mono', ui-monospace, monospace; }
   .text-balance { text-wrap: balance; }
   .bg-gradient-hero { background: var(--gradient-hero); }
   .bg-gradient-soft { background: var(--gradient-soft); }
