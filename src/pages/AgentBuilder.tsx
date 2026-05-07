@@ -126,36 +126,57 @@ export default function AgentBuilder() {
 
       {/* Body */}
       <div className="flex flex-1 overflow-hidden relative">
-        {/* Left nav (agent-only) */}
-        <aside className="w-[220px] border-r border-border bg-surface overflow-y-auto shrink-0">
-          <div className="p-3 space-y-5">
-            {nav.map(group => (
-              <div key={group.label}>
-                <div className="px-2 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  {group.label}
+        {/* Left nav (agent-only) — hidden when AI chat is open */}
+        {!aiChatOpen && (
+          <aside className="w-[220px] border-r border-border bg-surface overflow-y-auto shrink-0">
+            <div className="p-3 space-y-5">
+              {nav.map(group => (
+                <div key={group.label}>
+                  <div className="px-2 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {group.label}
+                  </div>
+                  <div className="space-y-0.5">
+                    {group.items.map((it: any) => (
+                      <button
+                        key={it.id}
+                        onClick={() => setSection(it.id)}
+                        className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-base ${
+                          section === it.id
+                            ? "bg-primary-soft text-primary font-medium"
+                            : "text-foreground hover:bg-surface-muted"
+                        }`}
+                      >
+                        <it.icon size={14} className="shrink-0" />
+                        <span className="flex-1 text-left truncate">{it.label}</span>
+                        {it.status === "done" && <CheckCircle2 size={11} className="text-success" />}
+                        {it.status === "warn" && <span className="w-1.5 h-1.5 rounded-full bg-warning" />}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="space-y-0.5">
-                  {group.items.map((it: any) => (
-                    <button
-                      key={it.id}
-                      onClick={() => setSection(it.id)}
-                      className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-base ${
-                        section === it.id
-                          ? "bg-primary-soft text-primary font-medium"
-                          : "text-foreground hover:bg-surface-muted"
-                      }`}
-                    >
-                      <it.icon size={14} className="shrink-0" />
-                      <span className="flex-1 text-left truncate">{it.label}</span>
-                      {it.status === "done" && <CheckCircle2 size={11} className="text-success" />}
-                      {it.status === "warn" && <span className="w-1.5 h-1.5 rounded-full bg-warning" />}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </aside>
+              ))}
+            </div>
+            <div className="p-3 pt-0">
+              <button
+                onClick={() => setAiChatOpen(true)}
+                className="w-full h-9 rounded-lg border border-primary/30 bg-primary-soft text-primary hover:bg-primary-soft/70 text-xs font-medium flex items-center justify-center gap-1.5 transition-base"
+              >
+                <Sparkles size={12} /> Refine with AI
+              </button>
+            </div>
+          </aside>
+        )}
+
+        {/* AI chat sidebar — replaces left nav when active */}
+        {aiChatOpen && (
+          <AiBuildSidebar
+            onClose={() => setAiChatOpen(false)}
+            contextLabel={currentSectionLabel}
+            sections={nav.flatMap(g => g.items)}
+            currentSection={section}
+            onSectionChange={setSection}
+          />
+        )}
 
         {/* Content + Preview */}
         <div className="flex-1 flex overflow-hidden">
@@ -171,9 +192,6 @@ export default function AgentBuilder() {
 
           {tab === "develop" && <PreviewPanel />}
         </div>
-
-        {/* AI build chat overlay (covers left nav + content; preview stays) */}
-        {aiChatOpen && <AiBuildOverlay onClose={() => setAiChatOpen(false)} contextLabel={currentSectionLabel} />}
       </div>
     </div>
   );
