@@ -28,11 +28,11 @@
     --popover-foreground: 240 10% 8%;
 
     /* ----- Brand: vibrant indigo-blue (preset primary) ----- */
-    --primary: 232 83% 60%;             /* indigo-blue 500/600 */
+    --primary: 231 75% 49%;             /* #203BDC */
     --primary-foreground: 0 0% 100%;
-    --primary-soft: 232 90% 96%;
-    --primary-glow: 232 90% 66%;
-    --primary-strong: 232 75% 48%;
+    --primary-soft: 231 90% 96%;
+    --primary-glow: 231 82% 56%;
+    --primary-strong: 231 68% 42%;
 
     /* ----- Accent: emerald (matches preset's green pill) ----- */
     --accent: 152 60% 42%;
@@ -60,22 +60,22 @@
     --border: 40 10% 88%;
     --border-strong: 40 8% 80%;
     --input: 40 10% 88%;
-    --ring: 232 83% 60%;
+    --ring: 231 75% 49%;
 
     --radius: 0.625rem;                 /* 10px — preset radius */
 
     /* ----- Sidebar: dark zinc-950, like preset ----- */
     --sidebar-background: 240 6% 10%;
     --sidebar-foreground: 240 5% 75%;
-    --sidebar-primary: 232 83% 60%;
+    --sidebar-primary: 231 75% 49%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 6% 16%;          /* hover/active bg */
     --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 240 5% 18%;
-    --sidebar-ring: 232 83% 60%;
+    --sidebar-ring: 231 75% 49%;
 
     /* ----- Gradients ----- */
-    --gradient-hero: radial-gradient(80% 60% at 10% 0%, hsl(232 83% 60% / 0.08), transparent 60%),
+    --gradient-hero: radial-gradient(80% 60% at 10% 0%, hsl(231 75% 49% / 0.08), transparent 60%),
                      radial-gradient(60% 50% at 90% 10%, hsl(152 60% 42% / 0.06), transparent 60%),
                      linear-gradient(180deg, hsl(40 24% 98%) 0%, hsl(40 18% 95%) 100%);
     --gradient-brand: linear-gradient(135deg, hsl(232 83% 60%), hsl(232 75% 48%));
@@ -87,7 +87,7 @@
     --shadow-md: 0 4px 12px hsl(240 10% 8% / 0.06), 0 2px 4px hsl(240 10% 8% / 0.04);
     --shadow-lg: 0 16px 40px hsl(240 10% 8% / 0.10), 0 4px 12px hsl(240 10% 8% / 0.05);
     --shadow-glow: 0 0 0 4px hsl(232 83% 60% / 0.16);
-    --shadow-focus: 0 0 0 3px hsl(232 83% 60% / 0.22);
+    --shadow-focus: 0 0 0 3px hsl(231 75% 49% / 0.22);
 
     /* ----- Motion ----- */
     --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
@@ -104,11 +104,11 @@
     --card-foreground: 40 10% 96%;
     --popover: 240 6% 11%;
     --popover-foreground: 40 10% 96%;
-    --primary: 232 83% 66%;
+    --primary: 231 75% 56%;
     --primary-foreground: 240 10% 8%;
-    --primary-soft: 232 50% 22%;
-    --primary-glow: 232 90% 72%;
-    --primary-strong: 232 75% 56%;
+    --primary-soft: 231 50% 22%;
+    --primary-glow: 231 82% 63%;
+    --primary-strong: 231 68% 49%;
     --secondary: 240 6% 16%;
     --secondary-foreground: 40 10% 96%;
     --muted: 240 6% 16%;
@@ -116,7 +116,7 @@
     --border: 240 5% 20%;
     --border-strong: 240 5% 28%;
     --input: 240 5% 20%;
-    --ring: 232 83% 66%;
+    --ring: 231 75% 56%;
     --sidebar-background: 240 8% 6%;
     --sidebar-foreground: 240 5% 75%;
     --sidebar-accent: 240 6% 14%;
