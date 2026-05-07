@@ -60,19 +60,19 @@
     --border: 40 10% 88%;
     --border-strong: 40 8% 80%;
     --input: 40 10% 88%;
-    --ring: 232 83% 60%;
+    --ring: 231 75% 49%;
 
     --radius: 0.625rem;                 /* 10px — preset radius */
 
     /* ----- Sidebar: dark zinc-950, like preset ----- */
     --sidebar-background: 240 6% 10%;
     --sidebar-foreground: 240 5% 75%;
-    --sidebar-primary: 232 83% 60%;
+    --sidebar-primary: 231 75% 49%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 6% 16%;          /* hover/active bg */
     --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 240 5% 18%;
-    --sidebar-ring: 232 83% 60%;
+    --sidebar-ring: 231 75% 49%;
 
     /* ----- Gradients ----- */
     --gradient-hero: radial-gradient(80% 60% at 10% 0%, hsl(231 75% 49% / 0.08), transparent 60%),
