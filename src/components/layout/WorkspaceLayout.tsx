@@ -35,7 +35,7 @@ const groups: Group[] = [
 ];
 
 const utilityItems: Item[] = [
-  { to: "/docs", label: "Help Center", icon: FileText },
+  { to: "/docs", label: "Docs", icon: FileText },
 ];
 
 export default function WorkspaceLayout() {
