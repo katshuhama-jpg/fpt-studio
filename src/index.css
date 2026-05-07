@@ -87,7 +87,7 @@
     --shadow-md: 0 4px 12px hsl(240 10% 8% / 0.06), 0 2px 4px hsl(240 10% 8% / 0.04);
     --shadow-lg: 0 16px 40px hsl(240 10% 8% / 0.10), 0 4px 12px hsl(240 10% 8% / 0.05);
     --shadow-glow: 0 0 0 4px hsl(232 83% 60% / 0.16);
-    --shadow-focus: 0 0 0 3px hsl(232 83% 60% / 0.22);
+    --shadow-focus: 0 0 0 3px hsl(231 75% 49% / 0.22);
 
     /* ----- Motion ----- */
     --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
@@ -104,11 +104,11 @@
     --card-foreground: 40 10% 96%;
     --popover: 240 6% 11%;
     --popover-foreground: 40 10% 96%;
-    --primary: 232 83% 66%;
+    --primary: 231 75% 56%;
     --primary-foreground: 240 10% 8%;
-    --primary-soft: 232 50% 22%;
-    --primary-glow: 232 90% 72%;
-    --primary-strong: 232 75% 56%;
+    --primary-soft: 231 50% 22%;
+    --primary-glow: 231 82% 63%;
+    --primary-strong: 231 68% 49%;
     --secondary: 240 6% 16%;
     --secondary-foreground: 40 10% 96%;
     --muted: 240 6% 16%;
@@ -116,7 +116,7 @@
     --border: 240 5% 20%;
     --border-strong: 240 5% 28%;
     --input: 240 5% 20%;
-    --ring: 232 83% 66%;
+    --ring: 231 75% 56%;
     --sidebar-background: 240 8% 6%;
     --sidebar-foreground: 240 5% 75%;
     --sidebar-accent: 240 6% 14%;
