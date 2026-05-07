@@ -110,7 +110,7 @@ export default function AgentBuilder() {
             onClick={() => setAiChatOpen(true)}
             className="h-9 px-3 rounded-lg border border-primary/30 bg-primary-soft text-primary hover:bg-primary-soft/70 text-sm font-medium flex items-center gap-1.5 transition-base"
           >
-            <Sparkles size={13} /> AI build
+            <Sparkles size={13} /> Edit with AI
           </button>
           <button className="h-9 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base">
             <Save size={13} /> Save
@@ -181,6 +181,13 @@ export default function AgentBuilder() {
 
 /* ============ AI BUILD OVERLAY ============ */
 function AiBuildOverlay({ onClose, contextLabel }: { onClose: () => void; contextLabel: string }) {
+  const quickActions = [
+    "Tighten the system prompt",
+    "Add a guardrail against legal advice",
+    "Draft 5 opening questions",
+    "Make tone more formal",
+    "Translate persona to Vietnamese",
+  ];
   return (
     <div className="absolute inset-0 z-30 flex">
       <div className="w-[calc(100%-320px)] bg-surface border-r border-border shadow-pop flex flex-col animate-fade-up">
@@ -189,7 +196,7 @@ function AiBuildOverlay({ onClose, contextLabel }: { onClose: () => void; contex
             <Sparkles size={13} className="text-primary-foreground" />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-semibold">AI build</div>
+            <div className="text-sm font-semibold">Edit agent with AI</div>
             <div className="text-[10px] text-muted-foreground">
               Editing in context: <span className="text-primary font-medium">@{contextLabel}</span>
             </div>
@@ -201,11 +208,37 @@ function AiBuildOverlay({ onClose, contextLabel }: { onClose: () => void; contex
 
         <div className="flex-1 overflow-y-auto p-5 space-y-3 bg-gradient-soft">
           <div className="max-w-2xl mx-auto space-y-3">
-            <div className="text-xs text-muted-foreground italic px-2">
-              Describe what you want to change. The AI will edit the current section for you.
-            </div>
             <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 text-sm">
-              Hi Nam — I'm focused on <b>{contextLabel}</b>. Try things like “tighten the system prompt”, “add a guardrail against legal advice”, or “draft 5 opening questions”.
+              Hi Nam — I'm focused on <b>{contextLabel}</b>. Tell me what to change and I'll propose a diff you can approve.
+            </div>
+
+            {/* Example diff card */}
+            <div className="rounded-xl border border-primary/30 bg-primary-soft/40 p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles size={12} className="text-primary" />
+                <span className="text-[11px] font-semibold text-primary">Proposed change · System prompt</span>
+              </div>
+              <div className="space-y-1 font-mono text-[11px]">
+                <div className="bg-destructive/10 text-destructive px-2 py-1 rounded line-through">
+                  − Help customers 24/7 in a friendly tone.
+                </div>
+                <div className="bg-success/10 text-success px-2 py-1 rounded">
+                  + Help customers 24/7 in a professional, empathetic tone. Verify identity before any sensitive action.
+                </div>
+              </div>
+              <div className="flex items-center gap-2 mt-2">
+                <button className="h-7 px-3 rounded-md bg-primary text-primary-foreground text-[11px] font-medium">Apply</button>
+                <button className="h-7 px-3 rounded-md hover:bg-surface-muted text-[11px] text-muted-foreground">Discard</button>
+                <span className="ml-auto text-[10px] text-muted-foreground">Touches 1 field</span>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {quickActions.map(s => (
+                <button key={s} className="text-[11px] px-2.5 py-1 rounded-full bg-surface border border-border hover:bg-primary-soft hover:text-primary hover:border-primary/30 transition-base">
+                  {s}
+                </button>
+              ))}
             </div>
           </div>
         </div>
@@ -225,10 +258,12 @@ function AiBuildOverlay({ onClose, contextLabel }: { onClose: () => void; contex
                 <Send size={13} />
               </button>
             </div>
+            <div className="text-[10px] text-muted-foreground mt-1.5 px-1">
+              Type <code className="font-mono">@</code> to switch context to another section (Knowledge, Tools, Tasks…).
+            </div>
           </div>
         </div>
       </div>
-      {/* Click-outside on the right (preview area still visible underneath) */}
       <div className="flex-1" onClick={onClose} />
     </div>
   );

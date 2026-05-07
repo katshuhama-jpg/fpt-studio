@@ -48,7 +48,7 @@ export default function Home() {
                   Use a template
                 </button>
                 <Link
-                  to="/agents/new"
+                  to={`/agents/new${prompt.trim() ? `?prompt=${encodeURIComponent(prompt.trim())}` : ""}`}
                   className="h-8 px-3.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 shadow-soft transition-base"
                 >
                   <Sparkles size={13} /> Build agent <Send size={11} />

@@ -8,6 +8,7 @@ import Home from "./pages/Home";
 import MyAgents from "./pages/MyAgents";
 import AgentsList from "./pages/AgentsList";
 import AgentBuilder from "./pages/AgentBuilder";
+import AgentScaffold from "./pages/AgentScaffold";
 import TaskEditor from "./pages/TaskEditor";
 import WorkspaceSettings from "./pages/WorkspaceSettings";
 import PlaceholderPage from "./pages/PlaceholderPage";
@@ -26,6 +27,7 @@ const App = () => (
             <Route path="/" element={<Home />} />
             <Route path="/my-agents" element={<MyAgents />} />
             <Route path="/agents" element={<AgentsList />} />
+            <Route path="/agents/new" element={<AgentScaffold />} />
             <Route path="/agents/:id" element={<AgentBuilder />} />
             <Route path="/agents/:id/tasks/:taskId" element={<TaskEditor />} />
             <Route path="/knowledge" element={<PlaceholderPage title="Workspace Knowledge" />} />
