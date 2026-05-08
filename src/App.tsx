@@ -10,6 +10,7 @@ import AgentsList from "./pages/AgentsList";
 import AgentBuilder from "./pages/AgentBuilder";
 import AgentScaffold from "./pages/AgentScaffold";
 import TaskEditor from "./pages/TaskEditor";
+import ToolBuilder from "./pages/ToolBuilder";
 import WorkspaceSettings from "./pages/WorkspaceSettings";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import NotFound from "./pages/NotFound.tsx";
@@ -30,6 +31,10 @@ const App = () => (
             <Route path="/agents/new" element={<AgentScaffold />} />
             <Route path="/agents/:id" element={<AgentBuilder />} />
             <Route path="/agents/:id/tasks/:taskId" element={<TaskEditor />} />
+          </Route>
+          <Route path="/agents/:id/tools/new" element={<ToolBuilder />} />
+          <Route path="/agents/:id/tools/:toolId" element={<ToolBuilder />} />
+          <Route element={<WorkspaceLayout />}>
             <Route path="/knowledge" element={<PlaceholderPage title="Workspace Knowledge" />} />
             <Route path="/settings" element={<WorkspaceSettings />} />
             <Route path="/templates" element={<PlaceholderPage title="Template Store" />} />
