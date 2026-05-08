@@ -1,21 +1,117 @@
 import { useNavigate, useParams, Link } from "react-router-dom";
 import {
-  ChevronLeft, Save, Play, History, Wrench, BookOpen, Plus, Trash2, ChevronDown,
-  ArrowRight, Code2, GitBranch, MessageSquare, FileText, Sparkles,
+  ChevronLeft, Save, Play, History, Rocket, Sparkles,
 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import {
+  ReactFlowProvider, useNodesState, useEdgesState, type ReactFlowInstance,
+} from "reactflow";
+
+import NodeLibrary from "@/components/tool-builder/NodeLibrary";
+import Canvas from "@/components/tool-builder/Canvas";
+import Inspector from "@/components/tool-builder/Inspector";
+import TestDrawer from "@/components/tool-builder/TestDrawer";
+import type { NodeData, ToolNode, ToolEdge } from "@/components/tool-builder/types";
+
+const startTemplates: { id: string; name: string; desc: string; build: () => { nodes: ToolNode[]; edges: ToolEdge[] } }[] = [
+  {
+    id: "blank",
+    name: "Blank canvas",
+    desc: "Start from scratch with a single trigger.",
+    build: () => ({
+      nodes: [{
+        id: "n1", type: "flow", position: { x: 80, y: 180 },
+        data: { kind: "trigger", label: "User intent", config: {} },
+      }],
+      edges: [],
+    }),
+  },
+  {
+    id: "lock-card",
+    name: "Lock credit card",
+    desc: "Verify customer → call lock API → reply.",
+    build: () => ({
+      nodes: [
+        { id: "n1", type: "flow", position: { x: 40, y: 180 }, data: { kind: "trigger", label: "User asks to lock card", config: {} } },
+        { id: "n2", type: "flow", position: { x: 280, y: 180 }, data: { kind: "http", label: "verify_customer", config: { method: "POST", url: "/tools/verify_customer" } } },
+        { id: "n3", type: "flow", position: { x: 540, y: 80 }, data: { kind: "if", label: "Verified?", config: { condition: "prev.ok === true" } } },
+        { id: "n4", type: "flow", position: { x: 800, y: 40 }, data: { kind: "http", label: "lock_card_api", config: { method: "POST" } } },
+        { id: "n5", type: "flow", position: { x: 1060, y: 80 }, data: { kind: "llm", label: "Confirm to user", config: {} } },
+        { id: "n6", type: "flow", position: { x: 800, y: 220 }, data: { kind: "output", label: "Escalate to agent", config: {} } },
+      ],
+      edges: [
+        { id: "e1", source: "n1", target: "n2", animated: true, style: { strokeWidth: 2 } },
+        { id: "e2", source: "n2", target: "n3", animated: true, style: { strokeWidth: 2 } },
+        { id: "e3", source: "n3", target: "n4", animated: true, style: { strokeWidth: 2 } },
+        { id: "e4", source: "n4", target: "n5", animated: true, style: { strokeWidth: 2 } },
+        { id: "e5", source: "n3", target: "n6", animated: true, style: { strokeWidth: 2 } },
+      ],
+    }),
+  },
+  {
+    id: "kb-answer",
+    name: "Knowledge Q&A",
+    desc: "Lookup KB → compose with LLM → reply.",
+    build: () => ({
+      nodes: [
+        { id: "n1", type: "flow", position: { x: 40, y: 180 }, data: { kind: "trigger", label: "User question", config: {} } },
+        { id: "n2", type: "flow", position: { x: 300, y: 180 }, data: { kind: "knowledge", label: "Lookup KB", config: { topK: 4 } } },
+        { id: "n3", type: "flow", position: { x: 580, y: 180 }, data: { kind: "llm", label: "Compose answer", config: {} } },
+        { id: "n4", type: "flow", position: { x: 860, y: 180 }, data: { kind: "output", label: "Reply", config: {} } },
+      ],
+      edges: [
+        { id: "e1", source: "n1", target: "n2", animated: true, style: { strokeWidth: 2 } },
+        { id: "e2", source: "n2", target: "n3", animated: true, style: { strokeWidth: 2 } },
+        { id: "e3", source: "n3", target: "n4", animated: true, style: { strokeWidth: 2 } },
+      ],
+    }),
+  },
+];
 
 export default function TaskEditor() {
-  const { id = "cskh", taskId = "lock-card" } = useParams();
+  const { id: agentId = "cskh", taskId = "lock-card" } = useParams();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<"design" | "preview" | "logs">("design");
+
+  const [name, setName] = useState("Lock credit card");
+  const [description, setDescription] = useState(
+    "Verify customer identity, then call the lock_card_api tool to lock the user's card. Confirm with the customer.",
+  );
+  const [nodes, setNodes, onNodesChange] = useNodesState<NodeData>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<any>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
+  const [testOpen, setTestOpen] = useState(false);
+  const [pickedTemplate, setPickedTemplate] = useState(false);
+
+  const selectedNode = useMemo(
+    () => nodes.find(n => n.id === selectedId) || null,
+    [nodes, selectedId],
+  );
+
+  const updateNode = useCallback((id: string, patch: Partial<NodeData>) => {
+    setNodes(ns => ns.map(n => n.id === id ? { ...n, data: { ...n.data, ...patch } } : n));
+  }, [setNodes]);
+
+  const deleteNode = useCallback((id: string) => {
+    setNodes(ns => ns.filter(n => n.id !== id));
+    setEdges(es => es.filter(e => e.source !== id && e.target !== id));
+    setSelectedId(null);
+  }, [setNodes, setEdges]);
+
+  const applyTemplate = (tplId: string) => {
+    const t = startTemplates.find(s => s.id === tplId)!;
+    const built = t.build();
+    setNodes(built.nodes);
+    setEdges(built.edges);
+    setPickedTemplate(true);
+  };
 
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Top bar with breadcrumbs */}
       <div className="h-14 border-b border-border bg-surface flex items-center px-5 gap-3 shrink-0">
         <button
-          onClick={() => navigate(`/agents/${id}?tab=develop&section=task`)}
+          onClick={() => navigate(`/agents/${agentId}?tab=develop&section=task`)}
           className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-base"
         >
           <ChevronLeft size={15} /> Back to agent
@@ -24,196 +120,114 @@ export default function TaskEditor() {
         <nav className="flex items-center gap-1.5 text-sm min-w-0">
           <Link to="/agents" className="text-muted-foreground hover:text-foreground">Agents</Link>
           <span className="text-muted-foreground">/</span>
-          <Link to={`/agents/${id}`} className="text-muted-foreground hover:text-foreground truncate max-w-[180px]">
-            Banking ABC
-          </Link>
+          <Link to={`/agents/${agentId}`} className="text-muted-foreground hover:text-foreground">Banking ABC</Link>
           <span className="text-muted-foreground">/</span>
           <span className="text-muted-foreground">Tasks</span>
           <span className="text-muted-foreground">/</span>
-          <span className="font-medium text-foreground truncate">Lock credit card</span>
+          <input
+            value={name}
+            onChange={e => setName(e.target.value)}
+            className="bg-transparent outline-none font-medium text-foreground min-w-0 px-1.5 py-0.5 rounded hover:bg-surface-muted focus:bg-surface-muted transition-base"
+          />
+          <span className="chip">Task · workflow</span>
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
           <button className="btn-ghost h-9">
-            <History size={13} /> v3 · History
+            <History size={13} /> v3
           </button>
-          <button className="h-9 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base">
-            <Play size={13} /> Test run
-          </button>
-          <button className="btn-primary h-9">
-            <Save size={13} /> Save changes
-          </button>
-        </div>
-      </div>
-
-      {/* Sub-tabs */}
-      <div className="border-b border-border bg-surface px-5 flex items-center gap-1 shrink-0">
-        {(["design", "preview", "logs"] as const).map(t => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`relative h-10 px-4 text-sm font-medium capitalize transition-base ${
-              tab === t ? "text-primary" : "text-muted-foreground hover:text-foreground"
+            onClick={() => setTestOpen(v => !v)}
+            className={`h-9 px-3 rounded-lg border text-sm font-medium flex items-center gap-1.5 transition-base ${
+              testOpen ? "border-primary bg-primary text-primary-foreground" : "border-border bg-surface hover:bg-surface-muted"
             }`}
           >
-            {t}
-            {tab === t && <span className="absolute inset-x-3 -bottom-px h-0.5 bg-primary rounded-full" />}
+            <Play size={13} /> Test run
           </button>
-        ))}
+          <button className="h-9 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base">
+            <Save size={13} /> Save
+          </button>
+          <button className="btn-primary h-9">
+            <Rocket size={13} /> Publish
+          </button>
+        </div>
       </div>
 
-      {/* Body — wide canvas, no preview panel: Tasks deserve full width */}
-      <div className="flex-1 overflow-y-auto bg-gradient-soft">
-        <div className="max-w-5xl mx-auto p-8 space-y-5 animate-fade-up">
-          {/* Header card */}
-          <div className="surface-card p-6">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-xl bg-accent-soft text-accent flex items-center justify-center shrink-0">
-                <GitBranch size={20} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <input
-                  defaultValue="Lock credit card"
-                  className="w-full bg-transparent font-display text-xl font-semibold tracking-tight focus:outline-none"
-                />
-                <textarea
-                  defaultValue="Verify customer identity, then call the lock_card_api tool to lock the user's card. Confirm with the customer."
-                  className="w-full bg-transparent text-sm text-muted-foreground mt-1 resize-none focus:outline-none"
-                  rows={2}
-                />
-              </div>
-              <div className="flex flex-col items-end gap-2 shrink-0">
-                <span className="chip chip-primary">Workflow</span>
-                <span className="text-[10px] text-muted-foreground">Updated 2 min ago</span>
-              </div>
-            </div>
-
-            {/* Inputs */}
-            <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-3">
-              <Field label="When to trigger">
-                <button className="ds-input flex items-center justify-between cursor-pointer text-left">
-                  <span>User asks to lock or block their card</span>
-                  <ChevronDown size={14} />
-                </button>
-              </Field>
-              <Field label="Required input">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="chip chip-primary">phone_number</span>
-                  <span className="chip">card_last4</span>
-                  <button className="btn-ghost text-xs"><Plus size={11} /> Add</button>
-                </div>
-              </Field>
-            </div>
+      {/* Body — full-bleed workflow canvas */}
+      <div className="flex-1 flex overflow-hidden relative">
+        <NodeLibrary />
+        <ReactFlowProvider>
+          <div className="flex-1 relative flex">
+            {!pickedTemplate ? (
+              <TemplatePicker onPick={applyTemplate} />
+            ) : (
+              <Canvas
+                nodes={nodes as ToolNode[]}
+                edges={edges}
+                setNodes={setNodes}
+                onNodesChange={onNodesChange}
+                setEdges={setEdges}
+                onEdgesChange={onEdgesChange}
+                selectedId={selectedId}
+                setSelectedId={setSelectedId}
+                rfInstance={rfInstance}
+                setRfInstance={setRfInstance}
+              />
+            )}
+            <TestDrawer
+              open={testOpen}
+              onClose={() => setTestOpen(false)}
+              nodes={nodes as ToolNode[]}
+              edges={edges}
+            />
           </div>
+        </ReactFlowProvider>
+        <Inspector node={selectedNode as ToolNode | null} onChange={updateNode} onDelete={deleteNode} />
+      </div>
 
-          {/* Steps — list mode (no canvas this iteration) */}
-          <div className="surface-card p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="font-display text-base font-semibold">Steps</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Linear flow. Each step can call a tool, fetch knowledge, or branch on a condition.</p>
-              </div>
-              <button className="btn-ghost"><Plus size={12} /> Add step</button>
-            </div>
+      {/* Description footer */}
+      <div className="h-10 border-t border-border bg-surface px-4 flex items-center gap-2 shrink-0">
+        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Description</span>
+        <input
+          className="bg-transparent outline-none flex-1 text-[12px] placeholder:text-muted-foreground"
+          placeholder="Describe what this task does so the agent knows when to run it."
+          value={description}
+          onChange={e => setDescription(e.target.value)}
+        />
+        <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+          <Sparkles size={10} /> tip: describe the user intent and outcome
+        </span>
+      </div>
+    </div>
+  );
+}
 
-            <div className="space-y-2">
-              {steps.map((s, i) => (
-                <div key={s.id} className="group rounded-lg bg-surface-muted/50 hover:bg-surface-muted transition-base">
-                  <div className="flex items-start gap-3 p-4">
-                    <div className="w-7 h-7 rounded-full bg-primary text-primary-foreground text-[11px] font-bold font-display flex items-center justify-center shrink-0 mt-0.5">
-                      {i + 1}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <s.icon size={13} className={s.iconColor} />
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{s.kind}</span>
-                      </div>
-                      <div className="text-sm font-medium mb-1">{s.title}</div>
-                      <div className="text-xs text-muted-foreground">{s.desc}</div>
-                      {s.refs && (
-                        <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
-                          {s.refs.map(r => (
-                            <span key={r.label} className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-surface border border-border font-medium">
-                              <r.icon size={10} /> {r.label}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <button className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-base">
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                  {i < steps.length - 1 && (
-                    <div className="flex justify-center pb-1.5">
-                      <ArrowRight size={12} className="text-muted-foreground rotate-90" />
-                    </div>
-                  )}
-                </div>
-              ))}
-              <button className="w-full border-2 border-dashed border-border hover:border-primary/40 hover:bg-primary-soft/20 rounded-lg py-3 text-sm text-muted-foreground hover:text-primary transition-base flex items-center justify-center gap-1.5">
-                <Plus size={13} /> Add step
-              </button>
-            </div>
+function TemplatePicker({ onPick }: { onPick: (id: string) => void }) {
+  return (
+    <div className="flex-1 flex items-center justify-center bg-gradient-soft p-8">
+      <div className="max-w-3xl w-full">
+        <div className="text-center mb-6">
+          <div className="w-12 h-12 mx-auto rounded-2xl bg-primary-soft text-primary flex items-center justify-center mb-3">
+            <Sparkles size={20} />
           </div>
-
-          {/* Output schema */}
-          <div className="surface-card p-6">
-            <div className="flex items-center gap-2 mb-3">
-              <Code2 size={15} className="text-primary" />
-              <h3 className="font-display text-base font-semibold">Output</h3>
-            </div>
-            <pre className="text-xs font-mono bg-surface-muted rounded-lg p-4 overflow-x-auto">
-{`{
-  "card_locked": true,
-  "card_last4": "4421",
-  "ticket_id": "TKT-58291",
-  "user_message": "Your card ending in 4421 has been locked successfully."
-}`}
-            </pre>
-          </div>
+          <h2 className="font-display text-xl font-semibold mb-1">Start your task workflow</h2>
+          <p className="text-sm text-muted-foreground">
+            Pick a starting point. Drag nodes from the left to build a flow like in n8n / Dify.
+          </p>
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          {startTemplates.map(t => (
+            <button
+              key={t.id}
+              onClick={() => onPick(t.id)}
+              className="text-left p-4 rounded-xl border border-border bg-surface hover:border-primary/50 hover:shadow-soft transition-base"
+            >
+              <div className="font-display font-semibold text-sm mb-1">{t.name}</div>
+              <div className="text-xs text-muted-foreground">{t.desc}</div>
+            </button>
+          ))}
         </div>
       </div>
     </div>
   );
 }
-
-function Field({ label, children }: any) {
-  return (
-    <div>
-      <label className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{label}</label>
-      {children}
-    </div>
-  );
-}
-
-const steps = [
-  {
-    id: 1, kind: "Collect input", icon: MessageSquare, iconColor: "text-primary",
-    title: "Ask for phone number",
-    desc: "Prompt: 'Could you share the phone number registered with your account?'",
-  },
-  {
-    id: 2, kind: "Call tool", icon: Wrench, iconColor: "text-accent",
-    title: "verify_customer(phone)",
-    desc: "Match customer record. On failure → escalate to agent.",
-    refs: [{ icon: Wrench, label: "verify_customer" }],
-  },
-  {
-    id: 3, kind: "Retrieve knowledge", icon: BookOpen, iconColor: "text-info",
-    title: "Lookup card-lock policy",
-    desc: "Pull eligibility rules from the Customer FAQ knowledge source.",
-    refs: [{ icon: FileText, label: "Customer FAQ" }],
-  },
-  {
-    id: 4, kind: "Call tool", icon: Wrench, iconColor: "text-accent",
-    title: "lock_card_api(card_id)",
-    desc: "Lock the card. Returns ticket_id + status.",
-    refs: [{ icon: Wrench, label: "lock_card_api" }],
-  },
-  {
-    id: 5, kind: "Reply", icon: Sparkles, iconColor: "text-success",
-    title: "Confirm to user",
-    desc: "Use friendly tone, include card last 4 digits and ticket reference.",
-  },
-];
