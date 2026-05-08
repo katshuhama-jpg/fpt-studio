@@ -10,6 +10,7 @@ import AgentsList from "./pages/AgentsList";
 import AgentBuilder from "./pages/AgentBuilder";
 import AgentScaffold from "./pages/AgentScaffold";
 import TaskEditor from "./pages/TaskEditor";
+import ToolBuilder from "./pages/ToolBuilder";
 import WorkspaceSettings from "./pages/WorkspaceSettings";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import NotFound from "./pages/NotFound.tsx";
