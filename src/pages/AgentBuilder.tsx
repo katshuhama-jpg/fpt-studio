@@ -606,8 +606,6 @@ function PerformanceTab() {
 /* ============ TOOLS ============ */
 function ToolsTab({ agentId }: { agentId: string }) {
   const navigate = useNavigate();
-  // import lazily to avoid cycles
-  const { toolStore } = require("@/components/tool-builder/types") as typeof import("@/components/tool-builder/types");
   const tools = toolStore.list(agentId);
 
   return (
