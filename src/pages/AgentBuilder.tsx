@@ -7,6 +7,7 @@ import {
   Star, Users as UsersIcon, History, Download, X, SlidersHorizontal, Smartphone, Monitor,
 } from "lucide-react";
 import { useState } from "react";
+import { toolStore } from "@/components/tool-builder/types";
 
 type Tab = "develop" | "monitor";
 
