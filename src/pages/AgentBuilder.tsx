@@ -602,6 +602,77 @@ function PerformanceTab() {
   );
 }
 
+/* ============ TOOLS ============ */
+function ToolsTab({ agentId }: { agentId: string }) {
+  const navigate = useNavigate();
+  // import lazily to avoid cycles
+  const { toolStore } = require("@/components/tool-builder/types") as typeof import("@/components/tool-builder/types");
+  const tools = toolStore.list(agentId);
+
+  return (
+    <div className="p-8 max-w-4xl mx-auto space-y-6 animate-fade-up">
+      <header className="flex items-start gap-3">
+        <div className="w-9 h-9 rounded-lg bg-primary-soft text-primary flex items-center justify-center shrink-0">
+          <Wrench size={16} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-display font-semibold text-sm">Tools</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Build workflow-based tools the agent can call. Compose triggers, API calls, logic and AI steps on a visual canvas.
+          </p>
+        </div>
+        <button
+          onClick={() => navigate(`/agents/${agentId}/tools/new`)}
+          className="btn-primary h-9"
+        >
+          <Plus size={13} /> New tool
+        </button>
+      </header>
+
+      {tools.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border bg-surface p-10 text-center">
+          <div className="w-12 h-12 mx-auto rounded-2xl bg-primary-soft text-primary flex items-center justify-center mb-3">
+            <Wrench size={20} />
+          </div>
+          <div className="font-display font-semibold text-sm mb-1">No tools yet</div>
+          <p className="text-xs text-muted-foreground mb-4">Tools let your agent do real work — call APIs, look things up, or run logic.</p>
+          <button onClick={() => navigate(`/agents/${agentId}/tools/new`)} className="btn-primary h-9 mx-auto">
+            <Plus size={13} /> Create your first tool
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          {tools.map(t => {
+            const localId = t.id.replace(`${agentId}:`, "");
+            const updated = new Date(t.updatedAt);
+            return (
+              <button
+                key={t.id}
+                onClick={() => navigate(`/agents/${agentId}/tools/${localId}`)}
+                className="text-left p-4 rounded-xl border border-border bg-surface hover:border-primary/40 hover:shadow-soft transition-base"
+              >
+                <div className="flex items-center gap-2 mb-1.5">
+                  <div className="w-7 h-7 rounded-md bg-accent-soft text-accent flex items-center justify-center text-xs font-bold">⚙</div>
+                  <span className="font-mono text-[13px] font-semibold flex-1 truncate">{t.name}</span>
+                  <span className={`chip ${t.status === "published" ? "chip-primary" : ""}`}>{t.status}</span>
+                </div>
+                <p className="text-xs text-muted-foreground line-clamp-2 min-h-[2lh]">
+                  {t.description || "No description."}
+                </p>
+                <div className="flex items-center gap-3 mt-3 text-[10px] text-muted-foreground">
+                  <span>{t.nodes.length} step{t.nodes.length === 1 ? "" : "s"}</span>
+                  <span>·</span>
+                  <span>updated {updated.toLocaleDateString()}</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ============ PLACEHOLDER ============ */
 function PlaceholderTab({ title }: { title: string }) {
   return (
