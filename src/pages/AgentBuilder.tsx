@@ -187,9 +187,10 @@ export default function AgentBuilder() {
           <div className="flex-1 overflow-y-auto bg-gradient-soft">
             {tab === "develop" && section === "general" && <GeneralTab />}
             {tab === "develop" && section === "knowledge" && <KnowledgeTab />}
+            {tab === "develop" && section === "tool" && <ToolsTab agentId={id} />}
             {tab === "develop" && section === "task" && <TasksList agentId={id} />}
             {tab === "develop" && section === "advanced" && <AdvancedTab />}
-            {tab === "develop" && !["general", "knowledge", "task", "advanced"].includes(section) && <PlaceholderTab title={section} />}
+            {tab === "develop" && !["general", "knowledge", "tool", "task", "advanced"].includes(section) && <PlaceholderTab title={section} />}
             {tab === "monitor" && section === "perf" && <PerformanceTab />}
             {tab === "monitor" && section !== "perf" && <PlaceholderTab title={section} />}
           </div>
