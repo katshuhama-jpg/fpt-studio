@@ -23,6 +23,19 @@ export interface NodeData {
 export type ToolNode = Node<NodeData>;
 export type ToolEdge = Edge;
 
+export interface ToolParam {
+  name: string;
+  type: "string" | "number" | "boolean" | "object";
+  required: boolean;
+  description: string;
+}
+
+export interface ToolCredential {
+  key: string;
+  value: string;
+  masked?: boolean;
+}
+
 export interface ToolDefinition {
   id: string;
   name: string;
@@ -31,6 +44,11 @@ export interface ToolDefinition {
   edges: ToolEdge[];
   updatedAt: number;
   status: "draft" | "published";
+  enabled?: boolean;
+  code?: string;
+  params?: ToolParam[];
+  credentials?: ToolCredential[];
+  cardBinding?: string;
 }
 
 // In-memory store keyed by `${agentId}:${toolId}` for the prototype
