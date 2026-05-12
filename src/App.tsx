@@ -9,6 +9,7 @@ import MyAgents from "./pages/MyAgents";
 import AgentsList from "./pages/AgentsList";
 import AgentBuilder from "./pages/AgentBuilder";
 import AgentScaffold from "./pages/AgentScaffold";
+import Inventor from "./pages/Inventor";
 import TaskEditor from "./pages/TaskEditor";
 import ToolBuilder from "./pages/ToolBuilder";
 import WorkspaceSettings from "./pages/WorkspaceSettings";
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="/agents/:id" element={<AgentBuilder />} />
             <Route path="/agents/:id/tasks/:taskId" element={<TaskEditor />} />
           </Route>
+          <Route path="/inventor" element={<Inventor />} />
           <Route path="/agents/:id/tools/new" element={<ToolBuilder />} />
           <Route path="/agents/:id/tools/:toolId" element={<ToolBuilder />} />
           <Route element={<WorkspaceLayout />}>
