@@ -9,6 +9,7 @@ import MyAgents from "./pages/MyAgents";
 import AgentsList from "./pages/AgentsList";
 import AgentBuilder from "./pages/AgentBuilder";
 import AgentScaffold from "./pages/AgentScaffold";
+import Inventor from "./pages/Inventor";
 import TaskEditor from "./pages/TaskEditor";
 import ToolBuilder from "./pages/ToolBuilder";
 import WorkspaceSettings from "./pages/WorkspaceSettings";
