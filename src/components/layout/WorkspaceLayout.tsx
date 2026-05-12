@@ -338,3 +338,98 @@ function NavRow({ item, collapsed }: { item: Item; collapsed: boolean }) {
     </NavLink>
   );
 }
+
+/* ============ Header "+ New" dropdown ============ */
+type NewItem = {
+  to: string;
+  label: string;
+  desc: string;
+  icon: any;
+  hidden?: boolean;
+};
+
+function HeaderNewMenu({ pathname }: { pathname: string }) {
+  const [open, setOpen] = useState(false);
+
+  const hide = {
+    agent: /^\/(agents(\/new)?|inventor)$/.test(pathname),
+    tool: pathname === "/tools" || /^\/agents\/[^/]+\/tools/.test(pathname),
+    knowledge: pathname === "/knowledge",
+    task: /^\/agents\/[^/]+\/tasks/.test(pathname),
+    template: pathname === "/templates",
+  };
+
+  const primary: NewItem[] = [
+    { to: "/agents/new", label: "New Agent", desc: "Build a custom AI agent from scratch", icon: Bot, hidden: hide.agent },
+    { to: "/tools", label: "New Tool", desc: "Define a custom tool or integration", icon: Wrench, hidden: hide.tool },
+    { to: "/knowledge?new=1", label: "New Knowledge", desc: "Upload docs or connect a data source", icon: BookOpen, hidden: hide.knowledge },
+  ];
+  const secondary: NewItem[] = [
+    { to: "/templates", label: "Import from template", desc: "Start from a prebuilt blueprint", icon: Sparkles, hidden: hide.template },
+  ];
+
+  const visiblePrimary = primary.filter(i => !i.hidden);
+  const visibleSecondary = secondary.filter(i => !i.hidden);
+
+  if (visiblePrimary.length === 0 && visibleSecondary.length === 0) return null;
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(v => !v)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        className="btn-primary h-9"
+      >
+        <Plus size={14} /> New
+        <ChevronDown size={13} className={`transition-base ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-[calc(100%+6px)] w-72 bg-surface rounded-xl overflow-hidden ring-1 ring-border shadow-xl z-50">
+          {visiblePrimary.length > 0 && (
+            <div className="p-1.5">
+              {visiblePrimary.map(item => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  onClick={() => setOpen(false)}
+                  className="flex items-start gap-2.5 px-2.5 py-2 rounded-lg hover:bg-surface-muted transition-base"
+                >
+                  <span className="mt-0.5 h-7 w-7 rounded-lg bg-surface-muted flex items-center justify-center shrink-0">
+                    <item.icon size={14} />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-foreground">{item.label}</span>
+                    <span className="block text-[11px] text-muted-foreground leading-tight">{item.desc}</span>
+                  </span>
+                </NavLink>
+              ))}
+            </div>
+          )}
+          {visiblePrimary.length > 0 && visibleSecondary.length > 0 && (
+            <div className="h-px bg-border" />
+          )}
+          {visibleSecondary.length > 0 && (
+            <div className="p-1.5">
+              {visibleSecondary.map(item => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  onClick={() => setOpen(false)}
+                  className="flex items-start gap-2.5 px-2.5 py-2 rounded-lg hover:bg-surface-muted transition-base"
+                >
+                  <span className="mt-0.5 h-7 w-7 rounded-lg bg-surface-muted flex items-center justify-center shrink-0">
+                    <item.icon size={14} />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-foreground">{item.label}</span>
+                    <span className="block text-[11px] text-muted-foreground leading-tight">{item.desc}</span>
+                  </span>
+                </NavLink>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
