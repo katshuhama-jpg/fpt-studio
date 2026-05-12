@@ -258,9 +258,7 @@ export default function WorkspaceLayout() {
             <button className="h-9 w-9 rounded-lg border border-border bg-surface hover:bg-surface-muted flex items-center justify-center transition-base">
               <Bell size={15} />
             </button>
-            <NavLink to="/agents/new" className="btn-primary h-9">
-              <Plus size={14} /> New Agent
-            </NavLink>
+            <HeaderNewMenu pathname={loc.pathname} />
           </div>
         </header>
         <main className="flex-1 overflow-y-auto">
