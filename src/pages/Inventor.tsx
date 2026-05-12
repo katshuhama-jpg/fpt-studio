@@ -1,0 +1,653 @@
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import {
+  ArrowLeft, Sparkles, Send, Check, Loader2, Wand2, Bot, User, Wrench, BookOpen,
+  ListChecks, Paperclip, AtSign, Settings2, Play, Save, ArrowUpRight, Cog,
+  Globe, Search, FileText, Code2, FileSpreadsheet, Clock, Hand, ChevronRight,
+  Database, MessageSquareText, CheckCircle2,
+} from "lucide-react";
+
+/* ---------------- Types ---------------- */
+type TodoStatus = "pending" | "running" | "done";
+type Todo = { id: string; label: string; status: TodoStatus };
+
+type ChatMsg =
+  | { id: string; role: "user"; text: string }
+  | { id: string; role: "ai"; kind: "text"; text: string }
+  | { id: string; role: "ai"; kind: "todo"; todos: Todo[]; title?: string }
+  | { id: string; role: "ai"; kind: "strategy"; reportTypes: string[]; triggers: { label: string; icon: any }[] }
+  | { id: string; role: "ai"; kind: "cta"; label: string; done?: boolean }
+  | { id: string; role: "ai"; kind: "tool-batch"; tools: string[] };
+
+type Tool = { name: string; desc: string; icon: any; tint: string };
+
+type AgentDraft = {
+  name: string;
+  emoji: string;
+  persona: string;
+  description: string;
+  expertise: string[];
+  tools: Tool[];
+  trigger: "Manual" | "Weekly" | "Manual + Weekly";
+  tone: "Professional" | "Formal" | "Friendly";
+  extraSteps: string[];
+};
+
+const emptyDraft: AgentDraft = {
+  name: "Untitled agent",
+  emoji: "✨",
+  persona: "—",
+  description: "Describe what you want and Inventor will draft a full configuration.",
+  expertise: [],
+  tools: [],
+  trigger: "Manual",
+  tone: "Professional",
+  extraSteps: [],
+};
+
+const reportDraft: AgentDraft = {
+  name: "Report Writing Agent",
+  emoji: "📝",
+  persona: "Report Writing Expert",
+  description:
+    "A senior research analyst that gathers signals from the web, runs analysis on raw numbers, and produces publication-ready reports across business, research and engineering domains.",
+  expertise: [
+    "Multi-source web research & synthesis",
+    "Quantitative data analysis with Python",
+    "Executive-grade narrative writing",
+    "Citation & source verification",
+  ],
+  tools: [
+    { name: "Google Search", desc: "Surface authoritative web sources.", icon: Search, tint: "bg-info/15 text-info" },
+    { name: "Perplexity", desc: "Deep-research with grounded citations.", icon: Sparkles, tint: "bg-primary-soft text-primary" },
+    { name: "Firecrawl", desc: "Scrape pages into clean structured text.", icon: Globe, tint: "bg-accent-soft text-accent" },
+    { name: "Python code", desc: "Run quantitative analysis on raw data.", icon: Code2, tint: "bg-surface-muted text-foreground" },
+    { name: "Google Docs", desc: "Publish the formatted report.", icon: FileText, tint: "bg-info/15 text-info" },
+    { name: "Google Sheets", desc: "Export tables & supporting data.", icon: FileSpreadsheet, tint: "bg-primary-soft text-primary" },
+  ],
+  trigger: "Manual + Weekly",
+  tone: "Professional",
+  extraSteps: [],
+};
+
+/* ---------------- Page ---------------- */
+export default function Inventor() {
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const seedPrompt = params.get("prompt") ?? "";
+
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
+  const [input, setInput] = useState("");
+  const [thinking, setThinking] = useState(false);
+  const [draft, setDraft] = useState<AgentDraft>(emptyDraft);
+  const [configApplied, setConfigApplied] = useState(false);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const startedRef = useRef(false);
+
+  /* auto-seed first message */
+  useEffect(() => {
+    if (startedRef.current) return;
+    startedRef.current = true;
+    if (seedPrompt.trim()) {
+      runConversation(seedPrompt.trim());
+    }
+  }, [seedPrompt]);
+
+  /* scroll to bottom on update */
+  useEffect(() => {
+    scrollerRef.current?.scrollTo({ top: scrollerRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages, thinking]);
+
+  /* ---------- chat helpers ---------- */
+  const pushMsg = (m: ChatMsg) => setMessages(p => [...p, m]);
+  const updateMsg = (id: string, updater: (m: ChatMsg) => ChatMsg) =>
+    setMessages(p => p.map(m => (m.id === id ? updater(m) : m)));
+  const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+  /* ---------- the scripted "AI" flow ---------- */
+  async function runConversation(userPrompt: string) {
+    pushMsg({ id: crypto.randomUUID(), role: "user", text: userPrompt });
+    setThinking(true);
+    await wait(700);
+
+    // Acknowledge
+    pushMsg({
+      id: crypto.randomUUID(),
+      role: "ai",
+      kind: "text",
+      text: `Got it — I'll design **${guessAgentName(userPrompt)}**. Let me draft a plan first.`,
+    });
+    await wait(500);
+
+    // Todo list
+    const todoId = crypto.randomUUID();
+    const todos: Todo[] = [
+      { id: "t1", label: "Set up basic information", status: "pending" },
+      { id: "t2", label: "Find suitable tools", status: "pending" },
+      { id: "t3", label: "Write the System Prompt", status: "pending" },
+      { id: "t4", label: "Configure triggers", status: "pending" },
+    ];
+    pushMsg({ id: todoId, role: "ai", kind: "todo", todos, title: "Todo List" });
+    await wait(450);
+
+    // Run each item
+    for (let i = 0; i < todos.length; i++) {
+      updateMsg(todoId, m => {
+        if (m.kind !== "todo") return m;
+        const next = m.todos.map((t, idx) => (idx === i ? { ...t, status: "running" as TodoStatus } : t));
+        return { ...m, todos: next };
+      });
+      await wait(700);
+      updateMsg(todoId, m => {
+        if (m.kind !== "todo") return m;
+        const next = m.todos.map((t, idx) => (idx === i ? { ...t, status: "done" as TodoStatus } : t));
+        return { ...m, todos: next };
+      });
+      await wait(200);
+    }
+
+    // Strategy proposal
+    pushMsg({
+      id: crypto.randomUUID(),
+      role: "ai",
+      kind: "text",
+      text:
+        "Based on your prompt I've inferred the relevant report families and a sensible trigger schedule. Review below — you can refine anything afterwards.",
+    });
+    await wait(400);
+    pushMsg({
+      id: crypto.randomUUID(),
+      role: "ai",
+      kind: "strategy",
+      reportTypes: ["Business reports", "Research briefs", "Technical write-ups"],
+      triggers: [
+        { label: "Manual run", icon: Hand },
+        { label: "Weekly schedule", icon: Clock },
+      ],
+    });
+    await wait(400);
+
+    // CTA
+    pushMsg({
+      id: crypto.randomUUID(),
+      role: "ai",
+      kind: "cta",
+      label: "Update configuration",
+    });
+
+    setThinking(false);
+  }
+
+  /* user clicks "Update configuration" */
+  async function applyConfiguration(ctaId: string) {
+    updateMsg(ctaId, m => (m.kind === "cta" ? { ...m, done: true } : m));
+    setConfigApplied(true);
+    setDraft(prev => ({ ...prev, name: reportDraft.name, emoji: reportDraft.emoji, persona: reportDraft.persona, description: reportDraft.description, trigger: reportDraft.trigger, tone: reportDraft.tone }));
+    setThinking(true);
+    await wait(500);
+
+    // Progressively reveal expertise
+    pushMsg({ id: crypto.randomUUID(), role: "ai", kind: "text", text: "✅ Configuration applied. Now wiring up Core Expertise…" });
+    for (const e of reportDraft.expertise) {
+      await wait(280);
+      setDraft(d => ({ ...d, expertise: [...d.expertise, e] }));
+    }
+
+    await wait(400);
+    pushMsg({
+      id: crypto.randomUUID(),
+      role: "ai",
+      kind: "tool-batch",
+      tools: reportDraft.tools.map(t => t.name),
+    });
+
+    // Progressively reveal tools
+    for (const t of reportDraft.tools) {
+      await wait(320);
+      setDraft(d => ({ ...d, tools: [...d.tools, t] }));
+    }
+
+    await wait(300);
+    pushMsg({
+      id: crypto.randomUUID(),
+      role: "ai",
+      kind: "text",
+      text:
+        "All set. You can keep chatting to refine — e.g. *“send the report to Slack when finished”* or *“use a more formal tone”*.",
+    });
+    setThinking(false);
+  }
+
+  /* free-form follow-up after config applied */
+  async function handleFollowup(text: string) {
+    pushMsg({ id: crypto.randomUUID(), role: "user", text });
+    setThinking(true);
+    await wait(600);
+
+    const t = text.toLowerCase();
+    if (t.includes("slack")) {
+      setDraft(d => ({ ...d, extraSteps: [...d.extraSteps, "Send finished report to Slack channel"] }));
+      pushMsg({
+        id: crypto.randomUUID(),
+        role: "ai",
+        kind: "text",
+        text: "Added a **Slack delivery step** to the right panel — it will fire after the report is written.",
+      });
+    } else if (t.includes("formal") || t.includes("trang trọng")) {
+      setDraft(d => ({ ...d, tone: "Formal" }));
+      pushMsg({
+        id: crypto.randomUUID(),
+        role: "ai",
+        kind: "text",
+        text: "Tone switched to **Formal**. The persona prompt has been rewritten on the right.",
+      });
+    } else if (t.includes("weekly") || t.includes("schedule")) {
+      setDraft(d => ({ ...d, trigger: "Weekly" }));
+      pushMsg({ id: crypto.randomUUID(), role: "ai", kind: "text", text: "Trigger updated to **Weekly**." });
+    } else {
+      pushMsg({
+        id: crypto.randomUUID(),
+        role: "ai",
+        kind: "text",
+        text: "Noted — I've folded that into the configuration. Anything else?",
+      });
+    }
+    setThinking(false);
+  }
+
+  /* submit handler */
+  function onSubmit() {
+    const v = input.trim();
+    if (!v) return;
+    setInput("");
+    if (messages.length === 0) runConversation(v);
+    else handleFollowup(v);
+  }
+
+  /* ---------------- Render ---------------- */
+  return (
+    <div className="h-screen flex flex-col bg-background">
+      {/* Top bar */}
+      <header className="h-14 border-b border-border bg-surface px-5 flex items-center gap-3 shrink-0">
+        <button onClick={() => navigate("/")} className="h-8 w-8 rounded-lg hover:bg-surface-muted flex items-center justify-center transition-base text-muted-foreground">
+          <ArrowLeft size={15} />
+        </button>
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center text-primary-foreground">
+            <Wand2 size={13} />
+          </div>
+          <div>
+            <div className="text-sm font-semibold font-display leading-tight">Inventor</div>
+            <div className="text-[10px] text-muted-foreground leading-tight">Describe → Draft → Deploy</div>
+          </div>
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          <button className="btn-secondary h-8 text-xs">
+            <Save size={12} /> Save draft
+          </button>
+          <button
+            disabled={!configApplied}
+            onClick={() => navigate("/agents/cskh")}
+            className="btn-primary h-8 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Play size={12} /> Open agent
+          </button>
+        </div>
+      </header>
+
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[minmax(380px,460px)_1fr] overflow-hidden">
+        {/* LEFT — Chat */}
+        <aside className="border-r border-border bg-surface flex flex-col min-h-0">
+          <div className="h-11 px-4 border-b border-border flex items-center gap-2 shrink-0">
+            <Sparkles size={13} className="text-primary" />
+            <span className="text-xs font-semibold">Inventor chat</span>
+            <span className="ml-auto text-[10px] text-muted-foreground">Auto-saves</span>
+          </div>
+
+          <div ref={scrollerRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+            {messages.length === 0 && !seedPrompt && <Welcome />}
+            {messages.map(m => (
+              <MessageBubble key={m.id} msg={m} onCta={() => m.role === "ai" && m.kind === "cta" && !m.done && applyConfiguration(m.id)} />
+            ))}
+            {thinking && <Thinking />}
+          </div>
+
+          {/* Composer */}
+          <div className="p-3 border-t border-border shrink-0">
+            <div className="rounded-xl border border-border bg-background focus-within:border-primary focus-within:ring-glow transition-base p-1.5">
+              <textarea
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    onSubmit();
+                  }
+                }}
+                rows={2}
+                placeholder={messages.length === 0 ? "Ask Inventor to build anything..." : "Refine the agent — e.g. add Slack, change tone…"}
+                className="w-full resize-none bg-transparent text-sm placeholder:text-muted-foreground outline-none px-2.5 py-2 max-h-32"
+              />
+              <div className="flex items-center gap-1 px-1.5 pb-0.5">
+                <button className="h-7 w-7 rounded-md hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base"><Paperclip size={12} /></button>
+                <button className="h-7 w-7 rounded-md hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base"><AtSign size={12} /></button>
+                <button
+                  onClick={onSubmit}
+                  className="ml-auto h-7 px-3 rounded-md bg-primary text-primary-foreground hover:bg-primary-glow text-xs font-medium flex items-center gap-1.5 transition-base disabled:opacity-50"
+                  disabled={!input.trim()}
+                >
+                  Send <Send size={10} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        {/* RIGHT — Configuration */}
+        <main className="flex flex-col min-h-0 overflow-y-auto bg-background">
+          <ConfigPanel draft={draft} applied={configApplied} />
+        </main>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Sub components ---------------- */
+
+function Welcome() {
+  return (
+    <div className="rounded-xl border border-dashed border-border p-5 text-center bg-background/50">
+      <div className="w-10 h-10 mx-auto rounded-xl bg-primary-soft text-primary flex items-center justify-center mb-2">
+        <Wand2 size={16} />
+      </div>
+      <div className="text-sm font-semibold mb-1 font-display">Ask Inventor to build anything</div>
+      <p className="text-[11px] text-muted-foreground max-w-[280px] mx-auto">
+        Try: <span className="text-foreground">"Tạo Agent viết báo cáo"</span> or
+        <span className="text-foreground"> "HR onboarding assistant"</span>
+      </p>
+    </div>
+  );
+}
+
+function Thinking() {
+  return (
+    <div className="flex items-start gap-2.5">
+      <div className="w-6 h-6 rounded-lg bg-primary-soft text-primary flex items-center justify-center shrink-0">
+        <Bot size={12} />
+      </div>
+      <div className="rounded-2xl rounded-tl-sm bg-surface-muted px-3 py-2 flex items-center gap-1.5">
+        <Loader2 size={11} className="animate-spin text-muted-foreground" />
+        <span className="text-[11px] text-muted-foreground">Inventor is thinking…</span>
+      </div>
+    </div>
+  );
+}
+
+function MessageBubble({ msg, onCta }: { msg: ChatMsg; onCta: () => void }) {
+  if (msg.role === "user") {
+    return (
+      <div className="flex items-start gap-2.5 justify-end">
+        <div className="rounded-2xl rounded-tr-sm bg-primary text-primary-foreground px-3.5 py-2 max-w-[85%] text-[13px] leading-relaxed shadow-soft">
+          {msg.text}
+        </div>
+        <div className="w-6 h-6 rounded-lg bg-surface-muted flex items-center justify-center shrink-0">
+          <User size={12} />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-start gap-2.5">
+      <div className="w-6 h-6 rounded-lg bg-primary-soft text-primary flex items-center justify-center shrink-0">
+        <Bot size={12} />
+      </div>
+      <div className="flex-1 min-w-0 space-y-2">
+        {msg.kind === "text" && (
+          <div className="rounded-2xl rounded-tl-sm bg-surface-muted px-3.5 py-2 text-[13px] leading-relaxed">
+            <Markdownish text={msg.text} />
+          </div>
+        )}
+        {msg.kind === "todo" && <TodoCard title={msg.title ?? "Todo List"} todos={msg.todos} />}
+        {msg.kind === "strategy" && <StrategyCard reportTypes={msg.reportTypes} triggers={msg.triggers} />}
+        {msg.kind === "tool-batch" && <ToolBatchCard tools={msg.tools} />}
+        {msg.kind === "cta" && (
+          <button
+            onClick={onCta}
+            disabled={msg.done}
+            className={`w-full rounded-xl border px-3.5 py-2.5 flex items-center justify-between gap-2 transition-base text-left ${
+              msg.done
+                ? "border-primary/40 bg-primary-soft/60 cursor-default"
+                : "border-primary bg-gradient-to-r from-primary to-primary-glow text-primary-foreground hover:shadow-elev"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {msg.done ? <Check size={13} className="text-primary" /> : <Sparkles size={13} />}
+              <span className="text-[13px] font-semibold">{msg.done ? "Configuration applied" : msg.label}</span>
+            </div>
+            {!msg.done && <ChevronRight size={14} />}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TodoCard({ title, todos }: { title: string; todos: Todo[] }) {
+  const doneCount = todos.filter(t => t.status === "done").length;
+  return (
+    <div className="rounded-xl border border-border bg-background overflow-hidden">
+      <div className="px-3.5 py-2 border-b border-border flex items-center gap-2 bg-surface-muted/60">
+        <ListChecks size={12} className="text-primary" />
+        <span className="text-[11px] font-semibold uppercase tracking-wider">{title}</span>
+        <span className="ml-auto text-[10px] text-muted-foreground">{doneCount}/{todos.length}</span>
+      </div>
+      <ul className="p-1.5">
+        {todos.map(t => (
+          <li key={t.id} className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-surface-muted/40">
+            <div className="w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition-base
+              ${t.status === 'done' ? 'border-primary bg-primary' : 'border-border'}"
+              style={{
+                borderColor: t.status === "done" ? "hsl(var(--primary))" : undefined,
+                background: t.status === "done" ? "hsl(var(--primary))" : undefined,
+              }}
+            >
+              {t.status === "done" && <Check size={9} className="text-primary-foreground" />}
+              {t.status === "running" && <Loader2 size={9} className="animate-spin text-primary" />}
+            </div>
+            <span className={`text-[12px] ${t.status === "done" ? "text-muted-foreground line-through" : "text-foreground"}`}>
+              {t.label}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function StrategyCard({ reportTypes, triggers }: { reportTypes: string[]; triggers: { label: string; icon: any }[] }) {
+  return (
+    <div className="rounded-xl border border-border bg-background p-3 space-y-2.5">
+      <div>
+        <div className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground mb-1.5">Report families</div>
+        <div className="flex flex-wrap gap-1.5">
+          {reportTypes.map(r => (
+            <span key={r} className="chip chip-primary text-[10.5px]">{r}</span>
+          ))}
+        </div>
+      </div>
+      <div>
+        <div className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground mb-1.5">Triggers</div>
+        <div className="flex flex-wrap gap-1.5">
+          {triggers.map(t => (
+            <span key={t.label} className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-surface-muted text-[11px] font-medium">
+              <t.icon size={11} /> {t.label}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ToolBatchCard({ tools }: { tools: string[] }) {
+  return (
+    <div className="rounded-xl border border-border bg-background p-3">
+      <div className="flex items-center gap-1.5 mb-2">
+        <Wrench size={11} className="text-primary" />
+        <span className="text-[11px] font-semibold uppercase tracking-wider">Adding recommended tools</span>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {tools.map(t => (
+          <span key={t} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary-soft text-primary text-[11px] font-medium">
+            <CheckCircle2 size={10} /> {t}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Markdownish({ text }: { text: string }) {
+  // Minimal **bold** + *italic*
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
+  return (
+    <span>
+      {parts.map((p, i) => {
+        if (p.startsWith("**") && p.endsWith("**")) return <strong key={i} className="font-semibold">{p.slice(2, -2)}</strong>;
+        if (p.startsWith("*") && p.endsWith("*")) return <em key={i}>{p.slice(1, -1)}</em>;
+        return <span key={i}>{p}</span>;
+      })}
+    </span>
+  );
+}
+
+/* ---------------- Right config panel ---------------- */
+function ConfigPanel({ draft, applied }: { draft: AgentDraft; applied: boolean }) {
+  return (
+    <div className="px-8 py-7 max-w-[820px] mx-auto w-full animate-fade-up">
+      {/* Header card */}
+      <div className="rounded-2xl border border-border bg-surface p-5 mb-5 flex items-start gap-4 shadow-soft">
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-soft to-accent-soft flex items-center justify-center text-3xl shrink-0">
+          {draft.emoji}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <h1 className="font-display text-xl font-semibold truncate">{draft.name}</h1>
+            <span className={`chip text-[10px] ${applied ? "chip-primary" : "chip-muted"}`}>
+              {applied ? "Drafted" : "Empty"}
+            </span>
+          </div>
+          <p className="text-sm text-muted-foreground leading-relaxed">{draft.description}</p>
+        </div>
+      </div>
+
+      {/* Persona */}
+      <Section icon={MessageSquareText} title="Persona">
+        <div className="text-sm font-semibold mb-1">{draft.persona}</div>
+        <div className="text-xs text-muted-foreground">Tone: {draft.tone} · Voice tailored for {draft.persona.toLowerCase()}.</div>
+      </Section>
+
+      {/* Core expertise */}
+      <Section icon={BookOpen} title="Core expertise">
+        {draft.expertise.length === 0 ? (
+          <EmptyHint label="No skills yet — Inventor will populate this after you approve the plan." />
+        ) : (
+          <ul className="grid sm:grid-cols-2 gap-1.5">
+            {draft.expertise.map(e => (
+              <li key={e} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-surface border border-border text-[12.5px]">
+                <CheckCircle2 size={12} className="text-primary shrink-0" />
+                <span className="truncate">{e}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+
+      {/* Tools */}
+      <Section icon={Wrench} title={`Tools ${draft.tools.length ? `(${draft.tools.length})` : ""}`}>
+        {draft.tools.length === 0 ? (
+          <EmptyHint label="No tools wired up yet." />
+        ) : (
+          <div className="grid sm:grid-cols-2 gap-2">
+            {draft.tools.map(t => (
+              <div key={t.name} className="rounded-xl border border-border bg-surface p-3 flex items-start gap-2.5 hover:border-primary/30 transition-base">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${t.tint}`}>
+                  <t.icon size={14} />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[13px] font-semibold truncate">{t.name}</div>
+                  <div className="text-[11px] text-muted-foreground leading-snug">{t.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
+
+      {/* Trigger */}
+      <Section icon={Cog} title="Triggers">
+        <div className="flex flex-wrap gap-1.5">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-surface border border-border text-[11.5px] font-medium">
+            <Hand size={11} /> Manual
+          </span>
+          {draft.trigger.includes("Weekly") && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-primary-soft text-primary text-[11.5px] font-semibold">
+              <Clock size={11} /> Weekly schedule
+            </span>
+          )}
+        </div>
+      </Section>
+
+      {/* Extra steps from follow-ups */}
+      {draft.extraSteps.length > 0 && (
+        <Section icon={ListChecks} title="Workflow add-ons">
+          <ul className="space-y-1.5">
+            {draft.extraSteps.map(s => (
+              <li key={s} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-primary-soft/60 border border-primary/20 text-[12.5px]">
+                <ArrowUpRight size={11} className="text-primary" />
+                {s}
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
+
+      {/* Footer hint */}
+      <div className="rounded-xl border border-dashed border-border p-3 text-center text-[11px] text-muted-foreground bg-surface/40">
+        Configuration updates live as you chat. When you're ready, click <span className="font-semibold text-foreground">Open agent</span> to enter the full builder.
+      </div>
+    </div>
+  );
+}
+
+function Section({ icon: Icon, title, children }: { icon: any; title: string; children: React.ReactNode }) {
+  return (
+    <section className="mb-5">
+      <div className="flex items-center gap-2 mb-2.5">
+        <Icon size={13} className="text-primary" />
+        <h3 className="text-[11px] font-semibold uppercase tracking-wider">{title}</h3>
+        <div className="flex-1 h-px bg-border" />
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function EmptyHint({ label }: { label: string }) {
+  return (
+    <div className="rounded-lg border border-dashed border-border px-3 py-2.5 text-[11.5px] text-muted-foreground bg-surface/40">
+      {label}
+    </div>
+  );
+}
+
+/* ---------------- helpers ---------------- */
+function guessAgentName(p: string) {
+  const t = p.toLowerCase();
+  if (t.includes("báo cáo") || t.includes("report")) return "Report Writing Agent";
+  if (t.includes("hr") || t.includes("onboarding")) return "HR Onboarding Agent";
+  if (t.includes("sales")) return "Sales Lead Qualifier";
+  if (t.includes("support") || t.includes("customer")) return "Customer Support Agent";
+  return "New Agent";
+}
