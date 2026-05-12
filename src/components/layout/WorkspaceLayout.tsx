@@ -182,9 +182,9 @@ export default function WorkspaceLayout() {
         </div>
 
         {/* User */}
-        <div className="border-t border-sidebar-border p-2.5 shrink-0 relative">
+        <div className="p-2.5 shrink-0 relative">
           {userMenu && !collapsed && (
-            <div className="absolute bottom-full left-2 right-2 mb-2 surface-card-elevated bg-surface rounded-lg overflow-hidden">
+            <div className="absolute bottom-full left-2 right-2 mb-2 bg-surface rounded-xl overflow-hidden ring-1 ring-border shadow-xl">
               <NavLink
                 to="/api-keys"
                 onClick={() => setUserMenu(false)}
