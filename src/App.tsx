@@ -30,6 +30,8 @@ const App = () => (
             <Route path="/my-agents" element={<MyAgents />} />
             <Route path="/agents" element={<AgentsList />} />
             <Route path="/agents/new" element={<AgentScaffold />} />
+          </Route>
+          <Route path="/inventor" element={<Inventor />} />
             <Route path="/agents/:id" element={<AgentBuilder />} />
             <Route path="/agents/:id/tasks/:taskId" element={<TaskEditor />} />
           </Route>
