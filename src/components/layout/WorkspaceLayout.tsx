@@ -3,7 +3,7 @@ import {
   Home, Sparkles, Bot, BookOpen, Settings, LayoutTemplate,
   Wrench, ChevronsLeft, ChevronsRight, Search, Bell, Plus,
   ChevronRight, LifeBuoy, KeyRound, LogOut, User, ChevronDown,
-  Check, Building2, PlusCircle, ListChecks,
+  Check, Building2, PlusCircle,
 } from "lucide-react";
 import { useState } from "react";
 import fptAiLogo from "@/assets/fpt-ai-logo.png";
