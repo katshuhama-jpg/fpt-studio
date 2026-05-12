@@ -154,7 +154,6 @@ export default function WorkspaceLayout() {
             )}
           </div>
         </div>
-        </div>
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
