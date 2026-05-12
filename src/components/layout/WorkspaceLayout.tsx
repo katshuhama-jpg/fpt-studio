@@ -3,8 +3,18 @@ import {
   Home, Sparkles, Bot, BookOpen, Settings, LayoutTemplate,
   Wrench, ChevronsLeft, ChevronsRight, Search, Bell, Plus,
   ChevronRight, LifeBuoy, KeyRound, LogOut, User, ChevronDown,
+  Check, Building2, PlusCircle,
 } from "lucide-react";
 import { useState } from "react";
+import fptAiLogo from "@/assets/fpt-ai-logo.png";
+
+type Tenant = { id: string; name: string; plan: string; initial: string };
+const TENANTS: Tenant[] = [
+  { id: "fpt-smart-cloud", name: "FPT Smart Cloud", plan: "Enterprise", initial: "FS" },
+  { id: "fpt-telecom",     name: "FPT Telecom",     plan: "Business",   initial: "FT" },
+  { id: "fpt-software",    name: "FPT Software",    plan: "Enterprise", initial: "FW" },
+  { id: "sandbox",         name: "Personal Sandbox",plan: "Free",       initial: "PS" },
+];
 
 type Item = { to: string; label: string; icon: any; badge?: string };
 type Group = { id: string; label: string; items: Item[] };
