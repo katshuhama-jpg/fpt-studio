@@ -3,8 +3,18 @@ import {
   Home, Sparkles, Bot, BookOpen, Settings, LayoutTemplate,
   Wrench, ChevronsLeft, ChevronsRight, Search, Bell, Plus,
   ChevronRight, LifeBuoy, KeyRound, LogOut, User, ChevronDown,
+  Check, Building2, PlusCircle,
 } from "lucide-react";
 import { useState } from "react";
+import fptAiLogo from "@/assets/fpt-ai-logo.png";
+
+type Tenant = { id: string; name: string; plan: string; initial: string };
+const TENANTS: Tenant[] = [
+  { id: "fpt-smart-cloud", name: "FPT Smart Cloud", plan: "Enterprise", initial: "FS" },
+  { id: "fpt-telecom",     name: "FPT Telecom",     plan: "Business",   initial: "FT" },
+  { id: "fpt-software",    name: "FPT Software",    plan: "Enterprise", initial: "FW" },
+  { id: "sandbox",         name: "Personal Sandbox",plan: "Free",       initial: "PS" },
+];
 
 type Item = { to: string; label: string; icon: any; badge?: string };
 type Group = { id: string; label: string; items: Item[] };
@@ -42,6 +52,9 @@ export default function WorkspaceLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [open, setOpen] = useState<Record<string, boolean>>({ build: true, workspace: true });
   const [userMenu, setUserMenu] = useState(false);
+  const [tenantMenu, setTenantMenu] = useState(false);
+  const [tenantId, setTenantId] = useState(TENANTS[0].id);
+  const tenant = TENANTS.find(t => t.id === tenantId) ?? TENANTS[0];
   const loc = useLocation();
   const inAgentBuilder = loc.pathname.startsWith("/agents/");
 
@@ -68,18 +81,71 @@ export default function WorkspaceLayout() {
         }`}
       >
         {/* Brand */}
-        <div className="h-14 flex items-center gap-2.5 px-3.5 border-b border-sidebar-border shrink-0">
-          <div className="w-8 h-8 rounded-lg bg-gradient-brand flex items-center justify-center shadow-soft shrink-0">
-            <span className="font-display font-bold text-sm text-primary-foreground">F</span>
-          </div>
-          {!collapsed && (
-            <div className="flex-1 min-w-0">
-              <div className="font-display font-semibold text-[13px] text-foreground truncate leading-tight">
-                FPT AI Agents
+        <div className="h-14 flex items-center px-3.5 border-b border-sidebar-border shrink-0">
+          {collapsed ? (
+            <div className="w-8 h-8 rounded-lg bg-gradient-brand flex items-center justify-center shadow-soft mx-auto">
+              <span className="font-display font-bold text-sm text-primary-foreground">F</span>
+            </div>
+          ) : (
+            <NavLink to="/" className="flex items-center gap-2 min-w-0">
+              <img src={fptAiLogo} alt="FPT.AI" className="h-6 w-auto shrink-0" />
+              <span className="text-[11px] font-medium text-muted-foreground border-l border-sidebar-border pl-2 truncate">
+                Agents Workspace
+              </span>
+            </NavLink>
+          )}
+        </div>
+
+        {/* Tenant Switcher */}
+        <div className="relative px-2 py-2 border-b border-sidebar-border">
+          <button
+            onClick={() => setTenantMenu(v => !v)}
+            title={collapsed ? tenant.name : undefined}
+            className={`w-full flex items-center gap-2 rounded-lg border border-sidebar-border bg-sidebar-accent/40 hover:bg-sidebar-accent transition-base ${
+              collapsed ? "justify-center p-1.5" : "px-2 py-1.5"
+            }`}
+          >
+            <div className="w-7 h-7 rounded-md bg-primary-soft text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
+              {tenant.initial}
+            </div>
+            {!collapsed && (
+              <>
+                <div className="flex-1 min-w-0 text-left">
+                  <div className="text-xs font-semibold text-foreground truncate leading-tight">{tenant.name}</div>
+                  <div className="text-[10px] text-muted-foreground truncate leading-tight">{tenant.plan}</div>
+                </div>
+                <ChevronDown size={12} className={`text-muted-foreground transition-base ${tenantMenu ? "rotate-180" : ""}`} />
+              </>
+            )}
+          </button>
+
+          {tenantMenu && (
+            <div className={`absolute z-50 surface-card-elevated bg-surface rounded-lg overflow-hidden border border-border shadow-lg ${
+              collapsed ? "left-full ml-2 top-2 w-60" : "left-2 right-2 top-full mt-1"
+            }`}>
+              <div className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground border-b border-border flex items-center gap-1.5">
+                <Building2 size={11} /> Switch tenant
               </div>
-              <div className="text-[10px] text-muted-foreground truncate leading-tight">
-                Smart Cloud Workspace
-              </div>
+              {TENANTS.map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => { setTenantId(t.id); setTenantMenu(false); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-surface-muted transition-base text-left"
+                >
+                  <div className="w-7 h-7 rounded-md bg-primary-soft text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
+                    {t.initial}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-semibold text-foreground truncate">{t.name}</div>
+                    <div className="text-[10px] text-muted-foreground truncate">{t.plan}</div>
+                  </div>
+                  {t.id === tenantId && <Check size={13} className="text-primary shrink-0" />}
+                </button>
+              ))}
+              <div className="border-t border-border" />
+              <button className="w-full flex items-center gap-2 px-3 py-2.5 text-xs font-medium hover:bg-surface-muted transition-base text-primary">
+                <PlusCircle size={13} /> Create new tenant
+              </button>
             </div>
           )}
         </div>
