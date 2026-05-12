@@ -133,13 +133,13 @@ export default function Inventor() {
     // Run each item
     for (let i = 0; i < todos.length; i++) {
       updateMsg(todoId, m => {
-        if (m.kind !== "todo") return m;
+        if (m.role !== "ai" || m.kind !== "todo") return m;
         const next = m.todos.map((t, idx) => (idx === i ? { ...t, status: "running" as TodoStatus } : t));
         return { ...m, todos: next };
       });
       await wait(700);
       updateMsg(todoId, m => {
-        if (m.kind !== "todo") return m;
+        if (m.role !== "ai" || m.kind !== "todo") return m;
         const next = m.todos.map((t, idx) => (idx === i ? { ...t, status: "done" as TodoStatus } : t));
         return { ...m, todos: next };
       });
