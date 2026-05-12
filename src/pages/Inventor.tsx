@@ -180,7 +180,7 @@ export default function Inventor() {
 
   /* user clicks "Update configuration" */
   async function applyConfiguration(ctaId: string) {
-    updateMsg(ctaId, m => (m.kind === "cta" ? { ...m, done: true } : m));
+    updateMsg(ctaId, m => (m.role === "ai" && m.kind === "cta" ? { ...m, done: true } : m));
     setConfigApplied(true);
     setDraft(prev => ({ ...prev, name: reportDraft.name, emoji: reportDraft.emoji, persona: reportDraft.persona, description: reportDraft.description, trigger: reportDraft.trigger, tone: reportDraft.tone }));
     setThinking(true);
