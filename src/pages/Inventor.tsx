@@ -609,15 +609,15 @@ function StrategyCard({ reportTypes, triggers }: { reportTypes: string[]; trigge
   );
 }
 
-function ToolBatchCard({ tools }: { tools: string[] }) {
+function InventoryBatchCard({ title, icon: Icon, items }: { title: string; icon: any; items: string[] }) {
   return (
     <div className="rounded-xl border border-border bg-background p-3">
       <div className="flex items-center gap-1.5 mb-2">
-        <Wrench size={11} className="text-primary" />
-        <span className="text-[11px] font-semibold uppercase tracking-wider">Adding recommended tools</span>
+        <Icon size={11} className="text-primary" />
+        <span className="text-[11px] font-semibold uppercase tracking-wider">{title}</span>
       </div>
       <div className="flex flex-wrap gap-1.5">
-        {tools.map(t => (
+        {items.map(t => (
           <span key={t} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary-soft text-primary text-[11px] font-medium">
             <CheckCircle2 size={10} /> {t}
           </span>
