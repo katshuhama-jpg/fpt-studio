@@ -7,7 +7,6 @@ import {
   Star, Users as UsersIcon, History, Download, X, SlidersHorizontal, Smartphone, Monitor,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { toolStore } from "@/components/tool-builder/types";
 import AgentToolsTab from "@/components/tool-builder/AgentToolsTab";
 import TasksGrid from "@/components/tasks/TasksGrid";
 import { updateUser } from "@/lib/onboarding";
