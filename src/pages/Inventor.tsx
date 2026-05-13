@@ -683,6 +683,45 @@ function ConfigPanel({ draft, applied }: { draft: AgentDraft; applied: boolean }
         )}
       </Section>
 
+      {/* Business processes */}
+      <Section icon={Layers} title={`Business processes ${draft.bps.length ? `(${draft.bps.length})` : ""}`}>
+        {draft.bps.length === 0 ? (
+          <EmptyHint label="No business process drafted yet." />
+        ) : (
+          <ul className="space-y-1.5">
+            {draft.bps.map(b => (
+              <li key={b.name} className="rounded-lg border border-border bg-surface px-3 py-2 flex items-start gap-2">
+                <Layers size={12} className="text-primary mt-0.5 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <div className="text-[12.5px] font-semibold flex items-center gap-1.5">
+                    {b.name}
+                    {b.isDefault && <span className="chip chip-muted text-[9.5px]">Default</span>}
+                    <span className="chip chip-primary text-[9.5px]">{b.strategy}</span>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground leading-snug truncate">{b.description}</div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+
+      {/* Tasks */}
+      <Section icon={ListChecks} title={`Tasks ${draft.tasks.length ? `(${draft.tasks.length})` : ""}`}>
+        {draft.tasks.length === 0 ? (
+          <EmptyHint label="No tasks drafted yet." />
+        ) : (
+          <ul className="grid sm:grid-cols-2 gap-1.5">
+            {draft.tasks.map(t => (
+              <li key={t.name} className="rounded-lg border border-border bg-surface px-2.5 py-1.5">
+                <div className="text-[12.5px] font-semibold truncate">{t.name}</div>
+                <div className="text-[11px] text-muted-foreground leading-snug truncate">{t.description}</div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+
       {/* Tools */}
       <Section icon={Wrench} title={`Tools ${draft.tools.length ? `(${draft.tools.length})` : ""}`}>
         {draft.tools.length === 0 ? (
@@ -701,6 +740,28 @@ function ConfigPanel({ draft, applied }: { draft: AgentDraft; applied: boolean }
               </div>
             ))}
           </div>
+        )}
+      </Section>
+
+      {/* Knowledge */}
+      <Section icon={BookOpen} title={`Knowledge ${draft.knowledge.length ? `(${draft.knowledge.length})` : ""}`}>
+        {draft.knowledge.length === 0 ? (
+          <EmptyHint label="No knowledge sources curated yet." />
+        ) : (
+          <ul className="space-y-1.5">
+            {draft.knowledge.map(k => (
+              <li key={k.name} className="rounded-lg border border-border bg-surface px-3 py-2 flex items-start gap-2">
+                <BookOpen size={12} className="text-primary mt-0.5 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <div className="text-[12.5px] font-semibold flex items-center gap-1.5">
+                    {k.name}
+                    <span className="chip chip-muted text-[9.5px] uppercase">{k.type}</span>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground leading-snug truncate">{k.description}</div>
+                </div>
+              </li>
+            ))}
+          </ul>
         )}
       </Section>
 
