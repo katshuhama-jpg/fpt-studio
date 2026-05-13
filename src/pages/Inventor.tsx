@@ -75,8 +75,67 @@ const reportDraft: AgentDraft = {
     { name: "Google Docs", desc: "Publish the formatted report.", icon: FileText, tint: "bg-info/15 text-info" },
     { name: "Google Sheets", desc: "Export tables & supporting data.", icon: FileSpreadsheet, tint: "bg-primary-soft text-primary" },
   ],
+  bps: [
+    { name: "others", description: "Default fallback — answer general questions from knowledge.", strategy: "ReAct", isDefault: true },
+    { name: "weekly_report", description: "Generate the weekly executive report on schedule.", strategy: "Predefined Plan" },
+    { name: "research_brief", description: "Run focused research on a topic and produce a brief.", strategy: "ReAct" },
+    { name: "publish_report", description: "Format and publish the finished report to Google Docs.", strategy: "Tool Execution" },
+  ],
+  tasks: [
+    { name: "collect_topic_brief", description: "Ask the user for scope, audience and required depth." },
+    { name: "synthesize_findings", description: "Cluster sources, extract insights and draft sections." },
+  ],
+  tools: [
+    { name: "Google Search", desc: "Surface authoritative web sources.", icon: Search, tint: "bg-info/15 text-info" },
+    { name: "Perplexity", desc: "Deep-research with grounded citations.", icon: Sparkles, tint: "bg-primary-soft text-primary" },
+    { name: "Firecrawl", desc: "Scrape pages into clean structured text.", icon: Globe, tint: "bg-accent-soft text-accent" },
+    { name: "Python code", desc: "Run quantitative analysis on raw data.", icon: Code2, tint: "bg-surface-muted text-foreground" },
+    { name: "Google Docs", desc: "Publish the formatted report.", icon: FileText, tint: "bg-info/15 text-info" },
+    { name: "Google Sheets", desc: "Export tables & supporting data.", icon: FileSpreadsheet, tint: "bg-primary-soft text-primary" },
+  ],
+  knowledge: [
+    { name: "Report style guide", type: "doc", description: "House style, tone and formatting rules." },
+    { name: "Past reports archive", type: "doc", description: "Reference patterns and prior decisions." },
+  ],
   trigger: "Manual + Weekly",
   tone: "Professional",
+  extraSteps: [],
+};
+
+const careDraft: AgentDraft = {
+  name: "Customer Care Agent",
+  emoji: "🎧",
+  persona: "24/7 customer-care specialist",
+  description:
+    "A 24/7 customer-care agent that answers FAQs, verifies customers, handles bookings and escalates complex cases to a human advisor.",
+  expertise: [
+    "FAQ resolution from knowledge base",
+    "Identity verification & card operations",
+    "Appointment booking",
+    "Empathetic escalation handoff",
+  ],
+  bps: [
+    { name: "others", description: "Default fallback — answer general questions from knowledge.", strategy: "ReAct", isDefault: true },
+    { name: "verify_customer", description: "Verify the customer by phone before any sensitive action.", strategy: "Predefined Plan" },
+    { name: "lock_card", description: "Lock a card after identity check.", strategy: "Predefined Plan" },
+    { name: "book_appointment", description: "Book a consultation slot with an advisor.", strategy: "ReAct" },
+  ],
+  tasks: [
+    { name: "collect_customer_info", description: "Collect phone, full name and reason for contact." },
+    { name: "confirm_booking", description: "Read back the booking details and capture confirmation." },
+  ],
+  tools: [
+    { name: "verify_customer", desc: "Verify a customer by phone or ID.", icon: User, tint: "bg-primary-soft text-primary" },
+    { name: "lock_card", desc: "Lock a card via the core banking API.", icon: Wrench, tint: "bg-destructive/10 text-destructive" },
+    { name: "calendar_create_event", desc: "Create a Google Calendar event.", icon: Clock, tint: "bg-info/15 text-info" },
+    { name: "send_sms", desc: "Send a transactional SMS confirmation.", icon: Send, tint: "bg-accent-soft text-accent" },
+  ],
+  knowledge: [
+    { name: "FAQ — Card policy", type: "faq", description: "Top 30 FAQs about card products & limits." },
+    { name: "Booking guide", type: "doc", description: "Branch list, slots and required documents." },
+  ],
+  trigger: "Manual",
+  tone: "Friendly",
   extraSteps: [],
 };
 
