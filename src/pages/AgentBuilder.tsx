@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { toolStore } from "@/components/tool-builder/types";
+import TasksGrid from "@/components/tasks/TasksGrid";
 
 type Tab = "develop" | "monitor";
 
