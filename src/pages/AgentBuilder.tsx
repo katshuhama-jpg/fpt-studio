@@ -9,6 +9,7 @@ import {
 import { useEffect, useState } from "react";
 import AgentToolsTab from "@/components/tool-builder/AgentToolsTab";
 import TasksGrid from "@/components/tasks/TasksGrid";
+import BusinessProcessesGrid from "@/components/business-processes/BusinessProcessesGrid";
 import { updateUser } from "@/lib/onboarding";
 
 type Tab = "develop" | "monitor";
@@ -18,6 +19,7 @@ const developNav = [
     label: "Build",
     items: [
       { id: "general", label: "General", icon: Cog, status: "done" },
+      { id: "bp", label: "Business processes", icon: Layers, status: "done" },
       { id: "knowledge", label: "Knowledge", icon: BookOpen, status: "done" },
       { id: "tool", label: "Tools", icon: Wrench, status: "warn" },
       { id: "task", label: "Tasks", icon: ListChecks, status: "empty" },
@@ -221,11 +223,12 @@ export default function AgentBuilder() {
         <div className="flex-1 flex overflow-hidden">
           <div className="flex-1 overflow-y-auto bg-gradient-soft">
             {tab === "develop" && section === "general" && <GeneralTab />}
+            {tab === "develop" && section === "bp" && <BusinessProcessesGrid agentId={id} />}
             {tab === "develop" && section === "knowledge" && <KnowledgeTab />}
             {tab === "develop" && section === "tool" && <AgentToolsTab agentId={id} />}
             {tab === "develop" && section === "task" && <TasksGrid agentId={id} />}
             {tab === "develop" && section === "advanced" && <AdvancedTab />}
-            {tab === "develop" && !["general", "knowledge", "tool", "task", "advanced"].includes(section) && <PlaceholderTab title={section} />}
+            {tab === "develop" && !["general", "bp", "knowledge", "tool", "task", "advanced"].includes(section) && <PlaceholderTab title={section} />}
             {tab === "monitor" && section === "perf" && <PerformanceTab />}
             {tab === "monitor" && section !== "perf" && <PlaceholderTab title={section} />}
           </div>
