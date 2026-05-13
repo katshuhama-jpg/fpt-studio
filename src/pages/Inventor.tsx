@@ -278,7 +278,6 @@ export default function Inventor() {
     }
 
     // Tasks
-    await wait: 0;
     await wait(350);
     pushMsg({
       id: crypto.randomUUID(), role: "ai", kind: "inventory-batch",
