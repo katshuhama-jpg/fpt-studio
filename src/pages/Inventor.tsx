@@ -398,6 +398,7 @@ export default function Inventor() {
             disabled={!configApplied}
             onClick={() => {
               if (fromOnboarding) updateUser({ firstTime: false });
+              commitDraftToAgent("cskh", draft);
               navigate(
                 fromOnboarding ? "/agents/cskh?welcome=1" : "/agents/cskh",
               );
