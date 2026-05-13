@@ -67,14 +67,6 @@ const reportDraft: AgentDraft = {
     "Executive-grade narrative writing",
     "Citation & source verification",
   ],
-  tools: [
-    { name: "Google Search", desc: "Surface authoritative web sources.", icon: Search, tint: "bg-info/15 text-info" },
-    { name: "Perplexity", desc: "Deep-research with grounded citations.", icon: Sparkles, tint: "bg-primary-soft text-primary" },
-    { name: "Firecrawl", desc: "Scrape pages into clean structured text.", icon: Globe, tint: "bg-accent-soft text-accent" },
-    { name: "Python code", desc: "Run quantitative analysis on raw data.", icon: Code2, tint: "bg-surface-muted text-foreground" },
-    { name: "Google Docs", desc: "Publish the formatted report.", icon: FileText, tint: "bg-info/15 text-info" },
-    { name: "Google Sheets", desc: "Export tables & supporting data.", icon: FileSpreadsheet, tint: "bg-primary-soft text-primary" },
-  ],
   bps: [
     { name: "others", description: "Default fallback — answer general questions from knowledge.", strategy: "ReAct", isDefault: true },
     { name: "weekly_report", description: "Generate the weekly executive report on schedule.", strategy: "Predefined Plan" },
