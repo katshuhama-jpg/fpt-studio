@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
-  ArrowLeft, ArrowRight, Check, Loader2, Sparkles, Send, Wand2,
+  ArrowLeft, ArrowRight, Check, Loader2, Sparkles, Wand2,
   Building2, ShoppingBag, GraduationCap, HeartPulse, Cpu, Truck, MoreHorizontal,
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
@@ -78,7 +78,12 @@ export default function Onboarding() {
           {stepParam === "workspace" && <PersonalizingStep onDone={next} />}
           {stepParam === "prompt" && (
             <PromptStep
-              onGenerate={next}
+              onGenerate={(p) => {
+                updateOnboarding({ prompt: p });
+                navigate(
+                  `/inventor?from=onboarding&prompt=${encodeURIComponent(p)}`,
+                );
+              }}
               onLater={finishToDashboard}
               onTemplates={() => {
                 updateUser({ firstTime: false });
@@ -87,12 +92,11 @@ export default function Onboarding() {
               }}
             />
           )}
-          {stepParam === "generate" && <GenerateStep />}
         </div>
       </main>
 
       {/* Footer nav */}
-      {stepParam !== "workspace" && stepParam !== "generate" && (
+      {stepParam !== "workspace" && (
         <footer className="px-6 pb-8 max-w-2xl w-full mx-auto flex items-center">
           <button
             onClick={back}
@@ -310,7 +314,7 @@ function PromptStep({
   onLater,
   onTemplates,
 }: {
-  onGenerate: () => void;
+  onGenerate: (prompt: string) => void;
   onLater: () => void;
   onTemplates: () => void;
 }) {
@@ -331,16 +335,13 @@ function PromptStep({
           className="w-full resize-none bg-transparent text-sm placeholder:text-muted-foreground outline-none px-3 py-2.5"
         />
         <div className="flex items-center justify-between px-2 pb-1">
-          <span className="text-[11px] text-muted-foreground">Press ⌘↵ to generate</span>
+          <span className="text-[11px] text-muted-foreground">You'll keep refining in Inventor</span>
           <button
             disabled={!prompt.trim()}
-            onClick={() => {
-              updateOnboarding({ prompt });
-              onGenerate();
-            }}
+            onClick={() => onGenerate(prompt.trim())}
             className="btn-primary h-8 px-3 disabled:opacity-50 disabled:pointer-events-none"
           >
-            <Wand2 size={13} /> Generate agent
+            <Wand2 size={13} /> Continue to Inventor
           </button>
         </div>
       </div>
