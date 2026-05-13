@@ -6,9 +6,10 @@ import {
   ArrowRight, Shield, ChevronDown, FileText, Trash2, MessageSquare, Activity,
   Star, Users as UsersIcon, History, Download, X, SlidersHorizontal, Smartphone, Monitor,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toolStore } from "@/components/tool-builder/types";
 import TasksGrid from "@/components/tasks/TasksGrid";
+import { updateUser } from "@/lib/onboarding";
 
 type Tab = "develop" | "monitor";
 
@@ -61,6 +62,16 @@ export default function AgentBuilder() {
   const section = params.get("section") || (tab === "develop" ? "general" : "perf");
   const navigate = useNavigate();
   const [aiChatOpen, setAiChatOpen] = useState(false);
+  const welcome = params.get("welcome") === "1";
+  const [showWelcome, setShowWelcome] = useState(welcome);
+  useEffect(() => { setShowWelcome(welcome); }, [welcome]);
+  const dismissWelcome = () => {
+    setShowWelcome(false);
+    updateUser({ welcomeSeen: true });
+    const p = new URLSearchParams(params);
+    p.delete("welcome");
+    setParams(p, { replace: true });
+  };
 
   const setTab = (t: Tab) => setParams({ tab: t, section: t === "develop" ? "general" : "perf" });
   const setSection = (s: string) => setParams({ tab, section: s });
