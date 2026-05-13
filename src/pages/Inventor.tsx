@@ -4,8 +4,9 @@ import {
   ArrowLeft, Sparkles, Send, Check, Loader2, Wand2, Bot, User, Wrench, BookOpen,
   ListChecks, Paperclip, AtSign, Settings2, Play, Save, ArrowUpRight, Cog,
   Globe, Search, FileText, Code2, FileSpreadsheet, Clock, Hand, ChevronRight,
-  Database, MessageSquareText, CheckCircle2,
+  Database, MessageSquareText, CheckCircle2, Rocket,
 } from "lucide-react";
+import { updateUser } from "@/lib/onboarding";
 
 /* ---------------- Types ---------------- */
 type TodoStatus = "pending" | "running" | "done";
@@ -75,6 +76,7 @@ export default function Inventor() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const seedPrompt = params.get("prompt") ?? "";
+  const fromOnboarding = params.get("from") === "onboarding";
 
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
@@ -282,12 +284,27 @@ export default function Inventor() {
           </div>
         </div>
         <div className="ml-auto flex items-center gap-2">
+          {fromOnboarding && (
+            <span className="chip chip-primary text-[10px] hidden sm:inline-flex">
+              <Rocket size={11} /> First agent setup
+            </span>
+          )}
           <button className="btn-secondary h-8 text-xs">
             <Save size={12} /> Save draft
           </button>
           <button
             disabled={!configApplied}
-            onClick={() => navigate("/agents/cskh")}
+            onClick={() => {
+              if (fromOnboarding) updateUser({ firstTime: false });
+              navigate(
+                fromOnboarding ? "/agents/cskh?welcome=1" : "/agents/cskh",
+              );
+            }}
+            title={
+              fromOnboarding && configApplied
+                ? "Happy with it? Open your agent to test and tweak."
+                : undefined
+            }
             className="btn-primary h-8 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Play size={12} /> Open agent

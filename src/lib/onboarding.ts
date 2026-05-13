@@ -63,6 +63,5 @@ export const ONBOARDING_STEPS = [
   "company",
   "workspace",
   "prompt",
-  "generate",
 ] as const;
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];

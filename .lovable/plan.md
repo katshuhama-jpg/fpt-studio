@@ -1,81 +1,48 @@
-# Login + Onboarding Flow (Mock UI)
+# Onboarding → Inventor (no auto-generate)
 
-Presentation-only login screen + 6-step onboarding leading directly into `AgentBuilder` with a success banner. State lives in `localStorage` (no backend).
+Reroute the onboarding flow so the prompt step hands the user off to the **Inventor** (chat-to-build screen). Users keep refining via chat there, then click **Open agent** when ready — no forced one-shot generation.
 
-## Routes (in `src/App.tsx`, outside `WorkspaceLayout`)
+## New flow
 
-- `/login` — Login screen
-- `/onboarding` — Wraps steps, controlled by `?step=industry|role|company|workspace|prompt|generate`
-- Guard: no `lov_user` in `localStorage` → redirect `/` to `/login`. After login: first-time → `/onboarding`, returning → `/`.
+```text
+Login → Industry → Role → Company size → Personalizing → Prompt
+                                                           │
+                                                           ▼
+                                                       Inventor
+                                              (chat-to-build, live config)
+                                                           │
+                                                  [Open agent] ▼
+                                              Builder + welcome banner
+```
 
-## Screen — Login (`src/pages/Login.tsx`)
+5 onboarding steps total. Step 6 (Generating loader) is removed.
 
-Two-column, brand gradient left, card right.
+## Changes
 
-- **Left**: chip `Setup takes less than 2 minutes`, H1 "Build AI agents for your team", subcopy, light illustration.
-- **Right card**:
-  - Email input — placeholder "Enter your work email"
-  - CTA **Get started** → store `lov_user = { email, firstTime: true }` → `/onboarding?step=industry`
-  - Divider "OR"
-  - **Continue with FPT ID** (mock, same behavior)
-  - Helper: "Next: Tell us about your team → Create your first AI agent"
+### `src/lib/onboarding.ts`
+- Remove `"generate"` from `ONBOARDING_STEPS` → 5 steps.
 
-## Onboarding shell (`src/pages/Onboarding.tsx`)
+### `src/pages/Onboarding.tsx`
+- Delete `GenerateStep` component and its route case.
+- Progress label → `Step X of 5`.
+- **PromptStep** CTA changes:
+  - Primary: **Continue to Inventor** → save `prompt` + `lov_user.firstTime` stays `true`, navigate to `/inventor?prompt=<encoded>&from=onboarding`.
+  - Secondary "I'll do this later" → mark `firstTime=false`, go to `/`.
+  - Tertiary "Explore templates instead" → `/templates`.
 
-Centered card (max-w 640). Header: back arrow, progress bar + `Step X of 6`, and a context-aware skip control on the right.
+### `src/pages/Inventor.tsx`
+- Read `?from=onboarding` and `?prompt=`:
+  - Prefill the chat composer with the prompt and auto-send the first message (so the live config starts populating immediately).
+  - Show a small chip in the header: **First agent setup**.
+  - Add a one-time tooltip/coach-mark on the **Open agent** button: *"Happy with it? Open your agent to test and tweak."*
+- **Open agent** handler when `from=onboarding`:
+  - Set `lov_user.firstTime = false`.
+  - Navigate to `/agents/:id?welcome=1` (existing welcome banner in `AgentBuilder` already handles the rest).
 
-State stored under `lov_onboarding` in `localStorage`.
-
-### Step 1 — Industry  *(Skip allowed)*
-Chip grid: Banking, Retail, Education, Healthcare, Tech, Logistics, Other.
-
-### Step 2 — Role  *(Skip allowed)*
-Radio cards: Product, Engineering, Operations, Customer Support, Marketing, Founder/Exec, Other.
-
-### Step 3 — Company size  *(Skip allowed)*
-Row: 1–10, 11–50, 51–200, 201–1000, 1000+.
-
-### Step 4 — Personalizing workspace  *(no skip)*
-Auto-advance loader (~2.5 s), rotating lines using selected industry/role.
-
-### Step 5 — Prompt to Agent
-- Composer reused from `Home.tsx` hero with suggestion chips.
-- Primary CTA **Generate agent** → step 6.
-- Secondary link (left of CTA): **I'll do this later** → marks onboarding done, navigates to `/` (dashboard shows template suggestions / sample agents — out of scope to build, just route there).
-- Tertiary link: **Explore templates instead** → `/templates`.
-
-### Step 6 — Agent generation  *(no skip)*
-Inline generation loader matching `AgentScaffold` "generating" stage (animated steps list). On finish:
-- Mark `lov_user.firstTime = false`.
-- Navigate to `/agents/:id?welcome=1`.
-
-## Success integrated into Builder (no standalone success screen)
-
-In `src/pages/AgentBuilder.tsx`, when URL has `welcome=1`:
-
-- Show a dismissible **success banner** at the top of the page:
-  - "🎉 Your first agent is ready. Try chatting on the right, or tweak knowledge & tools below."
-  - Buttons: **Test now** (focuses test panel), **Got it** (dismiss).
-- Lightweight coach-marks (tooltip popovers, dismiss-on-click) anchored to: Test panel, Knowledge tab, Publish button. Auto-hide after first interaction. Stored via `lov_user.welcomeSeen`.
-
-## Design notes
-
-- Reuse existing tokens: `bg-surface`, `border-border`, `chip`, `chip-primary`, `shadow-elev`, `font-display`, gradients in `index.css`.
-- Progress via existing `@/components/ui/progress`.
-- Animations: existing `animate-fade-up`. No new deps.
-- Copy in English to match current voice.
-
-## Files to add / change
-
-- New: `src/pages/Login.tsx`
-- New: `src/pages/Onboarding.tsx` (+ small `src/components/onboarding/` for step bodies)
-- New: `src/lib/onboarding.ts` — typed localStorage helpers
-- Edit: `src/App.tsx` — add `/login`, `/onboarding`, redirect guard component
-- Edit: `src/pages/AgentBuilder.tsx` — read `?welcome=1`, render success banner + coach-marks
-- Edit: `src/components/layout/WorkspaceLayout.tsx` — add **Sign out** in user menu (clears `lov_user`, returns to `/login`) for demoing the flow
+### `src/App.tsx`
+- `RequireAuth`: allow `firstTime` users to access `/inventor` (currently they get bounced back to `/onboarding`). Keep the bounce for all other routes.
 
 ## Out of scope
-
-- Real auth, real FPT ID SSO, email verification beyond format check
-- Persisting onboarding answers to a backend
-- Building a templates/dashboard empty-state — we just route there
+- No backend, no real generation logic — Inventor's existing mock auto-save on chat is reused.
+- No redesign of Inventor itself.
+- AgentBuilder welcome banner + coach-marks already exist; unchanged.
