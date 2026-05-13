@@ -370,61 +370,6 @@ function PromptStep({
   );
 }
 
-/* ───────────────── Step: Generate ───────────────── */
-
-const GEN_STEPS = [
-  "Analysing your prompt",
-  "Drafting persona & guidelines",
-  "Suggesting knowledge sources",
-  "Picking tools & tasks",
-  "Composing opening questions",
-];
-
-function GenerateStep() {
-  const navigate = useNavigate();
-  const [i, setI] = useState(0);
-
-  useEffect(() => {
-    const timers = GEN_STEPS.map((_, idx) =>
-      setTimeout(() => setI(idx + 1), 700 * (idx + 1)),
-    );
-    const done = setTimeout(() => {
-      updateUser({ firstTime: false });
-      updateOnboarding({ completed: true });
-      navigate("/agents/cskh?welcome=1", { replace: true });
-    }, 700 * GEN_STEPS.length + 600);
-    return () => {
-      timers.forEach(clearTimeout);
-      clearTimeout(done);
-    };
-  }, [navigate]);
-
-  return (
-    <div className="text-center py-6">
-      <div className="mx-auto h-14 w-14 rounded-2xl bg-gradient-brand flex items-center justify-center text-primary-foreground mb-5 animate-pulse-soft">
-        <Send size={20} />
-      </div>
-      <h2 className="font-display text-2xl font-semibold mb-2">Generating your agent</h2>
-      <p className="text-sm text-muted-foreground mb-6">
-        Crafting a draft based on your prompt…
-      </p>
-      <ul className="text-sm space-y-2 text-left max-w-sm mx-auto">
-        {GEN_STEPS.map((m, idx) => (
-          <li key={m} className="flex items-center gap-2.5">
-            {idx < i ? (
-              <Check size={16} className="text-success" />
-            ) : idx === i ? (
-              <Loader2 size={16} className="animate-spin text-primary" />
-            ) : (
-              <span className="h-4 w-4 rounded-full border border-border" />
-            )}
-            <span className={idx <= i ? "text-foreground" : "text-muted-foreground"}>{m}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
 
 /* ───────────────── Helpers ───────────────── */
 
