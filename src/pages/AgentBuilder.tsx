@@ -6,9 +6,10 @@ import {
   ArrowRight, Shield, ChevronDown, FileText, Trash2, MessageSquare, Activity,
   Star, Users as UsersIcon, History, Download, X, SlidersHorizontal, Smartphone, Monitor,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toolStore } from "@/components/tool-builder/types";
 import TasksGrid from "@/components/tasks/TasksGrid";
+import { updateUser } from "@/lib/onboarding";
 
 type Tab = "develop" | "monitor";
 
@@ -61,6 +62,16 @@ export default function AgentBuilder() {
   const section = params.get("section") || (tab === "develop" ? "general" : "perf");
   const navigate = useNavigate();
   const [aiChatOpen, setAiChatOpen] = useState(false);
+  const welcome = params.get("welcome") === "1";
+  const [showWelcome, setShowWelcome] = useState(welcome);
+  useEffect(() => { setShowWelcome(welcome); }, [welcome]);
+  const dismissWelcome = () => {
+    setShowWelcome(false);
+    updateUser({ welcomeSeen: true });
+    const p = new URLSearchParams(params);
+    p.delete("welcome");
+    setParams(p, { replace: true });
+  };
 
   const setTab = (t: Tab) => setParams({ tab: t, section: t === "develop" ? "general" : "perf" });
   const setSection = (s: string) => setParams({ tab, section: s });
@@ -129,6 +140,28 @@ export default function AgentBuilder() {
           </button>
         </div>
       </div>
+
+      {/* Welcome banner (first-time onboarding success) */}
+      {showWelcome && (
+        <div className="border-b border-primary/20 bg-primary-soft px-4 py-3 flex items-center gap-3 animate-fade-up shrink-0">
+          <div className="h-8 w-8 rounded-lg bg-gradient-brand flex items-center justify-center text-primary-foreground shrink-0">
+            <Sparkles size={14} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold text-foreground">🎉 Your first agent is ready</div>
+            <div className="text-xs text-muted-foreground truncate">
+              Try chatting on the right, or tweak knowledge & tools below.
+            </div>
+          </div>
+          <button onClick={dismissWelcome} className="btn-secondary h-8 px-3 text-xs">Got it</button>
+          <button onClick={dismissWelcome} className="btn-primary h-8 px-3 text-xs">
+            <Play size={12} /> Test now
+          </button>
+          <button onClick={dismissWelcome} className="h-8 w-8 rounded-lg hover:bg-surface flex items-center justify-center text-muted-foreground" aria-label="Dismiss">
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/* Body */}
       <div className="flex flex-1 overflow-hidden relative">

@@ -1,4 +1,5 @@
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { clearUser } from "@/lib/onboarding";
 import {
   Home, Sparkles, Bot, BookOpen, Settings, LayoutTemplate,
   Wrench, ChevronsLeft, ChevronsRight, Search, Bell, Plus,
@@ -56,7 +57,13 @@ export default function WorkspaceLayout() {
   const [tenantId, setTenantId] = useState(TENANTS[0].id);
   const tenant = TENANTS.find(t => t.id === tenantId) ?? TENANTS[0];
   const loc = useLocation();
+  const navigate = useNavigate();
   const inAgentBuilder = loc.pathname.startsWith("/agents/");
+  const handleSignOut = () => {
+    clearUser();
+    setUserMenu(false);
+    navigate("/login", { replace: true });
+  };
 
   // Builder owns its own chrome — no main shell at all.
   if (inAgentBuilder) {
@@ -196,7 +203,7 @@ export default function WorkspaceLayout() {
                 <User size={14} className="text-muted-foreground" /> Profile
               </button>
               <div className="border-t border-border" />
-              <button className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-surface-muted text-destructive transition-base">
+              <button onClick={handleSignOut} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-surface-muted text-destructive transition-base">
                 <LogOut size={14} /> Sign out
               </button>
             </div>
