@@ -190,7 +190,7 @@ export default function AgentBuilder() {
             {tab === "develop" && section === "general" && <GeneralTab />}
             {tab === "develop" && section === "knowledge" && <KnowledgeTab />}
             {tab === "develop" && section === "tool" && <ToolsTab agentId={id} />}
-            {tab === "develop" && section === "task" && <TasksList agentId={id} />}
+            {tab === "develop" && section === "task" && <TasksGrid agentId={id} />}
             {tab === "develop" && section === "advanced" && <AdvancedTab />}
             {tab === "develop" && !["general", "knowledge", "tool", "task", "advanced"].includes(section) && <PlaceholderTab title={section} />}
             {tab === "monitor" && section === "perf" && <PerformanceTab />}
