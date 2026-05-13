@@ -243,39 +243,82 @@ export default function Inventor() {
   /* user clicks "Update configuration" */
   async function applyConfiguration(ctaId: string) {
     updateMsg(ctaId, m => (m.role === "ai" && m.kind === "cta" ? { ...m, done: true } : m));
+    // Pick draft based on prompt keyword
+    const prompt = (seedPrompt || "").toLowerCase();
+    const target =
+      prompt.includes("customer") || prompt.includes("care") || prompt.includes("cskh") || prompt.includes("faq") || prompt.includes("booking")
+        ? careDraft
+        : reportDraft;
     setConfigApplied(true);
-    setDraft(prev => ({ ...prev, name: reportDraft.name, emoji: reportDraft.emoji, persona: reportDraft.persona, description: reportDraft.description, trigger: reportDraft.trigger, tone: reportDraft.tone }));
+    setDraft(prev => ({
+      ...prev,
+      name: target.name, emoji: target.emoji, persona: target.persona,
+      description: target.description, trigger: target.trigger, tone: target.tone,
+    }));
     setThinking(true);
     await wait(500);
 
-    // Progressively reveal expertise
+    // Expertise
     pushMsg({ id: crypto.randomUUID(), role: "ai", kind: "text", text: "✅ Configuration applied. Now wiring up Core Expertise…" });
-    for (const e of reportDraft.expertise) {
-      await wait(280);
+    for (const e of target.expertise) {
+      await wait(220);
       setDraft(d => ({ ...d, expertise: [...d.expertise, e] }));
     }
 
-    await wait(400);
+    // Business processes
+    await wait(350);
     pushMsg({
-      id: crypto.randomUUID(),
-      role: "ai",
-      kind: "tool-batch",
-      tools: reportDraft.tools.map(t => t.name),
+      id: crypto.randomUUID(), role: "ai", kind: "inventory-batch",
+      title: "Designing business processes", icon: Layers,
+      items: target.bps.map(b => b.name),
     });
+    for (const b of target.bps) {
+      await wait(260);
+      setDraft(d => ({ ...d, bps: [...d.bps, b] }));
+    }
 
-    // Progressively reveal tools
-    for (const t of reportDraft.tools) {
-      await wait(320);
+    // Tasks
+    await wait: 0;
+    await wait(350);
+    pushMsg({
+      id: crypto.randomUUID(), role: "ai", kind: "inventory-batch",
+      title: "Drafting tasks", icon: ListChecks,
+      items: target.tasks.map(t => t.name),
+    });
+    for (const tk of target.tasks) {
+      await wait(260);
+      setDraft(d => ({ ...d, tasks: [...d.tasks, tk] }));
+    }
+
+    // Tools
+    await wait(350);
+    pushMsg({
+      id: crypto.randomUUID(), role: "ai", kind: "inventory-batch",
+      title: "Adding recommended tools", icon: Wrench,
+      items: target.tools.map(t => t.name),
+    });
+    for (const t of target.tools) {
+      await wait(260);
       setDraft(d => ({ ...d, tools: [...d.tools, t] }));
+    }
+
+    // Knowledge
+    await wait(350);
+    pushMsg({
+      id: crypto.randomUUID(), role: "ai", kind: "inventory-batch",
+      title: "Curating knowledge sources", icon: BookOpen,
+      items: target.knowledge.map(k => k.name),
+    });
+    for (const k of target.knowledge) {
+      await wait(260);
+      setDraft(d => ({ ...d, knowledge: [...d.knowledge, k] }));
     }
 
     await wait(300);
     pushMsg({
-      id: crypto.randomUUID(),
-      role: "ai",
-      kind: "text",
+      id: crypto.randomUUID(), role: "ai", kind: "text",
       text:
-        "All set. You can keep chatting to refine — e.g. *“send the report to Slack when finished”* or *“use a more formal tone”*.",
+        "All set. You can keep chatting to refine — e.g. *“add a SLA business process”* or *“use a more formal tone”*.",
     });
     setThinking(false);
   }
