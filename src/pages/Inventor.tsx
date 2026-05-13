@@ -4,7 +4,7 @@ import {
   ArrowLeft, Sparkles, Send, Check, Loader2, Wand2, Bot, User, Wrench, BookOpen,
   ListChecks, Paperclip, AtSign, Settings2, Play, Save, ArrowUpRight, Cog,
   Globe, Search, FileText, Code2, FileSpreadsheet, Clock, Hand, ChevronRight,
-  Database, MessageSquareText, CheckCircle2, Rocket,
+  Database, MessageSquareText, CheckCircle2, Rocket, Layers,
 } from "lucide-react";
 import { updateUser } from "@/lib/onboarding";
 
@@ -18,9 +18,12 @@ type ChatMsg =
   | { id: string; role: "ai"; kind: "todo"; todos: Todo[]; title?: string }
   | { id: string; role: "ai"; kind: "strategy"; reportTypes: string[]; triggers: { label: string; icon: any }[] }
   | { id: string; role: "ai"; kind: "cta"; label: string; done?: boolean }
-  | { id: string; role: "ai"; kind: "tool-batch"; tools: string[] };
+  | { id: string; role: "ai"; kind: "inventory-batch"; title: string; icon: any; items: string[] };
 
 type Tool = { name: string; desc: string; icon: any; tint: string };
+type BpDraft = { name: string; description: string; strategy: "ReAct" | "Predefined Plan" | "Tool Execution"; isDefault?: boolean };
+type TaskDraft = { name: string; description: string };
+type KnowledgeDraft = { name: string; type: "doc" | "url" | "faq"; description: string };
 
 type AgentDraft = {
   name: string;
@@ -28,7 +31,10 @@ type AgentDraft = {
   persona: string;
   description: string;
   expertise: string[];
+  bps: BpDraft[];
+  tasks: TaskDraft[];
   tools: Tool[];
+  knowledge: KnowledgeDraft[];
   trigger: "Manual" | "Weekly" | "Manual + Weekly";
   tone: "Professional" | "Formal" | "Friendly";
   extraSteps: string[];
@@ -40,7 +46,10 @@ const emptyDraft: AgentDraft = {
   persona: "—",
   description: "Describe what you want and Inventor will draft a full configuration.",
   expertise: [],
+  bps: [],
+  tasks: [],
   tools: [],
+  knowledge: [],
   trigger: "Manual",
   tone: "Professional",
   extraSteps: [],
