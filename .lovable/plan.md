@@ -1,158 +1,81 @@
-## Mục tiêu
+# Login + Onboarding Flow (Mock UI)
 
-Triển khai đầy đủ feature **Task** trong Agent Builder theo PRD 2.6 v34 và screen flow đã đính kèm. Bao quát 5 Use Case: tạo, xem, sửa, publish workflow, xem danh sách, sửa thông tin task.
+Presentation-only login screen + 6-step onboarding leading directly into `AgentBuilder` with a success banner. State lives in `localStorage` (no backend).
 
-## Hiện trạng
+## Routes (in `src/App.tsx`, outside `WorkspaceLayout`)
 
-- `AgentBuilder.tsx` đã có tab **Tasks** (`section=task`) nhưng đang render bảng table (`TasksList`) — không đúng spec card layout.
-- `TaskEditor.tsx` đã có canvas workflow + breadcrumb + Save/Publish nhưng:
-  - Mở mặc định ra **Template Picker** (3 starting points) — PRD yêu cầu 2-node mặc định (Start, End).
-  - Thiếu popup Create, Edit info, checklist warning panel, history/rollback, commit message dialog, validation.
-- Chưa có route `/agents/:id/tasks/new` (PRD yêu cầu modal — không cần route riêng).
-- Chưa có 2 system task mặc định: **Knowledge Retrieval** & **Generate Knowledge Response**.
+- `/login` — Login screen
+- `/onboarding` — Wraps steps, controlled by `?step=industry|role|company|workspace|prompt|generate`
+- Guard: no `lov_user` in `localStorage` → redirect `/` to `/login`. After login: first-time → `/onboarding`, returning → `/`.
 
-## Phạm vi
+## Screen — Login (`src/pages/Login.tsx`)
 
-| UC | Màn / Component | Trạng thái |
-|---|---|---|
-| UC-04 | Task List (card grid + empty + search) | Mới |
-| UC-01 | Create Task modal | Mới |
-| UC-05 | Edit Task Info modal | Mới |
-| UC-02 | Workflow viewer (read mode + node detail panel) | Sửa |
-| UC-03 | Workflow editor (publish + checklist + history + commit) | Sửa |
-| Default | 2 system task readonly + reset | Mới (mock data) |
+Two-column, brand gradient left, card right.
 
-## Thiết kế UI
+- **Left**: chip `Setup takes less than 2 minutes`, H1 "Build AI agents for your team", subcopy, light illustration.
+- **Right card**:
+  - Email input — placeholder "Enter your work email"
+  - CTA **Get started** → store `lov_user = { email, firstTime: true }` → `/onboarding?step=industry`
+  - Divider "OR"
+  - **Continue with FPT ID** (mock, same behavior)
+  - Helper: "Next: Tell us about your team → Create your first AI agent"
 
-### 1. Task List — card grid (UC-04)
+## Onboarding shell (`src/pages/Onboarding.tsx`)
 
-Thay bảng `TasksList` trong `AgentBuilder.tsx` (dòng 455–495) bằng card layout:
+Centered card (max-w 640). Header: back arrow, progress bar + `Step X of 6`, and a context-aware skip control on the right.
 
-```text
-┌─────────────────────────────────────────────────────────┐
-│ Tasks                              [Search] [+ Create]  │
-├─────────────────────────────────────────────────────────┤
-│ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐   │
-│ │ 🔒 Lock  │ │ 📚 Know. │ │ 💬 Gen.  │ │ 📅 Sched.│   │
-│ │ credit…  │ │ Retrieval│ │ Response │ │ consult. │   │
-│ │ Verify…  │ │ [System] │ │ [System] │ │ Book a…  │   │
-│ │ 2m ago   │ │ —        │ │ —        │ │ 3d ago   │   │
-│ │     ⓘ ✏️🗑│ │     ⓘ    │ │    ⓘ     │ │    ⓘ ✏️🗑 │   │
-│ └──────────┘ └──────────┘ └──────────┘ └──────────┘   │
-└─────────────────────────────────────────────────────────┘
-```
+State stored under `lov_onboarding` in `localStorage`.
 
-- Mỗi card: name, purpose (2 dòng truncate), last update, badge `[System]` nếu là task default.
-- Hover → hiện 2 icon Edit / Delete (system task ẩn Delete, chỉ có "Reset to default").
-- Click body card → vào workflow editor (`/agents/:id/tasks/:taskId`).
-- Empty state: minh họa + CTA **Create**.
-- Search: filter theo name/purpose, debounce 200ms.
+### Step 1 — Industry  *(Skip allowed)*
+Chip grid: Banking, Retail, Education, Healthcare, Tech, Logistics, Other.
 
-### 2. Create Task modal (UC-01)
+### Step 2 — Role  *(Skip allowed)*
+Radio cards: Product, Engineering, Operations, Customer Support, Marketing, Founder/Exec, Other.
 
-Mở từ nút **+ Create** ở Task List. Dialog 480px gồm:
-- **Name** (required, max 50, placeholder *"A clear and memorable name…"*) — validate trùng với toàn bộ tasks.
-- **Purpose** (required, max 255, textarea 3 rows, placeholder *"Expected outcome of executing this task"*).
-- Counter ký tự, inline error đỏ theo Messages bảng (mục 4 PRD).
-- **Cancel** / **Create** (primary, disabled nếu invalid).
-- Submit → tạo task → toast green *"Task created successfully"* → navigate vào workflow editor với 2 node default (Start, End), trạng thái Published.
+### Step 3 — Company size  *(Skip allowed)*
+Row: 1–10, 11–50, 51–200, 201–1000, 1000+.
 
-### 3. Edit Task Info modal (UC-05)
+### Step 4 — Personalizing workspace  *(no skip)*
+Auto-advance loader (~2.5 s), rotating lines using selected industry/role.
 
-Reuse cùng component với Create (mode `edit`). Mở từ icon ✏️ trên card. Khác:
-- Title "Edit task".
-- Button primary **Save** thay cho **Create**.
-- Toast *"Task updated successfully"* sau khi lưu.
+### Step 5 — Prompt to Agent
+- Composer reused from `Home.tsx` hero with suggestion chips.
+- Primary CTA **Generate agent** → step 6.
+- Secondary link (left of CTA): **I'll do this later** → marks onboarding done, navigates to `/` (dashboard shows template suggestions / sample agents — out of scope to build, just route there).
+- Tertiary link: **Explore templates instead** → `/templates`.
 
-### 4. Workflow editor (UC-02 + UC-03)
+### Step 6 — Agent generation  *(no skip)*
+Inline generation loader matching `AgentScaffold` "generating" stage (animated steps list). On finish:
+- Mark `lov_user.firstTime = false`.
+- Navigate to `/agents/:id?welcome=1`.
 
-Sửa `TaskEditor.tsx`:
+## Success integrated into Builder (no standalone success screen)
 
-#### Khởi tạo
-- Bỏ `TemplatePicker`. Khi mở task → hiển thị canvas với 2 node mặc định **Start** → **End** (cho task mới) hoặc nodes đã lưu.
+In `src/pages/AgentBuilder.tsx`, when URL has `welcome=1`:
 
-#### Top bar mới
-```text
-[← Back] Banking ABC / Tasks / Lock credit card · Published 2h ago
-                              [Checklist ⚠ 2] [v3 History] [Test] [Save] [Publish]
-```
-- **Trạng thái publish**: chip cạnh tên — `Unpublished` (vàng) khi có sửa chưa publish, `Published Xh ago` (xanh) khi đã đồng bộ.
-- **Checklist** button: badge đếm số issue. Mở panel phải:
-  - Liệt kê issue per node (vd. *"Node 'verify_customer' missing URL"*).
-  - Click 1 issue → focus & highlight node trên canvas.
-  - Realtime update khi user sửa.
-- **Publish** button: disabled khi checklist > 0. Click → mở dialog **Commit message** (textarea required) → submit → trạng thái chuyển sang Published, toast success.
-- **History** dropdown: list version (commit msg, time, Active/Inactive). Mỗi item có **Restore** (rollback) — confirm dialog trước khi áp.
+- Show a dismissible **success banner** at the top of the page:
+  - "🎉 Your first agent is ready. Try chatting on the right, or tweak knowledge & tools below."
+  - Buttons: **Test now** (focuses test panel), **Got it** (dismiss).
+- Lightweight coach-marks (tooltip popovers, dismiss-on-click) anchored to: Test panel, Knowledge tab, Publish button. Auto-hide after first interaction. Stored via `lov_user.welcomeSeen`.
 
-#### View mode (UC-02)
-- Khi user là Bot Tester → toolbar ẩn Save/Publish, canvas readonly.
-- Click 1 node → mở **Node Detail Panel** ở góc dưới-phải (popup nhỏ 320×auto): name, description, key configs (read-only). Có nút "Open in inspector" (đưa qua edit mode nếu có quyền).
+## Design notes
 
-#### Add node (UC-03)
-4 cách theo PRD:
-1. Nút `+` trên toolbar (đã có trong NodeLibrary).
-2. Node "trống đầu ra" → icon `+` ở handle phải.
-3. Click vào edge giữa 2 node → mini popup `+ Add block`.
-4. Chuột phải canvas → context menu **Add block**.
+- Reuse existing tokens: `bg-surface`, `border-border`, `chip`, `chip-primary`, `shadow-elev`, `font-display`, gradients in `index.css`.
+- Progress via existing `@/components/ui/progress`.
+- Animations: existing `animate-fade-up`. No new deps.
+- Copy in English to match current voice.
 
-(Triển khai #1 & #2 ở phase này; #3, #4 mock UI nhưng skeleton sẵn.)
+## Files to add / change
 
-#### Zoom
-- Min 25% — Max 200%, Ctrl+scroll, nút +/- ở góc dưới phải canvas (reactflow built-in Controls).
-
-### 5. System default tasks
-
-Mock 2 task `Knowledge Retrieval` & `Generate Knowledge Response` trong list của mỗi agent:
-- Badge `[System]`.
-- Workflow readonly (xem được, sửa được nodes nhưng không xóa/đổi tên task).
-- Menu kebab có **Reset to default** → dialog confirm → restore nodes mặc định.
-
-## Phạm vi file
-
-| File | Thay đổi |
-|---|---|
-| `src/pages/AgentBuilder.tsx` | Thay `TasksList` (455–495) bằng `<TasksGrid agentId={id} />` import từ component mới. |
-| `src/components/tasks/TasksGrid.tsx` | **Mới** — card grid + search + empty + Create CTA. |
-| `src/components/tasks/TaskFormDialog.tsx` | **Mới** — modal Create/Edit dùng chung (mode prop). |
-| `src/components/tasks/taskStore.ts` | **Mới** — in-memory store (mock) cho tasks per-agent: list, create, update, delete, isDuplicateName. |
-| `src/pages/TaskEditor.tsx` | Bỏ TemplatePicker; default 2-node Start/End; thêm checklist panel, publish dialog, history dropdown, view-mode toggle, status chip. |
-| `src/components/tasks/ChecklistPanel.tsx` | **Mới** — sidebar phải, list warnings + click-to-focus. |
-| `src/components/tasks/PublishDialog.tsx` | **Mới** — commit message + confirm. |
-| `src/components/tasks/HistoryDropdown.tsx` | **Mới** — version list + restore. |
-| `src/components/tasks/NodeDetailPanel.tsx` | **Mới** — popup readonly góc dưới phải. |
-
-Không thay đổi:
-- Routing (`App.tsx`) — đã có `/agents/:id/tasks/:taskId`.
-- WorkspaceLayout, header `+ New` dropdown (đã hoàn thành ở loop trước).
-- Tool builder nodes / Inspector (tái sử dụng nguyên).
-
-## Validation & messages (đầy đủ theo PRD)
-
-```
-Name required:    "Trường Tên là bắt buộc"
-Purpose required: "Trường Mục đích là bắt buộc"
-Name > 50:        "Tên không được dài quá 50 ký tự"
-Purpose > 255:    "Mục đích không dài quá 255 ký tự"
-Duplicate name:   "Đã tồn tại tên nhiệm vụ này trong hệ thống"
-Create success:   toast green "Tạo nhiệm vụ thành công" / "Task created successfully"
-Update success:   toast green "Cập nhật nhiệm vụ thành công"
-API error:        toast red với message từ server
-```
-
-Hiển thị song ngữ VI/EN — theo convention hiện tại của codebase (đang dùng EN ở UI), label primary là EN, không cần i18n switcher ở phase này.
-
-## Tech notes
-
-- State: dùng React local state + 1 module-level store (`taskStore.ts`) để mock multi-agent persistence trong session.
-- Toast: dùng `useToast` (sonner) đã setup sẵn.
-- Modal: dùng `Dialog` từ `@/components/ui/dialog`.
-- Dropdown: dùng `DropdownMenu` từ shadcn (đã có).
-- Auto-save: PRD đánh dấu `[later]` — skip phase này, chỉ giữ chỗ comment.
-- Version history rollback: PRD note `[Later]` open-question — implement basic UI mock, không cần backend logic phức tạp.
+- New: `src/pages/Login.tsx`
+- New: `src/pages/Onboarding.tsx` (+ small `src/components/onboarding/` for step bodies)
+- New: `src/lib/onboarding.ts` — typed localStorage helpers
+- Edit: `src/App.tsx` — add `/login`, `/onboarding`, redirect guard component
+- Edit: `src/pages/AgentBuilder.tsx` — read `?welcome=1`, render success banner + coach-marks
+- Edit: `src/components/layout/WorkspaceLayout.tsx` — add **Sign out** in user menu (clears `lov_user`, returns to `/login`) for demoing the flow
 
 ## Out of scope
 
-- Auto-save indicator.
-- Backend persistence (mock only).
-- Permission system thực (mock view-mode bằng query param `?role=tester`).
-- Chi tiết config từng loại node mới (giữ nguyên Inspector hiện có).
+- Real auth, real FPT ID SSO, email verification beyond format check
+- Persisting onboarding answers to a backend
+- Building a templates/dashboard empty-state — we just route there
