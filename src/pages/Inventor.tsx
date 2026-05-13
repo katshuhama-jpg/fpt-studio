@@ -529,7 +529,7 @@ function MessageBubble({ msg, onCta }: { msg: ChatMsg; onCta: () => void }) {
         )}
         {msg.kind === "todo" && <TodoCard title={msg.title ?? "Todo List"} todos={msg.todos} />}
         {msg.kind === "strategy" && <StrategyCard reportTypes={msg.reportTypes} triggers={msg.triggers} />}
-        {msg.kind === "tool-batch" && <ToolBatchCard tools={msg.tools} />}
+        {msg.kind === "inventory-batch" && <InventoryBatchCard title={msg.title} icon={msg.icon} items={msg.items} />}
         {msg.kind === "cta" && (
           <button
             onClick={onCta}
