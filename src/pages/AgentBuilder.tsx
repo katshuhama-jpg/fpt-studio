@@ -388,45 +388,6 @@ function GeneralTab() {
         </Field>
       </Section>
 
-      <hr className="border-border" />
-
-      <Section
-        icon={Layers}
-        title="Business processes"
-        desc="Each process bundles knowledge, tools and tasks for one scenario."
-        action={<button className="btn-ghost"><Plus size={12} /> Add process</button>}
-      >
-        <div className="space-y-2">
-          <ProcessItem num={1} name="Product information lookup" type="QnA" typeColor="bg-primary-soft text-primary" />
-          <ProcessItem num={2} name="Lock credit card" type="Workflow" typeColor="bg-accent-soft text-accent" highlighted />
-          <ProcessItem num={3} name="Schedule consultation" type="Workflow" typeColor="bg-accent-soft text-accent" />
-        </div>
-      </Section>
-
-      <hr className="border-border" />
-
-      <Section
-        icon={Shield}
-        title="Guardrails"
-        desc="Hard rules the agent must never break."
-        action={<button className="btn-ghost"><Plus size={12} /> Add rule</button>}
-      >
-        <div className="divide-y divide-border">
-          {guardrails.map(g => (
-            <div key={g.text} className="flex items-center gap-3 py-3">
-              <span
-                className={`text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                  g.kind === "Block" ? "bg-destructive/10 text-destructive" : "bg-info/10 text-info"
-                }`}
-              >
-                {g.kind}
-              </span>
-              <span className="text-sm flex-1">{g.text}</span>
-              <Toggle on={g.on} />
-            </div>
-          ))}
-        </div>
-      </Section>
     </div>
   );
 }
