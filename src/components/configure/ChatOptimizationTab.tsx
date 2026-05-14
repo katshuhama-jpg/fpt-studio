@@ -63,16 +63,12 @@ export default function ChatOptimizationTab({ agentId }: { agentId: string }) {
         })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr,320px] gap-6 items-start">
-        <div className="rounded-xl bg-surface border border-border p-6">
-          {tab === "ref" && <ReferencesPanel settings={settings} update={update} />}
-          {tab === "opener" && <OpenerPanel settings={settings} update={update} />}
-          {tab === "buttons" && <ButtonsPanel settings={settings} update={update} />}
-          {tab === "rich" && <RichPanel settings={settings} update={update} />}
-          {tab === "followup" && <FollowupPanel settings={settings} update={update} />}
-        </div>
-
-        <PreviewPanel settings={settings} tab={tab} />
+      <div className="rounded-xl bg-surface border border-border p-6">
+        {tab === "ref" && <ReferencesPanel settings={settings} update={update} />}
+        {tab === "opener" && <OpenerPanel settings={settings} update={update} />}
+        {tab === "buttons" && <ButtonsPanel settings={settings} update={update} />}
+        {tab === "rich" && <RichPanel settings={settings} update={update} />}
+        {tab === "followup" && <FollowupPanel settings={settings} update={update} />}
       </div>
     </div>
   );
