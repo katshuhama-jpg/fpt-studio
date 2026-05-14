@@ -445,7 +445,7 @@ function GeneralTab() {
         </ConfigAccordion>
 
         <ConfigAccordion
-          icon={Workflow}
+          icon={ListChecks}
           title="Tasks"
           count={tasks.length}
           desc="Reusable skills made of prompts and tool calls."
