@@ -11,7 +11,7 @@ import { businessProcessStore, type BpStrategy } from "@/components/business-pro
 import { taskStore } from "@/components/tasks/taskStore";
 import { knowledgeStore } from "@/components/knowledge/knowledgeStore";
 
-function commitDraftToAgent(agentId: string, draft: { bps: { name: string; description: string; strategy: string; isDefault?: boolean }[]; tasks: { name: string; description: string }[]; knowledge: { name: string; type: "doc" | "url" | "faq"; description: string }[] }) {
+function commitDraftToAgent(agentId: string, draft: { bps: { name: string; description: string; strategy: string; isDefault?: boolean; toolNames?: string[]; taskNames?: string[] }[]; tasks: { name: string; description: string }[]; knowledge: { name: string; type: "doc" | "url" | "faq"; description: string }[] }) {
   const stratMap: Record<string, BpStrategy> = {
     "ReAct": "react",
     "Predefined Plan": "predefined",
