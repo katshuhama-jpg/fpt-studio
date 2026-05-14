@@ -407,55 +407,7 @@ function GeneralTab() {
 
       {/* Accordion: all other config groups */}
       <div className="space-y-2">
-        <ConfigAccordion
-          icon={Layers}
-          title="Business processes"
-          count={bp.length}
-          desc="Multi-step flows the agent can run."
-          onManage={() => goSection("bp")}
-        >
-          {bp.slice(0, 5).map(b => (
-            <SummaryRow
-              key={b.id}
-              name={b.name}
-              meta={b.strategy}
-              chip={b.isDefault ? "default" : undefined}
-              enabled={b.enabled}
-            />
-          ))}
-          {bp.length > 5 && <MoreLink count={bp.length - 5} onClick={() => goSection("bp")} />}
-        </ConfigAccordion>
-
-        <ConfigAccordion
-          icon={Wrench}
-          title="Tools"
-          count={5}
-          desc="External APIs and integrations the agent can call."
-          onManage={() => goSection("tool")}
-        >
-          {[
-            { name: "verify_customer", meta: "REST" },
-            { name: "lock_card", meta: "REST" },
-            { name: "search_products", meta: "GraphQL" },
-            { name: "send_email", meta: "Built-in" },
-            { name: "schedule_meeting", meta: "Calendar" },
-          ].map(t => (
-            <SummaryRow key={t.name} name={t.name} meta={t.meta} enabled />
-          ))}
-        </ConfigAccordion>
-
-        <ConfigAccordion
-          icon={ListChecks}
-          title="Tasks"
-          count={tasks.length}
-          desc="Reusable skills made of prompts and tool calls."
-          onManage={() => goSection("task")}
-        >
-          {tasks.slice(0, 5).map(t => (
-            <SummaryRow key={t.id} name={t.name} meta={t.kind} chip={t.kind === "system" ? "system" : undefined} enabled />
-          ))}
-          {tasks.length > 5 && <MoreLink count={tasks.length - 5} onClick={() => goSection("task")} />}
-        </ConfigAccordion>
+        <BusinessProcessTree agentId={id} onManage={() => goSection("bp")} />
 
         <ConfigAccordion
           icon={BookOpen}
