@@ -720,64 +720,110 @@ function ConfigPanel({ draft, applied }: { draft: AgentDraft; applied: boolean }
         )}
       </Section>
 
-      {/* Business processes */}
+      {/* Business processes — parents owning their tools/tasks */}
       <Section icon={Layers} title={`Business processes ${draft.bps.length ? `(${draft.bps.length})` : ""}`}>
         {draft.bps.length === 0 ? (
           <EmptyHint label="No business process drafted yet." />
         ) : (
-          <ul className="space-y-1.5">
-            {draft.bps.map(b => (
-              <li key={b.name} className="rounded-lg border border-border bg-surface px-3 py-2 flex items-start gap-2">
-                <Layers size={12} className="text-primary mt-0.5 shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <div className="text-[12.5px] font-semibold flex items-center gap-1.5">
-                    {b.name}
-                    {b.isDefault && <span className="chip chip-muted text-[9.5px]">Default</span>}
-                    <span className="chip chip-primary text-[9.5px]">{b.strategy}</span>
+          <ul className="space-y-2">
+            {draft.bps.map(b => {
+              const childTools = (b.toolNames ?? [])
+                .map(n => draft.tools.find(t => t.name === n))
+                .filter((t): t is Tool => !!t);
+              const childTasks = (b.taskNames ?? [])
+                .map(n => draft.tasks.find(t => t.name === n))
+                .filter((t): t is TaskDraft => !!t);
+              return (
+                <li key={b.name} className="rounded-lg border border-border bg-surface overflow-hidden">
+                  <div className="px-3 py-2.5 flex items-start gap-2">
+                    <Layers size={12} className="text-primary mt-0.5 shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[12.5px] font-semibold flex items-center gap-1.5 flex-wrap">
+                        {b.name}
+                        {b.isDefault && <span className="chip chip-muted text-[9.5px]">Default</span>}
+                        <span className="chip chip-primary text-[9.5px]">{b.strategy}</span>
+                      </div>
+                      <div className="text-[11px] text-muted-foreground leading-snug">{b.description}</div>
+                    </div>
                   </div>
-                  <div className="text-[11px] text-muted-foreground leading-snug truncate">{b.description}</div>
-                </div>
-              </li>
-            ))}
+
+                  {(childTools.length > 0 || childTasks.length > 0) && (
+                    <div className="bg-surface-muted/30 border-t border-border pl-6 pr-3 py-2.5 space-y-2">
+                      {childTools.length > 0 && (
+                        <div className="border-l-2 border-border pl-3">
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <Wrench size={11} className="text-muted-foreground" />
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                              Tools ({childTools.length})
+                            </span>
+                          </div>
+                          <ul className="space-y-0.5">
+                            {childTools.map(t => (
+                              <li key={t.name} className="flex items-center gap-2 px-1.5 py-1 rounded-md">
+                                <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 ${t.tint}`}>
+                                  <t.icon size={10} />
+                                </div>
+                                <span className="text-[12px] font-medium truncate">{t.name}</span>
+                                <span className="text-[10.5px] text-muted-foreground truncate">{t.desc}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {childTasks.length > 0 && (
+                        <div className="border-l-2 border-border pl-3">
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <Workflow size={11} className="text-muted-foreground" />
+                            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                              Tasks ({childTasks.length})
+                            </span>
+                          </div>
+                          <ul className="space-y-0.5">
+                            {childTasks.map(t => (
+                              <li key={t.name} className="flex items-center gap-2 px-1.5 py-1 rounded-md">
+                                <CheckCircle2 size={11} className="text-primary shrink-0" />
+                                <span className="text-[12px] font-medium truncate">{t.name}</span>
+                                <span className="text-[10.5px] text-muted-foreground truncate">{t.description}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
-      </Section>
 
-      {/* Tasks */}
-      <Section icon={Workflow} title={`Tasks ${draft.tasks.length ? `(${draft.tasks.length})` : ""}`}>
-        {draft.tasks.length === 0 ? (
-          <EmptyHint label="No tasks drafted yet." />
-        ) : (
-          <ul className="grid sm:grid-cols-2 gap-1.5">
-            {draft.tasks.map(t => (
-              <li key={t.name} className="rounded-lg border border-border bg-surface px-2.5 py-1.5">
-                <div className="text-[12.5px] font-semibold truncate">{t.name}</div>
-                <div className="text-[11px] text-muted-foreground leading-snug truncate">{t.description}</div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Section>
-
-      {/* Tools */}
-      <Section icon={Wrench} title={`Tools ${draft.tools.length ? `(${draft.tools.length})` : ""}`}>
-        {draft.tools.length === 0 ? (
-          <EmptyHint label="No tools wired up yet." />
-        ) : (
-          <div className="grid sm:grid-cols-2 gap-2">
-            {draft.tools.map(t => (
-              <div key={t.name} className="rounded-xl border border-border bg-surface p-3 flex items-start gap-2.5 hover:border-primary/30 transition-base">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${t.tint}`}>
-                  <t.icon size={14} />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-[13px] font-semibold truncate">{t.name}</div>
-                  <div className="text-[11px] text-muted-foreground leading-snug">{t.desc}</div>
-                </div>
+        {/* Unassigned bucket */}
+        {(() => {
+          const usedTools = new Set(draft.bps.flatMap(b => b.toolNames ?? []));
+          const usedTasks = new Set(draft.bps.flatMap(b => b.taskNames ?? []));
+          const orphanTools = draft.tools.filter(t => !usedTools.has(t.name));
+          const orphanTasks = draft.tasks.filter(t => !usedTasks.has(t.name));
+          if (orphanTools.length === 0 && orphanTasks.length === 0) return null;
+          return (
+            <div className="mt-2 rounded-lg border border-dashed border-border bg-surface/40 px-3 py-2.5">
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                Unassigned · attach later inside the agent
               </div>
-            ))}
-          </div>
-        )}
+              <div className="flex flex-wrap gap-1.5">
+                {orphanTools.map(t => (
+                  <span key={`tool-${t.name}`} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface border border-border text-[11px]">
+                    <Wrench size={10} className="text-muted-foreground" /> {t.name}
+                  </span>
+                ))}
+                {orphanTasks.map(t => (
+                  <span key={`task-${t.name}`} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface border border-border text-[11px]">
+                    <Workflow size={10} className="text-muted-foreground" /> {t.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
       </Section>
 
       {/* Knowledge */}
