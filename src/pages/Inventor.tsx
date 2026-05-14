@@ -144,9 +144,9 @@ const careDraft: AgentDraft = {
   ],
   bps: [
     { name: "others", description: "Default fallback — answer general questions from knowledge.", strategy: "ReAct", isDefault: true },
-    { name: "verify_customer", description: "Verify the customer by phone before any sensitive action.", strategy: "Predefined Plan" },
-    { name: "lock_card", description: "Lock a card after identity check.", strategy: "Predefined Plan" },
-    { name: "book_appointment", description: "Book a consultation slot with an advisor.", strategy: "ReAct" },
+    { name: "verify_customer", description: "Verify the customer by phone before any sensitive action.", strategy: "Predefined Plan", toolNames: ["verify_customer"], taskNames: ["collect_customer_info"] },
+    { name: "lock_card", description: "Lock a card after identity check.", strategy: "Predefined Plan", toolNames: ["verify_customer", "lock_card"] },
+    { name: "book_appointment", description: "Book a consultation slot with an advisor.", strategy: "ReAct", toolNames: ["calendar_create_event", "send_sms"], taskNames: ["confirm_booking"] },
   ],
   tasks: [
     { name: "collect_customer_info", description: "Collect phone, full name and reason for contact." },
