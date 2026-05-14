@@ -57,7 +57,7 @@ type ChatMsg =
   | { id: string; role: "ai"; kind: "inventory-batch"; title: string; icon: any; items: string[] };
 
 type Tool = { name: string; desc: string; icon: any; tint: string };
-type BpDraft = { name: string; description: string; strategy: "ReAct" | "Predefined Plan" | "Tool Execution"; isDefault?: boolean };
+type BpDraft = { name: string; description: string; strategy: "ReAct" | "Predefined Plan" | "Tool Execution"; isDefault?: boolean; toolNames?: string[]; taskNames?: string[] };
 type TaskDraft = { name: string; description: string };
 type KnowledgeDraft = { name: string; type: "doc" | "url" | "faq"; description: string };
 

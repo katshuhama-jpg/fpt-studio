@@ -1,80 +1,79 @@
 ## Mục tiêu
 
-Trong tab **General**, làm rõ rằng Tools và Tasks luôn được **gọi từ Business Process (BP)**. BP là cha, Tools/Tasks là con. Mỗi BP có thể:
-- Hiển thị danh sách tool/task con đang được gắn
-- Gắn thêm tool/task mới vào BP
-- Mở thẳng màn detail của tool/task để chỉnh sửa
+Trong **màn Inventor** (`/inventor`), thể hiện rõ quan hệ cha–con: mỗi Business Process (BP) là cha, các Tools/Tasks được gán nằm bên trong nó. Hiện tại 3 section **Business processes / Tasks / Tools** ở panel cấu hình bên phải đang hiển thị **phẳng và độc lập**, không thấy cái nào thuộc BP nào.
 
-## Thay đổi UI
+## Thay đổi
 
-### 1. Gộp 3 accordion (Business processes / Tools / Tasks) thành 1 section duy nhất
+### 1. Mở rộng kiểu `BpDraft` (data model)
 
-Thay block đang có ở `GeneralTab` (3 accordion riêng biệt cho BP, Tools, Tasks) bằng **1 accordion "Business processes"** mở rộng — bên trong là danh sách BP, mỗi BP là 1 thẻ con có thể bung ra.
-
-Các accordion khác (Knowledge, Triggers, Guardrails, Chat optimization) **giữ nguyên**.
-
-### 2. Layout mỗi BP card (cha)
-
-```text
-┌─────────────────────────────────────────────────────────┐
-│ ▸ [icon] lock_card                       [default] [●on]│
-│         Khoá thẻ ngay khi khách báo mất…   2 tools · 1 task │
-└─────────────────────────────────────────────────────────┘
+```ts
+type BpDraft = {
+  name: string;
+  description: string;
+  strategy: "ReAct" | "Predefined Plan" | "Tool Execution";
+  isDefault?: boolean;
+  toolNames?: string[];   // mới — tên tools mà BP này gọi
+  taskNames?: string[];   // mới — tên tasks mà BP này dùng
+};
 ```
 
-Bấm `▸` để bung ra phần con:
+Cập nhật `careDraft` và `reportDraft` (file `src/pages/Inventor.tsx`) để gắn tool/task vào BP, ví dụ:
+
+- `verify_customer` BP → tools: `["verify_customer"]`, tasks: `["collect_customer_info"]`
+- `lock_card` BP → tools: `["verify_customer", "lock_card"]`
+- `book_appointment` BP → tools: `["calendar_create_event", "send_sms"]`, tasks: `["confirm_booking"]`
+- `weekly_report` BP → tools: `["Google Search", "Python code", "Google Docs"]`
+- `research_brief` BP → tools: `["Google Search", "Perplexity", "Firecrawl"]`, tasks: `["collect_topic_brief", "synthesize_findings"]`
+- `publish_report` BP → tools: `["Google Docs", "Google Sheets"]`
+
+Tools/tasks không được BP nào dùng sẽ rơi vào nhóm "Unassigned" (xem mục 3).
+
+### 2. Gộp 3 section ở `ConfigPanel` thành 1 section "Business processes" có cây con
+
+Xoá 2 section `Tasks` và `Tools` riêng lẻ. Section "Business processes" hiển thị mỗi BP như một card cha (giữ chip strategy + Default), bên dưới có 2 nhóm con:
 
 ```text
-  │  ├─ 🔧 Tools  (2)                        [+ Attach tool]
-  │  │   • verify_customer    REST    →  (mở detail)
-  │  │   • lock_card          REST    →
-  │  ├─ ✅ Tasks  (1)                        [+ Attach task]
-  │  │   • Lock credit card   Workflow · v3 →
-  │  └─ [Manage business process →]   (vào màn BP detail)
+🟦 verify_customer                   [Predefined Plan]
+   Verify the customer by phone…
+   ├─ 🔧 Tools (1)
+   │   • verify_customer          Verify a customer by phone or ID
+   └─ ✅ Tasks (1)
+       • collect_customer_info    Collect phone, full name…
 ```
 
-Quy ước hiển thị:
-- Đường kẻ trái + indent nhẹ để thể hiện quan hệ cha–con.
-- Mỗi item con có nút mũi tên/`ArrowRight` → bấm điều hướng tới `/agents/:id/tools/:toolId` hoặc `/agents/:id/tasks/:taskId`.
-- Nếu BP không có tool/task nào: hiển thị empty state nhẹ "No tools attached" + nút "+ Attach".
-- BP `default` (others) có badge `default`; vẫn hỗ trợ attach tool/task.
+Quy ước:
+- Đường kẻ trái mảnh + indent giống bên màn General để nhất quán visual.
+- Tool/task con hiển thị tên + meta ngắn (description rút gọn).
+- Nếu BP không có tool/task: ẩn nhóm tương ứng (giữ panel gọn) — không hiện empty state vì đây là draft preview.
 
-### 3. Hành vi "Attach tool / Attach task"
+### 3. Section "Unassigned" cho tool/task chưa thuộc BP nào
 
-Bấm `+ Attach tool` (hoặc task) trên 1 BP mở **Popover/Dropdown** chứa:
-- Ô search
-- Danh sách tools (hoặc tasks) hiện có của agent, có checkbox cho phép multi-select
-- Đã attach thì hiện checked + label "Attached"
-- Nút "Create new tool/task" ở cuối → điều hướng sang màn tạo mới (`/agents/:id/tools/new` hoặc mở dialog tạo task) — sau khi tạo xong quay lại General với tool/task mới được attach.
+Sau danh sách BP, nếu còn tool/task không xuất hiện trong bất kỳ `toolNames`/`taskNames` nào, hiển thị 1 card nhỏ "Unassigned · sẽ được gắn sau khi mở agent" liệt kê chúng. Giúp user thấy đầy đủ nhưng vẫn rõ relationship.
 
-Khi tick/bỏ tick → cập nhật `taskIds` / `toolIds` của BP qua `businessProcessStore` (cần thêm method `update(agentId, id, patch)` nếu chưa có; nếu đã có giữ nguyên).
+### 4. Inventory batch cards (chat trái) — giữ nguyên
 
-### 4. Header của accordion BP
+Các card "Designing business processes / Drafting tasks / Adding recommended tools" trong khung chat vẫn liệt kê phẳng theo lô — đây là log timeline AI đang làm gì, không phải view cấu hình. Không sửa.
 
-Thay vì chỉ "Business processes · count", thêm summary nhỏ:
-- `N processes · M tools linked · K tasks linked`
-- Nút `Manage` giữ nguyên → vào màn BP grid.
+### 5. Commit về agent (`commitDraftToAgent`)
 
-### 5. Loại bỏ 2 accordion riêng
+Khi user bấm **Open agent**, hàm `commitDraftToAgent`:
 
-Xoá `ConfigAccordion` "Tools" và "Tasks" khỏi `GeneralTab` (hiện ở dòng ~429 và ~447). Lý do: Tools/Tasks đã được thể hiện qua quan hệ con của BP. Người dùng muốn xem toàn bộ tools/tasks vẫn có thể vào tab Tools / Tasks ở left nav.
+- Sau khi tạo xong tasks (đã có `id` trả về), build map `name → taskId`.
+- Khi tạo BP, resolve `b.taskNames` → `taskIds` thực tế.
+- Với tools: hiện Inventor không tạo entry trong `toolStore`. Đề xuất:
+  - Khi commit BP, ánh xạ `b.toolNames` → slug (lowercase, snake_case) làm `toolIds`. Nếu sau này màn General/Tools chưa có tool tương ứng thì BP sẽ vẫn lưu reference (UI Tools attach picker đã handle ID không tồn tại bằng cách filter). Đây là behavior chấp nhận được cho prototype.
+- BP `default` (others) vẫn bỏ qua commit như cũ.
 
-## Phạm vi file
+### Phạm vi file
 
-- `src/pages/AgentBuilder.tsx` — phần `GeneralTab` (lines ~385-514) + atoms `ConfigAccordion` / `SummaryRow` (giữ, dùng lại).
-- `src/components/business-processes/businessProcessStore.ts` — bổ sung `update()` nếu chưa có để patch `taskIds` / `toolIds`.
-- Component mới (cùng file hoặc tách):
-  - `BpParentCard` — render 1 BP cha + children.
-  - `AttachPicker` — popover chọn tool/task để attach.
+- `src/pages/Inventor.tsx`:
+  - Mở rộng type `BpDraft`.
+  - Thêm `toolNames`/`taskNames` vào các BP trong `careDraft` và `reportDraft`.
+  - Viết lại section "Business processes" trong `ConfigPanel`; xoá section "Tasks" và "Tools" độc lập; thêm section "Unassigned" có điều kiện.
+  - Cập nhật `commitDraftToAgent` để truyền `taskIds`/`toolIds` đúng vào `businessProcessStore.create`.
 
-## Nguồn dữ liệu
+### Không thay đổi
 
-- BPs: `businessProcessStore.list(agentId)`
-- Tasks: `taskStore.list(agentId)` — lookup theo `taskIds`
-- Tools: hiện `AgentToolsTab` đang dùng data nội bộ; cần lấy danh sách tools của agent. Đề xuất: tạo helper `agentToolStore.list(agentId)` đọc từ cùng nguồn `AgentToolsTab` đang dùng (sẽ kiểm tra/refactor nhẹ khi implement). Nếu chưa có store dùng chung thì dùng tạm danh sách mock đã có trong file.
-
-## Không thay đổi
-
-- Tab Tools / Tasks ở left nav giữ nguyên.
-- Accordion Knowledge / Triggers / Guardrails / Chat optimization giữ nguyên.
-- Routing detail tool/task không đổi.
+- Inventory batch cards trong chat.
+- Sections Persona, Core expertise, Knowledge, Triggers, Workflow add-ons.
+- Layout 2 cột trái-chat / phải-config.
