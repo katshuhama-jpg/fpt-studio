@@ -13,6 +13,12 @@ import BusinessProcessesGrid from "@/components/business-processes/BusinessProce
 import TriggersTab from "@/components/configure/TriggersTab";
 import GuardrailsTab from "@/components/configure/GuardrailsTab";
 import ChatOptimizationTab from "@/components/configure/ChatOptimizationTab";
+import { businessProcessStore } from "@/components/business-processes/businessProcessStore";
+import { taskStore } from "@/components/tasks/taskStore";
+import { knowledgeStore } from "@/components/knowledge/knowledgeStore";
+import { triggerStore } from "@/components/configure/triggerStore";
+import { guardrailStore } from "@/components/configure/guardrailStore";
+import { chatOptimizationStore } from "@/components/configure/chatOptimizationStore";
 import { updateUser } from "@/lib/onboarding";
 
 type Tab = "develop" | "monitor";
