@@ -63,16 +63,12 @@ export default function ChatOptimizationTab({ agentId }: { agentId: string }) {
         })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr,320px] gap-6 items-start">
-        <div className="rounded-xl bg-surface border border-border p-6">
-          {tab === "ref" && <ReferencesPanel settings={settings} update={update} />}
-          {tab === "opener" && <OpenerPanel settings={settings} update={update} />}
-          {tab === "buttons" && <ButtonsPanel settings={settings} update={update} />}
-          {tab === "rich" && <RichPanel settings={settings} update={update} />}
-          {tab === "followup" && <FollowupPanel settings={settings} update={update} />}
-        </div>
-
-        <PreviewPanel settings={settings} tab={tab} />
+      <div className="rounded-xl bg-surface border border-border p-6">
+        {tab === "ref" && <ReferencesPanel settings={settings} update={update} />}
+        {tab === "opener" && <OpenerPanel settings={settings} update={update} />}
+        {tab === "buttons" && <ButtonsPanel settings={settings} update={update} />}
+        {tab === "rich" && <RichPanel settings={settings} update={update} />}
+        {tab === "followup" && <FollowupPanel settings={settings} update={update} />}
       </div>
     </div>
   );
@@ -433,101 +429,6 @@ function FollowupPanel({ settings, update }: { settings: ChatOptimizationSetting
   );
 }
 
-/* ============= PREVIEW ============= */
-function PreviewPanel({ settings, tab }: { settings: ChatOptimizationSettings; tab: SubTab }) {
-  return (
-    <aside className="rounded-xl border border-border bg-surface-muted/40 p-4 sticky top-4">
-      <div className="flex items-center justify-between mb-3">
-        <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Preview</div>
-        <span className="flex items-center gap-1 text-[10px] text-success font-semibold">
-          <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse-soft" /> LIVE
-        </span>
-      </div>
-
-      <div className="rounded-2xl bg-surface border border-border-strong shadow-elev overflow-hidden">
-        <div className="h-9 bg-primary text-primary-foreground flex items-center justify-center text-[11px] font-semibold">
-          Banking ABC
-        </div>
-        <div className="p-3 space-y-2 bg-gradient-soft min-h-[280px] max-h-[420px] overflow-y-auto">
-          {tab === "opener" ? (
-            <>
-              <Bubble side="agent">{settings.opener.greeting || "Hi! How can I help?"}</Bubble>
-              <div className="flex flex-wrap gap-1 pt-1">
-                {settings.opener.questions.slice(0, 4).map((q, i) => (
-                  <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-surface border border-border text-muted-foreground">
-                    {q}
-                  </span>
-                ))}
-              </div>
-            </>
-          ) : (
-            <>
-              <Bubble side="user">How do I lock my card?</Bubble>
-              <Bubble side="agent">
-                Sure — verify your phone number first, then I'll lock the card for you.
-                {settings.references.enabled && settings.references.format === "inline" && (
-                  <sup className="text-primary ml-0.5">[1][2]</sup>
-                )}
-              </Bubble>
-
-              {tab === "rich" && settings.rich.enabled && (
-                <div className="rounded-lg border border-border bg-surface overflow-hidden ml-6">
-                  <div className="h-16 bg-gradient-brand" />
-                  <div className="p-2">
-                    <div className="text-[11px] font-semibold">Premium Visa Card</div>
-                    <div className="text-[10px] text-muted-foreground">Secure your card in 1 tap</div>
-                    <button className="mt-1.5 text-[10px] px-2 py-1 rounded bg-primary text-primary-foreground">Apply now</button>
-                  </div>
-                </div>
-              )}
-
-              {tab === "buttons" && settings.quickReplies.enabled && (
-                <div className="flex flex-wrap gap-1 ml-6">
-                  {settings.quickReplies.buttons.slice(0, 4).map(btn => (
-                    <span key={btn.id} className="text-[10px] px-2 py-1 rounded-full bg-primary-soft text-primary border border-primary/30">
-                      {btn.label || "—"}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {tab === "ref" && settings.references.enabled && settings.references.format === "footer" && (
-                <div className="ml-6 mt-1 text-[10px] text-muted-foreground border-l-2 border-primary/30 pl-2">
-                  <div>[1] Card lock procedure — Customer FAQ</div>
-                  <div>[2] Internal Policy v3 — sec. 4.2</div>
-                </div>
-              )}
-
-              {tab === "ref" && settings.references.enabled && settings.references.format === "card" && (
-                <div className="ml-6 grid grid-cols-2 gap-1.5">
-                  {[1, 2].map(i => (
-                    <div key={i} className="rounded-md border border-border bg-surface p-1.5">
-                      <div className="text-[9px] text-muted-foreground">Source {i}</div>
-                      <div className="text-[10px] font-medium truncate">Customer FAQ</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {tab === "followup" && settings.followup.enabled && (
-                <div className="ml-6 space-y-1 mt-1">
-                  <div className="text-[9px] text-muted-foreground uppercase tracking-wider">You might also ask</div>
-                  {(settings.followup.source === "manual" ? settings.followup.manualList : ["Want to know more?", "Should I escalate?", "Schedule a callback?"])
-                    .slice(0, settings.followup.count)
-                    .map((q, i) => (
-                      <button key={i} className="block w-full text-left text-[10px] px-2 py-1 rounded-md bg-surface border border-border hover:border-primary/40 transition-base">
-                        → {q}
-                      </button>
-                    ))}
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-    </aside>
-  );
-}
 
 /* ============= atoms ============= */
 function Section({ icon: Icon, title, desc, children }: any) {
@@ -569,22 +470,6 @@ function RowToggle({ label, description, on, onChange }: { label: string; descri
       >
         <div className={`w-4 h-4 rounded-full bg-white shadow-soft transition-base ${on ? "translate-x-4" : ""}`} />
       </button>
-    </div>
-  );
-}
-
-function Bubble({ side, children }: { side: "user" | "agent"; children: React.ReactNode }) {
-  return (
-    <div className={`flex ${side === "user" ? "justify-end" : "justify-start"}`}>
-      <div
-        className={`rounded-2xl px-2.5 py-1.5 text-[11px] max-w-[85%] ${
-          side === "user"
-            ? "bg-primary text-primary-foreground rounded-br-sm"
-            : "bg-surface border border-border rounded-bl-sm"
-        }`}
-      >
-        {children}
-      </div>
     </div>
   );
 }
