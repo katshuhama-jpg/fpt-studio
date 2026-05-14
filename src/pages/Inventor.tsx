@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft, Sparkles, Send, Check, Loader2, Wand2, Bot, User, Wrench, BookOpen,
-  ListChecks, Paperclip, AtSign, Settings2, Play, Save, ArrowUpRight, Cog,
+  Workflow, Paperclip, AtSign, Settings2, Play, Save, ArrowUpRight, Cog,
   Globe, Search, FileText, Code2, FileSpreadsheet, Clock, Hand, ChevronRight,
   Database, MessageSquareText, CheckCircle2, Rocket, Layers,
 } from "lucide-react";
@@ -317,7 +317,7 @@ export default function Inventor() {
     await wait(350);
     pushMsg({
       id: crypto.randomUUID(), role: "ai", kind: "inventory-batch",
-      title: "Drafting tasks", icon: ListChecks,
+      title: "Drafting tasks", icon: Workflow,
       items: target.tasks.map(t => t.name),
     });
     for (const tk of target.tasks) {
@@ -594,7 +594,7 @@ function TodoCard({ title, todos }: { title: string; todos: Todo[] }) {
   return (
     <div className="rounded-xl border border-border bg-background overflow-hidden">
       <div className="px-3.5 py-2 border-b border-border flex items-center gap-2 bg-surface-muted/60">
-        <ListChecks size={12} className="text-primary" />
+        <Workflow size={12} className="text-primary" />
         <span className="text-[11px] font-semibold uppercase tracking-wider">{title}</span>
         <span className="ml-auto text-[10px] text-muted-foreground">{doneCount}/{todos.length}</span>
       </div>
@@ -744,7 +744,7 @@ function ConfigPanel({ draft, applied }: { draft: AgentDraft; applied: boolean }
       </Section>
 
       {/* Tasks */}
-      <Section icon={ListChecks} title={`Tasks ${draft.tasks.length ? `(${draft.tasks.length})` : ""}`}>
+      <Section icon={Workflow} title={`Tasks ${draft.tasks.length ? `(${draft.tasks.length})` : ""}`}>
         {draft.tasks.length === 0 ? (
           <EmptyHint label="No tasks drafted yet." />
         ) : (
@@ -818,7 +818,7 @@ function ConfigPanel({ draft, applied }: { draft: AgentDraft; applied: boolean }
 
       {/* Extra steps from follow-ups */}
       {draft.extraSteps.length > 0 && (
-        <Section icon={ListChecks} title="Workflow add-ons">
+        <Section icon={Workflow} title="Workflow add-ons">
           <ul className="space-y-1.5">
             {draft.extraSteps.map(s => (
               <li key={s} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-primary-soft/60 border border-primary/20 text-[12.5px]">

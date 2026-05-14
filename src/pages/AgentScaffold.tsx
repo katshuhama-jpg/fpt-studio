@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft, Sparkles, Send, Wand2, Check, RefreshCw, Pencil,
-  Cog, BookOpen, Wrench, ListChecks, MessageSquareText, ArrowRight,
+  Cog, BookOpen, Wrench, Workflow, MessageSquareText, ArrowRight,
   Loader2, Plus, X,
 } from "lucide-react";
 
@@ -359,7 +359,7 @@ function DraftStage({
         </DraftCard>
 
         {/* Tasks */}
-        <DraftCard icon={ListChecks} title="Tasks" badge={`${draft.tasks.length} drafted`}>
+        <DraftCard icon={Workflow} title="Tasks" badge={`${draft.tasks.length} drafted`}>
           <ul className="space-y-1.5">
             {draft.tasks.map(t => (
               <li key={t.name} className="flex items-center gap-2 text-xs">

@@ -2,7 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useMemo, useState } from "react";
 import {
   Plus, Search, Pencil, Trash2, Lock, BookOpen, MessageSquare, Calendar,
-  ListChecks, MoreHorizontal, RotateCcw,
+  Workflow, MoreHorizontal, RotateCcw,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -88,7 +88,7 @@ export default function TasksGrid({ agentId }: { agentId: string }) {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {tasks.map(t => {
-            const Icon = ICONS[t.id] ?? ListChecks;
+            const Icon = ICONS[t.id] ?? Workflow;
             const isSystem = t.kind === "system";
             return (
               <div
@@ -243,7 +243,7 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
   return (
     <div className="rounded-2xl border border-dashed border-border bg-gradient-soft p-12 text-center">
       <div className="w-14 h-14 mx-auto rounded-2xl bg-primary-soft text-primary flex items-center justify-center mb-4">
-        <ListChecks size={22} />
+        <Workflow size={22} />
       </div>
       <h3 className="font-display text-lg font-semibold mb-1.5">No tasks yet</h3>
       <p className="text-sm text-muted-foreground mb-5 max-w-md mx-auto">
