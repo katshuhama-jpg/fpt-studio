@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft, Sparkles, Send, Wand2, Check, RefreshCw, Pencil,
-  Cog, BookOpen, Wrench, ListChecks, MessageSquareText, ArrowRight,
+  Cog, BookOpen, Wrench, Workflow, MessageSquareText, ArrowRight,
   Loader2, Plus, X,
 } from "lucide-react";
 
