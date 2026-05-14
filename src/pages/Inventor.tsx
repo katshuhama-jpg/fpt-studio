@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft, Sparkles, Send, Check, Loader2, Wand2, Bot, User, Wrench, BookOpen,
-  ListChecks, Paperclip, AtSign, Settings2, Play, Save, ArrowUpRight, Cog,
+  Workflow, Paperclip, AtSign, Settings2, Play, Save, ArrowUpRight, Cog,
   Globe, Search, FileText, Code2, FileSpreadsheet, Clock, Hand, ChevronRight,
   Database, MessageSquareText, CheckCircle2, Rocket, Layers,
 } from "lucide-react";
