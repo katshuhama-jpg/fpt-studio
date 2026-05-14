@@ -10,6 +10,9 @@ import { useEffect, useState } from "react";
 import AgentToolsTab from "@/components/tool-builder/AgentToolsTab";
 import TasksGrid from "@/components/tasks/TasksGrid";
 import BusinessProcessesGrid from "@/components/business-processes/BusinessProcessesGrid";
+import TriggersTab from "@/components/configure/TriggersTab";
+import GuardrailsTab from "@/components/configure/GuardrailsTab";
+import ChatOptimizationTab from "@/components/configure/ChatOptimizationTab";
 import { updateUser } from "@/lib/onboarding";
 
 type Tab = "develop" | "monitor";
@@ -23,7 +26,6 @@ const developNav = [
       { id: "knowledge", label: "Knowledge", icon: BookOpen, status: "done" },
       { id: "tool", label: "Tools", icon: Wrench, status: "warn" },
       { id: "task", label: "Tasks", icon: ListChecks, status: "empty" },
-      { id: "trigger", label: "Triggers", icon: Zap, status: "empty" },
     ],
   },
   {
@@ -36,7 +38,9 @@ const developNav = [
   {
     label: "Configure",
     items: [
-      { id: "advanced", label: "Advanced", icon: SlidersHorizontal },
+      { id: "triggers", label: "Triggers", icon: Zap, status: "empty" },
+      { id: "guardrails", label: "Guardrails", icon: Shield, status: "done" },
+      { id: "chat-opt", label: "Chat optimization", icon: MessageSquareText, status: "done" },
     ],
   },
 ];
@@ -227,8 +231,10 @@ export default function AgentBuilder() {
             {tab === "develop" && section === "knowledge" && <KnowledgeTab />}
             {tab === "develop" && section === "tool" && <AgentToolsTab agentId={id} />}
             {tab === "develop" && section === "task" && <TasksGrid agentId={id} />}
-            {tab === "develop" && section === "advanced" && <AdvancedTab />}
-            {tab === "develop" && !["general", "bp", "knowledge", "tool", "task", "advanced"].includes(section) && <PlaceholderTab title={section} />}
+            {tab === "develop" && section === "triggers" && <TriggersTab agentId={id} />}
+            {tab === "develop" && section === "guardrails" && <GuardrailsTab agentId={id} />}
+            {tab === "develop" && section === "chat-opt" && <ChatOptimizationTab agentId={id} />}
+            {tab === "develop" && !["general", "bp", "knowledge", "tool", "task", "triggers", "guardrails", "chat-opt"].includes(section) && <PlaceholderTab title={section} />}
             {tab === "monitor" && section === "perf" && <PerformanceTab />}
             {tab === "monitor" && section !== "perf" && <PlaceholderTab title={section} />}
           </div>
