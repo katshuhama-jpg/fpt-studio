@@ -473,19 +473,3 @@ function RowToggle({ label, description, on, onChange }: { label: string; descri
     </div>
   );
 }
-
-function Bubble({ side, children }: { side: "user" | "agent"; children: React.ReactNode }) {
-  return (
-    <div className={`flex ${side === "user" ? "justify-end" : "justify-start"}`}>
-      <div
-        className={`rounded-2xl px-2.5 py-1.5 text-[11px] max-w-[85%] ${
-          side === "user"
-            ? "bg-primary text-primary-foreground rounded-br-sm"
-            : "bg-surface border border-border rounded-bl-sm"
-        }`}
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
