@@ -31,7 +31,7 @@ const developNav = [
       { id: "bp", label: "Business processes", icon: Layers, status: "done" },
       { id: "knowledge", label: "Knowledge", icon: BookOpen, status: "done" },
       { id: "tool", label: "Tools", icon: Wrench, status: "warn" },
-      { id: "task", label: "Tasks", icon: Workflow, status: "empty" },
+      { id: "task", label: "Tasks", icon: ListChecks, status: "empty" },
     ],
   },
   {
