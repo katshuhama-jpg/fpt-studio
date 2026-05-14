@@ -105,9 +105,9 @@ const reportDraft: AgentDraft = {
   ],
   bps: [
     { name: "others", description: "Default fallback — answer general questions from knowledge.", strategy: "ReAct", isDefault: true },
-    { name: "weekly_report", description: "Generate the weekly executive report on schedule.", strategy: "Predefined Plan" },
-    { name: "research_brief", description: "Run focused research on a topic and produce a brief.", strategy: "ReAct" },
-    { name: "publish_report", description: "Format and publish the finished report to Google Docs.", strategy: "Tool Execution" },
+    { name: "weekly_report", description: "Generate the weekly executive report on schedule.", strategy: "Predefined Plan", toolNames: ["Google Search", "Python code", "Google Docs"] },
+    { name: "research_brief", description: "Run focused research on a topic and produce a brief.", strategy: "ReAct", toolNames: ["Google Search", "Perplexity", "Firecrawl"], taskNames: ["collect_topic_brief", "synthesize_findings"] },
+    { name: "publish_report", description: "Format and publish the finished report to Google Docs.", strategy: "Tool Execution", toolNames: ["Google Docs", "Google Sheets"] },
   ],
   tasks: [
     { name: "collect_topic_brief", description: "Ask the user for scope, audience and required depth." },
