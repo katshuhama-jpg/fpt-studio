@@ -59,7 +59,7 @@ const monitorNav = [
   ]},
   { label: "Quality", items: [
     { id: "csat", label: "Satisfaction", icon: Star },
-    { id: "review", label: "Conversation review", icon: Workflow },
+    { id: "review", label: "Conversation review", icon: ListChecks },
   ]},
   { label: "History", items: [
     { id: "chat-hist", label: "Chat history", icon: History },
