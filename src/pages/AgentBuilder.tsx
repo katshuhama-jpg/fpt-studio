@@ -37,7 +37,7 @@ const developNav = [
   {
     label: "Test",
     items: [
-      { id: "tests", label: "Test cases", icon: Workflow },
+      { id: "tests", label: "Test cases", icon: ListChecks },
       { id: "auto", label: "Auto-test", icon: Sparkles },
     ],
   },
