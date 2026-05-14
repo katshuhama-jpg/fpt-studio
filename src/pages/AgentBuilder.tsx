@@ -10,6 +10,9 @@ import { useEffect, useState } from "react";
 import AgentToolsTab from "@/components/tool-builder/AgentToolsTab";
 import TasksGrid from "@/components/tasks/TasksGrid";
 import BusinessProcessesGrid from "@/components/business-processes/BusinessProcessesGrid";
+import TriggersTab from "@/components/configure/TriggersTab";
+import GuardrailsTab from "@/components/configure/GuardrailsTab";
+import ChatOptimizationTab from "@/components/configure/ChatOptimizationTab";
 import { updateUser } from "@/lib/onboarding";
 
 type Tab = "develop" | "monitor";
@@ -23,7 +26,6 @@ const developNav = [
       { id: "knowledge", label: "Knowledge", icon: BookOpen, status: "done" },
       { id: "tool", label: "Tools", icon: Wrench, status: "warn" },
       { id: "task", label: "Tasks", icon: ListChecks, status: "empty" },
-      { id: "trigger", label: "Triggers", icon: Zap, status: "empty" },
     ],
   },
   {
@@ -36,7 +38,9 @@ const developNav = [
   {
     label: "Configure",
     items: [
-      { id: "advanced", label: "Advanced", icon: SlidersHorizontal },
+      { id: "triggers", label: "Triggers", icon: Zap, status: "empty" },
+      { id: "guardrails", label: "Guardrails", icon: Shield, status: "done" },
+      { id: "chat-opt", label: "Chat optimization", icon: MessageSquareText, status: "done" },
     ],
   },
 ];
@@ -227,8 +231,10 @@ export default function AgentBuilder() {
             {tab === "develop" && section === "knowledge" && <KnowledgeTab />}
             {tab === "develop" && section === "tool" && <AgentToolsTab agentId={id} />}
             {tab === "develop" && section === "task" && <TasksGrid agentId={id} />}
-            {tab === "develop" && section === "advanced" && <AdvancedTab />}
-            {tab === "develop" && !["general", "bp", "knowledge", "tool", "task", "advanced"].includes(section) && <PlaceholderTab title={section} />}
+            {tab === "develop" && section === "triggers" && <TriggersTab agentId={id} />}
+            {tab === "develop" && section === "guardrails" && <GuardrailsTab agentId={id} />}
+            {tab === "develop" && section === "chat-opt" && <ChatOptimizationTab agentId={id} />}
+            {tab === "develop" && !["general", "bp", "knowledge", "tool", "task", "triggers", "guardrails", "chat-opt"].includes(section) && <PlaceholderTab title={section} />}
             {tab === "monitor" && section === "perf" && <PerformanceTab />}
             {tab === "monitor" && section !== "perf" && <PlaceholderTab title={section} />}
           </div>
@@ -382,45 +388,6 @@ function GeneralTab() {
         </Field>
       </Section>
 
-      <hr className="border-border" />
-
-      <Section
-        icon={Layers}
-        title="Business processes"
-        desc="Each process bundles knowledge, tools and tasks for one scenario."
-        action={<button className="btn-ghost"><Plus size={12} /> Add process</button>}
-      >
-        <div className="space-y-2">
-          <ProcessItem num={1} name="Product information lookup" type="QnA" typeColor="bg-primary-soft text-primary" />
-          <ProcessItem num={2} name="Lock credit card" type="Workflow" typeColor="bg-accent-soft text-accent" highlighted />
-          <ProcessItem num={3} name="Schedule consultation" type="Workflow" typeColor="bg-accent-soft text-accent" />
-        </div>
-      </Section>
-
-      <hr className="border-border" />
-
-      <Section
-        icon={Shield}
-        title="Guardrails"
-        desc="Hard rules the agent must never break."
-        action={<button className="btn-ghost"><Plus size={12} /> Add rule</button>}
-      >
-        <div className="divide-y divide-border">
-          {guardrails.map(g => (
-            <div key={g.text} className="flex items-center gap-3 py-3">
-              <span
-                className={`text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                  g.kind === "Block" ? "bg-destructive/10 text-destructive" : "bg-info/10 text-info"
-                }`}
-              >
-                {g.kind}
-              </span>
-              <span className="text-sm flex-1">{g.text}</span>
-              <Toggle on={g.on} />
-            </div>
-          ))}
-        </div>
-      </Section>
     </div>
   );
 }
