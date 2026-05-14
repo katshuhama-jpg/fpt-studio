@@ -20,6 +20,7 @@ import { triggerStore } from "@/components/configure/triggerStore";
 import { guardrailStore } from "@/components/configure/guardrailStore";
 import { chatOptimizationStore } from "@/components/configure/chatOptimizationStore";
 import { updateUser } from "@/lib/onboarding";
+import BusinessProcessTree from "@/components/general/BusinessProcessTree";
 
 type Tab = "develop" | "monitor";
 
