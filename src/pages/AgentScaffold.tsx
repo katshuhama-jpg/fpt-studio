@@ -359,7 +359,7 @@ function DraftStage({
         </DraftCard>
 
         {/* Tasks */}
-        <DraftCard icon={ListChecks} title="Tasks" badge={`${draft.tasks.length} drafted`}>
+        <DraftCard icon={Workflow} title="Tasks" badge={`${draft.tasks.length} drafted`}>
           <ul className="space-y-1.5">
             {draft.tasks.map(t => (
               <li key={t.name} className="flex items-center gap-2 text-xs">

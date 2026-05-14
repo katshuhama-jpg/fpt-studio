@@ -1,6 +1,6 @@
 import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom";
 import {
-  ChevronLeft, Play, Save, Rocket, MoreHorizontal, BookOpen, Wrench, ListChecks,
+  ChevronLeft, Play, Save, Rocket, MoreHorizontal, BookOpen, Wrench, Workflow,
   Zap, Cog, MessageSquareText, FileQuestion, Sparkles,
   Search, Upload, Globe, Database, Plus, Layers, CheckCircle2, Send,
   ArrowRight, Shield, ChevronDown, FileText, Trash2, MessageSquare, Activity,
@@ -25,13 +25,13 @@ const developNav = [
       { id: "bp", label: "Business processes", icon: Layers, status: "done" },
       { id: "knowledge", label: "Knowledge", icon: BookOpen, status: "done" },
       { id: "tool", label: "Tools", icon: Wrench, status: "warn" },
-      { id: "task", label: "Tasks", icon: ListChecks, status: "empty" },
+      { id: "task", label: "Tasks", icon: Workflow, status: "empty" },
     ],
   },
   {
     label: "Test",
     items: [
-      { id: "tests", label: "Test cases", icon: ListChecks },
+      { id: "tests", label: "Test cases", icon: Workflow },
       { id: "auto", label: "Auto-test", icon: Sparkles },
     ],
   },
@@ -53,7 +53,7 @@ const monitorNav = [
   ]},
   { label: "Quality", items: [
     { id: "csat", label: "Satisfaction", icon: Star },
-    { id: "review", label: "Conversation review", icon: ListChecks },
+    { id: "review", label: "Conversation review", icon: Workflow },
   ]},
   { label: "History", items: [
     { id: "chat-hist", label: "Chat history", icon: History },
