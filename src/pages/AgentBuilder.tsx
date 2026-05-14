@@ -13,6 +13,12 @@ import BusinessProcessesGrid from "@/components/business-processes/BusinessProce
 import TriggersTab from "@/components/configure/TriggersTab";
 import GuardrailsTab from "@/components/configure/GuardrailsTab";
 import ChatOptimizationTab from "@/components/configure/ChatOptimizationTab";
+import { businessProcessStore } from "@/components/business-processes/businessProcessStore";
+import { taskStore } from "@/components/tasks/taskStore";
+import { knowledgeStore } from "@/components/knowledge/knowledgeStore";
+import { triggerStore } from "@/components/configure/triggerStore";
+import { guardrailStore } from "@/components/configure/guardrailStore";
+import { chatOptimizationStore } from "@/components/configure/chatOptimizationStore";
 import { updateUser } from "@/lib/onboarding";
 
 type Tab = "develop" | "monitor";
@@ -365,9 +371,20 @@ function AiBuildSidebar({
 
 /* ============ GENERAL ============ */
 function GeneralTab() {
+  const { id = "cskh" } = useParams();
+  const [, setParams] = useSearchParams();
+  const goSection = (s: string) => setParams({ tab: "develop", section: s });
+
+  const bp = businessProcessStore.list(id);
+  const tasks = taskStore.list(id);
+  const knowledge = knowledgeStore.list(id);
+  const triggers = triggerStore.list(id);
+  const guardrails = guardrailStore.list(id);
+  const chatOpt = chatOptimizationStore.get(id);
+
   return (
-    <div className="p-8 max-w-3xl mx-auto space-y-8 animate-fade-up">
-      {/* Borderless section: just a header + flat content */}
+    <div className="p-8 max-w-3xl mx-auto space-y-6 animate-fade-up">
+      {/* Always visible: identity */}
       <Section icon={Cog} title="Persona & guideline" desc="Define identity, tone and operating instructions.">
         <Field label="Agent name">
           <input className="ds-input" defaultValue="Banking ABC — Customer Care" />
@@ -388,7 +405,183 @@ function GeneralTab() {
         </Field>
       </Section>
 
+      {/* Accordion: all other config groups */}
+      <div className="space-y-2">
+        <ConfigAccordion
+          icon={Layers}
+          title="Business processes"
+          count={bp.length}
+          desc="Multi-step flows the agent can run."
+          onManage={() => goSection("bp")}
+        >
+          {bp.slice(0, 5).map(b => (
+            <SummaryRow
+              key={b.id}
+              name={b.name}
+              meta={b.strategy}
+              chip={b.isDefault ? "default" : undefined}
+              enabled={b.enabled}
+            />
+          ))}
+          {bp.length > 5 && <MoreLink count={bp.length - 5} onClick={() => goSection("bp")} />}
+        </ConfigAccordion>
+
+        <ConfigAccordion
+          icon={Wrench}
+          title="Tools"
+          count={5}
+          desc="External APIs and integrations the agent can call."
+          onManage={() => goSection("tool")}
+        >
+          {[
+            { name: "verify_customer", meta: "REST" },
+            { name: "lock_card", meta: "REST" },
+            { name: "search_products", meta: "GraphQL" },
+            { name: "send_email", meta: "Built-in" },
+            { name: "schedule_meeting", meta: "Calendar" },
+          ].map(t => (
+            <SummaryRow key={t.name} name={t.name} meta={t.meta} enabled />
+          ))}
+        </ConfigAccordion>
+
+        <ConfigAccordion
+          icon={Workflow}
+          title="Tasks"
+          count={tasks.length}
+          desc="Reusable skills made of prompts and tool calls."
+          onManage={() => goSection("task")}
+        >
+          {tasks.slice(0, 5).map(t => (
+            <SummaryRow key={t.id} name={t.name} meta={t.kind} chip={t.kind === "system" ? "system" : undefined} enabled />
+          ))}
+          {tasks.length > 5 && <MoreLink count={tasks.length - 5} onClick={() => goSection("task")} />}
+        </ConfigAccordion>
+
+        <ConfigAccordion
+          icon={BookOpen}
+          title="Knowledge"
+          count={knowledge.length}
+          desc="Documents, FAQs and websites this agent can retrieve from."
+          onManage={() => goSection("knowledge")}
+        >
+          {knowledge.slice(0, 5).map(k => (
+            <SummaryRow key={k.id} name={k.name} meta={k.kind} enabled />
+          ))}
+          {knowledge.length > 5 && <MoreLink count={knowledge.length - 5} onClick={() => goSection("knowledge")} />}
+        </ConfigAccordion>
+
+        <ConfigAccordion
+          icon={Zap}
+          title="Triggers"
+          count={triggers.length}
+          desc="When and how the agent runs."
+          onManage={() => goSection("triggers")}
+        >
+          {triggers.slice(0, 5).map(t => (
+            <SummaryRow key={t.id} name={t.name} meta={t.type} enabled={t.enabled} />
+          ))}
+          {triggers.length > 5 && <MoreLink count={triggers.length - 5} onClick={() => goSection("triggers")} />}
+        </ConfigAccordion>
+
+        <ConfigAccordion
+          icon={Shield}
+          title="Guardrails"
+          count={guardrails.length}
+          desc="Rules the agent must respect on input and output."
+          onManage={() => goSection("guardrails")}
+        >
+          {guardrails.slice(0, 5).map(g => (
+            <SummaryRow key={g.id} name={g.name} meta={`${g.kind} · ${g.scope}`} enabled={g.enabled} />
+          ))}
+          {guardrails.length > 5 && <MoreLink count={guardrails.length - 5} onClick={() => goSection("guardrails")} />}
+        </ConfigAccordion>
+
+        <ConfigAccordion
+          icon={MessageSquareText}
+          title="Chat optimization"
+          desc="References, opener, quick replies, rich response, follow-ups."
+          onManage={() => goSection("chat-opt")}
+        >
+          <SummaryRow name="References" meta={chatOpt.references.format} enabled={chatOpt.references.enabled} />
+          <SummaryRow name="Conversation opener" meta={`${chatOpt.opener.questions.length} questions`} enabled />
+          <SummaryRow name="Quick-reply buttons" meta={`${chatOpt.quickReplies.buttons.length} buttons`} enabled={chatOpt.quickReplies.enabled} />
+          <SummaryRow name="Rich response" meta={`${chatOpt.rich.cardBindings.length} bindings`} enabled={chatOpt.rich.enabled} />
+          <SummaryRow name="Follow-up suggestions" meta={`${chatOpt.followup.count} · ${chatOpt.followup.source}`} enabled={chatOpt.followup.enabled} />
+        </ConfigAccordion>
+      </div>
     </div>
+  );
+}
+
+/* ----- General accordion atoms ----- */
+function ConfigAccordion({
+  icon: Icon, title, desc, count, onManage, children,
+}: {
+  icon: any; title: string; desc?: string; count?: number;
+  onManage: () => void; children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded-xl border border-border bg-surface overflow-hidden">
+      <div className="flex items-center gap-3 px-4 py-3">
+        <button
+          onClick={() => setOpen(o => !o)}
+          className="flex items-center gap-3 flex-1 min-w-0 text-left"
+        >
+          <div className="w-9 h-9 rounded-lg bg-primary-soft text-primary flex items-center justify-center shrink-0">
+            <Icon size={16} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className="font-display font-semibold text-sm">{title}</h3>
+              {typeof count === "number" && (
+                <span className="chip text-[10px]">{count}</span>
+              )}
+            </div>
+            {desc && <p className="text-xs text-muted-foreground mt-0.5 truncate">{desc}</p>}
+          </div>
+          <ChevronDown
+            size={16}
+            className={`text-muted-foreground shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
+          />
+        </button>
+        <button
+          onClick={onManage}
+          className="text-xs font-medium text-primary hover:bg-primary-soft px-2.5 h-8 rounded-md flex items-center gap-1 transition-base shrink-0"
+        >
+          Manage <ArrowRight size={12} />
+        </button>
+      </div>
+      {open && (
+        <div className="border-t border-border bg-surface-muted/30 px-4 py-3 space-y-1">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SummaryRow({
+  name, meta, chip, enabled,
+}: { name: string; meta?: string; chip?: string; enabled?: boolean }) {
+  return (
+    <div className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-surface transition-base">
+      <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${enabled ? "bg-success" : "bg-muted-foreground/40"}`} />
+      <span className="text-sm font-medium truncate flex-1">{name}</span>
+      {chip && <span className="chip chip-primary text-[10px]">{chip}</span>}
+      {meta && <span className="text-[11px] text-muted-foreground capitalize">{meta}</span>}
+    </div>
+  );
+}
+
+function MoreLink({ count, onClick }: { count: number; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full text-xs text-primary hover:underline px-2 py-1.5 text-left"
+    >
+      + {count} more…
+    </button>
   );
 }
 
