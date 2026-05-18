@@ -221,9 +221,62 @@ export default function Inventor() {
 
   /* ---------- the scripted "AI" flow ---------- */
   async function runConversation(userPrompt: string) {
+    if (fromOnboarding) {
+      pushMsg({ id: crypto.randomUUID(), role: "ai", kind: "source", label: "From onboarding" });
+    }
     pushMsg({ id: crypto.randomUUID(), role: "user", text: userPrompt });
     setThinking(true);
-    await wait(700);
+    await wait(600);
+
+    const spec = needsClarification(userPrompt);
+    if (spec) {
+      pushMsg({
+        id: crypto.randomUUID(),
+        role: "ai",
+        kind: "text",
+        text: `Before I start designing **${guessAgentName(userPrompt)}**, mình muốn làm rõ vài điểm để tránh đoán sai:`,
+      });
+      await wait(300);
+      pushMsg({
+        id: crypto.randomUUID(),
+        role: "ai",
+        kind: "clarify",
+        questions: spec,
+        answers: {},
+        submitted: false,
+      });
+      setThinking(false);
+      return;
+    }
+
+    effectivePromptRef.current = userPrompt;
+    await runMainFlow(userPrompt);
+  }
+
+  async function resumeAfterClarify(clarifyId: string, originalPrompt: string, answers: Record<string, string>, questions: ClarifyQ[]) {
+    updateMsg(clarifyId, m =>
+      m.role === "ai" && m.kind === "clarify" ? { ...m, answers, submitted: true } : m,
+    );
+    const contextLines = questions
+      .map(q => `- ${q.question} → ${answers[q.id] ?? "(skipped)"}`)
+      .join("\n");
+    const merged = `${originalPrompt}\n\nContext from clarifying questions:\n${contextLines}`;
+    effectivePromptRef.current = merged;
+
+    setThinking(true);
+    await wait(500);
+    pushMsg({
+      id: crypto.randomUUID(),
+      role: "ai",
+      kind: "text",
+      text: "Cảm ơn — mình sẽ dùng các thông tin trên để thiết kế agent.",
+    });
+    await wait(300);
+    await runMainFlow(merged);
+  }
+
+  async function runMainFlow(userPrompt: string) {
+    setThinking(true);
 
     // Acknowledge
     pushMsg({
@@ -245,7 +298,6 @@ export default function Inventor() {
     pushMsg({ id: todoId, role: "ai", kind: "todo", todos, title: "Todo List" });
     await wait(450);
 
-    // Run each item
     for (let i = 0; i < todos.length; i++) {
       updateMsg(todoId, m => {
         if (m.role !== "ai" || m.kind !== "todo") return m;
@@ -261,7 +313,6 @@ export default function Inventor() {
       await wait(200);
     }
 
-    // Strategy proposal
     pushMsg({
       id: crypto.randomUUID(),
       role: "ai",
@@ -282,7 +333,6 @@ export default function Inventor() {
     });
     await wait(400);
 
-    // CTA
     pushMsg({
       id: crypto.randomUUID(),
       role: "ai",
