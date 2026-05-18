@@ -1037,3 +1037,106 @@ function guessAgentName(p: string) {
   if (t.includes("support") || t.includes("customer")) return "Customer Support Agent";
   return "New Agent";
 }
+
+function needsClarification(prompt: string): ClarifyQ[] | null {
+  const t = prompt.toLowerCase().trim();
+  const isLong = t.length >= 80;
+  const hasDomain = /(customer|care|cskh|faq|booking|report|báo cáo|research|hr|onboarding)/.test(t);
+  if (isLong && hasDomain) return null;
+
+  if (/(hr|onboarding|nhân sự)/.test(t)) {
+    return [
+      { id: "hr_scope", question: "Loại tài liệu/việc chính agent cần hỗ trợ?", options: ["Chính sách & handbook", "Paperwork & onboarding mới", "Phúc lợi & lương", "Hỗ trợ chung"] },
+      { id: "hr_lang", question: "Ngôn ngữ phục vụ chính?", options: ["Tiếng Việt", "English", "Song ngữ Việt–Anh"] },
+    ];
+  }
+  if (/(report|báo cáo|research)/.test(t)) {
+    return [
+      { id: "report_type", question: "Loại báo cáo agent sẽ tạo?", options: ["Báo cáo kinh doanh", "Research brief", "Báo cáo kỹ thuật", "Tổng hợp tin tức"] },
+      { id: "report_freq", question: "Tần suất chạy?", options: ["Theo yêu cầu (manual)", "Hằng tuần", "Hằng tháng"] },
+    ];
+  }
+  if (/(customer|care|cskh|support|faq|booking)/.test(t)) {
+    return [
+      { id: "care_channel", question: "Kênh tiếp xúc khách hàng chính?", options: ["Chat web", "Zalo / Messenger", "Hotline / Voice", "Email"] },
+      { id: "care_scope", question: "Phạm vi xử lý chính?", options: ["Trả lời FAQ", "Đặt lịch / booking", "Xác minh & thao tác tài khoản", "Tiếp nhận khiếu nại"] },
+    ];
+  }
+  return [
+    { id: "generic_domain", question: "Agent này phục vụ lĩnh vực nào?", options: ["Customer support", "HR & onboarding", "Sales & marketing", "Research & reporting"] },
+    { id: "generic_audience", question: "Đối tượng người dùng chính?", options: ["Khách hàng cuối", "Nhân viên nội bộ", "Quản lý / lãnh đạo", "Đối tác bên ngoài"] },
+  ];
+}
+
+function ClarifyingCard({
+  questions, answers, submitted, onChange, onSubmit,
+}: {
+  questions: ClarifyQ[];
+  answers: Record<string, string>;
+  submitted: boolean;
+  onChange: (qid: string, value: string) => void;
+  onSubmit: () => void;
+}) {
+  const allAnswered = questions.every(q => (answers[q.id] ?? "").trim().length > 0);
+  return (
+    <div className="rounded-xl border border-primary/30 bg-primary-soft/40 p-3 space-y-3">
+      <div className="flex items-center gap-1.5">
+        <HelpCircle size={12} className="text-primary" />
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-primary">A few quick questions</span>
+      </div>
+      {questions.map(q => {
+        const current = answers[q.id] ?? "";
+        const isCustom = current.length > 0 && !q.options.includes(current);
+        return (
+          <div key={q.id} className="space-y-1.5">
+            <div className="text-[12.5px] font-medium leading-snug">{q.question}</div>
+            <div className="flex flex-wrap gap-1.5">
+              {q.options.map(opt => {
+                const active = current === opt;
+                return (
+                  <button
+                    key={opt}
+                    type="button"
+                    disabled={submitted}
+                    onClick={() => onChange(q.id, opt)}
+                    className={`px-2.5 py-1 rounded-md text-[11.5px] font-medium border transition-base ${
+                      active
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-surface border-border hover:border-primary/40"
+                    } disabled:opacity-70 disabled:cursor-default`}
+                  >
+                    {opt}
+                  </button>
+                );
+              })}
+            </div>
+            {!submitted && (
+              <input
+                value={isCustom ? current : ""}
+                onChange={e => onChange(q.id, e.target.value)}
+                placeholder="Other…"
+                className="w-full mt-1 px-2.5 py-1.5 rounded-md border border-border bg-background text-[12px] placeholder:text-muted-foreground outline-none focus:border-primary"
+              />
+            )}
+            {submitted && (
+              <div className="text-[11px] text-muted-foreground italic">→ {current || "(skipped)"}</div>
+            )}
+          </div>
+        );
+      })}
+      {!submitted ? (
+        <button
+          onClick={onSubmit}
+          disabled={!allAnswered}
+          className="w-full h-8 rounded-md bg-primary text-primary-foreground text-[12px] font-semibold flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary-glow transition-base"
+        >
+          Continue <ChevronRight size={12} />
+        </button>
+      ) : (
+        <div className="flex items-center gap-1.5 text-[11px] text-primary font-medium">
+          <Check size={11} /> Cảm ơn — đang tiếp tục thiết kế agent…
+        </div>
+      )}
+    </div>
+  );
+}
