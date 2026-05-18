@@ -584,7 +584,7 @@ export default function Inventor() {
                 <button
                   onClick={onSubmit}
                   className="ml-auto h-7 px-3 rounded-md bg-primary text-primary-foreground hover:bg-primary-glow text-xs font-medium flex items-center gap-1.5 transition-base disabled:opacity-50"
-                  disabled={!input.trim()}
+                  disabled={!input.trim() || !!pendingClarify}
                 >
                   Send <Send size={10} />
                 </button>
