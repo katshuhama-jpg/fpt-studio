@@ -5,6 +5,7 @@ import {
   Workflow, Paperclip, AtSign, Settings2, Play, Save, ArrowUpRight, Cog,
   Globe, Search, FileText, Code2, FileSpreadsheet, Clock, Hand, ChevronRight,
   Database, MessageSquareText, CheckCircle2, Rocket, Layers,
+  CornerDownLeft, HelpCircle,
 } from "lucide-react";
 import { updateUser } from "@/lib/onboarding";
 import { businessProcessStore, type BpStrategy } from "@/components/business-processes/businessProcessStore";
@@ -59,13 +60,17 @@ function commitDraftToAgent(agentId: string, draft: { bps: { name: string; descr
 type TodoStatus = "pending" | "running" | "done";
 type Todo = { id: string; label: string; status: TodoStatus };
 
+type ClarifyQ = { id: string; question: string; options: string[] };
+
 type ChatMsg =
   | { id: string; role: "user"; text: string }
+  | { id: string; role: "ai"; kind: "source"; label: string }
   | { id: string; role: "ai"; kind: "text"; text: string }
   | { id: string; role: "ai"; kind: "todo"; todos: Todo[]; title?: string }
   | { id: string; role: "ai"; kind: "strategy"; reportTypes: string[]; triggers: { label: string; icon: any }[] }
   | { id: string; role: "ai"; kind: "cta"; label: string; done?: boolean }
-  | { id: string; role: "ai"; kind: "inventory-batch"; title: string; icon: any; items: string[] };
+  | { id: string; role: "ai"; kind: "inventory-batch"; title: string; icon: any; items: string[] }
+  | { id: string; role: "ai"; kind: "clarify"; questions: ClarifyQ[]; answers: Record<string, string>; submitted: boolean };
 
 type Tool = { name: string; desc: string; icon: any; tint: string };
 type BpDraft = { name: string; description: string; strategy: "ReAct" | "Predefined Plan" | "Tool Execution"; isDefault?: boolean; toolNames?: string[]; taskNames?: string[] };
@@ -192,6 +197,7 @@ export default function Inventor() {
   const [configApplied, setConfigApplied] = useState(false);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const startedRef = useRef(false);
+  const effectivePromptRef = useRef<string>("");
 
   /* auto-seed first message */
   useEffect(() => {
@@ -215,9 +221,62 @@ export default function Inventor() {
 
   /* ---------- the scripted "AI" flow ---------- */
   async function runConversation(userPrompt: string) {
+    if (fromOnboarding) {
+      pushMsg({ id: crypto.randomUUID(), role: "ai", kind: "source", label: "From onboarding" });
+    }
     pushMsg({ id: crypto.randomUUID(), role: "user", text: userPrompt });
     setThinking(true);
-    await wait(700);
+    await wait(600);
+
+    const spec = needsClarification(userPrompt);
+    if (spec) {
+      pushMsg({
+        id: crypto.randomUUID(),
+        role: "ai",
+        kind: "text",
+        text: `Before I start designing **${guessAgentName(userPrompt)}**, mình muốn làm rõ vài điểm để tránh đoán sai:`,
+      });
+      await wait(300);
+      pushMsg({
+        id: crypto.randomUUID(),
+        role: "ai",
+        kind: "clarify",
+        questions: spec,
+        answers: {},
+        submitted: false,
+      });
+      setThinking(false);
+      return;
+    }
+
+    effectivePromptRef.current = userPrompt;
+    await runMainFlow(userPrompt);
+  }
+
+  async function resumeAfterClarify(clarifyId: string, originalPrompt: string, answers: Record<string, string>, questions: ClarifyQ[]) {
+    updateMsg(clarifyId, m =>
+      m.role === "ai" && m.kind === "clarify" ? { ...m, answers, submitted: true } : m,
+    );
+    const contextLines = questions
+      .map(q => `- ${q.question} → ${answers[q.id] ?? "(skipped)"}`)
+      .join("\n");
+    const merged = `${originalPrompt}\n\nContext from clarifying questions:\n${contextLines}`;
+    effectivePromptRef.current = merged;
+
+    setThinking(true);
+    await wait(500);
+    pushMsg({
+      id: crypto.randomUUID(),
+      role: "ai",
+      kind: "text",
+      text: "Cảm ơn — mình sẽ dùng các thông tin trên để thiết kế agent.",
+    });
+    await wait(300);
+    await runMainFlow(merged);
+  }
+
+  async function runMainFlow(userPrompt: string) {
+    setThinking(true);
 
     // Acknowledge
     pushMsg({
@@ -239,7 +298,6 @@ export default function Inventor() {
     pushMsg({ id: todoId, role: "ai", kind: "todo", todos, title: "Todo List" });
     await wait(450);
 
-    // Run each item
     for (let i = 0; i < todos.length; i++) {
       updateMsg(todoId, m => {
         if (m.role !== "ai" || m.kind !== "todo") return m;
@@ -255,7 +313,6 @@ export default function Inventor() {
       await wait(200);
     }
 
-    // Strategy proposal
     pushMsg({
       id: crypto.randomUUID(),
       role: "ai",
@@ -276,7 +333,6 @@ export default function Inventor() {
     });
     await wait(400);
 
-    // CTA
     pushMsg({
       id: crypto.randomUUID(),
       role: "ai",
@@ -291,7 +347,7 @@ export default function Inventor() {
   async function applyConfiguration(ctaId: string) {
     updateMsg(ctaId, m => (m.role === "ai" && m.kind === "cta" ? { ...m, done: true } : m));
     // Pick draft based on prompt keyword
-    const prompt = (seedPrompt || "").toLowerCase();
+    const prompt = (effectivePromptRef.current || seedPrompt || "").toLowerCase();
     const target =
       prompt.includes("customer") || prompt.includes("care") || prompt.includes("cskh") || prompt.includes("faq") || prompt.includes("booking")
         ? careDraft
@@ -406,13 +462,34 @@ export default function Inventor() {
     setThinking(false);
   }
 
+  const pendingClarify = messages.find(
+    m => m.role === "ai" && m.kind === "clarify" && !m.submitted,
+  ) as Extract<ChatMsg, { kind: "clarify" }> | undefined;
+
   /* submit handler */
   function onSubmit() {
+    if (pendingClarify) return;
     const v = input.trim();
     if (!v) return;
     setInput("");
     if (messages.length === 0) runConversation(v);
     else handleFollowup(v);
+  }
+
+  function handleClarifyChange(clarifyId: string, qid: string, value: string) {
+    updateMsg(clarifyId, m =>
+      m.role === "ai" && m.kind === "clarify"
+        ? { ...m, answers: { ...m.answers, [qid]: value } }
+        : m,
+    );
+  }
+
+  function handleClarifySubmit(clarifyId: string) {
+    const m = messages.find(x => x.id === clarifyId);
+    if (!m || m.role !== "ai" || m.kind !== "clarify") return;
+    const originalUser = [...messages].reverse().find(x => x.role === "user");
+    const promptText = originalUser?.role === "user" ? originalUser.text : seedPrompt;
+    resumeAfterClarify(clarifyId, promptText, m.answers, m.questions);
   }
 
   /* ---------------- Render ---------------- */
@@ -474,7 +551,13 @@ export default function Inventor() {
           <div ref={scrollerRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
             {messages.length === 0 && !seedPrompt && <Welcome />}
             {messages.map(m => (
-              <MessageBubble key={m.id} msg={m} onCta={() => m.role === "ai" && m.kind === "cta" && !m.done && applyConfiguration(m.id)} />
+              <MessageBubble
+                key={m.id}
+                msg={m}
+                onCta={() => m.role === "ai" && m.kind === "cta" && !m.done && applyConfiguration(m.id)}
+                onClarifyChange={(qid, v) => handleClarifyChange(m.id, qid, v)}
+                onClarifySubmit={() => handleClarifySubmit(m.id)}
+              />
             ))}
             {thinking && <Thinking />}
           </div>
@@ -492,7 +575,7 @@ export default function Inventor() {
                   }
                 }}
                 rows={2}
-                placeholder={messages.length === 0 ? "Ask Inventor to build anything..." : "Refine the agent — e.g. add Slack, change tone…"}
+                placeholder={pendingClarify ? "Trả lời các câu hỏi bên trên để tiếp tục…" : (messages.length === 0 ? "Ask Inventor to build anything..." : "Refine the agent — e.g. add Slack, change tone…")}
                 className="w-full resize-none bg-transparent text-sm placeholder:text-muted-foreground outline-none px-2.5 py-2 max-h-32"
               />
               <div className="flex items-center gap-1 px-1.5 pb-0.5">
@@ -501,7 +584,7 @@ export default function Inventor() {
                 <button
                   onClick={onSubmit}
                   className="ml-auto h-7 px-3 rounded-md bg-primary text-primary-foreground hover:bg-primary-glow text-xs font-medium flex items-center gap-1.5 transition-base disabled:opacity-50"
-                  disabled={!input.trim()}
+                  disabled={!input.trim() || !!pendingClarify}
                 >
                   Send <Send size={10} />
                 </button>
@@ -550,7 +633,17 @@ function Thinking() {
   );
 }
 
-function MessageBubble({ msg, onCta }: { msg: ChatMsg; onCta: () => void }) {
+function MessageBubble({
+  msg,
+  onCta,
+  onClarifyChange,
+  onClarifySubmit,
+}: {
+  msg: ChatMsg;
+  onCta: () => void;
+  onClarifyChange?: (qid: string, value: string) => void;
+  onClarifySubmit?: () => void;
+}) {
   if (msg.role === "user") {
     return (
       <div className="flex items-start gap-2.5 justify-end">
@@ -560,6 +653,16 @@ function MessageBubble({ msg, onCta }: { msg: ChatMsg; onCta: () => void }) {
         <div className="w-6 h-6 rounded-lg bg-surface-muted flex items-center justify-center shrink-0">
           <User size={12} />
         </div>
+      </div>
+    );
+  }
+
+  if (msg.kind === "source") {
+    return (
+      <div className="flex justify-end pr-9">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary-soft text-primary text-[10px] font-medium">
+          <CornerDownLeft size={10} /> {msg.label}
+        </span>
       </div>
     );
   }
@@ -578,6 +681,15 @@ function MessageBubble({ msg, onCta }: { msg: ChatMsg; onCta: () => void }) {
         {msg.kind === "todo" && <TodoCard title={msg.title ?? "Todo List"} todos={msg.todos} />}
         {msg.kind === "strategy" && <StrategyCard reportTypes={msg.reportTypes} triggers={msg.triggers} />}
         {msg.kind === "inventory-batch" && <InventoryBatchCard title={msg.title} icon={msg.icon} items={msg.items} />}
+        {msg.kind === "clarify" && (
+          <ClarifyingCard
+            questions={msg.questions}
+            answers={msg.answers}
+            submitted={msg.submitted}
+            onChange={(qid, v) => onClarifyChange?.(qid, v)}
+            onSubmit={() => onClarifySubmit?.()}
+          />
+        )}
         {msg.kind === "cta" && (
           <button
             onClick={onCta}
@@ -924,4 +1036,107 @@ function guessAgentName(p: string) {
   if (t.includes("sales")) return "Sales Lead Qualifier";
   if (t.includes("support") || t.includes("customer")) return "Customer Support Agent";
   return "New Agent";
+}
+
+function needsClarification(prompt: string): ClarifyQ[] | null {
+  const t = prompt.toLowerCase().trim();
+  const isLong = t.length >= 80;
+  const hasDomain = /(customer|care|cskh|faq|booking|report|báo cáo|research|hr|onboarding)/.test(t);
+  if (isLong && hasDomain) return null;
+
+  if (/(hr|onboarding|nhân sự)/.test(t)) {
+    return [
+      { id: "hr_scope", question: "Loại tài liệu/việc chính agent cần hỗ trợ?", options: ["Chính sách & handbook", "Paperwork & onboarding mới", "Phúc lợi & lương", "Hỗ trợ chung"] },
+      { id: "hr_lang", question: "Ngôn ngữ phục vụ chính?", options: ["Tiếng Việt", "English", "Song ngữ Việt–Anh"] },
+    ];
+  }
+  if (/(report|báo cáo|research)/.test(t)) {
+    return [
+      { id: "report_type", question: "Loại báo cáo agent sẽ tạo?", options: ["Báo cáo kinh doanh", "Research brief", "Báo cáo kỹ thuật", "Tổng hợp tin tức"] },
+      { id: "report_freq", question: "Tần suất chạy?", options: ["Theo yêu cầu (manual)", "Hằng tuần", "Hằng tháng"] },
+    ];
+  }
+  if (/(customer|care|cskh|support|faq|booking)/.test(t)) {
+    return [
+      { id: "care_channel", question: "Kênh tiếp xúc khách hàng chính?", options: ["Chat web", "Zalo / Messenger", "Hotline / Voice", "Email"] },
+      { id: "care_scope", question: "Phạm vi xử lý chính?", options: ["Trả lời FAQ", "Đặt lịch / booking", "Xác minh & thao tác tài khoản", "Tiếp nhận khiếu nại"] },
+    ];
+  }
+  return [
+    { id: "generic_domain", question: "Agent này phục vụ lĩnh vực nào?", options: ["Customer support", "HR & onboarding", "Sales & marketing", "Research & reporting"] },
+    { id: "generic_audience", question: "Đối tượng người dùng chính?", options: ["Khách hàng cuối", "Nhân viên nội bộ", "Quản lý / lãnh đạo", "Đối tác bên ngoài"] },
+  ];
+}
+
+function ClarifyingCard({
+  questions, answers, submitted, onChange, onSubmit,
+}: {
+  questions: ClarifyQ[];
+  answers: Record<string, string>;
+  submitted: boolean;
+  onChange: (qid: string, value: string) => void;
+  onSubmit: () => void;
+}) {
+  const allAnswered = questions.every(q => (answers[q.id] ?? "").trim().length > 0);
+  return (
+    <div className="rounded-xl border border-primary/30 bg-primary-soft/40 p-3 space-y-3">
+      <div className="flex items-center gap-1.5">
+        <HelpCircle size={12} className="text-primary" />
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-primary">A few quick questions</span>
+      </div>
+      {questions.map(q => {
+        const current = answers[q.id] ?? "";
+        const isCustom = current.length > 0 && !q.options.includes(current);
+        return (
+          <div key={q.id} className="space-y-1.5">
+            <div className="text-[12.5px] font-medium leading-snug">{q.question}</div>
+            <div className="flex flex-wrap gap-1.5">
+              {q.options.map(opt => {
+                const active = current === opt;
+                return (
+                  <button
+                    key={opt}
+                    type="button"
+                    disabled={submitted}
+                    onClick={() => onChange(q.id, opt)}
+                    className={`px-2.5 py-1 rounded-md text-[11.5px] font-medium border transition-base ${
+                      active
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-surface border-border hover:border-primary/40"
+                    } disabled:opacity-70 disabled:cursor-default`}
+                  >
+                    {opt}
+                  </button>
+                );
+              })}
+            </div>
+            {!submitted && (
+              <input
+                value={isCustom ? current : ""}
+                onChange={e => onChange(q.id, e.target.value)}
+                placeholder="Other…"
+                className="w-full mt-1 px-2.5 py-1.5 rounded-md border border-border bg-background text-[12px] placeholder:text-muted-foreground outline-none focus:border-primary"
+              />
+            )}
+            {submitted && (
+              <div className="text-[11px] text-muted-foreground italic">→ {current || "(skipped)"}</div>
+            )}
+          </div>
+        );
+      })}
+      {!submitted ? (
+        <button
+          onClick={onSubmit}
+          disabled={!allAnswered}
+          className="w-full h-8 rounded-md bg-primary text-primary-foreground text-[12px] font-semibold flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary-glow transition-base"
+        >
+          Continue <ChevronRight size={12} />
+        </button>
+      ) : (
+        <div className="flex items-center gap-1.5 text-[11px] text-primary font-medium">
+          <Check size={11} /> Cảm ơn — đang tiếp tục thiết kế agent…
+        </div>
+      )}
+    </div>
+  );
 }
