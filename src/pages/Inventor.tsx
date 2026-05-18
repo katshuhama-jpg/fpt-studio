@@ -5,6 +5,7 @@ import {
   Workflow, Paperclip, AtSign, Settings2, Play, Save, ArrowUpRight, Cog,
   Globe, Search, FileText, Code2, FileSpreadsheet, Clock, Hand, ChevronRight,
   Database, MessageSquareText, CheckCircle2, Rocket, Layers,
+  CornerDownLeft, HelpCircle,
 } from "lucide-react";
 import { updateUser } from "@/lib/onboarding";
 import { businessProcessStore, type BpStrategy } from "@/components/business-processes/businessProcessStore";
