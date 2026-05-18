@@ -347,7 +347,7 @@ export default function Inventor() {
   async function applyConfiguration(ctaId: string) {
     updateMsg(ctaId, m => (m.role === "ai" && m.kind === "cta" ? { ...m, done: true } : m));
     // Pick draft based on prompt keyword
-    const prompt = (seedPrompt || "").toLowerCase();
+    const prompt = (effectivePromptRef.current || seedPrompt || "").toLowerCase();
     const target =
       prompt.includes("customer") || prompt.includes("care") || prompt.includes("cskh") || prompt.includes("faq") || prompt.includes("booking")
         ? careDraft
