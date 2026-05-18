@@ -60,13 +60,17 @@ function commitDraftToAgent(agentId: string, draft: { bps: { name: string; descr
 type TodoStatus = "pending" | "running" | "done";
 type Todo = { id: string; label: string; status: TodoStatus };
 
+type ClarifyQ = { id: string; question: string; options: string[] };
+
 type ChatMsg =
   | { id: string; role: "user"; text: string }
+  | { id: string; role: "ai"; kind: "source"; label: string }
   | { id: string; role: "ai"; kind: "text"; text: string }
   | { id: string; role: "ai"; kind: "todo"; todos: Todo[]; title?: string }
   | { id: string; role: "ai"; kind: "strategy"; reportTypes: string[]; triggers: { label: string; icon: any }[] }
   | { id: string; role: "ai"; kind: "cta"; label: string; done?: boolean }
-  | { id: string; role: "ai"; kind: "inventory-batch"; title: string; icon: any; items: string[] };
+  | { id: string; role: "ai"; kind: "inventory-batch"; title: string; icon: any; items: string[] }
+  | { id: string; role: "ai"; kind: "clarify"; questions: ClarifyQ[]; answers: Record<string, string>; submitted: boolean };
 
 type Tool = { name: string; desc: string; icon: any; tint: string };
 type BpDraft = { name: string; description: string; strategy: "ReAct" | "Predefined Plan" | "Tool Execution"; isDefault?: boolean; toolNames?: string[]; taskNames?: string[] };
