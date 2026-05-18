@@ -197,6 +197,7 @@ export default function Inventor() {
   const [configApplied, setConfigApplied] = useState(false);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const startedRef = useRef(false);
+  const effectivePromptRef = useRef<string>("");
 
   /* auto-seed first message */
   useEffect(() => {
