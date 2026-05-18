@@ -551,7 +551,13 @@ export default function Inventor() {
           <div ref={scrollerRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
             {messages.length === 0 && !seedPrompt && <Welcome />}
             {messages.map(m => (
-              <MessageBubble key={m.id} msg={m} onCta={() => m.role === "ai" && m.kind === "cta" && !m.done && applyConfiguration(m.id)} />
+              <MessageBubble
+                key={m.id}
+                msg={m}
+                onCta={() => m.role === "ai" && m.kind === "cta" && !m.done && applyConfiguration(m.id)}
+                onClarifyChange={(qid, v) => handleClarifyChange(m.id, qid, v)}
+                onClarifySubmit={() => handleClarifySubmit(m.id)}
+              />
             ))}
             {thinking && <Thinking />}
           </div>
