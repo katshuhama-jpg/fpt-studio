@@ -575,7 +575,7 @@ export default function Inventor() {
                   }
                 }}
                 rows={2}
-                placeholder={messages.length === 0 ? "Ask Inventor to build anything..." : "Refine the agent — e.g. add Slack, change tone…"}
+                placeholder={pendingClarify ? "Trả lời các câu hỏi bên trên để tiếp tục…" : (messages.length === 0 ? "Ask Inventor to build anything..." : "Refine the agent — e.g. add Slack, change tone…")}
                 className="w-full resize-none bg-transparent text-sm placeholder:text-muted-foreground outline-none px-2.5 py-2 max-h-32"
               />
               <div className="flex items-center gap-1 px-1.5 pb-0.5">
