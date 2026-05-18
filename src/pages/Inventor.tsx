@@ -462,13 +462,34 @@ export default function Inventor() {
     setThinking(false);
   }
 
+  const pendingClarify = messages.find(
+    m => m.role === "ai" && m.kind === "clarify" && !m.submitted,
+  ) as Extract<ChatMsg, { kind: "clarify" }> | undefined;
+
   /* submit handler */
   function onSubmit() {
+    if (pendingClarify) return;
     const v = input.trim();
     if (!v) return;
     setInput("");
     if (messages.length === 0) runConversation(v);
     else handleFollowup(v);
+  }
+
+  function handleClarifyChange(clarifyId: string, qid: string, value: string) {
+    updateMsg(clarifyId, m =>
+      m.role === "ai" && m.kind === "clarify"
+        ? { ...m, answers: { ...m.answers, [qid]: value } }
+        : m,
+    );
+  }
+
+  function handleClarifySubmit(clarifyId: string) {
+    const m = messages.find(x => x.id === clarifyId);
+    if (!m || m.role !== "ai" || m.kind !== "clarify") return;
+    const originalUser = [...messages].reverse().find(x => x.role === "user");
+    const promptText = originalUser?.role === "user" ? originalUser.text : seedPrompt;
+    resumeAfterClarify(clarifyId, promptText, m.answers, m.questions);
   }
 
   /* ---------------- Render ---------------- */
