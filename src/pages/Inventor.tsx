@@ -633,7 +633,17 @@ function Thinking() {
   );
 }
 
-function MessageBubble({ msg, onCta }: { msg: ChatMsg; onCta: () => void }) {
+function MessageBubble({
+  msg,
+  onCta,
+  onClarifyChange,
+  onClarifySubmit,
+}: {
+  msg: ChatMsg;
+  onCta: () => void;
+  onClarifyChange?: (qid: string, value: string) => void;
+  onClarifySubmit?: () => void;
+}) {
   if (msg.role === "user") {
     return (
       <div className="flex items-start gap-2.5 justify-end">
@@ -643,6 +653,16 @@ function MessageBubble({ msg, onCta }: { msg: ChatMsg; onCta: () => void }) {
         <div className="w-6 h-6 rounded-lg bg-surface-muted flex items-center justify-center shrink-0">
           <User size={12} />
         </div>
+      </div>
+    );
+  }
+
+  if (msg.kind === "source") {
+    return (
+      <div className="flex justify-end pr-9">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary-soft text-primary text-[10px] font-medium">
+          <CornerDownLeft size={10} /> {msg.label}
+        </span>
       </div>
     );
   }
@@ -661,6 +681,15 @@ function MessageBubble({ msg, onCta }: { msg: ChatMsg; onCta: () => void }) {
         {msg.kind === "todo" && <TodoCard title={msg.title ?? "Todo List"} todos={msg.todos} />}
         {msg.kind === "strategy" && <StrategyCard reportTypes={msg.reportTypes} triggers={msg.triggers} />}
         {msg.kind === "inventory-batch" && <InventoryBatchCard title={msg.title} icon={msg.icon} items={msg.items} />}
+        {msg.kind === "clarify" && (
+          <ClarifyingCard
+            questions={msg.questions}
+            answers={msg.answers}
+            submitted={msg.submitted}
+            onChange={(qid, v) => onClarifyChange?.(qid, v)}
+            onSubmit={() => onClarifySubmit?.()}
+          />
+        )}
         {msg.kind === "cta" && (
           <button
             onClick={onCta}
