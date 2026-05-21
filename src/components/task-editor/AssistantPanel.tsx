@@ -113,13 +113,13 @@ export default function AssistantPanel({ open, onClose, nodes, edges, setGraph }
       <div ref={scroller} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {msgs.map(m => <MsgView key={m.id} m={m}
           onAnswer={(qid, val) => setMsgs(prev => prev.map(x =>
-            x.id === m.id && x.kind === "clarify" ? { ...x, answers: { ...x.answers, [qid]: val } } : x))}
+            (x.id === m.id && "kind" in x && x.kind === "clarify") ? { ...x, answers: { ...x.answers, [qid]: val } } : x))}
           onContinue={() => {
-            if (m.kind !== "clarify") return;
-            setMsgs(prev => prev.map(x => x.id === m.id && x.kind === "clarify" ? { ...x, submitted: true } : x));
+            if (!("kind" in m) || m.kind !== "clarify") return;
+            setMsgs(prev => prev.map(x => (x.id === m.id && "kind" in x && x.kind === "clarify") ? { ...x, submitted: true } : x));
             resumeAfterClarify(m.id, m.originalPrompt, m.answers);
           }}
-          onApply={() => m.kind === "proposal" && apply(m.id, m.proposal)}
+          onApply={() => { if ("kind" in m && m.kind === "proposal") apply(m.id, m.proposal); }}
           onDiscard={() => remove(m.id)}
         />)}
       </div>
