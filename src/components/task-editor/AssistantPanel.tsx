@@ -81,7 +81,7 @@ export default function AssistantPanel({ open, onClose, nodes, edges, setGraph }
   const apply = (msgId: string, proposal: Proposal) => {
     const next = applyProposal({ nodes, edges }, proposal);
     setGraph(next);
-    setMsgs(prev => prev.map(x => x.id === msgId && x.kind === "proposal" ? { ...x, applied: true } : x));
+    setMsgs(prev => prev.map(x => (x.id === msgId && "kind" in x && x.kind === "proposal") ? { ...x, applied: true } : x));
     toast.success("Changes applied to canvas");
   };
 
