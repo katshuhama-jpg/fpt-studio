@@ -86,7 +86,7 @@ export default function TaskEditor() {
 
   const [addOpen, setAddOpen] = useState(false);
   const [testOpen, setTestOpen] = useState(false);
-  const [assistantOpen, setAssistantOpen] = useState(false);
+  const [assistantOpen, setAssistantOpen] = useState(!isViewMode);
   const [publishOpen, setPublishOpen] = useState(false);
   const [restoreTarget, setRestoreTarget] = useState<{ id: string; commit: string } | null>(null);
 
