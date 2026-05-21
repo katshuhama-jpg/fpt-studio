@@ -40,10 +40,38 @@ export default function Canvas({
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    const kind = e.dataTransfer.getData("application/x-tool-node") as NodeKind;
-    if (!kind || !rfInstance) return;
-    const spec = specByKind(kind);
+    if (!rfInstance) return;
     const position = rfInstance.screenToFlowPosition({ x: e.clientX, y: e.clientY });
+
+    const toolPayload = e.dataTransfer.getData("application/x-tool-call");
+    if (toolPayload) {
+      const [toolId, ...rest] = toolPayload.split("|");
+      const toolName = rest.join("|") || "Tool";
+      const id = `tool_call-${Date.now()}`;
+      setNodes(ns => ns.concat({
+        id, type: "flow", position,
+        data: { kind: "tool_call", label: toolName, config: { toolId, toolName } },
+      }));
+      setSelectedId(id);
+      return;
+    }
+
+    const taskPayload = e.dataTransfer.getData("application/x-task-call");
+    if (taskPayload) {
+      const [taskId, ...rest] = taskPayload.split("|");
+      const taskName = rest.join("|") || "Task";
+      const id = `task_call-${Date.now()}`;
+      setNodes(ns => ns.concat({
+        id, type: "flow", position,
+        data: { kind: "task_call", label: taskName, config: { taskId, taskName } },
+      }));
+      setSelectedId(id);
+      return;
+    }
+
+    const kind = e.dataTransfer.getData("application/x-tool-node") as NodeKind;
+    if (!kind) return;
+    const spec = specByKind(kind);
     const id = `${kind}-${Date.now()}`;
     const newNode: ToolNode = {
       id,
