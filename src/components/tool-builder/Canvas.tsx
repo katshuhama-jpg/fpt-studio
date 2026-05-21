@@ -7,6 +7,7 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 import FlowNode from "./nodes/FlowNode";
 import { specByKind } from "./NodeLibrary";
+import { blockByKind } from "@/components/task-editor/blockCatalog";
 import type { NodeData, NodeKind, ToolNode, ToolEdge } from "./types";
 
 const nodeTypes = { flow: FlowNode };
