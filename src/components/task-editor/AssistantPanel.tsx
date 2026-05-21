@@ -100,7 +100,7 @@ export default function AssistantPanel({ open, onClose, nodes, edges, setGraph }
   if (!open) return null;
 
   return (
-    <aside className="w-[420px] border-l border-border bg-surface flex flex-col shrink-0 h-full">
+    <aside className="w-[380px] border-r border-border bg-surface flex flex-col shrink-0 h-full">
       <div className="px-4 h-12 border-b border-border flex items-center gap-2 shrink-0">
         <div className="w-7 h-7 rounded-md bg-primary-soft text-primary flex items-center justify-center"><Sparkles size={13} /></div>
         <div className="flex-1">
