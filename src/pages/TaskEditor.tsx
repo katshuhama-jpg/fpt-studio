@@ -270,6 +270,14 @@ export default function TaskEditor() {
 
       {/* Body */}
       <div className="flex-1 flex overflow-hidden relative">
+        <AssistantPanel
+          open={assistantOpen && !selectedNode}
+          onClose={() => setAssistantOpen(false)}
+          nodes={nodes as ToolNode[]}
+          edges={edges}
+          setGraph={setGraph}
+        />
+
         <ReactFlowProvider>
           <div className="flex-1 relative flex">
             <Canvas
@@ -286,12 +294,24 @@ export default function TaskEditor() {
             />
 
             {!isViewMode && (
-              <button
-                onClick={() => setAddOpen(true)}
-                className="absolute top-3 left-3 z-10 h-9 px-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium flex items-center gap-1.5 shadow-soft hover:bg-primary-strong"
-              >
-                <Plus size={14} /> Add node
-              </button>
+              <div className="absolute top-3 left-3 z-10">
+                <AddNodePopup
+                  open={addOpen}
+                  onOpenChange={setAddOpen}
+                  agentId={agentId}
+                  currentTaskId={taskId}
+                  onPickBlock={addBlock}
+                  onPickTool={addToolNode}
+                  onPickTask={addTaskNode}
+                  trigger={
+                    <button
+                      className="h-9 px-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium flex items-center gap-1.5 shadow-soft hover:bg-primary-strong"
+                    >
+                      <Plus size={14} /> Add node
+                    </button>
+                  }
+                />
+              </div>
             )}
           </div>
         </ReactFlowProvider>
@@ -305,14 +325,6 @@ export default function TaskEditor() {
             onClose={() => setSelectedId(null)}
           />
         )}
-
-        <AssistantPanel
-          open={assistantOpen && !selectedNode}
-          onClose={() => setAssistantOpen(false)}
-          nodes={nodes as ToolNode[]}
-          edges={edges}
-          setGraph={setGraph}
-        />
 
         <TestPanel
           open={testOpen}
