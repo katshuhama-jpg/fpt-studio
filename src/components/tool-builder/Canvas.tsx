@@ -73,12 +73,13 @@ export default function Canvas({
     const kind = e.dataTransfer.getData("application/x-tool-node") as NodeKind;
     if (!kind) return;
     const spec = specByKind(kind);
+    const block = blockByKind(kind as any);
     const id = `${kind}-${Date.now()}`;
     const newNode: ToolNode = {
       id,
       type: "flow",
       position,
-      data: { kind, label: spec.label, config: {} },
+      data: { kind, label: spec.label, config: { ...(block?.defaults ?? {}) } },
     };
     setNodes(ns => ns.concat(newNode));
     setSelectedId(id);
