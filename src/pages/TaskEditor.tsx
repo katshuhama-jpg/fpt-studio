@@ -349,15 +349,6 @@ export default function TaskEditor() {
         </span>
       </div>
 
-      <AddNodePopup
-        open={addOpen}
-        onClose={() => setAddOpen(false)}
-        agentId={agentId}
-        currentTaskId={taskId}
-        onPickBlock={addBlock}
-        onPickTool={addToolNode}
-        onPickTask={addTaskNode}
-      />
 
       <PublishDialog
         open={publishOpen}
