@@ -2,11 +2,12 @@ import { Handle, Position, type NodeProps } from "reactflow";
 import { specByKind } from "../NodeLibrary";
 import type { NodeData } from "../types";
 
-export default function FlowNode({ data, selected, type }: NodeProps<NodeData>) {
+export default function FlowNode({ data, selected }: NodeProps<NodeData>) {
   const spec = specByKind(data.kind);
   const Icon = spec.icon;
   const showInput = data.kind !== "trigger";
   const showOutput = data.kind !== "output";
+  const errorBranch = data.config?.errorMode === "branch";
 
   return (
     <div
@@ -35,9 +36,20 @@ export default function FlowNode({ data, selected, type }: NodeProps<NodeData>) 
       </div>
       {showOutput && (
         <Handle
+          id="out"
           type="source"
           position={Position.Right}
+          style={{ top: errorBranch ? "40%" : "50%" }}
           className="!w-2.5 !h-2.5 !bg-surface !border-2 !border-primary"
+        />
+      )}
+      {errorBranch && (
+        <Handle
+          id="error"
+          type="source"
+          position={Position.Right}
+          style={{ top: "75%" }}
+          className="!w-2.5 !h-2.5 !bg-surface !border-2 !border-warning"
         />
       )}
     </div>

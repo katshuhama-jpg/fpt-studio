@@ -1,18 +1,35 @@
 import type { Node, Edge } from "reactflow";
 
 export type NodeKind =
-  | "trigger"
-  | "http"
-  | "if"
-  | "loop"
-  | "setvar"
-  | "knowledge"
+  | "trigger"      // Start
+  | "http"         // HTTP Request
+  | "if"           // If/Else
+  | "loop"         // legacy
+  | "setvar"       // legacy
+  | "knowledge"    // Knowledge Retrieval
   | "llm"
-  | "extract"
-  | "classify"
-  | "output";
+  | "extract"      // legacy
+  | "classify"     // legacy
+  | "output"       // End
+  | "classifier"
+  | "rewriter"
+  | "query_processor"
+  | "hkg_retrieval"
+  | "iteration"
+  | "code"
+  | "var_agg"
+  | "ref_filter"
+  | "template"
+  | "param_extractor"
+  | "agent"
+  | "file_parser"
+  | "loop_node"
+  | "var_assigner"
+  | "knowledge_lookup"
+  | "tool_call"
+  | "task_call";
 
-export type NodeCategory = "trigger" | "logic" | "data" | "ai" | "output";
+export type NodeCategory = "trigger" | "logic" | "data" | "ai" | "output" | "knowledge" | "tools";
 
 export interface NodeData {
   kind: NodeKind;
