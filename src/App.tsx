@@ -15,6 +15,7 @@ import TaskEditor from "./pages/TaskEditor";
 import ToolBuilder from "./pages/ToolBuilder";
 import WorkspaceSettings from "./pages/WorkspaceSettings";
 import PlaceholderPage from "./pages/PlaceholderPage";
+import Skills from "./pages/Skills";
 import NotFound from "./pages/NotFound.tsx";
 import Login from "./pages/Login";
 import Onboarding from "./pages/Onboarding";
@@ -60,7 +61,7 @@ const App = () => (
             <Route path="/knowledge" element={<PlaceholderPage title="Workspace Knowledge" />} />
             <Route path="/settings" element={<WorkspaceSettings />} />
             <Route path="/templates" element={<PlaceholderPage title="Template Store" />} />
-            <Route path="/tools" element={<PlaceholderPage title="Skills" />} />
+            <Route path="/tools" element={<Skills />} />
             <Route path="/api-keys" element={<PlaceholderPage title="API Keys" />} />
             <Route path="/docs" element={<PlaceholderPage title="Document Center" />} />
           </Route>
