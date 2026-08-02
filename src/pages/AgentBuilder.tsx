@@ -5,6 +5,7 @@ import {
   Search, Upload, Globe, Database, Plus, Layers, CheckCircle2, Send,
   ArrowRight, Shield, ChevronDown, FileText, Trash2, MessageSquare, Activity,
   Star, Users as UsersIcon, History, Download, X, SlidersHorizontal, Smartphone, Monitor,
+  Puzzle, Plug, UserCheck, Clock, Bot, ChevronUp, Trash2 as Trash,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import AgentToolsTab from "@/components/tool-builder/AgentToolsTab";
@@ -771,58 +772,165 @@ function PlaceholderTab({ title }: { title: string }) {
 }
 
 /* ============ PREVIEW PANEL — clearly distinct (device frame) ============ */
-function PreviewPanel() {
-  const [device, setDevice] = useState<"mobile" | "desktop">("mobile");
+/* ============ RIGHT CONFIG PANEL ============ */
+function RightConfigPanel() {
   return (
-    <aside className="w-[320px] border-l border-border bg-surface-muted/40 flex flex-col shrink-0">
-      <div className="px-4 h-12 border-b border-border bg-surface flex items-center gap-2 shrink-0">
-        <div className="text-sm font-semibold flex-1">Live preview</div>
-        <div className="flex items-center bg-surface-muted rounded-md p-0.5">
-          <button onClick={() => setDevice("mobile")} className={`h-6 w-6 rounded flex items-center justify-center transition-base ${device === "mobile" ? "bg-surface text-foreground shadow-soft" : "text-muted-foreground"}`}>
-            <Smartphone size={11} />
-          </button>
-          <button onClick={() => setDevice("desktop")} className={`h-6 w-6 rounded flex items-center justify-center transition-base ${device === "desktop" ? "bg-surface text-foreground shadow-soft" : "text-muted-foreground"}`}>
-            <Monitor size={11} />
-          </button>
-        </div>
-        <span className="flex items-center gap-1 text-[10px] text-success font-semibold">
-          <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse-soft" /> LIVE
-        </span>
-      </div>
-
-      {/* Phone-style chrome to make it visually distinct from the build-chat */}
-      <div className="flex-1 overflow-y-auto p-4 flex flex-col">
-        <div className="flex-1 rounded-[28px] bg-surface border border-border-strong shadow-elev overflow-hidden flex flex-col mx-auto w-full max-w-[280px]">
-          <div className="h-9 bg-primary text-primary-foreground flex items-center justify-center text-[11px] font-semibold">
-            Banking ABC
-          </div>
-          <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-gradient-soft">
-            <Bubble side="user">Hi, I lost my card and want to lock it.</Bubble>
-            <Bubble side="agent">
-              I'm sorry to hear that. Could you share the phone number registered with your account?
-            </Bubble>
-            <div className="text-[9px] italic text-muted-foreground bg-warning-soft border border-warning/30 rounded-md px-2 py-1 font-mono">
-              calling <code>verify_customer</code>… ✓
-            </div>
-            <Bubble side="agent">
-              Verified ✓ — locking card ending <b>•••• 4421</b>. Confirm?
-            </Bubble>
-          </div>
-          <div className="border-t border-border p-2 bg-surface flex items-center gap-1">
-            <input className="flex-1 bg-surface-muted rounded-full text-[11px] px-3 py-1.5 outline-none placeholder:text-muted-foreground" placeholder="Type a message…" />
-            <button className="h-7 w-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center"><Send size={11} /></button>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-1 mt-3 justify-center">
-          {["Lock my card", "Loan rates", "Book consult"].map(q => (
-            <button key={q} className="text-[10px] px-2 py-0.5 rounded-full bg-surface border border-border hover:bg-surface-muted text-muted-foreground transition-base">
-              {q}
-            </button>
-          ))}
-        </div>
+    <aside className="w-[260px] border-l border-border bg-surface flex flex-col shrink-0 overflow-y-auto">
+      <div className="flex flex-col gap-2 p-3">
+        <RightCard icon={BookOpen} title="Knowledge" notSet desc="Documents and sources your agent can look things up in." addLabel="Add" />
+        <RightCard icon={Puzzle} title="Skills" notSet desc="Reusable abilities you've taught it." addLabel="Add" />
+        <SharedConnectorsCard />
+        <PerUserConnectorsCard />
+        <RightCard icon={Shield} title="Guardrails" notSet desc="Boundaries that keep your agent acting safely." addLabel="Add" />
+        <SchedulesCard />
+        <SubAgentsCard />
       </div>
     </aside>
   );
+}
+
+function RightCard({ icon: Icon, title, notSet, desc, addLabel }: {
+  icon: any; title: string; notSet?: boolean; desc?: string; addLabel?: string;
+}) {
+  const [open, setOpen] = useState(true);
+  return (
+    <div className="rounded-xl border border-border bg-surface overflow-hidden">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-surface-muted transition-base"
+      >
+        <Icon size={15} className="text-muted-foreground shrink-0" />
+        <span className="text-sm font-medium flex-1 text-left">{title}</span>
+        {notSet && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-warning-soft text-warning font-semibold">Not set</span>
+        )}
+        {open ? <ChevronUp size={13} className="text-muted-foreground" /> : <ChevronDown size={13} className="text-muted-foreground" />}
+      </button>
+      {open && (
+        <div className="border-t border-border px-3 pb-2">
+          {desc && <p className="text-[11px] text-muted-foreground mt-2 mb-1 leading-relaxed">{desc}</p>}
+          {addLabel && (
+            <button className="flex items-center gap-1 text-[11px] text-primary mt-1 hover:underline">
+              <Plus size={12} /> {addLabel}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SharedConnectorsCard() {
+  const [open, setOpen] = useState(true);
+  return (
+    <div className="rounded-xl border border-border bg-surface overflow-hidden">
+      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-surface-muted transition-base">
+        <UserCheck size={15} className="text-muted-foreground shrink-0" />
+        <span className="text-sm font-medium flex-1 text-left">Shared Connectors</span>
+        {open ? <ChevronUp size={13} className="text-muted-foreground" /> : <ChevronDown size={13} className="text-muted-foreground" />}
+      </button>
+      {open && (
+        <div className="border-t border-border px-3 pb-2">
+          <p className="text-[11px] text-muted-foreground mt-2 mb-2 leading-relaxed">Agent always uses the same account, no matter who's asking.</p>
+          <div className="flex items-center gap-2 py-1.5">
+            <div className="w-5 h-5 rounded bg-primary-soft flex items-center justify-center text-[10px] font-bold text-primary shrink-0">G</div>
+            <span className="text-xs flex-1">Google Docs</span>
+            <span className="flex items-center gap-1 text-[10px] text-success font-medium">
+              <span className="w-1.5 h-1.5 rounded-full bg-success" /> Connected
+            </span>
+            <button className="text-muted-foreground hover:text-destructive transition-base"><Trash size={12} /></button>
+          </div>
+          <button className="flex items-center gap-1 text-[11px] text-primary mt-1 hover:underline">
+            <Plus size={12} /> Add connection
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PerUserConnectorsCard() {
+  const [open, setOpen] = useState(true);
+  return (
+    <div className="rounded-xl border border-border bg-surface overflow-hidden">
+      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-surface-muted transition-base">
+        <UsersIcon size={15} className="text-muted-foreground shrink-0" />
+        <span className="text-sm font-medium flex-1 text-left">Per-user Connectors</span>
+        {open ? <ChevronUp size={13} className="text-muted-foreground" /> : <ChevronDown size={13} className="text-muted-foreground" />}
+      </button>
+      {open && (
+        <div className="border-t border-border px-3 pb-2">
+          <p className="text-[11px] text-muted-foreground mt-2 mb-2 leading-relaxed">Each person connects and uses their own account.</p>
+          <div className="flex items-center gap-2 py-1.5">
+            <div className="w-5 h-5 rounded bg-destructive/10 flex items-center justify-center text-[10px] font-bold text-destructive shrink-0">G</div>
+            <span className="text-xs flex-1">Gmail</span>
+            <button className="text-muted-foreground hover:text-destructive transition-base"><Trash size={12} /></button>
+          </div>
+          <button className="flex items-center gap-1 text-[11px] text-primary mt-1 hover:underline">
+            <Plus size={12} /> Add connection
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SchedulesCard() {
+  const [open, setOpen] = useState(true);
+  return (
+    <div className="rounded-xl border border-border bg-surface overflow-hidden">
+      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-surface-muted transition-base">
+        <Clock size={15} className="text-muted-foreground shrink-0" />
+        <span className="text-sm font-medium flex-1 text-left">Schedules</span>
+        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-warning-soft text-warning font-semibold">Not set</span>
+        {open ? <ChevronUp size={13} className="text-muted-foreground" /> : <ChevronDown size={13} className="text-muted-foreground" />}
+      </button>
+      {open && (
+        <div className="border-t border-border px-3 pb-2">
+          <p className="text-[11px] text-muted-foreground mt-2 mb-1 leading-relaxed">No schedules yet. Add one to run this agent automatically — like a daily summary.</p>
+          <button className="flex items-center gap-1 text-[11px] text-primary mt-1 hover:underline">
+            <Plus size={12} /> Add
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SubAgentsCard() {
+  const [open, setOpen] = useState(true);
+  return (
+    <div className="rounded-xl border border-border bg-surface overflow-hidden">
+      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-surface-muted transition-base">
+        <Bot size={15} className="text-muted-foreground shrink-0" />
+        <span className="text-sm font-medium flex-1 text-left">Sub-Agents</span>
+        <span className="text-[11px] text-muted-foreground">1 subagent</span>
+        {open ? <ChevronUp size={13} className="text-muted-foreground" /> : <ChevronDown size={13} className="text-muted-foreground" />}
+      </button>
+      {open && (
+        <div className="border-t border-border px-3 pb-2">
+          <div className="flex items-center gap-2 py-1.5">
+            <div className="w-6 h-6 rounded-lg bg-surface-muted flex items-center justify-center shrink-0">
+              <Bot size={12} className="text-muted-foreground" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium truncate">candidate-email-sender</p>
+              <p className="text-[10px] text-muted-foreground truncate">Use when sending recruiting emails to …</p>
+            </div>
+            <button className="text-muted-foreground hover:text-destructive transition-base"><Trash size={12} /></button>
+          </div>
+          <button className="flex items-center gap-1 text-[11px] text-primary mt-1 hover:underline">
+            <Plus size={12} /> Add
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PreviewPanel() {
+  const [device, setDevice] = useState<"mobile" | "desktop">("mobile");
+  return <RightConfigPanel />;
 }
 
 /* ============ atoms ============ */
