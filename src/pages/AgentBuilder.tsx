@@ -75,7 +75,7 @@ export default function AgentBuilder() {
   const tab = (params.get("tab") as Tab) || "develop";
   const section = params.get("section") || (tab === "develop" ? "general" : "perf");
   const navigate = useNavigate();
-  const [aiChatOpen, setAiChatOpen] = useState(false);
+  const [buildMode, setBuildMode] = useState<"manual" | "ai">("manual");
   const welcome = params.get("welcome") === "1";
   const [showWelcome, setShowWelcome] = useState(welcome);
   useEffect(() => { setShowWelcome(welcome); }, [welcome]);
@@ -133,16 +133,24 @@ export default function AgentBuilder() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setAiChatOpen(v => !v)}
-            className={`h-9 px-3 rounded-lg border text-sm font-medium flex items-center gap-1.5 transition-base ${
-              aiChatOpen
-                ? "border-primary bg-primary text-primary-foreground hover:bg-primary-glow"
-                : "border-primary/30 bg-primary-soft text-primary hover:bg-primary-soft/70"
-            }`}
-          >
-            <Sparkles size={13} /> Refine with AI
-          </button>
+          <div className="flex items-center bg-surface-muted rounded-lg p-0.5">
+            <button
+              onClick={() => setBuildMode("manual")}
+              className={`h-8 px-3 rounded-md text-sm font-medium flex items-center gap-1.5 transition-base ${
+                buildMode === "manual" ? "bg-surface text-foreground shadow-soft" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <SlidersHorizontal size={13} /> Manual
+            </button>
+            <button
+              onClick={() => setBuildMode("ai")}
+              className={`h-8 px-3 rounded-md text-sm font-medium flex items-center gap-1.5 transition-base ${
+                buildMode === "ai" ? "bg-surface text-foreground shadow-soft" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Sparkles size={13} /> Refine with AI
+            </button>
+          </div>
           <button className="h-9 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base">
             <Save size={13} /> Save
           </button>
@@ -179,8 +187,8 @@ export default function AgentBuilder() {
 
       {/* Body */}
       <div className="flex flex-1 overflow-hidden relative">
-        {/* Left nav (agent-only) — hidden when AI chat is open */}
-        {!aiChatOpen && (
+        {/* Left nav (agent-only) — hidden when AI mode is active */}
+        {buildMode === "manual" && (
           <aside className="w-[220px] border-r border-border bg-surface overflow-y-auto shrink-0">
             <div className="p-3 space-y-5">
               {nav.map(group => (
@@ -211,7 +219,7 @@ export default function AgentBuilder() {
             </div>
             <div className="p-3 pt-0">
               <button
-                onClick={() => setAiChatOpen(true)}
+                onClick={() => setBuildMode("ai")}
                 className="w-full h-9 rounded-lg border border-primary/30 bg-primary-soft text-primary hover:bg-primary-soft/70 text-xs font-medium flex items-center justify-center gap-1.5 transition-base"
               >
                 <Sparkles size={12} /> Refine with AI
@@ -221,9 +229,9 @@ export default function AgentBuilder() {
         )}
 
         {/* AI chat sidebar — replaces left nav when active */}
-        {aiChatOpen && (
+        {buildMode === "ai" && (
           <AiBuildSidebar
-            onClose={() => setAiChatOpen(false)}
+            onClose={() => setBuildMode("manual")}
             contextLabel={currentSectionLabel}
             sections={nav.flatMap(g => g.items)}
             currentSection={section}
@@ -271,7 +279,7 @@ function AiBuildSidebar({
     "Make tone more formal",
   ];
   return (
-    <aside className="w-[360px] border-r border-border bg-surface flex flex-col shrink-0 animate-fade-up">
+    <aside className="w-[220px] border-r border-border bg-surface flex flex-col shrink-0 animate-fade-up">
       {/* Header */}
       <div className="h-12 px-3 border-b border-border flex items-center gap-2 shrink-0">
         <div className="w-7 h-7 rounded-md bg-gradient-brand flex items-center justify-center">
