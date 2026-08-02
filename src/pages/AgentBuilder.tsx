@@ -779,10 +779,9 @@ function PlaceholderTab({ title }: { title: string }) {
 
 /* ============ PREVIEW PANEL — clearly distinct (device frame) ============ */
 /* ============ RIGHT CONFIG PANEL ============ */
-function RightConfigPanel() {
-  return (
-    <aside className="w-[320px] border-l border-border bg-surface flex flex-col shrink-0 overflow-y-auto">
-      <div className="flex flex-col gap-2 p-3">
+function RightConfigPanel({ embedded }: { embedded?: boolean }) {
+  const inner = (
+    <div className="flex flex-col gap-2 p-3">
         <RightCard icon={BookOpen} title="Knowledge" notSet desc="Documents and sources your agent can look things up in." addLabel="Add" />
         <RightCard icon={Puzzle} title="Skills" notSet desc="Reusable abilities you've taught it." addLabel="Add" />
         <SharedConnectorsCard />
@@ -790,7 +789,12 @@ function RightConfigPanel() {
         <RightCard icon={Shield} title="Guardrails" notSet desc="Boundaries that keep your agent acting safely." addLabel="Add" />
         <SchedulesCard />
         <SubAgentsCard />
-      </div>
+    </div>
+  );
+  if (embedded) return inner;
+  return (
+    <aside className="w-[320px] border-l border-border bg-surface flex flex-col shrink-0 overflow-y-auto">
+      {inner}
     </aside>
   );
 }
@@ -935,8 +939,123 @@ function SubAgentsCard() {
 }
 
 function PreviewPanel() {
-  const [device, setDevice] = useState<"mobile" | "desktop">("mobile");
-  return <RightConfigPanel />;
+  const [view, setView] = useState<"config" | "chat">("config");
+  const [messages, setMessages] = useState<{ role: "user" | "agent"; text: string }[]>([
+    { role: "agent", text: "Xin chào! Tôi là Banking ABC Customer Care. Tôi có thể giúp gì cho bạn?" },
+  ]);
+  const [input, setInput] = useState("");
+
+  const send = () => {
+    if (!input.trim()) return;
+    const userMsg = input.trim();
+    setMessages(m => [...m, { role: "user", text: userMsg }]);
+    setInput("");
+    setTimeout(() => {
+      setMessages(m => [...m, { role: "agent", text: "Cảm ơn bạn đã liên hệ! Tôi đang xử lý yêu cầu của bạn về "" + userMsg + "". Vui lòng chờ trong giây lát." }]);
+    }, 800);
+  };
+
+  return (
+    <aside className="w-[320px] border-l border-border bg-surface flex flex-col shrink-0">
+      {/* Toggle header */}
+      <div className="h-11 px-3 border-b border-border flex items-center gap-1 shrink-0">
+        <button
+          onClick={() => setView("config")}
+          className={`flex-1 h-7 rounded-md text-xs font-medium flex items-center justify-center gap-1.5 transition-base ${
+            view === "config" ? "bg-surface-muted text-foreground" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <SlidersHorizontal size={12} /> Configure
+        </button>
+        <button
+          onClick={() => setView("chat")}
+          className={`flex-1 h-7 rounded-md text-xs font-medium flex items-center justify-center gap-1.5 transition-base ${
+            view === "chat" ? "bg-surface-muted text-foreground" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Play size={12} /> Chat test
+        </button>
+      </div>
+
+      {view === "config" ? (
+        <div className="flex-1 overflow-y-auto">
+          <RightConfigPanel embedded />
+        </div>
+      ) : (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Agent header */}
+          <div className="px-4 py-3 border-b border-border flex items-center gap-2.5 shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-primary-soft flex items-center justify-center text-lg shrink-0">🏦</div>
+            <div>
+              <div className="text-sm font-semibold leading-tight">Banking ABC — Customer Care</div>
+              <div className="flex items-center gap-1 mt-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-success" />
+                <span className="text-[10px] text-muted-foreground">Test mode</span>
+              </div>
+            </div>
+            <button
+              onClick={() => setMessages([{ role: "agent", text: "Xin chào! Tôi là Banking ABC Customer Care. Tôi có thể giúp gì cho bạn?" }])}
+              className="ml-auto text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1 transition-base"
+            >
+              <History size={11} /> Reset
+            </button>
+          </div>
+
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-3">
+            {messages.map((m, i) => (
+              <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                {m.role === "agent" && (
+                  <div className="w-6 h-6 rounded-full bg-primary-soft flex items-center justify-center text-sm mr-2 shrink-0 mt-0.5">🏦</div>
+                )}
+                <div
+                  className={`max-w-[82%] text-[12px] leading-relaxed rounded-2xl px-3 py-2 ${
+                    m.role === "user"
+                      ? "bg-primary text-primary-foreground rounded-br-sm"
+                      : "bg-surface-muted border border-border rounded-bl-sm"
+                  }`}
+                >
+                  {m.text}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Quick replies */}
+          <div className="px-3 pb-2 flex gap-1.5 flex-wrap shrink-0">
+            {["Khóa thẻ tín dụng", "Lãi suất vay", "Mở tài khoản"].map(q => (
+              <button
+                key={q}
+                onClick={() => { setInput(q); }}
+                className="text-[10px] px-2.5 py-1 rounded-full border border-border bg-surface hover:bg-primary-soft hover:text-primary hover:border-primary/30 transition-base"
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+
+          {/* Input */}
+          <div className="p-3 border-t border-border shrink-0">
+            <div className="flex items-center gap-2 bg-surface-muted rounded-xl border border-border px-3 py-2 focus-within:border-primary focus-within:ring-glow transition-base">
+              <input
+                className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                placeholder="Nhập tin nhắn để test…"
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && send()}
+              />
+              <button
+                onClick={send}
+                className="w-7 h-7 rounded-lg bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary-glow transition-base shrink-0"
+              >
+                <Send size={13} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </aside>
+  );
 }
 
 /* ============ atoms ============ */
