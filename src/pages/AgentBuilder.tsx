@@ -163,7 +163,7 @@ export default function AgentBuilder() {
       <div className="flex flex-1 overflow-hidden relative">
         {/* Left nav (agent-only) — hidden when AI mode is active */}
         {buildMode === "manual" && (
-          <aside className="w-[220px] border-r border-border bg-surface overflow-y-auto shrink-0">
+          <aside className="w-[280px] border-r border-border bg-surface overflow-y-auto shrink-0">
             <div className="p-3 space-y-5">
               {nav.map(group => (
                 <div key={group.label}>
@@ -278,7 +278,7 @@ function AiBuildSidebar({
     "Make tone more formal",
   ];
   return (
-    <aside className="w-[220px] border-r border-border bg-surface flex flex-col shrink-0 animate-fade-up">
+    <aside className="w-[280px] border-r border-border bg-surface flex flex-col shrink-0 animate-fade-up">
       {/* Header */}
       <div className="h-12 px-3 border-b border-border flex items-center gap-2 shrink-0">
         <div className="w-7 h-7 rounded-md bg-gradient-brand flex items-center justify-center">
@@ -781,7 +781,7 @@ function PlaceholderTab({ title }: { title: string }) {
 /* ============ RIGHT CONFIG PANEL ============ */
 function RightConfigPanel() {
   return (
-    <aside className="w-[260px] border-l border-border bg-surface flex flex-col shrink-0 overflow-y-auto">
+    <aside className="w-[320px] border-l border-border bg-surface flex flex-col shrink-0 overflow-y-auto">
       <div className="flex flex-col gap-2 p-3">
         <RightCard icon={BookOpen} title="Knowledge" notSet desc="Documents and sources your agent can look things up in." addLabel="Add" />
         <RightCard icon={Puzzle} title="Skills" notSet desc="Reusable abilities you've taught it." addLabel="Add" />
