@@ -1,7 +1,7 @@
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { clearUser } from "@/lib/onboarding";
 import {
-  Home, Sparkles, Bot, BookOpen, Settings, LayoutTemplate,
+  Home, MessageSquare, Bot, BookOpen, Settings, LayoutTemplate,
   Puzzle, ChevronsLeft, ChevronsRight, Search, Bell, Plus,
   ChevronRight, LifeBuoy, KeyRound, LogOut, User, ChevronDown,
   Check, Building2, PlusCircle,
@@ -17,12 +17,12 @@ const TENANTS: Tenant[] = [
   { id: "sandbox",         name: "Personal Sandbox",plan: "Free",       initial: "PS" },
 ];
 
-type Item = { to: string; label: string; icon: any; badge?: string };
+type Item = { to: string; label: string; icon: any; badge?: string; external?: boolean };
 type Group = { id: string; label: string; items: Item[] };
 
 const topItems: Item[] = [
   { to: "/", label: "Home", icon: Home },
-  { to: "/my-agents", label: "My Agents", icon: Sparkles },
+  { to: "https://agents-dev.fpt.ai/", label: "Chat", icon: MessageSquare, external: true },
 ];
 
 const groups: Group[] = [
@@ -315,6 +315,25 @@ function NavGroup({
 
 /* ============ Single nav row ============ */
 function NavRow({ item, collapsed }: { item: Item; collapsed: boolean }) {
+  const cls = `group relative flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-base text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground ${collapsed ? "justify-center" : ""}`;
+  const inner = (
+    <>
+      <item.icon size={16} className="shrink-0" />
+      {!collapsed && <span className="truncate flex-1">{item.label}</span>}
+      {!collapsed && item.badge && (
+        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-accent text-accent-foreground">
+          {item.badge}
+        </span>
+      )}
+    </>
+  );
+  if (item.external) {
+    return (
+      <a href={item.to} target="_blank" rel="noopener noreferrer" title={collapsed ? item.label : undefined} className={cls}>
+        {inner}
+      </a>
+    );
+  }
   return (
     <NavLink
       to={item.to}
