@@ -4,7 +4,7 @@ import {
   Home, MessageSquare, Bot, BookOpen, Settings, LayoutTemplate,
   Puzzle, ChevronsLeft, ChevronsRight, Search, Bell, Plus,
   ChevronRight, LifeBuoy, KeyRound, LogOut, User, ChevronDown,
-  Check, Building2, PlusCircle,
+  Check, Building2, PlusCircle, Sparkles,
 } from "lucide-react";
 import { useState } from "react";
 import fptAiLogo from "@/assets/fpt-ai-logo.png";
