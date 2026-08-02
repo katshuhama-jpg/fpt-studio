@@ -436,6 +436,16 @@ function GeneralTab() {
             defaultValue="Handles customer queries 24/7 for ABC Bank — products, services, and support."
           />
         </div>
+        {/* Model */}
+        <div className="w-full">
+          <label className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Model</label>
+          <button className="ds-input w-full flex items-center gap-2 cursor-pointer text-left">
+            <span className="w-6 h-6 rounded bg-accent-soft flex items-center justify-center text-xs shrink-0">✨</span>
+            <span className="flex-1">DeepSeek V4</span>
+            <span className="chip chip-primary text-[10px]">FPT Marketplace</span>
+            <ChevronDown size={14} className="text-muted-foreground shrink-0" />
+          </button>
+        </div>
       </div>
 
       {/* Divider */}
