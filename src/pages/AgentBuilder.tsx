@@ -27,28 +27,20 @@ type Tab = "develop" | "monitor";
 
 const developNav = [
   {
-    label: "Build",
-    items: [
-      { id: "general", label: "General", icon: Cog, status: "done" },
-      { id: "bp", label: "Business processes", icon: Layers, status: "done" },
-      { id: "knowledge", label: "Knowledge", icon: BookOpen, status: "done" },
-      { id: "tool", label: "Tools", icon: Wrench, status: "warn" },
-      { id: "task", label: "Tasks", icon: Workflow, status: "empty" },
-    ],
-  },
-  {
-    label: "Test",
-    items: [
-      { id: "tests", label: "Test cases", icon: ListChecks },
-      { id: "auto", label: "Auto-test", icon: Sparkles },
-    ],
-  },
-  {
     label: "Configure",
     items: [
-      { id: "triggers", label: "Triggers", icon: Zap, status: "empty" },
-      { id: "guardrails", label: "Guardrails", icon: Shield, status: "done" },
-      { id: "chat-opt", label: "Chat optimization", icon: MessageSquareText, status: "done" },
+      { id: "general", label: "Agent Info", icon: Cog, status: "done" },
+      { id: "knowledge", label: "Knowledge", icon: BookOpen, status: "empty", count: 0 },
+      { id: "skills", label: "Skills", icon: Puzzle, status: "empty", count: 0 },
+      { id: "connectors", label: "Connectors", icon: Plug, status: "done" },
+      { id: "guardrails", label: "Guardrails", icon: Shield, status: "warn" },
+    ],
+  },
+  {
+    label: "Test & Deploy",
+    items: [
+      { id: "tests", label: "Test cases", icon: ListChecks },
+      { id: "publish", label: "Publish", icon: Rocket },
     ],
   },
 ];
@@ -133,24 +125,6 @@ export default function AgentBuilder() {
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="flex items-center bg-surface-muted rounded-lg p-0.5">
-            <button
-              onClick={() => setBuildMode("manual")}
-              className={`h-8 px-3 rounded-md text-sm font-medium flex items-center gap-1.5 transition-base ${
-                buildMode === "manual" ? "bg-surface text-foreground shadow-soft" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <SlidersHorizontal size={13} /> Manual
-            </button>
-            <button
-              onClick={() => setBuildMode("ai")}
-              className={`h-8 px-3 rounded-md text-sm font-medium flex items-center gap-1.5 transition-base ${
-                buildMode === "ai" ? "bg-surface text-foreground shadow-soft" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Sparkles size={13} /> Refine with AI
-            </button>
-          </div>
           <button className="h-9 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base">
             <Save size={13} /> Save
           </button>
@@ -209,6 +183,9 @@ export default function AgentBuilder() {
                       >
                         <it.icon size={14} className="shrink-0" />
                         <span className="flex-1 text-left truncate">{it.label}</span>
+                        {typeof it.count === "number" && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-surface-muted border border-border text-muted-foreground">{it.count}</span>
+                        )}
                         {it.status === "done" && <CheckCircle2 size={11} className="text-success" />}
                         {it.status === "warn" && <span className="w-1.5 h-1.5 rounded-full bg-warning" />}
                       </button>
@@ -217,7 +194,30 @@ export default function AgentBuilder() {
                 </div>
               ))}
             </div>
-            <div className="p-3 pt-0">
+            <div className="px-3 pb-2 space-y-2">
+              <div className="rounded-lg border border-border bg-surface-muted/50 p-2.5">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[10px] font-semibold text-foreground">Ready to publish</span>
+                  <span className="text-[10px] text-muted-foreground">3/5</span>
+                </div>
+                <div className="h-1.5 rounded-full bg-border overflow-hidden mb-2">
+                  <div className="h-full w-[60%] rounded-full bg-primary" />
+                </div>
+                <div className="space-y-0.5">
+                  {[
+                    { label: "Agent Info", done: true },
+                    { label: "Knowledge", done: false },
+                    { label: "Skills", done: false },
+                    { label: "Connectors", done: true },
+                    { label: "Guardrails", done: true },
+                  ].map(item => (
+                    <div key={item.label} className="flex items-center gap-1.5 text-[10px]">
+                      <CheckCircle2 size={10} className={item.done ? "text-success" : "text-border-strong"} />
+                      <span className={item.done ? "text-foreground" : "text-muted-foreground"}>{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
               <button
                 onClick={() => setBuildMode("ai")}
                 className="w-full h-9 rounded-lg border border-primary/30 bg-primary-soft text-primary hover:bg-primary-soft/70 text-xs font-medium flex items-center justify-center gap-1.5 transition-base"
@@ -243,14 +243,13 @@ export default function AgentBuilder() {
         <div className="flex-1 flex overflow-hidden">
           <div className="flex-1 overflow-y-auto bg-gradient-soft">
             {tab === "develop" && section === "general" && <GeneralTab />}
-            {tab === "develop" && section === "bp" && <BusinessProcessesGrid agentId={id} />}
             {tab === "develop" && section === "knowledge" && <KnowledgeTab />}
-            {tab === "develop" && section === "tool" && <AgentToolsTab agentId={id} />}
-            {tab === "develop" && section === "task" && <TasksGrid agentId={id} />}
-            {tab === "develop" && section === "triggers" && <TriggersTab agentId={id} />}
+            {tab === "develop" && section === "skills" && <PlaceholderTab title="Skills" />}
+            {tab === "develop" && section === "connectors" && <PlaceholderTab title="Connectors" />}
             {tab === "develop" && section === "guardrails" && <GuardrailsTab agentId={id} />}
-            {tab === "develop" && section === "chat-opt" && <ChatOptimizationTab agentId={id} />}
-            {tab === "develop" && !["general", "bp", "knowledge", "tool", "task", "triggers", "guardrails", "chat-opt"].includes(section) && <PlaceholderTab title={section} />}
+            {tab === "develop" && section === "tests" && <PlaceholderTab title="Test cases" />}
+            {tab === "develop" && section === "publish" && <PlaceholderTab title="Publish" />}
+            {tab === "develop" && !["general", "knowledge", "skills", "connectors", "guardrails", "tests", "publish"].includes(section) && <PlaceholderTab title={section} />}
             {tab === "monitor" && section === "perf" && <PerformanceTab />}
             {tab === "monitor" && section !== "perf" && <PlaceholderTab title={section} />}
           </div>
