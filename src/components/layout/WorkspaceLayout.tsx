@@ -2,7 +2,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { clearUser } from "@/lib/onboarding";
 import {
   Home, Sparkles, Bot, BookOpen, Settings, LayoutTemplate,
-  Wrench, ChevronsLeft, ChevronsRight, Search, Bell, Plus,
+  Puzzle, ChevronsLeft, ChevronsRight, Search, Bell, Plus,
   ChevronRight, LifeBuoy, KeyRound, LogOut, User, ChevronDown,
   Check, Building2, PlusCircle,
 } from "lucide-react";
@@ -32,7 +32,7 @@ const groups: Group[] = [
     items: [
       { to: "/agents", label: "Agents", icon: Bot },
       { to: "/knowledge", label: "Knowledge", icon: BookOpen },
-      { to: "/tools", label: "Tools", icon: Wrench },
+      { to: "/tools", label: "Skills", icon: Puzzle },
       { to: "/templates", label: "Templates", icon: LayoutTemplate },
     ],
   },
@@ -368,7 +368,7 @@ function HeaderNewMenu({ pathname }: { pathname: string }) {
 
   const primary: NewItem[] = [
     { to: "/agents/new", label: "New Agent", desc: "Build a custom AI agent from scratch", icon: Bot, hidden: hide.agent },
-    { to: "/tools", label: "New Tool", desc: "Define a custom tool or integration", icon: Wrench, hidden: hide.tool },
+    { to: "/tools", label: "New Skill", desc: "Define a custom skill or integration", icon: Puzzle, hidden: hide.tool },
     { to: "/knowledge?new=1", label: "New Knowledge", desc: "Upload docs or connect a data source", icon: BookOpen, hidden: hide.knowledge },
   ];
   const secondary: NewItem[] = [

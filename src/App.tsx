@@ -60,7 +60,7 @@ const App = () => (
             <Route path="/knowledge" element={<PlaceholderPage title="Workspace Knowledge" />} />
             <Route path="/settings" element={<WorkspaceSettings />} />
             <Route path="/templates" element={<PlaceholderPage title="Template Store" />} />
-            <Route path="/tools" element={<PlaceholderPage title="Tool Store" />} />
+            <Route path="/tools" element={<PlaceholderPage title="Skills" />} />
             <Route path="/api-keys" element={<PlaceholderPage title="API Keys" />} />
             <Route path="/docs" element={<PlaceholderPage title="Document Center" />} />
           </Route>
