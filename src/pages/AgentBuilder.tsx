@@ -380,95 +380,94 @@ function AiBuildSidebar({
 
 /* ============ GENERAL ============ */
 function GeneralTab() {
-  const { id = "cskh" } = useParams();
-  const [, setParams] = useSearchParams();
-  const goSection = (s: string) => setParams({ tab: "develop", section: s });
-
-  const bp = businessProcessStore.list(id);
-  const tasks = taskStore.list(id);
-  const knowledge = knowledgeStore.list(id);
-  const triggers = triggerStore.list(id);
-  const guardrails = guardrailStore.list(id);
-  const chatOpt = chatOptimizationStore.get(id);
+  const [avatar, setAvatar] = useState("🏦");
+  const [editingAvatar, setEditingAvatar] = useState(false);
+  const emojiOptions = ["🏦","🤖","💼","🧠","🎯","🛡️","⚡","🌐","📊","🔧","💡","🚀"];
 
   return (
-    <div className="p-8 max-w-3xl mx-auto space-y-6 animate-fade-up">
-      {/* Always visible: identity */}
-      <Section icon={Cog} title="Persona & guideline" desc="Define identity, tone and operating instructions.">
-        <Field label="Agent name">
-          <input className="ds-input" defaultValue="Banking ABC — Customer Care" />
-        </Field>
-        <Field label="System prompt">
-          <textarea
-            className="ds-textarea min-h-[120px]"
-            defaultValue="You are a customer-care specialist at ABC Bank. Help customers 24/7 with products, services and banking requests in a professional, friendly tone. Always verify identity before performing sensitive actions."
-          />
-        </Field>
-        <Field label="Model">
-          <button className="ds-input flex items-center gap-2 cursor-pointer">
-            <span className="w-6 h-6 rounded bg-accent-soft flex items-center justify-center text-xs">✨</span>
-            <span className="flex-1 text-left">Gemini 1.5 Pro</span>
-            <span className="chip chip-primary">FPT Marketplace</span>
-            <ChevronDown size={14} />
+    <div className="p-8 max-w-2xl mx-auto space-y-8 animate-fade-up">
+      {/* Avatar + Name + Description */}
+      <div className="flex flex-col items-center gap-4 pt-2">
+        {/* Avatar picker */}
+        <div className="relative">
+          <button
+            onClick={() => setEditingAvatar(o => !o)}
+            className="w-20 h-20 rounded-2xl bg-primary-soft border-2 border-border hover:border-primary/40 flex items-center justify-center text-4xl transition-base shadow-soft group"
+          >
+            {avatar}
+            <span className="absolute inset-0 rounded-2xl bg-black/0 group-hover:bg-black/5 transition-base flex items-end justify-end p-1 opacity-0 group-hover:opacity-100">
+              <span className="bg-surface rounded-md px-1 py-0.5 text-[10px] font-medium text-muted-foreground border border-border">Edit</span>
+            </span>
           </button>
-        </Field>
-      </Section>
+          {editingAvatar && (
+            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-10 bg-surface border border-border rounded-xl shadow-lg p-2.5 grid grid-cols-6 gap-1 w-[180px]">
+              {emojiOptions.map(e => (
+                <button
+                  key={e}
+                  onClick={() => { setAvatar(e); setEditingAvatar(false); }}
+                  className={`w-8 h-8 rounded-lg text-xl flex items-center justify-center hover:bg-primary-soft transition-base ${avatar === e ? "bg-primary-soft ring-1 ring-primary" : ""}`}
+                >
+                  {e}
+                </button>
+              ))}
+              <label className="col-span-6 mt-1 flex items-center justify-center gap-1.5 text-[10px] text-primary cursor-pointer hover:underline">
+                <Upload size={10} /> Upload image
+                <input type="file" className="hidden" accept="image/*" />
+              </label>
+            </div>
+          )}
+        </div>
 
-      {/* Accordion: all other config groups */}
-      <div className="space-y-2">
-        <BusinessProcessTree agentId={id} onManage={() => goSection("bp")} />
+        {/* Name */}
+        <div className="w-full">
+          <label className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Agent name</label>
+          <input
+            className="ds-input text-center text-base font-semibold"
+            defaultValue="Banking ABC — Customer Care"
+          />
+        </div>
 
-        <ConfigAccordion
-          icon={BookOpen}
-          title="Knowledge"
-          count={knowledge.length}
-          desc="Documents, FAQs and websites this agent can retrieve from."
-          onManage={() => goSection("knowledge")}
-        >
-          {knowledge.slice(0, 5).map(k => (
-            <SummaryRow key={k.id} name={k.name} meta={k.kind} enabled />
-          ))}
-          {knowledge.length > 5 && <MoreLink count={knowledge.length - 5} onClick={() => goSection("knowledge")} />}
-        </ConfigAccordion>
+        {/* Description */}
+        <div className="w-full">
+          <label className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Description</label>
+          <input
+            className="ds-input"
+            placeholder="Short description of what this agent does…"
+            defaultValue="Handles customer queries 24/7 for ABC Bank — products, services, and support."
+          />
+        </div>
+      </div>
 
-        <ConfigAccordion
-          icon={Zap}
-          title="Triggers"
-          count={triggers.length}
-          desc="When and how the agent runs."
-          onManage={() => goSection("triggers")}
-        >
-          {triggers.slice(0, 5).map(t => (
-            <SummaryRow key={t.id} name={t.name} meta={t.type} enabled={t.enabled} />
-          ))}
-          {triggers.length > 5 && <MoreLink count={triggers.length - 5} onClick={() => goSection("triggers")} />}
-        </ConfigAccordion>
+      {/* Divider */}
+      <div className="border-t border-border" />
 
-        <ConfigAccordion
-          icon={Shield}
-          title="Guardrails"
-          count={guardrails.length}
-          desc="Rules the agent must respect on input and output."
-          onManage={() => goSection("guardrails")}
-        >
-          {guardrails.slice(0, 5).map(g => (
-            <SummaryRow key={g.id} name={g.name} meta={`${g.kind} · ${g.scope}`} enabled={g.enabled} />
-          ))}
-          {guardrails.length > 5 && <MoreLink count={guardrails.length - 5} onClick={() => goSection("guardrails")} />}
-        </ConfigAccordion>
+      {/* Instructions */}
+      <div>
+        <div className="flex items-center justify-between mb-1.5">
+          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Instructions</label>
+          <span className="text-[10px] text-muted-foreground">System prompt</span>
+        </div>
+        <p className="text-xs text-muted-foreground mb-3">
+          Tell the agent who it is, how it should behave, and what it must never do.
+        </p>
+        <textarea
+          className="ds-textarea w-full min-h-[260px] font-mono text-[13px] leading-relaxed"
+          defaultValue={`# Banking ABC — Customer Care Agent
 
-        <ConfigAccordion
-          icon={MessageSquareText}
-          title="Chat optimization"
-          desc="References, opener, quick replies, rich response, follow-ups."
-          onManage={() => goSection("chat-opt")}
-        >
-          <SummaryRow name="References" meta={chatOpt.references.format} enabled={chatOpt.references.enabled} />
-          <SummaryRow name="Conversation opener" meta={`${chatOpt.opener.questions.length} questions`} enabled />
-          <SummaryRow name="Quick-reply buttons" meta={`${chatOpt.quickReplies.buttons.length} buttons`} enabled={chatOpt.quickReplies.enabled} />
-          <SummaryRow name="Rich response" meta={`${chatOpt.rich.cardBindings.length} bindings`} enabled={chatOpt.rich.enabled} />
-          <SummaryRow name="Follow-up suggestions" meta={`${chatOpt.followup.count} · ${chatOpt.followup.source}`} enabled={chatOpt.followup.enabled} />
-        </ConfigAccordion>
+## Role
+You are a customer-care specialist at ABC Bank. Help customers 24/7 with products, services and banking requests.
+
+## Tone & Style
+- Professional, warm, and empathetic
+- Use clear, plain language — avoid jargon
+- Keep responses concise but complete
+
+## Rules
+- Always verify identity before performing sensitive actions
+- Never provide legal or investment advice
+- Only answer questions within the scope of ABC Bank products and services
+- If unsure, say so and offer to escalate to a human agent`}
+        />
       </div>
     </div>
   );
