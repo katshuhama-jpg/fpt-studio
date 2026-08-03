@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Sparkles, ArrowRight, ArrowUpRight, Bot, BookOpen, Wrench, Layers,
   MessageSquare, Briefcase, ShoppingCart, FileQuestion, BookMarked, Rocket,
@@ -8,7 +8,18 @@ import { useState } from "react";
 
 export default function Home() {
   const [hasRecent] = useState(true); // toggle false to preview empty state
+  const navigate = useNavigate();
   const [prompt, setPrompt] = useState("");
+
+  const handleBuild = () => {
+    if (!prompt.trim()) return;
+    const params = new URLSearchParams();
+    params.set("tab", "develop");
+    params.set("section", "general");
+    params.set("agentPrompt", prompt.trim());
+    params.set("buildMode", "ai");
+    navigate(`/agents/new?${params.toString()}`);
+  };
 
   return (
     <div className="px-8 py-10 max-w-[1200px] mx-auto animate-fade-up">
@@ -47,12 +58,13 @@ export default function Home() {
                 <button className="text-xs font-medium text-muted-foreground hover:text-foreground px-2 h-8 rounded-md hover:bg-surface-muted transition-base">
                   Use a template
                 </button>
-                <Link
-                  to={`/inventor${prompt.trim() ? `?prompt=${encodeURIComponent(prompt.trim())}` : ""}`}
-                  className="h-8 px-3.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 shadow-soft transition-base"
+                <button
+                  onClick={handleBuild}
+                  disabled={!prompt.trim()}
+                  className="h-8 px-3.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 shadow-soft transition-base disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Sparkles size={13} /> Build agent <Send size={11} />
-                </Link>
+                </button>
               </div>
             </div>
           </div>

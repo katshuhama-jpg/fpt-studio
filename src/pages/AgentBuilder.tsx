@@ -67,7 +67,8 @@ export default function AgentBuilder() {
   const tab = (params.get("tab") as Tab) || "develop";
   const section = params.get("section") || (tab === "develop" ? "general" : "perf");
   const navigate = useNavigate();
-  const [buildMode, setBuildMode] = useState<"manual" | "ai">("manual");
+  const buildModeParam = params.get("buildMode");
+  const [buildMode, setBuildMode] = useState<"manual" | "ai">(buildModeParam === "ai" ? "ai" : "manual");
   const welcome = params.get("welcome") === "1";
   const [showWelcome, setShowWelcome] = useState(welcome);
   useEffect(() => { setShowWelcome(welcome); }, [welcome]);
@@ -236,6 +237,7 @@ export default function AgentBuilder() {
             sections={nav.flatMap(g => g.items)}
             currentSection={section}
             onSectionChange={setSection}
+            seedPrompt={params.get("agentPrompt") || ""}
           />
         )}
 
@@ -263,13 +265,14 @@ export default function AgentBuilder() {
 
 /* ============ AI BUILD SIDEBAR (left chat panel) ============ */
 function AiBuildSidebar({
-  onClose, contextLabel, sections, currentSection, onSectionChange,
+  onClose, contextLabel, sections, currentSection, onSectionChange, seedPrompt,
 }: {
   onClose: () => void;
   contextLabel: string;
   sections: any[];
   currentSection: string;
   onSectionChange: (s: string) => void;
+  seedPrompt?: string;
 }) {
   const quickActions = [
     "Tighten the system prompt",
@@ -320,6 +323,19 @@ function AiBuildSidebar({
         <div className="bg-surface-muted/60 border border-border rounded-2xl rounded-bl-sm px-3 py-2.5 text-[13px]">
           Hi Nam — I'm focused on <b>@{contextLabel}</b>. Tell me what to change and I'll propose a diff you can approve.
         </div>
+
+        {seedPrompt && (
+          <>
+            <div className="flex justify-end">
+              <div className="bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-3 py-2 text-[13px] max-w-[90%]">
+                {seedPrompt}
+              </div>
+            </div>
+            <div className="bg-surface-muted/60 border border-border rounded-2xl rounded-bl-sm px-3 py-2.5 text-[13px]">
+              Tuyệt! Tôi sẽ scaffold agent dựa trên mô tả của bạn. Đây là đề xuất system prompt — bạn có muốn áp dụng không?
+            </div>
+          </>
+        )}
 
         {/* Diff card */}
         <div className="rounded-xl border border-primary/30 bg-primary-soft/40 p-2.5">
