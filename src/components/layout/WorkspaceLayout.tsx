@@ -84,10 +84,9 @@ export default function WorkspaceLayout() {
     <div className="flex h-screen w-full overflow-hidden bg-background">
       {/* ============ Sidebar ============ */}
       <aside
-        className={`flex flex-col bg-surface text-foreground border-r border-border transition-base ${
+        className={`flex flex-col text-foreground border-r border-border transition-base ${
           collapsed ? "w-[64px]" : "w-[244px]"
-        }`}
-      >
+        }`} style={{background:"#f8fafc"}}>
         {/* Brand + Tenant — unified, borderless */}
         <div className="px-3 pt-3.5 pb-2 shrink-0">
           {collapsed ? (
