@@ -164,7 +164,7 @@ export default function AgentBuilder() {
       <div className="flex flex-1 overflow-hidden relative">
         {/* Left nav (agent-only) — hidden when AI mode is active */}
         {buildMode === "manual" && (
-          <aside className="w-[280px] border-r border-border bg-surface overflow-y-auto shrink-0 flex flex-col">
+          <aside className="w-[280px] border-r border-border overflow-y-auto shrink-0 flex flex-col" style={{background:"#f8fafc"}}>
             <div className="p-3 space-y-5 flex-1">
               {nav.map(group => (
                 <div key={group.label}>
@@ -385,7 +385,7 @@ function AiBuildSidebar({
   const quickActions = ["Connect Gmail", "Tighten the system prompt", "Add a guardrail against legal advice", "Make tone more formal"];
 
   return (
-    <aside className="w-[476px] border-r border-border bg-surface flex flex-col shrink-0 animate-fade-up">
+    <aside className="w-[476px] border-r border-border flex flex-col shrink-0 animate-fade-up" style={{background:"#f8fafc"}}>
       {/* Header */}
       <div className="h-12 px-3 border-b border-border flex items-center gap-2 shrink-0">
         <div className="w-7 h-7 rounded-md bg-gradient-brand flex items-center justify-center">
