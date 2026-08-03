@@ -3,7 +3,7 @@ import { Plus, Search, Eye, MoreVertical, X } from "lucide-react";
 import { createPortal } from "react-dom";
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
-type ActionKind = "Redact and warn" | "Block" | "Append text" | "Rewrite" | "Politely decline" | "Require approval";
+type ActionKind = "Agent auto response" | "Agent response with fixed paragraph" | "Require approval" | "Block" | "Redact and warn" | "Politely decline";
 
 interface AgentChip { name: string; color: string }
 interface Guardrail {
@@ -18,13 +18,13 @@ interface Guardrail {
 
 /* ─── Seed data ──────────────────────────────────────────────────────── */
 const SEED: Guardrail[] = [
-  { id: 1, name: "PII protection",            desc: "Never expose personal identifiers — CCID, passport, phone — in any response.",          action: "Redact and warn",   mandatory: true,  agents: [] },
-  { id: 2, name: "Prohibited content filter", desc: "Block violent, adult, or discriminatory content across all channels.",                    action: "Block",             mandatory: true,  agents: [] },
-  { id: 3, name: "Compliance disclaimer",     desc: "Append regulatory disclaimer to all financial and legal responses.",                      action: "Append text",       mandatory: true,  agents: [] },
-  { id: 4, name: "Commercial response policy",desc: "Prevent AI from making pricing commitments or answering restricted topics.",              action: "Rewrite",           mandatory: false, agents: [{ name: "Banking ABC", color: "#4338ca" }, { name: "IT Helpdesk", color: "#059669" }, { name: "Product FAQ", color: "#d97706" }, { name: "Sales Qualifier", color: "#db2777" }] },
-  { id: 5, name: "Legal and medical advice",  desc: "Do not provide legal or medical advice — refer to a specialist.",                         action: "Politely decline",  mandatory: false, agents: [], allAgents: true },
-  { id: 6, name: "Escalate risky replies",    desc: "Human approval for any commitments about future roadmap.",                                action: "Require approval",  mandatory: false, agents: [{ name: "Sales Qualifier", color: "#d97706" }] },
-  { id: 7, name: "Competitor mention block",  desc: "Avoid naming or comparing direct competitors in any response.",                           action: "Rewrite",           mandatory: false, agents: [{ name: "Banking ABC", color: "#4338ca" }, { name: "HR Onboarding", color: "#7c3aed" }, { name: "IT Helpdesk", color: "#059669" }] },
+  { id: 1, name: "PII protection",            desc: "Never expose personal identifiers — CCID, passport, phone — in any response.",          action: "Agent auto response",                   mandatory: true,  agents: [] },
+  { id: 2, name: "Prohibited content filter", desc: "Block violent, adult, or discriminatory content across all channels.",                    action: "Agent auto response",                   mandatory: true,  agents: [] },
+  { id: 3, name: "Compliance disclaimer",     desc: "Append regulatory disclaimer to all financial and legal responses.",                      action: "Agent response with fixed paragraph",   mandatory: true,  agents: [] },
+  { id: 4, name: "Commercial response policy",desc: "Prevent AI from making pricing commitments or answering restricted topics.",              action: "Agent auto response",               mandatory: false, agents: [{ name: "Banking ABC", color: "#4338ca" }, { name: "IT Helpdesk", color: "#059669" }, { name: "Product FAQ", color: "#d97706" }, { name: "Sales Qualifier", color: "#db2777" }] },
+  { id: 5, name: "Legal and medical advice",  desc: "Do not provide legal or medical advice — refer to a specialist.",                         action: "Agent response with fixed paragraph", mandatory: false, agents: [], allAgents: true },
+  { id: 6, name: "Escalate risky replies",    desc: "Human approval for any commitments about future roadmap.",                                action: "Require approval",                    mandatory: false, agents: [{ name: "Sales Qualifier", color: "#d97706" }] },
+  { id: 7, name: "Competitor mention block",  desc: "Avoid naming or comparing direct competitors in any response.",                           action: "Agent auto response",               mandatory: false, agents: [{ name: "Banking ABC", color: "#4338ca" }, { name: "HR Onboarding", color: "#7c3aed" }, { name: "IT Helpdesk", color: "#059669" }] },
 ];
 
 /* ─── Response types ─────────────────────────────────────────────────── */
@@ -40,9 +40,9 @@ function CreateModal({ onClose, onCreate }: { onClose: () => void; onCreate: (g:
   const [allAgents, setAllAgents] = useState(false);
 
   const actionFromResponse = (): ActionKind => {
-    if (response === "auto")  return "Rewrite";
-    if (response === "fixed") return "Append text";
-    return "Block";
+    if (response === "auto")  return "Agent auto response";
+    if (response === "fixed") return "Agent response with fixed paragraph";
+    return "Agent auto response";
   };
 
   const submit = () => {
@@ -301,14 +301,13 @@ export default function WorkspaceGuardrails() {
       {/* Table */}
       {activeTab === "enforced" ? (
         <Table>
-          <THead cols="1fr 130px 150px 64px" cells={["Guardrail", "Rules", "Response action", "Actions"]} lastRight />
+          <THead cols="1fr 200px 64px" cells={["Guardrail", "Response action", "Actions"]} lastRight />
           {visibleItems.length === 0 ? <EmptyRow /> : visibleItems.map(g => (
-            <TRow key={g.id} cols="1fr 130px 150px 64px">
+            <TRow key={g.id} cols="1fr 200px 64px">
               <div>
                 <div className="text-sm font-medium">{g.name}</div>
                 <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{g.desc}</div>
               </div>
-              <div><Pill>Rule</Pill></div>
               <div><ActionPill>{g.action}</ActionPill></div>
               <div className="flex items-center gap-1.5 justify-end">
                 <IconBtn aria-label="View"><Eye size={13} /></IconBtn>
@@ -319,14 +318,13 @@ export default function WorkspaceGuardrails() {
         </Table>
       ) : (
         <Table>
-          <THead cols="1fr 130px 150px 1fr 64px" cells={["Guardrail", "Rules", "Response action", "Assigned agents", "Actions"]} lastRight />
+          <THead cols="1fr 200px 1fr 64px" cells={["Guardrail", "Response action", "Assigned agents", "Actions"]} lastRight />
           {visibleItems.length === 0 ? <EmptyRow /> : visibleItems.map(g => (
-            <TRow key={g.id} cols="1fr 130px 150px 1fr 64px">
+            <TRow key={g.id} cols="1fr 200px 1fr 64px">
               <div>
                 <div className="text-sm font-medium">{g.name}</div>
                 <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{g.desc}</div>
               </div>
-              <div><Pill>Rule</Pill></div>
               <div><ActionPill>{g.action}</ActionPill></div>
               <div className="flex items-center gap-1.5 flex-wrap">
                 {g.allAgents
