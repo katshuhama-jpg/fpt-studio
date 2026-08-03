@@ -14,7 +14,7 @@
 @layer base {
   :root {
     /* ----- Surfaces (warm off-white canvas, like the preset) ----- */
-    --background: 40 24% 97%;           /* warm cream */
+    --background: 0 0% 100%;             /* white */
     --foreground: 240 10% 8%;
 
     --surface: 0 0% 100%;
