@@ -258,7 +258,7 @@ export default function AgentBuilder() {
             onSectionChange={setSection}
             seedPrompt={params.get("agentPrompt") || ""}
           />
-        )}
+        </div>
 
         {/* Content + Preview */}
         <div className="flex-1 flex overflow-hidden">
