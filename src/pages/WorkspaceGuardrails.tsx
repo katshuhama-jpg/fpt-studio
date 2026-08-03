@@ -94,8 +94,11 @@ export default function WorkspaceGuardrails() {
     return items.filter(g => !q || g.name.toLowerCase().includes(q) || g.desc.toLowerCase().includes(q));
   }, [items, query]);
 
-  const mandatory = filtered.filter(g => g.mandatory);
+  const [activeTab, setActiveTab] = useState<"enforced" | "optional">("enforced");
+
+  const enforced = filtered.filter(g => g.mandatory);
   const optional  = filtered.filter(g => !g.mandatory);
+  const visibleItems = activeTab === "enforced" ? enforced : optional;
 
   const handleCreate = (g: Omit<Guardrail, "id" | "agents">) => {
     setItems(prev => [...prev, { ...g, id: nextId++, agents: [] }]);
@@ -113,7 +116,7 @@ export default function WorkspaceGuardrails() {
       </div>
 
       {/* Toolbar */}
-      <div className="flex items-center gap-3 mb-7">
+      <div className="flex items-center gap-3 mb-5">
         <div className="relative">
           <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -133,92 +136,94 @@ export default function WorkspaceGuardrails() {
         </div>
       </div>
 
-      {/* ── Mandatory ── */}
-      <Section
-        title="Mandatory"
-        badge={<span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200">🔒 Always enforced</span>}
-        desc="These guardrails are enforced on all agents in this workspace and cannot be disabled."
-      >
+      {/* Tabs */}
+      <div className="flex items-center gap-1 border-b border-border mb-5 pb-0">
+        {([
+          { key: "enforced", label: "Enforced", count: enforced.length },
+          { key: "optional", label: "Optional",  count: optional.length  },
+        ] as const).map(t => (
+          <button
+            key={t.key}
+            onClick={() => setActiveTab(t.key)}
+            className={`flex items-center gap-1.5 px-3 h-9 text-sm font-medium border-b-2 -mb-px transition-base ${
+              activeTab === t.key
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {t.label}
+            <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+              activeTab === t.key ? "bg-primary-soft text-primary" : "bg-surface-muted text-muted-foreground border border-border"
+            }`}>
+              {t.count}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* Tab description */}
+      <p className="text-xs text-muted-foreground mb-4">
+        {activeTab === "enforced"
+          ? "These guardrails are enforced on all agents in this workspace and cannot be disabled."
+          : "These guardrails can be assigned to individual agents. Configure per-agent in each agent's settings."}
+      </p>
+
+      {/* Table */}
+      {activeTab === "enforced" ? (
         <Table>
           <THead cols="1fr 130px 150px 64px" cells={["Guardrail", "Rules", "Response action", "Actions"]} lastRight />
-          {mandatory.length === 0
-            ? <EmptyRow />
-            : mandatory.map(g => (
-              <TRow key={g.id} cols="1fr 130px 150px 64px">
-                <div>
-                  <div className="text-sm font-medium">{g.name}</div>
-                  <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{g.desc}</div>
-                </div>
-                <div><Pill>Rule</Pill></div>
-                <div><ActionPill>{g.action}</ActionPill></div>
-                <div className="flex items-center gap-1.5 justify-end">
-                  <IconBtn aria-label="View"><Eye size={13} /></IconBtn>
-                  <IconBtn aria-label="More"><MoreVertical size={13} /></IconBtn>
-                </div>
-              </TRow>
-            ))
-          }
+          {visibleItems.length === 0 ? <EmptyRow /> : visibleItems.map(g => (
+            <TRow key={g.id} cols="1fr 130px 150px 64px">
+              <div>
+                <div className="text-sm font-medium">{g.name}</div>
+                <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{g.desc}</div>
+              </div>
+              <div><Pill>Rule</Pill></div>
+              <div><ActionPill>{g.action}</ActionPill></div>
+              <div className="flex items-center gap-1.5 justify-end">
+                <IconBtn aria-label="View"><Eye size={13} /></IconBtn>
+                <IconBtn aria-label="More"><MoreVertical size={13} /></IconBtn>
+              </div>
+            </TRow>
+          ))}
         </Table>
-      </Section>
-
-      {/* ── Optional ── */}
-      <Section
-        title="Optional"
-        desc="These guardrails can be assigned to individual agents. Configure per-agent in each agent's settings."
-      >
+      ) : (
         <Table>
           <THead cols="1fr 130px 150px 1fr 64px" cells={["Guardrail", "Rules", "Response action", "Assigned agents", "Actions"]} lastRight />
-          {optional.length === 0
-            ? <EmptyRow />
-            : optional.map(g => (
-              <TRow key={g.id} cols="1fr 130px 150px 1fr 64px">
-                <div>
-                  <div className="text-sm font-medium">{g.name}</div>
-                  <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{g.desc}</div>
-                </div>
-                <div><Pill>Rule</Pill></div>
-                <div><ActionPill>{g.action}</ActionPill></div>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  {g.agents.length === 0
-                    ? <span className="text-xs text-muted-foreground">No agents assigned</span>
-                    : <>
-                        {g.agents.slice(0, 2).map(a => (
-                          <span key={a.name} className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full border border-border bg-surface-muted text-xs text-muted-foreground">
-                            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{background: a.color}} />
-                            {a.name}
-                          </span>
-                        ))}
-                        {g.agents.length > 2 && (
-                          <span className="h-6 px-2.5 rounded-full border border-border bg-surface-muted text-xs text-muted-foreground inline-flex items-center">
-                            +{g.agents.length - 2}
-                          </span>
-                        )}
-                      </>
-                  }
-                </div>
-                <div className="flex items-center gap-1.5 justify-end">
-                  <IconBtn aria-label="Edit"><Eye size={13} /></IconBtn>
-                  <IconBtn aria-label="More"><MoreVertical size={13} /></IconBtn>
-                </div>
-              </TRow>
-            ))
-          }
+          {visibleItems.length === 0 ? <EmptyRow /> : visibleItems.map(g => (
+            <TRow key={g.id} cols="1fr 130px 150px 1fr 64px">
+              <div>
+                <div className="text-sm font-medium">{g.name}</div>
+                <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{g.desc}</div>
+              </div>
+              <div><Pill>Rule</Pill></div>
+              <div><ActionPill>{g.action}</ActionPill></div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {g.agents.length === 0
+                  ? <span className="text-xs text-muted-foreground">No agents assigned</span>
+                  : <>
+                      {g.agents.slice(0, 2).map(a => (
+                        <span key={a.name} className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full border border-border bg-surface-muted text-xs text-muted-foreground">
+                          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{background: a.color}} />
+                          {a.name}
+                        </span>
+                      ))}
+                      {g.agents.length > 2 && (
+                        <span className="h-6 px-2.5 rounded-full border border-border bg-surface-muted text-xs text-muted-foreground inline-flex items-center">
+                          +{g.agents.length - 2}
+                        </span>
+                      )}
+                    </>
+                }
+              </div>
+              <div className="flex items-center gap-1.5 justify-end">
+                <IconBtn aria-label="View"><Eye size={13} /></IconBtn>
+                <IconBtn aria-label="More"><MoreVertical size={13} /></IconBtn>
+              </div>
+            </TRow>
+          ))}
         </Table>
-      </Section>
-    </div>
-  );
-}
-
-/* ─── Small components ───────────────────────────────────────────────── */
-function Section({ title, badge, desc, children }: { title: string; badge?: React.ReactNode; desc: string; children: React.ReactNode }) {
-  return (
-    <div className="mb-8">
-      <div className="flex items-center gap-2 mb-1">
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{title}</h2>
-        {badge}
-      </div>
-      <p className="text-xs text-muted-foreground mb-3">{desc}</p>
-      {children}
+      )}
     </div>
   );
 }
