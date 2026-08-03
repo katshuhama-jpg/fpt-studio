@@ -701,10 +701,9 @@ You are a customer-care specialist at ABC Bank. Help customers 24/7 with product
               className="w-full text-base font-semibold bg-transparent border border-transparent rounded-md px-2 py-0.5 -mx-2 outline-none hover:border-border hover:bg-surface focus:border-ring focus:bg-surface transition-base"
               defaultValue={initialName}
               placeholder="Agent name…"
-              style={{ textOverflow: "ellipsis" }}
             />
             <input
-              className="w-full text-sm text-muted-foreground bg-transparent border border-transparent rounded-md px-2 py-0.5 -mx-2 outline-none hover:border-border hover:bg-surface focus:border-ring focus:bg-surface transition-base"
+              className="w-full text-sm text-muted-foreground bg-transparent border border-transparent rounded-md px-2 py-0.5 -mx-2 outline-none hover:border-border hover:bg-surface focus:border-ring focus:bg-surface transition-base truncate"
               defaultValue="Handles customer queries 24/7 for ABC Bank — products, services, and support."
               placeholder="Short description…"
               style={{ textOverflow: "ellipsis" }}
