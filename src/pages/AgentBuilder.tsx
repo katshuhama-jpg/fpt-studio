@@ -274,12 +274,55 @@ function AiBuildSidebar({
   onSectionChange: (s: string) => void;
   seedPrompt?: string;
 }) {
+  type Msg = { role: "user" | "ai"; text: string; diff?: { before: string; after: string } };
+
+  const initMessages = (): Msg[] => {
+    const base: Msg[] = [
+      { role: "ai", text: `Hi Nam — I'm focused on @${contextLabel}. Tell me what to change and I'll propose a diff you can approve.` },
+    ];
+    if (seedPrompt) {
+      base.push({ role: "user", text: seedPrompt });
+      base.push({
+        role: "ai",
+        text: "Tuyệt! Dựa trên mô tả của bạn, đây là đề xuất thay đổi system prompt:",
+        diff: {
+          before: "Help customers 24/7 in a friendly tone.",
+          after: `You are an AI agent. ${seedPrompt.slice(0, 120)}${seedPrompt.length > 120 ? "…" : ""}`,
+        },
+      });
+    }
+    return base;
+  };
+
+  const [messages, setMessages] = useState<Msg[]>(initMessages);
+  const [input, setInput] = useState("");
+  const [showDiffFor, setShowDiffFor] = useState<number | null>(null);
+  const bottomRef = (el: HTMLDivElement | null) => el?.scrollIntoView({ behavior: "smooth" });
+
   const quickActions = [
     "Tighten the system prompt",
     "Add a guardrail against legal advice",
     "Draft 5 opening questions",
     "Make tone more formal",
   ];
+
+  const send = (text?: string) => {
+    const msg = (text ?? input).trim();
+    if (!msg) return;
+    setInput("");
+    const userMsg: Msg = { role: "user", text: msg };
+    const aiReply: Msg = {
+      role: "ai",
+      text: `Đã nhận yêu cầu: "${msg.slice(0, 60)}${msg.length > 60 ? "…" : ""}". Đây là đề xuất thay đổi:`,
+      diff: {
+        before: "Help customers 24/7 in a friendly tone.",
+        after: `Help customers 24/7. ${msg.slice(0, 80)}.`,
+      },
+    };
+    setMessages(m => [...m, userMsg]);
+    setTimeout(() => setMessages(m => [...m, aiReply]), 600);
+  };
+
   return (
     <aside className="w-[280px] border-r border-border bg-surface flex flex-col shrink-0 animate-fade-up">
       {/* Header */}
@@ -298,9 +341,7 @@ function AiBuildSidebar({
 
       {/* Context picker */}
       <div className="px-3 py-2 border-b border-border bg-surface-muted/40 shrink-0">
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-          Editing context
-        </div>
+        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Editing context</div>
         <div className="flex flex-wrap gap-1">
           {sections.map((s: any) => (
             <button
@@ -320,46 +361,44 @@ function AiBuildSidebar({
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
-        <div className="bg-surface-muted/60 border border-border rounded-2xl rounded-bl-sm px-3 py-2.5 text-[13px]">
-          Hi Nam — I'm focused on <b>@{contextLabel}</b>. Tell me what to change and I'll propose a diff you can approve.
-        </div>
-
-        {seedPrompt && (
-          <>
-            <div className="flex justify-end">
-              <div className="bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-3 py-2 text-[13px] max-w-[90%]">
-                {seedPrompt}
+        {messages.map((m, i) => (
+          <div key={i}>
+            {m.role === "user" ? (
+              <div className="flex justify-end">
+                <div className="bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-3 py-2 text-[13px] max-w-[90%] leading-relaxed">
+                  {m.text}
+                </div>
               </div>
-            </div>
-            <div className="bg-surface-muted/60 border border-border rounded-2xl rounded-bl-sm px-3 py-2.5 text-[13px]">
-              Tuyệt! Tôi sẽ scaffold agent dựa trên mô tả của bạn. Đây là đề xuất system prompt — bạn có muốn áp dụng không?
-            </div>
-          </>
-        )}
-
-        {/* Diff card */}
-        <div className="rounded-xl border border-primary/30 bg-primary-soft/40 p-2.5">
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <Sparkles size={11} className="text-primary" />
-            <span className="text-[10px] font-semibold text-primary">Proposed change · System prompt</span>
+            ) : (
+              <div className="space-y-2">
+                <div className="bg-surface-muted/60 border border-border rounded-2xl rounded-bl-sm px-3 py-2.5 text-[13px] leading-relaxed">
+                  {m.text}
+                </div>
+                {m.diff && (
+                  <div className="rounded-xl border border-primary/30 bg-primary-soft/40 p-2.5">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <Sparkles size={11} className="text-primary" />
+                      <span className="text-[10px] font-semibold text-primary">Proposed change · System prompt</span>
+                    </div>
+                    <div className="space-y-1 font-mono text-[10.5px]">
+                      <div className="bg-destructive/10 text-destructive px-2 py-1 rounded line-through">− {m.diff.before}</div>
+                      <div className="bg-success/10 text-success px-2 py-1 rounded">+ {m.diff.after}</div>
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-2">
+                      <button className="h-7 px-2.5 rounded-md bg-primary text-primary-foreground text-[11px] font-medium">Apply</button>
+                      <button className="h-7 px-2.5 rounded-md hover:bg-surface-muted text-[11px] text-muted-foreground">Discard</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-          <div className="space-y-1 font-mono text-[10.5px]">
-            <div className="bg-destructive/10 text-destructive px-2 py-1 rounded line-through">
-              − Help customers 24/7 in a friendly tone.
-            </div>
-            <div className="bg-success/10 text-success px-2 py-1 rounded">
-              + Help customers 24/7 in a professional, empathetic tone. Verify identity before any sensitive action.
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 mt-2">
-            <button className="h-7 px-2.5 rounded-md bg-primary text-primary-foreground text-[11px] font-medium">Apply</button>
-            <button className="h-7 px-2.5 rounded-md hover:bg-surface-muted text-[11px] text-muted-foreground">Discard</button>
-          </div>
-        </div>
+        ))}
+        <div ref={bottomRef} />
 
         <div className="flex flex-wrap gap-1.5 pt-1">
           {quickActions.map(s => (
-            <button key={s} className="text-[10.5px] px-2 py-1 rounded-full bg-surface border border-border hover:bg-primary-soft hover:text-primary hover:border-primary/30 transition-base">
+            <button key={s} onClick={() => send(s)} className="text-[10.5px] px-2 py-1 rounded-full bg-surface border border-border hover:bg-primary-soft hover:text-primary hover:border-primary/30 transition-base">
               {s}
             </button>
           ))}
@@ -370,30 +409,31 @@ function AiBuildSidebar({
       <div className="border-t border-border p-2.5 shrink-0 bg-surface">
         <div className="rounded-xl border border-border bg-surface focus-within:border-primary focus-within:ring-glow transition-base p-1.5">
           <div className="flex items-center gap-1 mb-1">
-            <span className="text-[10px] font-medium text-primary bg-primary-soft px-1.5 py-0.5 rounded">
-              @{contextLabel}
-            </span>
+            <span className="text-[10px] font-medium text-primary bg-primary-soft px-1.5 py-0.5 rounded">@{contextLabel}</span>
             <span className="text-[10px] text-muted-foreground">context</span>
           </div>
           <div className="flex items-end gap-1.5">
             <textarea
               rows={2}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
               placeholder={`Update ${contextLabel.toLowerCase()}…`}
               className="flex-1 resize-none bg-transparent text-[13px] placeholder:text-muted-foreground outline-none px-1 py-0.5 max-h-32"
             />
-            <button className="h-7 w-7 rounded-md bg-primary text-primary-foreground hover:bg-primary-glow flex items-center justify-center transition-base shrink-0">
+            <button
+              onClick={() => send()}
+              className="h-7 w-7 rounded-md bg-primary text-primary-foreground hover:bg-primary-glow flex items-center justify-center transition-base shrink-0"
+            >
               <Send size={12} />
             </button>
           </div>
         </div>
-        <div className="text-[10px] text-muted-foreground mt-1.5 px-1">
-          Tip: pick a chip above to switch the section being edited.
-        </div>
+        <div className="text-[10px] text-muted-foreground mt-1.5 px-1">Enter to send · Shift+Enter for new line</div>
       </div>
     </aside>
   );
 }
-
 /* ============ GENERAL ============ */
 function GeneralTab() {
   const [params] = useSearchParams();
