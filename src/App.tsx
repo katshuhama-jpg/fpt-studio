@@ -16,6 +16,7 @@ import ToolBuilder from "./pages/ToolBuilder";
 import WorkspaceSettings from "./pages/WorkspaceSettings";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import Skills from "./pages/Skills";
+import WorkspaceGuardrails from "./pages/WorkspaceGuardrails";
 import NotFound from "./pages/NotFound.tsx";
 import Login from "./pages/Login";
 import Onboarding from "./pages/Onboarding";
