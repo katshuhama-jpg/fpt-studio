@@ -6,17 +6,34 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
-/* ─── Template data (shared with AgentsList) ────────────────────────── */
+/* ─── Template data ─────────────────────────────────────────────────── */
 const categories = ["All", "Customer support", "Sales", "HR & Internal", "Operations", "Finance"] as const;
+
 const templates = [
-  { id: 1, emoji: "💬", bg: "bg-blue-50",  name: "Customer care bot",    cat: "Customer support", desc: "Multilingual 24/7 support with escalation and live-agent handoff" },
-  { id: 2, emoji: "📦", bg: "bg-green-50", name: "Product FAQ assistant", cat: "Customer support", desc: "Answers from manuals, docs, and warranty info" },
-  { id: 3, emoji: "🎯", bg: "bg-amber-50", name: "Sales lead qualifier",  cat: "Sales",            desc: "BANT scoring, objection handling, and CRM handoff" },
-  { id: 4, emoji: "🤝", bg: "bg-pink-50",  name: "HR onboarding bot",     cat: "HR & Internal",    desc: "New-joiner flows, policy lookup, meeting scheduling" },
-  { id: 5, emoji: "🔧", bg: "bg-blue-50",  name: "IT helpdesk",           cat: "Operations",       desc: "Password reset, VPN setup, and L1 ticket triage" },
-  { id: 6, emoji: "💰", bg: "bg-green-50", name: "Finance Q&A",           cat: "Finance",          desc: "Invoice queries, payment status, and budget lookups" },
-  { id: 7, emoji: "📋", bg: "bg-amber-50", name: "Operations assistant",  cat: "Operations",       desc: "Process guides, SOP lookup, and task routing" },
-  { id: 8, emoji: "📣", bg: "bg-pink-50",  name: "Marketing assistant",   cat: "Sales",            desc: "Campaign Q&A, content suggestions, and lead capture" },
+  { id: 1, emoji: "💬", bg: "bg-blue-50",  name: "Customer care bot",    cat: "Customer support",
+    desc: "Multilingual 24/7 support with escalation and live-agent handoff",
+    systemPrompt: `# Customer Care Agent\n\nYou are a friendly, multilingual customer support specialist available 24/7.\n\n## Tone & Style\n- Warm, empathetic and professional\n- Respond in the customer's language automatically\n- Keep answers concise and actionable\n\n## Capabilities\n- Answer product and service questions\n- Handle complaints and escalate when needed\n- Guide users through common troubleshooting steps\n- Transfer to a human agent for complex issues\n\n## Limits\n- Never make promises about refunds or compensation without supervisor approval\n- Do not share internal processes or pricing structures not publicly available` },
+  { id: 2, emoji: "📦", bg: "bg-green-50", name: "Product FAQ assistant", cat: "Customer support",
+    desc: "Answers from manuals, docs, and warranty info",
+    systemPrompt: `# Product FAQ Assistant\n\nYou help customers find answers from product manuals, troubleshooting guides, and warranty documentation.\n\n## Tone & Style\n- Clear, precise, and helpful\n- Use numbered steps for instructions\n- Always cite the relevant section of the manual when possible\n\n## Capabilities\n- Answer questions about product features and specifications\n- Guide users through setup and troubleshooting steps\n- Explain warranty coverage and claim procedures\n- Suggest related articles or videos\n\n## Limits\n- Only answer based on official documentation\n- Do not diagnose hardware faults that require professional service` },
+  { id: 3, emoji: "🎯", bg: "bg-amber-50", name: "Sales lead qualifier",  cat: "Sales",
+    desc: "BANT scoring, objection handling, and CRM handoff",
+    systemPrompt: `# Sales Lead Qualifier Agent\n\nYou qualify inbound leads using the BANT framework (Budget, Authority, Need, Timeline) and hand off hot leads to the sales team.\n\n## Tone & Style\n- Consultative and curious — ask one question at a time\n- Friendly but efficient; respect the prospect's time\n\n## Qualification Flow\n1. Greet and understand the prospect's role and company\n2. Identify the core business need or pain point\n3. Explore budget range and decision-making authority\n4. Confirm purchase timeline\n5. Score the lead (Hot / Warm / Cold) and route accordingly\n\n## Limits\n- Do not quote specific pricing — route to sales rep\n- Do not make commitments on behalf of the sales team` },
+  { id: 4, emoji: "🤝", bg: "bg-pink-50",  name: "HR onboarding bot",     cat: "HR & Internal",
+    desc: "New-joiner flows, policy lookup, meeting scheduling",
+    systemPrompt: `# HR Onboarding Assistant\n\nYou guide new employees through their first 30/60/90 days, answer HR policy questions, and help schedule onboarding meetings.\n\n## Tone & Style\n- Warm, encouraging, and clear\n- Use checklists and structured steps\n- Celebrate milestones (Day 1, first week, etc.)\n\n## Capabilities\n- Walk new joiners through onboarding checklists\n- Answer questions about leave policies, benefits, and payroll\n- Help schedule meetings with managers and teammates\n- Point employees to the right HR contacts or systems\n\n## Limits\n- Do not make decisions about policy exceptions\n- Salary and compensation queries → direct to HR Business Partner` },
+  { id: 5, emoji: "🔧", bg: "bg-blue-50",  name: "IT helpdesk",           cat: "Operations",
+    desc: "Password reset, VPN setup, and L1 ticket triage",
+    systemPrompt: `# IT Helpdesk Agent\n\nYou are an L1 IT support agent that handles common technical issues, resets credentials, and triages tickets to the right team.\n\n## Tone & Style\n- Patient, methodical, and reassuring\n- Use numbered steps for technical instructions\n- Confirm resolution before closing a ticket\n\n## Capabilities\n- Guide users through password and MFA resets\n- Troubleshoot VPN, Wi-Fi, and email connectivity\n- Assist with software installation and access requests\n- Create and triage support tickets\n\n## Limits\n- Do not access or modify production systems\n- Escalate to L2/L3 for infrastructure, security incidents, or data loss` },
+  { id: 6, emoji: "💰", bg: "bg-green-50", name: "Finance Q&A",           cat: "Finance",
+    desc: "Invoice queries, payment status, and budget lookups",
+    systemPrompt: `# Finance Q&A Agent\n\nYou help employees and vendors with invoice queries, payment status checks, and budget information lookups.\n\n## Tone & Style\n- Professional, accurate, and concise\n- Always confirm amounts and dates before sharing\n\n## Capabilities\n- Check invoice status and expected payment dates\n- Explain expense reimbursement processes\n- Provide budget utilisation summaries by department\n- Guide users through purchase order submission\n\n## Limits\n- Do not approve payments or modify financial records\n- Confidential financial data → only share with authorised requestors` },
+  { id: 7, emoji: "📋", bg: "bg-amber-50", name: "Operations assistant",  cat: "Operations",
+    desc: "Process guides, SOP lookup, and task routing",
+    systemPrompt: `# Operations Assistant\n\nYou help operations teams find standard operating procedures, track task progress, and route work to the right department.\n\n## Tone & Style\n- Efficient, structured, and direct\n- Use bullet points and tables for process steps\n\n## Capabilities\n- Retrieve and summarise SOPs on demand\n- Log and route operational tasks and incidents\n- Provide status updates on ongoing processes\n- Identify bottlenecks and suggest escalation paths\n\n## Limits\n- Do not modify or approve SOPs without authorisation\n- Do not share restricted operational data outside approved teams` },
+  { id: 8, emoji: "📣", bg: "bg-pink-50",  name: "Marketing assistant",   cat: "Sales",
+    desc: "Campaign Q&A, content suggestions, and lead capture",
+    systemPrompt: `# Marketing Assistant Agent\n\nYou support marketing campaigns by answering visitor questions, suggesting relevant content, and capturing qualified leads.\n\n## Tone & Style\n- Enthusiastic, creative, and on-brand\n- Personalise responses based on the visitor's interest\n\n## Capabilities\n- Answer questions about products, events, and promotions\n- Recommend blog posts, case studies, or demo videos\n- Capture lead information (name, email, company, interest)\n- Route hot leads to the sales team\n\n## Limits\n- Do not offer discounts or special pricing without approval\n- Do not collect sensitive personal data beyond standard lead fields` },
 ];
 
 const recent = [
@@ -27,7 +44,8 @@ const recent = [
 
 /* ─── Modals ─────────────────────────────────────────────────────────── */
 
-function TemplateModal({ onClose, onUse }: { onClose: () => void; onUse: (name: string) => void }) {
+function TemplateModal({ onClose }: { onClose: () => void }) {
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [cat, setCat] = useState<string>("All");
   const filtered = templates.filter(t => {
@@ -35,6 +53,15 @@ function TemplateModal({ onClose, onUse }: { onClose: () => void; onUse: (name: 
     const matchSearch = t.name.toLowerCase().includes(search.toLowerCase()) || t.desc.toLowerCase().includes(search.toLowerCase());
     return matchCat && matchSearch;
   });
+  const handleUse = (t: typeof templates[number]) => {
+    const params = new URLSearchParams();
+    params.set("tab", "develop");
+    params.set("section", "general");
+    params.set("agentName", t.name);
+    params.set("agentPrompt", t.systemPrompt);
+    onClose();
+    navigate(`/agents/new?${params.toString()}`);
+  };
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
@@ -63,7 +90,7 @@ function TemplateModal({ onClose, onUse }: { onClose: () => void; onUse: (name: 
                 <p className="text-sm font-semibold">{t.name}</p>
                 <p className="text-xs text-muted-foreground truncate">{t.desc}</p>
               </div>
-              <button onClick={() => { onUse(t.name); onClose(); }} className="shrink-0 h-7 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-medium opacity-0 group-hover:opacity-100 transition-base">Use</button>
+              <button onClick={() => handleUse(t)} className="shrink-0 h-7 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-medium opacity-0 group-hover:opacity-100 transition-base">Use</button>
             </div>
           ))}
         </div>
@@ -87,7 +114,7 @@ function CreateAgentModal({ onClose }: { onClose: () => void }) {
     onClose();
   };
 
-  if (showTemplates) return <TemplateModal onClose={onClose} onUse={name => { setPrompt(`Build a ${name} for my workspace.`); setShowTemplates(false); }} />;
+  if (showTemplates) return <TemplateModal onClose={onClose} />;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -135,7 +162,7 @@ export default function Home() {
   return (
     <div className="animate-fade-up">
       {showCreate    && <CreateAgentModal onClose={() => setShowCreate(false)} />}
-      {showTemplates && <TemplateModal onClose={() => setShowTemplates(false)} onUse={name => { navigate(`/agents/new?agentPrompt=Build+a+${encodeURIComponent(name)}`); setShowTemplates(false); }} />}
+      {showTemplates && <TemplateModal onClose={() => setShowTemplates(false)} />}
 
       {/* ── Hero ──────────────────────────────────────────────────── */}
       <section className="mx-6 mt-6 mb-6 rounded-2xl overflow-hidden" style={{background:"linear-gradient(135deg,#0f1c3f 0%,#1a2d5a 60%,#1e3a6e 100%)"}}>
