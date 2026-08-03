@@ -115,18 +115,45 @@ export default function WorkspaceGuardrails() {
         </p>
       </div>
 
-      {/* Toolbar */}
-      <div className="flex items-center gap-3 mb-5">
-        <div className="relative">
-          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Search guardrails"
-            className="h-9 w-56 pl-8 pr-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base"
-          />
+      {/* Tabs + toolbar */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-5 border-b border-border pb-3">
+        <div className="flex items-center gap-1">
+          {([
+            { key: "optional", label: "Optional",  count: optional.length  },
+            { key: "enforced", label: "Enforced", count: enforced.length },
+          ] as const).map(t => (
+            <button
+              key={t.key}
+              onClick={() => setActiveTab(t.key)}
+              className={`px-3 h-8 rounded-lg text-sm font-medium transition-base flex items-center gap-1.5 ${
+                activeTab === t.key
+                  ? "bg-primary-soft text-primary"
+                  : "text-muted-foreground hover:bg-surface-muted"
+              }`}
+            >
+              {t.label}
+              {t.count > 0 && (
+                <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                  activeTab === t.key
+                    ? "bg-primary/10 text-primary"
+                    : "bg-surface-sunken text-muted-foreground"
+                }`}>
+                  {t.count}
+                </span>
+              )}
+            </button>
+          ))}
         </div>
-        <div className="ml-auto">
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Search guardrails"
+              className="h-9 w-56 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+            />
+          </div>
           <button
             onClick={() => setShowCreate(true)}
             className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 transition-base"
@@ -134,35 +161,6 @@ export default function WorkspaceGuardrails() {
             <Plus size={14} /> Create guardrail
           </button>
         </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex items-center gap-1 mb-5 border-b border-border pb-3">
-        {([
-          { key: "optional", label: "Optional",  count: optional.length  },
-          { key: "enforced", label: "Enforced", count: enforced.length },
-        ] as const).map(t => (
-          <button
-            key={t.key}
-            onClick={() => setActiveTab(t.key)}
-            className={`px-3 h-8 rounded-lg text-sm font-medium transition-base flex items-center gap-1.5 ${
-              activeTab === t.key
-                ? "bg-primary-soft text-primary"
-                : "text-muted-foreground hover:bg-surface-muted"
-            }`}
-          >
-            {t.label}
-            {t.count > 0 && (
-              <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                activeTab === t.key
-                  ? "bg-primary/10 text-primary"
-                  : "bg-surface-sunken text-muted-foreground"
-              }`}>
-                {t.count}
-              </span>
-            )}
-          </button>
-        ))}
       </div>
 
       {/* Tab description */}
