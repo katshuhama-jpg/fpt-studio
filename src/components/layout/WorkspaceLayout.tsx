@@ -83,7 +83,7 @@ export default function WorkspaceLayout() {
     <div className="flex h-screen w-full overflow-hidden bg-background">
       {/* ============ Sidebar ============ */}
       <aside
-        className={`flex flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-base ${
+        className={`flex flex-col bg-surface text-foreground border-r border-border transition-base ${
           collapsed ? "w-[64px]" : "w-[244px]"
         }`}
       >
@@ -294,7 +294,7 @@ function NavGroup({
     <div>
       <button
         onClick={onToggle}
-        className="w-full flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-base"
+        className="w-full flex items-center gap-1.5 px-2 py-1.5 section-eyebrow hover:text-foreground transition-base"
       >
         <ChevronRight
           size={11}
@@ -315,13 +315,13 @@ function NavGroup({
 
 /* ============ Single nav row ============ */
 function NavRow({ item, collapsed }: { item: Item; collapsed: boolean }) {
-  const cls = `group relative flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-base text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground ${collapsed ? "justify-center" : ""}`;
+  const baseCls = `w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-base ${collapsed ? "justify-center" : ""}`;
   const inner = (
     <>
-      <item.icon size={16} className="shrink-0" />
+      <item.icon size={14} className="shrink-0" />
       {!collapsed && <span className="truncate flex-1">{item.label}</span>}
       {!collapsed && item.badge && (
-        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-accent text-accent-foreground">
+        <span className="text-xs px-1.5 py-0.5 rounded-full bg-surface-muted border border-border text-muted-foreground">
           {item.badge}
         </span>
       )}
@@ -329,7 +329,8 @@ function NavRow({ item, collapsed }: { item: Item; collapsed: boolean }) {
   );
   if (item.external) {
     return (
-      <a href={item.to} target="_blank" rel="noopener noreferrer" title={collapsed ? item.label : undefined} className={cls}>
+      <a href={item.to} target="_blank" rel="noopener noreferrer" title={collapsed ? item.label : undefined}
+        className={`${baseCls} text-foreground hover:bg-surface-muted`}>
         {inner}
       </a>
     );
@@ -340,27 +341,10 @@ function NavRow({ item, collapsed }: { item: Item; collapsed: boolean }) {
       end={item.to === "/"}
       title={collapsed ? item.label : undefined}
       className={({ isActive }) =>
-        `group relative flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-base ${
-          isActive
-            ? "bg-sidebar-accent text-sidebar-accent-foreground"
-            : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
-        } ${collapsed ? "justify-center" : ""}`
+        `${baseCls} ${isActive ? "bg-primary-soft text-primary font-medium" : "text-foreground hover:bg-surface-muted"}`
       }
     >
-      {({ isActive }) => (
-        <>
-          {isActive && !collapsed && (
-            <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-primary" />
-          )}
-          <item.icon size={16} className="shrink-0" />
-          {!collapsed && <span className="truncate flex-1">{item.label}</span>}
-          {!collapsed && item.badge && (
-            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-accent text-accent-foreground">
-              {item.badge}
-            </span>
-          )}
-        </>
-      )}
+      {inner}
     </NavLink>
   );
 }
