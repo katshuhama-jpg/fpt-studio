@@ -164,38 +164,42 @@ export default function AgentBuilder() {
       <div className="flex flex-1 overflow-hidden relative">
         {/* Left nav (agent-only) — hidden when AI mode is active */}
         {buildMode === "manual" && (
-          <aside className="w-[280px] border-r border-border bg-surface overflow-y-auto shrink-0">
-            <div className="p-3 space-y-5">
+          <aside className="w-[244px] border-r border-sidebar-border bg-sidebar text-sidebar-foreground overflow-y-auto shrink-0 flex flex-col">
+            <nav className="flex-1 py-3 px-2 space-y-1">
               {nav.map(group => (
                 <div key={group.label}>
-                  <div className="px-2 mb-1.5 section-eyebrow">
+                  <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                     {group.label}
                   </div>
-                  <div className="space-y-0.5">
+                  <div className="space-y-0.5 mt-0.5">
                     {group.items.map((it: any) => (
                       <button
                         key={it.id}
                         onClick={() => setSection(it.id)}
-                        className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-base ${
+                        className={`relative w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-base ${
                           section === it.id
-                            ? "bg-primary-soft text-primary font-medium"
-                            : "text-foreground hover:bg-surface-muted"
+                            ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                            : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
                         }`}
                       >
-                        <it.icon size={14} className="shrink-0" />
+                        {section === it.id && (
+                          <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-primary" />
+                        )}
+                        <it.icon size={16} className="shrink-0" />
                         <span className="flex-1 text-left truncate">{it.label}</span>
+                        {it.status === "done" && <span className="w-2 h-2 rounded-full bg-success shrink-0" />}
+                        {it.status === "warn" && <span className="w-2 h-2 rounded-full bg-warning shrink-0" />}
+                        {it.status === "empty" && <span className="w-2 h-2 rounded-full bg-border-strong shrink-0" />}
                         {typeof it.count === "number" && (
                           <span className="text-xs px-1.5 py-0.5 rounded-full bg-surface-muted border border-border text-muted-foreground">{it.count}</span>
                         )}
-                        {it.status === "done" && <CheckCircle2 size={11} className="text-success" />}
-                        {it.status === "warn" && <span className="w-1.5 h-1.5 rounded-full bg-warning" />}
                       </button>
                     ))}
                   </div>
                 </div>
               ))}
-            </div>
-            <div className="px-3 pb-2 space-y-2">
+            </nav>
+            <div className="px-2 pb-3 space-y-2">
               <div className="rounded-lg border border-border bg-surface-muted/50 p-2.5">
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-xs font-semibold text-foreground">Ready to publish</span>
@@ -213,7 +217,7 @@ export default function AgentBuilder() {
                     { label: "Guardrails", done: true },
                   ].map(item => (
                     <div key={item.label} className="flex items-center gap-1.5 text-xs">
-                      <CheckCircle2 size={10} className={item.done ? "text-success" : "text-border-strong"} />
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${item.done ? "bg-success" : "bg-border-strong"}`} />
                       <span className={item.done ? "text-foreground" : "text-muted-foreground"}>{item.label}</span>
                     </div>
                   ))}
@@ -221,9 +225,9 @@ export default function AgentBuilder() {
               </div>
               <button
                 onClick={() => setBuildMode("ai")}
-                className="w-full h-9 rounded-lg border border-primary/30 bg-primary-soft text-primary hover:bg-primary-soft/70 text-xs font-medium flex items-center justify-center gap-1.5 transition-base"
+                className="w-full h-9 rounded-lg border border-primary/30 bg-primary-soft text-primary hover:bg-primary hover:text-primary-foreground text-sm font-medium flex items-center justify-center gap-1.5 transition-base"
               >
-                <Sparkles size={12} /> Refine with AI
+                <Sparkles size={14} /> Refine with AI
               </button>
             </div>
           </aside>
