@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowRight, ArrowUpRight, Sparkles, Send, Paperclip, AtSign,
@@ -62,8 +63,8 @@ function TemplateModal({ onClose }: { onClose: () => void }) {
     onClose();
     navigate(`/agents/new?${params.toString()}`);
   };
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative z-10 w-full max-w-xl mx-4 bg-white rounded-2xl shadow-lg border border-border flex flex-col max-h-[80vh] animate-fade-up">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
@@ -95,7 +96,7 @@ function TemplateModal({ onClose }: { onClose: () => void }) {
           ))}
         </div>
       </div>
-    </div>
+    </div>, document.body
   );
 }
 
@@ -116,8 +117,8 @@ function CreateAgentModal({ onClose }: { onClose: () => void }) {
 
   if (showTemplates) return <TemplateModal onClose={onClose} />;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative z-10 w-full max-w-[672px] mx-4 animate-fade-up">
         <div className="rounded-2xl border-2 border-primary/40 bg-white p-4 shadow-lg focus-within:border-primary transition-colors">
@@ -148,7 +149,8 @@ function CreateAgentModal({ onClose }: { onClose: () => void }) {
           <X size={14} />
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

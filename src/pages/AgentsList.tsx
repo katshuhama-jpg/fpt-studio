@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Plus, Search, Filter, MoreVertical, MessageSquare, Activity,
@@ -82,8 +83,8 @@ function TemplateModal({ onClose }: { onClose: () => void }) {
     navigate(`/agents/new?${params.toString()}`);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative z-10 w-full max-w-xl mx-4 bg-white rounded-2xl shadow-lg border border-border flex flex-col max-h-[80vh] animate-fade-up">
         {/* Header */}
@@ -152,7 +153,8 @@ function TemplateModal({ onClose }: { onClose: () => void }) {
           ))}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
