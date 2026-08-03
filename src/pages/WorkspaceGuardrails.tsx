@@ -26,57 +26,201 @@ const SEED: Guardrail[] = [
   { id: 7, name: "Competitor mention block",  desc: "Avoid naming or comparing direct competitors in any response.",                           action: "Rewrite",           mandatory: false, agents: [{ name: "Banking ABC", color: "#4338ca" }, { name: "HR Onboarding", color: "#7c3aed" }, { name: "IT Helpdesk", color: "#059669" }] },
 ];
 
-/* ─── Create modal ───────────────────────────────────────────────────── */
-function CreateModal({ onClose, onCreate }: { onClose: () => void; onCreate: (g: Omit<Guardrail, "id" | "agents">) => void }) {
-  const [name, setName] = useState("");
-  const [desc, setDesc] = useState("");
-  const [action, setAction] = useState<ActionKind>("Block");
-  const [mandatory, setMandatory] = useState(false);
+/* ─── Response types ─────────────────────────────────────────────────── */
+type ResponseKind = "auto" | "fixed" | "approval" | null;
 
-  const actions: ActionKind[] = ["Block", "Rewrite", "Politely decline", "Redact and warn", "Require approval", "Append text"];
+/* ─── Create side sheet ──────────────────────────────────────────────── */
+function CreateModal({ onClose, onCreate }: { onClose: () => void; onCreate: (g: Omit<Guardrail, "id" | "agents">) => void }) {
+  const [topic, setTopic]       = useState("");
+  const [desc, setDesc]         = useState("");
+  const [samples, setSamples]   = useState("");
+  const [mandatory, setMandatory] = useState(false);
+  const [response, setResponse] = useState<ResponseKind>(null);
+  const [fixedText, setFixedText] = useState("");
+
+  const actionFromResponse = (): ActionKind => {
+    if (response === "auto")     return "Rewrite";
+    if (response === "fixed")    return "Append text";
+    if (response === "approval") return "Require approval";
+    return "Block";
+  };
 
   const submit = () => {
-    if (!name.trim()) return;
-    onCreate({ name: name.trim(), desc: desc.trim(), action, mandatory });
+    if (!topic.trim()) return;
+    onCreate({ name: topic.trim(), desc: desc.trim(), action: actionFromResponse(), mandatory });
     onClose();
   };
 
+  const responseOptions: { key: ResponseKind; title: string; desc: string }[] = [
+    { key: "auto",     title: "Agent auto response",              desc: "Agent automatically rewrites responses based on your instructions." },
+    { key: "fixed",    title: "Agent response with fixed paragraph", desc: "Agent replies using the exact text you provide." },
+    { key: "approval", title: "Require approval",                 desc: "Hold the response and route to a reviewer before sending." },
+  ];
+
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-md mx-4 bg-white rounded-2xl border border-border shadow-lg animate-fade-up">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-          <h2 className="font-display text-base font-semibold">Create guardrail</h2>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base"><X size={15} /></button>
+    <div className="fixed inset-0 z-50 flex" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
+      {/* backdrop */}
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+
+      {/* side sheet */}
+      <div className="absolute right-0 top-0 bottom-0 w-full max-w-[560px] bg-white flex flex-col shadow-2xl" style={{animation:"slideInRight 0.22s ease"}}>
+        {/* Header */}
+        <div className="flex items-start justify-between px-6 py-5 border-b border-border shrink-0">
+          <div>
+            <h2 className="font-display text-lg font-semibold">Create Guardrail</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">Define the rule and choose how the agent responds.</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base mt-0.5"><X size={15} /></button>
         </div>
-        <div className="px-6 py-5 space-y-4">
+
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+
+          {/* ── Define the rule ── */}
           <div>
-            <label className="block text-xs font-semibold mb-1.5">Name <span className="text-destructive">*</span></label>
-            <input autoFocus className="ds-input w-full" placeholder="e.g. Competitor mention block" value={name} onChange={e => setName(e.target.value)} />
+            <h3 className="text-sm font-semibold mb-4">Define the rule</h3>
+            <div className="space-y-4">
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-sm font-medium">Topic <span className="text-destructive">*</span></label>
+                  <span className="text-xs text-muted-foreground">{topic.length}/100</span>
+                </div>
+                <input
+                  autoFocus
+                  maxLength={100}
+                  className="w-full h-10 px-3 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base"
+                  value={topic}
+                  onChange={e => setTopic(e.target.value)}
+                />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-sm font-medium">Description <span className="text-destructive">*</span></label>
+                  <span className="text-xs text-muted-foreground">{desc.length}/800</span>
+                </div>
+                <textarea
+                  maxLength={800}
+                  rows={3}
+                  className="w-full px-3 py-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none"
+                  value={desc}
+                  onChange={e => setDesc(e.target.value)}
+                />
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-sm font-medium">Samples</label>
+                  <span className="text-xs text-muted-foreground">{samples.length}/2000</span>
+                </div>
+                <p className="text-xs text-primary mb-1.5 italic">Tip: Each sample must be separated by a line break.</p>
+                <textarea
+                  maxLength={2000}
+                  rows={4}
+                  className="w-full px-3 py-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none"
+                  value={samples}
+                  onChange={e => setSamples(e.target.value)}
+                />
+              </div>
+            </div>
           </div>
+
+          {/* ── Response ── */}
           <div>
-            <label className="block text-xs font-semibold mb-1.5">Description</label>
-            <textarea className="ds-textarea w-full min-h-[72px]" placeholder="Describe when and how this rule applies…" value={desc} onChange={e => setDesc(e.target.value)} />
+            <h3 className="text-sm font-semibold mb-1">Response</h3>
+            <p className="text-xs text-muted-foreground mb-4">Choose what the agent does when this rule triggers.</p>
+            <div className="space-y-3">
+              {responseOptions.map(opt => {
+                const selected = response === opt.key;
+                return (
+                  <div
+                    key={opt.key}
+                    onClick={() => setResponse(selected ? null : opt.key)}
+                    className={`rounded-xl border-2 cursor-pointer transition-base overflow-hidden ${
+                      selected ? "border-primary bg-primary/5" : "border-border bg-white hover:border-border-strong"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between px-4 py-3.5">
+                      <div>
+                        <div className="text-sm font-semibold">{opt.title}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">{opt.desc}</div>
+                      </div>
+                      {selected
+                        ? <span className="text-xs font-medium text-primary shrink-0 ml-3">Change response</span>
+                        : <span className="text-muted-foreground shrink-0 ml-3">›</span>
+                      }
+                    </div>
+
+                    {/* Expanded content */}
+                    {selected && opt.key === "auto" && (
+                      <div className="px-4 pb-4">
+                        <div className="rounded-lg border border-dashed border-border bg-white px-3 py-3 text-xs text-muted-foreground">
+                          The agent will automatically rewrite its response — no additional input needed.
+                        </div>
+                      </div>
+                    )}
+                    {selected && opt.key === "fixed" && (
+                      <div className="px-4 pb-4">
+                        <label className="block text-xs font-semibold mb-1.5">Fixed paragraph <span className="text-destructive">*</span></label>
+                        <div className="relative">
+                          <textarea
+                            rows={3}
+                            maxLength={300}
+                            placeholder="Write the exact reply the agent should send."
+                            className="w-full px-3 py-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none"
+                            value={fixedText}
+                            onChange={e => { e.stopPropagation(); setFixedText(e.target.value); }}
+                            onClick={e => e.stopPropagation()}
+                          />
+                          <span className="absolute bottom-2 right-3 text-[10px] text-muted-foreground">{fixedText.length}/300</span>
+                        </div>
+                      </div>
+                    )}
+                    {selected && opt.key === "approval" && (
+                      <div className="px-4 pb-4">
+                        <div className="rounded-lg border border-border bg-white overflow-hidden">
+                          <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
+                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary text-xs">✓</div>
+                            <div className="flex-1">
+                              <div className="text-sm font-semibold">Approver <span className="text-xs font-normal text-muted-foreground ml-1">0</span></div>
+                              <div className="text-xs text-muted-foreground">People authorized to review and approve requests for this guardrail.</div>
+                            </div>
+                            <button onClick={e => e.stopPropagation()} className="h-8 px-3 rounded-lg border border-border bg-white hover:bg-surface-muted text-xs font-medium transition-base flex items-center gap-1.5">
+                              👤+ Assign member
+                            </button>
+                          </div>
+                          <div className="px-4 py-6 flex flex-col items-center gap-2 text-center">
+                            <div className="w-10 h-10 rounded-full border-2 border-dashed border-border flex items-center justify-center text-muted-foreground">👤</div>
+                            <div className="text-sm font-semibold">No approvers assigned</div>
+                            <div className="text-xs text-muted-foreground">Assign a member to enable approvals.</div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-          <div>
-            <label className="block text-xs font-semibold mb-1.5">Response action</label>
-            <select className="ds-input w-full" value={action} onChange={e => setAction(e.target.value as ActionKind)}>
-              {actions.map(a => <option key={a}>{a}</option>)}
-            </select>
-          </div>
-          <div className="flex items-center gap-3 p-3 rounded-xl border border-border bg-surface-muted">
-            <input type="checkbox" id="mandatory" checked={mandatory} onChange={e => setMandatory(e.target.checked)} className="w-4 h-4 accent-primary" />
+
+          {/* ── Enforced toggle ── */}
+          <div className="flex items-center gap-3 p-3.5 rounded-xl border border-border bg-surface-muted">
+            <input type="checkbox" id="mandatory" checked={mandatory} onChange={e => setMandatory(e.target.checked)} className="w-4 h-4 accent-primary shrink-0" />
             <div>
-              <label htmlFor="mandatory" className="text-sm font-medium cursor-pointer">Mandatory</label>
-              <p className="text-xs text-muted-foreground">Enforced on all agents — cannot be disabled per agent.</p>
+              <label htmlFor="mandatory" className="text-sm font-medium cursor-pointer">Enforced</label>
+              <p className="text-xs text-muted-foreground">Applied to all agents in this workspace — cannot be disabled per agent.</p>
             </div>
           </div>
         </div>
-        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border">
-          <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Cancel</button>
-          <button onClick={submit} disabled={!name.trim()} className="h-9 px-5 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium transition-base disabled:opacity-40 disabled:cursor-not-allowed">Create</button>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between px-6 py-4 border-t border-border shrink-0 bg-white">
+          <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Cancel</button>
+          <button onClick={submit} disabled={!topic.trim()} className="h-9 px-6 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium transition-base disabled:opacity-40 disabled:cursor-not-allowed">
+            Create guardrail
+          </button>
         </div>
       </div>
+
+      <style>{`@keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }`}</style>
     </div>,
     document.body
   );
