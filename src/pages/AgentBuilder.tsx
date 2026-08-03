@@ -663,7 +663,7 @@ You are a customer-care specialist at ABC Bank. Help customers 24/7 with product
   return (
     <div className="w-full animate-fade-up">
       {/* ── Sticky header ── */}
-      <div className="sticky top-0 z-10 bg-background px-8 pt-8 pb-5">
+      <div className="sticky top-0 z-10 bg-gradient-soft px-8 pt-8 pb-5">
         <div className="flex items-center gap-3">
           {/* Avatar with edit hint */}
           <div className="relative shrink-0">
