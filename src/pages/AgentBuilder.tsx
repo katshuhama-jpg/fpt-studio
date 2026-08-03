@@ -544,9 +544,6 @@ function AiBuildSidebar({
       {/* Composer */}
       <div className="border-t border-border p-2.5 shrink-0 bg-surface">
         <div className="rounded-xl border border-border bg-surface focus-within:border-primary transition-base p-1.5">
-          <div className="flex items-center gap-1 mb-1">
-            <span className="text-xs font-medium text-primary bg-primary-soft px-1.5 py-0.5 rounded">@{contextLabel}</span>
-          </div>
           <div className="flex items-end gap-1.5">
             <textarea rows={2} value={input} onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
