@@ -13,6 +13,7 @@ interface Guardrail {
   action: ActionKind;
   mandatory: boolean;
   agents: AgentChip[];
+  allAgents?: boolean;
 }
 
 /* ─── Seed data ──────────────────────────────────────────────────────── */
@@ -21,13 +22,13 @@ const SEED: Guardrail[] = [
   { id: 2, name: "Prohibited content filter", desc: "Block violent, adult, or discriminatory content across all channels.",                    action: "Block",             mandatory: true,  agents: [] },
   { id: 3, name: "Compliance disclaimer",     desc: "Append regulatory disclaimer to all financial and legal responses.",                      action: "Append text",       mandatory: true,  agents: [] },
   { id: 4, name: "Commercial response policy",desc: "Prevent AI from making pricing commitments or answering restricted topics.",              action: "Rewrite",           mandatory: false, agents: [{ name: "Banking ABC", color: "#4338ca" }, { name: "IT Helpdesk", color: "#059669" }, { name: "Product FAQ", color: "#d97706" }, { name: "Sales Qualifier", color: "#db2777" }] },
-  { id: 5, name: "Legal and medical advice",  desc: "Do not provide legal or medical advice — refer to a specialist.",                         action: "Politely decline",  mandatory: false, agents: [] },
+  { id: 5, name: "Legal and medical advice",  desc: "Do not provide legal or medical advice — refer to a specialist.",                         action: "Politely decline",  mandatory: false, agents: [], allAgents: true },
   { id: 6, name: "Escalate risky replies",    desc: "Human approval for any commitments about future roadmap.",                                action: "Require approval",  mandatory: false, agents: [{ name: "Sales Qualifier", color: "#d97706" }] },
   { id: 7, name: "Competitor mention block",  desc: "Avoid naming or comparing direct competitors in any response.",                           action: "Rewrite",           mandatory: false, agents: [{ name: "Banking ABC", color: "#4338ca" }, { name: "HR Onboarding", color: "#7c3aed" }, { name: "IT Helpdesk", color: "#059669" }] },
 ];
 
 /* ─── Response types ─────────────────────────────────────────────────── */
-type ResponseKind = "auto" | "fixed" | "approval" | null;
+type ResponseKind = "auto" | "fixed" | null;
 
 /* ─── Create side sheet ──────────────────────────────────────────────── */
 function CreateModal({ onClose, onCreate }: { onClose: () => void; onCreate: (g: Omit<Guardrail, "id" | "agents">) => void }) {
@@ -36,24 +37,23 @@ function CreateModal({ onClose, onCreate }: { onClose: () => void; onCreate: (g:
   const [samples, setSamples]   = useState("");
   const [response, setResponse] = useState<ResponseKind>(null);
   const [fixedText, setFixedText] = useState("");
+  const [allAgents, setAllAgents] = useState(false);
 
   const actionFromResponse = (): ActionKind => {
-    if (response === "auto")     return "Rewrite";
-    if (response === "fixed")    return "Append text";
-    if (response === "approval") return "Require approval";
+    if (response === "auto")  return "Rewrite";
+    if (response === "fixed") return "Append text";
     return "Block";
   };
 
   const submit = () => {
     if (!topic.trim()) return;
-    onCreate({ name: topic.trim(), desc: desc.trim(), action: actionFromResponse(), mandatory: false });
+    onCreate({ name: topic.trim(), desc: desc.trim(), action: actionFromResponse(), mandatory: false, allAgents });
     onClose();
   };
 
   const responseOptions: { key: ResponseKind; title: string; desc: string }[] = [
-    { key: "auto",     title: "Agent auto response",              desc: "Agent automatically rewrites responses based on your instructions." },
-    { key: "fixed",    title: "Agent response with fixed paragraph", desc: "Agent replies using the exact text you provide." },
-    { key: "approval", title: "Require approval",                 desc: "Hold the response and route to a reviewer before sending." },
+    { key: "auto",  title: "Agent auto response",                 desc: "Agent automatically rewrites responses based on your instructions." },
+    { key: "fixed", title: "Agent response with fixed paragraph", desc: "Agent replies using the exact text you provide." },
   ];
 
   return createPortal(
@@ -173,27 +173,7 @@ function CreateModal({ onClose, onCreate }: { onClose: () => void; onCreate: (g:
                         </div>
                       </div>
                     )}
-                    {selected && opt.key === "approval" && (
-                      <div className="px-4 pb-4">
-                        <div className="rounded-lg border border-border bg-white overflow-hidden">
-                          <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
-                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary text-xs font-bold">✓</div>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-semibold">Approver <span className="text-xs font-normal text-muted-foreground ml-1">0</span></div>
-                              <div className="text-xs text-muted-foreground">People authorized to review and approve requests for this guardrail.</div>
-                            </div>
-                            <button onClick={e => e.stopPropagation()} className="h-8 px-3 rounded-lg border border-border bg-white hover:bg-surface-muted text-xs font-medium transition-base shrink-0 flex items-center gap-1.5">
-                              👤+ Assign member
-                            </button>
-                          </div>
-                          <div className="px-4 py-6 flex flex-col items-center gap-2 text-center">
-                            <div className="w-10 h-10 rounded-full border-2 border-dashed border-border flex items-center justify-center text-muted-foreground text-lg">👤</div>
-                            <div className="text-sm font-semibold">No approvers assigned</div>
-                            <div className="text-xs text-muted-foreground">Assign a member to enable approvals.</div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+
                   </div>
                 );
               })}
@@ -335,21 +315,23 @@ export default function WorkspaceGuardrails() {
               <div><Pill>Rule</Pill></div>
               <div><ActionPill>{g.action}</ActionPill></div>
               <div className="flex items-center gap-1.5 flex-wrap">
-                {g.agents.length === 0
-                  ? <span className="text-xs text-muted-foreground">No agents assigned</span>
-                  : <>
-                      {g.agents.slice(0, 2).map(a => (
-                        <span key={a.name} className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full border border-border bg-surface-muted text-xs text-muted-foreground">
-                          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{background: a.color}} />
-                          {a.name}
-                        </span>
-                      ))}
-                      {g.agents.length > 2 && (
-                        <span className="h-6 px-2.5 rounded-full border border-border bg-surface-muted text-xs text-muted-foreground inline-flex items-center">
-                          +{g.agents.length - 2}
-                        </span>
-                      )}
-                    </>
+                {g.allAgents
+                  ? <span className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full border border-primary/30 bg-primary/10 text-xs text-primary font-medium">All agents</span>
+                  : g.agents.length === 0
+                    ? <span className="text-xs text-muted-foreground">No agents assigned</span>
+                    : <>
+                        {g.agents.slice(0, 2).map(a => (
+                          <span key={a.name} className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full border border-border bg-surface-muted text-xs text-muted-foreground">
+                            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{background: a.color}} />
+                            {a.name}
+                          </span>
+                        ))}
+                        {g.agents.length > 2 && (
+                          <span className="h-6 px-2.5 rounded-full border border-border bg-surface-muted text-xs text-muted-foreground inline-flex items-center">
+                            +{g.agents.length - 2}
+                          </span>
+                        )}
+                      </>
                 }
               </div>
               <div className="flex items-center gap-1.5 justify-end">
