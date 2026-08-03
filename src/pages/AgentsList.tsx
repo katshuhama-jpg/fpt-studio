@@ -277,28 +277,13 @@ export default function AgentsList() {
 
       {/* ── Agents grid ───────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {/* Create card */}
-        <button
-          onClick={() => setShowTemplates(true)}
-          className="rounded-xl border-2 border-dashed border-border hover:border-primary/40 hover:bg-primary-soft/30 transition-base flex flex-col items-center justify-center min-h-[220px] p-6 group"
-        >
-          <div className="w-12 h-12 rounded-xl bg-primary-soft text-primary flex items-center justify-center mb-3 group-hover:scale-110 transition-base">
-            <Plus size={22} />
-          </div>
-          <div className="font-display font-semibold text-base mb-1">Create new agent</div>
-          <div className="text-xs text-muted-foreground text-center max-w-[200px]">
-            Start from scratch or use a marketplace template.
-          </div>
-        </button>
-
         {visibleAgents.map(a => (
           <Link
             key={a.id}
             to={`/agents/${a.id}`}
-            className="group relative overflow-hidden rounded-xl border border-border bg-surface hover:border-primary/30 hover:shadow-elev transition-base"
+            className="group rounded-xl border border-border bg-surface hover:border-primary/30 hover:shadow-elev transition-base"
           >
-            <div className={`absolute inset-x-0 top-0 h-1 ${a.accent}`} aria-hidden />
-            <div className="p-5">
+<div className="p-5">
               <div className="flex items-start gap-3 mb-3">
                 <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-lg shrink-0 ${a.bg}`}>
                   {a.emoji}
