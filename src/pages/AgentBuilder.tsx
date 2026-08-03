@@ -380,6 +380,9 @@ function AiBuildSidebar({
 
 /* ============ GENERAL ============ */
 function GeneralTab() {
+  const [params] = useSearchParams();
+  const initialName = params.get("agentName") || "Banking ABC — Customer Care";
+  const initialPrompt = params.get("agentPrompt") || "";
   const [avatar, setAvatar] = useState("🏦");
   const [editingAvatar, setEditingAvatar] = useState(false);
   const emojiOptions = ["🏦","🤖","💼","🧠","🎯","🛡️","⚡","🌐","📊","🔧","💡","🚀"];
@@ -423,7 +426,7 @@ function GeneralTab() {
           <label className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Agent name</label>
           <input
             className="ds-input text-center text-base font-semibold"
-            defaultValue="Banking ABC — Customer Care"
+            defaultValue={initialName}
           />
         </div>
 
@@ -462,7 +465,7 @@ function GeneralTab() {
         </p>
         <textarea
           className="ds-textarea w-full min-h-[260px] font-mono text-[13px] leading-relaxed"
-          defaultValue={`# Banking ABC — Customer Care Agent
+          defaultValue={initialPrompt || `# Banking ABC — Customer Care Agent
 
 ## Role
 You are a customer-care specialist at ABC Bank. Help customers 24/7 with products, services and banking requests.

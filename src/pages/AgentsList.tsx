@@ -1,5 +1,6 @@
-import { Link } from "react-router-dom";
-import { Plus, Search, Filter, MoreVertical, MessageSquare, Activity, Layers } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Plus, Search, Filter, MoreVertical, MessageSquare, Activity, Layers, X, ChevronDown, Sparkles } from "lucide-react";
+import { useState } from "react";
 
 const agents = [
   { id: "cskh", name: "Banking ABC — Customer Care", emoji: "🏦", bg: "bg-primary-soft", status: "Published",
@@ -21,9 +22,123 @@ const agents = [
 
 const tabs = ["All agents", "Published", "Draft", "Shared with me"] as const;
 
+function NewAgentModal({ onClose }: { onClose: () => void }) {
+  const navigate = useNavigate();
+  const [name, setName] = useState("");
+  const [prompt, setPrompt] = useState("");
+  const [advanced, setAdvanced] = useState(false);
+  const [model, setModel] = useState("DeepSeek V4");
+
+  const handleCreate = () => {
+    if (!name.trim()) return;
+    const params = new URLSearchParams();
+    params.set("tab", "develop");
+    params.set("section", "general");
+    if (name) params.set("agentName", name);
+    if (prompt) params.set("agentPrompt", prompt);
+    navigate(`/agents/new?${params.toString()}`);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+
+      {/* Dialog */}
+      <div className="relative z-10 w-full max-w-lg mx-4 bg-surface rounded-2xl shadow-lg border border-border animate-fade-up">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-6 pb-4">
+          <h2 className="font-display text-xl font-semibold">New agent</h2>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-6 pb-2 space-y-5">
+          {/* Agent name */}
+          <div>
+            <label className="block text-sm font-semibold mb-1.5">
+              Agent name <span className="text-destructive">*</span>
+            </label>
+            <input
+              autoFocus
+              className="ds-input w-full"
+              placeholder="e.g. Support Triage"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleCreate()}
+            />
+          </div>
+
+          {/* Starting prompt */}
+          <div>
+            <label className="block text-sm font-semibold mb-1.5">Starting prompt</label>
+            <textarea
+              className="ds-textarea w-full min-h-[120px]"
+              placeholder="Describe what your agent should do..."
+              value={prompt}
+              onChange={e => setPrompt(e.target.value)}
+            />
+          </div>
+
+          {/* Advanced */}
+          <div>
+            <button
+              onClick={() => setAdvanced(o => !o)}
+              className="flex items-center gap-1.5 text-sm font-semibold text-foreground hover:text-primary transition-base"
+            >
+              Advanced
+              <ChevronDown size={14} className={`transition-transform ${advanced ? "rotate-180" : ""}`} />
+            </button>
+            {advanced && (
+              <div className="mt-3 space-y-3 pl-1">
+                <div>
+                  <label className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Model</label>
+                  <button className="ds-input w-full flex items-center gap-2 cursor-pointer text-left">
+                    <span className="w-5 h-5 rounded bg-accent-soft flex items-center justify-center text-xs shrink-0">✨</span>
+                    <span className="flex-1 text-sm">{model}</span>
+                    <span className="chip chip-primary text-[10px]">FPT Marketplace</span>
+                    <ChevronDown size={13} className="text-muted-foreground shrink-0" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border mt-4">
+          <button
+            onClick={onClose}
+            className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleCreate}
+            disabled={!name.trim()}
+            className="h-9 px-5 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium transition-base disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+          >
+            Create
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AgentsList() {
+  const [showModal, setShowModal] = useState(false);
+
   return (
     <div className="px-8 py-8 max-w-[1280px] mx-auto animate-fade-up">
+      {showModal && <NewAgentModal onClose={() => setShowModal(false)} />}
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
         <div>
@@ -36,7 +151,10 @@ export default function AgentsList() {
           <button className="h-10 px-3.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base">
             <Layers size={14} /> Templates
           </button>
-          <button className="h-10 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 shadow-soft transition-base">
+          <button
+            onClick={() => setShowModal(true)}
+            className="h-10 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 shadow-soft transition-base"
+          >
             <Plus size={15} /> New Agent
           </button>
         </div>
@@ -73,8 +191,8 @@ export default function AgentsList() {
       {/* Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Create card */}
-        <Link
-          to="/agents/cskh"
+        <button
+          onClick={() => setShowModal(true)}
           className="rounded-xl border-2 border-dashed border-border hover:border-primary/40 hover:bg-primary-soft/30 transition-base flex flex-col items-center justify-center min-h-[220px] p-6 group"
         >
           <div className="w-12 h-12 rounded-xl bg-primary-soft text-primary flex items-center justify-center mb-3 group-hover:scale-110 transition-base">
@@ -84,7 +202,7 @@ export default function AgentsList() {
           <div className="text-xs text-muted-foreground text-center max-w-[200px]">
             Start from scratch or use a marketplace template.
           </div>
-        </Link>
+        </button>
 
         {agents.map(a => (
           <Link
@@ -121,7 +239,6 @@ export default function AgentsList() {
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed mb-4 line-clamp-2 min-h-[32px]">{a.desc}</p>
 
-              {/* Stats */}
               <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
                 <div className="flex items-center gap-1.5">
                   <MessageSquare size={12} className="text-muted-foreground" />
