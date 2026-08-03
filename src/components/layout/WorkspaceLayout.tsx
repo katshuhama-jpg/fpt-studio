@@ -254,19 +254,7 @@ export default function WorkspaceLayout() {
             <span className="text-muted-foreground">/</span>
             <span className="font-medium text-foreground capitalize">{breadcrumbLabel}</span>
           </div>
-          <div className="ml-auto flex items-center gap-2">
-            <div className="relative hidden md:block">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input
-                placeholder="Search agents, tools, docs…"
-                className="h-9 w-72 pl-9 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:bg-surface focus:border-ring"
-              />
-            </div>
-            <button className="h-9 w-9 rounded-lg border border-border bg-surface hover:bg-surface-muted flex items-center justify-center transition-base">
-              <Bell size={15} />
-            </button>
-            <HeaderNewMenu pathname={loc.pathname} />
-          </div>
+
         </header>
         <main className="flex-1 overflow-y-auto">
           <Outlet />
