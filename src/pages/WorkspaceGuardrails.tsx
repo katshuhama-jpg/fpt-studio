@@ -152,10 +152,7 @@ function CreateModal({ onClose, onCreate, initialData }: {
                         <div className="text-sm font-semibold">{opt.title}</div>
                         <div className="text-xs text-muted-foreground mt-0.5">{opt.desc}</div>
                       </div>
-                      {selected
-                        ? <span className="text-xs font-medium text-primary shrink-0 ml-4 whitespace-nowrap">Change response</span>
-                        : <span className="text-muted-foreground shrink-0 ml-4 text-lg leading-none">›</span>
-                      }
+                      {!selected && <span className="text-muted-foreground shrink-0 ml-4 text-lg leading-none">›</span>}
                     </div>
 
                     {/* Expanded detail — only when selected */}
