@@ -961,7 +961,7 @@ function PreviewPanel() {
     setMessages(m => [...m, { role: "user", text: userMsg }]);
     setInput("");
     setTimeout(() => {
-      setMessages(m => [...m, { role: "agent", text: "Cảm ơn bạn đã liên hệ! Tôi đang xử lý yêu cầu của bạn về "" + userMsg + "". Vui lòng chờ trong giây lát." }]);
+      setMessages(m => [...m, { role: "agent", text: `Cảm ơn bạn đã liên hệ! Tôi đang xử lý yêu cầu của bạn về "${userMsg}". Vui lòng chờ trong giây lát.` }]);
     }, 800);
   };
 
