@@ -661,7 +661,7 @@ You are a customer-care specialist at ABC Bank. Help customers 24/7 with product
 - If unsure, escalate to a human agent`;
 
   return (
-    <div className="p-8 max-w-2xl mx-auto space-y-6 animate-fade-up">
+    <div className="p-8 w-full space-y-6 animate-fade-up">
       {/* ── Compact header ── */}
       <div className="flex items-start gap-3">
         {/* Avatar with edit hint */}
@@ -817,7 +817,7 @@ function KnowledgeTab() {
     { name: "Internal Policy v3", type: "Sharepoint", size: "1.1 MB", chunks: 96, version: "v3", icon: Database, color: "text-accent" },
   ];
   return (
-    <div className="p-8 max-w-3xl mx-auto space-y-6 animate-fade-up">
+    <div className="p-8 w-full space-y-6 animate-fade-up">
       <Section icon={BookOpen} title="Agent knowledge" desc="Sources this agent can retrieve from at run time.">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-5">
           {[
@@ -879,7 +879,7 @@ function TasksList({ agentId }: { agentId: string }) {
     { id: "schedule", name: "Schedule consultation", type: "Workflow", steps: 4, version: "v2", updated: "3d ago", status: "draft" },
   ];
   return (
-    <div className="p-8 max-w-4xl mx-auto animate-fade-up">
+    <div className="p-8 w-full animate-fade-up">
       <div className="flex items-end justify-between mb-5">
         <div>
           <h2 className="font-display text-xl font-semibold">Tasks</h2>
@@ -927,7 +927,7 @@ function AdvancedTab() {
     { id: "auth", label: "Credentials", desc: "Per-agent secrets and API tokens." },
   ];
   return (
-    <div className="p-8 max-w-4xl mx-auto animate-fade-up">
+    <div className="p-8 w-full animate-fade-up">
       <div className="mb-5">
         <h2 className="font-display text-xl font-semibold">Advanced</h2>
         <p className="text-xs text-muted-foreground mt-0.5">Power-user settings consolidated in one place.</p>
@@ -973,7 +973,7 @@ function AdvancedTab() {
 /* ============ MONITOR / PERFORMANCE ============ */
 function PerformanceTab() {
   return (
-    <div className="p-8 max-w-5xl mx-auto space-y-5 animate-fade-up">
+    <div className="p-8 w-full space-y-5 animate-fade-up">
       <div className="flex items-center justify-between">
         <h2 className="font-display text-xl font-semibold">Performance</h2>
         <div className="flex items-center gap-1 bg-surface border border-border rounded-lg p-1">
