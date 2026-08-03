@@ -661,65 +661,65 @@ You are a customer-care specialist at ABC Bank. Help customers 24/7 with product
 - If unsure, escalate to a human agent`;
 
   return (
-    <div className="p-8 w-full space-y-6 animate-fade-up">
-      {/* ── Compact header ── */}
-      <div className="flex items-start gap-3">
-        {/* Avatar with edit hint */}
-        <div className="relative shrink-0">
-          <button
-            onClick={() => setEditingAvatar(o => !o)}
-            className="w-12 h-12 rounded-xl bg-primary-soft border border-border hover:border-primary/40 flex items-center justify-center text-2xl transition-base group"
-          >
-            {avatar}
+    <div className="w-full animate-fade-up">
+      {/* ── Sticky header ── */}
+      <div className="sticky top-0 z-10 bg-background px-8 pt-8 pb-5">
+        <div className="flex items-center gap-3">
+          {/* Avatar with edit hint */}
+          <div className="relative shrink-0">
+            <button
+              onClick={() => setEditingAvatar(o => !o)}
+              className="w-12 h-12 rounded-xl bg-primary-soft border border-border hover:border-primary/40 flex items-center justify-center text-2xl transition-base"
+            >
+              {avatar}
+            </button>
+            <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-md bg-surface border border-border flex items-center justify-center pointer-events-none">
+              <Pencil size={9} className="text-muted-foreground" />
+            </span>
+            {editingAvatar && (
+              <div className="absolute top-full left-0 mt-2 z-20 bg-surface border border-border rounded-xl shadow-lg p-2.5 grid grid-cols-6 gap-1 w-[180px]">
+                {emojiOptions.map(e => (
+                  <button
+                    key={e}
+                    onClick={() => { setAvatar(e); setEditingAvatar(false); }}
+                    className={`w-8 h-8 rounded-lg text-xl flex items-center justify-center hover:bg-primary-soft transition-base ${avatar === e ? "bg-primary-soft ring-1 ring-primary" : ""}`}
+                  >
+                    {e}
+                  </button>
+                ))}
+                <label className="col-span-6 mt-1 flex items-center justify-center gap-1.5 text-xs text-primary cursor-pointer hover:underline">
+                  <Upload size={10} /> Upload image
+                  <input type="file" className="hidden" accept="image/*" />
+                </label>
+              </div>
+            )}
+          </div>
+
+          {/* Editable name + description (1 line each, ellipsis) */}
+          <div className="flex-1 flex flex-col gap-1 min-w-0">
+            <input
+              className="w-full text-base font-semibold bg-transparent border border-transparent rounded-md px-2 py-0.5 -mx-2 outline-none hover:border-border hover:bg-surface focus:border-ring focus:bg-surface transition-base"
+              defaultValue={initialName}
+              placeholder="Agent name…"
+              style={{ textOverflow: "ellipsis" }}
+            />
+            <input
+              className="w-full text-sm text-muted-foreground bg-transparent border border-transparent rounded-md px-2 py-0.5 -mx-2 outline-none hover:border-border hover:bg-surface focus:border-ring focus:bg-surface transition-base"
+              defaultValue="Handles customer queries 24/7 for ABC Bank — products, services, and support."
+              placeholder="Short description…"
+              style={{ textOverflow: "ellipsis" }}
+            />
+          </div>
+
+          {/* 3-dot menu */}
+          <button className="w-8 h-8 rounded-lg border border-border bg-surface flex items-center justify-center text-muted-foreground hover:bg-surface-muted transition-base shrink-0">
+            <MoreHorizontal size={15} />
           </button>
-          <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-md bg-surface border border-border flex items-center justify-center pointer-events-none">
-            <Pencil size={9} className="text-muted-foreground" />
-          </span>
-          {editingAvatar && (
-            <div className="absolute top-full left-0 mt-2 z-10 bg-surface border border-border rounded-xl shadow-lg p-2.5 grid grid-cols-6 gap-1 w-[180px]">
-              {emojiOptions.map(e => (
-                <button
-                  key={e}
-                  onClick={() => { setAvatar(e); setEditingAvatar(false); }}
-                  className={`w-8 h-8 rounded-lg text-xl flex items-center justify-center hover:bg-primary-soft transition-base ${avatar === e ? "bg-primary-soft ring-1 ring-primary" : ""}`}
-                >
-                  {e}
-                </button>
-              ))}
-              <label className="col-span-6 mt-1 flex items-center justify-center gap-1.5 text-xs text-primary cursor-pointer hover:underline">
-                <Upload size={10} /> Upload image
-                <input type="file" className="hidden" accept="image/*" />
-              </label>
-            </div>
-          )}
         </div>
-
-        {/* Editable name + description */}
-        <div className="flex-1 flex flex-col gap-1.5 min-w-0">
-          <input
-            className="w-full text-base font-semibold bg-transparent border border-transparent rounded-md px-2 py-1 -mx-2 -my-1 outline-none hover:border-border hover:bg-surface focus:border-ring focus:bg-surface transition-base"
-            defaultValue={initialName}
-            placeholder="Agent name…"
-          />
-          <textarea
-            rows={2}
-            className="w-full text-sm text-muted-foreground bg-transparent border border-transparent rounded-md px-2 py-1 -mx-2 -my-1 outline-none resize-none hover:border-border hover:bg-surface focus:border-ring focus:bg-surface transition-base leading-relaxed"
-            defaultValue="Handles customer queries 24/7 for ABC Bank — products, services, and support."
-            placeholder="Short description…"
-          />
-        </div>
-
-        {/* 3-dot menu */}
-        <button className="w-8 h-8 rounded-lg border border-border bg-surface flex items-center justify-center text-muted-foreground hover:bg-surface-muted transition-base shrink-0 mt-1">
-          <MoreHorizontal size={15} />
-        </button>
       </div>
 
-      {/* ── Divider ── */}
-      <div className="border-t border-border" />
-
-      {/* ── Instructions ── */}
-      <div>
+      {/* ── Instructions (no divider) ── */}
+      <div className="px-8 pb-8">
         <div className="flex items-center justify-between mb-3">
           <span className="section-eyebrow">Instructions</span>
           <span className="flex items-center gap-1 text-xs text-muted-foreground">
