@@ -362,7 +362,7 @@ function HeaderNewMenu({ pathname }: { pathname: string }) {
     { to: "/knowledge?new=1", label: "New Knowledge", desc: "Upload docs or connect a data source", icon: BookOpen, hidden: hide.knowledge },
   ];
   const secondary: NewItem[] = [
-    { to: "/connectors", label: "Browse connectors", desc: "Start from a prebuilt blueprint", icon: Sparkles, hidden: hide.template },
+    { to: "/connectors", label: "Browse connectors", desc: "Start from a prebuilt blueprint", icon: Sparkles, hidden: hide.connector },
   ];
 
   const visiblePrimary = primary.filter(i => !i.hidden);
