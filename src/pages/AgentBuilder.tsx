@@ -574,12 +574,72 @@ function AiBuildSidebar({
 }
 
 /* ============ GENERAL ============ */
+const MODELS = [
+  { id: "deepseek-v4-flash", name: "DeepSeek V4 Flash", desc: "Fast, cost-efficient model for most agent workloads.", badge: "Recommended", icon: "⚡" },
+  { id: "glm-5-1",           name: "GLM 5.1",           desc: "Most capable model for hard reasoning.",             badge: "Powerful",     icon: "🧠" },
+  { id: "deepseek-v4",       name: "DeepSeek V4",        desc: "Balanced performance and cost.",                    badge: "",             icon: "✨" },
+  { id: "qwen-turbo",        name: "Qwen Turbo",         desc: "Ultra-fast responses, great for simple tasks.",    badge: "Fast",         icon: "🚀" },
+];
+
+function ModelDropdown({ value, onChange }: { value: string; onChange: (id: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const selected = MODELS.find(m => m.id === value) ?? MODELS[0];
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative w-full">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="ds-input w-full flex items-center gap-2 cursor-pointer text-left"
+      >
+        <span className="w-6 h-6 rounded bg-accent-soft flex items-center justify-center text-xs shrink-0">{selected.icon}</span>
+        <span className="flex-1 text-sm font-medium">{selected.name}</span>
+        {selected.badge && <span className="chip chip-primary text-[10px]">{selected.badge}</span>}
+        <ChevronDown size={14} className={`text-muted-foreground shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-surface border border-border rounded-xl shadow-lg overflow-hidden">
+          <div className="px-3 pt-2.5 pb-1 border-b border-border">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Choose a model</span>
+          </div>
+          {MODELS.map((m, idx) => (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => { onChange(m.id); setOpen(false); }}
+              className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-base hover:bg-surface-muted ${m.id === value ? "bg-primary-soft/40" : ""} ${idx < MODELS.length - 1 ? "border-b border-border/50" : ""}`}
+            >
+              <span className="text-base mt-0.5 shrink-0">{m.icon}</span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold">{m.name}</span>
+                  {m.badge && <span className="chip chip-primary text-[10px]">{m.badge}</span>}
+                  {m.id === value && <CheckCircle2 size={12} className="text-primary ml-auto" />}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{m.desc}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function GeneralTab() {
   const [params] = useSearchParams();
   const initialName = params.get("agentName") || "Banking ABC — Customer Care";
   const initialPrompt = params.get("agentPrompt") || "";
   const [avatar, setAvatar] = useState("🏦");
   const [editingAvatar, setEditingAvatar] = useState(false);
+  const [selectedModel, setSelectedModel] = useState("deepseek-v4-flash");
   const emojiOptions = ["🏦","🤖","💼","🧠","🎯","🛡️","⚡","🌐","📊","🔧","💡","🚀"];
 
   return (
@@ -637,12 +697,7 @@ function GeneralTab() {
         {/* Model */}
         <div className="w-full">
           <label className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Model</label>
-          <button className="ds-input w-full flex items-center gap-2 cursor-pointer text-left">
-            <span className="w-6 h-6 rounded bg-accent-soft flex items-center justify-center text-xs shrink-0">✨</span>
-            <span className="flex-1">DeepSeek V4</span>
-            <span className="chip chip-primary text-[10px]">FPT Marketplace</span>
-            <ChevronDown size={14} className="text-muted-foreground shrink-0" />
-          </button>
+          <ModelDropdown value={selectedModel} onChange={setSelectedModel} />
         </div>
       </div>
 
