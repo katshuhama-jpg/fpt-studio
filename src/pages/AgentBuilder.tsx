@@ -400,19 +400,6 @@ function AiBuildSidebar({
         </button>
       </div>
 
-      {/* Context picker */}
-      <div className="px-3 py-2 border-b border-border bg-surface-muted/40 shrink-0">
-        <div className="section-eyebrow mb-1.5">Editing context</div>
-        <div className="flex flex-wrap gap-1">
-          {sections.map((s: any) => (
-            <button key={s.id} onClick={() => onSectionChange(s.id)}
-              className={`text-xs px-2 py-1 rounded-md flex items-center gap-1 transition-base ${currentSection === s.id ? "bg-primary text-primary-foreground" : "bg-surface border border-border hover:bg-primary-soft hover:text-primary"}`}>
-              <s.icon size={10} />@{s.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
         {messages.map((msg, i) => {
