@@ -168,7 +168,7 @@ export default function AgentBuilder() {
             <div className="p-3 space-y-5">
               {nav.map(group => (
                 <div key={group.label}>
-                  <div className="px-2 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <div className="px-2 mb-1.5 section-eyebrow">
                     {group.label}
                   </div>
                   <div className="space-y-0.5">
@@ -185,7 +185,7 @@ export default function AgentBuilder() {
                         <it.icon size={14} className="shrink-0" />
                         <span className="flex-1 text-left truncate">{it.label}</span>
                         {typeof it.count === "number" && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-surface-muted border border-border text-muted-foreground">{it.count}</span>
+                          <span className="text-xs px-1.5 py-0.5 rounded-full bg-surface-muted border border-border text-muted-foreground">{it.count}</span>
                         )}
                         {it.status === "done" && <CheckCircle2 size={11} className="text-success" />}
                         {it.status === "warn" && <span className="w-1.5 h-1.5 rounded-full bg-warning" />}
@@ -198,8 +198,8 @@ export default function AgentBuilder() {
             <div className="px-3 pb-2 space-y-2">
               <div className="rounded-lg border border-border bg-surface-muted/50 p-2.5">
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[10px] font-semibold text-foreground">Ready to publish</span>
-                  <span className="text-[10px] text-muted-foreground">3/5</span>
+                  <span className="text-xs font-semibold text-foreground">Ready to publish</span>
+                  <span className="text-xs text-muted-foreground">3/5</span>
                 </div>
                 <div className="h-1.5 rounded-full bg-border overflow-hidden mb-2">
                   <div className="h-full w-[60%] rounded-full bg-primary" />
@@ -212,7 +212,7 @@ export default function AgentBuilder() {
                     { label: "Connectors", done: true },
                     { label: "Guardrails", done: true },
                   ].map(item => (
-                    <div key={item.label} className="flex items-center gap-1.5 text-[10px]">
+                    <div key={item.label} className="flex items-center gap-1.5 text-xs">
                       <CheckCircle2 size={10} className={item.done ? "text-success" : "text-border-strong"} />
                       <span className={item.done ? "text-foreground" : "text-muted-foreground"}>{item.label}</span>
                     </div>
@@ -394,7 +394,7 @@ function AiBuildSidebar({
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold leading-tight">Refine with AI</div>
-          <div className="text-[10px] text-muted-foreground leading-tight">Chat to edit your agent</div>
+          <div className="text-xs text-muted-foreground leading-tight">Chat to edit your agent</div>
         </div>
         <button onClick={onClose} className="h-8 w-8 rounded-md hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base">
           <X size={15} />
@@ -403,11 +403,11 @@ function AiBuildSidebar({
 
       {/* Context picker */}
       <div className="px-3 py-2 border-b border-border bg-surface-muted/40 shrink-0">
-        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Editing context</div>
+        <div className="section-eyebrow mb-1.5">Editing context</div>
         <div className="flex flex-wrap gap-1">
           {sections.map((s: any) => (
             <button key={s.id} onClick={() => onSectionChange(s.id)}
-              className={`text-[11px] px-2 py-1 rounded-md flex items-center gap-1 transition-base ${currentSection === s.id ? "bg-primary text-primary-foreground" : "bg-surface border border-border hover:bg-primary-soft hover:text-primary"}`}>
+              className={`text-xs px-2 py-1 rounded-md flex items-center gap-1 transition-base ${currentSection === s.id ? "bg-primary text-primary-foreground" : "bg-surface border border-border hover:bg-primary-soft hover:text-primary"}`}>
               <s.icon size={10} />@{s.label}
             </button>
           ))}
@@ -419,16 +419,16 @@ function AiBuildSidebar({
         {messages.map((msg, i) => {
           if (msg.kind === "text" && msg.role === "user") return (
             <div key={i} className="flex justify-end">
-              <div className="bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-3 py-2 text-[12px] max-w-[90%] leading-relaxed">{msg.text}</div>
+              <div className="bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-3 py-2 text-xs max-w-[90%] leading-relaxed">{msg.text}</div>
             </div>
           );
           if (msg.kind === "text" && msg.role === "ai") return (
-            <div key={i} className="bg-surface-muted/60 border border-border rounded-2xl rounded-bl-sm px-3 py-2.5 text-[12px] leading-relaxed max-w-[95%]">
+            <div key={i} className="bg-surface-muted/60 border border-border rounded-2xl rounded-bl-sm px-3 py-2.5 text-xs leading-relaxed max-w-[95%]">
               {msg.text}{msg.streaming && <span className="inline-block w-0.5 h-3 bg-muted-foreground ml-0.5 animate-pulse align-middle" />}
             </div>
           );
           if (msg.kind === "tool") return (
-            <div key={i} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] w-fit border ${msg.done ? "border-success/30 bg-success/10 text-success" : "border-primary/30 bg-primary-soft text-primary"}`}>
+            <div key={i} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs w-fit border ${msg.done ? "border-success/30 bg-success/10 text-success" : "border-primary/30 bg-primary-soft text-primary"}`}>
               {msg.done ? <CheckCircle2 size={11} /> : <Sparkles size={11} className="animate-pulse" />}
               {msg.name}
             </div>
@@ -436,17 +436,17 @@ function AiBuildSidebar({
           if (msg.kind === "diff") return (
             <div key={i} className="rounded-xl border border-primary/30 bg-primary-soft/40 p-2.5">
               {msg.applied ? (
-                <div className="flex items-center gap-1.5 text-[11px] text-success"><CheckCircle2 size={11} /> Applied to system prompt</div>
+                <div className="flex items-center gap-1.5 text-xs text-success"><CheckCircle2 size={11} /> Applied to system prompt</div>
               ) : (
                 <>
-                  <div className="flex items-center gap-1.5 mb-2"><Sparkles size={11} className="text-primary" /><span className="text-[10px] font-semibold text-primary">Proposed change · System prompt</span></div>
-                  <div className="font-mono text-[10.5px] space-y-1">
+                  <div className="flex items-center gap-1.5 mb-2"><Sparkles size={11} className="text-primary" /><span className="text-xs font-semibold text-primary">Proposed change · System prompt</span></div>
+                  <div className="font-mono text-xs space-y-1">
                     <div className="bg-destructive/10 text-destructive px-2 py-1 rounded line-through">− {msg.before}</div>
                     <div className="bg-success/10 text-success px-2 py-1 rounded">+ {msg.after}</div>
                   </div>
                   <div className="flex gap-1.5 mt-2">
-                    <button onClick={() => handleDiffApply(i)} className="h-7 px-2.5 rounded-md bg-primary text-primary-foreground text-[11px] font-medium">Apply</button>
-                    <button onClick={() => setMessages(m => m.filter((_, j) => j !== i))} className="h-7 px-2.5 rounded-md hover:bg-surface-muted text-[11px] text-muted-foreground">Discard</button>
+                    <button onClick={() => handleDiffApply(i)} className="h-7 px-2.5 rounded-md bg-primary text-primary-foreground text-xs font-medium">Apply</button>
+                    <button onClick={() => setMessages(m => m.filter((_, j) => j !== i))} className="h-7 px-2.5 rounded-md hover:bg-surface-muted text-xs text-muted-foreground">Discard</button>
                   </div>
                 </>
               )}
@@ -454,10 +454,10 @@ function AiBuildSidebar({
           );
           if (msg.kind === "clarify") return (
             <div key={i} className="rounded-xl border border-primary/20 bg-primary-soft/20 p-2.5 space-y-2">
-              <div className="flex items-center gap-1.5 text-[10px] font-semibold text-primary"><MessageSquare size={11} /> Cần thêm thông tin</div>
-              <p className="text-[12px] text-foreground leading-relaxed">{msg.question}</p>
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-primary"><MessageSquare size={11} /> Cần thêm thông tin</div>
+              <p className="text-xs text-foreground leading-relaxed">{msg.question}</p>
               {msg.answered ? (
-                <div className="flex items-center gap-1.5 text-[11px] text-primary"><CheckCircle2 size={11} /> Đã chọn: <strong>{msg.answered}</strong></div>
+                <div className="flex items-center gap-1.5 text-xs text-primary"><CheckCircle2 size={11} /> Đã chọn: <strong>{msg.answered}</strong></div>
               ) : (
                 <div className="space-y-1.5">
                   {msg.options.map((opt, oi) => (
@@ -466,23 +466,23 @@ function AiBuildSidebar({
                       <div className="w-6 h-6 rounded-md bg-surface-muted border border-border flex items-center justify-center shrink-0 mt-0.5">
                         {oi === 0 ? <Zap size={11} className="text-primary" /> : oi === 1 ? <BookOpen size={11} className="text-primary" /> : <Shield size={11} className="text-primary" />}
                       </div>
-                      <div><div className="text-[11px] font-medium">{opt.title}</div><div className="text-[10px] text-muted-foreground mt-0.5">{opt.desc}</div></div>
+                      <div><div className="text-xs font-medium">{opt.title}</div><div className="text-xs text-muted-foreground mt-0.5">{opt.desc}</div></div>
                     </button>
                   ))}
                   {/* Custom input — always visible */}
                   <div className="border border-border rounded-lg bg-surface p-2 space-y-1.5">
-                    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-medium"><Plus size={11} /> Tự điền câu trả lời</div>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium"><Plus size={11} /> Tự điền câu trả lời</div>
                     <textarea
                       rows={2}
                       placeholder="Nhập yêu cầu cụ thể của bạn…"
                       value={customAnswers[i] ?? ""}
                       onChange={e => setCustomAnswers(a => ({ ...a, [i]: e.target.value }))}
-                      className="w-full resize-none bg-surface-muted text-[11px] placeholder:text-muted-foreground outline-none px-2 py-1.5 rounded-md border border-border focus:border-primary transition-base"
+                      className="w-full resize-none bg-surface-muted text-xs placeholder:text-muted-foreground outline-none px-2 py-1.5 rounded-md border border-border focus:border-primary transition-base"
                     />
                     <button
                       disabled={!customAnswers[i]?.trim()}
                       onClick={() => { const v = customAnswers[i]?.trim(); if (v) handleAnswer(-1, v, i); }}
-                      className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-md bg-primary text-primary-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-base"
+                      className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-primary text-primary-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-base"
                     >
                       <Send size={10} /> Gửi
                     </button>
@@ -493,7 +493,7 @@ function AiBuildSidebar({
           );
           if (msg.kind === "connector") return (
             <div key={i} className="rounded-xl border border-warning/40 bg-warning-soft/30 p-2.5">
-              <div className="flex items-center gap-1.5 text-[10px] font-semibold text-warning mb-2"><Plug size={11} /> Yêu cầu kết nối tài khoản</div>
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-warning mb-2"><Plug size={11} /> Yêu cầu kết nối tài khoản</div>
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-9 h-9 rounded-xl bg-white border border-border flex items-center justify-center shrink-0 shadow-sm">
                   {msg.service === "Gmail" ? (
@@ -516,15 +516,15 @@ function AiBuildSidebar({
                     <span className="text-lg">{msg.logo}</span>
                   )}
                 </div>
-                <div><div className="text-[12px] font-medium">{msg.service}</div><div className="text-[10px] text-muted-foreground">Agent cần quyền truy cập để thực hiện tác vụ thay bạn.</div></div>
+                <div><div className="text-xs font-medium">{msg.service}</div><div className="text-xs text-muted-foreground">Agent cần quyền truy cập để thực hiện tác vụ thay bạn.</div></div>
               </div>
-              <div className="text-[10px] font-medium mb-1.5">Quyền được yêu cầu:</div>
-              {msg.perms.map((p, pi) => <div key={pi} className="flex items-center gap-1.5 text-[10px] text-muted-foreground mb-1"><CheckCircle2 size={10} className="text-success" />{p}</div>)}
+              <div className="text-xs font-medium mb-1.5">Quyền được yêu cầu:</div>
+              {msg.perms.map((p, pi) => <div key={pi} className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><CheckCircle2 size={10} className="text-success" />{p}</div>)}
               {msg.connected ? (
-                <div className="flex items-center gap-1.5 text-[11px] text-success mt-2"><CheckCircle2 size={11} /> {msg.service} connected</div>
+                <div className="flex items-center gap-1.5 text-xs text-success mt-2"><CheckCircle2 size={11} /> {msg.service} connected</div>
               ) : (
                 <div className="flex gap-1.5 mt-2">
-                  <button onClick={() => handleConnectorConnect(msg.service)} className="h-7 px-2.5 rounded-md bg-primary text-primary-foreground text-[11px] font-medium flex items-center gap-1">
+                  <button onClick={() => handleConnectorConnect(msg.service)} className="h-7 px-2.5 rounded-md bg-primary text-primary-foreground text-xs font-medium flex items-center gap-1">
                     <svg viewBox="0 0 48 48" width="12" height="12" xmlns="http://www.w3.org/2000/svg" style={{flexShrink:0}}>
                       <path fill="#fff" d="M6 40h6V23.8L4 18v18c0 2.2 1.8 4 4 4z"/>
                       <path fill="#fff" d="M36 40h6c2.2 0 4-1.8 4-4V18l-8 5.8z"/>
@@ -534,7 +534,7 @@ function AiBuildSidebar({
                     </svg>
                     Kết nối {msg.service}
                   </button>
-                  <button onClick={() => setMessages(m => m.map((x, j) => j === i && x.kind === "connector" ? { ...x, connected: false, perms: [] } : x))} className="h-7 px-2.5 rounded-md border border-border text-[11px] text-muted-foreground">Bỏ qua</button>
+                  <button onClick={() => setMessages(m => m.map((x, j) => j === i && x.kind === "connector" ? { ...x, connected: false, perms: [] } : x))} className="h-7 px-2.5 rounded-md border border-border text-xs text-muted-foreground">Bỏ qua</button>
                 </div>
               )}
             </div>
@@ -543,7 +543,7 @@ function AiBuildSidebar({
         })}
         <div className="flex flex-wrap gap-1.5 pt-1">
           {quickActions.map(s => (
-            <button key={s} onClick={() => handleSend(s)} className="text-[10.5px] px-2 py-1 rounded-full bg-surface border border-border hover:bg-primary-soft hover:text-primary hover:border-primary/30 transition-base">
+            <button key={s} onClick={() => handleSend(s)} className="text-xs px-2 py-1 rounded-full bg-surface border border-border hover:bg-primary-soft hover:text-primary hover:border-primary/30 transition-base">
               {s}
             </button>
           ))}
@@ -555,19 +555,19 @@ function AiBuildSidebar({
       <div className="border-t border-border p-2.5 shrink-0 bg-surface">
         <div className="rounded-xl border border-border bg-surface focus-within:border-primary transition-base p-1.5">
           <div className="flex items-center gap-1 mb-1">
-            <span className="text-[10px] font-medium text-primary bg-primary-soft px-1.5 py-0.5 rounded">@{contextLabel}</span>
+            <span className="text-xs font-medium text-primary bg-primary-soft px-1.5 py-0.5 rounded">@{contextLabel}</span>
           </div>
           <div className="flex items-end gap-1.5">
             <textarea rows={2} value={input} onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
               placeholder={`Update ${contextLabel.toLowerCase()}…`}
-              className="flex-1 resize-none bg-transparent text-[13px] placeholder:text-muted-foreground outline-none px-1 py-0.5 max-h-32" />
+              className="flex-1 resize-none bg-transparent text-sm placeholder:text-muted-foreground outline-none px-1 py-0.5 max-h-32" />
             <button onClick={() => handleSend()} className="h-7 w-7 rounded-md bg-primary text-primary-foreground hover:bg-primary-glow flex items-center justify-center transition-base shrink-0">
               <Send size={12} />
             </button>
           </div>
         </div>
-        <div className="text-[10px] text-muted-foreground mt-1.5 px-1">Enter to send · Shift+Enter for new line</div>
+        <div className="text-xs text-muted-foreground mt-1.5 px-1">Enter to send · Shift+Enter for new line</div>
       </div>
     </aside>
   );
@@ -601,13 +601,13 @@ function ModelDropdown({ value, onChange }: { value: string; onChange: (id: stri
       >
         <span className="w-6 h-6 rounded bg-accent-soft flex items-center justify-center text-xs shrink-0">{selected.icon}</span>
         <span className="flex-1 text-sm font-medium">{selected.name}</span>
-        {selected.badge && <span className="chip chip-primary text-[10px]">{selected.badge}</span>}
+        {selected.badge && <span className="chip chip-primary text-xs">{selected.badge}</span>}
         <ChevronDown size={14} className={`text-muted-foreground shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
         <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-surface border border-border rounded-xl shadow-lg overflow-hidden">
           <div className="px-3 pt-2.5 pb-1 border-b border-border">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Choose a model</span>
+            <span className="section-eyebrow">Choose a model</span>
           </div>
           {MODELS.map((m, idx) => (
             <button
@@ -620,10 +620,10 @@ function ModelDropdown({ value, onChange }: { value: string; onChange: (id: stri
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold">{m.name}</span>
-                  {m.badge && <span className="chip chip-primary text-[10px]">{m.badge}</span>}
+                  {m.badge && <span className="chip chip-primary text-xs">{m.badge}</span>}
                   {m.id === value && <CheckCircle2 size={12} className="text-primary ml-auto" />}
                 </div>
-                <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{m.desc}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{m.desc}</p>
               </div>
             </button>
           ))}
@@ -654,7 +654,7 @@ function GeneralTab() {
           >
             {avatar}
             <span className="absolute inset-0 rounded-2xl bg-black/0 group-hover:bg-black/5 transition-base flex items-end justify-end p-1 opacity-0 group-hover:opacity-100">
-              <span className="bg-surface rounded-md px-1 py-0.5 text-[10px] font-medium text-muted-foreground border border-border">Edit</span>
+              <span className="bg-surface rounded-md px-1 py-0.5 text-xs font-medium text-muted-foreground border border-border">Edit</span>
             </span>
           </button>
           {editingAvatar && (
@@ -668,7 +668,7 @@ function GeneralTab() {
                   {e}
                 </button>
               ))}
-              <label className="col-span-6 mt-1 flex items-center justify-center gap-1.5 text-[10px] text-primary cursor-pointer hover:underline">
+              <label className="col-span-6 mt-1 flex items-center justify-center gap-1.5 text-xs text-primary cursor-pointer hover:underline">
                 <Upload size={10} /> Upload image
                 <input type="file" className="hidden" accept="image/*" />
               </label>
@@ -678,7 +678,7 @@ function GeneralTab() {
 
         {/* Name */}
         <div className="w-full">
-          <label className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Agent name</label>
+          <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Agent name</label>
           <input
             className="ds-input text-center text-base font-semibold"
             defaultValue={initialName}
@@ -687,7 +687,7 @@ function GeneralTab() {
 
         {/* Description */}
         <div className="w-full">
-          <label className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Description</label>
+          <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Description</label>
           <input
             className="ds-input"
             placeholder="Short description of what this agent does…"
@@ -696,7 +696,7 @@ function GeneralTab() {
         </div>
         {/* Model */}
         <div className="w-full">
-          <label className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Model</label>
+          <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Model</label>
           <ModelDropdown value={selectedModel} onChange={setSelectedModel} />
         </div>
       </div>
@@ -707,14 +707,14 @@ function GeneralTab() {
       {/* Instructions */}
       <div>
         <div className="flex items-center justify-between mb-1.5">
-          <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Instructions</label>
-          <span className="text-[10px] text-muted-foreground">System prompt</span>
+          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Instructions</label>
+          <span className="text-xs text-muted-foreground">System prompt</span>
         </div>
         <p className="text-xs text-muted-foreground mb-3">
           Tell the agent who it is, how it should behave, and what it must never do.
         </p>
         <textarea
-          className="ds-textarea w-full min-h-[260px] font-mono text-[13px] leading-relaxed"
+          className="ds-textarea w-full min-h-[260px] font-mono text-sm leading-relaxed"
           defaultValue={initialPrompt || `# Banking ABC — Customer Care Agent
 
 ## Role
@@ -758,7 +758,7 @@ function ConfigAccordion({
             <div className="flex items-center gap-2">
               <h3 className="font-display font-semibold text-sm">{title}</h3>
               {typeof count === "number" && (
-                <span className="chip text-[10px]">{count}</span>
+                <span className="chip text-xs">{count}</span>
               )}
             </div>
             {desc && <p className="text-xs text-muted-foreground mt-0.5 truncate">{desc}</p>}
@@ -791,8 +791,8 @@ function SummaryRow({
     <div className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-surface transition-base">
       <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${enabled ? "bg-success" : "bg-muted-foreground/40"}`} />
       <span className="text-sm font-medium truncate flex-1">{name}</span>
-      {chip && <span className="chip chip-primary text-[10px]">{chip}</span>}
-      {meta && <span className="text-[11px] text-muted-foreground capitalize">{meta}</span>}
+      {chip && <span className="chip chip-primary text-xs">{chip}</span>}
+      {meta && <span className="text-xs text-muted-foreground capitalize">{meta}</span>}
     </div>
   );
 }
@@ -847,7 +847,7 @@ function KnowledgeTab() {
         </div>
 
         <div className="rounded-lg overflow-hidden border border-border">
-          <div className="grid grid-cols-[1fr,80px,90px,70px,70px,40px] gap-3 px-4 py-2.5 bg-surface-muted text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <div className="grid grid-cols-[1fr,80px,90px,70px,70px,40px] gap-3 px-4 py-2.5 bg-surface-muted section-eyebrow">
             <div>Source</div><div>Type</div><div>Size</div><div>Chunks</div><div>Version</div><div></div>
           </div>
           {sources.map(s => (
@@ -859,7 +859,7 @@ function KnowledgeTab() {
               <div className="text-xs text-muted-foreground">{s.type}</div>
               <div className="text-xs text-muted-foreground">{s.size}</div>
               <div className="text-xs font-mono">{s.chunks}</div>
-              <div><span className="chip text-[10px]">{s.version}</span></div>
+              <div><span className="chip text-xs">{s.version}</span></div>
               <button className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-base">
                 <Trash2 size={13} />
               </button>
@@ -889,7 +889,7 @@ function TasksList({ agentId }: { agentId: string }) {
       </div>
 
       <div className="rounded-xl bg-surface border border-border overflow-hidden">
-        <div className="grid grid-cols-[1fr,110px,80px,80px,110px,40px] gap-3 px-5 py-3 bg-surface-muted text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <div className="grid grid-cols-[1fr,110px,80px,80px,110px,40px] gap-3 px-5 py-3 bg-surface-muted section-eyebrow">
           <div>Task</div><div>Type</div><div>Steps</div><div>Version</div><div>Updated</div><div></div>
         </div>
         {tasks.map(t => (
@@ -902,9 +902,9 @@ function TasksList({ agentId }: { agentId: string }) {
               <div className={`w-2 h-2 rounded-full ${t.status === "active" ? "bg-success" : "bg-muted-foreground/40"}`} />
               <span className="text-sm font-medium truncate">{t.name}</span>
             </div>
-            <div><span className={`chip ${t.type === "Workflow" ? "chip-accent" : "chip-primary"} text-[10px]`}>{t.type}</span></div>
+            <div><span className={`chip ${t.type === "Workflow" ? "chip-accent" : "chip-primary"} text-xs`}>{t.type}</span></div>
             <div className="text-xs font-mono">{t.steps}</div>
-            <div className="text-xs"><span className="chip text-[10px]">{t.version}</span></div>
+            <div className="text-xs"><span className="chip text-xs">{t.version}</span></div>
             <div className="text-xs text-muted-foreground">{t.updated}</div>
             <ArrowRight size={13} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-base" />
           </Link>
@@ -954,7 +954,7 @@ function AdvancedTab() {
             <div className="space-y-2">
               {["What products do you offer?", "How do I lock my card?", "Book a consultation"].map((q, i) => (
                 <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-muted">
-                  <span className="text-[10px] font-mono text-muted-foreground w-6">#{i + 1}</span>
+                  <span className="text-xs font-mono text-muted-foreground w-6">#{i + 1}</span>
                   <input defaultValue={q} className="flex-1 bg-transparent text-sm outline-none" />
                   <button className="text-muted-foreground hover:text-destructive transition-base"><Trash2 size={12} /></button>
                 </div>
@@ -989,9 +989,9 @@ function PerformanceTab() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {metrics.map(m => (
           <div key={m.label} className="surface-card p-4">
-            <div className="text-[11px] text-muted-foreground mb-1">{m.label}</div>
+            <div className="text-xs text-muted-foreground mb-1">{m.label}</div>
             <div className="font-display text-2xl font-semibold tracking-tight">{m.value}</div>
-            <div className={`text-[11px] mt-1 ${m.trend === "up" ? "text-success" : "text-destructive"}`}>
+            <div className={`text-xs mt-1 ${m.trend === "up" ? "text-success" : "text-destructive"}`}>
               {m.trend === "up" ? "↑" : "↓"} {m.delta}
             </div>
           </div>
@@ -1001,7 +1001,7 @@ function PerformanceTab() {
       <div className="surface-card p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-display text-sm font-semibold">Conversations by day</h3>
-          <span className="text-[11px] text-muted-foreground">Last 7 days</span>
+          <span className="text-xs text-muted-foreground">Last 7 days</span>
         </div>
         <div className="flex items-end gap-2 h-40 mb-2">
           {bars.map((h, i) => (
@@ -1015,7 +1015,7 @@ function PerformanceTab() {
         </div>
         <div className="flex gap-2">
           {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(d => (
-            <div key={d} className="flex-1 text-center text-[10px] text-muted-foreground">{d}</div>
+            <div key={d} className="flex-1 text-center text-xs text-muted-foreground">{d}</div>
           ))}
         </div>
       </div>
@@ -1075,15 +1075,15 @@ function RightCard({ icon: Icon, title, notSet, desc, addLabel }: {
         <Icon size={15} className="text-muted-foreground shrink-0" />
         <span className="text-sm font-medium flex-1 text-left">{title}</span>
         {notSet && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-warning-soft text-warning font-semibold">Not set</span>
+          <span className="text-xs px-1.5 py-0.5 rounded-full bg-warning-soft text-warning font-semibold">Not set</span>
         )}
         {open ? <ChevronUp size={13} className="text-muted-foreground" /> : <ChevronDown size={13} className="text-muted-foreground" />}
       </button>
       {open && (
         <div className="border-t border-border px-3 pb-2">
-          {desc && <p className="text-[11px] text-muted-foreground mt-2 mb-1 leading-relaxed">{desc}</p>}
+          {desc && <p className="text-xs text-muted-foreground mt-2 mb-1 leading-relaxed">{desc}</p>}
           {addLabel && (
-            <button className="flex items-center gap-1 text-[11px] text-primary mt-1 hover:underline">
+            <button className="flex items-center gap-1 text-xs text-primary mt-1 hover:underline">
               <Plus size={12} /> {addLabel}
             </button>
           )}
@@ -1104,16 +1104,16 @@ function SharedConnectorsCard() {
       </button>
       {open && (
         <div className="border-t border-border px-3 pb-2">
-          <p className="text-[11px] text-muted-foreground mt-2 mb-2 leading-relaxed">Agent always uses the same account, no matter who's asking.</p>
+          <p className="text-xs text-muted-foreground mt-2 mb-2 leading-relaxed">Agent always uses the same account, no matter who's asking.</p>
           <div className="flex items-center gap-2 py-1.5">
-            <div className="w-5 h-5 rounded bg-primary-soft flex items-center justify-center text-[10px] font-bold text-primary shrink-0">G</div>
+            <div className="w-5 h-5 rounded bg-primary-soft flex items-center justify-center text-xs font-bold text-primary shrink-0">G</div>
             <span className="text-xs flex-1">Google Docs</span>
-            <span className="flex items-center gap-1 text-[10px] text-success font-medium">
+            <span className="flex items-center gap-1 text-xs text-success font-medium">
               <span className="w-1.5 h-1.5 rounded-full bg-success" /> Connected
             </span>
             <button className="text-muted-foreground hover:text-destructive transition-base"><Trash size={12} /></button>
           </div>
-          <button className="flex items-center gap-1 text-[11px] text-primary mt-1 hover:underline">
+          <button className="flex items-center gap-1 text-xs text-primary mt-1 hover:underline">
             <Plus size={12} /> Add connection
           </button>
         </div>
@@ -1133,13 +1133,13 @@ function PerUserConnectorsCard() {
       </button>
       {open && (
         <div className="border-t border-border px-3 pb-2">
-          <p className="text-[11px] text-muted-foreground mt-2 mb-2 leading-relaxed">Each person connects and uses their own account.</p>
+          <p className="text-xs text-muted-foreground mt-2 mb-2 leading-relaxed">Each person connects and uses their own account.</p>
           <div className="flex items-center gap-2 py-1.5">
-            <div className="w-5 h-5 rounded bg-destructive/10 flex items-center justify-center text-[10px] font-bold text-destructive shrink-0">G</div>
+            <div className="w-5 h-5 rounded bg-destructive/10 flex items-center justify-center text-xs font-bold text-destructive shrink-0">G</div>
             <span className="text-xs flex-1">Gmail</span>
             <button className="text-muted-foreground hover:text-destructive transition-base"><Trash size={12} /></button>
           </div>
-          <button className="flex items-center gap-1 text-[11px] text-primary mt-1 hover:underline">
+          <button className="flex items-center gap-1 text-xs text-primary mt-1 hover:underline">
             <Plus size={12} /> Add connection
           </button>
         </div>
@@ -1155,13 +1155,13 @@ function SchedulesCard() {
       <button onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-surface-muted transition-base">
         <Clock size={15} className="text-muted-foreground shrink-0" />
         <span className="text-sm font-medium flex-1 text-left">Schedules</span>
-        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-warning-soft text-warning font-semibold">Not set</span>
+        <span className="text-xs px-1.5 py-0.5 rounded-full bg-warning-soft text-warning font-semibold">Not set</span>
         {open ? <ChevronUp size={13} className="text-muted-foreground" /> : <ChevronDown size={13} className="text-muted-foreground" />}
       </button>
       {open && (
         <div className="border-t border-border px-3 pb-2">
-          <p className="text-[11px] text-muted-foreground mt-2 mb-1 leading-relaxed">No schedules yet. Add one to run this agent automatically — like a daily summary.</p>
-          <button className="flex items-center gap-1 text-[11px] text-primary mt-1 hover:underline">
+          <p className="text-xs text-muted-foreground mt-2 mb-1 leading-relaxed">No schedules yet. Add one to run this agent automatically — like a daily summary.</p>
+          <button className="flex items-center gap-1 text-xs text-primary mt-1 hover:underline">
             <Plus size={12} /> Add
           </button>
         </div>
@@ -1177,7 +1177,7 @@ function SubAgentsCard() {
       <button onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-surface-muted transition-base">
         <Bot size={15} className="text-muted-foreground shrink-0" />
         <span className="text-sm font-medium flex-1 text-left">Sub-Agents</span>
-        <span className="text-[11px] text-muted-foreground">1 subagent</span>
+        <span className="text-xs text-muted-foreground">1 subagent</span>
         {open ? <ChevronUp size={13} className="text-muted-foreground" /> : <ChevronDown size={13} className="text-muted-foreground" />}
       </button>
       {open && (
@@ -1188,11 +1188,11 @@ function SubAgentsCard() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium truncate">candidate-email-sender</p>
-              <p className="text-[10px] text-muted-foreground truncate">Use when sending recruiting emails to …</p>
+              <p className="text-xs text-muted-foreground truncate">Use when sending recruiting emails to …</p>
             </div>
             <button className="text-muted-foreground hover:text-destructive transition-base"><Trash size={12} /></button>
           </div>
-          <button className="flex items-center gap-1 text-[11px] text-primary mt-1 hover:underline">
+          <button className="flex items-center gap-1 text-xs text-primary mt-1 hover:underline">
             <Plus size={12} /> Add
           </button>
         </div>
@@ -1253,12 +1253,12 @@ function PreviewPanel() {
               <div className="text-sm font-semibold leading-tight">Banking ABC — Customer Care</div>
               <div className="flex items-center gap-1 mt-0.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-success" />
-                <span className="text-[10px] text-muted-foreground">Test mode</span>
+                <span className="text-xs text-muted-foreground">Test mode</span>
               </div>
             </div>
             <button
               onClick={() => setMessages([{ role: "agent", text: "Xin chào! Tôi là Banking ABC Customer Care. Tôi có thể giúp gì cho bạn?" }])}
-              className="ml-auto text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1 transition-base"
+              className="ml-auto text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-base"
             >
               <History size={11} /> Reset
             </button>
@@ -1272,7 +1272,7 @@ function PreviewPanel() {
                   <div className="w-6 h-6 rounded-full bg-primary-soft flex items-center justify-center text-sm mr-2 shrink-0 mt-0.5">🏦</div>
                 )}
                 <div
-                  className={`max-w-[82%] text-[12px] leading-relaxed rounded-2xl px-3 py-2 ${
+                  className={`max-w-[82%] text-xs leading-relaxed rounded-2xl px-3 py-2 ${
                     m.role === "user"
                       ? "bg-primary text-primary-foreground rounded-br-sm"
                       : "bg-surface-muted border border-border rounded-bl-sm"
@@ -1290,7 +1290,7 @@ function PreviewPanel() {
               <button
                 key={q}
                 onClick={() => { setInput(q); }}
-                className="text-[10px] px-2.5 py-1 rounded-full border border-border bg-surface hover:bg-primary-soft hover:text-primary hover:border-primary/30 transition-base"
+                className="text-xs px-2.5 py-1 rounded-full border border-border bg-surface hover:bg-primary-soft hover:text-primary hover:border-primary/30 transition-base"
               >
                 {q}
               </button>
@@ -1342,7 +1342,7 @@ function Section({ icon: Icon, title, desc, children, action }: any) {
 function Field({ label, children }: any) {
   return (
     <div className="mb-3 last:mb-0">
-      <label className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{label}</label>
+      <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{label}</label>
       {children}
     </div>
   );
@@ -1361,9 +1361,9 @@ function Toggle({ on }: { on: boolean }) {
 function ProcessItem({ num, name, type, typeColor, highlighted }: any) {
   return (
     <div className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg transition-base ${highlighted ? "bg-primary-soft/50 ring-1 ring-primary/20" : "bg-surface-muted hover:bg-surface-muted/70"}`}>
-      <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-[10px] font-bold font-display flex items-center justify-center shrink-0">{num}</div>
+      <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold font-display flex items-center justify-center shrink-0">{num}</div>
       <span className="text-sm font-medium flex-1">{name}</span>
-      <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded ${typeColor}`}>{type}</span>
+      <span className={`text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded ${typeColor}`}>{type}</span>
       <ChevronDown size={14} className="text-muted-foreground" />
     </div>
   );
@@ -1372,7 +1372,7 @@ function Bubble({ side, children }: { side: "user" | "agent"; children: any }) {
   return (
     <div className={`flex ${side === "user" ? "justify-end" : "justify-start"}`}>
       <div
-        className={`max-w-[85%] text-[11px] leading-relaxed rounded-2xl px-2.5 py-1.5 ${
+        className={`max-w-[85%] text-xs leading-relaxed rounded-2xl px-2.5 py-1.5 ${
           side === "user" ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-surface border border-border rounded-bl-sm"
         }`}
       >

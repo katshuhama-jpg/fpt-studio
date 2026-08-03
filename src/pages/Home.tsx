@@ -106,7 +106,7 @@ export default function Home() {
                 <t.icon size={16} className={t.color} />
               </div>
               <div className="text-xs font-semibold mb-0.5 truncate">{t.name}</div>
-              <div className="text-[10px] text-muted-foreground truncate">{t.tag}</div>
+              <div className="text-xs text-muted-foreground truncate">{t.tag}</div>
             </Link>
           ))}
         </div>
@@ -130,10 +130,10 @@ export default function Home() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate">{a.name}</div>
-                    <div className="text-[10px] text-muted-foreground">{a.meta}</div>
+                    <div className="text-xs text-muted-foreground">{a.meta}</div>
                   </div>
                   <span
-                    className={`text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                    className={`text-xs font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${
                       a.status === "Published" ? "bg-primary-soft text-primary" : "bg-surface-muted text-muted-foreground"
                     }`}
                   >
@@ -154,7 +154,7 @@ export default function Home() {
           <div className="relative">
             <div className="flex items-center gap-2 mb-3">
               <Sparkles size={13} className="text-primary" />
-              <span className="text-[10px] uppercase tracking-wider font-semibold text-primary">What's new</span>
+              <span className="text-xs uppercase tracking-wider font-semibold text-primary">What's new</span>
             </div>
             <h3 className="font-display text-base font-semibold mb-3 text-balance">
               Ship enterprise agents 10× faster.
@@ -169,7 +169,7 @@ export default function Home() {
                   <n.icon size={13} className="text-primary shrink-0" />
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-medium truncate">{n.title}</div>
-                    <div className="text-[10px] text-muted-foreground">{n.sub}</div>
+                    <div className="text-xs text-muted-foreground">{n.sub}</div>
                   </div>
                   <ArrowUpRight size={11} className="opacity-0 group-hover:opacity-100 transition-base text-muted-foreground" />
                 </Link>

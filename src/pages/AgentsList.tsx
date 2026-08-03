@@ -98,11 +98,11 @@ function NewAgentModal({ onClose }: { onClose: () => void }) {
             {advanced && (
               <div className="mt-3 space-y-3 pl-1">
                 <div>
-                  <label className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Model</label>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Model</label>
                   <button className="ds-input w-full flex items-center gap-2 cursor-pointer text-left">
                     <span className="w-5 h-5 rounded bg-accent-soft flex items-center justify-center text-xs shrink-0">✨</span>
                     <span className="flex-1 text-sm">{model}</span>
-                    <span className="chip chip-primary text-[10px]">FPT Marketplace</span>
+                    <span className="chip chip-primary text-xs">FPT Marketplace</span>
                     <ChevronDown size={13} className="text-muted-foreground shrink-0" />
                   </button>
                 </div>
@@ -170,7 +170,7 @@ export default function AgentsList() {
                 i === 0 ? "bg-primary-soft text-primary" : "text-muted-foreground hover:bg-surface-muted"
               }`}
             >
-              {t} {i === 0 && <span className="ml-1 text-[10px] opacity-70">5</span>}
+              {t} {i === 0 && <span className="ml-1 text-xs opacity-70">5</span>}
             </button>
           ))}
         </div>
@@ -220,7 +220,7 @@ export default function AgentsList() {
                   <div className="flex items-center gap-2 mb-0.5">
                     <h3 className="font-semibold text-sm truncate">{a.name}</h3>
                   </div>
-                  <div className="flex items-center gap-1.5 text-[10px]">
+                  <div className="flex items-center gap-1.5 text-xs">
                     <span
                       className={`font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${
                         a.status === "Published"
@@ -256,7 +256,7 @@ export default function AgentsList() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-1.5 mt-3 text-[10px] text-muted-foreground">
+              <div className="flex items-center gap-1.5 mt-3 text-xs text-muted-foreground">
                 <span>Updated {a.updated}</span>
                 {a.channels.length > 0 && (
                   <>
