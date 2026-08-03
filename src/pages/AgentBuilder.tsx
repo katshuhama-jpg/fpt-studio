@@ -5,7 +5,7 @@ import {
   Search, Upload, Globe, Database, Plus, Layers, CheckCircle2, Send,
   ArrowRight, Shield, ChevronDown, FileText, Trash2, MessageSquare, Activity,
   Star, Users as UsersIcon, History, Download, X, SlidersHorizontal, Smartphone, Monitor,
-  Puzzle, Plug, UserCheck, Clock, Bot, ChevronUp, Trash2 as Trash, Pencil,
+  Puzzle, Plug, UserCheck, Clock, Bot, ChevronUp, Trash2 as Trash, Pencil, Hand,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import AgentToolsTab from "@/components/tool-builder/AgentToolsTab";
@@ -1029,21 +1029,138 @@ function PlaceholderTab({ title }: { title: string }) {
 
 /* ============ PREVIEW PANEL — clearly distinct (device frame) ============ */
 /* ============ RIGHT CONFIG PANEL ============ */
+function ConfigSection({ icon: Icon, title, badge, children }: {
+  icon: any; title: string; badge?: React.ReactNode; children?: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(true);
+  return (
+    <div className="border-b border-border last:border-b-0">
+      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-2.5 px-4 py-3 hover:bg-surface-muted transition-base">
+        <Icon size={15} className="text-muted-foreground shrink-0" />
+        <span className="text-sm font-medium flex-1 text-left">{title}</span>
+        {badge}
+        {open ? <ChevronUp size={13} className="text-muted-foreground" /> : <ChevronDown size={13} className="text-muted-foreground" />}
+      </button>
+      {open && <div className="px-4 pb-3">{children}</div>}
+    </div>
+  );
+}
+
+const GMAIL_PERMS = [
+  "Read Emails", "Send Email", "Draft Email", "Mark as Read",
+  "Archive Email", "Apply Label", "Create Label", "Get Thread", "List Labels",
+];
+
+function ConnectorItem({ logo, name, connected, color }: { logo: string; name: string; connected?: boolean; color: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const [perms, setPerms] = useState<Record<string, "auto"|"ask">>({});
+  const toggle = (p: string) => setPerms(prev => ({ ...prev, [p]: prev[p] === "ask" ? "auto" : "ask" }));
+
+  return (
+    <div className="mb-2">
+      <div className="flex items-center gap-2 py-1.5 group">
+        <div className={`w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold shrink-0 ${color}`}>{logo}</div>
+        <span className="text-sm flex-1">{name}</span>
+        {connected && (
+          <span className="flex items-center gap-1 text-xs text-success font-medium mr-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-success" /> Connected
+          </span>
+        )}
+        <button
+          onClick={() => setExpanded(o => !o)}
+          className="h-6 w-6 rounded-md flex items-center justify-center text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base"
+          title="View permissions"
+        >
+          <ChevronDown size={13} className={`transition-transform ${expanded ? "rotate-180" : ""}`} />
+        </button>
+        <button className="h-6 w-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive transition-base">
+          <Trash size={12} />
+        </button>
+      </div>
+      {expanded && (
+        <div className="ml-8 mt-1 mb-2 rounded-lg border border-border bg-surface-muted/40 overflow-hidden">
+          {GMAIL_PERMS.map(p => (
+            <div key={p} className="flex items-center px-3 py-2 border-b border-border/50 last:border-b-0">
+              <span className="text-sm flex-1 text-foreground">{p}</span>
+              <div className="flex items-center gap-1 bg-surface rounded-full border border-border p-0.5">
+                <button
+                  onClick={() => toggle(p)}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-base ${(perms[p] ?? "auto") === "auto" ? "bg-success/15 text-success" : "text-muted-foreground hover:bg-surface-muted"}`}
+                >
+                  <Zap size={10} /> Auto
+                </button>
+                <button
+                  onClick={() => toggle(p)}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-base ${(perms[p] ?? "auto") === "ask" ? "bg-surface-muted text-foreground" : "text-muted-foreground hover:bg-surface-muted"}`}
+                >
+                  <Hand size={10} /> Ask
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function RightConfigPanel({ embedded, model, onModelChange }: { embedded?: boolean; model?: string; onModelChange?: (id: string) => void }) {
   const inner = (
-    <div className="flex flex-col gap-2 p-3">
-        {/* Model picker at top of config panel */}
-        <div className="rounded-xl border border-border bg-surface p-3">
-          <div className="section-eyebrow mb-2">Model</div>
+    <div className="flex flex-col divide-y divide-border">
+      {/* Model */}
+      <div className="border-b border-border">
+        <div className="flex items-center gap-2.5 px-4 py-3">
+          <Cog size={15} className="text-muted-foreground shrink-0" />
+          <span className="text-sm font-medium flex-1">Model</span>
+        </div>
+        <div className="px-4 pb-3">
           <ModelDropdown value={model ?? "deepseek-v4-flash"} onChange={onModelChange ?? (() => {})} />
         </div>
-        <RightCard icon={BookOpen} title="Knowledge" notSet desc="Documents and sources your agent can look things up in." addLabel="Add" />
-        <RightCard icon={Puzzle} title="Skills" notSet desc="Reusable abilities you've taught it." addLabel="Add" />
-        <SharedConnectorsCard />
-        <PerUserConnectorsCard />
-        <RightCard icon={Shield} title="Guardrails" notSet desc="Boundaries that keep your agent acting safely." addLabel="Add" />
-        <SchedulesCard />
-        <SubAgentsCard />
+      </div>
+      {/* Knowledge */}
+      <ConfigSection icon={BookOpen} title="Knowledge" badge={<span className="text-xs text-warning font-medium mr-1">Not set</span>}>
+        <p className="text-xs text-muted-foreground mb-2 leading-relaxed">Documents and sources your agent can look things up in.</p>
+        <button className="flex items-center gap-1 text-xs text-primary hover:underline"><Plus size={12} /> Add</button>
+      </ConfigSection>
+      {/* Skills */}
+      <ConfigSection icon={Puzzle} title="Skills" badge={<span className="text-xs text-warning font-medium mr-1">Not set</span>}>
+        <p className="text-xs text-muted-foreground mb-2 leading-relaxed">Reusable abilities you've taught it.</p>
+        <button className="flex items-center gap-1 text-xs text-primary hover:underline"><Plus size={12} /> Add</button>
+      </ConfigSection>
+      {/* Shared Connectors */}
+      <ConfigSection icon={UserCheck} title="Shared Connectors">
+        <p className="text-xs text-muted-foreground mb-2 leading-relaxed">Agent always uses the same account, no matter who's asking.</p>
+        <ConnectorItem logo="G" name="Google Docs" connected color="bg-primary-soft text-primary" />
+        <button className="flex items-center gap-1 text-xs text-primary hover:underline mt-1"><Plus size={12} /> Add connection</button>
+      </ConfigSection>
+      {/* Per-user Connectors */}
+      <ConfigSection icon={UsersIcon} title="Per-user Connectors">
+        <p className="text-xs text-muted-foreground mb-2 leading-relaxed">Each person connects and uses their own account.</p>
+        <ConnectorItem logo="G" name="Gmail" color="bg-destructive/10 text-destructive" />
+        <button className="flex items-center gap-1 text-xs text-primary hover:underline mt-1"><Plus size={12} /> Add connection</button>
+      </ConfigSection>
+      {/* Guardrails */}
+      <ConfigSection icon={Shield} title="Guardrails" badge={<span className="text-xs text-warning font-medium mr-1">Not set</span>}>
+        <p className="text-xs text-muted-foreground mb-2 leading-relaxed">Boundaries that keep your agent acting safely.</p>
+        <button className="flex items-center gap-1 text-xs text-primary hover:underline"><Plus size={12} /> Add</button>
+      </ConfigSection>
+      {/* Schedules */}
+      <ConfigSection icon={Clock} title="Schedules" badge={<span className="text-xs text-warning font-medium mr-1">Not set</span>}>
+        <p className="text-xs text-muted-foreground mb-2 leading-relaxed">Run this agent automatically — like a daily summary.</p>
+        <button className="flex items-center gap-1 text-xs text-primary hover:underline"><Plus size={12} /> Add</button>
+      </ConfigSection>
+      {/* Sub-Agents */}
+      <ConfigSection icon={Bot} title="Sub-Agents" badge={<span className="text-xs text-muted-foreground mr-1">1 subagent</span>}>
+        <div className="flex items-center gap-2 py-1 mb-1">
+          <div className="w-6 h-6 rounded-lg bg-surface-muted border border-border flex items-center justify-center shrink-0"><Bot size={12} className="text-muted-foreground" /></div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium truncate">candidate-email-sender</p>
+            <p className="text-xs text-muted-foreground truncate">Use when sending recruiting emails…</p>
+          </div>
+          <button className="text-muted-foreground hover:text-destructive transition-base"><Trash size={12} /></button>
+        </div>
+        <button className="flex items-center gap-1 text-xs text-primary hover:underline"><Plus size={12} /> Add</button>
+      </ConfigSection>
     </div>
   );
   if (embedded) return inner;
