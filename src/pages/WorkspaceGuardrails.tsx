@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { Plus, Search, Eye, MoreVertical, X } from "lucide-react";
+import { useState, useMemo, useRef, useEffect } from "react";
+import { Plus, Search, MoreVertical, X, Pencil, Trash2 } from "lucide-react";
 import { createPortal } from "react-dom";
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
@@ -31,13 +31,23 @@ const SEED: Guardrail[] = [
 type ResponseKind = "auto" | "fixed" | null;
 
 /* ─── Create side sheet ──────────────────────────────────────────────── */
-function CreateModal({ onClose, onCreate }: { onClose: () => void; onCreate: (g: Omit<Guardrail, "id" | "agents">) => void }) {
-  const [topic, setTopic]       = useState("");
-  const [desc, setDesc]         = useState("");
+function CreateModal({ onClose, onCreate, initialData }: {
+  onClose: () => void;
+  onCreate: (g: Omit<Guardrail, "id" | "agents">) => void;
+  initialData?: Guardrail;
+}) {
+  const isEdit = !!initialData;
+  const actionToResponse = (a?: ActionKind): ResponseKind => {
+    if (a === "Agent auto response") return "auto";
+    if (a === "Agent response with fixed paragraph") return "fixed";
+    return null;
+  };
+  const [topic, setTopic]       = useState(initialData?.name ?? "");
+  const [desc, setDesc]         = useState(initialData?.desc ?? "");
   const [samples, setSamples]   = useState("");
-  const [response, setResponse] = useState<ResponseKind>(null);
+  const [response, setResponse] = useState<ResponseKind>(actionToResponse(initialData?.action));
   const [fixedText, setFixedText] = useState("");
-  const [allAgents, setAllAgents] = useState(false);
+  const [allAgents, setAllAgents] = useState(initialData?.allAgents ?? false);
 
   const actionFromResponse = (): ActionKind => {
     if (response === "auto")  return "Agent auto response";
@@ -199,7 +209,7 @@ function CreateModal({ onClose, onCreate }: { onClose: () => void; onCreate: (g:
         <div className="flex items-center justify-between px-6 py-4 border-t border-border shrink-0 bg-white">
           <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Cancel</button>
           <button onClick={submit} disabled={!topic.trim()} className="h-9 px-6 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium transition-base disabled:opacity-40 disabled:cursor-not-allowed">
-            Create guardrail
+            {isEdit ? "Save changes" : "Create guardrail"}
           </button>
         </div>
       </div>
@@ -215,6 +225,7 @@ export default function WorkspaceGuardrails() {
   const [items, setItems] = useState<Guardrail[]>(SEED);
   const [query, setQuery]         = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [editItem, setEditItem] = useState<Guardrail | null>(null);
   let nextId = Math.max(...items.map(i => i.id)) + 1;
 
   const filtered = useMemo(() => {
@@ -231,10 +242,17 @@ export default function WorkspaceGuardrails() {
   const handleCreate = (g: Omit<Guardrail, "id" | "agents">) => {
     setItems(prev => [...prev, { ...g, id: nextId++, agents: [] }]);
   };
+  const handleEdit = (id: number, g: Omit<Guardrail, "id" | "agents">) => {
+    setItems(prev => prev.map(item => item.id === id ? { ...item, ...g } : item));
+  };
+  const handleDelete = (id: number) => {
+    setItems(prev => prev.filter(item => item.id !== id));
+  };
 
   return (
     <div className="px-8 py-8 max-w-[1200px] mx-auto animate-fade-up">
       {showCreate && <CreateModal onClose={() => setShowCreate(false)} onCreate={handleCreate} />}
+      {editItem && <CreateModal onClose={() => setEditItem(null)} onCreate={g => { handleEdit(editItem.id, g); setEditItem(null); }} initialData={editItem} />}
 
       <div className="mb-6">
         <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">Guardrails</h1>
@@ -309,9 +327,8 @@ export default function WorkspaceGuardrails() {
                 <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{g.desc}</div>
               </div>
               <div><ActionPill>{g.action}</ActionPill></div>
-              <div className="flex items-center gap-1.5 justify-end">
-                <IconBtn aria-label="View"><Eye size={13} /></IconBtn>
-                <IconBtn aria-label="More"><MoreVertical size={13} /></IconBtn>
+              <div className="flex items-center justify-end">
+                <RowMenu onEdit={() => setEditItem(g)} onDelete={() => handleDelete(g.id)} />
               </div>
             </TRow>
           ))}
@@ -346,9 +363,8 @@ export default function WorkspaceGuardrails() {
                       </>
                 }
               </div>
-              <div className="flex items-center gap-1.5 justify-end">
-                <IconBtn aria-label="View"><Eye size={13} /></IconBtn>
-                <IconBtn aria-label="More"><MoreVertical size={13} /></IconBtn>
+              <div className="flex items-center justify-end">
+                <RowMenu onEdit={() => setEditItem(g)} onDelete={() => handleDelete(g.id)} />
               </div>
             </TRow>
           ))}
@@ -398,6 +414,47 @@ function ActionPill({ children }: { children: React.ReactNode }) {
     <span className="inline-flex px-2.5 py-1 rounded-full border border-border bg-surface-muted text-xs text-muted-foreground">
       {children}
     </span>
+  );
+}
+
+function RowMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={e => { e.stopPropagation(); setOpen(v => !v); }}
+        className="w-7 h-7 rounded-lg border border-border bg-surface hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base"
+      >
+        <MoreVertical size={13} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-8 z-20 w-32 bg-white rounded-xl border border-border shadow-lg py-1 animate-fade-up">
+          <button
+            onClick={() => { setOpen(false); onEdit(); }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface-muted transition-base"
+          >
+            <Pencil size={13} className="text-muted-foreground" /> Edit
+          </button>
+          <button
+            onClick={() => { setOpen(false); onDelete(); }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/5 transition-base"
+          >
+            <Trash2 size={13} /> Delete
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
