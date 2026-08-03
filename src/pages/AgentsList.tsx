@@ -1,6 +1,11 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Plus, Search, Filter, MoreVertical, MessageSquare, Activity, Layers, X, ChevronDown, Sparkles } from "lucide-react";
+import {
+  Plus, Search, Filter, MoreVertical, MessageSquare, Activity,
+  Paperclip, AtSign, Sparkles, Send, X
+} from "lucide-react";
 import { useState } from "react";
+
+/* ─── Data ─────────────────────────────────────────────────────────────── */
 
 const agents = [
   { id: "cskh", name: "Banking ABC — Customer Care", emoji: "🏦", bg: "bg-primary-soft", status: "Published",
@@ -22,155 +27,229 @@ const agents = [
 
 const tabs = ["All agents", "Published", "Draft", "Shared with me"] as const;
 
-function NewAgentModal({ onClose }: { onClose: () => void }) {
-  const navigate = useNavigate();
-  const [name, setName] = useState("");
-  const [prompt, setPrompt] = useState("");
-  const [advanced, setAdvanced] = useState(false);
-  const [model, setModel] = useState("DeepSeek V4");
+const categories = ["All", "Customer support", "Sales", "HR & Internal", "Operations", "Finance"] as const;
 
-  const handleCreate = () => {
-    if (!name.trim()) return;
-    const params = new URLSearchParams();
-    params.set("tab", "develop");
-    params.set("section", "general");
-    if (name) params.set("agentName", name);
-    if (prompt) params.set("agentPrompt", prompt);
-    navigate(`/agents/new?${params.toString()}`);
-    onClose();
-  };
+const templates = [
+  { id: 1, emoji: "💬", bg: "bg-blue-50",  name: "Customer care bot",    cat: "Customer support", desc: "Multilingual 24/7 support with escalation and live-agent handoff" },
+  { id: 2, emoji: "📦", bg: "bg-green-50", name: "Product FAQ assistant", cat: "Customer support", desc: "Answers from manuals, docs, and warranty info" },
+  { id: 3, emoji: "🎯", bg: "bg-amber-50", name: "Sales lead qualifier",  cat: "Sales",            desc: "BANT scoring, objection handling, and CRM handoff" },
+  { id: 4, emoji: "🤝", bg: "bg-pink-50",  name: "HR onboarding bot",     cat: "HR & Internal",    desc: "New-joiner flows, policy lookup, meeting scheduling" },
+  { id: 5, emoji: "🔧", bg: "bg-blue-50",  name: "IT helpdesk",           cat: "Operations",       desc: "Password reset, VPN setup, and L1 ticket triage" },
+  { id: 6, emoji: "💰", bg: "bg-green-50", name: "Finance Q&A",           cat: "Finance",          desc: "Invoice queries, payment status, and budget lookups" },
+  { id: 7, emoji: "📋", bg: "bg-amber-50", name: "Operations assistant",  cat: "Operations",       desc: "Process guides, SOP lookup, and task routing" },
+  { id: 8, emoji: "📣", bg: "bg-pink-50",  name: "Marketing assistant",   cat: "Sales",            desc: "Campaign Q&A, content suggestions, and lead capture" },
+];
+
+/* ─── Template Modal ────────────────────────────────────────────────────── */
+
+function TemplateModal({ onClose, onUse }: { onClose: () => void; onUse: (name: string) => void }) {
+  const [search, setSearch] = useState("");
+  const [cat, setCat] = useState<string>("All");
+
+  const filtered = templates.filter(t => {
+    const matchCat = cat === "All" || t.cat === cat;
+    const matchSearch =
+      t.name.toLowerCase().includes(search.toLowerCase()) ||
+      t.desc.toLowerCase().includes(search.toLowerCase());
+    return matchCat && matchSearch;
+  });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-
-      {/* Dialog */}
-      <div className="relative z-10 w-full max-w-lg mx-4 bg-surface rounded-2xl shadow-lg border border-border animate-fade-up">
+      <div className="relative z-10 w-full max-w-xl mx-4 bg-white rounded-2xl shadow-lg border border-border flex flex-col max-h-[80vh] animate-fade-up">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-6 pb-4">
-          <h2 className="font-display text-xl font-semibold">New agent</h2>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base"
-          >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+          <h2 className="font-display text-lg font-semibold">Choose a template</h2>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base">
             <X size={16} />
           </button>
         </div>
 
-        {/* Body */}
-        <div className="px-6 pb-2 space-y-5">
-          {/* Agent name */}
-          <div>
-            <label className="block text-sm font-semibold mb-1.5">
-              Agent name <span className="text-destructive">*</span>
-            </label>
+        {/* Search */}
+        <div className="px-5 py-3 border-b border-border shrink-0">
+          <div className="relative">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               autoFocus
-              className="ds-input w-full"
-              placeholder="e.g. Support Triage"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && handleCreate()}
+              className="w-full h-9 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+              placeholder="Search templates…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
             />
-          </div>
-
-          {/* Starting prompt */}
-          <div>
-            <label className="block text-sm font-semibold mb-1.5">Starting prompt</label>
-            <textarea
-              className="ds-textarea w-full min-h-[120px]"
-              placeholder="Describe what your agent should do..."
-              value={prompt}
-              onChange={e => setPrompt(e.target.value)}
-            />
-          </div>
-
-          {/* Advanced */}
-          <div>
-            <button
-              onClick={() => setAdvanced(o => !o)}
-              className="flex items-center gap-1.5 text-sm font-semibold text-foreground hover:text-primary transition-base"
-            >
-              Advanced
-              <ChevronDown size={14} className={`transition-transform ${advanced ? "rotate-180" : ""}`} />
-            </button>
-            {advanced && (
-              <div className="mt-3 space-y-3 pl-1">
-                <div>
-                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Model</label>
-                  <button className="ds-input w-full flex items-center gap-2 cursor-pointer text-left">
-                    <span className="w-5 h-5 rounded bg-accent-soft flex items-center justify-center text-xs shrink-0">✨</span>
-                    <span className="flex-1 text-sm">{model}</span>
-                    <span className="chip chip-primary text-xs">FPT Marketplace</span>
-                    <ChevronDown size={13} className="text-muted-foreground shrink-0" />
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border mt-4">
-          <button
-            onClick={onClose}
-            className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleCreate}
-            disabled={!name.trim()}
-            className="h-9 px-5 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium transition-base disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
-          >
-            Create
-          </button>
+        {/* Category chips */}
+        <div className="flex items-center gap-2 px-5 py-3 border-b border-border overflow-x-auto shrink-0">
+          {categories.map(c => (
+            <button
+              key={c}
+              onClick={() => setCat(c)}
+              className={`px-3 h-7 rounded-full text-xs font-medium whitespace-nowrap transition-base ${
+                cat === c
+                  ? "bg-primary-soft text-primary border border-primary/30"
+                  : "bg-surface-muted text-muted-foreground hover:bg-surface-sunken"
+              }`}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+
+        {/* List */}
+        <div className="overflow-y-auto flex-1 px-5 py-3 space-y-2">
+          {filtered.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-8">No templates found.</p>
+          )}
+          {filtered.map(t => (
+            <div
+              key={t.id}
+              className="flex items-center gap-3 p-3 rounded-xl border border-border hover:border-primary/30 hover:bg-primary-soft/20 transition-base group"
+            >
+              <div className={`w-10 h-10 rounded-xl ${t.bg} flex items-center justify-center text-xl shrink-0`}>
+                {t.emoji}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold">{t.name}</p>
+                <p className="text-xs text-muted-foreground truncate">{t.desc}</p>
+              </div>
+              <button
+                onClick={() => { onUse(t.name); onClose(); }}
+                className="shrink-0 h-7 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-medium opacity-0 group-hover:opacity-100 transition-base"
+              >
+                Use
+              </button>
+            </div>
+          ))}
         </div>
       </div>
     </div>
   );
 }
 
+/* ─── Main Page ─────────────────────────────────────────────────────────── */
+
 export default function AgentsList() {
-  const [showModal, setShowModal] = useState(false);
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<typeof tabs[number]>("All agents");
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [prompt, setPrompt] = useState("");
+
+  const tabCounts: Record<typeof tabs[number], number> = {
+    "All agents": agents.length,
+    "Published": agents.filter(a => a.status === "Published").length,
+    "Draft": agents.filter(a => a.status === "Draft").length,
+    "Shared with me": 0,
+  };
+
+  const visibleAgents =
+    activeTab === "All agents"
+      ? agents
+      : activeTab === "Shared with me"
+        ? []
+        : agents.filter(a => a.status === activeTab);
+
+  const handleBuild = () => {
+    if (!prompt.trim()) return;
+    const params = new URLSearchParams();
+    params.set("tab", "develop");
+    params.set("section", "general");
+    params.set("agentPrompt", prompt);
+    navigate(`/agents/new?${params.toString()}`);
+  };
+
+  const handleUseTemplate = (name: string) => {
+    setPrompt(`Build a ${name} for my workspace.`);
+  };
 
   return (
     <div className="px-8 py-8 max-w-[1280px] mx-auto animate-fade-up">
-      {showModal && <NewAgentModal onClose={() => setShowModal(false)} />}
+      {showTemplates && (
+        <TemplateModal onClose={() => setShowTemplates(false)} onUse={handleUseTemplate} />
+      )}
 
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
-        <div>
-          <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">Agents</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage every agent in this workspace — build, test, deploy and monitor.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button className="h-10 px-3.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base">
-            <Layers size={14} /> Templates
-          </button>
-          <button
-            onClick={() => setShowModal(true)}
-            className="h-10 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 shadow-soft transition-base"
-          >
-            <Plus size={15} /> New Agent
-          </button>
+      {/* Page header */}
+      <div className="mb-6">
+        <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">Agents</h1>
+        <p className="text-sm text-muted-foreground">
+          Manage every agent in this workspace — build, test, deploy and monitor.
+        </p>
+      </div>
+
+      {/* ── AI chat box ───────────────────────────────────────────────── */}
+      <div className="mb-8 rounded-2xl border-2 border-primary/40 bg-white p-4 shadow-sm focus-within:border-primary transition-colors">
+        <textarea
+          className="w-full resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none leading-relaxed min-h-[56px]"
+          placeholder="e.g. A 24/7 banking customer-care agent that can lock cards, look up loan rates and book consultations…"
+          rows={2}
+          value={prompt}
+          onChange={e => setPrompt(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleBuild();
+          }}
+        />
+        <div className="flex items-center justify-between mt-3">
+          {/* Left tools */}
+          <div className="flex items-center gap-1">
+            <button
+              className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base"
+              title="Attach file"
+            >
+              <Paperclip size={16} />
+            </button>
+            <button
+              className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base"
+              title="Mention knowledge"
+            >
+              <AtSign size={16} />
+            </button>
+          </div>
+
+          {/* Right actions */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowTemplates(true)}
+              className="text-sm text-muted-foreground hover:text-foreground transition-base"
+            >
+              Use a template
+            </button>
+            <button
+              onClick={handleBuild}
+              disabled={!prompt.trim()}
+              className="h-9 px-4 rounded-full bg-primary/80 hover:bg-primary disabled:opacity-40 disabled:cursor-not-allowed text-primary-foreground text-sm font-medium flex items-center gap-2 transition-base"
+            >
+              <Sparkles size={14} />
+              Build agent
+              <Send size={13} />
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Toolbar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-5 pb-4 border-b border-border">
+      {/* ── Tabs + search toolbar ─────────────────────────────────────── */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-5 border-b border-border pb-3">
         <div className="flex items-center gap-1">
-          {tabs.map((t, i) => (
+          {tabs.map(t => (
             <button
               key={t}
-              className={`px-3 h-8 rounded-lg text-sm font-medium transition-base ${
-                i === 0 ? "bg-primary-soft text-primary" : "text-muted-foreground hover:bg-surface-muted"
+              onClick={() => setActiveTab(t)}
+              className={`px-3 h-8 rounded-lg text-sm font-medium transition-base flex items-center gap-1.5 ${
+                activeTab === t
+                  ? "bg-primary-soft text-primary"
+                  : "text-muted-foreground hover:bg-surface-muted"
               }`}
             >
-              {t} {i === 0 && <span className="ml-1 text-xs opacity-70">5</span>}
+              {t}
+              {tabCounts[t] > 0 && (
+                <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                  activeTab === t
+                    ? "bg-primary/10 text-primary"
+                    : "bg-surface-sunken text-muted-foreground"
+                }`}>
+                  {tabCounts[t]}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -188,11 +267,11 @@ export default function AgentsList() {
         </div>
       </div>
 
-      {/* Grid */}
+      {/* ── Agents grid ───────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Create card */}
         <button
-          onClick={() => setShowModal(true)}
+          onClick={() => setShowTemplates(true)}
           className="rounded-xl border-2 border-dashed border-border hover:border-primary/40 hover:bg-primary-soft/30 transition-base flex flex-col items-center justify-center min-h-[220px] p-6 group"
         >
           <div className="w-12 h-12 rounded-xl bg-primary-soft text-primary flex items-center justify-center mb-3 group-hover:scale-110 transition-base">
@@ -204,7 +283,7 @@ export default function AgentsList() {
           </div>
         </button>
 
-        {agents.map(a => (
+        {visibleAgents.map(a => (
           <Link
             key={a.id}
             to={`/agents/${a.id}`}
@@ -217,17 +296,13 @@ export default function AgentsList() {
                   {a.emoji}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <h3 className="font-semibold text-sm truncate">{a.name}</h3>
-                  </div>
+                  <h3 className="font-semibold text-sm truncate mb-0.5">{a.name}</h3>
                   <div className="flex items-center gap-1.5 text-xs">
-                    <span
-                      className={`font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                        a.status === "Published"
-                          ? "bg-primary-soft text-primary"
-                          : "bg-surface-muted text-muted-foreground"
-                      }`}
-                    >
+                    <span className={`font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                      a.status === "Published"
+                        ? "bg-primary-soft text-primary"
+                        : "bg-surface-muted text-muted-foreground"
+                    }`}>
                       {a.status}
                     </span>
                     <span className="text-muted-foreground">· {a.model}</span>
@@ -237,6 +312,7 @@ export default function AgentsList() {
                   <MoreVertical size={14} />
                 </button>
               </div>
+
               <p className="text-xs text-muted-foreground leading-relaxed mb-4 line-clamp-2 min-h-[32px]">{a.desc}</p>
 
               <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
@@ -270,6 +346,12 @@ export default function AgentsList() {
             </div>
           </Link>
         ))}
+
+        {visibleAgents.length === 0 && activeTab !== "All agents" && (
+          <div className="col-span-3 py-16 text-center text-muted-foreground text-sm">
+            No agents in this tab yet.
+          </div>
+        )}
       </div>
     </div>
   );
