@@ -177,8 +177,15 @@ export default function AgentsList() {
         </p>
       </div>
 
-      {/* ── AI chat box ───────────────────────────────────────────────── */}
-      <div className="mb-8 rounded-2xl border-2 border-primary/40 bg-white p-4 shadow-sm focus-within:border-primary transition-colors">
+      {/* ── Hero title + chat box ─────────────────────────────────────── */}
+      <div className="flex flex-col items-center mb-8">
+        <h2 className="font-display text-4xl font-semibold tracking-tight text-center mb-2">
+          Start to build your agent today
+        </h2>
+        <p className="text-base text-muted-foreground text-center mb-6">
+          Describe what you need and we'll build it for you
+        </p>
+        <div className="w-full max-w-[672px] rounded-2xl border-2 border-primary/40 bg-white p-4 shadow-sm focus-within:border-primary transition-colors">
         <textarea
           className="w-full resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none leading-relaxed min-h-[56px]"
           placeholder="e.g. A 24/7 banking customer-care agent that can lock cards, look up loan rates and book consultations…"
@@ -224,6 +231,7 @@ export default function AgentsList() {
               <Send size={13} />
             </button>
           </div>
+        </div>
         </div>
       </div>
 
