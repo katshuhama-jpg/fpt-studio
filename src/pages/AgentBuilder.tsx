@@ -1,6 +1,7 @@
 import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { createPortal } from "react-dom";
 import {
-  ChevronLeft, Play, Save, Rocket, MoreHorizontal, BookOpen, Wrench, ListChecks, Workflow,
+  ChevronLeft, Play, Rocket, MoreHorizontal, AlertTriangle, X, BookOpen, Wrench, ListChecks, Workflow,
   Zap, Cog, MessageSquareText, FileQuestion, Sparkles,
   Search, Upload, Globe, Database, Plus, Layers, CheckCircle2, Send,
   ArrowRight, Shield, ChevronDown, FileText, Trash2, MessageSquare, Activity,
@@ -71,6 +72,7 @@ export default function AgentBuilder() {
   const [buildMode, setBuildMode] = useState<"manual" | "ai">(buildModeParam === "ai" ? "ai" : "manual");
   const welcome = params.get("welcome") === "1";
   const [showWelcome, setShowWelcome] = useState(welcome);
+  const [showPublish, setShowPublish] = useState(false);
   useEffect(() => { setShowWelcome(welcome); }, [welcome]);
   const dismissWelcome = () => {
     setShowWelcome(false);
@@ -126,10 +128,7 @@ export default function AgentBuilder() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button className="h-9 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base">
-            <Save size={13} /> Save
-          </button>
-          <button className="btn-primary h-9">
+          <button onClick={() => setShowPublish(true)} className="btn-primary h-9">
             <Rocket size={13} /> Publish
           </button>
           <button className="h-9 w-9 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base">
@@ -137,6 +136,10 @@ export default function AgentBuilder() {
           </button>
         </div>
       </div>
+
+      {showPublish && (
+        <PublishModal onClose={() => setShowPublish(false)} onChatTest={() => { setShowPublish(false); setSection("tests"); }} />
+      )}
 
       {/* Welcome banner (first-time onboarding success) */}
       {showWelcome && (
@@ -1505,3 +1508,81 @@ const metrics = [
   { label: "Human handoff", value: "8.2%", delta: "1.1% vs last week", trend: "down" },
 ];
 const bars = [50, 62, 45, 75, 68, 95, 80];
+
+/* ============ PublishModal ============ */
+function PublishModal({ onClose, onChatTest }: { onClose: () => void; onChatTest: () => void }) {
+  const [reason, setReason] = useState("");
+  const versionName = "v3.2";
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-lg mx-4 bg-white rounded-2xl border border-border shadow-lg animate-fade-up">
+        {/* Header */}
+        <div className="flex items-start justify-between px-6 py-5 border-b border-border">
+          <div>
+            <h2 className="font-display text-lg font-semibold">Publish agent</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">This will make the agent live for end users.</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base mt-0.5">
+            <X size={15} />
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-5">
+          {/* Version */}
+          <div className="flex items-center gap-3 p-3.5 rounded-xl border border-border bg-surface-muted">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+              <Rocket size={14} />
+            </div>
+            <div>
+              <div className="text-sm font-semibold">Version {versionName}</div>
+              <div className="text-xs text-muted-foreground">Auto-generated version name for this release.</div>
+            </div>
+          </div>
+
+          {/* Warning */}
+          <div className="flex items-start gap-2.5 p-3.5 rounded-xl border border-amber-200 bg-amber-50">
+            <AlertTriangle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+            <p className="text-sm text-amber-800">
+              Make sure you've tested your agent before publishing.{" "}
+              <button onClick={onChatTest} className="font-semibold underline underline-offset-2 hover:text-amber-900 transition-base">
+                Chat test
+              </button>{" "}
+              it now to verify responses are accurate.
+            </p>
+          </div>
+
+          {/* Reason */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-sm font-medium">Reason / note for reviewer <span className="text-destructive">*</span></label>
+              <span className="text-xs text-muted-foreground">{reason.length}/500</span>
+            </div>
+            <textarea
+              rows={4}
+              maxLength={500}
+              placeholder="Why does this Agent need to be published to the selected units?"
+              className="w-full px-3 py-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none"
+              value={reason}
+              onChange={e => setReason(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border">
+          <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Cancel</button>
+          <button
+            disabled={!reason.trim()}
+            className="h-9 px-5 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 transition-base disabled:opacity-40 disabled:cursor-not-allowed"
+            onClick={onClose}
+          >
+            <Rocket size={13} /> Publish
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
