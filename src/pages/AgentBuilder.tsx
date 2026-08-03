@@ -331,6 +331,27 @@ function AiBuildSidebar({
     setInput("");
     push({ kind: "text", role: "user", text: msg });
     await new Promise(r => setTimeout(r, 400));
+
+    // Connector auth demo flow
+    const lower = msg.toLowerCase();
+    if (lower.includes("gmail") || lower.includes("email") || lower.includes("outlook")) {
+      const svc = lower.includes("outlook") ? "Outlook" : "Gmail";
+      await runTool(`check_connector_auth("${svc}")`);
+      streamAi(`Agent cần quyền truy cập ${svc} để gửi/đọc email thay bạn. Vui lòng xác nhận kết nối bên dưới.`);
+      await new Promise(r => setTimeout(r, 800));
+      push({
+        kind: "connector",
+        service: svc,
+        logo: svc === "Gmail" ? "📧" : "📨",
+        perms: [
+          "Đọc email và metadata",
+          "Gửi email thay bạn",
+          "Quản lý nhãn (labels)",
+        ],
+      });
+      return;
+    }
+
     await runTool(`analyze_request("${msg.slice(0, 22)}…")`);
     push({
       kind: "clarify",
@@ -362,7 +383,7 @@ function AiBuildSidebar({
   const handleDiffApply = (msgIdx: number) =>
     setMessages(m => m.map((x, i) => i === msgIdx && x.kind === "diff" ? { ...x, applied: true } : x));
 
-  const quickActions = ["Tighten the system prompt", "Add a guardrail against legal advice", "Make tone more formal", "Draft 5 opening questions"];
+  const quickActions = ["Connect Gmail", "Tighten the system prompt", "Add a guardrail against legal advice", "Make tone more formal"];
 
   return (
     <aside className="w-[280px] border-r border-border bg-surface flex flex-col shrink-0 animate-fade-up">
@@ -474,7 +495,27 @@ function AiBuildSidebar({
             <div key={i} className="rounded-xl border border-warning/40 bg-warning-soft/30 p-2.5">
               <div className="flex items-center gap-1.5 text-[10px] font-semibold text-warning mb-2"><Plug size={11} /> Yêu cầu kết nối tài khoản</div>
               <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-lg bg-surface border border-border flex items-center justify-center text-base shrink-0">{msg.logo}</div>
+                <div className="w-9 h-9 rounded-xl bg-white border border-border flex items-center justify-center shrink-0 shadow-sm">
+                  {msg.service === "Gmail" ? (
+                    <svg viewBox="0 0 48 48" width="22" height="22" xmlns="http://www.w3.org/2000/svg">
+                      <path fill="#EA4335" d="M6 40h6V23.8L4 18v18c0 2.2 1.8 4 4 4z"/>
+                      <path fill="#34A853" d="M36 40h6c2.2 0 4-1.8 4-4V18l-8 5.8z"/>
+                      <path fill="#FBBC05" d="M36 8H12L24 17.3 36 8z"/>
+                      <path fill="#4285F4" d="M12 23.8V8L4 13.3 4 18l8 5.8z"/>
+                      <path fill="#C5221F" d="M44 13.3L36 8v15.8l8-5.8z"/>
+                      <path fill="#EA4335" d="M12 8v15.8l12 8.7 12-8.7V8L24 17.3z"/>
+                    </svg>
+                  ) : msg.service === "Outlook" ? (
+                    <svg viewBox="0 0 48 48" width="22" height="22" xmlns="http://www.w3.org/2000/svg">
+                      <path fill="#1565C0" d="M28 4h12c2.2 0 4 1.8 4 4v32c0 2.2-1.8 4-4 4H28V4z"/>
+                      <path fill="#1E88E5" d="M28 4v44H8c-2.2 0-4-1.8-4-4V8c0-2.2 1.8-4 4-4h20z"/>
+                      <path fill="#fff" d="M18 14c-5 0-9 4-9 9s4 9 9 9 9-4 9-9-4-9-9-9zm0 14c-2.8 0-5-2.2-5-5s2.2-5 5-5 5 2.2 5 5-2.2 5-5 5z"/>
+                      <path fill="#fff" opacity=".7" d="M32 18h8v2h-8zm0 4h8v2h-8zm0 4h8v2h-8z"/>
+                    </svg>
+                  ) : (
+                    <span className="text-lg">{msg.logo}</span>
+                  )}
+                </div>
                 <div><div className="text-[12px] font-medium">{msg.service}</div><div className="text-[10px] text-muted-foreground">Agent cần quyền truy cập để thực hiện tác vụ thay bạn.</div></div>
               </div>
               <div className="text-[10px] font-medium mb-1.5">Quyền được yêu cầu:</div>
@@ -483,7 +524,16 @@ function AiBuildSidebar({
                 <div className="flex items-center gap-1.5 text-[11px] text-success mt-2"><CheckCircle2 size={11} /> {msg.service} connected</div>
               ) : (
                 <div className="flex gap-1.5 mt-2">
-                  <button onClick={() => handleConnectorConnect(msg.service)} className="h-7 px-2.5 rounded-md bg-primary text-primary-foreground text-[11px] font-medium flex items-center gap-1"><Plug size={10} /> Connect {msg.service}</button>
+                  <button onClick={() => handleConnectorConnect(msg.service)} className="h-7 px-2.5 rounded-md bg-primary text-primary-foreground text-[11px] font-medium flex items-center gap-1">
+                    <svg viewBox="0 0 48 48" width="12" height="12" xmlns="http://www.w3.org/2000/svg" style={{flexShrink:0}}>
+                      <path fill="#fff" d="M6 40h6V23.8L4 18v18c0 2.2 1.8 4 4 4z"/>
+                      <path fill="#fff" d="M36 40h6c2.2 0 4-1.8 4-4V18l-8 5.8z"/>
+                      <path fill="#fff" opacity=".8" d="M12 23.8V8L4 13.3 4 18l8 5.8z"/>
+                      <path fill="#fff" opacity=".8" d="M44 13.3L36 8v15.8l8-5.8z"/>
+                      <path fill="#fff" d="M12 8v15.8l12 8.7 12-8.7V8L24 17.3z"/>
+                    </svg>
+                    Kết nối {msg.service}
+                  </button>
                   <button onClick={() => setMessages(m => m.map((x, j) => j === i && x.kind === "connector" ? { ...x, connected: false, perms: [] } : x))} className="h-7 px-2.5 rounded-md border border-border text-[11px] text-muted-foreground">Bỏ qua</button>
                 </div>
               )}
