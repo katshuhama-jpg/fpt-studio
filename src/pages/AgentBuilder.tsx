@@ -639,26 +639,44 @@ function GeneralTab() {
   const initialPrompt = params.get("agentPrompt") || "";
   const [avatar, setAvatar] = useState("🏦");
   const [editingAvatar, setEditingAvatar] = useState(false);
-  const [selectedModel, setSelectedModel] = useState("deepseek-v4-flash");
   const emojiOptions = ["🏦","🤖","💼","🧠","🎯","🛡️","⚡","🌐","📊","🔧","💡","🚀"];
 
+  const defaultInstructions = initialPrompt || `# Banking ABC — Customer Care Agent
+
+You are a customer-care specialist at ABC Bank. Help customers 24/7 with products, services and banking requests.
+
+## Tone & Style
+- Professional, warm, and empathetic
+- Use clear, plain language — avoid jargon
+- Keep responses concise but complete
+
+## Capabilities
+- **Account inquiries**: balance, transactions, statements
+- **Card services**: block/unblock, limits, PIN reset
+- **Loan products**: eligibility, rates, application status
+
+## Limits
+- Only answer questions within the scope of ABC Bank products and services
+- Never provide personalized financial or legal advice
+- If unsure, escalate to a human agent`;
+
   return (
-    <div className="p-8 max-w-2xl mx-auto space-y-8 animate-fade-up">
-      {/* Avatar + Name + Description */}
-      <div className="flex flex-col items-center gap-4 pt-2">
-        {/* Avatar picker */}
-        <div className="relative">
+    <div className="p-8 max-w-2xl mx-auto space-y-6 animate-fade-up">
+      {/* ── Compact header ── */}
+      <div className="flex items-start gap-3">
+        {/* Avatar with edit hint */}
+        <div className="relative shrink-0">
           <button
             onClick={() => setEditingAvatar(o => !o)}
-            className="w-20 h-20 rounded-2xl bg-primary-soft border-2 border-border hover:border-primary/40 flex items-center justify-center text-4xl transition-base shadow-soft group"
+            className="w-12 h-12 rounded-xl bg-primary-soft border border-border hover:border-primary/40 flex items-center justify-center text-2xl transition-base group"
           >
             {avatar}
-            <span className="absolute inset-0 rounded-2xl bg-black/0 group-hover:bg-black/5 transition-base flex items-end justify-end p-1 opacity-0 group-hover:opacity-100">
-              <span className="bg-surface rounded-md px-1 py-0.5 text-xs font-medium text-muted-foreground border border-border">Edit</span>
-            </span>
           </button>
+          <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-md bg-surface border border-border flex items-center justify-center pointer-events-none">
+            <Pencil size={9} className="text-muted-foreground" />
+          </span>
           {editingAvatar && (
-            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-10 bg-surface border border-border rounded-xl shadow-lg p-2.5 grid grid-cols-6 gap-1 w-[180px]">
+            <div className="absolute top-full left-0 mt-2 z-10 bg-surface border border-border rounded-xl shadow-lg p-2.5 grid grid-cols-6 gap-1 w-[180px]">
               {emojiOptions.map(e => (
                 <button
                   key={e}
@@ -676,60 +694,42 @@ function GeneralTab() {
           )}
         </div>
 
-        {/* Name */}
-        <div className="w-full">
-          <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Agent name</label>
+        {/* Editable name + description */}
+        <div className="flex-1 flex flex-col gap-1.5 min-w-0">
           <input
-            className="ds-input text-center text-base font-semibold"
+            className="w-full text-base font-semibold bg-transparent border border-transparent rounded-md px-2 py-1 -mx-2 -my-1 outline-none hover:border-border hover:bg-surface focus:border-ring focus:bg-surface transition-base"
             defaultValue={initialName}
+            placeholder="Agent name…"
+          />
+          <textarea
+            rows={2}
+            className="w-full text-sm text-muted-foreground bg-transparent border border-transparent rounded-md px-2 py-1 -mx-2 -my-1 outline-none resize-none hover:border-border hover:bg-surface focus:border-ring focus:bg-surface transition-base leading-relaxed"
+            defaultValue="Handles customer queries 24/7 for ABC Bank — products, services, and support."
+            placeholder="Short description…"
           />
         </div>
 
-        {/* Description */}
-        <div className="w-full">
-          <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Description</label>
-          <input
-            className="ds-input"
-            placeholder="Short description of what this agent does…"
-            defaultValue="Handles customer queries 24/7 for ABC Bank — products, services, and support."
-          />
-        </div>
-        {/* Model */}
-        <div className="w-full">
-          <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Model</label>
-          <ModelDropdown value={selectedModel} onChange={setSelectedModel} />
-        </div>
+        {/* 3-dot menu */}
+        <button className="w-8 h-8 rounded-lg border border-border bg-surface flex items-center justify-center text-muted-foreground hover:bg-surface-muted transition-base shrink-0 mt-1">
+          <MoreHorizontal size={15} />
+        </button>
       </div>
 
-      {/* Divider */}
+      {/* ── Divider ── */}
       <div className="border-t border-border" />
 
-      {/* Instructions */}
+      {/* ── Instructions ── */}
       <div>
-        <div className="flex items-center justify-between mb-1.5">
-          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Instructions</label>
-          <span className="text-xs text-muted-foreground">System prompt</span>
+        <div className="flex items-center justify-between mb-3">
+          <span className="section-eyebrow">Instructions</span>
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            <FileText size={11} /> Markdown supported
+          </span>
         </div>
-        <p className="text-xs text-muted-foreground mb-3">
-          Tell the agent who it is, how it should behave, and what it must never do.
-        </p>
         <textarea
-          className="ds-textarea w-full min-h-[260px] font-mono text-sm leading-relaxed"
-          defaultValue={initialPrompt || `# Banking ABC — Customer Care Agent
-
-## Role
-You are a customer-care specialist at ABC Bank. Help customers 24/7 with products, services and banking requests.
-
-## Tone & Style
-- Professional, warm, and empathetic
-- Use clear, plain language — avoid jargon
-- Keep responses concise but complete
-
-## Rules
-- Always verify identity before performing sensitive actions
-- Never provide legal or investment advice
-- Only answer questions within the scope of ABC Bank products and services
-- If unsure, say so and offer to escalate to a human agent`}
+          className="w-full min-h-[320px] resize-none bg-transparent border border-transparent rounded-xl px-3 py-3 -mx-3 text-sm leading-relaxed outline-none hover:border-border hover:bg-surface focus:border-ring focus:bg-surface transition-base font-sans"
+          defaultValue={defaultInstructions}
+          placeholder="Write your agent instructions here…"
         />
       </div>
     </div>
@@ -1042,9 +1042,14 @@ function PlaceholderTab({ title }: { title: string }) {
 
 /* ============ PREVIEW PANEL — clearly distinct (device frame) ============ */
 /* ============ RIGHT CONFIG PANEL ============ */
-function RightConfigPanel({ embedded }: { embedded?: boolean }) {
+function RightConfigPanel({ embedded, model, onModelChange }: { embedded?: boolean; model?: string; onModelChange?: (id: string) => void }) {
   const inner = (
     <div className="flex flex-col gap-2 p-3">
+        {/* Model picker at top of config panel */}
+        <div className="rounded-xl border border-border bg-surface p-3">
+          <div className="section-eyebrow mb-2">Model</div>
+          <ModelDropdown value={model ?? "deepseek-v4-flash"} onChange={onModelChange ?? (() => {})} />
+        </div>
         <RightCard icon={BookOpen} title="Knowledge" notSet desc="Documents and sources your agent can look things up in." addLabel="Add" />
         <RightCard icon={Puzzle} title="Skills" notSet desc="Reusable abilities you've taught it." addLabel="Add" />
         <SharedConnectorsCard />
@@ -1203,6 +1208,7 @@ function SubAgentsCard() {
 
 function PreviewPanel() {
   const [view, setView] = useState<"config" | "chat">("config");
+  const [selectedModel, setSelectedModel] = useState("deepseek-v4-flash");
   const [messages, setMessages] = useState<{ role: "user" | "agent"; text: string }[]>([
     { role: "agent", text: "Xin chào! Tôi là Banking ABC Customer Care. Tôi có thể giúp gì cho bạn?" },
   ]);
@@ -1242,7 +1248,7 @@ function PreviewPanel() {
 
       {view === "config" ? (
         <div className="flex-1 overflow-y-auto">
-          <RightConfigPanel embedded />
+          <RightConfigPanel embedded model={selectedModel} onModelChange={setSelectedModel} />
         </div>
       ) : (
         <div className="flex-1 flex flex-col overflow-hidden">
