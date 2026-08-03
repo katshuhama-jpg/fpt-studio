@@ -385,7 +385,7 @@ function AiBuildSidebar({
   const quickActions = ["Connect Gmail", "Tighten the system prompt", "Add a guardrail against legal advice", "Make tone more formal"];
 
   return (
-    <aside className="w-[280px] border-r border-border bg-surface flex flex-col shrink-0 animate-fade-up">
+    <aside className="w-[476px] border-r border-border bg-surface flex flex-col shrink-0 animate-fade-up">
       {/* Header */}
       <div className="h-12 px-3 border-b border-border flex items-center gap-2 shrink-0">
         <div className="w-7 h-7 rounded-md bg-gradient-brand flex items-center justify-center">
@@ -1061,7 +1061,7 @@ function RightConfigPanel({ embedded, model, onModelChange }: { embedded?: boole
   );
   if (embedded) return inner;
   return (
-    <aside className="w-[320px] border-l border-border bg-surface flex flex-col shrink-0 overflow-y-auto">
+    <aside className="w-[476px] border-l border-border bg-surface flex flex-col shrink-0 overflow-y-auto">
       {inner}
     </aside>
   );
@@ -1225,7 +1225,7 @@ function PreviewPanel() {
   };
 
   return (
-    <aside className="w-[320px] border-l border-border bg-surface flex flex-col shrink-0">
+    <aside className="w-[476px] border-l border-border bg-surface flex flex-col shrink-0">
       {/* Toggle header */}
       <div className="h-11 px-3 border-b border-border flex items-center gap-1 shrink-0">
         <button
