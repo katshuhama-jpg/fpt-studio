@@ -5,7 +5,7 @@ import {
   Zap, Cog, MessageSquareText, FileQuestion, Sparkles,
   Search, Upload, Globe, Database, Plus, Layers, CheckCircle2, Send,
   ArrowRight, Shield, ChevronDown, FileText, Trash2, MessageSquare, Activity,
-  Star, Users as UsersIcon, History, Download, X, SlidersHorizontal, Smartphone, Monitor,
+  Star, Users as UsersIcon, History, Download, SlidersHorizontal, Smartphone, Monitor,
   Puzzle, Plug, UserCheck, Clock, Bot, ChevronUp, Trash2 as Trash, Pencil, Hand,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -258,7 +258,7 @@ export default function AgentBuilder() {
             onSectionChange={setSection}
             seedPrompt={params.get("agentPrompt") || ""}
           />
-        )}
+        </div>
 
         {/* Content + Preview */}
         <div className="flex-1 flex overflow-hidden">
