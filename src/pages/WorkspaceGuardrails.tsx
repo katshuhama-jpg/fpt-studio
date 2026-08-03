@@ -34,7 +34,6 @@ function CreateModal({ onClose, onCreate }: { onClose: () => void; onCreate: (g:
   const [topic, setTopic]       = useState("");
   const [desc, setDesc]         = useState("");
   const [samples, setSamples]   = useState("");
-  const [mandatory, setMandatory] = useState(false);
   const [response, setResponse] = useState<ResponseKind>(null);
   const [fixedText, setFixedText] = useState("");
 
@@ -47,7 +46,7 @@ function CreateModal({ onClose, onCreate }: { onClose: () => void; onCreate: (g:
 
   const submit = () => {
     if (!topic.trim()) return;
-    onCreate({ name: topic.trim(), desc: desc.trim(), action: actionFromResponse(), mandatory });
+    onCreate({ name: topic.trim(), desc: desc.trim(), action: actionFromResponse(), mandatory: false });
     onClose();
   };
 
@@ -131,25 +130,25 @@ function CreateModal({ onClose, onCreate }: { onClose: () => void; onCreate: (g:
               {responseOptions.map(opt => {
                 const selected = response === opt.key;
                 return (
-                  <div
-                    key={opt.key}
-                    onClick={() => setResponse(selected ? null : opt.key)}
-                    className={`rounded-xl border-2 cursor-pointer transition-base overflow-hidden ${
-                      selected ? "border-primary bg-primary/5" : "border-border bg-white hover:border-border-strong"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between px-4 py-3.5">
+                  <div key={opt.key} className={`rounded-xl border-2 transition-base overflow-hidden ${
+                    selected ? "border-primary bg-primary/5" : "border-border bg-white"
+                  }`}>
+                    {/* Card header — always visible, click to select */}
+                    <div
+                      className="flex items-center justify-between px-4 py-3.5 cursor-pointer"
+                      onClick={() => setResponse(selected ? null : opt.key)}
+                    >
                       <div>
                         <div className="text-sm font-semibold">{opt.title}</div>
                         <div className="text-xs text-muted-foreground mt-0.5">{opt.desc}</div>
                       </div>
                       {selected
-                        ? <span className="text-xs font-medium text-primary shrink-0 ml-3">Change response</span>
-                        : <span className="text-muted-foreground shrink-0 ml-3">›</span>
+                        ? <span className="text-xs font-medium text-primary shrink-0 ml-4 whitespace-nowrap">Change response</span>
+                        : <span className="text-muted-foreground shrink-0 ml-4 text-lg leading-none">›</span>
                       }
                     </div>
 
-                    {/* Expanded content */}
+                    {/* Expanded detail — only when selected */}
                     {selected && opt.key === "auto" && (
                       <div className="px-4 pb-4">
                         <div className="rounded-lg border border-dashed border-border bg-white px-3 py-3 text-xs text-muted-foreground">
@@ -162,7 +161,7 @@ function CreateModal({ onClose, onCreate }: { onClose: () => void; onCreate: (g:
                         <label className="block text-xs font-semibold mb-1.5">Fixed paragraph <span className="text-destructive">*</span></label>
                         <div className="relative">
                           <textarea
-                            rows={3}
+                            rows={4}
                             maxLength={300}
                             placeholder="Write the exact reply the agent should send."
                             className="w-full px-3 py-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none"
@@ -178,17 +177,17 @@ function CreateModal({ onClose, onCreate }: { onClose: () => void; onCreate: (g:
                       <div className="px-4 pb-4">
                         <div className="rounded-lg border border-border bg-white overflow-hidden">
                           <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
-                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary text-xs">✓</div>
-                            <div className="flex-1">
+                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary text-xs font-bold">✓</div>
+                            <div className="flex-1 min-w-0">
                               <div className="text-sm font-semibold">Approver <span className="text-xs font-normal text-muted-foreground ml-1">0</span></div>
                               <div className="text-xs text-muted-foreground">People authorized to review and approve requests for this guardrail.</div>
                             </div>
-                            <button onClick={e => e.stopPropagation()} className="h-8 px-3 rounded-lg border border-border bg-white hover:bg-surface-muted text-xs font-medium transition-base flex items-center gap-1.5">
+                            <button onClick={e => e.stopPropagation()} className="h-8 px-3 rounded-lg border border-border bg-white hover:bg-surface-muted text-xs font-medium transition-base shrink-0 flex items-center gap-1.5">
                               👤+ Assign member
                             </button>
                           </div>
                           <div className="px-4 py-6 flex flex-col items-center gap-2 text-center">
-                            <div className="w-10 h-10 rounded-full border-2 border-dashed border-border flex items-center justify-center text-muted-foreground">👤</div>
+                            <div className="w-10 h-10 rounded-full border-2 border-dashed border-border flex items-center justify-center text-muted-foreground text-lg">👤</div>
                             <div className="text-sm font-semibold">No approvers assigned</div>
                             <div className="text-xs text-muted-foreground">Assign a member to enable approvals.</div>
                           </div>
@@ -198,15 +197,6 @@ function CreateModal({ onClose, onCreate }: { onClose: () => void; onCreate: (g:
                   </div>
                 );
               })}
-            </div>
-          </div>
-
-          {/* ── Enforced toggle ── */}
-          <div className="flex items-center gap-3 p-3.5 rounded-xl border border-border bg-surface-muted">
-            <input type="checkbox" id="mandatory" checked={mandatory} onChange={e => setMandatory(e.target.checked)} className="w-4 h-4 accent-primary shrink-0" />
-            <div>
-              <label htmlFor="mandatory" className="text-sm font-medium cursor-pointer">Enforced</label>
-              <p className="text-xs text-muted-foreground">Applied to all agents in this workspace — cannot be disabled per agent.</p>
             </div>
           </div>
         </div>
