@@ -178,6 +178,24 @@ function CreateModal({ onClose, onCreate }: { onClose: () => void; onCreate: (g:
                 );
               })}
             </div>
+
+            {/* Apply for all agents */}
+            <div
+              onClick={() => setAllAgents(v => !v)}
+              className={`mt-3 flex items-center gap-3 p-3.5 rounded-xl border-2 cursor-pointer transition-base ${
+                allAgents ? "border-primary bg-primary/5" : "border-border bg-white hover:border-border-strong"
+              }`}
+            >
+              <div className={`w-5 h-5 rounded flex items-center justify-center border-2 shrink-0 transition-base ${
+                allAgents ? "bg-primary border-primary" : "border-border"
+              }`}>
+                {allAgents && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+              </div>
+              <div>
+                <div className="text-sm font-semibold">Apply for all agents</div>
+                <div className="text-xs text-muted-foreground">This guardrail will be assigned to every agent in the workspace.</div>
+              </div>
+            </div>
           </div>
         </div>
 
