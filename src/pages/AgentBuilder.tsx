@@ -5,7 +5,7 @@ import {
   Search, Upload, Globe, Database, Plus, Layers, CheckCircle2, Send,
   ArrowRight, Shield, ChevronDown, FileText, Trash2, MessageSquare, Activity,
   Star, Users as UsersIcon, History, Download, X, SlidersHorizontal, Smartphone, Monitor,
-  Puzzle, Plug, UserCheck, Clock, Bot, ChevronUp, Trash2 as Trash,
+  Puzzle, Plug, UserCheck, Clock, Bot, ChevronUp, Trash2 as Trash, Pencil,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import AgentToolsTab from "@/components/tool-builder/AgentToolsTab";
