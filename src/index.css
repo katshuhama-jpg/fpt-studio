@@ -65,7 +65,7 @@
     --radius: 0.625rem;                 /* 10px — preset radius */
 
     /* ----- Sidebar: bright/light mode ----- */
-    --sidebar-background: 0 0% 100%;
+    --sidebar-background: 210 40% 98%;
     --sidebar-foreground: 240 10% 20%;
     --sidebar-primary: 231 75% 49%;
     --sidebar-primary-foreground: 0 0% 100%;
