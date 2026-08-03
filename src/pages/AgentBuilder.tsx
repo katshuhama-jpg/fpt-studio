@@ -7,7 +7,7 @@ import {
   Star, Users as UsersIcon, History, Download, X, SlidersHorizontal, Smartphone, Monitor,
   Puzzle, Plug, UserCheck, Clock, Bot, ChevronUp, Trash2 as Trash,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import AgentToolsTab from "@/components/tool-builder/AgentToolsTab";
 import TasksGrid from "@/components/tasks/TasksGrid";
 import BusinessProcessesGrid from "@/components/business-processes/BusinessProcessesGrid";
