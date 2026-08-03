@@ -1,15 +1,81 @@
 import { Link, useNavigate } from "react-router-dom";
 import {
-  Sparkles, ArrowRight, ArrowUpRight, Bot, BookOpen, Wrench, Layers,
-  MessageSquare, Briefcase, ShoppingCart, FileQuestion, BookMarked, Rocket,
-  Headphones, Megaphone, GraduationCap, BarChart3, Send, Paperclip, AtSign,
+  ArrowRight, ArrowUpRight, Sparkles, Send, Paperclip, AtSign,
+  Play, ExternalLink, X, Search, Edit, Copy, ShieldCheck,
+  KeyRound, AlertTriangle, CheckCircle2, Plus
 } from "lucide-react";
 import { useState } from "react";
 
-export default function Home() {
-  const [hasRecent] = useState(true); // toggle false to preview empty state
+/* ─── Template data (shared with AgentsList) ────────────────────────── */
+const categories = ["All", "Customer support", "Sales", "HR & Internal", "Operations", "Finance"] as const;
+const templates = [
+  { id: 1, emoji: "💬", bg: "bg-blue-50",  name: "Customer care bot",    cat: "Customer support", desc: "Multilingual 24/7 support with escalation and live-agent handoff" },
+  { id: 2, emoji: "📦", bg: "bg-green-50", name: "Product FAQ assistant", cat: "Customer support", desc: "Answers from manuals, docs, and warranty info" },
+  { id: 3, emoji: "🎯", bg: "bg-amber-50", name: "Sales lead qualifier",  cat: "Sales",            desc: "BANT scoring, objection handling, and CRM handoff" },
+  { id: 4, emoji: "🤝", bg: "bg-pink-50",  name: "HR onboarding bot",     cat: "HR & Internal",    desc: "New-joiner flows, policy lookup, meeting scheduling" },
+  { id: 5, emoji: "🔧", bg: "bg-blue-50",  name: "IT helpdesk",           cat: "Operations",       desc: "Password reset, VPN setup, and L1 ticket triage" },
+  { id: 6, emoji: "💰", bg: "bg-green-50", name: "Finance Q&A",           cat: "Finance",          desc: "Invoice queries, payment status, and budget lookups" },
+  { id: 7, emoji: "📋", bg: "bg-amber-50", name: "Operations assistant",  cat: "Operations",       desc: "Process guides, SOP lookup, and task routing" },
+  { id: 8, emoji: "📣", bg: "bg-pink-50",  name: "Marketing assistant",   cat: "Sales",            desc: "Campaign Q&A, content suggestions, and lead capture" },
+];
+
+const recent = [
+  { id: "hr",    name: "HR Agent",          emoji: "🤝", bg: "bg-blue-50",   status: "Active",  desc: "Answers employee questions about policies, benefits, and leave on Slack &…", editor: "Nguyen Minh", edited: "12 minutes ago" },
+  { id: "ba",    name: "BA Agent",          emoji: "📋", bg: "bg-purple-50", status: "Active",  desc: "Helps Business Analysts draft user stories, BRDs, and analyze requirements from…", editor: "Pham Thu Ha", edited: "5 minutes ago" },
+  { id: "onboarding", name: "Onboarding Agent", emoji: "🎓", bg: "bg-green-50", status: "Draft", desc: "Guides new employees through a 30/60/90-day roadmap with documents…", editor: "Tran Van Khoa", edited: "45 minutes ago" },
+];
+
+/* ─── Modals ─────────────────────────────────────────────────────────── */
+
+function TemplateModal({ onClose, onUse }: { onClose: () => void; onUse: (name: string) => void }) {
+  const [search, setSearch] = useState("");
+  const [cat, setCat] = useState<string>("All");
+  const filtered = templates.filter(t => {
+    const matchCat = cat === "All" || t.cat === cat;
+    const matchSearch = t.name.toLowerCase().includes(search.toLowerCase()) || t.desc.toLowerCase().includes(search.toLowerCase());
+    return matchCat && matchSearch;
+  });
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-xl mx-4 bg-white rounded-2xl shadow-lg border border-border flex flex-col max-h-[80vh] animate-fade-up">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+          <h2 className="font-display text-lg font-semibold">Choose a template</h2>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base"><X size={16} /></button>
+        </div>
+        <div className="px-5 py-3 border-b border-border shrink-0">
+          <div className="relative">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input autoFocus className="w-full h-9 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30" placeholder="Search templates…" value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+        </div>
+        <div className="flex items-center gap-2 px-5 py-3 border-b border-border overflow-x-auto shrink-0">
+          {categories.map(c => (
+            <button key={c} onClick={() => setCat(c)} className={`px-3 h-7 rounded-full text-xs font-medium whitespace-nowrap transition-base ${cat === c ? "bg-primary-soft text-primary border border-primary/30" : "bg-surface-muted text-muted-foreground hover:bg-surface-sunken"}`}>{c}</button>
+          ))}
+        </div>
+        <div className="overflow-y-auto flex-1 px-5 py-3 space-y-2">
+          {filtered.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No templates found.</p>}
+          {filtered.map(t => (
+            <div key={t.id} className="flex items-center gap-3 p-3 rounded-xl border border-border hover:border-primary/30 hover:bg-primary-soft/20 transition-base group">
+              <div className={`w-10 h-10 rounded-xl ${t.bg} flex items-center justify-center text-xl shrink-0`}>{t.emoji}</div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold">{t.name}</p>
+                <p className="text-xs text-muted-foreground truncate">{t.desc}</p>
+              </div>
+              <button onClick={() => { onUse(t.name); onClose(); }} className="shrink-0 h-7 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-medium opacity-0 group-hover:opacity-100 transition-base">Use</button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CreateAgentModal({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
   const [prompt, setPrompt] = useState("");
+  const [showTemplates, setShowTemplates] = useState(false);
 
   const handleBuild = () => {
     if (!prompt.trim()) return;
@@ -17,230 +83,228 @@ export default function Home() {
     params.set("tab", "develop");
     params.set("section", "general");
     params.set("agentPrompt", prompt.trim());
-    params.set("buildMode", "ai");
     navigate(`/agents/new?${params.toString()}`);
+    onClose();
   };
 
-  return (
-    <div className="px-8 py-10 max-w-[1200px] mx-auto animate-fade-up">
-      {/* ============ Hero: prompt-to-build ============ */}
-      <section className="mb-12">
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center gap-1.5 chip chip-primary mb-4">
-            <Sparkles size={11} /> Build with natural language
-          </div>
-          <h1 className="font-display text-4xl md:text-5xl font-semibold tracking-tight mb-3 text-balance">
-            Good afternoon, Nam — what should we build today?
-          </h1>
-          <p className="text-base text-muted-foreground max-w-xl mx-auto text-balance">
-            Describe your agent in one sentence. We'll scaffold knowledge, tools and the system prompt for you.
-          </p>
-        </div>
+  if (showTemplates) return <TemplateModal onClose={onClose} onUse={name => { setPrompt(`Build a ${name} for my workspace.`); setShowTemplates(false); }} />;
 
-        {/* Composer */}
-        <div className="max-w-2xl mx-auto">
-          <div className="rounded-2xl border border-border bg-surface shadow-elev focus-within:border-primary focus-within:ring-glow transition-base p-2">
-            <textarea
-              value={prompt}
-              onChange={e => setPrompt(e.target.value)}
-              rows={2}
-              placeholder="e.g. A 24/7 banking customer-care agent that can lock cards, look up loan rates and book consultations…"
-              className="w-full resize-none bg-transparent text-sm placeholder:text-muted-foreground outline-none px-3 py-2.5 max-h-40"
-            />
-            <div className="flex items-center gap-1.5 px-2 pb-1">
-              <button className="h-8 w-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base" title="Attach a brief">
-                <Paperclip size={14} />
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-[672px] mx-4 animate-fade-up">
+        <div className="rounded-2xl border-2 border-primary/40 bg-white p-4 shadow-lg focus-within:border-primary transition-colors">
+          <p className="text-sm font-medium text-foreground mb-3 px-1">Describe your agent</p>
+          <textarea
+            autoFocus
+            className="w-full resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none leading-relaxed min-h-[80px]"
+            placeholder="e.g. A 24/7 banking customer-care agent that can lock cards, look up loan rates and book consultations…"
+            rows={3}
+            value={prompt}
+            onChange={e => setPrompt(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleBuild(); }}
+          />
+          <div className="flex items-center justify-between mt-3">
+            <div className="flex items-center gap-1">
+              <button className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base" title="Attach file"><Paperclip size={16} /></button>
+              <button className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base" title="Mention knowledge"><AtSign size={16} /></button>
+            </div>
+            <div className="flex items-center gap-3">
+              <button onClick={() => setShowTemplates(true)} className="text-sm text-muted-foreground hover:text-foreground transition-base">Use a template</button>
+              <button onClick={handleBuild} disabled={!prompt.trim()} className="h-9 px-4 rounded-full bg-primary/80 hover:bg-primary disabled:opacity-40 disabled:cursor-not-allowed text-primary-foreground text-sm font-medium flex items-center gap-2 transition-base">
+                <Sparkles size={14} /> Build agent <Send size={13} />
               </button>
-              <button className="h-8 w-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base" title="Mention a tool or knowledge">
-                <AtSign size={14} />
+            </div>
+          </div>
+        </div>
+        <button onClick={onClose} className="absolute -top-3 -right-3 w-7 h-7 rounded-full bg-white border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-base shadow-sm">
+          <X size={14} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Main ───────────────────────────────────────────────────────────── */
+
+export default function Home() {
+  const navigate = useNavigate();
+  const [showCreate, setShowCreate]       = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+
+  return (
+    <div className="animate-fade-up">
+      {showCreate    && <CreateAgentModal onClose={() => setShowCreate(false)} />}
+      {showTemplates && <TemplateModal onClose={() => setShowTemplates(false)} onUse={name => { navigate(`/agents/new?agentPrompt=Build+a+${encodeURIComponent(name)}`); setShowTemplates(false); }} />}
+
+      {/* ── Hero ──────────────────────────────────────────────────── */}
+      <section className="mx-6 mt-6 mb-6 rounded-2xl overflow-hidden" style={{background:"linear-gradient(135deg,#0f1c3f 0%,#1a2d5a 60%,#1e3a6e 100%)"}}>
+        <div className="flex items-center justify-between px-10 py-10 gap-8">
+          <div className="flex-1 min-w-0">
+            <div className="inline-flex items-center gap-1.5 bg-white/10 text-white/80 text-xs px-3 py-1 rounded-full mb-4">
+              <Sparkles size={11} /> Agent Studio
+            </div>
+            <h1 className="font-display text-3xl font-bold text-white mb-2 tracking-tight">
+              Welcome to Agent Studio
+            </h1>
+            <p className="text-sm text-white/60 mb-7 max-w-sm leading-relaxed">
+              Build, connect, and operate your enterprise AI Agent workforce.
+            </p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowCreate(true)}
+                className="h-10 px-5 rounded-lg bg-white text-[#1a2d5a] text-sm font-semibold flex items-center gap-2 hover:bg-white/90 transition-base"
+              >
+                Create new Agent <ArrowRight size={15} />
               </button>
-              <div className="ml-auto flex items-center gap-2">
-                <button className="text-xs font-medium text-muted-foreground hover:text-foreground px-2 h-8 rounded-md hover:bg-surface-muted transition-base">
-                  Use a template
-                </button>
-                <button
-                  onClick={handleBuild}
-                  disabled={!prompt.trim()}
-                  className="h-8 px-3.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 shadow-soft transition-base disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <Sparkles size={13} /> Build agent <Send size={11} />
-                </button>
-              </div>
+              <button
+                onClick={() => setShowTemplates(true)}
+                className="h-10 px-5 rounded-lg border border-white/30 text-white text-sm font-medium hover:bg-white/10 transition-base"
+              >
+                Browse templates
+              </button>
             </div>
           </div>
 
-          {/* Suggestion chips */}
-          <div className="flex flex-wrap justify-center gap-2 mt-4">
-            {suggestions.map(s => (
-              <button
-                key={s}
-                onClick={() => setPrompt(s)}
-                className="text-xs px-3 py-1.5 rounded-full bg-surface border border-border hover:border-primary/30 hover:bg-primary-soft/40 hover:text-primary text-muted-foreground transition-base"
-              >
-                {s}
-              </button>
+          {/* Workspace snapshot */}
+          <div className="shrink-0 w-72 rounded-xl bg-white/8 border border-white/15 p-5">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-xs font-semibold text-white/70 uppercase tracking-wider">Workspace snapshot</span>
+              <span className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" /> Live
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              {[{label:"Agents",val:12},{label:"Connectors",val:48},{label:"Knowledge",val:9}].map(s => (
+                <div key={s.label} className="rounded-lg bg-white/8 border border-white/10 p-3 text-center">
+                  <div className="text-2xl font-bold text-white mb-0.5">{s.val}</div>
+                  <div className="text-xs text-white/50">{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="px-6 pb-8 space-y-8">
+
+        {/* ── Get started ───────────────────────────────────────── */}
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-display text-lg font-semibold">Get started</h2>
+            <button className="text-xs text-muted-foreground hover:text-foreground transition-base">Hide</button>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {getStarted.map(g => (
+              <div key={g.title} className="rounded-xl border border-border bg-surface overflow-hidden group cursor-pointer hover:border-primary/30 hover:shadow-soft transition-base">
+                <div className={`h-28 flex items-center justify-center ${g.bg} relative`}>
+                  {g.isAI
+                    ? <span className="text-5xl font-bold text-white/30 select-none">AI</span>
+                    : <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center shadow"><Play size={16} className="text-red-500 ml-0.5" fill="currentColor" /></div>
+                  }
+                  {g.external && <ExternalLink size={12} className="absolute top-2 right-2 text-white/40" />}
+                </div>
+                <div className="p-3">
+                  <p className="text-xs text-muted-foreground mb-0.5">{g.label}</p>
+                  <p className="text-xs font-semibold leading-snug">{g.title}</p>
+                </div>
+              </div>
             ))}
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ============ Templates row ============ */}
-      <section className="mb-10">
-        <div className="flex items-end justify-between mb-4">
-          <div>
-            <h2 className="font-display text-lg font-semibold">Start from a template</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Production-ready blueprints curated by FPT.</p>
-          </div>
-          <Link to="/templates" className="text-xs font-medium text-primary hover:text-primary-glow flex items-center gap-1 transition-base">
-            All templates <ArrowRight size={12} />
-          </Link>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          {templates.map(t => (
-            <Link
-              key={t.name}
-              to="/templates"
-              className="group rounded-xl border border-border bg-surface p-4 hover:border-primary/30 hover:shadow-soft transition-base text-center"
-            >
-              <div className={`w-10 h-10 mx-auto rounded-lg flex items-center justify-center mb-2.5 ${t.bg}`}>
-                <t.icon size={16} className={t.color} />
-              </div>
-              <div className="text-xs font-semibold mb-0.5 truncate">{t.name}</div>
-              <div className="text-xs text-muted-foreground truncate">{t.tag}</div>
+        {/* ── Recent ────────────────────────────────────────────── */}
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-display text-lg font-semibold">Recent</h2>
+            <Link to="/agents" className="text-xs text-primary flex items-center gap-1 hover:text-primary-glow transition-base">
+              All Agents <ArrowRight size={12} />
             </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* ============ Recent + News ============ */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Recent — col-span 2 */}
-        <div className="lg:col-span-2">
-          <SectionHeader title="Recent agents" linkTo="/agents" linkLabel="All agents" />
-          {hasRecent ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {recent.map(a => (
-                <Link
-                  key={a.name}
-                  to="/agents/cskh"
-                  className="group flex items-center gap-3 px-4 py-3.5 rounded-xl bg-surface border border-border hover:border-primary/30 hover:shadow-soft transition-base"
-                >
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-base shrink-0 ${a.bg}`}>
-                    {a.emoji}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">{a.name}</div>
-                    <div className="text-xs text-muted-foreground">{a.meta}</div>
-                  </div>
-                  <span
-                    className={`text-xs font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                      a.status === "Published" ? "bg-primary-soft text-primary" : "bg-surface-muted text-muted-foreground"
-                    }`}
-                  >
-                    {a.status}
-                  </span>
-                  <ArrowUpRight size={13} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-base shrink-0" />
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <EmptyRecent />
-          )}
-        </div>
-
-        {/* News */}
-        <div className="relative overflow-hidden rounded-xl bg-gradient-hero p-5 border border-border">
-          <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-primary/10 blur-3xl" aria-hidden />
-          <div className="relative">
-            <div className="flex items-center gap-2 mb-3">
-              <Sparkles size={13} className="text-primary" />
-              <span className="text-xs uppercase tracking-wider font-semibold text-primary">What's new</span>
-            </div>
-            <h3 className="font-display text-base font-semibold mb-3 text-balance">
-              Ship enterprise agents 10× faster.
-            </h3>
-            <div className="space-y-1.5">
-              {news.map(n => (
-                <Link
-                  key={n.title}
-                  to="/docs"
-                  className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-surface transition-base group"
-                >
-                  <n.icon size={13} className="text-primary shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium truncate">{n.title}</div>
-                    <div className="text-xs text-muted-foreground">{n.sub}</div>
-                  </div>
-                  <ArrowUpRight size={11} className="opacity-0 group-hover:opacity-100 transition-base text-muted-foreground" />
-                </Link>
-              ))}
-            </div>
           </div>
-        </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {recent.map(a => (
+              <Link key={a.id} to={`/agents/${a.id}`} className="group rounded-xl border border-border bg-surface p-4 hover:border-primary/30 hover:shadow-soft transition-base flex flex-col">
+                <div className={`w-10 h-10 rounded-xl ${a.bg} flex items-center justify-center text-xl mb-3`}>{a.emoji}</div>
+                <div className="font-semibold text-sm mb-1">{a.name}</div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <span className={`w-1.5 h-1.5 rounded-full ${a.status === "Active" ? "bg-emerald-500" : "bg-amber-400"}`} />
+                  <span className="text-xs text-muted-foreground">{a.status}</span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 flex-1 mb-3">{a.desc}</p>
+                <div className="flex items-center gap-3 pt-3 border-t border-border">
+                  <button onClick={e => { e.preventDefault(); }} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-base">
+                    <Edit size={12} /> Edit
+                  </button>
+                  <button onClick={e => { e.preventDefault(); }} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-base">
+                    <Copy size={12} /> Duplicate
+                  </button>
+                </div>
+                <div className="mt-2 text-xs text-muted-foreground">
+                  <span className="font-medium">{a.editor}</span> · Edited {a.edited}
+                </div>
+              </Link>
+            ))}
+
+            {/* Create new CTA card */}
+            <button
+              onClick={() => setShowCreate(true)}
+              className="rounded-xl border border-border bg-surface p-4 flex flex-col items-center justify-center text-center hover:border-primary/30 hover:shadow-soft transition-base group min-h-[200px]"
+            >
+              <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center mb-3 group-hover:scale-110 transition-base">
+                <Plus size={22} className="text-white" />
+              </div>
+              <p className="font-semibold text-sm mb-1">Create new Agent</p>
+              <p className="text-xs text-muted-foreground leading-relaxed max-w-[140px]">Start from a ready-made template or build from scratch.</p>
+            </button>
+          </div>
+        </section>
+
+        {/* ── Agent Governance ──────────────────────────────────── */}
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="font-display text-lg font-semibold">Agent Governance</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Review approvals, access, and risks across your Agent workforce.</p>
+            </div>
+            <Link to="/governance" className="text-xs text-primary flex items-center gap-1 hover:text-primary-glow transition-base">
+              Open Governance <ArrowRight size={12} />
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {governance.map(g => (
+              <div key={g.label} className="rounded-xl border border-border bg-surface p-4 hover:border-primary/30 hover:shadow-soft transition-base cursor-pointer group flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${g.iconBg}`}>
+                    <g.icon size={17} className={g.iconColor} />
+                  </div>
+                  <ArrowRight size={14} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-base" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold font-display">{g.val}</div>
+                  <div className="text-sm font-medium">{g.label}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">{g.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
     </div>
   );
 }
 
-function EmptyRecent() {
-  return (
-    <div className="rounded-xl border-2 border-dashed border-border bg-surface/50 p-8 text-center">
-      <div className="w-12 h-12 mx-auto rounded-xl bg-primary-soft text-primary flex items-center justify-center mb-3">
-        <Bot size={20} />
-      </div>
-      <div className="font-display font-semibold text-sm mb-1">No agents yet</div>
-      <p className="text-xs text-muted-foreground max-w-xs mx-auto mb-4">
-        Use the prompt above or pick a template to ship your first agent in minutes.
-      </p>
-      <div className="flex items-center justify-center gap-2">
-        <Link to="/templates" className="btn-secondary h-8 text-xs">
-          <Layers size={12} /> Browse templates
-        </Link>
-        <Link to="/agents/new" className="btn-primary h-8 text-xs">
-          <Sparkles size={12} /> Start blank
-        </Link>
-      </div>
-    </div>
-  );
-}
+/* ─── Static data ────────────────────────────────────────────────────── */
 
-function SectionHeader({ title, linkTo, linkLabel }: { title: string; linkTo: string; linkLabel: string }) {
-  return (
-    <div className="flex items-center justify-between mb-4">
-      <h3 className="font-display text-lg font-semibold">{title}</h3>
-      <Link to={linkTo} className="text-xs font-medium text-primary hover:text-primary-glow flex items-center gap-1 transition-base">
-        {linkLabel} <ArrowRight size={12} />
-      </Link>
-    </div>
-  );
-}
-
-const suggestions = [
-  "Customer-support agent for an e-commerce shop",
-  "HR onboarding assistant",
-  "Internal knowledge bot from our SharePoint",
-  "Sales lead qualifier with CRM hand-off",
+const getStarted = [
+  { label: "Introduction", title: "Why choose Agent Studio?",                      bg: "bg-amber-100",   isAI: false, external: false },
+  { label: "Tutorial",     title: "Build an HR Agent that answers policy questions in 10 minutes", bg: "bg-blue-100", isAI: false, external: false },
+  { label: "Case study",   title: "Automate your new employee onboarding process",  bg: "bg-indigo-100",  isAI: false, external: false },
+  { label: "Updates",      title: "Changelog & latest updates",                     bg: "bg-indigo-200",  isAI: true,  external: true  },
 ];
 
-const templates = [
-  { name: "Customer Care", tag: "CX · Banking", icon: Headphones, color: "text-primary", bg: "bg-primary-soft" },
-  { name: "HR Assistant", tag: "Internal", icon: Briefcase, color: "text-accent", bg: "bg-accent-soft" },
-  { name: "Sales Helper", tag: "E-commerce", icon: ShoppingCart, color: "text-primary", bg: "bg-primary-soft" },
-  { name: "Product FAQ", tag: "Support", icon: MessageSquare, color: "text-info", bg: "bg-info/15" },
-  { name: "Marketing", tag: "Content", icon: Megaphone, color: "text-accent", bg: "bg-accent-soft" },
-  { name: "Coach", tag: "L&D", icon: GraduationCap, color: "text-primary", bg: "bg-primary-soft" },
-];
-
-const recent = [
-  { name: "Banking ABC — Customer Care", meta: "Edited 2 hours ago", emoji: "🏦", bg: "bg-primary-soft", status: "Published" },
-  { name: "HR Onboarding Bot", meta: "Edited yesterday", emoji: "🤝", bg: "bg-accent-soft", status: "Draft" },
-  { name: "Product FAQ Assistant", meta: "Edited 3 days ago", emoji: "📦", bg: "bg-surface-muted", status: "Published" },
-  { name: "Sales Lead Qualifier", meta: "Edited last week", emoji: "🎯", bg: "bg-primary-soft", status: "Draft" },
-];
-
-const news = [
-  { title: "Quick Start in 5 minutes", sub: "Build your first agent", icon: Rocket },
-  { title: "Release notes — v6.3", sub: "April 2026", icon: FileQuestion },
-  { title: "What's new in Tasks", sub: "Standalone editor", icon: BarChart3 },
-  { title: "Platform overview", sub: "Read the docs", icon: BookMarked },
+const governance = [
+  { label: "Pending approvals",  val: 7,    desc: "Agents awaiting deployment review", icon: ShieldCheck,    iconBg: "bg-blue-50",   iconColor: "text-blue-500" },
+  { label: "Access requests",    val: 3,    desc: "Users requesting Agent access",      icon: KeyRound,       iconBg: "bg-amber-50",  iconColor: "text-amber-500" },
+  { label: "Policy alerts",      val: 2,    desc: "Guardrail violations this week",     icon: AlertTriangle,  iconBg: "bg-red-50",    iconColor: "text-red-500" },
+  { label: "Compliance",         val: "98%", desc: "Agents meeting governance policies", icon: CheckCircle2,  iconBg: "bg-green-50",  iconColor: "text-green-500" },
 ];
