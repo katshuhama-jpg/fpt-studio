@@ -4,7 +4,7 @@ import {
   Home, MessageSquare, Bot, BookOpen, Settings, LayoutTemplate,
   Puzzle, ChevronsLeft, ChevronsRight, Search, Bell, Plus,
   ChevronRight, LifeBuoy, KeyRound, LogOut, User, ChevronDown,
-  Check, Building2, PlusCircle, Sparkles,
+  Check, Building2, PlusCircle, Sparkles, Shield,
 } from "lucide-react";
 import { useState } from "react";
 import fptAiLogo from "@/assets/fpt-ai-logo.png";
@@ -33,6 +33,7 @@ const groups: Group[] = [
       { to: "/agents", label: "Agents", icon: Bot },
       { to: "/knowledge", label: "Knowledge", icon: BookOpen },
       { to: "/tools", label: "Skills", icon: Puzzle },
+      { to: "/guardrails", label: "Guardrails", icon: Shield },
       { to: "/templates", label: "Templates", icon: LayoutTemplate },
     ],
   },
