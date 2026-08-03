@@ -75,10 +75,9 @@ export default function WorkspaceLayout() {
     );
   }
 
-  const breadcrumbLabel =
-    loc.pathname === "/"
-      ? "Home"
-      : loc.pathname.slice(1).split("/")[0].replace(/-/g, " ");
+  const BREADCRUMB_LABELS: Record<string, string> = { tools: "Skills" };
+  const rawSegment = loc.pathname === "/" ? "Home" : loc.pathname.slice(1).split("/")[0].replace(/-/g, " ");
+  const breadcrumbLabel = BREADCRUMB_LABELS[rawSegment.replace(/ /g, "-")] ?? rawSegment;
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
