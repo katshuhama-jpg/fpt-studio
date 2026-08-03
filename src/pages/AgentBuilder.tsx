@@ -73,6 +73,7 @@ export default function AgentBuilder() {
   const welcome = params.get("welcome") === "1";
   const [showWelcome, setShowWelcome] = useState(welcome);
   const [showPublish, setShowPublish] = useState(false);
+  const [previewView, setPreviewView] = useState<"config" | "chat">("config");
   useEffect(() => { setShowWelcome(welcome); }, [welcome]);
   const dismissWelcome = () => {
     setShowWelcome(false);
@@ -138,7 +139,7 @@ export default function AgentBuilder() {
       </div>
 
       {showPublish && (
-        <PublishModal onClose={() => setShowPublish(false)} onChatTest={() => { setShowPublish(false); setSection("tests"); }} />
+        <PublishModal onClose={() => setShowPublish(false)} onChatTest={() => { setShowPublish(false); setPreviewView("chat"); }} />
       )}
 
       {/* Welcome banner (first-time onboarding success) */}
@@ -258,7 +259,7 @@ export default function AgentBuilder() {
             {tab === "monitor" && section !== "perf" && <PlaceholderTab title={section} />}
           </div>
 
-          {tab === "develop" && <PreviewPanel />}
+          {tab === "develop" && <PreviewPanel view={previewView} onViewChange={setPreviewView} />}
         </div>
       </div>
     </div>
@@ -1313,8 +1314,8 @@ function SubAgentsCard() {
   );
 }
 
-function PreviewPanel() {
-  const [view, setView] = useState<"config" | "chat">("config");
+function PreviewPanel({ view, onViewChange }: { view: "config" | "chat"; onViewChange: (v: "config" | "chat") => void }) {
+  const setView = onViewChange;
   const [selectedModel, setSelectedModel] = useState("deepseek-v4-flash");
   const [messages, setMessages] = useState<{ role: "user" | "agent"; text: string }[]>([
     { role: "agent", text: "Xin chào! Tôi là Banking ABC Customer Care. Tôi có thể giúp gì cho bạn?" },
