@@ -94,10 +94,10 @@ export default function WorkspaceGuardrails() {
     return items.filter(g => !q || g.name.toLowerCase().includes(q) || g.desc.toLowerCase().includes(q));
   }, [items, query]);
 
-  const [activeTab, setActiveTab] = useState<"enforced" | "optional">("enforced");
+  const [activeTab, setActiveTab] = useState<"optional" | "enforced">("optional");
 
-  const enforced = filtered.filter(g => g.mandatory);
   const optional  = filtered.filter(g => !g.mandatory);
+  const enforced = filtered.filter(g => g.mandatory);
   const visibleItems = activeTab === "enforced" ? enforced : optional;
 
   const handleCreate = (g: Omit<Guardrail, "id" | "agents">) => {
@@ -137,26 +137,30 @@ export default function WorkspaceGuardrails() {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 border-b border-border mb-5 pb-0">
+      <div className="flex items-center gap-1 mb-5 border-b border-border pb-3">
         {([
-          { key: "enforced", label: "Enforced", count: enforced.length },
           { key: "optional", label: "Optional",  count: optional.length  },
+          { key: "enforced", label: "Enforced", count: enforced.length },
         ] as const).map(t => (
           <button
             key={t.key}
             onClick={() => setActiveTab(t.key)}
-            className={`flex items-center gap-1.5 px-3 h-9 text-sm font-medium border-b-2 -mb-px transition-base ${
+            className={`px-3 h-8 rounded-lg text-sm font-medium transition-base flex items-center gap-1.5 ${
               activeTab === t.key
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                ? "bg-primary-soft text-primary"
+                : "text-muted-foreground hover:bg-surface-muted"
             }`}
           >
             {t.label}
-            <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-              activeTab === t.key ? "bg-primary-soft text-primary" : "bg-surface-muted text-muted-foreground border border-border"
-            }`}>
-              {t.count}
-            </span>
+            {t.count > 0 && (
+              <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                activeTab === t.key
+                  ? "bg-primary/10 text-primary"
+                  : "bg-surface-sunken text-muted-foreground"
+              }`}>
+                {t.count}
+              </span>
+            )}
           </button>
         ))}
       </div>
