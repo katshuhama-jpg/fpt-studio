@@ -61,7 +61,7 @@ const App = () => (
           <Route element={<RequireAuth><WorkspaceLayout /></RequireAuth>}>
             <Route path="/knowledge" element={<PlaceholderPage title="Workspace Knowledge" />} />
             <Route path="/settings" element={<WorkspaceSettings />} />
-            <Route path="/templates" element={<PlaceholderPage title="Template Store" />} />
+            <Route path="/connectors" element={<WorkspaceConnectors />} />
             <Route path="/tools" element={<Skills />} />
             <Route path="/guardrails" element={<WorkspaceGuardrails />} />
             <Route path="/api-keys" element={<PlaceholderPage title="API Keys" />} />

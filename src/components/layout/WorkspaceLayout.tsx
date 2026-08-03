@@ -1,7 +1,7 @@
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { clearUser } from "@/lib/onboarding";
 import {
-  Home, MessageSquare, Bot, BookOpen, Settings, LayoutTemplate,
+  Home, MessageSquare, Bot, BookOpen, Settings, Plug,
   Puzzle, ChevronsLeft, ChevronsRight, Search, Bell, Plus,
   ChevronRight, LifeBuoy, KeyRound, LogOut, User, ChevronDown,
   Check, Building2, PlusCircle, Sparkles, Shield,
@@ -34,7 +34,7 @@ const groups: Group[] = [
       { to: "/knowledge", label: "Knowledge", icon: BookOpen },
       { to: "/tools", label: "Skills", icon: Puzzle },
       { to: "/guardrails", label: "Guardrails", icon: Shield },
-      { to: "/templates", label: "Templates", icon: LayoutTemplate },
+      { to: "/connectors", label: "Connectors", icon: Plug },
     ],
   },
   {
@@ -353,7 +353,7 @@ function HeaderNewMenu({ pathname }: { pathname: string }) {
     tool: pathname === "/tools" || /^\/agents\/[^/]+\/tools/.test(pathname),
     knowledge: pathname === "/knowledge",
     task: /^\/agents\/[^/]+\/tasks/.test(pathname),
-    template: pathname === "/templates",
+    connector: pathname === "/connectors",
   };
 
   const primary: NewItem[] = [
@@ -362,7 +362,7 @@ function HeaderNewMenu({ pathname }: { pathname: string }) {
     { to: "/knowledge?new=1", label: "New Knowledge", desc: "Upload docs or connect a data source", icon: BookOpen, hidden: hide.knowledge },
   ];
   const secondary: NewItem[] = [
-    { to: "/templates", label: "Import from template", desc: "Start from a prebuilt blueprint", icon: Sparkles, hidden: hide.template },
+    { to: "/connectors", label: "Browse connectors", desc: "Start from a prebuilt blueprint", icon: Sparkles, hidden: hide.template },
   ];
 
   const visiblePrimary = primary.filter(i => !i.hidden);
