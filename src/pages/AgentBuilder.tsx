@@ -167,8 +167,16 @@ export default function AgentBuilder() {
       {/* Body */}
       <div className="flex flex-1 overflow-hidden relative">
         {/* Left nav (agent-only) — hidden when AI mode is active */}
-        {buildMode === "manual" && (
-          <aside className="w-[280px] border-r border-border overflow-y-auto shrink-0 flex flex-col" style={{background:"#f8fafc"}}>
+        <aside
+          className="border-r border-border overflow-hidden shrink-0 flex flex-col"
+          style={{
+            background:"#f8fafc",
+            width: buildMode === "manual" ? "280px" : "0px",
+            opacity: buildMode === "manual" ? 1 : 0,
+            transition: "width 320ms cubic-bezier(0.4,0,0.2,1), opacity 280ms ease",
+            minWidth: 0,
+          }}
+        >
             <div className="p-3 space-y-5 flex-1">
               {nav.map(group => (
                 <div key={group.label}>
@@ -230,10 +238,18 @@ export default function AgentBuilder() {
               </button>
             </div>
           </aside>
-        )}
 
-        {/* AI chat sidebar — replaces left nav when active */}
-        {buildMode === "ai" && (
+        {/* AI chat sidebar — slides in from left */}
+        <div
+          style={{
+            width: buildMode === "ai" ? "476px" : "0px",
+            opacity: buildMode === "ai" ? 1 : 0,
+            overflow: "hidden",
+            flexShrink: 0,
+            transition: "width 320ms cubic-bezier(0.4,0,0.2,1), opacity 280ms ease",
+            minWidth: 0,
+          }}
+        >
           <AiBuildSidebar
             onClose={() => setBuildMode("manual")}
             contextLabel={currentSectionLabel}
@@ -389,7 +405,7 @@ function AiBuildSidebar({
   const quickActions = ["Connect Gmail", "Tighten the system prompt", "Add a guardrail against legal advice", "Make tone more formal"];
 
   return (
-    <aside className="w-[476px] border-r border-border flex flex-col shrink-0 animate-fade-up" style={{background:"#f8fafc"}}>
+    <aside className="w-[476px] border-r border-border flex flex-col shrink-0" style={{background:"#f8fafc", minWidth:"476px"}}>
       {/* Header */}
       <div className="h-12 px-3 border-b border-border flex items-center gap-2 shrink-0">
         <div className="w-7 h-7 rounded-md bg-gradient-brand flex items-center justify-center">
