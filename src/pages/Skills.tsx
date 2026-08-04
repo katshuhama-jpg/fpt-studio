@@ -475,28 +475,34 @@ export default function Skills() {
               </div>
             )}
 
-            {/* Name */}
-            <div className="px-5 py-3 border-b border-border shrink-0">
-              <div className="section-eyebrow mb-1">Name</div>
-              <div className="text-sm font-medium">{selected.name}</div>
-            </div>
+            {/* All content — unified scroll area, no dividers */}
+            <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-1">
+              {/* Name */}
+              <div className="section-eyebrow mb-0.5">Name</div>
+              <input
+                value={selected.name}
+                onChange={e => setIsDirty(true)}
+                className="w-full text-base font-semibold bg-transparent border border-transparent rounded-lg px-2 py-1 -mx-2 outline-none hover:border-border hover:bg-surface-muted focus:border-ring focus:bg-surface-muted transition-base mb-3"
+              />
 
-            {/* Description */}
-            <div className="px-5 py-3 border-b border-border shrink-0">
-              <div className="section-eyebrow mb-1">Description</div>
-              <div className="text-xs text-muted-foreground leading-relaxed">{selected.description}</div>
-            </div>
+              {/* Description */}
+              <div className="section-eyebrow mb-0.5">Description</div>
+              <textarea
+                defaultValue={selected.description}
+                onChange={() => setIsDirty(true)}
+                rows={3}
+                className="w-full text-sm text-muted-foreground bg-transparent border border-transparent rounded-lg px-2 py-1 -mx-2 outline-none resize-none hover:border-border hover:bg-surface-muted focus:border-ring focus:bg-surface-muted transition-base leading-relaxed mb-4"
+              />
 
-            {/* Body */}
-            <div className="flex-1 overflow-y-auto">
+              {/* Body */}
               {viewMode === "preview" ? (
-                <div className="px-5 py-4">{renderBody(editedBody || selected.body)}</div>
+                <div>{renderBody(editedBody || selected.body)}</div>
               ) : (
                 <textarea
                   ref={editorRef}
                   value={editedBody}
                   onChange={e => handleBodyChange(e.target.value)}
-                  className="w-full h-full resize-none bg-transparent border-none outline-none px-5 py-4 text-sm font-mono leading-relaxed text-foreground"
+                  className="w-full min-h-[400px] resize-none bg-transparent border border-transparent rounded-lg px-2 py-1 -mx-2 outline-none text-sm font-mono leading-relaxed text-foreground hover:border-border focus:border-ring focus:bg-surface-muted transition-base"
                   spellCheck={false}
                 />
               )}
