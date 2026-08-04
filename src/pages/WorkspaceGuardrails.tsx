@@ -58,7 +58,7 @@ function CreateModal({ onClose, onCreate, initialData }: {
 
   const submit = () => {
     if (!topic.trim()) return;
-    onCreate({ name: topic.trim(), desc: desc.trim(), action: actionFromResponse(), mandatory: false, allAgents, enabled: initialData?.enabled ?? true });
+    onCreate({ name: topic.trim(), desc: desc.trim(), action: actionFromResponse(), mandatory: false, allAgents });
     onClose();
   };
 
@@ -285,26 +285,10 @@ export default function WorkspaceGuardrails() {
               <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{g.desc}</div>
             </div>
             <div><ActionPill>{g.action}</ActionPill></div>
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {g.mandatory
-                ? <span className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full border border-primary/30 bg-primary/10 text-xs text-primary font-medium">All agents</span>
-                : g.allAgents
-                  ? <span className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full border border-primary/30 bg-primary/10 text-xs text-primary font-medium">All agents</span>
-                  : g.agents.length === 0
-                    ? <span className="text-xs text-muted-foreground">No agents assigned</span>
-                    : <>
-                        {g.agents.slice(0, 2).map(a => (
-                          <span key={a.name} className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full border border-border bg-surface-muted text-xs text-muted-foreground">
-                            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{background: a.color}} />
-                            {a.name}
-                          </span>
-                        ))}
-                        {g.agents.length > 2 && (
-                          <span className="h-6 px-2.5 rounded-full border border-border bg-surface-muted text-xs text-muted-foreground inline-flex items-center">
-                            +{g.agents.length - 2}
-                          </span>
-                        )}
-                      </>
+            <div className="flex items-center">
+              {(g.mandatory || g.allAgents)
+                ? <span className="inline-flex items-center h-6 px-2.5 rounded-full border border-primary/30 bg-primary/10 text-xs text-primary font-medium">All</span>
+                : <span className="inline-flex items-center h-6 px-2.5 rounded-full border border-border bg-surface-muted text-xs text-muted-foreground font-medium">Custom</span>
               }
             </div>
             <div className="flex items-center">
