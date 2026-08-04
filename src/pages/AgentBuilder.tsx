@@ -1612,6 +1612,103 @@ interface Guardrail { id: number; name: string; desc: string; action: string; to
 
 const EMPTY_GUARDRAIL = (): Omit<Guardrail,"id"> => ({ name:"", desc:"", action:"", topic:"", description:"", samples:"" });
 
+/* ── Guardrail detail / edit modal ───────────────────────────────────── */
+function GuardrailDetailModal({ item, editable, onClose, onSave }: {
+  item: { name: string; desc: string; action: string };
+  editable: boolean;
+  onClose: () => void;
+  onSave: (g: { name: string; desc: string; action: string }) => void;
+}) {
+  const initResponse = item.action.includes("fixed") ? "fixed" : item.action ? "auto" : null;
+  const [topic, setTopic]     = useState(item.name);
+  const [desc, setDesc]       = useState(item.desc);
+  const [samples, setSamples] = useState("");
+  const [responseType, setResponseType] = useState<string | null>(initResponse);
+  const canSave = editable && topic.trim().length > 0 && desc.trim().length > 0 && responseType !== null;
+
+  const opts = [
+    { key: "auto",  label: "Agent auto response",                 sub: "Agent automatically rewrites responses based on your instructions." },
+    { key: "fixed", label: "Agent response with fixed paragraph", sub: "Agent replies using the exact text you provide." },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative w-full max-w-[480px] bg-background rounded-2xl shadow-2xl flex flex-col max-h-[90vh]" style={{animation:"fadeScaleIn 0.18s ease"}}>
+        <div className="flex items-start justify-between px-6 pt-6 pb-4 shrink-0">
+          <div>
+            <h2 className="text-base font-semibold">{editable ? "Edit guardrail" : item.name}</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">{editable ? "Update the rule and response behaviour." : "Workspace guardrail — read only"}</p>
+          </div>
+          <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground ml-4 shrink-0"><X size={14} /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 pb-4 space-y-5">
+          <div>
+            <p className="text-sm font-semibold mb-3">Define the rule</p>
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-sm font-medium">Topic {editable && <span className="text-destructive">*</span>}</label>
+                {editable && <span className="text-xs text-muted-foreground">{topic.length}/100</span>}
+              </div>
+              <input value={topic} onChange={e => editable && setTopic(e.target.value.slice(0,100))} readOnly={!editable}
+                className={`w-full h-10 px-3 rounded-xl border border-border text-sm outline-none transition-base ${editable ? "bg-surface focus:border-ring" : "bg-surface-muted text-muted-foreground cursor-default"}`} />
+            </div>
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-sm font-medium">Description {editable && <span className="text-destructive">*</span>}</label>
+                {editable && <span className="text-xs text-muted-foreground">{desc.length}/800</span>}
+              </div>
+              <textarea value={desc} onChange={e => editable && setDesc(e.target.value.slice(0,800))} readOnly={!editable} rows={4}
+                className={`w-full px-3 py-2.5 rounded-xl border border-border text-sm outline-none transition-base resize-none leading-relaxed ${editable ? "bg-surface focus:border-ring" : "bg-surface-muted text-muted-foreground cursor-default"}`} />
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-sm font-medium">Samples</label>
+                {editable && <span className="text-xs text-muted-foreground">{samples.length}/2000</span>}
+              </div>
+              {editable && <p className="text-xs text-primary mb-1.5 italic">Tip: Each sample must be separated by a line break.</p>}
+              <textarea value={samples} onChange={e => editable && setSamples(e.target.value.slice(0,2000))} readOnly={!editable} rows={3}
+                className={`w-full px-3 py-2.5 rounded-xl border border-border text-sm outline-none transition-base resize-none leading-relaxed ${editable ? "bg-surface focus:border-ring" : "bg-surface-muted text-muted-foreground cursor-default"}`} />
+            </div>
+          </div>
+
+          <div>
+            <p className="text-sm font-semibold mb-0.5">Response</p>
+            <p className="text-xs text-muted-foreground mb-3">Choose what the agent does when this rule triggers.</p>
+            <div className="space-y-2">
+              {opts.map(opt => {
+                const sel = responseType === opt.key;
+                return (
+                  <div key={opt.key} onClick={() => editable && setResponseType(opt.key)}
+                    className={`flex items-start gap-3 px-4 py-3.5 rounded-xl border transition-base ${sel ? "border-primary bg-primary-soft" : "border-border bg-surface"} ${editable ? "cursor-pointer hover:bg-surface-muted" : "cursor-default"}`}>
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-base ${sel ? "border-primary" : "border-border"}`}>
+                      {sel && <div className="w-2 h-2 rounded-full bg-primary" />}
+                    </div>
+                    <div><p className="text-sm font-medium">{opt.label}</p><p className="text-xs text-muted-foreground mt-0.5">{opt.sub}</p></div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between px-6 py-4 border-t border-border shrink-0">
+          <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">{editable ? "Cancel" : "Close"}</button>
+          {editable && (
+            <button onClick={() => { if (canSave) onSave({ name: topic, desc, action: responseType === "auto" ? "Agent auto response" : "Agent response with fixed paragraph" }); }}
+              disabled={!canSave}
+              className={`h-9 px-4 rounded-xl text-sm font-medium transition-base ${canSave ? "bg-primary text-primary-foreground hover:opacity-90" : "bg-primary/30 text-primary-foreground/50 cursor-not-allowed"}`}>
+              Save changes
+            </button>
+          )}
+        </div>
+      </div>
+      <style>{`@keyframes fadeScaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}`}</style>
+    </div>
+  );
+}
+
 function GuardrailCreateModal({ onClose, onSave }: { onClose: () => void; onSave: (g: Omit<Guardrail,"id">) => void }) {
   const [topic, setTopic] = useState("");
   const [desc, setDesc] = useState("");
@@ -1984,47 +2081,21 @@ function GuardrailsConfigSection() {
         onSave={updated => { setAgentGuardrails(prev => prev.map(g => g.id === updated.id ? updated : g)); setEditTarget(null); }}
       />}
 
-      {/* Guardrail detail popup */}
+      {/* Guardrail detail/edit popup */}
       {detailItem && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
-          <div className="absolute inset-0 bg-black/40" onClick={() => setDetailItem(null)} />
-          <div className="relative w-full max-w-[420px] bg-white rounded-2xl shadow-2xl flex flex-col" style={{animation:"fadeScaleIn 0.18s ease"}}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-              <h2 className="font-semibold text-base">{detailItem.name}</h2>
-              <button onClick={() => setDetailItem(null)} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground"><X size={15} /></button>
-            </div>
-            <div className="px-5 py-4 space-y-3">
-              {detailItem.desc && (
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">Description</p>
-                  <p className="text-sm text-foreground leading-relaxed">{detailItem.desc}</p>
-                </div>
-              )}
-              {detailItem.action && (
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">Response action</p>
-                  <span className="inline-flex px-2.5 py-1 rounded-full border border-border bg-surface-muted text-xs text-muted-foreground">{detailItem.action}</span>
-                </div>
-              )}
-              {!detailEditable && (
-                <p className="text-[10px] text-muted-foreground italic mt-2">Workspace guardrail — read only</p>
-              )}
-            </div>
-            <div className="px-5 py-4 border-t border-border flex justify-end gap-2">
-              {detailEditable && (
-                <button
-                  onClick={() => {
-                    const g = agentGuardrails.find(x => x.name === detailItem.name);
-                    if (g) { setEditTarget(g); setDetailItem(null); }
-                  }}
-                  className="h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary-glow transition-base"
-                >Edit</button>
-              )}
-              <button onClick={() => setDetailItem(null)} className="h-9 px-4 rounded-lg border border-border text-sm font-medium hover:bg-surface-muted transition-base">Close</button>
-            </div>
-          </div>
-          <style>{`@keyframes fadeScaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}`}</style>
-        </div>,
+        <GuardrailDetailModal
+          item={detailItem}
+          editable={detailEditable}
+          onClose={() => setDetailItem(null)}
+          onSave={updated => {
+            setAgentGuardrails(prev => prev.map(g =>
+              g.name === detailItem.name
+                ? { ...g, name: updated.name, desc: updated.desc, action: updated.action, topic: updated.name, description: updated.desc }
+                : g
+            ));
+            setDetailItem(null);
+          }}
+        />,
         document.body
       )}
     </>
