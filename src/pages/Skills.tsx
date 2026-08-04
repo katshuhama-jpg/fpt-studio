@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Puzzle, BookOpen, Plus, Search, LayoutGrid, List, ChevronDown, X, ChevronRight } from "lucide-react";
+import { useState, useRef, useCallback } from "react";
+import { Puzzle, BookOpen, Plus, Search, LayoutGrid, List, ChevronDown, X, ChevronRight, Copy, Trash2, Eye, Code2, Bold, Italic, Strikethrough, Heading1, Heading2, List as ListIcon, ListOrdered } from "lucide-react";
 
 interface Skill {
   id: string;
@@ -259,6 +259,47 @@ export default function Skills() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Skill | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
+  const [viewMode, setViewMode] = useState<"preview"|"source">("preview");
+  const [editedBody, setEditedBody] = useState<string>("");
+  const editorRef = useRef<HTMLTextAreaElement>(null);
+
+  function openSkill(s: Skill) {
+    setSelected(prev => prev?.id === s.id ? null : s);
+    setEditedBody(s.body);
+    setIsDirty(false);
+    setViewMode("preview");
+  }
+
+  function handleBodyChange(val: string) {
+    setEditedBody(val);
+    setIsDirty(val !== selected?.body);
+  }
+
+  function handleSave() {
+    setIsDirty(false);
+  }
+
+  function wrapSelection(before: string, after: string = before) {
+    const ta = editorRef.current;
+    if (!ta) return;
+    const { selectionStart: s, selectionEnd: e } = ta;
+    const val = ta.value;
+    const newVal = val.slice(0, s) + before + val.slice(s, e) + after + val.slice(e);
+    handleBodyChange(newVal);
+    setTimeout(() => { ta.selectionStart = s + before.length; ta.selectionEnd = e + before.length; ta.focus(); }, 0);
+  }
+
+  function prependLine(prefix: string) {
+    const ta = editorRef.current;
+    if (!ta) return;
+    const { selectionStart } = ta;
+    const val = ta.value;
+    const lineStart = val.lastIndexOf("\n", selectionStart - 1) + 1;
+    const newVal = val.slice(0, lineStart) + prefix + val.slice(lineStart);
+    handleBodyChange(newVal);
+    setTimeout(() => { ta.selectionStart = ta.selectionEnd = selectionStart + prefix.length; ta.focus(); }, 0);
+  }
 
   const filters = ["All Skills", "My Skills", "From Library"];
 
@@ -266,9 +307,7 @@ export default function Skills() {
     search === "" || s.name.includes(search.toLowerCase()) || s.description.toLowerCase().includes(search.toLowerCase())
   );
 
-  function selectSkill(s: Skill) {
-    setSelected(prev => prev?.id === s.id ? null : s);
-  }
+
 
   return (
     <div className="flex h-full overflow-hidden">
@@ -346,7 +385,7 @@ export default function Skills() {
             <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3">
               {visible.map(s => (
                 <div key={s.id}
-                  onClick={() => selectSkill(s)}
+                  onClick={() => openSkill(s)}
                   className={`rounded-xl border p-4 cursor-pointer transition-base ${selected?.id === s.id ? "border-primary bg-primary-soft" : "border-border bg-surface hover:border-border-strong hover:bg-surface-muted"}`}
                 >
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base mb-3" style={{ background: s.iconBg }}>{s.icon}</div>
@@ -364,7 +403,7 @@ export default function Skills() {
           <div className="flex-1 overflow-y-auto">
             {visible.map(s => (
               <div key={s.id}
-                onClick={() => selectSkill(s)}
+                onClick={() => openSkill(s)}
                 className={`flex items-center gap-3 px-8 py-3 border-b border-border cursor-pointer transition-base ${selected?.id === s.id ? "bg-primary-soft" : "hover:bg-surface-muted"}`}
               >
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center text-sm shrink-0" style={{ background: s.iconBg }}>{s.icon}</div>
@@ -385,14 +424,56 @@ export default function Skills() {
           <>
             {/* Sheet topbar */}
             <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-surface-muted shrink-0">
-              <span className="text-muted-foreground text-xs">»</span>
+              <ChevronRight size={13} className="text-muted-foreground rotate-180" />
               <div className="flex-1" />
-              <button className="btn-ghost h-7 px-2 text-xs">💾</button>
-              <button className="btn-ghost h-7 px-2 text-xs">🗑</button>
-              <button className="btn-primary h-7 px-3 text-xs">Save Changes</button>
+              <button className="icon-btn" title="Copy"><Copy size={14} /></button>
+              <button className="icon-btn text-muted-foreground hover:text-destructive" title="Delete"><Trash2 size={14} /></button>
+              <button
+                onClick={handleSave}
+                disabled={!isDirty}
+                className={`h-7 px-3 rounded-lg text-xs font-medium transition-base ${isDirty ? "bg-primary text-primary-foreground hover:opacity-90" : "bg-primary/30 text-primary-foreground/50 cursor-not-allowed"}`}
+              >
+                Save Changes
+              </button>
               <div className="w-px h-4 bg-border mx-1" />
-              <button onClick={() => setSelected(null)} className="btn-ghost h-7 px-2 text-xs flex items-center gap-1"><X size={12} /> Done</button>
+              <button onClick={() => setSelected(null)} className="icon-btn flex items-center gap-1 text-xs"><X size={12} /> Done</button>
             </div>
+
+            {/* View toggle */}
+            <div className="flex items-center gap-1 px-3 py-1.5 border-b border-border bg-surface-muted shrink-0">
+              <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-surface border border-border">
+                <button
+                  onClick={() => setViewMode("preview")}
+                  className={`flex items-center gap-1.5 h-6 px-2.5 rounded-md text-xs font-medium transition-base ${viewMode === "preview" ? "bg-surface-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  <Eye size={12} /> Preview
+                </button>
+                <button
+                  onClick={() => setViewMode("source")}
+                  className={`flex items-center gap-1.5 h-6 px-2.5 rounded-md text-xs font-medium transition-base ${viewMode === "source" ? "bg-surface-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  <Code2 size={12} /> Source
+                </button>
+              </div>
+            </div>
+
+            {/* Formatting toolbar — only in source mode */}
+            {viewMode === "source" && (
+              <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-border shrink-0">
+                <button onClick={() => wrapSelection("**")} className="icon-btn" title="Bold"><Bold size={13} /></button>
+                <button onClick={() => wrapSelection("*")} className="icon-btn italic" title="Italic"><Italic size={13} /></button>
+                <button onClick={() => wrapSelection("~~")} className="icon-btn" title="Strikethrough"><Strikethrough size={13} /></button>
+                <div className="w-px h-4 bg-border mx-1" />
+                <button onClick={() => prependLine("# ")} className="icon-btn" title="Heading 1"><Heading1 size={13} /></button>
+                <button onClick={() => prependLine("## ")} className="icon-btn" title="Heading 2"><Heading2 size={13} /></button>
+                <div className="w-px h-4 bg-border mx-1" />
+                <button onClick={() => prependLine("- ")} className="icon-btn" title="Bullet list"><ListIcon size={13} /></button>
+                <button onClick={() => prependLine("1. ")} className="icon-btn" title="Numbered list"><ListOrdered size={13} /></button>
+                <div className="w-px h-4 bg-border mx-1" />
+                <button onClick={() => wrapSelection("`")} className="icon-btn" title="Inline code"><Code2 size={13} /></button>
+                <button onClick={() => wrapSelection("```\n", "\n```")} className="icon-btn" title="Code block" style={{ fontSize: 11, fontWeight: 600, fontFamily: "monospace", padding: "0 4px" }}>&lt;/&gt;</button>
+              </div>
+            )}
 
             {/* Name */}
             <div className="px-5 py-3 border-b border-border shrink-0">
@@ -407,8 +488,18 @@ export default function Skills() {
             </div>
 
             {/* Body */}
-            <div className="flex-1 overflow-y-auto px-5 py-4">
-              {renderBody(selected.body)}
+            <div className="flex-1 overflow-y-auto">
+              {viewMode === "preview" ? (
+                <div className="px-5 py-4">{renderBody(editedBody || selected.body)}</div>
+              ) : (
+                <textarea
+                  ref={editorRef}
+                  value={editedBody}
+                  onChange={e => handleBodyChange(e.target.value)}
+                  className="w-full h-full resize-none bg-transparent border-none outline-none px-5 py-4 text-sm font-mono leading-relaxed text-foreground"
+                  spellCheck={false}
+                />
+              )}
             </div>
           </>
         )}
