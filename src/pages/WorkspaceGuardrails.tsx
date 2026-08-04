@@ -263,22 +263,25 @@ export default function WorkspaceGuardrails() {
       </div>
 
       {/* Toolbar */}
-      <div className="flex items-center justify-between gap-3 mb-5">
-        <div className="relative">
-          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Search guardrails"
-            className="h-9 w-56 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-          />
+      <div className="flex items-center justify-between gap-3 mb-5 border-b border-border pb-3">
+        <div />
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Search guardrails"
+              className="h-9 w-56 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+            />
+          </div>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 transition-base"
+          >
+            <Plus size={14} /> Create guardrail
+          </button>
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 transition-base"
-        >
-          <Plus size={14} /> Create guardrail
-        </button>
       </div>
 
       {/* Table — all guardrails */}
