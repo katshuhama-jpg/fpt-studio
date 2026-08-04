@@ -1618,8 +1618,8 @@ interface AgentGuardrail { id: number; name: string; desc: string; action: Agent
 function GRTable({ children }: { children: React.ReactNode }) {
   return (
     <div className="rounded-lg border border-border overflow-hidden">
-      <div className="grid px-3 py-2 bg-surface-muted border-b border-border" style={{gridTemplateColumns:"1fr 130px 52px"}}>
-        {["Guardrail","Response action",""].map(h => (
+      <div className="grid px-3 py-2 bg-surface-muted border-b border-border" style={{gridTemplateColumns:"1fr 52px"}}>
+        {["Guardrail",""].map(h => (
           <span key={h} className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">{h}</span>
         ))}
       </div>
@@ -1764,9 +1764,8 @@ function GuardrailsConfigSection() {
           {addedList.length > 0 ? (
             <GRTable>
               {addedList.map(g => (
-                <div key={g.id} className="grid px-3 py-2.5 border-b border-border last:border-0 items-center gap-2" style={{gridTemplateColumns:"1fr 130px 52px"}}>
+                <div key={g.id} className="grid px-3 py-2.5 border-b border-border last:border-0 items-center gap-2" style={{gridTemplateColumns:"1fr 52px"}}>
                   <p className="text-xs font-medium truncate">{g.name}</p>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full border border-border bg-surface-muted text-muted-foreground leading-tight truncate">{g.action}</span>
                   <div className="flex justify-end">
                     <button
                       onClick={() => setAdded(prev => { const s = new Set(prev); s.delete(g.id); return s; })}
@@ -1792,9 +1791,8 @@ function GuardrailsConfigSection() {
           {agentGuardrails.length > 0 ? (
             <GRTable>
               {agentGuardrails.map(g => (
-                <div key={g.id} className="grid px-3 py-2.5 border-b border-border last:border-0 items-center gap-2" style={{gridTemplateColumns:"1fr 130px 52px"}}>
+                <div key={g.id} className="grid px-3 py-2.5 border-b border-border last:border-0 items-center gap-2" style={{gridTemplateColumns:"1fr 52px"}}>
                   <p className="text-xs font-medium truncate">{g.name}</p>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full border border-border bg-surface-muted text-muted-foreground leading-tight truncate">{g.action}</span>
                   <div className="flex justify-end">
                     <button
                       onClick={() => setAgentGuardrails(prev => prev.filter(x => x.id !== g.id))}
@@ -1820,20 +1818,19 @@ function GuardrailsConfigSection() {
               <button onClick={() => setOpenSheet(false)} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground"><X size={15} /></button>
             </div>
             <div className="flex-1 overflow-y-auto">
-              <div className="grid px-5 py-2.5 border-b border-border bg-surface-muted" style={{gridTemplateColumns:"1fr 170px 64px"}}>
-                {["Guardrail","Response action",""].map(h => (
+              <div className="grid px-5 py-2.5 border-b border-border bg-surface-muted" style={{gridTemplateColumns:"1fr 64px"}}>
+                {["Guardrail",""].map(h => (
                   <span key={h} className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{h}</span>
                 ))}
               </div>
               {WS_GUARDRAILS.filter(g => g.enabled).map(g => {
                 const isAdded = added.has(g.id);
                 return (
-                  <div key={g.id} className="grid px-5 py-3 border-b border-border items-center gap-2" style={{gridTemplateColumns:"1fr 170px 64px"}}>
+                  <div key={g.id} className="grid px-5 py-3 border-b border-border items-center gap-2" style={{gridTemplateColumns:"1fr 64px"}}>
                     <div>
                       <p className="text-sm font-medium">{g.name}</p>
                       <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{g.desc}</p>
                     </div>
-                    <span className="text-xs px-2 py-1 rounded-full border border-border bg-surface-muted text-muted-foreground leading-tight">{g.action}</span>
                     <div className="flex justify-end">
                       {isAdded
                         ? <button onClick={() => setAdded(prev => { const s = new Set(prev); s.delete(g.id); return s; })} className="text-xs text-destructive hover:underline">Remove</button>
