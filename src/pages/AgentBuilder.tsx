@@ -248,6 +248,7 @@ export default function AgentBuilder() {
             flexShrink: 0,
             transition: "width 320ms cubic-bezier(0.4,0,0.2,1), opacity 280ms ease",
             minWidth: 0,
+            height: "100%",
           }}
         >
           <AiBuildSidebar
@@ -405,7 +406,7 @@ function AiBuildSidebar({
   const quickActions = ["Connect Gmail", "Tighten the system prompt", "Add a guardrail against legal advice", "Make tone more formal"];
 
   return (
-    <aside className="w-[476px] border-r border-border flex flex-col shrink-0" style={{background:"#f8fafc", minWidth:"476px"}}>
+    <aside className="w-[476px] border-r border-border flex flex-col shrink-0 h-full" style={{background:"#f8fafc", minWidth:"476px"}}>
       {/* Header */}
       <div className="h-12 px-3 border-b border-border flex items-center gap-2 shrink-0">
         <div className="w-7 h-7 rounded-md bg-gradient-brand flex items-center justify-center">
