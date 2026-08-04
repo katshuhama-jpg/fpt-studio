@@ -489,9 +489,10 @@ export default function Skills() {
               <div className="section-eyebrow mb-0.5">Description</div>
               <textarea
                 defaultValue={selected.description}
-                onChange={() => setIsDirty(true)}
-                rows={3}
-                className="w-full text-sm text-muted-foreground bg-transparent border border-transparent rounded-lg px-2 py-1 -mx-2 outline-none resize-none hover:border-border hover:bg-surface-muted focus:border-ring focus:bg-surface-muted transition-base leading-relaxed mb-4"
+                onChange={e => { setIsDirty(true); const t = e.currentTarget; t.style.height = "auto"; t.style.height = t.scrollHeight + "px"; }}
+                ref={el => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
+                rows={1}
+                className="w-full text-sm text-muted-foreground bg-transparent border border-transparent rounded-lg px-2 py-1 -mx-2 outline-none resize-none overflow-hidden hover:border-border hover:bg-surface-muted focus:border-ring focus:bg-surface-muted transition-base leading-relaxed mb-4"
               />
 
               {/* Body */}
