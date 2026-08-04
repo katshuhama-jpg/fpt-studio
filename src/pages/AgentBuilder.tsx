@@ -1883,7 +1883,7 @@ function GuardrailsConfigSection() {
             <div className="flex-1 overflow-y-auto">
 
               {/* Section: Guardrail of Agent */}
-              <div className="px-5 pt-5 pb-5 border-b border-border">
+              <div className="px-5 pt-5 pb-5">
                 <div className="flex items-center justify-between mb-0.5">
                   <p className="text-sm font-semibold">Guardrail of Agent</p>
                   <button onClick={() => setOpenCreate(true)} className="flex items-center gap-1 text-xs text-primary hover:underline shrink-0 ml-3">
@@ -1892,23 +1892,32 @@ function GuardrailsConfigSection() {
                 </div>
                 <p className="text-xs text-muted-foreground mb-3">Guardrail chỉ được áp dụng cho agent này thôi</p>
 
-                {agentGuardrails.length > 0 ? (
-                  <div className="rounded-lg border border-border overflow-hidden">
-                    {agentGuardrails.map(g => (
-                      <div key={g.id} className="flex items-center gap-3 px-4 py-2.5 border-b border-border last:border-0">
-                        <p className="text-sm flex-1 truncate">{g.name}</p>
-                        <button onClick={() => setEditTarget(g)} className="text-xs text-primary hover:underline shrink-0">Edit</button>
-                        <button onClick={() => setAgentGuardrails(prev => prev.filter(x => x.id !== g.id))} className="text-xs text-destructive hover:underline shrink-0">Remove</button>
-                      </div>
-                    ))}
+                <div className="rounded-lg border border-border overflow-hidden">
+                  <div className="grid px-4 py-2 bg-surface-muted border-b border-border" style={{gridTemplateColumns:"1fr 64px 52px"}}>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Guardrail</span>
+                    <span /><span />
                   </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground italic">Chưa có guardrail nào. Nhấn "+ Create guardrail" để tạo mới.</p>
-                )}
+                  {agentGuardrails.length > 0 ? agentGuardrails.map(g => (
+                    <div key={g.id} className="grid px-4 py-3 border-b border-border last:border-0 items-center gap-2" style={{gridTemplateColumns:"1fr 64px 52px"}}>
+                      <div>
+                        <p className="text-sm font-medium">{g.name}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{g.desc}</p>
+                      </div>
+                      <div className="flex justify-end">
+                        <button onClick={() => setEditTarget(g)} className="text-xs text-primary hover:underline">Edit</button>
+                      </div>
+                      <div className="flex justify-end">
+                        <button onClick={() => setAgentGuardrails(prev => prev.filter(x => x.id !== g.id))} className="text-xs text-destructive hover:underline">Remove</button>
+                      </div>
+                    </div>
+                  )) : (
+                    <div className="px-4 py-3 text-xs text-muted-foreground italic">Chưa có guardrail nào. Nhấn "+ Create guardrail" để tạo mới.</div>
+                  )}
+                </div>
               </div>
 
               {/* Section: Guardrail of workspace */}
-              <div className="px-5 pt-5 pb-5">
+              <div className="px-5 pb-5">
                 <p className="text-sm font-semibold mb-0.5">Guardrail of workspace</p>
                 <p className="text-xs text-muted-foreground mb-3">Guardrail chỉ được áp dụng cho toàn bộ workspace</p>
 
