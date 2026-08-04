@@ -1611,11 +1611,134 @@ const WS_GUARDRAILS = [
   { id: 7, name: "Competitor mention block",   desc: "Avoid naming or comparing direct competitors in any response.",          action: "Agent auto response",                 enabled: true  },
 ];
 
+type AgentGuardrailAction = "Agent auto response" | "Agent response with fixed paragraph";
+interface AgentGuardrail { id: number; name: string; desc: string; action: AgentGuardrailAction; }
+
+/* ── Mini table shared by both sub-sections ──────────────────────────── */
+function GRTable({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-lg border border-border overflow-hidden">
+      <div className="grid px-3 py-2 bg-surface-muted border-b border-border" style={{gridTemplateColumns:"1fr 130px 52px"}}>
+        {["Guardrail","Response action",""].map(h => (
+          <span key={h} className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">{h}</span>
+        ))}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/* ── Create agent guardrail popup ────────────────────────────────────── */
+function CreateAgentGuardrailModal({ onClose, onCreate }: {
+  onClose: () => void;
+  onCreate: (g: Omit<AgentGuardrail, "id">) => void;
+}) {
+  const [name, setName]       = useState("");
+  const [desc, setDesc]       = useState("");
+  const [samples, setSamples] = useState("");
+  const [response, setResponse] = useState<"auto" | "fixed" | null>(null);
+  const [fixedText, setFixedText] = useState("");
+
+  const actionFrom = (): AgentGuardrailAction =>
+    response === "fixed" ? "Agent response with fixed paragraph" : "Agent auto response";
+
+  const submit = () => {
+    if (!name.trim()) return;
+    onCreate({ name: name.trim(), desc: desc.trim(), action: actionFrom() });
+    onClose();
+  };
+
+  const opts: { key: "auto" | "fixed"; title: string; desc: string }[] = [
+    { key: "auto",  title: "Agent auto response",                 desc: "Agent automatically rewrites responses based on your instructions." },
+    { key: "fixed", title: "Agent response with fixed paragraph", desc: "Agent replies using the exact text you provide." },
+  ];
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative w-full max-w-[520px] bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh]" style={{animation:"fadeScaleIn 0.18s ease"}}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+          <h2 className="font-semibold text-base">Create agent guardrail</h2>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground"><X size={15} /></button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          {/* Section 1 */}
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Define the rule</p>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-foreground block mb-1">Topic <span className="text-destructive">*</span></label>
+                <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Off-topic questions" className="w-full h-9 px-3 rounded-lg border border-border bg-surface-muted text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-foreground block mb-1">Description</label>
+                <textarea value={desc} onChange={e => setDesc(e.target.value)} placeholder="Describe what this guardrail should prevent or enforce…" rows={3} className="w-full px-3 py-2 rounded-lg border border-border bg-surface-muted text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30 resize-none" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-foreground block mb-1">Samples</label>
+                <textarea value={samples} onChange={e => setSamples(e.target.value)} placeholder="Add example messages that should trigger this rule…" rows={3} className="w-full px-3 py-2 rounded-lg border border-border bg-surface-muted text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30 resize-none" />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 2 */}
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">Choose how the agent responds</p>
+            <div className="space-y-2">
+              {opts.map(opt => (
+                <div key={opt.key}>
+                  <button
+                    onClick={() => setResponse(prev => prev === opt.key ? null : opt.key)}
+                    className={`w-full text-left px-4 py-3 rounded-xl border transition-all ${response === opt.key ? "border-primary bg-primary/5" : "border-border bg-surface hover:bg-surface-muted"}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center shrink-0 ${response === opt.key ? "border-primary" : "border-muted-foreground/40"}`}>
+                        {response === opt.key && <span className="w-1.5 h-1.5 rounded-full bg-primary block" />}
+                      </span>
+                      <span className="text-sm font-medium">{opt.title}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1.5 ml-5.5 leading-relaxed">{opt.desc}</p>
+                  </button>
+                  {response === opt.key && opt.key === "fixed" && (
+                    <div className="mt-2 px-1">
+                      <textarea value={fixedText} onChange={e => setFixedText(e.target.value)} placeholder="Enter the fixed response paragraph…" rows={3} className="w-full px-3 py-2 rounded-lg border border-border bg-surface-muted text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30 resize-none" />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Apply for all agents */}
+            <label className="flex items-center gap-2 mt-4 cursor-pointer select-none">
+              <input type="checkbox" className="w-3.5 h-3.5 rounded border-border accent-primary" />
+              <span className="text-xs text-foreground">Apply for all agents</span>
+            </label>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-border shrink-0 flex justify-end gap-2">
+          <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border text-sm font-medium hover:bg-surface-muted transition-base">Cancel</button>
+          <button onClick={submit} disabled={!name.trim()} className="h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary-glow transition-base disabled:opacity-40">Create guardrail</button>
+        </div>
+      </div>
+      <style>{`@keyframes fadeScaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}`}</style>
+    </div>,
+    document.body
+  );
+}
+
 function GuardrailsConfigSection() {
-  const [open, setOpen] = useState(false);
-  const [added, setAdded] = useState<Set<number>>(new Set([1, 2]));
+  const [openSheet, setOpenSheet]   = useState(false);
+  const [openCreate, setOpenCreate] = useState(false);
+  const [added, setAdded]           = useState<Set<number>>(new Set([1, 2]));
+  const [agentGuardrails, setAgentGuardrails] = useState<AgentGuardrail[]>([]);
 
   const addedList = WS_GUARDRAILS.filter(g => added.has(g.id) && g.enabled);
+  const totalActive = addedList.length + agentGuardrails.length;
 
   return (
     <>
@@ -1623,57 +1746,86 @@ function GuardrailsConfigSection() {
         icon={Shield}
         title="Guardrails"
         badge={
-          added.size > 0
-            ? <span className="text-xs text-success font-medium mr-1">{added.size} active</span>
+          totalActive > 0
+            ? <span className="text-xs text-success font-medium mr-1">{totalActive} active</span>
             : <span className="text-xs text-warning font-medium mr-1">Not set</span>
         }
       >
-        <p className="text-xs text-muted-foreground mb-2 leading-relaxed">Boundaries that keep your agent acting safely.</p>
+        <p className="text-xs text-muted-foreground mb-3 leading-relaxed">Boundaries that keep your agent acting safely.</p>
 
-        {addedList.length > 0 && (
-          <div className="space-y-1 mb-2">
-            {addedList.map(g => (
-              <div key={g.id} className="flex items-center gap-2 py-1.5 px-2 rounded-lg bg-surface-muted border border-border">
-                <p className="text-xs font-medium flex-1 truncate">{g.name}</p>
-                <button
-                  onClick={() => setAdded(prev => { const s = new Set(prev); s.delete(g.id); return s; })}
-                  className="text-[10px] text-destructive hover:underline shrink-0"
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
+        {/* ── Workspace guardrails ── */}
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-semibold text-foreground">Guardrail of workspace</p>
+            <button onClick={() => setOpenSheet(true)} className="flex items-center gap-0.5 text-xs text-primary hover:underline">
+              <Plus size={11} /> Add
+            </button>
           </div>
-        )}
+          {addedList.length > 0 ? (
+            <GRTable>
+              {addedList.map(g => (
+                <div key={g.id} className="grid px-3 py-2.5 border-b border-border last:border-0 items-center gap-2" style={{gridTemplateColumns:"1fr 130px 52px"}}>
+                  <p className="text-xs font-medium truncate">{g.name}</p>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full border border-border bg-surface-muted text-muted-foreground leading-tight truncate">{g.action}</span>
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => setAdded(prev => { const s = new Set(prev); s.delete(g.id); return s; })}
+                      className="text-[10px] text-destructive hover:underline"
+                    >Remove</button>
+                  </div>
+                </div>
+              ))}
+            </GRTable>
+          ) : (
+            <p className="text-xs text-muted-foreground italic">No workspace guardrails added.</p>
+          )}
+        </div>
 
-        <button onClick={() => setOpen(true)} className="flex items-center gap-1 text-xs text-primary hover:underline">
-          <Plus size={12} /> Add
-        </button>
+        {/* ── Agent guardrails ── */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-semibold text-foreground">Guardrail of agent</p>
+            <button onClick={() => setOpenCreate(true)} className="flex items-center gap-0.5 text-xs text-primary hover:underline">
+              <Plus size={11} /> Create
+            </button>
+          </div>
+          {agentGuardrails.length > 0 ? (
+            <GRTable>
+              {agentGuardrails.map(g => (
+                <div key={g.id} className="grid px-3 py-2.5 border-b border-border last:border-0 items-center gap-2" style={{gridTemplateColumns:"1fr 130px 52px"}}>
+                  <p className="text-xs font-medium truncate">{g.name}</p>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full border border-border bg-surface-muted text-muted-foreground leading-tight truncate">{g.action}</span>
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => setAgentGuardrails(prev => prev.filter(x => x.id !== g.id))}
+                      className="text-[10px] text-destructive hover:underline"
+                    >Delete</button>
+                  </div>
+                </div>
+              ))}
+            </GRTable>
+          ) : (
+            <p className="text-xs text-muted-foreground italic">No agent-specific guardrails yet.</p>
+          )}
+        </div>
       </ConfigSection>
 
-      {open && createPortal(
+      {/* Add workspace guardrails side sheet */}
+      {openSheet && createPortal(
         <div className="fixed inset-0 z-50 flex justify-end" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
-          <div className="absolute inset-0 bg-black/30" onClick={() => setOpen(false)} />
+          <div className="absolute inset-0 bg-black/30" onClick={() => setOpenSheet(false)} />
           <div className="relative w-full max-w-[520px] bg-white flex flex-col shadow-2xl h-full" style={{animation:"slideInRight 0.22s ease"}}>
-            {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-              <h2 className="font-semibold text-base">Add guardrails</h2>
-              <button onClick={() => setOpen(false)} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground">
-                <X size={15} />
-              </button>
+              <h2 className="font-semibold text-base">Add workspace guardrails</h2>
+              <button onClick={() => setOpenSheet(false)} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground"><X size={15} /></button>
             </div>
-
-            {/* Table */}
             <div className="flex-1 overflow-y-auto">
-              {/* Header row */}
               <div className="grid px-5 py-2.5 border-b border-border bg-surface-muted" style={{gridTemplateColumns:"1fr 170px 64px"}}>
                 {["Guardrail","Response action",""].map(h => (
                   <span key={h} className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{h}</span>
                 ))}
               </div>
-
-              {/* Rows */}
-              {WS_GUARDRAILS.map(g => {
+              {WS_GUARDRAILS.filter(g => g.enabled).map(g => {
                 const isAdded = added.has(g.id);
                 return (
                   <div key={g.id} className="grid px-5 py-3 border-b border-border items-center gap-2" style={{gridTemplateColumns:"1fr 170px 64px"}}>
@@ -1683,31 +1835,30 @@ function GuardrailsConfigSection() {
                     </div>
                     <span className="text-xs px-2 py-1 rounded-full border border-border bg-surface-muted text-muted-foreground leading-tight">{g.action}</span>
                     <div className="flex justify-end">
-                      {isAdded ? (
-                        <button
-                          onClick={() => setAdded(prev => { const s = new Set(prev); s.delete(g.id); return s; })}
-                          className="text-xs text-destructive hover:underline"
-                        >Remove</button>
-                      ) : (
-                        <button
-                          onClick={() => setAdded(prev => new Set([...prev, g.id]))}
-                          className="text-xs text-primary hover:underline font-medium"
-                        >Add</button>
-                      )}
+                      {isAdded
+                        ? <button onClick={() => setAdded(prev => { const s = new Set(prev); s.delete(g.id); return s; })} className="text-xs text-destructive hover:underline">Remove</button>
+                        : <button onClick={() => setAdded(prev => new Set([...prev, g.id]))} className="text-xs text-primary hover:underline font-medium">Add</button>
+                      }
                     </div>
                   </div>
                 );
               })}
             </div>
-
-            {/* Footer */}
-            <div className="px-5 py-4 border-t border-border shrink-0 flex justify-end gap-2">
-              <button onClick={() => setOpen(false)} className="h-9 px-4 rounded-lg border border-border text-sm font-medium hover:bg-surface-muted transition-base">Close</button>
+            <div className="px-5 py-4 border-t border-border shrink-0 flex justify-end">
+              <button onClick={() => setOpenSheet(false)} className="h-9 px-4 rounded-lg border border-border text-sm font-medium hover:bg-surface-muted transition-base">Close</button>
             </div>
           </div>
           <style>{`@keyframes slideInRight{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
         </div>,
         document.body
+      )}
+
+      {/* Create agent guardrail popup */}
+      {openCreate && (
+        <CreateAgentGuardrailModal
+          onClose={() => setOpenCreate(false)}
+          onCreate={g => setAgentGuardrails(prev => [...prev, { ...g, id: Date.now() }])}
+        />
       )}
     </>
   );
