@@ -1814,11 +1814,12 @@ function GuardrailsConfigSection() {
   const [wsAdded, setWsAdded]                 = useState<Set<number>>(new Set([1, 2]));
   const [agentGuardrails, setAgentGuardrails] = useState<Guardrail[]>([]);
   const [editTarget, setEditTarget]           = useState<Guardrail | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuPos, setMenuPos]                 = useState<{top:number;left:number}>({top:0,left:0});
+  const addBtnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!showMenu) return;
-    const h = (e: MouseEvent) => { if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false); };
+    const h = (e: MouseEvent) => { setShowMenu(false); };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, [showMenu]);
@@ -1870,31 +1871,39 @@ function GuardrailsConfigSection() {
           </div>
         )}
 
-        {/* Add button with dropdown menu */}
-        <div ref={menuRef} className="relative inline-block">
-          <button
-            onClick={() => setShowMenu(v => !v)}
-            className="flex items-center gap-1 text-xs text-primary hover:underline"
+        {/* Add button with portal dropdown */}
+        <button
+          ref={addBtnRef}
+          onClick={() => {
+            const rect = addBtnRef.current?.getBoundingClientRect();
+            if (rect) setMenuPos({ top: rect.bottom + 4, left: rect.left });
+            setShowMenu(v => !v);
+          }}
+          className="flex items-center gap-1 text-xs text-primary hover:underline"
+        >
+          <Plus size={11} /> Add
+        </button>
+        {showMenu && createPortal(
+          <div
+            className="fixed z-[9999] w-44 bg-white rounded-xl border border-border shadow-lg py-1"
+            style={{ top: menuPos.top, left: menuPos.left }}
+            onMouseDown={e => e.stopPropagation()}
           >
-            <Plus size={11} /> Add
-          </button>
-          {showMenu && (
-            <div className="absolute left-0 top-5 z-20 w-44 bg-white rounded-xl border border-border shadow-lg py-1 animate-fade-up">
-              <button
-                onClick={() => { setShowMenu(false); setOpenCreate(true); }}
-                className="w-full text-left px-3 py-2 text-xs hover:bg-surface-muted transition-base"
-              >
-                Create mới
-              </button>
-              <button
-                onClick={() => { setShowMenu(false); setOpenWsSheet(true); }}
-                className="w-full text-left px-3 py-2 text-xs hover:bg-surface-muted transition-base"
-              >
-                Add from workspace
-              </button>
-            </div>
-          )}
-        </div>
+            <button
+              onClick={() => { setShowMenu(false); setOpenCreate(true); }}
+              className="w-full text-left px-3 py-2 text-xs hover:bg-surface-muted transition-base"
+            >
+              Create mới
+            </button>
+            <button
+              onClick={() => { setShowMenu(false); setOpenWsSheet(true); }}
+              className="w-full text-left px-3 py-2 text-xs hover:bg-surface-muted transition-base"
+            >
+              Add from workspace
+            </button>
+          </div>,
+          document.body
+        )}
       </ConfigSection>
 
       {/* Add from workspace popup */}
