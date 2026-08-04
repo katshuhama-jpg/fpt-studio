@@ -1058,7 +1058,7 @@ function ConfigSection({ icon: Icon, title, badge, children }: {
         {badge}
         {open ? <ChevronUp size={13} className="text-muted-foreground" /> : <ChevronDown size={13} className="text-muted-foreground" />}
       </button>
-      {open && <div className="border-t border-border px-3 pb-3 pt-2">{children}</div>}
+      {open && <div className="px-3 pb-3">{children}</div>}
     </div>
   );
 }
@@ -1130,7 +1130,7 @@ function RightConfigPanel({ embedded, model, onModelChange }: { embedded?: boole
           <Cog size={15} className="text-muted-foreground shrink-0" />
           <span className="text-sm font-medium flex-1">Model</span>
         </div>
-        <div className="border-t border-border px-3 pb-3 pt-2">
+        <div className="px-3 pb-3">
           <ModelDropdown value={model ?? "deepseek-v4-flash"} onChange={onModelChange ?? (() => {})} />
         </div>
       </div>
