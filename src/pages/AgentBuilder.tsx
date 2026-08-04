@@ -1714,7 +1714,8 @@ function GuardrailCreateModal({ onClose, onSave }: { onClose: () => void; onSave
   const [desc, setDesc] = useState("");
   const [samples, setSamples] = useState("");
   const [responseType, setResponseType] = useState<string | null>(null);
-  const canSave = topic.trim().length > 0 && desc.trim().length > 0 && responseType !== null;
+  const [fixedText, setFixedText] = useState("");
+  const canSave = topic.trim().length > 0 && desc.trim().length > 0 && responseType !== null && (responseType !== "fixed" || fixedText.trim().length > 0);
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
@@ -1797,9 +1798,25 @@ function GuardrailCreateModal({ onClose, onSave }: { onClose: () => void; onSave
                     <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-base ${sel ? "border-primary" : "border-border"}`}>
                       {sel && <div className="w-2 h-2 rounded-full bg-primary" />}
                     </div>
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium">{opt.label}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">{opt.sub}</p>
+                      {sel && opt.key === "fixed" && (
+                        <div className="mt-3" onClick={e => e.stopPropagation()}>
+                          <label className="block text-xs font-semibold mb-1.5">Fixed paragraph <span className="text-destructive">*</span></label>
+                          <div className="relative">
+                            <textarea
+                              rows={4}
+                              maxLength={300}
+                              placeholder="Write the exact reply the agent should send."
+                              className="w-full px-3 py-2.5 rounded-lg border border-border bg-surface text-sm outline-none focus:border-ring transition-base resize-none"
+                              value={fixedText}
+                              onChange={e => setFixedText(e.target.value)}
+                            />
+                            <span className="absolute bottom-2 right-3 text-[10px] text-muted-foreground">{fixedText.length}/300</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
