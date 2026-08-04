@@ -1667,7 +1667,7 @@ function GuardrailsConfigSection() {
             <div className="flex-1 overflow-y-auto">
               {/* Header row */}
               <div className="grid px-5 py-2.5 border-b border-border bg-surface-muted" style={{gridTemplateColumns:"1fr 170px 64px"}}>
-                {["Guardrail","Response action","Status",""].map(h => (
+                {["Guardrail","Response action",""].map(h => (
                   <span key={h} className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{h}</span>
                 ))}
               </div>
