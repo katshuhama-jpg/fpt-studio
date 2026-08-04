@@ -1598,6 +1598,14 @@ function PublishModal({ onClose, onChatTest }: { onClose: () => void; onChatTest
   );
 }
 
+const WS_GUARDRAILS = [
+  { id: 1, name: "PII protection",             desc: "Never expose personal identifiers in any response.",                    action: "Agent auto response",                 enabled: true  },
+  { id: 2, name: "Prohibited content filter",  desc: "Block violent, adult, or discriminatory content across all channels.", action: "Agent auto response",                 enabled: true  },
+  { id: 3, name: "Compliance disclaimer",      desc: "Append regulatory disclaimer to all financial and legal responses.",   action: "Agent response with fixed paragraph", enabled: true  },
+  { id: 4, name: "Commercial response policy", desc: "Prevent AI from making pricing commitments or answering topics.",      action: "Agent auto response",                 enabled: true  },
+  { id: 7, name: "Competitor mention block",   desc: "Avoid naming or comparing direct competitors in any response.",        action: "Agent auto response",                 enabled: true  },
+];
+
 /* ============ Guardrails config section (right panel) ============ */
 
 interface Guardrail { id: number; name: string; desc: string; action: string; topic: string; description: string; samples: string; }
@@ -1790,51 +1798,157 @@ function GuardrailEditSheet({ guardrail, onClose, onSave }: { guardrail: Guardra
 }
 
 function GuardrailsConfigSection() {
-  const [showCreate, setShowCreate] = useState(false);
-  const [editTarget, setEditTarget] = useState<Guardrail | null>(null);
-  const [guardrails, setGuardrails] = useState<Guardrail[]>([
-    { id: 1, name: "PII protection", desc: "Never expose personal identifiers in any response.", action: "Agent auto response", topic: "PII protection", description: "Never expose personal identifiers in any response.", samples: "" },
-    { id: 2, name: "Prohibited content filter", desc: "Block violent, adult, or discriminatory content.", action: "Agent auto response", topic: "Prohibited content filter", description: "Block violent, adult, or discriminatory content.", samples: "" },
-  ]);
+  const [openSheet, setOpenSheet]             = useState(false);
+  const [openCreate, setOpenCreate]           = useState(false);
+  const [wsAdded, setWsAdded]                 = useState<Set<number>>(new Set([1, 2]));
+  const [agentGuardrails, setAgentGuardrails] = useState<Guardrail[]>([]);
+  const [editTarget, setEditTarget]           = useState<Guardrail | null>(null);
 
-  function handleCreate(data: Omit<Guardrail,"id">) {
-    setGuardrails(prev => [...prev, { ...data, id: Date.now() }]);
-  }
-  function handleEdit(updated: Guardrail) {
-    setGuardrails(prev => prev.map(g => g.id === updated.id ? updated : g));
-  }
-  function handleRemove(id: number) {
-    setGuardrails(prev => prev.filter(g => g.id !== id));
-  }
+  const wsAddedList = WS_GUARDRAILS.filter(g => wsAdded.has(g.id));
+  const totalActive = wsAddedList.length + agentGuardrails.length;
+
+  const Chip = ({ label, onRemove }: { label: string; onRemove: () => void }) => (
+    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-surface-muted">
+      <span className="text-xs font-medium flex-1 truncate">{label}</span>
+      <button onClick={onRemove} className="text-[10px] text-destructive hover:underline shrink-0">Remove</button>
+    </div>
+  );
 
   return (
     <>
       <ConfigSection
         icon={Shield}
         title="Guardrails"
-        badge={guardrails.length > 0
-          ? <span className="text-xs text-success font-medium mr-1">{guardrails.length} active</span>
+        badge={totalActive > 0
+          ? <span className="text-xs text-success font-medium mr-1">{totalActive} active</span>
           : <span className="text-xs text-warning font-medium mr-1">Not set</span>}
       >
-        <p className="text-xs text-muted-foreground mb-2 leading-relaxed">Boundaries that keep your agent acting safely.</p>
-        {guardrails.length > 0 && (
-          <div className="space-y-1 mb-2">
-            {guardrails.map(g => (
-              <div key={g.id} className="flex items-center gap-2 py-1.5 px-2 rounded-lg bg-surface-muted border border-border">
-                <p className="text-xs font-medium flex-1 truncate">{g.name}</p>
-                <button onClick={() => setEditTarget(g)} className="text-[10px] text-primary hover:underline shrink-0">Edit</button>
-                <button onClick={() => handleRemove(g.id)} className="text-[10px] text-destructive hover:underline shrink-0">Remove</button>
+        <p className="text-xs text-muted-foreground mb-3 leading-relaxed">Boundaries that keep your agent acting safely.</p>
+
+        {(wsAddedList.length > 0 || agentGuardrails.length > 0) && (
+          <div className="space-y-3 mb-3">
+            {wsAddedList.length > 0 && (
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1.5">Guardrail of workspace</p>
+                <div className="space-y-1">
+                  {wsAddedList.map(g => (
+                    <Chip key={g.id} label={g.name} onRemove={() => setWsAdded(prev => { const s = new Set(prev); s.delete(g.id); return s; })} />
+                  ))}
+                </div>
               </div>
-            ))}
+            )}
+            {agentGuardrails.length > 0 && (
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1.5">Guardrail of agent</p>
+                <div className="space-y-1">
+                  {agentGuardrails.map(g => (
+                    <Chip key={g.id} label={g.name} onRemove={() => setAgentGuardrails(prev => prev.filter(x => x.id !== g.id))} />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
-        <button onClick={() => setShowCreate(true)} className="flex items-center gap-1 text-xs text-primary hover:underline">
-          <Plus size={12} /> Add
+
+        <button onClick={() => setOpenSheet(true)} className="flex items-center gap-1 text-xs text-primary hover:underline">
+          <Plus size={11} /> Add
         </button>
       </ConfigSection>
 
-      {showCreate && <GuardrailCreateModal onClose={() => setShowCreate(false)} onSave={handleCreate} />}
-      {editTarget && <GuardrailEditSheet guardrail={editTarget} onClose={() => setEditTarget(null)} onSave={handleEdit} />}
+      {/* ── Combined side sheet ── */}
+      {openSheet && createPortal(
+        <div className="fixed inset-0 z-50 flex justify-end" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
+          <div className="absolute inset-0 bg-black/30" onClick={() => setOpenSheet(false)} />
+          <div className="relative w-full max-w-[520px] bg-white flex flex-col shadow-2xl h-full" style={{animation:"slideInRight 0.22s ease"}}>
+
+            {/* Header */}
+            <div className="px-5 py-4 border-b border-border shrink-0">
+              <div className="flex items-center justify-between">
+                <h2 className="font-semibold text-base">Add guardrails</h2>
+                <button onClick={() => setOpenSheet(false)} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground"><X size={15} /></button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">Claude đề xuất</p>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+
+              {/* Section: Guardrail of Agent */}
+              <div className="px-5 pt-5 pb-5 border-b border-border">
+                <div className="flex items-center justify-between mb-0.5">
+                  <p className="text-sm font-semibold">Guardrail of Agent</p>
+                  <button onClick={() => setOpenCreate(true)} className="flex items-center gap-1 text-xs text-primary hover:underline shrink-0 ml-3">
+                    <Plus size={11} /> Create guardrail
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground mb-3">Guardrail chỉ được áp dụng cho agent này thôi</p>
+
+                {agentGuardrails.length > 0 ? (
+                  <div className="rounded-lg border border-border overflow-hidden">
+                    {agentGuardrails.map(g => (
+                      <div key={g.id} className="flex items-center gap-3 px-4 py-2.5 border-b border-border last:border-0">
+                        <p className="text-sm flex-1 truncate">{g.name}</p>
+                        <button onClick={() => setEditTarget(g)} className="text-xs text-primary hover:underline shrink-0">Edit</button>
+                        <button onClick={() => setAgentGuardrails(prev => prev.filter(x => x.id !== g.id))} className="text-xs text-destructive hover:underline shrink-0">Remove</button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic">Chưa có guardrail nào. Nhấn "+ Create guardrail" để tạo mới.</p>
+                )}
+              </div>
+
+              {/* Section: Guardrail of workspace */}
+              <div className="px-5 pt-5 pb-5">
+                <p className="text-sm font-semibold mb-0.5">Guardrail of workspace</p>
+                <p className="text-xs text-muted-foreground mb-3">Guardrail chỉ được áp dụng cho toàn bộ workspace</p>
+
+                <div className="rounded-lg border border-border overflow-hidden">
+                  <div className="grid px-4 py-2 bg-surface-muted border-b border-border" style={{gridTemplateColumns:"1fr 64px"}}>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Guardrail</span>
+                    <span />
+                  </div>
+                  {WS_GUARDRAILS.map(g => {
+                    const isAdded = wsAdded.has(g.id);
+                    return (
+                      <div key={g.id} className="grid px-4 py-3 border-b border-border last:border-0 items-center gap-2" style={{gridTemplateColumns:"1fr 64px"}}>
+                        <div>
+                          <p className="text-sm font-medium">{g.name}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{g.desc}</p>
+                        </div>
+                        <div className="flex justify-end">
+                          {isAdded
+                            ? <button onClick={() => setWsAdded(prev => { const s = new Set(prev); s.delete(g.id); return s; })} className="text-xs text-destructive hover:underline">Remove</button>
+                            : <button onClick={() => setWsAdded(prev => new Set([...prev, g.id]))} className="text-xs text-primary hover:underline font-medium">Add</button>
+                          }
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="px-5 py-4 border-t border-border shrink-0 flex justify-end">
+              <button onClick={() => setOpenSheet(false)} className="h-9 px-4 rounded-lg border border-border text-sm font-medium hover:bg-surface-muted transition-base">Close</button>
+            </div>
+          </div>
+          <style>{`@keyframes slideInRight{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
+        </div>,
+        document.body
+      )}
+
+      {/* Create agent guardrail popup */}
+      {openCreate && <GuardrailCreateModal
+        onClose={() => setOpenCreate(false)}
+        onSave={data => { setAgentGuardrails(prev => [...prev, { ...data, id: Date.now() }]); setOpenCreate(false); }}
+      />}
+
+      {/* Edit agent guardrail */}
+      {editTarget && <GuardrailEditSheet
+        guardrail={editTarget}
+        onClose={() => setEditTarget(null)}
+        onSave={updated => { setAgentGuardrails(prev => prev.map(g => g.id === updated.id ? updated : g)); setEditTarget(null); }}
+      />}
     </>
   );
 }
