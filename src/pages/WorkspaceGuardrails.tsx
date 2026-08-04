@@ -14,17 +14,18 @@ interface Guardrail {
   mandatory: boolean;
   agents: AgentChip[];
   allAgents?: boolean;
+  enabled: boolean;
 }
 
 /* ─── Seed data ──────────────────────────────────────────────────────── */
 const SEED: Guardrail[] = [
-  { id: 1, name: "PII protection",            desc: "Never expose personal identifiers — CCID, passport, phone — in any response.",          action: "Agent auto response",                   mandatory: true,  agents: [] },
-  { id: 2, name: "Prohibited content filter", desc: "Block violent, adult, or discriminatory content across all channels.",                    action: "Agent auto response",                   mandatory: true,  agents: [] },
-  { id: 3, name: "Compliance disclaimer",     desc: "Append regulatory disclaimer to all financial and legal responses.",                      action: "Agent response with fixed paragraph",   mandatory: true,  agents: [] },
-  { id: 4, name: "Commercial response policy",desc: "Prevent AI from making pricing commitments or answering restricted topics.",              action: "Agent auto response",               mandatory: false, agents: [{ name: "Banking ABC", color: "#4338ca" }, { name: "IT Helpdesk", color: "#059669" }, { name: "Product FAQ", color: "#d97706" }, { name: "Sales Qualifier", color: "#db2777" }] },
-  { id: 5, name: "Legal and medical advice",  desc: "Do not provide legal or medical advice — refer to a specialist.",                         action: "Agent response with fixed paragraph", mandatory: false, agents: [], allAgents: true },
-  { id: 6, name: "Escalate risky replies",    desc: "Human approval for any commitments about future roadmap.",                                action: "Require approval",                    mandatory: false, agents: [{ name: "Sales Qualifier", color: "#d97706" }] },
-  { id: 7, name: "Competitor mention block",  desc: "Avoid naming or comparing direct competitors in any response.",                           action: "Agent auto response",               mandatory: false, agents: [{ name: "Banking ABC", color: "#4338ca" }, { name: "HR Onboarding", color: "#7c3aed" }, { name: "IT Helpdesk", color: "#059669" }] },
+  { id: 1, name: "PII protection",            desc: "Never expose personal identifiers — CCID, passport, phone — in any response.",          action: "Agent auto response",                   mandatory: true,  agents: [], enabled: true },
+  { id: 2, name: "Prohibited content filter", desc: "Block violent, adult, or discriminatory content across all channels.",                    action: "Agent auto response",                   mandatory: true,  agents: [], enabled: true },
+  { id: 3, name: "Compliance disclaimer",     desc: "Append regulatory disclaimer to all financial and legal responses.",                      action: "Agent response with fixed paragraph",   mandatory: true,  agents: [], enabled: true },
+  { id: 4, name: "Commercial response policy",desc: "Prevent AI from making pricing commitments or answering restricted topics.",              action: "Agent auto response",               mandatory: false, agents: [{ name: "Banking ABC", color: "#4338ca" }, { name: "IT Helpdesk", color: "#059669" }, { name: "Product FAQ", color: "#d97706" }, { name: "Sales Qualifier", color: "#db2777" }], enabled: true },
+  { id: 5, name: "Legal and medical advice",  desc: "Do not provide legal or medical advice — refer to a specialist.",                         action: "Agent response with fixed paragraph", mandatory: false, agents: [], allAgents: true, enabled: true },
+  { id: 6, name: "Escalate risky replies",    desc: "Human approval for any commitments about future roadmap.",                                action: "Require approval",                    mandatory: false, agents: [{ name: "Sales Qualifier", color: "#d97706" }], enabled: false },
+  { id: 7, name: "Competitor mention block",  desc: "Avoid naming or comparing direct competitors in any response.",                           action: "Agent auto response",               mandatory: false, agents: [{ name: "Banking ABC", color: "#4338ca" }, { name: "HR Onboarding", color: "#7c3aed" }, { name: "IT Helpdesk", color: "#059669" }], enabled: true },
 ];
 
 /* ─── Response types ─────────────────────────────────────────────────── */
@@ -237,13 +238,16 @@ export default function WorkspaceGuardrails() {
   const visibleItems = activeTab === "enforced" ? enforced : optional;
 
   const handleCreate = (g: Omit<Guardrail, "id" | "agents">) => {
-    setItems(prev => [...prev, { ...g, id: nextId++, agents: [] }]);
+    setItems(prev => [...prev, { ...g, id: nextId++, agents: [], enabled: true }]);
   };
   const handleEdit = (id: number, g: Omit<Guardrail, "id" | "agents">) => {
     setItems(prev => prev.map(item => item.id === id ? { ...item, ...g } : item));
   };
   const handleDelete = (id: number) => {
     setItems(prev => prev.filter(item => item.id !== id));
+  };
+  const toggleEnabled = (id: number) => {
+    setItems(prev => prev.map(item => item.id === id ? { ...item, enabled: !item.enabled } : item));
   };
 
   return (
@@ -316,14 +320,17 @@ export default function WorkspaceGuardrails() {
       {/* Table */}
       {activeTab === "enforced" ? (
         <Table>
-          <THead cols="1fr 200px 64px" cells={["Guardrail", "Response action", "Actions"]} lastRight />
+          <THead cols="1fr 200px 72px 64px" cells={["Guardrail", "Response action", "Status", "Actions"]} lastRight />
           {visibleItems.length === 0 ? <EmptyRow /> : visibleItems.map(g => (
-            <TRow key={g.id} cols="1fr 200px 64px">
+            <TRow key={g.id} cols="1fr 200px 72px 64px">
               <div>
                 <div className="text-sm font-medium">{g.name}</div>
                 <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{g.desc}</div>
               </div>
               <div><ActionPill>{g.action}</ActionPill></div>
+              <div className="flex items-center">
+                <Toggle enabled={g.enabled} onChange={() => toggleEnabled(g.id)} />
+              </div>
               <div className="flex items-center justify-end">
                 <RowMenu onEdit={() => setEditItem(g)} onDelete={() => handleDelete(g.id)} />
               </div>
@@ -332,9 +339,9 @@ export default function WorkspaceGuardrails() {
         </Table>
       ) : (
         <Table>
-          <THead cols="1fr 200px 1fr 64px" cells={["Guardrail", "Response action", "Assigned agents", "Actions"]} lastRight />
+          <THead cols="1fr 200px 1fr 72px 64px" cells={["Guardrail", "Response action", "Assigned agents", "Status", "Actions"]} lastRight />
           {visibleItems.length === 0 ? <EmptyRow /> : visibleItems.map(g => (
-            <TRow key={g.id} cols="1fr 200px 1fr 64px">
+            <TRow key={g.id} cols="1fr 200px 1fr 72px 64px">
               <div>
                 <div className="text-sm font-medium">{g.name}</div>
                 <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{g.desc}</div>
@@ -359,6 +366,9 @@ export default function WorkspaceGuardrails() {
                         )}
                       </>
                 }
+              </div>
+              <div className="flex items-center">
+                <Toggle enabled={g.enabled} onChange={() => toggleEnabled(g.id)} />
               </div>
               <div className="flex items-center justify-end">
                 <RowMenu onEdit={() => setEditItem(g)} onDelete={() => handleDelete(g.id)} />
@@ -411,6 +421,23 @@ function ActionPill({ children }: { children: React.ReactNode }) {
     <span className="inline-flex px-2.5 py-1 rounded-full border border-border bg-surface-muted text-xs text-muted-foreground">
       {children}
     </span>
+  );
+}
+
+function Toggle({ enabled, onChange }: { enabled: boolean; onChange: () => void }) {
+  return (
+    <button
+      onClick={onChange}
+      className={`relative inline-flex h-5 w-9 items-center rounded-full border transition-colors duration-200 focus:outline-none ${
+        enabled ? "bg-primary border-primary" : "bg-surface-muted border-border"
+      }`}
+      role="switch"
+      aria-checked={enabled}
+    >
+      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform duration-200 ${
+        enabled ? "translate-x-4" : "translate-x-0.5"
+      }`} />
+    </button>
   );
 }
 
