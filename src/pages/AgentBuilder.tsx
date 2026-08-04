@@ -1631,16 +1631,13 @@ function GuardrailsConfigSection() {
         <p className="text-xs text-muted-foreground mb-2 leading-relaxed">Boundaries that keep your agent acting safely.</p>
 
         {addedList.length > 0 && (
-          <div className="space-y-1.5 mb-2">
+          <div className="space-y-1 mb-2">
             {addedList.map(g => (
-              <div key={g.id} className="flex items-start gap-2 py-1.5 px-2 rounded-lg bg-surface-muted border border-border">
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium truncate">{g.name}</p>
-                  <p className="text-[10px] text-muted-foreground truncate">{g.action}</p>
-                </div>
+              <div key={g.id} className="flex items-center gap-2 py-1.5 px-2 rounded-lg bg-surface-muted border border-border">
+                <p className="text-xs font-medium flex-1 truncate">{g.name}</p>
                 <button
                   onClick={() => setAdded(prev => { const s = new Set(prev); s.delete(g.id); return s; })}
-                  className="text-[10px] text-destructive hover:underline shrink-0 mt-0.5"
+                  className="text-[10px] text-destructive hover:underline shrink-0"
                 >
                   Remove
                 </button>
