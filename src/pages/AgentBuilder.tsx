@@ -429,7 +429,7 @@ function AiBuildSidebar({
             </div>
           );
           if (msg.kind === "text" && msg.role === "ai") return (
-            <div key={i} className="bg-surface-muted/60 border border-border rounded-2xl rounded-bl-sm px-3 py-2.5 text-xs leading-relaxed max-w-[95%]">
+            <div key={i} className="bg-surface-muted/60 border border-border rounded-2xl rounded-bl-sm px-3 py-2.5 text-sm leading-relaxed w-full">
               {msg.text}{msg.streaming && <span className="inline-block w-0.5 h-3 bg-muted-foreground ml-0.5 animate-pulse align-middle" />}
             </div>
           );
