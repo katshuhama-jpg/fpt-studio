@@ -1,5 +1,6 @@
 import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { createPortal } from "react-dom";
+import { guardrailStore } from "@/components/configure/guardrailStore";
 import {
   ChevronLeft, Play, Rocket, MoreHorizontal, AlertTriangle, X, BookOpen, Wrench, ListChecks, Workflow,
   Zap, Cog, MessageSquareText, FileQuestion, Sparkles,
@@ -1157,10 +1158,7 @@ function RightConfigPanel({ embedded, model, onModelChange }: { embedded?: boole
         <button className="flex items-center gap-1 text-xs text-primary hover:underline mt-1"><Plus size={12} /> Add connection</button>
       </ConfigSection>
       {/* Guardrails */}
-      <ConfigSection icon={Shield} title="Guardrails" badge={<span className="text-xs text-warning font-medium mr-1">Not set</span>}>
-        <p className="text-xs text-muted-foreground mb-2 leading-relaxed">Boundaries that keep your agent acting safely.</p>
-        <button className="flex items-center gap-1 text-xs text-primary hover:underline"><Plus size={12} /> Add</button>
-      </ConfigSection>
+      <GuardrailsConfigSection />
       {/* Schedules */}
       <ConfigSection icon={Clock} title="Schedules" badge={<span className="text-xs text-warning font-medium mr-1">Not set</span>}>
         <p className="text-xs text-muted-foreground mb-2 leading-relaxed">Run this agent automatically — like a daily summary.</p>
@@ -1598,5 +1596,125 @@ function PublishModal({ onClose, onChatTest }: { onClose: () => void; onChatTest
       </div>
     </div>,
     document.body
+  );
+}
+
+/* ============ Guardrails config section (right panel) ============ */
+
+const WS_GUARDRAILS = [
+  { id: 1, name: "PII protection",             desc: "Never expose personal identifiers in any response.",                      action: "Agent auto response",                 enabled: true  },
+  { id: 2, name: "Prohibited content filter",  desc: "Block violent, adult, or discriminatory content across all channels.",   action: "Agent auto response",                 enabled: true  },
+  { id: 3, name: "Compliance disclaimer",      desc: "Append regulatory disclaimer to all financial and legal responses.",     action: "Agent response with fixed paragraph", enabled: true  },
+  { id: 4, name: "Commercial response policy", desc: "Prevent AI from making pricing commitments or answering topics.",        action: "Agent auto response",                 enabled: true  },
+  { id: 5, name: "Legal and medical advice",   desc: "Do not provide legal or medical advice — refer to a specialist.",        action: "Agent response with fixed paragraph", enabled: false },
+  { id: 6, name: "Escalate risky replies",     desc: "Human approval for any commitments about future roadmap.",               action: "Require approval",                    enabled: false },
+  { id: 7, name: "Competitor mention block",   desc: "Avoid naming or comparing direct competitors in any response.",          action: "Agent auto response",                 enabled: true  },
+];
+
+function GuardrailsConfigSection() {
+  const [open, setOpen] = useState(false);
+  const [added, setAdded] = useState<Set<number>>(new Set([1, 2]));
+
+  const addedList = WS_GUARDRAILS.filter(g => added.has(g.id));
+
+  return (
+    <>
+      <ConfigSection
+        icon={Shield}
+        title="Guardrails"
+        badge={
+          added.size > 0
+            ? <span className="text-xs text-success font-medium mr-1">{added.size} active</span>
+            : <span className="text-xs text-warning font-medium mr-1">Not set</span>
+        }
+      >
+        <p className="text-xs text-muted-foreground mb-2 leading-relaxed">Boundaries that keep your agent acting safely.</p>
+
+        {addedList.length > 0 && (
+          <div className="space-y-1.5 mb-2">
+            {addedList.map(g => (
+              <div key={g.id} className="flex items-start gap-2 py-1.5 px-2 rounded-lg bg-surface-muted border border-border">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium truncate">{g.name}</p>
+                  <p className="text-[10px] text-muted-foreground truncate">{g.action}</p>
+                </div>
+                <button
+                  onClick={() => setAdded(prev => { const s = new Set(prev); s.delete(g.id); return s; })}
+                  className="text-[10px] text-destructive hover:underline shrink-0 mt-0.5"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <button onClick={() => setOpen(true)} className="flex items-center gap-1 text-xs text-primary hover:underline">
+          <Plus size={12} /> Add
+        </button>
+      </ConfigSection>
+
+      {open && createPortal(
+        <div className="fixed inset-0 z-50 flex justify-end" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
+          <div className="absolute inset-0 bg-black/30" onClick={() => setOpen(false)} />
+          <div className="relative w-full max-w-[520px] bg-white flex flex-col shadow-2xl h-full" style={{animation:"slideInRight 0.22s ease"}}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+              <h2 className="font-semibold text-base">Add guardrails</h2>
+              <button onClick={() => setOpen(false)} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground">
+                <X size={15} />
+              </button>
+            </div>
+
+            {/* Table */}
+            <div className="flex-1 overflow-y-auto">
+              {/* Header row */}
+              <div className="grid px-5 py-2.5 border-b border-border bg-surface-muted" style={{gridTemplateColumns:"1fr 170px 60px 64px"}}>
+                {["Guardrail","Response action","Status",""].map(h => (
+                  <span key={h} className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{h}</span>
+                ))}
+              </div>
+
+              {/* Rows */}
+              {WS_GUARDRAILS.map(g => {
+                const isAdded = added.has(g.id);
+                return (
+                  <div key={g.id} className="grid px-5 py-3 border-b border-border items-center gap-2" style={{gridTemplateColumns:"1fr 170px 60px 64px"}}>
+                    <div>
+                      <p className="text-sm font-medium">{g.name}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{g.desc}</p>
+                    </div>
+                    <span className="text-xs px-2 py-1 rounded-full border border-border bg-surface-muted text-muted-foreground leading-tight">{g.action}</span>
+                    <span className={`text-xs font-medium ${g.enabled ? "text-success" : "text-muted-foreground"}`}>
+                      {g.enabled ? "On" : "Off"}
+                    </span>
+                    <div className="flex justify-end">
+                      {isAdded ? (
+                        <button
+                          onClick={() => setAdded(prev => { const s = new Set(prev); s.delete(g.id); return s; })}
+                          className="text-xs text-destructive hover:underline"
+                        >Remove</button>
+                      ) : (
+                        <button
+                          onClick={() => setAdded(prev => new Set([...prev, g.id]))}
+                          className="text-xs text-primary hover:underline font-medium"
+                        >Add</button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-4 border-t border-border shrink-0 flex justify-end gap-2">
+              <button onClick={() => setOpen(false)} className="h-9 px-4 rounded-lg border border-border text-sm font-medium hover:bg-surface-muted transition-base">Close</button>
+            </div>
+          </div>
+          <style>{`@keyframes slideInRight{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
+        </div>,
+        document.body
+      )}
+    </>
   );
 }
