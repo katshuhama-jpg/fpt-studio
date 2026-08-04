@@ -58,7 +58,7 @@ function CreateModal({ onClose, onCreate, initialData }: {
 
   const submit = () => {
     if (!topic.trim()) return;
-    onCreate({ name: topic.trim(), desc: desc.trim(), action: actionFromResponse(), mandatory: false, allAgents });
+    onCreate({ name: topic.trim(), desc: desc.trim(), action: actionFromResponse(), mandatory: false, allAgents, enabled: initialData?.enabled ?? true });
     onClose();
   };
 

@@ -1,6 +1,5 @@
 import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { createPortal } from "react-dom";
-import { guardrailStore } from "@/components/configure/guardrailStore";
 import {
   ChevronLeft, ChevronRight, Play, Rocket, MoreHorizontal, AlertTriangle, X, BookOpen, Wrench, ListChecks, Workflow,
   Zap, Cog, MessageSquareText, FileQuestion, Sparkles,
