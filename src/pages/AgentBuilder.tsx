@@ -1051,14 +1051,14 @@ function ConfigSection({ icon: Icon, title, badge, children }: {
 }) {
   const [open, setOpen] = useState(true);
   return (
-    <div className="border-b border-border last:border-b-0">
-      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-2.5 px-4 py-3 hover:bg-surface-muted transition-base">
+    <div className="rounded-xl border border-border bg-surface overflow-hidden">
+      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-surface-muted transition-base">
         <Icon size={15} className="text-muted-foreground shrink-0" />
         <span className="text-sm font-medium flex-1 text-left">{title}</span>
         {badge}
         {open ? <ChevronUp size={13} className="text-muted-foreground" /> : <ChevronDown size={13} className="text-muted-foreground" />}
       </button>
-      {open && <div className="px-4 pb-3">{children}</div>}
+      {open && <div className="border-t border-border px-3 pb-3 pt-2">{children}</div>}
     </div>
   );
 }
@@ -1123,14 +1123,14 @@ function ConnectorItem({ logo, name, connected, color }: { logo: string; name: s
 
 function RightConfigPanel({ embedded, model, onModelChange }: { embedded?: boolean; model?: string; onModelChange?: (id: string) => void }) {
   const inner = (
-    <div className="flex flex-col divide-y divide-border">
+    <div className="flex flex-col gap-2 p-3">
       {/* Model */}
-      <div className="border-b border-border">
-        <div className="flex items-center gap-2.5 px-4 py-3">
+      <div className="rounded-xl border border-border bg-surface overflow-hidden">
+        <div className="flex items-center gap-2.5 px-3 py-2.5">
           <Cog size={15} className="text-muted-foreground shrink-0" />
           <span className="text-sm font-medium flex-1">Model</span>
         </div>
-        <div className="px-4 pb-3">
+        <div className="border-t border-border px-3 pb-3 pt-2">
           <ModelDropdown value={model ?? "deepseek-v4-flash"} onChange={onModelChange ?? (() => {})} />
         </div>
       </div>
