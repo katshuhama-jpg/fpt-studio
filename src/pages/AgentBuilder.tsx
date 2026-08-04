@@ -1947,15 +1947,22 @@ function GuardrailsConfigSection() {
   const [detailEditable, setDetailEditable] = useState(false);
 
   // Chip: clickable to open detail
-  const Chip = ({ label, desc, action, onRemove, editable, onEdit }: {
+  const Chip = ({ label, desc, action, onRemove, editable, onEdit, type }: {
     label: string; desc?: string; action?: string;
     onRemove: () => void; editable?: boolean; onEdit?: () => void;
+    type?: "workspace" | "agent";
   }) => (
     <div
       className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-surface cursor-pointer hover:bg-surface-muted transition-base"
       onClick={() => { setDetailItem({ name: label, desc: desc ?? "", action: action ?? "" }); setDetailEditable(!!editable); }}
     >
-      <span className="text-sm font-medium flex-1 truncate">{label}</span>
+      <span className="text-sm font-medium flex-1 truncate min-w-0">{label}</span>
+      {type === "workspace" && (
+        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap" style={{background:"#EFF6FF",color:"#1D4ED8",border:"0.5px solid #BFDBFE"}}>Workspace</span>
+      )}
+      {type === "agent" && (
+        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap" style={{background:"#ECFDF5",color:"#065F46",border:"0.5px solid #A7F3D0"}}>Agent</span>
+      )}
       <button
         onClick={e => { e.stopPropagation(); onRemove(); }}
         className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-surface-muted transition-base shrink-0"
@@ -1978,34 +1985,22 @@ function GuardrailsConfigSection() {
         <p className="text-xs text-muted-foreground mb-3 leading-relaxed">Boundaries that keep your agent acting safely.</p>
 
         {(wsAddedList.length > 0 || agentGuardrails.length > 0) && (
-          <div className="space-y-3 mb-3">
-            {wsAddedList.length > 0 && (
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1.5">Guardrail of workspace</p>
-                <div className="space-y-1">
-                  {wsAddedList.map(g => (
-                    <Chip key={g.id} label={g.name} desc={g.desc} action={g.action}
-                      onRemove={() => setWsAdded(prev => { const s = new Set(prev); s.delete(g.id); return s; })}
-                      editable={false}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-            {agentGuardrails.length > 0 && (
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1.5">Guardrail of agent</p>
-                <div className="space-y-1">
-                  {agentGuardrails.map(g => (
-                    <Chip key={g.id} label={g.name} desc={g.desc} action={g.action}
-                      onRemove={() => setAgentGuardrails(prev => prev.filter(x => x.id !== g.id))}
-                      editable={true}
-                      onEdit={() => setEditTarget(g)}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
+          <div className="space-y-1 mb-3">
+            {wsAddedList.map(g => (
+              <Chip key={g.id} label={g.name} desc={g.desc} action={g.action}
+                type="workspace"
+                onRemove={() => setWsAdded(prev => { const s = new Set(prev); s.delete(g.id); return s; })}
+                editable={false}
+              />
+            ))}
+            {agentGuardrails.map(g => (
+              <Chip key={g.id} label={g.name} desc={g.desc} action={g.action}
+                type="agent"
+                onRemove={() => setAgentGuardrails(prev => prev.filter(x => x.id !== g.id))}
+                editable={true}
+                onEdit={() => setEditTarget(g)}
+              />
+            ))}
           </div>
         )}
 
