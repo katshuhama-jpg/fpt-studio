@@ -262,93 +262,39 @@ export default function WorkspaceGuardrails() {
         </p>
       </div>
 
-      {/* Tabs + toolbar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-5 border-b border-border pb-3">
-        <div className="flex items-center gap-1">
-          {([
-            { key: "optional", label: "Optional",  count: optional.length  },
-            { key: "enforced", label: "Enforced", count: enforced.length },
-          ] as const).map(t => (
-            <button
-              key={t.key}
-              onClick={() => setActiveTab(t.key)}
-              className={`px-3 h-8 rounded-lg text-sm font-medium transition-base flex items-center gap-1.5 ${
-                activeTab === t.key
-                  ? "bg-primary-soft text-primary"
-                  : "text-muted-foreground hover:bg-surface-muted"
-              }`}
-            >
-              {t.label}
-              {t.count > 0 && (
-                <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                  activeTab === t.key
-                    ? "bg-primary/10 text-primary"
-                    : "bg-surface-sunken text-muted-foreground"
-                }`}>
-                  {t.count}
-                </span>
-              )}
-            </button>
-          ))}
+      {/* Toolbar */}
+      <div className="flex items-center justify-between gap-3 mb-5">
+        <div className="relative">
+          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search guardrails"
+            className="h-9 w-56 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+          />
         </div>
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Search guardrails"
-              className="h-9 w-56 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-            />
-          </div>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 transition-base"
-          >
-            <Plus size={14} /> Create guardrail
-          </button>
-        </div>
+        <button
+          onClick={() => setShowCreate(true)}
+          className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 transition-base"
+        >
+          <Plus size={14} /> Create guardrail
+        </button>
       </div>
 
-      {/* Tab description */}
-      <p className="text-xs text-muted-foreground mb-4">
-        {activeTab === "enforced"
-          ? "These guardrails are enforced on all agents in this workspace and cannot be disabled."
-          : "These guardrails can be assigned to individual agents. Configure per-agent in each agent's settings."}
-      </p>
-
-      {/* Table */}
-      {activeTab === "enforced" ? (
-        <Table>
-          <THead cols="1fr 200px 72px 64px" cells={["Guardrail", "Response action", "Status", "Actions"]} lastRight />
-          {visibleItems.length === 0 ? <EmptyRow /> : visibleItems.map(g => (
-            <TRow key={g.id} cols="1fr 200px 72px 64px">
-              <div>
-                <div className="text-sm font-medium">{g.name}</div>
-                <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{g.desc}</div>
-              </div>
-              <div><ActionPill>{g.action}</ActionPill></div>
-              <div className="flex items-center">
-                <Toggle enabled={g.enabled} onChange={() => toggleEnabled(g.id)} />
-              </div>
-              <div className="flex items-center justify-end">
-                <RowMenu onEdit={() => setEditItem(g)} onDelete={() => handleDelete(g.id)} />
-              </div>
-            </TRow>
-          ))}
-        </Table>
-      ) : (
-        <Table>
-          <THead cols="1fr 200px 1fr 72px 64px" cells={["Guardrail", "Response action", "Assigned agents", "Status", "Actions"]} lastRight />
-          {visibleItems.length === 0 ? <EmptyRow /> : visibleItems.map(g => (
-            <TRow key={g.id} cols="1fr 200px 1fr 72px 64px">
-              <div>
-                <div className="text-sm font-medium">{g.name}</div>
-                <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{g.desc}</div>
-              </div>
-              <div><ActionPill>{g.action}</ActionPill></div>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {g.allAgents
+      {/* Table — all guardrails */}
+      <Table>
+        <THead cols="1fr 200px 1fr 72px 64px" cells={["Guardrail", "Response action", "Assigned agents", "Status", "Actions"]} lastRight />
+        {filtered.length === 0 ? <EmptyRow /> : filtered.map(g => (
+          <TRow key={g.id} cols="1fr 200px 1fr 72px 64px">
+            <div>
+              <div className="text-sm font-medium">{g.name}</div>
+              <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{g.desc}</div>
+            </div>
+            <div><ActionPill>{g.action}</ActionPill></div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {g.mandatory
+                ? <span className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full border border-border bg-surface-muted text-xs text-muted-foreground">All agents (enforced)</span>
+                : g.allAgents
                   ? <span className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full border border-primary/30 bg-primary/10 text-xs text-primary font-medium">All agents</span>
                   : g.agents.length === 0
                     ? <span className="text-xs text-muted-foreground">No agents assigned</span>
@@ -365,18 +311,17 @@ export default function WorkspaceGuardrails() {
                           </span>
                         )}
                       </>
-                }
-              </div>
-              <div className="flex items-center">
-                <Toggle enabled={g.enabled} onChange={() => toggleEnabled(g.id)} />
-              </div>
-              <div className="flex items-center justify-end">
-                <RowMenu onEdit={() => setEditItem(g)} onDelete={() => handleDelete(g.id)} />
-              </div>
-            </TRow>
-          ))}
-        </Table>
-      )}
+              }
+            </div>
+            <div className="flex items-center">
+              <Toggle enabled={g.enabled} onChange={() => toggleEnabled(g.id)} />
+            </div>
+            <div className="flex items-center justify-end">
+              <RowMenu onEdit={() => setEditItem(g)} onDelete={() => handleDelete(g.id)} />
+            </div>
+          </TRow>
+        ))}
+      </Table>
     </div>
   );
 }
