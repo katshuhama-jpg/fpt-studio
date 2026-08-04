@@ -1689,19 +1689,24 @@ function GuardrailCreateModal({ onClose, onSave }: { onClose: () => void; onSave
               {[
                 { key: "auto", label: "Agent auto response", sub: "Agent automatically rewrites responses based on your instructions." },
                 { key: "fixed", label: "Agent response with fixed paragraph", sub: "Agent replies using the exact text you provide." },
-              ].map(opt => (
-                <button
-                  key={opt.key}
-                  onClick={() => setResponseType(opt.key)}
-                  className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl border text-left transition-base ${responseType === opt.key ? "border-primary bg-primary-soft" : "border-border bg-surface hover:bg-surface-muted"}`}
-                >
-                  <div>
-                    <p className="text-sm font-medium">{opt.label}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{opt.sub}</p>
+              ].map(opt => {
+                const sel = responseType === opt.key;
+                return (
+                  <div
+                    key={opt.key}
+                    onClick={() => setResponseType(opt.key)}
+                    className={`flex items-start gap-3 px-4 py-3.5 rounded-xl border cursor-pointer transition-base ${sel ? "border-primary bg-primary-soft" : "border-border bg-surface hover:bg-surface-muted"}`}
+                  >
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-base ${sel ? "border-primary" : "border-border"}`}>
+                      {sel && <div className="w-2 h-2 rounded-full bg-primary" />}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">{opt.label}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{opt.sub}</p>
+                    </div>
                   </div>
-                  <ChevronRight size={15} className="text-muted-foreground shrink-0 ml-3" />
-                </button>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
@@ -1775,13 +1780,18 @@ function GuardrailEditSheet({ guardrail, onClose, onSave }: { guardrail: Guardra
               {[
                 { key: "auto", label: "Agent auto response", sub: "Agent automatically rewrites responses based on your instructions." },
                 { key: "fixed", label: "Agent response with fixed paragraph", sub: "Agent replies using the exact text you provide." },
-              ].map(opt => (
-                <button key={opt.key} onClick={() => setResponseType(opt.key)}
-                  className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl border text-left transition-base ${responseType === opt.key ? "border-primary bg-primary-soft" : "border-border bg-surface hover:bg-surface-muted"}`}>
-                  <div><p className="text-sm font-medium">{opt.label}</p><p className="text-xs text-muted-foreground mt-0.5">{opt.sub}</p></div>
-                  <ChevronRight size={15} className="text-muted-foreground shrink-0 ml-3" />
-                </button>
-              ))}
+              ].map(opt => {
+                const sel = responseType === opt.key;
+                return (
+                  <div key={opt.key} onClick={() => setResponseType(opt.key)}
+                    className={`flex items-start gap-3 px-4 py-3.5 rounded-xl border cursor-pointer transition-base ${sel ? "border-primary bg-primary-soft" : "border-border bg-surface hover:bg-surface-muted"}`}>
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-base ${sel ? "border-primary" : "border-border"}`}>
+                      {sel && <div className="w-2 h-2 rounded-full bg-primary" />}
+                    </div>
+                    <div><p className="text-sm font-medium">{opt.label}</p><p className="text-xs text-muted-foreground mt-0.5">{opt.sub}</p></div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

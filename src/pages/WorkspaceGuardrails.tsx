@@ -141,47 +141,40 @@ function CreateModal({ onClose, onCreate, initialData }: {
               {responseOptions.map(opt => {
                 const selected = response === opt.key;
                 return (
-                  <div key={opt.key} className={`rounded-xl border-2 transition-base overflow-hidden ${
-                    selected ? "border-primary bg-primary/5" : "border-border bg-white"
-                  }`}>
-                    {/* Card header — always visible, click to select */}
-                    <div
-                      className="flex items-center justify-between px-4 py-3.5 cursor-pointer"
-                      onClick={() => setResponse(selected ? null : opt.key)}
-                    >
-                      <div>
-                        <div className="text-sm font-semibold">{opt.title}</div>
-                        <div className="text-xs text-muted-foreground mt-0.5">{opt.desc}</div>
-                      </div>
-                      {!selected && <span className="text-muted-foreground shrink-0 ml-4 text-lg leading-none">›</span>}
+                  <div
+                    key={opt.key}
+                    onClick={() => setResponse(opt.key)}
+                    className={`flex items-start gap-3 px-4 py-3.5 rounded-xl border cursor-pointer transition-base ${
+                      selected ? "border-primary bg-primary/5" : "border-border bg-white hover:bg-surface-muted"
+                    }`}
+                  >
+                    {/* Radio */}
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-base ${
+                      selected ? "border-primary" : "border-border"
+                    }`}>
+                      {selected && <div className="w-2 h-2 rounded-full bg-primary" />}
                     </div>
-
-                    {/* Expanded detail — only when selected */}
-                    {selected && opt.key === "auto" && (
-                      <div className="px-4 pb-4">
-                        <div className="rounded-lg border border-dashed border-border bg-white px-3 py-3 text-xs text-muted-foreground">
-                          The agent will automatically rewrite its response — no additional input needed.
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold">{opt.title}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">{opt.desc}</div>
+                      {selected && opt.key === "fixed" && (
+                        <div className="mt-3">
+                          <label className="block text-xs font-semibold mb-1.5">Fixed paragraph <span className="text-destructive">*</span></label>
+                          <div className="relative">
+                            <textarea
+                              rows={4}
+                              maxLength={300}
+                              placeholder="Write the exact reply the agent should send."
+                              className="w-full px-3 py-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none"
+                              value={fixedText}
+                              onChange={e => { e.stopPropagation(); setFixedText(e.target.value); }}
+                              onClick={e => e.stopPropagation()}
+                            />
+                            <span className="absolute bottom-2 right-3 text-[10px] text-muted-foreground">{fixedText.length}/300</span>
+                          </div>
                         </div>
-                      </div>
-                    )}
-                    {selected && opt.key === "fixed" && (
-                      <div className="px-4 pb-4">
-                        <label className="block text-xs font-semibold mb-1.5">Fixed paragraph <span className="text-destructive">*</span></label>
-                        <div className="relative">
-                          <textarea
-                            rows={4}
-                            maxLength={300}
-                            placeholder="Write the exact reply the agent should send."
-                            className="w-full px-3 py-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none"
-                            value={fixedText}
-                            onChange={e => { e.stopPropagation(); setFixedText(e.target.value); }}
-                            onClick={e => e.stopPropagation()}
-                          />
-                          <span className="absolute bottom-2 right-3 text-[10px] text-muted-foreground">{fixedText.length}/300</span>
-                        </div>
-                      </div>
-                    )}
-
+                      )}
+                    </div>
                   </div>
                 );
               })}
