@@ -293,7 +293,7 @@ export default function WorkspaceGuardrails() {
             <div><ActionPill>{g.action}</ActionPill></div>
             <div className="flex items-center gap-1.5 flex-wrap">
               {g.mandatory
-                ? <span className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full border border-border bg-surface-muted text-xs text-muted-foreground">All agents (enforced)</span>
+                ? <span className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full border border-primary/30 bg-primary/10 text-xs text-primary font-medium">All agents</span>
                 : g.allAgents
                   ? <span className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full border border-primary/30 bg-primary/10 text-xs text-primary font-medium">All agents</span>
                   : g.agents.length === 0
