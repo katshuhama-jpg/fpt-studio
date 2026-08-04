@@ -1952,14 +1952,17 @@ function GuardrailsConfigSection() {
     onRemove: () => void; editable?: boolean; onEdit?: () => void;
   }) => (
     <div
-      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-surface-muted cursor-pointer hover:bg-surface-sunken transition-base"
+      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-surface cursor-pointer hover:bg-surface-muted transition-base"
       onClick={() => { setDetailItem({ name: label, desc: desc ?? "", action: action ?? "" }); setDetailEditable(!!editable); }}
     >
-      <span className="text-xs font-medium flex-1 truncate">{label}</span>
+      <span className="text-sm font-medium flex-1 truncate">{label}</span>
       <button
         onClick={e => { e.stopPropagation(); onRemove(); }}
-        className="text-[10px] text-destructive hover:underline shrink-0"
-      >Remove</button>
+        className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-surface-muted transition-base shrink-0"
+        title="Remove"
+      >
+        <Trash size={12} />
+      </button>
     </div>
   );
 
