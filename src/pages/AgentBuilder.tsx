@@ -2043,35 +2043,43 @@ function GuardrailsConfigSection() {
       {openWsSheet && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
           <div className="absolute inset-0 bg-black/40" onClick={() => setOpenWsSheet(false)} />
-          <div className="relative w-full max-w-[520px] bg-white rounded-2xl shadow-2xl flex flex-col max-h-[80vh]" style={{animation:"fadeScaleIn 0.18s ease"}}>
+          <div className="relative w-full max-w-[640px] bg-white rounded-2xl shadow-2xl flex flex-col max-h-[80vh]" style={{animation:"fadeScaleIn 0.18s ease"}}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
               <h2 className="font-semibold text-base">Add from workspace</h2>
               <button onClick={() => setOpenWsSheet(false)} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground"><X size={15} /></button>
             </div>
             <div className="flex-1 overflow-y-auto">
               {wsAvailable.length === 0 ? (
-                <p className="px-5 py-6 text-sm text-muted-foreground text-center">Tất cả guardrails đã được thêm.</p>
+                <p className="px-5 py-6 text-sm text-muted-foreground text-center">All guardrails have been added.</p>
               ) : (
-                <div className="rounded-none overflow-hidden">
-                  <div className="grid px-5 py-2 bg-surface-muted border-b border-border" style={{gridTemplateColumns:"1fr 56px"}}>
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Guardrail</span>
-                    <span />
-                  </div>
-                  {wsAvailable.map(g => (
-                    <div key={g.id} className="grid px-5 py-3 border-b border-border last:border-0 items-center gap-2" style={{gridTemplateColumns:"1fr 56px"}}>
-                      <div>
-                        <p className="text-sm font-medium">{g.name}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{g.desc}</p>
-                      </div>
-                      <div className="flex justify-end">
-                        <button
-                          onClick={() => setWsAdded(prev => new Set([...prev, g.id]))}
-                          className="text-xs text-primary hover:underline font-medium"
-                        >Add</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-surface-muted border-b border-border">
+                      <th className="text-left px-5 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-[40%]">Guardrail</th>
+                      <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Response action</th>
+                      <th className="px-4 py-2.5 w-14" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {wsAvailable.map(g => (
+                      <tr key={g.id} className="border-b border-border last:border-0 hover:bg-surface-muted/50 transition-base">
+                        <td className="px-5 py-3 align-top">
+                          <p className="text-sm font-medium leading-snug">{g.name}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{g.desc}</p>
+                        </td>
+                        <td className="px-4 py-3 align-middle">
+                          <span className="text-xs text-foreground">{g.action}</span>
+                        </td>
+                        <td className="px-4 py-3 align-middle text-right">
+                          <button
+                            onClick={() => setWsAdded(prev => new Set([...prev, g.id]))}
+                            className="text-xs text-primary hover:underline font-medium"
+                          >Add</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               )}
             </div>
             <div className="px-5 py-4 border-t border-border shrink-0 flex justify-end">
