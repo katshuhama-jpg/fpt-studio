@@ -287,8 +287,11 @@ export default function WorkspaceGuardrails() {
             <div><ActionPill>{g.action}</ActionPill></div>
             <div className="flex items-center">
               {(g.mandatory || g.allAgents)
-                ? <span className="inline-flex items-center h-6 px-2.5 rounded-full border border-primary/30 bg-primary/10 text-xs text-primary font-medium">All</span>
-                : <span className="inline-flex items-center h-6 px-2.5 rounded-full border border-border bg-surface-muted text-xs text-muted-foreground font-medium">Custom</span>
+                ? <span className="inline-flex items-center gap-1.5 text-xs text-success font-medium">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="7" fill="#22c55e"/><path d="M4 7l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    Apply all agent
+                  </span>
+                : <span className="text-xs text-muted-foreground">Custom</span>
               }
             </div>
             <div className="flex items-center">
