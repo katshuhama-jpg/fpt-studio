@@ -1828,10 +1828,24 @@ function GuardrailsConfigSection() {
   const wsAvailable = WS_GUARDRAILS.filter(g => !wsAdded.has(g.id));
   const totalActive = wsAddedList.length + agentGuardrails.length;
 
-  const Chip = ({ label, onRemove }: { label: string; onRemove: () => void }) => (
-    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-surface-muted">
+  // Detail popup state
+  const [detailItem, setDetailItem] = useState<{name:string;desc:string;action:string} | null>(null);
+  const [detailEditable, setDetailEditable] = useState(false);
+
+  // Chip: clickable to open detail
+  const Chip = ({ label, desc, action, onRemove, editable, onEdit }: {
+    label: string; desc?: string; action?: string;
+    onRemove: () => void; editable?: boolean; onEdit?: () => void;
+  }) => (
+    <div
+      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-surface-muted cursor-pointer hover:bg-surface-sunken transition-base"
+      onClick={() => { setDetailItem({ name: label, desc: desc ?? "", action: action ?? "" }); setDetailEditable(!!editable); }}
+    >
       <span className="text-xs font-medium flex-1 truncate">{label}</span>
-      <button onClick={onRemove} className="text-[10px] text-destructive hover:underline shrink-0">Remove</button>
+      <button
+        onClick={e => { e.stopPropagation(); onRemove(); }}
+        className="text-[10px] text-destructive hover:underline shrink-0"
+      >Remove</button>
     </div>
   );
 
@@ -1853,7 +1867,10 @@ function GuardrailsConfigSection() {
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1.5">Guardrail of workspace</p>
                 <div className="space-y-1">
                   {wsAddedList.map(g => (
-                    <Chip key={g.id} label={g.name} onRemove={() => setWsAdded(prev => { const s = new Set(prev); s.delete(g.id); return s; })} />
+                    <Chip key={g.id} label={g.name} desc={g.desc} action={g.action}
+                      onRemove={() => setWsAdded(prev => { const s = new Set(prev); s.delete(g.id); return s; })}
+                      editable={false}
+                    />
                   ))}
                 </div>
               </div>
@@ -1863,7 +1880,11 @@ function GuardrailsConfigSection() {
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1.5">Guardrail of agent</p>
                 <div className="space-y-1">
                   {agentGuardrails.map(g => (
-                    <Chip key={g.id} label={g.name} onRemove={() => setAgentGuardrails(prev => prev.filter(x => x.id !== g.id))} />
+                    <Chip key={g.id} label={g.name} desc={g.desc} action={g.action}
+                      onRemove={() => setAgentGuardrails(prev => prev.filter(x => x.id !== g.id))}
+                      editable={true}
+                      onEdit={() => setEditTarget(g)}
+                    />
                   ))}
                 </div>
               </div>
@@ -1962,6 +1983,50 @@ function GuardrailsConfigSection() {
         onClose={() => setEditTarget(null)}
         onSave={updated => { setAgentGuardrails(prev => prev.map(g => g.id === updated.id ? updated : g)); setEditTarget(null); }}
       />}
+
+      {/* Guardrail detail popup */}
+      {detailItem && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
+          <div className="absolute inset-0 bg-black/40" onClick={() => setDetailItem(null)} />
+          <div className="relative w-full max-w-[420px] bg-white rounded-2xl shadow-2xl flex flex-col" style={{animation:"fadeScaleIn 0.18s ease"}}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h2 className="font-semibold text-base">{detailItem.name}</h2>
+              <button onClick={() => setDetailItem(null)} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground"><X size={15} /></button>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              {detailItem.desc && (
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">Description</p>
+                  <p className="text-sm text-foreground leading-relaxed">{detailItem.desc}</p>
+                </div>
+              )}
+              {detailItem.action && (
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">Response action</p>
+                  <span className="inline-flex px-2.5 py-1 rounded-full border border-border bg-surface-muted text-xs text-muted-foreground">{detailItem.action}</span>
+                </div>
+              )}
+              {!detailEditable && (
+                <p className="text-[10px] text-muted-foreground italic mt-2">Workspace guardrail — read only</p>
+              )}
+            </div>
+            <div className="px-5 py-4 border-t border-border flex justify-end gap-2">
+              {detailEditable && (
+                <button
+                  onClick={() => {
+                    const g = agentGuardrails.find(x => x.name === detailItem.name);
+                    if (g) { setEditTarget(g); setDetailItem(null); }
+                  }}
+                  className="h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary-glow transition-base"
+                >Edit</button>
+              )}
+              <button onClick={() => setDetailItem(null)} className="h-9 px-4 rounded-lg border border-border text-sm font-medium hover:bg-surface-muted transition-base">Close</button>
+            </div>
+          </div>
+          <style>{`@keyframes fadeScaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}`}</style>
+        </div>,
+        document.body
+      )}
     </>
   );
 }
