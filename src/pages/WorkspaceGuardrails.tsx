@@ -286,13 +286,9 @@ export default function WorkspaceGuardrails() {
             </div>
             <div><ActionPill>{g.action}</ActionPill></div>
             <div className="flex items-center">
-              {(g.mandatory || g.allAgents)
-                ? <span className="inline-flex items-center gap-1.5 text-xs text-success font-medium">
-                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="7" fill="#22c55e"/><path d="M4 7l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                    Apply all agent
-                  </span>
-                : <span className="text-xs text-muted-foreground">Custom</span>
-              }
+              {(g.mandatory || g.allAgents) && (
+                <svg width="16" height="16" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="7" fill="#22c55e"/><path d="M4 7l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+              )}
             </div>
             <div className="flex items-center">
               <Toggle enabled={g.enabled} onChange={() => toggleEnabled(g.id)} />
