@@ -1808,13 +1808,23 @@ function GuardrailEditSheet({ guardrail, onClose, onSave }: { guardrail: Guardra
 }
 
 function GuardrailsConfigSection() {
-  const [openSheet, setOpenSheet]             = useState(false);
+  const [showMenu, setShowMenu]               = useState(false);
   const [openCreate, setOpenCreate]           = useState(false);
+  const [openWsSheet, setOpenWsSheet]         = useState(false);
   const [wsAdded, setWsAdded]                 = useState<Set<number>>(new Set([1, 2]));
   const [agentGuardrails, setAgentGuardrails] = useState<Guardrail[]>([]);
   const [editTarget, setEditTarget]           = useState<Guardrail | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showMenu) return;
+    const h = (e: MouseEvent) => { if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [showMenu]);
 
   const wsAddedList = WS_GUARDRAILS.filter(g => wsAdded.has(g.id));
+  const wsAvailable = WS_GUARDRAILS.filter(g => !wsAdded.has(g.id));
   const totalActive = wsAddedList.length + agentGuardrails.length;
 
   const Chip = ({ label, onRemove }: { label: string; onRemove: () => void }) => (
@@ -1860,98 +1870,73 @@ function GuardrailsConfigSection() {
           </div>
         )}
 
-        <button onClick={() => setOpenSheet(true)} className="flex items-center gap-1 text-xs text-primary hover:underline">
-          <Plus size={11} /> Add
-        </button>
+        {/* Add button with dropdown menu */}
+        <div ref={menuRef} className="relative inline-block">
+          <button
+            onClick={() => setShowMenu(v => !v)}
+            className="flex items-center gap-1 text-xs text-primary hover:underline"
+          >
+            <Plus size={11} /> Add
+          </button>
+          {showMenu && (
+            <div className="absolute left-0 top-5 z-20 w-44 bg-white rounded-xl border border-border shadow-lg py-1 animate-fade-up">
+              <button
+                onClick={() => { setShowMenu(false); setOpenCreate(true); }}
+                className="w-full text-left px-3 py-2 text-xs hover:bg-surface-muted transition-base"
+              >
+                Create mới
+              </button>
+              <button
+                onClick={() => { setShowMenu(false); setOpenWsSheet(true); }}
+                className="w-full text-left px-3 py-2 text-xs hover:bg-surface-muted transition-base"
+              >
+                Add from workspace
+              </button>
+            </div>
+          )}
+        </div>
       </ConfigSection>
 
-      {/* ── Combined side sheet ── */}
-      {openSheet && createPortal(
-        <div className="fixed inset-0 z-50 flex justify-end" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
-          <div className="absolute inset-0 bg-black/30" onClick={() => setOpenSheet(false)} />
-          <div className="relative w-full max-w-[520px] bg-white flex flex-col shadow-2xl h-full" style={{animation:"slideInRight 0.22s ease"}}>
-
-            {/* Header */}
-            <div className="px-5 py-4 border-b border-border shrink-0">
-              <div className="flex items-center justify-between">
-                <h2 className="font-semibold text-base">Add guardrails</h2>
-                <button onClick={() => setOpenSheet(false)} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground"><X size={15} /></button>
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">Claude đề xuất</p>
+      {/* Add from workspace popup */}
+      {openWsSheet && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
+          <div className="absolute inset-0 bg-black/40" onClick={() => setOpenWsSheet(false)} />
+          <div className="relative w-full max-w-[520px] bg-white rounded-2xl shadow-2xl flex flex-col max-h-[80vh]" style={{animation:"fadeScaleIn 0.18s ease"}}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+              <h2 className="font-semibold text-base">Add from workspace</h2>
+              <button onClick={() => setOpenWsSheet(false)} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground"><X size={15} /></button>
             </div>
-
             <div className="flex-1 overflow-y-auto">
-
-              {/* Section: Guardrail of Agent */}
-              <div className="px-5 pt-5 pb-5">
-                <div className="flex items-center justify-between mb-0.5">
-                  <p className="text-sm font-semibold">Guardrail of Agent</p>
-                  <button onClick={() => setOpenCreate(true)} className="flex items-center gap-1 text-xs text-primary hover:underline shrink-0 ml-3">
-                    <Plus size={11} /> Create guardrail
-                  </button>
-                </div>
-                <p className="text-xs text-muted-foreground mb-3">Guardrail chỉ được áp dụng cho agent này thôi</p>
-
-                <div className="rounded-lg border border-border overflow-hidden">
-                  <div className="grid px-4 py-2 bg-surface-muted border-b border-border" style={{gridTemplateColumns:"1fr 64px 52px"}}>
+              {wsAvailable.length === 0 ? (
+                <p className="px-5 py-6 text-sm text-muted-foreground text-center">Tất cả guardrails đã được thêm.</p>
+              ) : (
+                <div className="rounded-none overflow-hidden">
+                  <div className="grid px-5 py-2 bg-surface-muted border-b border-border" style={{gridTemplateColumns:"1fr 56px"}}>
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Guardrail</span>
-                    <span /><span />
+                    <span />
                   </div>
-                  {agentGuardrails.length > 0 ? agentGuardrails.map(g => (
-                    <div key={g.id} className="grid px-4 py-3 border-b border-border last:border-0 items-center gap-2" style={{gridTemplateColumns:"1fr 64px 52px"}}>
+                  {wsAvailable.map(g => (
+                    <div key={g.id} className="grid px-5 py-3 border-b border-border last:border-0 items-center gap-2" style={{gridTemplateColumns:"1fr 56px"}}>
                       <div>
                         <p className="text-sm font-medium">{g.name}</p>
                         <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{g.desc}</p>
                       </div>
                       <div className="flex justify-end">
-                        <button onClick={() => setEditTarget(g)} className="text-xs text-primary hover:underline">Edit</button>
-                      </div>
-                      <div className="flex justify-end">
-                        <button onClick={() => setAgentGuardrails(prev => prev.filter(x => x.id !== g.id))} className="text-xs text-destructive hover:underline">Remove</button>
+                        <button
+                          onClick={() => setWsAdded(prev => new Set([...prev, g.id]))}
+                          className="text-xs text-primary hover:underline font-medium"
+                        >Add</button>
                       </div>
                     </div>
-                  )) : (
-                    <div className="px-4 py-3 text-xs text-muted-foreground italic">Chưa có guardrail nào. Nhấn "+ Create guardrail" để tạo mới.</div>
-                  )}
+                  ))}
                 </div>
-              </div>
-
-              {/* Section: Guardrail of workspace */}
-              <div className="px-5 pb-5">
-                <p className="text-sm font-semibold mb-0.5">Guardrail of workspace</p>
-                <p className="text-xs text-muted-foreground mb-3">Guardrail chỉ được áp dụng cho toàn bộ workspace</p>
-
-                <div className="rounded-lg border border-border overflow-hidden">
-                  <div className="grid px-4 py-2 bg-surface-muted border-b border-border" style={{gridTemplateColumns:"1fr 64px"}}>
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Guardrail</span>
-                    <span />
-                  </div>
-                  {WS_GUARDRAILS.map(g => {
-                    const isAdded = wsAdded.has(g.id);
-                    return (
-                      <div key={g.id} className="grid px-4 py-3 border-b border-border last:border-0 items-center gap-2" style={{gridTemplateColumns:"1fr 64px"}}>
-                        <div>
-                          <p className="text-sm font-medium">{g.name}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{g.desc}</p>
-                        </div>
-                        <div className="flex justify-end">
-                          {isAdded
-                            ? <button onClick={() => setWsAdded(prev => { const s = new Set(prev); s.delete(g.id); return s; })} className="text-xs text-destructive hover:underline">Remove</button>
-                            : <button onClick={() => setWsAdded(prev => new Set([...prev, g.id]))} className="text-xs text-primary hover:underline font-medium">Add</button>
-                          }
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              )}
             </div>
-
             <div className="px-5 py-4 border-t border-border shrink-0 flex justify-end">
-              <button onClick={() => setOpenSheet(false)} className="h-9 px-4 rounded-lg border border-border text-sm font-medium hover:bg-surface-muted transition-base">Close</button>
+              <button onClick={() => setOpenWsSheet(false)} className="h-9 px-4 rounded-lg border border-border text-sm font-medium hover:bg-surface-muted transition-base">Close</button>
             </div>
           </div>
-          <style>{`@keyframes slideInRight{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
+          <style>{`@keyframes fadeScaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}`}</style>
         </div>,
         document.body
       )}
