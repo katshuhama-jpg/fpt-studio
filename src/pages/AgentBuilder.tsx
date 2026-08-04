@@ -1599,11 +1599,11 @@ function PublishModal({ onClose, onChatTest }: { onClose: () => void; onChatTest
 }
 
 const WS_GUARDRAILS = [
-  { id: 1, name: "PII protection",             desc: "Never expose personal identifiers in any response.",                    action: "Agent auto response",                 enabled: true  },
-  { id: 2, name: "Prohibited content filter",  desc: "Block violent, adult, or discriminatory content across all channels.", action: "Agent auto response",                 enabled: true  },
-  { id: 3, name: "Compliance disclaimer",      desc: "Append regulatory disclaimer to all financial and legal responses.",   action: "Agent response with fixed paragraph", enabled: true  },
-  { id: 4, name: "Commercial response policy", desc: "Prevent AI from making pricing commitments or answering topics.",      action: "Agent auto response",                 enabled: true  },
-  { id: 7, name: "Competitor mention block",   desc: "Avoid naming or comparing direct competitors in any response.",        action: "Agent auto response",                 enabled: true  },
+  { id: 1, name: "PII protection",             desc: "Never expose personal identifiers in any response.",                    action: "Autogenerate response",                 enabled: true  },
+  { id: 2, name: "Prohibited content filter",  desc: "Block violent, adult, or discriminatory content across all channels.", action: "Autogenerate response",                 enabled: true  },
+  { id: 3, name: "Compliance disclaimer",      desc: "Append regulatory disclaimer to all financial and legal responses.",   action: "Custom response", enabled: true  },
+  { id: 4, name: "Commercial response policy", desc: "Prevent AI from making pricing commitments or answering topics.",      action: "Autogenerate response",                 enabled: true  },
+  { id: 7, name: "Competitor mention block",   desc: "Avoid naming or comparing direct competitors in any response.",        action: "Autogenerate response",                 enabled: true  },
 ];
 
 /* ============ Guardrails config section (right panel) ============ */
@@ -1627,8 +1627,8 @@ function GuardrailDetailModal({ item, editable, onClose, onSave }: {
   const canSave = editable && topic.trim().length > 0 && desc.trim().length > 0 && responseType !== null;
 
   const opts = [
-    { key: "auto",  label: "Agent auto response",                 sub: "Agent automatically rewrites responses based on your instructions." },
-    { key: "fixed", label: "Agent response with fixed paragraph", sub: "Agent replies using the exact text you provide." },
+    { key: "auto",  label: "Autogenerate response",                 sub: "Agent automatically rewrites responses based on your instructions." },
+    { key: "fixed", label: "Custom response", sub: "Agent replies using the exact text you provide." },
   ];
 
   return (
@@ -1696,7 +1696,7 @@ function GuardrailDetailModal({ item, editable, onClose, onSave }: {
         <div className="flex items-center justify-between px-6 py-4 border-t border-border shrink-0">
           <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">{editable ? "Cancel" : "Close"}</button>
           {editable && (
-            <button onClick={() => { if (canSave) onSave({ name: topic, desc, action: responseType === "auto" ? "Agent auto response" : "Agent response with fixed paragraph" }); }}
+            <button onClick={() => { if (canSave) onSave({ name: topic, desc, action: responseType === "auto" ? "Autogenerate response" : "Custom response" }); }}
               disabled={!canSave}
               className={`h-9 px-4 rounded-xl text-sm font-medium transition-base ${canSave ? "bg-primary text-primary-foreground hover:opacity-90" : "bg-primary/30 text-primary-foreground/50 cursor-not-allowed"}`}>
               Save changes
@@ -1785,8 +1785,8 @@ function GuardrailCreateModal({ onClose, onSave }: { onClose: () => void; onSave
             <p className="text-xs text-muted-foreground mb-3">Choose what the agent does when this rule triggers.</p>
             <div className="space-y-2">
               {[
-                { key: "auto", label: "Agent auto response", sub: "Agent automatically rewrites responses based on your instructions." },
-                { key: "fixed", label: "Agent response with fixed paragraph", sub: "Agent replies using the exact text you provide." },
+                { key: "auto", label: "Autogenerate response", sub: "Agent automatically rewrites responses based on your instructions." },
+                { key: "fixed", label: "Custom response", sub: "Agent replies using the exact text you provide." },
               ].map(opt => {
                 const sel = responseType === opt.key;
                 return (
@@ -1829,7 +1829,7 @@ function GuardrailCreateModal({ onClose, onSave }: { onClose: () => void; onSave
         <div className="flex items-center justify-between px-6 py-4 border-t border-border shrink-0">
           <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">Cancel</button>
           <button
-            onClick={() => { if (canSave) { onSave({ name: topic, desc, action: responseType === "auto" ? "Agent auto response" : "Agent response with fixed paragraph", topic, description: desc, samples }); onClose(); } }}
+            onClick={() => { if (canSave) { onSave({ name: topic, desc, action: responseType === "auto" ? "Autogenerate response" : "Custom response", topic, description: desc, samples }); onClose(); } }}
             disabled={!canSave}
             className={`h-9 px-4 rounded-xl text-sm font-medium transition-base ${canSave ? "bg-primary text-primary-foreground hover:opacity-90" : "bg-primary/30 text-primary-foreground/50 cursor-not-allowed"}`}
           >
@@ -1892,8 +1892,8 @@ function GuardrailEditSheet({ guardrail, onClose, onSave }: { guardrail: Guardra
             <p className="text-xs text-muted-foreground mb-3">Choose what the agent does when this rule triggers.</p>
             <div className="space-y-2">
               {[
-                { key: "auto", label: "Agent auto response", sub: "Agent automatically rewrites responses based on your instructions." },
-                { key: "fixed", label: "Agent response with fixed paragraph", sub: "Agent replies using the exact text you provide." },
+                { key: "auto", label: "Autogenerate response", sub: "Agent automatically rewrites responses based on your instructions." },
+                { key: "fixed", label: "Custom response", sub: "Agent replies using the exact text you provide." },
               ].map(opt => {
                 const sel = responseType === opt.key;
                 return (
@@ -1912,7 +1912,7 @@ function GuardrailEditSheet({ guardrail, onClose, onSave }: { guardrail: Guardra
 
         <div className="flex items-center justify-between px-6 py-4 border-t border-border shrink-0">
           <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">Cancel</button>
-          <button onClick={() => { onSave({ ...guardrail, name: topic, desc, action: responseType === "auto" ? "Agent auto response" : "Agent response with fixed paragraph", topic, description: desc, samples }); onClose(); }} className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-base">Save changes</button>
+          <button onClick={() => { onSave({ ...guardrail, name: topic, desc, action: responseType === "auto" ? "Autogenerate response" : "Custom response", topic, description: desc, samples }); onClose(); }} className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-base">Save changes</button>
         </div>
       </div>
       <style>{`@keyframes slideInRight{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>

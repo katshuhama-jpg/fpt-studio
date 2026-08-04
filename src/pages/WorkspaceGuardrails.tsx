@@ -3,7 +3,7 @@ import { Plus, Search, MoreVertical, X, Pencil, Trash2 } from "lucide-react";
 import { createPortal } from "react-dom";
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
-type ActionKind = "Agent auto response" | "Agent response with fixed paragraph" | "Require approval" | "Block" | "Redact and warn" | "Politely decline";
+type ActionKind = "Autogenerate response" | "Custom response" | "Require approval" | "Block" | "Redact and warn" | "Politely decline";
 
 interface AgentChip { name: string; color: string }
 interface Guardrail {
@@ -19,13 +19,13 @@ interface Guardrail {
 
 /* ─── Seed data ──────────────────────────────────────────────────────── */
 const SEED: Guardrail[] = [
-  { id: 1, name: "PII protection",            desc: "Never expose personal identifiers — CCID, passport, phone — in any response.",          action: "Agent auto response",                   mandatory: true,  agents: [], enabled: true },
-  { id: 2, name: "Prohibited content filter", desc: "Block violent, adult, or discriminatory content across all channels.",                    action: "Agent auto response",                   mandatory: true,  agents: [], enabled: true },
-  { id: 3, name: "Compliance disclaimer",     desc: "Append regulatory disclaimer to all financial and legal responses.",                      action: "Agent response with fixed paragraph",   mandatory: true,  agents: [], enabled: true },
-  { id: 4, name: "Commercial response policy",desc: "Prevent AI from making pricing commitments or answering restricted topics.",              action: "Agent auto response",               mandatory: false, agents: [{ name: "Banking ABC", color: "#4338ca" }, { name: "IT Helpdesk", color: "#059669" }, { name: "Product FAQ", color: "#d97706" }, { name: "Sales Qualifier", color: "#db2777" }], enabled: true },
-  { id: 5, name: "Legal and medical advice",  desc: "Do not provide legal or medical advice — refer to a specialist.",                         action: "Agent response with fixed paragraph", mandatory: false, agents: [], allAgents: true, enabled: true },
+  { id: 1, name: "PII protection",            desc: "Never expose personal identifiers — CCID, passport, phone — in any response.",          action: "Autogenerate response",                   mandatory: true,  agents: [], enabled: true },
+  { id: 2, name: "Prohibited content filter", desc: "Block violent, adult, or discriminatory content across all channels.",                    action: "Autogenerate response",                   mandatory: true,  agents: [], enabled: true },
+  { id: 3, name: "Compliance disclaimer",     desc: "Append regulatory disclaimer to all financial and legal responses.",                      action: "Custom response",   mandatory: true,  agents: [], enabled: true },
+  { id: 4, name: "Commercial response policy",desc: "Prevent AI from making pricing commitments or answering restricted topics.",              action: "Autogenerate response",               mandatory: false, agents: [{ name: "Banking ABC", color: "#4338ca" }, { name: "IT Helpdesk", color: "#059669" }, { name: "Product FAQ", color: "#d97706" }, { name: "Sales Qualifier", color: "#db2777" }], enabled: true },
+  { id: 5, name: "Legal and medical advice",  desc: "Do not provide legal or medical advice — refer to a specialist.",                         action: "Custom response", mandatory: false, agents: [], allAgents: true, enabled: true },
   { id: 6, name: "Escalate risky replies",    desc: "Human approval for any commitments about future roadmap.",                                action: "Require approval",                    mandatory: false, agents: [{ name: "Sales Qualifier", color: "#d97706" }], enabled: false },
-  { id: 7, name: "Competitor mention block",  desc: "Avoid naming or comparing direct competitors in any response.",                           action: "Agent auto response",               mandatory: false, agents: [{ name: "Banking ABC", color: "#4338ca" }, { name: "HR Onboarding", color: "#7c3aed" }, { name: "IT Helpdesk", color: "#059669" }], enabled: true },
+  { id: 7, name: "Competitor mention block",  desc: "Avoid naming or comparing direct competitors in any response.",                           action: "Autogenerate response",               mandatory: false, agents: [{ name: "Banking ABC", color: "#4338ca" }, { name: "HR Onboarding", color: "#7c3aed" }, { name: "IT Helpdesk", color: "#059669" }], enabled: true },
 ];
 
 /* ─── Response types ─────────────────────────────────────────────────── */
@@ -39,8 +39,8 @@ function CreateModal({ onClose, onCreate, initialData }: {
 }) {
   const isEdit = !!initialData;
   const actionToResponse = (a?: ActionKind): ResponseKind => {
-    if (a === "Agent auto response") return "auto";
-    if (a === "Agent response with fixed paragraph") return "fixed";
+    if (a === "Autogenerate response") return "auto";
+    if (a === "Custom response") return "fixed";
     return null;
   };
   const [topic, setTopic]       = useState(initialData?.name ?? "");
@@ -51,9 +51,9 @@ function CreateModal({ onClose, onCreate, initialData }: {
   const [allAgents, setAllAgents] = useState(initialData?.allAgents ?? false);
 
   const actionFromResponse = (): ActionKind => {
-    if (response === "auto")  return "Agent auto response";
-    if (response === "fixed") return "Agent response with fixed paragraph";
-    return "Agent auto response";
+    if (response === "auto")  return "Autogenerate response";
+    if (response === "fixed") return "Custom response";
+    return "Autogenerate response";
   };
 
   const submit = () => {
@@ -63,8 +63,8 @@ function CreateModal({ onClose, onCreate, initialData }: {
   };
 
   const responseOptions: { key: ResponseKind; title: string; desc: string }[] = [
-    { key: "auto",  title: "Agent auto response",                 desc: "Agent automatically rewrites responses based on your instructions." },
-    { key: "fixed", title: "Agent response with fixed paragraph", desc: "Agent replies using the exact text you provide." },
+    { key: "auto",  title: "Autogenerate response",                 desc: "Agent automatically rewrites responses based on your instructions." },
+    { key: "fixed", title: "Custom response", desc: "Agent replies using the exact text you provide." },
   ];
 
   return createPortal(
