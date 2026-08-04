@@ -1956,7 +1956,7 @@ function GuardrailsConfigSection() {
       className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-surface cursor-pointer hover:bg-surface-muted transition-base"
       onClick={() => { setDetailItem({ name: label, desc: desc ?? "", action: action ?? "" }); setDetailEditable(!!editable); }}
     >
-      <span className="text-sm font-medium flex-1 truncate min-w-0">{label}</span>
+      <span className="text-[13px] font-medium flex-1 truncate min-w-0">{label}</span>
       {type === "workspace" && (
         <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap" style={{background:"#EFF6FF",color:"#1D4ED8",border:"0.5px solid #BFDBFE"}}>Workspace</span>
       )}
@@ -2026,7 +2026,7 @@ function GuardrailsConfigSection() {
               onClick={() => { setShowMenu(false); setOpenCreate(true); }}
               className="w-full text-left px-3 py-2 text-xs hover:bg-surface-muted transition-base"
             >
-              Create mới
+              Create new
             </button>
             <button
               onClick={() => { setShowMenu(false); setOpenWsSheet(true); }}
