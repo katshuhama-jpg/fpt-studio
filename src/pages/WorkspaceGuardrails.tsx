@@ -68,12 +68,12 @@ function CreateModal({ onClose, onCreate, initialData }: {
   ];
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
       {/* backdrop */}
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
-      {/* side sheet */}
-      <div className="absolute right-0 top-0 bottom-0 w-full max-w-[560px] bg-white flex flex-col shadow-2xl" style={{animation:"slideInRight 0.22s ease"}}>
+      {/* popup */}
+      <div className="relative w-full max-w-[520px] bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh]" style={{animation:"fadeScaleIn 0.18s ease"}}>
         {/* Header */}
         <div className="flex items-start justify-between px-6 py-5 border-b border-border shrink-0">
           <div>
@@ -205,7 +205,7 @@ function CreateModal({ onClose, onCreate, initialData }: {
         </div>
       </div>
 
-      <style>{`@keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }`}</style>
+      <style>{`@keyframes fadeScaleIn { from { opacity:0; transform:scale(0.96); } to { opacity:1; transform:scale(1); } }`}</style>
     </div>,
     document.body
   );
