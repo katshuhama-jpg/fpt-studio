@@ -257,13 +257,11 @@ export default function WorkspaceGuardrails() {
 
       <div className="mb-6">
         <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">Guardrails</h1>
-        <p className="text-sm text-muted-foreground max-w-xl">
-          Shared safety policies you can apply to any agent — content restrictions, data protection, approval flows, and custom rules.
-        </p>
+        <p className="text-sm text-muted-foreground truncate">Shared safety policies you can apply to any agent — content restrictions, data protection, approval flows, and custom rules.</p>
       </div>
 
       {/* Toolbar */}
-      <div className="flex items-center justify-between gap-3 mb-5 border-b border-border pb-3">
+      <div className="flex items-center justify-between gap-3 mb-5">
         <div />
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -366,7 +364,7 @@ function Pill({ children }: { children: React.ReactNode }) {
 
 function ActionPill({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex px-2.5 py-1 rounded-full border border-border bg-surface-muted text-xs text-muted-foreground">
+    <span className="inline-flex max-w-[180px] px-2.5 py-1 rounded-full border border-border bg-surface-muted text-xs text-muted-foreground truncate">
       {children}
     </span>
   );
