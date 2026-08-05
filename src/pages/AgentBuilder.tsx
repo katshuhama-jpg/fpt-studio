@@ -752,28 +752,35 @@ You are a customer-care specialist at ABC Bank. Help customers 24/7 with product
         </div>
 
         {/* View action buttons */}
-        <div className="flex items-center gap-1.5 mt-4">
-          {([
-            { id: "preview",  label: "Preview",        icon: Eye },
-            { id: "markdown", label: "Markdown",       icon: FileText },
-            { id: "ai",       label: "Refine with AI", icon: Sparkles },
-            { id: "chat",     label: "Chat to Test",   icon: MessageSquare },
-          ] as const).map(({ id, label, icon: Icon }) => (
-            <button key={id}
-              onClick={() => {
-                if (id === "ai") { onRefineWithAI?.(); return; }
-                if (id === "chat") { onChatToTest?.(); return; }
-                setViewMode(id as typeof viewMode);
-              }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-base ${
-                viewMode === id
-                  ? "bg-white border border-border shadow-soft text-foreground font-medium"
-                  : "text-muted-foreground hover:text-foreground hover:bg-surface-muted border border-transparent"
-              }`}
-            >
-              <Icon size={13} className={viewMode === id ? "text-primary" : "text-muted-foreground"} /> {label}
-            </button>
-          ))}
+        <div className="flex items-center gap-2 mt-4">
+          {/* Toggle: Preview / Markdown */}
+          <div className="flex items-center bg-surface-muted rounded-lg p-0.5 border border-border">
+            {([
+              { id: "preview",  label: "Preview",  icon: Eye },
+              { id: "markdown", label: "Markdown", icon: FileText },
+            ] as const).map(({ id, label, icon: Icon }) => (
+              <button key={id}
+                onClick={() => setViewMode(id)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-base ${
+                  viewMode === id
+                    ? "bg-white shadow-soft text-foreground font-medium"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Icon size={13} className={viewMode === id ? "text-primary" : "text-muted-foreground"} /> {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Action buttons */}
+          <button onClick={() => onRefineWithAI?.()}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm text-foreground transition-base">
+            <Sparkles size={13} className="text-primary" /> Refine with AI
+          </button>
+          <button onClick={() => onChatToTest?.()}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm text-foreground transition-base">
+            <MessageSquare size={13} className="text-muted-foreground" /> Chat to Test
+          </button>
         </div>
       </div>
 
