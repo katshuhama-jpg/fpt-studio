@@ -174,17 +174,6 @@ export default function AgentBuilder() {
             minWidth: 0,
           }}
         >
-          {/* Agent identity */}
-          <div className="px-4 py-4 border-b border-border shrink-0">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-surface-muted border border-border flex items-center justify-center text-xl shrink-0">🤖</div>
-              <div className="min-w-0">
-                <div className="text-sm font-semibold truncate">làm báo cáo cho sale</div>
-                <div className="text-xs text-muted-foreground truncate">làm báo cáo cho sale</div>
-              </div>
-            </div>
-          </div>
-
           {/* Nav items */}
           <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
             {developNav.flatMap(g => g.items).map((it: any) => (
