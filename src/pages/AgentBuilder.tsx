@@ -24,26 +24,17 @@ import { chatOptimizationStore } from "@/components/configure/chatOptimizationSt
 import { updateUser } from "@/lib/onboarding";
 import BusinessProcessTree from "@/components/general/BusinessProcessTree";
 
-type Tab = "build" | "test" | "deploy" | "insights" | "develop" | "monitor";
+type Tab = "build" | "test" | "deploy" | "insights";
 
 const developNav = [
-  {
-    label: "Configure",
-    items: [
-      { id: "general", label: "Agent Info", icon: Cog, status: "done" },
-      { id: "knowledge", label: "Knowledge", icon: BookOpen, status: "empty", count: 0 },
-      { id: "skills", label: "Skills", icon: Puzzle, status: "empty", count: 0 },
-      { id: "connectors", label: "Connectors", icon: Plug, status: "done" },
-      { id: "guardrails", label: "Guardrails", icon: Shield, status: "warn" },
-    ],
-  },
-  {
-    label: "Test & Deploy",
-    items: [
-      { id: "tests", label: "Test cases", icon: ListChecks },
-      { id: "publish", label: "Publish", icon: Rocket },
-    ],
-  },
+  { id: "instructions", label: "Instructions", icon: FileText,  status: "done" },
+  { id: "model",        label: "Model",         icon: Cpu,       status: "done" },
+  { id: "tools",        label: "Tools",          icon: Wrench,    status: "done" },
+  { id: "skills",       label: "Skills",         icon: Puzzle,    status: "empty" },
+  { id: "guardrails",   label: "Guardrails",     icon: Shield,    status: "warn" },
+  { id: "knowledge",    label: "Knowledge",      icon: BookOpen,  comingSoon: true },
+  { id: "triggers",     label: "Triggers",       icon: Zap,       comingSoon: true },
+  { id: "sub-agents",   label: "Sub-Agents",     icon: Bot,       comingSoon: true },
 ];
 
 const monitorNav = [
@@ -65,7 +56,7 @@ const monitorNav = [
 export default function AgentBuilder() {
   const { id = "cskh" } = useParams();
   const [params, setParams] = useSearchParams();
-  const tab = (params.get("tab") as Tab) || "develop";
+  const tab = (params.get("tab") as Tab) || "build";
   const section = params.get("section") || "instructions";
   const navigate = useNavigate();
   const buildModeParam = params.get("buildMode");
@@ -86,10 +77,9 @@ export default function AgentBuilder() {
   const setTab = (t: Tab) => setParams({ tab: t, section: "instructions" });
   const setSection = (s: string) => setParams({ tab, section: s });
 
-  const isBuild = tab === "build" || tab === "develop";
-  const nav = isBuild ? developNav : monitorNav;
+  const nav = developNav;
   const currentSectionLabel =
-    developNav.flatMap(g => g.items).find((i: any) => i.id === section)?.label ?? section;
+    developNav.find((i: any) => i.id === section)?.label ?? section;
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -176,7 +166,7 @@ export default function AgentBuilder() {
         >
           {/* Nav items */}
           <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
-            {developNav.flatMap(g => g.items).map((it: any) => (
+            {developNav.map((it: any) => (
               <button
                 key={it.id}
                 onClick={() => !it.comingSoon && setSection(it.id)}
@@ -260,7 +250,7 @@ export default function AgentBuilder() {
         <div className="flex-1 flex overflow-hidden">
           <div className="flex-1 flex flex-col overflow-hidden">
             {/* Content tabs */}
-            {isBuild && (
+            {tab === "build" && (
               <div className="shrink-0 border-b border-border bg-surface px-6 flex items-center gap-0">
                 {([
                   { id: "preview",  label: "Preview",        icon: Eye },
@@ -290,20 +280,20 @@ export default function AgentBuilder() {
               </div>
             )}
             <div className="flex-1 overflow-y-auto bg-gradient-soft">
-              {isBuild && section === "instructions" && <GeneralTab />}
-              {isBuild && section === "knowledge" && <KnowledgeTab />}
-              {isBuild && section === "tools" && <AgentToolsTab agentId={id ?? "new"} />}
-              {isBuild && section === "skills" && <PlaceholderTab title="Skills" />}
-              {isBuild && section === "guardrails" && <GuardrailsTab agentId={id ?? "new"} />}
-              {isBuild && section === "model" && <PlaceholderTab title="Model" />}
-              {isBuild && !["instructions","knowledge","tools","skills","guardrails","model"].includes(section) && <PlaceholderTab title={section} />}
+              {tab === "build" && section === "instructions" && <GeneralTab />}
+              {tab === "build" && section === "knowledge" && <KnowledgeTab />}
+              {tab === "build" && section === "tools" && <AgentToolsTab agentId={id ?? "new"} />}
+              {tab === "build" && section === "skills" && <PlaceholderTab title="Skills" />}
+              {tab === "build" && section === "guardrails" && <GuardrailsTab agentId={id ?? "new"} />}
+              {tab === "build" && section === "model" && <PlaceholderTab title="Model" />}
+              {tab === "build" && !["instructions","knowledge","tools","skills","guardrails","model"].includes(section) && <PlaceholderTab title={section} />}
               {tab === "test" && <PlaceholderTab title="Test" />}
               {tab === "deploy" && <PlaceholderTab title="Deploy" />}
               {tab === "insights" && <PerformanceTab />}
             </div>
           </div>
 
-          {isBuild && <PreviewPanel view={previewView} onViewChange={setPreviewView} />}
+          {tab === "build" && <PreviewPanel view={previewView} onViewChange={setPreviewView} />}
         </div>
       </div>
     </div>
