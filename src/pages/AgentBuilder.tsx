@@ -251,7 +251,7 @@ export default function AgentBuilder() {
           <div className="flex-1 flex flex-col overflow-hidden">
 
             <div className="flex-1 overflow-y-auto bg-gradient-soft">
-              {tab === "build" && section === "instructions" && <GeneralTab />}
+              {tab === "build" && section === "instructions" && <GeneralTab onRefineWithAI={() => setBuildMode("ai")} onChatToTest={() => { setBuildMode("manual"); setPreviewView("chat"); }} />}
               {tab === "build" && section === "knowledge" && <KnowledgeTab />}
               {tab === "build" && section === "tools" && <AgentToolsTab agentId={id ?? "new"} />}
               {tab === "build" && section === "skills" && <PlaceholderTab title="Skills" />}
@@ -666,7 +666,7 @@ function inlineFormat(text: string): React.ReactNode {
   return parts.map((p, i) => i % 2 === 1 ? <strong key={i}>{p}</strong> : p);
 }
 
-function GeneralTab() {
+function GeneralTab({ onRefineWithAI, onChatToTest }: { onRefineWithAI?: () => void; onChatToTest?: () => void }) {
   const [params] = useSearchParams();
   const initialName = params.get("agentName") || "Banking ABC — Customer Care";
   const initialPrompt = params.get("agentPrompt") || "";
@@ -760,7 +760,11 @@ You are a customer-care specialist at ABC Bank. Help customers 24/7 with product
             { id: "chat",     label: "Chat to Test",   icon: MessageSquare },
           ] as const).map(({ id, label, icon: Icon }) => (
             <button key={id}
-              onClick={() => setViewMode(id as typeof viewMode)}
+              onClick={() => {
+                if (id === "ai") { onRefineWithAI?.(); return; }
+                if (id === "chat") { onChatToTest?.(); return; }
+                setViewMode(id as typeof viewMode);
+              }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-base ${
                 viewMode === id
                   ? "bg-white border border-border shadow-soft text-foreground font-medium"
