@@ -625,12 +625,55 @@ function ModelDropdown({ value, onChange }: { value: string; onChange: (id: stri
   );
 }
 
+/* Simple markdown → JSX renderer */
+function renderMarkdown(md: string): React.ReactNode {
+  const lines = md.split("\n");
+  const nodes: React.ReactNode[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (!line.trim()) { nodes.push(<div key={i} className="h-3" />); i++; continue; }
+    if (line.startsWith("# "))  { nodes.push(<h1 key={i} className="text-xl font-bold mb-2 mt-4 first:mt-0">{inlineFormat(line.slice(2))}</h1>); i++; continue; }
+    if (line.startsWith("## ")) { nodes.push(<h2 key={i} className="text-base font-semibold mb-1.5 mt-3">{inlineFormat(line.slice(3))}</h2>); i++; continue; }
+    if (line.startsWith("### ")){ nodes.push(<h3 key={i} className="text-sm font-semibold mb-1 mt-2">{inlineFormat(line.slice(4))}</h3>); i++; continue; }
+    // unordered list block
+    if (line.match(/^[-*] /)) {
+      const items: React.ReactNode[] = [];
+      while (i < lines.length && lines[i].match(/^[-*] /)) {
+        items.push(<li key={i} className="ml-4 list-disc">{inlineFormat(lines[i].slice(2))}</li>);
+        i++;
+      }
+      nodes.push(<ul key={`ul-${i}`} className="mb-2 space-y-0.5 text-sm">{items}</ul>);
+      continue;
+    }
+    // ordered list block
+    if (line.match(/^\d+\. /)) {
+      const items: React.ReactNode[] = [];
+      while (i < lines.length && lines[i].match(/^\d+\. /)) {
+        items.push(<li key={i} className="ml-4 list-decimal">{inlineFormat(lines[i].replace(/^\d+\. /, ""))}</li>);
+        i++;
+      }
+      nodes.push(<ol key={`ol-${i}`} className="mb-2 space-y-0.5 text-sm">{items}</ol>);
+      continue;
+    }
+    nodes.push(<p key={i} className="text-sm leading-relaxed mb-1">{inlineFormat(line)}</p>);
+    i++;
+  }
+  return nodes;
+}
+function inlineFormat(text: string): React.ReactNode {
+  const parts = text.split(/\*\*(.+?)\*\*/g);
+  return parts.map((p, i) => i % 2 === 1 ? <strong key={i}>{p}</strong> : p);
+}
+
 function GeneralTab() {
   const [params] = useSearchParams();
   const initialName = params.get("agentName") || "Banking ABC — Customer Care";
   const initialPrompt = params.get("agentPrompt") || "";
   const [avatar, setAvatar] = useState("🏦");
   const [editingAvatar, setEditingAvatar] = useState(false);
+  const [viewMode, setViewMode] = useState<"preview" | "markdown" | "ai" | "chat">("preview");
+  const [instructions, setInstructions] = useState("");
   const emojiOptions = ["🏦","🤖","💼","🧠","🎯","🛡️","⚡","🌐","📊","🔧","💡","🚀"];
 
   const defaultInstructions = initialPrompt || `# Banking ABC — Customer Care Agent
@@ -709,7 +752,7 @@ You are a customer-care specialist at ABC Bank. Help customers 24/7 with product
         </div>
 
         {/* View action buttons */}
-        <div className="flex items-center gap-2 mt-4">
+        <div className="flex items-center gap-1.5 mt-4">
           {([
             { id: "preview",  label: "Preview",        icon: Eye },
             { id: "markdown", label: "Markdown",       icon: FileText },
@@ -717,29 +760,48 @@ You are a customer-care specialist at ABC Bank. Help customers 24/7 with product
             { id: "chat",     label: "Chat to Test",   icon: MessageSquare },
           ] as const).map(({ id, label, icon: Icon }) => (
             <button key={id}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm text-foreground transition-base"
+              onClick={() => setViewMode(id as typeof viewMode)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-base ${
+                viewMode === id
+                  ? "bg-white border border-border shadow-soft text-foreground font-medium"
+                  : "text-muted-foreground hover:text-foreground hover:bg-surface-muted border border-transparent"
+              }`}
             >
-              <Icon size={13} className="text-muted-foreground" /> {label}
+              <Icon size={13} className={viewMode === id ? "text-primary" : "text-muted-foreground"} /> {label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* ── Instructions (no divider) ── */}
+      {/* ── Instructions ── */}
       <div className="px-8 pb-8">
-        <div className="flex items-center justify-between mb-3">
-          <span className="section-eyebrow">Instructions</span>
-          <span className="flex items-center gap-1 text-xs text-muted-foreground">
-            <FileText size={11} /> Markdown supported
-          </span>
-        </div>
-        <textarea
-          ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
-          onInput={(e) => { const t = e.currentTarget; t.style.height = "auto"; t.style.height = t.scrollHeight + "px"; }}
-          className="w-full resize-none bg-transparent border border-transparent rounded-xl px-3 py-3 -mx-3 text-sm leading-relaxed outline-none hover:border-border hover:bg-surface focus:border-ring focus:bg-surface transition-base font-sans overflow-hidden"
-          defaultValue={defaultInstructions}
-          placeholder="Write your agent instructions here…"
-        />
+        {viewMode === "markdown" && (
+          <div className="flex items-center justify-between mb-3">
+            <span className="section-eyebrow">Instructions</span>
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <FileText size={11} /> Markdown supported
+            </span>
+          </div>
+        )}
+        {viewMode === "preview" && (
+          <div className="prose prose-sm max-w-none text-foreground">
+            {renderMarkdown(instructions || defaultInstructions)}
+          </div>
+        )}
+        {viewMode === "markdown" && (
+          <textarea
+            ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
+            onInput={(e) => { const t = e.currentTarget; t.style.height = "auto"; t.style.height = t.scrollHeight + "px"; setInstructions(e.currentTarget.value); }}
+            className="w-full resize-none bg-transparent border border-transparent rounded-xl px-3 py-3 -mx-3 text-sm leading-relaxed outline-none hover:border-border hover:bg-surface focus:border-ring focus:bg-surface transition-base font-sans overflow-hidden"
+            defaultValue={defaultInstructions}
+            placeholder="Write your agent instructions here…"
+          />
+        )}
+        {(viewMode === "ai" || viewMode === "chat") && (
+          <div className="prose prose-sm max-w-none text-foreground opacity-50 select-none pointer-events-none">
+            {renderMarkdown(instructions || defaultInstructions)}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1335,23 +1397,10 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
   const sections = [
     {
       id: "connectors", icon: Plug, label: "Connectors",
-      badge: <div className="flex items-center gap-1 text-xs">
-        <button className="px-2 py-0.5 rounded-l-full bg-primary text-primary-foreground text-[10px] font-medium">Shared 1</button>
-        <button className="px-2 py-0.5 rounded-r-full border border-border text-muted-foreground text-[10px]">Per-user 0</button>
-      </div>,
       content: (
-        <div>
-          <p className="text-xs text-muted-foreground mb-2">The agent always uses the same workspace account, no matter who's asking.</p>
-          <div className="flex items-center gap-2 py-1.5 rounded-lg px-2 hover:bg-surface-muted group">
-            <div className="w-6 h-6 rounded-md bg-blue-50 flex items-center justify-center shrink-0">
-              <span className="text-xs font-bold text-blue-600">S</span>
-            </div>
-            <span className="text-xs flex-1 font-medium">SharePoint</span>
-            <span className="text-xs text-muted-foreground">Shared · 3 exceptions</span>
-            <ChevronDown size={12} className="text-muted-foreground" />
-            <button className="text-muted-foreground hover:text-destructive transition-base opacity-0 group-hover:opacity-100"><Trash size={12} /></button>
-          </div>
-          <button className="flex items-center gap-1 text-xs text-primary mt-1 hover:underline"><Plus size={11} /> Add connection</button>
+        <div className="py-1">
+          <p className="text-xs text-muted-foreground mb-2">The outside accounts and systems this agent may use.</p>
+          <button className="flex items-center gap-1 text-xs text-primary hover:underline"><Plus size={11} /> Add Connectors</button>
         </div>
       ),
     },
@@ -1392,22 +1441,13 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
       {/* Accordion sections */}
       {sections.map((s: any) => (
         <div key={s.id} className="border-b border-border">
-          <button
-            onClick={() => !s.comingSoon && setOpen(o => ({ ...o, [s.id]: !o[s.id] }))}
-            className="w-full flex items-center gap-2.5 px-4 py-3 hover:bg-surface-muted transition-base"
-          >
+          <div className="w-full flex items-center gap-2.5 px-4 py-3">
             <s.icon size={14} className="text-muted-foreground shrink-0" />
             <span className="text-sm font-medium flex-1 text-left">{s.label}</span>
             {s.comingSoon
-              ? <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-surface border border-border text-muted-foreground">Coming soon</span>
-              : s.badge ?? null}
-            {!s.comingSoon && (
-              <>{open[s.id]
-                ? <ChevronUp size={13} className="text-muted-foreground shrink-0" />
-                : <ChevronDown size={13} className="text-muted-foreground shrink-0" />}</>
-            )}
-            {!s.comingSoon && <button className="ml-1 text-muted-foreground hover:text-primary transition-base" onClick={e => e.stopPropagation()}><Plus size={13} /></button>}
-          </button>
+              ? <span className="text-xs px-2 py-0.5 rounded-full bg-surface-muted border border-border text-muted-foreground">Coming soon</span>
+              : <button className="text-muted-foreground hover:text-foreground transition-base" onClick={() => setOpen(o => ({ ...o, [s.id]: !o[s.id] }))}><Plus size={15} /></button>}
+          </div>
           {!s.comingSoon && open[s.id] && (
             <div className="px-4 pb-3">
               {s.content}
