@@ -1417,6 +1417,9 @@ function GuardrailsConfigSection() {
 
 /* ============ NEW CONFIGURATION PANEL (right side) ============ */
 function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange: (id: string) => void }) {
+  const [open, setOpen] = useState<Record<string, boolean>>({ connectors: true, skills: true, guardrails: true });
+  const guardrailsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
+
   const sections = [
     {
       id: "connectors", icon: Plug, label: "Connectors",
@@ -1435,17 +1438,16 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
       ),
     },
     {
-      id: "guardrails", icon: Shield, label: "Guardrails", content: (
-        <GuardrailsInner />
+      id: "guardrails", icon: Shield, label: "Guardrails",
+      onAdd: (pos: {top:number;left:number}) => guardrailsAddRef.current?.(pos),
+      content: (
+        <GuardrailsInner onRegisterAdd={(fn) => { guardrailsAddRef.current = fn; }} />
       ),
     },
     { id: "knowledge",  icon: BookOpen, label: "Knowledge",  comingSoon: true },
     { id: "triggers",   icon: Zap,      label: "Triggers",   comingSoon: true },
     { id: "sub-agents", icon: Bot,      label: "Sub-Agents", comingSoon: true },
   ];
-
-  const [open, setOpen] = useState<Record<string, boolean>>({ connectors: true, skills: true, guardrails: true });
-  const guardrailsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
 
   return (
     <div className="flex flex-col">
