@@ -1,7 +1,7 @@
 import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { createPortal } from "react-dom";
 import {
-  ChevronLeft, ChevronRight, Play, Rocket, MoreHorizontal, AlertTriangle, X, BookOpen, Wrench, ListChecks, Workflow,
+  ChevronLeft, ChevronRight, Play, Rocket, MoreHorizontal, AlertTriangle, X, BookOpen, Wrench, ListChecks, Workflow, PenLine, FlaskConical, BarChart2, Cpu, Eye,
   Zap, Cog, MessageSquareText, FileQuestion, Sparkles,
   Search, Upload, Globe, Database, Plus, Layers, CheckCircle2, Send,
   ArrowRight, Shield, ChevronDown, FileText, Trash2, MessageSquare, Activity,
@@ -66,7 +66,7 @@ export default function AgentBuilder() {
   const { id = "cskh" } = useParams();
   const [params, setParams] = useSearchParams();
   const tab = (params.get("tab") as Tab) || "develop";
-  const section = params.get("section") || (tab === "develop" ? "general" : "perf");
+  const section = params.get("section") || "instructions";
   const navigate = useNavigate();
   const buildModeParam = params.get("buildMode");
   const [buildMode, setBuildMode] = useState<"manual" | "ai">(buildModeParam === "ai" ? "ai" : "manual");
@@ -83,52 +83,48 @@ export default function AgentBuilder() {
     setParams(p, { replace: true });
   };
 
-  const setTab = (t: Tab) => setParams({ tab: t, section: t === "develop" ? "general" : "perf" });
+  const setTab = (t: Tab) => setParams({ tab: t, section: "instructions" });
   const setSection = (s: string) => setParams({ tab, section: s });
 
-  const nav = tab === "develop" ? developNav : monitorNav;
+  const nav = tab === "build" ? developNav : monitorNav;
   const currentSectionLabel =
-    nav.flatMap(g => g.items).find((i: any) => i.id === section)?.label ?? section;
+    developNav.find((i: any) => i.id === section)?.label ?? section;
 
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Top bar */}
       <div className="h-14 border-b border-border bg-surface flex items-center px-4 gap-3 shrink-0">
-        <button onClick={() => navigate("/agents")} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-base">
-          <ChevronLeft size={15} /> Agents
+        <button onClick={() => navigate("/agents")} className="h-8 w-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0">
+          <ChevronLeft size={16} />
         </button>
-        <div className="w-px h-5 bg-border" />
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-md bg-surface-muted border border-border flex items-center justify-center text-base shrink-0">🤖</div>
+          <span className="font-semibold text-sm">làm báo cáo cho sale</span>
+        </div>
 
-        {/* Breadcrumbs */}
-        <nav className="flex items-center gap-1.5 text-sm min-w-0 flex-1">
-          <div className="w-7 h-7 rounded-md bg-primary-soft flex items-center justify-center text-sm shrink-0">🏦</div>
-          <span className="font-semibold truncate">Banking ABC — Customer Care</span>
-          <span className="text-muted-foreground">/</span>
-          <span className="text-muted-foreground capitalize">{tab}</span>
-          <span className="text-muted-foreground">/</span>
-          <span className="text-muted-foreground capitalize truncate">{currentSectionLabel}</span>
-          <span className="ml-2 chip chip-primary">Published</span>
-          <button className="chip hover:bg-surface-muted transition-base">
-            <History size={10} /> v3.1
-          </button>
-        </nav>
-
-        {/* Tabs */}
-        <div className="flex items-center gap-0 bg-surface-muted rounded-lg p-1">
-          {(["develop", "monitor"] as Tab[]).map(t => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`px-4 h-8 rounded-md text-sm font-medium capitalize transition-base ${
-                tab === t ? "bg-surface text-foreground shadow-soft" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {t}
-            </button>
-          ))}
+        {/* Center tabs */}
+        <div className="flex-1 flex items-center justify-center">
+          <div className="flex items-center gap-0 bg-surface-muted rounded-lg p-1">
+            {([
+              { id: "build",    label: "Build",    Icon: PenLine },
+              { id: "test",     label: "Test",     Icon: FlaskConical },
+              { id: "deploy",   label: "Deploy",   Icon: Rocket },
+              { id: "insights", label: "Insights", Icon: BarChart2 },
+            ] as const).map(({ id, label, Icon }) => (
+              <button key={id} onClick={() => setTab(id as Tab)}
+                className={`px-4 h-8 rounded-md text-sm font-medium flex items-center gap-1.5 transition-base ${
+                  tab === id ? "bg-surface text-foreground shadow-soft" : "text-muted-foreground hover:text-foreground"
+                }`}>
+                <Icon size={13} /> {label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-success/10 border border-success/20 text-success text-xs font-medium shrink-0">
+            <span className="w-1.5 h-1.5 rounded-full bg-success" /> Live · v1.0.1
+          </div>
           <button onClick={() => setShowPublish(true)} className="btn-primary h-9">
             <Rocket size={13} /> Publish
           </button>
@@ -166,78 +162,87 @@ export default function AgentBuilder() {
 
       {/* Body */}
       <div className="flex flex-1 overflow-hidden relative">
-        {/* Left nav (agent-only) — hidden when AI mode is active */}
+        {/* Left sidebar */}
         <aside
-          className="border-r border-border overflow-hidden shrink-0 flex flex-col"
+          className="border-r border-border overflow-hidden shrink-0 flex flex-col h-full"
           style={{
             background:"#f8fafc",
-            width: buildMode === "manual" ? "280px" : "0px",
+            width: buildMode === "manual" ? "240px" : "0px",
             opacity: buildMode === "manual" ? 1 : 0,
             transition: "width 320ms cubic-bezier(0.4,0,0.2,1), opacity 280ms ease",
             minWidth: 0,
           }}
         >
-            <div className="p-3 space-y-5 flex-1">
-              {nav.map(group => (
-                <div key={group.label}>
-                  <div className="px-2 mb-1.5 section-eyebrow">{group.label}</div>
-                  <div className="space-y-0.5">
-                    {group.items.map((it: any) => (
-                      <button
-                        key={it.id}
-                        onClick={() => setSection(it.id)}
-                        className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-base ${
-                          section === it.id
-                            ? "bg-primary-soft text-primary font-medium"
-                            : "text-foreground hover:bg-surface-muted"
-                        }`}
-                      >
-                        <it.icon size={14} className="shrink-0" />
-                        <span className="flex-1 text-left truncate">{it.label}</span>
-                        {it.status === "done" && <CheckCircle2 size={13} className="text-success shrink-0" />}
-                        {it.status === "warn" && <span className="w-2 h-2 rounded-full bg-warning shrink-0" />}
-                        {it.status === "empty" && <span className="w-2 h-2 rounded-full border border-border-strong shrink-0" />}
-                        {typeof it.count === "number" && (
-                          <span className="text-xs px-1.5 py-0.5 rounded-full bg-surface-muted border border-border text-muted-foreground">{it.count}</span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="px-3 pb-3 space-y-2">
-              <div className="rounded-lg border border-border bg-surface-muted/50 p-2.5">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs font-semibold text-foreground">Ready to publish</span>
-                  <span className="text-xs text-muted-foreground">3/5</span>
-                </div>
-                <div className="h-1.5 rounded-full bg-border overflow-hidden mb-2">
-                  <div className="h-full w-[60%] rounded-full bg-primary" />
-                </div>
-                <div className="space-y-0.5">
-                  {[
-                    { label: "Agent Info", done: true },
-                    { label: "Knowledge", done: false },
-                    { label: "Skills", done: false },
-                    { label: "Connectors", done: true },
-                    { label: "Guardrails", done: true },
-                  ].map(item => (
-                    <div key={item.label} className="flex items-center gap-1.5 text-xs">
-                      <CheckCircle2 size={10} className={item.done ? "text-success" : "text-border-strong"} />
-                      <span className={item.done ? "text-foreground" : "text-muted-foreground"}>{item.label}</span>
-                    </div>
-                  ))}
-                </div>
+          {/* Agent identity */}
+          <div className="px-4 py-4 border-b border-border shrink-0">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-surface-muted border border-border flex items-center justify-center text-xl shrink-0">🤖</div>
+              <div className="min-w-0">
+                <div className="text-sm font-semibold truncate">làm báo cáo cho sale</div>
+                <div className="text-xs text-muted-foreground truncate">làm báo cáo cho sale</div>
               </div>
-              <button
-                onClick={() => setBuildMode("ai")}
-                className="w-full h-9 rounded-lg border border-primary/30 bg-primary-soft text-primary hover:bg-primary-soft/70 text-xs font-medium flex items-center justify-center gap-1.5 transition-base"
-              >
-                <Sparkles size={12} /> Refine with AI
-              </button>
             </div>
-          </aside>
+          </div>
+
+          {/* Nav items */}
+          <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
+            {developNav.map((it: any) => (
+              <button
+                key={it.id}
+                onClick={() => !it.comingSoon && setSection(it.id)}
+                disabled={it.comingSoon}
+                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-base ${
+                  section === it.id && !it.comingSoon
+                    ? "bg-primary-soft text-primary font-medium"
+                    : it.comingSoon
+                    ? "text-muted-foreground cursor-default opacity-70"
+                    : "text-foreground hover:bg-surface-muted"
+                }`}
+              >
+                <it.icon size={14} className="shrink-0" />
+                <span className="flex-1 text-left truncate">{it.label}</span>
+                {it.comingSoon && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-surface border border-border text-muted-foreground shrink-0 whitespace-nowrap">Coming soon</span>
+                )}
+              </button>
+            ))}
+          </nav>
+
+          {/* Ready to publish + Collapse */}
+          <div className="px-3 py-3 border-t border-border shrink-0 space-y-2">
+            <div className="rounded-lg border border-border bg-surface-muted/50 p-2.5">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-semibold text-foreground">Ready to publish</span>
+                <span className="text-xs text-muted-foreground">4/5</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-border overflow-hidden mb-2">
+                <div className="h-full w-[80%] rounded-full bg-primary" />
+              </div>
+              <div className="space-y-1">
+                {[
+                  { label: "Instructions written", done: true },
+                  { label: "Model chosen",          done: true },
+                  { label: "Tools attached",        done: true },
+                  { label: "Guardrails configured", done: false },
+                  { label: "Tried the agent",       done: true },
+                ].map(item => (
+                  <div key={item.label} className="flex items-center gap-1.5 text-xs">
+                    {item.done
+                      ? <CheckCircle2 size={11} className="text-success shrink-0" />
+                      : <span className="w-3 h-3 rounded-full border-2 border-muted-foreground shrink-0 inline-block" />}
+                    <span className={item.done ? "text-foreground" : "text-muted-foreground"}>{item.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <button
+              onClick={() => setBuildMode("ai")}
+              className="w-full h-8 rounded-lg border border-border bg-surface text-muted-foreground hover:bg-surface-muted text-xs font-medium flex items-center justify-center gap-1.5 transition-base"
+            >
+              <ChevronLeft size={12} /> Collapse sidebar
+            </button>
+          </div>
+        </aside>
 
         {/* AI chat sidebar — slides in from left */}
         <div
@@ -263,20 +268,52 @@ export default function AgentBuilder() {
 
         {/* Content + Preview */}
         <div className="flex-1 flex overflow-hidden">
-          <div className="flex-1 overflow-y-auto bg-gradient-soft">
-            {tab === "develop" && section === "general" && <GeneralTab />}
-            {tab === "develop" && section === "knowledge" && <KnowledgeTab />}
-            {tab === "develop" && section === "skills" && <PlaceholderTab title="Skills" />}
-            {tab === "develop" && section === "connectors" && <PlaceholderTab title="Connectors" />}
-            {tab === "develop" && section === "guardrails" && <GuardrailsTab agentId={id} />}
-            {tab === "develop" && section === "tests" && <PlaceholderTab title="Test cases" />}
-            {tab === "develop" && section === "publish" && <PlaceholderTab title="Publish" />}
-            {tab === "develop" && !["general", "knowledge", "skills", "connectors", "guardrails", "tests", "publish"].includes(section) && <PlaceholderTab title={section} />}
-            {tab === "monitor" && section === "perf" && <PerformanceTab />}
-            {tab === "monitor" && section !== "perf" && <PlaceholderTab title={section} />}
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Content tabs */}
+            {tab === "build" && (
+              <div className="shrink-0 border-b border-border bg-surface px-6 flex items-center gap-0">
+                {([
+                  { id: "preview",  label: "Preview",        icon: Eye },
+                  { id: "markdown", label: "Markdown",       icon: FileText },
+                  { id: "ai",       label: "Refine with AI", icon: Sparkles },
+                  { id: "chat",     label: "Chat to Test",   icon: MessageSquare },
+                ] as const).map(({ id, label, icon: Icon }) => {
+                  const active =
+                    (id === "ai" && buildMode === "ai") ||
+                    (id === "chat" && previewView === "chat" && buildMode !== "ai") ||
+                    ((id === "preview" || id === "markdown") && buildMode !== "ai" && previewView !== "chat");
+                  return (
+                    <button key={id}
+                      onClick={() => {
+                        if (id === "ai") { setBuildMode("ai"); }
+                        else if (id === "chat") { setBuildMode("manual"); setPreviewView("chat"); }
+                        else { setBuildMode("manual"); setPreviewView("config"); }
+                      }}
+                      className={`flex items-center gap-1.5 px-3 py-3 text-sm border-b-2 transition-base ${
+                        active ? "border-primary text-primary font-medium" : "border-transparent text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <Icon size={13} /> {label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <div className="flex-1 overflow-y-auto bg-gradient-soft">
+              {tab === "build" && section === "instructions" && <GeneralTab />}
+              {tab === "build" && section === "knowledge" && <KnowledgeTab />}
+              {tab === "build" && section === "tools" && <AgentToolsTab />}
+              {tab === "build" && section === "skills" && <PlaceholderTab title="Skills" />}
+              {tab === "build" && section === "guardrails" && <GuardrailsTab agentId={id} />}
+              {tab === "build" && section === "model" && <PlaceholderTab title="Model" />}
+              {tab === "build" && !["instructions","knowledge","tools","skills","guardrails","model"].includes(section) && <PlaceholderTab title={section} />}
+              {tab === "test" && <PlaceholderTab title="Test" />}
+              {tab === "deploy" && <PlaceholderTab title="Deploy" />}
+              {tab === "insights" && <PerformanceTab />}
+            </div>
           </div>
 
-          {tab === "develop" && <PreviewPanel view={previewView} onViewChange={setPreviewView} />}
+          {tab === "build" && <PreviewPanel view={previewView} onViewChange={setPreviewView} />}
         </div>
       </div>
     </div>
@@ -1325,6 +1362,96 @@ function SubAgentsCard() {
   );
 }
 
+
+/* ============ NEW CONFIGURATION PANEL (right side) ============ */
+function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange: (id: string) => void }) {
+  const sections = [
+    {
+      id: "connectors", icon: Plug, label: "Connectors",
+      badge: <div className="flex items-center gap-1 text-xs">
+        <button className="px-2 py-0.5 rounded-l-full bg-primary text-primary-foreground text-[10px] font-medium">Shared 1</button>
+        <button className="px-2 py-0.5 rounded-r-full border border-border text-muted-foreground text-[10px]">Per-user 0</button>
+      </div>,
+      content: (
+        <div>
+          <p className="text-xs text-muted-foreground mb-2">The agent always uses the same workspace account, no matter who's asking.</p>
+          <div className="flex items-center gap-2 py-1.5 rounded-lg px-2 hover:bg-surface-muted group">
+            <div className="w-6 h-6 rounded-md bg-blue-50 flex items-center justify-center shrink-0">
+              <span className="text-xs font-bold text-blue-600">S</span>
+            </div>
+            <span className="text-xs flex-1 font-medium">SharePoint</span>
+            <span className="text-xs text-muted-foreground">Shared · 3 exceptions</span>
+            <ChevronDown size={12} className="text-muted-foreground" />
+            <button className="text-muted-foreground hover:text-destructive transition-base opacity-0 group-hover:opacity-100"><Trash size={12} /></button>
+          </div>
+          <button className="flex items-center gap-1 text-xs text-primary mt-1 hover:underline"><Plus size={11} /> Add connection</button>
+        </div>
+      ),
+    },
+    {
+      id: "skills", icon: Puzzle, label: "Skills", content: (
+        <div className="flex flex-col items-center py-3 gap-1.5 text-center">
+          <Puzzle size={20} className="text-muted-foreground/50" />
+          <p className="text-xs text-muted-foreground">Reusable abilities you've taught it.</p>
+          <button className="text-xs text-primary hover:underline flex items-center gap-1"><Plus size={11} /> Add Skills</button>
+        </div>
+      ),
+    },
+    {
+      id: "guardrails", icon: Shield, label: "Guardrails", content: (
+        <div className="flex flex-col items-center py-3 gap-1.5 text-center">
+          <Shield size={20} className="text-muted-foreground/50" />
+          <p className="text-xs text-muted-foreground">Boundaries that keep your agent acting safely.</p>
+          <button className="text-xs text-primary hover:underline flex items-center gap-1"><Plus size={11} /> Add Guardrails</button>
+        </div>
+      ),
+    },
+    { id: "knowledge",  icon: BookOpen, label: "Knowledge",  comingSoon: true },
+    { id: "triggers",   icon: Zap,      label: "Triggers",   comingSoon: true },
+    { id: "sub-agents", icon: Bot,      label: "Sub-Agents", comingSoon: true },
+  ];
+
+  const [open, setOpen] = useState<Record<string, boolean>>({ connectors: true, skills: true, guardrails: true });
+
+  return (
+    <div className="flex flex-col">
+      {/* Model row */}
+      <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border">
+        <Cpu size={14} className="text-muted-foreground shrink-0" />
+        <span className="text-sm font-medium flex-1">Model</span>
+        <ModelDropdown value={model} onChange={onModelChange} />
+      </div>
+
+      {/* Accordion sections */}
+      {sections.map((s: any) => (
+        <div key={s.id} className="border-b border-border">
+          <button
+            onClick={() => !s.comingSoon && setOpen(o => ({ ...o, [s.id]: !o[s.id] }))}
+            className="w-full flex items-center gap-2.5 px-4 py-3 hover:bg-surface-muted transition-base"
+          >
+            <s.icon size={14} className="text-muted-foreground shrink-0" />
+            <span className="text-sm font-medium flex-1 text-left">{s.label}</span>
+            {s.comingSoon
+              ? <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-surface border border-border text-muted-foreground">Coming soon</span>
+              : s.badge ?? null}
+            {!s.comingSoon && (
+              <>{open[s.id]
+                ? <ChevronUp size={13} className="text-muted-foreground shrink-0" />
+                : <ChevronDown size={13} className="text-muted-foreground shrink-0" />}</>
+            )}
+            {!s.comingSoon && <button className="ml-1 text-muted-foreground hover:text-primary transition-base" onClick={e => e.stopPropagation()}><Plus size={13} /></button>}
+          </button>
+          {!s.comingSoon && open[s.id] && (
+            <div className="px-4 pb-3">
+              {s.content}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function PreviewPanel({ view, onViewChange }: { view: "config" | "chat"; onViewChange: (v: "config" | "chat") => void }) {
   const setView = onViewChange;
   const [selectedModel, setSelectedModel] = useState("deepseek-v4-flash");
@@ -1353,7 +1480,7 @@ function PreviewPanel({ view, onViewChange }: { view: "config" | "chat"; onViewC
             view === "config" ? "bg-surface-muted text-foreground" : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <SlidersHorizontal size={12} /> Configure
+          <SlidersHorizontal size={12} /> Configuration
         </button>
         <button
           onClick={() => setView("chat")}
@@ -1361,13 +1488,13 @@ function PreviewPanel({ view, onViewChange }: { view: "config" | "chat"; onViewC
             view === "chat" ? "bg-surface-muted text-foreground" : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <Play size={12} /> Chat test
+          <Play size={12} /> Test run
         </button>
       </div>
 
       {view === "config" ? (
         <div className="flex-1 overflow-y-auto">
-          <RightConfigPanel embedded model={selectedModel} onModelChange={setSelectedModel} />
+          <NewConfigPanel model={selectedModel} onModelChange={setSelectedModel} />
         </div>
       ) : (
         <div className="flex-1 flex flex-col overflow-hidden">
