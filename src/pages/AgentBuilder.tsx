@@ -24,7 +24,7 @@ import { chatOptimizationStore } from "@/components/configure/chatOptimizationSt
 import { updateUser } from "@/lib/onboarding";
 import BusinessProcessTree from "@/components/general/BusinessProcessTree";
 
-type Tab = "develop" | "monitor";
+type Tab = "build" | "test" | "deploy" | "insights" | "develop" | "monitor";
 
 const developNav = [
   {
@@ -86,9 +86,10 @@ export default function AgentBuilder() {
   const setTab = (t: Tab) => setParams({ tab: t, section: "instructions" });
   const setSection = (s: string) => setParams({ tab, section: s });
 
-  const nav = tab === "build" ? developNav : monitorNav;
+  const isBuild = isBuild || tab === "develop";
+  const nav = isBuild ? developNav : monitorNav;
   const currentSectionLabel =
-    developNav.find((i: any) => i.id === section)?.label ?? section;
+    developNav.flatMap(g => g.items).find((i: any) => i.id === section)?.label ?? section;
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -270,7 +271,7 @@ export default function AgentBuilder() {
         <div className="flex-1 flex overflow-hidden">
           <div className="flex-1 flex flex-col overflow-hidden">
             {/* Content tabs */}
-            {tab === "build" && (
+            {isBuild && (
               <div className="shrink-0 border-b border-border bg-surface px-6 flex items-center gap-0">
                 {([
                   { id: "preview",  label: "Preview",        icon: Eye },
@@ -300,20 +301,20 @@ export default function AgentBuilder() {
               </div>
             )}
             <div className="flex-1 overflow-y-auto bg-gradient-soft">
-              {tab === "build" && section === "instructions" && <GeneralTab />}
-              {tab === "build" && section === "knowledge" && <KnowledgeTab />}
-              {tab === "build" && section === "tools" && <AgentToolsTab />}
-              {tab === "build" && section === "skills" && <PlaceholderTab title="Skills" />}
-              {tab === "build" && section === "guardrails" && <GuardrailsTab agentId={id} />}
-              {tab === "build" && section === "model" && <PlaceholderTab title="Model" />}
-              {tab === "build" && !["instructions","knowledge","tools","skills","guardrails","model"].includes(section) && <PlaceholderTab title={section} />}
+              {isBuild && section === "instructions" && <GeneralTab />}
+              {isBuild && section === "knowledge" && <KnowledgeTab />}
+              {isBuild && section === "tools" && <AgentToolsTab />}
+              {isBuild && section === "skills" && <PlaceholderTab title="Skills" />}
+              {isBuild && section === "guardrails" && <GuardrailsTab agentId={id ?? "new"} />}
+              {isBuild && section === "model" && <PlaceholderTab title="Model" />}
+              {isBuild && !["instructions","knowledge","tools","skills","guardrails","model"].includes(section) && <PlaceholderTab title={section} />}
               {tab === "test" && <PlaceholderTab title="Test" />}
               {tab === "deploy" && <PlaceholderTab title="Deploy" />}
               {tab === "insights" && <PerformanceTab />}
             </div>
           </div>
 
-          {tab === "build" && <PreviewPanel view={previewView} onViewChange={setPreviewView} />}
+          {isBuild && <PreviewPanel view={previewView} onViewChange={setPreviewView} />}
         </div>
       </div>
     </div>
