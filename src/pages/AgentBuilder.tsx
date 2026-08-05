@@ -86,7 +86,7 @@ export default function AgentBuilder() {
   const setTab = (t: Tab) => setParams({ tab: t, section: "instructions" });
   const setSection = (s: string) => setParams({ tab, section: s });
 
-  const isBuild = isBuild || tab === "develop";
+  const isBuild = tab === "build" || tab === "develop";
   const nav = isBuild ? developNav : monitorNav;
   const currentSectionLabel =
     developNav.flatMap(g => g.items).find((i: any) => i.id === section)?.label ?? section;
@@ -303,7 +303,7 @@ export default function AgentBuilder() {
             <div className="flex-1 overflow-y-auto bg-gradient-soft">
               {isBuild && section === "instructions" && <GeneralTab />}
               {isBuild && section === "knowledge" && <KnowledgeTab />}
-              {isBuild && section === "tools" && <AgentToolsTab />}
+              {isBuild && section === "tools" && <AgentToolsTab agentId={id ?? "new"} />}
               {isBuild && section === "skills" && <PlaceholderTab title="Skills" />}
               {isBuild && section === "guardrails" && <GuardrailsTab agentId={id ?? "new"} />}
               {isBuild && section === "model" && <PlaceholderTab title="Model" />}
