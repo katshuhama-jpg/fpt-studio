@@ -1480,12 +1480,10 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
                 : <button
                   className="text-muted-foreground hover:text-foreground transition-base"
                   onClick={(e) => {
+                    setOpen(o => ({ ...o, [s.id]: true }));
                     if (s.onAdd) {
-                      if (!isOpen) setOpen(o => ({ ...o, [s.id]: true }));
                       const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
                       s.onAdd({ top: r.bottom + 4, left: r.right });
-                    } else {
-                      toggle();
                     }
                   }}
                 ><Plus size={15} /></button>}
