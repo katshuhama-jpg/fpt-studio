@@ -1423,7 +1423,6 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
       content: (
         <div className="py-1">
           <p className="text-xs text-muted-foreground mb-2">The outside accounts and systems this agent may use.</p>
-          <button className="flex items-center gap-1 text-xs text-primary hover:underline"><Plus size={11} /> Add Connectors</button>
         </div>
       ),
     },
@@ -1432,7 +1431,6 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
         <div className="flex flex-col items-center py-3 gap-1.5 text-center">
           <Puzzle size={20} className="text-muted-foreground/50" />
           <p className="text-xs text-muted-foreground">Reusable abilities you've taught it.</p>
-          <button className="text-xs text-primary hover:underline flex items-center gap-1"><Plus size={11} /> Add Skills</button>
         </div>
       ),
     },
@@ -1447,6 +1445,7 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
   ];
 
   const [open, setOpen] = useState<Record<string, boolean>>({ connectors: true, skills: true, guardrails: true });
+  const guardrailsAddRef = useRef<(() => void) | null>(null);
 
   return (
     <div className="flex flex-col">
@@ -1476,7 +1475,10 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
               <span className="text-sm font-medium flex-1 text-left">{s.label}</span>
               {s.comingSoon
                 ? <span className="text-xs px-2 py-0.5 rounded-full bg-surface-muted border border-border text-muted-foreground">Coming soon</span>
-                : <button className="text-muted-foreground hover:text-foreground transition-base" onClick={toggle}><Plus size={15} /></button>}
+                : <button
+                  className="text-muted-foreground hover:text-foreground transition-base"
+                  onClick={() => { if (s.onAdd) { if (!isOpen) setOpen(o => ({ ...o, [s.id]: true })); s.onAdd(); } else toggle(); }}
+                ><Plus size={15} /></button>}
             </div>
             {isOpen && (
               <div className="px-4 pb-3">
@@ -2087,7 +2089,7 @@ function GuardrailEditSheet({ guardrail, onClose, onSave }: { guardrail: Guardra
   );
 }
 
-function GuardrailsInner() {
+function GuardrailsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => void) => void } = {}) {
   const [showMenu, setShowMenu]               = useState(false);
   const [openCreate, setOpenCreate]           = useState(false);
   const [openWsSheet, setOpenWsSheet]         = useState(false);
@@ -2096,6 +2098,13 @@ function GuardrailsInner() {
   const [editTarget, setEditTarget]           = useState<Guardrail | null>(null);
   const [menuPos, setMenuPos]                 = useState<{top:number;left:number}>({top:0,left:0});
   const addBtnRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    onRegisterAdd?.(() => {
+      const rect = addBtnRef.current?.getBoundingClientRect();
+      if (rect) setMenuPos({ top: rect.bottom + 4, left: rect.left });
+      setShowMenu(true);
+    });
+  }, [onRegisterAdd]);
 
   useEffect(() => {
     if (!showMenu) return;
@@ -2164,18 +2173,8 @@ function GuardrailsInner() {
           </div>
         )}
 
-        {/* Add button with portal dropdown */}
-        <button
-          ref={addBtnRef}
-          onClick={() => {
-            const rect = addBtnRef.current?.getBoundingClientRect();
-            if (rect) setMenuPos({ top: rect.bottom + 4, left: rect.left });
-            setShowMenu(v => !v);
-          }}
-          className="flex items-center gap-1 text-xs text-primary hover:underline"
-        >
-          <Plus size={11} /> Add
-        </button>
+        {/* Hidden sentinel — position anchor for the dropdown triggered by header + button */}
+        <span ref={addBtnRef} className="sr-only" />
         {showMenu && createPortal(
           <div
             className="fixed z-[9999] w-44 bg-white rounded-xl border border-border shadow-lg py-1"
