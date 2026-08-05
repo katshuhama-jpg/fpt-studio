@@ -249,36 +249,7 @@ export default function AgentBuilder() {
         {/* Content + Preview */}
         <div className="flex-1 flex overflow-hidden">
           <div className="flex-1 flex flex-col overflow-hidden">
-            {/* Content tabs */}
-            {tab === "build" && (
-              <div className="shrink-0 border-b border-border bg-surface px-6 flex items-center gap-0">
-                {([
-                  { id: "preview",  label: "Preview",        icon: Eye },
-                  { id: "markdown", label: "Markdown",       icon: FileText },
-                  { id: "ai",       label: "Refine with AI", icon: Sparkles },
-                  { id: "chat",     label: "Chat to Test",   icon: MessageSquare },
-                ] as const).map(({ id, label, icon: Icon }) => {
-                  const active =
-                    (id === "ai" && buildMode === "ai") ||
-                    (id === "chat" && previewView === "chat" && buildMode !== "ai") ||
-                    ((id === "preview" || id === "markdown") && buildMode !== "ai" && previewView !== "chat");
-                  return (
-                    <button key={id}
-                      onClick={() => {
-                        if (id === "ai") { setBuildMode("ai"); }
-                        else if (id === "chat") { setBuildMode("manual"); setPreviewView("chat"); }
-                        else { setBuildMode("manual"); setPreviewView("config"); }
-                      }}
-                      className={`flex items-center gap-1.5 px-3 py-3 text-sm border-b-2 transition-base ${
-                        active ? "border-primary text-primary font-medium" : "border-transparent text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      <Icon size={13} /> {label}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+
             <div className="flex-1 overflow-y-auto bg-gradient-soft">
               {tab === "build" && section === "instructions" && <GeneralTab />}
               {tab === "build" && section === "knowledge" && <KnowledgeTab />}
@@ -735,6 +706,22 @@ You are a customer-care specialist at ABC Bank. Help customers 24/7 with product
           <button className="w-8 h-8 rounded-lg border border-border bg-surface flex items-center justify-center text-muted-foreground hover:bg-surface-muted transition-base shrink-0">
             <MoreHorizontal size={15} />
           </button>
+        </div>
+
+        {/* View action buttons */}
+        <div className="flex items-center gap-2 mt-4">
+          {([
+            { id: "preview",  label: "Preview",        icon: Eye },
+            { id: "markdown", label: "Markdown",       icon: FileText },
+            { id: "ai",       label: "Refine with AI", icon: Sparkles },
+            { id: "chat",     label: "Chat to Test",   icon: MessageSquare },
+          ] as const).map(({ id, label, icon: Icon }) => (
+            <button key={id}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm text-foreground transition-base"
+            >
+              <Icon size={13} className="text-muted-foreground" /> {label}
+            </button>
+          ))}
         </div>
       </div>
 
