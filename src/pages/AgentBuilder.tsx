@@ -1483,7 +1483,7 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
                     if (s.onAdd) {
                       if (!isOpen) setOpen(o => ({ ...o, [s.id]: true }));
                       const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                      s.onAdd({ top: r.bottom + 4, left: r.left });
+                      s.onAdd({ top: r.bottom + 4, left: r.right });
                     } else {
                       toggle();
                     }
@@ -2186,7 +2186,7 @@ function GuardrailsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:num
         {showMenu && createPortal(
           <div
             className="fixed z-[9999] w-44 bg-white rounded-xl border border-border shadow-lg py-1"
-            style={{ top: menuPos.top, left: menuPos.left }}
+            style={{ top: menuPos.top, right: window.innerWidth - menuPos.left }}
             onMouseDown={e => e.stopPropagation()}
           >
             <button
