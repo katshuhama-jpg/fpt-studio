@@ -186,7 +186,7 @@ export default function AgentBuilder() {
 
           {/* Nav items */}
           <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
-            {developNav.map((it: any) => (
+            {developNav.flatMap(g => g.items).map((it: any) => (
               <button
                 key={it.id}
                 onClick={() => !it.comingSoon && setSection(it.id)}
