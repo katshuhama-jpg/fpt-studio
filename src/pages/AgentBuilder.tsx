@@ -157,7 +157,7 @@ export default function AgentBuilder() {
         <aside
           className="border-r border-border overflow-hidden shrink-0 flex flex-col h-full"
           style={{
-            background:"#f8fafc",
+            background:"#ffffff",
             width: buildMode === "manual" ? "240px" : "0px",
             opacity: buildMode === "manual" ? 1 : 0,
             transition: "width 320ms cubic-bezier(0.4,0,0.2,1), opacity 280ms ease",
@@ -250,7 +250,7 @@ export default function AgentBuilder() {
         <div className="flex-1 flex overflow-hidden">
           <div className="flex-1 flex flex-col overflow-hidden">
 
-            <div className="flex-1 overflow-y-auto bg-gradient-soft">
+            <div className="flex-1 overflow-y-auto bg-background">
               {tab === "build" && section === "instructions" && <GeneralTab onRefineWithAI={() => setBuildMode("ai")} onChatToTest={() => { setBuildMode("manual"); setPreviewView("chat"); }} />}
               {tab === "build" && section === "knowledge" && <KnowledgeTab />}
               {tab === "build" && section === "tools" && <AgentToolsTab agentId={id ?? "new"} />}
@@ -394,7 +394,7 @@ function AiBuildSidebar({
   const quickActions = ["Connect Gmail", "Tighten the system prompt", "Add a guardrail against legal advice", "Make tone more formal"];
 
   return (
-    <aside className="w-[476px] border-r border-border flex flex-col shrink-0 h-full" style={{background:"#f8fafc", minWidth:"476px"}}>
+    <aside className="w-[476px] border-r border-border flex flex-col shrink-0 h-full" style={{background:"#ffffff", minWidth:"476px"}}>
       {/* Header */}
       <div className="h-12 px-3 border-b border-border flex items-center gap-2 shrink-0">
         <div className="w-7 h-7 rounded-md bg-gradient-brand flex items-center justify-center">
@@ -1489,7 +1489,7 @@ function PreviewPanel({ view, onViewChange }: { view: "config" | "chat"; onViewC
   };
 
   return (
-    <aside className="w-[476px] border-l border-border bg-surface flex flex-col shrink-0">
+    <aside className="w-[476px] border-l border-border bg-background flex flex-col shrink-0">
       {/* Toggle header */}
       <div className="h-11 px-3 border-b border-border flex items-center gap-1 shrink-0">
         <button
