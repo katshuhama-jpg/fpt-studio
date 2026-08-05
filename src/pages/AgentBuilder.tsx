@@ -1458,22 +1458,35 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
       </div>
 
       {/* Accordion sections */}
-      {sections.map((s: any) => (
-        <div key={s.id} className="border-b border-border">
-          <div className="w-full flex items-center gap-2.5 px-4 py-3">
-            <s.icon size={14} className="text-muted-foreground shrink-0" />
-            <span className="text-sm font-medium flex-1 text-left">{s.label}</span>
-            {s.comingSoon
-              ? <span className="text-xs px-2 py-0.5 rounded-full bg-surface-muted border border-border text-muted-foreground">Coming soon</span>
-              : <button className="text-muted-foreground hover:text-foreground transition-base" onClick={() => setOpen(o => ({ ...o, [s.id]: !o[s.id] }))}><Plus size={15} /></button>}
-          </div>
-          {!s.comingSoon && open[s.id] && (
-            <div className="px-4 pb-3">
-              {s.content}
+      {sections.map((s: any) => {
+        const isOpen = !s.comingSoon && open[s.id];
+        const toggle = () => { if (!s.comingSoon) setOpen(o => ({ ...o, [s.id]: !o[s.id] })); };
+        return (
+          <div key={s.id} className="border-b border-border">
+            <div className="w-full flex items-center gap-2.5 px-4 py-3">
+              {/* Icon — clickable toggle when not coming soon */}
+              <button
+                onClick={toggle}
+                disabled={!!s.comingSoon}
+                className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-base ${
+                  isOpen ? "bg-primary-soft text-primary" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {isOpen ? <ChevronUp size={14} /> : <s.icon size={14} />}
+              </button>
+              <span className="text-sm font-medium flex-1 text-left">{s.label}</span>
+              {s.comingSoon
+                ? <span className="text-xs px-2 py-0.5 rounded-full bg-surface-muted border border-border text-muted-foreground">Coming soon</span>
+                : <button className="text-muted-foreground hover:text-foreground transition-base" onClick={toggle}><Plus size={15} /></button>}
             </div>
-          )}
-        </div>
-      ))}
+            {isOpen && (
+              <div className="px-4 pb-3">
+                {s.content}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
