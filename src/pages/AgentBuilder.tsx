@@ -1403,6 +1403,18 @@ function SubAgentsCard() {
 }
 
 
+function GuardrailsConfigSection() {
+  return (
+    <ConfigSection
+      icon={Shield}
+      title="Guardrails"
+    >
+      <GuardrailsInner />
+    </ConfigSection>
+  );
+}
+
+
 /* ============ NEW CONFIGURATION PANEL (right side) ============ */
 function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange: (id: string) => void }) {
   const sections = [
@@ -1426,11 +1438,7 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
     },
     {
       id: "guardrails", icon: Shield, label: "Guardrails", content: (
-        <div className="flex flex-col items-center py-3 gap-1.5 text-center">
-          <Shield size={20} className="text-muted-foreground/50" />
-          <p className="text-xs text-muted-foreground">Boundaries that keep your agent acting safely.</p>
-          <button className="text-xs text-primary hover:underline flex items-center gap-1"><Plus size={11} /> Add Guardrails</button>
-        </div>
+        <GuardrailsInner />
       ),
     },
     { id: "knowledge",  icon: BookOpen, label: "Knowledge",  comingSoon: true },
@@ -2067,7 +2075,7 @@ function GuardrailEditSheet({ guardrail, onClose, onSave }: { guardrail: Guardra
   );
 }
 
-function GuardrailsConfigSection() {
+function GuardrailsInner() {
   const [showMenu, setShowMenu]               = useState(false);
   const [openCreate, setOpenCreate]           = useState(false);
   const [openWsSheet, setOpenWsSheet]         = useState(false);
@@ -2121,13 +2129,7 @@ function GuardrailsConfigSection() {
 
   return (
     <>
-      <ConfigSection
-        icon={Shield}
-        title="Guardrails"
-        badge={totalActive > 0
-          ? <span className="text-xs text-success font-medium mr-1">{totalActive} active</span>
-          : <span className="text-xs text-warning font-medium mr-1">Not set</span>}
-      >
+      <div>
         <p className="text-xs text-muted-foreground mb-3 leading-relaxed">Boundaries that keep your agent acting safely.</p>
 
         {(wsAddedList.length > 0 || agentGuardrails.length > 0) && (
@@ -2183,7 +2185,7 @@ function GuardrailsConfigSection() {
           </div>,
           document.body
         )}
-      </ConfigSection>
+      </div>
 
       {/* Add from workspace popup */}
       {openWsSheet && createPortal(
