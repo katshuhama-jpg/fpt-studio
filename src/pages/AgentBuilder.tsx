@@ -1453,7 +1453,9 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
     <div className="flex flex-col">
       {/* Model row */}
       <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border">
-        <Cpu size={14} className="text-muted-foreground shrink-0" />
+        <div className="w-8 h-8 rounded-lg bg-primary-soft flex items-center justify-center shrink-0">
+          <Cpu size={15} className="text-primary" />
+        </div>
         <span className="text-sm font-medium flex-1">Model</span>
         <ModelDropdown value={model} onChange={onModelChange} />
       </div>
@@ -1465,14 +1467,14 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
         return (
           <div key={s.id} className="border-b border-border">
             <div className="w-full flex items-center gap-2.5 px-4 py-3">
-              {/* Icon — hover shows chevron hint, click toggles */}
+              {/* Icon — colored bg, hover shows chevron hint, click toggles */}
               <button
                 onClick={toggle}
                 disabled={!!s.comingSoon}
-                className="group w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-muted-foreground hover:bg-primary-soft hover:text-primary transition-base relative"
+                className="group w-8 h-8 rounded-lg bg-primary-soft flex items-center justify-center shrink-0 text-primary transition-base relative"
               >
-                <s.icon size={14} className="group-hover:opacity-0 transition-opacity" />
-                <ChevronUp size={14} className="absolute opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
+                <s.icon size={15} className="group-hover:opacity-0 transition-opacity" />
+                <ChevronUp size={14} className="absolute opacity-0 group-hover:opacity-100 transition-opacity" />
               </button>
               <span className="text-sm font-medium flex-1 text-left">{s.label}</span>
               {s.comingSoon
