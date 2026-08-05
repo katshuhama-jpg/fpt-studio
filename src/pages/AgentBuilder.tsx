@@ -1464,15 +1464,14 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
         return (
           <div key={s.id} className="border-b border-border">
             <div className="w-full flex items-center gap-2.5 px-4 py-3">
-              {/* Icon — clickable toggle when not coming soon */}
+              {/* Icon — hover shows chevron hint, click toggles */}
               <button
                 onClick={toggle}
                 disabled={!!s.comingSoon}
-                className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-base ${
-                  isOpen ? "bg-primary-soft text-primary" : "text-muted-foreground hover:text-foreground"
-                }`}
+                className="group w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-muted-foreground hover:bg-primary-soft hover:text-primary transition-base relative"
               >
-                {isOpen ? <ChevronUp size={14} /> : <s.icon size={14} />}
+                <s.icon size={14} className="group-hover:opacity-0 transition-opacity" />
+                <ChevronUp size={14} className="absolute opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
               </button>
               <span className="text-sm font-medium flex-1 text-left">{s.label}</span>
               {s.comingSoon
