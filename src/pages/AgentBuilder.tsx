@@ -1445,7 +1445,7 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
   ];
 
   const [open, setOpen] = useState<Record<string, boolean>>({ connectors: true, skills: true, guardrails: true });
-  const guardrailsAddRef = useRef<(() => void) | null>(null);
+  const guardrailsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
 
   return (
     <div className="flex flex-col">
@@ -1477,7 +1477,15 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
                 ? <span className="text-xs px-2 py-0.5 rounded-full bg-surface-muted border border-border text-muted-foreground">Coming soon</span>
                 : <button
                   className="text-muted-foreground hover:text-foreground transition-base"
-                  onClick={() => { if (s.onAdd) { if (!isOpen) setOpen(o => ({ ...o, [s.id]: true })); s.onAdd(); } else toggle(); }}
+                  onClick={(e) => {
+                    if (s.onAdd) {
+                      if (!isOpen) setOpen(o => ({ ...o, [s.id]: true }));
+                      const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                      s.onAdd({ top: r.bottom + 4, left: r.left });
+                    } else {
+                      toggle();
+                    }
+                  }}
                 ><Plus size={15} /></button>}
             </div>
             {isOpen && (
@@ -2089,7 +2097,7 @@ function GuardrailEditSheet({ guardrail, onClose, onSave }: { guardrail: Guardra
   );
 }
 
-function GuardrailsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => void) => void } = {}) {
+function GuardrailsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:number;left:number}) => void) => void } = {}) {
   const [showMenu, setShowMenu]               = useState(false);
   const [openCreate, setOpenCreate]           = useState(false);
   const [openWsSheet, setOpenWsSheet]         = useState(false);
@@ -2099,12 +2107,11 @@ function GuardrailsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => void) =
   const [menuPos, setMenuPos]                 = useState<{top:number;left:number}>({top:0,left:0});
   const addBtnRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    onRegisterAdd?.(() => {
-      const rect = addBtnRef.current?.getBoundingClientRect();
-      if (rect) setMenuPos({ top: rect.bottom + 4, left: rect.left });
+    onRegisterAdd?.((pos: {top:number;left:number}) => {
+      setMenuPos(pos);
       setShowMenu(true);
     });
-  }, [onRegisterAdd]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!showMenu) return;
@@ -2173,8 +2180,7 @@ function GuardrailsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => void) =
           </div>
         )}
 
-        {/* Hidden sentinel — position anchor for the dropdown triggered by header + button */}
-        <span ref={addBtnRef} className="sr-only" />
+
         {showMenu && createPortal(
           <div
             className="fixed z-[9999] w-44 bg-white rounded-xl border border-border shadow-lg py-1"
