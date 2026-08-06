@@ -1,11 +1,13 @@
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { clearUser } from "@/lib/onboarding";
+import { clearUser, getUser } from "@/lib/onboarding";
 import {
   Home, MessageSquare, Bot, BookOpen, Settings, Plug,
   Puzzle, ChevronsLeft, ChevronsRight, Search, Bell, Plus,
   ChevronRight, LifeBuoy, KeyRound, LogOut, User, ChevronDown,
-  Check, Building2, PlusCircle, Sparkles, Shield,
+  Check, Building2, PlusCircle, Sparkles, Shield, FileText, Rocket,
 } from "lucide-react";
+
+const APP_VERSION = "0.58.5";
 import { useState } from "react";
 import fptAiLogo from "@/assets/fpt-ai-logo.png";
 
@@ -57,6 +59,7 @@ export default function WorkspaceLayout() {
   const [tenantMenu, setTenantMenu] = useState(false);
   const [tenantId, setTenantId] = useState(TENANTS[0].id);
   const tenant = TENANTS.find(t => t.id === tenantId) ?? TENANTS[0];
+  const userEmail = getUser()?.email || "tran.nam@fpt.com";
   const loc = useLocation();
   const navigate = useNavigate();
   const inAgentBuilder = loc.pathname.startsWith("/agents/");
@@ -191,19 +194,73 @@ export default function WorkspaceLayout() {
         <div className="p-2.5 shrink-0 relative">
           {userMenu && !collapsed && (
             <div className="absolute bottom-full left-2 right-2 mb-2 bg-surface rounded-xl overflow-hidden ring-1 ring-border shadow-xl">
+              {/* Identity */}
+              <div className="px-3 py-3 flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-full bg-primary-soft flex items-center justify-center text-xs font-semibold text-primary shrink-0">
+                  TN
+                </div>
+                <div className="min-w-0 text-left">
+                  <div className="text-sm font-semibold text-foreground truncate">Tran Nam</div>
+                  <div className="text-xs text-muted-foreground truncate">{userEmail}</div>
+                </div>
+              </div>
+              <div className="border-t border-border" />
+
+              {/* Current tenant */}
+              <button
+                onClick={() => { setUserMenu(false); setTenantMenu(true); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-surface-muted transition-base"
+              >
+                <div className="w-5 h-5 rounded bg-primary-soft text-primary flex items-center justify-center text-[9px] font-bold shrink-0">
+                  {tenant.initial}
+                </div>
+                <span className="flex-1 min-w-0 truncate text-left">{tenant.name}</span>
+                <ChevronRight size={13} className="text-muted-foreground shrink-0" />
+              </button>
+              <div className="border-t border-border" />
+
+              {/* Menu items */}
+              <NavLink
+                to="/settings"
+                onClick={() => setUserMenu(false)}
+                className="flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-surface-muted transition-base"
+              >
+                <Shield size={14} className="text-muted-foreground" /> Roles & permissions
+              </NavLink>
               <NavLink
                 to="/api-keys"
                 onClick={() => setUserMenu(false)}
                 className="flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-surface-muted transition-base"
               >
-                <KeyRound size={14} className="text-muted-foreground" /> API Keys
+                <KeyRound size={14} className="text-muted-foreground" /> API Key
               </NavLink>
               <button className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-surface-muted transition-base">
-                <User size={14} className="text-muted-foreground" /> Profile
+                <User size={14} className="text-muted-foreground" /> My account
+              </button>
+              <a
+                href="https://docs.agents.fpt.ai/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-surface-muted transition-base"
+              >
+                <FileText size={14} className="text-muted-foreground" /> Documentation
+              </a>
+              <NavLink
+                to="/help"
+                onClick={() => setUserMenu(false)}
+                className="flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-surface-muted transition-base"
+              >
+                <LifeBuoy size={14} className="text-muted-foreground" /> Support
+              </NavLink>
+              <button className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-surface-muted transition-base">
+                <Rocket size={14} className="text-muted-foreground" />
+                <span className="flex-1 text-left">About</span>
+                <span className="text-xs text-muted-foreground">{APP_VERSION}</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
               </button>
               <div className="border-t border-border" />
               <button onClick={handleSignOut} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-surface-muted text-destructive transition-base">
-                <LogOut size={14} /> Sign out
+                <LogOut size={14} /> Log out
               </button>
             </div>
           )}
