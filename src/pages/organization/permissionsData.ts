@@ -14,7 +14,7 @@ function crud(prefix: string, thing: string) {
   const singular = thing.replace(/s$/, "");
   return [
     { id: `${prefix}.publish`, name: `Publish ${thing}`, desc: `Make a personal ${singular} available to the whole workspace, or share it with specific teammates.` },
-    { id: `${prefix}.approve`, name: `Approve ${singular} publishing`, desc: `Review and approve requests to publish a ${singular} before it goes live.` },
+    { id: `${prefix}.approve`, name: `Approve ${singular} publishing`, desc: `Review and approve another member's request to publish a ${singular} before it goes live — separate from publishing your own.` },
     { id: `${prefix}.manage`, name: `Manage published ${thing}`, desc: `Edit the configuration of a ${singular} that's already published.` },
     { id: `${prefix}.delete`, name: `Remove published ${thing}`, desc: `Unpublish or permanently delete a published ${singular}.` },
   ];
