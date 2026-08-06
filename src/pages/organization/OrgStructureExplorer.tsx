@@ -214,7 +214,6 @@ export default function OrgStructureExplorer() {
                       {m.initials}
                     </div>
                     <span className="text-sm font-medium truncate">{m.name}</span>
-                    <span className="text-xs text-muted-foreground truncate ml-auto shrink-0">{m.role}</span>
                   </div>
                 ))}
                 {filteredMembers.length === 0 && (
