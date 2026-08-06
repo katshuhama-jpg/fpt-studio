@@ -13,6 +13,7 @@ import AgentScaffold from "./pages/AgentScaffold";
 import Inventor from "./pages/Inventor";
 import TaskEditor from "./pages/TaskEditor";
 import ToolBuilder from "./pages/ToolBuilder";
+import OrgGeneral from "./pages/organization/General";
 import OrgStructure from "./pages/organization/Structure";
 import OrgMembers from "./pages/organization/Members";
 import OrgPermissions from "./pages/organization/Permissions";
