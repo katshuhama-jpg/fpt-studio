@@ -17,19 +17,13 @@ type RoleDef = {
 
 const ADMIN_IDS = new Set(ALL_PERMISSION_IDS);
 const BUILDER_IDS = new Set([
-  "agents.view", "agents.chat", "agents.create", "agents.publish",
-  "knowledge.view", "knowledge.manage",
-  "skills.view", "skills.create",
-  "guardrails.view",
-  "connectors.view", "connectors.manage",
+  "agents.publish",
+  "knowledge.publish",
+  "skills.publish",
+  "connectors.publish",
   "organization.view",
 ]);
 const VIEWER_IDS = new Set([
-  "agents.view", "agents.chat",
-  "knowledge.view",
-  "skills.view",
-  "guardrails.view",
-  "connectors.view",
   "organization.view",
 ]);
 
