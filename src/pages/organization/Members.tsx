@@ -12,9 +12,9 @@ const members = [
 export default function Members() {
   return (
     <div className="px-8 py-8 max-w-[1280px] mx-auto animate-fade-up space-y-6">
+      <PageHeader title="Members" desc="Invite teammates and assign workspace-level roles. Agent-level access is managed per agent." />
+
       <Card
-        title="Members"
-        desc="Invite teammates and assign workspace-level roles. Agent-level access is managed per agent."
         action={
           <button className="btn-primary h-9">
             <Plus size={14} /> Invite member
