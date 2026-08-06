@@ -12,11 +12,6 @@ const members = [
 export default function Members() {
   return (
     <div className="px-8 py-8 max-w-[1280px] mx-auto animate-fade-up space-y-6">
-      <div className="mb-2">
-        <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">Organization</h1>
-        <p className="text-sm text-muted-foreground">Manage how your organization is structured and configured.</p>
-      </div>
-
       <Card
         title="Members"
         desc="Invite teammates and assign workspace-level roles. Agent-level access is managed per agent."
