@@ -206,19 +206,6 @@ export default function WorkspaceLayout() {
               </div>
               <div className="border-t border-border" />
 
-              {/* Current tenant */}
-              <button
-                onClick={() => { setUserMenu(false); setTenantMenu(true); }}
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-surface-muted transition-base"
-              >
-                <div className="w-5 h-5 rounded bg-primary-soft text-primary flex items-center justify-center text-[9px] font-bold shrink-0">
-                  {tenant.initial}
-                </div>
-                <span className="flex-1 min-w-0 truncate text-left">{tenant.name}</span>
-                <ChevronRight size={13} className="text-muted-foreground shrink-0" />
-              </button>
-              <div className="border-t border-border" />
-
               {/* Menu items */}
               <NavLink
                 to="/settings"
