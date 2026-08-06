@@ -19,7 +19,9 @@ function Mark({ on }: { on: boolean }) {
 export default function Permissions() {
   return (
     <div className="px-8 py-8 max-w-[1280px] mx-auto animate-fade-up space-y-6">
-      <Card title="Permissions" desc="What each role can access, at a glance.">
+      <PageHeader title="Permissions" desc="What each role can access, at a glance." />
+
+      <Card>
         <div className="rounded-lg overflow-hidden border border-border">
           <div className="grid grid-cols-[1fr,90px,90px,90px] gap-3 px-4 py-2.5 bg-surface-muted text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             <div>Capability</div>
