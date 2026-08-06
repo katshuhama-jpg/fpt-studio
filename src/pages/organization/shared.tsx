@@ -1,15 +1,28 @@
 export function Card({ title, desc, children, action, danger }: any) {
   return (
     <section className={`rounded-xl bg-surface border ${danger ? "border-destructive/30" : "border-border"} p-6`}>
-      <header className="flex items-start justify-between gap-4 mb-5">
-        <div>
-          <h2 className={`font-display text-base font-semibold ${danger ? "text-destructive" : ""}`}>{title}</h2>
-          {desc && <p className="text-xs text-muted-foreground mt-1">{desc}</p>}
-        </div>
-        {action}
-      </header>
+      {(title || action) && (
+        <header className="flex items-start justify-between gap-4 mb-5">
+          {title && (
+            <div>
+              <h2 className={`font-display text-base font-semibold ${danger ? "text-destructive" : ""}`}>{title}</h2>
+              {desc && <p className="text-xs text-muted-foreground mt-1">{desc}</p>}
+            </div>
+          )}
+          {action}
+        </header>
+      )}
       {children}
     </section>
+  );
+}
+
+export function PageHeader({ title, desc }: { title: string; desc: string }) {
+  return (
+    <div className="mb-2">
+      <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">{title}</h1>
+      <p className="text-sm text-muted-foreground">{desc}</p>
+    </div>
   );
 }
 
