@@ -91,30 +91,30 @@ function RoleModal({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0 }}>
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+    <div className="fixed inset-0 z-50 flex justify-end" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0 }}>
+      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
 
-      <div className="relative w-full max-w-[560px] bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh]" style={{ animation: "fadeScaleIn 0.18s ease" }}>
+      <div className="relative w-full max-w-[480px] bg-background flex flex-col shadow-2xl h-full" style={{ animation: "slideInRight 0.22s ease" }}>
         {/* Header */}
-        <div className="flex items-start justify-between px-6 py-5 border-b border-border shrink-0">
+        <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-border shrink-0">
           <div>
-            <h2 className="font-display text-lg font-semibold">{title}</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">Choose exactly what this role can do, permission by permission.</p>
+            <h2 className="text-base font-semibold">{title}</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Choose exactly what this role can do, permission by permission.</p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base mt-0.5">
-            <X size={15} />
+          <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground ml-4 shrink-0">
+            <X size={14} />
           </button>
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
           <div>
             <label className="text-sm font-medium block mb-1.5">
               Role name <span className="text-destructive">*</span>
             </label>
             <input
               autoFocus
-              className="w-full h-10 px-3 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base"
+              className="w-full h-10 px-3 rounded-xl border border-border bg-surface text-sm outline-none focus:border-ring transition-base"
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="e.g. Support Lead"
@@ -142,7 +142,7 @@ function RoleModal({
                       </button>
                     )}
                   </div>
-                  <div className="rounded-lg border border-border divide-y divide-border overflow-hidden">
+                  <div className="rounded-xl border border-border divide-y divide-border overflow-hidden">
                     {group.permissions.map(p => (
                       <div key={p.id} className="flex items-center justify-between gap-4 px-3.5 py-2.5">
                         <button
@@ -164,16 +164,16 @@ function RoleModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-border shrink-0 bg-white">
+        <div className="flex items-center justify-between px-6 py-4 border-t border-border shrink-0">
           <span className="text-xs text-muted-foreground">{enabled.size} of {ALL_PERMISSION_IDS.length} permissions enabled</span>
           <div className="flex items-center gap-2">
-            <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">
+            <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">
               Cancel
             </button>
             <button
               onClick={submit}
               disabled={!name.trim()}
-              className="h-9 px-5 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium transition-base disabled:opacity-40 disabled:cursor-not-allowed"
+              className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-base disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {isEdit ? "Save changes" : "Create role"}
             </button>
@@ -181,7 +181,7 @@ function RoleModal({
         </div>
       </div>
 
-      <style>{`@keyframes fadeScaleIn { from { opacity:0; transform:scale(0.96); } to { opacity:1; transform:scale(1); } }`}</style>
+      <style>{`@keyframes slideInRight{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
     </div>,
     document.body
   );
