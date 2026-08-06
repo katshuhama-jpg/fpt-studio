@@ -36,18 +36,6 @@ export default function Structure() {
       <Card title="Org structure" desc="Units can contain members and nested sub-units, to any depth. Pick a unit to see who's in it.">
         <OrgStructureExplorer />
       </Card>
-
-      <Card title="Danger zone" desc="Destructive actions. Cannot be undone." danger>
-        <div className="flex items-center justify-between p-4 rounded-lg bg-destructive/5 border border-destructive/20">
-          <div>
-            <div className="text-sm font-semibold text-destructive">Delete organization</div>
-            <div className="text-xs text-muted-foreground mt-0.5">All agents, knowledge and history will be permanently removed.</div>
-          </div>
-          <button className="h-9 px-3.5 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium hover:opacity-90 transition-base">
-            Delete organization
-          </button>
-        </div>
-      </Card>
     </div>
   );
 }
