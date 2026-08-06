@@ -5,6 +5,7 @@ import {
   Puzzle, ChevronsLeft, ChevronsRight, Search, Bell, Plus,
   ChevronRight, LifeBuoy, KeyRound, LogOut, User, ChevronDown,
   Check, Building2, PlusCircle, Sparkles, Shield, FileText, Rocket,
+  Users, Lock, ArrowLeft,
 } from "lucide-react";
 
 const APP_VERSION = "0.58.5";
@@ -43,13 +44,20 @@ const groups: Group[] = [
     id: "workspace",
     label: "Workspace",
     items: [
-      { to: "/settings", label: "Settings", icon: Settings },
+      { to: "/organization", label: "Settings", icon: Settings },
     ],
   },
 ];
 
 const utilityItems: Item[] = [
   { to: "/help", label: "Help Center", icon: LifeBuoy },
+];
+
+const orgItems: Item[] = [
+  { to: "/organization", label: "Structure", icon: Building2 },
+  { to: "/organization/members", label: "Members", icon: Users },
+  { to: "/organization/permissions", label: "Permissions", icon: Lock },
+  { to: "/organization/roles", label: "Roles", icon: Shield },
 ];
 
 export default function WorkspaceLayout() {
@@ -63,6 +71,7 @@ export default function WorkspaceLayout() {
   const loc = useLocation();
   const navigate = useNavigate();
   const inAgentBuilder = loc.pathname.startsWith("/agents/");
+  const inOrganization = loc.pathname.startsWith("/organization");
   const handleSignOut = () => {
     clearUser();
     setUserMenu(false);
@@ -79,8 +88,15 @@ export default function WorkspaceLayout() {
   }
 
   const BREADCRUMB_LABELS: Record<string, string> = { tools: "Skills" };
-  const rawSegment = loc.pathname === "/" ? "Home" : loc.pathname.slice(1).split("/")[0].replace(/-/g, " ");
-  const breadcrumbLabel = BREADCRUMB_LABELS[rawSegment.replace(/ /g, "-")] ?? rawSegment;
+  const ORG_BREADCRUMB_LABELS: Record<string, string> = { "": "Structure", members: "Members", permissions: "Permissions", roles: "Roles" };
+  let breadcrumbLabel: string;
+  if (inOrganization) {
+    const sub = loc.pathname.replace(/^\/organization\/?/, "");
+    breadcrumbLabel = ORG_BREADCRUMB_LABELS[sub] ?? sub;
+  } else {
+    const rawSegment = loc.pathname === "/" ? "Home" : loc.pathname.slice(1).split("/")[0].replace(/-/g, " ");
+    breadcrumbLabel = BREADCRUMB_LABELS[rawSegment.replace(/ /g, "-")] ?? rawSegment;
+  }
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
@@ -165,30 +181,45 @@ export default function WorkspaceLayout() {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
-          <div className="space-y-0.5 mb-3">
-            {topItems.map(it => (
+        {inOrganization ? (
+          <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
+            <div className="space-y-0.5 mb-3">
+              <NavRow item={{ to: "/", label: "Back to workspace", icon: ArrowLeft }} collapsed={collapsed} />
+            </div>
+            <div className="space-y-0.5">
+              {orgItems.map(it => (
+                <NavRow key={it.to} item={it} collapsed={collapsed} />
+              ))}
+            </div>
+          </nav>
+        ) : (
+          <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
+            <div className="space-y-0.5 mb-3">
+              {topItems.map(it => (
+                <NavRow key={it.to} item={it} collapsed={collapsed} />
+              ))}
+            </div>
+
+            {groups.map(g => (
+              <NavGroup
+                key={g.id}
+                group={g}
+                collapsed={collapsed}
+                open={open[g.id] ?? true}
+                onToggle={() => setOpen(o => ({ ...o, [g.id]: !(o[g.id] ?? true) }))}
+              />
+            ))}
+          </nav>
+        )}
+
+        {/* Utility (Docs) */}
+        {!inOrganization && (
+          <div className="px-2 pb-2 space-y-0.5">
+            {utilityItems.map(it => (
               <NavRow key={it.to} item={it} collapsed={collapsed} />
             ))}
           </div>
-
-          {groups.map(g => (
-            <NavGroup
-              key={g.id}
-              group={g}
-              collapsed={collapsed}
-              open={open[g.id] ?? true}
-              onToggle={() => setOpen(o => ({ ...o, [g.id]: !(o[g.id] ?? true) }))}
-            />
-          ))}
-        </nav>
-
-        {/* Utility (Docs) */}
-        <div className="px-2 pb-2 space-y-0.5">
-          {utilityItems.map(it => (
-            <NavRow key={it.to} item={it} collapsed={collapsed} />
-          ))}
-        </div>
+        )}
 
         {/* User */}
         <div className="p-2.5 shrink-0 relative">
@@ -208,7 +239,7 @@ export default function WorkspaceLayout() {
 
               {/* Menu items */}
               <NavLink
-                to="/settings"
+                to="/organization"
                 onClick={() => setUserMenu(false)}
                 className="flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-surface-muted transition-base"
               >
@@ -369,7 +400,7 @@ function NavRow({ item, collapsed }: { item: Item; collapsed: boolean }) {
   return (
     <NavLink
       to={item.to}
-      end={item.to === "/"}
+      end={item.to === "/" || item.to === "/organization"}
       title={collapsed ? item.label : undefined}
       className={({ isActive }) =>
         `${baseCls} ${isActive ? "bg-primary-soft text-primary font-medium" : "text-foreground hover:bg-surface-muted"}`

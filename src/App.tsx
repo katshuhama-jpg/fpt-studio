@@ -13,7 +13,10 @@ import AgentScaffold from "./pages/AgentScaffold";
 import Inventor from "./pages/Inventor";
 import TaskEditor from "./pages/TaskEditor";
 import ToolBuilder from "./pages/ToolBuilder";
-import WorkspaceSettings from "./pages/WorkspaceSettings";
+import OrgStructure from "./pages/organization/Structure";
+import OrgMembers from "./pages/organization/Members";
+import OrgPermissions from "./pages/organization/Permissions";
+import OrgRoles from "./pages/organization/Roles";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import Skills from "./pages/Skills";
 import WorkspaceGuardrails from "./pages/WorkspaceGuardrails";
@@ -61,7 +64,10 @@ const App = () => (
           <Route path="/agents/:id/tools/:toolId" element={<RequireAuth><ToolBuilder /></RequireAuth>} />
           <Route element={<RequireAuth><WorkspaceLayout /></RequireAuth>}>
             <Route path="/knowledge" element={<PlaceholderPage title="Workspace Knowledge" />} />
-            <Route path="/settings" element={<WorkspaceSettings />} />
+            <Route path="/organization" element={<OrgStructure />} />
+            <Route path="/organization/members" element={<OrgMembers />} />
+            <Route path="/organization/permissions" element={<OrgPermissions />} />
+            <Route path="/organization/roles" element={<OrgRoles />} />
             <Route path="/connectors" element={<WorkspaceConnectors />} />
             <Route path="/tools" element={<Skills />} />
             <Route path="/guardrails" element={<WorkspaceGuardrails />} />
