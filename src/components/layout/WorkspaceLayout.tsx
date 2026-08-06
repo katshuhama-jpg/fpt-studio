@@ -212,7 +212,7 @@ export default function WorkspaceLayout() {
                 onClick={() => setUserMenu(false)}
                 className="flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-surface-muted transition-base"
               >
-                <Shield size={14} className="text-muted-foreground" /> Roles & permissions
+                <Building2 size={14} className="text-muted-foreground" /> Manage organization
               </NavLink>
               <NavLink
                 to="/api-keys"
