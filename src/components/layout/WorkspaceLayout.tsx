@@ -5,7 +5,7 @@ import {
   Puzzle, ChevronsLeft, ChevronsRight, Search, Bell, Plus,
   ChevronRight, LifeBuoy, KeyRound, LogOut, User, ChevronDown,
   Check, Building2, PlusCircle, Sparkles, Shield, FileText, Rocket,
-  Users, Lock, ArrowLeft,
+  Users, Lock, ArrowLeft, Network,
 } from "lucide-react";
 
 const APP_VERSION = "0.58.5";
