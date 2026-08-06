@@ -1,10 +1,9 @@
 export type OrgMember = { id: string; name: string; role: string; initials: string };
-export type OrgUnit = { id: string; name: string; lead?: string; members: OrgMember[]; units: OrgUnit[] };
+export type OrgUnit = { id: string; name: string; members: OrgMember[]; units: OrgUnit[] };
 
 export const orgTree: OrgUnit = {
   id: "fpt",
   name: "FPT Corporation",
-  lead: "Truong Gia Binh",
   members: [
     { id: "m-chair", name: "Truong Gia Binh", role: "Chairman", initials: "TB" },
   ],
