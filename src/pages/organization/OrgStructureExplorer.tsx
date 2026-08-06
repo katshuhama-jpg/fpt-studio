@@ -19,35 +19,35 @@ function TreeRow({
   return (
     <div>
       <div
-        className={`group flex items-center gap-1 rounded-lg transition-base ${
+        className={`group flex items-center rounded-xl transition-base ${
           isSelected ? "bg-primary-soft" : "hover:bg-surface-muted"
         }`}
-        style={{ paddingLeft: 6 + depth * 16 }}
+        style={{ paddingLeft: 4 + depth * 20 }}
       >
         <button
           type="button"
           onClick={() => hasChildren && onToggle(unit.id)}
           aria-label={hasChildren ? (isOpen ? `Collapse ${unit.name}` : `Expand ${unit.name}`) : undefined}
-          className={`shrink-0 w-5 h-5 flex items-center justify-center rounded transition-base ${
+          className={`shrink-0 w-8 h-10 flex items-center justify-center rounded-lg transition-base ${
             hasChildren ? "text-muted-foreground hover:bg-surface cursor-pointer" : "invisible"
           }`}
         >
-          {hasChildren && (isOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />)}
+          {hasChildren && (isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />)}
         </button>
         <button
           type="button"
           onClick={() => onSelect(unit.id)}
           aria-current={isSelected ? "true" : undefined}
-          className={`flex-1 min-w-0 flex items-center gap-2 py-1.5 pr-2 text-left cursor-pointer ${
+          className={`flex-1 min-w-0 flex items-center gap-2.5 py-2.5 pr-3 text-left cursor-pointer ${
             isSelected ? "text-primary" : "text-foreground"
           }`}
         >
-          <Building2 size={13} className="shrink-0" />
-          <span className={`text-sm truncate ${isSelected ? "font-semibold" : ""}`}>{unit.name}</span>
+          <Building2 size={16} className="shrink-0" />
+          <span className={`text-sm truncate ${isSelected ? "font-semibold" : "font-medium"}`}>{unit.name}</span>
         </button>
       </div>
       {hasChildren && isOpen && (
-        <div>
+        <div className="mt-0.5 space-y-0.5">
           {unit.units.map(u => (
             <TreeRow
               key={u.id} unit={u} depth={depth + 1} selectedId={selectedId}
