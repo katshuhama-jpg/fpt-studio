@@ -1,9 +1,11 @@
-import { Card, Row } from "./shared";
+import { Card, Row, PageHeader } from "./shared";
 
 export default function General() {
   return (
     <div className="px-8 py-8 max-w-[1280px] mx-auto animate-fade-up space-y-6">
-      <Card title="Org Info" desc="How your organization appears to teammates.">
+      <PageHeader title="General" desc="How your organization appears to teammates." />
+
+      <Card>
         <div className="flex items-center gap-4 mb-5">
           <div className="w-16 h-16 rounded-xl bg-gradient-brand flex items-center justify-center text-2xl font-display font-bold text-primary-foreground shadow-soft">
             F
