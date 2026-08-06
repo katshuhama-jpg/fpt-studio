@@ -11,6 +11,7 @@ export const orgTree: OrgUnit = {
     {
       id: "fsoft",
       name: "FPT Software",
+      lead: "Tran Nam",
       members: [
         { id: "m-fsoft-ceo", name: "Tran Nam", role: "CEO", initials: "TN" },
         { id: "m-fsoft-coo", name: "Linh Phan", role: "COO", initials: "LP" },
@@ -19,11 +20,13 @@ export const orgTree: OrgUnit = {
         {
           id: "fsoft-vn",
           name: "Vietnam Delivery",
+          lead: "Duy Nguyen",
           members: [{ id: "m-fsoft-vn-1", name: "Duy Nguyen", role: "Delivery Director", initials: "DN" }],
           units: [
             {
               id: "fsoft-vn-platform",
               name: "Platform Engineering",
+              lead: "Mai Hoang",
               members: [
                 { id: "m-plat-1", name: "Mai Hoang", role: "Engineering Manager", initials: "MH" },
                 { id: "m-plat-2", name: "Huy Le", role: "Senior Engineer", initials: "HL" },
@@ -43,6 +46,7 @@ export const orgTree: OrgUnit = {
             {
               id: "fsoft-vn-aiml",
               name: "AI/ML",
+              lead: "Quang Vu",
               members: [
                 { id: "m-aiml-1", name: "Quang Vu", role: "AI Lead", initials: "QV" },
                 { id: "m-aiml-2", name: "Thao Nguyen", role: "ML Engineer", initials: "TH2" },
@@ -54,11 +58,13 @@ export const orgTree: OrgUnit = {
         {
           id: "fsoft-jp",
           name: "Japan Delivery",
+          lead: "Kenji Sato",
           members: [{ id: "m-fsoft-jp-1", name: "Kenji Sato", role: "Country Director", initials: "KS" }],
           units: [
             {
               id: "fsoft-jp-delivery",
               name: "Delivery Team",
+              lead: "Yuki Tanaka",
               members: [
                 { id: "m-jpd-1", name: "Yuki Tanaka", role: "Delivery Manager", initials: "YT" },
                 { id: "m-jpd-2", name: "Hana Ito", role: "Business Analyst", initials: "HI" },
@@ -72,11 +78,13 @@ export const orgTree: OrgUnit = {
     {
       id: "ftel",
       name: "FPT Telecom",
+      lead: "Hoang Anh",
       members: [{ id: "m-ftel-1", name: "Hoang Anh", role: "CEO", initials: "HA" }],
       units: [
         {
           id: "ftel-noc",
           name: "Network Operations",
+          lead: "Minh Duc",
           members: [
             { id: "m-noc-1", name: "Minh Duc", role: "NOC Manager", initials: "MD" },
             { id: "m-noc-2", name: "Thu Ha", role: "Network Engineer", initials: "TH" },
@@ -86,6 +94,7 @@ export const orgTree: OrgUnit = {
         {
           id: "ftel-cs",
           name: "Customer Service",
+          lead: "Kim Ngan",
           members: [{ id: "m-cs-1", name: "Kim Ngan", role: "CS Manager", initials: "KN" }],
           units: [],
         },
@@ -94,11 +103,13 @@ export const orgTree: OrgUnit = {
     {
       id: "fsc",
       name: "FPT Smart Cloud",
+      lead: "Le Hong Viet",
       members: [{ id: "m-fsc-1", name: "Le Hong Viet", role: "CEO", initials: "LV" }],
       units: [
         {
           id: "fsc-agents",
           name: "AI Agents Platform",
+          lead: "Tran Nam",
           members: [
             { id: "m-agents-1", name: "Tran Nam", role: "Product Owner", initials: "TN" },
             { id: "m-agents-2", name: "Linh Phan", role: "Builder", initials: "LP2" },
@@ -109,6 +120,7 @@ export const orgTree: OrgUnit = {
         {
           id: "fsc-infra",
           name: "Cloud Infrastructure",
+          lead: "Van Anh",
           members: [{ id: "m-infra-1", name: "Van Anh", role: "Infra Lead", initials: "VA" }],
           units: [],
         },
@@ -117,6 +129,7 @@ export const orgTree: OrgUnit = {
     {
       id: "fe",
       name: "FPT Education",
+      lead: "Nguyen Khai",
       members: [{ id: "m-fe-1", name: "Nguyen Khai", role: "Director", initials: "NK" }],
       units: [],
     },
