@@ -19,11 +19,6 @@ function Mark({ on }: { on: boolean }) {
 export default function Permissions() {
   return (
     <div className="px-8 py-8 max-w-[1280px] mx-auto animate-fade-up space-y-6">
-      <div className="mb-2">
-        <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">Organization</h1>
-        <p className="text-sm text-muted-foreground">Manage how your organization is structured and configured.</p>
-      </div>
-
       <Card title="Permissions" desc="What each role can access, at a glance.">
         <div className="rounded-lg overflow-hidden border border-border">
           <div className="grid grid-cols-[1fr,90px,90px,90px] gap-3 px-4 py-2.5 bg-surface-muted text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
