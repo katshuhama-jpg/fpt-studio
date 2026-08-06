@@ -93,19 +93,19 @@ export default function OrgStructureExplorer() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[260px,1fr] gap-5">
       {/* ── Tree navigator ─────────────────────────────── */}
-      <div className="border border-border rounded-lg flex flex-col min-h-[320px] lg:max-h-[560px]">
-        <div className="p-2 border-b border-border shrink-0">
+      <div className="border border-border rounded-xl flex flex-col min-h-[320px] lg:max-h-[620px]">
+        <div className="p-3 border-b border-border shrink-0">
           <div className="relative">
-            <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               value={treeQuery}
               onChange={e => setTreeQuery(e.target.value)}
               placeholder="Search units or people…"
-              className="ds-input pl-7 h-8 text-xs"
+              className="ds-input pl-9 h-10 text-sm"
             />
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto p-1.5 space-y-0.5">
+        <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
           <TreeRow
             unit={orgTree} depth={0} selectedId={selectedId}
             expanded={expanded} onToggle={toggleExpand} onSelect={selectUnit} query={treeQuery}
