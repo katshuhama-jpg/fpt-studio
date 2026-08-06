@@ -143,7 +143,6 @@ export default function OrgStructureExplorer() {
             </div>
             <div className="min-w-0">
               <div className="text-lg font-display font-semibold truncate">{selected.name}</div>
-              {selected.lead && <div className="text-xs text-muted-foreground truncate">Led by {selected.lead}</div>}
             </div>
           </div>
           <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-full bg-surface-muted border border-border text-muted-foreground shrink-0">
