@@ -1,5 +1,5 @@
 import { Check, X } from "lucide-react";
-import { Card } from "./shared";
+import { Card, PageHeader } from "./shared";
 
 const capabilities = [
   { name: "Manage workspace settings", admin: true, builder: false, viewer: false },
