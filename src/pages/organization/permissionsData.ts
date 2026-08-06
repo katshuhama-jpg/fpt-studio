@@ -6,50 +6,26 @@ export type FeatureGroup = { id: string; label: string; icon: any; permissions: 
 /**
  * Creating and using Agents, Knowledge, Skills, Guardrails, and Connectors for
  * personal use is always available to every member — no permission required.
- * These permissions only gate the moment something moves from "just mine" to
- * "shared with the workspace" (publish) or handed to specific people (share).
+ * Everything below only applies once an item moves from "just mine" to
+ * "shared with the workspace" (publish) or handed to specific people (share) —
+ * from that point on, viewing, editing, and removing the shared copy is a
+ * workspace-impacting action and needs a permission like any other CRUD action.
  */
+function crud(prefix: string, thing: string) {
+  return [
+    { id: `${prefix}.view`, name: `View shared ${thing}`, desc: `See ${thing} that other people have published to the workspace.` },
+    { id: `${prefix}.publish`, name: `Publish ${thing}`, desc: `Make a personal ${thing.replace(/s$/, "")} available to the whole workspace, or share it with specific teammates.` },
+    { id: `${prefix}.manage`, name: `Manage shared ${thing}`, desc: `Edit the configuration of ${thing} that are already shared.` },
+    { id: `${prefix}.delete`, name: `Remove shared ${thing}`, desc: `Unpublish or permanently delete ${thing} from the workspace.` },
+  ];
+}
+
 export const featureGroups: FeatureGroup[] = [
-  {
-    id: "agents",
-    label: "Agents",
-    icon: Bot,
-    permissions: [
-      { id: "agents.publish", name: "Publish & share agents", desc: "Make a personal agent available to the whole workspace, or share it with specific teammates." },
-    ],
-  },
-  {
-    id: "knowledge",
-    label: "Knowledge",
-    icon: BookOpen,
-    permissions: [
-      { id: "knowledge.publish", name: "Publish & share knowledge", desc: "Make a personal knowledge source available to the whole workspace, or share it with specific teammates." },
-    ],
-  },
-  {
-    id: "skills",
-    label: "Skills & Tools",
-    icon: Puzzle,
-    permissions: [
-      { id: "skills.publish", name: "Publish & share skills", desc: "Make a personal skill available to the whole workspace, or share it with specific teammates." },
-    ],
-  },
-  {
-    id: "guardrails",
-    label: "Guardrails",
-    icon: Shield,
-    permissions: [
-      { id: "guardrails.publish", name: "Publish & share guardrails", desc: "Make a personal guardrail available to the whole workspace, or share it with specific teammates." },
-    ],
-  },
-  {
-    id: "connectors",
-    label: "Connectors",
-    icon: Plug,
-    permissions: [
-      { id: "connectors.publish", name: "Publish & share connectors", desc: "Make a personal connector available to the whole workspace, or share it with specific teammates." },
-    ],
-  },
+  { id: "agents", label: "Agents", icon: Bot, permissions: crud("agents", "agents") },
+  { id: "knowledge", label: "Knowledge", icon: BookOpen, permissions: crud("knowledge", "knowledge sources") },
+  { id: "skills", label: "Skills & Tools", icon: Puzzle, permissions: crud("skills", "skills") },
+  { id: "guardrails", label: "Guardrails", icon: Shield, permissions: crud("guardrails", "guardrails") },
+  { id: "connectors", label: "Connectors", icon: Plug, permissions: crud("connectors", "connectors") },
   {
     id: "organization",
     label: "Organization",
