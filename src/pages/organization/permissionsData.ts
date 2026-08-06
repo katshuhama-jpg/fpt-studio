@@ -5,18 +5,18 @@ export type FeatureGroup = { id: string; label: string; icon: any; permissions: 
 
 /**
  * Creating and using Agents, Knowledge, Skills, Guardrails, and Connectors for
- * personal use is always available to every member — no permission required.
- * Everything below only applies once an item moves from "just mine" to
- * "shared with the workspace" (publish) or handed to specific people (share) —
- * from that point on, viewing, editing, and removing the shared copy is a
- * workspace-impacting action and needs a permission like any other CRUD action.
+ * personal use is always available to every member — no permission required,
+ * and anyone can already see what's been published. Everything below only
+ * applies to the act of publishing itself: requesting it, approving it,
+ * editing something already live, or taking it back down.
  */
 function crud(prefix: string, thing: string) {
+  const singular = thing.replace(/s$/, "");
   return [
-    { id: `${prefix}.view`, name: `View shared ${thing}`, desc: `See ${thing} that other people have published to the workspace.` },
-    { id: `${prefix}.publish`, name: `Publish ${thing}`, desc: `Make a personal ${thing.replace(/s$/, "")} available to the whole workspace, or share it with specific teammates.` },
-    { id: `${prefix}.manage`, name: `Manage shared ${thing}`, desc: `Edit the configuration of ${thing} that are already shared.` },
-    { id: `${prefix}.delete`, name: `Remove shared ${thing}`, desc: `Unpublish or permanently delete ${thing} from the workspace.` },
+    { id: `${prefix}.publish`, name: `Publish ${thing}`, desc: `Make a personal ${singular} available to the whole workspace, or share it with specific teammates.` },
+    { id: `${prefix}.approve`, name: `Approve ${singular} publishing`, desc: `Review and approve requests to publish a ${singular} before it goes live.` },
+    { id: `${prefix}.manage`, name: `Manage published ${thing}`, desc: `Edit the configuration of a ${singular} that's already published.` },
+    { id: `${prefix}.delete`, name: `Remove published ${thing}`, desc: `Unpublish or permanently delete a published ${singular}.` },
   ];
 }
 
