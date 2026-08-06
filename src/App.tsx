@@ -65,7 +65,8 @@ const App = () => (
           <Route path="/agents/:id/tools/:toolId" element={<RequireAuth><ToolBuilder /></RequireAuth>} />
           <Route element={<RequireAuth><WorkspaceLayout /></RequireAuth>}>
             <Route path="/knowledge" element={<PlaceholderPage title="Workspace Knowledge" />} />
-            <Route path="/organization" element={<OrgStructure />} />
+            <Route path="/organization" element={<OrgGeneral />} />
+            <Route path="/organization/structure" element={<OrgStructure />} />
             <Route path="/organization/members" element={<OrgMembers />} />
             <Route path="/organization/permissions" element={<OrgPermissions />} />
             <Route path="/organization/roles" element={<OrgRoles />} />
