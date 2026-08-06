@@ -10,7 +10,9 @@ const roles = [
 export default function Roles() {
   return (
     <div className="px-8 py-8 max-w-[1280px] mx-auto animate-fade-up space-y-6">
-      <Card title="Roles" desc="What each role can do in this workspace.">
+      <PageHeader title="Roles" desc="What each role can do in this workspace." />
+
+      <Card>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {roles.map(r => (
             <div key={r.name} className="rounded-lg border border-border p-4">
