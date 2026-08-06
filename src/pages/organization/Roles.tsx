@@ -1,5 +1,5 @@
 import { Crown, Users } from "lucide-react";
-import { Card } from "./shared";
+import { Card, PageHeader } from "./shared";
 
 const roles = [
   { name: "Admin", icon: Crown, color: "text-warning", perms: ["Manage workspace settings", "Manage members & billing", "Full agent access"] },
