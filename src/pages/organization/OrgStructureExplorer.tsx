@@ -169,7 +169,6 @@ export default function OrgStructureExplorer() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-semibold truncate">{u.name}</div>
-                    {u.lead && <div className="text-xs text-muted-foreground truncate">Led by {u.lead}</div>}
                   </div>
                   <span className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-full bg-surface border border-border text-muted-foreground shrink-0">
                     <Users size={10} /> {countAll(u)}
