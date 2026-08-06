@@ -132,13 +132,15 @@ function RoleModal({
                       <group.icon size={14} className="text-muted-foreground" />
                       <span className="text-sm font-semibold">{group.label}</span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => toggleGroup(group)}
-                      className="text-xs font-medium text-primary hover:text-primary-glow transition-base"
-                    >
-                      {allOn ? "Clear all" : "Select all"}
-                    </button>
+                    {group.permissions.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => toggleGroup(group)}
+                        className="text-xs font-medium text-primary hover:text-primary-glow transition-base"
+                      >
+                        {allOn ? "Clear all" : "Select all"}
+                      </button>
+                    )}
                   </div>
                   <div className="rounded-lg border border-border divide-y divide-border overflow-hidden">
                     {group.permissions.map(p => (
