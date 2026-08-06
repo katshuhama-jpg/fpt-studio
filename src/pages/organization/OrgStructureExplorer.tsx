@@ -60,10 +60,6 @@ function TreeRow({
   );
 }
 
-function collectIds(unit: OrgUnit): string[] {
-  return [unit.id, ...unit.units.flatMap(collectIds)];
-}
-
 export default function OrgStructureExplorer() {
   const [selectedId, setSelectedId] = useState(orgTree.id);
   const [expanded, setExpanded] = useState<Set<string>>(new Set([orgTree.id, ...orgTree.units.map(u => u.id)]));
