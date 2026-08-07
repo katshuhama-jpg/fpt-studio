@@ -140,6 +140,20 @@ export function findUnit(root: OrgUnit, id: string): OrgUnit | null {
   return null;
 }
 
+export function collectMembers(unit: OrgUnit): OrgMember[] {
+  return [...unit.members, ...unit.units.flatMap(collectMembers)];
+}
+
+export function findMember(root: OrgUnit, id: string): OrgMember | null {
+  const direct = root.members.find(m => m.id === id);
+  if (direct) return direct;
+  for (const u of root.units) {
+    const found = findMember(u, id);
+    if (found) return found;
+  }
+  return null;
+}
+
 export function findPath(root: OrgUnit, id: string): OrgUnit[] | null {
   if (root.id === id) return [root];
   for (const u of root.units) {
