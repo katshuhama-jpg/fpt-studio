@@ -45,10 +45,14 @@ export const featureGroups: FeatureGroup[] = [
     icon: ClipboardCheck,
     permissions: FEATURES.map(({ id, thing }) => {
       const singular = singularOf(thing);
+      const isAgents = id === "agents";
       return {
         id: `${id}.approve`,
         name: `Approve ${thing}`,
-        desc: `Review and approve another member's request to publish ${article(singular)} ${singular} — separate from publishing your own.`,
+        desc: isAgents
+          ? "Review and approve another member's request to publish an agent — including any knowledge, skills, guardrails, or connectors bundled into it."
+          : `Review and approve another member's request to publish ${article(singular)} ${singular} on its own, outside of an agent.`,
+        implies: isAgents ? FEATURES.filter(f => f.id !== "agents").map(f => `${f.id}.approve`) : undefined,
       };
     }),
   },
