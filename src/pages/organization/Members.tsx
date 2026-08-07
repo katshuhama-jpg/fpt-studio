@@ -285,6 +285,7 @@ export default function Members() {
       {showAdd && (
         <AddUserToRoleModal
           roles={roles}
+          assignments={assignments}
           defaultRoleId={roleFilter !== "all" ? roleFilter : (roles[0]?.id ?? "")}
           onClose={() => setShowAdd(false)}
           onAdd={handleAdd}
