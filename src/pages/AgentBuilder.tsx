@@ -1,13 +1,8 @@
 import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { createPortal } from "react-dom";
-import {
-  ChevronLeft, ChevronRight, Play, Rocket, MoreHorizontal, AlertTriangle, X, BookOpen, Wrench, ListChecks, Workflow, PenLine, FlaskConical, BarChart2, Cpu, Eye, Save, CheckCircle2,
-  Zap, Cog, MessageSquareText, FileQuestion, Sparkles,
-  Search, Upload, Globe, Database, Plus, Layers, CheckCircle2, Send,
-  ArrowRight, Shield, ChevronDown, FileText, Trash2, MessageSquare, Activity,
-  Star, Users as UsersIcon, History, Download, SlidersHorizontal, Smartphone, Monitor,
-  Puzzle, Plug, UserCheck, Clock, Bot, ChevronUp, Trash2 as Trash, Pencil, Hand,
-} from "lucide-react";
+
+import { HugeiconsIcon } from "@hugeicons/react"
+import { Activity01Icon, Add01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, BookOpen01Icon, Cancel01Icon, BoltIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, Wrench01Icon , Delete01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
 import { useEffect, useRef, useState } from "react";
 import AgentToolsTab from "@/components/tool-builder/AgentToolsTab";
 import TasksGrid from "@/components/tasks/TasksGrid";
@@ -86,7 +81,7 @@ export default function AgentBuilder() {
       {/* Top bar */}
       <div className="h-14 border-b border-border bg-surface flex items-center px-4 gap-3 shrink-0">
         <button onClick={() => navigate("/agents")} className="h-8 w-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0">
-          <ChevronLeft size={16} />
+          <HugeiconsIcon icon={ChevronLeftIcon} size={16} />
         </button>
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-md bg-surface-muted border border-border flex items-center justify-center text-base shrink-0">🤖</div>
@@ -117,10 +112,10 @@ export default function AgentBuilder() {
             <span className="w-1.5 h-1.5 rounded-full bg-success" /> Live · v1.0.1
           </div>
           <button onClick={() => setShowPublish(true)} className="btn-primary h-9">
-            <Rocket size={13} /> Publish
+            <HugeiconsIcon icon={Rocket01Icon} size={13} /> Publish
           </button>
           <button className="h-9 w-9 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base">
-            <MoreHorizontal size={16} />
+            <HugeiconsIcon icon={MoreHorizontalIcon} size={16} />
           </button>
         </div>
       </div>
@@ -133,7 +128,7 @@ export default function AgentBuilder() {
       {showWelcome && (
         <div className="border-b border-primary/20 bg-primary-soft px-4 py-3 flex items-center gap-3 animate-fade-up shrink-0">
           <div className="h-8 w-8 rounded-lg bg-gradient-brand flex items-center justify-center text-primary-foreground shrink-0">
-            <Sparkles size={14} />
+            <HugeiconsIcon icon={SparklesIcon} size={14} />
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-sm font-semibold text-foreground">🎉 Your first agent is ready</div>
@@ -143,10 +138,10 @@ export default function AgentBuilder() {
           </div>
           <button onClick={dismissWelcome} className="btn-secondary h-8 px-3 text-xs">Got it</button>
           <button onClick={dismissWelcome} className="btn-primary h-8 px-3 text-xs">
-            <Play size={12} /> Test now
+            <HugeiconsIcon icon={PlayCircleIcon} size={12} /> Test now
           </button>
           <button onClick={dismissWelcome} className="h-8 w-8 rounded-lg hover:bg-surface flex items-center justify-center text-muted-foreground" aria-label="Dismiss">
-            <X size={14} />
+            <HugeiconsIcon icon={Cancel01Icon} size={14} />
           </button>
         </div>
       )}
@@ -208,7 +203,7 @@ export default function AgentBuilder() {
                 ].map(item => (
                   <div key={item.label} className="flex items-center gap-1.5 text-xs">
                     {item.done
-                      ? <CheckCircle2 size={11} className="text-success shrink-0" />
+                      ? <HugeiconsIcon icon={CheckmarkCircle01Icon} size={11} className="text-success shrink-0" />
                       : <span className="w-3 h-3 rounded-full border-2 border-muted-foreground shrink-0 inline-block" />}
                     <span className={item.done ? "text-foreground" : "text-muted-foreground"}>{item.label}</span>
                   </div>
@@ -219,7 +214,7 @@ export default function AgentBuilder() {
               onClick={() => setBuildMode("ai")}
               className="w-full h-8 rounded-lg border border-border bg-surface text-muted-foreground hover:bg-surface-muted text-xs font-medium flex items-center justify-center gap-1.5 transition-base"
             >
-              <ChevronLeft size={12} /> Collapse sidebar
+              <HugeiconsIcon icon={ChevronLeftIcon} size={12} /> Collapse sidebar
             </button>
           </div>
         </aside>
@@ -398,14 +393,14 @@ function AiBuildSidebar({
       {/* Header */}
       <div className="h-12 px-3 border-b border-border flex items-center gap-2 shrink-0">
         <div className="w-7 h-7 rounded-md bg-gradient-brand flex items-center justify-center">
-          <Sparkles size={13} className="text-primary-foreground" />
+          <HugeiconsIcon icon={SparklesIcon} size={13} className="text-primary-foreground" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold leading-tight">Refine with AI</div>
           <div className="text-xs text-muted-foreground leading-tight">Chat to edit your agent</div>
         </div>
         <button onClick={onClose} className="h-8 w-8 rounded-md hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base">
-          <X size={15} />
+          <HugeiconsIcon icon={Cancel01Icon} size={15} />
         </button>
       </div>
 
@@ -424,17 +419,17 @@ function AiBuildSidebar({
           );
           if (msg.kind === "tool") return (
             <div key={i} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs w-fit border ${msg.done ? "border-success/30 bg-success/10 text-success" : "border-primary/30 bg-primary-soft text-primary"}`}>
-              {msg.done ? <CheckCircle2 size={11} /> : <Sparkles size={11} className="animate-pulse" />}
+              {msg.done ? <HugeiconsIcon icon={CheckmarkCircle01Icon} size={11} /> : <HugeiconsIcon icon={SparklesIcon} size={11} className="animate-pulse" />}
               {msg.name}
             </div>
           );
           if (msg.kind === "diff") return (
             <div key={i} className="rounded-xl border border-primary/30 bg-primary-soft/40 p-2.5">
               {msg.applied ? (
-                <div className="flex items-center gap-1.5 text-xs text-success"><CheckCircle2 size={11} /> Applied to system prompt</div>
+                <div className="flex items-center gap-1.5 text-xs text-success"><HugeiconsIcon icon={CheckmarkCircle01Icon} size={11} /> Applied to system prompt</div>
               ) : (
                 <>
-                  <div className="flex items-center gap-1.5 mb-2"><Sparkles size={11} className="text-primary" /><span className="text-xs font-semibold text-primary">Proposed change · System prompt</span></div>
+                  <div className="flex items-center gap-1.5 mb-2"><HugeiconsIcon icon={SparklesIcon} size={11} className="text-primary" /><span className="text-xs font-semibold text-primary">Proposed change · System prompt</span></div>
                   <div className="font-mono text-xs space-y-1">
                     <div className="bg-destructive/10 text-destructive px-2 py-1 rounded line-through">− {msg.before}</div>
                     <div className="bg-success/10 text-success px-2 py-1 rounded">+ {msg.after}</div>
@@ -449,24 +444,24 @@ function AiBuildSidebar({
           );
           if (msg.kind === "clarify") return (
             <div key={i} className="rounded-xl border border-primary/20 bg-primary-soft/20 p-2.5 space-y-2">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-primary"><MessageSquare size={11} /> Cần thêm thông tin</div>
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-primary"><HugeiconsIcon icon={Chat01Icon} size={11} /> Cần thêm thông tin</div>
               <p className="text-xs text-foreground leading-relaxed">{msg.question}</p>
               {msg.answered ? (
-                <div className="flex items-center gap-1.5 text-xs text-primary"><CheckCircle2 size={11} /> Đã chọn: <strong>{msg.answered}</strong></div>
+                <div className="flex items-center gap-1.5 text-xs text-primary"><HugeiconsIcon icon={CheckmarkCircle01Icon} size={11} /> Đã chọn: <strong>{msg.answered}</strong></div>
               ) : (
                 <div className="space-y-1.5">
                   {msg.options.map((opt, oi) => (
                     <button key={oi} onClick={() => handleAnswer(oi, opt.title, i)}
                       className="w-full flex items-start gap-2 px-2.5 py-2 rounded-lg border border-border bg-surface hover:border-primary/40 hover:bg-primary-soft/30 transition-base text-left">
                       <div className="w-6 h-6 rounded-md bg-surface-muted border border-border flex items-center justify-center shrink-0 mt-0.5">
-                        {oi === 0 ? <Zap size={11} className="text-primary" /> : oi === 1 ? <BookOpen size={11} className="text-primary" /> : <Shield size={11} className="text-primary" />}
+                        {oi === 0 ? <HugeiconsIcon icon={BoltIcon} size={11} className="text-primary" /> : oi === 1 ? <HugeiconsIcon icon={BookOpen01Icon} size={11} className="text-primary" /> : <HugeiconsIcon icon={Shield01Icon} size={11} className="text-primary" />}
                       </div>
                       <div><div className="text-xs font-medium">{opt.title}</div><div className="text-xs text-muted-foreground mt-0.5">{opt.desc}</div></div>
                     </button>
                   ))}
                   {/* Custom input — always visible */}
                   <div className="border border-border rounded-lg bg-surface p-2 space-y-1.5">
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium"><Plus size={11} /> Tự điền câu trả lời</div>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium"><HugeiconsIcon icon={Add01Icon} size={11} /> Tự điền câu trả lời</div>
                     <textarea
                       rows={2}
                       placeholder="Nhập yêu cầu cụ thể của bạn…"
@@ -479,7 +474,7 @@ function AiBuildSidebar({
                       onClick={() => { const v = customAnswers[i]?.trim(); if (v) handleAnswer(-1, v, i); }}
                       className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-primary text-primary-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-base"
                     >
-                      <Send size={10} /> Gửi
+                      <HugeiconsIcon icon={SentIcon} size={10} /> Gửi
                     </button>
                   </div>
                 </div>
@@ -488,7 +483,7 @@ function AiBuildSidebar({
           );
           if (msg.kind === "connector") return (
             <div key={i} className="rounded-xl border border-warning/40 bg-warning-soft/30 p-2.5">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-warning mb-2"><Plug size={11} /> Yêu cầu kết nối tài khoản</div>
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-warning mb-2"><HugeiconsIcon icon={Plug01Icon} size={11} /> Yêu cầu kết nối tài khoản</div>
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-9 h-9 rounded-xl bg-white border border-border flex items-center justify-center shrink-0 shadow-sm">
                   {msg.service === "Gmail" ? (
@@ -514,9 +509,9 @@ function AiBuildSidebar({
                 <div><div className="text-xs font-medium">{msg.service}</div><div className="text-xs text-muted-foreground">Agent cần quyền truy cập để thực hiện tác vụ thay bạn.</div></div>
               </div>
               <div className="text-xs font-medium mb-1.5">Quyền được yêu cầu:</div>
-              {msg.perms.map((p, pi) => <div key={pi} className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><CheckCircle2 size={10} className="text-success" />{p}</div>)}
+              {msg.perms.map((p, pi) => <div key={pi} className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><HugeiconsIcon icon={CheckmarkCircle01Icon} size={10} className="text-success" />{p}</div>)}
               {msg.connected ? (
-                <div className="flex items-center gap-1.5 text-xs text-success mt-2"><CheckCircle2 size={11} /> {msg.service} connected</div>
+                <div className="flex items-center gap-1.5 text-xs text-success mt-2"><HugeiconsIcon icon={CheckmarkCircle01Icon} size={11} /> {msg.service} connected</div>
               ) : (
                 <div className="flex gap-1.5 mt-2">
                   <button onClick={() => handleConnectorConnect(msg.service)} className="h-7 px-2.5 rounded-md bg-primary text-primary-foreground text-xs font-medium flex items-center gap-1">
@@ -555,7 +550,7 @@ function AiBuildSidebar({
               placeholder={`Update ${contextLabel.toLowerCase()}…`}
               className="flex-1 resize-none bg-transparent text-sm placeholder:text-muted-foreground outline-none px-1 py-0.5 max-h-32" />
             <button onClick={() => handleSend()} className="h-7 w-7 rounded-md bg-primary text-primary-foreground hover:bg-primary-glow flex items-center justify-center transition-base shrink-0">
-              <Send size={12} />
+              <HugeiconsIcon icon={SentIcon} size={12} />
             </button>
           </div>
         </div>
@@ -594,7 +589,7 @@ function ModelDropdown({ value, onChange }: { value: string; onChange: (id: stri
         <span className="w-6 h-6 rounded bg-accent-soft flex items-center justify-center text-xs shrink-0">{selected.icon}</span>
         <span className="flex-1 text-sm font-medium">{selected.name}</span>
         {selected.badge && <span className="chip chip-primary text-xs">{selected.badge}</span>}
-        <ChevronDown size={14} className={`text-muted-foreground shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+        <HugeiconsIcon icon={ChevronDownIcon} size={14} className={`text-muted-foreground shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
         <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-surface border border-border rounded-xl shadow-lg overflow-hidden">
@@ -613,7 +608,7 @@ function ModelDropdown({ value, onChange }: { value: string; onChange: (id: stri
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold">{m.name}</span>
                   {m.badge && <span className="chip chip-primary text-xs">{m.badge}</span>}
-                  {m.id === value && <CheckCircle2 size={12} className="text-primary ml-auto" />}
+                  {m.id === value && <HugeiconsIcon icon={CheckmarkCircle01Icon} size={12} className="text-primary ml-auto" />}
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{m.desc}</p>
               </div>
@@ -709,7 +704,7 @@ You are a customer-care specialist at ABC Bank. Help customers 24/7 with product
               {avatar}
             </button>
             <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-md bg-surface border border-border flex items-center justify-center pointer-events-none">
-              <Pencil size={9} className="text-muted-foreground" />
+              <HugeiconsIcon icon={PencilEdit01Icon} size={9} className="text-muted-foreground" />
             </span>
             {editingAvatar && (
               <div className="absolute top-full left-0 mt-2 z-20 bg-surface border border-border rounded-xl shadow-lg p-2.5 grid grid-cols-6 gap-1 w-[180px]">
@@ -723,7 +718,7 @@ You are a customer-care specialist at ABC Bank. Help customers 24/7 with product
                   </button>
                 ))}
                 <label className="col-span-6 mt-1 flex items-center justify-center gap-1.5 text-xs text-primary cursor-pointer hover:underline">
-                  <Upload size={10} /> Upload image
+                  <HugeiconsIcon icon={Upload01Icon} size={10} /> Upload image
                   <input type="file" className="hidden" accept="image/*" />
                 </label>
               </div>
@@ -747,7 +742,7 @@ You are a customer-care specialist at ABC Bank. Help customers 24/7 with product
 
           {/* 3-dot menu */}
           <button className="w-8 h-8 rounded-lg border border-border bg-surface flex items-center justify-center text-muted-foreground hover:bg-surface-muted transition-base shrink-0">
-            <MoreHorizontal size={15} />
+            <HugeiconsIcon icon={MoreHorizontalIcon} size={15} />
           </button>
         </div>
 
@@ -775,11 +770,11 @@ You are a customer-care specialist at ABC Bank. Help customers 24/7 with product
           {/* Action buttons */}
           <button onClick={() => onRefineWithAI?.()}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm text-foreground transition-base">
-            <Sparkles size={13} className="text-primary" /> Refine with AI
+            <HugeiconsIcon icon={SparklesIcon} size={13} className="text-primary" /> Refine with AI
           </button>
           <button onClick={() => onChatToTest?.()}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm text-foreground transition-base">
-            <MessageSquare size={13} className="text-muted-foreground" /> Chat to Test
+            <HugeiconsIcon icon={Chat01Icon} size={13} className="text-muted-foreground" /> Chat to Test
           </button>
         </div>
       </div>
@@ -790,7 +785,7 @@ You are a customer-care specialist at ABC Bank. Help customers 24/7 with product
           <div className="flex items-center justify-between mb-3">
             <span className="section-eyebrow">Instructions</span>
             <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <FileText size={11} /> Markdown supported
+              <HugeiconsIcon icon={FileEditIcon} size={11} /> Markdown supported
             </span>
           </div>
         )}
@@ -845,7 +840,7 @@ function ConfigAccordion({
             </div>
             {desc && <p className="text-xs text-muted-foreground mt-0.5 truncate">{desc}</p>}
           </div>
-          <ChevronDown
+          <HugeiconsIcon icon={ChevronDownIcon}
             size={16}
             className={`text-muted-foreground shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
           />
@@ -854,7 +849,7 @@ function ConfigAccordion({
           onClick={onManage}
           className="text-xs font-medium text-primary hover:bg-primary-soft px-2.5 h-8 rounded-md flex items-center gap-1 transition-base shrink-0"
         >
-          Manage <ArrowRight size={12} />
+          Manage <HugeiconsIcon icon={ArrowRight01Icon} size={12} />
         </button>
       </div>
       {open && (
@@ -900,7 +895,7 @@ function KnowledgeTab() {
   ];
   return (
     <div className="p-8 w-full space-y-6 animate-fade-up">
-      <Section icon={BookOpen} title="Agent knowledge" desc="Sources this agent can retrieve from at run time.">
+      <Section icon={BookOpen01Icon} title="Agent knowledge" desc="Sources this agent can retrieve from at run time.">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-5">
           {[
             { icon: Upload, label: "Upload" },
@@ -920,7 +915,7 @@ function KnowledgeTab() {
 
         <div className="flex items-center justify-between mb-3">
           <div className="relative w-64">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input placeholder="Search sources…" className="ds-input pl-8 h-9" />
           </div>
           <div className="text-xs text-muted-foreground">
@@ -943,7 +938,7 @@ function KnowledgeTab() {
               <div className="text-xs font-mono">{s.chunks}</div>
               <div><span className="chip text-xs">{s.version}</span></div>
               <button className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-base">
-                <Trash2 size={13} />
+                <HugeiconsIcon icon={Delete01Icon} size={13} />
               </button>
             </div>
           ))}
@@ -967,7 +962,7 @@ function TasksList({ agentId }: { agentId: string }) {
           <h2 className="font-display text-xl font-semibold">Tasks</h2>
           <p className="text-xs text-muted-foreground mt-0.5">Each task is a self-contained skill. Click to open the full editor.</p>
         </div>
-        <button className="btn-primary h-9"><Plus size={13} /> New task</button>
+        <button className="btn-primary h-9"><HugeiconsIcon icon={Add01Icon} size={13} /> New task</button>
       </div>
 
       <div className="rounded-xl bg-surface border border-border overflow-hidden">
@@ -988,7 +983,7 @@ function TasksList({ agentId }: { agentId: string }) {
             <div className="text-xs font-mono">{t.steps}</div>
             <div className="text-xs"><span className="chip text-xs">{t.version}</span></div>
             <div className="text-xs text-muted-foreground">{t.updated}</div>
-            <ArrowRight size={13} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-base" />
+            <HugeiconsIcon icon={ArrowRight01Icon} size={13} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-base" />
           </Link>
         ))}
       </div>
@@ -1038,10 +1033,10 @@ function AdvancedTab() {
                 <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-muted">
                   <span className="text-xs font-mono text-muted-foreground w-6">#{i + 1}</span>
                   <input defaultValue={q} className="flex-1 bg-transparent text-sm outline-none" />
-                  <button className="text-muted-foreground hover:text-destructive transition-base"><Trash2 size={12} /></button>
+                  <button className="text-muted-foreground hover:text-destructive transition-base"><HugeiconsIcon icon={Delete01Icon} size={12} /></button>
                 </div>
               ))}
-              <button className="btn-ghost"><Plus size={11} /> Add question</button>
+              <button className="btn-ghost"><HugeiconsIcon icon={Add01Icon} size={11} /> Add question</button>
             </div>
           ) : (
             <div className="text-sm text-muted-foreground py-8 text-center">Settings for this section.</div>
@@ -1064,7 +1059,7 @@ function PerformanceTab() {
               {t}
             </button>
           ))}
-          <button className="ml-1 h-7 px-2 rounded hover:bg-surface-muted text-muted-foreground transition-base"><Download size={13} /></button>
+          <button className="ml-1 h-7 px-2 rounded hover:bg-surface-muted text-muted-foreground transition-base"><HugeiconsIcon icon={Download01Icon} size={13} /></button>
         </div>
       </div>
 
@@ -1112,7 +1107,7 @@ function PlaceholderTab({ title }: { title: string }) {
   return (
     <div className="h-full flex flex-col items-center justify-center text-center p-10 animate-fade-up">
       <div className="w-16 h-16 rounded-2xl bg-primary-soft flex items-center justify-center mb-4">
-        <SlidersHorizontal size={26} className="text-primary" />
+        <HugeiconsIcon icon={SlidersHorizontalIcon} size={26} className="text-primary" />
       </div>
       <h3 className="font-display text-xl font-semibold mb-2 capitalize">{title.replace(/-/g, " ")}</h3>
       <p className="text-sm text-muted-foreground max-w-sm">
@@ -1134,7 +1129,7 @@ function ConfigSection({ icon: Icon, title, badge, children }: {
         <Icon size={15} className="text-muted-foreground shrink-0" />
         <span className="text-sm font-medium flex-1 text-left">{title}</span>
         {badge}
-        {open ? <ChevronUp size={13} className="text-muted-foreground" /> : <ChevronDown size={13} className="text-muted-foreground" />}
+        {open ? <HugeiconsIcon icon={ChevronUpIcon} size={13} className="text-muted-foreground" /> : <HugeiconsIcon icon={ChevronDownIcon} size={13} className="text-muted-foreground" />}
       </button>
       {open && <div className="px-3 pb-3">{children}</div>}
     </div>
@@ -1166,10 +1161,10 @@ function ConnectorItem({ logo, name, connected, color }: { logo: string; name: s
           className="h-6 w-6 rounded-md flex items-center justify-center text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base"
           title="View permissions"
         >
-          <ChevronDown size={13} className={`transition-transform ${expanded ? "rotate-180" : ""}`} />
+          <HugeiconsIcon icon={ChevronDownIcon} size={13} className={`transition-transform ${expanded ? "rotate-180" : ""}`} />
         </button>
         <button className="h-6 w-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive transition-base">
-          <Trash size={12} />
+          <HugeiconsIcon icon={Delete01Icon} size={12} />
         </button>
       </div>
       {expanded && (
@@ -1182,13 +1177,13 @@ function ConnectorItem({ logo, name, connected, color }: { logo: string; name: s
                   onClick={() => toggle(p)}
                   className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-base ${(perms[p] ?? "auto") === "auto" ? "bg-success/15 text-success" : "text-muted-foreground hover:bg-surface-muted"}`}
                 >
-                  <Zap size={10} /> Auto
+                  <HugeiconsIcon icon={BoltIcon} size={10} /> Auto
                 </button>
                 <button
                   onClick={() => toggle(p)}
                   className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-base ${(perms[p] ?? "auto") === "ask" ? "bg-surface-muted text-foreground" : "text-muted-foreground hover:bg-surface-muted"}`}
                 >
-                  <Hand size={10} /> Ask
+                  <HugeiconsIcon icon={Touchpad01Icon} size={10} /> Ask
                 </button>
               </div>
             </div>
@@ -1205,7 +1200,7 @@ function RightConfigPanel({ embedded, model, onModelChange }: { embedded?: boole
       {/* Model */}
       <div className="rounded-xl border border-border bg-surface overflow-hidden">
         <div className="flex items-center gap-2.5 px-3 py-2.5">
-          <Cog size={15} className="text-muted-foreground shrink-0" />
+          <HugeiconsIcon icon={CogIcon} size={15} className="text-muted-foreground shrink-0" />
           <span className="text-sm font-medium flex-1">Model</span>
         </div>
         <div className="px-3 pb-3">
@@ -1213,45 +1208,45 @@ function RightConfigPanel({ embedded, model, onModelChange }: { embedded?: boole
         </div>
       </div>
       {/* Knowledge */}
-      <ConfigSection icon={BookOpen} title="Knowledge" badge={<span className="text-xs text-warning font-medium mr-1">Not set</span>}>
+      <ConfigSection icon={BookOpen01Icon} title="Knowledge" badge={<span className="text-xs text-warning font-medium mr-1">Not set</span>}>
         <p className="text-xs text-muted-foreground mb-2 leading-relaxed">Documents and sources your agent can look things up in.</p>
-        <button className="flex items-center gap-1 text-xs text-primary hover:underline"><Plus size={12} /> Add</button>
+        <button className="flex items-center gap-1 text-xs text-primary hover:underline"><HugeiconsIcon icon={Add01Icon} size={12} /> Add</button>
       </ConfigSection>
       {/* Skills */}
-      <ConfigSection icon={Puzzle} title="Skills" badge={<span className="text-xs text-warning font-medium mr-1">Not set</span>}>
+      <ConfigSection icon={PuzzleIcon} title="Skills" badge={<span className="text-xs text-warning font-medium mr-1">Not set</span>}>
         <p className="text-xs text-muted-foreground mb-2 leading-relaxed">Reusable abilities you've taught it.</p>
-        <button className="flex items-center gap-1 text-xs text-primary hover:underline"><Plus size={12} /> Add</button>
+        <button className="flex items-center gap-1 text-xs text-primary hover:underline"><HugeiconsIcon icon={Add01Icon} size={12} /> Add</button>
       </ConfigSection>
       {/* Shared Connectors */}
-      <ConfigSection icon={UserCheck} title="Shared Connectors">
+      <ConfigSection icon={UserCheck01Icon} title="Shared Connectors">
         <p className="text-xs text-muted-foreground mb-2 leading-relaxed">Agent always uses the same account, no matter who's asking.</p>
         <ConnectorItem logo="G" name="Google Docs" connected color="bg-primary-soft text-primary" />
-        <button className="flex items-center gap-1 text-xs text-primary hover:underline mt-1"><Plus size={12} /> Add connection</button>
+        <button className="flex items-center gap-1 text-xs text-primary hover:underline mt-1"><HugeiconsIcon icon={Add01Icon} size={12} /> Add connection</button>
       </ConfigSection>
       {/* Per-user Connectors */}
-      <ConfigSection icon={UsersIcon} title="Per-user Connectors">
+      <ConfigSection icon={UserGroupIcon} title="Per-user Connectors">
         <p className="text-xs text-muted-foreground mb-2 leading-relaxed">Each person connects and uses their own account.</p>
         <ConnectorItem logo="G" name="Gmail" color="bg-destructive/10 text-destructive" />
-        <button className="flex items-center gap-1 text-xs text-primary hover:underline mt-1"><Plus size={12} /> Add connection</button>
+        <button className="flex items-center gap-1 text-xs text-primary hover:underline mt-1"><HugeiconsIcon icon={Add01Icon} size={12} /> Add connection</button>
       </ConfigSection>
       {/* Guardrails */}
       <GuardrailsConfigSection />
       {/* Schedules */}
-      <ConfigSection icon={Clock} title="Schedules" badge={<span className="text-xs text-warning font-medium mr-1">Not set</span>}>
+      <ConfigSection icon={Clock01Icon} title="Schedules" badge={<span className="text-xs text-warning font-medium mr-1">Not set</span>}>
         <p className="text-xs text-muted-foreground mb-2 leading-relaxed">Run this agent automatically — like a daily summary.</p>
-        <button className="flex items-center gap-1 text-xs text-primary hover:underline"><Plus size={12} /> Add</button>
+        <button className="flex items-center gap-1 text-xs text-primary hover:underline"><HugeiconsIcon icon={Add01Icon} size={12} /> Add</button>
       </ConfigSection>
       {/* Sub-Agents */}
-      <ConfigSection icon={Bot} title="Sub-Agents" badge={<span className="text-xs text-muted-foreground mr-1">1 subagent</span>}>
+      <ConfigSection icon={Robot01Icon} title="Sub-Agents" badge={<span className="text-xs text-muted-foreground mr-1">1 subagent</span>}>
         <div className="flex items-center gap-2 py-1 mb-1">
-          <div className="w-6 h-6 rounded-lg bg-surface-muted border border-border flex items-center justify-center shrink-0"><Bot size={12} className="text-muted-foreground" /></div>
+          <div className="w-6 h-6 rounded-lg bg-surface-muted border border-border flex items-center justify-center shrink-0"><HugeiconsIcon icon={Robot01Icon} size={12} className="text-muted-foreground" /></div>
           <div className="flex-1 min-w-0">
             <p className="text-xs font-medium truncate">candidate-email-sender</p>
             <p className="text-xs text-muted-foreground truncate">Use when sending recruiting emails…</p>
           </div>
-          <button className="text-muted-foreground hover:text-destructive transition-base"><Trash size={12} /></button>
+          <button className="text-muted-foreground hover:text-destructive transition-base"><HugeiconsIcon icon={Delete01Icon} size={12} /></button>
         </div>
-        <button className="flex items-center gap-1 text-xs text-primary hover:underline"><Plus size={12} /> Add</button>
+        <button className="flex items-center gap-1 text-xs text-primary hover:underline"><HugeiconsIcon icon={Add01Icon} size={12} /> Add</button>
       </ConfigSection>
     </div>
   );
@@ -1278,14 +1273,14 @@ function RightCard({ icon: Icon, title, notSet, desc, addLabel }: {
         {notSet && (
           <span className="text-xs px-1.5 py-0.5 rounded-full bg-warning-soft text-warning font-semibold">Not set</span>
         )}
-        {open ? <ChevronUp size={13} className="text-muted-foreground" /> : <ChevronDown size={13} className="text-muted-foreground" />}
+        {open ? <HugeiconsIcon icon={ChevronUpIcon} size={13} className="text-muted-foreground" /> : <HugeiconsIcon icon={ChevronDownIcon} size={13} className="text-muted-foreground" />}
       </button>
       {open && (
         <div className="border-t border-border px-3 pb-2">
           {desc && <p className="text-xs text-muted-foreground mt-2 mb-1 leading-relaxed">{desc}</p>}
           {addLabel && (
             <button className="flex items-center gap-1 text-xs text-primary mt-1 hover:underline">
-              <Plus size={12} /> {addLabel}
+              <HugeiconsIcon icon={Add01Icon} size={12} /> {addLabel}
             </button>
           )}
         </div>
@@ -1299,9 +1294,9 @@ function SharedConnectorsCard() {
   return (
     <div className="rounded-xl border border-border bg-surface overflow-hidden">
       <button onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-surface-muted transition-base">
-        <UserCheck size={15} className="text-muted-foreground shrink-0" />
+        <HugeiconsIcon icon={UserCheck01Icon} size={15} className="text-muted-foreground shrink-0" />
         <span className="text-sm font-medium flex-1 text-left">Shared Connectors</span>
-        {open ? <ChevronUp size={13} className="text-muted-foreground" /> : <ChevronDown size={13} className="text-muted-foreground" />}
+        {open ? <HugeiconsIcon icon={ChevronUpIcon} size={13} className="text-muted-foreground" /> : <HugeiconsIcon icon={ChevronDownIcon} size={13} className="text-muted-foreground" />}
       </button>
       {open && (
         <div className="border-t border-border px-3 pb-2">
@@ -1312,10 +1307,10 @@ function SharedConnectorsCard() {
             <span className="flex items-center gap-1 text-xs text-success font-medium">
               <span className="w-1.5 h-1.5 rounded-full bg-success" /> Connected
             </span>
-            <button className="text-muted-foreground hover:text-destructive transition-base"><Trash size={12} /></button>
+            <button className="text-muted-foreground hover:text-destructive transition-base"><HugeiconsIcon icon={Delete01Icon} size={12} /></button>
           </div>
           <button className="flex items-center gap-1 text-xs text-primary mt-1 hover:underline">
-            <Plus size={12} /> Add connection
+            <HugeiconsIcon icon={Add01Icon} size={12} /> Add connection
           </button>
         </div>
       )}
@@ -1328,9 +1323,9 @@ function PerUserConnectorsCard() {
   return (
     <div className="rounded-xl border border-border bg-surface overflow-hidden">
       <button onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-surface-muted transition-base">
-        <UsersIcon size={15} className="text-muted-foreground shrink-0" />
+        <HugeiconsIcon icon={UserGroupIcon} size={15} className="text-muted-foreground shrink-0" />
         <span className="text-sm font-medium flex-1 text-left">Per-user Connectors</span>
-        {open ? <ChevronUp size={13} className="text-muted-foreground" /> : <ChevronDown size={13} className="text-muted-foreground" />}
+        {open ? <HugeiconsIcon icon={ChevronUpIcon} size={13} className="text-muted-foreground" /> : <HugeiconsIcon icon={ChevronDownIcon} size={13} className="text-muted-foreground" />}
       </button>
       {open && (
         <div className="border-t border-border px-3 pb-2">
@@ -1338,10 +1333,10 @@ function PerUserConnectorsCard() {
           <div className="flex items-center gap-2 py-1.5">
             <div className="w-5 h-5 rounded bg-destructive/10 flex items-center justify-center text-xs font-bold text-destructive shrink-0">G</div>
             <span className="text-xs flex-1">Gmail</span>
-            <button className="text-muted-foreground hover:text-destructive transition-base"><Trash size={12} /></button>
+            <button className="text-muted-foreground hover:text-destructive transition-base"><HugeiconsIcon icon={Delete01Icon} size={12} /></button>
           </div>
           <button className="flex items-center gap-1 text-xs text-primary mt-1 hover:underline">
-            <Plus size={12} /> Add connection
+            <HugeiconsIcon icon={Add01Icon} size={12} /> Add connection
           </button>
         </div>
       )}
@@ -1354,16 +1349,16 @@ function SchedulesCard() {
   return (
     <div className="rounded-xl border border-border bg-surface overflow-hidden">
       <button onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-surface-muted transition-base">
-        <Clock size={15} className="text-muted-foreground shrink-0" />
+        <HugeiconsIcon icon={Clock01Icon} size={15} className="text-muted-foreground shrink-0" />
         <span className="text-sm font-medium flex-1 text-left">Schedules</span>
         <span className="text-xs px-1.5 py-0.5 rounded-full bg-warning-soft text-warning font-semibold">Not set</span>
-        {open ? <ChevronUp size={13} className="text-muted-foreground" /> : <ChevronDown size={13} className="text-muted-foreground" />}
+        {open ? <HugeiconsIcon icon={ChevronUpIcon} size={13} className="text-muted-foreground" /> : <HugeiconsIcon icon={ChevronDownIcon} size={13} className="text-muted-foreground" />}
       </button>
       {open && (
         <div className="border-t border-border px-3 pb-2">
           <p className="text-xs text-muted-foreground mt-2 mb-1 leading-relaxed">No schedules yet. Add one to run this agent automatically — like a daily summary.</p>
           <button className="flex items-center gap-1 text-xs text-primary mt-1 hover:underline">
-            <Plus size={12} /> Add
+            <HugeiconsIcon icon={Add01Icon} size={12} /> Add
           </button>
         </div>
       )}
@@ -1376,25 +1371,25 @@ function SubAgentsCard() {
   return (
     <div className="rounded-xl border border-border bg-surface overflow-hidden">
       <button onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-surface-muted transition-base">
-        <Bot size={15} className="text-muted-foreground shrink-0" />
+        <HugeiconsIcon icon={Robot01Icon} size={15} className="text-muted-foreground shrink-0" />
         <span className="text-sm font-medium flex-1 text-left">Sub-Agents</span>
         <span className="text-xs text-muted-foreground">1 subagent</span>
-        {open ? <ChevronUp size={13} className="text-muted-foreground" /> : <ChevronDown size={13} className="text-muted-foreground" />}
+        {open ? <HugeiconsIcon icon={ChevronUpIcon} size={13} className="text-muted-foreground" /> : <HugeiconsIcon icon={ChevronDownIcon} size={13} className="text-muted-foreground" />}
       </button>
       {open && (
         <div className="border-t border-border px-3 pb-2">
           <div className="flex items-center gap-2 py-1.5">
             <div className="w-6 h-6 rounded-lg bg-surface-muted flex items-center justify-center shrink-0">
-              <Bot size={12} className="text-muted-foreground" />
+              <HugeiconsIcon icon={Robot01Icon} size={12} className="text-muted-foreground" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium truncate">candidate-email-sender</p>
               <p className="text-xs text-muted-foreground truncate">Use when sending recruiting emails to …</p>
             </div>
-            <button className="text-muted-foreground hover:text-destructive transition-base"><Trash size={12} /></button>
+            <button className="text-muted-foreground hover:text-destructive transition-base"><HugeiconsIcon icon={Delete01Icon} size={12} /></button>
           </div>
           <button className="flex items-center gap-1 text-xs text-primary mt-1 hover:underline">
-            <Plus size={12} /> Add
+            <HugeiconsIcon icon={Add01Icon} size={12} /> Add
           </button>
         </div>
       )}
@@ -1406,7 +1401,7 @@ function SubAgentsCard() {
 function GuardrailsConfigSection() {
   return (
     <ConfigSection
-      icon={Shield}
+      icon={Shield01Icon}
       title="Guardrails"
     >
       <GuardrailsInner />
@@ -1432,7 +1427,7 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
     {
       id: "skills", icon: Puzzle, label: "Skills", content: (
         <div className="flex flex-col items-center py-3 gap-1.5 text-center">
-          <Puzzle size={20} className="text-muted-foreground/50" />
+          <HugeiconsIcon icon={PuzzleIcon} size={20} className="text-muted-foreground/50" />
           <p className="text-xs text-muted-foreground">Reusable abilities you've taught it.</p>
         </div>
       ),
@@ -1454,7 +1449,7 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
       {/* Model row */}
       <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border">
         <div className="w-8 h-8 rounded-lg bg-primary-soft flex items-center justify-center shrink-0">
-          <Cpu size={15} className="text-primary" />
+          <HugeiconsIcon icon={CpuIcon} size={15} className="text-primary" />
         </div>
         <span className="text-sm font-medium flex-1">Model</span>
         <ModelDropdown value={model} onChange={onModelChange} />
@@ -1474,7 +1469,7 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
                 className="group w-8 h-8 rounded-lg bg-primary-soft flex items-center justify-center shrink-0 text-primary transition-base relative"
               >
                 <s.icon size={15} className="group-hover:opacity-0 transition-opacity" />
-                <ChevronUp size={14} className="absolute opacity-0 group-hover:opacity-100 transition-opacity" />
+                <HugeiconsIcon icon={ChevronUpIcon} size={14} className="absolute opacity-0 group-hover:opacity-100 transition-opacity" />
               </button>
               <span className="text-sm font-medium flex-1 text-left">{s.label}</span>
               {s.comingSoon
@@ -1488,7 +1483,7 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
                       s.onAdd({ top: r.bottom + 4, left: r.right });
                     }
                   }}
-                ><Plus size={15} /></button>}
+                ><HugeiconsIcon icon={Add01Icon} size={15} /></button>}
             </div>
             {isOpen && (
               <div className="px-4 pb-3">
@@ -1530,7 +1525,7 @@ function PreviewPanel({ view, onViewChange }: { view: "config" | "chat"; onViewC
             view === "config" ? "bg-surface-muted text-foreground" : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <SlidersHorizontal size={12} /> Configuration
+          <HugeiconsIcon icon={SlidersHorizontalIcon} size={12} /> Configuration
         </button>
         <button
           onClick={() => setView("chat")}
@@ -1538,7 +1533,7 @@ function PreviewPanel({ view, onViewChange }: { view: "config" | "chat"; onViewC
             view === "chat" ? "bg-surface-muted text-foreground" : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <Play size={12} /> Test run
+          <HugeiconsIcon icon={PlayCircleIcon} size={12} /> Test run
         </button>
       </div>
 
@@ -1562,7 +1557,7 @@ function PreviewPanel({ view, onViewChange }: { view: "config" | "chat"; onViewC
               onClick={() => setMessages([{ role: "agent", text: "Xin chào! Tôi là Banking ABC Customer Care. Tôi có thể giúp gì cho bạn?" }])}
               className="ml-auto text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-base"
             >
-              <History size={11} /> Reset
+              <HugeiconsIcon icon={HistoryIcon} size={11} /> Reset
             </button>
           </div>
 
@@ -1613,7 +1608,7 @@ function PreviewPanel({ view, onViewChange }: { view: "config" | "chat"; onViewC
                 onClick={send}
                 className="w-7 h-7 rounded-lg bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary-glow transition-base shrink-0"
               >
-                <Send size={13} />
+                <HugeiconsIcon icon={SentIcon} size={13} />
               </button>
             </div>
           </div>
@@ -1666,7 +1661,7 @@ function ProcessItem({ num, name, type, typeColor, highlighted }: any) {
       <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold font-display flex items-center justify-center shrink-0">{num}</div>
       <span className="text-sm font-medium flex-1">{name}</span>
       <span className={`text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded ${typeColor}`}>{type}</span>
-      <ChevronDown size={14} className="text-muted-foreground" />
+      <HugeiconsIcon icon={ChevronDownIcon} size={14} className="text-muted-foreground" />
     </div>
   );
 }
@@ -1764,14 +1759,14 @@ function PublishModal({ onClose, onChatTest }: { onClose: () => void; onChatTest
             <p className="text-sm text-muted-foreground mt-0.5">Creates {versionName} — choose where to deploy.</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base mt-0.5">
-            <X size={15} />
+            <HugeiconsIcon icon={Cancel01Icon} size={15} />
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
           {/* Warning */}
           <div className="flex items-start gap-2.5 p-3.5 rounded-xl border border-amber-200 bg-amber-50">
-            <AlertTriangle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+            <HugeiconsIcon icon={Alert01Icon} size={15} className="text-amber-600 shrink-0 mt-0.5" />
             <p className="text-sm text-amber-800">
               Try it before publishing — Model, Skills, Guardrails changed.{" "}
               <button onClick={onChatTest} className="font-semibold underline underline-offset-2 hover:text-amber-900 transition-base">
@@ -1797,7 +1792,7 @@ function PublishModal({ onClose, onChatTest }: { onClose: () => void; onChatTest
                     <span className="text-sm text-foreground truncate">{row.value}</span>
                     {row.sub && <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-muted text-muted-foreground shrink-0">{row.sub}</span>}
                   </span>
-                  <CheckCircle2 size={13} className="text-success shrink-0" />
+                  <HugeiconsIcon icon={CheckmarkCircle01Icon} size={13} className="text-success shrink-0" />
                 </div>
               ))}
             </div>
@@ -1833,7 +1828,7 @@ function PublishModal({ onClose, onChatTest }: { onClose: () => void; onChatTest
                       : "border-border bg-surface text-foreground hover:bg-surface-muted"
                   }`}
                 >
-                  {versionType === opt.key && <CheckCircle2 size={13} />}
+                  {versionType === opt.key && <HugeiconsIcon icon={CheckmarkCircle01Icon} size={13} />}
                   {opt.label}
                 </button>
               ))}
@@ -1872,8 +1867,8 @@ function PublishModal({ onClose, onChatTest }: { onClose: () => void; onChatTest
                 <p className="text-xs text-muted-foreground">Deploy this version to specific channels</p>
               </div>
               {deployEnabled
-                ? <ChevronUp size={14} className="text-muted-foreground shrink-0" />
-                : <ChevronDown size={14} className="text-muted-foreground shrink-0" />}
+                ? <HugeiconsIcon icon={ChevronUpIcon} size={14} className="text-muted-foreground shrink-0" />
+                : <HugeiconsIcon icon={ChevronDownIcon} size={14} className="text-muted-foreground shrink-0" />}
             </button>
 
             {deployEnabled && (
@@ -1905,7 +1900,7 @@ function PublishModal({ onClose, onChatTest }: { onClose: () => void; onChatTest
               className="h-9 px-5 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 transition-base disabled:opacity-40 disabled:cursor-not-allowed"
               onClick={onClose}
             >
-              <Rocket size={13} /> Publish
+              <HugeiconsIcon icon={Rocket01Icon} size={13} /> Publish
             </button>
           </div>
         </div>
@@ -1957,7 +1952,7 @@ function GuardrailDetailModal({ item, editable, onClose, onSave }: {
             <h2 className="text-base font-semibold">{editable ? "Edit guardrail" : item.name}</h2>
             <p className="text-xs text-muted-foreground mt-0.5">{editable ? "Update the rule and response behaviour." : "Workspace guardrail — read only"}</p>
           </div>
-          <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground ml-4 shrink-0"><X size={14} /></button>
+          <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground ml-4 shrink-0"><HugeiconsIcon icon={Cancel01Icon} size={14} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 pb-4 space-y-5">
@@ -2044,7 +2039,7 @@ function GuardrailCreateModal({ onClose, onSave }: { onClose: () => void; onSave
             <h2 className="text-base font-semibold">Create Guardrail</h2>
             <p className="text-xs text-muted-foreground mt-0.5">Define the rule and choose how the agent responds.</p>
           </div>
-          <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground ml-4 shrink-0"><X size={14} /></button>
+          <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground ml-4 shrink-0"><HugeiconsIcon icon={Cancel01Icon} size={14} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 pb-4 space-y-5">
@@ -2175,7 +2170,7 @@ function GuardrailEditSheet({ guardrail, onClose, onSave }: { guardrail: Guardra
             <h2 className="text-base font-semibold">Edit Guardrail</h2>
             <p className="text-xs text-muted-foreground mt-0.5">Update the rule and response behaviour.</p>
           </div>
-          <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground ml-4 shrink-0"><X size={14} /></button>
+          <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground ml-4 shrink-0"><HugeiconsIcon icon={Cancel01Icon} size={14} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
@@ -2295,7 +2290,7 @@ function GuardrailsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:num
         className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-surface-muted transition-base shrink-0"
         title="Remove"
       >
-        <Trash size={12} />
+        <HugeiconsIcon icon={Delete01Icon} size={12} />
       </button>
     </div>
   );
@@ -2356,7 +2351,7 @@ function GuardrailsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:num
           <div className="relative w-full max-w-[640px] bg-white rounded-2xl shadow-2xl flex flex-col max-h-[80vh]" style={{animation:"fadeScaleIn 0.18s ease"}}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
               <h2 className="font-semibold text-base">Add from workspace</h2>
-              <button onClick={() => setOpenWsSheet(false)} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground"><X size={15} /></button>
+              <button onClick={() => setOpenWsSheet(false)} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground"><HugeiconsIcon icon={Cancel01Icon} size={15} /></button>
             </div>
             <div className="flex-1 overflow-y-auto">
               {wsAvailable.length === 0 ? (
