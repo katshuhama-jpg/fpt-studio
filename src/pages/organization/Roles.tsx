@@ -34,14 +34,15 @@ const SEED_ROLES: RoleDef[] = [
 ];
 
 /* ─── Toggle switch ────────────────────────────────────────────────────── */
-function Toggle({ enabled, onChange }: { enabled: boolean; onChange: () => void }) {
+function Toggle({ enabled, onChange, disabled }: { enabled: boolean; onChange: () => void; disabled?: boolean }) {
   return (
     <button
       type="button"
       onClick={onChange}
+      disabled={disabled}
       className={`shrink-0 relative inline-flex h-5 w-9 items-center rounded-full border transition-colors duration-200 focus:outline-none ${
         enabled ? "bg-primary border-primary" : "bg-surface-muted border-border"
-      }`}
+      } ${disabled ? "opacity-50 pointer-events-none" : ""}`}
       role="switch"
       aria-checked={enabled}
     >
@@ -50,6 +51,20 @@ function Toggle({ enabled, onChange }: { enabled: boolean; onChange: () => void 
       }`} />
     </button>
   );
+}
+
+/* Permission ids currently granted "for free" because some enabled permission implies them,
+   mapped to the name of the permission that implies each one. */
+function impliedOnMap(enabled: Set<string>): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const g of featureGroups) {
+    for (const p of g.permissions) {
+      if (enabled.has(p.id) && p.implies) {
+        p.implies.forEach(id => map.set(id, p.name));
+      }
+    }
+  }
+  return map;
 }
 
 /* ─── Create / edit role modal ─────────────────────────────────────────── */
