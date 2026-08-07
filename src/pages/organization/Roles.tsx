@@ -191,7 +191,7 @@ function RoleModal({
 
         {/* Footer */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-border shrink-0">
-          <span className="text-xs text-muted-foreground">{enabled.size} of {ALL_PERMISSION_IDS.length} permissions enabled</span>
+          <span className="text-xs text-muted-foreground">{effective.size} of {ALL_PERMISSION_IDS.length} permissions enabled</span>
           <div className="flex items-center gap-2">
             <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">
               Cancel
