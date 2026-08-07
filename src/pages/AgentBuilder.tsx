@@ -120,7 +120,7 @@ export default function AgentBuilder() {
             <Save size={13} /> Save version
           </button>
           <button className="btn-primary h-9">
-            <Save size={13} /> Save & Publish
+            <Rocket size={13} /> Publish
           </button>
           <button className="h-9 w-9 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base">
             <MoreHorizontal size={16} />
