@@ -207,7 +207,7 @@ function RoleModal({
         </div>
       </div>
 
-      <style>{`@keyframes slideInRight{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
+      <style>{`@keyframes fadeScaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}`}</style>
     </div>,
     document.body
   );
