@@ -110,10 +110,10 @@ function RoleModal({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex justify-end" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0 }}>
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0 }}>
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
-      <div className="relative w-full max-w-[480px] bg-background flex flex-col shadow-2xl h-full" style={{ animation: "slideInRight 0.22s ease" }}>
+      <div className="relative w-[92vw] sm:w-1/2 min-w-[50vw] max-w-[1100px] bg-white rounded-2xl flex flex-col shadow-2xl max-h-[90vh]" style={{ animation: "fadeScaleIn 0.18s ease" }}>
         {/* Header */}
         <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-border shrink-0">
           <div>
