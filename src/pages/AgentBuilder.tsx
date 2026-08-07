@@ -1,7 +1,7 @@
 import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { createPortal } from "react-dom";
 import {
-  ChevronLeft, ChevronRight, Play, Rocket, MoreHorizontal, AlertTriangle, X, BookOpen, Wrench, ListChecks, Workflow, PenLine, FlaskConical, BarChart2, Cpu, Eye,
+  ChevronLeft, ChevronRight, Play, Rocket, MoreHorizontal, AlertTriangle, X, BookOpen, Wrench, ListChecks, Workflow, PenLine, FlaskConical, BarChart2, Cpu, Eye, Save, CheckCircle2,
   Zap, Cog, MessageSquareText, FileQuestion, Sparkles,
   Search, Upload, Globe, Database, Plus, Layers, CheckCircle2, Send,
   ArrowRight, Shield, ChevronDown, FileText, Trash2, MessageSquare, Activity,
@@ -116,8 +116,11 @@ export default function AgentBuilder() {
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-success/10 border border-success/20 text-success text-xs font-medium shrink-0">
             <span className="w-1.5 h-1.5 rounded-full bg-success" /> Live · v1.0.1
           </div>
-          <button onClick={() => setShowPublish(true)} className="btn-primary h-9">
-            <Rocket size={13} /> Publish
+          <button onClick={() => setShowPublish(true)} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base">
+            <Save size={13} /> Save version
+          </button>
+          <button className="btn-primary h-9">
+            <Save size={13} /> Save & Publish
           </button>
           <button className="h-9 w-9 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base">
             <MoreHorizontal size={16} />
@@ -1710,48 +1713,61 @@ function PublishModal({ onClose, onChatTest }: { onClose: () => void; onChatTest
         {/* Header */}
         <div className="flex items-start justify-between px-6 py-5 border-b border-border">
           <div>
-            <h2 className="font-display text-lg font-semibold">Publish agent</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">This will make the agent live for end users.</p>
+            <h2 className="font-display text-lg font-semibold">Save version</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">Creates {versionName} and replaces the live version.</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base mt-0.5">
             <X size={15} />
           </button>
         </div>
 
-        <div className="px-6 py-5 space-y-5">
-          {/* Version */}
-          <div className="flex items-center gap-3 p-3.5 rounded-xl border border-border bg-surface-muted">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
-              <Rocket size={14} />
-            </div>
-            <div>
-              <div className="text-sm font-semibold">Version {versionName}</div>
-              <div className="text-xs text-muted-foreground">Auto-generated version name for this release.</div>
-            </div>
-          </div>
-
+        <div className="px-6 py-5 space-y-4">
           {/* Warning */}
           <div className="flex items-start gap-2.5 p-3.5 rounded-xl border border-amber-200 bg-amber-50">
             <AlertTriangle size={15} className="text-amber-600 shrink-0 mt-0.5" />
             <p className="text-sm text-amber-800">
-              Make sure you've tested your agent before publishing.{" "}
+              Try it before publishing — Model, Skills, Guardrails changed.{" "}
               <button onClick={onChatTest} className="font-semibold underline underline-offset-2 hover:text-amber-900 transition-base">
-                Chat test
+                Chat once
               </button>{" "}
-              it now to verify responses are accurate.
+              to check the agent answers well.
             </p>
           </div>
 
-          {/* Reason */}
+          {/* What will be published */}
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">What will be published</p>
+            <div className="rounded-xl border border-border overflow-hidden">
+              {[
+                { icon: Cpu,    label: "Model",      value: "DeepSeek V4 Flash", sub: "deepseek-v4-flash" },
+                { icon: Puzzle, label: "Skills",     value: "meo",               sub: "v1.0.0", pill: true },
+                { icon: Shield, label: "Guardrails", value: "2",                 sub: null },
+              ].map((row, i) => (
+                <div key={i} className={`flex items-center gap-3 px-4 py-3 ${i > 0 ? "border-t border-border" : ""}`}>
+                  <row.icon size={14} className="text-muted-foreground shrink-0" />
+                  <span className="text-sm font-medium w-24 shrink-0">{row.label}</span>
+                  <span className="flex-1 flex items-center gap-2 min-w-0">
+                    <span className="text-sm text-foreground truncate">{row.value}</span>
+                    {row.sub && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-muted text-muted-foreground shrink-0">{row.sub}</span>
+                    )}
+                  </span>
+                  <CheckCircle2 size={14} className="text-success shrink-0" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Version note */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-sm font-medium">Reason / note for reviewer <span className="text-destructive">*</span></label>
+              <label className="text-sm font-medium">Version note <span className="text-destructive">*</span></label>
               <span className="text-xs text-muted-foreground">{reason.length}/500</span>
             </div>
             <textarea
-              rows={4}
+              rows={3}
               maxLength={500}
-              placeholder="Why does this Agent need to be published to the selected units?"
+              placeholder="Describe what changed in this version…"
               className="w-full px-3 py-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none"
               value={reason}
               onChange={e => setReason(e.target.value)}
