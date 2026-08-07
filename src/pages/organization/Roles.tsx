@@ -3,32 +3,7 @@ import { createPortal } from "react-dom";
 import { Plus, X, Trash2, ChevronRight } from "lucide-react";
 import { Card, PageHeader } from "./shared";
 import { featureGroups, ALL_PERMISSION_IDS, FeatureGroup } from "./permissionsData";
-
-/* ─── Default roles — ready to use, no setup required ────────────────── */
-type RoleDef = {
-  id: string;
-  name: string;
-  isDefault: boolean;
-  permissionIds: Set<string>;
-};
-
-const ADMIN_IDS = new Set(ALL_PERMISSION_IDS);
-const BUILDER_IDS = new Set([
-  "agents.publish", "agents.manage",
-  "knowledge.publish", "knowledge.manage",
-  "skills.publish", "skills.manage",
-  "connectors.publish", "connectors.manage",
-  "organization.view",
-]);
-const VIEWER_IDS = new Set([
-  "organization.view",
-]);
-
-const SEED_ROLES: RoleDef[] = [
-  { id: "admin", name: "Admin", isDefault: true, permissionIds: ADMIN_IDS },
-  { id: "builder", name: "Builder", isDefault: true, permissionIds: BUILDER_IDS },
-  { id: "viewer", name: "Viewer", isDefault: true, permissionIds: VIEWER_IDS },
-];
+import { useRoles } from "./rolesStore";
 
 /* ─── Toggle switch ────────────────────────────────────────────────────── */
 function Toggle({ enabled, onChange, disabled }: { enabled: boolean; onChange: () => void; disabled?: boolean }) {
