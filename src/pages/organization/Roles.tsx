@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { Plus, X, Crown, Users, UserCog, Trash2 } from "lucide-react";
+import { Plus, X, Trash2, ChevronRight } from "lucide-react";
 import { Card, PageHeader } from "./shared";
 import { featureGroups, ALL_PERMISSION_IDS, FeatureGroup } from "./permissionsData";
 
@@ -8,9 +8,6 @@ import { featureGroups, ALL_PERMISSION_IDS, FeatureGroup } from "./permissionsDa
 type RoleDef = {
   id: string;
   name: string;
-  icon: any;
-  color: string;
-  bg: string;
   isDefault: boolean;
   permissionIds: Set<string>;
 };
@@ -28,9 +25,9 @@ const VIEWER_IDS = new Set([
 ]);
 
 const SEED_ROLES: RoleDef[] = [
-  { id: "admin", name: "Admin", icon: Crown, color: "text-warning", bg: "bg-warning-soft", isDefault: true, permissionIds: ADMIN_IDS },
-  { id: "builder", name: "Builder", icon: Users, color: "text-primary", bg: "bg-primary-soft", isDefault: true, permissionIds: BUILDER_IDS },
-  { id: "viewer", name: "Viewer", icon: Users, color: "text-muted-foreground", bg: "bg-surface-muted", isDefault: true, permissionIds: VIEWER_IDS },
+  { id: "admin", name: "Admin", isDefault: true, permissionIds: ADMIN_IDS },
+  { id: "builder", name: "Builder", isDefault: true, permissionIds: BUILDER_IDS },
+  { id: "viewer", name: "Viewer", isDefault: true, permissionIds: VIEWER_IDS },
 ];
 
 /* ─── Toggle switch ────────────────────────────────────────────────────── */
