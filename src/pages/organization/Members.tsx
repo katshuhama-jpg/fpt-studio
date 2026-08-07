@@ -134,38 +134,61 @@ function AddUserToRoleModal({
                   </button>
                 </div>
               ) : (
-                <input
-                  autoFocus
-                  value={query}
-                  onChange={e => { setQuery(e.target.value); setShowList(true); }}
-                  onFocus={() => setShowList(true)}
-                  onBlur={() => setTimeout(() => setShowList(false), 150)}
-                  placeholder="Search by name or email"
-                  className="w-full h-10 px-3 rounded-xl border border-border bg-surface text-sm outline-none focus:border-ring transition-base"
-                />
+                <>
+                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                  <input
+                    autoFocus
+                    value={query}
+                    onChange={e => { setQuery(e.target.value); setShowList(true); }}
+                    onFocus={() => setShowList(true)}
+                    onBlur={() => setTimeout(() => setShowList(false), 150)}
+                    placeholder="Search by name or email"
+                    className="w-full h-10 pl-9 pr-3 rounded-xl border border-border bg-surface text-sm outline-none focus:border-ring transition-base"
+                  />
+                </>
               )}
               {!selectedMember && showList && candidates.length > 0 && (
                 <div className="absolute left-0 right-0 top-[calc(100%+4px)] max-h-56 overflow-y-auto bg-surface rounded-xl ring-1 ring-border shadow-xl z-50">
-                  {candidates.map(m => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => { setSelectedMember(m); setQuery(""); setShowList(false); }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-surface-muted text-left transition-base"
-                    >
-                      <div className="w-7 h-7 rounded-full bg-accent-soft text-accent flex items-center justify-center text-[10px] font-semibold shrink-0">
-                        {m.initials}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium truncate">{m.name}</div>
-                        <div className="text-xs text-muted-foreground truncate">{m.role} · {unitNameFor(m.id)}</div>
-                      </div>
-                    </button>
-                  ))}
+                  {candidates.map(m => {
+                    const existingRoleName = currentRoleNameOf(m.id);
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => { setSelectedMember(m); setQuery(""); setShowList(false); }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-surface-muted text-left transition-base"
+                      >
+                        <div className="w-7 h-7 rounded-full bg-accent-soft text-accent flex items-center justify-center text-[10px] font-semibold shrink-0">
+                          {m.initials}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-medium truncate flex items-center gap-1.5">
+                            {m.name}
+                            {existingRoleName && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-warning-soft text-warning font-medium shrink-0">
+                                In {existingRoleName}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-muted-foreground truncate">{m.role} · {unitNameFor(m.id)}</div>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
           </div>
+
+          {conflictRoleName && selectedMember && (
+            <div className="flex items-start gap-2.5 rounded-xl border border-warning/30 bg-warning-soft px-3.5 py-3">
+              <AlertTriangle size={15} className="text-warning shrink-0 mt-0.5" />
+              <div className="text-xs text-foreground leading-relaxed">
+                <span className="font-medium">{selectedMember.name}</span> is already in the <span className="font-medium">{conflictRoleName}</span> role.
+                Remove them from that role first, then add them here.
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="text-sm font-medium block mb-1.5">Role</label>
@@ -185,7 +208,7 @@ function AddUserToRoleModal({
           </button>
           <button
             onClick={submit}
-            disabled={!selectedMember}
+            disabled={!selectedMember || !!conflictRoleName}
             className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-base disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Add
