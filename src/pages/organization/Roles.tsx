@@ -81,7 +81,11 @@ function RoleModal({
   const [name, setName] = useState(initialName ?? "");
   const [enabled, setEnabled] = useState<Set<string>>(new Set(initialPermissionIds ?? []));
 
+  const implied = impliedOnMap(enabled);
+  const effective = new Set([...enabled, ...implied.keys()]);
+
   const togglePerm = (id: string) => {
+    if (implied.has(id)) return; // locked on by another permission — can't toggle independently
     setEnabled(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
@@ -91,7 +95,7 @@ function RoleModal({
 
   const toggleGroup = (group: FeatureGroup) => {
     const ids = group.permissions.map(p => p.id);
-    const allOn = ids.every(id => enabled.has(id));
+    const allOn = ids.every(id => effective.has(id));
     setEnabled(prev => {
       const next = new Set(prev);
       ids.forEach(id => (allOn ? next.delete(id) : next.add(id)));
@@ -101,7 +105,7 @@ function RoleModal({
 
   const submit = () => {
     if (!name.trim()) return;
-    onSave(name.trim(), enabled);
+    onSave(name.trim(), effective);
     onClose();
   };
 
