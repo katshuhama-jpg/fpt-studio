@@ -144,6 +144,10 @@ export function collectMembers(unit: OrgUnit): OrgMember[] {
   return [...unit.members, ...unit.units.flatMap(collectMembers)];
 }
 
+export function collectUnits(root: OrgUnit): OrgUnit[] {
+  return root.units.flatMap(u => [u, ...collectUnits(u)]);
+}
+
 export function findMember(root: OrgUnit, id: string): OrgMember | null {
   const direct = root.members.find(m => m.id === id);
   if (direct) return direct;
