@@ -1813,8 +1813,11 @@ function PublishModal({ onClose, onChatTest }: { onClose: () => void; onChatTest
               <div className="text-right">
                 <p className="text-xs text-muted-foreground">New version</p>
                 <p className="text-xl font-bold tracking-tight text-foreground font-display">
-                  v{newVersion[0]}.{newVersion[1]}.
-                  <span className="underline decoration-primary decoration-2">{newVersion[2]}</span>
+                  v<span className={versionType === "major" ? "text-primary" : ""}>{newVersion[0]}</span>
+                  .
+                  <span className={versionType === "minor" ? "text-primary" : ""}>{newVersion[1]}</span>
+                  .
+                  <span className={versionType === "patch" ? "text-primary" : ""}>{newVersion[2]}</span>
                 </p>
               </div>
             </div>
