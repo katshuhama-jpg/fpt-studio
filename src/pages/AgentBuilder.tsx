@@ -1812,7 +1812,7 @@ function PublishModal({ onClose, onChatTest }: { onClose: () => void; onChatTest
               <p className="text-sm font-medium">Version type</p>
               <div className="text-right">
                 <p className="text-xs text-muted-foreground">New version</p>
-                <p className="text-xl font-bold tracking-tight text-foreground font-mono">
+                <p className="text-xl font-bold tracking-tight text-foreground font-display">
                   v{newVersion[0]}.{newVersion[1]}.
                   <span className="underline decoration-primary decoration-2">{newVersion[2]}</span>
                 </p>
