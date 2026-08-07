@@ -15,6 +15,7 @@ import TaskEditor from "./pages/TaskEditor";
 import ToolBuilder from "./pages/ToolBuilder";
 import OrgGeneral from "./pages/organization/General";
 import OrgStructure from "./pages/organization/Structure";
+import OrgWorkspaces from "./pages/organization/Workspaces";
 import OrgPermissions from "./pages/organization/Permissions";
 import OrgRoles from "./pages/organization/Roles";
 import PlaceholderPage from "./pages/PlaceholderPage";
