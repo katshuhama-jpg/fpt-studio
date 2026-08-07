@@ -187,25 +187,22 @@ function RoleModal({
 
 /* ─── Page ──────────────────────────────────────────────────────────────── */
 export default function Roles() {
-  const [roles, setRoles] = useState<RoleDef[]>(SEED_ROLES);
+  const { roles, createRole, updateRole, deleteRole } = useRoles();
   const [showCreate, setShowCreate] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const editingRole = roles.find(r => r.id === editingId) ?? null;
 
   const handleCreate = (name: string, permissionIds: Set<string>) => {
-    setRoles(prev => [
-      ...prev,
-      { id: `custom-${Date.now()}`, name, isDefault: false, permissionIds },
-    ]);
+    createRole(name, permissionIds);
   };
 
   const handleSaveEdit = (name: string, permissionIds: Set<string>) => {
-    setRoles(prev => prev.map(r => (r.id === editingId ? { ...r, name, permissionIds } : r)));
+    if (editingId) updateRole(editingId, name, permissionIds);
   };
 
   const handleDelete = (id: string) => {
-    setRoles(prev => prev.filter(r => r.id !== id));
+    deleteRole(id);
   };
 
   return (
