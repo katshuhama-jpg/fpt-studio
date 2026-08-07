@@ -68,7 +68,7 @@ const App = () => (
             <Route path="/knowledge" element={<PlaceholderPage title="Workspace Knowledge" />} />
             <Route path="/organization" element={<OrgGeneral />} />
             <Route path="/organization/structure" element={<OrgStructure />} />
-            <Route path="/organization/workspaces" element={<OrgWorkspaces />} />
+            <Route path="/organization/members" element={<OrgMembers />} />
             <Route path="/organization/permissions" element={<OrgPermissions />} />
             <Route path="/organization/roles" element={<OrgRoles />} />
             <Route path="/connectors" element={<WorkspaceConnectors />} />
