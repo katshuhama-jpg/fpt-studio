@@ -234,13 +234,16 @@ function AddUserToRoleModal({
 
           <div>
             <label className="text-sm font-medium block mb-1.5">Role</label>
-            <select
-              value={roleId}
-              onChange={e => setRoleId(e.target.value)}
-              className="w-full h-10 px-3 rounded-xl border border-border bg-surface text-sm outline-none focus:border-ring transition-base"
-            >
-              {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-            </select>
+            <div className="relative">
+              <select
+                value={roleId}
+                onChange={e => setRoleId(e.target.value)}
+                className="ds-input h-10 appearance-none pr-9 cursor-pointer"
+              >
+                {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+              </select>
+              <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            </div>
           </div>
         </div>
 
