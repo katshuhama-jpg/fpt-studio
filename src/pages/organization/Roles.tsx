@@ -256,17 +256,23 @@ export default function Roles() {
       </div>
 
       <Card>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="divide-y divide-border -mx-1">
           {roles.map(r => (
             <div
               key={r.id}
               onClick={() => setEditingId(r.id)}
-              className="text-left rounded-xl border border-border bg-surface p-4 hover:border-primary/30 hover:shadow-soft transition-base cursor-pointer group"
+              className="flex items-center justify-between gap-4 px-1 py-3.5 hover:bg-surface-muted/50 transition-base cursor-pointer group"
             >
-              <div className="flex items-start justify-between gap-2 mb-3">
-                <div className={`w-9 h-9 rounded-lg ${r.bg} flex items-center justify-center shrink-0`}>
-                  <r.icon size={16} className={r.color} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-semibold">{r.name}</span>
+                  {r.isDefault && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-muted text-muted-foreground font-medium">Default</span>
+                  )}
                 </div>
+                <div className="text-xs text-muted-foreground mt-0.5">{r.permissionIds.size} of {ALL_PERMISSION_IDS.length} permissions</div>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
                 {!r.isDefault && (
                   <button
                     type="button"
@@ -277,14 +283,8 @@ export default function Roles() {
                     <Trash2 size={13} />
                   </button>
                 )}
+                <ChevronRight size={14} className="text-muted-foreground shrink-0" />
               </div>
-              <div className="flex items-center gap-1.5 mb-1">
-                <span className="text-sm font-semibold">{r.name}</span>
-                {r.isDefault && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-muted text-muted-foreground font-medium">Default</span>
-                )}
-              </div>
-              <div className="text-xs text-muted-foreground">{r.permissionIds.size} of {ALL_PERMISSION_IDS.length} permissions</div>
             </div>
           ))}
         </div>
