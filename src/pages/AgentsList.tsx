@@ -151,7 +151,6 @@ function TemplateModal({ onClose }: { onClose: () => void }) {
         {/* Toolbar */}
         <div className="flex items-center justify-between px-6 pb-4 gap-3 shrink-0">
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">{filtered.length} templates</span>
             {/* Filter pills */}
             <select
               value={useCase}
