@@ -1,6 +1,6 @@
 import { Bot, BookOpen, Puzzle, Shield, Plug, Building2, ClipboardCheck } from "lucide-react";
 
-export type Permission = { id: string; name: string; desc: string };
+export type Permission = { id: string; name: string; desc: string; implies?: string[] };
 export type FeatureGroup = { id: string; label: string; icon: any; permissions: Permission[] };
 
 /**
