@@ -291,7 +291,18 @@ export default function WorkspaceGuardrails() {
               )}
             </div>
             <div className="flex items-center">
-              <Toggle enabled={g.enabled} onChange={() => toggleEnabled(g.id)} />
+              <button
+                onClick={() => toggleEnabled(g.id)}
+                className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-colors ${
+                  g.enabled ? "bg-primary border-primary" : "bg-transparent border-border"
+                }`}
+              >
+                {g.enabled && (
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                    <path d="M2 5l2.5 2.5 3.5-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                )}
+              </button>
             </div>
             <div className="flex items-center justify-end">
               <RowMenu onEdit={() => setEditItem(g)} onDelete={() => handleDelete(g.id)} />
