@@ -1718,7 +1718,15 @@ function PublishModal({ onClose, onChatTest }: { onClose: () => void; onChatTest
   const [reason, setReason] = useState("");
   const [deployEnabled, setDeployEnabled] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set(["web", "zalo", "api", "workspace"]));
-  const versionName = "v3.2";
+  const [versionType, setVersionType] = useState<"patch"|"minor"|"major">("patch");
+  const BASE = [1, 0, 1]; // current: v1.0.1
+  const newVersion = (() => {
+    const [maj, min, pat] = BASE;
+    if (versionType === "major") return [maj+1, 0, 0];
+    if (versionType === "minor") return [maj, min+1, 0];
+    return [maj, min, pat+1];
+  })();
+  const versionName = `v${newVersion.join(".")}`;
 
   const toggle = (id: string) => setSelected(prev => {
     const s = new Set(prev);
@@ -1798,6 +1806,61 @@ function PublishModal({ onClose, onChatTest }: { onClose: () => void; onChatTest
             </div>
           </div>
 
+          {/* Version type */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-medium">Version type</p>
+              <div className="text-right">
+                <p className="text-xs text-muted-foreground">New version</p>
+                <p className="text-xl font-bold tracking-tight text-foreground font-mono">
+                  v{newVersion[0]}.{newVersion[1]}.
+                  <span className="underline decoration-primary decoration-2">{newVersion[2]}</span>
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 mb-2">
+              {([
+                { key: "patch", label: "Patch", desc: "Small fixes and patches; existing features stay the same." },
+                { key: "minor", label: "Minor", desc: "New features added in a backward-compatible manner." },
+                { key: "major", label: "Major", desc: "Breaking changes or major new functionality." },
+              ] as const).map(opt => (
+                <button
+                  key={opt.key}
+                  onClick={() => setVersionType(opt.key)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-base ${
+                    versionType === opt.key
+                      ? "border-primary bg-primary-soft text-primary"
+                      : "border-border bg-surface text-foreground hover:bg-surface-muted"
+                  }`}
+                >
+                  {versionType === opt.key && <CheckCircle2 size={13} />}
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {versionType === "patch" && "Small fixes and patches; existing features stay the same."}
+              {versionType === "minor" && "New features added in a backward-compatible manner."}
+              {versionType === "major" && "Breaking changes or major new functionality."}
+            </p>
+          </div>
+
+          {/* Version note */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-sm font-medium">Version note <span className="text-destructive">*</span></label>
+              <span className="text-xs text-muted-foreground">{reason.length}/500</span>
+            </div>
+            <textarea
+              rows={3}
+              maxLength={500}
+              placeholder="Describe what changed in this version…"
+              className="w-full px-3 py-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none"
+              value={reason}
+              onChange={e => setReason(e.target.value)}
+            />
+          </div>
+
           {/* Publish to channels — accordion, no checkbox */}
           <div className="rounded-xl border border-border overflow-hidden">
             <button
@@ -1829,22 +1892,6 @@ function PublishModal({ onClose, onChatTest }: { onClose: () => void; onChatTest
                 </div>
               </div>
             )}
-          </div>
-
-          {/* Version note */}
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-sm font-medium">Version note <span className="text-destructive">*</span></label>
-              <span className="text-xs text-muted-foreground">{reason.length}/500</span>
-            </div>
-            <textarea
-              rows={3}
-              maxLength={500}
-              placeholder="Describe what changed in this version…"
-              className="w-full px-3 py-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none"
-              value={reason}
-              onChange={e => setReason(e.target.value)}
-            />
           </div>
         </div>
 
