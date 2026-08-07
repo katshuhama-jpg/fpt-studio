@@ -2273,15 +2273,22 @@ function GuardrailsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:num
   const [detailEditable, setDetailEditable] = useState(false);
 
   // Chip: clickable to open detail
-  const Chip = ({ label, desc, action, onRemove, editable, onEdit, type }: {
+  const Chip = ({ label, desc, action, onRemove, editable, onEdit, type, enabled = true }: {
     label: string; desc?: string; action?: string;
     onRemove: () => void; editable?: boolean; onEdit?: () => void;
-    type?: "workspace" | "agent";
+    type?: "workspace" | "agent"; enabled?: boolean;
   }) => (
     <div
-      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-surface cursor-pointer hover:bg-surface-muted transition-base"
+      className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface cursor-pointer hover:bg-surface-muted transition-base"
       onClick={() => { setDetailItem({ name: label, desc: desc ?? "", action: action ?? "" }); setDetailEditable(!!editable); }}
     >
+      <div className={`w-4 h-4 rounded flex items-center justify-center border-2 shrink-0 transition-colors ${enabled ? "bg-primary border-primary" : "bg-transparent border-border"}`}>
+        {enabled && (
+          <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+            <path d="M1.5 4l2 2 3-3.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        )}
+      </div>
       <span className="text-[13px] font-medium flex-1 truncate min-w-0">{label}</span>
       {type === "workspace" && (
         <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap" style={{background:"#EFF6FF",color:"#1D4ED8",border:"0.5px solid #BFDBFE"}}>Workspace</span>
@@ -2308,7 +2315,7 @@ function GuardrailsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:num
           <div className="space-y-1 mb-3">
             {wsAddedList.map(g => (
               <Chip key={g.id} label={g.name} desc={g.desc} action={g.action}
-                type="workspace"
+                type="workspace" enabled={g.enabled !== false}
                 onRemove={() => setWsAdded(prev => { const s = new Set(prev); s.delete(g.id); return s; })}
                 editable={false}
               />
