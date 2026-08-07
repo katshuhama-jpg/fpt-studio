@@ -143,7 +143,7 @@ function RoleModal({
           <div className="space-y-5">
             {featureGroups.map(group => {
               const ids = group.permissions.map(p => p.id);
-              const allOn = ids.every(id => enabled.has(id));
+              const allOn = ids.every(id => effective.has(id));
               return (
                 <div key={group.id}>
                   <div className="flex items-center justify-between mb-2">
@@ -162,19 +162,26 @@ function RoleModal({
                     )}
                   </div>
                   <div className="rounded-xl border border-border divide-y divide-border overflow-hidden">
-                    {group.permissions.map(p => (
-                      <div key={p.id} className="flex items-center justify-between gap-4 px-3.5 py-2.5">
-                        <button
-                          type="button"
-                          onClick={() => togglePerm(p.id)}
-                          className="min-w-0 flex-1 text-left cursor-pointer"
-                        >
-                          <div className="text-sm font-medium">{p.name}</div>
-                          <div className="text-xs text-muted-foreground mt-0.5">{p.desc}</div>
-                        </button>
-                        <Toggle enabled={enabled.has(p.id)} onChange={() => togglePerm(p.id)} />
-                      </div>
-                    ))}
+                    {group.permissions.map(p => {
+                      const impliedBy = implied.get(p.id);
+                      return (
+                        <div key={p.id} className="flex items-center justify-between gap-4 px-3.5 py-2.5">
+                          <button
+                            type="button"
+                            onClick={() => togglePerm(p.id)}
+                            disabled={!!impliedBy}
+                            className={`min-w-0 flex-1 text-left ${impliedBy ? "cursor-default" : "cursor-pointer"}`}
+                          >
+                            <div className="text-sm font-medium">{p.name}</div>
+                            <div className="text-xs text-muted-foreground mt-0.5">{p.desc}</div>
+                            {impliedBy && (
+                              <div className="text-[11px] text-primary mt-1 italic">Included via "{impliedBy}"</div>
+                            )}
+                          </button>
+                          <Toggle enabled={effective.has(p.id)} onChange={() => togglePerm(p.id)} disabled={!!impliedBy} />
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               );
