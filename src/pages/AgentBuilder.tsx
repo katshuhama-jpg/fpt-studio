@@ -1776,22 +1776,6 @@ function PublishModal({ onClose, onChatTest }: { onClose: () => void; onChatTest
             </p>
           </div>
 
-          {/* Version note */}
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-sm font-medium">Version note <span className="text-destructive">*</span></label>
-              <span className="text-xs text-muted-foreground">{reason.length}/500</span>
-            </div>
-            <textarea
-              rows={3}
-              maxLength={500}
-              placeholder="Describe what changed in this version…"
-              className="w-full px-3 py-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none"
-              value={reason}
-              onChange={e => setReason(e.target.value)}
-            />
-          </div>
-
           {/* What will be saved */}
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">What will be saved</p>
@@ -1814,15 +1798,12 @@ function PublishModal({ onClose, onChatTest }: { onClose: () => void; onChatTest
             </div>
           </div>
 
-          {/* Publish to channels — collapsible */}
+          {/* Publish to channels — accordion, no checkbox */}
           <div className="rounded-xl border border-border overflow-hidden">
             <button
               onClick={() => setDeployEnabled(v => !v)}
               className="w-full flex items-center gap-3 px-4 py-3 hover:bg-surface-muted transition-base"
             >
-              <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-base ${deployEnabled ? "border-primary bg-primary" : "border-border"}`}>
-                {deployEnabled && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-              </div>
               <div className="flex-1 text-left">
                 <p className="text-sm font-medium">Publish to channels</p>
                 <p className="text-xs text-muted-foreground">Deploy this version to specific channels</p>
@@ -1848,6 +1829,22 @@ function PublishModal({ onClose, onChatTest }: { onClose: () => void; onChatTest
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Version note */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-sm font-medium">Version note <span className="text-destructive">*</span></label>
+              <span className="text-xs text-muted-foreground">{reason.length}/500</span>
+            </div>
+            <textarea
+              rows={3}
+              maxLength={500}
+              placeholder="Describe what changed in this version…"
+              className="w-full px-3 py-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none"
+              value={reason}
+              onChange={e => setReason(e.target.value)}
+            />
           </div>
         </div>
 
