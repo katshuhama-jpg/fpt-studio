@@ -1716,6 +1716,7 @@ const INTERNAL_CHANNELS = [
 
 function PublishModal({ onClose, onChatTest }: { onClose: () => void; onChatTest: () => void }) {
   const [reason, setReason] = useState("");
+  const [deployEnabled, setDeployEnabled] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set(["web", "zalo", "api", "workspace"]));
   const versionName = "v3.2";
 
@@ -1797,20 +1798,42 @@ function PublishModal({ onClose, onChatTest }: { onClose: () => void; onChatTest
             </div>
           </div>
 
-          {/* External channels */}
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">External channels</p>
-            <div className="grid grid-cols-2 gap-2">
-              {EXTERNAL_CHANNELS.map(ch => <ChannelChip key={ch.id} ch={ch} />)}
-            </div>
-          </div>
+          {/* Deploy to channels — collapsible */}
+          <div className="rounded-xl border border-border overflow-hidden">
+            {/* Header toggle */}
+            <button
+              onClick={() => setDeployEnabled(v => !v)}
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-surface-muted transition-base"
+            >
+              <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-base ${deployEnabled ? "border-primary bg-primary" : "border-border"}`}>
+                {deployEnabled && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-sm font-medium">Deploy to channels</p>
+                <p className="text-xs text-muted-foreground">Publish this version to specific channels</p>
+              </div>
+              {deployEnabled
+                ? <ChevronUp size={14} className="text-muted-foreground shrink-0" />
+                : <ChevronDown size={14} className="text-muted-foreground shrink-0" />}
+            </button>
 
-          {/* Internal workspace */}
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Internal workspace</p>
-            <div className="grid grid-cols-2 gap-2">
-              {INTERNAL_CHANNELS.map(ch => <ChannelChip key={ch.id} ch={ch} />)}
-            </div>
+            {/* Expanded channel groups */}
+            {deployEnabled && (
+              <div className="border-t border-border px-4 py-4 space-y-4 bg-surface-muted/30">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">External channels</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {EXTERNAL_CHANNELS.map(ch => <ChannelChip key={ch.id} ch={ch} />)}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Internal workspace</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {INTERNAL_CHANNELS.map(ch => <ChannelChip key={ch.id} ch={ch} />)}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Version note */}
@@ -1832,7 +1855,7 @@ function PublishModal({ onClose, onChatTest }: { onClose: () => void; onChatTest
 
         {/* Footer */}
         <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-border shrink-0">
-          <span className="text-xs text-muted-foreground">{selected.size} channel{selected.size !== 1 ? "s" : ""} selected</span>
+          <span className="text-xs text-muted-foreground">{deployEnabled ? `${selected.size} channel${selected.size !== 1 ? "s" : ""} selected` : "No channel deployment"}</span>
           <div className="flex items-center gap-2">
             <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Cancel</button>
             <button
