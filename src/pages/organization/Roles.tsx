@@ -221,7 +221,7 @@ export default function Roles() {
   const handleCreate = (name: string, permissionIds: Set<string>) => {
     setRoles(prev => [
       ...prev,
-      { id: `custom-${Date.now()}`, name, icon: UserCog, color: "text-accent", bg: "bg-accent-soft", isDefault: false, permissionIds },
+      { id: `custom-${Date.now()}`, name, isDefault: false, permissionIds },
     ]);
   };
 
