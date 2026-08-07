@@ -73,13 +73,21 @@ function FilterChip({
 
 /* ─── Add users to a role (global action) ──────────────────────────────── */
 function AddUserToRoleModal({
-  roles, defaultRoleId, onClose, onAdd,
+  roles, assignments, defaultRoleId, onClose, onAdd,
 }: {
   roles: RoleDef[];
+  assignments: Record<string, string>;
   defaultRoleId: string;
   onClose: () => void;
   onAdd: (memberId: string, roleId: string) => void;
 }) {
+  const roleIds = new Set(roles.map(r => r.id));
+  const currentRoleNameOf = (memberId: string): string | null => {
+    const rid = assignments[memberId];
+    if (!rid || !roleIds.has(rid)) return null;
+    return roles.find(r => r.id === rid)?.name ?? null;
+  };
+
   const [query, setQuery] = useState("");
   const [showList, setShowList] = useState(false);
   const [selectedMember, setSelectedMember] = useState<OrgMember | null>(null);
@@ -87,9 +95,10 @@ function AddUserToRoleModal({
 
   const q = query.trim().toLowerCase();
   const candidates = q ? ALL_MEMBERS.filter(m => m.name.toLowerCase().includes(q)).slice(0, 20) : [];
+  const conflictRoleName = selectedMember ? currentRoleNameOf(selectedMember.id) : null;
 
   const submit = () => {
-    if (!selectedMember) return;
+    if (!selectedMember || conflictRoleName) return;
     onAdd(selectedMember.id, roleId);
     setSelectedMember(null);
     setQuery("");
