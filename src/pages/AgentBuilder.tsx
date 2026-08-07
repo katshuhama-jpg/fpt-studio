@@ -1755,7 +1755,7 @@ function PublishModal({ onClose, onChatTest }: { onClose: () => void; onChatTest
         {/* Header */}
         <div className="flex items-start justify-between px-6 py-5 border-b border-border shrink-0">
           <div>
-            <h2 className="font-display text-lg font-semibold">Publish version</h2>
+            <h2 className="font-display text-lg font-semibold">Save version</h2>
             <p className="text-sm text-muted-foreground mt-0.5">Creates {versionName} — choose where to deploy.</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base mt-0.5">
@@ -1776,9 +1776,25 @@ function PublishModal({ onClose, onChatTest }: { onClose: () => void; onChatTest
             </p>
           </div>
 
-          {/* What will be published */}
+          {/* Version note */}
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">What will be published</p>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-sm font-medium">Version note <span className="text-destructive">*</span></label>
+              <span className="text-xs text-muted-foreground">{reason.length}/500</span>
+            </div>
+            <textarea
+              rows={3}
+              maxLength={500}
+              placeholder="Describe what changed in this version…"
+              className="w-full px-3 py-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none"
+              value={reason}
+              onChange={e => setReason(e.target.value)}
+            />
+          </div>
+
+          {/* What will be saved */}
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">What will be saved</p>
             <div className="rounded-xl border border-border overflow-hidden">
               {[
                 { icon: Cpu,    label: "Model",      value: "DeepSeek V4 Flash", sub: "deepseek-v4-flash" },
@@ -1798,9 +1814,8 @@ function PublishModal({ onClose, onChatTest }: { onClose: () => void; onChatTest
             </div>
           </div>
 
-          {/* Deploy to channels — collapsible */}
+          {/* Publish to channels — collapsible */}
           <div className="rounded-xl border border-border overflow-hidden">
-            {/* Header toggle */}
             <button
               onClick={() => setDeployEnabled(v => !v)}
               className="w-full flex items-center gap-3 px-4 py-3 hover:bg-surface-muted transition-base"
@@ -1809,15 +1824,14 @@ function PublishModal({ onClose, onChatTest }: { onClose: () => void; onChatTest
                 {deployEnabled && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
               </div>
               <div className="flex-1 text-left">
-                <p className="text-sm font-medium">Deploy to channels</p>
-                <p className="text-xs text-muted-foreground">Publish this version to specific channels</p>
+                <p className="text-sm font-medium">Publish to channels</p>
+                <p className="text-xs text-muted-foreground">Deploy this version to specific channels</p>
               </div>
               {deployEnabled
                 ? <ChevronUp size={14} className="text-muted-foreground shrink-0" />
                 : <ChevronDown size={14} className="text-muted-foreground shrink-0" />}
             </button>
 
-            {/* Expanded channel groups */}
             {deployEnabled && (
               <div className="border-t border-border px-4 py-4 space-y-4 bg-surface-muted/30">
                 <div>
@@ -1834,22 +1848,6 @@ function PublishModal({ onClose, onChatTest }: { onClose: () => void; onChatTest
                 </div>
               </div>
             )}
-          </div>
-
-          {/* Version note */}
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-sm font-medium">Version note <span className="text-destructive">*</span></label>
-              <span className="text-xs text-muted-foreground">{reason.length}/500</span>
-            </div>
-            <textarea
-              rows={3}
-              maxLength={500}
-              placeholder="Describe what changed in this version…"
-              className="w-full px-3 py-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none"
-              value={reason}
-              onChange={e => setReason(e.target.value)}
-            />
           </div>
         </div>
 
