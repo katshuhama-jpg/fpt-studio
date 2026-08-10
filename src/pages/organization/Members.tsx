@@ -29,12 +29,14 @@ function roleChipClass(roleId: string | undefined): string {
 
 /* ─── Unit switcher (flat searchable popover — picking a unit is a lookup, not a drill-down) ─── */
 function UnitSwitcher({ value, onChange }: { value: string; onChange: (id: string) => void }) {
+  const { tree } = useOrg();
+  const allUnits = useMemo(() => collectUnits(tree), [tree]);
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
 
   const query = q.trim().toLowerCase();
-  const filtered = query ? ALL_UNITS.filter(u => u.name.toLowerCase().includes(query)) : ALL_UNITS;
-  const path = value !== orgTree.id ? findPath(orgTree, value) : null;
+  const filtered = query ? allUnits.filter(u => u.name.toLowerCase().includes(query)) : allUnits;
+  const path = value !== tree.id ? findPath(tree, value) : null;
   const label = path ? path.slice(1).map(u => u.name).join(" › ") : "All units";
 
   const pick = (id: string) => { onChange(id); setOpen(false); setQ(""); };
