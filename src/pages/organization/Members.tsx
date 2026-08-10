@@ -325,13 +325,15 @@ function AddUserToRoleModal({
 
 /* ─── Page ──────────────────────────────────────────────────────────────── */
 export default function Members() {
+  const { tree } = useOrg();
   const { roles } = useRoles();
+  const allMembers = useMemo(() => collectMembers(tree), [tree]);
   const [assignments, setAssignments] = useState<Record<string, string>>(() => {
     const map: Record<string, string> = {};
-    ALL_MEMBERS.forEach(m => { if (m.roleId) map[m.id] = m.roleId; });
+    allMembers.forEach(m => { if (m.roleId) map[m.id] = m.roleId; });
     return map;
   });
-  const [selectedUnitId, setSelectedUnitId] = useState(orgTree.id);
+  const [selectedUnitId, setSelectedUnitId] = useState(tree.id);
   const [scope, setScope] = useState<"direct" | "all">("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [query, setQuery] = useState("");
@@ -340,8 +342,8 @@ export default function Members() {
 
   const roleIds = new Set(roles.map(r => r.id));
   const roleSections = [...roles.map(r => ({ id: r.id, name: r.name })), { id: "unassigned", name: "Unassigned" }];
-  const isAllUnits = selectedUnitId === orgTree.id;
-  const selectedUnit = findUnit(orgTree, selectedUnitId) ?? orgTree;
+  const isAllUnits = selectedUnitId === tree.id;
+  const selectedUnit = findUnit(tree, selectedUnitId) ?? tree;
 
   const roleNameFor = (memberId: string): string => {
     const rid = assignments[memberId];
