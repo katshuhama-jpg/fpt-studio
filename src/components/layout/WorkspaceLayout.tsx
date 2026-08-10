@@ -318,8 +318,8 @@ function AppSwitcher({ collapsed, inOrganization }: { collapsed: boolean; inOrga
       </button>
 
       {open && (
-        <div className={`absolute z-50 bg-surface rounded-xl overflow-hidden ring-1 ring-border shadow-xl ${
-          collapsed ? "left-full ml-2 top-0 w-72" : "left-0 right-0 top-full mt-1.5"
+        <div className={`absolute z-50 bg-surface rounded-xl overflow-hidden ring-1 ring-border shadow-xl w-[300px] ${
+          collapsed ? "left-full ml-2 top-0" : "left-0 top-full mt-1.5"
         }`}>
           <div className="p-1.5 space-y-0.5">
             {APP_OPTIONS.map(opt => {
