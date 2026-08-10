@@ -286,8 +286,8 @@ export default function WorkspaceLayout() {
 type AppOption = { key: "workspace" | "organization"; label: string; desc: string; icon: any; to: string };
 
 const APP_OPTIONS: AppOption[] = [
-  { key: "workspace", label: "Build Agent", desc: "Create and manage agents, knowledge, skills & connectors", icon: Bot, to: "/" },
-  { key: "organization", label: "Organization management", desc: "Structure, members, roles & permissions", icon: Building2, to: "/organization" },
+  { key: "workspace", label: "Agent Studio", desc: "Build and manage agents, knowledge, skills & connectors", icon: Bot, to: "/" },
+  { key: "organization", label: "Organization management", desc: "Manage structure, members, roles & permissions", icon: Building2, to: "/organization" },
 ];
 
 function AppSwitcher({ collapsed, inOrganization }: { collapsed: boolean; inOrganization: boolean }) {
