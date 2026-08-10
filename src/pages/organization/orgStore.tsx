@@ -108,31 +108,31 @@ export function OrgProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const addMember = (unitId: string, name: string, title: string) => {
+  const addMember = (unitId: string, name: string, email: string) => {
     const trimmedName = name.trim();
     if (!trimmedName) return;
-    const trimmedTitle = title.trim();
+    const trimmedEmail = email.trim();
     setTree(prev => {
       const updated = updateUnit(prev, unitId, unit => ({
         ...unit,
         members: [
           ...unit.members,
-          { id: nextId("member"), name: trimmedName, role: trimmedTitle, initials: deriveInitials(trimmedName) },
+          { id: nextId("member"), name: trimmedName, role: "", email: trimmedEmail, initials: deriveInitials(trimmedName) },
         ],
       }));
       return updated ?? prev;
     });
   };
 
-  const updateMember = (memberId: string, name: string, title: string) => {
+  const updateMember = (memberId: string, name: string, email: string) => {
     const trimmedName = name.trim();
     if (!trimmedName) return;
-    const trimmedTitle = title.trim();
+    const trimmedEmail = email.trim();
     setTree(prev =>
       updateMemberOwner(prev, memberId, members =>
         members.map(m =>
           m.id === memberId
-            ? { ...m, name: trimmedName, role: trimmedTitle, initials: deriveInitials(trimmedName) }
+            ? { ...m, name: trimmedName, email: trimmedEmail, initials: deriveInitials(trimmedName) }
             : m
         )
       )
