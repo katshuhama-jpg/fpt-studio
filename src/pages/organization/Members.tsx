@@ -353,7 +353,7 @@ export default function Members() {
 
   useEffect(() => { setVisibleCount(50); }, [selectedUnitId, scope, roleFilter, query]);
 
-  const baseMembers = isAllUnits ? ALL_MEMBERS : scope === "all" ? collectMembers(selectedUnit) : selectedUnit.members;
+  const baseMembers = isAllUnits ? allMembers : scope === "all" ? collectMembers(selectedUnit) : selectedUnit.members;
 
   const visibleMembers = baseMembers
     .filter(m => {
