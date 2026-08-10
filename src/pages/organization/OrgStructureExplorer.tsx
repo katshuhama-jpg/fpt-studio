@@ -112,16 +112,16 @@ function UnitModal({
   );
 }
 
-/* ─── Add/edit-member modal ─────────────────────────────────────────────── */
+/* ─── Invite/edit-member modal ──────────────────────────────────────────── */
 function MemberModal({
-  title, desc, initialName, initialTitle, submitLabel, onClose, onSave,
+  title, desc, initialName, initialEmail, submitLabel, onClose, onSave,
 }: {
-  title: string; desc: string; initialName?: string; initialTitle?: string; submitLabel: string;
-  onClose: () => void; onSave: (name: string, jobTitle: string) => void;
+  title: string; desc: string; initialName?: string; initialEmail?: string; submitLabel: string;
+  onClose: () => void; onSave: (name: string, email: string) => void;
 }) {
   const [name, setName] = useState(initialName ?? "");
-  const [jobTitle, setJobTitle] = useState(initialTitle ?? "");
-  const submit = () => { if (!name.trim()) return; onSave(name.trim(), jobTitle.trim()); onClose(); };
+  const [email, setEmail] = useState(initialEmail ?? "");
+  const submit = () => { if (!name.trim()) return; onSave(name.trim(), email.trim()); onClose(); };
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
