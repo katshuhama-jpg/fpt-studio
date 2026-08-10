@@ -459,7 +459,7 @@ export default function OrgStructureExplorer() {
                 onClick={() => setShowAddMember(true)}
                 className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-glow transition-base shrink-0"
               >
-                <Plus size={12} /> Add member
+                <Plus size={12} /> Invite member
               </button>
               {selected.members.length > 6 && (
                 <div className="relative w-40">
