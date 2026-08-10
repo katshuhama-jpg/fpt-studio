@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { Search, X, UserMinus, Plus, ChevronDown, ChevronRight, Building2, AlertTriangle } from "lucide-react";
+import { Search, X, UserMinus, Plus, ChevronDown, ChevronRight, Users, AlertTriangle } from "lucide-react";
 import { Card, PageHeader } from "./shared";
-import { orgTree, OrgUnit, OrgMember, collectMembers, findUnit, findPath, findMemberUnit, unitMatches } from "./orgData";
+import { orgTree, OrgUnit, OrgMember, collectMembers, countAll, findUnit, findPath, findMemberUnit, unitMatches } from "./orgData";
 import { useRoles, RoleDef } from "./rolesStore";
 
 const ALL_MEMBERS: OrgMember[] = collectMembers(orgTree);
@@ -10,6 +10,22 @@ const ALL_MEMBERS: OrgMember[] = collectMembers(orgTree);
 function unitNameFor(memberId: string): string {
   const unit = findMemberUnit(orgTree, memberId);
   return unit ? unit.name : "No unit";
+}
+
+/* ─── Role color palette — local to Members, doesn't touch RoleDef ─────── */
+const SEED_ROLE_CHIP: Record<string, string> = {
+  admin: "chip-primary",
+  builder: "chip-accent",
+};
+const FALLBACK_ROLE_CHIPS = ["chip-primary", "chip-accent", "chip-warning", "chip-danger"];
+
+function roleChipClass(roleId: string | undefined): string {
+  if (!roleId) return "chip border-dashed bg-transparent text-muted-foreground";
+  if (SEED_ROLE_CHIP[roleId]) return `chip ${SEED_ROLE_CHIP[roleId]}`;
+  if (roleId === "viewer") return "chip";
+  let h = 0;
+  for (const c of roleId) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return `chip ${FALLBACK_ROLE_CHIPS[h % FALLBACK_ROLE_CHIPS.length]}`;
 }
 
 /* ─── Unit tree navigator (units only — mirrors OrgStructureExplorer) ──── */
