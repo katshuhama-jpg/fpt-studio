@@ -29,61 +29,92 @@ function roleChipClass(roleId: string | undefined): string {
   return `chip ${FALLBACK_ROLE_CHIPS[h % FALLBACK_ROLE_CHIPS.length]}`;
 }
 
-/* ─── Unit tree navigator (units only — mirrors OrgStructureExplorer) ──── */
-function UnitTreeRow({
-  unit, depth, selectedId, onSelect, expanded, onToggle, query,
-}: {
-  unit: OrgUnit;
-  depth: number;
-  selectedId: string;
-  onSelect: (id: string) => void;
-  expanded: Set<string>;
-  onToggle: (id: string) => void;
-  query: string;
-}) {
-  if (!unitMatches(unit, query)) return null;
+/* ─── Unit switcher (flat searchable popover — picking a unit is a lookup, not a drill-down) ─── */
+function UnitSwitcher({ value, onChange }: { value: string; onChange: (id: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
 
-  const hasChildren = unit.units.length > 0;
-  const isOpen = query.trim() ? true : expanded.has(unit.id);
-  const isSelected = unit.id === selectedId;
+  const query = q.trim().toLowerCase();
+  const filtered = query ? ALL_UNITS.filter(u => u.name.toLowerCase().includes(query)) : ALL_UNITS;
+  const path = value !== orgTree.id ? findPath(orgTree, value) : null;
+  const label = path ? path.slice(1).map(u => u.name).join(" › ") : "All units";
+
+  const pick = (id: string) => { onChange(id); setOpen(false); setQ(""); };
 
   return (
-    <div>
-      <div
-        className={`group flex items-center rounded-xl transition-base ${isSelected ? "bg-primary-soft" : "hover:bg-surface-muted"}`}
-        style={{ paddingLeft: 4 + depth * 20 }}
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        className="h-8 flex items-center gap-2 px-3 rounded-lg border border-border bg-surface text-sm hover:bg-surface-muted transition-base max-w-[280px]"
       >
-        <button
-          type="button"
-          onClick={() => hasChildren && onToggle(unit.id)}
-          aria-label={hasChildren ? (isOpen ? `Collapse ${unit.name}` : `Expand ${unit.name}`) : undefined}
-          className={`shrink-0 w-9 h-11 flex items-center justify-center rounded-lg transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${hasChildren ? "text-muted-foreground hover:bg-surface cursor-pointer" : "invisible"}`}
-        >
-          {hasChildren && (isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />)}
-        </button>
-        <button
-          type="button"
-          onClick={() => onSelect(unit.id)}
-          aria-current={isSelected ? "true" : undefined}
-          aria-label={`${unit.name}, ${countAll(unit)} people`}
-          className={`flex-1 min-w-0 flex items-center gap-2 py-2 pr-2 text-left cursor-pointer ${isSelected ? "text-primary" : "text-foreground"}`}
-        >
-          <span className={`text-sm truncate ${isSelected ? "font-semibold" : "font-medium"}`}>{unit.name}</span>
-          <span
-            aria-hidden="true"
-            className="ml-auto shrink-0 inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-full bg-surface border border-border text-muted-foreground"
-          >
-            {countAll(unit)}
-          </span>
-        </button>
-      </div>
-      {hasChildren && isOpen && (
-        <div className="mt-0.5 space-y-0.5">
-          {unit.units.map(u => (
-            <UnitTreeRow key={u.id} unit={u} depth={depth + 1} selectedId={selectedId} onSelect={onSelect} expanded={expanded} onToggle={onToggle} query={query} />
-          ))}
+        <Building2 size={13} className="text-muted-foreground shrink-0" />
+        <span className="truncate" title={label}>{label}</span>
+        <ChevronDown size={12} className={`text-muted-foreground transition-base shrink-0 ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="absolute left-0 top-[calc(100%+4px)] w-80 max-h-96 bg-surface rounded-xl ring-1 ring-border shadow-xl z-50 flex flex-col overflow-hidden">
+          <div className="p-2 border-b border-border shrink-0">
+            <div className="relative">
+              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                autoFocus
+                value={q}
+                onChange={e => setQ(e.target.value)}
+                placeholder="Search units…"
+                className="ds-input pl-7 h-8 text-sm"
+              />
+            </div>
+          </div>
+          <div className="overflow-y-auto p-1">
+            <button
+              type="button"
+              onClick={() => pick(orgTree.id)}
+              className={`w-full flex items-center justify-between gap-2 text-left px-3 py-2 rounded-lg text-sm transition-base hover:bg-surface-muted ${value === orgTree.id ? "text-primary font-medium bg-primary-soft" : "text-foreground"}`}
+            >
+              All units
+              <span className="text-[10px] text-muted-foreground shrink-0">{countAll(orgTree)}</span>
+            </button>
+            {filtered.map(u => (
+              <button
+                key={u.id}
+                type="button"
+                onClick={() => pick(u.id)}
+                className={`w-full flex items-center justify-between gap-2 text-left px-3 py-2 rounded-lg text-sm transition-base hover:bg-surface-muted ${value === u.id ? "text-primary font-medium bg-primary-soft" : "text-foreground"}`}
+              >
+                <span className="truncate">{u.name}</span>
+                <span className="text-[10px] text-muted-foreground shrink-0">{countAll(u)}</span>
+              </button>
+            ))}
+            {filtered.length === 0 && (
+              <div className="px-3 py-6 text-center text-xs text-muted-foreground">No matches.</div>
+            )}
+          </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ─── Direct vs. include-sub-units scope toggle ─────────────────────────── */
+function ScopeToggle({ value, onChange }: { value: "direct" | "all"; onChange: (v: "direct" | "all") => void }) {
+  return (
+    <div className="inline-flex items-center h-8 rounded-lg border border-border bg-surface p-0.5">
+      <button
+        type="button"
+        onClick={() => onChange("direct")}
+        className={`h-full px-2.5 rounded-md text-xs font-medium transition-base ${value === "direct" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+      >
+        Direct
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange("all")}
+        className={`h-full px-2.5 rounded-md text-xs font-medium transition-base ${value === "all" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+      >
+        Include sub-units
+      </button>
     </div>
   );
 }
