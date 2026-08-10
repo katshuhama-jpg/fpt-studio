@@ -283,11 +283,11 @@ export default function WorkspaceLayout() {
 }
 
 /* ============ App switcher (Build Agent ⇄ Organization management) ============ */
-type AppOption = { key: "workspace" | "organization"; label: string; desc: string; icon: any; to: string };
+type AppOption = { key: "workspace" | "organization"; label: string; short: string; desc: string; icon: any; to: string };
 
 const APP_OPTIONS: AppOption[] = [
-  { key: "workspace", label: "Agent Studio", desc: "Build and manage agents, knowledge, skills & connectors", icon: Bot, to: "/" },
-  { key: "organization", label: "Organization management", desc: "Manage structure, members, roles & permissions", icon: Building2, to: "/organization" },
+  { key: "workspace", label: "Agent Studio", short: "Agent Studio", desc: "Build and manage agents, knowledge, skills & connectors", icon: Bot, to: "/" },
+  { key: "organization", label: "Organization management", short: "Organization", desc: "Manage structure, members, roles & permissions", icon: Building2, to: "/organization" },
 ];
 
 function AppSwitcher({ collapsed, inOrganization }: { collapsed: boolean; inOrganization: boolean }) {
