@@ -268,7 +268,7 @@ export default function WorkspaceLayout() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-14 border-b border-border bg-surface flex items-center px-6 gap-4 shrink-0">
           <div className="flex items-center gap-2 text-sm">
-            <span className="chip chip-primary">FPT Smart Cloud</span>
+            <TenantSwitcher />
             <span className="text-muted-foreground">/</span>
             <span className="font-medium text-foreground capitalize">{breadcrumbLabel}</span>
           </div>
