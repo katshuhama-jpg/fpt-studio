@@ -408,7 +408,7 @@ export default function Members() {
               </div>
               <div className="divide-y divide-border">
                 {shownMembers.map(m => {
-                  const roleName = roleNameFor(m.id);
+                  const roleName = roleNameFor(m);
                   const hasRole = roleName !== "Unassigned";
                   const unitName = findMemberUnit(tree, m.id)?.name ?? "—";
                   return (
