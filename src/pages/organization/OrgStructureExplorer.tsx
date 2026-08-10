@@ -148,39 +148,6 @@ export default function OrgStructureExplorer() {
           </span>
         </div>
 
-        {/* Unit leadership */}
-        {(() => {
-          const leads = getUnitLeads(selected);
-          if (leads.length === 0) return null;
-          const shown = leads.slice(0, 3);
-          const extra = leads.length - shown.length;
-          return (
-            <div className="mb-6 rounded-lg border border-border p-3 bg-primary-soft/30">
-              <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-primary mb-2.5">
-                <Crown size={13} /> {leads.length > 1 ? "Unit leadership" : "Unit lead"}
-              </div>
-              <div className="flex flex-wrap gap-3">
-                {shown.map(m => (
-                  <div key={m.id} className="flex items-center gap-2 min-w-0">
-                    <div className="w-8 h-8 rounded-full bg-accent-soft text-accent flex items-center justify-center text-[11px] font-semibold shrink-0">
-                      {m.initials}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium truncate">{m.name}</div>
-                      <div className="text-xs text-muted-foreground truncate">{m.role}</div>
-                    </div>
-                  </div>
-                ))}
-                {extra > 0 && (
-                  <span className="inline-flex items-center text-xs px-2 py-1 rounded-full bg-surface border border-border text-muted-foreground self-center">
-                    +{extra} more
-                  </span>
-                )}
-              </div>
-            </div>
-          );
-        })()}
-
         {/* Sub-units */}
         {selected.units.length > 0 && (
           <div className="mb-6">
