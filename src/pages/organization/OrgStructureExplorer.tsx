@@ -309,7 +309,7 @@ export default function OrgStructureExplorer() {
         </div>
 
         {/* Unit header */}
-        <div className="flex items-start justify-between gap-4 mb-5">
+        <div className="flex items-start justify-between gap-4 mb-3">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-11 h-11 rounded-xl bg-primary-soft text-primary flex items-center justify-center shrink-0">
               <Building2 size={18} />
@@ -317,18 +317,65 @@ export default function OrgStructureExplorer() {
             <div className="min-w-0">
               <div className="text-lg font-display font-semibold truncate">{selected.name}</div>
             </div>
+            {!isRoot && (
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowRenameUnit(true)}
+                  aria-label={`Rename ${selected.name}`}
+                  className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-base"
+                >
+                  <Pencil size={13} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirmUnitId(selected.id)}
+                  aria-label={`Delete ${selected.name}`}
+                  className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground hover:text-destructive transition-base"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            )}
           </div>
           <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-full bg-surface-muted border border-border text-muted-foreground shrink-0">
             <Users size={12} /> {countAll(selected)} total
           </span>
         </div>
 
+        {deleteConfirmUnitId === selected.id && (
+          <div className="mb-5 flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive-soft px-3.5 py-2.5">
+            <span className="text-xs text-foreground flex-1">
+              Delete "{selected.name}" and {countAll(selected)} {countAll(selected) === 1 ? "person" : "people"}? This can't be undone.
+            </span>
+            <button onClick={() => handleDeleteUnit(selected.id)} className="h-7 px-3 rounded-lg bg-destructive text-white text-xs font-medium shrink-0">
+              Delete
+            </button>
+            <button onClick={() => setDeleteConfirmUnitId(null)} className="h-7 px-3 rounded-lg border border-border text-xs font-medium shrink-0">
+              Cancel
+            </button>
+          </div>
+        )}
+
         {/* Sub-units */}
-        {selected.units.length > 0 && (
-          <div className="mb-6">
-            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+        <div className="mb-6">
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Sub-units ({selected.units.length})
             </div>
+            <button
+              type="button"
+              onClick={() => setShowAddSubunit(true)}
+              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-glow transition-base"
+            >
+              <Plus size={12} /> Add sub-unit
+            </button>
+          </div>
+          {selected.units.length === 0 ? (
+            <div className="text-sm text-muted-foreground border border-dashed border-border rounded-lg py-6 text-center">
+              No sub-units yet.
+            </div>
+          ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {selected.units.map(u => {
                 const preview = u.members.slice(0, 3);
