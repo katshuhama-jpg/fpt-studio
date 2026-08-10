@@ -381,42 +381,65 @@ export default function OrgStructureExplorer() {
                 const preview = u.members.slice(0, 3);
                 const previewExtra = countAll(u) - preview.length;
                 return (
-                  <button
-                    key={u.id}
-                    type="button"
-                    onClick={() => selectUnit(u.id)}
-                    className="p-3 rounded-lg border border-border hover:border-primary/30 hover:bg-surface-muted text-left transition-base cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2.5 mb-2">
-                      <div className="w-8 h-8 rounded-lg bg-primary-soft text-primary flex items-center justify-center shrink-0">
-                        <Building2 size={14} />
+                  <div key={u.id} className="relative group/card">
+                    <button
+                      type="button"
+                      onClick={() => selectUnit(u.id)}
+                      className="w-full p-3 rounded-lg border border-border hover:border-primary/30 hover:bg-surface-muted text-left transition-base cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2.5 mb-2">
+                        <div className="w-8 h-8 rounded-lg bg-primary-soft text-primary flex items-center justify-center shrink-0">
+                          <Building2 size={14} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-semibold truncate">{u.name}</div>
+                        </div>
+                        <ChevronRight size={14} className="text-muted-foreground shrink-0" />
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-sm font-semibold truncate">{u.name}</div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex -space-x-2">
+                          {preview.map(m => (
+                            <div
+                              key={m.id}
+                              className="w-6 h-6 rounded-full bg-accent-soft text-accent flex items-center justify-center text-[9px] font-semibold ring-2 ring-surface"
+                            >
+                              {m.initials}
+                            </div>
+                          ))}
+                          {previewExtra > 0 && (
+                            <div className="w-6 h-6 rounded-full bg-surface-muted text-muted-foreground flex items-center justify-center text-[9px] font-semibold ring-2 ring-surface">
+                              +{previewExtra}
+                            </div>
+                          )}
+                        </div>
+                        <span className="ml-auto inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-full bg-surface border border-border text-muted-foreground shrink-0">
+                          <Users size={10} /> {countAll(u)}
+                        </span>
                       </div>
-                      <ChevronRight size={14} className="text-muted-foreground shrink-0" />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex -space-x-2">
-                        {preview.map(m => (
-                          <div
-                            key={m.id}
-                            className="w-6 h-6 rounded-full bg-accent-soft text-accent flex items-center justify-center text-[9px] font-semibold ring-2 ring-surface"
-                          >
-                            {m.initials}
-                          </div>
-                        ))}
-                        {previewExtra > 0 && (
-                          <div className="w-6 h-6 rounded-full bg-surface-muted text-muted-foreground flex items-center justify-center text-[9px] font-semibold ring-2 ring-surface">
-                            +{previewExtra}
-                          </div>
-                        )}
+                    </button>
+                    {deleteConfirmUnitId === u.id ? (
+                      <div className="absolute inset-0 z-10 rounded-lg bg-surface border border-destructive/40 p-3 flex flex-col justify-center gap-2">
+                        <div className="text-xs text-foreground">Delete "{u.name}" and {countAll(u)} {countAll(u) === 1 ? "person" : "people"}?</div>
+                        <div className="flex gap-2">
+                          <button onClick={() => handleDeleteUnit(u.id)} className="h-7 px-3 rounded-lg bg-destructive text-white text-xs font-medium">
+                            Delete
+                          </button>
+                          <button onClick={() => setDeleteConfirmUnitId(null)} className="h-7 px-3 rounded-lg border border-border text-xs font-medium">
+                            Cancel
+                          </button>
+                        </div>
                       </div>
-                      <span className="ml-auto inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-full bg-surface border border-border text-muted-foreground shrink-0">
-                        <Users size={10} /> {countAll(u)}
-                      </span>
-                    </div>
-                  </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setDeleteConfirmUnitId(u.id)}
+                        aria-label={`Delete ${u.name}`}
+                        className="absolute top-2 right-2 z-10 w-6 h-6 rounded-md opacity-0 group-hover/card:opacity-100 hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-destructive transition-base"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    )}
+                  </div>
                 );
               })}
             </div>
