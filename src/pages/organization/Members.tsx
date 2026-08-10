@@ -408,8 +408,7 @@ export default function Members() {
         </div>
 
         <div className="text-xs text-muted-foreground mb-3">
-          {visibleMembers.length} {visibleMembers.length === 1 ? "person" : "people"}
-          {!isAllUnits ? ` in ${selectedUnit.name}${scope === "all" ? " and its sub-units" : ""}` : " across the organization"}
+          {visibleMembers.length} {visibleMembers.length === 1 ? "person" : "people"} in {selectedUnit.name}{scope === "all" ? " and its sub-units" : ""}
         </div>
 
         {visibleMembers.length === 0 ? (
