@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
-import { Building2, ChevronRight, ChevronDown, Search, Users } from "lucide-react";
-import { OrgUnit, orgTree, countAll, countDirect, findPath, unitMatches } from "./orgData";
+import { createPortal } from "react-dom";
+import { Building2, ChevronRight, ChevronDown, Search, Users, Pencil, Trash2, Plus, X } from "lucide-react";
+import { OrgUnit, OrgMember, countAll, countDirect, findPath, unitMatches } from "./orgData";
+import { useOrg } from "./orgStore";
 
 function TreeRow({
   unit, depth, selectedId, expanded, onToggle, onSelect, query,
