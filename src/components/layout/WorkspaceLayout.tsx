@@ -120,62 +120,8 @@ export default function WorkspaceLayout() {
             </NavLink>
           )}
 
-          {/* Tenant Switcher */}
-          <div className="relative">
-            <button
-              onClick={() => setTenantMenu(v => !v)}
-              title={collapsed ? tenant.name : undefined}
-              className={`w-full flex items-center gap-2 rounded-xl bg-sidebar-accent/50 hover:bg-sidebar-accent ring-1 ring-transparent hover:ring-sidebar-border transition-base ${
-                collapsed ? "justify-center p-1.5" : "px-2 py-1.5"
-              }`}
-            >
-              <div className="w-7 h-7 rounded-lg bg-primary-soft text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
-                {tenant.initial}
-              </div>
-              {!collapsed && (
-                <>
-                  <div className="flex-1 min-w-0 text-left">
-                    <div className="text-xs font-semibold text-foreground truncate leading-tight">{tenant.name}</div>
-                    <div className="text-[10px] text-muted-foreground truncate leading-tight">{tenant.plan}</div>
-                  </div>
-                  <ChevronDown size={12} className={`text-muted-foreground transition-base ${tenantMenu ? "rotate-180" : ""}`} />
-                </>
-              )}
-            </button>
-
-            {tenantMenu && (
-              <div className={`absolute z-50 bg-surface rounded-xl overflow-hidden ring-1 ring-border shadow-xl ${
-                collapsed ? "left-full ml-2 top-0 w-60" : "left-0 right-0 top-full mt-1.5"
-              }`}>
-                <div className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  <Building2 size={11} /> Switch tenant
-                </div>
-                <div className="px-1.5 pb-1.5 space-y-0.5">
-                  {TENANTS.map(t => (
-                    <button
-                      key={t.id}
-                      onClick={() => { setTenantId(t.id); setTenantMenu(false); }}
-                      className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-surface-muted transition-base text-left"
-                    >
-                      <div className="w-7 h-7 rounded-lg bg-primary-soft text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
-                        {t.initial}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-semibold text-foreground truncate">{t.name}</div>
-                        <div className="text-[10px] text-muted-foreground truncate">{t.plan}</div>
-                      </div>
-                      {t.id === tenantId && <Check size={13} className="text-primary shrink-0" />}
-                    </button>
-                  ))}
-                </div>
-                <div className="px-1.5 pb-1.5 pt-1 mt-0.5 bg-surface-muted/40">
-                  <button className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-xs font-medium hover:bg-surface text-primary transition-base">
-                    <PlusCircle size={13} /> Create new tenant
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+          {/* App switcher — Build Agent vs Organization management */}
+          <AppSwitcher collapsed={collapsed} inOrganization={inOrganization} />
         </div>
 
         {/* Nav */}
