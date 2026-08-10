@@ -338,7 +338,6 @@ export default function Members() {
 
   const roleIds = new Set(roles.map(r => r.id));
   const roleSections = [...roles.map(r => ({ id: r.id, name: r.name })), { id: "unassigned", name: "Unassigned" }];
-  const isAllUnits = selectedUnitId === tree.id;
   const selectedUnit = findUnit(tree, selectedUnitId) ?? tree;
 
   const roleNameFor = (memberId: string): string => {
