@@ -299,8 +299,9 @@ function AppSwitcher({ collapsed, inOrganization }: { collapsed: boolean; inOrga
       <button
         onClick={() => setOpen(v => !v)}
         title={collapsed ? active.label : undefined}
-        className={`w-full flex items-center gap-2 rounded-xl bg-sidebar-accent/50 hover:bg-sidebar-accent ring-1 ring-transparent hover:ring-sidebar-border transition-base ${
-          collapsed ? "justify-center p-1.5" : "px-2 py-1.5"
+        aria-label={collapsed ? `${active.label}, switch app` : undefined}
+        className={`w-full flex items-center gap-2.5 rounded-xl bg-sidebar-accent/50 hover:bg-sidebar-accent ring-1 ring-transparent hover:ring-sidebar-border transition-base cursor-pointer ${
+          collapsed ? "justify-center p-1.5" : "px-2.5 py-2"
         }`}
       >
         <div className="w-7 h-7 rounded-lg bg-primary-soft text-primary flex items-center justify-center shrink-0">
@@ -308,11 +309,8 @@ function AppSwitcher({ collapsed, inOrganization }: { collapsed: boolean; inOrga
         </div>
         {!collapsed && (
           <>
-            <div className="flex-1 min-w-0 text-left">
-              <div className="text-xs font-semibold text-foreground truncate leading-tight">{active.label}</div>
-              <div className="text-[10px] text-muted-foreground truncate leading-tight">Switch app</div>
-            </div>
-            <ChevronDown size={12} className={`text-muted-foreground transition-base ${open ? "rotate-180" : ""}`} />
+            <span className="flex-1 min-w-0 text-left text-sm font-semibold text-foreground truncate">{active.label}</span>
+            <ChevronDown size={13} className={`text-muted-foreground transition-base shrink-0 ${open ? "rotate-180" : ""}`} />
           </>
         )}
       </button>
