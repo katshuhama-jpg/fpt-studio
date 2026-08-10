@@ -165,7 +165,7 @@ function MemberModal({
           </button>
           <button
             onClick={submit}
-            disabled={!name.trim()}
+            disabled={!name.trim() || !email.trim()}
             className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-base disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {submitLabel}
