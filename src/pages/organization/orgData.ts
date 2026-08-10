@@ -1,4 +1,4 @@
-export type OrgMember = { id: string; name: string; role: string; initials: string; roleId?: string };
+export type OrgMember = { id: string; name: string; role: string; initials: string; roleId?: string; email?: string };
 export type OrgUnit = { id: string; name: string; members: OrgMember[]; units: OrgUnit[] };
 
 /**
