@@ -30,23 +30,27 @@ function roleChipClass(roleId: string | undefined): string {
 /* ─── Unit switcher (flat searchable popover — picking a unit is a lookup, not a drill-down) ─── */
 function UnitSwitcher({ value, onChange }: { value: string; onChange: (id: string) => void }) {
   const { tree } = useOrg();
-  const allUnits = useMemo(() => collectUnits(tree), [tree]);
+  const allUnits = useMemo(() => [tree, ...collectUnits(tree)], [tree]);
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
 
   const query = q.trim().toLowerCase();
   const filtered = query ? allUnits.filter(u => u.name.toLowerCase().includes(query)) : allUnits;
-  const path = value !== tree.id ? findPath(tree, value) : null;
-  const label = path ? path.slice(1).map(u => u.name).join(" › ") : "All units";
+  const path = findPath(tree, value) ?? [tree];
+  const label = path.length > 1 ? path.slice(1).map(u => u.name).join(" › ") : path[0].name;
 
   const pick = (id: string) => { onChange(id); setOpen(false); setQ(""); };
 
   return (
-    <div className="relative">
+    <div
+      className="relative"
+      onBlur={e => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false);
+      }}
+    >
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
         className="h-8 flex items-center gap-2 px-3 rounded-lg border border-border bg-surface text-sm hover:bg-surface-muted transition-base max-w-[280px]"
       >
         <Building2 size={13} className="text-muted-foreground shrink-0" />
@@ -68,14 +72,6 @@ function UnitSwitcher({ value, onChange }: { value: string; onChange: (id: strin
             </div>
           </div>
           <div className="overflow-y-auto p-1">
-            <button
-              type="button"
-              onClick={() => pick(tree.id)}
-              className={`w-full flex items-center justify-between gap-2 text-left px-3 py-2 rounded-lg text-sm transition-base hover:bg-surface-muted ${value === tree.id ? "text-primary font-medium bg-primary-soft" : "text-foreground"}`}
-            >
-              All units
-              <span className="text-[10px] text-muted-foreground shrink-0">{countAll(tree)}</span>
-            </button>
             {filtered.map(u => (
               <button
                 key={u.id}
