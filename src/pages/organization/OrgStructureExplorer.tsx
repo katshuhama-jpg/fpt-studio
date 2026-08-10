@@ -225,6 +225,46 @@ export default function OrgStructureExplorer() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[260px,1fr] gap-5">
+      {showRenameUnit && (
+        <UnitModal
+          title={`Rename ${selected.name}`}
+          desc="Update this unit's name."
+          initialName={selected.name}
+          submitLabel="Save changes"
+          onClose={() => setShowRenameUnit(false)}
+          onSave={name => renameUnit(selected.id, name)}
+        />
+      )}
+      {showAddSubunit && (
+        <UnitModal
+          title="Add sub-unit"
+          desc={`Create a new sub-unit under ${selected.name}.`}
+          submitLabel="Create sub-unit"
+          onClose={() => setShowAddSubunit(false)}
+          onSave={name => createUnit(selected.id, name)}
+        />
+      )}
+      {showAddMember && (
+        <MemberModal
+          title="Add member"
+          desc={`Add a new person directly to ${selected.name}.`}
+          submitLabel="Add member"
+          onClose={() => setShowAddMember(false)}
+          onSave={(name, jobTitle) => addMember(selected.id, name, jobTitle)}
+        />
+      )}
+      {editingMember && (
+        <MemberModal
+          title={`Edit ${editingMember.name}`}
+          desc="Update this person's name and title."
+          initialName={editingMember.name}
+          initialTitle={editingMember.role}
+          submitLabel="Save changes"
+          onClose={() => setEditingMember(null)}
+          onSave={(name, jobTitle) => updateMember(editingMember.id, name, jobTitle)}
+        />
+      )}
+
       {/* ── Tree navigator ─────────────────────────────── */}
       <div className="border border-border rounded-xl flex flex-col min-h-[320px] lg:max-h-[620px]">
         <div className="p-3 border-b border-border shrink-0">
