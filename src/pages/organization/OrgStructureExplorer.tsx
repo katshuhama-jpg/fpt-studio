@@ -192,25 +192,48 @@ export default function OrgStructureExplorer() {
               Sub-units ({selected.units.length})
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {selected.units.map(u => (
-                <button
-                  key={u.id}
-                  type="button"
-                  onClick={() => selectUnit(u.id)}
-                  className="flex items-center gap-2.5 p-3 rounded-lg border border-border hover:border-primary/30 hover:bg-surface-muted text-left transition-base cursor-pointer"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-primary-soft text-primary flex items-center justify-center shrink-0">
-                    <Building2 size={14} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-semibold truncate">{u.name}</div>
-                  </div>
-                  <span className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-full bg-surface border border-border text-muted-foreground shrink-0">
-                    <Users size={10} /> {countAll(u)}
-                  </span>
-                  <ChevronRight size={14} className="text-muted-foreground shrink-0" />
-                </button>
-              ))}
+              {selected.units.map(u => {
+                const preview = u.members.slice(0, 3);
+                const previewExtra = countAll(u) - preview.length;
+                return (
+                  <button
+                    key={u.id}
+                    type="button"
+                    onClick={() => selectUnit(u.id)}
+                    className="p-3 rounded-lg border border-border hover:border-primary/30 hover:bg-surface-muted text-left transition-base cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2.5 mb-2">
+                      <div className="w-8 h-8 rounded-lg bg-primary-soft text-primary flex items-center justify-center shrink-0">
+                        <Building2 size={14} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-semibold truncate">{u.name}</div>
+                      </div>
+                      <ChevronRight size={14} className="text-muted-foreground shrink-0" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex -space-x-2">
+                        {preview.map(m => (
+                          <div
+                            key={m.id}
+                            className="w-6 h-6 rounded-full bg-accent-soft text-accent flex items-center justify-center text-[9px] font-semibold ring-2 ring-surface"
+                          >
+                            {m.initials}
+                          </div>
+                        ))}
+                        {previewExtra > 0 && (
+                          <div className="w-6 h-6 rounded-full bg-surface-muted text-muted-foreground flex items-center justify-center text-[9px] font-semibold ring-2 ring-surface">
+                            +{previewExtra}
+                          </div>
+                        )}
+                      </div>
+                      <span className="ml-auto inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-full bg-surface border border-border text-muted-foreground shrink-0">
+                        <Users size={10} /> {countAll(u)}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
