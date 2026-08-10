@@ -3,29 +3,26 @@ import { Card, Row, PageHeader } from "./shared";
 export default function General() {
   return (
     <div className="px-8 py-8 max-w-[1280px] mx-auto animate-fade-up space-y-6">
-      <PageHeader title="General" desc="How your organization appears to teammates." />
+      <PageHeader title="Organization Info" desc="How your organization appears to teammates. View only." />
 
       <Card>
         <div className="flex items-center gap-4 mb-5">
-          <div className="w-16 h-16 rounded-xl bg-gradient-brand flex items-center justify-center text-2xl font-display font-bold text-primary-foreground shadow-soft">
+          <div className="w-16 h-16 rounded-xl bg-gradient-brand flex items-center justify-center text-2xl font-display font-bold text-primary-foreground shadow-soft shrink-0">
             F
           </div>
           <div>
-            <button className="btn-secondary h-9">Upload logo</button>
-            <p className="text-xs text-muted-foreground mt-1.5">PNG/SVG, square, ≥ 256×256.</p>
+            <div className="text-sm font-semibold text-foreground">FPT Corporation</div>
+            <p className="text-xs text-muted-foreground mt-0.5">Organization logo</p>
           </div>
         </div>
         <Row label="Organization name">
-          <input className="ds-input max-w-md" defaultValue="FPT Corporation" />
+          <span className="text-sm text-foreground">FPT Corporation</span>
         </Row>
         <Row label="URL slug">
-          <div className="flex items-center max-w-md">
-            <span className="ds-input rounded-r-none border-r-0 bg-surface-muted text-muted-foreground !w-auto">app.fptai.com/</span>
-            <input className="ds-input rounded-l-none flex-1" defaultValue="fpt-corp" />
-          </div>
+          <span className="text-sm text-foreground">app.fptai.com/fpt-corp</span>
         </Row>
         <Row label="Default language">
-          <select className="ds-input max-w-md"><option>English (US)</option><option>Tiếng Việt</option></select>
+          <span className="text-sm text-foreground">Tiếng Việt</span>
         </Row>
       </Card>
     </div>
