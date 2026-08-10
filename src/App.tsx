@@ -19,6 +19,7 @@ import OrgMembers from "./pages/organization/Members";
 import OrgPermissions from "./pages/organization/Permissions";
 import OrgRoles from "./pages/organization/Roles";
 import { RolesProvider } from "./pages/organization/rolesStore";
+import { OrgProvider } from "./pages/organization/orgStore";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import Skills from "./pages/Skills";
 import WorkspaceGuardrails from "./pages/WorkspaceGuardrails";
