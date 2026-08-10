@@ -420,8 +420,8 @@ export default function OrgStructureExplorer() {
                 );
               })}
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Direct members */}
         <div>
@@ -429,17 +429,26 @@ export default function OrgStructureExplorer() {
             <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Members in this unit ({countDirect(selected)})
             </div>
-            {selected.members.length > 6 && (
-              <div className="relative w-40">
-                <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  value={memberQuery}
-                  onChange={e => setMemberQuery(e.target.value)}
-                  placeholder="Filter…"
-                  className="ds-input pl-6 h-7 text-xs"
-                />
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowAddMember(true)}
+                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-glow transition-base shrink-0"
+              >
+                <Plus size={12} /> Add member
+              </button>
+              {selected.members.length > 6 && (
+                <div className="relative w-40">
+                  <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    value={memberQuery}
+                    onChange={e => setMemberQuery(e.target.value)}
+                    placeholder="Filter…"
+                    className="ds-input pl-6 h-7 text-xs"
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
           {selected.members.length === 0 ? (
@@ -450,11 +459,29 @@ export default function OrgStructureExplorer() {
             <div className="border border-border rounded-lg overflow-hidden">
               <div className="max-h-[320px] overflow-y-auto divide-y divide-border">
                 {filteredMembers.map(m => (
-                  <div key={m.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-surface-muted/60 transition-base">
+                  <div key={m.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-surface-muted/60 transition-base group/row">
                     <div className="w-8 h-8 rounded-full bg-accent-soft text-accent flex items-center justify-center text-[11px] font-semibold shrink-0">
                       {m.initials}
                     </div>
-                    <span className="text-sm font-medium truncate">{m.name}</span>
+                    <span className="text-sm font-medium truncate flex-1">{m.name}</span>
+                    <div className="flex items-center gap-1 opacity-0 group-hover/row:opacity-100 transition-base shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setEditingMember(m)}
+                        aria-label={`Edit ${m.name}`}
+                        className="w-7 h-7 rounded-lg hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeMember(m.id)}
+                        aria-label={`Remove ${m.name}`}
+                        className="w-7 h-7 rounded-lg hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-destructive transition-base"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
                   </div>
                 ))}
                 {filteredMembers.length === 0 && (
