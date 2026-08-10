@@ -54,11 +54,11 @@ const utilityItems: Item[] = [
 ];
 
 const orgItems: Item[] = [
-  { to: "/organization", label: "General", icon: Building2 },
   { to: "/organization/structure", label: "Structure", icon: Network },
   { to: "/organization/members", label: "Members", icon: Users },
-  { to: "/organization/permissions", label: "Permissions", icon: Lock },
   { to: "/organization/roles", label: "Roles", icon: Shield },
+  { to: "/organization/permissions", label: "Permissions", icon: Lock },
+  { to: "/organization", label: "Organization Info", icon: Building2 },
 ];
 
 export default function WorkspaceLayout() {
