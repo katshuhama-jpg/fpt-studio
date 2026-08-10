@@ -330,14 +330,15 @@ export default function Members() {
     return map;
   });
   const [selectedUnitId, setSelectedUnitId] = useState(orgTree.id);
-  const [treeExpanded, setTreeExpanded] = useState<Set<string>>(new Set([orgTree.id, ...orgTree.units.map(u => u.id)]));
-  const [treeQuery, setTreeQuery] = useState("");
+  const [scope, setScope] = useState<"direct" | "all">("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [showAdd, setShowAdd] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(50);
 
   const roleIds = new Set(roles.map(r => r.id));
   const roleSections = [...roles.map(r => ({ id: r.id, name: r.name })), { id: "unassigned", name: "Unassigned" }];
+  const isAllUnits = selectedUnitId === orgTree.id;
   const selectedUnit = findUnit(orgTree, selectedUnitId) ?? orgTree;
 
   const roleNameFor = (memberId: string): string => {
@@ -346,21 +347,11 @@ export default function Members() {
     return "Unassigned";
   };
 
-  const toggleTreeExpand = (id: string) => {
-    setTreeExpanded(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
+  useEffect(() => { setVisibleCount(50); }, [selectedUnitId, scope, roleFilter, query]);
 
-  const selectUnit = (id: string) => {
-    setSelectedUnitId(id);
-    const path = findPath(orgTree, id) ?? [];
-    setTreeExpanded(prev => new Set([...prev, ...path.map(u => u.id)]));
-  };
+  const baseMembers = isAllUnits ? ALL_MEMBERS : scope === "all" ? collectMembers(selectedUnit) : selectedUnit.members;
 
-  const visibleMembers = selectedUnit.members
+  const visibleMembers = baseMembers
     .filter(m => {
       if (roleFilter === "all") return true;
       const rid = assignments[m.id];
@@ -372,6 +363,8 @@ export default function Members() {
       if (!q) return true;
       return m.name.toLowerCase().includes(q) || m.role.toLowerCase().includes(q);
     });
+
+  const shownMembers = visibleMembers.slice(0, visibleCount);
 
   const handleAdd = (memberId: string, roleId: string) => {
     setAssignments(prev => ({ ...prev, [memberId]: roleId }));
@@ -398,92 +391,90 @@ export default function Members() {
       )}
 
       <div className="flex items-start justify-between gap-4">
-        <PageHeader title="Members" desc="Pick a unit to see its members and the role each person has." />
+        <PageHeader title="Members" desc="Search and manage everyone in the organization, and the role each person holds." />
         <button onClick={() => setShowAdd(true)} className="btn-primary h-9 shrink-0">
           <Plus size={14} /> Add users to a role
         </button>
       </div>
 
       <Card>
-        <div className="grid grid-cols-1 lg:grid-cols-[260px,1fr] gap-5">
-          {/* Unit tree navigator */}
-          <div className="border border-border rounded-xl flex flex-col min-h-[320px] lg:max-h-[620px]">
-            <div className="p-2.5 border-b border-border shrink-0">
-              <div className="relative">
-                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  value={treeQuery}
-                  onChange={e => setTreeQuery(e.target.value)}
-                  placeholder="Search units…"
-                  className="ds-input pl-9 h-9 text-sm"
-                />
-              </div>
-            </div>
-            <div className="flex-1 overflow-y-auto p-1.5 space-y-0.5">
-              <UnitTreeRow
-                unit={orgTree} depth={0} selectedId={selectedUnitId}
-                onSelect={selectUnit} expanded={treeExpanded} onToggle={toggleTreeExpand} query={treeQuery}
-              />
-            </div>
+        <div className="flex flex-wrap items-center gap-2.5 mb-4">
+          <UnitSwitcher value={selectedUnitId} onChange={setSelectedUnitId} />
+          {!isAllUnits && <ScopeToggle value={scope} onChange={setScope} />}
+          <FilterChip value={roleFilter} allLabel="All roles" options={roleSections} onChange={setRoleFilter} />
+          <div className="relative ml-auto w-full sm:w-64">
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search by name or title…" className="ds-input pl-8 h-9" />
           </div>
+        </div>
 
-          {/* Selected unit — members and their roles */}
-          <div className="min-w-0">
-            <div className="flex items-start justify-between gap-3 mb-4">
-              <div className="min-w-0">
-                <div className="text-lg font-display font-semibold truncate">{selectedUnit.name}</div>
-                <div className="text-xs text-muted-foreground mt-0.5">
-                  {selectedUnit.members.length} {selectedUnit.members.length === 1 ? "member" : "members"} in this unit
-                </div>
+        <div className="text-xs text-muted-foreground mb-3">
+          {visibleMembers.length} {visibleMembers.length === 1 ? "person" : "people"}
+          {!isAllUnits ? ` in ${selectedUnit.name}${scope === "all" ? " and its sub-units" : ""}` : " across the organization"}
+        </div>
+
+        {visibleMembers.length === 0 ? (
+          <div className="text-sm text-muted-foreground border border-dashed border-border rounded-lg py-10 text-center">
+            No members match here.
+          </div>
+        ) : (
+          <>
+            <div className="rounded-xl border border-border overflow-hidden">
+              <div className="grid grid-cols-[1fr,200px,140px,52px] gap-3 px-4 py-2.5 bg-surface-muted section-eyebrow">
+                <div>Member</div><div>Unit</div><div>Role</div><div></div>
               </div>
-              <FilterChip value={roleFilter} allLabel="All roles" options={roleSections} onChange={setRoleFilter} />
-            </div>
-
-            <div className="relative mb-4 max-w-xs">
-              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search by name or title…" className="ds-input pl-8 h-9" />
-            </div>
-
-            {visibleMembers.length === 0 ? (
-              <div className="text-sm text-muted-foreground border border-dashed border-border rounded-lg py-10 text-center">
-                No members match here.
-              </div>
-            ) : (
-              <div className="rounded-xl border border-border overflow-hidden">
-                <div className="divide-y divide-border">
-                  {visibleMembers.map(m => {
-                    const roleName = roleNameFor(m.id);
-                    const hasRole = roleName !== "Unassigned";
-                    return (
-                      <div key={m.id} className="flex items-center gap-3 px-4 py-3 hover:bg-surface-muted/50 transition-base group/row">
+              <div className="divide-y divide-border">
+                {shownMembers.map(m => {
+                  const roleName = roleNameFor(m.id);
+                  const hasRole = roleName !== "Unassigned";
+                  const unitName = findMemberUnit(orgTree, m.id)?.name ?? "—";
+                  return (
+                    <div key={m.id} className="grid grid-cols-[1fr,200px,140px,52px] gap-3 px-4 py-3 items-center hover:bg-surface-muted/50 transition-base">
+                      <div className="flex items-center gap-3 min-w-0">
                         <div className="w-9 h-9 rounded-full bg-accent-soft text-accent flex items-center justify-center text-xs font-semibold shrink-0">
                           {m.initials}
                         </div>
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0">
                           <div className="text-sm font-medium truncate">{m.name}</div>
                           <div className="text-xs text-muted-foreground truncate">{m.role}</div>
                         </div>
-                        <span className={`text-xs font-medium px-2.5 py-1 rounded-full shrink-0 ${hasRole ? "bg-primary-soft text-primary" : "bg-surface-muted text-muted-foreground"}`}>
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate" title={unitName}>{unitName}</div>
+                      <div>
+                        <span className={`text-xs font-medium px-2.5 py-1 rounded-full inline-block ${hasRole ? "bg-primary-soft text-primary" : "bg-surface-muted text-muted-foreground"}`}>
                           {roleName}
                         </span>
+                      </div>
+                      <div className="flex justify-center">
                         {hasRole && (
                           <button
                             type="button"
                             onClick={() => handleRemove(m.id)}
-                            className="opacity-0 group-hover/row:opacity-100 w-7 h-7 rounded-lg hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-destructive transition-base shrink-0"
+                            className="w-7 h-7 rounded-lg hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-destructive transition-base"
                             aria-label={`Remove ${m.name} from ${roleName}`}
                           >
                             <UserMinus size={13} />
                           </button>
                         )}
                       </div>
-                    );
-                  })}
-                </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            {visibleMembers.length > visibleCount && (
+              <div className="flex justify-center mt-3">
+                <button
+                  type="button"
+                  onClick={() => setVisibleCount(c => c + 50)}
+                  className="h-8 px-3 rounded-lg border border-border bg-surface text-xs font-medium hover:bg-surface-muted transition-base"
+                >
+                  Load more (+{Math.min(50, visibleMembers.length - visibleCount)})
+                </button>
               </div>
             )}
-          </div>
-        </div>
+          </>
+        )}
       </Card>
     </div>
   );
