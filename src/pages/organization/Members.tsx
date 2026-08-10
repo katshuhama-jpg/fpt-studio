@@ -322,12 +322,7 @@ function AddUserToRoleModal({
 export default function Members() {
   const { tree } = useOrg();
   const { roles } = useRoles();
-  const allMembers = useMemo(() => collectMembers(tree), [tree]);
-  const [assignments, setAssignments] = useState<Record<string, string>>(() => {
-    const map: Record<string, string> = {};
-    allMembers.forEach(m => { if (m.roleId) map[m.id] = m.roleId; });
-    return map;
-  });
+  const { assignRole } = useOrg();
   const [selectedUnitId, setSelectedUnitId] = useState(tree.id);
   const [scope, setScope] = useState<"direct" | "all">("all");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -339,8 +334,8 @@ export default function Members() {
   const roleSections = [...roles.map(r => ({ id: r.id, name: r.name })), { id: "unassigned", name: "Unassigned" }];
   const selectedUnit = findUnit(tree, selectedUnitId) ?? tree;
 
-  const roleNameFor = (memberId: string): string => {
-    const rid = assignments[memberId];
+  const roleNameFor = (m: OrgMember): string => {
+    const rid = m.roleId;
     if (rid && roleIds.has(rid)) return roles.find(r => r.id === rid)!.name;
     return "Unassigned";
   };
@@ -352,7 +347,7 @@ export default function Members() {
   const visibleMembers = baseMembers
     .filter(m => {
       if (roleFilter === "all") return true;
-      const rid = assignments[m.id];
+      const rid = m.roleId;
       const effective = rid && roleIds.has(rid) ? rid : "unassigned";
       return effective === roleFilter;
     })
@@ -364,24 +359,15 @@ export default function Members() {
 
   const shownMembers = visibleMembers.slice(0, visibleCount);
 
-  const handleAdd = (memberId: string, roleId: string) => {
-    setAssignments(prev => ({ ...prev, [memberId]: roleId }));
-  };
+  const handleAdd = (memberId: string, roleId: string) => assignRole(memberId, roleId);
 
-  const handleRemove = (memberId: string) => {
-    setAssignments(prev => {
-      const next = { ...prev };
-      delete next[memberId];
-      return next;
-    });
-  };
+  const handleRemove = (memberId: string) => assignRole(memberId, undefined);
 
   return (
     <div className="px-8 py-8 max-w-[1280px] mx-auto animate-fade-up space-y-6">
       {showAdd && (
         <AddUserToRoleModal
           roles={roles}
-          assignments={assignments}
           defaultRoleId={roleFilter !== "all" ? roleFilter : (roles[0]?.id ?? "")}
           onClose={() => setShowAdd(false)}
           onAdd={handleAdd}
