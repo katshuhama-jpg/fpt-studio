@@ -1,15 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Search, X, UserMinus, Plus, ChevronDown, AlertTriangle, Building2 } from "lucide-react";
 import { Card, PageHeader } from "./shared";
-import { orgTree, OrgMember, collectMembers, collectUnits, countAll, findUnit, findPath, findMemberUnit } from "./orgData";
+import { OrgUnit, OrgMember, collectMembers, collectUnits, countAll, findUnit, findPath, findMemberUnit } from "./orgData";
 import { useRoles, RoleDef } from "./rolesStore";
+import { useOrg } from "./orgStore";
 
-const ALL_MEMBERS: OrgMember[] = collectMembers(orgTree);
-const ALL_UNITS = collectUnits(orgTree);
-
-function unitNameFor(memberId: string): string {
-  const unit = findMemberUnit(orgTree, memberId);
+function unitNameFor(tree: OrgUnit, memberId: string): string {
+  const unit = findMemberUnit(tree, memberId);
   return unit ? unit.name : "No unit";
 }
 
