@@ -309,7 +309,7 @@ function AppSwitcher({ collapsed, inOrganization }: { collapsed: boolean; inOrga
         </div>
         {!collapsed && (
           <>
-            <span className="flex-1 min-w-0 text-left text-sm font-semibold text-foreground truncate">{active.label}</span>
+            <span className="flex-1 min-w-0 text-left text-sm font-semibold text-foreground truncate">{active.short}</span>
             <ChevronDown size={13} className={`text-muted-foreground transition-base shrink-0 ${open ? "rotate-180" : ""}`} />
           </>
         )}
