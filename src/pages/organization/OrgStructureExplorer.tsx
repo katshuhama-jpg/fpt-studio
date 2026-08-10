@@ -196,6 +196,7 @@ function MemberModal({
 
 export default function OrgStructureExplorer() {
   const { tree, rootId, createUnit, renameUnit, deleteUnit, addMember, updateMember, removeMember } = useOrg();
+  const { roles } = useRoles();
   const [selectedId, setSelectedId] = useState(rootId);
   const [expanded, setExpanded] = useState<Set<string>>(new Set([tree.id, ...tree.units.map(u => u.id)]));
   const [treeQuery, setTreeQuery] = useState("");
