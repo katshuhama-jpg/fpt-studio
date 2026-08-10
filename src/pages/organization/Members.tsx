@@ -165,10 +165,9 @@ function FilterChip({
 
 /* ─── Add users to a role (global action) ──────────────────────────────── */
 function AddUserToRoleModal({
-  roles, assignments, defaultRoleId, onClose, onAdd,
+  roles, defaultRoleId, onClose, onAdd,
 }: {
   roles: RoleDef[];
-  assignments: Record<string, string>;
   defaultRoleId: string;
   onClose: () => void;
   onAdd: (memberId: string, roleId: string) => void;
@@ -177,7 +176,7 @@ function AddUserToRoleModal({
   const allMembers = useMemo(() => collectMembers(tree), [tree]);
   const roleIds = new Set(roles.map(r => r.id));
   const currentRoleNameOf = (memberId: string): string | null => {
-    const rid = assignments[memberId];
+    const rid = allMembers.find(m => m.id === memberId)?.roleId;
     if (!rid || !roleIds.has(rid)) return null;
     return roles.find(r => r.id === rid)?.name ?? null;
   };
