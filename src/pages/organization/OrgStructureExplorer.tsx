@@ -60,19 +60,144 @@ function TreeRow({
   );
 }
 
+/* ─── Create/rename-unit modal (single reusable component, matches RoleModal's isEdit pattern) ─── */
+function UnitModal({
+  title, desc, initialName, submitLabel, onClose, onSave,
+}: {
+  title: string; desc: string; initialName?: string; submitLabel: string; onClose: () => void; onSave: (name: string) => void;
+}) {
+  const [name, setName] = useState(initialName ?? "");
+  const submit = () => { if (!name.trim()) return; onSave(name.trim()); onClose(); };
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative w-[92vw] sm:w-1/2 min-w-[50vw] max-w-[1100px] bg-white rounded-2xl flex flex-col shadow-2xl max-h-[80vh]" style={{ animation: "fadeScaleIn 0.18s ease" }}>
+        <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-border shrink-0">
+          <div>
+            <h2 className="text-base font-semibold">{title}</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
+          </div>
+          <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground ml-4 shrink-0">
+            <X size={14} />
+          </button>
+        </div>
+        <div className="px-6 py-5">
+          <label className="text-sm font-medium block mb-1.5">Unit name <span className="text-destructive">*</span></label>
+          <input
+            autoFocus
+            value={name}
+            onChange={e => setName(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") submit(); }}
+            placeholder="e.g. Platform Engineering"
+            className="w-full h-10 px-3 rounded-xl border border-border bg-surface text-sm outline-none focus:border-ring transition-base"
+          />
+        </div>
+        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border shrink-0">
+          <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">
+            Cancel
+          </button>
+          <button
+            onClick={submit}
+            disabled={!name.trim()}
+            className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-base disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {submitLabel}
+          </button>
+        </div>
+      </div>
+      <style>{`@keyframes fadeScaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}`}</style>
+    </div>,
+    document.body
+  );
+}
+
+/* ─── Add/edit-member modal ─────────────────────────────────────────────── */
+function MemberModal({
+  title, desc, initialName, initialTitle, submitLabel, onClose, onSave,
+}: {
+  title: string; desc: string; initialName?: string; initialTitle?: string; submitLabel: string;
+  onClose: () => void; onSave: (name: string, jobTitle: string) => void;
+}) {
+  const [name, setName] = useState(initialName ?? "");
+  const [jobTitle, setJobTitle] = useState(initialTitle ?? "");
+  const submit = () => { if (!name.trim()) return; onSave(name.trim(), jobTitle.trim()); onClose(); };
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative w-[92vw] sm:w-1/2 min-w-[50vw] max-w-[1100px] bg-white rounded-2xl flex flex-col shadow-2xl max-h-[80vh]" style={{ animation: "fadeScaleIn 0.18s ease" }}>
+        <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-border shrink-0">
+          <div>
+            <h2 className="text-base font-semibold">{title}</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
+          </div>
+          <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground ml-4 shrink-0">
+            <X size={14} />
+          </button>
+        </div>
+        <div className="px-6 py-5 space-y-4">
+          <div>
+            <label className="text-sm font-medium block mb-1.5">Full name <span className="text-destructive">*</span></label>
+            <input
+              autoFocus
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="e.g. Mai Hoang"
+              className="w-full h-10 px-3 rounded-xl border border-border bg-surface text-sm outline-none focus:border-ring transition-base"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium block mb-1.5">Title</label>
+            <input
+              value={jobTitle}
+              onChange={e => setJobTitle(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") submit(); }}
+              placeholder="e.g. Senior Engineer"
+              className="w-full h-10 px-3 rounded-xl border border-border bg-surface text-sm outline-none focus:border-ring transition-base"
+            />
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border shrink-0">
+          <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">
+            Cancel
+          </button>
+          <button
+            onClick={submit}
+            disabled={!name.trim()}
+            className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-base disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {submitLabel}
+          </button>
+        </div>
+      </div>
+      <style>{`@keyframes fadeScaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}`}</style>
+    </div>,
+    document.body
+  );
+}
+
 export default function OrgStructureExplorer() {
-  const [selectedId, setSelectedId] = useState(orgTree.id);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set([orgTree.id, ...orgTree.units.map(u => u.id)]));
+  const { tree, rootId, createUnit, renameUnit, deleteUnit, addMember, updateMember, removeMember } = useOrg();
+  const [selectedId, setSelectedId] = useState(rootId);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set([tree.id, ...tree.units.map(u => u.id)]));
   const [treeQuery, setTreeQuery] = useState("");
   const [memberQuery, setMemberQuery] = useState("");
+  const [showRenameUnit, setShowRenameUnit] = useState(false);
+  const [showAddSubunit, setShowAddSubunit] = useState(false);
+  const [showAddMember, setShowAddMember] = useState(false);
+  const [editingMember, setEditingMember] = useState<OrgMember | null>(null);
+  const [deleteConfirmUnitId, setDeleteConfirmUnitId] = useState<string | null>(null);
 
-  const path = useMemo(() => findPath(orgTree, selectedId) ?? [orgTree], [selectedId]);
+  const path = useMemo(() => findPath(tree, selectedId) ?? [tree], [tree, selectedId]);
   const selected = path[path.length - 1];
+  const isRoot = selected.id === rootId;
 
   const selectUnit = (id: string) => {
     setSelectedId(id);
     setMemberQuery("");
-    const ancestors = findPath(orgTree, id) ?? [];
+    setDeleteConfirmUnitId(null);
+    const ancestors = findPath(tree, id) ?? [];
     setExpanded(prev => new Set([...prev, ...ancestors.map(a => a.id)]));
   };
 
@@ -82,6 +207,14 @@ export default function OrgStructureExplorer() {
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
+  };
+
+  const handleDeleteUnit = (unitId: string) => {
+    const p = findPath(tree, unitId);
+    const parent = p && p.length > 1 ? p[p.length - 2] : null;
+    deleteUnit(unitId);
+    setDeleteConfirmUnitId(null);
+    if (unitId === selectedId) selectUnit(parent ? parent.id : rootId);
   };
 
   const filteredMembers = selected.members.filter(m => {
