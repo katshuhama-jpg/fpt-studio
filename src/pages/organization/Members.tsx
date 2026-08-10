@@ -56,7 +56,7 @@ function UnitTreeRow({
           type="button"
           onClick={() => hasChildren && onToggle(unit.id)}
           aria-label={hasChildren ? (isOpen ? `Collapse ${unit.name}` : `Expand ${unit.name}`) : undefined}
-          className={`shrink-0 w-7 h-9 flex items-center justify-center rounded-lg transition-base ${hasChildren ? "text-muted-foreground hover:bg-surface cursor-pointer" : "invisible"}`}
+          className={`shrink-0 w-9 h-11 flex items-center justify-center rounded-lg transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${hasChildren ? "text-muted-foreground hover:bg-surface cursor-pointer" : "invisible"}`}
         >
           {hasChildren && (isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />)}
         </button>
@@ -64,10 +64,16 @@ function UnitTreeRow({
           type="button"
           onClick={() => onSelect(unit.id)}
           aria-current={isSelected ? "true" : undefined}
-          className={`flex-1 min-w-0 flex items-center gap-2 py-2 pr-3 text-left cursor-pointer ${isSelected ? "text-primary" : "text-foreground"}`}
+          aria-label={`${unit.name}, ${countAll(unit)} people`}
+          className={`flex-1 min-w-0 flex items-center gap-2 py-2 pr-2 text-left cursor-pointer ${isSelected ? "text-primary" : "text-foreground"}`}
         >
-          <Building2 size={14} className="shrink-0" />
           <span className={`text-sm truncate ${isSelected ? "font-semibold" : "font-medium"}`}>{unit.name}</span>
+          <span
+            aria-hidden="true"
+            className="ml-auto shrink-0 inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-full bg-surface border border-border text-muted-foreground"
+          >
+            {countAll(unit)}
+          </span>
         </button>
       </div>
       {hasChildren && isOpen && (
