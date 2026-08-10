@@ -109,7 +109,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const addMember = (unitId: string, name: string, email: string) => {
+  const addMember = (unitId: string, name: string, email: string, roleId?: string) => {
     const trimmedName = name.trim();
     if (!trimmedName) return;
     const trimmedEmail = email.trim();
@@ -118,14 +118,14 @@ export function OrgProvider({ children }: { children: ReactNode }) {
         ...unit,
         members: [
           ...unit.members,
-          { id: nextId("member"), name: trimmedName, role: "", email: trimmedEmail, initials: deriveInitials(trimmedName) },
+          { id: nextId("member"), name: trimmedName, role: "", email: trimmedEmail, initials: deriveInitials(trimmedName), roleId },
         ],
       }));
       return updated ?? prev;
     });
   };
 
-  const updateMember = (memberId: string, name: string, email: string) => {
+  const updateMember = (memberId: string, name: string, email: string, roleId?: string) => {
     const trimmedName = name.trim();
     if (!trimmedName) return;
     const trimmedEmail = email.trim();
@@ -133,11 +133,15 @@ export function OrgProvider({ children }: { children: ReactNode }) {
       updateMemberOwner(prev, memberId, members =>
         members.map(m =>
           m.id === memberId
-            ? { ...m, name: trimmedName, email: trimmedEmail, initials: deriveInitials(trimmedName) }
+            ? { ...m, name: trimmedName, email: trimmedEmail, initials: deriveInitials(trimmedName), roleId }
             : m
         )
       )
     );
+  };
+
+  const assignRole = (memberId: string, roleId: string | undefined) => {
+    setTree(prev => updateMemberOwner(prev, memberId, members => members.map(m => (m.id === memberId ? { ...m, roleId } : m))));
   };
 
   const removeMember = (memberId: string) => {
@@ -145,7 +149,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <OrgContext.Provider value={{ tree, rootId: ROOT_ID, createUnit, renameUnit, deleteUnit, addMember, updateMember, removeMember }}>
+    <OrgContext.Provider value={{ tree, rootId: ROOT_ID, createUnit, renameUnit, deleteUnit, addMember, updateMember, assignRole, removeMember }}>
       {children}
     </OrgContext.Provider>
   );
