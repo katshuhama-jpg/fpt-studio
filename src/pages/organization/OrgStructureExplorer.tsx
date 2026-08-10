@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
-import { Building2, ChevronRight, ChevronDown, Search, Users } from "lucide-react";
-import { OrgUnit, orgTree, countAll, countDirect, findPath, unitMatches } from "./orgData";
+import { Building2, ChevronRight, ChevronDown, Search, Users, Crown } from "lucide-react";
+import { OrgUnit, OrgMember, orgTree, countAll, countDirect, findPath, unitMatches } from "./orgData";
 
-
+function getUnitLeads(unit: OrgUnit): OrgMember[] {
+  return unit.members.filter(m => m.roleId === "admin");
+}
 
 function TreeRow({
   unit, depth, selectedId, expanded, onToggle, onSelect, query,
