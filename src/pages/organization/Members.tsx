@@ -268,7 +268,7 @@ function AddUserToRoleModal({
                               </span>
                             )}
                           </div>
-                          <div className="text-xs text-muted-foreground truncate">{m.role} · {unitNameFor(m.id)}</div>
+                          <div className="text-xs text-muted-foreground truncate">{m.role} · {unitNameFor(tree, m.id)}</div>
                         </div>
                       </button>
                     );
