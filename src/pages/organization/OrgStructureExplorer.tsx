@@ -148,12 +148,13 @@ function MemberModal({
             />
           </div>
           <div>
-            <label className="text-sm font-medium block mb-1.5">Title</label>
+            <label className="text-sm font-medium block mb-1.5">Email <span className="text-destructive">*</span></label>
             <input
-              value={jobTitle}
-              onChange={e => setJobTitle(e.target.value)}
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter") submit(); }}
-              placeholder="e.g. Senior Engineer"
+              placeholder="e.g. mai.hoang@fpt.com"
               className="w-full h-10 px-3 rounded-xl border border-border bg-surface text-sm outline-none focus:border-ring transition-base"
             />
           </div>
