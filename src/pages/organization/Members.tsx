@@ -177,6 +177,8 @@ function AddUserToRoleModal({
   onClose: () => void;
   onAdd: (memberId: string, roleId: string) => void;
 }) {
+  const { tree } = useOrg();
+  const allMembers = useMemo(() => collectMembers(tree), [tree]);
   const roleIds = new Set(roles.map(r => r.id));
   const currentRoleNameOf = (memberId: string): string | null => {
     const rid = assignments[memberId];
@@ -190,7 +192,7 @@ function AddUserToRoleModal({
   const [roleId, setRoleId] = useState(defaultRoleId);
 
   const q = query.trim().toLowerCase();
-  const candidates = q ? ALL_MEMBERS.filter(m => m.name.toLowerCase().includes(q)).slice(0, 20) : [];
+  const candidates = q ? allMembers.filter(m => m.name.toLowerCase().includes(q)).slice(0, 20) : [];
   const conflictRoleName = selectedMember ? currentRoleNameOf(selectedMember.id) : null;
 
   const submit = () => {
