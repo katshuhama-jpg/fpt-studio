@@ -431,7 +431,7 @@ export default function Members() {
                 {shownMembers.map(m => {
                   const roleName = roleNameFor(m.id);
                   const hasRole = roleName !== "Unassigned";
-                  const unitName = findMemberUnit(orgTree, m.id)?.name ?? "—";
+                  const unitName = findMemberUnit(tree, m.id)?.name ?? "—";
                   return (
                     <div key={m.id} className="grid grid-cols-[1fr,200px,140px,52px] gap-3 px-4 py-3 items-center hover:bg-surface-muted/50 transition-base">
                       <div className="flex items-center gap-3 min-w-0">
