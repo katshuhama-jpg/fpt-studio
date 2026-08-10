@@ -69,8 +69,8 @@ type OrgContextValue = {
   createUnit: (parentId: string, name: string) => void;
   renameUnit: (unitId: string, name: string) => void;
   deleteUnit: (unitId: string) => void;
-  addMember: (unitId: string, name: string, title: string) => void;
-  updateMember: (memberId: string, name: string, title: string) => void;
+  addMember: (unitId: string, name: string, email: string) => void;
+  updateMember: (memberId: string, name: string, email: string) => void;
   removeMember: (memberId: string) => void;
 };
 
