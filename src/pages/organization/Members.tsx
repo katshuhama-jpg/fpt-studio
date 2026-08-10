@@ -70,11 +70,11 @@ function UnitSwitcher({ value, onChange }: { value: string; onChange: (id: strin
           <div className="overflow-y-auto p-1">
             <button
               type="button"
-              onClick={() => pick(orgTree.id)}
-              className={`w-full flex items-center justify-between gap-2 text-left px-3 py-2 rounded-lg text-sm transition-base hover:bg-surface-muted ${value === orgTree.id ? "text-primary font-medium bg-primary-soft" : "text-foreground"}`}
+              onClick={() => pick(tree.id)}
+              className={`w-full flex items-center justify-between gap-2 text-left px-3 py-2 rounded-lg text-sm transition-base hover:bg-surface-muted ${value === tree.id ? "text-primary font-medium bg-primary-soft" : "text-foreground"}`}
             >
               All units
-              <span className="text-[10px] text-muted-foreground shrink-0">{countAll(orgTree)}</span>
+              <span className="text-[10px] text-muted-foreground shrink-0">{countAll(tree)}</span>
             </button>
             {filtered.map(u => (
               <button
