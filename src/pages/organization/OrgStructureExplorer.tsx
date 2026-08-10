@@ -266,20 +266,23 @@ export default function OrgStructureExplorer() {
         <MemberModal
           title="Invite member"
           desc={`Invite a new person to join ${selected.name}.`}
+          roles={roles}
           submitLabel="Invite member"
           onClose={() => setShowAddMember(false)}
-          onSave={(name, email) => addMember(selected.id, name, email)}
+          onSave={(name, email, roleId) => addMember(selected.id, name, email, roleId)}
         />
       )}
       {editingMember && (
         <MemberModal
           title={`Edit ${editingMember.name}`}
-          desc="Update this person's name and email."
+          desc="Update this person's name, email, and role."
           initialName={editingMember.name}
           initialEmail={editingMember.email}
+          initialRoleId={editingMember.roleId}
+          roles={roles}
           submitLabel="Save changes"
           onClose={() => setEditingMember(null)}
-          onSave={(name, email) => updateMember(editingMember.id, name, email)}
+          onSave={(name, email, roleId) => updateMember(editingMember.id, name, email, roleId)}
         />
       )}
 
