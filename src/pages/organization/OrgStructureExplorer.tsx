@@ -30,7 +30,7 @@ function TreeRow({
           type="button"
           onClick={() => hasChildren && onToggle(unit.id)}
           aria-label={hasChildren ? (isOpen ? `Collapse ${unit.name}` : `Expand ${unit.name}`) : undefined}
-          className={`shrink-0 w-8 h-10 flex items-center justify-center rounded-lg transition-base ${
+          className={`shrink-0 w-9 h-11 flex items-center justify-center rounded-lg transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
             hasChildren ? "text-muted-foreground hover:bg-surface cursor-pointer" : "invisible"
           }`}
         >
