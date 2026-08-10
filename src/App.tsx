@@ -50,6 +50,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <RolesProvider>
+        <OrgProvider>
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
