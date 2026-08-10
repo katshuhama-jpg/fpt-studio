@@ -65,9 +65,6 @@ export default function WorkspaceLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [open, setOpen] = useState<Record<string, boolean>>({ build: true, workspace: true });
   const [userMenu, setUserMenu] = useState(false);
-  const [tenantMenu, setTenantMenu] = useState(false);
-  const [tenantId, setTenantId] = useState(TENANTS[0].id);
-  const tenant = TENANTS.find(t => t.id === tenantId) ?? TENANTS[0];
   const userEmail = getUser()?.email || "tran.nam@fpt.com";
   const loc = useLocation();
   const navigate = useNavigate();
