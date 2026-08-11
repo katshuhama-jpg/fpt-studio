@@ -169,7 +169,7 @@ export default function AgentBuilder() {
                 style={{ height: "36px", fontSize: "14px" }}
                 className={`w-full flex items-center gap-1 px-2 transition-base border-l-2 shrink-0 ${
                   section === it.id && !it.comingSoon
-                    ? "border-primary bg-primary-soft/40 text-primary font-medium"
+                    ? "border-primary bg-primary-soft text-primary font-medium"
                     : it.comingSoon
                     ? "border-transparent text-muted-foreground cursor-default opacity-60"
                     : "border-transparent text-foreground hover:bg-surface-muted hover:border-border"
@@ -1456,8 +1456,8 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
     <div className="flex flex-col">
       {/* Model row */}
       <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border">
-        <div className="w-8 h-8 rounded-lg bg-primary-soft flex items-center justify-center shrink-0">
-          <HugeiconsIcon icon={CpuIcon} size={15} className="text-primary" />
+        <div className="rounded-lg bg-primary-soft flex items-center justify-center shrink-0" style={{width:"28px",height:"28px"}}>
+          <HugeiconsIcon icon={CpuIcon} size={16} className="text-primary" />
         </div>
         <span className="text-sm font-medium flex-1">Model</span>
         <ModelDropdown value={model} onChange={onModelChange} />
@@ -1474,10 +1474,10 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
               <button
                 onClick={toggle}
                 disabled={!!s.comingSoon}
-                className="group w-8 h-8 rounded-lg bg-primary-soft flex items-center justify-center shrink-0 text-primary transition-base relative"
-                style={{ opacity: s.comingSoon ? 0.5 : 1 }}
+                className="group rounded-lg bg-primary-soft flex items-center justify-center shrink-0 text-primary transition-base relative"
+                style={{ width: "28px", height: "28px", opacity: s.comingSoon ? 0.5 : 1 }}
               >
-                <HugeiconsIcon icon={s.icon} size={15} className="group-hover:opacity-0 transition-opacity" />
+                <HugeiconsIcon icon={s.icon} size={16} className="group-hover:opacity-0 transition-opacity" />
                 <HugeiconsIcon icon={ChevronUpIcon} size={14} className="absolute opacity-0 group-hover:opacity-100 transition-opacity" />
               </button>
               <span className="text-sm font-medium flex-1 text-left">{s.label}</span>
