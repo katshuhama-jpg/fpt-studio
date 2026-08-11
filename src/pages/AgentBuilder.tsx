@@ -23,7 +23,7 @@ type Tab = "build" | "test" | "deploy" | "insights";
 
 const developNav = [
   { id: "instructions", label: "Instructions", icon: FileEditIcon,  status: "done" },
-  { id: "model",        label: "Model",         icon: AiBrain01Icon, status: "done" },
+  { id: "model",        label: "Model",         icon: CpuIcon,       status: "done" },
   { id: "tools",        label: "Tools",          icon: Wrench01Icon,    status: "done" },
   { id: "skills",       label: "Skills",         icon: PuzzleIcon,    status: "empty" },
   { id: "guardrails",   label: "Guardrails",     icon: Shield01Icon,    status: "warn" },
