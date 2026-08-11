@@ -97,10 +97,11 @@ export default function AgentBuilder() {
               { id: "insights", label: "Insights", Icon: Analytics01Icon },
             ] as const).map(({ id, label, Icon }) => (
               <button key={id} onClick={() => setTab(id as Tab)}
-                className={`px-4 h-8 rounded-md text-sm font-medium flex items-center gap-1.5 transition-base ${
+                style={{ paddingLeft: "10px", paddingRight: "10px", height: "20px", gap: "10px" }}
+                className={`rounded-md text-sm font-medium flex items-center transition-base leading-none ${
                   tab === id ? "bg-surface text-foreground shadow-soft" : "text-muted-foreground hover:text-foreground"
                 }`}>
-                <HugeiconsIcon icon={Icon} size={13} /> {label}
+                <HugeiconsIcon icon={Icon} size={18} className="shrink-0" /> <span className="leading-none">{label}</span>
               </button>
             ))}
           </div>
