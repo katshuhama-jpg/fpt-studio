@@ -2,7 +2,7 @@ import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { createPortal } from "react-dom";
 
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Activity01Icon, Add01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, BookOpen01Icon, Cancel01Icon, BoltIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, Wrench01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
+import { Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, BookOpen01Icon, Cancel01Icon, BoltIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, Wrench01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
 import { useEffect, useRef, useState } from "react";
 import AgentToolsTab from "@/components/tool-builder/AgentToolsTab";
 import TasksGrid from "@/components/tasks/TasksGrid";
@@ -23,7 +23,7 @@ type Tab = "build" | "test" | "deploy" | "insights";
 
 const developNav = [
   { id: "instructions", label: "Instructions", icon: FileEditIcon,  status: "done" },
-  { id: "model",        label: "Model",         icon: CpuIcon,       status: "done" },
+  { id: "model",        label: "Model",         icon: AiBrain01Icon, status: "done" },
   { id: "tools",        label: "Tools",          icon: Wrench01Icon,    status: "done" },
   { id: "skills",       label: "Skills",         icon: PuzzleIcon,    status: "empty" },
   { id: "guardrails",   label: "Guardrails",     icon: Shield01Icon,    status: "warn" },
@@ -160,23 +160,23 @@ export default function AgentBuilder() {
           }}
         >
           {/* Nav items */}
-          <nav className="flex-1 px-2 pt-2 pb-1 overflow-y-auto flex flex-col gap-1">
+          <nav className="flex-1 px-2 pt-2 pb-1 overflow-y-auto flex flex-col" style={{ gap: "4px" }}>
             {developNav.map((it: any) => (
               <button
                 key={it.id}
                 onClick={() => !it.comingSoon && setSection(it.id)}
                 disabled={it.comingSoon}
                 style={{ height: "36px", fontSize: "14px" }}
-                className={`w-full flex items-center gap-1 px-2 transition-base border-l-2 shrink-0 ${
+                className={`w-full flex items-center rounded-lg px-2.5 transition-base shrink-0 ${
                   section === it.id && !it.comingSoon
-                    ? "border-primary bg-primary-soft text-primary font-medium"
+                    ? "bg-primary-soft text-primary font-medium"
                     : it.comingSoon
-                    ? "border-transparent text-muted-foreground cursor-default opacity-60"
-                    : "border-transparent text-foreground hover:bg-surface-muted hover:border-border"
+                    ? "text-muted-foreground cursor-default opacity-60"
+                    : "text-foreground hover:bg-surface-muted"
                 }`}
               >
                 <HugeiconsIcon icon={it.icon} size={18} className="shrink-0" />
-                <span className="flex-1 text-left truncate ml-2">{it.label}</span>
+                <span className="flex-1 text-left truncate ml-2.5">{it.label}</span>
                 {it.comingSoon && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-surface border border-border text-muted-foreground shrink-0 whitespace-nowrap">Coming soon</span>
                 )}
