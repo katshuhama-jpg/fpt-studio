@@ -101,7 +101,7 @@ export default function AgentBuilder() {
                 className={`px-4 h-8 rounded-md text-sm font-medium flex items-center gap-1.5 transition-base ${
                   tab === id ? "bg-surface text-foreground shadow-soft" : "text-muted-foreground hover:text-foreground"
                 }`}>
-                <Icon size={13} /> {label}
+                <HugeiconsIcon icon={Icon} size={13} /> {label}
               </button>
             ))}
           </div>
@@ -174,7 +174,7 @@ export default function AgentBuilder() {
                     : "text-foreground hover:bg-surface-muted"
                 }`}
               >
-                <it.icon size={14} className="shrink-0" />
+                <HugeiconsIcon icon={it.icon} size={14} className="shrink-0" />
                 <span className="flex-1 text-left truncate">{it.label}</span>
                 {it.comingSoon && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-surface border border-border text-muted-foreground shrink-0 whitespace-nowrap">Coming soon</span>
@@ -762,7 +762,7 @@ You are a customer-care specialist at ABC Bank. Help customers 24/7 with product
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <Icon size={13} className={viewMode === id ? "text-primary" : "text-muted-foreground"} /> {label}
+                <HugeiconsIcon icon={Icon} size={13} className={viewMode === id ? "text-primary" : "text-muted-foreground"} /> {label}
               </button>
             ))}
           </div>
@@ -829,7 +829,7 @@ function ConfigAccordion({
           className="flex items-center gap-3 flex-1 min-w-0 text-left"
         >
           <div className="w-9 h-9 rounded-lg bg-primary-soft text-primary flex items-center justify-center shrink-0">
-            <Icon size={16} />
+            <HugeiconsIcon icon={Icon} size={16} />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
@@ -907,7 +907,7 @@ function KnowledgeTab() {
               key={s.label}
               className="flex flex-col items-center gap-1.5 py-3 px-2 rounded-lg border border-dashed border-border hover:border-primary/40 hover:bg-primary-soft/30 text-xs font-medium transition-base"
             >
-              <s.icon size={16} className="text-primary" />
+              <HugeiconsIcon icon={s.icon} size={16} className="text-primary" />
               {s.label}
             </button>
           ))}
@@ -930,7 +930,7 @@ function KnowledgeTab() {
           {sources.map(s => (
             <div key={s.name} className="grid grid-cols-[1fr,80px,90px,70px,70px,40px] gap-3 px-4 py-3 border-t border-border items-center hover:bg-surface-muted/50 transition-base group">
               <div className="flex items-center gap-2.5 min-w-0">
-                <s.icon size={15} className={s.color} />
+                <HugeiconsIcon icon={s.icon} size={15} className={s.color} />
                 <span className="text-sm font-medium truncate">{s.name}</span>
               </div>
               <div className="text-xs text-muted-foreground">{s.type}</div>
@@ -1126,7 +1126,7 @@ function ConfigSection({ icon: Icon, title, badge, children }: {
   return (
     <div className="rounded-xl border border-border bg-surface overflow-hidden">
       <button onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-surface-muted transition-base">
-        <Icon size={15} className="text-muted-foreground shrink-0" />
+        <HugeiconsIcon icon={Icon} size={15} className="text-muted-foreground shrink-0" />
         <span className="text-sm font-medium flex-1 text-left">{title}</span>
         {badge}
         {open ? <HugeiconsIcon icon={ChevronUpIcon} size={13} className="text-muted-foreground" /> : <HugeiconsIcon icon={ChevronDownIcon} size={13} className="text-muted-foreground" />}
@@ -1268,7 +1268,7 @@ function RightCard({ icon: Icon, title, notSet, desc, addLabel }: {
         onClick={() => setOpen(o => !o)}
         className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-surface-muted transition-base"
       >
-        <Icon size={15} className="text-muted-foreground shrink-0" />
+        <HugeiconsIcon icon={Icon} size={15} className="text-muted-foreground shrink-0" />
         <span className="text-sm font-medium flex-1 text-left">{title}</span>
         {notSet && (
           <span className="text-xs px-1.5 py-0.5 rounded-full bg-warning-soft text-warning font-semibold">Not set</span>
@@ -1468,7 +1468,7 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
                 disabled={!!s.comingSoon}
                 className="group w-8 h-8 rounded-lg bg-primary-soft flex items-center justify-center shrink-0 text-primary transition-base relative"
               >
-                <s.icon size={15} className="group-hover:opacity-0 transition-opacity" />
+                <HugeiconsIcon icon={s.icon} size={15} className="group-hover:opacity-0 transition-opacity" />
                 <HugeiconsIcon icon={ChevronUpIcon} size={14} className="absolute opacity-0 group-hover:opacity-100 transition-opacity" />
               </button>
               <span className="text-sm font-medium flex-1 text-left">{s.label}</span>
@@ -1624,7 +1624,7 @@ function Section({ icon: Icon, title, desc, children, action }: any) {
     <section>
       <header className="flex items-start gap-3 mb-4">
         <div className="w-9 h-9 rounded-lg bg-primary-soft text-primary flex items-center justify-center shrink-0">
-          <Icon size={16} />
+          <HugeiconsIcon icon={Icon} size={16} />
         </div>
         <div className="flex-1 min-w-0">
           <h3 className="font-display font-semibold text-sm">{title}</h3>
@@ -1786,7 +1786,7 @@ function PublishModal({ onClose, onChatTest }: { onClose: () => void; onChatTest
                 { icon: Shield01Icon, label: "Guardrails", value: "2 rules",           sub: null },
               ].map((row, i) => (
                 <div key={i} className={`flex items-center gap-3 px-4 py-2.5 ${i > 0 ? "border-t border-border" : ""}`}>
-                  <row.icon size={13} className="text-muted-foreground shrink-0" />
+                  <HugeiconsIcon icon={row.icon} size={13} className="text-muted-foreground shrink-0" />
                   <span className="text-sm font-medium w-20 shrink-0">{row.label}</span>
                   <span className="flex-1 flex items-center gap-2 min-w-0">
                     <span className="text-sm text-foreground truncate">{row.value}</span>
