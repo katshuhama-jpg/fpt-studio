@@ -1425,6 +1425,7 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
   const sections = [
     {
       id: "connectors", icon: Plug01Icon, label: "Connectors",
+      iconBg: "#EDE9FE", iconColor: "#7C3AED",
       content: (
         <div className="py-1">
           <p className="text-xs text-muted-foreground mb-2">The outside accounts and systems this agent may use.</p>
@@ -1432,7 +1433,9 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
       ),
     },
     {
-      id: "skills", icon: PuzzleIcon, label: "Skills", content: (
+      id: "skills", icon: PuzzleIcon, label: "Skills",
+      iconBg: "#DCFCE7", iconColor: "#16A34A",
+      content: (
         <div className="flex flex-col items-center py-3 gap-1.5 text-center">
           <HugeiconsIcon icon={PuzzleIcon} size={20} className="text-muted-foreground/50" />
           <p className="text-xs text-muted-foreground">Reusable abilities you've taught it.</p>
@@ -1441,14 +1444,15 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
     },
     {
       id: "guardrails", icon: Shield01Icon, label: "Guardrails",
+      iconBg: "#FEE2E2", iconColor: "#DC2626",
       onAdd: (pos: {top:number;left:number}) => guardrailsAddRef.current?.(pos),
       content: (
         <GuardrailsInner onRegisterAdd={(fn) => { guardrailsAddRef.current = fn; }} />
       ),
     },
-    { id: "knowledge",  icon: BookOpen01Icon, label: "Knowledge",  comingSoon: true },
-    { id: "triggers",   icon: BoltIcon,      label: "Triggers",   comingSoon: true },
-    { id: "sub-agents", icon: Robot01Icon,      label: "Sub-Agents", comingSoon: true },
+    { id: "knowledge",  icon: BookOpen01Icon, label: "Knowledge",  iconBg: "#FEF3C7", iconColor: "#D97706", comingSoon: true },
+    { id: "triggers",   icon: BoltIcon,       label: "Triggers",   iconBg: "#FFEDD5", iconColor: "#EA580C", comingSoon: true },
+    { id: "sub-agents", icon: Robot01Icon,    label: "Sub-Agents", iconBg: "#CCFBF1", iconColor: "#0D9488", comingSoon: true },
   ];
 
   return (
@@ -1473,7 +1477,8 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
               <button
                 onClick={toggle}
                 disabled={!!s.comingSoon}
-                className="group w-8 h-8 rounded-lg bg-primary-soft flex items-center justify-center shrink-0 text-primary transition-base relative"
+                className="group w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-base relative"
+                style={{ background: s.iconBg ?? "var(--color-primary-soft)", color: s.iconColor ?? "var(--color-primary)", opacity: s.comingSoon ? 0.5 : 1 }}
               >
                 <HugeiconsIcon icon={s.icon} size={15} className="group-hover:opacity-0 transition-opacity" />
                 <HugeiconsIcon icon={ChevronUpIcon} size={14} className="absolute opacity-0 group-hover:opacity-100 transition-opacity" />
