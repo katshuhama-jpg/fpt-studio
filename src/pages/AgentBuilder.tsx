@@ -2242,10 +2242,105 @@ function GuardrailEditSheet({ guardrail, onClose, onSave }: { guardrail: Guardra
 }
 
 /* ============ Skills Inner ============ */
+const WS_SKILLS = [
+  { id: 1, name: "/canvas-design",      author: "Anthropic", installs: "1.8M", desc: "Create beautiful visual art in .png and .pdf documents using design philosophy. You should use this skill when t…" },
+  { id: 2, name: "/web-artifacts-builder", author: "Anthropic", installs: "1.1M", desc: "Suite of tools for creating elaborate, multi-component claude.ai HTML artifacts using modern frontend web…" },
+  { id: 3, name: "/mcp-builder",        author: "Anthropic", installs: "944.1K", desc: "Guide for creating high-quality MCP (Model Context Protocol) servers that enable LLMs to interact with…" },
+  { id: 4, name: "/theme-factory",      author: "Anthropic", installs: "905K",   desc: "Toolkit for styling artifacts with a theme. These artifacts can be slides, docs, reportings, HTML landing pages, etc.…" },
+  { id: 5, name: "/learn",              author: "Anthropic", installs: "858K",   desc: "Use this skill when the user wants intellectual understanding — learning how or why something works,…" },
+  { id: 6, name: "/brand-guidelines",   author: "Anthropic", installs: "816.1K", desc: "Applies Anthropic's official brand colors and typography to any sort of artifact that may benefit from having…" },
+  { id: 7, name: "/doc-coauthoring",    author: "Anthropic", installs: "794.7K", desc: "Guide users through a structured workflow for co-authoring documentation. Use when user wants to write…" },
+  { id: 8, name: "/internal-comms",     author: "Anthropic", installs: "615K",   desc: "A set of resources to help me write all kinds of internal communications, using the formats that my company lik…" },
+];
+
+function ConnectWorkspaceSkillModal({ onClose, onAdd, added }: {
+  onClose: () => void;
+  onAdd: (skill: typeof WS_SKILLS[number]) => void;
+  added: Set<number>;
+}) {
+  const [search, setSearch] = useState("");
+  const filtered = WS_SKILLS.filter(s =>
+    !search || s.name.toLowerCase().includes(search.toLowerCase()) || s.desc.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-2xl bg-white rounded-2xl shadow-lg border border-border flex flex-col max-h-[80vh] animate-fade-up">
+        {/* Header */}
+        <div className="flex items-start justify-between px-6 pt-6 pb-2 shrink-0">
+          <div>
+            <h2 className="text-lg font-semibold">Connect workspace skill</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">Skills shared across all agents in this workspace.</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 mt-0.5">
+            <HugeiconsIcon icon={Cancel01Icon} size={16} />
+          </button>
+        </div>
+
+        {/* Search */}
+        <div className="px-6 pb-4 pt-3 shrink-0">
+          <div className="relative">
+            <HugeiconsIcon icon={Search01Icon} size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              autoFocus
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search..."
+              className="w-full h-9 pl-9 pr-3 rounded-lg border border-primary/50 bg-white text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-base"
+            />
+          </div>
+        </div>
+
+        {/* Grid */}
+        <div className="flex-1 overflow-y-auto px-6 pb-6">
+          {filtered.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-12">No skills in this workspace yet.</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {filtered.map(s => {
+                const isAdded = added.has(s.id);
+                return (
+                  <div key={s.id} className="relative flex flex-col p-4 rounded-xl border border-border bg-white hover:border-primary/30 transition-base">
+                    <div className="flex items-start justify-between mb-1.5">
+                      <span className="text-sm font-semibold text-foreground leading-tight">{s.name}</span>
+                      <button
+                        onClick={() => { if (!isAdded) onAdd(s); }}
+                        className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ml-2 transition-base ${
+                          isAdded
+                            ? "bg-primary-soft text-primary cursor-default"
+                            : "hover:bg-surface-muted text-muted-foreground hover:text-foreground"
+                        }`}
+                        title={isAdded ? "Added" : "Add"}
+                      >
+                        {isAdded
+                          ? <HugeiconsIcon icon={CheckmarkCircle01Icon} size={15} />
+                          : <HugeiconsIcon icon={Add01Icon} size={15} />
+                        }
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-2 leading-relaxed">
+                      {s.author} • <HugeiconsIcon icon={Download01Icon} size={10} className="inline mb-0.5" />{s.installs}
+                    </p>
+                    <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{s.desc}</p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 function SkillsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:number;left:number}) => void) => void } = {}) {
-  const [showMenu, setShowMenu] = useState(false);
-  const [menuPos, setMenuPos]   = useState<{top:number;left:number}>({top:0,left:0});
-  const [skills, setSkills]     = useState<{id:number;name:string;type:"workspace"|"agent"}[]>([]);
+  const [showMenu, setShowMenu]     = useState(false);
+  const [showWsModal, setShowWsModal] = useState(false);
+  const [menuPos, setMenuPos]       = useState<{top:number;left:number}>({top:0,left:0});
+  const [skills, setSkills]         = useState<{id:number;name:string;type:"workspace"|"agent"}[]>([]);
+  const [wsAdded, setWsAdded]       = useState<Set<number>>(new Set());
 
   useEffect(() => {
     onRegisterAdd?.((pos: {top:number;left:number}) => {
@@ -2262,10 +2357,15 @@ function SkillsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:number;
   }, [showMenu]);
 
   const menuItems = [
-    { icon: LayerAddIcon,   label: "Connect workspace skill" },
-    { icon: Add01Icon,      label: "Create new skill" },
-    { icon: Upload01Icon,   label: "Upload a skill" },
+    { icon: LayerAddIcon, label: "Connect workspace skill" },
+    { icon: Add01Icon,    label: "Create new skill" },
+    { icon: Upload01Icon, label: "Upload a skill" },
   ];
+
+  const handleAddWs = (s: typeof WS_SKILLS[number]) => {
+    setWsAdded(prev => new Set([...prev, s.id]));
+    setSkills(prev => [...prev, { id: s.id, name: s.name, type: "workspace" }]);
+  };
 
   return (
     <>
@@ -2281,9 +2381,13 @@ function SkillsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:number;
               <HugeiconsIcon icon={PuzzleIcon} size={13} className="text-muted-foreground shrink-0" />
               <span className="text-[13px] font-medium flex-1 truncate">{s.name}</span>
               {s.type === "workspace" && (
-                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0" style={{background:"#EFF6FF",color:"#1D4ED8",border:"0.5px solid #BFDBFE"}}>Workspace</span>
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap" style={{background:"#EFF6FF",color:"#1D4ED8",border:"0.5px solid #BFDBFE"}}>Workspace</span>
               )}
-              <button onClick={() => setSkills(prev => prev.filter(x => x.id !== s.id))}
+              <button
+                onClick={() => {
+                  setSkills(prev => prev.filter(x => x.id !== s.id));
+                  if (s.type === "workspace") setWsAdded(prev => { const n = new Set(prev); n.delete(s.id); return n; });
+                }}
                 className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-surface-muted transition-base shrink-0">
                 <HugeiconsIcon icon={Delete01Icon} size={12} />
               </button>
@@ -2292,6 +2396,7 @@ function SkillsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:number;
         </div>
       )}
 
+      {/* Dropdown menu */}
       {showMenu && createPortal(
         <div
           className="fixed z-[9999]"
@@ -2305,10 +2410,9 @@ function SkillsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:number;
                 className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-foreground hover:bg-surface-muted transition-base text-left"
                 onClick={() => {
                   setShowMenu(false);
-                  if (item.label === "Create new skill") {
+                  if (item.label === "Connect workspace skill") { setShowWsModal(true); }
+                  else if (item.label === "Create new skill") {
                     setSkills(prev => [...prev, { id: Date.now(), name: "New skill", type: "agent" }]);
-                  } else if (item.label === "Connect workspace skill") {
-                    setSkills(prev => [...prev, { id: Date.now(), name: "Workspace skill", type: "workspace" }]);
                   }
                 }}
               >
@@ -2319,6 +2423,15 @@ function SkillsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:number;
           </div>
         </div>,
         document.body
+      )}
+
+      {/* Connect workspace skill modal */}
+      {showWsModal && (
+        <ConnectWorkspaceSkillModal
+          onClose={() => setShowWsModal(false)}
+          onAdd={handleAddWs}
+          added={wsAdded}
+        />
       )}
     </>
   );
