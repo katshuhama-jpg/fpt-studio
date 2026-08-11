@@ -89,7 +89,7 @@ export default function AgentBuilder() {
 
         {/* Center tabs */}
         <div className="flex-1 flex items-center justify-center">
-          <div className="flex items-center gap-0 bg-surface-muted rounded-lg p-1">
+          <div className="flex items-center gap-1">
             {([
               { id: "build",    label: "Build",    Icon: PencilEdit01Icon },
               { id: "test",     label: "Test",     Icon: FlaskConicalIcon },
@@ -97,11 +97,11 @@ export default function AgentBuilder() {
               { id: "insights", label: "Insights", Icon: Analytics01Icon },
             ] as const).map(({ id, label, Icon }) => (
               <button key={id} onClick={() => setTab(id as Tab)}
-                style={{ paddingLeft: "10px", paddingRight: "10px", height: "20px", gap: "10px" }}
-                className={`rounded-md text-sm font-medium flex items-center transition-base leading-none ${
-                  tab === id ? "bg-surface text-foreground shadow-soft" : "text-muted-foreground hover:text-foreground"
+                style={{ paddingLeft: "10px", paddingRight: "10px", height: "32px", gap: "10px" }}
+                className={`rounded-lg text-sm font-medium flex items-center transition-base ${
+                  tab === id ? "bg-primary-soft text-primary" : "text-muted-foreground hover:text-foreground hover:bg-surface-muted"
                 }`}>
-                <HugeiconsIcon icon={Icon} size={18} className="shrink-0" /> <span className="leading-none">{label}</span>
+                <HugeiconsIcon icon={Icon} size={18} className="shrink-0" /> <span>{label}</span>
               </button>
             ))}
           </div>
