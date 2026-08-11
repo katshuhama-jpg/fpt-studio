@@ -1421,6 +1421,7 @@ function GuardrailsConfigSection() {
 function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange: (id: string) => void }) {
   const [open, setOpen] = useState<Record<string, boolean>>({ connectors: true, skills: true, guardrails: true });
   const guardrailsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
+  const skillsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
 
   const sections = [
     {
@@ -1433,11 +1434,9 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
     },
     {
       id: "skills", icon: PuzzleIcon, label: "Skills",
+      onAdd: (pos: {top:number;left:number}) => skillsAddRef.current?.(pos),
       content: (
-        <div className="flex flex-col items-center py-3 gap-1.5 text-center">
-          <HugeiconsIcon icon={PuzzleIcon} size={20} className="text-muted-foreground/50" />
-          <p className="text-xs text-muted-foreground">Reusable abilities you've taught it.</p>
-        </div>
+        <SkillsInner onRegisterAdd={(fn) => { skillsAddRef.current = fn; }} />
       ),
     },
     {
@@ -2239,6 +2238,89 @@ function GuardrailEditSheet({ guardrail, onClose, onSave }: { guardrail: Guardra
       <style>{`@keyframes slideInRight{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
     </div>,
     document.body
+  );
+}
+
+/* ============ Skills Inner ============ */
+function SkillsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:number;left:number}) => void) => void } = {}) {
+  const [showMenu, setShowMenu] = useState(false);
+  const [menuPos, setMenuPos]   = useState<{top:number;left:number}>({top:0,left:0});
+  const [skills, setSkills]     = useState<{id:number;name:string;type:"workspace"|"agent"}[]>([]);
+
+  useEffect(() => {
+    onRegisterAdd?.((pos: {top:number;left:number}) => {
+      setMenuPos(pos);
+      setShowMenu(true);
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!showMenu) return;
+    const h = (e: MouseEvent) => { setShowMenu(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [showMenu]);
+
+  const menuItems = [
+    { icon: LayerAddIcon,   label: "Connect workspace skill" },
+    { icon: Add01Icon,      label: "Create new skill" },
+    { icon: Upload01Icon,   label: "Upload a skill" },
+  ];
+
+  return (
+    <>
+      {skills.length === 0 ? (
+        <div className="flex flex-col items-center py-3 gap-1.5 text-center">
+          <HugeiconsIcon icon={PuzzleIcon} size={20} className="text-muted-foreground/50" />
+          <p className="text-xs text-muted-foreground">Reusable abilities you've taught it.</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          {skills.map(s => (
+            <div key={s.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base">
+              <HugeiconsIcon icon={PuzzleIcon} size={13} className="text-muted-foreground shrink-0" />
+              <span className="text-[13px] font-medium flex-1 truncate">{s.name}</span>
+              {s.type === "workspace" && (
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0" style={{background:"#EFF6FF",color:"#1D4ED8",border:"0.5px solid #BFDBFE"}}>Workspace</span>
+              )}
+              <button onClick={() => setSkills(prev => prev.filter(x => x.id !== s.id))}
+                className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-surface-muted transition-base shrink-0">
+                <HugeiconsIcon icon={Delete01Icon} size={12} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showMenu && createPortal(
+        <div
+          className="fixed z-[9999]"
+          style={{ top: menuPos.top, right: window.innerWidth - menuPos.left }}
+          onMouseDown={e => e.stopPropagation()}
+        >
+          <div className="bg-white rounded-xl border border-border shadow-elev py-1 min-w-[200px] animate-fade-up">
+            {menuItems.map((item, i) => (
+              <button
+                key={i}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-foreground hover:bg-surface-muted transition-base text-left"
+                onClick={() => {
+                  setShowMenu(false);
+                  if (item.label === "Create new skill") {
+                    setSkills(prev => [...prev, { id: Date.now(), name: "New skill", type: "agent" }]);
+                  } else if (item.label === "Connect workspace skill") {
+                    setSkills(prev => [...prev, { id: Date.now(), name: "Workspace skill", type: "workspace" }]);
+                  }
+                }}
+              >
+                <HugeiconsIcon icon={item.icon} size={15} className="text-muted-foreground shrink-0" />
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
   );
 }
 
