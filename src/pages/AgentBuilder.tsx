@@ -267,7 +267,7 @@ export default function AgentBuilder() {
             </div>
           </div>
 
-          {tab === "build" && <PreviewPanel view={previewView} onViewChange={setPreviewView} />}
+          {tab === "build" && section === "instructions" && <PreviewPanel view={previewView} onViewChange={setPreviewView} />}
         </div>
       </div>
     </div>
