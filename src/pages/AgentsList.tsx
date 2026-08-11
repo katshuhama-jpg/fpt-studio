@@ -1,9 +1,10 @@
 import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
-  Plus, Search, Filter, MoreVertical, MessageSquare, Activity,
-  Paperclip, AtSign, Sparkles, Send, X
-} from "lucide-react";
+  Add01Icon, Search01Icon, FilterIcon, MoreVerticalIcon, Chat01Icon, Activity01Icon,
+  Attachment01Icon, AtSignIcon, SparklesIcon, SentIcon, Cancel01Icon
+} from "@hugeicons/core-free-icons";
 import { useState } from "react";
 
 /* ─── Data ─────────────────────────────────────────────────────────────── */
@@ -144,7 +145,7 @@ function TemplateModal({ onClose }: { onClose: () => void }) {
             <p className="text-sm text-muted-foreground mt-0.5">Explore all templates optimized for each role and use case. Pick a template to start building an agent.</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base mt-0.5 shrink-0">
-            <X size={16} />
+            <HugeiconsIcon icon={Cancel01Icon} size={16} />
           </button>
         </div>
 
@@ -162,7 +163,7 @@ function TemplateModal({ onClose }: { onClose: () => void }) {
             </select>
           </div>
           <div className="relative">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               autoFocus
               className="h-8 w-52 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-base"
@@ -269,13 +270,13 @@ export default function AgentsList() {
               className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base"
               title="Attach file"
             >
-              <Paperclip size={16} />
+              <HugeiconsIcon icon={Attachment01Icon} size={16} />
             </button>
             <button
               className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base"
               title="Mention knowledge"
             >
-              <AtSign size={16} />
+              <HugeiconsIcon icon={AtSignIcon} size={16} />
             </button>
           </div>
 
@@ -292,9 +293,9 @@ export default function AgentsList() {
               disabled={!prompt.trim()}
               className="btn-primary h-9 px-4 rounded-full disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <Sparkles size={14} />
+              <HugeiconsIcon icon={SparklesIcon} size={14} />
               Build agent
-              <Send size={13} />
+              <HugeiconsIcon icon={SentIcon} size={13} />
             </button>
           </div>
         </div>
@@ -329,14 +330,14 @@ export default function AgentsList() {
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               placeholder="Search agents…"
               className="h-9 w-56 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
             />
           </div>
           <button className="h-9 w-9 rounded-lg border border-border bg-surface hover:bg-surface-muted flex items-center justify-center transition-base">
-            <Filter size={14} />
+            <HugeiconsIcon icon={FilterIcon} size={14} />
           </button>
         </div>
       </div>
@@ -368,7 +369,7 @@ export default function AgentsList() {
                   </div>
                 </div>
                 <button className="opacity-0 group-hover:opacity-100 transition-base text-muted-foreground hover:text-foreground p-1">
-                  <MoreVertical size={14} />
+                  <HugeiconsIcon icon={MoreVerticalIcon} size={14} />
                 </button>
               </div>
 
@@ -376,14 +377,14 @@ export default function AgentsList() {
 
               <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
                 <div className="flex items-center gap-1.5">
-                  <MessageSquare size={12} className="text-muted-foreground" />
+                  <HugeiconsIcon icon={Chat01Icon} size={12} className="text-muted-foreground" />
                   <span className="text-xs">
                     <b className="font-display">{a.convs.toLocaleString()}</b>
                     <span className="text-muted-foreground ml-1">convs</span>
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <Activity size={12} className="text-muted-foreground" />
+                  <HugeiconsIcon icon={Activity01Icon} size={12} className="text-muted-foreground" />
                   <span className="text-xs">
                     <b className="font-display">{a.success}%</b>
                     <span className="text-muted-foreground ml-1">resolved</span>
