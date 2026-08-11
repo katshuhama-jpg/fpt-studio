@@ -2,7 +2,7 @@ import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { createPortal } from "react-dom";
 
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Activity01Icon, Add01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, BookOpen01Icon, Cancel01Icon, BoltIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, Wrench01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
+import { Activity01Icon, Add01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, BookOpen01Icon, Cancel01Icon, BoltIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, Wrench01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
 import { useEffect, useRef, useState } from "react";
 import AgentToolsTab from "@/components/tool-builder/AgentToolsTab";
 import TasksGrid from "@/components/tasks/TasksGrid";
@@ -27,9 +27,9 @@ const developNav = [
   { id: "tools",        label: "Tools",          icon: Wrench01Icon,    status: "done" },
   { id: "skills",       label: "Skills",         icon: PuzzleIcon,    status: "empty" },
   { id: "guardrails",   label: "Guardrails",     icon: Shield01Icon,    status: "warn" },
-  { id: "knowledge",    label: "Knowledge",      icon: BookOpen01Icon,  comingSoon: true },
-  { id: "triggers",     label: "Triggers",       icon: BoltIcon,       comingSoon: true },
-  { id: "sub-agents",   label: "Sub-Agents",     icon: Robot01Icon,       comingSoon: true },
+  { id: "knowledge",    label: "Knowledge",      icon: NoteIcon,        comingSoon: true },
+  { id: "triggers",     label: "Triggers",       icon: TimeScheduleIcon, comingSoon: true },
+  { id: "sub-agents",   label: "Sub-Agents",     icon: UserCircleIcon,    comingSoon: true },
 ];
 
 const monitorNav = [
@@ -1425,7 +1425,7 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
 
   const sections = [
     {
-      id: "connectors", icon: Plug01Icon, label: "Connectors",
+      id: "connectors", icon: ConnectIcon, label: "Connectors",
       content: (
         <div className="py-1">
           <p className="text-xs text-muted-foreground mb-2">The outside accounts and systems this agent may use.</p>
@@ -1446,9 +1446,9 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
         <GuardrailsInner onRegisterAdd={(fn) => { guardrailsAddRef.current = fn; }} />
       ),
     },
-    { id: "knowledge",  icon: BookOpen01Icon, label: "Knowledge", comingSoon: true },
-    { id: "triggers",   icon: BoltIcon,       label: "Triggers", comingSoon: true },
-    { id: "sub-agents", icon: Robot01Icon,    label: "Sub-Agents", comingSoon: true },
+    { id: "knowledge",  icon: NoteIcon,         label: "Knowledge", comingSoon: true },
+    { id: "triggers",   icon: TimeScheduleIcon, label: "Triggers",  comingSoon: true },
+    { id: "sub-agents", icon: UserCircleIcon, label: "Sub-Agents", comingSoon: true },
   ];
 
   return (
