@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
-  ArrowLeft, ArrowRight, Check, Loader2, Sparkles, Wand2,
+  ArrowLeft, ArrowRight, Check, Loader2, Sparkles, Wand2, Paperclip, AtSign, Send,
   Building2, ShoppingBag, GraduationCap, HeartPulse, Cpu, Truck, MoreHorizontal,
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
@@ -326,42 +326,55 @@ function PromptStep({
         title="Describe what you want to build"
         subtitle="One sentence is enough. We'll scaffold the persona, knowledge and tools."
       />
-      <div className="mt-6 rounded-2xl border border-border bg-surface focus-within:border-primary focus-within:ring-glow transition-base p-2">
+
+      {/* Input box — same style as AgentsList */}
+      <div className="mt-6 w-full rounded-2xl border-2 border-primary/40 bg-white p-4 shadow-sm focus-within:border-primary transition-colors">
         <textarea
+          autoFocus
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          rows={3}
-          placeholder="e.g. A banking customer-care agent that can lock cards, look up loan rates and book consultations…"
-          className="w-full resize-none bg-transparent text-sm placeholder:text-muted-foreground outline-none px-3 py-2.5"
+          rows={2}
+          placeholder="e.g. A 24/7 banking customer-care agent that can lock cards, look up loan rates and book consultations…"
+          className="w-full resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none leading-relaxed min-h-[56px]"
+          onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && prompt.trim()) onGenerate(prompt.trim()); }}
         />
-        <div className="flex items-center justify-between px-2 pb-1">
-          <span className="text-[11px] text-muted-foreground">You'll keep refining in Inventor</span>
-          <button
-            disabled={!prompt.trim()}
-            onClick={() => onGenerate(prompt.trim())}
-            className="btn-primary h-8 px-3 disabled:opacity-50 disabled:pointer-events-none"
-          >
-            <Wand2 size={13} /> Continue to Inventor
-          </button>
+        <div className="flex items-center justify-between mt-3">
+          {/* Left tools */}
+          <div className="flex items-center gap-1">
+            <button className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base" title="Attach file">
+              <Paperclip size={16} />
+            </button>
+            <button className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base" title="Mention knowledge">
+              <AtSign size={16} />
+            </button>
+          </div>
+          {/* Right actions */}
+          <div className="flex items-center gap-3">
+            <button onClick={onTemplates} className="text-sm text-muted-foreground hover:text-foreground transition-base">
+              Use a template
+            </button>
+            <button
+              disabled={!prompt.trim()}
+              onClick={() => onGenerate(prompt.trim())}
+              className="btn-primary h-9 px-4 rounded-full disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Sparkles size={14} /> Build agent <Send size={13} />
+            </button>
+          </div>
         </div>
       </div>
 
+      {/* Suggestion chips */}
       <div className="mt-4 flex flex-wrap gap-2">
         {SUGGESTIONS.map((s) => (
-          <button
-            key={s}
-            onClick={() => setPrompt(s)}
-            className="chip hover:border-border-strong transition-base"
-          >
+          <button key={s} onClick={() => setPrompt(s)} className="chip hover:border-border-strong transition-base">
             <Sparkles size={11} /> {s}
           </button>
         ))}
       </div>
 
       <div className="mt-8 flex items-center justify-between text-xs">
-        <button onClick={onLater} className="btn-ghost">
-          I'll do this later
-        </button>
+        <button onClick={onLater} className="btn-ghost">I'll do this later</button>
         <button onClick={onTemplates} className="text-primary font-medium hover:underline">
           Explore templates instead →
         </button>

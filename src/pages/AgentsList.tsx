@@ -290,7 +290,7 @@ export default function AgentsList() {
             <button
               onClick={handleBuild}
               disabled={!prompt.trim()}
-              className="h-9 px-4 rounded-full bg-primary/80 hover:bg-primary disabled:opacity-40 disabled:cursor-not-allowed text-primary-foreground text-sm font-medium flex items-center gap-2 transition-base"
+              className="btn-primary h-9 px-4 rounded-full disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Sparkles size={14} />
               Build agent
