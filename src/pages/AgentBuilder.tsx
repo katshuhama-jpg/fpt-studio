@@ -166,12 +166,12 @@ export default function AgentBuilder() {
                 key={it.id}
                 onClick={() => !it.comingSoon && setSection(it.id)}
                 disabled={it.comingSoon}
-                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-base ${
+                className={`w-full flex items-center gap-2.5 px-2.5 py-2 text-sm transition-base border-l-2 ${
                   section === it.id && !it.comingSoon
-                    ? "bg-primary-soft text-primary font-medium"
+                    ? "border-primary bg-primary-soft/40 text-primary font-medium"
                     : it.comingSoon
-                    ? "text-muted-foreground cursor-default opacity-70"
-                    : "text-foreground hover:bg-surface-muted"
+                    ? "border-transparent text-muted-foreground cursor-default opacity-70"
+                    : "border-transparent text-foreground hover:bg-surface-muted hover:border-border"
                 }`}
               >
                 <HugeiconsIcon icon={it.icon} size={14} className="shrink-0" />
@@ -195,17 +195,24 @@ export default function AgentBuilder() {
               </div>
               <div className="space-y-1">
                 {[
-                  { label: "Instructions written", done: true },
-                  { label: "Model chosen",          done: true },
-                  { label: "Tools attached",        done: true },
-                  { label: "Guardrails configured", done: false },
-                  { label: "Tried the agent",       done: true },
+                  { label: "Instructions written", done: true,  section: "instructions" },
+                  { label: "Model chosen",          done: true,  section: "model" },
+                  { label: "Tools attached",        done: true,  section: "tools" },
+                  { label: "Guardrails configured", done: false, section: "guardrails" },
+                  { label: "Tried the agent",       done: true,  section: null },
                 ].map(item => (
                   <div key={item.label} className="flex items-center gap-1.5 text-xs">
                     {item.done
-                      ? <HugeiconsIcon icon={CheckmarkCircle01Icon} size={11} className="text-success shrink-0" />
+                      ? <HugeiconsIcon icon={CheckmarkCircle01Icon} size={11} className="text-primary shrink-0" />
                       : <span className="w-3 h-3 rounded-full border-2 border-muted-foreground shrink-0 inline-block" />}
-                    <span className={item.done ? "text-foreground" : "text-muted-foreground"}>{item.label}</span>
+                    {item.done && item.section ? (
+                      <button
+                        onClick={() => setSection(item.section!)}
+                        className="text-primary hover:underline text-left"
+                      >{item.label}</button>
+                    ) : (
+                      <span className={item.done ? "text-primary" : "text-muted-foreground"}>{item.label}</span>
+                    )}
                   </div>
                 ))}
               </div>
