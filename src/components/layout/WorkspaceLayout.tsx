@@ -163,7 +163,7 @@ export default function WorkspaceLayout() {
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
-          <div className="space-y-0.5 mb-3">
+          <div className="space-y-1 mb-3">
             {topItems.map(it => (
               <NavRow key={it.to} item={it} collapsed={collapsed} />
             ))}
@@ -269,7 +269,7 @@ function NavGroup({
 }: { group: Group; collapsed: boolean; open: boolean; onToggle: () => void }) {
   if (collapsed) {
     return (
-      <div className="space-y-0.5">
+      <div className="space-y-1">
         {group.items.map(it => (
           <NavRow key={it.to} item={it} collapsed />
         ))}
@@ -290,7 +290,7 @@ function NavGroup({
         <span>{group.label}</span>
       </button>
       {open && (
-        <div className="space-y-0.5 mt-0.5">
+        <div className="space-y-1 mt-1">
           {group.items.map(it => (
             <NavRow key={it.to} item={it} collapsed={false} />
           ))}
@@ -302,10 +302,10 @@ function NavGroup({
 
 /* ============ Single nav row ============ */
 function NavRow({ item, collapsed }: { item: Item; collapsed: boolean }) {
-  const baseCls = `w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-base ${collapsed ? "justify-center" : ""}`;
+  const baseCls = `w-full flex items-center gap-2.5 px-2.5 rounded-lg text-sm transition-base ${collapsed ? "justify-center" : ""}`;
   const inner = (
     <>
-      <item.icon size={14} className="shrink-0" />
+      <item.icon size={18} className="shrink-0" />
       {!collapsed && <span className="truncate flex-1">{item.label}</span>}
       {!collapsed && item.badge && (
         <span className="text-xs px-1.5 py-0.5 rounded-full bg-surface-muted border border-border text-muted-foreground">
@@ -317,6 +317,7 @@ function NavRow({ item, collapsed }: { item: Item; collapsed: boolean }) {
   if (item.external) {
     return (
       <a href={item.to} target="_blank" rel="noopener noreferrer" title={collapsed ? item.label : undefined}
+        style={{ height: "36px" }}
         className={`${baseCls} text-foreground hover:bg-surface-muted`}>
         {inner}
       </a>
@@ -327,6 +328,7 @@ function NavRow({ item, collapsed }: { item: Item; collapsed: boolean }) {
       to={item.to}
       end={item.to === "/"}
       title={collapsed ? item.label : undefined}
+      style={{ height: "36px" }}
       className={({ isActive }) =>
         `${baseCls} ${isActive ? "bg-primary-soft text-primary font-medium" : "text-foreground hover:bg-surface-muted"}`
       }
