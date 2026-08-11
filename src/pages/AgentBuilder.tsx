@@ -160,22 +160,23 @@ export default function AgentBuilder() {
           }}
         >
           {/* Nav items */}
-          <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
+          <nav className="flex-1 px-2 pt-2 pb-1 overflow-y-auto flex flex-col gap-1">
             {developNav.map((it: any) => (
               <button
                 key={it.id}
                 onClick={() => !it.comingSoon && setSection(it.id)}
                 disabled={it.comingSoon}
-                className={`w-full flex items-center gap-2.5 px-2.5 py-2 text-sm transition-base border-l-2 ${
+                style={{ height: "36px", fontSize: "14px" }}
+                className={`w-full flex items-center gap-1 px-2 transition-base border-l-2 shrink-0 ${
                   section === it.id && !it.comingSoon
                     ? "border-primary bg-primary-soft/40 text-primary font-medium"
                     : it.comingSoon
-                    ? "border-transparent text-muted-foreground cursor-default opacity-70"
+                    ? "border-transparent text-muted-foreground cursor-default opacity-60"
                     : "border-transparent text-foreground hover:bg-surface-muted hover:border-border"
                 }`}
               >
-                <HugeiconsIcon icon={it.icon} size={14} className="shrink-0" />
-                <span className="flex-1 text-left truncate">{it.label}</span>
+                <HugeiconsIcon icon={it.icon} size={18} className="shrink-0" />
+                <span className="flex-1 text-left truncate ml-2">{it.label}</span>
                 {it.comingSoon && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-surface border border-border text-muted-foreground shrink-0 whitespace-nowrap">Coming soon</span>
                 )}
