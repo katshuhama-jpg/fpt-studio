@@ -24,7 +24,6 @@ type Tab = "build" | "test" | "deploy" | "insights";
 const developNav = [
   { id: "instructions", label: "Instructions", icon: FileEditIcon,  status: "done" },
   { id: "model",        label: "Model",         icon: CpuIcon,       status: "done" },
-  { id: "tools",        label: "Tools",          icon: Wrench01Icon,    status: "done" },
   { id: "skills",       label: "Skills",         icon: PuzzleIcon,    status: "empty" },
   { id: "guardrails",   label: "Guardrails",     icon: Shield01Icon,    status: "warn" },
   { id: "knowledge",    label: "Knowledge",      icon: NoteIcon,        comingSoon: true },
@@ -198,7 +197,7 @@ export default function AgentBuilder() {
                 {[
                   { label: "Instructions written", done: true,  section: "instructions" },
                   { label: "Model chosen",          done: true,  section: "model" },
-                  { label: "Tools attached",        done: true,  section: "tools" },
+                  { label: "Skills attached",       done: true,  section: "skills" },
                   { label: "Guardrails configured", done: false, section: "guardrails" },
                   { label: "Tried the agent",       done: true,  section: null },
                 ].map(item => (
@@ -256,11 +255,10 @@ export default function AgentBuilder() {
             <div className="flex-1 overflow-y-auto bg-background">
               {tab === "build" && section === "instructions" && <GeneralTab onRefineWithAI={() => setBuildMode("ai")} onChatToTest={() => { setBuildMode("manual"); setPreviewView("chat"); }} />}
               {tab === "build" && section === "knowledge" && <KnowledgeTab />}
-              {tab === "build" && section === "tools" && <AgentToolsTab agentId={id ?? "new"} />}
               {tab === "build" && section === "skills" && <PlaceholderTab title="Skills" />}
               {tab === "build" && section === "guardrails" && <GuardrailsTab agentId={id ?? "new"} />}
               {tab === "build" && section === "model" && <PlaceholderTab title="Model" />}
-              {tab === "build" && !["instructions","knowledge","tools","skills","guardrails","model"].includes(section) && <PlaceholderTab title={section} />}
+              {tab === "build" && !["instructions","knowledge","skills","guardrails","model"].includes(section) && <PlaceholderTab title={section} />}
               {tab === "test" && <PlaceholderTab title="Test" />}
               {tab === "deploy" && <PlaceholderTab title="Deploy" />}
               {tab === "insights" && <PerformanceTab />}
