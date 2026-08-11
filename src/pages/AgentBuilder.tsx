@@ -2,7 +2,7 @@ import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { createPortal } from "react-dom";
 
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Activity01Icon, Add01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, BookOpen01Icon, Cancel01Icon, BoltIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, Wrench01Icon , Delete01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
+import { Activity01Icon, Add01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, BookOpen01Icon, Cancel01Icon, BoltIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, Wrench01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
 import { useEffect, useRef, useState } from "react";
 import AgentToolsTab from "@/components/tool-builder/AgentToolsTab";
 import TasksGrid from "@/components/tasks/TasksGrid";
@@ -22,29 +22,29 @@ import BusinessProcessTree from "@/components/general/BusinessProcessTree";
 type Tab = "build" | "test" | "deploy" | "insights";
 
 const developNav = [
-  { id: "instructions", label: "Instructions", icon: FileText,  status: "done" },
-  { id: "model",        label: "Model",         icon: Cpu,       status: "done" },
-  { id: "tools",        label: "Tools",          icon: Wrench,    status: "done" },
-  { id: "skills",       label: "Skills",         icon: Puzzle,    status: "empty" },
-  { id: "guardrails",   label: "Guardrails",     icon: Shield,    status: "warn" },
-  { id: "knowledge",    label: "Knowledge",      icon: BookOpen,  comingSoon: true },
-  { id: "triggers",     label: "Triggers",       icon: Zap,       comingSoon: true },
-  { id: "sub-agents",   label: "Sub-Agents",     icon: Bot,       comingSoon: true },
+  { id: "instructions", label: "Instructions", icon: FileEditIcon,  status: "done" },
+  { id: "model",        label: "Model",         icon: CpuIcon,       status: "done" },
+  { id: "tools",        label: "Tools",          icon: Wrench01Icon,    status: "done" },
+  { id: "skills",       label: "Skills",         icon: PuzzleIcon,    status: "empty" },
+  { id: "guardrails",   label: "Guardrails",     icon: Shield01Icon,    status: "warn" },
+  { id: "knowledge",    label: "Knowledge",      icon: BookOpen01Icon,  comingSoon: true },
+  { id: "triggers",     label: "Triggers",       icon: BoltIcon,       comingSoon: true },
+  { id: "sub-agents",   label: "Sub-Agents",     icon: Robot01Icon,       comingSoon: true },
 ];
 
 const monitorNav = [
   { label: "Reports", items: [
-    { id: "perf", label: "Performance", icon: Activity },
-    { id: "convs", label: "Conversations", icon: MessageSquare },
-    { id: "users", label: "Users", icon: UsersIcon },
+    { id: "perf", label: "Performance", icon: Activity01Icon },
+    { id: "convs", label: "Conversations", icon: Chat01Icon },
+    { id: "users", label: "Users", icon: UserGroupIcon },
   ]},
   { label: "Quality", items: [
-    { id: "csat", label: "Satisfaction", icon: Star },
-    { id: "review", label: "Conversation review", icon: ListChecks },
+    { id: "csat", label: "Satisfaction", icon: StarIcon },
+    { id: "review", label: "Conversation review", icon: CheckListIcon },
   ]},
   { label: "History", items: [
-    { id: "chat-hist", label: "Chat history", icon: History },
-    { id: "trig-hist", label: "Trigger history", icon: Zap },
+    { id: "chat-hist", label: "Chat history", icon: HistoryIcon },
+    { id: "trig-hist", label: "Trigger history", icon: BoltIcon },
   ]},
 ];
 
@@ -92,10 +92,10 @@ export default function AgentBuilder() {
         <div className="flex-1 flex items-center justify-center">
           <div className="flex items-center gap-0 bg-surface-muted rounded-lg p-1">
             {([
-              { id: "build",    label: "Build",    Icon: PenLine },
-              { id: "test",     label: "Test",     Icon: FlaskConical },
-              { id: "deploy",   label: "Deploy",   Icon: Rocket },
-              { id: "insights", label: "Insights", Icon: BarChart2 },
+              { id: "build",    label: "Build",    Icon: PencilEdit01Icon },
+              { id: "test",     label: "Test",     Icon: FlaskConicalIcon },
+              { id: "deploy",   label: "Deploy",   Icon: Rocket01Icon },
+              { id: "insights", label: "Insights", Icon: Analytics01Icon },
             ] as const).map(({ id, label, Icon }) => (
               <button key={id} onClick={() => setTab(id as Tab)}
                 className={`px-4 h-8 rounded-md text-sm font-medium flex items-center gap-1.5 transition-base ${
@@ -234,7 +234,7 @@ export default function AgentBuilder() {
           <AiBuildSidebar
             onClose={() => setBuildMode("manual")}
             contextLabel={currentSectionLabel}
-            sections={nav.flatMap(g => g.items)}
+            sections={nav.flatMap((g: any) => g.items ?? [g])}
             currentSection={section}
             onSectionChange={setSection}
             seedPrompt={params.get("agentPrompt") || ""}
@@ -718,7 +718,7 @@ You are a customer-care specialist at ABC Bank. Help customers 24/7 with product
                   </button>
                 ))}
                 <label className="col-span-6 mt-1 flex items-center justify-center gap-1.5 text-xs text-primary cursor-pointer hover:underline">
-                  <HugeiconsIcon icon={Upload01Icon} size={10} /> Upload image
+                  <HugeiconsIcon icon={Upload01Icon} size={10} /> Upload01Icon image
                   <input type="file" className="hidden" accept="image/*" />
                 </label>
               </div>
@@ -751,8 +751,8 @@ You are a customer-care specialist at ABC Bank. Help customers 24/7 with product
           {/* Toggle: Preview / Markdown */}
           <div className="flex items-center bg-surface-muted rounded-lg p-0.5 border border-border">
             {([
-              { id: "preview",  label: "Preview",  icon: Eye },
-              { id: "markdown", label: "Markdown", icon: FileText },
+              { id: "preview",  label: "Preview",  icon: EyeIcon },
+              { id: "markdown", label: "Markdown", icon: FileEditIcon },
             ] as const).map(({ id, label, icon: Icon }) => (
               <button key={id}
                 onClick={() => setViewMode(id)}
@@ -888,20 +888,20 @@ function MoreLink({ count, onClick }: { count: number; onClick: () => void }) {
 /* ============ KNOWLEDGE ============ */
 function KnowledgeTab() {
   const sources = [
-    { name: "Brochure 2024.pdf", type: "PDF", size: "2.4 MB", chunks: 184, version: "v2", icon: FileText, color: "text-destructive" },
-    { name: "Customer FAQ", type: "FAQ", size: "47 entries", chunks: 47, version: "v5", icon: MessageSquareText, color: "text-primary" },
-    { name: "abcbank.com/products", type: "Web", size: "32 pages", chunks: 312, version: "v1", icon: Globe, color: "text-info" },
-    { name: "Internal Policy v3", type: "Sharepoint", size: "1.1 MB", chunks: 96, version: "v3", icon: Database, color: "text-accent" },
+    { name: "Brochure 2024.pdf", type: "PDF", size: "2.4 MB", chunks: 184, version: "v2", icon: FileEditIcon, color: "text-destructive" },
+    { name: "Customer FAQ", type: "FAQ", size: "47 entries", chunks: 47, version: "v5", icon: Chat01Icon, color: "text-primary" },
+    { name: "abcbank.com/products", type: "Web", size: "32 pages", chunks: 312, version: "v1", icon: Globe02Icon, color: "text-info" },
+    { name: "Internal Policy v3", type: "Sharepoint", size: "1.1 MB", chunks: 96, version: "v3", icon: Database01Icon, color: "text-accent" },
   ];
   return (
     <div className="p-8 w-full space-y-6 animate-fade-up">
       <Section icon={BookOpen01Icon} title="Agent knowledge" desc="Sources this agent can retrieve from at run time.">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-5">
           {[
-            { icon: Upload, label: "Upload" },
-            { icon: Globe, label: "Website" },
-            { icon: Database, label: "SharePoint" },
-            { icon: FileQuestion, label: "FAQ" },
+            { icon: Upload01Icon, label: "Upload" },
+            { icon: Globe02Icon, label: "Website" },
+            { icon: Database01Icon, label: "SharePoint" },
+            { icon: FileQuestionMarkIcon, label: "FAQ" },
           ].map(s => (
             <button
               key={s.label}
@@ -1417,7 +1417,7 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
 
   const sections = [
     {
-      id: "connectors", icon: Plug, label: "Connectors",
+      id: "connectors", icon: Plug01Icon, label: "Connectors",
       content: (
         <div className="py-1">
           <p className="text-xs text-muted-foreground mb-2">The outside accounts and systems this agent may use.</p>
@@ -1425,7 +1425,7 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
       ),
     },
     {
-      id: "skills", icon: Puzzle, label: "Skills", content: (
+      id: "skills", icon: PuzzleIcon, label: "Skills", content: (
         <div className="flex flex-col items-center py-3 gap-1.5 text-center">
           <HugeiconsIcon icon={PuzzleIcon} size={20} className="text-muted-foreground/50" />
           <p className="text-xs text-muted-foreground">Reusable abilities you've taught it.</p>
@@ -1433,15 +1433,15 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
       ),
     },
     {
-      id: "guardrails", icon: Shield, label: "Guardrails",
+      id: "guardrails", icon: Shield01Icon, label: "Guardrails",
       onAdd: (pos: {top:number;left:number}) => guardrailsAddRef.current?.(pos),
       content: (
         <GuardrailsInner onRegisterAdd={(fn) => { guardrailsAddRef.current = fn; }} />
       ),
     },
-    { id: "knowledge",  icon: BookOpen, label: "Knowledge",  comingSoon: true },
-    { id: "triggers",   icon: Zap,      label: "Triggers",   comingSoon: true },
-    { id: "sub-agents", icon: Bot,      label: "Sub-Agents", comingSoon: true },
+    { id: "knowledge",  icon: BookOpen01Icon, label: "Knowledge",  comingSoon: true },
+    { id: "triggers",   icon: BoltIcon,      label: "Triggers",   comingSoon: true },
+    { id: "sub-agents", icon: Robot01Icon,      label: "Sub-Agents", comingSoon: true },
   ];
 
   return (
@@ -1781,9 +1781,9 @@ function PublishModal({ onClose, onChatTest }: { onClose: () => void; onChatTest
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">What will be saved</p>
             <div className="rounded-xl border border-border overflow-hidden">
               {[
-                { icon: Cpu,    label: "Model",      value: "DeepSeek V4 Flash", sub: "deepseek-v4-flash" },
-                { icon: Puzzle, label: "Skills",     value: "meo",               sub: "v1.0.0" },
-                { icon: Shield, label: "Guardrails", value: "2 rules",           sub: null },
+                { icon: CpuIcon,    label: "Model",      value: "DeepSeek V4 Flash", sub: "deepseek-v4-flash" },
+                { icon: PuzzleIcon, label: "Skills",     value: "meo",               sub: "v1.0.0" },
+                { icon: Shield01Icon, label: "Guardrails", value: "2 rules",           sub: null },
               ].map((row, i) => (
                 <div key={i} className={`flex items-center gap-3 px-4 py-2.5 ${i > 0 ? "border-t border-border" : ""}`}>
                   <row.icon size={13} className="text-muted-foreground shrink-0" />
