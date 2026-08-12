@@ -351,10 +351,10 @@ function AddUserToRoleModal({
           </button>
           <button
             onClick={submit}
-            disabled={!selectedMember || !!conflictRoleName}
+            disabled={selectedMembers.length === 0 || conflicts.length > 0}
             className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-base disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Add
+            {selectedMembers.length > 1 ? `Add ${selectedMembers.length} members` : "Add"}
           </button>
         </div>
       </div>
