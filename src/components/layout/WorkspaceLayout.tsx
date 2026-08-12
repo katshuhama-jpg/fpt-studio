@@ -44,7 +44,7 @@ const groups: Group[] = [
     id: "workspace",
     label: "Workspace",
     items: [
-      { to: "/organization", label: "Settings", icon: Settings },
+      { to: "/organization/structure", label: "Settings", icon: Settings },
     ],
   },
 ];
