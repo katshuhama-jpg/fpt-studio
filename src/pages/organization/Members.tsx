@@ -72,14 +72,16 @@ function UnitSwitcher({ value, onChange }: { value: string; onChange: (id: strin
             </div>
           </div>
           <div className="overflow-y-auto p-1">
-            {filtered.map(u => (
+            {filtered.map(({ unit: u, depth }) => (
               <button
                 key={u.id}
                 type="button"
                 onClick={() => pick(u.id)}
-                className={`w-full flex items-center justify-between gap-2 text-left px-3 py-2 rounded-lg text-sm transition-base hover:bg-surface-muted ${value === u.id ? "text-primary font-medium bg-primary-soft" : "text-foreground"}`}
+                style={{ paddingLeft: 12 + depth * 16 }}
+                className={`w-full flex items-center gap-2 text-left py-2 pr-3 rounded-lg text-sm transition-base hover:bg-surface-muted ${value === u.id ? "text-primary font-medium bg-primary-soft" : "text-foreground"}`}
               >
-                <span className="truncate">{u.name}</span>
+                {depth > 0 && <span className="text-border shrink-0 select-none">└</span>}
+                <span className={`truncate flex-1 ${depth === 0 ? "font-medium" : ""}`}>{u.name}</span>
                 <span className="text-[10px] text-muted-foreground shrink-0">{countAll(u)}</span>
               </button>
             ))}
