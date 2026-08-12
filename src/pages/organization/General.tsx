@@ -1,4 +1,5 @@
 import { Card, Row, PageHeader } from "./shared";
+import fptLogo from "@/assets/fpt-logo.jpg";
 
 export default function General() {
   return (
@@ -7,8 +8,8 @@ export default function General() {
 
       <Card>
         <div className="flex items-center gap-4 mb-5">
-          <div className="w-16 h-16 rounded-xl bg-gradient-brand flex items-center justify-center text-2xl font-display font-bold text-primary-foreground shadow-soft shrink-0">
-            F
+          <div className="w-16 h-16 rounded-xl bg-white border border-border flex items-center justify-center shadow-soft shrink-0 overflow-hidden">
+            <img src={fptLogo} alt="FPT logo" className="w-full h-full object-contain p-2" />
           </div>
           <div>
             <div className="text-sm font-semibold text-foreground">FPT Corporation</div>
