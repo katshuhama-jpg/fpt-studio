@@ -411,7 +411,7 @@ export default function Members() {
       <Card>
         <div className="flex flex-wrap items-center gap-2.5 mb-4">
           <UnitSwitcher value={selectedUnitId} onChange={setSelectedUnitId} />
-          <ScopeToggle value={scope} onChange={setScope} />
+          <ScopeDropdown value={scope} onChange={setScope} />
           <FilterChip value={roleFilter} allLabel="All roles" options={roleSections} onChange={setRoleFilter} />
           <div className="relative ml-auto w-full sm:w-64">
             <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
