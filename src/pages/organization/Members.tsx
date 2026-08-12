@@ -403,7 +403,8 @@ export default function Members() {
       const q = query.trim().toLowerCase();
       if (!q) return true;
       return m.name.toLowerCase().includes(q) || m.role.toLowerCase().includes(q);
-    });
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const totalPages = Math.max(1, Math.ceil(visibleMembers.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
