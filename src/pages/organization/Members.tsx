@@ -95,24 +95,46 @@ function UnitSwitcher({ value, onChange }: { value: string; onChange: (id: strin
   );
 }
 
-/* ─── Direct vs. include-sub-units scope toggle ─────────────────────────── */
-function ScopeToggle({ value, onChange }: { value: "direct" | "all"; onChange: (v: "direct" | "all") => void }) {
+/* ─── Direct vs. include-sub-units scope dropdown (matches the other filter chips) ─── */
+const SCOPE_OPTIONS: { id: "direct" | "all"; name: string }[] = [
+  { id: "direct", name: "Direct members" },
+  { id: "all", name: "Include sub-units" },
+];
+
+function ScopeDropdown({ value, onChange }: { value: "direct" | "all"; onChange: (v: "direct" | "all") => void }) {
+  const [open, setOpen] = useState(false);
+  const selected = SCOPE_OPTIONS.find(o => o.id === value)!;
+
   return (
-    <div className="inline-flex items-center h-8 rounded-lg border border-border bg-surface p-0.5">
+    <div
+      className="relative"
+      onBlur={e => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false);
+      }}
+    >
       <button
         type="button"
-        onClick={() => onChange("direct")}
-        className={`h-full px-2.5 rounded-md text-xs font-medium transition-base ${value === "direct" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+        onClick={() => setOpen(v => !v)}
+        className="h-8 flex items-center gap-2 px-3 rounded-lg border border-border bg-surface text-sm hover:bg-surface-muted transition-base"
       >
-        Direct
+        {selected.name}
+        <ChevronDown size={12} className={`text-muted-foreground transition-base ${open ? "rotate-180" : ""}`} />
       </button>
-      <button
-        type="button"
-        onClick={() => onChange("all")}
-        className={`h-full px-2.5 rounded-md text-xs font-medium transition-base ${value === "all" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-      >
-        Include sub-units
-      </button>
+      {open && (
+        <div className="absolute left-0 top-[calc(100%+4px)] w-52 bg-surface rounded-xl ring-1 ring-border shadow-xl z-50 p-1">
+          {SCOPE_OPTIONS.map(o => (
+            <button
+              key={o.id}
+              type="button"
+              onClick={() => { onChange(o.id); setOpen(false); }}
+              className={`w-full flex items-center justify-between gap-2 text-left px-3 py-2 rounded-lg text-sm transition-base hover:bg-surface-muted ${value === o.id ? "text-primary font-medium bg-primary-soft" : "text-foreground"}`}
+            >
+              {o.name}
+              {value === o.id && <Check size={13} className="text-primary shrink-0" />}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
