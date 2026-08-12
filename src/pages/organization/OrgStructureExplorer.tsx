@@ -278,7 +278,7 @@ export default function OrgStructureExplorer() {
       {editingMember && (
         <MemberModal
           title={`Edit ${editingMember.name}`}
-          desc="Update this person's name, email, and role."
+          desc="Update this person's name and email."
           initialName={editingMember.name}
           initialEmail={editingMember.email}
           initialRoleId={editingMember.roleId}
