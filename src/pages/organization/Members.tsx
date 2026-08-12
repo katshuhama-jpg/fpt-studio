@@ -341,7 +341,7 @@ export default function Members() {
     return "Unassigned";
   };
 
-  useEffect(() => { setVisibleCount(50); }, [selectedUnitId, scope, roleFilter, query]);
+  useEffect(() => { setPage(1); }, [selectedUnitId, scope, roleFilter, query]);
 
   const baseMembers = scope === "all" ? collectMembers(selectedUnit) : selectedUnit.members;
 
@@ -358,7 +358,9 @@ export default function Members() {
       return m.name.toLowerCase().includes(q) || m.role.toLowerCase().includes(q);
     });
 
-  const shownMembers = visibleMembers.slice(0, visibleCount);
+  const totalPages = Math.max(1, Math.ceil(visibleMembers.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const shownMembers = visibleMembers.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const handleAdd = (memberId: string, roleId: string) => assignRole(memberId, roleId);
 
@@ -420,7 +422,6 @@ export default function Members() {
                         </div>
                         <div className="min-w-0">
                           <div className="text-sm font-medium truncate">{m.name}</div>
-                          <div className="text-xs text-muted-foreground truncate">{m.role}</div>
                         </div>
                       </div>
                       <div className="text-xs text-muted-foreground truncate" title={unitName}>{unitName}</div>
