@@ -120,6 +120,7 @@ function MemberModal({
   title: string; desc: string; initialName?: string; initialEmail?: string; initialRoleId?: string; roles: RoleDef[]; submitLabel: string;
   onClose: () => void; onSave: (name: string, email: string, roleId: string | undefined) => void;
 }) {
+  const isEdit = initialName !== undefined;
   const [name, setName] = useState(initialName ?? "");
   const [email, setEmail] = useState(initialEmail ?? "");
   const [roleId, setRoleId] = useState(initialRoleId ?? "");
