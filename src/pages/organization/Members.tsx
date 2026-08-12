@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Search, X, UserMinus, Plus, ChevronDown, AlertTriangle, Building2 } from "lucide-react";
+import { Search, X, UserMinus, Plus, ChevronDown, ChevronLeft, ChevronRight, AlertTriangle, Building2 } from "lucide-react";
 import { Card, PageHeader } from "./shared";
 import { OrgUnit, OrgMember, collectMembers, collectUnits, countAll, findUnit, findPath, findMemberUnit } from "./orgData";
 import { useRoles, RoleDef } from "./rolesStore";
@@ -328,7 +328,8 @@ export default function Members() {
   const [roleFilter, setRoleFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [showAdd, setShowAdd] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(50);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 24;
 
   const roleIds = new Set(roles.map(r => r.id));
   const roleSections = [...roles.map(r => ({ id: r.id, name: r.name })), { id: "unassigned", name: "Unassigned" }];
