@@ -207,18 +207,31 @@ function AddUserToRoleModal({
 
   const [query, setQuery] = useState("");
   const [showList, setShowList] = useState(false);
-  const [selectedMember, setSelectedMember] = useState<OrgMember | null>(null);
+  const [selectedMembers, setSelectedMembers] = useState<OrgMember[]>([]);
   const [roleId, setRoleId] = useState(defaultRoleId);
 
+  const selectedIds = new Set(selectedMembers.map(m => m.id));
   const q = query.trim().toLowerCase();
-  const candidates = q ? allMembers.filter(m => m.name.toLowerCase().includes(q)).slice(0, 20) : [];
-  const conflictRoleName = selectedMember ? currentRoleNameOf(selectedMember.id) : null;
+  const candidates = q
+    ? allMembers.filter(m => !selectedIds.has(m.id) && m.name.toLowerCase().includes(q)).slice(0, 20)
+    : [];
+  const conflicts = selectedMembers
+    .map(m => ({ member: m, roleName: currentRoleNameOf(m.id) }))
+    .filter((x): x is { member: OrgMember; roleName: string } => !!x.roleName);
+
+  const addCandidate = (m: OrgMember) => {
+    setSelectedMembers(prev => [...prev, m]);
+    setQuery("");
+  };
+
+  const removeCandidate = (memberId: string) => {
+    setSelectedMembers(prev => prev.filter(m => m.id !== memberId));
+  };
 
   const submit = () => {
-    if (!selectedMember || conflictRoleName) return;
-    onAdd(selectedMember.id, roleId);
-    setSelectedMember(null);
-    setQuery("");
+    if (selectedMembers.length === 0 || conflicts.length > 0) return;
+    selectedMembers.forEach(m => onAdd(m.id, roleId));
+    onClose();
   };
 
   return createPortal(
