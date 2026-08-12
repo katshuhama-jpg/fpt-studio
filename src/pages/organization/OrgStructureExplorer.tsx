@@ -458,7 +458,7 @@ export default function OrgStructureExplorer() {
                         type="button"
                         onClick={() => setDeleteConfirmUnitId(u.id)}
                         aria-label={`Delete ${u.name}`}
-                        className="absolute top-2 right-2 z-10 w-6 h-6 rounded-md opacity-0 group-hover/card:opacity-100 hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-destructive transition-base"
+                        className="absolute top-2 right-2 z-10 w-6 h-6 rounded-md bg-surface/90 shadow-sm hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-destructive transition-base"
                       >
                         <Trash2 size={12} />
                       </button>
