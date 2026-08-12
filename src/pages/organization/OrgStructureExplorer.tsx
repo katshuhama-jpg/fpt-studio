@@ -415,10 +415,9 @@ export default function OrgStructureExplorer() {
                         <div className="w-8 h-8 rounded-lg bg-primary-soft text-primary flex items-center justify-center shrink-0">
                           <Building2 size={14} />
                         </div>
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0 flex-1 pr-6">
                           <div className="text-sm font-semibold truncate">{u.name}</div>
                         </div>
-                        <ChevronRight size={14} className="text-muted-foreground shrink-0" />
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="flex -space-x-2">
