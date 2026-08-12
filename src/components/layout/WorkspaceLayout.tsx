@@ -183,7 +183,7 @@ export default function WorkspaceLayout() {
 
               {/* Menu items */}
               <NavLink
-                to="/organization"
+                to="/organization/structure"
                 onClick={() => setUserMenu(false)}
                 className="flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-surface-muted transition-base"
               >
@@ -287,7 +287,7 @@ type AppOption = { key: "workspace" | "organization"; label: string; short: stri
 
 const APP_OPTIONS: AppOption[] = [
   { key: "workspace", label: "Agent Studio", short: "Agent Studio", desc: "Build and manage agents, knowledge, skills & connectors", icon: Bot, to: "/" },
-  { key: "organization", label: "Organization management", short: "Organization", desc: "Manage structure, members, roles & permissions", icon: Building2, to: "/organization" },
+  { key: "organization", label: "Organization management", short: "Organization", desc: "Manage structure, members, roles & permissions", icon: Building2, to: "/organization/structure" },
 ];
 
 function AppSwitcher({ collapsed, inOrganization }: { collapsed: boolean; inOrganization: boolean }) {
