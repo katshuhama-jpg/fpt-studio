@@ -447,15 +447,31 @@ export default function Members() {
                 })}
               </div>
             </div>
-            {visibleMembers.length > visibleCount && (
-              <div className="flex justify-center mt-3">
-                <button
-                  type="button"
-                  onClick={() => setVisibleCount(c => c + 50)}
-                  className="h-8 px-3 rounded-lg border border-border bg-surface text-xs font-medium hover:bg-surface-muted transition-base"
-                >
-                  Load more (+{Math.min(50, visibleMembers.length - visibleCount)})
-                </button>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-3">
+                <span className="text-xs text-muted-foreground">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="h-8 w-8 flex items-center justify-center rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base disabled:opacity-40 disabled:cursor-not-allowed"
+                    aria-label="Previous page"
+                  >
+                    <ChevronLeft size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="h-8 w-8 flex items-center justify-center rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base disabled:opacity-40 disabled:cursor-not-allowed"
+                    aria-label="Next page"
+                  >
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
               </div>
             )}
           </>
