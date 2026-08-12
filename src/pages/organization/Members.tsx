@@ -242,7 +242,7 @@ function AddUserToRoleModal({
         <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-border shrink-0">
           <div>
             <h2 className="text-base font-semibold">Add users to a role</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Search for someone in the organization and choose which role to assign.</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Search for one or more people in the organization and choose which role to assign them.</p>
           </div>
           <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground ml-4 shrink-0">
             <X size={14} />
