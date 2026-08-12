@@ -4,7 +4,7 @@ import fptLogo from "@/assets/fpt-logo.jpg";
 export default function General() {
   return (
     <div className="px-8 py-8 max-w-[1280px] mx-auto animate-fade-up space-y-6">
-      <PageHeader title="Organization Info" desc="How your organization appears to teammates. View only." />
+      <PageHeader title="General Information" desc="How your organization appears to teammates. View only." />
 
       <Card>
         <div className="flex items-center gap-4 mb-5">
