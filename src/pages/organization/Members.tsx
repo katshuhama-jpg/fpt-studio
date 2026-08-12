@@ -253,31 +253,36 @@ function AddUserToRoleModal({
           <div>
             <label className="text-sm font-medium block mb-1.5">Users or groups</label>
             <div className="relative">
-              {selectedMember ? (
-                <div className="flex items-center gap-2 h-10 px-3 rounded-xl border border-primary bg-primary-soft text-sm">
-                  <div className="w-6 h-6 rounded-full bg-accent-soft text-accent flex items-center justify-center text-[10px] font-semibold shrink-0">
-                    {selectedMember.initials}
-                  </div>
-                  <span className="flex-1 min-w-0 truncate font-medium">{selectedMember.name}</span>
-                  <button type="button" onClick={() => setSelectedMember(null)} className="text-muted-foreground hover:text-foreground shrink-0">
-                    <X size={13} />
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <div className="flex flex-wrap items-center gap-1.5 min-h-10 px-2 py-1.5 rounded-xl border border-border bg-surface focus-within:border-ring transition-base">
+                {selectedMembers.map(m => (
+                  <span key={m.id} className="inline-flex items-center gap-1.5 h-7 pl-1 pr-1.5 rounded-lg bg-primary-soft text-primary text-xs font-medium shrink-0">
+                    <span className="w-5 h-5 rounded-full bg-accent-soft text-accent flex items-center justify-center text-[9px] font-semibold shrink-0">
+                      {m.initials}
+                    </span>
+                    <span className="max-w-[140px] truncate">{m.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeCandidate(m.id)}
+                      className="text-primary/70 hover:text-destructive shrink-0"
+                      aria-label={`Remove ${m.name}`}
+                    >
+                      <X size={12} />
+                    </button>
+                  </span>
+                ))}
+                <div className="relative flex-1 min-w-[140px]">
                   <input
                     autoFocus
                     value={query}
                     onChange={e => { setQuery(e.target.value); setShowList(true); }}
                     onFocus={() => setShowList(true)}
                     onBlur={() => setTimeout(() => setShowList(false), 150)}
-                    placeholder="Search by name or email"
-                    className="w-full h-10 pl-9 pr-3 rounded-xl border border-border bg-surface text-sm outline-none focus:border-ring transition-base"
+                    placeholder={selectedMembers.length ? "Add another…" : "Search by name or email"}
+                    className="w-full h-7 outline-none bg-transparent text-sm"
                   />
-                </>
-              )}
-              {!selectedMember && showList && candidates.length > 0 && (
+                </div>
+              </div>
+              {showList && candidates.length > 0 && (
                 <div className="absolute left-0 right-0 top-[calc(100%+4px)] max-h-56 overflow-y-auto bg-surface rounded-xl ring-1 ring-border shadow-xl z-50">
                   {candidates.map(m => {
                     const existingRoleName = currentRoleNameOf(m.id);
@@ -285,7 +290,7 @@ function AddUserToRoleModal({
                       <button
                         key={m.id}
                         type="button"
-                        onClick={() => { setSelectedMember(m); setQuery(""); setShowList(false); }}
+                        onClick={() => addCandidate(m)}
                         className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-surface-muted text-left transition-base"
                       >
                         <div className="w-7 h-7 rounded-full bg-accent-soft text-accent flex items-center justify-center text-[10px] font-semibold shrink-0">
@@ -310,12 +315,17 @@ function AddUserToRoleModal({
             </div>
           </div>
 
-          {conflictRoleName && selectedMember && (
+          {conflicts.length > 0 && (
             <div className="flex items-start gap-2.5 rounded-xl border border-warning/30 bg-warning-soft px-3.5 py-3">
               <AlertTriangle size={15} className="text-warning shrink-0 mt-0.5" />
               <div className="text-xs text-foreground leading-relaxed">
-                <span className="font-medium">{selectedMember.name}</span> is already in the <span className="font-medium">{conflictRoleName}</span> role.
-                Remove them from that role first, then add them here.
+                {conflicts.map(({ member, roleName }, i) => (
+                  <span key={member.id}>
+                    <span className="font-medium">{member.name}</span> is already in the <span className="font-medium">{roleName}</span> role
+                    {i < conflicts.length - 1 ? ", " : ". "}
+                  </span>
+                ))}
+                Remove {conflicts.length === 1 ? "them" : "these people"} from their current role first, then add {conflicts.length === 1 ? "them" : "them"} here.
               </div>
             </div>
           )}
