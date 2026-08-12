@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Search, X, UserMinus, Plus, ChevronDown, ChevronLeft, ChevronRight, AlertTriangle, Building2 } from "lucide-react";
+import { Search, X, UserMinus, Plus, ChevronDown, ChevronLeft, ChevronRight, AlertTriangle, Building2, Check } from "lucide-react";
 import { Card, PageHeader } from "./shared";
-import { OrgUnit, OrgMember, collectMembers, collectUnits, countAll, findUnit, findPath, findMemberUnit } from "./orgData";
+import { OrgUnit, OrgMember, collectMembers, collectUnitsWithDepth, countAll, findUnit, findPath, findMemberUnit } from "./orgData";
 import { useRoles, RoleDef } from "./rolesStore";
 import { useOrg } from "./orgStore";
 
@@ -30,12 +30,12 @@ function roleChipClass(roleId: string | undefined): string {
 /* ─── Unit switcher (flat searchable popover — picking a unit is a lookup, not a drill-down) ─── */
 function UnitSwitcher({ value, onChange }: { value: string; onChange: (id: string) => void }) {
   const { tree } = useOrg();
-  const allUnits = useMemo(() => [tree, ...collectUnits(tree)], [tree]);
+  const rows = useMemo(() => [{ unit: tree, depth: 0 }, ...collectUnitsWithDepth(tree)], [tree]);
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
 
   const query = q.trim().toLowerCase();
-  const filtered = query ? allUnits.filter(u => u.name.toLowerCase().includes(query)) : allUnits;
+  const filtered = query ? rows.filter(r => r.unit.name.toLowerCase().includes(query)) : rows;
   const path = findPath(tree, value) ?? [tree];
   const label = path.length > 1 ? path.slice(1).map(u => u.name).join(" › ") : path[0].name;
 
