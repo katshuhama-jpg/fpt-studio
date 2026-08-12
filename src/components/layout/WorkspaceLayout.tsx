@@ -86,7 +86,7 @@ export default function WorkspaceLayout() {
   }
 
   const BREADCRUMB_LABELS: Record<string, string> = { tools: "Skills" };
-  const ORG_BREADCRUMB_LABELS: Record<string, string> = { "": "Organization Info", structure: "Structure", members: "Members", permissions: "Permissions", roles: "Roles" };
+  const ORG_BREADCRUMB_LABELS: Record<string, string> = { "": "General Information", structure: "Structure", members: "Members", permissions: "Permissions", roles: "Roles" };
   let breadcrumbLabel: string;
   if (inOrganization) {
     const sub = loc.pathname.replace(/^\/organization\/?/, "");
