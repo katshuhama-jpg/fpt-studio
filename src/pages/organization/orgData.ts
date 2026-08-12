@@ -436,6 +436,11 @@ export function collectUnits(root: OrgUnit): OrgUnit[] {
   return root.units.flatMap(u => [u, ...collectUnits(u)]);
 }
 
+/** Same traversal as collectUnits, but keeps each unit's depth relative to root (root's direct children = 1). */
+export function collectUnitsWithDepth(root: OrgUnit, depth = 1): { unit: OrgUnit; depth: number }[] {
+  return root.units.flatMap(u => [{ unit: u, depth }, ...collectUnitsWithDepth(u, depth + 1)]);
+}
+
 export function findMember(root: OrgUnit, id: string): OrgMember | null {
   const direct = root.members.find(m => m.id === id);
   if (direct) return direct;
