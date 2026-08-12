@@ -511,7 +511,7 @@ export default function OrgStructureExplorer() {
                       {m.initials}
                     </div>
                     <span className="text-sm font-medium truncate flex-1">{m.name}</span>
-                    <div className="flex items-center gap-1 opacity-0 group-hover/row:opacity-100 transition-base shrink-0">
+                    <div className="flex items-center gap-1 shrink-0">
                       <button
                         type="button"
                         onClick={() => setEditingMember(m)}
