@@ -160,21 +160,23 @@ function MemberModal({
               className="w-full h-10 px-3 rounded-xl border border-border bg-surface text-sm outline-none focus:border-ring transition-base"
             />
           </div>
-          <div>
-            <label className="text-sm font-medium block mb-1.5">Role</label>
-            <div className="relative">
-              <select
-                value={roleId}
-                onChange={e => setRoleId(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") submit(); }}
-                className="ds-input h-10 appearance-none pr-9 cursor-pointer"
-              >
-                <option value="">Unassigned</option>
-                {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </select>
-              <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          {!isEdit && (
+            <div>
+              <label className="text-sm font-medium block mb-1.5">Role</label>
+              <div className="relative">
+                <select
+                  value={roleId}
+                  onChange={e => setRoleId(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") submit(); }}
+                  className="ds-input h-10 appearance-none pr-9 cursor-pointer"
+                >
+                  <option value="">Unassigned</option>
+                  {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+                <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              </div>
             </div>
-          </div>
+          )}
         </div>
         <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border shrink-0">
           <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">
