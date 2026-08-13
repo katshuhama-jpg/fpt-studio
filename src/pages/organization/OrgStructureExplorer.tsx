@@ -146,25 +146,32 @@ function MemberModal({
           </button>
         </div>
         <div className="px-6 py-5 space-y-4">
-          <div>
-            <label className="text-sm font-medium block mb-1.5">Họ và tên <span className="text-destructive">*</span></label>
-            <input
-              autoFocus
-              value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder="vd: Mai Hoàng"
-              className="w-full h-10 px-3 rounded-xl border border-border bg-surface text-sm outline-none focus:border-ring transition-base"
-            />
-          </div>
+          {isEdit && (
+            <div>
+              <label className="text-sm font-medium block mb-1.5">Họ và tên <span className="text-destructive">*</span></label>
+              <input
+                autoFocus
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder="vd: Mai Hoàng"
+                className="w-full h-10 px-3 rounded-xl border border-border bg-surface text-sm outline-none focus:border-ring transition-base"
+              />
+            </div>
+          )}
           <div>
             <label className="text-sm font-medium block mb-1.5">Email <span className="text-destructive">*</span></label>
             <input
+              autoFocus={!isEdit}
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && isEdit) submit(); }}
               placeholder="vd: mai.hoang@fpt.com"
               className="w-full h-10 px-3 rounded-xl border border-border bg-surface text-sm outline-none focus:border-ring transition-base"
             />
+            {!isEdit && (
+              <p className="text-xs text-muted-foreground mt-1.5">Tên sẽ được tự động nhận diện sau khi người này chấp nhận lời mời.</p>
+            )}
           </div>
           {!isEdit && (
             <div>
