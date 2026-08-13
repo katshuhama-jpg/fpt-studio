@@ -210,6 +210,40 @@ function MemberModal({
   );
 }
 
+/* ─── Delete confirmation (popup, reused for units and members) ────────── */
+function ConfirmDeleteModal({
+  title, desc, confirmLabel, onClose, onConfirm,
+}: {
+  title: string; desc: string; confirmLabel: string; onClose: () => void; onConfirm: () => void;
+}) {
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative w-[92vw] sm:w-[420px] bg-white rounded-2xl shadow-2xl p-6" style={{ animation: "fadeScaleIn 0.18s ease" }}>
+        <div className="flex items-start gap-3 mb-6">
+          <div className="w-10 h-10 rounded-full bg-destructive-soft text-destructive flex items-center justify-center shrink-0">
+            <Trash2 size={18} />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold">{title}</h2>
+            <p className="text-sm text-muted-foreground mt-1">{desc}</p>
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-2">
+          <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">
+            Hủy
+          </button>
+          <button onClick={onConfirm} className="h-9 px-4 rounded-xl bg-destructive text-white text-sm font-medium hover:opacity-90 transition-base">
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+      <style>{`@keyframes fadeScaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}`}</style>
+    </div>,
+    document.body
+  );
+}
+
 export default function OrgStructureExplorer() {
   const { tree, rootId, createUnit, renameUnit, deleteUnit, addMember, updateMember, removeMember } = useOrg();
   const { roles } = useRoles();
