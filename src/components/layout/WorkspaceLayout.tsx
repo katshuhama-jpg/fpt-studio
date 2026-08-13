@@ -125,13 +125,12 @@ export default function WorkspaceLayout() {
         </div>
 
         {/* Nav */}
-<<<<<<< HEAD
         {inOrganization ? (
           <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
-            <div className="space-y-0.5 mb-3">
+            <div className="space-y-1 mb-3">
               <NavRow item={{ to: "/", label: "Quay lại workspace", icon: ArrowLeft }} collapsed={collapsed} />
             </div>
-            <div className="space-y-0.5">
+            <div className="space-y-1">
               {orgItems.map(it => (
                 <NavRow key={it.to} item={it} collapsed={collapsed} />
               ))}
@@ -139,7 +138,7 @@ export default function WorkspaceLayout() {
           </nav>
         ) : (
           <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
-            <div className="space-y-0.5 mb-3">
+            <div className="space-y-1 mb-3">
               {topItems.map(it => (
                 <NavRow key={it.to} item={it} collapsed={collapsed} />
               ))}
@@ -161,11 +160,6 @@ export default function WorkspaceLayout() {
         {!inOrganization && (
           <div className="px-2 pb-2 space-y-0.5">
             {utilityItems.map(it => (
-=======
-        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
-          <div className="space-y-1 mb-3">
-            {topItems.map(it => (
->>>>>>> upstream/main
               <NavRow key={it.to} item={it} collapsed={collapsed} />
             ))}
           </div>
