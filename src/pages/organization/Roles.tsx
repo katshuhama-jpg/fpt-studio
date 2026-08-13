@@ -131,7 +131,7 @@ function RoleModal({
                       <group.icon size={14} className="text-muted-foreground" />
                       <span className="text-sm font-semibold">{group.label}</span>
                     </div>
-                    {group.permissions.length > 1 && (
+                    {group.permissions.length > 1 && !readOnly && (
                       <button
                         type="button"
                         onClick={() => toggleGroup(group)}
@@ -149,8 +149,8 @@ function RoleModal({
                           <button
                             type="button"
                             onClick={() => togglePerm(p.id)}
-                            disabled={!!impliedBy}
-                            className={`min-w-0 flex-1 text-left ${impliedBy ? "cursor-default" : "cursor-pointer"}`}
+                            disabled={!!impliedBy || readOnly}
+                            className={`min-w-0 flex-1 text-left ${impliedBy || readOnly ? "cursor-default" : "cursor-pointer"}`}
                           >
                             <div className="text-sm font-medium">{p.name}</div>
                             <div className="text-xs text-muted-foreground mt-0.5">{p.desc}</div>
@@ -158,7 +158,7 @@ function RoleModal({
                               <div className="text-[11px] text-primary mt-1 italic">Đã bao gồm qua "{impliedBy}"</div>
                             )}
                           </button>
-                          <Toggle enabled={effective.has(p.id)} onChange={() => togglePerm(p.id)} disabled={!!impliedBy} />
+                          <Toggle enabled={effective.has(p.id)} onChange={() => togglePerm(p.id)} disabled={!!impliedBy || readOnly} />
                         </div>
                       );
                     })}
