@@ -17,6 +17,14 @@ export function deriveInitials(name: string): string {
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
 
+/** Placeholder display name derived from an email's local part (e.g. "mai.hoang@fpt.com" -> "Mai Hoang"), used when inviting someone without asking for their name up front. */
+export function deriveNameFromEmail(email: string): string {
+  const local = email.split("@")[0] ?? "";
+  const parts = local.split(/[._-]+/).filter(Boolean);
+  if (parts.length === 0) return "Thành viên mới";
+  return parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(" ");
+}
+
 /**
  * Rebuilds the tree, replacing the unit with id `unitId` via `updater`.
  * `updater` returns the new unit, or `null` to delete it (and its whole subtree).
