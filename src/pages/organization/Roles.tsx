@@ -41,11 +41,12 @@ function impliedOnMap(enabled: Set<string>): Map<string, string> {
 
 /* ─── Create / edit role modal ─────────────────────────────────────────── */
 function RoleModal({
-  title, initialName, initialPermissionIds, onClose, onSave,
+  title, initialName, initialPermissionIds, readOnly, onClose, onSave,
 }: {
   title: string;
   initialName?: string;
   initialPermissionIds?: Set<string>;
+  readOnly?: boolean;
   onClose: () => void;
   onSave: (name: string, permissionIds: Set<string>) => void;
 }) {
@@ -57,6 +58,7 @@ function RoleModal({
   const effective = new Set([...enabled, ...implied.keys()]);
 
   const togglePerm = (id: string) => {
+    if (readOnly) return;
     if (implied.has(id)) return; // locked on by another permission — can't toggle independently
     setEnabled(prev => {
       const next = new Set(prev);
@@ -66,6 +68,7 @@ function RoleModal({
   };
 
   const toggleGroup = (group: FeatureGroup) => {
+    if (readOnly) return;
     const ids = group.permissions.map(p => p.id);
     const allOn = ids.every(id => effective.has(id));
     setEnabled(prev => {
