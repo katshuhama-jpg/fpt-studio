@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Building2, ChevronRight, ChevronDown, Search, Users, Pencil, Trash2, Plus, X } from "lucide-react";
-import { OrgUnit, OrgMember, countAll, countDirect, findPath, unitMatches } from "./orgData";
+import { OrgUnit, OrgMember, countAll, countDirect, findUnit, findPath, unitMatches } from "./orgData";
 import { useOrg, deriveNameFromEmail } from "./orgStore";
 import { useRoles, RoleDef } from "./rolesStore";
 
