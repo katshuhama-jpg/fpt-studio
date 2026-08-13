@@ -261,6 +261,8 @@ export default function OrgStructureExplorer() {
   const path = useMemo(() => findPath(tree, selectedId) ?? [tree], [tree, selectedId]);
   const selected = path[path.length - 1];
   const isRoot = selected.id === rootId;
+  const deleteTargetUnit = deleteConfirmUnitId ? findUnit(tree, deleteConfirmUnitId) : null;
+  const deleteTargetMember = deleteConfirmMemberId ? selected.members.find(m => m.id === deleteConfirmMemberId) ?? null : null;
 
   const selectUnit = (id: string) => {
     setSelectedId(id);
