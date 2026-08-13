@@ -124,7 +124,13 @@ function MemberModal({
   const [name, setName] = useState(initialName ?? "");
   const [email, setEmail] = useState(initialEmail ?? "");
   const [roleId, setRoleId] = useState(initialRoleId ?? "");
-  const submit = () => { if (!name.trim() || !email.trim()) return; onSave(name.trim(), email.trim(), roleId || undefined); onClose(); };
+  const canSubmit = isEdit ? !!name.trim() && !!email.trim() : !!email.trim();
+  const submit = () => {
+    if (!canSubmit) return;
+    const finalName = isEdit ? name.trim() : deriveNameFromEmail(email.trim());
+    onSave(finalName, email.trim(), roleId || undefined);
+    onClose();
+  };
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
