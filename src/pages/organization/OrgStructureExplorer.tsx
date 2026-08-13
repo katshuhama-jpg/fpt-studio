@@ -547,54 +547,28 @@ export default function OrgStructureExplorer() {
               <div className="max-h-[320px] overflow-y-auto divide-y divide-border">
                 {filteredMembers.map(m => (
                   <div key={m.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-surface-muted/60 transition-base group/row">
-                    {deleteConfirmMemberId === m.id ? (
-                      <>
-                        <span className="text-xs text-foreground flex-1">
-                          Gỡ "{m.name}" khỏi unit này? Hành động này không thể hoàn tác.
-                        </span>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => { removeMember(m.id); setDeleteConfirmMemberId(null); }}
-                            className="h-7 px-3 rounded-lg bg-destructive text-white text-xs font-medium"
-                          >
-                            Xóa
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setDeleteConfirmMemberId(null)}
-                            className="h-7 px-3 rounded-lg border border-border text-xs font-medium"
-                          >
-                            Hủy
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="w-8 h-8 rounded-full bg-accent-soft text-accent flex items-center justify-center text-[11px] font-semibold shrink-0">
-                          {m.initials}
-                        </div>
-                        <span className="text-sm font-medium truncate flex-1">{m.name}</span>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => setEditingMember(m)}
-                            aria-label={`Edit ${m.name}`}
-                            className="w-7 h-7 rounded-lg hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base"
-                          >
-                            <Pencil size={13} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setDeleteConfirmMemberId(m.id)}
-                            aria-label={`Remove ${m.name}`}
-                            className="w-7 h-7 rounded-lg hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-destructive transition-base"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                      </>
-                    )}
+                    <div className="w-8 h-8 rounded-full bg-accent-soft text-accent flex items-center justify-center text-[11px] font-semibold shrink-0">
+                      {m.initials}
+                    </div>
+                    <span className="text-sm font-medium truncate flex-1">{m.name}</span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setEditingMember(m)}
+                        aria-label={`Edit ${m.name}`}
+                        className="w-7 h-7 rounded-lg hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteConfirmMemberId(m.id)}
+                        aria-label={`Remove ${m.name}`}
+                        className="w-7 h-7 rounded-lg hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-destructive transition-base"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
                   </div>
                 ))}
                 {filteredMembers.length === 0 && (
