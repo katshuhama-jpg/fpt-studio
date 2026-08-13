@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
-  ArrowLeft, ArrowRight, Check, Loader2, Sparkles, Wand2,
-  Building2, ShoppingBag, GraduationCap, HeartPulse, Cpu, Truck, MoreHorizontal,
-} from "lucide-react";
+  ArrowLeft01Icon, ArrowRight01Icon, CheckmarkCircle01Icon, Loading01Icon, SparklesIcon,
+  MagicWand01Icon, Attachment01Icon, AtSignIcon, SentIcon,
+  Building02Icon, ShoppingBag01Icon, GraduationCapIcon, HeartPulseIcon, CpuIcon, DeliveryTruck01Icon, MoreHorizontalIcon,
+} from "@hugeicons/core-free-icons";
 import { Progress } from "@/components/ui/progress";
 import {
   ONBOARDING_STEPS, OnboardingStep, getOnboarding, updateOnboarding,
@@ -49,7 +51,7 @@ export default function Onboarding() {
       <header className="px-6 py-5 flex items-center justify-between max-w-3xl w-full mx-auto">
         <div className="flex items-center gap-2 text-sm font-display font-semibold">
           <span className="h-7 w-7 rounded-lg bg-gradient-brand flex items-center justify-center text-primary-foreground">
-            <Sparkles size={14} />
+            <HugeiconsIcon icon={SparklesIcon} size={14} />
           </span>
           AI Agents
         </div>
@@ -103,7 +105,7 @@ export default function Onboarding() {
             disabled={idx === 0}
             className="btn-ghost disabled:opacity-40 disabled:pointer-events-none"
           >
-            <ArrowLeft size={14} /> Back
+            <HugeiconsIcon icon={ArrowLeft01Icon} size={14} /> Back
           </button>
         </footer>
       )}
@@ -114,13 +116,13 @@ export default function Onboarding() {
 /* ───────────────── Step: Industry ───────────────── */
 
 const INDUSTRIES = [
-  { id: "banking", label: "Banking & Finance", icon: Building2 },
-  { id: "retail", label: "Retail & E-commerce", icon: ShoppingBag },
-  { id: "education", label: "Education", icon: GraduationCap },
-  { id: "healthcare", label: "Healthcare", icon: HeartPulse },
-  { id: "tech", label: "Technology", icon: Cpu },
-  { id: "logistics", label: "Logistics", icon: Truck },
-  { id: "other", label: "Other", icon: MoreHorizontal },
+  { id: "banking", label: "Banking & Finance", icon: Building02Icon },
+  { id: "retail", label: "Retail & E-commerce", icon: ShoppingBag01Icon },
+  { id: "education", label: "Education", icon: GraduationCapIcon },
+  { id: "healthcare", label: "Healthcare", icon: HeartPulseIcon },
+  { id: "tech", label: "Technology", icon: CpuIcon },
+  { id: "logistics", label: "Logistics", icon: DeliveryTruck01Icon },
+  { id: "other", label: "Other", icon: MoreHorizontalIcon },
 ];
 
 function IndustryStep({ onNext }: { onNext: () => void }) {
@@ -145,7 +147,7 @@ function IndustryStep({ onNext }: { onNext: () => void }) {
                   : "border-border bg-surface hover:border-border-strong"
               }`}
             >
-              <Icon size={18} className={active ? "text-primary" : "text-muted-foreground"} />
+              <HugeiconsIcon icon={Icon} size={18} className={active ? "text-primary" : "text-muted-foreground"} />
               <span className="text-sm font-medium leading-tight">{label}</span>
             </button>
           );
@@ -197,7 +199,7 @@ function RoleStep({ onNext }: { onNext: () => void }) {
               }`}
             >
               <span className="font-medium">{r}</span>
-              {active && <Check size={16} className="text-primary" />}
+              {active && <HugeiconsIcon icon={CheckmarkCircle01Icon} size={16} className="text-primary" />}
             </button>
           );
         })}
@@ -279,7 +281,7 @@ function PersonalizingStep({ onDone }: { onDone: () => void }) {
   return (
     <div className="text-center py-6">
       <div className="mx-auto h-14 w-14 rounded-2xl bg-gradient-brand flex items-center justify-center text-primary-foreground mb-5">
-        <Loader2 size={22} className="animate-spin" />
+        <HugeiconsIcon icon={Loading01Icon} size={22} className="animate-spin" />
       </div>
       <h2 className="font-display text-2xl font-semibold mb-2">Personalizing your workspace</h2>
       <p className="text-sm text-muted-foreground mb-6">Just a moment — almost ready.</p>
@@ -287,9 +289,9 @@ function PersonalizingStep({ onDone }: { onDone: () => void }) {
         {messages.map((m, idx) => (
           <li key={m} className="flex items-center gap-2.5">
             {idx < i ? (
-              <Check size={16} className="text-success" />
+              <HugeiconsIcon icon={CheckmarkCircle01Icon} size={16} className="text-success" />
             ) : idx === i ? (
-              <Loader2 size={16} className="animate-spin text-primary" />
+              <HugeiconsIcon icon={Loading01Icon} size={16} className="animate-spin text-primary" />
             ) : (
               <span className="h-4 w-4 rounded-full border border-border" />
             )}
@@ -326,42 +328,55 @@ function PromptStep({
         title="Describe what you want to build"
         subtitle="One sentence is enough. We'll scaffold the persona, knowledge and tools."
       />
-      <div className="mt-6 rounded-2xl border border-border bg-surface focus-within:border-primary focus-within:ring-glow transition-base p-2">
+
+      {/* Input box — same style as AgentsList */}
+      <div className="mt-6 w-full rounded-2xl border-2 border-primary/40 bg-white p-4 shadow-sm focus-within:border-primary transition-colors">
         <textarea
+          autoFocus
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          rows={3}
-          placeholder="e.g. A banking customer-care agent that can lock cards, look up loan rates and book consultations…"
-          className="w-full resize-none bg-transparent text-sm placeholder:text-muted-foreground outline-none px-3 py-2.5"
+          rows={2}
+          placeholder="e.g. A 24/7 banking customer-care agent that can lock cards, look up loan rates and book consultations…"
+          className="w-full resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none leading-relaxed min-h-[56px]"
+          onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && prompt.trim()) onGenerate(prompt.trim()); }}
         />
-        <div className="flex items-center justify-between px-2 pb-1">
-          <span className="text-[11px] text-muted-foreground">You'll keep refining in Inventor</span>
-          <button
-            disabled={!prompt.trim()}
-            onClick={() => onGenerate(prompt.trim())}
-            className="btn-primary h-8 px-3 disabled:opacity-50 disabled:pointer-events-none"
-          >
-            <Wand2 size={13} /> Continue to Inventor
-          </button>
+        <div className="flex items-center justify-between mt-3">
+          {/* Left tools */}
+          <div className="flex items-center gap-1">
+            <button className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base" title="Attach file">
+              <HugeiconsIcon icon={Attachment01Icon} size={16} />
+            </button>
+            <button className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base" title="Mention knowledge">
+              <HugeiconsIcon icon={AtSignIcon} size={16} />
+            </button>
+          </div>
+          {/* Right actions */}
+          <div className="flex items-center gap-3">
+            <button onClick={onTemplates} className="text-sm text-muted-foreground hover:text-foreground transition-base">
+              Use a template
+            </button>
+            <button
+              disabled={!prompt.trim()}
+              onClick={() => onGenerate(prompt.trim())}
+              className="btn-primary h-9 px-4 rounded-full disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <HugeiconsIcon icon={SparklesIcon} size={14} /> Build agent <HugeiconsIcon icon={SentIcon} size={13} />
+            </button>
+          </div>
         </div>
       </div>
 
+      {/* Suggestion chips */}
       <div className="mt-4 flex flex-wrap gap-2">
         {SUGGESTIONS.map((s) => (
-          <button
-            key={s}
-            onClick={() => setPrompt(s)}
-            className="chip hover:border-border-strong transition-base"
-          >
-            <Sparkles size={11} /> {s}
+          <button key={s} onClick={() => setPrompt(s)} className="chip hover:border-border-strong transition-base">
+            <HugeiconsIcon icon={SparklesIcon} size={11} /> {s}
           </button>
         ))}
       </div>
 
       <div className="mt-8 flex items-center justify-between text-xs">
-        <button onClick={onLater} className="btn-ghost">
-          I'll do this later
-        </button>
+        <button onClick={onLater} className="btn-ghost">I'll do this later</button>
         <button onClick={onTemplates} className="text-primary font-medium hover:underline">
           Explore templates instead →
         </button>
@@ -399,7 +414,7 @@ function NextRow({ disabled, onNext }: { disabled?: boolean; onNext: () => void 
         onClick={onNext}
         className="btn-primary disabled:opacity-50 disabled:pointer-events-none"
       >
-        Continue <ArrowRight size={14} />
+        Continue <HugeiconsIcon icon={ArrowRight01Icon} size={14} />
       </button>
     </div>
   );

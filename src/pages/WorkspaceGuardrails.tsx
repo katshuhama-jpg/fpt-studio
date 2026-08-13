@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { Plus, Search, MoreVertical, X, Pencil, Trash2 } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react"
+import { Add01Icon, Cancel01Icon, Delete01Icon, MoreVerticalIcon, PencilEdit01Icon, Search01Icon } from "@hugeicons/core-free-icons";
 import { createPortal } from "react-dom";
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
@@ -80,7 +81,7 @@ function CreateModal({ onClose, onCreate, initialData }: {
             <h2 className="font-display text-lg font-semibold">Create Guardrail</h2>
             <p className="text-sm text-muted-foreground mt-0.5">Define the rule and choose how the agent responds.</p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base mt-0.5"><X size={15} /></button>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base mt-0.5"><HugeiconsIcon icon={Cancel01Icon} size={15} /></button>
         </div>
 
         {/* Scrollable body */}
@@ -258,7 +259,7 @@ export default function WorkspaceGuardrails() {
         <div />
         <div className="flex items-center gap-2">
           <div className="relative">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               value={query}
               onChange={e => setQuery(e.target.value)}
@@ -270,7 +271,7 @@ export default function WorkspaceGuardrails() {
             onClick={() => setShowCreate(true)}
             className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 transition-base"
           >
-            <Plus size={14} /> Create guardrail
+            <HugeiconsIcon icon={Add01Icon} size={14} /> Create guardrail
           </button>
         </div>
       </div>
@@ -291,7 +292,18 @@ export default function WorkspaceGuardrails() {
               )}
             </div>
             <div className="flex items-center">
-              <Toggle enabled={g.enabled} onChange={() => toggleEnabled(g.id)} />
+              <button
+                onClick={() => toggleEnabled(g.id)}
+                className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-colors ${
+                  g.enabled ? "bg-primary border-primary" : "bg-transparent border-border"
+                }`}
+              >
+                {g.enabled && (
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                    <path d="M2 5l2.5 2.5 3.5-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                )}
+              </button>
             </div>
             <div className="flex items-center justify-end">
               <RowMenu onEdit={() => setEditItem(g)} onDelete={() => handleDelete(g.id)} />
@@ -382,7 +394,7 @@ function RowMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => voi
         onClick={e => { e.stopPropagation(); setOpen(v => !v); }}
         className="w-7 h-7 rounded-lg border border-border bg-surface hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base"
       >
-        <MoreVertical size={13} />
+        <HugeiconsIcon icon={MoreVerticalIcon} size={13} />
       </button>
       {open && (
         <div className="absolute right-0 top-8 z-20 w-32 bg-white rounded-xl border border-border shadow-lg py-1 animate-fade-up">
@@ -390,13 +402,13 @@ function RowMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => voi
             onClick={() => { setOpen(false); onEdit(); }}
             className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface-muted transition-base"
           >
-            <Pencil size={13} className="text-muted-foreground" /> Edit
+            <HugeiconsIcon icon={PencilEdit01Icon} size={13} className="text-muted-foreground" /> Edit
           </button>
           <button
             onClick={() => { setOpen(false); onDelete(); }}
             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/5 transition-base"
           >
-            <Trash2 size={13} /> Delete
+            <HugeiconsIcon icon={Delete01Icon} size={13} /> Delete
           </button>
         </div>
       )}

@@ -1,9 +1,10 @@
 import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
-  Plus, Search, Filter, MoreVertical, MessageSquare, Activity,
-  Paperclip, AtSign, Sparkles, Send, X
-} from "lucide-react";
+  Add01Icon, Search01Icon, FilterIcon, MoreVerticalIcon, Chat01Icon, Activity01Icon,
+  Attachment01Icon, AtSignIcon, SparklesIcon, SentIcon, Cancel01Icon
+} from "@hugeicons/core-free-icons";
 import { useState } from "react";
 
 /* ─── Data ─────────────────────────────────────────────────────────────── */
@@ -29,31 +30,44 @@ const agents = [
 const tabs = ["All agents", "Published", "Draft", "Shared with me"] as const;
 
 /* ─── Template data ─────────────────────────────────────────────────── */
+const CONNECTOR_ICONS: Record<string, string> = {
+  gmail: "G", slack: "S", drive: "D", sheets: "Sh", notion: "N", hubspot: "H",
+  calendar: "📅", jira: "J", zoom: "Z", zendesk: "Zd",
+};
+
 const categories = ["All", "Customer support", "Sales", "HR & Internal", "Operations", "Finance"] as const;
 
 const templates = [
-  { id: 1, emoji: "💬", bg: "bg-blue-50",  name: "Customer care bot",    cat: "Customer support",
+  { id: 1, emoji: "💬", bg: "bg-blue-50",  name: "Customer care bot",    cat: "Customer support", popular: true,
+    connectors: ["gmail","slack","zendesk"],
     desc: "Multilingual 24/7 support with escalation and live-agent handoff",
     systemPrompt: `# Customer Care Agent\n\nYou are a friendly, multilingual customer support specialist available 24/7.\n\n## Tone & Style\n- Warm, empathetic and professional\n- Respond in the customer's language automatically\n- Keep answers concise and actionable\n\n## Capabilities\n- Answer product and service questions\n- Handle complaints and escalate when needed\n- Guide users through common troubleshooting steps\n- Transfer to a human agent for complex issues\n\n## Limits\n- Never make promises about refunds or compensation without supervisor approval\n- Do not share internal processes or pricing structures not publicly available` },
-  { id: 2, emoji: "📦", bg: "bg-green-50", name: "Product FAQ assistant", cat: "Customer support",
+  { id: 2, emoji: "📦", bg: "bg-green-50", name: "Product FAQ assistant", cat: "Customer support", popular: true,
+    connectors: ["notion","drive","slack"],
     desc: "Answers from manuals, docs, and warranty info",
     systemPrompt: `# Product FAQ Assistant\n\nYou help customers find answers from product manuals, troubleshooting guides, and warranty documentation.\n\n## Tone & Style\n- Clear, precise, and helpful\n- Use numbered steps for instructions\n- Always cite the relevant section of the manual when possible\n\n## Capabilities\n- Answer questions about product features and specifications\n- Guide users through setup and troubleshooting steps\n- Explain warranty coverage and claim procedures\n- Suggest related articles or videos\n\n## Limits\n- Only answer based on official documentation\n- Do not diagnose hardware faults that require professional service` },
-  { id: 3, emoji: "🎯", bg: "bg-amber-50", name: "Sales lead qualifier",  cat: "Sales",
+  { id: 3, emoji: "🎯", bg: "bg-amber-50", name: "Sales lead qualifier",  cat: "Sales", popular: true,
+    connectors: ["hubspot","gmail","calendar"],
     desc: "BANT scoring, objection handling, and CRM handoff",
     systemPrompt: `# Sales Lead Qualifier Agent\n\nYou qualify inbound leads using the BANT framework (Budget, Authority, Need, Timeline) and hand off hot leads to the sales team.\n\n## Tone & Style\n- Consultative and curious — ask one question at a time\n- Friendly but efficient; respect the prospect's time\n\n## Qualification Flow\n1. Greet and understand the prospect's role and company\n2. Identify the core business need or pain point\n3. Explore budget range and decision-making authority\n4. Confirm purchase timeline\n5. Score the lead (Hot / Warm / Cold) and route accordingly\n\n## Limits\n- Do not quote specific pricing — route to sales rep\n- Do not make commitments on behalf of the sales team` },
-  { id: 4, emoji: "🤝", bg: "bg-pink-50",  name: "HR onboarding bot",     cat: "HR & Internal",
+  { id: 4, emoji: "🤝", bg: "bg-pink-50",  name: "HR onboarding bot",     cat: "HR & Internal", popular: true,
+    connectors: ["calendar","slack","drive"],
     desc: "New-joiner flows, policy lookup, meeting scheduling",
     systemPrompt: `# HR Onboarding Assistant\n\nYou guide new employees through their first 30/60/90 days, answer HR policy questions, and help schedule onboarding meetings.\n\n## Tone & Style\n- Warm, encouraging, and clear\n- Use checklists and structured steps\n- Celebrate milestones (Day 1, first week, etc.)\n\n## Capabilities\n- Walk new joiners through onboarding checklists\n- Answer questions about leave policies, benefits, and payroll\n- Help schedule meetings with managers and teammates\n- Point employees to the right HR contacts or systems\n\n## Limits\n- Do not make decisions about policy exceptions\n- Salary and compensation queries → direct to HR Business Partner` },
-  { id: 5, emoji: "🔧", bg: "bg-blue-50",  name: "IT helpdesk",           cat: "Operations",
+  { id: 5, emoji: "🔧", bg: "bg-blue-50",  name: "IT helpdesk",           cat: "Operations", popular: true,
+    connectors: ["jira","slack","zoom"],
     desc: "Password reset, VPN setup, and L1 ticket triage",
     systemPrompt: `# IT Helpdesk Agent\n\nYou are an L1 IT support agent that handles common technical issues, resets credentials, and triages tickets to the right team.\n\n## Tone & Style\n- Patient, methodical, and reassuring\n- Use numbered steps for technical instructions\n- Confirm resolution before closing a ticket\n\n## Capabilities\n- Guide users through password and MFA resets\n- Troubleshoot VPN, Wi-Fi, and email connectivity\n- Assist with software installation and access requests\n- Create and triage support tickets\n\n## Limits\n- Do not access or modify production systems\n- Escalate to L2/L3 for infrastructure, security incidents, or data loss` },
-  { id: 6, emoji: "💰", bg: "bg-green-50", name: "Finance Q&A",           cat: "Finance",
+  { id: 6, emoji: "💰", bg: "bg-green-50", name: "Finance Q&A",           cat: "Finance", popular: false,
+    connectors: ["sheets","gmail","notion"],
     desc: "Invoice queries, payment status, and budget lookups",
     systemPrompt: `# Finance Q&A Agent\n\nYou help employees and vendors with invoice queries, payment status checks, and budget information lookups.\n\n## Tone & Style\n- Professional, accurate, and concise\n- Always confirm amounts and dates before sharing\n\n## Capabilities\n- Check invoice status and expected payment dates\n- Explain expense reimbursement processes\n- Provide budget utilisation summaries by department\n- Guide users through purchase order submission\n\n## Limits\n- Do not approve payments or modify financial records\n- Confidential financial data → only share with authorised requestors` },
-  { id: 7, emoji: "📋", bg: "bg-amber-50", name: "Operations assistant",  cat: "Operations",
+  { id: 7, emoji: "📋", bg: "bg-amber-50", name: "Operations assistant",  cat: "Operations", popular: false,
+    connectors: ["notion","jira","slack"],
     desc: "Process guides, SOP lookup, and task routing",
     systemPrompt: `# Operations Assistant\n\nYou help operations teams find standard operating procedures, track task progress, and route work to the right department.\n\n## Tone & Style\n- Efficient, structured, and direct\n- Use bullet points and tables for process steps\n\n## Capabilities\n- Retrieve and summarise SOPs on demand\n- Log and route operational tasks and incidents\n- Provide status updates on ongoing processes\n- Identify bottlenecks and suggest escalation paths\n\n## Limits\n- Do not modify or approve SOPs without authorisation\n- Do not share restricted operational data outside approved teams` },
-  { id: 8, emoji: "📣", bg: "bg-pink-50",  name: "Marketing assistant",   cat: "Sales",
+  { id: 8, emoji: "📣", bg: "bg-pink-50",  name: "Marketing assistant",   cat: "Sales", popular: false,
+    connectors: ["hubspot","gmail","calendar"],
     desc: "Campaign Q&A, content suggestions, and lead capture",
     systemPrompt: `# Marketing Assistant Agent\n\nYou support marketing campaigns by answering visitor questions, suggesting relevant content, and capturing qualified leads.\n\n## Tone & Style\n- Enthusiastic, creative, and on-brand\n- Personalise responses based on the visitor's interest\n\n## Capabilities\n- Answer questions about products, events, and promotions\n- Recommend blog posts, case studies, or demo videos\n- Capture lead information (name, email, company, interest)\n- Route hot leads to the sales team\n\n## Limits\n- Do not offer discounts or special pricing without approval\n- Do not collect sensitive personal data beyond standard lead fields` },
 ];
@@ -63,15 +77,19 @@ const templates = [
 function TemplateModal({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
-  const [cat, setCat] = useState<string>("All");
+  const [role, setRole] = useState("All");
+  const [useCase, setUseCase] = useState("All");
 
   const filtered = templates.filter(t => {
-    const matchCat = cat === "All" || t.cat === cat;
-    const matchSearch =
-      t.name.toLowerCase().includes(search.toLowerCase()) ||
-      t.desc.toLowerCase().includes(search.toLowerCase());
-    return matchCat && matchSearch;
+    const q = search.toLowerCase();
+    return (
+      (!q || t.name.toLowerCase().includes(q) || t.desc.toLowerCase().includes(q)) &&
+      (useCase === "All" || t.cat === useCase)
+    );
   });
+
+  const popular = filtered.filter(t => t.popular);
+  const all = filtered;
 
   const handleUse = (t: typeof templates[number]) => {
     const params = new URLSearchParams();
@@ -83,74 +101,97 @@ function TemplateModal({ onClose }: { onClose: () => void }) {
     navigate(`/agents/new?${params.toString()}`);
   };
 
+  const TemplateCard = ({ t }: { t: typeof templates[number] }) => (
+    <div className="flex flex-col p-4 rounded-xl border border-border bg-white hover:border-primary/30 hover:shadow-soft transition-base group">
+      <div className="flex items-start justify-between mb-3">
+        <div className={`w-10 h-10 rounded-xl ${t.bg} flex items-center justify-center text-xl shrink-0`}>
+          {t.emoji}
+        </div>
+        {t.popular && (
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200">Popular</span>
+        )}
+      </div>
+      <p className="text-sm font-semibold mb-1">{t.name}</p>
+      <p className="text-xs text-muted-foreground leading-relaxed flex-1 mb-3">{t.desc}</p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1">
+          {(t.connectors ?? []).slice(0, 4).map((c, i) => (
+            <div key={i} className="w-5 h-5 rounded-md bg-surface-muted border border-border flex items-center justify-center text-[9px] font-bold text-muted-foreground">
+              {CONNECTOR_ICONS[c] ?? c[0].toUpperCase()}
+            </div>
+          ))}
+          {(t.connectors ?? []).length > 4 && (
+            <span className="text-[10px] text-muted-foreground ml-0.5">+{(t.connectors ?? []).length - 4}</span>
+          )}
+        </div>
+        <button
+          onClick={() => handleUse(t)}
+          className="h-7 px-3 rounded-lg border border-border bg-white hover:bg-primary hover:text-primary-foreground hover:border-primary text-xs font-medium transition-base opacity-0 group-hover:opacity-100"
+        >
+          Add
+        </button>
+      </div>
+    </div>
+  );
+
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-xl mx-4 bg-white rounded-2xl shadow-lg border border-border flex flex-col max-h-[80vh] animate-fade-up">
+      <div className="relative z-10 w-full max-w-4xl bg-white rounded-2xl shadow-lg border border-border flex flex-col max-h-[88vh] animate-fade-up">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-          <h2 className="font-display text-lg font-semibold">Choose a template</h2>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base">
-            <X size={16} />
+        <div className="flex items-start justify-between px-6 pt-6 pb-4 shrink-0">
+          <div>
+            <h2 className="font-display text-xl font-semibold">Template library</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">Explore all templates optimized for each role and use case. Pick a template to start building an agent.</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base mt-0.5 shrink-0">
+            <HugeiconsIcon icon={Cancel01Icon} size={16} />
           </button>
         </div>
 
-        {/* Search */}
-        <div className="px-5 py-3 border-b border-border shrink-0">
+        {/* Toolbar */}
+        <div className="flex items-center justify-between px-6 pb-4 gap-3 shrink-0">
+          <div className="flex items-center gap-2">
+            {/* Filter pills */}
+            <select
+              value={useCase}
+              onChange={e => setUseCase(e.target.value)}
+              className="h-7 px-2.5 pr-6 rounded-lg border border-border bg-surface text-xs font-medium text-foreground appearance-none cursor-pointer focus:outline-none focus:border-primary"
+            >
+              <option value="All">Use case</option>
+              {Array.from(new Set(templates.map(t => t.cat))).map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
           <div className="relative">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               autoFocus
-              className="w-full h-9 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-              placeholder="Search templates…"
+              className="h-8 w-52 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-base"
+              placeholder="Search templates..."
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
           </div>
         </div>
 
-        {/* Category chips */}
-        <div className="flex items-center gap-2 px-5 py-3 border-b border-border overflow-x-auto shrink-0">
-          {categories.map(c => (
-            <button
-              key={c}
-              onClick={() => setCat(c)}
-              className={`px-3 h-7 rounded-full text-xs font-medium whitespace-nowrap transition-base ${
-                cat === c
-                  ? "bg-primary-soft text-primary border border-primary/30"
-                  : "bg-surface-muted text-muted-foreground hover:bg-surface-sunken"
-              }`}
-            >
-              {c}
-            </button>
-          ))}
-        </div>
-
-        {/* List */}
-        <div className="overflow-y-auto flex-1 px-5 py-3 space-y-2">
-          {filtered.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-8">No templates found.</p>
-          )}
-          {filtered.map(t => (
-            <div
-              key={t.id}
-              className="flex items-center gap-3 p-3 rounded-xl border border-border hover:border-primary/30 hover:bg-primary-soft/20 transition-base group"
-            >
-              <div className={`w-10 h-10 rounded-xl ${t.bg} flex items-center justify-center text-xl shrink-0`}>
-                {t.emoji}
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto px-6 pb-6">
+          {popular.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold mb-3">Most popular</h3>
+              <div className="grid grid-cols-3 gap-3">
+                {popular.map(t => <TemplateCard key={t.id} t={t} />)}
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold">{t.name}</p>
-                <p className="text-xs text-muted-foreground truncate">{t.desc}</p>
-              </div>
-              <button
-                onClick={() => handleUse(t)}
-                className="shrink-0 h-7 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-medium opacity-0 group-hover:opacity-100 transition-base"
-              >
-                Use
-              </button>
             </div>
-          ))}
+          )}
+          <div>
+            <h3 className="text-sm font-semibold mb-3">All templates</h3>
+            {all.length === 0
+              ? <p className="text-sm text-muted-foreground text-center py-10">No templates found.</p>
+              : <div className="grid grid-cols-3 gap-3">
+                  {all.map(t => <TemplateCard key={t.id} t={t} />)}
+                </div>}
+          </div>
         </div>
       </div>
     </div>,
@@ -229,13 +270,13 @@ export default function AgentsList() {
               className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base"
               title="Attach file"
             >
-              <Paperclip size={16} />
+              <HugeiconsIcon icon={Attachment01Icon} size={16} />
             </button>
             <button
               className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base"
               title="Mention knowledge"
             >
-              <AtSign size={16} />
+              <HugeiconsIcon icon={AtSignIcon} size={16} />
             </button>
           </div>
 
@@ -250,11 +291,11 @@ export default function AgentsList() {
             <button
               onClick={handleBuild}
               disabled={!prompt.trim()}
-              className="h-9 px-4 rounded-full bg-primary/80 hover:bg-primary disabled:opacity-40 disabled:cursor-not-allowed text-primary-foreground text-sm font-medium flex items-center gap-2 transition-base"
+              className="btn-primary h-9 px-4 rounded-full disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <Sparkles size={14} />
+              <HugeiconsIcon icon={SparklesIcon} size={14} />
               Build agent
-              <Send size={13} />
+              <HugeiconsIcon icon={SentIcon} size={13} />
             </button>
           </div>
         </div>
@@ -289,14 +330,14 @@ export default function AgentsList() {
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               placeholder="Search agents…"
               className="h-9 w-56 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
             />
           </div>
           <button className="h-9 w-9 rounded-lg border border-border bg-surface hover:bg-surface-muted flex items-center justify-center transition-base">
-            <Filter size={14} />
+            <HugeiconsIcon icon={FilterIcon} size={14} />
           </button>
         </div>
       </div>
@@ -328,7 +369,7 @@ export default function AgentsList() {
                   </div>
                 </div>
                 <button className="opacity-0 group-hover:opacity-100 transition-base text-muted-foreground hover:text-foreground p-1">
-                  <MoreVertical size={14} />
+                  <HugeiconsIcon icon={MoreVerticalIcon} size={14} />
                 </button>
               </div>
 
@@ -336,14 +377,14 @@ export default function AgentsList() {
 
               <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
                 <div className="flex items-center gap-1.5">
-                  <MessageSquare size={12} className="text-muted-foreground" />
+                  <HugeiconsIcon icon={Chat01Icon} size={12} className="text-muted-foreground" />
                   <span className="text-xs">
                     <b className="font-display">{a.convs.toLocaleString()}</b>
                     <span className="text-muted-foreground ml-1">convs</span>
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <Activity size={12} className="text-muted-foreground" />
+                  <HugeiconsIcon icon={Activity01Icon} size={12} className="text-muted-foreground" />
                   <span className="text-xs">
                     <b className="font-display">{a.success}%</b>
                     <span className="text-muted-foreground ml-1">resolved</span>
