@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Search, X, UserMinus, Plus, ChevronDown, ChevronLeft, ChevronRight, AlertTriangle, Building2, Check } from "lucide-react";
+import { Search, X, Plus, ChevronDown, ChevronLeft, ChevronRight, AlertTriangle, Building2, Check } from "lucide-react";
 import { Card, PageHeader } from "./shared";
 import { OrgUnit, OrgMember, collectMembers, collectUnitsWithDepth, countAll, findUnit, findPath, findMemberUnit } from "./orgData";
 import { useRoles, RoleDef } from "./rolesStore";
