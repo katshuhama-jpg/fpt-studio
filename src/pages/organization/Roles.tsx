@@ -174,15 +174,17 @@ function RoleModal({
           <span className="text-xs text-muted-foreground">{effective.size}/{ALL_PERMISSION_IDS.length} quyền đã bật</span>
           <div className="flex items-center gap-2">
             <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">
-              Hủy
+              {readOnly ? "Đóng" : "Hủy"}
             </button>
-            <button
-              onClick={submit}
-              disabled={!name.trim()}
-              className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-base disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {isEdit ? "Lưu thay đổi" : "Tạo vai trò"}
-            </button>
+            {!readOnly && (
+              <button
+                onClick={submit}
+                disabled={!name.trim()}
+                className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-base disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {isEdit ? "Lưu thay đổi" : "Tạo vai trò"}
+              </button>
+            )}
           </div>
         </div>
       </div>
