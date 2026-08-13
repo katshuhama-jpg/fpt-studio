@@ -93,7 +93,11 @@ function RoleModal({
         <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-border shrink-0">
           <div>
             <h2 className="text-base font-semibold">{title}</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Chọn chính xác những gì vai trò này có thể làm, theo từng quyền.</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {readOnly
+                ? "Đây là vai trò mặc định của hệ thống — chỉ có thể xem, không thể chỉnh sửa."
+                : "Chọn chính xác những gì vai trò này có thể làm, theo từng quyền."}
+            </p>
           </div>
           <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground ml-4 shrink-0">
             <X size={14} />
@@ -107,8 +111,9 @@ function RoleModal({
               Tên vai trò <span className="text-destructive">*</span>
             </label>
             <input
-              autoFocus
-              className="w-full h-10 px-3 rounded-xl border border-border bg-surface text-sm outline-none focus:border-ring transition-base"
+              autoFocus={!readOnly}
+              disabled={readOnly}
+              className={`w-full h-10 px-3 rounded-xl border border-border text-sm outline-none focus:border-ring transition-base ${readOnly ? "bg-surface-muted text-muted-foreground cursor-not-allowed" : "bg-surface"}`}
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="vd: Trưởng nhóm hỗ trợ"
