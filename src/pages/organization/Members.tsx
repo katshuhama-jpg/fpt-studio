@@ -469,7 +469,7 @@ export default function Members() {
           roles={roles}
           defaultRoleId={roleFilter !== "all" ? roleFilter : (roles[0]?.id ?? "")}
           onClose={() => setShowAdd(false)}
-          onAdd={handleAdd}
+          onAdd={assignRole}
         />
       )}
 
