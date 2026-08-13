@@ -223,9 +223,10 @@ export default function Roles() {
       )}
       {editingRole && (
         <RoleModal
-          title={`Chỉnh sửa ${editingRole.name}`}
+          title={editingRole.isDefault ? `Xem ${editingRole.name}` : `Chỉnh sửa ${editingRole.name}`}
           initialName={editingRole.name}
           initialPermissionIds={editingRole.permissionIds}
+          readOnly={editingRole.isDefault}
           onClose={() => setEditingId(null)}
           onSave={handleSaveEdit}
         />
