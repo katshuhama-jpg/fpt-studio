@@ -436,20 +436,6 @@ export default function OrgStructureExplorer() {
           </span>
         </div>
 
-        {deleteConfirmUnitId === selected.id && (
-          <div className="mb-5 flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive-soft px-3.5 py-2.5">
-            <span className="text-xs text-foreground flex-1">
-              Xóa "{selected.name}" và {countAll(selected)} người? Hành động này không thể hoàn tác.
-            </span>
-            <button onClick={() => handleDeleteUnit(selected.id)} className="h-7 px-3 rounded-lg bg-destructive text-white text-xs font-medium shrink-0">
-              Xóa
-            </button>
-            <button onClick={() => setDeleteConfirmUnitId(null)} className="h-7 px-3 rounded-lg border border-border text-xs font-medium shrink-0">
-              Hủy
-            </button>
-          </div>
-        )}
-
         {/* Sub-units */}
         <div className="mb-6">
           <div className="flex items-center justify-between gap-3 mb-2">
