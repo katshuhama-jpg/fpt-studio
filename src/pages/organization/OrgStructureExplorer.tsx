@@ -495,28 +495,14 @@ export default function OrgStructureExplorer() {
                         </span>
                       </div>
                     </button>
-                    {deleteConfirmUnitId === u.id ? (
-                      <div className="absolute inset-0 z-10 rounded-lg bg-surface border border-destructive/40 p-3 flex flex-col justify-center gap-2">
-                        <div className="text-xs text-foreground">Xóa "{u.name}" và {countAll(u)} người?</div>
-                        <div className="flex gap-2">
-                          <button onClick={() => handleDeleteUnit(u.id)} className="h-7 px-3 rounded-lg bg-destructive text-white text-xs font-medium">
-                            Xóa
-                          </button>
-                          <button onClick={() => setDeleteConfirmUnitId(null)} className="h-7 px-3 rounded-lg border border-border text-xs font-medium">
-                            Hủy
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setDeleteConfirmUnitId(u.id)}
-                        aria-label={`Delete ${u.name}`}
-                        className="absolute top-2 right-2 z-10 w-6 h-6 rounded-md bg-surface/90 shadow-sm hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-destructive transition-base"
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => setDeleteConfirmUnitId(u.id)}
+                      aria-label={`Delete ${u.name}`}
+                      className="absolute top-2 right-2 z-10 w-6 h-6 rounded-md bg-surface/90 shadow-sm hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-destructive transition-base"
+                    >
+                      <Trash2 size={12} />
+                    </button>
                   </div>
                 );
               })}
