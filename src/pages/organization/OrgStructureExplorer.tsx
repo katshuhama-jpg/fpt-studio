@@ -260,9 +260,9 @@ export default function OrgStructureExplorer() {
       )}
       {showAddSubunit && (
         <UnitModal
-          title="Thêm unit con"
-          desc={`Tạo unit con mới trong ${selected.name}.`}
-          submitLabel="Tạo unit con"
+          title="Thêm unit"
+          desc={`Tạo unit mới trong ${selected.name}.`}
+          submitLabel="Tạo unit"
           onClose={() => setShowAddSubunit(false)}
           onSave={name => createUnit(selected.id, name)}
         />
