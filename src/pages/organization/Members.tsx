@@ -462,10 +462,6 @@ export default function Members() {
   const currentPage = Math.min(page, totalPages);
   const shownMembers = visibleMembers.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
-  const handleAdd = (memberId: string, roleId: string) => assignRole(memberId, roleId);
-
-  const handleRemove = (memberId: string) => assignRole(memberId, undefined);
-
   return (
     <div className="px-8 py-8 max-w-[1280px] mx-auto animate-fade-up space-y-6">
       {showAdd && (
