@@ -187,6 +187,64 @@ function FilterChip({
   );
 }
 
+/* ─── Per-row role cell (click to assign/reassign/unassign directly) ───── */
+function RoleCell({
+  memberId, memberName, currentRoleId, roles, onAssign,
+}: {
+  memberId: string;
+  memberName: string;
+  currentRoleId: string | undefined;
+  roles: RoleDef[];
+  onAssign: (memberId: string, roleId: string | undefined) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const current = roles.find(r => r.id === currentRoleId);
+
+  return (
+    <div
+      className="relative"
+      onBlur={e => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false);
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        aria-label={`Đổi vai trò của ${memberName}`}
+        className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-base hover:opacity-80 cursor-pointer ${
+          current ? "bg-primary-soft text-primary" : "bg-surface-muted text-muted-foreground border border-dashed border-border"
+        }`}
+      >
+        {current ? current.name : "Chưa gán"}
+        <ChevronDown size={11} className={`transition-base ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="absolute left-0 top-[calc(100%+4px)] w-48 bg-surface rounded-xl ring-1 ring-border shadow-xl z-20 p-1">
+          <button
+            type="button"
+            onClick={() => { onAssign(memberId, undefined); setOpen(false); }}
+            className={`w-full flex items-center justify-between gap-2 text-left px-3 py-2 rounded-lg text-sm transition-base hover:bg-surface-muted ${!current ? "text-primary font-medium bg-primary-soft" : "text-foreground"}`}
+          >
+            Chưa gán
+            {!current && <Check size={13} className="text-primary shrink-0" />}
+          </button>
+          {roles.map(r => (
+            <button
+              key={r.id}
+              type="button"
+              onClick={() => { onAssign(memberId, r.id); setOpen(false); }}
+              className={`w-full flex items-center justify-between gap-2 text-left px-3 py-2 rounded-lg text-sm transition-base hover:bg-surface-muted ${currentRoleId === r.id ? "text-primary font-medium bg-primary-soft" : "text-foreground"}`}
+            >
+              {r.name}
+              {currentRoleId === r.id && <Check size={13} className="text-primary shrink-0" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Add users to a role (global action) ──────────────────────────────── */
 function AddUserToRoleModal({
   roles, defaultRoleId, onClose, onAdd,
