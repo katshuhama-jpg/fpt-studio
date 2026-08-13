@@ -434,18 +434,11 @@ export default function Members() {
   const [query, setQuery] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [page, setPage] = useState(1);
-  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const PAGE_SIZE = 24;
 
   const roleIds = new Set(roles.map(r => r.id));
   const roleSections = [...roles.map(r => ({ id: r.id, name: r.name })), { id: "unassigned", name: "Chưa gán" }];
   const selectedUnit = findUnit(tree, selectedUnitId) ?? tree;
-
-  const roleNameFor = (m: OrgMember): string => {
-    const rid = m.roleId;
-    if (rid && roleIds.has(rid)) return roles.find(r => r.id === rid)!.name;
-    return "Chưa gán";
-  };
 
   useEffect(() => { setPage(1); }, [selectedUnitId, scope, roleFilter, query]);
 
