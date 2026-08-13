@@ -339,6 +339,24 @@ export default function OrgStructureExplorer() {
           onSave={(name, email, roleId) => updateMember(editingMember.id, name, email, roleId)}
         />
       )}
+      {deleteTargetUnit && (
+        <ConfirmDeleteModal
+          title={`Xóa "${deleteTargetUnit.name}"?`}
+          desc={`Unit này và ${countAll(deleteTargetUnit)} người bên trong sẽ bị xóa. Hành động này không thể hoàn tác.`}
+          confirmLabel="Xóa unit"
+          onClose={() => setDeleteConfirmUnitId(null)}
+          onConfirm={() => handleDeleteUnit(deleteTargetUnit.id)}
+        />
+      )}
+      {deleteTargetMember && (
+        <ConfirmDeleteModal
+          title={`Gỡ "${deleteTargetMember.name}"?`}
+          desc="Người này sẽ bị gỡ khỏi unit. Hành động này không thể hoàn tác."
+          confirmLabel="Gỡ thành viên"
+          onClose={() => setDeleteConfirmMemberId(null)}
+          onConfirm={() => { removeMember(deleteTargetMember.id); setDeleteConfirmMemberId(null); }}
+        />
+      )}
 
       {/* ── Tree navigator ─────────────────────────────── */}
       <div className="border border-border rounded-xl flex flex-col min-h-[320px] lg:max-h-[620px]">
