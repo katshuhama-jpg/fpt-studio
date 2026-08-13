@@ -513,16 +513,15 @@ export default function Members() {
         ) : (
           <>
             <div className="rounded-xl border border-border overflow-hidden">
-              <div className="grid grid-cols-[1fr,200px,140px,52px] gap-3 px-4 py-2.5 bg-surface-muted section-eyebrow">
-                <div>Thành viên</div><div>Unit</div><div>Vai trò</div><div></div>
+              <div className="grid grid-cols-[1fr,200px,160px] gap-3 px-4 py-2.5 bg-surface-muted section-eyebrow">
+                <div>Thành viên</div><div>Unit</div><div>Vai trò</div>
               </div>
               <div className="divide-y divide-border">
                 {shownMembers.map(m => {
-                  const roleName = roleNameFor(m);
-                  const hasRole = roleName !== "Chưa gán";
+                  const currentRoleId = m.roleId && roleIds.has(m.roleId) ? m.roleId : undefined;
                   const unitName = findMemberUnit(tree, m.id)?.name ?? "—";
                   return (
-                    <div key={m.id} className="grid grid-cols-[1fr,200px,140px,52px] gap-3 px-4 py-3 items-center hover:bg-surface-muted/50 transition-base">
+                    <div key={m.id} className="grid grid-cols-[1fr,200px,160px] gap-3 px-4 py-3 items-center hover:bg-surface-muted/50 transition-base">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-9 h-9 rounded-full bg-accent-soft text-accent flex items-center justify-center text-xs font-semibold shrink-0">
                           {m.initials}
@@ -532,46 +531,13 @@ export default function Members() {
                         </div>
                       </div>
                       <div className="text-xs text-muted-foreground truncate" title={unitName}>{unitName}</div>
-                      <div>
-                        <span className={`text-xs font-medium px-2.5 py-1 rounded-full inline-block ${hasRole ? "bg-primary-soft text-primary" : "bg-surface-muted text-muted-foreground"}`}>
-                          {roleName}
-                        </span>
-                      </div>
-                      <div className="relative flex justify-center">
-                        {hasRole && (
-                          <button
-                            type="button"
-                            onClick={() => setConfirmRemoveId(m.id)}
-                            className="w-7 h-7 rounded-lg hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-destructive transition-base"
-                            aria-label={`Remove ${m.name} from ${roleName}`}
-                          >
-                            <UserMinus size={13} />
-                          </button>
-                        )}
-                        {confirmRemoveId === m.id && (
-                          <div className="absolute right-0 top-[calc(100%+4px)] z-20 w-56 bg-surface rounded-lg ring-1 ring-border shadow-xl p-3">
-                            <div className="text-xs text-foreground mb-2">
-                              Gỡ vai trò "{roleName}" khỏi {m.name}?
-                            </div>
-                            <div className="flex justify-end gap-2">
-                              <button
-                                type="button"
-                                onClick={() => { handleRemove(m.id); setConfirmRemoveId(null); }}
-                                className="h-7 px-3 rounded-lg bg-destructive text-white text-xs font-medium"
-                              >
-                                Gỡ
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setConfirmRemoveId(null)}
-                                className="h-7 px-3 rounded-lg border border-border text-xs font-medium"
-                              >
-                                Hủy
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                      <RoleCell
+                        memberId={m.id}
+                        memberName={m.name}
+                        currentRoleId={currentRoleId}
+                        roles={roles}
+                        onAssign={assignRole}
+                      />
                     </div>
                   );
                 })}
