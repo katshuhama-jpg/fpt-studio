@@ -5,18 +5,18 @@ import { featureGroups } from "./permissionsData";
 export default function Permissions() {
   return (
     <div className="px-8 py-8 max-w-[1280px] mx-auto animate-fade-up space-y-6">
-      <PageHeader title="Permissions" desc="Personal use is always free. These permissions only control publishing to the workspace." />
+      <PageHeader title="Quyền hạn" desc="Sử dụng cá nhân luôn miễn phí. Các quyền dưới đây chỉ kiểm soát việc publish lên workspace." />
 
       <div className="rounded-xl border border-info/20 bg-info/5 p-4 flex gap-3">
         <div className="w-8 h-8 rounded-lg bg-info/15 text-info flex items-center justify-center shrink-0">
           <Info size={15} />
         </div>
         <div className="min-w-0">
-          <div className="text-sm font-semibold text-foreground">Everyone can build and use — privately</div>
+          <div className="text-sm font-semibold text-foreground">Ai cũng có thể build và sử dụng — ở chế độ riêng tư</div>
           <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-            Every member can already create and use agents, knowledge, skills, guardrails, and connectors for their own personal use — no permission needed,
-            and anyone can see what's already <span className="text-foreground font-medium">live</span> in the workspace. Publishing, approving, editing,
-            or deleting something there is what the permissions below control.
+            Mọi thành viên đã có thể tạo và sử dụng agent, knowledge, skill, guardrail và connector cho mục đích cá nhân — không cần quyền,
+            và ai cũng có thể xem những gì đã <span className="text-foreground font-medium">đang hoạt động</span> trong workspace. Việc publish, phê duyệt,
+            chỉnh sửa, hoặc xóa những thứ đó mới là điều các quyền bên dưới kiểm soát.
           </p>
         </div>
       </div>

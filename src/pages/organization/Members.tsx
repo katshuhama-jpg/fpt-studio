@@ -8,7 +8,7 @@ import { useOrg } from "./orgStore";
 
 function unitNameFor(tree: OrgUnit, memberId: string): string {
   const unit = findMemberUnit(tree, memberId);
-  return unit ? unit.name : "No unit";
+  return unit ? unit.name : "Chưa có unit";
 }
 
 /* ─── Role color palette — local to Members, doesn't touch RoleDef ─────── */
@@ -66,7 +66,7 @@ function UnitSwitcher({ value, onChange }: { value: string; onChange: (id: strin
                 autoFocus
                 value={q}
                 onChange={e => setQ(e.target.value)}
-                placeholder="Search units…"
+                placeholder="Tìm unit…"
                 className="ds-input pl-7 h-8 text-sm"
               />
             </div>
@@ -86,7 +86,7 @@ function UnitSwitcher({ value, onChange }: { value: string; onChange: (id: strin
               </button>
             ))}
             {filtered.length === 0 && (
-              <div className="px-3 py-6 text-center text-xs text-muted-foreground">No matches.</div>
+              <div className="px-3 py-6 text-center text-xs text-muted-foreground">Không có kết quả.</div>
             )}
           </div>
         </div>
@@ -97,8 +97,8 @@ function UnitSwitcher({ value, onChange }: { value: string; onChange: (id: strin
 
 /* ─── Direct vs. include-sub-units scope dropdown (matches the other filter chips) ─── */
 const SCOPE_OPTIONS: { id: "direct" | "all"; name: string }[] = [
-  { id: "direct", name: "Direct members" },
-  { id: "all", name: "Include sub-units" },
+  { id: "direct", name: "Thành viên trực tiếp" },
+  { id: "all", name: "Bao gồm unit con" },
 ];
 
 function ScopeDropdown({ value, onChange }: { value: "direct" | "all"; onChange: (v: "direct" | "all") => void }) {
@@ -241,8 +241,8 @@ function AddUserToRoleModal({
       <div className="relative w-[92vw] sm:w-1/2 min-w-[50vw] max-w-[1100px] bg-white rounded-2xl flex flex-col shadow-2xl max-h-[80vh]" style={{ animation: "fadeScaleIn 0.18s ease" }}>
         <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-border shrink-0">
           <div>
-            <h2 className="text-base font-semibold">Add users to a role</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Search for one or more people in the organization and choose which role to assign them.</p>
+            <h2 className="text-base font-semibold">Thêm người dùng vào một vai trò</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Tìm một hoặc nhiều người trong tổ chức và chọn vai trò để gán cho họ.</p>
           </div>
           <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground ml-4 shrink-0">
             <X size={14} />
@@ -251,7 +251,7 @@ function AddUserToRoleModal({
 
         <div className="px-6 py-5 space-y-4">
           <div>
-            <label className="text-sm font-medium block mb-1.5">Users or groups</label>
+            <label className="text-sm font-medium block mb-1.5">Người dùng hoặc nhóm</label>
             <div className="relative">
               <div className="flex flex-wrap items-center gap-1.5 min-h-10 px-2 py-1.5 rounded-xl border border-border bg-surface focus-within:border-ring transition-base">
                 {selectedMembers.map(m => (
@@ -277,7 +277,7 @@ function AddUserToRoleModal({
                     onChange={e => { setQuery(e.target.value); setShowList(true); }}
                     onFocus={() => setShowList(true)}
                     onBlur={() => setTimeout(() => setShowList(false), 150)}
-                    placeholder={selectedMembers.length ? "Add another…" : "Search by name or email"}
+                    placeholder={selectedMembers.length ? "Thêm người khác…" : "Tìm theo tên hoặc email"}
                     className="w-full h-7 outline-none bg-transparent text-sm"
                   />
                 </div>
@@ -321,17 +321,17 @@ function AddUserToRoleModal({
               <div className="text-xs text-foreground leading-relaxed">
                 {conflicts.map(({ member, roleName }, i) => (
                   <span key={member.id}>
-                    <span className="font-medium">{member.name}</span> is already in the <span className="font-medium">{roleName}</span> role
+                    <span className="font-medium">{member.name}</span> đã ở trong vai trò <span className="font-medium">{roleName}</span>
                     {i < conflicts.length - 1 ? ", " : ". "}
                   </span>
                 ))}
-                Remove {conflicts.length === 1 ? "them" : "these people"} from their current role first, then add {conflicts.length === 1 ? "them" : "them"} here.
+                Gỡ {conflicts.length === 1 ? "người này" : "những người này"} khỏi vai trò hiện tại trước, sau đó thêm lại vào đây.
               </div>
             </div>
           )}
 
           <div>
-            <label className="text-sm font-medium block mb-1.5">Role</label>
+            <label className="text-sm font-medium block mb-1.5">Vai trò</label>
             <div className="relative">
               <select
                 value={roleId}
@@ -347,14 +347,14 @@ function AddUserToRoleModal({
 
         <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border shrink-0">
           <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">
-            Close
+            Đóng
           </button>
           <button
             onClick={submit}
             disabled={selectedMembers.length === 0 || conflicts.length > 0}
             className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-base disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            {selectedMembers.length > 1 ? `Add ${selectedMembers.length} members` : "Add"}
+            {selectedMembers.length > 1 ? `Thêm ${selectedMembers.length} thành viên` : "Thêm"}
           </button>
         </div>
       </div>
@@ -376,16 +376,17 @@ export default function Members() {
   const [query, setQuery] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [page, setPage] = useState(1);
+  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const PAGE_SIZE = 24;
 
   const roleIds = new Set(roles.map(r => r.id));
-  const roleSections = [...roles.map(r => ({ id: r.id, name: r.name })), { id: "unassigned", name: "Unassigned" }];
+  const roleSections = [...roles.map(r => ({ id: r.id, name: r.name })), { id: "unassigned", name: "Chưa gán" }];
   const selectedUnit = findUnit(tree, selectedUnitId) ?? tree;
 
   const roleNameFor = (m: OrgMember): string => {
     const rid = m.roleId;
     if (rid && roleIds.has(rid)) return roles.find(r => r.id === rid)!.name;
-    return "Unassigned";
+    return "Chưa gán";
   };
 
   useEffect(() => { setPage(1); }, [selectedUnitId, scope, roleFilter, query]);
@@ -426,41 +427,41 @@ export default function Members() {
       )}
 
       <div className="flex items-start justify-between gap-4">
-        <PageHeader title="Members" desc="Search and manage everyone in the organization, and the role each person holds." />
+        <PageHeader title="Thành viên" desc="Tìm kiếm và quản lý tất cả mọi người trong tổ chức, cùng vai trò của từng người." />
         <button onClick={() => setShowAdd(true)} className="btn-primary h-9 shrink-0">
-          <Plus size={14} /> Add users to a role
+          <Plus size={14} /> Thêm người dùng vào vai trò
         </button>
       </div>
 
       <Card>
         <div className="flex flex-wrap items-center gap-2.5 mb-4">
           <UnitSwitcher value={selectedUnitId} onChange={setSelectedUnitId} />
-          <FilterChip value={roleFilter} allLabel="All roles" options={roleSections} onChange={setRoleFilter} />
+          <FilterChip value={roleFilter} allLabel="Tất cả vai trò" options={roleSections} onChange={setRoleFilter} />
           <ScopeDropdown value={scope} onChange={setScope} />
           <div className="relative ml-auto w-full sm:w-64">
             <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search by name or title…" className="ds-input pl-8 h-9" />
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm theo tên hoặc chức danh…" className="ds-input pl-8 h-9" />
           </div>
         </div>
 
         <div className="text-xs text-muted-foreground mb-3">
-          {visibleMembers.length} {visibleMembers.length === 1 ? "person" : "people"} in {selectedUnit.name}{scope === "all" ? " and its sub-units" : ""}
+          {visibleMembers.length} người trong {selectedUnit.name}{scope === "all" ? " và các unit con" : ""}
         </div>
 
         {visibleMembers.length === 0 ? (
           <div className="text-sm text-muted-foreground border border-dashed border-border rounded-lg py-10 text-center">
-            No members match here.
+            Không tìm thấy thành viên nào.
           </div>
         ) : (
           <>
             <div className="rounded-xl border border-border overflow-hidden">
               <div className="grid grid-cols-[1fr,200px,140px,52px] gap-3 px-4 py-2.5 bg-surface-muted section-eyebrow">
-                <div>Member</div><div>Unit</div><div>Role</div><div></div>
+                <div>Thành viên</div><div>Unit</div><div>Vai trò</div><div></div>
               </div>
               <div className="divide-y divide-border">
                 {shownMembers.map(m => {
                   const roleName = roleNameFor(m);
-                  const hasRole = roleName !== "Unassigned";
+                  const hasRole = roleName !== "Chưa gán";
                   const unitName = findMemberUnit(tree, m.id)?.name ?? "—";
                   return (
                     <div key={m.id} className="grid grid-cols-[1fr,200px,140px,52px] gap-3 px-4 py-3 items-center hover:bg-surface-muted/50 transition-base">
@@ -478,16 +479,39 @@ export default function Members() {
                           {roleName}
                         </span>
                       </div>
-                      <div className="flex justify-center">
+                      <div className="relative flex justify-center">
                         {hasRole && (
                           <button
                             type="button"
-                            onClick={() => handleRemove(m.id)}
+                            onClick={() => setConfirmRemoveId(m.id)}
                             className="w-7 h-7 rounded-lg hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-destructive transition-base"
                             aria-label={`Remove ${m.name} from ${roleName}`}
                           >
                             <UserMinus size={13} />
                           </button>
+                        )}
+                        {confirmRemoveId === m.id && (
+                          <div className="absolute right-0 top-[calc(100%+4px)] z-20 w-56 bg-surface rounded-lg ring-1 ring-border shadow-xl p-3">
+                            <div className="text-xs text-foreground mb-2">
+                              Gỡ vai trò "{roleName}" khỏi {m.name}?
+                            </div>
+                            <div className="flex justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => { handleRemove(m.id); setConfirmRemoveId(null); }}
+                                className="h-7 px-3 rounded-lg bg-destructive text-white text-xs font-medium"
+                              >
+                                Gỡ
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setConfirmRemoveId(null)}
+                                className="h-7 px-3 rounded-lg border border-border text-xs font-medium"
+                              >
+                                Hủy
+                              </button>
+                            </div>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -498,7 +522,7 @@ export default function Members() {
             {totalPages > 1 && (
               <div className="flex items-center justify-between mt-3">
                 <span className="text-xs text-muted-foreground">
-                  Page {currentPage} of {totalPages}
+                  Trang {currentPage}/{totalPages}
                 </span>
                 <div className="flex items-center gap-1.5">
                   <button

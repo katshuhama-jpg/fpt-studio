@@ -84,19 +84,19 @@ function UnitModal({
           </button>
         </div>
         <div className="px-6 py-5">
-          <label className="text-sm font-medium block mb-1.5">Unit name <span className="text-destructive">*</span></label>
+          <label className="text-sm font-medium block mb-1.5">Tên unit <span className="text-destructive">*</span></label>
           <input
             autoFocus
             value={name}
             onChange={e => setName(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter") submit(); }}
-            placeholder="e.g. Platform Engineering"
+            placeholder="vd: Platform Engineering"
             className="w-full h-10 px-3 rounded-xl border border-border bg-surface text-sm outline-none focus:border-ring transition-base"
           />
         </div>
         <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border shrink-0">
           <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">
-            Cancel
+            Hủy
           </button>
           <button
             onClick={submit}
@@ -141,12 +141,12 @@ function MemberModal({
         </div>
         <div className="px-6 py-5 space-y-4">
           <div>
-            <label className="text-sm font-medium block mb-1.5">Full name <span className="text-destructive">*</span></label>
+            <label className="text-sm font-medium block mb-1.5">Họ và tên <span className="text-destructive">*</span></label>
             <input
               autoFocus
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder="e.g. Mai Hoang"
+              placeholder="vd: Mai Hoàng"
               className="w-full h-10 px-3 rounded-xl border border-border bg-surface text-sm outline-none focus:border-ring transition-base"
             />
           </div>
@@ -162,7 +162,7 @@ function MemberModal({
           </div>
           {!isEdit && (
             <div>
-              <label className="text-sm font-medium block mb-1.5">Role</label>
+              <label className="text-sm font-medium block mb-1.5">Vai trò</label>
               <div className="relative">
                 <select
                   value={roleId}
@@ -170,7 +170,7 @@ function MemberModal({
                   onKeyDown={e => { if (e.key === "Enter") submit(); }}
                   className="ds-input h-10 appearance-none pr-9 cursor-pointer"
                 >
-                  <option value="">Unassigned</option>
+                  <option value="">Chưa gán</option>
                   {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                 </select>
                 <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -180,7 +180,7 @@ function MemberModal({
         </div>
         <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border shrink-0">
           <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">
-            Cancel
+            Hủy
           </button>
           <button
             onClick={submit}
@@ -209,6 +209,7 @@ export default function OrgStructureExplorer() {
   const [showAddMember, setShowAddMember] = useState(false);
   const [editingMember, setEditingMember] = useState<OrgMember | null>(null);
   const [deleteConfirmUnitId, setDeleteConfirmUnitId] = useState<string | null>(null);
+  const [deleteConfirmMemberId, setDeleteConfirmMemberId] = useState<string | null>(null);
 
   const path = useMemo(() => findPath(tree, selectedId) ?? [tree], [tree, selectedId]);
   const selected = path[path.length - 1];
@@ -218,6 +219,7 @@ export default function OrgStructureExplorer() {
     setSelectedId(id);
     setMemberQuery("");
     setDeleteConfirmUnitId(null);
+    setDeleteConfirmMemberId(null);
     const ancestors = findPath(tree, id) ?? [];
     setExpanded(prev => new Set([...prev, ...ancestors.map(a => a.id)]));
   };
@@ -248,8 +250,8 @@ export default function OrgStructureExplorer() {
     <div className="grid grid-cols-1 lg:grid-cols-[260px,1fr] gap-5">
       {showRenameUnit && (
         <UnitModal
-          title={`Rename ${selected.name}`}
-          desc="Update this unit's name."
+          title={`Đổi tên ${selected.name}`}
+          desc="Cập nhật tên của unit này."
           initialName={selected.name}
           submitLabel="Save changes"
           onClose={() => setShowRenameUnit(false)}
@@ -258,27 +260,27 @@ export default function OrgStructureExplorer() {
       )}
       {showAddSubunit && (
         <UnitModal
-          title="Add sub-unit"
-          desc={`Create a new sub-unit under ${selected.name}.`}
-          submitLabel="Create sub-unit"
+          title="Thêm unit con"
+          desc={`Tạo unit con mới trong ${selected.name}.`}
+          submitLabel="Tạo unit con"
           onClose={() => setShowAddSubunit(false)}
           onSave={name => createUnit(selected.id, name)}
         />
       )}
       {showAddMember && (
         <MemberModal
-          title="Invite member"
-          desc={`Invite a new person to join ${selected.name}.`}
+          title="Mời thành viên"
+          desc={`Mời một người mới tham gia ${selected.name}.`}
           roles={roles}
-          submitLabel="Invite member"
+          submitLabel="Mời thành viên"
           onClose={() => setShowAddMember(false)}
           onSave={(name, email, roleId) => addMember(selected.id, name, email, roleId)}
         />
       )}
       {editingMember && (
         <MemberModal
-          title={`Edit ${editingMember.name}`}
-          desc="Update this person's name and email."
+          title={`Chỉnh sửa ${editingMember.name}`}
+          desc="Cập nhật tên và email của người này."
           initialName={editingMember.name}
           initialEmail={editingMember.email}
           initialRoleId={editingMember.roleId}
@@ -297,7 +299,7 @@ export default function OrgStructureExplorer() {
             <input
               value={treeQuery}
               onChange={e => setTreeQuery(e.target.value)}
-              placeholder="Search units or people…"
+              placeholder="Tìm unit hoặc người…"
               className="ds-input pl-9 h-10 text-sm"
             />
           </div>
@@ -363,20 +365,20 @@ export default function OrgStructureExplorer() {
             )}
           </div>
           <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-full bg-surface-muted border border-border text-muted-foreground shrink-0">
-            <Users size={12} /> {countAll(selected)} total
+            <Users size={12} /> {countAll(selected)} người
           </span>
         </div>
 
         {deleteConfirmUnitId === selected.id && (
           <div className="mb-5 flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive-soft px-3.5 py-2.5">
             <span className="text-xs text-foreground flex-1">
-              Delete "{selected.name}" and {countAll(selected)} {countAll(selected) === 1 ? "person" : "people"}? This can't be undone.
+              Xóa "{selected.name}" và {countAll(selected)} người? Hành động này không thể hoàn tác.
             </span>
             <button onClick={() => handleDeleteUnit(selected.id)} className="h-7 px-3 rounded-lg bg-destructive text-white text-xs font-medium shrink-0">
-              Delete
+              Xóa
             </button>
             <button onClick={() => setDeleteConfirmUnitId(null)} className="h-7 px-3 rounded-lg border border-border text-xs font-medium shrink-0">
-              Cancel
+              Hủy
             </button>
           </div>
         )}
@@ -385,19 +387,19 @@ export default function OrgStructureExplorer() {
         <div className="mb-6">
           <div className="flex items-center justify-between gap-3 mb-2">
             <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Sub-units ({selected.units.length})
+              Unit con ({selected.units.length})
             </div>
             <button
               type="button"
               onClick={() => setShowAddSubunit(true)}
               className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-glow transition-base"
             >
-              <Plus size={12} /> Add sub-unit
+              <Plus size={12} /> Thêm unit con
             </button>
           </div>
           {selected.units.length === 0 ? (
             <div className="text-sm text-muted-foreground border border-dashed border-border rounded-lg py-6 text-center">
-              No sub-units yet.
+              Chưa có unit con nào.
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -442,13 +444,13 @@ export default function OrgStructureExplorer() {
                     </button>
                     {deleteConfirmUnitId === u.id ? (
                       <div className="absolute inset-0 z-10 rounded-lg bg-surface border border-destructive/40 p-3 flex flex-col justify-center gap-2">
-                        <div className="text-xs text-foreground">Delete "{u.name}" and {countAll(u)} {countAll(u) === 1 ? "person" : "people"}?</div>
+                        <div className="text-xs text-foreground">Xóa "{u.name}" và {countAll(u)} người?</div>
                         <div className="flex gap-2">
                           <button onClick={() => handleDeleteUnit(u.id)} className="h-7 px-3 rounded-lg bg-destructive text-white text-xs font-medium">
-                            Delete
+                            Xóa
                           </button>
                           <button onClick={() => setDeleteConfirmUnitId(null)} className="h-7 px-3 rounded-lg border border-border text-xs font-medium">
-                            Cancel
+                            Hủy
                           </button>
                         </div>
                       </div>
@@ -473,7 +475,7 @@ export default function OrgStructureExplorer() {
         <div>
           <div className="flex items-center justify-between gap-3 mb-2">
             <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Members in this unit ({countDirect(selected)})
+              Thành viên trong unit này ({countDirect(selected)})
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -481,7 +483,7 @@ export default function OrgStructureExplorer() {
                 onClick={() => setShowAddMember(true)}
                 className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-glow transition-base shrink-0"
               >
-                <Plus size={12} /> Invite member
+                <Plus size={12} /> Mời thành viên
               </button>
               {selected.members.length > 6 && (
                 <div className="relative w-40">
@@ -489,7 +491,7 @@ export default function OrgStructureExplorer() {
                   <input
                     value={memberQuery}
                     onChange={e => setMemberQuery(e.target.value)}
-                    placeholder="Filter…"
+                    placeholder="Lọc…"
                     className="ds-input pl-6 h-7 text-xs"
                   />
                 </div>
@@ -499,39 +501,65 @@ export default function OrgStructureExplorer() {
 
           {selected.members.length === 0 ? (
             <div className="text-sm text-muted-foreground border border-dashed border-border rounded-lg py-6 text-center">
-              No members directly in this unit.
+              Chưa có thành viên trực tiếp trong unit này.
             </div>
           ) : (
             <div className="border border-border rounded-lg overflow-hidden">
               <div className="max-h-[320px] overflow-y-auto divide-y divide-border">
                 {filteredMembers.map(m => (
                   <div key={m.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-surface-muted/60 transition-base group/row">
-                    <div className="w-8 h-8 rounded-full bg-accent-soft text-accent flex items-center justify-center text-[11px] font-semibold shrink-0">
-                      {m.initials}
-                    </div>
-                    <span className="text-sm font-medium truncate flex-1">{m.name}</span>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => setEditingMember(m)}
-                        aria-label={`Edit ${m.name}`}
-                        className="w-7 h-7 rounded-lg hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base"
-                      >
-                        <Pencil size={13} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removeMember(m.id)}
-                        aria-label={`Remove ${m.name}`}
-                        className="w-7 h-7 rounded-lg hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-destructive transition-base"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
+                    {deleteConfirmMemberId === m.id ? (
+                      <>
+                        <span className="text-xs text-foreground flex-1">
+                          Gỡ "{m.name}" khỏi unit này? Hành động này không thể hoàn tác.
+                        </span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => { removeMember(m.id); setDeleteConfirmMemberId(null); }}
+                            className="h-7 px-3 rounded-lg bg-destructive text-white text-xs font-medium"
+                          >
+                            Xóa
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteConfirmMemberId(null)}
+                            className="h-7 px-3 rounded-lg border border-border text-xs font-medium"
+                          >
+                            Hủy
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-8 h-8 rounded-full bg-accent-soft text-accent flex items-center justify-center text-[11px] font-semibold shrink-0">
+                          {m.initials}
+                        </div>
+                        <span className="text-sm font-medium truncate flex-1">{m.name}</span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => setEditingMember(m)}
+                            aria-label={`Edit ${m.name}`}
+                            className="w-7 h-7 rounded-lg hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base"
+                          >
+                            <Pencil size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteConfirmMemberId(m.id)}
+                            aria-label={`Remove ${m.name}`}
+                            className="w-7 h-7 rounded-lg hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-destructive transition-base"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 ))}
                 {filteredMembers.length === 0 && (
-                  <div className="text-sm text-muted-foreground py-6 text-center">No matches.</div>
+                  <div className="text-sm text-muted-foreground py-6 text-center">Không có kết quả.</div>
                 )}
               </div>
             </div>

@@ -41,7 +41,7 @@ export const featureGroups: FeatureGroup[] = [
   }),
   {
     id: "approvals",
-    label: "Publish approvals",
+    label: "Phê duyệt publish",
     icon: ClipboardCheck,
     permissions: FEATURES.map(({ id, thing }) => {
       const singular = singularOf(thing);
@@ -50,20 +50,20 @@ export const featureGroups: FeatureGroup[] = [
         id: `${id}.approve`,
         name: `Approve ${thing}`,
         desc: isAgents
-          ? "Review and approve another member's request to publish an agent — including any knowledge, skills, guardrails, or connectors bundled into it."
-          : `Review and approve another member's request to publish ${article(singular)} ${singular} on its own, outside of an agent.`,
+          ? "Xem xét và phê duyệt yêu cầu publish agent của thành viên khác — bao gồm mọi knowledge, skill, guardrail, hoặc connector đi kèm."
+          : `Xem xét và phê duyệt yêu cầu publish ${singular} của thành viên khác, khi đứng riêng ngoài agent.`,
         implies: isAgents ? FEATURES.filter(f => f.id !== "agents").map(f => `${f.id}.approve`) : undefined,
       };
     }),
   },
   {
     id: "organization",
-    label: "Organization",
+    label: "Tổ chức",
     icon: Building2,
     permissions: [
-      { id: "organization.view", name: "View organization structure", desc: "See units, members, and reporting lines." },
-      { id: "organization.members", name: "Manage members & roles", desc: "Invite, remove, or change member roles." },
-      { id: "organization.settings", name: "Manage organization settings", desc: "Edit org identity, structure, and danger zone actions." },
+      { id: "organization.view", name: "Xem cấu trúc tổ chức", desc: "Xem các unit, thành viên và cấp báo cáo." },
+      { id: "organization.members", name: "Quản lý thành viên & vai trò", desc: "Mời, gỡ, hoặc thay đổi vai trò của thành viên." },
+      { id: "organization.settings", name: "Quản lý cài đặt tổ chức", desc: "Chỉnh sửa thông tin định danh, cấu trúc tổ chức và các hành động vùng nguy hiểm." },
     ],
   },
 ];

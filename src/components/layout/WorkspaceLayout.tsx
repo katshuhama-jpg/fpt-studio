@@ -54,11 +54,11 @@ const utilityItems: Item[] = [
 ];
 
 const orgItems: Item[] = [
-  { to: "/organization/structure", label: "Structure", icon: Network },
-  { to: "/organization/members", label: "Members", icon: Users },
-  { to: "/organization/roles", label: "Roles", icon: Shield },
-  { to: "/organization/permissions", label: "Permissions", icon: Lock },
-  { to: "/organization", label: "General Information", icon: Building2 },
+  { to: "/organization/structure", label: "Cấu trúc tổ chức", icon: Network },
+  { to: "/organization/members", label: "Thành viên", icon: Users },
+  { to: "/organization/roles", label: "Vai trò", icon: Shield },
+  { to: "/organization/permissions", label: "Quyền hạn", icon: Lock },
+  { to: "/organization", label: "Thông tin chung", icon: Building2 },
 ];
 
 export default function WorkspaceLayout() {
@@ -86,7 +86,7 @@ export default function WorkspaceLayout() {
   }
 
   const BREADCRUMB_LABELS: Record<string, string> = { tools: "Skills" };
-  const ORG_BREADCRUMB_LABELS: Record<string, string> = { "": "General Information", structure: "Structure", members: "Members", permissions: "Permissions", roles: "Roles" };
+  const ORG_BREADCRUMB_LABELS: Record<string, string> = { "": "Thông tin chung", structure: "Cấu trúc tổ chức", members: "Thành viên", permissions: "Quyền hạn", roles: "Vai trò" };
   let breadcrumbLabel: string;
   if (inOrganization) {
     const sub = loc.pathname.replace(/^\/organization\/?/, "");
@@ -128,7 +128,7 @@ export default function WorkspaceLayout() {
         {inOrganization ? (
           <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
             <div className="space-y-0.5 mb-3">
-              <NavRow item={{ to: "/", label: "Back to workspace", icon: ArrowLeft }} collapsed={collapsed} />
+              <NavRow item={{ to: "/", label: "Quay lại workspace", icon: ArrowLeft }} collapsed={collapsed} />
             </div>
             <div className="space-y-0.5">
               {orgItems.map(it => (
@@ -287,7 +287,7 @@ type AppOption = { key: "workspace" | "organization"; label: string; short: stri
 
 const APP_OPTIONS: AppOption[] = [
   { key: "workspace", label: "Agent Studio", short: "Agent Studio", desc: "Build and manage agents, knowledge, skills & connectors", icon: Bot, to: "/" },
-  { key: "organization", label: "Organization management", short: "Organization", desc: "Manage structure, members, roles & permissions", icon: Building2, to: "/organization/structure" },
+  { key: "organization", label: "Quản lý tổ chức", short: "Tổ chức", desc: "Quản lý cấu trúc, thành viên, vai trò & quyền hạn", icon: Building2, to: "/organization/structure" },
 ];
 
 function AppSwitcher({ collapsed, inOrganization }: { collapsed: boolean; inOrganization: boolean }) {
