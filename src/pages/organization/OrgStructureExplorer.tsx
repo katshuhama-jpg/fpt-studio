@@ -156,7 +156,7 @@ function MemberModal({
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              placeholder="e.g. mai.hoang@fpt.com"
+              placeholder="vd: mai.hoang@fpt.com"
               className="w-full h-10 px-3 rounded-xl border border-border bg-surface text-sm outline-none focus:border-ring transition-base"
             />
           </div>
@@ -253,7 +253,7 @@ export default function OrgStructureExplorer() {
           title={`Đổi tên ${selected.name}`}
           desc="Cập nhật tên của unit này."
           initialName={selected.name}
-          submitLabel="Save changes"
+          submitLabel="Lưu thay đổi"
           onClose={() => setShowRenameUnit(false)}
           onSave={name => renameUnit(selected.id, name)}
         />
@@ -285,7 +285,7 @@ export default function OrgStructureExplorer() {
           initialEmail={editingMember.email}
           initialRoleId={editingMember.roleId}
           roles={roles}
-          submitLabel="Save changes"
+          submitLabel="Lưu thay đổi"
           onClose={() => setEditingMember(null)}
           onSave={(name, email, roleId) => updateMember(editingMember.id, name, email, roleId)}
         />
