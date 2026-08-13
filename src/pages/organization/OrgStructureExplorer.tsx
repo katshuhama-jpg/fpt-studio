@@ -387,19 +387,19 @@ export default function OrgStructureExplorer() {
         <div className="mb-6">
           <div className="flex items-center justify-between gap-3 mb-2">
             <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Unit con ({selected.units.length})
+              Unit ({selected.units.length})
             </div>
             <button
               type="button"
               onClick={() => setShowAddSubunit(true)}
               className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-glow transition-base"
             >
-              <Plus size={12} /> Thêm unit con
+              <Plus size={12} /> Thêm unit
             </button>
           </div>
           {selected.units.length === 0 ? (
             <div className="text-sm text-muted-foreground border border-dashed border-border rounded-lg py-6 text-center">
-              Chưa có unit con nào.
+              Chưa có unit nào.
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
