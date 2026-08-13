@@ -425,9 +425,8 @@ function AddUserToRoleModal({
 
 /* ─── Page ──────────────────────────────────────────────────────────────── */
 export default function Members() {
-  const { tree } = useOrg();
+  const { tree, assignRole } = useOrg();
   const { roles } = useRoles();
-  const { assignRole } = useOrg();
   const [selectedUnitId, setSelectedUnitId] = useState(tree.id);
   const [scope, setScope] = useState<"direct" | "all">("all");
   const [roleFilter, setRoleFilter] = useState("all");
