@@ -13,7 +13,13 @@ import AgentScaffold from "./pages/AgentScaffold";
 import Inventor from "./pages/Inventor";
 import TaskEditor from "./pages/TaskEditor";
 import ToolBuilder from "./pages/ToolBuilder";
-import WorkspaceSettings from "./pages/WorkspaceSettings";
+import OrgGeneral from "./pages/organization/General";
+import OrgStructure from "./pages/organization/Structure";
+import OrgMembers from "./pages/organization/Members";
+import OrgPermissions from "./pages/organization/Permissions";
+import OrgRoles from "./pages/organization/Roles";
+import { RolesProvider } from "./pages/organization/rolesStore";
+import { OrgProvider } from "./pages/organization/orgStore";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import Skills from "./pages/Skills";
 import WorkspaceGuardrails from "./pages/WorkspaceGuardrails";
@@ -43,34 +49,42 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/onboarding" element={<Onboarding />} />
+      <RolesProvider>
+        <OrgProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/onboarding" element={<Onboarding />} />
 
-          <Route element={<RequireAuth><WorkspaceLayout /></RequireAuth>}>
-            <Route path="/" element={<Home />} />
-            <Route path="/my-agents" element={<MyAgents />} />
-            <Route path="/agents" element={<AgentsList />} />
-            <Route path="/agents/new" element={<AgentBuilder />} />
-            <Route path="/agents/:id" element={<AgentBuilder />} />
-            <Route path="/agents/:id/tasks/:taskId" element={<TaskEditor />} />
-          </Route>
-          <Route path="/inventor" element={<RequireAuth><Inventor /></RequireAuth>} />
-          <Route path="/agents/:id/tools/new" element={<RequireAuth><ToolBuilder /></RequireAuth>} />
-          <Route path="/agents/:id/tools/:toolId" element={<RequireAuth><ToolBuilder /></RequireAuth>} />
-          <Route element={<RequireAuth><WorkspaceLayout /></RequireAuth>}>
-            <Route path="/knowledge" element={<PlaceholderPage title="Workspace Knowledge" />} />
-            <Route path="/settings" element={<WorkspaceSettings />} />
-            <Route path="/connectors" element={<WorkspaceConnectors />} />
-            <Route path="/tools" element={<Skills />} />
-            <Route path="/guardrails" element={<WorkspaceGuardrails />} />
-            <Route path="/api-keys" element={<PlaceholderPage title="API Keys" />} />
-            <Route path="/docs" element={<PlaceholderPage title="Document Center" />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+            <Route element={<RequireAuth><WorkspaceLayout /></RequireAuth>}>
+              <Route path="/" element={<Home />} />
+              <Route path="/my-agents" element={<MyAgents />} />
+              <Route path="/agents" element={<AgentsList />} />
+              <Route path="/agents/new" element={<AgentBuilder />} />
+              <Route path="/agents/:id" element={<AgentBuilder />} />
+              <Route path="/agents/:id/tasks/:taskId" element={<TaskEditor />} />
+            </Route>
+            <Route path="/inventor" element={<RequireAuth><Inventor /></RequireAuth>} />
+            <Route path="/agents/:id/tools/new" element={<RequireAuth><ToolBuilder /></RequireAuth>} />
+            <Route path="/agents/:id/tools/:toolId" element={<RequireAuth><ToolBuilder /></RequireAuth>} />
+            <Route element={<RequireAuth><WorkspaceLayout /></RequireAuth>}>
+              <Route path="/knowledge" element={<PlaceholderPage title="Workspace Knowledge" />} />
+              <Route path="/organization" element={<OrgGeneral />} />
+              <Route path="/organization/structure" element={<OrgStructure />} />
+              <Route path="/organization/members" element={<OrgMembers />} />
+              <Route path="/organization/permissions" element={<OrgPermissions />} />
+              <Route path="/organization/roles" element={<OrgRoles />} />
+              <Route path="/connectors" element={<WorkspaceConnectors />} />
+              <Route path="/tools" element={<Skills />} />
+              <Route path="/guardrails" element={<WorkspaceGuardrails />} />
+              <Route path="/api-keys" element={<PlaceholderPage title="API Keys" />} />
+              <Route path="/docs" element={<PlaceholderPage title="Document Center" />} />
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+        </OrgProvider>
+      </RolesProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

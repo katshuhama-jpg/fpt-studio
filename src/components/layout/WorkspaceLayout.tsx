@@ -1,11 +1,14 @@
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { clearUser } from "@/lib/onboarding";
+import { clearUser, getUser } from "@/lib/onboarding";
 import {
   Home, MessageSquare, Bot, BookOpen, Settings, Plug,
   Puzzle, ChevronsLeft, ChevronsRight, Search, Bell, Plus,
   ChevronRight, LifeBuoy, KeyRound, LogOut, User, ChevronDown,
-  Check, Building2, PlusCircle, Sparkles, Shield,
+  Check, Building2, PlusCircle, Sparkles, Shield, FileText, Rocket,
+  Lock, ArrowLeft, Network, Users,
 } from "lucide-react";
+
+const APP_VERSION = "0.58.5";
 import { useState } from "react";
 import fptAiLogo from "@/assets/fpt-ai-logo.png";
 
@@ -41,7 +44,7 @@ const groups: Group[] = [
     id: "workspace",
     label: "Workspace",
     items: [
-      { to: "/settings", label: "Settings", icon: Settings },
+      { to: "/organization/structure", label: "Settings", icon: Settings },
     ],
   },
 ];
@@ -50,16 +53,23 @@ const utilityItems: Item[] = [
   { to: "/help", label: "Help Center", icon: LifeBuoy },
 ];
 
+const orgItems: Item[] = [
+  { to: "/organization/structure", label: "Cấu trúc tổ chức", icon: Network },
+  { to: "/organization/members", label: "Thành viên", icon: Users },
+  { to: "/organization/roles", label: "Vai trò", icon: Shield },
+  { to: "/organization/permissions", label: "Quyền hạn", icon: Lock },
+  { to: "/organization", label: "Thông tin chung", icon: Building2 },
+];
+
 export default function WorkspaceLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [open, setOpen] = useState<Record<string, boolean>>({ build: true, workspace: true });
   const [userMenu, setUserMenu] = useState(false);
-  const [tenantMenu, setTenantMenu] = useState(false);
-  const [tenantId, setTenantId] = useState(TENANTS[0].id);
-  const tenant = TENANTS.find(t => t.id === tenantId) ?? TENANTS[0];
+  const userEmail = getUser()?.email || "tran.nam@fpt.com";
   const loc = useLocation();
   const navigate = useNavigate();
   const inAgentBuilder = loc.pathname.startsWith("/agents/");
+  const inOrganization = loc.pathname.startsWith("/organization");
   const handleSignOut = () => {
     clearUser();
     setUserMenu(false);
@@ -76,8 +86,15 @@ export default function WorkspaceLayout() {
   }
 
   const BREADCRUMB_LABELS: Record<string, string> = { tools: "Skills" };
-  const rawSegment = loc.pathname === "/" ? "Home" : loc.pathname.slice(1).split("/")[0].replace(/-/g, " ");
-  const breadcrumbLabel = BREADCRUMB_LABELS[rawSegment.replace(/ /g, "-")] ?? rawSegment;
+  const ORG_BREADCRUMB_LABELS: Record<string, string> = { "": "Thông tin chung", structure: "Cấu trúc tổ chức", members: "Thành viên", permissions: "Quyền hạn", roles: "Vai trò" };
+  let breadcrumbLabel: string;
+  if (inOrganization) {
+    const sub = loc.pathname.replace(/^\/organization\/?/, "");
+    breadcrumbLabel = ORG_BREADCRUMB_LABELS[sub] ?? sub;
+  } else {
+    const rawSegment = loc.pathname === "/" ? "Home" : loc.pathname.slice(1).split("/")[0].replace(/-/g, " ");
+    breadcrumbLabel = BREADCRUMB_LABELS[rawSegment.replace(/ /g, "-")] ?? rawSegment;
+  }
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-background">
@@ -103,107 +120,109 @@ export default function WorkspaceLayout() {
             </NavLink>
           )}
 
-          {/* Tenant Switcher */}
-          <div className="relative">
-            <button
-              onClick={() => setTenantMenu(v => !v)}
-              title={collapsed ? tenant.name : undefined}
-              className={`w-full flex items-center gap-2 rounded-xl bg-sidebar-accent/50 hover:bg-sidebar-accent ring-1 ring-transparent hover:ring-sidebar-border transition-base ${
-                collapsed ? "justify-center p-1.5" : "px-2 py-1.5"
-              }`}
-            >
-              <div className="w-7 h-7 rounded-lg bg-primary-soft text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
-                {tenant.initial}
-              </div>
-              {!collapsed && (
-                <>
-                  <div className="flex-1 min-w-0 text-left">
-                    <div className="text-xs font-semibold text-foreground truncate leading-tight">{tenant.name}</div>
-                    <div className="text-[10px] text-muted-foreground truncate leading-tight">{tenant.plan}</div>
-                  </div>
-                  <ChevronDown size={12} className={`text-muted-foreground transition-base ${tenantMenu ? "rotate-180" : ""}`} />
-                </>
-              )}
-            </button>
-
-            {tenantMenu && (
-              <div className={`absolute z-50 bg-surface rounded-xl overflow-hidden ring-1 ring-border shadow-xl ${
-                collapsed ? "left-full ml-2 top-0 w-60" : "left-0 right-0 top-full mt-1.5"
-              }`}>
-                <div className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  <Building2 size={11} /> Switch tenant
-                </div>
-                <div className="px-1.5 pb-1.5 space-y-0.5">
-                  {TENANTS.map(t => (
-                    <button
-                      key={t.id}
-                      onClick={() => { setTenantId(t.id); setTenantMenu(false); }}
-                      className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-surface-muted transition-base text-left"
-                    >
-                      <div className="w-7 h-7 rounded-lg bg-primary-soft text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
-                        {t.initial}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-semibold text-foreground truncate">{t.name}</div>
-                        <div className="text-[10px] text-muted-foreground truncate">{t.plan}</div>
-                      </div>
-                      {t.id === tenantId && <Check size={13} className="text-primary shrink-0" />}
-                    </button>
-                  ))}
-                </div>
-                <div className="px-1.5 pb-1.5 pt-1 mt-0.5 bg-surface-muted/40">
-                  <button className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-xs font-medium hover:bg-surface text-primary transition-base">
-                    <PlusCircle size={13} /> Create new tenant
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+          {/* App switcher — Build Agent vs Organization management */}
+          <AppSwitcher collapsed={collapsed} inOrganization={inOrganization} />
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
-          <div className="space-y-1 mb-3">
-            {topItems.map(it => (
+        {inOrganization ? (
+          <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
+            <div className="space-y-1 mb-3">
+              <NavRow item={{ to: "/", label: "Quay lại workspace", icon: ArrowLeft }} collapsed={collapsed} />
+            </div>
+            <div className="space-y-1">
+              {orgItems.map(it => (
+                <NavRow key={it.to} item={it} collapsed={collapsed} />
+              ))}
+            </div>
+          </nav>
+        ) : (
+          <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
+            <div className="space-y-1 mb-3">
+              {topItems.map(it => (
+                <NavRow key={it.to} item={it} collapsed={collapsed} />
+              ))}
+            </div>
+
+            {groups.map(g => (
+              <NavGroup
+                key={g.id}
+                group={g}
+                collapsed={collapsed}
+                open={open[g.id] ?? true}
+                onToggle={() => setOpen(o => ({ ...o, [g.id]: !(o[g.id] ?? true) }))}
+              />
+            ))}
+          </nav>
+        )}
+
+        {/* Utility (Docs) */}
+        {!inOrganization && (
+          <div className="px-2 pb-2 space-y-0.5">
+            {utilityItems.map(it => (
               <NavRow key={it.to} item={it} collapsed={collapsed} />
             ))}
           </div>
-
-          {groups.map(g => (
-            <NavGroup
-              key={g.id}
-              group={g}
-              collapsed={collapsed}
-              open={open[g.id] ?? true}
-              onToggle={() => setOpen(o => ({ ...o, [g.id]: !(o[g.id] ?? true) }))}
-            />
-          ))}
-        </nav>
-
-        {/* Utility (Docs) */}
-        <div className="px-2 pb-2 space-y-0.5">
-          {utilityItems.map(it => (
-            <NavRow key={it.to} item={it} collapsed={collapsed} />
-          ))}
-        </div>
+        )}
 
         {/* User */}
         <div className="p-2.5 shrink-0 relative">
           {userMenu && !collapsed && (
             <div className="absolute bottom-full left-2 right-2 mb-2 bg-surface rounded-xl overflow-hidden ring-1 ring-border shadow-xl">
+              {/* Identity */}
+              <div className="px-3 py-3 flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-full bg-primary-soft flex items-center justify-center text-xs font-semibold text-primary shrink-0">
+                  TN
+                </div>
+                <div className="min-w-0 text-left">
+                  <div className="text-sm font-semibold text-foreground truncate">Tran Nam</div>
+                  <div className="text-xs text-muted-foreground truncate">{userEmail}</div>
+                </div>
+              </div>
+              <div className="border-t border-border" />
+
+              {/* Menu items */}
+              <NavLink
+                to="/organization/structure"
+                onClick={() => setUserMenu(false)}
+                className="flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-surface-muted transition-base"
+              >
+                <Building2 size={14} className="text-muted-foreground" /> Manage organization
+              </NavLink>
               <NavLink
                 to="/api-keys"
                 onClick={() => setUserMenu(false)}
                 className="flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-surface-muted transition-base"
               >
-                <KeyRound size={14} className="text-muted-foreground" /> API Keys
+                <KeyRound size={14} className="text-muted-foreground" /> API Key
               </NavLink>
               <button className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-surface-muted transition-base">
-                <User size={14} className="text-muted-foreground" /> Profile
+                <User size={14} className="text-muted-foreground" /> My account
+              </button>
+              <a
+                href="https://docs.agents.fpt.ai/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-surface-muted transition-base"
+              >
+                <FileText size={14} className="text-muted-foreground" /> Documentation
+              </a>
+              <NavLink
+                to="/help"
+                onClick={() => setUserMenu(false)}
+                className="flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-surface-muted transition-base"
+              >
+                <LifeBuoy size={14} className="text-muted-foreground" /> Support
+              </NavLink>
+              <button className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-surface-muted transition-base">
+                <Rocket size={14} className="text-muted-foreground" />
+                <span className="flex-1 text-left">About</span>
+                <span className="text-xs text-muted-foreground">{APP_VERSION}</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
               </button>
               <div className="border-t border-border" />
               <button onClick={handleSignOut} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-surface-muted text-destructive transition-base">
-                <LogOut size={14} /> Sign out
+                <LogOut size={14} /> Log out
               </button>
             </div>
           )}
@@ -249,7 +268,7 @@ export default function WorkspaceLayout() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-14 border-b border-border bg-surface flex items-center px-6 gap-4 shrink-0">
           <div className="flex items-center gap-2 text-sm">
-            <span className="chip chip-primary">FPT Smart Cloud</span>
+            <TenantSwitcher />
             <span className="text-muted-foreground">/</span>
             <span className="font-medium text-foreground capitalize">{breadcrumbLabel}</span>
           </div>
@@ -259,6 +278,128 @@ export default function WorkspaceLayout() {
           <Outlet />
         </main>
       </div>
+    </div>
+  );
+}
+
+/* ============ App switcher (Build Agent ⇄ Organization management) ============ */
+type AppOption = { key: "workspace" | "organization"; label: string; short: string; desc: string; icon: any; to: string };
+
+const APP_OPTIONS: AppOption[] = [
+  { key: "workspace", label: "Agent Studio", short: "Agent Studio", desc: "Build and manage agents, knowledge, skills & connectors", icon: Bot, to: "/" },
+  { key: "organization", label: "Quản lý tổ chức", short: "Tổ chức", desc: "Quản lý cấu trúc, thành viên, vai trò & quyền hạn", icon: Building2, to: "/organization/structure" },
+];
+
+function AppSwitcher({ collapsed, inOrganization }: { collapsed: boolean; inOrganization: boolean }) {
+  const [open, setOpen] = useState(false);
+  const active = inOrganization ? APP_OPTIONS[1] : APP_OPTIONS[0];
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(v => !v)}
+        title={collapsed ? active.label : undefined}
+        aria-label={collapsed ? `${active.label}, switch app` : undefined}
+        className={`w-full flex items-center gap-2.5 rounded-xl bg-sidebar-accent/50 hover:bg-sidebar-accent ring-1 ring-transparent hover:ring-sidebar-border transition-base cursor-pointer ${
+          collapsed ? "justify-center p-1.5" : "px-2.5 py-2"
+        }`}
+      >
+        <div className="w-7 h-7 rounded-lg bg-primary-soft text-primary flex items-center justify-center shrink-0">
+          <active.icon size={14} />
+        </div>
+        {!collapsed && (
+          <>
+            <span className="flex-1 min-w-0 text-left text-sm font-semibold text-foreground truncate">{active.short}</span>
+            <ChevronDown size={13} className={`text-muted-foreground transition-base shrink-0 ${open ? "rotate-180" : ""}`} />
+          </>
+        )}
+      </button>
+
+      {open && (
+        <div className={`absolute z-50 bg-surface rounded-xl overflow-hidden ring-1 ring-border shadow-xl w-[300px] ${
+          collapsed ? "left-full ml-2 top-0" : "left-0 top-full mt-1.5"
+        }`}>
+          <div className="p-1.5 space-y-0.5">
+            {APP_OPTIONS.map(opt => {
+              const isActive = opt.key === active.key;
+              return (
+                <NavLink
+                  key={opt.key}
+                  to={opt.to}
+                  onClick={() => setOpen(false)}
+                  className={`flex items-start gap-2.5 px-2.5 py-2.5 rounded-lg text-left transition-base ${
+                    isActive ? "bg-primary-soft ring-1 ring-primary/20" : "hover:bg-surface-muted"
+                  }`}
+                >
+                  <span className={`mt-0.5 h-7 w-7 rounded-lg flex items-center justify-center shrink-0 ${
+                    isActive ? "bg-primary text-primary-foreground" : "bg-surface-muted text-muted-foreground"
+                  }`}>
+                    <opt.icon size={14} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className={`block text-sm font-semibold ${isActive ? "text-primary" : "text-foreground"}`}>{opt.label}</span>
+                    <span className="block text-[11px] text-muted-foreground leading-snug mt-0.5">{opt.desc}</span>
+                  </span>
+                  {isActive && <Check size={14} className="text-primary shrink-0 mt-1" />}
+                </NavLink>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============ Tenant switcher (relocated to header) ============ */
+function TenantSwitcher() {
+  const [open, setOpen] = useState(false);
+  const [tenantId, setTenantId] = useState(TENANTS[0].id);
+  const tenant = TENANTS.find(t => t.id === tenantId) ?? TENANTS[0];
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="chip chip-primary hover:opacity-90 transition-base cursor-pointer pr-2 gap-1.5"
+      >
+        <span className="w-4 h-4 rounded-full bg-primary/15 flex items-center justify-center text-[9px] font-bold">
+          {tenant.initial}
+        </span>
+        {tenant.name}
+        <ChevronDown size={11} className={`transition-base ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div className="absolute z-50 left-0 top-[calc(100%+6px)] w-64 bg-surface rounded-xl overflow-hidden ring-1 ring-border shadow-xl">
+          <div className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+            <Building2 size={11} /> Switch tenant
+          </div>
+          <div className="px-1.5 pb-1.5 space-y-0.5">
+            {TENANTS.map(t => (
+              <button
+                key={t.id}
+                onClick={() => { setTenantId(t.id); setOpen(false); }}
+                className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-surface-muted transition-base text-left"
+              >
+                <div className="w-7 h-7 rounded-lg bg-primary-soft text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
+                  {t.initial}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-semibold text-foreground truncate">{t.name}</div>
+                  <div className="text-[10px] text-muted-foreground truncate">{t.plan}</div>
+                </div>
+                {t.id === tenantId && <Check size={13} className="text-primary shrink-0" />}
+              </button>
+            ))}
+          </div>
+          <div className="px-1.5 pb-1.5 pt-1 mt-0.5 bg-surface-muted/40">
+            <button className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-xs font-medium hover:bg-surface text-primary transition-base">
+              <PlusCircle size={13} /> Create new tenant
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -326,7 +467,7 @@ function NavRow({ item, collapsed }: { item: Item; collapsed: boolean }) {
   return (
     <NavLink
       to={item.to}
-      end={item.to === "/"}
+      end={item.to === "/" || item.to === "/organization"}
       title={collapsed ? item.label : undefined}
       style={{ height: "36px" }}
       className={({ isActive }) =>
