@@ -621,6 +621,9 @@ export default function Members() {
                               </button>
                             )}
                           </div>
+                          {m.email && (
+                            <div className="text-xs text-muted-foreground truncate">{m.email}</div>
+                          )}
                         </div>
                       </div>
                       <div className="text-xs text-muted-foreground truncate" title={unitName}>{unitName}</div>

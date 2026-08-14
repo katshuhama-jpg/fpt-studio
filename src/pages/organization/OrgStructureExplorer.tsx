@@ -279,7 +279,7 @@ function ConfirmDeleteModal({
 }
 
 export default function OrgStructureExplorer() {
-  const { tree, rootId, createUnit, renameUnit, deleteUnit, addMember, updateMember, removeMember } = useOrg();
+  const { tree, rootId, createUnit, renameUnit, deleteUnit, addMember, removeMember } = useOrg();
   const { roles } = useRoles();
   const [selectedId, setSelectedId] = useState(rootId);
   const [expanded, setExpanded] = useState<Set<string>>(new Set([tree.id, ...tree.units.map(u => u.id)]));
@@ -288,7 +288,6 @@ export default function OrgStructureExplorer() {
   const [showRenameUnit, setShowRenameUnit] = useState(false);
   const [showAddSubunit, setShowAddSubunit] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
-  const [editingMember, setEditingMember] = useState<OrgMember | null>(null);
   const [movingMember, setMovingMember] = useState<OrgMember | null>(null);
   const [deleteConfirmUnitId, setDeleteConfirmUnitId] = useState<string | null>(null);
   const [deleteConfirmMemberId, setDeleteConfirmMemberId] = useState<string | null>(null);
@@ -365,20 +364,6 @@ export default function OrgStructureExplorer() {
           onSave={(name, email, roleId) => addMember(selected.id, name, email, roleId)}
           existingEmails={allEmails}
           unitName={selected.name}
-        />
-      )}
-      {editingMember && (
-        <MemberModal
-          title={`Chỉnh sửa ${editingMember.name}`}
-          desc="Cập nhật tên và email của người này."
-          initialName={editingMember.name}
-          initialEmail={editingMember.email}
-          initialRoleId={editingMember.roleId}
-          roles={roles}
-          submitLabel="Lưu thay đổi"
-          onClose={() => setEditingMember(null)}
-          onSave={(name, email, roleId) => updateMember(editingMember.id, name, email, roleId)}
-          existingEmails={allEmails.filter(e => e !== (editingMember.email ?? "").trim().toLowerCase())}
         />
       )}
       {movingMember && (
@@ -608,12 +593,17 @@ export default function OrgStructureExplorer() {
                     <div className="w-8 h-8 rounded-full bg-accent-soft text-accent flex items-center justify-center text-[11px] font-semibold shrink-0">
                       {m.initials}
                     </div>
-                    <span className="text-sm font-medium truncate flex-1 flex items-center gap-1.5 min-w-0">
-                      <span className="truncate">{m.name}</span>
-                      {m.inactive && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive-soft text-destructive font-medium shrink-0">Inactive</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate flex items-center gap-1.5 min-w-0">
+                        <span className="truncate">{m.name}</span>
+                        {m.inactive && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive-soft text-destructive font-medium shrink-0">Inactive</span>
+                        )}
+                      </div>
+                      {m.email && (
+                        <div className="text-xs text-muted-foreground truncate">{m.email}</div>
                       )}
-                    </span>
+                    </div>
                     <div className="flex items-center gap-1 shrink-0">
                       <button
                         type="button"
@@ -623,14 +613,6 @@ export default function OrgStructureExplorer() {
                         className="w-7 h-7 rounded-lg hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base"
                       >
                         <FolderInput size={13} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditingMember(m)}
-                        aria-label={`Edit ${m.name}`}
-                        className="w-7 h-7 rounded-lg hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base"
-                      >
-                        <Pencil size={13} />
                       </button>
                       <button
                         type="button"
