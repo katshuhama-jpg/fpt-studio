@@ -128,7 +128,7 @@ export default function WorkspaceLayout() {
             <NavLink to="/" className="flex items-center gap-2 mb-3 min-w-0 group">
               <img src={fptAiLogo} alt="FPT.AI" className="h-7 w-auto shrink-0 select-none" draggable={false} />
               <span className="text-[11px] font-medium text-muted-foreground truncate tracking-wide">
-                Agents Workspace
+                Agents
               </span>
             </NavLink>
           )}

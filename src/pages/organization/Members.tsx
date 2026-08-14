@@ -563,8 +563,8 @@ export default function Members() {
           </div>
         ) : (
           <>
-            <div className="rounded-xl border border-border overflow-hidden">
-              <div className="grid grid-cols-[1fr,200px,160px] gap-3 px-4 py-2.5 bg-surface-muted section-eyebrow">
+            <div className="-mx-6 border-t border-border">
+              <div className="grid grid-cols-[1fr,200px,160px] gap-3 px-6 py-2.5 bg-surface-muted section-eyebrow">
                 <div>Thành viên</div><div>Unit</div><div>Vai trò</div>
               </div>
               <div className="divide-y divide-border">
@@ -572,7 +572,7 @@ export default function Members() {
                   const currentRoleId = m.roleId && roleIds.has(m.roleId) ? m.roleId : DEFAULT_ROLE_ID;
                   const unitName = findMemberUnit(tree, m.id)?.name ?? "—";
                   return (
-                    <div key={m.id} className="grid grid-cols-[1fr,200px,160px] gap-3 px-4 py-3 items-center hover:bg-surface-muted/50 transition-base">
+                    <div key={m.id} className="grid grid-cols-[1fr,200px,160px] gap-3 px-6 py-3 items-center hover:bg-surface-muted/50 transition-base">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-9 h-9 rounded-full bg-accent-soft text-accent flex items-center justify-center text-xs font-semibold shrink-0">
                           {m.initials}
