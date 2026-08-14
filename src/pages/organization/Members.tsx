@@ -592,7 +592,7 @@ export default function Members() {
                   const currentRoleId = m.roleId && roleIds.has(m.roleId) ? m.roleId : DEFAULT_ROLE_ID;
                   const unitName = findMemberUnit(tree, m.id)?.name ?? "—";
                   return (
-                    <div key={m.id} className="grid grid-cols-[1fr,200px,160px,40px] gap-3 px-6 py-3 items-center hover:bg-surface-muted/50 transition-base">
+                    <div key={m.id} className="group grid grid-cols-[1fr,200px,160px,40px] gap-3 px-6 py-3 items-center hover:bg-surface-muted/50 transition-base">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-9 h-9 rounded-full bg-accent-soft text-accent flex items-center justify-center text-xs font-semibold shrink-0">
                           {m.initials}
@@ -631,9 +631,9 @@ export default function Members() {
                         onClick={() => setMovingMember(m)}
                         aria-label={`Move ${m.name} to another unit`}
                         title="Chuyển unit"
-                        className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-base"
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground bg-surface-muted/60 ring-1 ring-border/50 opacity-0 group-hover:opacity-100 hover:bg-surface hover:text-primary hover:shadow-sm transition-base"
                       >
-                        <FolderInput size={13} />
+                        <FolderInput size={14} />
                       </button>
                     </div>
                   );
