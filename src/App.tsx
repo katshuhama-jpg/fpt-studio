@@ -18,8 +18,10 @@ import OrgStructure from "./pages/organization/Structure";
 import OrgMembers from "./pages/organization/Members";
 import OrgPermissions from "./pages/organization/Permissions";
 import OrgRoles from "./pages/organization/Roles";
+import OrgConflicts from "./pages/organization/Conflicts";
 import { RolesProvider } from "./pages/organization/rolesStore";
 import { OrgProvider } from "./pages/organization/orgStore";
+import { ConflictsProvider } from "./pages/organization/conflictsStore";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import Skills from "./pages/Skills";
 import WorkspaceGuardrails from "./pages/WorkspaceGuardrails";
@@ -51,6 +53,7 @@ const App = () => (
       <Sonner />
       <RolesProvider>
         <OrgProvider>
+        <ConflictsProvider>
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
@@ -74,6 +77,7 @@ const App = () => (
               <Route path="/organization/members" element={<OrgMembers />} />
               <Route path="/organization/permissions" element={<OrgPermissions />} />
               <Route path="/organization/roles" element={<OrgRoles />} />
+              <Route path="/organization/conflicts" element={<OrgConflicts />} />
               <Route path="/connectors" element={<WorkspaceConnectors />} />
               <Route path="/tools" element={<Skills />} />
               <Route path="/guardrails" element={<WorkspaceGuardrails />} />
@@ -83,6 +87,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
+        </ConflictsProvider>
         </OrgProvider>
       </RolesProvider>
     </TooltipProvider>

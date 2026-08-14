@@ -5,12 +5,13 @@ import {
   Puzzle, ChevronsLeft, ChevronsRight, Search, Bell, Plus,
   ChevronRight, LifeBuoy, KeyRound, LogOut, User, ChevronDown, ChevronsUpDown,
   Check, Building2, PlusCircle, Sparkles, Shield, FileText, Rocket,
-  Lock, Network, Users,
+  Lock, Network, Users, AlertTriangle,
 } from "lucide-react";
 
 const APP_VERSION = "0.58.5";
 import { useState } from "react";
 import fptAiLogo from "@/assets/fpt-ai-logo.png";
+import { useConflicts } from "@/pages/organization/conflictsStore";
 
 type Tenant = { id: string; name: string; plan: string; initial: string };
 const TENANTS: Tenant[] = [
@@ -53,7 +54,7 @@ const utilityItems: Item[] = [
   { to: "/help", label: "Help Center", icon: LifeBuoy },
 ];
 
-const orgItems: Item[] = [
+const orgItemsBase: Item[] = [
   { to: "/organization/structure", label: "Cấu trúc tổ chức", icon: Network },
   { to: "/organization/members", label: "Thành viên", icon: Users },
   { to: "/organization/roles", label: "Vai trò", icon: Shield },
@@ -70,6 +71,18 @@ export default function WorkspaceLayout() {
   const userEmail = getUser()?.email || "tran.nam@fpt.com";
   const loc = useLocation();
   const navigate = useNavigate();
+  const { conflicts } = useConflicts();
+  const openConflictCount = conflicts.filter(c => c.status === "open").length;
+  const orgItems: Item[] = [
+    ...orgItemsBase.slice(0, 3),
+    {
+      to: "/organization/conflicts",
+      label: "Xung đột đồng bộ",
+      icon: AlertTriangle,
+      badge: openConflictCount > 0 ? String(openConflictCount) : undefined,
+    },
+    ...orgItemsBase.slice(3),
+  ];
   const inAgentBuilder = loc.pathname.startsWith("/agents/");
   const inOrganization = loc.pathname.startsWith("/organization");
   const handleSignOut = () => {
@@ -88,7 +101,7 @@ export default function WorkspaceLayout() {
   }
 
   const BREADCRUMB_LABELS: Record<string, string> = { tools: "Skills" };
-  const ORG_BREADCRUMB_LABELS: Record<string, string> = { "": "Thông tin chung", structure: "Cấu trúc tổ chức", members: "Thành viên", permissions: "Quyền hạn", roles: "Vai trò" };
+  const ORG_BREADCRUMB_LABELS: Record<string, string> = { "": "Thông tin chung", structure: "Cấu trúc tổ chức", members: "Thành viên", permissions: "Quyền hạn", roles: "Vai trò", conflicts: "Xung đột đồng bộ" };
   let breadcrumbLabel: string;
   if (inOrganization) {
     const sub = loc.pathname.replace(/^\/organization\/?/, "");
