@@ -33,6 +33,42 @@ function generateName(seed: number): { name: string; initials: string } {
   return { name: `${surname} ${middle} ${given}`, initials: `${surname[0]}${given[0]}`.toUpperCase() };
 }
 
+/**
+ * Deterministic email backfill for members that don't already have one — most bulk/seed
+ * members are only given a name, but the UI (Cấu trúc tổ chức, Thành viên) always needs an
+ * email to show. Derives `firstname.lastname@fpt.com` from the name and disambiguates
+ * collisions (two people can share a display name in this seed data) with a numeric suffix.
+ */
+function slugifyEmailLocal(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .join(".");
+}
+
+function backfillEmails(unit: OrgUnit, used: Set<string> = new Set()): OrgUnit {
+  const members = unit.members.map(m => {
+    if (m.email) {
+      used.add(m.email.trim().toLowerCase());
+      return m;
+    }
+    const local = slugifyEmailLocal(m.name) || "user";
+    let email = `${local}@fpt.com`;
+    let n = 2;
+    while (used.has(email.toLowerCase())) {
+      email = `${local}${n}@fpt.com`;
+      n++;
+    }
+    used.add(email.toLowerCase());
+    return { ...m, email };
+  });
+  const units = unit.units.map(u => backfillEmails(u, used));
+  return { ...unit, members, units };
+}
+
 function makeLeader(prefix: string, title: string, roleId = "admin"): OrgMember {
   const { name, initials } = generateName(hashSeed(`${prefix}-lead`));
   return { id: `${prefix}-lead`, name, role: title, initials, roleId };
@@ -81,7 +117,7 @@ const FINANCE_TITLES = ["Finance Manager", "Financial Analyst", "Accountant"];
 const LEGAL_TITLES = ["Legal Counsel", "Compliance Officer"];
 const CORP_IT_TITLES = ["IT Manager", "System Administrator", "IT Support"];
 
-const rawOrgTree: OrgUnit = {
+const orgTreeSeed: OrgUnit = {
   id: "fpt",
   name: "FPT Corporation",
   members: [
@@ -415,28 +451,6 @@ const rawOrgTree: OrgUnit = {
   ],
 };
 
-/** Deterministic company email for a display name, e.g. "Nguyen Van Anh" -> "anh.nguyen@fpt.com". */
-function emailFor(name: string, usedEmails: Set<string>): string {
-  const parts = name.trim().toLowerCase().split(/\s+/);
-  const local = parts.length > 1 ? `${parts[parts.length - 1]}.${parts[0]}` : parts[0];
-  let email = `${local}@fpt.com`;
-  let n = 2;
-  while (usedEmails.has(email)) email = `${local}${n++}@fpt.com`;
-  usedEmails.add(email);
-  return email;
-}
-
-/** Backfills `email` on every seed member that doesn't already have one (hand-authored entries mostly lack it). */
-function backfillEmails(unit: OrgUnit, usedEmails: Set<string>): OrgUnit {
-  return {
-    ...unit,
-    members: unit.members.map(m => (m.email ? m : { ...m, email: emailFor(m.name, usedEmails) })),
-    units: unit.units.map(u => backfillEmails(u, usedEmails)),
-  };
-}
-
-export const orgTree: OrgUnit = backfillEmails(rawOrgTree, new Set());
-
 export function countDirect(unit: OrgUnit): number {
   return unit.members.length;
 }
@@ -444,6 +458,8 @@ export function countDirect(unit: OrgUnit): number {
 export function countAll(unit: OrgUnit): number {
   return unit.members.length + unit.units.reduce((sum, u) => sum + countAll(u), 0);
 }
+
+export const orgTree: OrgUnit = backfillEmails(orgTreeSeed);
 
 export function findUnit(root: OrgUnit, id: string): OrgUnit | null {
   if (root.id === id) return root;

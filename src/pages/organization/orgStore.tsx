@@ -143,7 +143,12 @@ export function OrgProvider({ children }: { children: ReactNode }) {
   const deleteUnit = (unitId: string) => {
     if (unitId === ROOT_ID) return;
     setTree(prev => {
-      const updated = updateUnit(prev, unitId, () => null);
+      const updated = updateUnit(prev, unitId, unit => {
+        // Defensive guard — the UI already blocks this via ConfirmDeleteModal's `blocked` state,
+        // but never allow a non-empty unit to be deleted even if called directly.
+        if (unit.members.length > 0 || unit.units.length > 0) return unit;
+        return null;
+      });
       return updated ?? prev;
     });
   };

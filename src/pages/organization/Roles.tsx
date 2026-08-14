@@ -260,6 +260,10 @@ export default function Roles() {
         </button>
       </div>
 
+      <div className="rounded-xl border border-border bg-surface-muted/60 px-4 py-3 text-xs text-muted-foreground leading-relaxed">
+        Vai trò định nghĩa tập quyền (permission), nhưng quyền đó chỉ có hiệu lực trong phạm vi <span className="font-medium text-foreground">unit mà thành viên đang thuộc về</span> — giống mô hình phân quyền theo project của Jira. Gán "Admin" cho một người ở unit Cloud Infrastructure không cho họ quyền Admin ở các unit khác.
+      </div>
+
       <Card>
         <div className="divide-y divide-border -mx-1">
           {roles.map(r => (
