@@ -3,14 +3,15 @@ import { clearUser, getUser } from "@/lib/onboarding";
 import {
   Home, MessageSquare, Bot, BookOpen, Settings, Plug,
   Puzzle, ChevronsLeft, ChevronsRight, Search, Bell, Plus,
-  ChevronRight, LifeBuoy, KeyRound, LogOut, User, ChevronDown,
+  ChevronRight, LifeBuoy, KeyRound, LogOut, User, ChevronDown, ChevronsUpDown,
   Check, Building2, PlusCircle, Sparkles, Shield, FileText, Rocket,
-  Lock, ArrowLeft, Network, Users,
+  Lock, Network, Users, AlertTriangle,
 } from "lucide-react";
 
 const APP_VERSION = "0.58.5";
 import { useState } from "react";
 import fptAiLogo from "@/assets/fpt-ai-logo.png";
+import { useConflicts } from "@/pages/organization/conflictsStore";
 
 type Tenant = { id: string; name: string; plan: string; initial: string };
 const TENANTS: Tenant[] = [
@@ -53,7 +54,7 @@ const utilityItems: Item[] = [
   { to: "/help", label: "Help Center", icon: LifeBuoy },
 ];
 
-const orgItems: Item[] = [
+const orgItemsBase: Item[] = [
   { to: "/organization/structure", label: "Cấu trúc tổ chức", icon: Network },
   { to: "/organization/members", label: "Thành viên", icon: Users },
   { to: "/organization/roles", label: "Vai trò", icon: Shield },
@@ -65,9 +66,24 @@ export default function WorkspaceLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [open, setOpen] = useState<Record<string, boolean>>({ build: true, workspace: true });
   const [userMenu, setUserMenu] = useState(false);
+  const [orgSwitcherOpen, setOrgSwitcherOpen] = useState(false);
+  const [tenantId, setTenantId] = useState(TENANTS[0].id);
+  const currentTenant = TENANTS.find(t => t.id === tenantId) ?? TENANTS[0];
   const userEmail = getUser()?.email || "tran.nam@fpt.com";
   const loc = useLocation();
   const navigate = useNavigate();
+  const { conflicts } = useConflicts();
+  const openConflictCount = conflicts.filter(c => c.status === "open").length;
+  const orgItems: Item[] = [
+    ...orgItemsBase.slice(0, 3),
+    {
+      to: "/organization/conflicts",
+      label: "Xung đột đồng bộ",
+      icon: AlertTriangle,
+      badge: openConflictCount > 0 ? String(openConflictCount) : undefined,
+    },
+    ...orgItemsBase.slice(3),
+  ];
   const inAgentBuilder = loc.pathname.startsWith("/agents/");
   const inOrganization = loc.pathname.startsWith("/organization");
   const handleSignOut = () => {
@@ -86,7 +102,7 @@ export default function WorkspaceLayout() {
   }
 
   const BREADCRUMB_LABELS: Record<string, string> = { tools: "Skills" };
-  const ORG_BREADCRUMB_LABELS: Record<string, string> = { "": "Thông tin chung", structure: "Cấu trúc tổ chức", members: "Thành viên", permissions: "Quyền hạn", roles: "Vai trò" };
+  const ORG_BREADCRUMB_LABELS: Record<string, string> = { "": "Thông tin chung", structure: "Cấu trúc tổ chức", members: "Thành viên", permissions: "Quyền hạn", roles: "Vai trò", conflicts: "Xung đột đồng bộ" };
   let breadcrumbLabel: string;
   if (inOrganization) {
     const sub = loc.pathname.replace(/^\/organization\/?/, "");
@@ -127,9 +143,6 @@ export default function WorkspaceLayout() {
         {/* Nav */}
         {inOrganization ? (
           <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
-            <div className="space-y-1 mb-3">
-              <NavRow item={{ to: "/", label: "Quay lại workspace", icon: ArrowLeft }} collapsed={collapsed} />
-            </div>
             <div className="space-y-1">
               {orgItems.map(it => (
                 <NavRow key={it.to} item={it} collapsed={collapsed} />
@@ -168,7 +181,7 @@ export default function WorkspaceLayout() {
         {/* User */}
         <div className="p-2.5 shrink-0 relative">
           {userMenu && !collapsed && (
-            <div className="absolute bottom-full left-2 right-2 mb-2 bg-surface rounded-xl overflow-hidden ring-1 ring-border shadow-xl">
+            <div className="absolute bottom-full left-2 right-2 mb-2 bg-surface rounded-xl ring-1 ring-border shadow-xl overflow-visible [&>*:first-child]:rounded-t-xl [&>*:last-child]:rounded-b-xl">
               {/* Identity */}
               <div className="px-3 py-3 flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-full bg-primary-soft flex items-center justify-center text-xs font-semibold text-primary shrink-0">
@@ -182,13 +195,53 @@ export default function WorkspaceLayout() {
               <div className="border-t border-border" />
 
               {/* Menu items */}
-              <NavLink
-                to="/organization/structure"
-                onClick={() => setUserMenu(false)}
-                className="flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-surface-muted transition-base"
+              <div
+                className="relative"
+                onBlur={e => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) setOrgSwitcherOpen(false);
+                }}
               >
-                <Building2 size={14} className="text-muted-foreground" /> Manage organization
-              </NavLink>
+                <button
+                  type="button"
+                  onClick={() => setOrgSwitcherOpen(v => !v)}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-surface-muted transition-base"
+                >
+                  <Building2 size={14} className="text-muted-foreground shrink-0" />
+                  <span className="flex-1 min-w-0 text-left truncate">{currentTenant.name}</span>
+                  <ChevronRight size={12} className="text-muted-foreground shrink-0" />
+                </button>
+                {orgSwitcherOpen && (
+                  <div className="absolute left-full top-0 ml-2 w-64 bg-surface rounded-xl overflow-hidden ring-1 ring-border shadow-xl z-50">
+                    <div className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <Building2 size={11} /> Chọn tổ chức
+                    </div>
+                    <div className="px-1.5 pb-1.5 space-y-0.5">
+                      {TENANTS.map(t => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => {
+                            setTenantId(t.id);
+                            setUserMenu(false);
+                            setOrgSwitcherOpen(false);
+                            navigate("/organization/structure");
+                          }}
+                          className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-surface-muted transition-base text-left"
+                        >
+                          <div className="w-7 h-7 rounded-lg bg-primary-soft text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
+                            {t.initial}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-semibold text-foreground truncate">{t.name}</div>
+                            <div className="text-[10px] text-muted-foreground truncate">{t.plan}</div>
+                          </div>
+                          {t.id === tenantId && <Check size={13} className="text-primary shrink-0" />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
               <NavLink
                 to="/api-keys"
                 onClick={() => setUserMenu(false)}
@@ -227,7 +280,7 @@ export default function WorkspaceLayout() {
             </div>
           )}
           <button
-            onClick={() => setUserMenu(v => !v)}
+            onClick={() => { setUserMenu(v => !v); setOrgSwitcherOpen(false); }}
             className="w-full flex items-center gap-2.5 px-1.5 py-1 rounded-md hover:bg-surface-muted transition-base"
           >
             <div className="w-8 h-8 rounded-full bg-primary-soft flex items-center justify-center text-xs font-semibold text-primary shrink-0">
@@ -268,7 +321,7 @@ export default function WorkspaceLayout() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-14 border-b border-border bg-surface flex items-center px-6 gap-4 shrink-0">
           <div className="flex items-center gap-2 text-sm">
-            <TenantSwitcher />
+            <TenantSwitcher tenantId={tenantId} onChange={setTenantId} />
             <span className="text-muted-foreground">/</span>
             <span className="font-medium text-foreground capitalize">{breadcrumbLabel}</span>
           </div>
@@ -287,7 +340,7 @@ type AppOption = { key: "workspace" | "organization"; label: string; short: stri
 
 const APP_OPTIONS: AppOption[] = [
   { key: "workspace", label: "Agent Studio", short: "Agent Studio", desc: "Build and manage agents, knowledge, skills & connectors", icon: Bot, to: "/" },
-  { key: "organization", label: "Quản lý tổ chức", short: "Tổ chức", desc: "Quản lý cấu trúc, thành viên, vai trò & quyền hạn", icon: Building2, to: "/organization/structure" },
+  { key: "organization", label: "Quản lý tổ chức", short: "Quản lý tổ chức", desc: "Quản lý cấu trúc, thành viên, vai trò & quyền hạn", icon: Building2, to: "/organization/structure" },
 ];
 
 function AppSwitcher({ collapsed, inOrganization }: { collapsed: boolean; inOrganization: boolean }) {
@@ -300,17 +353,17 @@ function AppSwitcher({ collapsed, inOrganization }: { collapsed: boolean; inOrga
         onClick={() => setOpen(v => !v)}
         title={collapsed ? active.label : undefined}
         aria-label={collapsed ? `${active.label}, switch app` : undefined}
-        className={`w-full flex items-center gap-2.5 rounded-xl bg-sidebar-accent/50 hover:bg-sidebar-accent ring-1 ring-transparent hover:ring-sidebar-border transition-base cursor-pointer ${
+        className={`w-full flex items-center gap-2.5 rounded-2xl bg-white border border-border shadow-soft hover:bg-surface-muted transition-base cursor-pointer ${
           collapsed ? "justify-center p-1.5" : "px-2.5 py-2"
         }`}
       >
-        <div className="w-7 h-7 rounded-lg bg-primary-soft text-primary flex items-center justify-center shrink-0">
-          <active.icon size={14} />
+        <div className="w-9 h-9 rounded-xl bg-gradient-brand flex items-center justify-center shrink-0 shadow-soft">
+          <active.icon size={16} className="text-primary-foreground" />
         </div>
         {!collapsed && (
           <>
             <span className="flex-1 min-w-0 text-left text-sm font-semibold text-foreground truncate">{active.short}</span>
-            <ChevronDown size={13} className={`text-muted-foreground transition-base shrink-0 ${open ? "rotate-180" : ""}`} />
+            <ChevronsUpDown size={14} className="text-muted-foreground shrink-0" />
           </>
         )}
       </button>
@@ -352,9 +405,8 @@ function AppSwitcher({ collapsed, inOrganization }: { collapsed: boolean; inOrga
 }
 
 /* ============ Tenant switcher (relocated to header) ============ */
-function TenantSwitcher() {
+function TenantSwitcher({ tenantId, onChange }: { tenantId: string; onChange: (id: string) => void }) {
   const [open, setOpen] = useState(false);
-  const [tenantId, setTenantId] = useState(TENANTS[0].id);
   const tenant = TENANTS.find(t => t.id === tenantId) ?? TENANTS[0];
 
   return (
@@ -379,7 +431,7 @@ function TenantSwitcher() {
             {TENANTS.map(t => (
               <button
                 key={t.id}
-                onClick={() => { setTenantId(t.id); setOpen(false); }}
+                onClick={() => { onChange(t.id); setOpen(false); }}
                 className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-surface-muted transition-base text-left"
               >
                 <div className="w-7 h-7 rounded-lg bg-primary-soft text-primary flex items-center justify-center text-[10px] font-bold shrink-0">

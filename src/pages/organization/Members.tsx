@@ -11,6 +11,9 @@ function unitNameFor(tree: OrgUnit, memberId: string): string {
   return unit ? unit.name : "Chưa có unit";
 }
 
+/** Every member always has a role — this is the implicit one when none was explicitly set. */
+const DEFAULT_ROLE_ID = "viewer";
+
 /* ─── Role color palette — local to Members, doesn't touch RoleDef ─────── */
 const SEED_ROLE_CHIP: Record<string, string> = {
   admin: "chip-primary",
@@ -187,13 +190,13 @@ function FilterChip({
   );
 }
 
-/* ─── Per-row role cell (click to assign/reassign/unassign directly) ───── */
+/* ─── Per-row role cell (click to reassign directly — every member always has a role) ───── */
 function RoleCell({
   memberId, memberName, currentRoleId, roles, onAssign,
 }: {
   memberId: string;
   memberName: string;
-  currentRoleId: string | undefined;
+  currentRoleId: string;
   roles: RoleDef[];
   onAssign: (memberId: string, roleId: string | undefined) => void;
 }) {
@@ -211,23 +214,13 @@ function RoleCell({
         type="button"
         onClick={() => setOpen(v => !v)}
         aria-label={`Đổi vai trò của ${memberName}`}
-        className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-base hover:opacity-80 cursor-pointer ${
-          current ? "bg-primary-soft text-primary" : "bg-surface-muted text-muted-foreground border border-dashed border-border"
-        }`}
+        className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-base hover:opacity-80 cursor-pointer bg-primary-soft text-primary"
       >
-        {current ? current.name : "Chưa gán"}
+        {current?.name ?? currentRoleId}
         <ChevronDown size={11} className={`transition-base ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
         <div className="absolute left-0 top-[calc(100%+4px)] w-48 bg-surface rounded-xl ring-1 ring-border shadow-xl z-20 p-1">
-          <button
-            type="button"
-            onClick={() => { onAssign(memberId, undefined); setOpen(false); }}
-            className={`w-full flex items-center justify-between gap-2 text-left px-3 py-2 rounded-lg text-sm transition-base hover:bg-surface-muted ${!current ? "text-primary font-medium bg-primary-soft" : "text-foreground"}`}
-          >
-            Chưa gán
-            {!current && <Check size={13} className="text-primary shrink-0" />}
-          </button>
           {roles.map(r => (
             <button
               key={r.id}
@@ -258,8 +251,8 @@ function AddUserToRoleModal({
   const allMembers = useMemo(() => collectMembers(tree), [tree]);
   const roleIds = new Set(roles.map(r => r.id));
   const currentRoleNameOf = (memberId: string): string | null => {
-    const rid = allMembers.find(m => m.id === memberId)?.roleId;
-    if (!rid || !roleIds.has(rid)) return null;
+    const raw = allMembers.find(m => m.id === memberId)?.roleId;
+    const rid = raw && roleIds.has(raw) ? raw : DEFAULT_ROLE_ID;
     return roles.find(r => r.id === rid)?.name ?? null;
   };
 
@@ -436,7 +429,7 @@ export default function Members() {
   const PAGE_SIZE = 24;
 
   const roleIds = new Set(roles.map(r => r.id));
-  const roleSections = [...roles.map(r => ({ id: r.id, name: r.name })), { id: "unassigned", name: "Chưa gán" }];
+  const roleSections = roles.map(r => ({ id: r.id, name: r.name }));
   const selectedUnit = findUnit(tree, selectedUnitId) ?? tree;
 
   useEffect(() => { setPage(1); }, [selectedUnitId, scope, roleFilter, query]);
@@ -447,7 +440,7 @@ export default function Members() {
     .filter(m => {
       if (roleFilter === "all") return true;
       const rid = m.roleId;
-      const effective = rid && roleIds.has(rid) ? rid : "unassigned";
+      const effective = rid && roleIds.has(rid) ? rid : DEFAULT_ROLE_ID;
       return effective === roleFilter;
     })
     .filter(m => {
@@ -506,7 +499,7 @@ export default function Members() {
               </div>
               <div className="divide-y divide-border">
                 {shownMembers.map(m => {
-                  const currentRoleId = m.roleId && roleIds.has(m.roleId) ? m.roleId : undefined;
+                  const currentRoleId = m.roleId && roleIds.has(m.roleId) ? m.roleId : DEFAULT_ROLE_ID;
                   const unitName = findMemberUnit(tree, m.id)?.name ?? "—";
                   return (
                     <div key={m.id} className="grid grid-cols-[1fr,200px,160px] gap-3 px-4 py-3 items-center hover:bg-surface-muted/50 transition-base">
@@ -515,7 +508,12 @@ export default function Members() {
                           {m.initials}
                         </div>
                         <div className="min-w-0">
-                          <div className="text-sm font-medium truncate">{m.name}</div>
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="text-sm font-medium truncate">{m.name}</span>
+                            {m.inactive && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive-soft text-destructive font-medium shrink-0">Inactive</span>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <div className="text-xs text-muted-foreground truncate" title={unitName}>{unitName}</div>
