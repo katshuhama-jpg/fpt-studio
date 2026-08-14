@@ -68,6 +68,7 @@ export default function WorkspaceLayout() {
   const [userMenu, setUserMenu] = useState(false);
   const [orgSwitcherOpen, setOrgSwitcherOpen] = useState(false);
   const [tenantId, setTenantId] = useState(TENANTS[0].id);
+  const currentTenant = TENANTS.find(t => t.id === tenantId) ?? TENANTS[0];
   const userEmail = getUser()?.email || "tran.nam@fpt.com";
   const loc = useLocation();
   const navigate = useNavigate();
@@ -180,7 +181,7 @@ export default function WorkspaceLayout() {
         {/* User */}
         <div className="p-2.5 shrink-0 relative">
           {userMenu && !collapsed && (
-            <div className="absolute bottom-full left-2 right-2 mb-2 bg-surface rounded-xl overflow-hidden ring-1 ring-border shadow-xl">
+            <div className="absolute bottom-full left-2 right-2 mb-2 bg-surface rounded-xl ring-1 ring-border shadow-xl overflow-visible [&>*:first-child]:rounded-t-xl [&>*:last-child]:rounded-b-xl">
               {/* Identity */}
               <div className="px-3 py-3 flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-full bg-primary-soft flex items-center justify-center text-xs font-semibold text-primary shrink-0">
@@ -194,37 +195,50 @@ export default function WorkspaceLayout() {
               <div className="border-t border-border" />
 
               {/* Menu items */}
-              <div>
+              <div
+                className="relative"
+                onBlur={e => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) setOrgSwitcherOpen(false);
+                }}
+              >
                 <button
                   type="button"
                   onClick={() => setOrgSwitcherOpen(v => !v)}
                   className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-surface-muted transition-base"
                 >
-                  <Building2 size={14} className="text-muted-foreground" />
-                  <span className="flex-1 text-left">Quản lý tổ chức</span>
-                  <ChevronDown size={12} className={`text-muted-foreground transition-base ${orgSwitcherOpen ? "rotate-180" : ""}`} />
+                  <Building2 size={14} className="text-muted-foreground shrink-0" />
+                  <span className="flex-1 min-w-0 text-left truncate">{currentTenant.name}</span>
+                  <ChevronRight size={12} className="text-muted-foreground shrink-0" />
                 </button>
                 {orgSwitcherOpen && (
-                  <div className="pb-1.5">
-                    {TENANTS.map(t => (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => {
-                          setTenantId(t.id);
-                          setUserMenu(false);
-                          setOrgSwitcherOpen(false);
-                          navigate("/organization/structure");
-                        }}
-                        className="w-full flex items-center gap-2.5 pl-9 pr-3 py-2 text-sm hover:bg-surface-muted transition-base text-left"
-                      >
-                        <span className="w-5 h-5 rounded-md bg-primary-soft text-primary flex items-center justify-center text-[9px] font-bold shrink-0">
-                          {t.initial}
-                        </span>
-                        <span className="flex-1 min-w-0 truncate">{t.name}</span>
-                        {t.id === tenantId && <Check size={13} className="text-primary shrink-0" />}
-                      </button>
-                    ))}
+                  <div className="absolute left-full top-0 ml-2 w-64 bg-surface rounded-xl overflow-hidden ring-1 ring-border shadow-xl z-50">
+                    <div className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <Building2 size={11} /> Chọn tổ chức
+                    </div>
+                    <div className="px-1.5 pb-1.5 space-y-0.5">
+                      {TENANTS.map(t => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => {
+                            setTenantId(t.id);
+                            setUserMenu(false);
+                            setOrgSwitcherOpen(false);
+                            navigate("/organization/structure");
+                          }}
+                          className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-surface-muted transition-base text-left"
+                        >
+                          <div className="w-7 h-7 rounded-lg bg-primary-soft text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
+                            {t.initial}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-semibold text-foreground truncate">{t.name}</div>
+                            <div className="text-[10px] text-muted-foreground truncate">{t.plan}</div>
+                          </div>
+                          {t.id === tenantId && <Check size={13} className="text-primary shrink-0" />}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -326,7 +340,7 @@ type AppOption = { key: "workspace" | "organization"; label: string; short: stri
 
 const APP_OPTIONS: AppOption[] = [
   { key: "workspace", label: "Agent Studio", short: "Agent Studio", desc: "Build and manage agents, knowledge, skills & connectors", icon: Bot, to: "/" },
-  { key: "organization", label: "Quản lý tổ chức", short: "Quản lý", desc: "Quản lý cấu trúc, thành viên, vai trò & quyền hạn", icon: Building2, to: "/organization/structure" },
+  { key: "organization", label: "Quản lý tổ chức", short: "Quản lý tổ chức", desc: "Quản lý cấu trúc, thành viên, vai trò & quyền hạn", icon: Building2, to: "/organization/structure" },
 ];
 
 function AppSwitcher({ collapsed, inOrganization }: { collapsed: boolean; inOrganization: boolean }) {
