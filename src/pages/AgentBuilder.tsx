@@ -2,7 +2,7 @@ import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { createPortal } from "react-dom";
 
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, BookOpen01Icon, Cancel01Icon, BoltIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, Wrench01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
+import { Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, BookOpen01Icon, Cancel01Icon, BoltIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, UserMultipleIcon, TextBoldIcon, TextItalicIcon, TextStrikethroughIcon, Heading01Icon, Heading02Icon, LeftToRightListBulletIcon, LeftToRightListNumberIcon, CodeIcon, Copy01Icon, SourceCodeIcon, Wrench01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
 import { useEffect, useRef, useState } from "react";
 import AgentToolsTab from "@/components/tool-builder/AgentToolsTab";
 import TasksGrid from "@/components/tasks/TasksGrid";
@@ -28,7 +28,7 @@ const developNav = [
   { id: "guardrails",   label: "Guardrails",     icon: Shield01Icon,    status: "warn" },
   { id: "knowledge",    label: "Knowledge",      icon: NoteIcon,        comingSoon: true },
   { id: "triggers",     label: "Triggers",       icon: TimeScheduleIcon, comingSoon: true },
-  { id: "sub-agents",   label: "Sub-Agents",     icon: UserCircleIcon,    comingSoon: true },
+  { id: "sub-agents",   label: "Sub-Agents",     icon: UserMultipleIcon,    comingSoon: true },
 ];
 
 const monitorNav = [
@@ -1418,18 +1418,40 @@ function GuardrailsConfigSection() {
 
 
 /* ============ NEW CONFIGURATION PANEL (right side) ============ */
+function EmptyStateBox({ icon, description, addLabel, onAdd }: {
+  icon: any; description: string; addLabel?: string; onAdd?: (e: React.MouseEvent<HTMLButtonElement>) => void;
+}) {
+  return (
+    <div className="rounded-xl border-2 border-dashed border-border flex flex-col items-center justify-center gap-2 py-6 px-4 text-center">
+      <HugeiconsIcon icon={icon} size={22} className="text-muted-foreground/50" />
+      <p className="text-xs text-muted-foreground max-w-[240px] leading-relaxed">{description}</p>
+      {addLabel && (
+        <button
+          onClick={onAdd}
+          className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+        >
+          <HugeiconsIcon icon={Add01Icon} size={12} /> {addLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange: (id: string) => void }) {
   const [open, setOpen] = useState<Record<string, boolean>>({ connectors: true, skills: true, guardrails: true });
   const guardrailsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
   const skillsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
+  const subAgentsAddRef = useRef<(() => void) | null>(null);
 
   const sections = [
     {
       id: "connectors", icon: ConnectIcon, label: "Connectors",
       content: (
-        <div className="py-1">
-          <p className="text-xs text-muted-foreground mb-2">The outside accounts and systems this agent may use.</p>
-        </div>
+        <EmptyStateBox
+          icon={ConnectIcon}
+          description="The outside accounts and systems this agent may use."
+          addLabel="Add Connectors"
+        />
       ),
     },
     {
@@ -1448,7 +1470,13 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
     },
     { id: "knowledge",  icon: NoteIcon,         label: "Knowledge", comingSoon: true },
     { id: "triggers",   icon: TimeScheduleIcon, label: "Triggers",  comingSoon: true },
-    { id: "sub-agents", icon: UserCircleIcon, label: "Sub-Agents", comingSoon: true },
+    {
+      id: "sub-agents", icon: UserMultipleIcon, label: "Sub-Agents",
+      onAdd: () => subAgentsAddRef.current?.(),
+      content: (
+        <SubAgentsInner onRegisterAdd={(fn) => { subAgentsAddRef.current = fn; }} />
+      ),
+    },
   ];
 
   return (
@@ -2370,10 +2398,16 @@ function SkillsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:number;
   return (
     <>
       {skills.length === 0 ? (
-        <div className="flex flex-col items-center py-3 gap-1.5 text-center">
-          <HugeiconsIcon icon={PuzzleIcon} size={20} className="text-muted-foreground/50" />
-          <p className="text-xs text-muted-foreground">Reusable abilities you've taught it.</p>
-        </div>
+        <EmptyStateBox
+          icon={PuzzleIcon}
+          description="Reusable abilities you've taught it."
+          addLabel="Add Skill"
+          onAdd={e => {
+            const r = e.currentTarget.getBoundingClientRect();
+            setMenuPos({ top: r.bottom + 4, left: r.right });
+            setShowMenu(true);
+          }}
+        />
       ) : (
         <div className="flex flex-col gap-1.5">
           {skills.map(s => (
@@ -2431,6 +2465,329 @@ function SkillsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:number;
           onClose={() => setShowWsModal(false)}
           onAdd={handleAddWs}
           added={wsAdded}
+        />
+      )}
+    </>
+  );
+}
+
+/* ============ Sub-Agents ============ */
+const SUB_AGENT_CONNECTORS = [
+  { id: "gmail",   name: "Gmail",        logo: "G" },
+  { id: "slack",   name: "Slack",        logo: "S" },
+  { id: "drive",   name: "Google Drive", logo: "D" },
+  { id: "sheets",  name: "Sheets",       logo: "Sh" },
+  { id: "notion",  name: "Notion",       logo: "N" },
+  { id: "hubspot", name: "HubSpot",      logo: "H" },
+];
+
+interface SubAgent {
+  id: number;
+  name: string;
+  description: string;
+  model: string;
+  instructions: string;
+  skillIds: number[];
+  connectorIds: string[];
+}
+
+function InstructionsEditorModal({ value, onClose, onDone }: {
+  value: string;
+  onClose: () => void;
+  onDone: (v: string) => void;
+}) {
+  const [text, setText] = useState(value);
+  const [viewMode, setViewMode] = useState<"preview" | "source">("source");
+  const editorRef = useRef<HTMLTextAreaElement>(null);
+
+  const wrapSelection = (before: string, after: string = before) => {
+    const el = editorRef.current;
+    if (!el) return;
+    const { selectionStart: s, selectionEnd: e } = el;
+    const next = text.slice(0, s) + before + text.slice(s, e) + after + text.slice(e);
+    setText(next);
+    requestAnimationFrame(() => { el.focus(); el.setSelectionRange(s + before.length, e + before.length); });
+  };
+
+  const prependLine = (prefix: string) => {
+    const el = editorRef.current;
+    if (!el) return;
+    const s = el.selectionStart;
+    const lineStart = text.lastIndexOf("\n", s - 1) + 1;
+    const next = text.slice(0, lineStart) + prefix + text.slice(lineStart);
+    setText(next);
+    requestAnimationFrame(() => { el.focus(); el.setSelectionRange(s + prefix.length, s + prefix.length); });
+  };
+
+  return createPortal(
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-2xl bg-white rounded-2xl shadow-lg border border-border flex flex-col animate-fade-up overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 shrink-0">
+          <h2 className="text-base font-semibold">Instructions</h2>
+          <button
+            onClick={() => { onDone(text); onClose(); }}
+            className="h-8 px-3 rounded-lg text-sm font-medium hover:bg-surface-muted transition-base"
+          >
+            Done
+          </button>
+        </div>
+
+        {/* Toolbar */}
+        <div className="flex items-center gap-0.5 px-3 py-2 border-y border-border bg-surface-muted/60 shrink-0">
+          <button onClick={() => wrapSelection("**")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Bold"><HugeiconsIcon icon={TextBoldIcon} size={14} /></button>
+          <button onClick={() => wrapSelection("*")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Italic"><HugeiconsIcon icon={TextItalicIcon} size={14} /></button>
+          <button onClick={() => wrapSelection("~~")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Strikethrough"><HugeiconsIcon icon={TextStrikethroughIcon} size={14} /></button>
+          <div className="w-px h-4 bg-border mx-1" />
+          <button onClick={() => prependLine("# ")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Heading 1"><HugeiconsIcon icon={Heading01Icon} size={14} /></button>
+          <button onClick={() => prependLine("## ")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Heading 2"><HugeiconsIcon icon={Heading02Icon} size={14} /></button>
+          <div className="w-px h-4 bg-border mx-1" />
+          <button onClick={() => prependLine("- ")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Bullet list"><HugeiconsIcon icon={LeftToRightListBulletIcon} size={14} /></button>
+          <button onClick={() => prependLine("1. ")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Numbered list"><HugeiconsIcon icon={LeftToRightListNumberIcon} size={14} /></button>
+          <div className="w-px h-4 bg-border mx-1" />
+          <button onClick={() => wrapSelection("`")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Inline code"><HugeiconsIcon icon={CodeIcon} size={14} /></button>
+          <button onClick={() => wrapSelection("```\n", "\n```")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Code block"><HugeiconsIcon icon={SourceCodeIcon} size={14} /></button>
+
+          <div className="flex-1" />
+
+          <button onClick={() => navigator.clipboard?.writeText(text)} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Copy"><HugeiconsIcon icon={Copy01Icon} size={14} /></button>
+          <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-surface border border-border ml-1.5">
+            <button
+              onClick={() => setViewMode("preview")}
+              className={`flex items-center gap-1.5 h-6 px-2.5 rounded-md text-xs font-medium transition-base ${viewMode === "preview" ? "bg-surface-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <HugeiconsIcon icon={EyeIcon} size={12} /> Preview
+            </button>
+            <button
+              onClick={() => setViewMode("source")}
+              className={`flex items-center gap-1.5 h-6 px-2.5 rounded-md text-xs font-medium transition-base ${viewMode === "source" ? "bg-surface-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <HugeiconsIcon icon={SourceCodeIcon} size={12} /> Source
+            </button>
+          </div>
+        </div>
+
+        {/* Content — fixed height, scrolls when overflowing */}
+        <div className="overflow-y-auto px-5 py-4" style={{ height: "360px" }}>
+          {viewMode === "preview" ? (
+            <div className="text-sm">{renderMarkdown(text || "*Nothing to preview yet.*")}</div>
+          ) : (
+            <textarea
+              ref={editorRef}
+              value={text}
+              onChange={e => setText(e.target.value)}
+              placeholder={"# Sub-agent instructions\n\nDescribe what this sub-agent does, its tone, and its limits…"}
+              className="w-full h-full resize-none bg-transparent outline-none text-sm font-mono leading-relaxed text-foreground"
+              spellCheck={false}
+            />
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function CreateSubAgentModal({ onClose, onSave }: {
+  onClose: () => void;
+  onSave: (agent: Omit<SubAgent, "id">) => void;
+}) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [model, setModel] = useState("deepseek-v4-flash");
+  const [instructions, setInstructions] = useState("");
+  const [showInstructionsEditor, setShowInstructionsEditor] = useState(false);
+  const [skillIds, setSkillIds] = useState<number[]>([]);
+  const [connectorIds, setConnectorIds] = useState<string[]>([]);
+
+  const toggleSkill = (id: number) => setSkillIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const toggleConnector = (id: string) => setConnectorIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
+  const canSave = name.trim().length > 0;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-xl bg-white rounded-2xl shadow-lg border border-border flex flex-col max-h-[88vh] animate-fade-up">
+        {/* Header */}
+        <div className="flex items-start justify-between px-6 pt-6 pb-4 shrink-0 border-b border-border">
+          <div>
+            <h2 className="text-lg font-semibold">Create sub-agent</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">A specialized agent this agent can delegate tasks to.</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 mt-0.5">
+            <HugeiconsIcon icon={Cancel01Icon} size={16} />
+          </button>
+        </div>
+
+        {/* Form */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+          <div>
+            <label className="text-xs font-semibold text-foreground mb-1.5 block">Name</label>
+            <input
+              autoFocus
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="e.g. candidate-email-sender"
+              className="ds-input w-full"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-foreground mb-1.5 block">Description</label>
+            <input
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              placeholder="Use when sending recruiting emails…"
+              className="ds-input w-full"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-foreground mb-1.5 block">Model</label>
+            <ModelDropdown value={model} onChange={setModel} />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-semibold text-foreground">Instructions (agent.md)</label>
+              <button
+                type="button"
+                onClick={() => setShowInstructionsEditor(true)}
+                className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+              >
+                <HugeiconsIcon icon={Edit01Icon} size={12} /> Edit
+              </button>
+            </div>
+            <textarea
+              value={instructions}
+              onChange={e => setInstructions(e.target.value)}
+              onClick={() => setShowInstructionsEditor(true)}
+              readOnly
+              placeholder={"# Sub-agent instructions\n\nDescribe what this sub-agent does, its tone, and its limits…"}
+              rows={6}
+              className="ds-input w-full resize-none font-mono text-xs leading-relaxed cursor-pointer bg-surface-muted/40"
+            />
+          </div>
+
+          {showInstructionsEditor && (
+            <InstructionsEditorModal
+              value={instructions}
+              onClose={() => setShowInstructionsEditor(false)}
+              onDone={v => setInstructions(v)}
+            />
+          )}
+
+          <div>
+            <label className="text-xs font-semibold text-foreground mb-1.5 block">Skills</label>
+            <div className="flex flex-wrap gap-1.5">
+              {WS_SKILLS.map(s => {
+                const active = skillIds.includes(s.id);
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => toggleSkill(s.id)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-base ${
+                      active ? "border-primary bg-primary-soft text-primary" : "border-border bg-surface hover:bg-surface-muted text-foreground"
+                    }`}
+                  >
+                    <HugeiconsIcon icon={PuzzleIcon} size={12} />
+                    {s.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-foreground mb-1.5 block">Connectors</label>
+            <div className="flex flex-wrap gap-1.5">
+              {SUB_AGENT_CONNECTORS.map(c => {
+                const active = connectorIds.includes(c.id);
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => toggleConnector(c.id)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-base ${
+                      active ? "border-primary bg-primary-soft text-primary" : "border-border bg-surface hover:bg-surface-muted text-foreground"
+                    }`}
+                  >
+                    <span className="w-4 h-4 rounded bg-surface-muted border border-border flex items-center justify-center text-[9px] font-bold shrink-0">{c.logo}</span>
+                    {c.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border shrink-0">
+          <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">Cancel</button>
+          <button
+            disabled={!canSave}
+            onClick={() => {
+              if (!canSave) return;
+              onSave({ name: name.trim(), description: description.trim(), model, instructions, skillIds, connectorIds });
+              onClose();
+            }}
+            className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-base"
+          >
+            Create sub-agent
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function SubAgentsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => void) => void } = {}) {
+  const [subAgents, setSubAgents] = useState<SubAgent[]>([]);
+  const [showCreate, setShowCreate] = useState(false);
+
+  useEffect(() => {
+    onRegisterAdd?.(() => setShowCreate(true));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <>
+      {subAgents.length === 0 ? (
+        <EmptyStateBox
+          icon={UserMultipleIcon}
+          description="Specialized agents this agent can delegate to."
+          addLabel="Add Sub-Agent"
+          onAdd={() => setShowCreate(true)}
+        />
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          {subAgents.map(a => (
+            <div key={a.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base">
+              <div className="w-6 h-6 rounded-lg bg-surface-muted border border-border flex items-center justify-center shrink-0">
+                <HugeiconsIcon icon={UserMultipleIcon} size={12} className="text-muted-foreground" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium truncate">{a.name}</p>
+                {a.description && <p className="text-[11px] text-muted-foreground truncate">{a.description}</p>}
+              </div>
+              <button
+                onClick={() => setSubAgents(prev => prev.filter(x => x.id !== a.id))}
+                className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-surface-muted transition-base shrink-0"
+              >
+                <HugeiconsIcon icon={Delete01Icon} size={12} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showCreate && (
+        <CreateSubAgentModal
+          onClose={() => setShowCreate(false)}
+          onSave={data => setSubAgents(prev => [...prev, { ...data, id: Date.now() }])}
         />
       )}
     </>
@@ -2502,7 +2859,20 @@ function GuardrailsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:num
   return (
     <>
       <div>
-        <p className="text-xs text-muted-foreground mb-3 leading-relaxed">Boundaries that keep your agent acting safely.</p>
+        {totalActive === 0 ? (
+          <EmptyStateBox
+            icon={Shield01Icon}
+            description="Boundaries that keep your agent acting safely."
+            addLabel="Add Guardrails"
+            onAdd={e => {
+              const r = e.currentTarget.getBoundingClientRect();
+              setMenuPos({ top: r.bottom + 4, left: r.right });
+              setShowMenu(true);
+            }}
+          />
+        ) : (
+          <p className="text-xs text-muted-foreground mb-3 leading-relaxed">Boundaries that keep your agent acting safely.</p>
+        )}
 
         {(wsAddedList.length > 0 || agentGuardrails.length > 0) && (
           <div className="space-y-1 mb-3">
