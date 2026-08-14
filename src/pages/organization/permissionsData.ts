@@ -33,9 +33,9 @@ export const featureGroups: FeatureGroup[] = [
       label,
       icon,
       permissions: [
-        { id: `${id}.publish`, name: `Publish ${thing}`, desc: `Make a personal ${singular} available to the whole workspace, or share it with specific teammates.` },
-        { id: `${id}.manage`, name: `Manage ${thing}`, desc: `Edit the configuration of a live ${singular} in the workspace.` },
-        { id: `${id}.delete`, name: `Delete ${thing}`, desc: `Permanently delete a live ${singular} from the workspace.` },
+        { id: `${id}.publish`, name: `Publish ${thing}`, desc: `Cho phép chia sẻ một ${singular} cá nhân với toàn bộ workspace, hoặc với thành viên cụ thể.` },
+        { id: `${id}.manage`, name: `Manage ${thing}`, desc: `Chỉnh sửa cấu hình của một ${singular} đang hoạt động trong workspace.` },
+        { id: `${id}.delete`, name: `Delete ${thing}`, desc: `Xóa vĩnh viễn một ${singular} đang hoạt động khỏi workspace.` },
       ],
     };
   }),
