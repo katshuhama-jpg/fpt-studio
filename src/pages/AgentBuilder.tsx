@@ -2,7 +2,7 @@ import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { createPortal } from "react-dom";
 
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, BookOpen01Icon, Cancel01Icon, BoltIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, Wrench01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
+import { Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, BookOpen01Icon, Cancel01Icon, BoltIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, CrowdfundingIcon, Wrench01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
 import { useEffect, useRef, useState } from "react";
 import AgentToolsTab from "@/components/tool-builder/AgentToolsTab";
 import TasksGrid from "@/components/tasks/TasksGrid";
@@ -28,7 +28,7 @@ const developNav = [
   { id: "guardrails",   label: "Guardrails",     icon: Shield01Icon,    status: "warn" },
   { id: "knowledge",    label: "Knowledge",      icon: NoteIcon,        comingSoon: true },
   { id: "triggers",     label: "Triggers",       icon: TimeScheduleIcon, comingSoon: true },
-  { id: "sub-agents",   label: "Sub-Agents",     icon: UserCircleIcon,    comingSoon: true },
+  { id: "sub-agents",   label: "Sub-Agents",     icon: CrowdfundingIcon,    comingSoon: true },
 ];
 
 const monitorNav = [
@@ -1471,7 +1471,7 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
     { id: "knowledge",  icon: NoteIcon,         label: "Knowledge", comingSoon: true },
     { id: "triggers",   icon: TimeScheduleIcon, label: "Triggers",  comingSoon: true },
     {
-      id: "sub-agents", icon: UserCircleIcon, label: "Sub-Agents",
+      id: "sub-agents", icon: CrowdfundingIcon, label: "Sub-Agents",
       onAdd: () => subAgentsAddRef.current?.(),
       content: (
         <SubAgentsInner onRegisterAdd={(fn) => { subAgentsAddRef.current = fn; }} />
@@ -2639,7 +2639,7 @@ function SubAgentsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => void) =>
     <>
       {subAgents.length === 0 ? (
         <EmptyStateBox
-          icon={UserCircleIcon}
+          icon={CrowdfundingIcon}
           description="Specialized agents this agent can delegate to."
           addLabel="Add Sub-Agent"
           onAdd={() => setShowCreate(true)}
@@ -2649,7 +2649,7 @@ function SubAgentsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => void) =>
           {subAgents.map(a => (
             <div key={a.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base">
               <div className="w-6 h-6 rounded-lg bg-surface-muted border border-border flex items-center justify-center shrink-0">
-                <HugeiconsIcon icon={UserCircleIcon} size={12} className="text-muted-foreground" />
+                <HugeiconsIcon icon={CrowdfundingIcon} size={12} className="text-muted-foreground" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium truncate">{a.name}</p>
