@@ -81,7 +81,38 @@ type OrgContextValue = {
   updateMember: (memberId: string, name: string, email: string, roleId?: string) => void;
   assignRole: (memberId: string, roleId: string | undefined) => void;
   removeMember: (memberId: string) => void;
+  /** Moves a member from wherever they currently sit to a different unit — used by conflict resolution ("apply Auto Sync's unit assignment"). */
+  moveMember: (memberId: string, targetUnitId: string) => void;
+  /** Marks a member Active/Inactive without removing them — used when Auto Sync no longer sees the person in the source system but an admin wants to keep the audit trail instead of hard-deleting. */
+  setMemberInactive: (memberId: string, inactive: boolean) => void;
 };
+
+/**
+ * Removes memberId from wherever it lives in the tree, returning the pruned tree
+ * plus the removed member object (or null if not found) — the counterpart to
+ * updateUnit's insert-only semantics, needed so moveMember can relocate a member
+ * across two different parents in one atomic tree rebuild.
+ */
+function removeMemberFromTree(node: OrgUnit, memberId: string): { tree: OrgUnit; removed: OrgMember | null } {
+  const direct = node.members.find(m => m.id === memberId);
+  if (direct) {
+    return { tree: { ...node, members: node.members.filter(m => m.id !== memberId) }, removed: direct };
+  }
+  let removed: OrgMember | null = null;
+  let changed = false;
+  const nextUnits = node.units.map(child => {
+    if (removed) return child;
+    const result = removeMemberFromTree(child, memberId);
+    if (result.removed) {
+      removed = result.removed;
+      changed = true;
+      return result.tree;
+    }
+    return child;
+  });
+  if (!changed) return { tree: node, removed: null };
+  return { tree: { ...node, units: nextUnits }, removed };
+}
 
 const OrgContext = createContext<OrgContextValue | null>(null);
 
@@ -156,8 +187,23 @@ export function OrgProvider({ children }: { children: ReactNode }) {
     setTree(prev => updateMemberOwner(prev, memberId, members => members.filter(m => m.id !== memberId)));
   };
 
+  const moveMember = (memberId: string, targetUnitId: string) => {
+    setTree(prev => {
+      const { tree: stripped, removed } = removeMemberFromTree(prev, memberId);
+      if (!removed) return prev;
+      const updated = updateUnit(stripped, targetUnitId, unit => ({ ...unit, members: [...unit.members, removed as OrgMember] }));
+      return updated ?? stripped;
+    });
+  };
+
+  const setMemberInactive = (memberId: string, inactive: boolean) => {
+    setTree(prev => updateMemberOwner(prev, memberId, members => members.map(m => (m.id === memberId ? { ...m, inactive } : m))));
+  };
+
   return (
-    <OrgContext.Provider value={{ tree, rootId: ROOT_ID, createUnit, renameUnit, deleteUnit, addMember, updateMember, assignRole, removeMember }}>
+    <OrgContext.Provider
+      value={{ tree, rootId: ROOT_ID, createUnit, renameUnit, deleteUnit, addMember, updateMember, assignRole, removeMember, moveMember, setMemberInactive }}
+    >
       {children}
     </OrgContext.Provider>
   );

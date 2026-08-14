@@ -41,7 +41,7 @@ function impliedOnMap(enabled: Set<string>): Map<string, string> {
 
 /* ─── Create / edit role modal ─────────────────────────────────────────── */
 function RoleModal({
-  title, initialName, initialPermissionIds, readOnly, onClose, onSave,
+  title, initialName, initialPermissionIds, readOnly, onClose, onSave, existingNames = [],
 }: {
   title: string;
   initialName?: string;
@@ -49,10 +49,14 @@ function RoleModal({
   readOnly?: boolean;
   onClose: () => void;
   onSave: (name: string, permissionIds: Set<string>) => void;
+  /** Names of other roles already in the workspace (excluding this one, if editing) — role names must be unique so admins can tell them apart when assigning. */
+  existingNames?: string[];
 }) {
   const isEdit = initialName !== undefined;
   const [name, setName] = useState(initialName ?? "");
   const [enabled, setEnabled] = useState<Set<string>>(new Set(initialPermissionIds ?? []));
+  const trimmedName = name.trim();
+  const isDuplicateName = trimmedName.length > 0 && existingNames.some(n => n.trim().toLowerCase() === trimmedName.toLowerCase());
 
   const implied = impliedOnMap(enabled);
   const effective = new Set([...enabled, ...implied.keys()]);
@@ -78,9 +82,10 @@ function RoleModal({
     });
   };
 
+  const canSubmit = !!trimmedName && !isDuplicateName;
   const submit = () => {
-    if (!name.trim()) return;
-    onSave(name.trim(), effective);
+    if (!canSubmit) return;
+    onSave(trimmedName, effective);
     onClose();
   };
 
@@ -113,11 +118,21 @@ function RoleModal({
             <input
               autoFocus={!readOnly}
               disabled={readOnly}
-              className={`w-full h-10 px-3 rounded-xl border border-border text-sm outline-none focus:border-ring transition-base ${readOnly ? "bg-surface-muted text-muted-foreground cursor-not-allowed" : "bg-surface"}`}
+              aria-invalid={isDuplicateName}
+              className={`w-full h-10 px-3 rounded-xl border text-sm outline-none transition-base ${
+                readOnly
+                  ? "bg-surface-muted text-muted-foreground cursor-not-allowed border-border"
+                  : isDuplicateName
+                  ? "bg-surface border-destructive focus:border-destructive"
+                  : "bg-surface border-border focus:border-ring"
+              }`}
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="vd: Trưởng nhóm hỗ trợ"
             />
+            {isDuplicateName && (
+              <p className="text-xs text-destructive mt-1.5">Tên vai trò này đã được dùng — vui lòng chọn tên khác.</p>
+            )}
           </div>
 
           <div className="space-y-5">
@@ -179,7 +194,7 @@ function RoleModal({
             {!readOnly && (
               <button
                 onClick={submit}
-                disabled={!name.trim()}
+                disabled={!canSubmit}
                 className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-base disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {isEdit ? "Lưu thay đổi" : "Tạo vai trò"}
@@ -219,7 +234,12 @@ export default function Roles() {
   return (
     <div className="px-8 py-8 max-w-[1280px] mx-auto animate-fade-up space-y-6">
       {showCreate && (
-        <RoleModal title="Tạo vai trò" onClose={() => setShowCreate(false)} onSave={handleCreate} />
+        <RoleModal
+          title="Tạo vai trò"
+          onClose={() => setShowCreate(false)}
+          onSave={handleCreate}
+          existingNames={roles.map(r => r.name)}
+        />
       )}
       {editingRole && (
         <RoleModal
@@ -229,6 +249,7 @@ export default function Roles() {
           readOnly={editingRole.isDefault}
           onClose={() => setEditingId(null)}
           onSave={handleSaveEdit}
+          existingNames={roles.filter(r => r.id !== editingRole.id).map(r => r.name)}
         />
       )}
 

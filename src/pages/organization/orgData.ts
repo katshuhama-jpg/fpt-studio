@@ -1,4 +1,4 @@
-export type OrgMember = { id: string; name: string; role: string; initials: string; roleId?: string; email?: string };
+export type OrgMember = { id: string; name: string; role: string; initials: string; roleId?: string; email?: string; inactive?: boolean };
 
 /** Mock timestamp for the auto-sync banner on the Structure page — Unit/Member data is
  * synced from the business's own system, via FPT Identity, into FPT AI Agent. */

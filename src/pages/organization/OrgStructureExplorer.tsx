@@ -571,7 +571,12 @@ export default function OrgStructureExplorer() {
                     <div className="w-8 h-8 rounded-full bg-accent-soft text-accent flex items-center justify-center text-[11px] font-semibold shrink-0">
                       {m.initials}
                     </div>
-                    <span className="text-sm font-medium truncate flex-1">{m.name}</span>
+                    <span className="text-sm font-medium truncate flex-1 flex items-center gap-1.5 min-w-0">
+                      <span className="truncate">{m.name}</span>
+                      {m.inactive && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive-soft text-destructive font-medium shrink-0">Inactive</span>
+                      )}
+                    </span>
                     <div className="flex items-center gap-1 shrink-0">
                       <button
                         type="button"
