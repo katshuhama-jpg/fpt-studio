@@ -123,7 +123,7 @@ function MemberModal({
   const isEdit = initialName !== undefined;
   const [name, setName] = useState(initialName ?? "");
   const [email, setEmail] = useState(initialEmail ?? "");
-  const [roleId, setRoleId] = useState(initialRoleId ?? "");
+  const [roleId, setRoleId] = useState(initialRoleId ?? (isEdit ? "" : "viewer"));
   const canSubmit = isEdit ? !!name.trim() && !!email.trim() : !!email.trim();
   const submit = () => {
     if (!canSubmit) return;
@@ -183,7 +183,6 @@ function MemberModal({
                   onKeyDown={e => { if (e.key === "Enter") submit(); }}
                   className="ds-input h-10 appearance-none pr-9 cursor-pointer"
                 >
-                  <option value="">Chưa gán</option>
                   {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                 </select>
                 <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
