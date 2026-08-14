@@ -101,50 +101,6 @@ function UnitSwitcher({ value, onChange }: { value: string; onChange: (id: strin
   );
 }
 
-/* ─── Direct vs. include-sub-units scope dropdown (matches the other filter chips) ─── */
-const SCOPE_OPTIONS: { id: "direct" | "all"; name: string }[] = [
-  { id: "direct", name: "Thành viên trực tiếp" },
-  { id: "all", name: "Bao gồm unit bên trong" },
-];
-
-function ScopeDropdown({ value, onChange }: { value: "direct" | "all"; onChange: (v: "direct" | "all") => void }) {
-  const [open, setOpen] = useState(false);
-  const selected = SCOPE_OPTIONS.find(o => o.id === value)!;
-
-  return (
-    <div
-      className="relative"
-      onBlur={e => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false);
-      }}
-    >
-      <button
-        type="button"
-        onClick={() => setOpen(v => !v)}
-        className="h-8 flex items-center gap-2 px-3 rounded-lg border border-border bg-surface text-sm hover:bg-surface-muted transition-base"
-      >
-        {selected.name}
-        <ChevronDown size={12} className={`text-muted-foreground transition-base ${open ? "rotate-180" : ""}`} />
-      </button>
-      {open && (
-        <div className="absolute left-0 top-[calc(100%+4px)] w-52 bg-surface rounded-xl ring-1 ring-border shadow-xl z-50 p-1">
-          {SCOPE_OPTIONS.map(o => (
-            <button
-              key={o.id}
-              type="button"
-              onClick={() => { onChange(o.id); setOpen(false); }}
-              className={`w-full flex items-center justify-between gap-2 text-left px-3 py-2 rounded-lg text-sm transition-base hover:bg-surface-muted ${value === o.id ? "text-primary font-medium bg-primary-soft" : "text-foreground"}`}
-            >
-              {o.name}
-              {value === o.id && <Check size={13} className="text-primary shrink-0" />}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 /* ─── Filter chip (bordered dropdown, matches Skills.tsx's filter pattern) ─── */
 function FilterChip({
   value, allLabel, options, onChange,
@@ -437,7 +393,6 @@ export default function Members() {
   const { conflicts } = useConflicts();
   const [view, setView] = useState<"list" | "conflicts">("list");
   const [selectedUnitId, setSelectedUnitId] = useState(tree.id);
-  const [scope, setScope] = useState<"direct" | "all">("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [showAdd, setShowAdd] = useState(false);
@@ -463,11 +418,9 @@ export default function Members() {
   const roleSections = roles.map(r => ({ id: r.id, name: r.name }));
   const selectedUnit = findUnit(tree, selectedUnitId) ?? tree;
 
-  useEffect(() => { setPage(1); }, [selectedUnitId, scope, roleFilter, query]);
+  useEffect(() => { setPage(1); }, [selectedUnitId, roleFilter, query]);
 
-  const baseMembers = scope === "all" ? collectMembers(selectedUnit) : selectedUnit.members;
-
-  const visibleMembers = baseMembers
+  const visibleMembers = selectedUnit.members
     .filter(m => {
       if (roleFilter === "all") return true;
       const rid = m.roleId;
@@ -566,7 +519,6 @@ export default function Members() {
         <div className="flex flex-wrap items-center gap-2.5 mb-4">
           <UnitSwitcher value={selectedUnitId} onChange={setSelectedUnitId} />
           <FilterChip value={roleFilter} allLabel="Tất cả vai trò" options={roleSections} onChange={setRoleFilter} />
-          <ScopeDropdown value={scope} onChange={setScope} />
           <div className="relative ml-auto w-full sm:w-64">
             <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm theo tên hoặc chức danh…" className="ds-input pl-8 h-9" />
@@ -574,7 +526,7 @@ export default function Members() {
         </div>
 
         <div className="text-xs text-muted-foreground mb-3">
-          {visibleMembers.length} người trong {selectedUnit.name}{scope === "all" ? " và các unit bên trong" : ""}
+          {visibleMembers.length} người trong {selectedUnit.name}
         </div>
 
         {visibleMembers.length === 0 ? (
