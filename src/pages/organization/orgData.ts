@@ -81,7 +81,7 @@ const FINANCE_TITLES = ["Finance Manager", "Financial Analyst", "Accountant"];
 const LEGAL_TITLES = ["Legal Counsel", "Compliance Officer"];
 const CORP_IT_TITLES = ["IT Manager", "System Administrator", "IT Support"];
 
-export const orgTree: OrgUnit = {
+const rawOrgTree: OrgUnit = {
   id: "fpt",
   name: "FPT Corporation",
   members: [
@@ -414,6 +414,28 @@ export const orgTree: OrgUnit = {
     },
   ],
 };
+
+/** Deterministic company email for a display name, e.g. "Nguyen Van Anh" -> "anh.nguyen@fpt.com". */
+function emailFor(name: string, usedEmails: Set<string>): string {
+  const parts = name.trim().toLowerCase().split(/\s+/);
+  const local = parts.length > 1 ? `${parts[parts.length - 1]}.${parts[0]}` : parts[0];
+  let email = `${local}@fpt.com`;
+  let n = 2;
+  while (usedEmails.has(email)) email = `${local}${n++}@fpt.com`;
+  usedEmails.add(email);
+  return email;
+}
+
+/** Backfills `email` on every seed member that doesn't already have one (hand-authored entries mostly lack it). */
+function backfillEmails(unit: OrgUnit, usedEmails: Set<string>): OrgUnit {
+  return {
+    ...unit,
+    members: unit.members.map(m => (m.email ? m : { ...m, email: emailFor(m.name, usedEmails) })),
+    units: unit.units.map(u => backfillEmails(u, usedEmails)),
+  };
+}
+
+export const orgTree: OrgUnit = backfillEmails(rawOrgTree, new Set());
 
 export function countDirect(unit: OrgUnit): number {
   return unit.members.length;

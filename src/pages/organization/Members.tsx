@@ -511,7 +511,7 @@ export default function Members() {
         >
           Xung đột đồng bộ
           {openConflictCount > 0 && (
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
+            <span className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-semibold flex items-center justify-center shrink-0 ${
               view === "conflicts" ? "bg-primary text-primary-foreground" : "bg-destructive-soft text-destructive"
             }`}>
               {openConflictCount}
@@ -594,6 +594,7 @@ export default function Members() {
                               </button>
                             )}
                           </div>
+                          {m.email && <div className="text-xs text-muted-foreground truncate">{m.email}</div>}
                         </div>
                       </div>
                       <div className="text-xs text-muted-foreground truncate" title={unitName}>{unitName}</div>

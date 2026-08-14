@@ -498,7 +498,7 @@ function NavRow({ item, collapsed }: { item: Item; collapsed: boolean }) {
       <item.icon size={18} className="shrink-0" />
       {!collapsed && <span className="truncate flex-1">{item.label}</span>}
       {!collapsed && item.badge && (
-        <span className="text-xs px-1.5 py-0.5 rounded-full bg-surface-muted border border-border text-muted-foreground">
+        <span className="min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-semibold flex items-center justify-center shrink-0 bg-surface-muted border border-border text-muted-foreground">
           {item.badge}
         </span>
       )}
