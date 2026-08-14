@@ -18,7 +18,6 @@ import OrgStructure from "./pages/organization/Structure";
 import OrgMembers from "./pages/organization/Members";
 import OrgPermissions from "./pages/organization/Permissions";
 import OrgRoles from "./pages/organization/Roles";
-import OrgConflicts from "./pages/organization/Conflicts";
 import { RolesProvider } from "./pages/organization/rolesStore";
 import { OrgProvider } from "./pages/organization/orgStore";
 import { ConflictsProvider } from "./pages/organization/conflictsStore";
@@ -77,7 +76,10 @@ const App = () => (
               <Route path="/organization/members" element={<OrgMembers />} />
               <Route path="/organization/permissions" element={<OrgPermissions />} />
               <Route path="/organization/roles" element={<OrgRoles />} />
-              <Route path="/organization/conflicts" element={<OrgConflicts />} />
+              {/* Sync Conflicts moved into the Members page (a "Xung đột đồng bộ" tab) — most conflicts
+                  are about a specific member, so surfacing them on Members instead of a separate page
+                  keeps people from having to hunt across two screens. Old links still land somewhere useful. */}
+              <Route path="/organization/conflicts" element={<Navigate to="/organization/members" replace />} />
               <Route path="/connectors" element={<WorkspaceConnectors />} />
               <Route path="/tools" element={<Skills />} />
               <Route path="/guardrails" element={<WorkspaceGuardrails />} />
