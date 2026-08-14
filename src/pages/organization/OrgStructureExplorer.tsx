@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Building2, ChevronRight, ChevronDown, Search, Users, Pencil, Trash2, Plus, X } from "lucide-react";
-import { OrgUnit, OrgMember, countAll, countDirect, findUnit, findPath, unitMatches } from "./orgData";
+import { OrgUnit, OrgMember, countAll, countDirect, findUnit, findPath, unitMatches, collectMembers } from "./orgData";
 import { useOrg, deriveNameFromEmail } from "./orgStore";
 import { useRoles, RoleDef } from "./rolesStore";
 
@@ -68,7 +68,8 @@ function UnitModal({
   title: string; desc: string; initialName?: string; submitLabel: string; onClose: () => void; onSave: (name: string) => void;
 }) {
   const [name, setName] = useState(initialName ?? "");
-  const submit = () => { if (!name.trim()) return; onSave(name.trim()); onClose(); };
+  const canSubmit = !!name.trim();
+  const submit = () => { if (!canSubmit) return; onSave(name.trim()); onClose(); };
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -100,7 +101,7 @@ function UnitModal({
           </button>
           <button
             onClick={submit}
-            disabled={!name.trim()}
+            disabled={!canSubmit}
             className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-base disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {submitLabel}
@@ -115,16 +116,23 @@ function UnitModal({
 
 /* ─── Invite/edit-member modal ──────────────────────────────────────────── */
 function MemberModal({
-  title, desc, initialName, initialEmail, initialRoleId, roles, submitLabel, onClose, onSave,
+  title, desc, initialName, initialEmail, initialRoleId, roles, submitLabel, onClose, onSave, existingEmails = [],
 }: {
   title: string; desc: string; initialName?: string; initialEmail?: string; initialRoleId?: string; roles: RoleDef[]; submitLabel: string;
   onClose: () => void; onSave: (name: string, email: string, roleId: string | undefined) => void;
+  /** Emails already used elsewhere in the org (lowercased, own current email already excluded when editing) — blocks inviting/renaming into a duplicate. */
+  existingEmails?: string[];
 }) {
   const isEdit = initialName !== undefined;
   const [name, setName] = useState(initialName ?? "");
   const [email, setEmail] = useState(initialEmail ?? "");
-  const [roleId, setRoleId] = useState(initialRoleId ?? "");
-  const canSubmit = isEdit ? !!name.trim() && !!email.trim() : !!email.trim();
+  const [roleId, setRoleId] = useState(initialRoleId ?? (isEdit ? "" : "viewer"));
+  const trimmedEmail = email.trim();
+  // Standard local@domain.tld shape — good enough to catch missing "@"/domain without being a full RFC 5322 validator.
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const isEmailInvalid = trimmedEmail.length > 0 && !EMAIL_RE.test(trimmedEmail);
+  const isEmailDuplicate = trimmedEmail.length > 0 && !isEmailInvalid && existingEmails.includes(trimmedEmail.toLowerCase());
+  const canSubmit = (isEdit ? !!name.trim() && !!trimmedEmail : !!trimmedEmail) && !isEmailInvalid && !isEmailDuplicate;
   const submit = () => {
     if (!canSubmit) return;
     const finalName = isEdit ? name.trim() : deriveNameFromEmail(email.trim());
@@ -167,9 +175,16 @@ function MemberModal({
               onChange={e => setEmail(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter" && isEdit) submit(); }}
               placeholder="vd: mai.hoang@fpt.com"
-              className="w-full h-10 px-3 rounded-xl border border-border bg-surface text-sm outline-none focus:border-ring transition-base"
+              aria-invalid={isEmailInvalid || isEmailDuplicate}
+              className={`w-full h-10 px-3 rounded-xl border bg-surface text-sm outline-none transition-base ${
+                isEmailInvalid || isEmailDuplicate ? "border-destructive focus:border-destructive" : "border-border focus:border-ring"
+              }`}
             />
-            {!isEdit && (
+            {isEmailInvalid ? (
+              <p className="text-xs text-destructive mt-1.5">Email không đúng định dạng (vd: mai.hoang@fpt.com).</p>
+            ) : isEmailDuplicate ? (
+              <p className="text-xs text-destructive mt-1.5">Email này đã được dùng bởi một thành viên khác trong tổ chức.</p>
+            ) : !isEdit && (
               <p className="text-xs text-muted-foreground mt-1.5">Tên sẽ được tự động nhận diện sau khi người này chấp nhận lời mời.</p>
             )}
           </div>
@@ -258,6 +273,10 @@ export default function OrgStructureExplorer() {
   const [deleteConfirmUnitId, setDeleteConfirmUnitId] = useState<string | null>(null);
   const [deleteConfirmMemberId, setDeleteConfirmMemberId] = useState<string | null>(null);
 
+  const allEmails = useMemo(
+    () => collectMembers(tree).map(m => (m.email ?? "").trim().toLowerCase()).filter(Boolean),
+    [tree]
+  );
   const path = useMemo(() => findPath(tree, selectedId) ?? [tree], [tree, selectedId]);
   const selected = path[path.length - 1];
   const isRoot = selected.id === rootId;
@@ -324,6 +343,7 @@ export default function OrgStructureExplorer() {
           submitLabel="Mời thành viên"
           onClose={() => setShowAddMember(false)}
           onSave={(name, email, roleId) => addMember(selected.id, name, email, roleId)}
+          existingEmails={allEmails}
         />
       )}
       {editingMember && (
@@ -337,6 +357,7 @@ export default function OrgStructureExplorer() {
           submitLabel="Lưu thay đổi"
           onClose={() => setEditingMember(null)}
           onSave={(name, email, roleId) => updateMember(editingMember.id, name, email, roleId)}
+          existingEmails={allEmails.filter(e => e !== (editingMember.email ?? "").trim().toLowerCase())}
         />
       )}
       {deleteTargetUnit && (
