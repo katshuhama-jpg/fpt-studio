@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Building2, ChevronRight, ChevronDown, Search, Users, Pencil, Trash2, Plus, X } from "lucide-react";
+import { Building2, ChevronRight, ChevronDown, Search, Users, Pencil, Trash2, Plus, X, FolderInput } from "lucide-react";
 import { OrgUnit, OrgMember, countAll, countDirect, findUnit, findPath, unitMatches, collectMembers } from "./orgData";
 import { useOrg, deriveNameFromEmail } from "./orgStore";
 import { useRoles, RoleDef } from "./rolesStore";
+import { MoveMemberModal } from "./MoveMemberModal";
 
 function TreeRow({
   unit, depth, selectedId, expanded, onToggle, onSelect, query,
@@ -116,12 +117,14 @@ function UnitModal({
 
 /* ─── Invite/edit-member modal ──────────────────────────────────────────── */
 function MemberModal({
-  title, desc, initialName, initialEmail, initialRoleId, roles, submitLabel, onClose, onSave, existingEmails = [],
+  title, desc, initialName, initialEmail, initialRoleId, roles, submitLabel, onClose, onSave, existingEmails = [], unitName,
 }: {
   title: string; desc: string; initialName?: string; initialEmail?: string; initialRoleId?: string; roles: RoleDef[]; submitLabel: string;
   onClose: () => void; onSave: (name: string, email: string, roleId: string | undefined) => void;
   /** Emails already used elsewhere in the org (lowercased, own current email already excluded when editing) — blocks inviting/renaming into a duplicate. */
   existingEmails?: string[];
+  /** Unit the invited member will belong to — role/permission chosen below only applies within this unit. */
+  unitName?: string;
 }) {
   const isEdit = initialName !== undefined;
   const [name, setName] = useState(initialName ?? "");
@@ -190,7 +193,9 @@ function MemberModal({
           </div>
           {!isEdit && (
             <div>
-              <label className="text-sm font-medium block mb-1.5">Vai trò</label>
+              <label className="text-sm font-medium block mb-1.5">
+                Vai trò{unitName ? ` trong ${unitName}` : ""}
+              </label>
               <div className="relative">
                 <select
                   value={roleId}
@@ -203,6 +208,9 @@ function MemberModal({
                 </select>
                 <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               </div>
+              <p className="text-xs text-muted-foreground mt-1.5">
+                Quyền của vai trò này chỉ áp dụng trong phạm vi {unitName ?? "unit hiện tại"} — không áp dụng cho các unit khác. Nếu thành viên được chuyển sang unit khác, phạm vi áp dụng sẽ chuyển theo unit mới.
+              </p>
             </div>
           )}
         </div>
@@ -226,17 +234,20 @@ function MemberModal({
 }
 
 /* ─── Delete confirmation (popup, reused for units and members) ────────── */
+// `blocked` turns this into an info-only "cannot delete" dialog (single "Đã hiểu" button,
+// no destructive action) — used when a unit still has members/child units (rule: unit must
+// be emptied first, no cascade-delete).
 function ConfirmDeleteModal({
-  title, desc, confirmLabel, onClose, onConfirm,
+  title, desc, confirmLabel, onClose, onConfirm, blocked,
 }: {
-  title: string; desc: string; confirmLabel: string; onClose: () => void; onConfirm: () => void;
+  title: string; desc: string; confirmLabel: string; onClose: () => void; onConfirm: () => void; blocked?: boolean;
 }) {
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative w-[92vw] sm:w-[420px] bg-white rounded-2xl shadow-2xl p-6" style={{ animation: "fadeScaleIn 0.18s ease" }}>
         <div className="flex items-start gap-3 mb-6">
-          <div className="w-10 h-10 rounded-full bg-destructive-soft text-destructive flex items-center justify-center shrink-0">
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${blocked ? "bg-warning-soft text-warning" : "bg-destructive-soft text-destructive"}`}>
             <Trash2 size={18} />
           </div>
           <div className="min-w-0">
@@ -244,6 +255,13 @@ function ConfirmDeleteModal({
             <p className="text-sm text-muted-foreground mt-1">{desc}</p>
           </div>
         </div>
+        {blocked ? (
+          <div className="flex items-center justify-end">
+            <button onClick={onClose} className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-base">
+              Đã hiểu
+            </button>
+          </div>
+        ) : (
         <div className="flex items-center justify-end gap-2">
           <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">
             Hủy
@@ -252,6 +270,7 @@ function ConfirmDeleteModal({
             {confirmLabel}
           </button>
         </div>
+        )}
       </div>
       <style>{`@keyframes fadeScaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}`}</style>
     </div>,
@@ -270,6 +289,7 @@ export default function OrgStructureExplorer() {
   const [showAddSubunit, setShowAddSubunit] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
   const [editingMember, setEditingMember] = useState<OrgMember | null>(null);
+  const [movingMember, setMovingMember] = useState<OrgMember | null>(null);
   const [deleteConfirmUnitId, setDeleteConfirmUnitId] = useState<string | null>(null);
   const [deleteConfirmMemberId, setDeleteConfirmMemberId] = useState<string | null>(null);
 
@@ -344,6 +364,7 @@ export default function OrgStructureExplorer() {
           onClose={() => setShowAddMember(false)}
           onSave={(name, email, roleId) => addMember(selected.id, name, email, roleId)}
           existingEmails={allEmails}
+          unitName={selected.name}
         />
       )}
       {editingMember && (
@@ -360,15 +381,31 @@ export default function OrgStructureExplorer() {
           existingEmails={allEmails.filter(e => e !== (editingMember.email ?? "").trim().toLowerCase())}
         />
       )}
-      {deleteTargetUnit && (
-        <ConfirmDeleteModal
-          title={`Xóa "${deleteTargetUnit.name}"?`}
-          desc={`Unit này và ${countAll(deleteTargetUnit)} người bên trong sẽ bị xóa. Hành động này không thể hoàn tác.`}
-          confirmLabel="Xóa unit"
-          onClose={() => setDeleteConfirmUnitId(null)}
-          onConfirm={() => handleDeleteUnit(deleteTargetUnit.id)}
-        />
+      {movingMember && (
+        <MoveMemberModal member={movingMember} currentUnitId={selected.id} onClose={() => setMovingMember(null)} />
       )}
+      {deleteTargetUnit && (() => {
+        const hasMembers = deleteTargetUnit.members.length > 0;
+        const hasSubUnits = deleteTargetUnit.units.length > 0;
+        const isBlocked = hasMembers || hasSubUnits;
+        const parts: string[] = [];
+        if (hasMembers) parts.push(`${deleteTargetUnit.members.length} thành viên trực tiếp`);
+        if (hasSubUnits) parts.push(`${deleteTargetUnit.units.length} unit con`);
+        return (
+          <ConfirmDeleteModal
+            title={isBlocked ? `Không thể xóa "${deleteTargetUnit.name}"` : `Xóa "${deleteTargetUnit.name}"?`}
+            desc={
+              isBlocked
+                ? `Unit này vẫn còn ${parts.join(" và ")}. Hãy chuyển hoặc gỡ hết trước khi xóa unit — Agent Studio không tự xóa cả cây để tránh mất dữ liệu ngoài ý muốn.`
+                : "Unit trống, không còn thành viên hay unit con. Hành động này không thể hoàn tác."
+            }
+            confirmLabel="Xóa unit"
+            blocked={isBlocked}
+            onClose={() => setDeleteConfirmUnitId(null)}
+            onConfirm={() => handleDeleteUnit(deleteTargetUnit.id)}
+          />
+        );
+      })()}
       {deleteTargetMember && (
         <ConfirmDeleteModal
           title={`Gỡ "${deleteTargetMember.name}"?`}
@@ -578,6 +615,15 @@ export default function OrgStructureExplorer() {
                       )}
                     </span>
                     <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setMovingMember(m)}
+                        aria-label={`Move ${m.name} to another unit`}
+                        title="Chuyển unit"
+                        className="w-7 h-7 rounded-lg hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base"
+                      >
+                        <FolderInput size={13} />
+                      </button>
                       <button
                         type="button"
                         onClick={() => setEditingMember(m)}

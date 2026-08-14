@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Search, X, Plus, ChevronDown, ChevronLeft, ChevronRight, AlertTriangle, Building2, Check } from "lucide-react";
+import { Search, X, Plus, ChevronDown, ChevronLeft, ChevronRight, AlertTriangle, Building2, Check, FolderInput } from "lucide-react";
 import { Card, PageHeader } from "./shared";
 import { OrgUnit, OrgMember, collectMembers, collectUnitsWithDepth, countAll, findUnit, findPath, findMemberUnit } from "./orgData";
 import { useRoles, RoleDef } from "./rolesStore";
 import { useOrg } from "./orgStore";
 import { useConflicts, Conflict } from "./conflictsStore";
 import { ConflictsPanel, TYPE_META, memberIdOf } from "./Conflicts";
+import { MoveMemberModal } from "./MoveMemberModal";
 
 function unitNameFor(tree: OrgUnit, memberId: string): string {
   const unit = findMemberUnit(tree, memberId);
@@ -191,13 +192,15 @@ function FilterChip({
 
 /* ─── Per-row role cell (click to assign/reassign/unassign directly) ───── */
 function RoleCell({
-  memberId, memberName, currentRoleId, roles, onAssign,
+  memberId, memberName, currentRoleId, roles, onAssign, unitName,
 }: {
   memberId: string;
   memberName: string;
   currentRoleId: string | undefined;
   roles: RoleDef[];
   onAssign: (memberId: string, roleId: string | undefined) => void;
+  /** Unit this member currently belongs to — the role's permissions only apply within this unit. */
+  unitName?: string;
 }) {
   const [open, setOpen] = useState(false);
   const current = roles.find(r => r.id === currentRoleId);
@@ -213,6 +216,7 @@ function RoleCell({
         type="button"
         onClick={() => setOpen(v => !v)}
         aria-label={`Đổi vai trò của ${memberName}`}
+        title={current && unitName ? `${current.name} — áp dụng trong ${unitName}` : undefined}
         className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-base hover:opacity-80 cursor-pointer ${
           current ? "bg-primary-soft text-primary" : "bg-surface-muted text-muted-foreground border border-dashed border-border"
         }`}
@@ -222,6 +226,11 @@ function RoleCell({
       </button>
       {open && (
         <div className="absolute left-0 top-[calc(100%+4px)] w-48 bg-surface rounded-xl ring-1 ring-border shadow-xl z-20 p-1">
+          {unitName && (
+            <div className="px-3 py-1.5 text-[10px] text-muted-foreground border-b border-border mb-1">
+              Áp dụng trong {unitName}
+            </div>
+          )}
           <button
             type="button"
             onClick={() => { onAssign(memberId, undefined); setOpen(false); }}
@@ -402,6 +411,9 @@ function AddUserToRoleModal({
               </select>
               <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             </div>
+            <p className="text-xs text-muted-foreground mt-1.5">
+              Quyền của vai trò này chỉ áp dụng trong phạm vi unit hiện tại của từng người được chọn — không áp dụng cho toàn bộ tổ chức hay unit khác.
+            </p>
           </div>
         </div>
 
@@ -436,6 +448,7 @@ export default function Members() {
   const [roleFilter, setRoleFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [showAdd, setShowAdd] = useState(false);
+  const [movingMember, setMovingMember] = useState<OrgMember | null>(null);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 24;
 
@@ -487,6 +500,13 @@ export default function Members() {
           defaultRoleId={roleFilter !== "all" ? roleFilter : (roles[0]?.id ?? "")}
           onClose={() => setShowAdd(false)}
           onAdd={assignRole}
+        />
+      )}
+      {movingMember && (
+        <MoveMemberModal
+          member={movingMember}
+          currentUnitId={findMemberUnit(tree, movingMember.id)?.id ?? tree.id}
+          onClose={() => setMovingMember(null)}
         />
       )}
 
@@ -571,15 +591,15 @@ export default function Members() {
         ) : (
           <>
             <div className="rounded-xl border border-border overflow-hidden">
-              <div className="grid grid-cols-[1fr,200px,160px] gap-3 px-4 py-2.5 bg-surface-muted section-eyebrow">
-                <div>Thành viên</div><div>Unit</div><div>Vai trò</div>
+              <div className="grid grid-cols-[1fr,200px,160px,40px] gap-3 px-4 py-2.5 bg-surface-muted section-eyebrow">
+                <div>Thành viên</div><div>Unit</div><div>Vai trò</div><div />
               </div>
               <div className="divide-y divide-border">
                 {shownMembers.map(m => {
                   const currentRoleId = m.roleId && roleIds.has(m.roleId) ? m.roleId : undefined;
                   const unitName = findMemberUnit(tree, m.id)?.name ?? "—";
                   return (
-                    <div key={m.id} className="grid grid-cols-[1fr,200px,160px] gap-3 px-4 py-3 items-center hover:bg-surface-muted/50 transition-base">
+                    <div key={m.id} className="grid grid-cols-[1fr,200px,160px,40px] gap-3 px-4 py-3 items-center hover:bg-surface-muted/50 transition-base">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-9 h-9 rounded-full bg-accent-soft text-accent flex items-center justify-center text-xs font-semibold shrink-0">
                           {m.initials}
@@ -610,7 +630,17 @@ export default function Members() {
                         currentRoleId={currentRoleId}
                         roles={roles}
                         onAssign={assignRole}
+                        unitName={unitName}
                       />
+                      <button
+                        type="button"
+                        onClick={() => setMovingMember(m)}
+                        aria-label={`Move ${m.name} to another unit`}
+                        title="Chuyển unit"
+                        className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-base"
+                      >
+                        <FolderInput size={13} />
+                      </button>
                     </div>
                   );
                 })}
