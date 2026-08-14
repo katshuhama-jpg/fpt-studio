@@ -5,7 +5,7 @@ import {
   Puzzle, ChevronsLeft, ChevronsRight, Search, Bell, Plus,
   ChevronRight, LifeBuoy, KeyRound, LogOut, User, ChevronDown, ChevronsUpDown,
   Check, Building2, PlusCircle, Sparkles, Shield, FileText, Rocket,
-  Lock, Network, Users, AlertTriangle,
+  Lock, Network, Users,
 } from "lucide-react";
 
 const APP_VERSION = "0.58.5";
@@ -74,16 +74,13 @@ export default function WorkspaceLayout() {
   const navigate = useNavigate();
   const { conflicts } = useConflicts();
   const openConflictCount = conflicts.filter(c => c.status === "open").length;
-  const orgItems: Item[] = [
-    ...orgItemsBase.slice(0, 3),
-    {
-      to: "/organization/conflicts",
-      label: "Xung đột đồng bộ",
-      icon: AlertTriangle,
-      badge: openConflictCount > 0 ? String(openConflictCount) : undefined,
-    },
-    ...orgItemsBase.slice(3),
-  ];
+  // The "Xung đột đồng bộ" tab lives inside the Thành viên page now (see Members.tsx) — surface
+  // the unresolved count as a badge on that nav item instead of a separate top-level entry.
+  const orgItems: Item[] = orgItemsBase.map(it =>
+    it.to === "/organization/members"
+      ? { ...it, badge: openConflictCount > 0 ? String(openConflictCount) : undefined }
+      : it
+  );
   const inAgentBuilder = loc.pathname.startsWith("/agents/");
   const inOrganization = loc.pathname.startsWith("/organization");
   const handleSignOut = () => {
@@ -102,7 +99,7 @@ export default function WorkspaceLayout() {
   }
 
   const BREADCRUMB_LABELS: Record<string, string> = { tools: "Skills" };
-  const ORG_BREADCRUMB_LABELS: Record<string, string> = { "": "Thông tin chung", structure: "Cấu trúc tổ chức", members: "Thành viên", permissions: "Quyền hạn", roles: "Vai trò", conflicts: "Xung đột đồng bộ" };
+  const ORG_BREADCRUMB_LABELS: Record<string, string> = { "": "Thông tin chung", structure: "Cấu trúc tổ chức", members: "Thành viên", permissions: "Quyền hạn", roles: "Vai trò" };
   let breadcrumbLabel: string;
   if (inOrganization) {
     const sub = loc.pathname.replace(/^\/organization\/?/, "");

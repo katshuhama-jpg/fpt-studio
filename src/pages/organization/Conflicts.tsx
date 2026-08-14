@@ -1,16 +1,23 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { AlertTriangle, ArrowLeftRight, Copy, UserX, X, CheckCircle2, Clock } from "lucide-react";
-import { Card, PageHeader } from "./shared";
 import { findUnit, findMember, findPath } from "./orgData";
 import { useOrg } from "./orgStore";
 import { Conflict, useConflicts } from "./conflictsStore";
 
-const TYPE_META: Record<Conflict["type"], { label: string; icon: any }> = {
+export const TYPE_META: Record<Conflict["type"], { label: string; icon: any }> = {
   member_unit_mismatch: { label: "Thành viên lệch unit", icon: ArrowLeftRight },
   duplicate_unit_name: { label: "Trùng tên unit", icon: Copy },
   member_removed_source: { label: "Thành viên đã rời hệ thống nguồn", icon: UserX },
 };
+
+/** Conflict types that are about one specific member — used by the Members page to
+ * flag affected rows inline instead of making people hunt for a separate page. */
+const MEMBER_CONFLICT_TYPES: Conflict["type"][] = ["member_unit_mismatch", "member_removed_source"];
+
+export function memberIdOf(c: Conflict): string | null {
+  return c.type === "member_unit_mismatch" || c.type === "member_removed_source" ? c.memberId : null;
+}
 
 function unitPathLabel(tree: ReturnType<typeof useOrg>["tree"], unitId: string): string {
   const path = findPath(tree, unitId);
@@ -135,7 +142,6 @@ function ResolveModal({ conflict, onClose }: { conflict: Conflict; onClose: () =
     );
   } else {
     const member = findMember(tree, conflict.memberId);
-    const currentUnit = member ? findPath(tree, conflict.memberId) : null; // not directly usable; kept simple below
     body = (
       <>
         <p className="text-sm text-muted-foreground mb-4">
@@ -200,11 +206,15 @@ function ResolveModal({ conflict, onClose }: { conflict: Conflict; onClose: () =
   );
 }
 
-/* ─── Page ──────────────────────────────────────────────────────────────── */
-export default function Conflicts() {
+/**
+ * The conflicts list + resolve flow, as a panel meant to be embedded inside another
+ * page (the Members page — see design decision below) rather than routed on its own.
+ * Kept content-only (no PageHeader/outer max-width wrapper) so the host page controls layout.
+ */
+export function ConflictsPanel({ initialFilter = "open" }: { initialFilter?: "open" | "resolved" | "all" }) {
   const { tree } = useOrg();
   const { conflicts } = useConflicts();
-  const [filter, setFilter] = useState<"open" | "resolved" | "all">("open");
+  const [filter, setFilter] = useState<"open" | "resolved" | "all">(initialFilter);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
 
   const resolving = conflicts.find(c => c.id === resolvingId) ?? null;
@@ -227,84 +237,77 @@ export default function Conflicts() {
   };
 
   return (
-    <div className="px-8 py-8 max-w-[1280px] mx-auto animate-fade-up space-y-6">
+    <div>
       {resolving && <ResolveModal conflict={resolving} onClose={() => setResolvingId(null)} />}
 
-      <PageHeader
-        title="Xung đột đồng bộ"
-        desc="Các trường hợp dữ liệu từ Auto Sync (FPT Identity) khác với dữ liệu đang quản lý thủ công trong Agent Studio — xem xét và chọn cách xử lý cho từng trường hợp."
-      />
+      <div className="flex items-center gap-2 mb-4">
+        {[
+          { key: "open" as const, label: "Chưa xử lý", count: openCount },
+          { key: "resolved" as const, label: "Đã xử lý", count: resolvedCount },
+          { key: "all" as const, label: "Tất cả", count: conflicts.length },
+        ].map(tab => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => setFilter(tab.key)}
+            className={`h-8 px-3 rounded-lg text-xs font-medium border transition-base ${
+              filter === tab.key ? "bg-primary-soft text-primary border-primary/30" : "border-border text-muted-foreground hover:bg-surface-muted"
+            }`}
+          >
+            {tab.label} ({tab.count})
+          </button>
+        ))}
+      </div>
 
-      <Card>
-        <div className="flex items-center gap-2 mb-4">
-          {[
-            { key: "open" as const, label: "Chưa xử lý", count: openCount },
-            { key: "resolved" as const, label: "Đã xử lý", count: resolvedCount },
-            { key: "all" as const, label: "Tất cả", count: conflicts.length },
-          ].map(tab => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setFilter(tab.key)}
-              className={`h-8 px-3 rounded-lg text-xs font-medium border transition-base ${
-                filter === tab.key ? "bg-primary-soft text-primary border-primary/30" : "border-border text-muted-foreground hover:bg-surface-muted"
-              }`}
-            >
-              {tab.label} ({tab.count})
-            </button>
-          ))}
+      {shown.length === 0 ? (
+        <div className="text-sm text-muted-foreground border border-dashed border-border rounded-lg py-10 text-center">
+          {filter === "open" ? "Không có xung đột nào đang chờ xử lý." : "Chưa có dữ liệu."}
         </div>
-
-        {shown.length === 0 ? (
-          <div className="text-sm text-muted-foreground border border-dashed border-border rounded-lg py-10 text-center">
-            {filter === "open" ? "Không có xung đột nào đang chờ xử lý." : "Chưa có dữ liệu."}
-          </div>
-        ) : (
-          <div className="divide-y divide-border -mx-1">
-            {shown.map(c => {
-              const meta = TYPE_META[c.type];
-              return (
-                <div key={c.id} className="flex items-start justify-between gap-4 px-1 py-3.5">
-                  <div className="flex items-start gap-3 min-w-0">
-                    <div
-                      className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
-                        c.status === "open" ? "bg-destructive-soft text-destructive" : "bg-surface-muted text-muted-foreground"
-                      }`}
-                    >
-                      {c.status === "open" ? <AlertTriangle size={15} /> : <CheckCircle2 size={15} />}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-sm font-semibold">{meta.label}</span>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-muted text-muted-foreground font-medium">
-                          {c.detectedAt}
-                        </span>
-                      </div>
-                      <div className="text-sm text-foreground mt-0.5">{summaryFor(c)}</div>
-                      <div className="text-xs text-muted-foreground mt-1">{c.status === "resolved" ? c.resolution : c.reason}</div>
-                    </div>
+      ) : (
+        <div className="divide-y divide-border -mx-1">
+          {shown.map(c => {
+            const meta = TYPE_META[c.type];
+            return (
+              <div key={c.id} className="flex items-start justify-between gap-4 px-1 py-3.5">
+                <div className="flex items-start gap-3 min-w-0">
+                  <div
+                    className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+                      c.status === "open" ? "bg-destructive-soft text-destructive" : "bg-surface-muted text-muted-foreground"
+                    }`}
+                  >
+                    {c.status === "open" ? <AlertTriangle size={15} /> : <CheckCircle2 size={15} />}
                   </div>
-                  <div className="shrink-0">
-                    {c.status === "open" ? (
-                      <button
-                        type="button"
-                        onClick={() => setResolvingId(c.id)}
-                        className="h-8 px-3.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-base"
-                      >
-                        Xử lý
-                      </button>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                        <Clock size={12} /> Đã xử lý
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-sm font-semibold">{meta.label}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-muted text-muted-foreground font-medium">
+                        {c.detectedAt}
                       </span>
-                    )}
+                    </div>
+                    <div className="text-sm text-foreground mt-0.5">{summaryFor(c)}</div>
+                    <div className="text-xs text-muted-foreground mt-1">{c.status === "resolved" ? c.resolution : c.reason}</div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </Card>
+                <div className="shrink-0">
+                  {c.status === "open" ? (
+                    <button
+                      type="button"
+                      onClick={() => setResolvingId(c.id)}
+                      className="h-8 px-3.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-base"
+                    >
+                      Xử lý
+                    </button>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                      <Clock size={12} /> Đã xử lý
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
