@@ -101,7 +101,7 @@ function UnitSwitcher({ value, onChange }: { value: string; onChange: (id: strin
 /* ─── Direct vs. include-sub-units scope dropdown (matches the other filter chips) ─── */
 const SCOPE_OPTIONS: { id: "direct" | "all"; name: string }[] = [
   { id: "direct", name: "Thành viên trực tiếp" },
-  { id: "all", name: "Bao gồm unit con" },
+  { id: "all", name: "Bao gồm unit bên trong" },
 ];
 
 function ScopeDropdown({ value, onChange }: { value: "direct" | "all"; onChange: (v: "direct" | "all") => void }) {
@@ -581,7 +581,7 @@ export default function Members() {
         </div>
 
         <div className="text-xs text-muted-foreground mb-3">
-          {visibleMembers.length} người trong {selectedUnit.name}{scope === "all" ? " và các unit con" : ""}
+          {visibleMembers.length} người trong {selectedUnit.name}{scope === "all" ? " và các unit bên trong" : ""}
         </div>
 
         {visibleMembers.length === 0 ? (

@@ -390,14 +390,14 @@ export default function OrgStructureExplorer() {
         const isBlocked = hasMembers || hasSubUnits;
         const parts: string[] = [];
         if (hasMembers) parts.push(`${deleteTargetUnit.members.length} thành viên trực tiếp`);
-        if (hasSubUnits) parts.push(`${deleteTargetUnit.units.length} unit con`);
+        if (hasSubUnits) parts.push(`${deleteTargetUnit.units.length} unit bên trong`);
         return (
           <ConfirmDeleteModal
             title={isBlocked ? `Không thể xóa "${deleteTargetUnit.name}"` : `Xóa "${deleteTargetUnit.name}"?`}
             desc={
               isBlocked
                 ? `Unit này vẫn còn ${parts.join(" và ")}. Hãy chuyển hoặc gỡ hết trước khi xóa unit — Agent Studio không tự xóa cả cây để tránh mất dữ liệu ngoài ý muốn.`
-                : "Unit trống, không còn thành viên hay unit con. Hành động này không thể hoàn tác."
+                : "Unit trống, không còn thành viên hay unit nào bên trong. Hành động này không thể hoàn tác."
             }
             confirmLabel="Xóa unit"
             blocked={isBlocked}
