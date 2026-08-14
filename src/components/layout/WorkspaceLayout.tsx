@@ -3,7 +3,7 @@ import { clearUser, getUser } from "@/lib/onboarding";
 import {
   Home, MessageSquare, Bot, BookOpen, Settings, Plug,
   Puzzle, ChevronsLeft, ChevronsRight, Search, Bell, Plus,
-  ChevronRight, LifeBuoy, KeyRound, LogOut, User, ChevronDown,
+  ChevronRight, LifeBuoy, KeyRound, LogOut, User, ChevronDown, ChevronsUpDown,
   Check, Building2, PlusCircle, Sparkles, Shield, FileText, Rocket,
   Lock, ArrowLeft, Network, Users,
 } from "lucide-react";
@@ -300,17 +300,17 @@ function AppSwitcher({ collapsed, inOrganization }: { collapsed: boolean; inOrga
         onClick={() => setOpen(v => !v)}
         title={collapsed ? active.label : undefined}
         aria-label={collapsed ? `${active.label}, switch app` : undefined}
-        className={`w-full flex items-center gap-2.5 rounded-xl bg-sidebar-accent/50 hover:bg-sidebar-accent ring-1 ring-transparent hover:ring-sidebar-border transition-base cursor-pointer ${
+        className={`w-full flex items-center gap-2.5 rounded-2xl bg-white border border-border shadow-soft hover:bg-surface-muted transition-base cursor-pointer ${
           collapsed ? "justify-center p-1.5" : "px-2.5 py-2"
         }`}
       >
-        <div className="w-7 h-7 rounded-lg bg-primary-soft text-primary flex items-center justify-center shrink-0">
-          <active.icon size={14} />
+        <div className="w-9 h-9 rounded-xl bg-gradient-brand flex items-center justify-center shrink-0 shadow-soft">
+          <active.icon size={16} className="text-primary-foreground" />
         </div>
         {!collapsed && (
           <>
             <span className="flex-1 min-w-0 text-left text-sm font-semibold text-foreground truncate">{active.short}</span>
-            <ChevronDown size={13} className={`text-muted-foreground transition-base shrink-0 ${open ? "rotate-180" : ""}`} />
+            <ChevronsUpDown size={14} className="text-muted-foreground shrink-0" />
           </>
         )}
       </button>

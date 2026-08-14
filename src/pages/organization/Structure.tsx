@@ -10,7 +10,7 @@ export default function Structure() {
         <PageHeader title="Cấu trúc tổ chức" desc="Unit có thể chứa thành viên và các unit con lồng nhau, không giới hạn cấp độ. Chọn một unit để xem thành viên bên trong." />
         <div className="inline-flex items-center gap-1.5 text-xs text-muted-foreground shrink-0 mt-1">
           <RefreshCw size={12} />
-          Đồng bộ lần cuối từ hệ thống doanh nghiệp: {ORG_LAST_SYNCED_AT}
+          Đồng bộ lần cuối: {ORG_LAST_SYNCED_AT}
         </div>
       </div>
 
