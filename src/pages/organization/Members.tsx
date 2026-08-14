@@ -5,6 +5,8 @@ import { Card, PageHeader } from "./shared";
 import { OrgUnit, OrgMember, collectMembers, collectUnitsWithDepth, countAll, findUnit, findPath, findMemberUnit } from "./orgData";
 import { useRoles, RoleDef } from "./rolesStore";
 import { useOrg } from "./orgStore";
+import { useConflicts, Conflict } from "./conflictsStore";
+import { ConflictsPanel, TYPE_META, memberIdOf } from "./Conflicts";
 
 function unitNameFor(tree: OrgUnit, memberId: string): string {
   const unit = findMemberUnit(tree, memberId);
@@ -427,6 +429,8 @@ function AddUserToRoleModal({
 export default function Members() {
   const { tree, assignRole } = useOrg();
   const { roles } = useRoles();
+  const { conflicts } = useConflicts();
+  const [view, setView] = useState<"list" | "conflicts">("list");
   const [selectedUnitId, setSelectedUnitId] = useState(tree.id);
   const [scope, setScope] = useState<"direct" | "all">("all");
   const [roleFilter, setRoleFilter] = useState("all");
@@ -434,6 +438,20 @@ export default function Members() {
   const [showAdd, setShowAdd] = useState(false);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 24;
+
+  // Member-specific conflicts (unit mismatch / removed from source) surface right on this page —
+  // a unit-name conflict isn't about any one person so it only shows inside the Conflicts tab itself.
+  const openConflictByMember = useMemo(() => {
+    const map = new Map<string, Conflict>();
+    conflicts.forEach(c => {
+      if (c.status !== "open") return;
+      const mid = memberIdOf(c);
+      if (mid) map.set(mid, c);
+    });
+    return map;
+  }, [conflicts]);
+  const openConflictCount = conflicts.filter(c => c.status === "open").length;
+  const openMemberConflictCount = [...openConflictByMember.values()].length;
 
   const roleIds = new Set(roles.map(r => r.id));
   const roleSections = [...roles.map(r => ({ id: r.id, name: r.name })), { id: "unassigned", name: "Chưa gán" }];
@@ -474,12 +492,64 @@ export default function Members() {
 
       <div className="flex items-start justify-between gap-4">
         <PageHeader title="Thành viên" desc="Tìm kiếm và quản lý tất cả mọi người trong tổ chức, cùng vai trò của từng người." />
-        <button onClick={() => setShowAdd(true)} className="btn-primary h-9 shrink-0">
-          <Plus size={14} /> Thêm người dùng vào vai trò
+        {view === "list" && (
+          <button onClick={() => setShowAdd(true)} className="btn-primary h-9 shrink-0">
+            <Plus size={14} /> Thêm người dùng vào vai trò
+          </button>
+        )}
+      </div>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setView("list")}
+          className={`h-9 px-4 rounded-lg text-sm font-medium border transition-base ${
+            view === "list" ? "bg-primary-soft text-primary border-primary/30" : "border-border text-muted-foreground hover:bg-surface-muted"
+          }`}
+        >
+          Danh sách thành viên
+        </button>
+        <button
+          type="button"
+          onClick={() => setView("conflicts")}
+          className={`h-9 px-4 rounded-lg text-sm font-medium border transition-base inline-flex items-center gap-1.5 ${
+            view === "conflicts" ? "bg-primary-soft text-primary border-primary/30" : "border-border text-muted-foreground hover:bg-surface-muted"
+          }`}
+        >
+          Xung đột đồng bộ
+          {openConflictCount > 0 && (
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
+              view === "conflicts" ? "bg-primary text-primary-foreground" : "bg-destructive-soft text-destructive"
+            }`}>
+              {openConflictCount}
+            </span>
+          )}
         </button>
       </div>
 
+      {view === "conflicts" ? (
+        <Card>
+          <ConflictsPanel />
+        </Card>
+      ) : (
       <Card>
+        {openMemberConflictCount > 0 && (
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-warning/30 bg-warning-soft px-3.5 py-3 mb-4">
+            <div className="flex items-center gap-2.5 text-xs text-foreground">
+              <AlertTriangle size={15} className="text-warning shrink-0" />
+              <span>
+                <span className="font-medium">{openMemberConflictCount}</span> thành viên đang có xung đột đồng bộ chờ xử lý.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setView("conflicts")}
+              className="h-7 px-3 rounded-lg bg-white border border-warning/40 text-warning text-xs font-medium hover:bg-warning-soft transition-base shrink-0"
+            >
+              Xem chi tiết
+            </button>
+          </div>
+        )}
         <div className="flex flex-wrap items-center gap-2.5 mb-4">
           <UnitSwitcher value={selectedUnitId} onChange={setSelectedUnitId} />
           <FilterChip value={roleFilter} allLabel="Tất cả vai trò" options={roleSections} onChange={setRoleFilter} />
@@ -519,6 +589,16 @@ export default function Members() {
                             <span className="text-sm font-medium truncate">{m.name}</span>
                             {m.inactive && (
                               <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive-soft text-destructive font-medium shrink-0">Inactive</span>
+                            )}
+                            {openConflictByMember.has(m.id) && (
+                              <button
+                                type="button"
+                                onClick={() => setView("conflicts")}
+                                title={TYPE_META[openConflictByMember.get(m.id)!.type].label}
+                                className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-warning-soft text-warning font-medium shrink-0 hover:opacity-80 transition-base"
+                              >
+                                <AlertTriangle size={10} /> Xung đột
+                              </button>
                             )}
                           </div>
                         </div>
@@ -566,6 +646,7 @@ export default function Members() {
           </>
         )}
       </Card>
+      )}
     </div>
   );
 }
