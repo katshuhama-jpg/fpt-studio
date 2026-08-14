@@ -1418,6 +1418,25 @@ function GuardrailsConfigSection() {
 
 
 /* ============ NEW CONFIGURATION PANEL (right side) ============ */
+function EmptyStateBox({ icon, description, addLabel, onAdd }: {
+  icon: any; description: string; addLabel?: string; onAdd?: (e: React.MouseEvent<HTMLButtonElement>) => void;
+}) {
+  return (
+    <div className="rounded-xl border-2 border-dashed border-border flex flex-col items-center justify-center gap-2 py-6 px-4 text-center">
+      <HugeiconsIcon icon={icon} size={22} className="text-muted-foreground/50" />
+      <p className="text-xs text-muted-foreground max-w-[240px] leading-relaxed">{description}</p>
+      {addLabel && (
+        <button
+          onClick={onAdd}
+          className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+        >
+          <HugeiconsIcon icon={Add01Icon} size={12} /> {addLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange: (id: string) => void }) {
   const [open, setOpen] = useState<Record<string, boolean>>({ connectors: true, skills: true, guardrails: true });
   const guardrailsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
@@ -1428,9 +1447,11 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
     {
       id: "connectors", icon: ConnectIcon, label: "Connectors",
       content: (
-        <div className="py-1">
-          <p className="text-xs text-muted-foreground mb-2">The outside accounts and systems this agent may use.</p>
-        </div>
+        <EmptyStateBox
+          icon={ConnectIcon}
+          description="The outside accounts and systems this agent may use."
+          addLabel="Add Connectors"
+        />
       ),
     },
     {
@@ -2377,10 +2398,16 @@ function SkillsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:number;
   return (
     <>
       {skills.length === 0 ? (
-        <div className="flex flex-col items-center py-3 gap-1.5 text-center">
-          <HugeiconsIcon icon={PuzzleIcon} size={20} className="text-muted-foreground/50" />
-          <p className="text-xs text-muted-foreground">Reusable abilities you've taught it.</p>
-        </div>
+        <EmptyStateBox
+          icon={PuzzleIcon}
+          description="Reusable abilities you've taught it."
+          addLabel="Add Skill"
+          onAdd={e => {
+            const r = e.currentTarget.getBoundingClientRect();
+            setMenuPos({ top: r.bottom + 4, left: r.right });
+            setShowMenu(true);
+          }}
+        />
       ) : (
         <div className="flex flex-col gap-1.5">
           {skills.map(s => (
@@ -2611,16 +2638,12 @@ function SubAgentsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => void) =>
   return (
     <>
       {subAgents.length === 0 ? (
-        <div className="flex flex-col items-center py-3 gap-1.5 text-center">
-          <HugeiconsIcon icon={UserCircleIcon} size={20} className="text-muted-foreground/50" />
-          <p className="text-xs text-muted-foreground">Specialized agents this agent can delegate to.</p>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="flex items-center gap-1 text-xs text-primary hover:underline mt-0.5"
-          >
-            <HugeiconsIcon icon={Add01Icon} size={12} /> Add
-          </button>
-        </div>
+        <EmptyStateBox
+          icon={UserCircleIcon}
+          description="Specialized agents this agent can delegate to."
+          addLabel="Add Sub-Agent"
+          onAdd={() => setShowCreate(true)}
+        />
       ) : (
         <div className="flex flex-col gap-1.5">
           {subAgents.map(a => (
@@ -2718,7 +2741,20 @@ function GuardrailsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:num
   return (
     <>
       <div>
-        <p className="text-xs text-muted-foreground mb-3 leading-relaxed">Boundaries that keep your agent acting safely.</p>
+        {totalActive === 0 ? (
+          <EmptyStateBox
+            icon={Shield01Icon}
+            description="Boundaries that keep your agent acting safely."
+            addLabel="Add Guardrails"
+            onAdd={e => {
+              const r = e.currentTarget.getBoundingClientRect();
+              setMenuPos({ top: r.bottom + 4, left: r.right });
+              setShowMenu(true);
+            }}
+          />
+        ) : (
+          <p className="text-xs text-muted-foreground mb-3 leading-relaxed">Boundaries that keep your agent acting safely.</p>
+        )}
 
         {(wsAddedList.length > 0 || agentGuardrails.length > 0) && (
           <div className="space-y-1 mb-3">
