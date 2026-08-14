@@ -2,7 +2,7 @@ import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { createPortal } from "react-dom";
 
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, BookOpen01Icon, Cancel01Icon, BoltIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, UserMultipleIcon, Wrench01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
+import { Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, BookOpen01Icon, Cancel01Icon, BoltIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, UserMultipleIcon, TextBoldIcon, TextItalicIcon, TextStrikethroughIcon, Heading01Icon, Heading02Icon, LeftToRightListBulletIcon, LeftToRightListNumberIcon, CodeIcon, Copy01Icon, SourceCodeIcon, Wrench01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
 import { useEffect, useRef, useState } from "react";
 import AgentToolsTab from "@/components/tool-builder/AgentToolsTab";
 import TasksGrid from "@/components/tasks/TasksGrid";
@@ -2491,6 +2491,104 @@ interface SubAgent {
   connectorIds: string[];
 }
 
+function InstructionsEditorModal({ value, onClose, onDone }: {
+  value: string;
+  onClose: () => void;
+  onDone: (v: string) => void;
+}) {
+  const [text, setText] = useState(value);
+  const [viewMode, setViewMode] = useState<"preview" | "source">("source");
+  const editorRef = useRef<HTMLTextAreaElement>(null);
+
+  const wrapSelection = (before: string, after: string = before) => {
+    const el = editorRef.current;
+    if (!el) return;
+    const { selectionStart: s, selectionEnd: e } = el;
+    const next = text.slice(0, s) + before + text.slice(s, e) + after + text.slice(e);
+    setText(next);
+    requestAnimationFrame(() => { el.focus(); el.setSelectionRange(s + before.length, e + before.length); });
+  };
+
+  const prependLine = (prefix: string) => {
+    const el = editorRef.current;
+    if (!el) return;
+    const s = el.selectionStart;
+    const lineStart = text.lastIndexOf("\n", s - 1) + 1;
+    const next = text.slice(0, lineStart) + prefix + text.slice(lineStart);
+    setText(next);
+    requestAnimationFrame(() => { el.focus(); el.setSelectionRange(s + prefix.length, s + prefix.length); });
+  };
+
+  return createPortal(
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-2xl bg-white rounded-2xl shadow-lg border border-border flex flex-col animate-fade-up overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 shrink-0">
+          <h2 className="text-base font-semibold">Instructions</h2>
+          <button
+            onClick={() => { onDone(text); onClose(); }}
+            className="h-8 px-3 rounded-lg text-sm font-medium hover:bg-surface-muted transition-base"
+          >
+            Done
+          </button>
+        </div>
+
+        {/* Toolbar */}
+        <div className="flex items-center gap-0.5 px-3 py-2 border-y border-border bg-surface-muted/60 shrink-0">
+          <button onClick={() => wrapSelection("**")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Bold"><HugeiconsIcon icon={TextBoldIcon} size={14} /></button>
+          <button onClick={() => wrapSelection("*")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Italic"><HugeiconsIcon icon={TextItalicIcon} size={14} /></button>
+          <button onClick={() => wrapSelection("~~")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Strikethrough"><HugeiconsIcon icon={TextStrikethroughIcon} size={14} /></button>
+          <div className="w-px h-4 bg-border mx-1" />
+          <button onClick={() => prependLine("# ")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Heading 1"><HugeiconsIcon icon={Heading01Icon} size={14} /></button>
+          <button onClick={() => prependLine("## ")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Heading 2"><HugeiconsIcon icon={Heading02Icon} size={14} /></button>
+          <div className="w-px h-4 bg-border mx-1" />
+          <button onClick={() => prependLine("- ")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Bullet list"><HugeiconsIcon icon={LeftToRightListBulletIcon} size={14} /></button>
+          <button onClick={() => prependLine("1. ")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Numbered list"><HugeiconsIcon icon={LeftToRightListNumberIcon} size={14} /></button>
+          <div className="w-px h-4 bg-border mx-1" />
+          <button onClick={() => wrapSelection("`")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Inline code"><HugeiconsIcon icon={CodeIcon} size={14} /></button>
+          <button onClick={() => wrapSelection("```\n", "\n```")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Code block"><HugeiconsIcon icon={SourceCodeIcon} size={14} /></button>
+
+          <div className="flex-1" />
+
+          <button onClick={() => navigator.clipboard?.writeText(text)} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Copy"><HugeiconsIcon icon={Copy01Icon} size={14} /></button>
+          <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-surface border border-border ml-1.5">
+            <button
+              onClick={() => setViewMode("preview")}
+              className={`flex items-center gap-1.5 h-6 px-2.5 rounded-md text-xs font-medium transition-base ${viewMode === "preview" ? "bg-surface-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <HugeiconsIcon icon={EyeIcon} size={12} /> Preview
+            </button>
+            <button
+              onClick={() => setViewMode("source")}
+              className={`flex items-center gap-1.5 h-6 px-2.5 rounded-md text-xs font-medium transition-base ${viewMode === "source" ? "bg-surface-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <HugeiconsIcon icon={SourceCodeIcon} size={12} /> Source
+            </button>
+          </div>
+        </div>
+
+        {/* Content — fixed height, scrolls when overflowing */}
+        <div className="overflow-y-auto px-5 py-4" style={{ height: "360px" }}>
+          {viewMode === "preview" ? (
+            <div className="text-sm">{renderMarkdown(text || "*Nothing to preview yet.*")}</div>
+          ) : (
+            <textarea
+              ref={editorRef}
+              value={text}
+              onChange={e => setText(e.target.value)}
+              placeholder={"# Sub-agent instructions\n\nDescribe what this sub-agent does, its tone, and its limits…"}
+              className="w-full h-full resize-none bg-transparent outline-none text-sm font-mono leading-relaxed text-foreground"
+              spellCheck={false}
+            />
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 function CreateSubAgentModal({ onClose, onSave }: {
   onClose: () => void;
   onSave: (agent: Omit<SubAgent, "id">) => void;
@@ -2499,6 +2597,7 @@ function CreateSubAgentModal({ onClose, onSave }: {
   const [description, setDescription] = useState("");
   const [model, setModel] = useState("deepseek-v4-flash");
   const [instructions, setInstructions] = useState("");
+  const [showInstructionsEditor, setShowInstructionsEditor] = useState(false);
   const [skillIds, setSkillIds] = useState<number[]>([]);
   const [connectorIds, setConnectorIds] = useState<string[]>([]);
 
@@ -2551,15 +2650,34 @@ function CreateSubAgentModal({ onClose, onSave }: {
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-foreground mb-1.5 block">Instructions (agent.md)</label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-semibold text-foreground">Instructions (agent.md)</label>
+              <button
+                type="button"
+                onClick={() => setShowInstructionsEditor(true)}
+                className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+              >
+                <HugeiconsIcon icon={Edit01Icon} size={12} /> Edit
+              </button>
+            </div>
             <textarea
               value={instructions}
               onChange={e => setInstructions(e.target.value)}
+              onClick={() => setShowInstructionsEditor(true)}
+              readOnly
               placeholder={"# Sub-agent instructions\n\nDescribe what this sub-agent does, its tone, and its limits…"}
               rows={6}
-              className="ds-input w-full resize-none font-mono text-xs leading-relaxed"
+              className="ds-input w-full resize-none font-mono text-xs leading-relaxed cursor-pointer bg-surface-muted/40"
             />
           </div>
+
+          {showInstructionsEditor && (
+            <InstructionsEditorModal
+              value={instructions}
+              onClose={() => setShowInstructionsEditor(false)}
+              onDone={v => setInstructions(v)}
+            />
+          )}
 
           <div>
             <label className="text-xs font-semibold text-foreground mb-1.5 block">Skills</label>
