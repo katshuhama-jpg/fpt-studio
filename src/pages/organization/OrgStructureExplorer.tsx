@@ -463,12 +463,12 @@ export default function OrgStructureExplorer() {
               <div className="text-lg font-display font-semibold truncate">{selected.name}</div>
             </div>
             {!isRoot && (
-              <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-surface-muted/60 ring-1 ring-border/50 shrink-0">
+              <div className="flex items-center gap-1 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowRenameUnit(true)}
                   aria-label={`Rename ${selected.name}`}
-                  className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:bg-surface hover:text-primary hover:shadow-sm transition-base"
+                  className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-base"
                 >
                   <Pencil size={13} />
                 </button>
@@ -476,7 +476,7 @@ export default function OrgStructureExplorer() {
                   type="button"
                   onClick={() => setDeleteConfirmUnitId(selected.id)}
                   aria-label={`Delete ${selected.name}`}
-                  className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:bg-surface hover:text-destructive hover:shadow-sm transition-base"
+                  className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground hover:text-destructive transition-base"
                 >
                   <Trash2 size={13} />
                 </button>
@@ -611,13 +611,13 @@ export default function OrgStructureExplorer() {
                       </div>
                       {m.email && <div className="text-xs text-muted-foreground truncate">{m.email}</div>}
                     </div>
-                    <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-surface-muted/60 ring-1 ring-border/50 shrink-0 opacity-0 group-hover/row:opacity-100 transition-base">
+                    <div className="flex items-center gap-1 shrink-0">
                       <button
                         type="button"
                         onClick={() => setMovingMember(m)}
                         aria-label={`Move ${m.name} to another unit`}
                         title="Chuyển unit"
-                        className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:bg-surface hover:text-primary hover:shadow-sm transition-base"
+                        className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-base"
                       >
                         <FolderInput size={13} />
                       </button>
@@ -625,8 +625,7 @@ export default function OrgStructureExplorer() {
                         type="button"
                         onClick={() => setDeleteConfirmMemberId(m.id)}
                         aria-label={`Remove ${m.name}`}
-                        title="Gỡ thành viên"
-                        className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:bg-surface hover:text-destructive hover:shadow-sm transition-base"
+                        className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground hover:text-destructive transition-base"
                       >
                         <Trash2 size={13} />
                       </button>
