@@ -1422,6 +1422,7 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
   const [open, setOpen] = useState<Record<string, boolean>>({ connectors: true, skills: true, guardrails: true });
   const guardrailsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
   const skillsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
+  const subAgentsAddRef = useRef<(() => void) | null>(null);
 
   const sections = [
     {
@@ -1448,7 +1449,13 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
     },
     { id: "knowledge",  icon: NoteIcon,         label: "Knowledge", comingSoon: true },
     { id: "triggers",   icon: TimeScheduleIcon, label: "Triggers",  comingSoon: true },
-    { id: "sub-agents", icon: UserCircleIcon, label: "Sub-Agents", comingSoon: true },
+    {
+      id: "sub-agents", icon: UserCircleIcon, label: "Sub-Agents",
+      onAdd: () => subAgentsAddRef.current?.(),
+      content: (
+        <SubAgentsInner onRegisterAdd={(fn) => { subAgentsAddRef.current = fn; }} />
+      ),
+    },
   ];
 
   return (
@@ -2431,6 +2438,215 @@ function SkillsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:number;
           onClose={() => setShowWsModal(false)}
           onAdd={handleAddWs}
           added={wsAdded}
+        />
+      )}
+    </>
+  );
+}
+
+/* ============ Sub-Agents ============ */
+const SUB_AGENT_CONNECTORS = [
+  { id: "gmail",   name: "Gmail",        logo: "G" },
+  { id: "slack",   name: "Slack",        logo: "S" },
+  { id: "drive",   name: "Google Drive", logo: "D" },
+  { id: "sheets",  name: "Sheets",       logo: "Sh" },
+  { id: "notion",  name: "Notion",       logo: "N" },
+  { id: "hubspot", name: "HubSpot",      logo: "H" },
+];
+
+interface SubAgent {
+  id: number;
+  name: string;
+  description: string;
+  model: string;
+  instructions: string;
+  skillIds: number[];
+  connectorIds: string[];
+}
+
+function CreateSubAgentModal({ onClose, onSave }: {
+  onClose: () => void;
+  onSave: (agent: Omit<SubAgent, "id">) => void;
+}) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [model, setModel] = useState("deepseek-v4-flash");
+  const [instructions, setInstructions] = useState("");
+  const [skillIds, setSkillIds] = useState<number[]>([]);
+  const [connectorIds, setConnectorIds] = useState<string[]>([]);
+
+  const toggleSkill = (id: number) => setSkillIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const toggleConnector = (id: string) => setConnectorIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
+  const canSave = name.trim().length > 0;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-xl bg-white rounded-2xl shadow-lg border border-border flex flex-col max-h-[88vh] animate-fade-up">
+        {/* Header */}
+        <div className="flex items-start justify-between px-6 pt-6 pb-4 shrink-0 border-b border-border">
+          <div>
+            <h2 className="text-lg font-semibold">Create sub-agent</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">A specialized agent this agent can delegate tasks to.</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 mt-0.5">
+            <HugeiconsIcon icon={Cancel01Icon} size={16} />
+          </button>
+        </div>
+
+        {/* Form */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+          <div>
+            <label className="text-xs font-semibold text-foreground mb-1.5 block">Name</label>
+            <input
+              autoFocus
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="e.g. candidate-email-sender"
+              className="ds-input w-full"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-foreground mb-1.5 block">Description</label>
+            <input
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              placeholder="Use when sending recruiting emails…"
+              className="ds-input w-full"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-foreground mb-1.5 block">Model</label>
+            <ModelDropdown value={model} onChange={setModel} />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-foreground mb-1.5 block">Instructions (agent.md)</label>
+            <textarea
+              value={instructions}
+              onChange={e => setInstructions(e.target.value)}
+              placeholder={"# Sub-agent instructions\n\nDescribe what this sub-agent does, its tone, and its limits…"}
+              rows={6}
+              className="ds-input w-full resize-none font-mono text-xs leading-relaxed"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-foreground mb-1.5 block">Skills</label>
+            <div className="flex flex-wrap gap-1.5">
+              {WS_SKILLS.map(s => {
+                const active = skillIds.includes(s.id);
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => toggleSkill(s.id)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-base ${
+                      active ? "border-primary bg-primary-soft text-primary" : "border-border bg-surface hover:bg-surface-muted text-foreground"
+                    }`}
+                  >
+                    <HugeiconsIcon icon={PuzzleIcon} size={12} />
+                    {s.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-foreground mb-1.5 block">Connectors</label>
+            <div className="flex flex-wrap gap-1.5">
+              {SUB_AGENT_CONNECTORS.map(c => {
+                const active = connectorIds.includes(c.id);
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => toggleConnector(c.id)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-base ${
+                      active ? "border-primary bg-primary-soft text-primary" : "border-border bg-surface hover:bg-surface-muted text-foreground"
+                    }`}
+                  >
+                    <span className="w-4 h-4 rounded bg-surface-muted border border-border flex items-center justify-center text-[9px] font-bold shrink-0">{c.logo}</span>
+                    {c.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border shrink-0">
+          <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">Cancel</button>
+          <button
+            disabled={!canSave}
+            onClick={() => {
+              if (!canSave) return;
+              onSave({ name: name.trim(), description: description.trim(), model, instructions, skillIds, connectorIds });
+              onClose();
+            }}
+            className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-base"
+          >
+            Create sub-agent
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function SubAgentsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => void) => void } = {}) {
+  const [subAgents, setSubAgents] = useState<SubAgent[]>([]);
+  const [showCreate, setShowCreate] = useState(false);
+
+  useEffect(() => {
+    onRegisterAdd?.(() => setShowCreate(true));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <>
+      {subAgents.length === 0 ? (
+        <div className="flex flex-col items-center py-3 gap-1.5 text-center">
+          <HugeiconsIcon icon={UserCircleIcon} size={20} className="text-muted-foreground/50" />
+          <p className="text-xs text-muted-foreground">Specialized agents this agent can delegate to.</p>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="flex items-center gap-1 text-xs text-primary hover:underline mt-0.5"
+          >
+            <HugeiconsIcon icon={Add01Icon} size={12} /> Add
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          {subAgents.map(a => (
+            <div key={a.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base">
+              <div className="w-6 h-6 rounded-lg bg-surface-muted border border-border flex items-center justify-center shrink-0">
+                <HugeiconsIcon icon={UserCircleIcon} size={12} className="text-muted-foreground" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium truncate">{a.name}</p>
+                {a.description && <p className="text-[11px] text-muted-foreground truncate">{a.description}</p>}
+              </div>
+              <button
+                onClick={() => setSubAgents(prev => prev.filter(x => x.id !== a.id))}
+                className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-surface-muted transition-base shrink-0"
+              >
+                <HugeiconsIcon icon={Delete01Icon} size={12} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showCreate && (
+        <CreateSubAgentModal
+          onClose={() => setShowCreate(false)}
+          onSave={data => setSubAgents(prev => [...prev, { ...data, id: Date.now() }])}
         />
       )}
     </>
