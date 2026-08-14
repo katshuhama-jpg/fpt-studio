@@ -5,7 +5,7 @@ import {
   Puzzle, ChevronsLeft, ChevronsRight, Search, Bell, Plus,
   ChevronRight, LifeBuoy, KeyRound, LogOut, User, ChevronDown, ChevronsUpDown,
   Check, Building2, PlusCircle, Sparkles, Shield, FileText, Rocket,
-  Lock, ArrowLeft, Network, Users,
+  Lock, Network, Users,
 } from "lucide-react";
 
 const APP_VERSION = "0.58.5";
@@ -65,6 +65,8 @@ export default function WorkspaceLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [open, setOpen] = useState<Record<string, boolean>>({ build: true, workspace: true });
   const [userMenu, setUserMenu] = useState(false);
+  const [orgSwitcherOpen, setOrgSwitcherOpen] = useState(false);
+  const [tenantId, setTenantId] = useState(TENANTS[0].id);
   const userEmail = getUser()?.email || "tran.nam@fpt.com";
   const loc = useLocation();
   const navigate = useNavigate();
@@ -127,9 +129,6 @@ export default function WorkspaceLayout() {
         {/* Nav */}
         {inOrganization ? (
           <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
-            <div className="space-y-1 mb-3">
-              <NavRow item={{ to: "/", label: "Quay lại workspace", icon: ArrowLeft }} collapsed={collapsed} />
-            </div>
             <div className="space-y-1">
               {orgItems.map(it => (
                 <NavRow key={it.to} item={it} collapsed={collapsed} />
@@ -182,13 +181,40 @@ export default function WorkspaceLayout() {
               <div className="border-t border-border" />
 
               {/* Menu items */}
-              <NavLink
-                to="/organization/structure"
-                onClick={() => setUserMenu(false)}
-                className="flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-surface-muted transition-base"
-              >
-                <Building2 size={14} className="text-muted-foreground" /> Manage organization
-              </NavLink>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setOrgSwitcherOpen(v => !v)}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-surface-muted transition-base"
+                >
+                  <Building2 size={14} className="text-muted-foreground" />
+                  <span className="flex-1 text-left">Quản lý tổ chức</span>
+                  <ChevronDown size={12} className={`text-muted-foreground transition-base ${orgSwitcherOpen ? "rotate-180" : ""}`} />
+                </button>
+                {orgSwitcherOpen && (
+                  <div className="pb-1.5">
+                    {TENANTS.map(t => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => {
+                          setTenantId(t.id);
+                          setUserMenu(false);
+                          setOrgSwitcherOpen(false);
+                          navigate("/organization/structure");
+                        }}
+                        className="w-full flex items-center gap-2.5 pl-9 pr-3 py-2 text-sm hover:bg-surface-muted transition-base text-left"
+                      >
+                        <span className="w-5 h-5 rounded-md bg-primary-soft text-primary flex items-center justify-center text-[9px] font-bold shrink-0">
+                          {t.initial}
+                        </span>
+                        <span className="flex-1 min-w-0 truncate">{t.name}</span>
+                        {t.id === tenantId && <Check size={13} className="text-primary shrink-0" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <NavLink
                 to="/api-keys"
                 onClick={() => setUserMenu(false)}
@@ -227,7 +253,7 @@ export default function WorkspaceLayout() {
             </div>
           )}
           <button
-            onClick={() => setUserMenu(v => !v)}
+            onClick={() => { setUserMenu(v => !v); setOrgSwitcherOpen(false); }}
             className="w-full flex items-center gap-2.5 px-1.5 py-1 rounded-md hover:bg-surface-muted transition-base"
           >
             <div className="w-8 h-8 rounded-full bg-primary-soft flex items-center justify-center text-xs font-semibold text-primary shrink-0">
@@ -268,7 +294,7 @@ export default function WorkspaceLayout() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-14 border-b border-border bg-surface flex items-center px-6 gap-4 shrink-0">
           <div className="flex items-center gap-2 text-sm">
-            <TenantSwitcher />
+            <TenantSwitcher tenantId={tenantId} onChange={setTenantId} />
             <span className="text-muted-foreground">/</span>
             <span className="font-medium text-foreground capitalize">{breadcrumbLabel}</span>
           </div>
@@ -287,7 +313,7 @@ type AppOption = { key: "workspace" | "organization"; label: string; short: stri
 
 const APP_OPTIONS: AppOption[] = [
   { key: "workspace", label: "Agent Studio", short: "Agent Studio", desc: "Build and manage agents, knowledge, skills & connectors", icon: Bot, to: "/" },
-  { key: "organization", label: "Quản lý tổ chức", short: "Tổ chức", desc: "Quản lý cấu trúc, thành viên, vai trò & quyền hạn", icon: Building2, to: "/organization/structure" },
+  { key: "organization", label: "Quản lý tổ chức", short: "Quản lý", desc: "Quản lý cấu trúc, thành viên, vai trò & quyền hạn", icon: Building2, to: "/organization/structure" },
 ];
 
 function AppSwitcher({ collapsed, inOrganization }: { collapsed: boolean; inOrganization: boolean }) {
@@ -352,9 +378,8 @@ function AppSwitcher({ collapsed, inOrganization }: { collapsed: boolean; inOrga
 }
 
 /* ============ Tenant switcher (relocated to header) ============ */
-function TenantSwitcher() {
+function TenantSwitcher({ tenantId, onChange }: { tenantId: string; onChange: (id: string) => void }) {
   const [open, setOpen] = useState(false);
-  const [tenantId, setTenantId] = useState(TENANTS[0].id);
   const tenant = TENANTS.find(t => t.id === tenantId) ?? TENANTS[0];
 
   return (
@@ -379,7 +404,7 @@ function TenantSwitcher() {
             {TENANTS.map(t => (
               <button
                 key={t.id}
-                onClick={() => { setTenantId(t.id); setOpen(false); }}
+                onClick={() => { onChange(t.id); setOpen(false); }}
                 className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-surface-muted transition-base text-left"
               >
                 <div className="w-7 h-7 rounded-lg bg-primary-soft text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
