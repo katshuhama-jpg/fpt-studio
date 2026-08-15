@@ -6,9 +6,9 @@ import { useOrg } from "./orgStore";
 import { Conflict, useConflicts } from "./conflictsStore";
 
 export const TYPE_META: Record<Conflict["type"], { label: string; icon: any }> = {
-  member_unit_mismatch: { label: "Thành viên lệch unit", icon: ArrowLeftRight },
-  duplicate_unit_name: { label: "Trùng tên unit", icon: Copy },
-  member_removed_source: { label: "Thành viên đã rời hệ thống nguồn", icon: UserX },
+  member_unit_mismatch: { label: "Member unit mismatch", icon: ArrowLeftRight },
+  duplicate_unit_name: { label: "Duplicate unit name", icon: Copy },
+  member_removed_source: { label: "Member removed from source", icon: UserX },
 };
 
 /** Conflict types that are about one specific member — used by the Members page to
@@ -25,7 +25,7 @@ function unitPathLabel(tree: ReturnType<typeof useOrg>["tree"], unitId: string):
   return path.map(u => u.name).join(" › ");
 }
 
-/* ─── Two-column "Auto Sync vs Agent Studio" comparison block ──────────── */
+/* ─── Two-column "Auto Sync vs Agent Console" comparison block ──────────── */
 function CompareRow({ leftLabel, leftValue, rightLabel, rightValue }: { leftLabel: string; leftValue: string; rightLabel: string; rightValue: string }) {
   return (
     <div className="grid grid-cols-2 gap-3">
@@ -63,12 +63,12 @@ function ResolveModal({ conflict, onClose }: { conflict: Conflict; onClose: () =
     body = (
       <>
         <p className="text-sm text-muted-foreground mb-4">
-          Thành viên <span className="font-semibold text-foreground">{member?.name ?? conflict.memberId}</span> đang ở khác unit giữa dữ liệu thủ công và dữ liệu Auto Sync.
+          Member <span className="font-semibold text-foreground">{member?.name ?? conflict.memberId}</span> is in a different unit between the manually managed data and the Auto Sync data.
         </p>
         <CompareRow
-          leftLabel="Hiện tại trong Agent Studio"
+          leftLabel="Currently in Agent Console"
           leftValue={currentUnit ? unitPathLabel(tree, currentUnit.id) : "—"}
-          rightLabel="Từ Auto Sync (FPT Identity)"
+          rightLabel="From Auto Sync (FPT Identity)"
           rightValue={syncedUnit ? unitPathLabel(tree, syncedUnit.id) : "—"}
         />
       </>
@@ -78,22 +78,22 @@ function ResolveModal({ conflict, onClose }: { conflict: Conflict; onClose: () =
         <button
           type="button"
           onClick={() =>
-            apply(`Đã chuyển ${member?.name ?? conflict.memberId} sang "${syncedUnit?.name ?? conflict.syncedUnitId}" theo Auto Sync.`, () =>
+            apply(`Moved ${member?.name ?? conflict.memberId} to "${syncedUnit?.name ?? conflict.syncedUnitId}" per Auto Sync.`, () =>
               moveMember(conflict.memberId, conflict.syncedUnitId)
             )
           }
           className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-base"
         >
-          Áp dụng theo Auto Sync
+          Apply Auto Sync
         </button>
         <button
           type="button"
           onClick={() =>
-            apply(`Giữ ${member?.name ?? conflict.memberId} tại "${currentUnit?.name ?? conflict.currentUnitId}" theo quyết định thủ công — bỏ qua đề xuất Auto Sync lần này.`)
+            apply(`Kept ${member?.name ?? conflict.memberId} in "${currentUnit?.name ?? conflict.currentUnitId}" per the manual decision — ignoring this Auto Sync suggestion for now.`)
           }
           className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base"
         >
-          Giữ theo thủ công
+          Keep manual
         </button>
       </>
     );
@@ -103,12 +103,12 @@ function ResolveModal({ conflict, onClose }: { conflict: Conflict; onClose: () =
     body = (
       <>
         <p className="text-sm text-muted-foreground mb-4">
-          Auto Sync đề xuất một unit tên <span className="font-semibold text-foreground">"{conflict.incomingUnitName}"</span> — trùng tên với một unit đã có sẵn trong Agent Studio, nhưng ở nhánh tổ chức khác.
+          Auto Sync is proposing a unit named <span className="font-semibold text-foreground">"{conflict.incomingUnitName}"</span> — matching the name of a unit that already exists in Agent Console, but under a different branch of the organization.
         </p>
         <CompareRow
-          leftLabel="Đã có trong Agent Studio"
+          leftLabel="Already in Agent Console"
           leftValue={existingUnit ? unitPathLabel(tree, existingUnit.id) : "—"}
-          rightLabel="Đề xuất từ Auto Sync"
+          rightLabel="Proposed by Auto Sync"
           rightValue={incomingParent ? `${unitPathLabel(tree, incomingParent.id)} › ${conflict.incomingUnitName}` : conflict.incomingUnitName}
         />
       </>
@@ -119,24 +119,24 @@ function ResolveModal({ conflict, onClose }: { conflict: Conflict; onClose: () =
           type="button"
           onClick={() =>
             apply(
-              `Đã tạo "${conflict.incomingUnitName}" như một unit riêng biệt dưới "${incomingParent?.name ?? conflict.incomingParentUnitId}" — không gộp với "${existingUnit?.name ?? conflict.existingUnitId}".`,
+              `Created "${conflict.incomingUnitName}" as a separate unit under "${incomingParent?.name ?? conflict.incomingParentUnitId}" — not merged with "${existingUnit?.name ?? conflict.existingUnitId}".`,
               () => createUnit(conflict.incomingParentUnitId, conflict.incomingUnitName)
             )
           }
           className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-base"
         >
-          Tạo unit riêng biệt
+          Create separate unit
         </button>
         <button
           type="button"
           onClick={() =>
             apply(
-              `Coi "${conflict.incomingUnitName}" (Auto Sync) và "${existingUnit?.name ?? conflict.existingUnitId}" là cùng một unit — không tạo unit mới; thành viên tương lai từ Auto Sync cho unit này sẽ được đưa vào "${existingUnit?.name ?? conflict.existingUnitId}".`
+              `Treated "${conflict.incomingUnitName}" (Auto Sync) and "${existingUnit?.name ?? conflict.existingUnitId}" as the same unit — no new unit created; future Auto Sync members for this unit will be placed into "${existingUnit?.name ?? conflict.existingUnitId}".`
             )
           }
           className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base"
         >
-          Đây là cùng một unit — không tạo mới
+          Same unit — don't create new
         </button>
       </>
     );
@@ -145,11 +145,11 @@ function ResolveModal({ conflict, onClose }: { conflict: Conflict; onClose: () =
     body = (
       <>
         <p className="text-sm text-muted-foreground mb-4">
-          Auto Sync không còn thấy thành viên <span className="font-semibold text-foreground">{member?.name ?? conflict.memberId}</span> trong hệ thống nguồn (FPT Identity), nhưng người này vẫn đang <span className="font-semibold text-foreground">Active</span> trong Agent Studio.
+          Auto Sync no longer sees member <span className="font-semibold text-foreground">{member?.name ?? conflict.memberId}</span> in the source system (FPT Identity), but they're still <span className="font-semibold text-foreground">Active</span> in Agent Console.
         </p>
         <div className="rounded-lg border border-destructive/30 bg-destructive-soft/40 p-3">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-destructive mb-1">Trạng thái hiện tại</div>
-          <div className="text-sm font-medium">Active — vẫn còn vai trò và quyền truy cập trong workspace</div>
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-destructive mb-1">Current status</div>
+          <div className="text-sm font-medium">Active — still has a role and workspace access</div>
         </div>
       </>
     );
@@ -158,22 +158,22 @@ function ResolveModal({ conflict, onClose }: { conflict: Conflict; onClose: () =
         <button
           type="button"
           onClick={() =>
-            apply(`Đã đánh dấu ${member?.name ?? conflict.memberId} là Inactive theo Auto Sync — vai trò/quyền được giữ lại để đối chiếu, không xóa dữ liệu.`, () =>
+            apply(`Marked ${member?.name ?? conflict.memberId} as Inactive per Auto Sync — role/permissions kept for reference, no data deleted.`, () =>
               setMemberInactive(conflict.memberId, true)
             )
           }
           className="h-9 px-4 rounded-xl bg-destructive text-white text-sm font-medium hover:opacity-90 transition-base"
         >
-          Đánh dấu Inactive
+          Mark Inactive
         </button>
         <button
           type="button"
           onClick={() =>
-            apply(`Giữ ${member?.name ?? conflict.memberId} ở trạng thái Active — có thể do lỗi đồng bộ tạm thời từ FPT Identity, sẽ theo dõi lần sync kế tiếp.`)
+            apply(`Kept ${member?.name ?? conflict.memberId} as Active — could be a temporary sync glitch from FPT Identity, will re-check on the next sync.`)
           }
           className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base"
         >
-          Giữ Active (bỏ qua)
+          Keep Active (dismiss)
         </button>
       </>
     );
@@ -189,7 +189,7 @@ function ResolveModal({ conflict, onClose }: { conflict: Conflict; onClose: () =
               <meta.icon size={16} />
             </div>
             <div>
-              <h2 className="text-base font-semibold">Xử lý xung đột — {meta.label}</h2>
+              <h2 className="text-base font-semibold">Resolve conflict — {meta.label}</h2>
               <p className="text-xs text-muted-foreground mt-0.5">{conflict.reason}</p>
             </div>
           </div>
@@ -226,14 +226,14 @@ export function ConflictsPanel({ initialFilter = "open" }: { initialFilter?: "op
     if (c.type === "member_unit_mismatch") {
       const member = findMember(tree, c.memberId);
       const synced = findUnit(tree, c.syncedUnitId);
-      return `${member?.name ?? c.memberId} → đề xuất chuyển sang "${synced?.name ?? c.syncedUnitId}"`;
+      return `${member?.name ?? c.memberId} → suggested move to "${synced?.name ?? c.syncedUnitId}"`;
     }
     if (c.type === "duplicate_unit_name") {
       const existing = findUnit(tree, c.existingUnitId);
-      return `"${c.incomingUnitName}" (Auto Sync) trùng tên với "${existing?.name ?? c.existingUnitId}"`;
+      return `"${c.incomingUnitName}" (Auto Sync) matches the name of "${existing?.name ?? c.existingUnitId}"`;
     }
     const member = findMember(tree, c.memberId);
-    return `${member?.name ?? c.memberId} không còn trong hệ thống nguồn`;
+    return `${member?.name ?? c.memberId} is no longer in the source system`;
   };
 
   return (
@@ -242,9 +242,9 @@ export function ConflictsPanel({ initialFilter = "open" }: { initialFilter?: "op
 
       <div className="flex items-center gap-2 mb-4">
         {[
-          { key: "open" as const, label: "Chưa xử lý", count: openCount },
-          { key: "resolved" as const, label: "Đã xử lý", count: resolvedCount },
-          { key: "all" as const, label: "Tất cả", count: conflicts.length },
+          { key: "open" as const, label: "Open", count: openCount },
+          { key: "resolved" as const, label: "Resolved", count: resolvedCount },
+          { key: "all" as const, label: "All", count: conflicts.length },
         ].map(tab => (
           <button
             key={tab.key}
@@ -261,7 +261,7 @@ export function ConflictsPanel({ initialFilter = "open" }: { initialFilter?: "op
 
       {shown.length === 0 ? (
         <div className="text-sm text-muted-foreground border border-dashed border-border rounded-lg py-10 text-center">
-          {filter === "open" ? "Không có xung đột nào đang chờ xử lý." : "Chưa có dữ liệu."}
+          {filter === "open" ? "No conflicts pending." : "No data yet."}
         </div>
       ) : (
         <div className="divide-y divide-border -mx-1">
@@ -295,11 +295,11 @@ export function ConflictsPanel({ initialFilter = "open" }: { initialFilter?: "op
                       onClick={() => setResolvingId(c.id)}
                       className="h-8 px-3.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-base"
                     >
-                      Xử lý
+                      Resolve
                     </button>
                   ) : (
                     <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                      <Clock size={12} /> Đã xử lý
+                      <Clock size={12} /> Resolved
                     </span>
                   )}
                 </div>

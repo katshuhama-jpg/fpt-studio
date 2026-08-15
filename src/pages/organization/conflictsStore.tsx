@@ -41,7 +41,7 @@ export type Conflict = MemberUnitMismatchConflict | DuplicateUnitNameConflict | 
 
 /**
  * Mock output of a sync-diff run between the last Auto Sync payload from FPT Identity
- * and the data currently managed in Agent Studio (manually, or from an earlier sync).
+ * and the data currently managed in Agent Console (manually, or from an earlier sync).
  * In a real system this list would be produced server-side after every sync run;
  * here it's seeded once to demonstrate the review + resolve flow end to end.
  */
@@ -51,7 +51,7 @@ const SEED_CONFLICTS: Conflict[] = [
     type: "member_unit_mismatch",
     status: "open",
     detectedAt: "08:00, 13/08/2026",
-    reason: 'FPT Identity ghi nhận thành viên đã chuyển unit từ 10/08/2026, nhưng Agent Studio chưa được cập nhật.',
+    reason: 'FPT Identity shows this member moved units on 10/08/2026, but Agent Console hasn\'t been updated yet.',
     memberId: "m-plat-1",
     currentUnitId: "fsoft-vn-platform",
     syncedUnitId: "fsoft-vn-aiml",
@@ -61,7 +61,7 @@ const SEED_CONFLICTS: Conflict[] = [
     type: "duplicate_unit_name",
     status: "open",
     detectedAt: "08:00, 13/08/2026",
-    reason: 'FPT Identity gửi về một unit cùng tên nhưng thuộc nhánh tổ chức khác — có thể là 2 team khác nhau đặt trùng tên, hoặc cùng một team bị khai báo 2 nơi.',
+    reason: 'FPT Identity sent back a unit with the same name but under a different branch of the org — could be two different teams that happen to share a name, or the same team declared in two places.',
     existingUnitId: "fsc-infra",
     incomingUnitName: "Cloud Infrastructure",
     incomingParentUnitId: "ftel-it",
@@ -71,7 +71,7 @@ const SEED_CONFLICTS: Conflict[] = [
     type: "member_removed_source",
     status: "open",
     detectedAt: "08:00, 13/08/2026",
-    reason: 'FPT Identity không còn ghi nhận thành viên này trong hệ thống nhân sự (tài khoản bị vô hiệu hóa ngày 12/08/2026), nhưng vẫn đang Active trong Agent Studio.',
+    reason: 'FPT Identity no longer sees this member in the HR system (account deactivated on 12/08/2026), but they\'re still Active in Agent Console.',
     memberId: "m-plat-2",
   },
 ];

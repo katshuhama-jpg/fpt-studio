@@ -86,19 +86,19 @@ function UnitModal({
           </button>
         </div>
         <div className="px-6 py-5">
-          <label className="text-sm font-medium block mb-1.5">Tên unit <span className="text-destructive">*</span></label>
+          <label className="text-sm font-medium block mb-1.5">Unit name <span className="text-destructive">*</span></label>
           <input
             autoFocus
             value={name}
             onChange={e => setName(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter") submit(); }}
-            placeholder="vd: Platform Engineering"
+            placeholder="e.g. Platform Engineering"
             className="w-full h-10 px-3 rounded-xl border border-border bg-surface text-sm outline-none focus:border-ring transition-base"
           />
         </div>
         <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border shrink-0">
           <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">
-            Hủy
+            Cancel
           </button>
           <button
             onClick={submit}
@@ -159,12 +159,12 @@ function MemberModal({
         <div className="px-6 py-5 space-y-4">
           {isEdit && (
             <div>
-              <label className="text-sm font-medium block mb-1.5">Họ và tên <span className="text-destructive">*</span></label>
+              <label className="text-sm font-medium block mb-1.5">Full name <span className="text-destructive">*</span></label>
               <input
                 autoFocus
                 value={name}
                 onChange={e => setName(e.target.value)}
-                placeholder="vd: Mai Hoàng"
+                placeholder="e.g. Mai Hoang"
                 className="w-full h-10 px-3 rounded-xl border border-border bg-surface text-sm outline-none focus:border-ring transition-base"
               />
             </div>
@@ -177,24 +177,24 @@ function MemberModal({
               value={email}
               onChange={e => setEmail(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter" && isEdit) submit(); }}
-              placeholder="vd: mai.hoang@fpt.com"
+              placeholder="e.g. mai.hoang@fpt.com"
               aria-invalid={isEmailInvalid || isEmailDuplicate}
               className={`w-full h-10 px-3 rounded-xl border bg-surface text-sm outline-none transition-base ${
                 isEmailInvalid || isEmailDuplicate ? "border-destructive focus:border-destructive" : "border-border focus:border-ring"
               }`}
             />
             {isEmailInvalid ? (
-              <p className="text-xs text-destructive mt-1.5">Email không đúng định dạng (vd: mai.hoang@fpt.com).</p>
+              <p className="text-xs text-destructive mt-1.5">That email doesn't look right (e.g. mai.hoang@fpt.com).</p>
             ) : isEmailDuplicate ? (
-              <p className="text-xs text-destructive mt-1.5">Email này đã được dùng bởi một thành viên khác trong tổ chức.</p>
+              <p className="text-xs text-destructive mt-1.5">This email is already used by another member in the organization.</p>
             ) : !isEdit && (
-              <p className="text-xs text-muted-foreground mt-1.5">Tên sẽ được tự động nhận diện sau khi người này chấp nhận lời mời.</p>
+              <p className="text-xs text-muted-foreground mt-1.5">Their name will be picked up automatically once they accept the invite.</p>
             )}
           </div>
           {!isEdit && (
             <div>
               <label className="text-sm font-medium block mb-1.5">
-                Vai trò{unitName ? ` trong ${unitName}` : ""}
+                Role{unitName ? ` in ${unitName}` : ""}
               </label>
               <div className="relative">
                 <select
@@ -208,14 +208,14 @@ function MemberModal({
                 <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               </div>
               <p className="text-xs text-muted-foreground mt-1.5">
-                Quyền của vai trò này chỉ áp dụng trong phạm vi {unitName ?? "unit hiện tại"} — không áp dụng cho các unit khác. Nếu thành viên được chuyển sang unit khác, phạm vi áp dụng sẽ chuyển theo unit mới.
+                This role's permissions only apply within {unitName ?? "the current unit"} — not other units. If the member moves to a different unit, the scope moves with them.
               </p>
             </div>
           )}
         </div>
         <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border shrink-0">
           <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">
-            Hủy
+            Cancel
           </button>
           <button
             onClick={submit}
@@ -233,7 +233,7 @@ function MemberModal({
 }
 
 /* ─── Delete confirmation (popup, reused for units and members) ────────── */
-// `blocked` turns this into an info-only "cannot delete" dialog (single "Đã hiểu" button,
+// `blocked` turns this into an info-only "cannot delete" dialog (single "Got it" button,
 // no destructive action) — used when a unit still has members/child units (rule: unit must
 // be emptied first, no cascade-delete).
 function ConfirmDeleteModal({
@@ -257,13 +257,13 @@ function ConfirmDeleteModal({
         {blocked ? (
           <div className="flex items-center justify-end">
             <button onClick={onClose} className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-base">
-              Đã hiểu
+              Got it
             </button>
           </div>
         ) : (
         <div className="flex items-center justify-end gap-2">
           <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">
-            Hủy
+            Cancel
           </button>
           <button onClick={onConfirm} className="h-9 px-4 rounded-xl bg-destructive text-white text-sm font-medium hover:opacity-90 transition-base">
             {confirmLabel}
@@ -346,29 +346,29 @@ export default function OrgStructureExplorer() {
     <div className="grid grid-cols-1 lg:grid-cols-[260px,1fr] gap-5">
       {showRenameUnit && (
         <UnitModal
-          title={`Đổi tên ${selected.name}`}
-          desc="Cập nhật tên của unit này."
+          title={`Rename ${selected.name}`}
+          desc="Update this unit's name."
           initialName={selected.name}
-          submitLabel="Lưu thay đổi"
+          submitLabel="Save changes"
           onClose={() => setShowRenameUnit(false)}
           onSave={name => renameUnit(selected.id, name)}
         />
       )}
       {showAddSubunit && (
         <UnitModal
-          title="Thêm unit"
-          desc={`Tạo unit mới trong ${selected.name}.`}
-          submitLabel="Tạo unit"
+          title="Add unit"
+          desc={`Create a new unit inside ${selected.name}.`}
+          submitLabel="Create unit"
           onClose={() => setShowAddSubunit(false)}
           onSave={name => createUnit(selected.id, name)}
         />
       )}
       {showAddMember && (
         <MemberModal
-          title="Mời thành viên"
-          desc={`Mời một người mới tham gia ${selected.name}.`}
+          title="Invite member"
+          desc={`Invite someone new to join ${selected.name}.`}
           roles={roles}
-          submitLabel="Mời thành viên"
+          submitLabel="Invite member"
           onClose={() => setShowAddMember(false)}
           onSave={(name, email, roleId) => addMember(selected.id, name, email, roleId)}
           existingEmails={allEmails}
@@ -383,17 +383,17 @@ export default function OrgStructureExplorer() {
         const hasSubUnits = deleteTargetUnit.units.length > 0;
         const isBlocked = hasMembers || hasSubUnits;
         const parts: string[] = [];
-        if (hasMembers) parts.push(`${deleteTargetUnit.members.length} thành viên trực tiếp`);
-        if (hasSubUnits) parts.push(`${deleteTargetUnit.units.length} unit bên trong`);
+        if (hasMembers) parts.push(`${deleteTargetUnit.members.length} direct member${deleteTargetUnit.members.length === 1 ? "" : "s"}`);
+        if (hasSubUnits) parts.push(`${deleteTargetUnit.units.length} unit${deleteTargetUnit.units.length === 1 ? "" : "s"} inside`);
         return (
           <ConfirmDeleteModal
-            title={isBlocked ? `Không thể xóa "${deleteTargetUnit.name}"` : `Xóa "${deleteTargetUnit.name}"?`}
+            title={isBlocked ? `Can't delete "${deleteTargetUnit.name}"` : `Delete "${deleteTargetUnit.name}"?`}
             desc={
               isBlocked
-                ? `Unit này vẫn còn ${parts.join(" và ")}. Hãy chuyển hoặc gỡ hết trước khi xóa unit — Agent Studio không tự xóa cả cây để tránh mất dữ liệu ngoài ý muốn.`
-                : "Unit trống, không còn thành viên hay unit nào bên trong. Hành động này không thể hoàn tác."
+                ? `This unit still has ${parts.join(" and ")}. Move or remove them first before deleting the unit — Agent Console won't cascade-delete the whole tree to avoid unintended data loss.`
+                : "The unit is empty, with no members or units inside. This action can't be undone."
             }
-            confirmLabel="Xóa unit"
+            confirmLabel="Delete unit"
             blocked={isBlocked}
             onClose={() => setDeleteConfirmUnitId(null)}
             onConfirm={() => handleDeleteUnit(deleteTargetUnit.id)}
@@ -402,9 +402,9 @@ export default function OrgStructureExplorer() {
       })()}
       {deleteTargetMember && (
         <ConfirmDeleteModal
-          title={`Gỡ "${deleteTargetMember.name}"?`}
-          desc="Người này sẽ bị gỡ khỏi unit. Hành động này không thể hoàn tác."
-          confirmLabel="Gỡ thành viên"
+          title={`Remove "${deleteTargetMember.name}"?`}
+          desc="This person will be removed from the unit. This action can't be undone."
+          confirmLabel="Remove member"
           onClose={() => setDeleteConfirmMemberId(null)}
           onConfirm={() => { removeMember(deleteTargetMember.id); setDeleteConfirmMemberId(null); }}
         />
@@ -418,7 +418,7 @@ export default function OrgStructureExplorer() {
             <input
               value={treeQuery}
               onChange={e => setTreeQuery(e.target.value)}
-              placeholder="Tìm unit hoặc người…"
+              placeholder="Search units or people…"
               className="ds-input pl-9 h-10 text-sm"
             />
           </div>
@@ -484,7 +484,7 @@ export default function OrgStructureExplorer() {
             )}
           </div>
           <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-full bg-surface-muted border border-border text-muted-foreground shrink-0">
-            <Users size={12} /> {countAll(selected)} người
+            <Users size={12} /> {countAll(selected)} people
           </span>
         </div>
 
@@ -499,12 +499,12 @@ export default function OrgStructureExplorer() {
               onClick={() => setShowAddSubunit(true)}
               className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-glow transition-base"
             >
-              <Plus size={12} /> Thêm unit
+              <Plus size={12} /> Add unit
             </button>
           </div>
           {selected.units.length === 0 ? (
             <div className="text-sm text-muted-foreground border border-dashed border-border rounded-lg py-6 text-center">
-              Chưa có unit nào.
+              No units yet.
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -566,7 +566,7 @@ export default function OrgStructureExplorer() {
         <div>
           <div className="flex items-center justify-between gap-3 mb-2">
             <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Thành viên trong unit này ({countDirect(selected)})
+              Members in this unit ({countDirect(selected)})
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -574,7 +574,7 @@ export default function OrgStructureExplorer() {
                 onClick={() => setShowAddMember(true)}
                 className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-glow transition-base shrink-0"
               >
-                <Plus size={12} /> Mời thành viên
+                <Plus size={12} /> Invite member
               </button>
               {selected.members.length > 6 && (
                 <div className="relative w-40">
@@ -582,7 +582,7 @@ export default function OrgStructureExplorer() {
                   <input
                     value={memberQuery}
                     onChange={e => setMemberQuery(e.target.value)}
-                    placeholder="Lọc…"
+                    placeholder="Filter…"
                     className="ds-input pl-6 h-7 text-xs"
                   />
                 </div>
@@ -592,7 +592,7 @@ export default function OrgStructureExplorer() {
 
           {selected.members.length === 0 ? (
             <div className="text-sm text-muted-foreground border border-dashed border-border rounded-lg py-6 text-center">
-              Chưa có thành viên trực tiếp trong unit này.
+              No direct members in this unit yet.
             </div>
           ) : (
             <>
@@ -616,7 +616,7 @@ export default function OrgStructureExplorer() {
                         type="button"
                         onClick={() => setMovingMember(m)}
                         aria-label={`Move ${m.name} to another unit`}
-                        title="Chuyển unit"
+                        title="Move to another unit"
                         className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-base"
                       >
                         <FolderInput size={13} />
@@ -633,7 +633,7 @@ export default function OrgStructureExplorer() {
                   </div>
                 ))}
                 {filteredMembers.length === 0 && (
-                  <div className="text-sm text-muted-foreground py-6 text-center">Không có kết quả.</div>
+                  <div className="text-sm text-muted-foreground py-6 text-center">No results.</div>
                 )}
               </div>
               {memberTotalPages > 1 && (

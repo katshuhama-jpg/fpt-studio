@@ -11,7 +11,7 @@ import { MoveMemberModal } from "./MoveMemberModal";
 
 function unitNameFor(tree: OrgUnit, memberId: string): string {
   const unit = findMemberUnit(tree, memberId);
-  return unit ? unit.name : "Chưa có unit";
+  return unit ? unit.name : "No unit";
 }
 
 /** Every member always has a role — this is the implicit one when none was explicitly set. */
@@ -72,7 +72,7 @@ function UnitSwitcher({ value, onChange }: { value: string; onChange: (id: strin
                 autoFocus
                 value={q}
                 onChange={e => setQ(e.target.value)}
-                placeholder="Tìm unit…"
+                placeholder="Search units…"
                 className="ds-input pl-7 h-8 text-sm"
               />
             </div>
@@ -92,7 +92,7 @@ function UnitSwitcher({ value, onChange }: { value: string; onChange: (id: strin
               </button>
             ))}
             {filtered.length === 0 && (
-              <div className="px-3 py-6 text-center text-xs text-muted-foreground">Không có kết quả.</div>
+              <div className="px-3 py-6 text-center text-xs text-muted-foreground">No results.</div>
             )}
           </div>
         </div>
@@ -174,8 +174,8 @@ function RoleCell({
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        aria-label={`Đổi vai trò của ${memberName}`}
-        title={current && unitName ? `${current.name} — áp dụng trong ${unitName}` : undefined}
+        aria-label={`Change ${memberName}'s role`}
+        title={current && unitName ? `${current.name} — applies in ${unitName}` : undefined}
         className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-base hover:opacity-80 cursor-pointer bg-primary-soft text-primary"
       >
         {current?.name ?? currentRoleId}
@@ -185,7 +185,7 @@ function RoleCell({
         <div className="absolute left-0 top-[calc(100%+4px)] w-48 bg-surface rounded-xl ring-1 ring-border shadow-xl z-20 p-1">
           {unitName && (
             <div className="px-3 py-1.5 text-[10px] text-muted-foreground border-b border-border mb-1">
-              Áp dụng trong {unitName}
+              Applies in {unitName}
             </div>
           )}
           {roles.map(r => (
@@ -259,8 +259,8 @@ function AddUserToRoleModal({
       <div className="relative w-[92vw] sm:w-1/2 min-w-[50vw] max-w-[1100px] bg-white rounded-2xl flex flex-col shadow-2xl max-h-[80vh]" style={{ animation: "fadeScaleIn 0.18s ease" }}>
         <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-border shrink-0">
           <div>
-            <h2 className="text-base font-semibold">Thêm người dùng vào một vai trò</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Tìm một hoặc nhiều người trong tổ chức và chọn vai trò để gán cho họ.</p>
+            <h2 className="text-base font-semibold">Add users to a role</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Find one or more people in the organization and choose a role to assign them.</p>
           </div>
           <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground ml-4 shrink-0">
             <X size={14} />
@@ -269,7 +269,7 @@ function AddUserToRoleModal({
 
         <div className="px-6 py-5 space-y-4">
           <div>
-            <label className="text-sm font-medium block mb-1.5">Người dùng hoặc nhóm</label>
+            <label className="text-sm font-medium block mb-1.5">Users or groups</label>
             <div className="relative">
               <div className="flex flex-wrap items-center gap-1.5 min-h-10 px-2 py-1.5 rounded-xl border border-border bg-surface focus-within:border-ring transition-base">
                 {selectedMembers.map(m => (
@@ -295,7 +295,7 @@ function AddUserToRoleModal({
                     onChange={e => { setQuery(e.target.value); setShowList(true); }}
                     onFocus={() => setShowList(true)}
                     onBlur={() => setTimeout(() => setShowList(false), 150)}
-                    placeholder={selectedMembers.length ? "Thêm người khác…" : "Tìm theo tên hoặc email"}
+                    placeholder={selectedMembers.length ? "Add someone else…" : "Search by name or email"}
                     className="w-full h-7 outline-none bg-transparent text-sm"
                   />
                 </div>
@@ -339,17 +339,17 @@ function AddUserToRoleModal({
               <div className="text-xs text-foreground leading-relaxed">
                 {conflicts.map(({ member, roleName }, i) => (
                   <span key={member.id}>
-                    <span className="font-medium">{member.name}</span> đã ở trong vai trò <span className="font-medium">{roleName}</span>
+                    <span className="font-medium">{member.name}</span> is already in the <span className="font-medium">{roleName}</span> role
                     {i < conflicts.length - 1 ? ", " : ". "}
                   </span>
                 ))}
-                Gỡ {conflicts.length === 1 ? "người này" : "những người này"} khỏi vai trò hiện tại trước, sau đó thêm lại vào đây.
+                Remove them from their current role first, then add them back here.
               </div>
             </div>
           )}
 
           <div>
-            <label className="text-sm font-medium block mb-1.5">Vai trò</label>
+            <label className="text-sm font-medium block mb-1.5">Role</label>
             <div className="relative">
               <select
                 value={roleId}
@@ -361,21 +361,21 @@ function AddUserToRoleModal({
               <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             </div>
             <p className="text-xs text-muted-foreground mt-1.5">
-              Quyền của vai trò này chỉ áp dụng trong phạm vi unit hiện tại của từng người được chọn — không áp dụng cho toàn bộ tổ chức hay unit khác.
+              This role's permissions only apply within each selected person's current unit — not the whole organization or other units.
             </p>
           </div>
         </div>
 
         <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border shrink-0">
           <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">
-            Đóng
+            Close
           </button>
           <button
             onClick={submit}
             disabled={selectedMembers.length === 0 || conflicts.length > 0}
             className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-base disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            {selectedMembers.length > 1 ? `Thêm ${selectedMembers.length} thành viên` : "Thêm"}
+            {selectedMembers.length > 1 ? `Add ${selectedMembers.length} members` : "Add"}
           </button>
         </div>
       </div>
@@ -457,10 +457,10 @@ export default function Members() {
       )}
 
       <div className="flex items-start justify-between gap-4">
-        <PageHeader title="Thành viên" desc="Tìm kiếm và quản lý tất cả mọi người trong tổ chức, cùng vai trò của từng người." />
+        <PageHeader title="Members" desc="Search and manage everyone in the organization, along with each person's role." />
         {view === "list" && (
           <button onClick={() => setShowAdd(true)} className="btn-primary h-9 shrink-0">
-            <Plus size={14} /> Thêm người dùng vào vai trò
+            <Plus size={14} /> Add users to a role
           </button>
         )}
       </div>
@@ -473,7 +473,7 @@ export default function Members() {
             view === "list" ? "bg-primary-soft text-primary border-primary/30" : "border-border text-muted-foreground hover:bg-surface-muted"
           }`}
         >
-          Danh sách thành viên
+          Member list
         </button>
         <button
           type="button"
@@ -482,7 +482,7 @@ export default function Members() {
             view === "conflicts" ? "bg-primary-soft text-primary border-primary/30" : "border-border text-muted-foreground hover:bg-surface-muted"
           }`}
         >
-          Xung đột đồng bộ
+          Sync Conflicts
           {openConflictCount > 0 && (
             <span className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-semibold flex items-center justify-center shrink-0 ${
               view === "conflicts" ? "bg-primary text-primary-foreground" : "bg-destructive-soft text-destructive"
@@ -504,7 +504,7 @@ export default function Members() {
             <div className="flex items-center gap-2.5 text-xs text-foreground">
               <AlertTriangle size={15} className="text-warning shrink-0" />
               <span>
-                <span className="font-medium">{openMemberConflictCount}</span> thành viên đang có xung đột đồng bộ chờ xử lý.
+                <span className="font-medium">{openMemberConflictCount}</span> member{openMemberConflictCount === 1 ? "" : "s"} with sync conflicts pending.
               </span>
             </div>
             <button
@@ -512,32 +512,32 @@ export default function Members() {
               onClick={() => setView("conflicts")}
               className="h-7 px-3 rounded-lg bg-white border border-warning/40 text-warning text-xs font-medium hover:bg-warning-soft transition-base shrink-0"
             >
-              Xem chi tiết
+              View details
             </button>
           </div>
         )}
         <div className="flex flex-wrap items-center gap-2.5 mb-4">
           <UnitSwitcher value={selectedUnitId} onChange={setSelectedUnitId} />
-          <FilterChip value={roleFilter} allLabel="Tất cả vai trò" options={roleSections} onChange={setRoleFilter} />
+          <FilterChip value={roleFilter} allLabel="All roles" options={roleSections} onChange={setRoleFilter} />
           <div className="relative ml-auto w-full sm:w-64">
             <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm theo tên hoặc chức danh…" className="ds-input pl-8 h-9" />
+            <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search by name or title…" className="ds-input pl-8 h-9" />
           </div>
         </div>
 
         <div className="text-xs text-muted-foreground mb-3">
-          {visibleMembers.length} người trong {selectedUnit.name}
+          {visibleMembers.length} people in {selectedUnit.name}
         </div>
 
         {visibleMembers.length === 0 ? (
           <div className="text-sm text-muted-foreground border border-dashed border-border rounded-lg py-10 text-center">
-            Không tìm thấy thành viên nào.
+            No members found.
           </div>
         ) : (
           <>
             <div className="-mx-6 border-t border-border">
               <div className="grid grid-cols-[1fr,200px,160px,40px] gap-3 px-6 py-2.5 bg-surface-muted section-eyebrow">
-                <div>Thành viên</div><div>Unit</div><div>Vai trò</div><div />
+                <div>Member</div><div>Unit</div><div>Role</div><div />
               </div>
               <div className="divide-y divide-border">
                 {shownMembers.map(m => {
@@ -562,7 +562,7 @@ export default function Members() {
                                 title={TYPE_META[openConflictByMember.get(m.id)!.type].label}
                                 className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-warning-soft text-warning font-medium shrink-0 hover:opacity-80 transition-base"
                               >
-                                <AlertTriangle size={10} /> Xung đột
+                                <AlertTriangle size={10} /> Conflict
                               </button>
                             )}
                           </div>
@@ -582,7 +582,7 @@ export default function Members() {
                         type="button"
                         onClick={() => setMovingMember(m)}
                         aria-label={`Move ${m.name} to another unit`}
-                        title="Chuyển unit"
+                        title="Move to another unit"
                         className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-base"
                       >
                         <FolderInput size={13} />

@@ -35,7 +35,7 @@ function generateName(seed: number): { name: string; initials: string } {
 
 /**
  * Deterministic email backfill for members that don't already have one — most bulk/seed
- * members are only given a name, but the UI (Cấu trúc tổ chức, Thành viên) always needs an
+ * members are only given a name, but the UI (Structure, Members) always needs an
  * email to show. Derives `firstname.lastname@fpt.com` from the name and disambiguates
  * collisions (two people can share a display name in this seed data) with a numeric suffix.
  */

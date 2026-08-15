@@ -6,7 +6,7 @@ import { useOrg } from "./orgStore";
 
 /**
  * Move a member from their current unit to a different one, anywhere in the tree.
- * Shared between the unit detail view (Cấu trúc tổ chức) and the global Thành viên list —
+ * Shared between the unit detail view (Structure) and the global Members list —
  * both just need a member + their current unit id.
  */
 export function MoveMemberModal({
@@ -41,8 +41,8 @@ export function MoveMemberModal({
       <div className="relative w-[92vw] sm:w-1/2 min-w-[420px] max-w-[560px] bg-white rounded-2xl flex flex-col shadow-2xl max-h-[80vh]" style={{ animation: "fadeScaleIn 0.18s ease" }}>
         <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-border shrink-0">
           <div>
-            <h2 className="text-base font-semibold">Chuyển unit cho {member.name}</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Đang ở: {currentLabel}</p>
+            <h2 className="text-base font-semibold">Move {member.name} to another unit</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Currently in: {currentLabel}</p>
           </div>
           <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground ml-4 shrink-0">
             <X size={14} />
@@ -56,7 +56,7 @@ export function MoveMemberModal({
               autoFocus
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="Tìm unit đích…"
+              placeholder="Search for a destination unit…"
               className="ds-input pl-8 h-9 text-sm"
             />
           </div>
@@ -64,7 +64,7 @@ export function MoveMemberModal({
 
         <div className="flex-1 overflow-y-auto p-2">
           {filtered.length === 0 ? (
-            <div className="text-sm text-muted-foreground py-8 text-center">Không tìm thấy unit nào.</div>
+            <div className="text-sm text-muted-foreground py-8 text-center">No units found.</div>
           ) : (
             filtered.map(({ unit, depth }) => (
               <button
@@ -93,14 +93,14 @@ export function MoveMemberModal({
 
         <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border shrink-0">
           <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">
-            Hủy
+            Cancel
           </button>
           <button
             onClick={submit}
             disabled={!targetId}
             className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-base disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Chuyển unit
+            Move unit
           </button>
         </div>
       </div>

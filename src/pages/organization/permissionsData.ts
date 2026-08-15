@@ -33,15 +33,15 @@ export const featureGroups: FeatureGroup[] = [
       label,
       icon,
       permissions: [
-        { id: `${id}.publish`, name: `Publish ${thing}`, desc: `Cho phép chia sẻ một ${singular} cá nhân với toàn bộ workspace, hoặc với thành viên cụ thể.` },
-        { id: `${id}.manage`, name: `Manage ${thing}`, desc: `Chỉnh sửa cấu hình của một ${singular} đang hoạt động trong workspace.` },
-        { id: `${id}.delete`, name: `Delete ${thing}`, desc: `Xóa vĩnh viễn một ${singular} đang hoạt động khỏi workspace.` },
+        { id: `${id}.publish`, name: `Publish ${thing}`, desc: `Make a personal ${singular} available to the whole workspace, or share it with specific teammates.` },
+        { id: `${id}.manage`, name: `Manage ${thing}`, desc: `Edit the configuration of a live ${singular} in the workspace.` },
+        { id: `${id}.delete`, name: `Delete ${thing}`, desc: `Permanently delete a live ${singular} from the workspace.` },
       ],
     };
   }),
   {
     id: "approvals",
-    label: "Phê duyệt publish",
+    label: "Publish Approvals",
     icon: ClipboardCheck,
     permissions: FEATURES.map(({ id, thing }) => {
       const singular = singularOf(thing);
@@ -50,20 +50,20 @@ export const featureGroups: FeatureGroup[] = [
         id: `${id}.approve`,
         name: `Approve ${thing}`,
         desc: isAgents
-          ? "Xem xét và phê duyệt yêu cầu publish agent của thành viên khác — bao gồm mọi knowledge, skill, guardrail, hoặc connector đi kèm."
-          : `Xem xét và phê duyệt yêu cầu publish ${singular} của thành viên khác, khi đứng riêng ngoài agent.`,
+          ? "Review and approve another member's request to publish an agent — including any knowledge, skills, guardrails, or connectors bundled with it."
+          : `Review and approve another member's request to publish a ${singular} on its own, outside of an agent.`,
         implies: isAgents ? FEATURES.filter(f => f.id !== "agents").map(f => `${f.id}.approve`) : undefined,
       };
     }),
   },
   {
     id: "organization",
-    label: "Tổ chức",
+    label: "Organization",
     icon: Building2,
     permissions: [
-      { id: "organization.view", name: "Xem cấu trúc tổ chức", desc: "Xem các unit, thành viên và cấp báo cáo." },
-      { id: "organization.members", name: "Quản lý thành viên & vai trò", desc: "Mời, gỡ, hoặc thay đổi vai trò của thành viên." },
-      { id: "organization.settings", name: "Quản lý cài đặt tổ chức", desc: "Chỉnh sửa thông tin định danh, cấu trúc tổ chức và các hành động vùng nguy hiểm." },
+      { id: "organization.view", name: "View organization structure", desc: "See units, members, and reporting lines." },
+      { id: "organization.members", name: "Manage members & roles", desc: "Invite, remove, or change the role of members." },
+      { id: "organization.settings", name: "Manage organization settings", desc: "Edit identity info, organization structure, and danger-zone actions." },
     ],
   },
 ];

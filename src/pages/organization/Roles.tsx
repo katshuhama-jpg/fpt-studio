@@ -100,8 +100,8 @@ function RoleModal({
             <h2 className="text-base font-semibold">{title}</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
               {readOnly
-                ? "Đây là vai trò mặc định của hệ thống — chỉ có thể xem, không thể chỉnh sửa."
-                : "Chọn chính xác những gì vai trò này có thể làm, theo từng quyền."}
+                ? "This is a built-in system role — view only, can't be edited."
+                : "Choose exactly what this role can do, permission by permission."}
             </p>
           </div>
           <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground ml-4 shrink-0">
@@ -113,7 +113,7 @@ function RoleModal({
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
           <div>
             <label className="text-sm font-medium block mb-1.5">
-              Tên vai trò <span className="text-destructive">*</span>
+              Role name <span className="text-destructive">*</span>
             </label>
             <input
               autoFocus={!readOnly}
@@ -128,10 +128,10 @@ function RoleModal({
               }`}
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder="vd: Trưởng nhóm hỗ trợ"
+              placeholder="e.g. Support Team Lead"
             />
             {isDuplicateName && (
-              <p className="text-xs text-destructive mt-1.5">Tên vai trò này đã được dùng — vui lòng chọn tên khác.</p>
+              <p className="text-xs text-destructive mt-1.5">This role name is already in use — please choose another.</p>
             )}
           </div>
 
@@ -152,7 +152,7 @@ function RoleModal({
                         onClick={() => toggleGroup(group)}
                         className="text-xs font-medium text-primary hover:text-primary-glow transition-base"
                       >
-                        {allOn ? "Bỏ chọn tất cả" : "Chọn tất cả"}
+                        {allOn ? "Deselect all" : "Select all"}
                       </button>
                     )}
                   </div>
@@ -170,7 +170,7 @@ function RoleModal({
                             <div className="text-sm font-medium">{p.name}</div>
                             <div className="text-xs text-muted-foreground mt-0.5">{p.desc}</div>
                             {impliedBy && (
-                              <div className="text-[11px] text-primary mt-1 italic">Đã bao gồm qua "{impliedBy}"</div>
+                              <div className="text-[11px] text-primary mt-1 italic">Already included via "{impliedBy}"</div>
                             )}
                           </button>
                           <Toggle enabled={effective.has(p.id)} onChange={() => togglePerm(p.id)} disabled={!!impliedBy || readOnly} />
@@ -186,10 +186,10 @@ function RoleModal({
 
         {/* Footer */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-border shrink-0">
-          <span className="text-xs text-muted-foreground">{effective.size}/{ALL_PERMISSION_IDS.length} quyền đã bật</span>
+          <span className="text-xs text-muted-foreground">{effective.size}/{ALL_PERMISSION_IDS.length} permissions enabled</span>
           <div className="flex items-center gap-2">
             <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">
-              {readOnly ? "Đóng" : "Hủy"}
+              {readOnly ? "Close" : "Cancel"}
             </button>
             {!readOnly && (
               <button
@@ -197,7 +197,7 @@ function RoleModal({
                 disabled={!canSubmit}
                 className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-base disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                {isEdit ? "Lưu thay đổi" : "Tạo vai trò"}
+                {isEdit ? "Save changes" : "Create role"}
               </button>
             )}
           </div>
@@ -235,7 +235,7 @@ export default function Roles() {
     <div className="px-8 py-8 max-w-[1280px] mx-auto animate-fade-up space-y-6">
       {showCreate && (
         <RoleModal
-          title="Tạo vai trò"
+          title="Create role"
           onClose={() => setShowCreate(false)}
           onSave={handleCreate}
           existingNames={roles.map(r => r.name)}
@@ -243,7 +243,7 @@ export default function Roles() {
       )}
       {editingRole && (
         <RoleModal
-          title={editingRole.isDefault ? `Xem ${editingRole.name}` : `Chỉnh sửa ${editingRole.name}`}
+          title={editingRole.isDefault ? `View ${editingRole.name}` : `Edit ${editingRole.name}`}
           initialName={editingRole.name}
           initialPermissionIds={editingRole.permissionIds}
           readOnly={editingRole.isDefault}
@@ -254,14 +254,14 @@ export default function Roles() {
       )}
 
       <div className="flex items-start justify-between gap-4">
-        <PageHeader title="Vai trò" desc="Các vai trò mặc định đã sẵn sàng để dùng — tạo vai trò tùy chỉnh khi bạn cần kiểm soát chi tiết hơn." />
+        <PageHeader title="Roles" desc="The default roles are ready to use — create a custom role when you need finer-grained control." />
         <button onClick={() => setShowCreate(true)} className="btn-primary h-9 shrink-0">
-          <Plus size={14} /> Tạo vai trò
+          <Plus size={14} /> Create role
         </button>
       </div>
 
       <div className="rounded-xl border border-border bg-surface-muted/60 px-4 py-3 text-xs text-muted-foreground leading-relaxed">
-        Vai trò định nghĩa tập quyền (permission), nhưng quyền đó chỉ có hiệu lực trong phạm vi <span className="font-medium text-foreground">unit mà thành viên đang thuộc về</span> — giống mô hình phân quyền theo project của Jira. Gán "Admin" cho một người ở unit Cloud Infrastructure không cho họ quyền Admin ở các unit khác.
+        A role defines a set of permissions, but those permissions only take effect within <span className="font-medium text-foreground">the unit a member belongs to</span> — similar to Jira's per-project permission model. Assigning "Admin" to someone in the Cloud Infrastructure unit doesn't give them Admin rights in other units.
       </div>
 
       <Card>
@@ -276,29 +276,29 @@ export default function Roles() {
                 <div className="flex items-center gap-1.5">
                   <span className="text-sm font-semibold">{r.name}</span>
                   {r.isDefault && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-muted text-muted-foreground font-medium">Mặc định</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-muted text-muted-foreground font-medium">Default</span>
                   )}
                 </div>
-                <div className="text-xs text-muted-foreground mt-0.5">{r.permissionIds.size}/{ALL_PERMISSION_IDS.length} quyền</div>
+                <div className="text-xs text-muted-foreground mt-0.5">{r.permissionIds.size}/{ALL_PERMISSION_IDS.length} permissions</div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {!r.isDefault && (
                   confirmDeleteId === r.id ? (
                     <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                      <span className="text-xs text-foreground">Xóa vai trò "{r.name}"?</span>
+                      <span className="text-xs text-foreground">Delete role "{r.name}"?</span>
                       <button
                         type="button"
                         onClick={() => { handleDelete(r.id); setConfirmDeleteId(null); }}
                         className="h-7 px-3 rounded-lg bg-destructive text-white text-xs font-medium"
                       >
-                        Xóa
+                        Delete
                       </button>
                       <button
                         type="button"
                         onClick={() => setConfirmDeleteId(null)}
                         className="h-7 px-3 rounded-lg border border-border text-xs font-medium"
                       >
-                        Hủy
+                        Cancel
                       </button>
                     </div>
                   ) : (

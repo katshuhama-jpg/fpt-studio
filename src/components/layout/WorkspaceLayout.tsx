@@ -43,9 +43,9 @@ const groups: Group[] = [
   },
   {
     id: "workspace",
-    label: "Workspace",
+    label: "Settings",
     items: [
-      { to: "/organization/structure", label: "Settings", icon: Settings },
+      { to: "/organization/structure", label: "Members", icon: Settings },
     ],
   },
 ];
@@ -55,11 +55,11 @@ const utilityItems: Item[] = [
 ];
 
 const orgItemsBase: Item[] = [
-  { to: "/organization/structure", label: "Cấu trúc tổ chức", icon: Network },
-  { to: "/organization/members", label: "Thành viên", icon: Users },
-  { to: "/organization/roles", label: "Vai trò", icon: Shield },
-  { to: "/organization/permissions", label: "Quyền hạn", icon: Lock },
-  { to: "/organization", label: "Thông tin chung", icon: Building2 },
+  { to: "/organization/structure", label: "Structure", icon: Network },
+  { to: "/organization/members", label: "Members", icon: Users },
+  { to: "/organization/roles", label: "Roles", icon: Shield },
+  { to: "/organization/permissions", label: "Permissions", icon: Lock },
+  { to: "/organization", label: "General", icon: Building2 },
 ];
 
 export default function WorkspaceLayout() {
@@ -74,7 +74,7 @@ export default function WorkspaceLayout() {
   const navigate = useNavigate();
   const { conflicts } = useConflicts();
   const openConflictCount = conflicts.filter(c => c.status === "open").length;
-  // The "Xung đột đồng bộ" tab lives inside the Thành viên page now (see Members.tsx) — surface
+  // The "Sync Conflicts" tab lives inside the Members page now (see Members.tsx) — surface
   // the unresolved count as a badge on that nav item instead of a separate top-level entry.
   const orgItems: Item[] = orgItemsBase.map(it =>
     it.to === "/organization/members"
@@ -99,7 +99,7 @@ export default function WorkspaceLayout() {
   }
 
   const BREADCRUMB_LABELS: Record<string, string> = { tools: "Skills" };
-  const ORG_BREADCRUMB_LABELS: Record<string, string> = { "": "Thông tin chung", structure: "Cấu trúc tổ chức", members: "Thành viên", permissions: "Quyền hạn", roles: "Vai trò" };
+  const ORG_BREADCRUMB_LABELS: Record<string, string> = { "": "General", structure: "Structure", members: "Members", permissions: "Permissions", roles: "Roles" };
   let breadcrumbLabel: string;
   if (inOrganization) {
     const sub = loc.pathname.replace(/^\/organization\/?/, "");
@@ -127,9 +127,6 @@ export default function WorkspaceLayout() {
           ) : (
             <NavLink to="/" className="flex items-center gap-2 mb-3 min-w-0 group">
               <img src={fptAiLogo} alt="FPT.AI" className="h-7 w-auto shrink-0 select-none" draggable={false} />
-              <span className="text-[11px] font-medium text-muted-foreground truncate tracking-wide">
-                Agents
-              </span>
             </NavLink>
           )}
 
@@ -210,7 +207,7 @@ export default function WorkspaceLayout() {
                 {orgSwitcherOpen && (
                   <div className="absolute left-full top-0 ml-2 w-64 bg-surface rounded-xl overflow-hidden ring-1 ring-border shadow-xl z-50">
                     <div className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                      <Building2 size={11} /> Chọn tổ chức
+                      <Building2 size={11} /> Choose organization
                     </div>
                     <div className="px-1.5 pb-1.5 space-y-0.5">
                       {TENANTS.map(t => (
@@ -336,8 +333,8 @@ export default function WorkspaceLayout() {
 type AppOption = { key: "workspace" | "organization"; label: string; short: string; desc: string; icon: any; to: string };
 
 const APP_OPTIONS: AppOption[] = [
-  { key: "workspace", label: "Agent Studio", short: "Agent Studio", desc: "Build and manage agents, knowledge, skills & connectors", icon: Bot, to: "/" },
-  { key: "organization", label: "Quản lý tổ chức", short: "Quản lý tổ chức", desc: "Quản lý cấu trúc, thành viên, vai trò & quyền hạn", icon: Building2, to: "/organization/structure" },
+  { key: "workspace", label: "Agent Console", short: "Agent Console", desc: "Build and manage agents, knowledge, skills & connectors", icon: Bot, to: "/" },
+  { key: "organization", label: "Organization Management", short: "Organization Management", desc: "Manage structure, members, roles & permissions", icon: Building2, to: "/organization/structure" },
 ];
 
 function AppSwitcher({ collapsed, inOrganization }: { collapsed: boolean; inOrganization: boolean }) {
