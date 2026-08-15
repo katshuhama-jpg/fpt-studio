@@ -22,8 +22,11 @@ export default function Permissions() {
       </div>
 
       {SECTIONS.map((section, i) => (
-        <div key={section.id} className={`space-y-6 ${i > 0 ? "pt-6 border-t border-border" : ""}`}>
-          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{section.label}</div>
+        <div key={section.id} className={`space-y-6 ${i > 0 ? "pt-8 border-t border-border" : ""}`}>
+          <div>
+            <h2 className="font-display text-lg font-semibold text-foreground">{section.label}</h2>
+            <p className="text-sm text-muted-foreground mt-1">{section.desc}</p>
+          </div>
           {featureGroups.filter(g => g.section === section.id).map(group => (
             <Card key={group.id}>
               <div className="flex items-center gap-2.5 mb-4">

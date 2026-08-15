@@ -4,10 +4,10 @@ export type Permission = { id: string; name: string; desc: string; implies?: str
 export type Section = "console" | "governance" | "org-management";
 export type FeatureGroup = { id: string; label: string; icon: any; section: Section; permissions: Permission[] };
 
-export const SECTIONS: { id: Section; label: string }[] = [
-  { id: "console", label: "Console" },
-  { id: "governance", label: "Governance" },
-  { id: "org-management", label: "Organization Management" },
+export const SECTIONS: { id: Section; label: string; desc: string }[] = [
+  { id: "console", label: "Console", desc: "Publishing, managing, pausing, and deleting agents, knowledge, skills, guardrails, and connectors in the shared workspace." },
+  { id: "governance", label: "Governance", desc: "Managing roles and members across the organization." },
+  { id: "org-management", label: "Organization Management", desc: "Managing the unit structure, unit admins, and publish approvals." },
 ];
 
 /**
