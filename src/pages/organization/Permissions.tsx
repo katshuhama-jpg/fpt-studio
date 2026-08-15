@@ -15,7 +15,7 @@ export default function Permissions() {
           <div className="text-sm font-semibold text-foreground">Everyone can build and use — privately</div>
           <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
             Every member can already create and use agents, knowledge, skills, guardrails, and connectors for personal use — no permission
-            needed — and anyone can see what's <span className="text-foreground font-medium">currently live</span> in the workspace. Publishing, approving,
+            needed — and anyone can see what's <span className="text-foreground font-medium">currently live</span> in the workspace. Publishing,
             editing, or deleting those things is what the permissions below control.
           </p>
         </div>

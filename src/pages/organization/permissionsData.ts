@@ -1,4 +1,4 @@
-import { Bot, BookOpen, Puzzle, Shield, Plug, ClipboardCheck, Users, Network } from "lucide-react";
+import { Bot, BookOpen, Puzzle, Shield, Plug, Users, Network } from "lucide-react";
 
 export type Permission = { id: string; name: string; desc: string; implies?: string[] };
 export type Section = "console" | "governance" | "org-management";
@@ -7,7 +7,7 @@ export type FeatureGroup = { id: string; label: string; icon: any; section: Sect
 export const SECTIONS: { id: Section; label: string; desc: string }[] = [
   { id: "console", label: "Console", desc: "Publishing, managing, pausing, and deleting agents, knowledge, skills, guardrails, and connectors in the shared workspace." },
   { id: "governance", label: "Governance", desc: "Managing roles and members across the organization." },
-  { id: "org-management", label: "Organization Management", desc: "Managing the unit structure, unit admins, and publish approvals." },
+  { id: "org-management", label: "Organization Management", desc: "Managing the unit structure and unit admins." },
 ];
 
 /**
@@ -67,7 +67,7 @@ export const featureGroups: FeatureGroup[] = [
     ],
   },
 
-  // ── Organization Management: Structure, Publish Approvals ───────────────
+  // ── Organization Management: Structure ───────────────────────────────────
   {
     id: "structure",
     label: "Structure",
@@ -77,24 +77,6 @@ export const featureGroups: FeatureGroup[] = [
       { id: "structure.view", name: "View organization structure", desc: "See units, members, and reporting lines." },
       { id: "structure.unit-admins", name: "Manage unit admins", desc: "Assign or remove Unit Admins, who can approve publishes within their unit and every unit nested below it." },
     ],
-  },
-  {
-    id: "approvals",
-    label: "Publish Approvals",
-    icon: ClipboardCheck,
-    section: "org-management",
-    permissions: FEATURES.map(({ id, thing }) => {
-      const singular = singularOf(thing);
-      const isAgents = id === "agents";
-      return {
-        id: `${id}.approve`,
-        name: `Approve ${thing}`,
-        desc: isAgents
-          ? "Review and approve another member's request to publish an agent — including any knowledge, skills, guardrails, or connectors bundled with it."
-          : `Review and approve another member's request to publish a ${singular} on its own, outside of an agent.`,
-        implies: isAgents ? FEATURES.filter(f => f.id !== "agents").map(f => `${f.id}.approve`) : undefined,
-      };
-    }),
   },
 ];
 
