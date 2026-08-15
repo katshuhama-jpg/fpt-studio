@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Building2, ChevronRight, ChevronLeft, ChevronDown, Search, Users, Trash2, Plus, X, FolderInput, Crown, Check } from "lucide-react";
+import { Building2, ChevronRight, ChevronLeft, ChevronDown, Search, Users, Trash2, Plus, X, FolderInput, Crown, Check, User } from "lucide-react";
 import { OrgUnit, OrgMember, countAll, countDirect, findUnit, findPath, unitMatches, collectMembers } from "./orgData";
 import { useOrg, deriveNameFromEmail } from "./orgStore";
 import { useRoles, RoleDef } from "./rolesStore";
@@ -200,41 +200,41 @@ function MemberTypeCell({
         type="button"
         onClick={() => setOpen(v => !v)}
         aria-label={`Change ${memberName}'s type`}
-        className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-base hover:opacity-80 cursor-pointer ${
-          isAdmin ? "bg-warning-soft text-warning" : "bg-surface-muted text-muted-foreground"
-        }`}
+        className={`chip ${isAdmin ? "chip-warning" : "chip-success"} hover:opacity-80 transition-base cursor-pointer`}
       >
-        {isAdmin && <Crown size={11} />}
+        {isAdmin ? <Crown size={11} /> : <User size={11} />}
         {isAdmin ? "Admin" : "Member"}
         <ChevronDown size={11} className={`transition-base ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="absolute right-0 top-[calc(100%+4px)] w-64 bg-surface rounded-xl ring-1 ring-border shadow-xl z-20 p-1">
+        <div className="absolute right-0 top-[calc(100%+4px)] w-80 bg-surface rounded-xl ring-1 ring-border shadow-xl z-20 p-1">
           <button
             type="button"
             onClick={() => { onChange(false); setOpen(false); }}
-            className={`w-full flex items-start justify-between gap-2 text-left px-3 py-2 rounded-lg transition-base hover:bg-surface-muted ${!isAdmin ? "bg-primary-soft" : ""}`}
+            className={`w-full flex items-start justify-between gap-2 text-left px-3 py-2.5 rounded-lg transition-base hover:bg-surface-muted ${!isAdmin ? "bg-[hsl(var(--success-soft))]" : ""}`}
           >
             <div className="min-w-0">
-              <div className={`text-sm font-medium ${!isAdmin ? "text-primary" : "text-foreground"}`}>Member</div>
+              <div className={`text-sm font-medium flex items-center gap-1.5 ${!isAdmin ? "text-success" : "text-foreground"}`}>
+                <User size={12} /> Member
+              </div>
               <div className="text-xs text-muted-foreground mt-0.5 leading-snug">Can create and use Agents, Skills, and Knowledge.</div>
             </div>
-            {!isAdmin && <Check size={13} className="text-primary shrink-0 mt-0.5" />}
+            {!isAdmin && <Check size={13} className="text-success shrink-0 mt-0.5" />}
           </button>
           <button
             type="button"
             onClick={() => { onChange(true); setOpen(false); }}
-            className={`w-full flex items-start justify-between gap-2 text-left px-3 py-2 rounded-lg transition-base hover:bg-surface-muted ${isAdmin ? "bg-primary-soft" : ""}`}
+            className={`w-full flex items-start justify-between gap-2 text-left px-3 py-2.5 rounded-lg transition-base hover:bg-surface-muted ${isAdmin ? "bg-[hsl(var(--warning-soft))]" : ""}`}
           >
             <div className="min-w-0">
-              <div className={`text-sm font-medium flex items-center gap-1.5 ${isAdmin ? "text-primary" : "text-foreground"}`}>
+              <div className={`text-sm font-medium flex items-center gap-1.5 ${isAdmin ? "text-warning" : "text-foreground"}`}>
                 <Crown size={12} /> Admin
               </div>
               <div className="text-xs text-muted-foreground mt-0.5 leading-snug">
                 Also approves Agents, Skills, and Knowledge published into this unit — and every unit nested below it.
               </div>
             </div>
-            {isAdmin && <Check size={13} className="text-primary shrink-0 mt-0.5" />}
+            {isAdmin && <Check size={13} className="text-warning shrink-0 mt-0.5" />}
           </button>
         </div>
       )}
@@ -499,7 +499,7 @@ export default function OrgStructureExplorer() {
         </div>
 
         {/* Unit Admins — who can currently approve publishes into this unit, direct + inherited */}
-        <div className="mb-6">
+        <div className="mb-8">
           <div className="flex items-center justify-between gap-3 mb-1">
             <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Unit Admins ({effectiveAdmins.length})
@@ -521,7 +521,7 @@ export default function OrgStructureExplorer() {
               {effectiveAdmins.map(({ member, sourceUnit }) => (
                 <div
                   key={`${sourceUnit.id}-${member.id}`}
-                  className="inline-flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full bg-warning-soft/60 ring-1 ring-warning/20"
+                  className="inline-flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full bg-[hsl(var(--warning-soft))] ring-1 ring-warning/20"
                 >
                   <div className="w-6 h-6 rounded-full bg-accent-soft text-accent flex items-center justify-center text-[9px] font-semibold shrink-0">
                     {member.initials}
@@ -540,7 +540,7 @@ export default function OrgStructureExplorer() {
         </div>
 
         {/* Sub-units */}
-        <div className="mb-6">
+        <div className="mb-8 pt-6 border-t border-border">
           <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
             Unit ({selected.units.length})
           </div>
@@ -596,7 +596,7 @@ export default function OrgStructureExplorer() {
         </div>
 
         {/* Direct members */}
-        <div>
+        <div className="pt-6 border-t border-border">
           <div className="flex items-center justify-between gap-3 mb-2">
             <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Members in this unit ({countDirect(selected)})
