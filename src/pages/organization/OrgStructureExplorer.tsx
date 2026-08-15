@@ -217,7 +217,7 @@ function MemberTypeCell({
               <div className={`text-sm font-medium flex items-center gap-1.5 ${!isAdmin ? "text-success" : "text-foreground"}`}>
                 <User size={12} /> Member
               </div>
-              <div className="text-xs text-muted-foreground mt-0.5 leading-snug">Can create and use Agents, Skills, and Knowledge.</div>
+              <div className="text-xs text-muted-foreground mt-0.5 leading-snug">Can use approved Agents and create their own personal Agents, Skills, and Knowledge.</div>
             </div>
             {!isAdmin && <Check size={13} className="text-success shrink-0 mt-0.5" />}
           </button>
@@ -256,7 +256,7 @@ function ConfirmDeleteModal({
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative w-[92vw] sm:w-[420px] bg-white rounded-2xl shadow-2xl p-6" style={{ animation: "fadeScaleIn 0.18s ease" }}>
         <div className="flex items-start gap-3 mb-6">
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${blocked ? "bg-warning-soft text-warning" : "bg-destructive-soft text-destructive"}`}>
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${blocked ? "bg-[hsl(var(--warning-soft))] text-warning" : "bg-[hsl(var(--destructive-soft))] text-destructive"}`}>
             <Trash2 size={18} />
           </div>
           <div className="min-w-0">
@@ -297,7 +297,9 @@ function AssignAdminPopover({
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const query = q.trim().toLowerCase();
-  const filtered = query ? candidates.filter(m => m.name.toLowerCase().includes(query)) : candidates;
+  const filtered = query
+    ? candidates.filter(m => m.name.toLowerCase().includes(query) || (m.email ?? "").toLowerCase().includes(query))
+    : candidates;
 
   return (
     <div
@@ -316,7 +318,7 @@ function AssignAdminPopover({
         <Plus size={12} /> Assign admin
       </button>
       {open && (
-        <div className="absolute right-0 top-[calc(100%+4px)] w-64 max-h-72 bg-surface rounded-xl ring-1 ring-border shadow-xl z-50 flex flex-col overflow-hidden">
+        <div className="absolute right-0 top-[calc(100%+4px)] w-80 max-h-80 bg-surface rounded-xl ring-1 ring-border shadow-xl z-50 flex flex-col overflow-hidden">
           <div className="p-2 border-b border-border shrink-0">
             <div className="relative">
               <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -335,12 +337,15 @@ function AssignAdminPopover({
                 key={m.id}
                 type="button"
                 onClick={() => { onAssign(m.id); setOpen(false); setQ(""); }}
-                className="w-full flex items-center gap-2.5 text-left py-2 px-2 rounded-lg text-sm hover:bg-surface-muted transition-base"
+                className="w-full flex items-center gap-2.5 text-left py-2 px-2.5 rounded-lg hover:bg-surface-muted transition-base"
               >
-                <div className="w-6 h-6 rounded-full bg-accent-soft text-accent flex items-center justify-center text-[9px] font-semibold shrink-0">
+                <div className="w-7 h-7 rounded-full bg-accent-soft text-accent flex items-center justify-center text-[10px] font-semibold shrink-0">
                   {m.initials}
                 </div>
-                <span className="truncate">{m.name}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-foreground truncate">{m.name}</div>
+                  {m.email && <div className="text-xs text-muted-foreground truncate">{m.email}</div>}
+                </div>
               </button>
             ))}
             {filtered.length === 0 && (
@@ -523,7 +528,7 @@ export default function OrgStructureExplorer() {
                   key={`${sourceUnit.id}-${member.id}`}
                   className="inline-flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full bg-[hsl(var(--warning-soft))] ring-1 ring-warning/20"
                 >
-                  <div className="w-6 h-6 rounded-full bg-accent-soft text-accent flex items-center justify-center text-[9px] font-semibold shrink-0">
+                  <div className="w-6 h-6 rounded-full bg-white ring-1 ring-warning/25 text-warning flex items-center justify-center text-[9px] font-semibold shrink-0">
                     {member.initials}
                   </div>
                   <div className="min-w-0">
@@ -641,7 +646,7 @@ export default function OrgStructureExplorer() {
                       <div className="flex items-center gap-1.5 min-w-0">
                         <span className="text-sm font-medium truncate">{m.name}</span>
                         {m.inactive && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive-soft text-destructive font-medium shrink-0">Inactive</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[hsl(var(--destructive-soft))] text-destructive font-medium shrink-0">Inactive</span>
                         )}
                       </div>
                       {m.email && <div className="text-xs text-muted-foreground truncate">{m.email}</div>}
