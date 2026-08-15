@@ -260,10 +260,6 @@ export default function Roles() {
         </button>
       </div>
 
-      <div className="rounded-xl border border-border bg-surface-muted/60 px-4 py-3 text-xs text-muted-foreground leading-relaxed">
-        A role defines a set of permissions, but those permissions only take effect within <span className="font-medium text-foreground">the unit a member belongs to</span> — similar to Jira's per-project permission model. Assigning "Admin" to someone in the Cloud Infrastructure unit doesn't give them Admin rights in other units.
-      </div>
-
       <Card>
         <div className="divide-y divide-border -mx-1">
           {roles.map(r => (

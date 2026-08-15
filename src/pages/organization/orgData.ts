@@ -3,7 +3,10 @@ export type OrgMember = { id: string; name: string; role: string; initials: stri
 /** Mock timestamp for the auto-sync banner on the Structure page — Unit/Member data is
  * synced from the business's own system, via FPT Identity, into FPT AI Agent. */
 export const ORG_LAST_SYNCED_AT = "08:00, 13/08/2026";
-export type OrgUnit = { id: string; name: string; members: OrgMember[]; units: OrgUnit[] };
+/** `unitAdminIds` — member ids (from this unit's own `members`) granted Unit Admin: approval
+ * rights over Agents/Skills/Knowledge published into this unit. Inherited downward only —
+ * a Unit Admin here can also approve in every unit nested below, but not in units above. */
+export type OrgUnit = { id: string; name: string; members: OrgMember[]; units: OrgUnit[]; unitAdminIds?: string[] };
 
 /**
  * Deterministic Vietnamese-name generator + team builder — used to bulk out

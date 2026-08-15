@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Building2, ChevronRight, ChevronLeft, ChevronDown, Search, Users, Pencil, Trash2, Plus, X, FolderInput } from "lucide-react";
+import { Building2, ChevronRight, ChevronLeft, ChevronDown, Search, Users, Trash2, Plus, X, FolderInput, Crown } from "lucide-react";
 import { OrgUnit, OrgMember, countAll, countDirect, findUnit, findPath, unitMatches, collectMembers } from "./orgData";
 import { useOrg, deriveNameFromEmail } from "./orgStore";
 import { useRoles, RoleDef } from "./rolesStore";
@@ -59,59 +59,6 @@ function TreeRow({
         </div>
       )}
     </div>
-  );
-}
-
-/* ─── Create/rename-unit modal (single reusable component, matches RoleModal's isEdit pattern) ─── */
-function UnitModal({
-  title, desc, initialName, submitLabel, onClose, onSave,
-}: {
-  title: string; desc: string; initialName?: string; submitLabel: string; onClose: () => void; onSave: (name: string) => void;
-}) {
-  const [name, setName] = useState(initialName ?? "");
-  const canSubmit = !!name.trim();
-  const submit = () => { if (!canSubmit) return; onSave(name.trim()); onClose(); };
-
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-[92vw] sm:w-1/2 min-w-[50vw] max-w-[1100px] bg-white rounded-2xl flex flex-col shadow-2xl max-h-[80vh]" style={{ animation: "fadeScaleIn 0.18s ease" }}>
-        <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-border shrink-0">
-          <div>
-            <h2 className="text-base font-semibold">{title}</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
-          </div>
-          <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground ml-4 shrink-0">
-            <X size={14} />
-          </button>
-        </div>
-        <div className="px-6 py-5">
-          <label className="text-sm font-medium block mb-1.5">Unit name <span className="text-destructive">*</span></label>
-          <input
-            autoFocus
-            value={name}
-            onChange={e => setName(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter") submit(); }}
-            placeholder="e.g. Platform Engineering"
-            className="w-full h-10 px-3 rounded-xl border border-border bg-surface text-sm outline-none focus:border-ring transition-base"
-          />
-        </div>
-        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border shrink-0">
-          <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">
-            Cancel
-          </button>
-          <button
-            onClick={submit}
-            disabled={!canSubmit}
-            className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-base disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {submitLabel}
-          </button>
-        </div>
-      </div>
-      <style>{`@keyframes fadeScaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}`}</style>
-    </div>,
-    document.body
   );
 }
 
@@ -278,7 +225,7 @@ function ConfirmDeleteModal({
 }
 
 export default function OrgStructureExplorer() {
-  const { tree, rootId, createUnit, renameUnit, deleteUnit, addMember, removeMember } = useOrg();
+  const { tree, rootId, addMember, removeMember, setUnitAdmin } = useOrg();
   const { roles } = useRoles();
   const [selectedId, setSelectedId] = useState(rootId);
   const [expanded, setExpanded] = useState<Set<string>>(new Set([tree.id, ...tree.units.map(u => u.id)]));
@@ -286,11 +233,8 @@ export default function OrgStructureExplorer() {
   const [memberQuery, setMemberQuery] = useState("");
   const [memberPage, setMemberPage] = useState(1);
   const MEMBER_PAGE_SIZE = 10;
-  const [showRenameUnit, setShowRenameUnit] = useState(false);
-  const [showAddSubunit, setShowAddSubunit] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
   const [movingMember, setMovingMember] = useState<OrgMember | null>(null);
-  const [deleteConfirmUnitId, setDeleteConfirmUnitId] = useState<string | null>(null);
   const [deleteConfirmMemberId, setDeleteConfirmMemberId] = useState<string | null>(null);
 
   const allEmails = useMemo(
@@ -299,15 +243,21 @@ export default function OrgStructureExplorer() {
   );
   const path = useMemo(() => findPath(tree, selectedId) ?? [tree], [tree, selectedId]);
   const selected = path[path.length - 1];
-  const isRoot = selected.id === rootId;
-  const deleteTargetUnit = deleteConfirmUnitId ? findUnit(tree, deleteConfirmUnitId) : null;
   const deleteTargetMember = deleteConfirmMemberId ? selected.members.find(m => m.id === deleteConfirmMemberId) ?? null : null;
+
+  // Approval rights are one-way inheritable: a Unit Admin assigned on an ancestor unit can also
+  // approve here, but a Unit Admin assigned here can't approve on ancestors. Walking `path` (root
+  // → selected) and collecting each unit's own unitAdminIds gives exactly that effective set.
+  const effectiveAdmins = path.flatMap(u =>
+    (u.unitAdminIds ?? [])
+      .map(id => ({ member: u.members.find(m => m.id === id), sourceUnit: u }))
+      .filter((x): x is { member: OrgMember; sourceUnit: OrgUnit } => !!x.member)
+  );
 
   const selectUnit = (id: string) => {
     setSelectedId(id);
     setMemberQuery("");
     setMemberPage(1);
-    setDeleteConfirmUnitId(null);
     setDeleteConfirmMemberId(null);
     const ancestors = findPath(tree, id) ?? [];
     setExpanded(prev => new Set([...prev, ...ancestors.map(a => a.id)]));
@@ -319,14 +269,6 @@ export default function OrgStructureExplorer() {
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
-  };
-
-  const handleDeleteUnit = (unitId: string) => {
-    const p = findPath(tree, unitId);
-    const parent = p && p.length > 1 ? p[p.length - 2] : null;
-    deleteUnit(unitId);
-    setDeleteConfirmUnitId(null);
-    if (unitId === selectedId) selectUnit(parent ? parent.id : rootId);
   };
 
   const filteredMembers = selected.members.filter(m => {
@@ -344,25 +286,6 @@ export default function OrgStructureExplorer() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[260px,1fr] gap-5">
-      {showRenameUnit && (
-        <UnitModal
-          title={`Rename ${selected.name}`}
-          desc="Update this unit's name."
-          initialName={selected.name}
-          submitLabel="Save changes"
-          onClose={() => setShowRenameUnit(false)}
-          onSave={name => renameUnit(selected.id, name)}
-        />
-      )}
-      {showAddSubunit && (
-        <UnitModal
-          title="Add unit"
-          desc={`Create a new unit inside ${selected.name}.`}
-          submitLabel="Create unit"
-          onClose={() => setShowAddSubunit(false)}
-          onSave={name => createUnit(selected.id, name)}
-        />
-      )}
       {showAddMember && (
         <MemberModal
           title="Invite member"
@@ -378,28 +301,6 @@ export default function OrgStructureExplorer() {
       {movingMember && (
         <MoveMemberModal member={movingMember} currentUnitId={selected.id} onClose={() => setMovingMember(null)} />
       )}
-      {deleteTargetUnit && (() => {
-        const hasMembers = deleteTargetUnit.members.length > 0;
-        const hasSubUnits = deleteTargetUnit.units.length > 0;
-        const isBlocked = hasMembers || hasSubUnits;
-        const parts: string[] = [];
-        if (hasMembers) parts.push(`${deleteTargetUnit.members.length} direct member${deleteTargetUnit.members.length === 1 ? "" : "s"}`);
-        if (hasSubUnits) parts.push(`${deleteTargetUnit.units.length} unit${deleteTargetUnit.units.length === 1 ? "" : "s"} inside`);
-        return (
-          <ConfirmDeleteModal
-            title={isBlocked ? `Can't delete "${deleteTargetUnit.name}"` : `Delete "${deleteTargetUnit.name}"?`}
-            desc={
-              isBlocked
-                ? `This unit still has ${parts.join(" and ")}. Move or remove them first before deleting the unit — Agent Console won't cascade-delete the whole tree to avoid unintended data loss.`
-                : "The unit is empty, with no members or units inside. This action can't be undone."
-            }
-            confirmLabel="Delete unit"
-            blocked={isBlocked}
-            onClose={() => setDeleteConfirmUnitId(null)}
-            onConfirm={() => handleDeleteUnit(deleteTargetUnit.id)}
-          />
-        );
-      })()}
       {deleteTargetMember && (
         <ConfirmDeleteModal
           title={`Remove "${deleteTargetMember.name}"?`}
@@ -462,45 +363,48 @@ export default function OrgStructureExplorer() {
             <div className="min-w-0">
               <div className="text-lg font-display font-semibold truncate">{selected.name}</div>
             </div>
-            {!isRoot && (
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setShowRenameUnit(true)}
-                  aria-label={`Rename ${selected.name}`}
-                  className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-base"
-                >
-                  <Pencil size={13} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDeleteConfirmUnitId(selected.id)}
-                  aria-label={`Delete ${selected.name}`}
-                  className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground hover:text-destructive transition-base"
-                >
-                  <Trash2 size={13} />
-                </button>
-              </div>
-            )}
           </div>
           <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-full bg-surface-muted border border-border text-muted-foreground shrink-0">
             <Users size={12} /> {countAll(selected)} people
           </span>
         </div>
 
+        {/* Unit Admins — who can currently approve publishes into this unit, direct + inherited */}
+        <div className="mb-6">
+          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+            Unit Admins ({effectiveAdmins.length})
+          </div>
+          {effectiveAdmins.length === 0 ? (
+            <div className="text-sm text-muted-foreground border border-dashed border-border rounded-lg py-4 text-center">
+              No unit admins yet — use the crown icon next to a member below to assign one.
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {effectiveAdmins.map(({ member, sourceUnit }) => (
+                <div
+                  key={`${sourceUnit.id}-${member.id}`}
+                  className="inline-flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full bg-warning-soft/60 ring-1 ring-warning/20"
+                >
+                  <div className="w-6 h-6 rounded-full bg-accent-soft text-accent flex items-center justify-center text-[9px] font-semibold shrink-0">
+                    {member.initials}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-medium text-foreground truncate leading-tight">{member.name}</div>
+                    {sourceUnit.id !== selected.id && (
+                      <div className="text-[10px] text-muted-foreground truncate leading-tight">via {sourceUnit.name}</div>
+                    )}
+                  </div>
+                  <Crown size={12} className="text-warning shrink-0" />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Sub-units */}
         <div className="mb-6">
-          <div className="flex items-center justify-between gap-3 mb-2">
-            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Unit ({selected.units.length})
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowAddSubunit(true)}
-              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-glow transition-base"
-            >
-              <Plus size={12} /> Add unit
-            </button>
+          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+            Unit ({selected.units.length})
           </div>
           {selected.units.length === 0 ? (
             <div className="text-sm text-muted-foreground border border-dashed border-border rounded-lg py-6 text-center">
@@ -512,50 +416,41 @@ export default function OrgStructureExplorer() {
                 const preview = u.members.slice(0, 3);
                 const previewExtra = countAll(u) - preview.length;
                 return (
-                  <div key={u.id} className="relative group/card">
-                    <button
-                      type="button"
-                      onClick={() => selectUnit(u.id)}
-                      className="w-full p-3 rounded-lg border border-border hover:border-primary/30 hover:bg-surface-muted text-left transition-base cursor-pointer"
-                    >
-                      <div className="flex items-center gap-2.5 mb-2">
-                        <div className="w-8 h-8 rounded-lg bg-primary-soft text-primary flex items-center justify-center shrink-0">
-                          <Building2 size={14} />
-                        </div>
-                        <div className="min-w-0 flex-1 pr-6">
-                          <div className="text-sm font-semibold truncate">{u.name}</div>
-                        </div>
+                  <button
+                    key={u.id}
+                    type="button"
+                    onClick={() => selectUnit(u.id)}
+                    className="w-full p-3 rounded-lg border border-border hover:border-primary/30 hover:bg-surface-muted text-left transition-base cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2.5 mb-2">
+                      <div className="w-8 h-8 rounded-lg bg-primary-soft text-primary flex items-center justify-center shrink-0">
+                        <Building2 size={14} />
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex -space-x-2">
-                          {preview.map(m => (
-                            <div
-                              key={m.id}
-                              className="w-6 h-6 rounded-full bg-accent-soft text-accent flex items-center justify-center text-[9px] font-semibold ring-2 ring-surface"
-                            >
-                              {m.initials}
-                            </div>
-                          ))}
-                          {previewExtra > 0 && (
-                            <div className="w-6 h-6 rounded-full bg-surface-muted text-muted-foreground flex items-center justify-center text-[9px] font-semibold ring-2 ring-surface">
-                              +{previewExtra}
-                            </div>
-                          )}
-                        </div>
-                        <span className="ml-auto inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-full bg-surface border border-border text-muted-foreground shrink-0">
-                          <Users size={10} /> {countAll(u)}
-                        </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-semibold truncate">{u.name}</div>
                       </div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDeleteConfirmUnitId(u.id)}
-                      aria-label={`Delete ${u.name}`}
-                      className="absolute top-2 right-2 z-10 w-6 h-6 rounded-md bg-surface/90 shadow-sm hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-destructive transition-base"
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                  </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex -space-x-2">
+                        {preview.map(m => (
+                          <div
+                            key={m.id}
+                            className="w-6 h-6 rounded-full bg-accent-soft text-accent flex items-center justify-center text-[9px] font-semibold ring-2 ring-surface"
+                          >
+                            {m.initials}
+                          </div>
+                        ))}
+                        {previewExtra > 0 && (
+                          <div className="w-6 h-6 rounded-full bg-surface-muted text-muted-foreground flex items-center justify-center text-[9px] font-semibold ring-2 ring-surface">
+                            +{previewExtra}
+                          </div>
+                        )}
+                      </div>
+                      <span className="ml-auto inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-full bg-surface border border-border text-muted-foreground shrink-0">
+                        <Users size={10} /> {countAll(u)}
+                      </span>
+                    </div>
+                  </button>
                 );
               })}
             </div>
@@ -597,7 +492,9 @@ export default function OrgStructureExplorer() {
           ) : (
             <>
               <div className="border-t border-border divide-y divide-border">
-                {shownFilteredMembers.map(m => (
+                {shownFilteredMembers.map(m => {
+                  const isUnitAdmin = (selected.unitAdminIds ?? []).includes(m.id);
+                  return (
                   <div key={m.id} className="flex items-center gap-3 py-2.5 hover:bg-surface-muted/60 transition-base group/row">
                     <div className="w-8 h-8 rounded-full bg-accent-soft text-accent flex items-center justify-center text-[11px] font-semibold shrink-0">
                       {m.initials}
@@ -608,9 +505,25 @@ export default function OrgStructureExplorer() {
                         {m.inactive && (
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive-soft text-destructive font-medium shrink-0">Inactive</span>
                         )}
+                        {isUnitAdmin && (
+                          <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-warning-soft text-warning font-medium shrink-0">
+                            <Crown size={9} /> Unit Admin
+                          </span>
+                        )}
                       </div>
                       {m.email && <div className="text-xs text-muted-foreground truncate">{m.email}</div>}
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setUnitAdmin(selected.id, m.id, !isUnitAdmin)}
+                      aria-label={isUnitAdmin ? `Remove ${m.name} as unit admin` : `Make ${m.name} unit admin`}
+                      title={isUnitAdmin ? "Unit Admin — click to remove" : "Make unit admin"}
+                      className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-base ${
+                        isUnitAdmin ? "text-warning hover:bg-warning-soft" : "text-muted-foreground hover:bg-surface-muted hover:text-foreground"
+                      }`}
+                    >
+                      <Crown size={14} className={isUnitAdmin ? "fill-warning" : ""} />
+                    </button>
                     <div className="flex items-center gap-1 shrink-0">
                       <button
                         type="button"
@@ -631,7 +544,8 @@ export default function OrgStructureExplorer() {
                       </button>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
                 {filteredMembers.length === 0 && (
                   <div className="text-sm text-muted-foreground py-6 text-center">No results.</div>
                 )}
@@ -639,7 +553,7 @@ export default function OrgStructureExplorer() {
               {memberTotalPages > 1 && (
                 <div className="flex items-center justify-between mt-3">
                   <span className="text-xs text-muted-foreground">
-                    Trang {memberCurrentPage}/{memberTotalPages}
+                    Page {memberCurrentPage}/{memberTotalPages}
                   </span>
                   <div className="flex items-center gap-1.5">
                     <button

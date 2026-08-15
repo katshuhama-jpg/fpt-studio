@@ -85,6 +85,8 @@ type OrgContextValue = {
   moveMember: (memberId: string, targetUnitId: string) => void;
   /** Marks a member Active/Inactive without removing them — used when Auto Sync no longer sees the person in the source system but an admin wants to keep the audit trail instead of hard-deleting. */
   setMemberInactive: (memberId: string, inactive: boolean) => void;
+  /** Grants/revokes Unit Admin on `unitId` for `memberId` (who must be a direct member of that unit). Approval rights this grants cascade down to every nested unit, never upward. */
+  setUnitAdmin: (unitId: string, memberId: string, isAdmin: boolean) => void;
 };
 
 /**
@@ -205,9 +207,20 @@ export function OrgProvider({ children }: { children: ReactNode }) {
     setTree(prev => updateMemberOwner(prev, memberId, members => members.map(m => (m.id === memberId ? { ...m, inactive } : m))));
   };
 
+  const setUnitAdmin = (unitId: string, memberId: string, isAdmin: boolean) => {
+    setTree(prev => {
+      const updated = updateUnit(prev, unitId, unit => {
+        const current = unit.unitAdminIds ?? [];
+        const next = isAdmin ? [...new Set([...current, memberId])] : current.filter(id => id !== memberId);
+        return { ...unit, unitAdminIds: next };
+      });
+      return updated ?? prev;
+    });
+  };
+
   return (
     <OrgContext.Provider
-      value={{ tree, rootId: ROOT_ID, createUnit, renameUnit, deleteUnit, addMember, updateMember, assignRole, removeMember, moveMember, setMemberInactive }}
+      value={{ tree, rootId: ROOT_ID, createUnit, renameUnit, deleteUnit, addMember, updateMember, assignRole, removeMember, moveMember, setMemberInactive, setUnitAdmin }}
     >
       {children}
     </OrgContext.Provider>
