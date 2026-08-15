@@ -71,15 +71,11 @@ const App = () => (
             <Route path="/agents/:id/tools/:toolId" element={<RequireAuth><ToolBuilder /></RequireAuth>} />
             <Route element={<RequireAuth><WorkspaceLayout /></RequireAuth>}>
               <Route path="/knowledge" element={<PlaceholderPage title="Workspace Knowledge" />} />
+              <Route path="/members" element={<OrgMembers />} />
               <Route path="/organization" element={<OrgGeneral />} />
               <Route path="/organization/structure" element={<OrgStructure />} />
-              <Route path="/organization/members" element={<OrgMembers />} />
               <Route path="/organization/permissions" element={<OrgPermissions />} />
               <Route path="/organization/roles" element={<OrgRoles />} />
-              {/* Sync Conflicts moved into the Members page (a "Xung đột đồng bộ" tab) — most conflicts
-                  are about a specific member, so surfacing them on Members instead of a separate page
-                  keeps people from having to hunt across two screens. Old links still land somewhere useful. */}
-              <Route path="/organization/conflicts" element={<Navigate to="/organization/members" replace />} />
               <Route path="/connectors" element={<WorkspaceConnectors />} />
               <Route path="/tools" element={<Skills />} />
               <Route path="/guardrails" element={<WorkspaceGuardrails />} />

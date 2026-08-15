@@ -1,18 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Search, X, Plus, ChevronDown, ChevronLeft, ChevronRight, AlertTriangle, Building2, Check, FolderInput } from "lucide-react";
+import { Search, X, Plus, ChevronDown, ChevronLeft, ChevronRight, AlertTriangle, Check } from "lucide-react";
 import { Card, PageHeader } from "./shared";
-import { OrgUnit, OrgMember, collectMembers, collectUnitsWithDepth, countAll, findUnit, findPath, findMemberUnit } from "./orgData";
+import { OrgMember, collectMembers } from "./orgData";
 import { useRoles, RoleDef } from "./rolesStore";
 import { useOrg } from "./orgStore";
-import { useConflicts, Conflict } from "./conflictsStore";
-import { ConflictsPanel, TYPE_META, memberIdOf } from "./Conflicts";
-import { MoveMemberModal } from "./MoveMemberModal";
-
-function unitNameFor(tree: OrgUnit, memberId: string): string {
-  const unit = findMemberUnit(tree, memberId);
-  return unit ? unit.name : "No unit";
-}
 
 /** Every member always has a role — this is the implicit one when none was explicitly set. */
 const DEFAULT_ROLE_ID = "viewer";
@@ -31,74 +23,6 @@ function roleChipClass(roleId: string | undefined): string {
   let h = 0;
   for (const c of roleId) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   return `chip ${FALLBACK_ROLE_CHIPS[h % FALLBACK_ROLE_CHIPS.length]}`;
-}
-
-/* ─── Unit switcher (flat searchable popover — picking a unit is a lookup, not a drill-down) ─── */
-function UnitSwitcher({ value, onChange }: { value: string; onChange: (id: string) => void }) {
-  const { tree } = useOrg();
-  const rows = useMemo(() => [{ unit: tree, depth: 0 }, ...collectUnitsWithDepth(tree)], [tree]);
-  const [open, setOpen] = useState(false);
-  const [q, setQ] = useState("");
-
-  const query = q.trim().toLowerCase();
-  const filtered = query ? rows.filter(r => r.unit.name.toLowerCase().includes(query)) : rows;
-  const path = findPath(tree, value) ?? [tree];
-  const label = path.length > 1 ? path.slice(1).map(u => u.name).join(" › ") : path[0].name;
-
-  const pick = (id: string) => { onChange(id); setOpen(false); setQ(""); };
-
-  return (
-    <div
-      className="relative"
-      onBlur={e => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false);
-      }}
-    >
-      <button
-        type="button"
-        onClick={() => setOpen(v => !v)}
-        className="h-8 flex items-center gap-2 px-3 rounded-lg border border-border bg-surface text-sm hover:bg-surface-muted transition-base max-w-[280px]"
-      >
-        <Building2 size={13} className="text-muted-foreground shrink-0" />
-        <span className="truncate" title={label}>{label}</span>
-        <ChevronDown size={12} className={`text-muted-foreground transition-base shrink-0 ${open ? "rotate-180" : ""}`} />
-      </button>
-      {open && (
-        <div className="absolute left-0 top-[calc(100%+4px)] w-80 max-h-96 bg-surface rounded-xl ring-1 ring-border shadow-xl z-50 flex flex-col overflow-hidden">
-          <div className="p-2 border-b border-border shrink-0">
-            <div className="relative">
-              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input
-                autoFocus
-                value={q}
-                onChange={e => setQ(e.target.value)}
-                placeholder="Search units…"
-                className="ds-input pl-7 h-8 text-sm"
-              />
-            </div>
-          </div>
-          <div className="overflow-y-auto p-1">
-            {filtered.map(({ unit: u, depth }) => (
-              <button
-                key={u.id}
-                type="button"
-                onClick={() => pick(u.id)}
-                style={{ paddingLeft: 12 + depth * 16 }}
-                className={`w-full flex items-center gap-2 text-left py-2 pr-3 rounded-lg text-sm transition-base hover:bg-surface-muted ${value === u.id ? "text-primary font-medium bg-primary-soft" : "text-foreground"}`}
-              >
-                {depth > 0 && <span className="text-border shrink-0 select-none">└</span>}
-                <span className={`truncate flex-1 ${depth === 0 ? "font-medium" : ""}`}>{u.name}</span>
-                <span className="text-[10px] text-muted-foreground shrink-0">{countAll(u)}</span>
-              </button>
-            ))}
-            {filtered.length === 0 && (
-              <div className="px-3 py-6 text-center text-xs text-muted-foreground">No results.</div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
 }
 
 /* ─── Filter chip (bordered dropdown, matches Skills.tsx's filter pattern) ─── */
@@ -151,15 +75,13 @@ function FilterChip({
 
 /* ─── Per-row role cell (click to reassign directly — every member always has a role) ───── */
 function RoleCell({
-  memberId, memberName, currentRoleId, roles, onAssign, unitName,
+  memberId, memberName, currentRoleId, roles, onAssign,
 }: {
   memberId: string;
   memberName: string;
   currentRoleId: string;
   roles: RoleDef[];
   onAssign: (memberId: string, roleId: string | undefined) => void;
-  /** Unit this member currently belongs to — the role's permissions only apply within this unit. */
-  unitName?: string;
 }) {
   const [open, setOpen] = useState(false);
   const current = roles.find(r => r.id === currentRoleId);
@@ -175,7 +97,6 @@ function RoleCell({
         type="button"
         onClick={() => setOpen(v => !v)}
         aria-label={`Change ${memberName}'s role`}
-        title={current && unitName ? `${current.name} — applies in ${unitName}` : undefined}
         className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-base hover:opacity-80 cursor-pointer bg-primary-soft text-primary"
       >
         {current?.name ?? currentRoleId}
@@ -183,11 +104,6 @@ function RoleCell({
       </button>
       {open && (
         <div className="absolute left-0 top-[calc(100%+4px)] w-48 bg-surface rounded-xl ring-1 ring-border shadow-xl z-20 p-1">
-          {unitName && (
-            <div className="px-3 py-1.5 text-[10px] text-muted-foreground border-b border-border mb-1">
-              Applies in {unitName}
-            </div>
-          )}
           {roles.map(r => (
             <button
               key={r.id}
@@ -323,7 +239,7 @@ function AddUserToRoleModal({
                               </span>
                             )}
                           </div>
-                          <div className="text-xs text-muted-foreground truncate">{m.role} · {unitNameFor(tree, m.id)}</div>
+                          <div className="text-xs text-muted-foreground truncate">{m.role}</div>
                         </div>
                       </button>
                     );
@@ -390,37 +306,19 @@ function AddUserToRoleModal({
 export default function Members() {
   const { tree, assignRole } = useOrg();
   const { roles } = useRoles();
-  const { conflicts } = useConflicts();
-  const [view, setView] = useState<"list" | "conflicts">("list");
-  const [selectedUnitId, setSelectedUnitId] = useState(tree.id);
   const [roleFilter, setRoleFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [showAdd, setShowAdd] = useState(false);
-  const [movingMember, setMovingMember] = useState<OrgMember | null>(null);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 24;
 
-  // Member-specific conflicts (unit mismatch / removed from source) surface right on this page —
-  // a unit-name conflict isn't about any one person so it only shows inside the Conflicts tab itself.
-  const openConflictByMember = useMemo(() => {
-    const map = new Map<string, Conflict>();
-    conflicts.forEach(c => {
-      if (c.status !== "open") return;
-      const mid = memberIdOf(c);
-      if (mid) map.set(mid, c);
-    });
-    return map;
-  }, [conflicts]);
-  const openConflictCount = conflicts.filter(c => c.status === "open").length;
-  const openMemberConflictCount = [...openConflictByMember.values()].length;
-
   const roleIds = new Set(roles.map(r => r.id));
   const roleSections = roles.map(r => ({ id: r.id, name: r.name }));
-  const selectedUnit = findUnit(tree, selectedUnitId) ?? tree;
+  const allMembers = useMemo(() => collectMembers(tree), [tree]);
 
-  useEffect(() => { setPage(1); }, [selectedUnitId, roleFilter, query]);
+  useEffect(() => { setPage(1); }, [roleFilter, query]);
 
-  const visibleMembers = selectedUnit.members
+  const visibleMembers = allMembers
     .filter(m => {
       if (roleFilter === "all") return true;
       const rid = m.roleId;
@@ -448,76 +346,16 @@ export default function Members() {
           onAdd={assignRole}
         />
       )}
-      {movingMember && (
-        <MoveMemberModal
-          member={movingMember}
-          currentUnitId={findMemberUnit(tree, movingMember.id)?.id ?? tree.id}
-          onClose={() => setMovingMember(null)}
-        />
-      )}
 
       <div className="flex items-start justify-between gap-4">
         <PageHeader title="Members" desc="Search and manage everyone in the organization, along with each person's role." />
-        {view === "list" && (
-          <button onClick={() => setShowAdd(true)} className="btn-primary h-9 shrink-0">
-            <Plus size={14} /> Add users to a role
-          </button>
-        )}
-      </div>
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setView("list")}
-          className={`h-9 px-4 rounded-lg text-sm font-medium border transition-base ${
-            view === "list" ? "bg-primary-soft text-primary border-primary/30" : "border-border text-muted-foreground hover:bg-surface-muted"
-          }`}
-        >
-          Member list
-        </button>
-        <button
-          type="button"
-          onClick={() => setView("conflicts")}
-          className={`h-9 px-4 rounded-lg text-sm font-medium border transition-base inline-flex items-center gap-1.5 ${
-            view === "conflicts" ? "bg-primary-soft text-primary border-primary/30" : "border-border text-muted-foreground hover:bg-surface-muted"
-          }`}
-        >
-          Sync Conflicts
-          {openConflictCount > 0 && (
-            <span className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-semibold flex items-center justify-center shrink-0 ${
-              view === "conflicts" ? "bg-primary text-primary-foreground" : "bg-destructive-soft text-destructive"
-            }`}>
-              {openConflictCount}
-            </span>
-          )}
+        <button onClick={() => setShowAdd(true)} className="btn-primary h-9 shrink-0">
+          <Plus size={14} /> Add users to a role
         </button>
       </div>
 
-      {view === "conflicts" ? (
-        <Card>
-          <ConflictsPanel />
-        </Card>
-      ) : (
       <Card>
-        {openMemberConflictCount > 0 && (
-          <div className="flex items-center justify-between gap-3 rounded-xl border border-warning/30 bg-warning-soft px-3.5 py-3 mb-4">
-            <div className="flex items-center gap-2.5 text-xs text-foreground">
-              <AlertTriangle size={15} className="text-warning shrink-0" />
-              <span>
-                <span className="font-medium">{openMemberConflictCount}</span> member{openMemberConflictCount === 1 ? "" : "s"} with sync conflicts pending.
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setView("conflicts")}
-              className="h-7 px-3 rounded-lg bg-white border border-warning/40 text-warning text-xs font-medium hover:bg-warning-soft transition-base shrink-0"
-            >
-              View details
-            </button>
-          </div>
-        )}
         <div className="flex flex-wrap items-center gap-2.5 mb-4">
-          <UnitSwitcher value={selectedUnitId} onChange={setSelectedUnitId} />
           <FilterChip value={roleFilter} allLabel="All roles" options={roleSections} onChange={setRoleFilter} />
           <div className="relative ml-auto w-full sm:w-64">
             <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -526,7 +364,7 @@ export default function Members() {
         </div>
 
         <div className="text-xs text-muted-foreground mb-3">
-          {visibleMembers.length} people in {selectedUnit.name}
+          {visibleMembers.length} member{visibleMembers.length === 1 ? "" : "s"} total
         </div>
 
         {visibleMembers.length === 0 ? (
@@ -536,15 +374,14 @@ export default function Members() {
         ) : (
           <>
             <div className="-mx-6 border-t border-border">
-              <div className="grid grid-cols-[1fr,200px,160px,40px] gap-3 px-6 py-2.5 bg-surface-muted section-eyebrow">
-                <div>Member</div><div>Unit</div><div>Role</div><div />
+              <div className="grid grid-cols-[1fr,160px] gap-3 px-6 py-2.5 bg-surface-muted section-eyebrow">
+                <div>Member</div><div>Role</div>
               </div>
               <div className="divide-y divide-border">
                 {shownMembers.map(m => {
                   const currentRoleId = m.roleId && roleIds.has(m.roleId) ? m.roleId : DEFAULT_ROLE_ID;
-                  const unitName = findMemberUnit(tree, m.id)?.name ?? "—";
                   return (
-                    <div key={m.id} className="grid grid-cols-[1fr,200px,160px,40px] gap-3 px-6 py-3 items-center hover:bg-surface-muted/50 transition-base">
+                    <div key={m.id} className="grid grid-cols-[1fr,160px] gap-3 px-6 py-3 items-center hover:bg-surface-muted/50 transition-base">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-9 h-9 rounded-full bg-accent-soft text-accent flex items-center justify-center text-xs font-semibold shrink-0">
                           {m.initials}
@@ -555,38 +392,17 @@ export default function Members() {
                             {m.inactive && (
                               <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive-soft text-destructive font-medium shrink-0">Inactive</span>
                             )}
-                            {openConflictByMember.has(m.id) && (
-                              <button
-                                type="button"
-                                onClick={() => setView("conflicts")}
-                                title={TYPE_META[openConflictByMember.get(m.id)!.type].label}
-                                className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-warning-soft text-warning font-medium shrink-0 hover:opacity-80 transition-base"
-                              >
-                                <AlertTriangle size={10} /> Conflict
-                              </button>
-                            )}
                           </div>
                           {m.email && <div className="text-xs text-muted-foreground truncate">{m.email}</div>}
                         </div>
                       </div>
-                      <div className="text-xs text-muted-foreground truncate" title={unitName}>{unitName}</div>
                       <RoleCell
                         memberId={m.id}
                         memberName={m.name}
                         currentRoleId={currentRoleId}
                         roles={roles}
                         onAssign={assignRole}
-                        unitName={unitName}
                       />
-                      <button
-                        type="button"
-                        onClick={() => setMovingMember(m)}
-                        aria-label={`Move ${m.name} to another unit`}
-                        title="Move to another unit"
-                        className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-base"
-                      >
-                        <FolderInput size={13} />
-                      </button>
                     </div>
                   );
                 })}
@@ -595,7 +411,7 @@ export default function Members() {
             {totalPages > 1 && (
               <div className="flex items-center justify-between mt-3">
                 <span className="text-xs text-muted-foreground">
-                  Trang {currentPage}/{totalPages}
+                  Page {currentPage}/{totalPages}
                 </span>
                 <div className="flex items-center gap-1.5">
                   <button
@@ -622,7 +438,6 @@ export default function Members() {
           </>
         )}
       </Card>
-      )}
     </div>
   );
 }

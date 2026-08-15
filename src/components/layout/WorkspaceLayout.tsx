@@ -11,7 +11,6 @@ import {
 const APP_VERSION = "0.58.5";
 import { useState } from "react";
 import fptAiLogo from "@/assets/fpt-ai-logo.png";
-import { useConflicts } from "@/pages/organization/conflictsStore";
 
 type Tenant = { id: string; name: string; plan: string; initial: string };
 const TENANTS: Tenant[] = [
@@ -45,7 +44,7 @@ const groups: Group[] = [
     id: "workspace",
     label: "Settings",
     items: [
-      { to: "/organization/members", label: "Members", icon: Users },
+      { to: "/members", label: "Members", icon: Users },
     ],
   },
 ];
@@ -56,7 +55,6 @@ const utilityItems: Item[] = [
 
 const orgItemsBase: Item[] = [
   { to: "/organization/structure", label: "Structure", icon: Network },
-  { to: "/organization/members", label: "Members", icon: Users },
   { to: "/organization/roles", label: "Roles", icon: Shield },
   { to: "/organization/permissions", label: "Permissions", icon: Lock },
   { to: "/organization", label: "General", icon: Building2 },
@@ -72,15 +70,7 @@ export default function WorkspaceLayout() {
   const userEmail = getUser()?.email || "tran.nam@fpt.com";
   const loc = useLocation();
   const navigate = useNavigate();
-  const { conflicts } = useConflicts();
-  const openConflictCount = conflicts.filter(c => c.status === "open").length;
-  // The "Sync Conflicts" tab lives inside the Members page now (see Members.tsx) — surface
-  // the unresolved count as a badge on that nav item instead of a separate top-level entry.
-  const orgItems: Item[] = orgItemsBase.map(it =>
-    it.to === "/organization/members"
-      ? { ...it, badge: openConflictCount > 0 ? String(openConflictCount) : undefined }
-      : it
-  );
+  const orgItems: Item[] = orgItemsBase;
   const inAgentBuilder = loc.pathname.startsWith("/agents/");
   const inOrganization = loc.pathname.startsWith("/organization");
   const handleSignOut = () => {
@@ -99,7 +89,7 @@ export default function WorkspaceLayout() {
   }
 
   const BREADCRUMB_LABELS: Record<string, string> = { tools: "Skills" };
-  const ORG_BREADCRUMB_LABELS: Record<string, string> = { "": "General", structure: "Structure", members: "Members", permissions: "Permissions", roles: "Roles" };
+  const ORG_BREADCRUMB_LABELS: Record<string, string> = { "": "General", structure: "Structure", permissions: "Permissions", roles: "Roles" };
   let breadcrumbLabel: string;
   if (inOrganization) {
     const sub = loc.pathname.replace(/^\/organization\/?/, "");
