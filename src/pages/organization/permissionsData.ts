@@ -43,7 +43,7 @@ export const featureGroups: FeatureGroup[] = [
     return { id, label, icon, section: "console" as Section, permissions };
   }),
 
-  // ── Governance: Roles, Members, Approvals ───────────────────────────────
+  // ── Governance: Roles, Members ───────────────────────────────────────────
   {
     id: "roles",
     label: "Roles",
@@ -66,11 +66,23 @@ export const featureGroups: FeatureGroup[] = [
       { id: "members.remove", name: "Remove members", desc: "Remove a member from the organization." },
     ],
   },
+
+  // ── Organization Management: Structure, Publish Approvals ───────────────
+  {
+    id: "structure",
+    label: "Structure",
+    icon: Network,
+    section: "org-management",
+    permissions: [
+      { id: "structure.view", name: "View organization structure", desc: "See units, members, and reporting lines." },
+      { id: "structure.unit-admins", name: "Manage unit admins", desc: "Assign or remove Unit Admins, who can approve publishes within their unit and every unit nested below it." },
+    ],
+  },
   {
     id: "approvals",
     label: "Publish Approvals",
     icon: ClipboardCheck,
-    section: "governance",
+    section: "org-management",
     permissions: FEATURES.map(({ id, thing }) => {
       const singular = singularOf(thing);
       const isAgents = id === "agents";
@@ -83,18 +95,6 @@ export const featureGroups: FeatureGroup[] = [
         implies: isAgents ? FEATURES.filter(f => f.id !== "agents").map(f => `${f.id}.approve`) : undefined,
       };
     }),
-  },
-
-  // ── Organization Management: Structure ───────────────────────────────────
-  {
-    id: "structure",
-    label: "Structure",
-    icon: Network,
-    section: "org-management",
-    permissions: [
-      { id: "structure.view", name: "View organization structure", desc: "See units, members, and reporting lines." },
-      { id: "structure.unit-admins", name: "Manage unit admins", desc: "Assign or remove Unit Admins, who can approve publishes within their unit and every unit nested below it." },
-    ],
   },
 ];
 
