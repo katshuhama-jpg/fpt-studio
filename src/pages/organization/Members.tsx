@@ -49,7 +49,7 @@ function FilterChip({
         <ChevronDown size={12} className={`text-muted-foreground transition-base ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="absolute right-0 top-[calc(100%+4px)] w-56 max-h-72 overflow-y-auto bg-surface rounded-xl ring-1 ring-border shadow-xl z-50 p-1">
+        <div className="absolute left-0 top-[calc(100%+4px)] w-56 max-h-72 overflow-y-auto bg-surface rounded-xl ring-1 ring-border shadow-xl z-50 p-1">
           <button
             type="button"
             onClick={() => { onChange("all"); setOpen(false); }}
