@@ -14,10 +14,10 @@ const BUILDER_IDS = new Set([
   "knowledge.publish", "knowledge.manage",
   "skills.publish", "skills.manage",
   "connectors.publish", "connectors.manage",
-  "organization.view",
+  "structure.view",
 ]);
 const VIEWER_IDS = new Set([
-  "organization.view",
+  "structure.view",
 ]);
 
 const SEED_ROLES: RoleDef[] = [

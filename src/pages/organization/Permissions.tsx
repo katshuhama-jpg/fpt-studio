@@ -1,6 +1,6 @@
 import { Info } from "lucide-react";
 import { Card, PageHeader } from "./shared";
-import { featureGroups } from "./permissionsData";
+import { featureGroups, SECTIONS } from "./permissionsData";
 
 export default function Permissions() {
   return (
@@ -21,24 +21,29 @@ export default function Permissions() {
         </div>
       </div>
 
-      {featureGroups.map(group => (
-        <Card key={group.id}>
-          <div className="flex items-center gap-2.5 mb-4">
-            <div className="w-8 h-8 rounded-lg bg-primary-soft text-primary flex items-center justify-center shrink-0">
-              <group.icon size={15} />
-            </div>
-            <h2 className="font-display text-base font-semibold">{group.label}</h2>
-          </div>
-
-          <div className="divide-y divide-border border-t border-border">
-            {group.permissions.map(p => (
-              <div key={p.id} className="py-4">
-                <div className="text-sm font-semibold">{p.name}</div>
-                <div className="text-xs text-muted-foreground mt-0.5">{p.desc}</div>
+      {SECTIONS.map((section, i) => (
+        <div key={section.id} className={`space-y-6 ${i > 0 ? "pt-6 border-t border-border" : ""}`}>
+          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{section.label}</div>
+          {featureGroups.filter(g => g.section === section.id).map(group => (
+            <Card key={group.id}>
+              <div className="flex items-center gap-2.5 mb-4">
+                <div className="w-8 h-8 rounded-lg bg-primary-soft text-primary flex items-center justify-center shrink-0">
+                  <group.icon size={15} />
+                </div>
+                <h2 className="font-display text-base font-semibold">{group.label}</h2>
               </div>
-            ))}
-          </div>
-        </Card>
+
+              <div className="divide-y divide-border border-t border-border">
+                {group.permissions.map(p => (
+                  <div key={p.id} className="py-4">
+                    <div className="text-sm font-semibold">{p.name}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{p.desc}</div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          ))}
+        </div>
       ))}
     </div>
   );
