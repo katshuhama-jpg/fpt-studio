@@ -1,4 +1,4 @@
-import { Bot, BookOpen, Puzzle, Shield, Plug, Building2, ClipboardCheck, Users, Network } from "lucide-react";
+import { Bot, BookOpen, Puzzle, Shield, Plug, ClipboardCheck, Users, Network } from "lucide-react";
 
 export type Permission = { id: string; name: string; desc: string; implies?: string[] };
 export type Section = "console" | "governance" | "org-management";
@@ -29,20 +29,18 @@ function singularOf(thing: string) {
 }
 
 export const featureGroups: FeatureGroup[] = [
-  // ── Console: per-feature publish/manage/delete ──────────────────────────
+  // ── Console: per-feature publish/manage/(pause)/delete ──────────────────
   ...FEATURES.map(({ id, label, icon, thing }) => {
     const singular = singularOf(thing);
-    return {
-      id,
-      label,
-      icon,
-      section: "console" as Section,
-      permissions: [
-        { id: `${id}.publish`, name: `Publish ${thing}`, desc: `Make a personal ${singular} available to the whole workspace, or share it with specific teammates.` },
-        { id: `${id}.manage`, name: `Manage ${thing}`, desc: `Edit the configuration of a live ${singular} in the workspace.` },
-        { id: `${id}.delete`, name: `Delete ${thing}`, desc: `Permanently delete a live ${singular} from the workspace.` },
-      ],
-    };
+    const permissions: Permission[] = [
+      { id: `${id}.publish`, name: `Publish ${thing}`, desc: `Make a personal ${singular} available to the whole workspace, or share it with specific teammates.` },
+      { id: `${id}.manage`, name: `Manage ${thing}`, desc: `Edit the configuration of a live ${singular} in the workspace.` },
+    ];
+    if (id === "agents") {
+      permissions.push({ id: "agents.pause", name: "Pause agents", desc: "Pause or resume a live agent in the workspace, taking it temporarily offline without deleting it." });
+    }
+    permissions.push({ id: `${id}.delete`, name: `Delete ${thing}`, desc: `Permanently delete a live ${singular} from the workspace.` });
+    return { id, label, icon, section: "console" as Section, permissions };
   }),
 
   // ── Governance: Roles, Members, Approvals ───────────────────────────────
@@ -52,7 +50,9 @@ export const featureGroups: FeatureGroup[] = [
     icon: Shield,
     section: "governance",
     permissions: [
-      { id: "roles.manage", name: "Manage roles", desc: "Create, edit, and delete custom roles, and control which permissions each one grants." },
+      { id: "roles.create", name: "Create roles", desc: "Create a new custom role." },
+      { id: "roles.edit", name: "Edit roles", desc: "Change an existing role's name or the permissions it grants." },
+      { id: "roles.delete", name: "Delete roles", desc: "Delete a custom role that's no longer needed." },
     ],
   },
   {
@@ -61,7 +61,9 @@ export const featureGroups: FeatureGroup[] = [
     icon: Users,
     section: "governance",
     permissions: [
-      { id: "members.manage", name: "Manage members", desc: "Invite, remove, and reassign the role of members across the organization." },
+      { id: "members.invite", name: "Invite members", desc: "Invite a new person to join the organization." },
+      { id: "members.manage", name: "Manage members", desc: "Reassign a member's role, or move them between units." },
+      { id: "members.remove", name: "Remove members", desc: "Remove a member from the organization." },
     ],
   },
   {
@@ -83,7 +85,7 @@ export const featureGroups: FeatureGroup[] = [
     }),
   },
 
-  // ── Organization Management: Structure, General ─────────────────────────
+  // ── Organization Management: Structure ───────────────────────────────────
   {
     id: "structure",
     label: "Structure",
@@ -92,15 +94,6 @@ export const featureGroups: FeatureGroup[] = [
     permissions: [
       { id: "structure.view", name: "View organization structure", desc: "See units, members, and reporting lines." },
       { id: "structure.unit-admins", name: "Manage unit admins", desc: "Assign or remove Unit Admins, who can approve publishes within their unit and every unit nested below it." },
-    ],
-  },
-  {
-    id: "general",
-    label: "General",
-    icon: Building2,
-    section: "org-management",
-    permissions: [
-      { id: "settings.manage", name: "Manage organization settings", desc: "Edit the organization's name, logo, URL slug, and default language." },
     ],
   },
 ];
