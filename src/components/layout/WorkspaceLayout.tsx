@@ -56,8 +56,8 @@ const utilityItems: Item[] = [
 ];
 
 const orgItemsBase: Item[] = [
-  { to: "/organization/structure", label: "Structure", icon: Network },
   { to: "/organization", label: "General", icon: Building2 },
+  { to: "/organization/structure", label: "Structure", icon: Network },
 ];
 
 export default function WorkspaceLayout() {
@@ -208,7 +208,7 @@ export default function WorkspaceLayout() {
                             setTenantId(t.id);
                             setUserMenu(false);
                             setOrgSwitcherOpen(false);
-                            navigate("/organization/structure");
+                            navigate("/organization");
                           }}
                           className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-surface-muted transition-base text-left"
                         >
@@ -323,8 +323,8 @@ export default function WorkspaceLayout() {
 type AppOption = { key: "workspace" | "organization"; label: string; short: string; desc: string; icon: any; to: string };
 
 const APP_OPTIONS: AppOption[] = [
-  { key: "workspace", label: "Agent Console", short: "Agent Console", desc: "Build and manage agents, knowledge, skills & connectors", icon: Bot, to: "/" },
-  { key: "organization", label: "Organization Management", short: "Organization Management", desc: "Manage structure, members, roles & permissions", icon: Building2, to: "/organization/structure" },
+  { key: "workspace", label: "Agent Console", short: "Agent Console", desc: "Build and manage agents, knowledge, skills, connectors & governance", icon: Bot, to: "/" },
+  { key: "organization", label: "Organization Management", short: "Organization Management", desc: "Manage organization structure & general settings", icon: Building2, to: "/organization" },
 ];
 
 function AppSwitcher({ collapsed, inOrganization }: { collapsed: boolean; inOrganization: boolean }) {
