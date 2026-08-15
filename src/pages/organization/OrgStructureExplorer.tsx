@@ -537,7 +537,15 @@ export default function OrgStructureExplorer() {
                       <div className="text-[10px] text-muted-foreground truncate leading-tight">via {sourceUnit.name}</div>
                     )}
                   </div>
-                  <Crown size={12} className="text-warning shrink-0" />
+                  <button
+                    type="button"
+                    onClick={() => setUnitAdmin(sourceUnit.id, member.id, false)}
+                    aria-label={`Remove ${member.name} as Unit Admin`}
+                    title="Remove as Unit Admin"
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-warning/70 hover:text-destructive hover:bg-white/70 transition-base shrink-0"
+                  >
+                    <X size={12} />
+                  </button>
                 </div>
               ))}
             </div>
