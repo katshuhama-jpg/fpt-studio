@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Building2, ChevronRight, ChevronLeft, ChevronDown, Search, Users, Trash2, Plus, X, FolderInput, Crown } from "lucide-react";
+import { Building2, ChevronRight, ChevronLeft, ChevronDown, Search, Users, Trash2, Plus, X, FolderInput, Crown, Check } from "lucide-react";
 import { OrgUnit, OrgMember, countAll, countDirect, findUnit, findPath, unitMatches, collectMembers } from "./orgData";
 import { useOrg, deriveNameFromEmail } from "./orgStore";
 import { useRoles, RoleDef } from "./rolesStore";
@@ -179,6 +179,69 @@ function MemberModal({
   );
 }
 
+/* ─── Member type cell (Member vs. Unit Admin, each option explained inline like RoleCell) ─── */
+function MemberTypeCell({
+  memberName, isAdmin, onChange,
+}: {
+  memberName: string;
+  isAdmin: boolean;
+  onChange: (isAdmin: boolean) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div
+      className="relative"
+      onBlur={e => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false);
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        aria-label={`Change ${memberName}'s type`}
+        className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full transition-base hover:opacity-80 cursor-pointer ${
+          isAdmin ? "bg-warning-soft text-warning" : "bg-surface-muted text-muted-foreground"
+        }`}
+      >
+        {isAdmin && <Crown size={11} />}
+        {isAdmin ? "Admin" : "Member"}
+        <ChevronDown size={11} className={`transition-base ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-[calc(100%+4px)] w-64 bg-surface rounded-xl ring-1 ring-border shadow-xl z-20 p-1">
+          <button
+            type="button"
+            onClick={() => { onChange(false); setOpen(false); }}
+            className={`w-full flex items-start justify-between gap-2 text-left px-3 py-2 rounded-lg transition-base hover:bg-surface-muted ${!isAdmin ? "bg-primary-soft" : ""}`}
+          >
+            <div className="min-w-0">
+              <div className={`text-sm font-medium ${!isAdmin ? "text-primary" : "text-foreground"}`}>Member</div>
+              <div className="text-xs text-muted-foreground mt-0.5 leading-snug">Can create and use Agents, Skills, and Knowledge.</div>
+            </div>
+            {!isAdmin && <Check size={13} className="text-primary shrink-0 mt-0.5" />}
+          </button>
+          <button
+            type="button"
+            onClick={() => { onChange(true); setOpen(false); }}
+            className={`w-full flex items-start justify-between gap-2 text-left px-3 py-2 rounded-lg transition-base hover:bg-surface-muted ${isAdmin ? "bg-primary-soft" : ""}`}
+          >
+            <div className="min-w-0">
+              <div className={`text-sm font-medium flex items-center gap-1.5 ${isAdmin ? "text-primary" : "text-foreground"}`}>
+                <Crown size={12} /> Admin
+              </div>
+              <div className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                Also approves Agents, Skills, and Knowledge published into this unit — and every unit nested below it.
+              </div>
+            </div>
+            {isAdmin && <Check size={13} className="text-primary shrink-0 mt-0.5" />}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Delete confirmation (popup, reused for units and members) ────────── */
 // `blocked` turns this into an info-only "cannot delete" dialog (single "Got it" button,
 // no destructive action) — used when a unit still has members/child units (rule: unit must
@@ -221,6 +284,72 @@ function ConfirmDeleteModal({
       <style>{`@keyframes fadeScaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}`}</style>
     </div>,
     document.body
+  );
+}
+
+/* ─── Assign-admin popover — pick a member of this unit who isn't already an admin ─── */
+function AssignAdminPopover({
+  candidates, onAssign,
+}: {
+  candidates: OrgMember[];
+  onAssign: (memberId: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const query = q.trim().toLowerCase();
+  const filtered = query ? candidates.filter(m => m.name.toLowerCase().includes(query)) : candidates;
+
+  return (
+    <div
+      className="relative"
+      onBlur={e => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false);
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        disabled={candidates.length === 0}
+        title={candidates.length === 0 ? "Every member of this unit is already an admin" : undefined}
+        className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-glow transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-primary shrink-0"
+      >
+        <Plus size={12} /> Assign admin
+      </button>
+      {open && (
+        <div className="absolute right-0 top-[calc(100%+4px)] w-64 max-h-72 bg-surface rounded-xl ring-1 ring-border shadow-xl z-50 flex flex-col overflow-hidden">
+          <div className="p-2 border-b border-border shrink-0">
+            <div className="relative">
+              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                autoFocus
+                value={q}
+                onChange={e => setQ(e.target.value)}
+                placeholder="Search members…"
+                className="ds-input pl-7 h-8 text-sm"
+              />
+            </div>
+          </div>
+          <div className="overflow-y-auto p-1">
+            {filtered.map(m => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => { onAssign(m.id); setOpen(false); setQ(""); }}
+                className="w-full flex items-center gap-2.5 text-left py-2 px-2 rounded-lg text-sm hover:bg-surface-muted transition-base"
+              >
+                <div className="w-6 h-6 rounded-full bg-accent-soft text-accent flex items-center justify-center text-[9px] font-semibold shrink-0">
+                  {m.initials}
+                </div>
+                <span className="truncate">{m.name}</span>
+              </button>
+            ))}
+            {filtered.length === 0 && (
+              <div className="px-3 py-6 text-center text-xs text-muted-foreground">No eligible members.</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -371,12 +500,21 @@ export default function OrgStructureExplorer() {
 
         {/* Unit Admins — who can currently approve publishes into this unit, direct + inherited */}
         <div className="mb-6">
-          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-            Unit Admins ({effectiveAdmins.length})
+          <div className="flex items-center justify-between gap-3 mb-1">
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Unit Admins ({effectiveAdmins.length})
+            </div>
+            <AssignAdminPopover
+              candidates={selected.members.filter(m => !(selected.unitAdminIds ?? []).includes(m.id))}
+              onAssign={memberId => setUnitAdmin(selected.id, memberId, true)}
+            />
           </div>
+          <p className="text-xs text-muted-foreground mb-2">
+            Unit Admins can approve Agents, Skills, and Knowledge published into this unit and every unit nested below it.
+          </p>
           {effectiveAdmins.length === 0 ? (
             <div className="text-sm text-muted-foreground border border-dashed border-border rounded-lg py-4 text-center">
-              No unit admins yet — use the crown icon next to a member below to assign one.
+              No unit admins yet — assign one above.
             </div>
           ) : (
             <div className="flex flex-wrap gap-2">
@@ -505,25 +643,14 @@ export default function OrgStructureExplorer() {
                         {m.inactive && (
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive-soft text-destructive font-medium shrink-0">Inactive</span>
                         )}
-                        {isUnitAdmin && (
-                          <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-warning-soft text-warning font-medium shrink-0">
-                            <Crown size={9} /> Unit Admin
-                          </span>
-                        )}
                       </div>
                       {m.email && <div className="text-xs text-muted-foreground truncate">{m.email}</div>}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setUnitAdmin(selected.id, m.id, !isUnitAdmin)}
-                      aria-label={isUnitAdmin ? `Remove ${m.name} as unit admin` : `Make ${m.name} unit admin`}
-                      title={isUnitAdmin ? "Unit Admin — click to remove" : "Make unit admin"}
-                      className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-base ${
-                        isUnitAdmin ? "text-warning hover:bg-warning-soft" : "text-muted-foreground hover:bg-surface-muted hover:text-foreground"
-                      }`}
-                    >
-                      <Crown size={14} className={isUnitAdmin ? "fill-warning" : ""} />
-                    </button>
+                    <MemberTypeCell
+                      memberName={m.name}
+                      isAdmin={isUnitAdmin}
+                      onChange={isAdmin => setUnitAdmin(selected.id, m.id, isAdmin)}
+                    />
                     <div className="flex items-center gap-1 shrink-0">
                       <button
                         type="button"
