@@ -1,7 +1,7 @@
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { clearUser, getUser } from "@/lib/onboarding";
 import {
-  Home, MessageSquare, Bot, BookOpen, Settings, Plug,
+  Home, MessageSquare, Bot, BookOpen, Plug,
   Puzzle, ChevronsLeft, ChevronsRight, Search, Bell, Plus,
   ChevronRight, LifeBuoy, KeyRound, LogOut, User, ChevronDown, ChevronsUpDown,
   Check, Building2, PlusCircle, Sparkles, Shield, FileText, Rocket,
@@ -45,7 +45,7 @@ const groups: Group[] = [
     id: "workspace",
     label: "Settings",
     items: [
-      { to: "/organization/structure", label: "Members", icon: Settings },
+      { to: "/organization/members", label: "Members", icon: Users },
     ],
   },
 ];
