@@ -72,10 +72,10 @@ const App = () => (
             <Route element={<RequireAuth><WorkspaceLayout /></RequireAuth>}>
               <Route path="/knowledge" element={<PlaceholderPage title="Workspace Knowledge" />} />
               <Route path="/members" element={<OrgMembers />} />
+              <Route path="/roles" element={<OrgRoles />} />
+              <Route path="/permissions" element={<OrgPermissions />} />
               <Route path="/organization" element={<OrgGeneral />} />
               <Route path="/organization/structure" element={<OrgStructure />} />
-              <Route path="/organization/permissions" element={<OrgPermissions />} />
-              <Route path="/organization/roles" element={<OrgRoles />} />
               <Route path="/connectors" element={<WorkspaceConnectors />} />
               <Route path="/tools" element={<Skills />} />
               <Route path="/guardrails" element={<WorkspaceGuardrails />} />

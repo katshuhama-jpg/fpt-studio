@@ -42,9 +42,11 @@ const groups: Group[] = [
   },
   {
     id: "workspace",
-    label: "Settings",
+    label: "Governance",
     items: [
+      { to: "/roles", label: "Roles", icon: Shield },
       { to: "/members", label: "Members", icon: Users },
+      { to: "/permissions", label: "Permissions", icon: Lock },
     ],
   },
 ];
@@ -55,8 +57,6 @@ const utilityItems: Item[] = [
 
 const orgItemsBase: Item[] = [
   { to: "/organization/structure", label: "Structure", icon: Network },
-  { to: "/organization/roles", label: "Roles", icon: Shield },
-  { to: "/organization/permissions", label: "Permissions", icon: Lock },
   { to: "/organization", label: "General", icon: Building2 },
 ];
 
@@ -89,7 +89,7 @@ export default function WorkspaceLayout() {
   }
 
   const BREADCRUMB_LABELS: Record<string, string> = { tools: "Skills" };
-  const ORG_BREADCRUMB_LABELS: Record<string, string> = { "": "General", structure: "Structure", permissions: "Permissions", roles: "Roles" };
+  const ORG_BREADCRUMB_LABELS: Record<string, string> = { "": "General", structure: "Structure" };
   let breadcrumbLabel: string;
   if (inOrganization) {
     const sub = loc.pathname.replace(/^\/organization\/?/, "");
