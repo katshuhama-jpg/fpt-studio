@@ -1121,10 +1121,10 @@ function PerformanceTab() {
 /* ============ PLACEHOLDER ============ */
 const EXTERNAL_DEPLOY_CHANNELS = [
   { id: "web",       name: "Web widget", sub: "Web",     icon: Globe02Icon,   color: "text-foreground" },
-  { id: "zalo",      name: "Zalo",       sub: "Nhắn tin", icon: null,          color: "" },
-  { id: "messenger", name: "Messenger",  sub: "Nhắn tin", icon: MessengerIcon, color: "text-[#0084FF]" },
-  { id: "whatsapp",  name: "WhatsApp",   sub: "Nhắn tin", icon: WhatsappIcon,  color: "text-[#25D366]" },
-  { id: "telegram",  name: "Telegram",   sub: "Nhắn tin", icon: TelegramIcon,  color: "text-[#26A5E4]" },
+  { id: "zalo",      name: "Zalo",       sub: "Messaging", icon: null,          color: "" },
+  { id: "messenger", name: "Messenger",  sub: "Messaging", icon: MessengerIcon, color: "text-[#0084FF]" },
+  { id: "whatsapp",  name: "WhatsApp",   sub: "Messaging", icon: WhatsappIcon,  color: "text-[#25D366]" },
+  { id: "telegram",  name: "Telegram",   sub: "Messaging", icon: TelegramIcon,  color: "text-[#26A5E4]" },
   { id: "api",       name: "API",        sub: "API",      icon: ApiIcon,       color: "text-foreground" },
 ];
 
@@ -1136,16 +1136,16 @@ function PublishAgentModal({ onClose, onPublish }: {
 
   const options = [
     {
-      id: "workspace" as const, icon: UserGroupIcon, label: "Tất cả người dùng trong Workspace",
-      desc: "Mọi người dùng trong Workspace có thể sử dụng Agent sau khi xuất bản.",
+      id: "workspace" as const, icon: UserGroupIcon, label: "Everyone in the Workspace",
+      desc: "Anyone in the Workspace can use this Agent once published.",
     },
     {
-      id: "org" as const, icon: Building02Icon, label: "Công ty / phòng ban", badge: "Sắp có", disabled: true,
-      desc: "Chọn nhân viên trong tổ chức để dùng agent này.",
+      id: "org" as const, icon: Building02Icon, label: "Company / Department", badge: "Coming soon", disabled: true,
+      desc: "Choose specific employees in your org to use this agent.",
     },
     {
-      id: "me" as const, icon: UserIcon, label: "Chỉ mình tôi",
-      desc: "Chỉ bạn dùng được, và agent sẽ vào thẳng Agent của tôi bên Workspace.",
+      id: "me" as const, icon: UserIcon, label: "Only me",
+      desc: "Only you can use it — the agent goes straight to My Agents in the Workspace.",
     },
   ];
 
@@ -1156,8 +1156,8 @@ function PublishAgentModal({ onClose, onPublish }: {
         {/* Header */}
         <div className="flex items-start justify-between px-6 pt-6 pb-1">
           <div>
-            <h2 className="text-xl font-bold">Phát hành agent</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">Chọn đối tượng được sử dụng Agent</p>
+            <h2 className="text-xl font-bold">Publish agent</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">Choose who can use this Agent</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 mt-0.5">
             <HugeiconsIcon icon={Cancel01Icon} size={18} />
@@ -1177,7 +1177,7 @@ function PublishAgentModal({ onClose, onPublish }: {
           {/* Section label */}
           <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground mb-2.5">
             <HugeiconsIcon icon={UserGroupIcon} size={15} />
-            Đối tượng
+            Audience
           </div>
 
           {/* Options */}
@@ -1219,12 +1219,12 @@ function PublishAgentModal({ onClose, onPublish }: {
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-2 px-6 py-5">
-          <button onClick={onClose} className="h-10 px-4 rounded-xl bg-surface-muted text-sm font-medium hover:bg-border/40 transition-base">Hủy</button>
+          <button onClick={onClose} className="btn-secondary">Cancel</button>
           <button
             onClick={() => { onPublish(audience); onClose(); }}
-            className="btn-primary h-10 px-4 rounded-xl"
+            className="btn-primary"
           >
-            <HugeiconsIcon icon={Rocket01Icon} size={14} /> Phát hành
+            <HugeiconsIcon icon={Rocket01Icon} size={14} /> Publish
           </button>
         </div>
       </div>
@@ -1247,13 +1247,13 @@ function PublishSuccessModal({ url, onClose }: { url: string; onClose: () => voi
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative z-10 w-full max-w-md bg-white rounded-2xl shadow-lg border border-border flex flex-col items-center text-center px-8 py-8 animate-fade-up">
         <div className="flex items-center justify-center gap-2 mb-2">
-          <h2 className="text-xl font-bold text-success">Phát hành thành công</h2>
+          <h2 className="text-xl font-bold text-success">Published successfully</h2>
           <HugeiconsIcon icon={CheckmarkCircle01Icon} size={22} className="text-success" />
         </div>
-        <p className="text-sm text-muted-foreground mb-6">Agent của bạn đã được phát hành trên Agent Workspace.</p>
+        <p className="text-sm text-muted-foreground mb-6">Your agent has been published to Agent Workspace.</p>
 
         <div className="w-full text-left mb-6">
-          <p className="text-sm font-semibold mb-2">Chia sẻ liên kết công khai trên Agent Workspace</p>
+          <p className="text-sm font-semibold mb-2">Share the public link on Agent Workspace</p>
           <div className="flex items-center gap-2">
             <div className="flex-1 h-11 px-3.5 rounded-xl border border-border bg-surface-muted flex items-center text-sm text-muted-foreground truncate">
               {url}
@@ -1274,7 +1274,7 @@ function PublishSuccessModal({ url, onClose }: { url: string; onClose: () => voi
           onClick={onClose}
           className="h-11 px-8 rounded-xl bg-success text-white text-sm font-semibold hover:opacity-90 transition-base"
         >
-          Xong
+          Done
         </button>
       </div>
     </div>,
@@ -1302,13 +1302,13 @@ function VersionSelectModal({ currentVersion, onClose, onRelease }: {
       <div className="relative z-10 w-full max-w-md bg-white rounded-2xl shadow-lg border border-border flex flex-col px-6 py-6 animate-fade-up">
         {/* Header */}
         <div className="flex items-start justify-between mb-1">
-          <h2 className="text-xl font-bold">Chọn phiên bản phát hành</h2>
+          <h2 className="text-xl font-bold">Choose release version</h2>
           <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 -mt-1 -mr-1">
             <HugeiconsIcon icon={Cancel01Icon} size={18} />
           </button>
         </div>
         <p className="text-sm text-muted-foreground mb-5 leading-relaxed">
-          Phiên bản bạn chọn sẽ được áp dụng cho toàn bộ kênh đang phát hành.
+          The version you choose will apply to all live channels.
         </p>
 
         {/* Version list */}
@@ -1328,28 +1328,28 @@ function VersionSelectModal({ currentVersion, onClose, onRelease }: {
                   <span className="text-base font-semibold font-mono">{v.id}</span>
                   {v.id === currentVersion && (
                     <span className="flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-white border border-border">
-                      <span className="w-1.5 h-1.5 rounded-full bg-success" /> Đang phục vụ
+                      <span className="w-1.5 h-1.5 rounded-full bg-success" /> Live
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground">Phát hành ngày {v.date}</p>
+                <p className="text-xs text-muted-foreground">Released on {v.date}</p>
               </button>
             );
           })}
         </div>
 
         <p className="text-sm text-muted-foreground mb-5">
-          {isSame ? `Phát hành lại ${selected} cho toàn bộ kênh.` : `Chuyển toàn bộ kênh sang ${selected}.`}
+          {isSame ? `Re-release ${selected} to all channels.` : `Switch all channels to ${selected}.`}
         </p>
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-2">
-          <button onClick={onClose} className="h-10 px-4 rounded-xl bg-surface-muted text-sm font-medium hover:bg-border/40 transition-base">Hủy</button>
+          <button onClick={onClose} className="btn-secondary">Cancel</button>
           <button
             onClick={() => { onRelease(selected); onClose(); }}
-            className="btn-primary h-10 px-4 rounded-xl"
+            className="btn-primary"
           >
-            {isSame ? "Phát hành lại" : "Phát hành"}
+            {isSame ? "Re-release" : "Release"}
           </button>
         </div>
       </div>
@@ -1392,8 +1392,8 @@ function DeployTab({ agentVersion }: { agentVersion: string }) {
           <HugeiconsIcon icon={GridViewIcon} size={20} className="text-primary" />
         </div>
         <div>
-          <h1 className="text-xl font-semibold">Kênh triển khai</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Agent này đang phục vụ ở đâu, và đang chạy phiên bản nào.</p>
+          <h1 className="text-xl font-semibold">Deploy channels</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Where this agent is live, and which version it's running.</p>
         </div>
       </div>
 
@@ -1401,16 +1401,16 @@ function DeployTab({ agentVersion }: { agentVersion: string }) {
       <div className="rounded-xl border border-border bg-surface flex items-center justify-between px-5 py-4 mb-8">
         <div className="flex items-center gap-10">
           <div>
-            <p className="text-xs text-muted-foreground mb-1">Phiên bản đang phục vụ</p>
+            <p className="text-xs text-muted-foreground mb-1">Serving version</p>
             <p className="text-base font-semibold font-mono">{servingVersion}</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground mb-1">Kênh đang phát hành</p>
+            <p className="text-xs text-muted-foreground mb-1">Live channels</p>
             <p className="text-base font-semibold">0</p>
           </div>
         </div>
-        <button onClick={() => setShowVersionSelect(true)} className="btn-primary rounded-full h-10 px-4">
-          <HugeiconsIcon icon={Rocket01Icon} size={14} /> Chọn phiên bản phát hành
+        <button onClick={() => setShowVersionSelect(true)} className="btn-primary">
+          <HugeiconsIcon icon={Rocket01Icon} size={14} /> Choose release version
         </button>
       </div>
 
@@ -1418,25 +1418,25 @@ function DeployTab({ agentVersion }: { agentVersion: string }) {
       <div className="mb-8">
         <div className="flex items-baseline gap-2 mb-3">
           <h2 className="text-sm font-semibold">Agent Workspace</h2>
-          <span className="text-xs text-muted-foreground">Chưa mở cho ai</span>
+          <span className="text-xs text-muted-foreground">Not open to anyone yet</span>
         </div>
         <div className="rounded-2xl border-2 border-dashed border-border flex flex-col items-center justify-center text-center py-16 px-6">
           <div className="w-12 h-12 rounded-xl bg-surface-muted flex items-center justify-center mb-4">
             <HugeiconsIcon icon={Share08Icon} size={20} className="text-muted-foreground" />
           </div>
-          <h3 className="text-base font-semibold mb-1.5">Agent chưa tới tay ai</h3>
+          <h3 className="text-base font-semibold mb-1.5">No one has this agent yet</h3>
           <p className="text-sm text-muted-foreground max-w-sm mb-5 leading-relaxed">
-            Phát hành để mở agent cho một nhóm nhỏ trước, rồi mở rộng dần.
+            Publish to open this agent to a small group first, then expand.
           </p>
-          <button onClick={() => setShowPublish(true)} className="btn-primary h-9 px-4 rounded-lg">Phát hành</button>
+          <button onClick={() => setShowPublish(true)} className="btn-primary">Publish</button>
         </div>
       </div>
 
       {/* External channels */}
       <div>
         <div className="flex items-baseline gap-2 mb-3">
-          <h2 className="text-sm font-semibold">Kênh ngoài</h2>
-          <span className="text-xs text-muted-foreground">Chưa khả dụng</span>
+          <h2 className="text-sm font-semibold">External channels</h2>
+          <span className="text-xs text-muted-foreground">Not available yet</span>
         </div>
         <div className="grid grid-cols-3 gap-3">
           {EXTERNAL_DEPLOY_CHANNELS.map(c => (
