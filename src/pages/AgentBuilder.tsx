@@ -2,7 +2,7 @@ import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { createPortal } from "react-dom";
 
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, BookOpen01Icon, Cancel01Icon, BoltIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, UserMultipleIcon, TextBoldIcon, TextItalicIcon, TextStrikethroughIcon, Heading01Icon, Heading02Icon, LeftToRightListBulletIcon, LeftToRightListNumberIcon, CodeIcon, Copy01Icon, SourceCodeIcon, GridViewIcon, Share08Icon, ApiIcon, TelegramIcon, WhatsappIcon, MessengerIcon, Building02Icon, UserIcon, QrCode01Icon, ExternalLinkIcon, Wrench01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
+import { Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, BookOpen01Icon, Cancel01Icon, BoltIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, UserMultipleIcon, TextBoldIcon, TextItalicIcon, TextStrikethroughIcon, Heading01Icon, Heading02Icon, LeftToRightListBulletIcon, LeftToRightListNumberIcon, CodeIcon, Copy01Icon, SourceCodeIcon, GridViewIcon, Share08Icon, ApiIcon, TelegramIcon, WhatsappIcon, MessengerIcon, Building02Icon, UserIcon, QrCode01Icon, ExternalLinkIcon, InformationCircleIcon, MinusSignIcon, CircleArrowReload01Icon, Wrench01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
 import { useEffect, useRef, useState } from "react";
 import AgentToolsTab from "@/components/tool-builder/AgentToolsTab";
 import TasksGrid from "@/components/tasks/TasksGrid";
@@ -1367,15 +1367,459 @@ const AUDIENCE_INFO: Record<string, { name: string; sub: string }> = {
   me:        { name: "Trang Nguyen Huyen", sub: "Only me" },
 };
 
+/* ============ Web widget configuration (right sheet) ============ */
+const CUSTOMIZE_SUBTABS = [
+  { id: "theme",   label: "Theme" },
+  { id: "general", label: "General" },
+  { id: "starter", label: "Starter" },
+  { id: "welcome", label: "Welcome" },
+  { id: "chat",    label: "Chat" },
+] as const;
+
+function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <p className="text-sm font-semibold mb-1.5">{label}</p>
+      <div className="flex items-center gap-2">
+        <label className="w-9 h-9 rounded-lg border border-border shrink-0 cursor-pointer overflow-hidden" style={{ background: value }}>
+          <input type="color" value={value} onChange={e => onChange(e.target.value)} className="opacity-0 w-full h-full cursor-pointer" />
+        </label>
+        <input
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          className="ds-input w-32 font-mono text-xs uppercase"
+        />
+      </div>
+    </div>
+  );
+}
+
+function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
+  const [tab, setTab] = useState<"config" | "customize">("config");
+  const [domains, setDomains] = useState<string[]>([""]);
+  const [customizeTab, setCustomizeTab] = useState<typeof CUSTOMIZE_SUBTABS[number]["id"]>("theme");
+  const [previewState, setPreviewState] = useState<"minimized" | "welcome" | "chat">("welcome");
+  const [copied, setCopied] = useState<"url" | "code" | null>(null);
+
+  const [theme, setTheme] = useState({
+    background: "#FFFFFF",
+    brand: "#0052CC",
+    brandText: "#FFFFFF",
+    customerBubble: "#0052CC",
+    customerText: "#FFFFFF",
+    botBubble: "#F4F4F5",
+    botText: "#262626",
+    header: "#0052CC",
+  });
+  const [general, setGeneral] = useState({ position: "right" as "left" | "right", triggerText: "Chat with us", language: "English", showPoweredBy: true });
+  const [starters, setStarters] = useState<string[]>(["How do I reset my password?", "What are your business hours?", "Talk to a human"]);
+  const [welcome, setWelcome] = useState({ title: "Chat with Us", subtitle: "How can I help you?", buttonLabel: "Start chat", askName: true });
+  const [chat, setChat] = useState({ headerTitle: "Test", inputPlaceholder: "Type a message…", emptyState: "Ask me anything…", showTyping: true });
+
+  const url = "https://agents.fpt.ai/live-chat/chat?tenant_id=01JED250RPXCYQE6MAVTNSQCAM";
+
+  const embedCode = `<script>
+  window.tovaAsyncInit = function() {
+    tova.init({
+      tenant_id: "01JED250RPXCYQE6MAVTNSQCAM",
+      bot_code: "01JMVB17JRYN1VPBS7N1DWD5HD",
+      ui_config: {
+        position: "${general.position}",
+        hide_greeting: false
+      },
+      extra: {}
+    });
+  };
+  (function(d, s, id) {
+    var js, fjs = d.getElementsByTagName(s)[0];
+    if (d.getElementById(id)) return;
+    js = d.createElement(s); js.id = id;
+    js.src = "https://cdn.fpt.ai/tova/sdk.js";
+    fjs.parentNode.insertBefore(js, fjs);
+  })(document, "script", "tova-jssdk");
+</script>`;
+
+  const copy = (which: "url" | "code", text: string) => {
+    navigator.clipboard?.writeText(text);
+    setCopied(which);
+    setTimeout(() => setCopied(null), 1500);
+  };
+
+  const addDomain = () => setDomains(prev => [...prev, ""]);
+  const removeDomain = (i: number) => setDomains(prev => prev.length > 1 ? prev.filter((_, idx) => idx !== i) : prev);
+  const updateDomain = (i: number, v: string) => setDomains(prev => prev.map((d, idx) => idx === i ? v : d));
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex justify-end">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div
+        className="relative z-10 h-full bg-white shadow-2xl flex flex-col shrink-0"
+        style={{ width: tab === "customize" ? "1120px" : "720px", maxWidth: "95vw", animation: "slideInRight 0.22s ease" }}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between px-6 pt-6 pb-4 shrink-0 border-b border-border">
+          <div>
+            <h2 className="text-xl font-bold">Web client configuration</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">You can easily configure live-chat integration into your business website.</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 mt-0.5">
+            <HugeiconsIcon icon={Cancel01Icon} size={18} />
+          </button>
+        </div>
+
+        {/* Top-level tabs */}
+        <div className="px-6 pt-4 pb-1 shrink-0">
+          <div className="flex items-center gap-1 p-1 rounded-lg bg-surface-muted w-fit">
+            <button
+              onClick={() => setTab("config")}
+              className={`h-9 px-5 rounded-md text-sm font-semibold transition-base ${tab === "config" ? "bg-white text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              Config
+            </button>
+            <button
+              onClick={() => setTab("customize")}
+              className={`h-9 px-5 rounded-md text-sm font-semibold transition-base ${tab === "customize" ? "bg-white text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              Customize widget
+            </button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto">
+          {tab === "config" ? (
+            <div className="px-6 py-5">
+              <p className="text-sm text-muted-foreground leading-relaxed mb-6">
+                Configure live chat integration for your business website by setting up allowed domains. You can then use the URL to interact directly with the Agent or embed the integration script into your website.
+              </p>
+
+              {/* Whitelist domains */}
+              <div className="mb-6">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <p className="text-sm font-semibold">Whitelist domains</p>
+                  <HugeiconsIcon icon={InformationCircleIcon} size={14} className="text-muted-foreground" />
+                </div>
+                <p className="text-xs text-muted-foreground italic mb-3">Whitelist domains below. Only domains added here be able to display the chat widget.</p>
+                <div className="flex flex-col gap-2">
+                  {domains.map((d, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <input
+                        value={d}
+                        onChange={e => updateDomain(i, e.target.value)}
+                        placeholder="https://sampleurl.com"
+                        className="ds-input flex-1"
+                      />
+                      <button
+                        onClick={() => removeDomain(i)}
+                        className="w-9 h-9 rounded-lg bg-surface-muted hover:bg-border/40 flex items-center justify-center text-muted-foreground transition-base shrink-0"
+                      >
+                        <HugeiconsIcon icon={MinusSignIcon} size={15} />
+                      </button>
+                      <button
+                        onClick={addDomain}
+                        className="w-9 h-9 rounded-lg bg-primary hover:opacity-90 flex items-center justify-center text-primary-foreground transition-base shrink-0"
+                      >
+                        <HugeiconsIcon icon={Add01Icon} size={15} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* URL */}
+              <div className="mb-6">
+                <p className="text-sm font-semibold mb-1">URL</p>
+                <p className="text-xs text-muted-foreground italic mb-3">Share this URL with the users to interact with your Agent.</p>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-11 px-3.5 rounded-xl border border-border bg-surface-muted flex items-center text-sm text-muted-foreground truncate font-mono">
+                    {url}
+                  </div>
+                  <button title="QR code" className="w-11 h-11 rounded-xl border border-border bg-surface hover:bg-surface-muted flex items-center justify-center text-foreground transition-base shrink-0">
+                    <HugeiconsIcon icon={QrCode01Icon} size={18} />
+                  </button>
+                  <button onClick={() => copy("url", url)} title="Copy" className="w-11 h-11 rounded-xl border border-border bg-surface hover:bg-surface-muted flex items-center justify-center text-foreground transition-base shrink-0">
+                    <HugeiconsIcon icon={copied === "url" ? CheckmarkCircle01Icon : Copy01Icon} size={18} className={copied === "url" ? "text-success" : ""} />
+                  </button>
+                  <a href={url} target="_blank" rel="noopener noreferrer" title="Open" className="w-11 h-11 rounded-xl border border-border bg-surface hover:bg-surface-muted flex items-center justify-center text-foreground transition-base shrink-0">
+                    <HugeiconsIcon icon={ExternalLinkIcon} size={18} />
+                  </a>
+                </div>
+              </div>
+
+              {/* Embed code */}
+              <div>
+                <p className="text-sm font-semibold mb-1">Embed code</p>
+                <p className="text-xs text-muted-foreground italic mb-3">Copy this code and paste it before the closing &lt;/body&gt; tag on every page of your website.</p>
+                <div className="rounded-xl border border-border overflow-hidden">
+                  <div className="flex items-center justify-end px-3 py-2 bg-surface-muted border-b border-border">
+                    <button onClick={() => copy("code", embedCode)} className="flex items-center gap-1.5 text-xs font-medium text-foreground hover:text-primary transition-base">
+                      <HugeiconsIcon icon={copied === "code" ? CheckmarkCircle01Icon : Copy01Icon} size={13} className={copied === "code" ? "text-success" : ""} />
+                      {copied === "code" ? "Copied" : "Copy"}
+                    </button>
+                  </div>
+                  <pre className="overflow-x-auto px-4 py-3 text-xs font-mono leading-relaxed bg-white max-h-72 overflow-y-auto">
+                    <code>
+                      {embedCode.split("\n").map((line, i) => (
+                        <div key={i} className="flex">
+                          <span className="text-muted-foreground/50 select-none w-6 text-right pr-3 shrink-0">{i + 1}</span>
+                          <span className="text-foreground whitespace-pre">{line}</span>
+                        </div>
+                      ))}
+                    </code>
+                  </pre>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex h-full">
+              {/* Live preview */}
+              <div className="w-[380px] shrink-0 border-r border-border flex flex-col">
+                <div className="flex items-center justify-center gap-6 px-4 py-3 border-b border-border shrink-0">
+                  {(["minimized", "welcome", "chat"] as const).map(s => (
+                    <button
+                      key={s}
+                      onClick={() => setPreviewState(s)}
+                      className={`text-sm capitalize pb-1 border-b-2 transition-base ${previewState === s ? "border-primary text-primary font-semibold" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex-1 bg-surface-muted/60 flex items-center justify-center p-4">
+                  {previewState === "minimized" && (
+                    <button
+                      className="w-14 h-14 rounded-full flex items-center justify-center shadow-lg"
+                      style={{ background: theme.brand }}
+                    >
+                      <HugeiconsIcon icon={Chat01Icon} size={22} className="text-white" />
+                    </button>
+                  )}
+                  {previewState !== "minimized" && (
+                    <div className="w-full max-w-[300px] rounded-2xl border border-border bg-white shadow-lg overflow-hidden flex flex-col" style={{ height: "440px" }}>
+                      <div className="flex items-center justify-between px-4 py-3 shrink-0" style={{ background: theme.header }}>
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+                            <HugeiconsIcon icon={Chat01Icon} size={13} style={{ color: theme.brandText }} />
+                          </div>
+                          <span className="text-sm font-semibold" style={{ color: theme.brandText }}>{chat.headerTitle}</span>
+                        </div>
+                        <div className="flex items-center gap-2" style={{ color: theme.brandText }}>
+                          <HugeiconsIcon icon={ArrowRight01Icon} size={13} className="rotate-[-45deg]" />
+                          <span className="text-lg leading-none">–</span>
+                        </div>
+                      </div>
+                      {previewState === "welcome" ? (
+                        <div className="flex-1 flex flex-col items-center justify-center text-center px-6" style={{ background: theme.background }}>
+                          <div className="w-16 h-16 rounded-2xl bg-primary-soft flex items-center justify-center mb-4">
+                            <HugeiconsIcon icon={Chat01Icon} size={26} className="text-primary" />
+                          </div>
+                          <p className="text-base font-bold mb-1" style={{ color: theme.botText }}>{welcome.title}</p>
+                          <p className="text-sm mb-5" style={{ color: theme.botText, opacity: 0.7 }}>{welcome.subtitle}</p>
+                          <button className="w-full h-10 rounded-lg text-sm font-semibold" style={{ background: theme.customerBubble, color: theme.customerText }}>
+                            {welcome.buttonLabel}
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex-1 flex flex-col p-3 gap-2 overflow-y-auto" style={{ background: theme.background }}>
+                          <div className="self-start max-w-[80%] rounded-xl rounded-tl-sm px-3 py-2 text-xs" style={{ background: theme.botBubble, color: theme.botText }}>
+                            {chat.emptyState}
+                          </div>
+                          <div className="self-end max-w-[80%] rounded-xl rounded-tr-sm px-3 py-2 text-xs" style={{ background: theme.customerBubble, color: theme.customerText }}>
+                            Hi, I need help
+                          </div>
+                          <div className="mt-auto pt-2 border-t border-border">
+                            <div className="h-8 rounded-lg bg-surface-muted flex items-center px-2.5 text-xs text-muted-foreground">
+                              {chat.inputPlaceholder}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Settings */}
+              <div className="flex-1 overflow-y-auto px-6 py-5">
+                <div className="flex items-center gap-5 border-b border-border mb-6">
+                  {CUSTOMIZE_SUBTABS.map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => setCustomizeTab(t.id)}
+                      className={`text-sm pb-2.5 border-b-2 transition-base ${customizeTab === t.id ? "border-primary text-foreground font-semibold" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+
+                {customizeTab === "theme" && (
+                  <div>
+                    <ColorField label="Background color" value={theme.background} onChange={v => setTheme(t => ({ ...t, background: v }))} />
+                    <div className="grid grid-cols-2 gap-x-8 gap-y-5 mt-5">
+                      <ColorField label="Brand color" value={theme.brand} onChange={v => setTheme(t => ({ ...t, brand: v }))} />
+                      <ColorField label="Brand Text" value={theme.brandText} onChange={v => setTheme(t => ({ ...t, brandText: v }))} />
+                      <ColorField label="Customer bubble" value={theme.customerBubble} onChange={v => setTheme(t => ({ ...t, customerBubble: v }))} />
+                      <ColorField label="Customer text" value={theme.customerText} onChange={v => setTheme(t => ({ ...t, customerText: v }))} />
+                      <ColorField label="Bot bubble" value={theme.botBubble} onChange={v => setTheme(t => ({ ...t, botBubble: v }))} />
+                      <ColorField label="Bot Text" value={theme.botText} onChange={v => setTheme(t => ({ ...t, botText: v }))} />
+                    </div>
+                    <div className="mt-5 max-w-[200px]">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <p className="text-sm font-semibold">Header</p>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-surface-muted border border-border text-muted-foreground">Solid</span>
+                      </div>
+                      <ColorField label="" value={theme.header} onChange={v => setTheme(t => ({ ...t, header: v }))} />
+                    </div>
+                    <button
+                      onClick={() => setTheme({ background: "#FFFFFF", brand: "#0052CC", brandText: "#FFFFFF", customerBubble: "#0052CC", customerText: "#FFFFFF", botBubble: "#F4F4F5", botText: "#262626", header: "#0052CC" })}
+                      className="text-xs font-medium text-primary hover:underline mt-6"
+                    >
+                      Reset default
+                    </button>
+                  </div>
+                )}
+
+                {customizeTab === "general" && (
+                  <div className="flex flex-col gap-5 max-w-md">
+                    <div>
+                      <p className="text-sm font-semibold mb-1.5">Widget position</p>
+                      <div className="flex items-center gap-2">
+                        {(["left", "right"] as const).map(p => (
+                          <button
+                            key={p}
+                            onClick={() => setGeneral(g => ({ ...g, position: p }))}
+                            className={`h-9 px-4 rounded-lg border text-sm font-medium capitalize transition-base ${general.position === p ? "border-primary bg-primary-soft text-primary" : "border-border bg-surface hover:bg-surface-muted"}`}
+                          >
+                            {p}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold mb-1.5">Trigger button text</p>
+                      <input value={general.triggerText} onChange={e => setGeneral(g => ({ ...g, triggerText: e.target.value }))} className="ds-input w-full" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold mb-1.5">Language</p>
+                      <select value={general.language} onChange={e => setGeneral(g => ({ ...g, language: e.target.value }))} className="ds-input w-full">
+                        <option>English</option>
+                        <option>Vietnamese</option>
+                      </select>
+                    </div>
+                    <label className="flex items-center gap-2.5 cursor-pointer">
+                      <input type="checkbox" checked={general.showPoweredBy} onChange={e => setGeneral(g => ({ ...g, showPoweredBy: e.target.checked }))} className="w-4 h-4 accent-primary" />
+                      <span className="text-sm">Show "Powered by FPT.AI" badge</span>
+                    </label>
+                  </div>
+                )}
+
+                {customizeTab === "starter" && (
+                  <div className="max-w-md">
+                    <p className="text-sm font-semibold mb-1.5">Quick start prompts</p>
+                    <p className="text-xs text-muted-foreground mb-3">Suggested questions shown to visitors before they start typing.</p>
+                    <div className="flex flex-col gap-2">
+                      {starters.map((s, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <input
+                            value={s}
+                            onChange={e => setStarters(prev => prev.map((x, idx) => idx === i ? e.target.value : x))}
+                            className="ds-input flex-1"
+                          />
+                          <button
+                            onClick={() => setStarters(prev => prev.filter((_, idx) => idx !== i))}
+                            className="w-9 h-9 rounded-lg bg-surface-muted hover:bg-border/40 flex items-center justify-center text-muted-foreground transition-base shrink-0"
+                          >
+                            <HugeiconsIcon icon={MinusSignIcon} size={15} />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => setStarters(prev => [...prev, ""])}
+                        className="flex items-center gap-1 text-xs font-medium text-primary hover:underline w-fit mt-1"
+                      >
+                        <HugeiconsIcon icon={Add01Icon} size={12} /> Add prompt
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {customizeTab === "welcome" && (
+                  <div className="flex flex-col gap-5 max-w-md">
+                    <div>
+                      <p className="text-sm font-semibold mb-1.5">Welcome title</p>
+                      <input value={welcome.title} onChange={e => setWelcome(w => ({ ...w, title: e.target.value }))} className="ds-input w-full" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold mb-1.5">Welcome subtitle</p>
+                      <input value={welcome.subtitle} onChange={e => setWelcome(w => ({ ...w, subtitle: e.target.value }))} className="ds-input w-full" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold mb-1.5">Start button label</p>
+                      <input value={welcome.buttonLabel} onChange={e => setWelcome(w => ({ ...w, buttonLabel: e.target.value }))} className="ds-input w-full" />
+                    </div>
+                    <label className="flex items-center gap-2.5 cursor-pointer">
+                      <input type="checkbox" checked={welcome.askName} onChange={e => setWelcome(w => ({ ...w, askName: e.target.checked }))} className="w-4 h-4 accent-primary" />
+                      <span className="text-sm">Ask for visitor's name before starting</span>
+                    </label>
+                  </div>
+                )}
+
+                {customizeTab === "chat" && (
+                  <div className="flex flex-col gap-5 max-w-md">
+                    <div>
+                      <p className="text-sm font-semibold mb-1.5">Chat header title</p>
+                      <input value={chat.headerTitle} onChange={e => setChat(c => ({ ...c, headerTitle: e.target.value }))} className="ds-input w-full" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold mb-1.5">Input placeholder</p>
+                      <input value={chat.inputPlaceholder} onChange={e => setChat(c => ({ ...c, inputPlaceholder: e.target.value }))} className="ds-input w-full" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold mb-1.5">Empty state message</p>
+                      <input value={chat.emptyState} onChange={e => setChat(c => ({ ...c, emptyState: e.target.value }))} className="ds-input w-full" />
+                    </div>
+                    <label className="flex items-center gap-2.5 cursor-pointer">
+                      <input type="checkbox" checked={chat.showTyping} onChange={e => setChat(c => ({ ...c, showTyping: e.target.checked }))} className="w-4 h-4 accent-primary" />
+                      <span className="text-sm">Show typing indicator</span>
+                    </label>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between px-6 py-4 border-t border-border shrink-0">
+          <button className="flex items-center gap-1.5 text-sm font-medium text-destructive hover:underline">
+            <HugeiconsIcon icon={CircleArrowReload01Icon} size={15} /> Remove configuration
+          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={onClose} className="btn-secondary">Cancel</button>
+            <button onClick={onClose} className="btn-primary">Save configuration</button>
+          </div>
+        </div>
+      </div>
+      <style>{`@keyframes slideInRight{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
+    </div>,
+    document.body
+  );
+}
+
 function DeployTab({ agentVersion }: { agentVersion: string }) {
   const [showPublish, setShowPublish] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showVersionSelect, setShowVersionSelect] = useState(false);
+  const [showWebWidgetConfig, setShowWebWidgetConfig] = useState(false);
   const [servingVersion, setServingVersion] = useState(agentVersion);
   const [recipients, setRecipients] = useState<{ id: number; name: string; sub: string }[]>([]);
 
   return (
     <div className="max-w-[1040px] mx-auto px-8 py-8">
+      {showWebWidgetConfig && (
+        <WebWidgetConfigModal onClose={() => setShowWebWidgetConfig(false)} />
+      )}
       {showPublish && (
         <PublishAgentModal
           onClose={() => setShowPublish(false)}
@@ -1482,23 +1926,31 @@ function DeployTab({ agentVersion }: { agentVersion: string }) {
       <div className="mb-8">
         <div className="flex items-baseline gap-2 mb-3">
           <h2 className="text-sm font-semibold">Web widget & API</h2>
-          <span className="text-xs text-muted-foreground">Not available yet</span>
         </div>
         <div className="grid grid-cols-3 gap-3">
-          {API_DEPLOY_CHANNELS.map(c => (
-            <div
-              key={c.id}
-              className="flex items-center gap-3 px-4 py-3.5 rounded-xl border border-border bg-surface-muted/40 opacity-70 cursor-not-allowed"
-            >
-              <div className="w-8 h-8 rounded-lg bg-surface border border-border flex items-center justify-center shrink-0">
-                <HugeiconsIcon icon={c.icon} size={16} className={c.color} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium truncate">{c.name}</p>
-                <p className="text-xs text-muted-foreground truncate">{c.sub}</p>
-              </div>
-            </div>
-          ))}
+          {API_DEPLOY_CHANNELS.map(c => {
+            const enabled = c.id === "web";
+            return (
+              <button
+                key={c.id}
+                onClick={() => enabled && setShowWebWidgetConfig(true)}
+                disabled={!enabled}
+                className={`flex items-center gap-3 px-4 py-3.5 rounded-xl border text-left transition-base ${
+                  enabled
+                    ? "border-border bg-surface hover:border-primary/30 hover:shadow-soft cursor-pointer"
+                    : "border-border bg-surface-muted/40 opacity-70 cursor-not-allowed"
+                }`}
+              >
+                <div className="w-8 h-8 rounded-lg bg-surface border border-border flex items-center justify-center shrink-0">
+                  <HugeiconsIcon icon={c.icon} size={16} className={c.color} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium truncate">{c.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{enabled ? "Configure" : c.sub}</p>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 
