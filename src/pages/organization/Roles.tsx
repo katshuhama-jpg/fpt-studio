@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Plus, X, Trash2, ChevronRight } from "lucide-react";
+import { Plus, X, Trash2, ChevronRight, Lock, Info } from "lucide-react";
 import { Card, PageHeader } from "./shared";
-import { featureGroups, ALL_PERMISSION_IDS, FeatureGroup } from "./permissionsData";
+import { featureGroups, SECTIONS, ALL_PERMISSION_IDS, FeatureGroup } from "./permissionsData";
 import { useRoles } from "./rolesStore";
 
 /* ─── Toggle switch ────────────────────────────────────────────────────── */
@@ -210,10 +210,91 @@ function RoleModal({
   );
 }
 
+/* ─── Permissions reference modal ──────────────────────────────────────── */
+function PermissionsModal({ onClose }: { onClose: () => void }) {
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0 }}>
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+
+      <div className="relative w-[92vw] sm:w-1/2 min-w-[50vw] max-w-[1100px] bg-white rounded-2xl flex flex-col shadow-2xl max-h-[90vh]" style={{ animation: "fadeScaleIn 0.18s ease" }}>
+        {/* Header */}
+        <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-border shrink-0">
+          <div>
+            <h2 className="text-base font-semibold">Permissions</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">A read-only reference — what each permission actually allows.</p>
+          </div>
+          <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground ml-4 shrink-0">
+            <X size={14} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+          <div className="rounded-xl border border-info/20 bg-info/5 p-4 flex gap-3">
+            <div className="w-8 h-8 rounded-lg bg-info/15 text-info flex items-center justify-center shrink-0">
+              <Info size={15} />
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Personal use is always free — permissions below only control publishing, editing, or deleting things in the shared workspace.
+            </p>
+          </div>
+
+          {SECTIONS.map((section, i) => (
+            <div key={section.id} className={`space-y-6 ${i > 0 ? "pt-6 border-t border-border" : ""}`}>
+              <div>
+                <h2 className="font-display text-lg font-semibold text-foreground">{section.label}</h2>
+                <p className="text-sm text-muted-foreground mt-1">{section.desc}</p>
+              </div>
+              {featureGroups.filter(g => g.section === section.id).map(group => (
+                <Card key={group.id}>
+                  <div className="flex items-center gap-2.5 mb-4">
+                    <div className="w-8 h-8 rounded-lg bg-primary-soft text-primary flex items-center justify-center shrink-0">
+                      <group.icon size={15} />
+                    </div>
+                    <h2 className="font-display text-base font-semibold">{group.label}</h2>
+                  </div>
+
+                  <div className="divide-y divide-border border-t border-border">
+                    {group.permissions.map(p => (
+                      <div key={p.id} className="py-4">
+                        <div className="text-sm font-semibold">{p.name}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">{p.desc}</div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              ))}
+            </div>
+          ))}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end px-6 py-4 border-t border-border shrink-0">
+          <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">
+            Close
+          </button>
+        </div>
+      </div>
+
+      <style>{`@keyframes fadeScaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}`}</style>
+    </div>,
+    document.body
+  );
+}
+
 /* ─── Page ──────────────────────────────────────────────────────────────── */
 export default function Roles() {
   const { roles, createRole, updateRole, deleteRole } = useRoles();
   const [showCreate, setShowCreate] = useState(false);
+  const [showPermissions, setShowPermissions] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
@@ -241,6 +322,7 @@ export default function Roles() {
           existingNames={roles.map(r => r.name)}
         />
       )}
+      {showPermissions && <PermissionsModal onClose={() => setShowPermissions(false)} />}
       {editingRole && (
         <RoleModal
           title={editingRole.isDefault ? `View ${editingRole.name}` : `Edit ${editingRole.name}`}
@@ -255,9 +337,14 @@ export default function Roles() {
 
       <div className="flex items-start justify-between gap-4">
         <PageHeader title="Roles" desc="The default roles are ready to use — create a custom role when you need finer-grained control." />
-        <button onClick={() => setShowCreate(true)} className="btn-primary h-9 shrink-0">
-          <Plus size={14} /> Create role
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button onClick={() => setShowPermissions(true)} className="btn-secondary">
+            <Lock size={14} /> View permissions
+          </button>
+          <button onClick={() => setShowCreate(true)} className="btn-primary h-9 shrink-0">
+            <Plus size={14} /> Create role
+          </button>
+        </div>
       </div>
 
       <Card>

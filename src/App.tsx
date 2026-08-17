@@ -16,7 +16,6 @@ import ToolBuilder from "./pages/ToolBuilder";
 import OrgGeneral from "./pages/organization/General";
 import OrgStructure from "./pages/organization/Structure";
 import OrgMembers from "./pages/organization/Members";
-import OrgPermissions from "./pages/organization/Permissions";
 import OrgRoles from "./pages/organization/Roles";
 import { RolesProvider } from "./pages/organization/rolesStore";
 import { OrgProvider } from "./pages/organization/orgStore";
@@ -73,7 +72,6 @@ const App = () => (
               <Route path="/knowledge" element={<PlaceholderPage title="Workspace Knowledge" />} />
               <Route path="/members" element={<OrgMembers />} />
               <Route path="/roles" element={<OrgRoles />} />
-              <Route path="/permissions" element={<OrgPermissions />} />
               <Route path="/organization" element={<OrgGeneral />} />
               <Route path="/organization/structure" element={<OrgStructure />} />
               <Route path="/connectors" element={<WorkspaceConnectors />} />

@@ -5,7 +5,7 @@ import {
   Puzzle, ChevronsLeft, ChevronsRight, Search, Bell, Plus,
   ChevronRight, LifeBuoy, KeyRound, LogOut, User, ChevronDown, ChevronsUpDown,
   Check, Building2, PlusCircle, Sparkles, Shield, FileText, Rocket,
-  Lock, Network, Users,
+  Network, Users,
 } from "lucide-react";
 
 const APP_VERSION = "0.58.5";
@@ -46,7 +46,6 @@ const groups: Group[] = [
     items: [
       { to: "/roles", label: "Roles", icon: Shield },
       { to: "/members", label: "Members", icon: Users },
-      { to: "/permissions", label: "Permissions", icon: Lock },
     ],
   },
 ];
