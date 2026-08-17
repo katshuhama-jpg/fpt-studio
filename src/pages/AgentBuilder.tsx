@@ -111,12 +111,16 @@ export default function AgentBuilder() {
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-success/10 border border-success/20 text-success text-xs font-medium shrink-0">
-            <span className="w-1.5 h-1.5 rounded-full bg-success" /> Live · v1.0.1
-          </div>
-          <button onClick={() => setShowPublish(true)} className="btn-primary h-9">
-            <HugeiconsIcon icon={Rocket01Icon} size={13} /> Publish
-          </button>
+          {!(tab === "build" && section === "history") && (
+            <>
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-success/10 border border-success/20 text-success text-xs font-medium shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-success" /> Live · v1.0.1
+              </div>
+              <button onClick={() => setShowPublish(true)} className="btn-primary h-9">
+                <HugeiconsIcon icon={Rocket01Icon} size={13} /> Publish
+              </button>
+            </>
+          )}
           <button className="h-9 w-9 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base">
             <HugeiconsIcon icon={MoreHorizontalIcon} size={16} />
           </button>

@@ -86,6 +86,12 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
 
   useEffect(() => { setPage(1); }, [query, channelFilter, timeFilter]);
 
+  // Land on the most recent conversation by default, instead of an empty "no conversation selected" state.
+  useEffect(() => {
+    if (!selectedId && allConversations.length > 0) selectConversation(allConversations[0].id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agentId, allConversations]);
+
   const timeCutoff = (filter: TimeFilter): number | null => {
     const now = Date.now();
     if (filter === "today") return startOfDay(new Date()).getTime();
