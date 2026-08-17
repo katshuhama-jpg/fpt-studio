@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Search, X, Plus, Upload, ChevronDown, ChevronLeft, ChevronRight, Info, Check } from "lucide-react";
+import { Search, X, Plus, Upload, ChevronDown, ChevronLeft, ChevronRight, Info, Check, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Card, PageHeader } from "./shared";
@@ -305,20 +305,66 @@ function AddUserToRoleModal({
   );
 }
 
+/* ─── Remove member confirmation (popup) ───────────────────────────────── */
+function ConfirmRemoveMemberModal({
+  memberName, onClose, onConfirm,
+}: {
+  memberName: string;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative w-[92vw] sm:w-[420px] bg-white rounded-2xl shadow-2xl p-6" style={{ animation: "fadeScaleIn 0.18s ease" }}>
+        <div className="flex items-start gap-3 mb-6">
+          <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 bg-[hsl(var(--destructive-soft))] text-destructive">
+            <Trash2 size={18} />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold">Remove "{memberName}"?</h2>
+            <p className="text-sm text-muted-foreground mt-1">This person will be removed from the organization. This action can't be undone.</p>
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-2">
+          <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">
+            Cancel
+          </button>
+          <button onClick={onConfirm} className="h-9 px-4 rounded-xl bg-destructive text-white text-sm font-medium hover:opacity-90 transition-base">
+            Remove member
+          </button>
+        </div>
+      </div>
+      <style>{`@keyframes fadeScaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}`}</style>
+    </div>,
+    document.body
+  );
+}
+
 /* ─── Page ──────────────────────────────────────────────────────────────── */
 export default function Members() {
-  const { tree, rootId, assignRole, addMember } = useOrg();
+  const { tree, rootId, assignRole, addMember, removeMember } = useOrg();
   const { roles } = useRoles();
   const [roleFilter, setRoleFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [removeTargetId, setRemoveTargetId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 24;
 
   const roleIds = new Set(roles.map(r => r.id));
   const roleSections = roles.map(r => ({ id: r.id, name: r.name }));
   const allMembers = useMemo(() => collectMembers(tree), [tree]);
+  const removeTarget = allMembers.find(m => m.id === removeTargetId) ?? null;
 
   useEffect(() => { setPage(1); }, [roleFilter, query]);
 
@@ -361,6 +407,17 @@ export default function Members() {
           }}
         />
       )}
+      {removeTarget && (
+        <ConfirmRemoveMemberModal
+          memberName={removeTarget.name}
+          onClose={() => setRemoveTargetId(null)}
+          onConfirm={() => {
+            removeMember(removeTarget.id);
+            toast.success(`Removed "${removeTarget.name}" from the organization.`);
+            setRemoveTargetId(null);
+          }}
+        />
+      )}
 
       <div className="flex items-start justify-between gap-4">
         <PageHeader title="Members" desc="Search and manage everyone in the organization, along with each person's role." />
@@ -394,14 +451,14 @@ export default function Members() {
         ) : (
           <>
             <div className="-mx-6 border-t border-border overflow-x-auto">
-              <div className="grid grid-cols-[1.2fr,140px,1fr,170px] gap-3 px-6 py-2.5 bg-surface-muted section-eyebrow min-w-[720px]">
-                <div>Member</div><div>Role</div><div>Invited by</div><div>Joined on</div>
+              <div className="grid grid-cols-[1.2fr,140px,1fr,170px,36px] gap-3 px-6 py-2.5 bg-surface-muted section-eyebrow min-w-[760px]">
+                <div>Member</div><div>Role</div><div>Invited by</div><div>Joined on</div><div></div>
               </div>
-              <div className="divide-y divide-border min-w-[720px]">
+              <div className="divide-y divide-border min-w-[760px]">
                 {shownMembers.map(m => {
                   const currentRoleId = m.roleId && roleIds.has(m.roleId) ? m.roleId : DEFAULT_ROLE_ID;
                   return (
-                    <div key={m.id} className="grid grid-cols-[1.2fr,140px,1fr,170px] gap-3 px-6 py-3 items-center hover:bg-surface-muted/50 transition-base">
+                    <div key={m.id} className="grid grid-cols-[1.2fr,140px,1fr,170px,36px] gap-3 px-6 py-3 items-center hover:bg-surface-muted/50 transition-base group">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-9 h-9 rounded-full bg-accent-soft text-accent flex items-center justify-center text-xs font-semibold shrink-0">
                           {m.initials}
@@ -430,6 +487,14 @@ export default function Members() {
                       <div className="text-xs text-muted-foreground">
                         {m.joinedAt ? format(new Date(m.joinedAt), "dd/MM/yyyy - HH:mm") : "—"}
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => setRemoveTargetId(m.id)}
+                        aria-label={`Remove ${m.name}`}
+                        className="w-7 h-7 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-surface-muted flex items-center justify-center text-muted-foreground hover:text-destructive transition-base justify-self-end"
+                      >
+                        <Trash2 size={13} />
+                      </button>
                     </div>
                   );
                 })}
