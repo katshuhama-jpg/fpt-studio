@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { toast } from "sonner";
 import { Building2, ChevronRight, ChevronLeft, ChevronDown, Search, Users, Trash2, Plus, X, FolderInput, Crown, Check, User } from "lucide-react";
 import { OrgUnit, OrgMember, countAll, countDirect, findUnit, findPath, unitMatches, collectMembers } from "./orgData";
 import { useOrg, deriveNameFromEmail } from "./orgStore";
@@ -370,6 +371,7 @@ export default function OrgStructureExplorer() {
   const [showAddMember, setShowAddMember] = useState(false);
   const [movingMember, setMovingMember] = useState<OrgMember | null>(null);
   const [deleteConfirmMemberId, setDeleteConfirmMemberId] = useState<string | null>(null);
+  const [removeAdminTarget, setRemoveAdminTarget] = useState<{ member: OrgMember; sourceUnit: OrgUnit } | null>(null);
 
   const allEmails = useMemo(
     () => collectMembers(tree).map(m => (m.email ?? "").trim().toLowerCase()).filter(Boolean),
@@ -442,6 +444,19 @@ export default function OrgStructureExplorer() {
           confirmLabel="Remove member"
           onClose={() => setDeleteConfirmMemberId(null)}
           onConfirm={() => { removeMember(deleteTargetMember.id); setDeleteConfirmMemberId(null); }}
+        />
+      )}
+      {removeAdminTarget && (
+        <ConfirmDeleteModal
+          title={`Remove "${removeAdminTarget.member.name}" as Unit Admin?`}
+          desc={`${removeAdminTarget.member.name} will lose Unit Admin publish-approval rights for ${removeAdminTarget.sourceUnit.name} and every unit nested below it.`}
+          confirmLabel="Remove admin"
+          onClose={() => setRemoveAdminTarget(null)}
+          onConfirm={() => {
+            setUnitAdmin(removeAdminTarget.sourceUnit.id, removeAdminTarget.member.id, false);
+            toast.success(`Removed "${removeAdminTarget.member.name}" as Unit Admin.`);
+            setRemoveAdminTarget(null);
+          }}
         />
       )}
 
@@ -539,7 +554,7 @@ export default function OrgStructureExplorer() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setUnitAdmin(sourceUnit.id, member.id, false)}
+                    onClick={() => setRemoveAdminTarget({ member, sourceUnit })}
                     aria-label={`Remove ${member.name} as Unit Admin`}
                     title="Remove as Unit Admin"
                     className="w-5 h-5 rounded-full flex items-center justify-center text-warning/70 hover:text-destructive hover:bg-white/70 transition-base shrink-0"

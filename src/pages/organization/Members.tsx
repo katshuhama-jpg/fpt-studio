@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Search, X, Plus, Upload, ChevronDown, ChevronLeft, ChevronRight, AlertTriangle, Check } from "lucide-react";
+import { Search, X, Plus, Upload, ChevronDown, ChevronLeft, ChevronRight, Info, Check } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Card, PageHeader } from "./shared";
@@ -152,7 +152,7 @@ function AddUserToRoleModal({
   const candidates = q
     ? allMembers.filter(m => !selectedIds.has(m.id) && m.name.toLowerCase().includes(q)).slice(0, 20)
     : [];
-  const conflicts = selectedMembers
+  const alreadyAssigned = selectedMembers
     .map(m => ({ member: m, roleName: currentRoleNameOf(m.id) }))
     .filter((x): x is { member: OrgMember; roleName: string } => !!x.roleName);
 
@@ -166,7 +166,7 @@ function AddUserToRoleModal({
   };
 
   const submit = () => {
-    if (selectedMembers.length === 0 || conflicts.length > 0) return;
+    if (selectedMembers.length === 0) return;
     selectedMembers.forEach(m => onAdd(m.id, roleId));
     onClose();
   };
@@ -252,17 +252,17 @@ function AddUserToRoleModal({
             </div>
           </div>
 
-          {conflicts.length > 0 && (
-            <div className="flex items-start gap-2.5 rounded-xl border border-warning/30 bg-warning-soft px-3.5 py-3">
-              <AlertTriangle size={15} className="text-warning shrink-0 mt-0.5" />
+          {alreadyAssigned.length > 0 && (
+            <div className="flex items-start gap-2.5 rounded-xl border border-info/20 bg-info/5 px-3.5 py-3">
+              <Info size={15} className="text-info shrink-0 mt-0.5" />
               <div className="text-xs text-foreground leading-relaxed">
-                {conflicts.map(({ member, roleName }, i) => (
+                {alreadyAssigned.map(({ member, roleName }, i) => (
                   <span key={member.id}>
-                    <span className="font-medium">{member.name}</span> is already in the <span className="font-medium">{roleName}</span> role
-                    {i < conflicts.length - 1 ? ", " : ". "}
+                    <span className="font-medium">{member.name}</span> — currently <span className="font-medium">{roleName}</span>
+                    {i < alreadyAssigned.length - 1 ? ", " : ". "}
                   </span>
                 ))}
-                Remove them from their current role first, then add them back here.
+                Choosing a role below will move them from their current role to the new one.
               </div>
             </div>
           )}
@@ -291,7 +291,7 @@ function AddUserToRoleModal({
           </button>
           <button
             onClick={submit}
-            disabled={selectedMembers.length === 0 || conflicts.length > 0}
+            disabled={selectedMembers.length === 0}
             className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-base disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {selectedMembers.length > 1 ? `Add ${selectedMembers.length} members` : "Add"}
