@@ -2,7 +2,7 @@ import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { createPortal } from "react-dom";
 
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, BookOpen01Icon, Cancel01Icon, BoltIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, UserMultipleIcon, TextBoldIcon, TextItalicIcon, TextStrikethroughIcon, Heading01Icon, Heading02Icon, LeftToRightListBulletIcon, LeftToRightListNumberIcon, CodeIcon, Copy01Icon, SourceCodeIcon, GridViewIcon, Share08Icon, ApiIcon, TelegramIcon, WhatsappIcon, MessengerIcon, Wrench01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
+import { Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, BookOpen01Icon, Cancel01Icon, BoltIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, UserMultipleIcon, TextBoldIcon, TextItalicIcon, TextStrikethroughIcon, Heading01Icon, Heading02Icon, LeftToRightListBulletIcon, LeftToRightListNumberIcon, CodeIcon, Copy01Icon, SourceCodeIcon, GridViewIcon, Share08Icon, ApiIcon, TelegramIcon, WhatsappIcon, MessengerIcon, Building02Icon, UserIcon, Wrench01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
 import { useEffect, useRef, useState } from "react";
 import AgentToolsTab from "@/components/tool-builder/AgentToolsTab";
 import TasksGrid from "@/components/tasks/TasksGrid";
@@ -1119,9 +1119,123 @@ const EXTERNAL_DEPLOY_CHANNELS = [
   { id: "api",       name: "API",        sub: "API",      icon: ApiIcon,       color: "text-foreground" },
 ];
 
+function PublishAgentModal({ onClose, onPublish }: {
+  onClose: () => void;
+  onPublish: (audience: string) => void;
+}) {
+  const [audience, setAudience] = useState<"workspace" | "org" | "me">("workspace");
+
+  const options = [
+    {
+      id: "workspace" as const, icon: UserGroupIcon, label: "Tất cả người dùng trong Workspace",
+      desc: "Mọi người dùng trong Workspace có thể sử dụng Agent sau khi xuất bản.",
+    },
+    {
+      id: "org" as const, icon: Building02Icon, label: "Công ty / phòng ban", badge: "Sắp có", disabled: true,
+      desc: "Chọn nhân viên trong tổ chức để dùng agent này.",
+    },
+    {
+      id: "me" as const, icon: UserIcon, label: "Chỉ mình tôi",
+      desc: "Chỉ bạn dùng được, và agent sẽ vào thẳng Agent của tôi bên Workspace.",
+    },
+  ];
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-md bg-white rounded-2xl shadow-lg border border-border flex flex-col animate-fade-up">
+        {/* Header */}
+        <div className="flex items-start justify-between px-6 pt-6 pb-1">
+          <div>
+            <h2 className="text-xl font-bold">Phát hành agent</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">Chọn đối tượng được sử dụng Agent</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 mt-0.5">
+            <HugeiconsIcon icon={Cancel01Icon} size={18} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-6 pt-5 pb-2">
+          {/* Workspace row */}
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold shrink-0" style={{ background: "#FEF3E2", color: "#C2703D" }}>
+              TN
+            </div>
+            <span className="text-base font-medium">Trang Nguyen Huyen Workspace</span>
+          </div>
+
+          {/* Section label */}
+          <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground mb-2.5">
+            <HugeiconsIcon icon={UserGroupIcon} size={15} />
+            Đối tượng
+          </div>
+
+          {/* Options */}
+          <div className="flex flex-col gap-2.5 mb-2">
+            {options.map(opt => {
+              const active = audience === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  disabled={opt.disabled}
+                  onClick={() => !opt.disabled && setAudience(opt.id)}
+                  className={`text-left rounded-xl border px-4 py-3.5 transition-base ${
+                    opt.disabled
+                      ? "border-border bg-surface-muted/60 opacity-70 cursor-not-allowed"
+                      : active
+                      ? "border-primary bg-primary-soft/40 ring-1 ring-primary"
+                      : "border-border bg-surface-muted/60 hover:bg-surface-muted"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    {!opt.disabled && (
+                      <span className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${active ? "border-primary" : "border-border"}`}>
+                        {active && <span className="w-2 h-2 rounded-full bg-primary" />}
+                      </span>
+                    )}
+                    <HugeiconsIcon icon={opt.icon} size={16} className="text-foreground shrink-0" />
+                    <span className="text-sm font-semibold">{opt.label}</span>
+                    {opt.badge && (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-surface border border-border text-muted-foreground">{opt.badge}</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed ml-6">{opt.desc}</p>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-2 px-6 py-5">
+          <button onClick={onClose} className="h-10 px-4 rounded-xl bg-surface-muted text-sm font-medium hover:bg-border/40 transition-base">Hủy</button>
+          <button
+            onClick={() => { onPublish(audience); onClose(); }}
+            className="btn-primary h-10 px-4 rounded-xl"
+          >
+            <HugeiconsIcon icon={Rocket01Icon} size={14} /> Phát hành
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 function DeployTab({ agentVersion }: { agentVersion: string }) {
+  const [showPublish, setShowPublish] = useState(false);
+  const [published, setPublished] = useState<string | null>(null);
+
   return (
     <div className="max-w-[1040px] mx-auto px-8 py-8">
+      {showPublish && (
+        <PublishAgentModal
+          onClose={() => setShowPublish(false)}
+          onPublish={audience => setPublished(audience)}
+        />
+      )}
       {/* Header */}
       <div className="flex items-start gap-3 mb-6">
         <div className="w-11 h-11 rounded-xl bg-primary-soft flex items-center justify-center shrink-0">
@@ -1164,7 +1278,7 @@ function DeployTab({ agentVersion }: { agentVersion: string }) {
           <p className="text-sm text-muted-foreground max-w-sm mb-5 leading-relaxed">
             Phát hành để mở agent cho một nhóm nhỏ trước, rồi mở rộng dần.
           </p>
-          <button className="btn-primary h-9 px-4 rounded-lg">Phát hành</button>
+          <button onClick={() => setShowPublish(true)} className="btn-primary h-9 px-4 rounded-lg">Phát hành</button>
         </div>
       </div>
 
