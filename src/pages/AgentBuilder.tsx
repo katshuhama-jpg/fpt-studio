@@ -1215,10 +1215,10 @@ function PublishAgentModal({ onClose, onPublish }: {
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-2 px-6 py-5">
-          <button onClick={onClose} className="h-10 px-4 rounded-xl bg-surface-muted text-sm font-medium hover:bg-border/40 transition-base">Hủy</button>
+          <button onClick={onClose} className="btn-secondary">Hủy</button>
           <button
             onClick={() => { onPublish(audience); onClose(); }}
-            className="btn-primary h-10 px-4 rounded-xl"
+            className="btn-primary"
           >
             <HugeiconsIcon icon={Rocket01Icon} size={14} /> Phát hành
           </button>
@@ -1340,10 +1340,10 @@ function VersionSelectModal({ currentVersion, onClose, onRelease }: {
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-2">
-          <button onClick={onClose} className="h-10 px-4 rounded-xl bg-surface-muted text-sm font-medium hover:bg-border/40 transition-base">Hủy</button>
+          <button onClick={onClose} className="btn-secondary">Hủy</button>
           <button
             onClick={() => { onRelease(selected); onClose(); }}
-            className="btn-primary h-10 px-4 rounded-xl"
+            className="btn-primary"
           >
             {isSame ? "Phát hành lại" : "Phát hành"}
           </button>
@@ -1405,7 +1405,7 @@ function DeployTab({ agentVersion }: { agentVersion: string }) {
             <p className="text-base font-semibold">0</p>
           </div>
         </div>
-        <button onClick={() => setShowVersionSelect(true)} className="btn-primary rounded-full h-10 px-4">
+        <button onClick={() => setShowVersionSelect(true)} className="btn-primary">
           <HugeiconsIcon icon={Rocket01Icon} size={14} /> Chọn phiên bản phát hành
         </button>
       </div>
@@ -1424,7 +1424,7 @@ function DeployTab({ agentVersion }: { agentVersion: string }) {
           <p className="text-sm text-muted-foreground max-w-sm mb-5 leading-relaxed">
             Phát hành để mở agent cho một nhóm nhỏ trước, rồi mở rộng dần.
           </p>
-          <button onClick={() => setShowPublish(true)} className="btn-primary h-9 px-4 rounded-lg">Phát hành</button>
+          <button onClick={() => setShowPublish(true)} className="btn-primary">Phát hành</button>
         </div>
       </div>
 
