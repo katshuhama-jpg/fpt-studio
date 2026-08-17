@@ -2,7 +2,7 @@ import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { createPortal } from "react-dom";
 
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, BookOpen01Icon, Cancel01Icon, BoltIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, UserMultipleIcon, TextBoldIcon, TextItalicIcon, TextStrikethroughIcon, Heading01Icon, Heading02Icon, LeftToRightListBulletIcon, LeftToRightListNumberIcon, CodeIcon, Copy01Icon, SourceCodeIcon, GridViewIcon, Share08Icon, ApiIcon, TelegramIcon, WhatsappIcon, MessengerIcon, Building02Icon, UserIcon, Wrench01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
+import { Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, BookOpen01Icon, Cancel01Icon, BoltIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, UserMultipleIcon, TextBoldIcon, TextItalicIcon, TextStrikethroughIcon, Heading01Icon, Heading02Icon, LeftToRightListBulletIcon, LeftToRightListNumberIcon, CodeIcon, Copy01Icon, SourceCodeIcon, GridViewIcon, Share08Icon, ApiIcon, TelegramIcon, WhatsappIcon, MessengerIcon, Building02Icon, UserIcon, QrCode01Icon, ExternalLinkIcon, Wrench01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
 import { useEffect, useRef, useState } from "react";
 import AgentToolsTab from "@/components/tool-builder/AgentToolsTab";
 import TasksGrid from "@/components/tasks/TasksGrid";
@@ -1227,8 +1227,58 @@ function PublishAgentModal({ onClose, onPublish }: {
   );
 }
 
+function PublishSuccessModal({ url, onClose }: { url: string; onClose: () => void }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard?.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-md bg-white rounded-2xl shadow-lg border border-border flex flex-col items-center text-center px-8 py-8 animate-fade-up">
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <h2 className="text-xl font-bold text-success">Phát hành thành công</h2>
+          <HugeiconsIcon icon={CheckmarkCircle01Icon} size={22} className="text-success" />
+        </div>
+        <p className="text-sm text-muted-foreground mb-6">Agent của bạn đã được phát hành trên Agent Workspace.</p>
+
+        <div className="w-full text-left mb-6">
+          <p className="text-sm font-semibold mb-2">Chia sẻ liên kết công khai trên Agent Workspace</p>
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-11 px-3.5 rounded-xl border border-border bg-surface-muted flex items-center text-sm text-muted-foreground truncate">
+              {url}
+            </div>
+            <button title="QR code" className="w-11 h-11 rounded-xl border border-border bg-surface hover:bg-surface-muted flex items-center justify-center text-foreground transition-base shrink-0">
+              <HugeiconsIcon icon={QrCode01Icon} size={18} />
+            </button>
+            <button onClick={handleCopy} title="Copy" className="w-11 h-11 rounded-xl border border-border bg-surface hover:bg-surface-muted flex items-center justify-center text-foreground transition-base shrink-0">
+              <HugeiconsIcon icon={copied ? CheckmarkCircle01Icon : Copy01Icon} size={18} className={copied ? "text-success" : ""} />
+            </button>
+            <a href={url} target="_blank" rel="noopener noreferrer" title="Open" className="w-11 h-11 rounded-xl border border-border bg-surface hover:bg-surface-muted flex items-center justify-center text-foreground transition-base shrink-0">
+              <HugeiconsIcon icon={ExternalLinkIcon} size={18} />
+            </a>
+          </div>
+        </div>
+
+        <button
+          onClick={onClose}
+          className="h-11 px-8 rounded-xl bg-success text-white text-sm font-semibold hover:opacity-90 transition-base"
+        >
+          Xong
+        </button>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 function DeployTab({ agentVersion }: { agentVersion: string }) {
   const [showPublish, setShowPublish] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [published, setPublished] = useState<string | null>(null);
 
   return (
@@ -1236,7 +1286,13 @@ function DeployTab({ agentVersion }: { agentVersion: string }) {
       {showPublish && (
         <PublishAgentModal
           onClose={() => setShowPublish(false)}
-          onPublish={audience => setPublished(audience)}
+          onPublish={audience => { setPublished(audience); setShowSuccess(true); }}
+        />
+      )}
+      {showSuccess && (
+        <PublishSuccessModal
+          url="https://agents-staging.fpt.ai/marketplace"
+          onClose={() => setShowSuccess(false)}
         />
       )}
       {/* Header */}
