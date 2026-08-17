@@ -491,7 +491,7 @@ export default function Members() {
                         type="button"
                         onClick={() => setRemoveTargetId(m.id)}
                         aria-label={`Remove ${m.name}`}
-                        className="w-7 h-7 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-surface-muted flex items-center justify-center text-muted-foreground hover:text-destructive transition-base justify-self-end"
+                        className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground hover:text-destructive transition-base justify-self-end"
                       >
                         <Trash2 size={13} />
                       </button>
