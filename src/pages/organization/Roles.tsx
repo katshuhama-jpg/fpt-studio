@@ -1,9 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Plus, X, Trash2, ChevronRight, Lock, Info } from "lucide-react";
+import { toast } from "sonner";
 import { Card, PageHeader } from "./shared";
 import { featureGroups, SECTIONS, ALL_PERMISSION_IDS, FeatureGroup } from "./permissionsData";
 import { useRoles } from "./rolesStore";
+import { useOrg } from "./orgStore";
+import { collectMembers } from "./orgData";
+import { DEFAULT_ROLE_ID } from "./Members";
 
 /* ─── Toggle switch ────────────────────────────────────────────────────── */
 function Toggle({ enabled, onChange, disabled }: { enabled: boolean; onChange: () => void; disabled?: boolean }) {
@@ -293,12 +297,18 @@ function PermissionsModal({ onClose }: { onClose: () => void }) {
 /* ─── Page ──────────────────────────────────────────────────────────────── */
 export default function Roles() {
   const { roles, createRole, updateRole, deleteRole } = useRoles();
+  const { tree, assignRole } = useOrg();
   const [showCreate, setShowCreate] = useState(false);
   const [showPermissions, setShowPermissions] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const editingRole = roles.find(r => r.id === editingId) ?? null;
+
+  const allMembers = useMemo(() => collectMembers(tree), [tree]);
+  const roleIdSet = new Set(roles.map(r => r.id));
+  const effectiveRoleId = (m: { roleId?: string }) => (m.roleId && roleIdSet.has(m.roleId) ? m.roleId : DEFAULT_ROLE_ID);
+  const memberCountByRole = new Map(roles.map(r => [r.id, allMembers.filter(m => effectiveRoleId(m) === r.id).length]));
 
   const handleCreate = (name: string, permissionIds: Set<string>) => {
     createRole(name, permissionIds);
@@ -309,7 +319,16 @@ export default function Roles() {
   };
 
   const handleDelete = (id: string) => {
+    const role = roles.find(r => r.id === id);
+    if (!role) return;
+    const affected = allMembers.filter(m => effectiveRoleId(m) === id);
+    affected.forEach(m => assignRole(m.id, DEFAULT_ROLE_ID));
     deleteRole(id);
+    toast.success(
+      affected.length > 0
+        ? `Deleted role "${role.name}". ${affected.length} member${affected.length === 1 ? "" : "s"} moved to Viewer.`
+        : `Deleted role "${role.name}".`
+    );
   };
 
   return (
@@ -362,27 +381,35 @@ export default function Roles() {
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-muted text-muted-foreground font-medium">Default</span>
                   )}
                 </div>
-                <div className="text-xs text-muted-foreground mt-0.5">{r.permissionIds.size}/{ALL_PERMISSION_IDS.length} permissions</div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  {r.permissionIds.size}/{ALL_PERMISSION_IDS.length} permissions · {memberCountByRole.get(r.id) ?? 0} member{(memberCountByRole.get(r.id) ?? 0) === 1 ? "" : "s"}
+                </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {!r.isDefault && (
                   confirmDeleteId === r.id ? (
-                    <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                      <span className="text-xs text-foreground">Delete role "{r.name}"?</span>
-                      <button
-                        type="button"
-                        onClick={() => { handleDelete(r.id); setConfirmDeleteId(null); }}
-                        className="h-7 px-3 rounded-lg bg-destructive text-white text-xs font-medium"
-                      >
-                        Delete
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConfirmDeleteId(null)}
-                        className="h-7 px-3 rounded-lg border border-border text-xs font-medium"
-                      >
-                        Cancel
-                      </button>
+                    <div className="flex flex-col items-end gap-1.5" onClick={e => e.stopPropagation()}>
+                      <span className="text-xs text-foreground text-right max-w-[280px]">
+                        {(memberCountByRole.get(r.id) ?? 0) > 0
+                          ? `Delete role "${r.name}"? ${memberCountByRole.get(r.id)} member${memberCountByRole.get(r.id) === 1 ? "" : "s"} using this role will be moved to Viewer.`
+                          : `Delete role "${r.name}"?`}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => { handleDelete(r.id); setConfirmDeleteId(null); }}
+                          className="h-7 px-3 rounded-lg bg-destructive text-white text-xs font-medium"
+                        >
+                          Delete
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="h-7 px-3 rounded-lg border border-border text-xs font-medium"
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <button
