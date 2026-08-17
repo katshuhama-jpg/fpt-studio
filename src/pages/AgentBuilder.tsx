@@ -1278,10 +1278,88 @@ function PublishSuccessModal({ url, onClose }: { url: string; onClose: () => voi
   );
 }
 
+const AGENT_VERSIONS = [
+  { id: "v1.0.2", date: "Aug 17, 2026" },
+  { id: "v1.0.1", date: "Aug 17, 2026" },
+  { id: "v1.0.0", date: "Aug 17, 2026" },
+];
+
+function VersionSelectModal({ currentVersion, onClose, onRelease }: {
+  currentVersion: string;
+  onClose: () => void;
+  onRelease: (version: string) => void;
+}) {
+  const [selected, setSelected] = useState(currentVersion);
+  const isSame = selected === currentVersion;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-md bg-white rounded-2xl shadow-lg border border-border flex flex-col px-6 py-6 animate-fade-up">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-1">
+          <h2 className="text-xl font-bold">Chọn phiên bản phát hành</h2>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 -mt-1 -mr-1">
+            <HugeiconsIcon icon={Cancel01Icon} size={18} />
+          </button>
+        </div>
+        <p className="text-sm text-muted-foreground mb-5 leading-relaxed">
+          Phiên bản bạn chọn sẽ được áp dụng cho toàn bộ kênh đang phát hành.
+        </p>
+
+        {/* Version list */}
+        <div className="flex flex-col gap-2.5 mb-4">
+          {AGENT_VERSIONS.map(v => {
+            const active = selected === v.id;
+            return (
+              <button
+                key={v.id}
+                type="button"
+                onClick={() => setSelected(v.id)}
+                className={`text-left rounded-xl border px-4 py-3.5 transition-base ${
+                  active ? "border-primary bg-primary-soft/40 ring-1 ring-primary" : "border-border bg-surface-muted/60 hover:bg-surface-muted"
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-base font-semibold font-mono">{v.id}</span>
+                  {v.id === currentVersion && (
+                    <span className="flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-white border border-border">
+                      <span className="w-1.5 h-1.5 rounded-full bg-success" /> Đang phục vụ
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">Phát hành ngày {v.date}</p>
+              </button>
+            );
+          })}
+        </div>
+
+        <p className="text-sm text-muted-foreground mb-5">
+          {isSame ? `Phát hành lại ${selected} cho toàn bộ kênh.` : `Chuyển toàn bộ kênh sang ${selected}.`}
+        </p>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-2">
+          <button onClick={onClose} className="h-10 px-4 rounded-xl bg-surface-muted text-sm font-medium hover:bg-border/40 transition-base">Hủy</button>
+          <button
+            onClick={() => { onRelease(selected); onClose(); }}
+            className="btn-primary h-10 px-4 rounded-xl"
+          >
+            {isSame ? "Phát hành lại" : "Phát hành"}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 function DeployTab({ agentVersion }: { agentVersion: string }) {
   const [showPublish, setShowPublish] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showVersionSelect, setShowVersionSelect] = useState(false);
   const [published, setPublished] = useState<string | null>(null);
+  const [servingVersion, setServingVersion] = useState(agentVersion);
 
   return (
     <div className="max-w-[1040px] mx-auto px-8 py-8">
@@ -1295,6 +1373,13 @@ function DeployTab({ agentVersion }: { agentVersion: string }) {
         <PublishSuccessModal
           url="https://agents-staging.fpt.ai/marketplace"
           onClose={() => setShowSuccess(false)}
+        />
+      )}
+      {showVersionSelect && (
+        <VersionSelectModal
+          currentVersion={servingVersion}
+          onClose={() => setShowVersionSelect(false)}
+          onRelease={v => setServingVersion(v)}
         />
       )}
       {/* Header */}
@@ -1313,14 +1398,14 @@ function DeployTab({ agentVersion }: { agentVersion: string }) {
         <div className="flex items-center gap-10">
           <div>
             <p className="text-xs text-muted-foreground mb-1">Phiên bản đang phục vụ</p>
-            <p className="text-base font-semibold font-mono">{agentVersion}</p>
+            <p className="text-base font-semibold font-mono">{servingVersion}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground mb-1">Kênh đang phát hành</p>
             <p className="text-base font-semibold">0</p>
           </div>
         </div>
-        <button className="btn-primary rounded-full h-10 px-4">
+        <button onClick={() => setShowVersionSelect(true)} className="btn-primary rounded-full h-10 px-4">
           <HugeiconsIcon icon={Rocket01Icon} size={14} /> Chọn phiên bản phát hành
         </button>
       </div>
