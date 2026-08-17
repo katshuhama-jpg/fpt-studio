@@ -5,7 +5,7 @@ export type Section = "console" | "governance" | "org-management";
 export type FeatureGroup = { id: string; label: string; icon: any; section: Section; permissions: Permission[] };
 
 export const SECTIONS: { id: Section; label: string; desc: string }[] = [
-  { id: "console", label: "Console", desc: "Publishing, managing, pausing, and deleting agents, knowledge, skills, guardrails, and connectors in the shared workspace." },
+  { id: "console", label: "Console", desc: "Viewing, publishing, managing, pausing, and deleting agents, knowledge, skills, guardrails, and connectors in the shared workspace." },
   { id: "governance", label: "Governance", desc: "Managing roles and members across the organization." },
   { id: "org-management", label: "Organization Management", desc: "Managing the unit structure and unit admins." },
 ];
@@ -33,6 +33,7 @@ export const featureGroups: FeatureGroup[] = [
   ...FEATURES.map(({ id, label, icon, thing }) => {
     const singular = singularOf(thing);
     const permissions: Permission[] = [
+      { id: `${id}.view`, name: `View ${thing}`, desc: `See every live ${singular} across the whole workspace, including ones not shared with you.` },
       { id: `${id}.publish`, name: `Publish ${thing}`, desc: `Make a personal ${singular} available to the whole workspace, or share it with specific teammates.` },
       { id: `${id}.manage`, name: `Manage ${thing}`, desc: `Edit a live ${singular}'s configuration in the workspace.` },
     ];
