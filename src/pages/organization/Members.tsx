@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Search, X, Plus, ChevronDown, ChevronLeft, ChevronRight, AlertTriangle, Check } from "lucide-react";
+import { Search, X, Plus, Upload, ChevronDown, ChevronLeft, ChevronRight, AlertTriangle, Check } from "lucide-react";
+import { toast } from "sonner";
 import { Card, PageHeader } from "./shared";
 import { OrgMember, collectMembers } from "./orgData";
 import { useRoles, RoleDef } from "./rolesStore";
 import { useOrg } from "./orgStore";
+import ImportMembersModal from "./ImportMembersModal";
 
 /** Every member always has a role — this is the implicit one when none was explicitly set. */
-const DEFAULT_ROLE_ID = "viewer";
+export const DEFAULT_ROLE_ID = "viewer";
 
 /* ─── Role color palette — local to Members, doesn't touch RoleDef ─────── */
 const SEED_ROLE_CHIP: Record<string, string> = {
@@ -304,11 +306,12 @@ function AddUserToRoleModal({
 
 /* ─── Page ──────────────────────────────────────────────────────────────── */
 export default function Members() {
-  const { tree, assignRole } = useOrg();
+  const { tree, rootId, assignRole, addMember } = useOrg();
   const { roles } = useRoles();
   const [roleFilter, setRoleFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [showAdd, setShowAdd] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 24;
 
@@ -346,12 +349,28 @@ export default function Members() {
           onAdd={assignRole}
         />
       )}
+      {showImport && (
+        <ImportMembersModal
+          roles={roles}
+          existingMembers={allMembers}
+          onClose={() => setShowImport(false)}
+          onConfirm={validRows => {
+            validRows.forEach(r => addMember(rootId, r.name, r.email, r.roleId));
+            toast.success(`Imported ${validRows.length} member${validRows.length === 1 ? "" : "s"}.`);
+          }}
+        />
+      )}
 
       <div className="flex items-start justify-between gap-4">
         <PageHeader title="Members" desc="Search and manage everyone in the organization, along with each person's role." />
-        <button onClick={() => setShowAdd(true)} className="btn-primary h-9 shrink-0">
-          <Plus size={14} /> Add users to a role
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button onClick={() => setShowImport(true)} className="btn-secondary">
+            <Upload size={14} /> Import from Excel
+          </button>
+          <button onClick={() => setShowAdd(true)} className="btn-primary h-9 shrink-0">
+            <Plus size={14} /> Add users to a role
+          </button>
+        </div>
       </div>
 
       <Card>
