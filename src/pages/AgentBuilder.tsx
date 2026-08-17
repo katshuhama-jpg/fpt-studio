@@ -1119,13 +1119,16 @@ function PerformanceTab() {
 /* TOOLS — moved to src/components/tool-builder/AgentToolsTab.tsx */
 
 /* ============ PLACEHOLDER ============ */
+const API_DEPLOY_CHANNELS = [
+  { id: "web",       name: "Web widget", sub: "Web", icon: Globe02Icon, color: "text-foreground" },
+  { id: "api",       name: "API",        sub: "API", icon: ApiIcon,     color: "text-foreground" },
+];
+
 const EXTERNAL_DEPLOY_CHANNELS = [
-  { id: "web",       name: "Web widget", sub: "Web",     icon: Globe02Icon,   color: "text-foreground" },
   { id: "zalo",      name: "Zalo",       sub: "Messaging", icon: null,          color: "" },
   { id: "messenger", name: "Messenger",  sub: "Messaging", icon: MessengerIcon, color: "text-[#0084FF]" },
   { id: "whatsapp",  name: "WhatsApp",   sub: "Messaging", icon: WhatsappIcon,  color: "text-[#25D366]" },
   { id: "telegram",  name: "Telegram",   sub: "Messaging", icon: TelegramIcon,  color: "text-[#26A5E4]" },
-  { id: "api",       name: "API",        sub: "API",      icon: ApiIcon,       color: "text-foreground" },
 ];
 
 function PublishAgentModal({ onClose, onPublish }: {
@@ -1473,6 +1476,30 @@ function DeployTab({ agentVersion }: { agentVersion: string }) {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Web widget & API */}
+      <div className="mb-8">
+        <div className="flex items-baseline gap-2 mb-3">
+          <h2 className="text-sm font-semibold">Web widget & API</h2>
+          <span className="text-xs text-muted-foreground">Not available yet</span>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          {API_DEPLOY_CHANNELS.map(c => (
+            <div
+              key={c.id}
+              className="flex items-center gap-3 px-4 py-3.5 rounded-xl border border-border bg-surface-muted/40 opacity-70 cursor-not-allowed"
+            >
+              <div className="w-8 h-8 rounded-lg bg-surface border border-border flex items-center justify-center shrink-0">
+                <HugeiconsIcon icon={c.icon} size={16} className={c.color} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium truncate">{c.name}</p>
+                <p className="text-xs text-muted-foreground truncate">{c.sub}</p>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* External channels */}
