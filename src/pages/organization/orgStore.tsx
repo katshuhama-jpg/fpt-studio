@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, ReactNode } from "react";
+import { getUser } from "@/lib/onboarding";
 import { OrgUnit, OrgMember, orgTree as SEED_TREE } from "./orgData";
 
 const ROOT_ID = SEED_TREE.id;
@@ -159,12 +160,22 @@ export function OrgProvider({ children }: { children: ReactNode }) {
     const trimmedName = name.trim();
     if (!trimmedName) return;
     const trimmedEmail = email.trim();
+    const invitedBy = { name: "Tran Nam", email: getUser()?.email || "tran.nam@fpt.com" };
     setTree(prev => {
       const updated = updateUnit(prev, unitId, unit => ({
         ...unit,
         members: [
           ...unit.members,
-          { id: nextId("member"), name: trimmedName, role: "", email: trimmedEmail, initials: deriveInitials(trimmedName), roleId },
+          {
+            id: nextId("member"),
+            name: trimmedName,
+            role: "",
+            email: trimmedEmail,
+            initials: deriveInitials(trimmedName),
+            roleId,
+            invitedBy,
+            joinedAt: new Date().toISOString(),
+          },
         ],
       }));
       return updated ?? prev;

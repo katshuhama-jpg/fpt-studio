@@ -1,4 +1,16 @@
-export type OrgMember = { id: string; name: string; role: string; initials: string; roleId?: string; email?: string; inactive?: boolean };
+export type OrgMember = {
+  id: string;
+  name: string;
+  role: string;
+  initials: string;
+  roleId?: string;
+  email?: string;
+  inactive?: boolean;
+  /** Who added this person to the organization. */
+  invitedBy?: { name: string; email: string };
+  /** ISO timestamp of when this person joined. */
+  joinedAt?: string;
+};
 
 /** Mock timestamp for the auto-sync banner on the Structure page — Unit/Member data is
  * synced from the business's own system, via FPT Identity, into FPT AI Agent. */
@@ -69,6 +81,39 @@ function backfillEmails(unit: OrgUnit, used: Set<string> = new Set()): OrgUnit {
     return { ...m, email };
   });
   const units = unit.units.map(u => backfillEmails(u, used));
+  return { ...unit, members, units };
+}
+
+/**
+ * Deterministic "invited by" + "joined on" backfill, same pattern as `backfillEmails` —
+ * most seed members only have a name/role, but the Members table always needs both.
+ * Picks a plausible inviter from a small pool of already-named leaders, and a join date
+ * spread across a fixed multi-year window, both derived from the member's own id so the
+ * values stay stable across reloads instead of re-randomizing every render.
+ */
+const INVITER_POOL: { name: string; email: string }[] = [
+  { name: "Tran Nam", email: "tran.nam@fpt.com" },
+  { name: "Linh Phan", email: "linh.phan@fpt.com" },
+  { name: "Mai Hoang", email: "mai.hoang@fpt.com" },
+  { name: "Le Hong Viet", email: "le.hong.viet@fpt.com" },
+  { name: "Nguyen Khai", email: "nguyen.khai@fpt.com" },
+  { name: "Hoang Anh", email: "hoang.anh@fpt.com" },
+  { name: "Kenji Sato", email: "kenji.sato@fpt.com" },
+];
+const JOIN_RANGE_START = new Date("2019-01-01T00:00:00Z").getTime();
+
+function backfillInviteMeta(unit: OrgUnit): OrgUnit {
+  const rangeEnd = Date.now();
+  const span = rangeEnd - JOIN_RANGE_START;
+  const members = unit.members.map(m => {
+    if (m.invitedBy && m.joinedAt) return m;
+    const seed = hashSeed(m.id);
+    const inviter = INVITER_POOL[seed % INVITER_POOL.length];
+    const fraction = (seed % 100000) / 100000;
+    const joinedAt = new Date(JOIN_RANGE_START + fraction * span).toISOString();
+    return { ...m, invitedBy: m.invitedBy ?? inviter, joinedAt: m.joinedAt ?? joinedAt };
+  });
+  const units = unit.units.map(backfillInviteMeta);
   return { ...unit, members, units };
 }
 
@@ -462,7 +507,7 @@ export function countAll(unit: OrgUnit): number {
   return unit.members.length + unit.units.reduce((sum, u) => sum + countAll(u), 0);
 }
 
-export const orgTree: OrgUnit = backfillEmails(orgTreeSeed);
+export const orgTree: OrgUnit = backfillInviteMeta(backfillEmails(orgTreeSeed));
 
 export function findUnit(root: OrgUnit, id: string): OrgUnit | null {
   if (root.id === id) return root;
