@@ -34,14 +34,33 @@ const k = (agentId: string, conversationId: string) => `${agentId}:${conversatio
 const MIN = 60_000;
 const DAY = 86_400_000;
 
+/**
+ * Deterministic ULID-shaped id (26 chars, Crockford base32) derived from a seed string —
+ * not a real ULID (no encoded timestamp), just realistic-looking and stable across reloads,
+ * matching how real conversation/message ids look (e.g. "01KZRH7DYBDQR24DTHS4HSQGHQ").
+ */
+const CROCKFORD_BASE32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+function pseudoUlid(seed: string): string {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  let x = h || 1;
+  let out = "";
+  for (let i = 0; i < 26; i++) {
+    x = (Math.imul(x, 1103515245) + 12345) >>> 0;
+    out += CROCKFORD_BASE32[x % 32];
+  }
+  return out;
+}
+
 /** Builds a conversation's messages, spacing each `at` timestamp a couple minutes apart, ending at `endedAt`. */
 function buildMessages(
+  seedKey: string,
   endedAt: number,
   turns: { role: "customer" | "agent"; content: string; feedback?: "up" | "down" }[],
 ): ConversationMessage[] {
   const startAt = endedAt - turns.length * 2 * MIN;
   return turns.map((t, i) => ({
-    id: `m${i + 1}`,
+    id: pseudoUlid(`${seedKey}-m${i + 1}`),
     role: t.role,
     content: t.content,
     at: startAt + i * 2 * MIN,
@@ -55,12 +74,12 @@ function seedAgent(agentId: string) {
 
   const seed: Omit<ConversationRecord, "agentId">[] = [
     {
-      id: "CV-1042",
+      id: pseudoUlid("CV-1042"),
       channel: "web",
       username: "Nguyen Thi Lan",
       startedAt: now - 45 * MIN,
       endedAt: now - 40 * MIN,
-      messages: buildMessages(now - 40 * MIN, [
+      messages: buildMessages("CV-1042", now - 40 * MIN, [
         { role: "customer", content: "I lost my credit card, can you lock it right now?" },
         { role: "agent", content: "I'm sorry to hear that. I've located your Visa card ending in 4821 — locking it now." },
         { role: "agent", content: "Your card is locked. No further transactions can go through until you unlock it or request a replacement.", feedback: "up" },
@@ -68,24 +87,24 @@ function seedAgent(agentId: string) {
       ]),
     },
     {
-      id: "CV-1041",
+      id: pseudoUlid("CV-1041"),
       channel: "zalo",
       username: "Tran Van Hung",
       startedAt: now - 3 * 60 * MIN,
       endedAt: now - 2 * 60 * MIN - 55 * MIN,
-      messages: buildMessages(now - 2 * 60 * MIN - 55 * MIN, [
+      messages: buildMessages("CV-1041", now - 2 * 60 * MIN - 55 * MIN, [
         { role: "customer", content: "What's my current account balance?" },
         { role: "agent", content: "Your checking account ending in 2290 has a balance of 45,320,000 VND as of this morning." },
         { role: "customer", content: "Perfect, thanks." },
       ]),
     },
     {
-      id: "CV-1038",
+      id: pseudoUlid("CV-1038"),
       channel: "web",
       username: "Le Thi Mai",
       startedAt: now - DAY - 2 * 60 * MIN,
       endedAt: now - DAY,
-      messages: buildMessages(now - DAY, [
+      messages: buildMessages("CV-1038", now - DAY, [
         { role: "customer", content: "I can't log into online banking, it says my password is wrong." },
         { role: "agent", content: "Let's reset it. I'll send a one-time code to the phone number on file — can you confirm the last 3 digits?" },
         { role: "customer", content: "089" },
@@ -94,12 +113,12 @@ function seedAgent(agentId: string) {
       ]),
     },
     {
-      id: "CV-1035",
+      id: pseudoUlid("CV-1035"),
       channel: "api",
       username: "Pham Duc Anh",
       startedAt: now - 2 * DAY - 10 * MIN,
       endedAt: now - 2 * DAY,
-      messages: buildMessages(now - 2 * DAY, [
+      messages: buildMessages("CV-1035", now - 2 * DAY, [
         { role: "customer", content: "My wallet was stolen this morning, I need to report my debit card lost." },
         { role: "agent", content: "Understood — I've locked debit card ending in 7734 immediately." },
         { role: "agent", content: "Would you like a replacement card mailed to your address on file, or would you prefer to pick one up at a branch?" },
@@ -108,12 +127,12 @@ function seedAgent(agentId: string) {
       ]),
     },
     {
-      id: "CV-1030",
+      id: pseudoUlid("CV-1030"),
       channel: "zalo",
       username: "Hoang Thi Thu",
       startedAt: now - 4 * DAY - 6 * MIN,
       endedAt: now - 4 * DAY,
-      messages: buildMessages(now - 4 * DAY, [
+      messages: buildMessages("CV-1030", now - 4 * DAY, [
         { role: "customer", content: "I'd like to book a consultation with a financial advisor." },
         { role: "agent", content: "Sure — I have openings this Thursday at 10:00 or Friday at 14:00. Which works better?" },
         { role: "customer", content: "Friday at 2pm please." },
@@ -121,12 +140,12 @@ function seedAgent(agentId: string) {
       ]),
     },
     {
-      id: "CV-1027",
+      id: pseudoUlid("CV-1027"),
       channel: "web",
       username: "Vu Minh Khoa",
       startedAt: now - 6 * DAY - 8 * MIN,
       endedAt: now - 6 * DAY,
-      messages: buildMessages(now - 6 * DAY, [
+      messages: buildMessages("CV-1027", now - 6 * DAY, [
         { role: "customer", content: "There's a charge on my statement I don't recognize — 1,200,000 VND to \"QRPAY MERCHANT 88\"." },
         { role: "agent", content: "I see that charge from yesterday. I've opened a dispute case — reference #DP-5567." },
         { role: "agent", content: "The disputed amount is temporarily credited back while we investigate. This usually takes 5-10 business days." },
@@ -134,24 +153,24 @@ function seedAgent(agentId: string) {
       ]),
     },
     {
-      id: "CV-1021",
+      id: pseudoUlid("CV-1021"),
       channel: "api",
       username: "Do Thanh Tung",
       startedAt: now - 10 * DAY - 4 * MIN,
       endedAt: now - 10 * DAY,
-      messages: buildMessages(now - 10 * DAY, [
+      messages: buildMessages("CV-1021", now - 10 * DAY, [
         { role: "customer", content: "Has my international wire transfer to Singapore gone through yet?" },
         { role: "agent", content: "Your transfer of 25,000,000 VND initiated on the 3rd is showing as completed — it arrived at the recipient bank yesterday." },
         { role: "customer", content: "Great, appreciate it." },
       ]),
     },
     {
-      id: "CV-1016",
+      id: pseudoUlid("CV-1016"),
       channel: "zalo",
       username: "Bui Thi Ngoc",
       startedAt: now - 15 * DAY - 10 * MIN,
       endedAt: now - 15 * DAY,
-      messages: buildMessages(now - 15 * DAY, [
+      messages: buildMessages("CV-1016", now - 15 * DAY, [
         { role: "customer", content: "Can you send me my loan repayment schedule?" },
         { role: "agent", content: "Your home loan has 18 payments remaining, 8,500,000 VND due on the 5th of each month." },
         { role: "customer", content: "Can I make an extra payment this month to reduce the principal?" },
@@ -160,12 +179,12 @@ function seedAgent(agentId: string) {
       ]),
     },
     {
-      id: "CV-1009",
+      id: pseudoUlid("CV-1009"),
       channel: "web",
       username: "Ngo Van Phuc",
       startedAt: now - 22 * DAY - 6 * MIN,
       endedAt: now - 22 * DAY,
-      messages: buildMessages(now - 22 * DAY, [
+      messages: buildMessages("CV-1009", now - 22 * DAY, [
         { role: "customer", content: "I want to open a savings account, what are the interest rates?" },
         { role: "agent", content: "Our 6-month term deposit is currently 4.8% p.a., and 12-month is 5.5% p.a." },
         { role: "agent", content: "Would you like me to start opening one for you now?" },
@@ -173,12 +192,12 @@ function seedAgent(agentId: string) {
       ]),
     },
     {
-      id: "CV-1004",
+      id: pseudoUlid("CV-1004"),
       channel: "zalo",
       username: "Dang Thi Hoa",
       startedAt: now - 28 * DAY - 4 * MIN,
       endedAt: now - 28 * DAY,
-      messages: buildMessages(now - 28 * DAY, [
+      messages: buildMessages("CV-1004", now - 28 * DAY, [
         { role: "customer", content: "Why was I charged a 50,000 VND monthly fee? I thought my account was fee-free." },
         { role: "agent", content: "Your account is fee-free with a minimum balance of 5,000,000 VND — last month it dropped below that for a few days." },
         { role: "customer", content: "That's annoying, nobody told me." },
@@ -186,12 +205,12 @@ function seedAgent(agentId: string) {
       ]),
     },
     {
-      id: "CV-0988",
+      id: pseudoUlid("CV-0988"),
       channel: "web",
       username: "Trinh Van Duc",
       startedAt: now - 45 * DAY - 4 * MIN,
       endedAt: now - 45 * DAY,
-      messages: buildMessages(now - 45 * DAY, [
+      messages: buildMessages("CV-0988", now - 45 * DAY, [
         { role: "customer", content: "I need to update the phone number on my account." },
         { role: "agent", content: "Sure — please share the new number and I'll send a verification code to it." },
         { role: "customer", content: "0912 345 678" },

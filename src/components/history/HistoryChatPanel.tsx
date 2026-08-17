@@ -27,17 +27,19 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
       ) : (
         <>
           {/* Agent header — mirrors PreviewPanel's chat header */}
-          <div className="px-4 py-3 border-b border-border flex items-center gap-2.5 shrink-0">
-            <div className="w-8 h-8 rounded-lg bg-primary-soft flex items-center justify-center text-lg shrink-0">🏦</div>
-            <div className="min-w-0">
-              <div className="text-sm font-semibold leading-tight truncate">{record.username}</div>
-              <div className="flex items-center gap-1 mt-0.5 text-xs text-muted-foreground">
-                <span>{CHANNEL_META[record.channel].emoji} {CHANNEL_META[record.channel].label}</span>
-                <span>·</span>
-                <span>{format(new Date(record.endedAt), "dd/MM/yyyy - HH:mm")}</span>
+          <div className="px-4 py-3 border-b border-border shrink-0">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-primary-soft flex items-center justify-center text-lg shrink-0">🏦</div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold leading-tight truncate">{record.username}</div>
+                <div className="flex items-center gap-1 mt-0.5 text-xs text-muted-foreground">
+                  <span>{CHANNEL_META[record.channel].emoji} {CHANNEL_META[record.channel].label}</span>
+                  <span>·</span>
+                  <span>{format(new Date(record.endedAt), "dd/MM/yyyy - HH:mm")}</span>
+                </div>
               </div>
             </div>
-            <span className="ml-auto text-xs font-mono text-muted-foreground shrink-0">{record.id}</span>
+            <div className="text-[10px] font-mono text-muted-foreground truncate mt-1.5 pl-[42px]">{record.id}</div>
           </div>
 
           {/* Messages — same bubble styling as PreviewPanel's chat view */}

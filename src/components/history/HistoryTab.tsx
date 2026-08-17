@@ -109,7 +109,8 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
       .filter(c => {
         if (!q) return true;
         if (c.id.toLowerCase().includes(q)) return true;
-        return c.messages.some(m => m.content.toLowerCase().includes(q));
+        if (c.username.toLowerCase().includes(q)) return true;
+        return c.messages.some(m => m.content.toLowerCase().includes(q) || m.id.toLowerCase().includes(q));
       });
   }, [allConversations, query, channelFilter, timeFilter]);
 
@@ -121,23 +122,23 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
 
   return (
     <div className="p-8 w-full animate-fade-up">
-      <div className="flex items-end justify-between mb-5 gap-4 flex-wrap">
+      <div className="mb-5">
         <div>
           <h2 className="font-display text-xl font-semibold">History</h2>
           <p className="text-xs text-muted-foreground mt-0.5">See past conversations between this agent and its users.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="relative mt-4">
+          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search by content, sender name, conversation ID, or message ID"
+            className="h-9 w-full pl-8 pr-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base"
+          />
+        </div>
+        <div className="flex items-center gap-2 mt-2.5">
           <FilterDropdown value={channelFilter} allLabel="All channels" options={channelOptions} onChange={setChannelFilter} />
           <FilterDropdown value={timeFilter} allLabel="All time" options={TIME_OPTIONS.filter(o => o.id !== "all")} onChange={v => setTimeFilter(v as TimeFilter)} />
-          <div className="relative">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Search by conversation ID or message…"
-              className="h-9 w-64 pl-8 pr-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base"
-            />
-          </div>
         </div>
       </div>
 
@@ -155,7 +156,7 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
       ) : (
         <>
           <div className="rounded-xl border border-border overflow-hidden">
-            <div className="grid grid-cols-[165px,100px,110px,1fr,80px] gap-3 px-6 py-2.5 bg-surface-muted section-eyebrow">
+            <div className="grid grid-cols-[160px,150px,110px,1fr,70px] gap-3 px-6 py-2.5 bg-surface-muted section-eyebrow">
               <div>Ended</div><div>Conversation ID</div><div>Channel</div><div>User</div><div>Messages</div>
             </div>
             <div className="divide-y divide-border">
@@ -164,7 +165,7 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
                   key={c.id}
                   type="button"
                   onClick={() => selectConversation(c.id)}
-                  className={`w-full grid grid-cols-[165px,100px,110px,1fr,80px] gap-3 px-6 py-3 items-center transition-base text-left ${
+                  className={`w-full grid grid-cols-[160px,150px,110px,1fr,70px] gap-3 px-6 py-3 items-center transition-base text-left ${
                     c.id === selectedId ? "bg-primary-soft" : "hover:bg-surface-muted/50"
                   }`}
                 >
