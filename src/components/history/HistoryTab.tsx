@@ -107,7 +107,7 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
   const hasAnyConversations = allConversations.length > 0;
 
   return (
-    <div className="p-8 max-w-6xl mx-auto animate-fade-up">
+    <div className="p-8 w-full animate-fade-up">
       <div className="flex items-end justify-between mb-5 gap-4 flex-wrap">
         <div>
           <h2 className="font-display text-xl font-semibold">History</h2>
