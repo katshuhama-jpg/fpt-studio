@@ -10,6 +10,7 @@ import BusinessProcessesGrid from "@/components/business-processes/BusinessProce
 import TriggersTab from "@/components/configure/TriggersTab";
 import GuardrailsTab from "@/components/configure/GuardrailsTab";
 import HistoryTab from "@/components/history/HistoryTab";
+import HistoryChatPanel from "@/components/history/HistoryChatPanel";
 import ChatOptimizationTab from "@/components/configure/ChatOptimizationTab";
 import { businessProcessStore } from "@/components/business-processes/businessProcessStore";
 import { taskStore } from "@/components/tasks/taskStore";
@@ -270,6 +271,7 @@ export default function AgentBuilder() {
           </div>
 
           {tab === "build" && section === "instructions" && <PreviewPanel view={previewView} onViewChange={setPreviewView} />}
+          {tab === "build" && section === "history" && <HistoryChatPanel agentId={id ?? "new"} />}
         </div>
       </div>
     </div>

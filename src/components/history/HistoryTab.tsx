@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Search, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { format, startOfDay } from "date-fns";
 import { historyStore, CHANNEL_META, type ConversationChannel, type ConversationRecord } from "./historyStore";
-import ConversationDetailDialog from "./ConversationDetailDialog";
 
 const CHANNEL_CHIP: Record<ConversationChannel, string> = {
   web: "chip-primary",
@@ -67,11 +67,18 @@ function FilterDropdown({
 }
 
 export default function HistoryTab({ agentId }: { agentId: string }) {
+  const [params, setParams] = useSearchParams();
+  const selectedId = params.get("conversationId");
+  const selectConversation = (id: string) => {
+    const next = new URLSearchParams(params);
+    next.set("conversationId", id);
+    setParams(next, { replace: true });
+  };
+
   const [query, setQuery] = useState("");
   const [channelFilter, setChannelFilter] = useState("all");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
   const [page, setPage] = useState(1);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const PAGE_SIZE = 8;
 
   const allConversations = useMemo(() => historyStore.list(agentId), [agentId]);
@@ -142,7 +149,7 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
       ) : (
         <>
           <div className="rounded-xl border border-border overflow-hidden">
-            <div className="grid grid-cols-[1fr,1fr,110px,1fr,100px] gap-3 px-6 py-2.5 bg-surface-muted section-eyebrow">
+            <div className="grid grid-cols-[165px,100px,110px,1fr,80px] gap-3 px-6 py-2.5 bg-surface-muted section-eyebrow">
               <div>Ended</div><div>Conversation ID</div><div>Channel</div><div>User</div><div>Messages</div>
             </div>
             <div className="divide-y divide-border">
@@ -150,13 +157,15 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
                 <button
                   key={c.id}
                   type="button"
-                  onClick={() => setSelectedId(c.id)}
-                  className="w-full grid grid-cols-[1fr,1fr,110px,1fr,100px] gap-3 px-6 py-3 items-center hover:bg-surface-muted/50 transition-base text-left"
+                  onClick={() => selectConversation(c.id)}
+                  className={`w-full grid grid-cols-[165px,100px,110px,1fr,80px] gap-3 px-6 py-3 items-center transition-base text-left ${
+                    c.id === selectedId ? "bg-primary-soft" : "hover:bg-surface-muted/50"
+                  }`}
                 >
-                  <div className="text-sm text-muted-foreground">{format(new Date(c.endedAt), "dd/MM/yyyy - HH:mm")}</div>
-                  <div className="text-sm font-mono">{c.id}</div>
+                  <div className="text-sm text-muted-foreground whitespace-nowrap">{format(new Date(c.endedAt), "dd/MM/yyyy - HH:mm")}</div>
+                  <div className="text-sm font-mono truncate">{c.id}</div>
                   <div>
-                    <span className={`chip ${CHANNEL_CHIP[c.channel]} text-xs`}>
+                    <span className={`chip ${CHANNEL_CHIP[c.channel]} text-xs whitespace-nowrap`}>
                       {CHANNEL_META[c.channel].emoji} {CHANNEL_META[c.channel].label}
                     </span>
                   </div>
@@ -194,13 +203,6 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
           )}
         </>
       )}
-
-      <ConversationDetailDialog
-        open={!!selectedId}
-        onOpenChange={v => !v && setSelectedId(null)}
-        agentId={agentId}
-        conversationId={selectedId}
-      />
     </div>
   );
 }
