@@ -2,7 +2,7 @@ import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { createPortal } from "react-dom";
 
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, BookOpen01Icon, Cancel01Icon, BoltIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, UserMultipleIcon, TextBoldIcon, TextItalicIcon, TextStrikethroughIcon, Heading01Icon, Heading02Icon, LeftToRightListBulletIcon, LeftToRightListNumberIcon, CodeIcon, Copy01Icon, SourceCodeIcon, Wrench01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
+import { Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, BookOpen01Icon, Cancel01Icon, BoltIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, UserMultipleIcon, TextBoldIcon, TextItalicIcon, TextStrikethroughIcon, Heading01Icon, Heading02Icon, LeftToRightListBulletIcon, LeftToRightListNumberIcon, CodeIcon, Copy01Icon, SourceCodeIcon, GridViewIcon, Share08Icon, ApiIcon, TelegramIcon, WhatsappIcon, MessengerIcon, Wrench01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
 import { useEffect, useRef, useState } from "react";
 import AgentToolsTab from "@/components/tool-builder/AgentToolsTab";
 import TasksGrid from "@/components/tasks/TasksGrid";
@@ -155,8 +155,8 @@ export default function AgentBuilder() {
           className="border-r border-border overflow-hidden shrink-0 flex flex-col h-full"
           style={{
             background:"#ffffff",
-            width: buildMode === "manual" ? "240px" : "0px",
-            opacity: buildMode === "manual" ? 1 : 0,
+            width: (buildMode === "manual" && tab === "build") ? "240px" : "0px",
+            opacity: (buildMode === "manual" && tab === "build") ? 1 : 0,
             transition: "width 320ms cubic-bezier(0.4,0,0.2,1), opacity 280ms ease",
             minWidth: 0,
           }}
@@ -264,7 +264,7 @@ export default function AgentBuilder() {
               {tab === "build" && section === "model" && <PlaceholderTab title="Model" />}
               {tab === "build" && !["instructions","knowledge","history","skills","guardrails","model"].includes(section) && <PlaceholderTab title={section} />}
               {tab === "test" && <PlaceholderTab title="Test" />}
-              {tab === "deploy" && <PlaceholderTab title="Deploy" />}
+              {tab === "deploy" && <DeployTab agentVersion="v1.0.2" />}
               {tab === "insights" && <PerformanceTab />}
             </div>
           </div>
@@ -1113,6 +1113,93 @@ function PerformanceTab() {
 /* TOOLS — moved to src/components/tool-builder/AgentToolsTab.tsx */
 
 /* ============ PLACEHOLDER ============ */
+const EXTERNAL_DEPLOY_CHANNELS = [
+  { id: "web",       name: "Web widget", sub: "Web",     icon: Globe02Icon,   color: "text-foreground" },
+  { id: "zalo",      name: "Zalo",       sub: "Nhắn tin", icon: null,          color: "" },
+  { id: "messenger", name: "Messenger",  sub: "Nhắn tin", icon: MessengerIcon, color: "text-[#0084FF]" },
+  { id: "whatsapp",  name: "WhatsApp",   sub: "Nhắn tin", icon: WhatsappIcon,  color: "text-[#25D366]" },
+  { id: "telegram",  name: "Telegram",   sub: "Nhắn tin", icon: TelegramIcon,  color: "text-[#26A5E4]" },
+  { id: "api",       name: "API",        sub: "API",      icon: ApiIcon,       color: "text-foreground" },
+];
+
+function DeployTab({ agentVersion }: { agentVersion: string }) {
+  return (
+    <div className="max-w-[1040px] mx-auto px-8 py-8">
+      {/* Header */}
+      <div className="flex items-start gap-3 mb-6">
+        <div className="w-11 h-11 rounded-xl bg-primary-soft flex items-center justify-center shrink-0">
+          <HugeiconsIcon icon={GridViewIcon} size={20} className="text-primary" />
+        </div>
+        <div>
+          <h1 className="text-xl font-semibold">Kênh triển khai</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Agent này đang phục vụ ở đâu, và đang chạy phiên bản nào.</p>
+        </div>
+      </div>
+
+      {/* Version / channel summary bar */}
+      <div className="rounded-xl border border-border bg-surface flex items-center justify-between px-5 py-4 mb-8">
+        <div className="flex items-center gap-10">
+          <div>
+            <p className="text-xs text-muted-foreground mb-1">Phiên bản đang phục vụ</p>
+            <p className="text-base font-semibold font-mono">{agentVersion}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground mb-1">Kênh đang phát hành</p>
+            <p className="text-base font-semibold">0</p>
+          </div>
+        </div>
+        <button className="btn-primary rounded-full h-10 px-4">
+          <HugeiconsIcon icon={Rocket01Icon} size={14} /> Chọn phiên bản phát hành
+        </button>
+      </div>
+
+      {/* Agent Workspace */}
+      <div className="mb-8">
+        <div className="flex items-baseline gap-2 mb-3">
+          <h2 className="text-sm font-semibold">Agent Workspace</h2>
+          <span className="text-xs text-muted-foreground">Chưa mở cho ai</span>
+        </div>
+        <div className="rounded-2xl border-2 border-dashed border-border flex flex-col items-center justify-center text-center py-16 px-6">
+          <div className="w-12 h-12 rounded-xl bg-surface-muted flex items-center justify-center mb-4">
+            <HugeiconsIcon icon={Share08Icon} size={20} className="text-muted-foreground" />
+          </div>
+          <h3 className="text-base font-semibold mb-1.5">Agent chưa tới tay ai</h3>
+          <p className="text-sm text-muted-foreground max-w-sm mb-5 leading-relaxed">
+            Phát hành để mở agent cho một nhóm nhỏ trước, rồi mở rộng dần.
+          </p>
+          <button className="btn-primary h-9 px-4 rounded-lg">Phát hành</button>
+        </div>
+      </div>
+
+      {/* External channels */}
+      <div>
+        <div className="flex items-baseline gap-2 mb-3">
+          <h2 className="text-sm font-semibold">Kênh ngoài</h2>
+          <span className="text-xs text-muted-foreground">Chưa khả dụng</span>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          {EXTERNAL_DEPLOY_CHANNELS.map(c => (
+            <div
+              key={c.id}
+              className="flex items-center gap-3 px-4 py-3.5 rounded-xl border border-border bg-surface-muted/40 opacity-70 cursor-not-allowed"
+            >
+              <div className="w-8 h-8 rounded-lg bg-surface border border-border flex items-center justify-center shrink-0">
+                {c.icon
+                  ? <HugeiconsIcon icon={c.icon} size={16} className={c.color} />
+                  : <span className="text-[11px] font-bold" style={{ color: "#0068FF" }}>Zalo</span>}
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium truncate">{c.name}</p>
+                <p className="text-xs text-muted-foreground truncate">{c.sub}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PlaceholderTab({ title }: { title: string }) {
   return (
     <div className="h-full flex flex-col items-center justify-center text-center p-10 animate-fade-up">
