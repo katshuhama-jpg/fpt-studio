@@ -9,6 +9,7 @@ import TasksGrid from "@/components/tasks/TasksGrid";
 import BusinessProcessesGrid from "@/components/business-processes/BusinessProcessesGrid";
 import TriggersTab from "@/components/configure/TriggersTab";
 import GuardrailsTab from "@/components/configure/GuardrailsTab";
+import HistoryTab from "@/components/history/HistoryTab";
 import ChatOptimizationTab from "@/components/configure/ChatOptimizationTab";
 import { businessProcessStore } from "@/components/business-processes/businessProcessStore";
 import { taskStore } from "@/components/tasks/taskStore";
@@ -22,13 +23,14 @@ import BusinessProcessTree from "@/components/general/BusinessProcessTree";
 type Tab = "build" | "test" | "deploy" | "insights";
 
 const developNav = [
-  { id: "instructions", label: "Instructions", icon: FileEditIcon,  status: "done" },
-  { id: "model",        label: "Model",         icon: CpuIcon,       status: "done" },
-  { id: "skills",       label: "Skills",         icon: PuzzleIcon,    status: "empty" },
-  { id: "guardrails",   label: "Guardrails",     icon: Shield01Icon,    status: "warn" },
-  { id: "knowledge",    label: "Knowledge",      icon: NoteIcon,        comingSoon: true },
-  { id: "triggers",     label: "Triggers",       icon: TimeScheduleIcon, comingSoon: true },
-  { id: "sub-agents",   label: "Sub-Agents",     icon: UserMultipleIcon,    comingSoon: true },
+  { id: "instructions", label: "Instructions", icon: FileEditIcon },
+  { id: "model",        label: "Model",         icon: CpuIcon,          hidden: true },
+  { id: "skills",       label: "Skills",         icon: PuzzleIcon,      hidden: true },
+  { id: "guardrails",   label: "Guardrails",     icon: Shield01Icon,    hidden: true },
+  { id: "knowledge",    label: "Knowledge",      icon: NoteIcon },
+  { id: "history",      label: "History",        icon: HistoryIcon },
+  { id: "triggers",     label: "Triggers",       icon: TimeScheduleIcon, comingSoon: true, hidden: true },
+  { id: "sub-agents",   label: "Sub-Agents",     icon: UserMultipleIcon, comingSoon: true, hidden: true },
 ];
 
 const monitorNav = [
@@ -71,7 +73,7 @@ export default function AgentBuilder() {
   const setTab = (t: Tab) => setParams({ tab: t, section: "instructions" });
   const setSection = (s: string) => setParams({ tab, section: s });
 
-  const nav = developNav;
+  const nav = developNav.filter((it: any) => !it.hidden);
   const currentSectionLabel =
     developNav.find((i: any) => i.id === section)?.label ?? section;
 
@@ -161,7 +163,7 @@ export default function AgentBuilder() {
         >
           {/* Nav items */}
           <nav className="flex-1 px-2 pt-2 pb-1 overflow-y-auto flex flex-col" style={{ gap: "4px" }}>
-            {developNav.map((it: any) => (
+            {nav.map((it: any) => (
               <button
                 key={it.id}
                 onClick={() => !it.comingSoon && setSection(it.id)}
@@ -256,10 +258,11 @@ export default function AgentBuilder() {
             <div className="flex-1 overflow-y-auto bg-background">
               {tab === "build" && section === "instructions" && <GeneralTab onRefineWithAI={() => setBuildMode("ai")} onChatToTest={() => { setBuildMode("manual"); setPreviewView("chat"); }} />}
               {tab === "build" && section === "knowledge" && <KnowledgeTab />}
+              {tab === "build" && section === "history" && <HistoryTab agentId={id ?? "new"} />}
               {tab === "build" && section === "skills" && <PlaceholderTab title="Skills" />}
               {tab === "build" && section === "guardrails" && <GuardrailsTab agentId={id ?? "new"} />}
               {tab === "build" && section === "model" && <PlaceholderTab title="Model" />}
-              {tab === "build" && !["instructions","knowledge","skills","guardrails","model"].includes(section) && <PlaceholderTab title={section} />}
+              {tab === "build" && !["instructions","knowledge","history","skills","guardrails","model"].includes(section) && <PlaceholderTab title={section} />}
               {tab === "test" && <PlaceholderTab title="Test" />}
               {tab === "deploy" && <PlaceholderTab title="Deploy" />}
               {tab === "insights" && <PerformanceTab />}
