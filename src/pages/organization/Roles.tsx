@@ -214,6 +214,55 @@ function RoleModal({
   );
 }
 
+/* ─── Delete role confirmation (popup) ─────────────────────────────────── */
+function ConfirmDeleteRoleModal({
+  roleName, memberCount, onClose, onConfirm,
+}: {
+  roleName: string;
+  memberCount: number;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative w-[92vw] sm:w-[420px] bg-white rounded-2xl shadow-2xl p-6" style={{ animation: "fadeScaleIn 0.18s ease" }}>
+        <div className="flex items-start gap-3 mb-6">
+          <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 bg-[hsl(var(--destructive-soft))] text-destructive">
+            <Trash2 size={18} />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold">Delete role "{roleName}"?</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              {memberCount > 0
+                ? `${memberCount} member${memberCount === 1 ? "" : "s"} using this role will be moved to Viewer.`
+                : "This action can't be undone."}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-2">
+          <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">
+            Cancel
+          </button>
+          <button onClick={onConfirm} className="h-9 px-4 rounded-xl bg-destructive text-white text-sm font-medium hover:opacity-90 transition-base">
+            Delete
+          </button>
+        </div>
+      </div>
+      <style>{`@keyframes fadeScaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}`}</style>
+    </div>,
+    document.body
+  );
+}
+
 /* ─── Permissions reference modal ──────────────────────────────────────── */
 function PermissionsModal({ onClose }: { onClose: () => void }) {
   useEffect(() => {
@@ -304,6 +353,7 @@ export default function Roles() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const editingRole = roles.find(r => r.id === editingId) ?? null;
+  const confirmDeleteRole = roles.find(r => r.id === confirmDeleteId) ?? null;
 
   const allMembers = useMemo(() => collectMembers(tree), [tree]);
   const roleIdSet = new Set(roles.map(r => r.id));
@@ -342,6 +392,14 @@ export default function Roles() {
         />
       )}
       {showPermissions && <PermissionsModal onClose={() => setShowPermissions(false)} />}
+      {confirmDeleteRole && (
+        <ConfirmDeleteRoleModal
+          roleName={confirmDeleteRole.name}
+          memberCount={memberCountByRole.get(confirmDeleteRole.id) ?? 0}
+          onClose={() => setConfirmDeleteId(null)}
+          onConfirm={() => { handleDelete(confirmDeleteRole.id); setConfirmDeleteId(null); }}
+        />
+      )}
       {editingRole && (
         <RoleModal
           title={editingRole.isDefault ? `View ${editingRole.name}` : `Edit ${editingRole.name}`}
@@ -387,40 +445,14 @@ export default function Roles() {
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {!r.isDefault && (
-                  confirmDeleteId === r.id ? (
-                    <div className="flex flex-col items-end gap-1.5" onClick={e => e.stopPropagation()}>
-                      <span className="text-xs text-foreground text-right max-w-[280px]">
-                        {(memberCountByRole.get(r.id) ?? 0) > 0
-                          ? `Delete role "${r.name}"? ${memberCountByRole.get(r.id)} member${memberCountByRole.get(r.id) === 1 ? "" : "s"} using this role will be moved to Viewer.`
-                          : `Delete role "${r.name}"?`}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => { handleDelete(r.id); setConfirmDeleteId(null); }}
-                          className="h-7 px-3 rounded-lg bg-destructive text-white text-xs font-medium"
-                        >
-                          Delete
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmDeleteId(null)}
-                          className="h-7 px-3 rounded-lg border border-border text-xs font-medium"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={e => { e.stopPropagation(); setConfirmDeleteId(r.id); }}
-                      className="w-7 h-7 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-surface-muted flex items-center justify-center text-muted-foreground hover:text-destructive transition-base"
-                      aria-label={`Delete ${r.name}`}
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  )
+                  <button
+                    type="button"
+                    onClick={e => { e.stopPropagation(); setConfirmDeleteId(r.id); }}
+                    className="w-7 h-7 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-surface-muted flex items-center justify-center text-muted-foreground hover:text-destructive transition-base"
+                    aria-label={`Delete ${r.name}`}
+                  >
+                    <Trash2 size={13} />
+                  </button>
                 )}
                 <ChevronRight size={14} className="text-muted-foreground shrink-0" />
               </div>
