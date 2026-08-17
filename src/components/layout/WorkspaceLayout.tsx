@@ -42,7 +42,7 @@ const groups: Group[] = [
   },
   {
     id: "workspace",
-    label: "Governance",
+    label: "Management",
     items: [
       { to: "/roles", label: "Roles", icon: Shield },
       { to: "/members", label: "Members", icon: Users },
@@ -324,7 +324,7 @@ type AppOption = { key: "workspace" | "organization"; label: string; short: stri
 
 const APP_OPTIONS: AppOption[] = [
   { key: "workspace", label: "Agent Console", short: "Agent Console", desc: "Build and manage agents, knowledge, skills, connectors & governance", icon: Bot, to: "/" },
-  { key: "organization", label: "Organization Management", short: "Organization Management", desc: "Manage organization structure & general settings", icon: Building2, to: "/organization" },
+  { key: "organization", label: "My Organization", short: "My Organization", desc: "Manage organization structure & general settings", icon: Building2, to: "/organization" },
 ];
 
 function AppSwitcher({ collapsed, inOrganization }: { collapsed: boolean; inOrganization: boolean }) {
