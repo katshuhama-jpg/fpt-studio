@@ -34,10 +34,10 @@ export const featureGroups: FeatureGroup[] = [
     const singular = singularOf(thing);
     const permissions: Permission[] = [
       { id: `${id}.publish`, name: `Publish ${thing}`, desc: `Make a personal ${singular} available to the whole workspace, or share it with specific teammates.` },
-      { id: `${id}.manage`, name: `Manage ${thing}`, desc: `Edit the configuration of a live ${singular} in the workspace.` },
+      { id: `${id}.manage`, name: `Manage ${thing}`, desc: `Edit a live ${singular}'s configuration in the workspace.` },
     ];
     if (id === "agents") {
-      permissions.push({ id: "agents.pause", name: "Pause agents", desc: "Pause or resume a live agent in the workspace, taking it temporarily offline without deleting it." });
+      permissions.push({ id: "agents.pause", name: "Pause agents", desc: "Pause or resume a live agent in the workspace without deleting it." });
     }
     permissions.push({ id: `${id}.delete`, name: `Delete ${thing}`, desc: `Permanently delete a live ${singular} from the workspace.` });
     return { id, label, icon, section: "console" as Section, permissions };
@@ -50,6 +50,7 @@ export const featureGroups: FeatureGroup[] = [
     icon: Shield,
     section: "governance",
     permissions: [
+      { id: "roles.view", name: "View roles", desc: "See the list of roles and what each one grants." },
       { id: "roles.create", name: "Create roles", desc: "Create a new custom role." },
       { id: "roles.edit", name: "Edit roles", desc: "Change an existing role's name or the permissions it grants." },
       { id: "roles.delete", name: "Delete roles", desc: "Delete a custom role that's no longer needed." },
@@ -61,6 +62,7 @@ export const featureGroups: FeatureGroup[] = [
     icon: Users,
     section: "governance",
     permissions: [
+      { id: "members.view", name: "View members", desc: "See the list of members and the role each one has." },
       { id: "members.invite", name: "Invite members", desc: "Invite a new person to join the organization." },
       { id: "members.manage", name: "Manage members", desc: "Reassign a member's role, or move them between units." },
       { id: "members.remove", name: "Remove members", desc: "Remove a member from the organization." },

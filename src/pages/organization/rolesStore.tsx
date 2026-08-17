@@ -18,6 +18,8 @@ const BUILDER_IDS = new Set([
 ]);
 const VIEWER_IDS = new Set([
   "structure.view",
+  "roles.view",
+  "members.view",
 ]);
 
 const SEED_ROLES: RoleDef[] = [
