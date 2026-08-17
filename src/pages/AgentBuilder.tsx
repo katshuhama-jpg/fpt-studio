@@ -1358,19 +1358,29 @@ function VersionSelectModal({ currentVersion, onClose, onRelease }: {
   );
 }
 
+const AUDIENCE_INFO: Record<string, { name: string; sub: string }> = {
+  workspace: { name: "Trang Nguyen Huyen Workspace", sub: "Everyone in Workspace" },
+  org:       { name: "Trang Nguyen Huyen Workspace", sub: "Company / Department" },
+  me:        { name: "Trang Nguyen Huyen", sub: "Only me" },
+};
+
 function DeployTab({ agentVersion }: { agentVersion: string }) {
   const [showPublish, setShowPublish] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showVersionSelect, setShowVersionSelect] = useState(false);
-  const [published, setPublished] = useState<string | null>(null);
   const [servingVersion, setServingVersion] = useState(agentVersion);
+  const [recipients, setRecipients] = useState<{ id: number; name: string; sub: string }[]>([]);
 
   return (
     <div className="max-w-[1040px] mx-auto px-8 py-8">
       {showPublish && (
         <PublishAgentModal
           onClose={() => setShowPublish(false)}
-          onPublish={audience => { setPublished(audience); setShowSuccess(true); }}
+          onPublish={audience => {
+            const info = AUDIENCE_INFO[audience] ?? AUDIENCE_INFO.me;
+            setRecipients(prev => [...prev, { id: Date.now(), name: info.name, sub: info.sub }]);
+            setShowSuccess(true);
+          }}
         />
       )}
       {showSuccess && (
@@ -1416,20 +1426,53 @@ function DeployTab({ agentVersion }: { agentVersion: string }) {
 
       {/* Agent Workspace */}
       <div className="mb-8">
-        <div className="flex items-baseline gap-2 mb-3">
+        <div className="flex items-center gap-2 mb-3">
           <h2 className="text-sm font-semibold">Agent Workspace</h2>
-          <span className="text-xs text-muted-foreground">Not open to anyone yet</span>
+          {recipients.length > 0 ? (
+            <>
+              <span className="text-xs text-muted-foreground">{recipients.length} recipient{recipients.length > 1 ? "s" : ""}</span>
+              <a href="#" className="text-xs font-medium text-primary hover:underline flex items-center gap-0.5 ml-auto">
+                Open in workspace <HugeiconsIcon icon={ChevronRightIcon} size={12} />
+              </a>
+            </>
+          ) : (
+            <span className="text-xs text-muted-foreground">Not open to anyone yet</span>
+          )}
         </div>
-        <div className="rounded-2xl border-2 border-dashed border-border flex flex-col items-center justify-center text-center py-16 px-6">
-          <div className="w-12 h-12 rounded-xl bg-surface-muted flex items-center justify-center mb-4">
-            <HugeiconsIcon icon={Share08Icon} size={20} className="text-muted-foreground" />
+
+        {recipients.length === 0 ? (
+          <div className="rounded-2xl border-2 border-dashed border-border flex flex-col items-center justify-center text-center py-16 px-6">
+            <div className="w-12 h-12 rounded-xl bg-surface-muted flex items-center justify-center mb-4">
+              <HugeiconsIcon icon={Share08Icon} size={20} className="text-muted-foreground" />
+            </div>
+            <h3 className="text-base font-semibold mb-1.5">No one has this agent yet</h3>
+            <p className="text-sm text-muted-foreground max-w-sm mb-5 leading-relaxed">
+              Publish to open this agent to a small group first, then expand.
+            </p>
+            <button onClick={() => setShowPublish(true)} className="btn-primary">Publish</button>
           </div>
-          <h3 className="text-base font-semibold mb-1.5">No one has this agent yet</h3>
-          <p className="text-sm text-muted-foreground max-w-sm mb-5 leading-relaxed">
-            Publish to open this agent to a small group first, then expand.
-          </p>
-          <button onClick={() => setShowPublish(true)} className="btn-primary">Publish</button>
-        </div>
+        ) : (
+          <div className="rounded-xl border border-border overflow-hidden">
+            {recipients.map((r, i) => (
+              <div key={r.id} className={`flex items-center gap-3 px-4 py-3 ${i > 0 ? "border-t border-border" : ""}`}>
+                <div className="w-9 h-9 rounded-lg bg-surface-muted flex items-center justify-center shrink-0">
+                  <HugeiconsIcon icon={UserIcon} size={16} className="text-muted-foreground" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold truncate">{r.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{r.sub}</p>
+                </div>
+                <button
+                  onClick={() => setRecipients(prev => prev.filter(x => x.id !== r.id))}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-destructive hover:bg-destructive/10 transition-base shrink-0"
+                  title="Remove"
+                >
+                  <HugeiconsIcon icon={Delete01Icon} size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* External channels */}
