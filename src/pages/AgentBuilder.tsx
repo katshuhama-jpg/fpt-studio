@@ -1488,7 +1488,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
         {/* Body */}
         <div className="flex-1 overflow-y-auto">
           {tab === "config" ? (
-            <div className="px-6 py-5 max-w-[620px] mx-auto">
+            <div className="px-6 py-5">
               <p className="text-sm text-muted-foreground leading-relaxed mb-6">
                 Configure live chat integration for your business website by setting up allowed domains. You can then use the URL to interact directly with the Agent or embed the integration script into your website.
               </p>
