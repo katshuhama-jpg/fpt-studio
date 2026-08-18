@@ -1723,20 +1723,19 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
               </div>
 
               {/* Live preview */}
-              <div className="w-[320px] shrink-0 bg-surface-muted/50 p-4">
-                <div className="rounded-xl border border-border bg-white shadow-sm overflow-hidden flex flex-col h-full">
-                  <div className="flex items-center justify-center gap-5 border-b border-border shrink-0" style={{ height: "49px" }}>
-                    {(["minimized", "welcome", "chat"] as const).map(s => (
-                      <button
-                        key={s}
-                        onClick={() => setPreviewState(s)}
-                        className={`-mb-px px-0 py-3.5 text-sm font-medium capitalize border-b-2 transition-base ${previewState === s ? "border-primary text-primary font-semibold" : "border-transparent text-muted-foreground hover:text-foreground"}`}
-                      >
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex-1 bg-surface-muted/40 flex items-end justify-end p-4">
+              <div className="w-[320px] shrink-0 border-l border-border flex flex-col">
+                <div className="flex items-center justify-center gap-5 border-b border-border shrink-0" style={{ height: "49px" }}>
+                  {(["minimized", "welcome", "chat"] as const).map(s => (
+                    <button
+                      key={s}
+                      onClick={() => setPreviewState(s)}
+                      className={`-mb-px px-0 py-3.5 text-sm font-medium capitalize border-b-2 transition-base ${previewState === s ? "border-primary text-primary font-semibold" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex-1 flex items-end justify-end p-4">
                     {previewState === "minimized" && (
                       <button
                         className="w-11 h-11 rounded-full flex items-center justify-center shadow-md"
@@ -1793,7 +1792,6 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
                   </div>
                 </div>
               </div>
-            </div>
           )}
         </div>
 
