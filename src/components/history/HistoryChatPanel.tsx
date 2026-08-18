@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { MessageCircle, X } from "lucide-react";
+import { MessageCircle, X, Copy, Check } from "lucide-react";
 import { format } from "date-fns";
 import { historyStore, CHANNEL_META } from "./historyStore";
 import ChannelLogo from "./ChannelLogo";
@@ -14,11 +15,19 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
   const [params, setParams] = useSearchParams();
   const conversationId = params.get("conversationId");
   const record = conversationId ? historyStore.get(agentId, conversationId) : undefined;
+  const [copied, setCopied] = useState(false);
 
   const closePanel = () => {
     const next = new URLSearchParams(params);
     next.set("panel", "hidden");
     setParams(next, { replace: true });
+  };
+
+  const copyId = () => {
+    if (!record) return;
+    navigator.clipboard?.writeText(record.id).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
   };
 
   const hidden = params.get("panel") === "hidden";
@@ -62,7 +71,18 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
                   <X size={16} />
                 </button>
               </div>
-              <div className="text-[10px] font-mono text-muted-foreground truncate mt-2">{record.id}</div>
+              <div className="flex items-center gap-1 mt-2 min-w-0">
+                <span className="text-[10px] font-mono text-muted-foreground truncate">{record.id}</span>
+                <button
+                  type="button"
+                  onClick={copyId}
+                  aria-label="Copy conversation ID"
+                  title="Copy conversation ID"
+                  className="h-5 w-5 shrink-0 flex items-center justify-center rounded text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base"
+                >
+                  {copied ? <Check size={11} className="text-success" /> : <Copy size={11} />}
+                </button>
+              </div>
             </div>
 
             {/* Messages — same bubble styling as PreviewPanel's chat view */}
