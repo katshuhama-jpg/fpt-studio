@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Search, ChevronDown, ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
+import { Search, ChevronDown, ChevronLeft, ChevronRight, Calendar as CalendarIcon, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { format, startOfDay, endOfDay } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -153,6 +153,14 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
     setParams(next, { replace: true });
   };
 
+  const panelHidden = params.get("panel") === "hidden";
+  const togglePanel = () => {
+    const next = new URLSearchParams(params);
+    if (panelHidden) next.delete("panel");
+    else next.set("panel", "hidden");
+    setParams(next, { replace: true });
+  };
+
   const [query, setQuery] = useState("");
   const [channelFilter, setChannelFilter] = useState("all");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
@@ -205,9 +213,20 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
   return (
     <div className="p-8 w-full animate-fade-up">
       <div className="mb-5">
-        <div>
-          <h2 className="font-display text-xl font-semibold">History</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">See past conversations between this agent and its users.</p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="font-display text-xl font-semibold">History</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">See past conversations between this agent and its users.</p>
+          </div>
+          <button
+            type="button"
+            onClick={togglePanel}
+            className="btn-secondary h-9 shrink-0"
+            title={panelHidden ? "Show the conversation panel" : "Hide the conversation panel"}
+          >
+            {panelHidden ? <PanelRightOpen size={14} /> : <PanelRightClose size={14} />}
+            {panelHidden ? "Show conversation" : "Hide conversation"}
+          </button>
         </div>
         <div className="relative mt-4">
           <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />

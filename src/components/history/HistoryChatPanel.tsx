@@ -15,6 +15,8 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
   const conversationId = params.get("conversationId");
   const record = conversationId ? historyStore.get(agentId, conversationId) : undefined;
 
+  if (params.get("panel") === "hidden") return null;
+
   return (
     <aside className="w-[476px] border-l border-border bg-background flex flex-col shrink-0">
       {!record ? (
