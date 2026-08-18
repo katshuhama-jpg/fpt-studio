@@ -1793,6 +1793,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
                   </div>
                 </div>
               </div>
+            </div>
           )}
         </div>
 
