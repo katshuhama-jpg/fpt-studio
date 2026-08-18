@@ -1579,7 +1579,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
                     <button
                       key={t.id}
                       onClick={() => setCustomizeTab(t.id)}
-                      className={`-mb-px py-3.5 text-sm font-medium border-b-2 transition-base ${customizeTab === t.id ? "border-primary text-primary font-semibold" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                      className={`-mb-px px-0 py-3.5 text-sm font-medium border-b-2 transition-base ${customizeTab === t.id ? "border-primary text-primary font-semibold" : "border-transparent text-muted-foreground hover:text-foreground"}`}
                     >
                       {t.label}
                     </button>
@@ -1730,7 +1730,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
                       <button
                         key={s}
                         onClick={() => setPreviewState(s)}
-                        className={`-mb-px py-3.5 text-sm font-medium capitalize border-b-2 transition-base ${previewState === s ? "border-primary text-primary font-semibold" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                        className={`-mb-px px-0 py-3.5 text-sm font-medium capitalize border-b-2 transition-base ${previewState === s ? "border-primary text-primary font-semibold" : "border-transparent text-muted-foreground hover:text-foreground"}`}
                       >
                         {s}
                       </button>
