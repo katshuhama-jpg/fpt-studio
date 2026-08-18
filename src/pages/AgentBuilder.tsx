@@ -1573,19 +1573,20 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
           ) : (
             <div className="flex h-full">
               {/* Settings */}
-              <div className="flex-1 overflow-y-auto px-6 py-5">
-                <div className="flex items-center gap-5 border-b border-border mb-6">
+              <div className="flex-1 overflow-y-auto flex flex-col">
+                <div className="flex items-center gap-5 px-6 border-b border-border shrink-0" style={{ height: "49px" }}>
                   {CUSTOMIZE_SUBTABS.map(t => (
                     <button
                       key={t.id}
                       onClick={() => setCustomizeTab(t.id)}
-                      className={`text-sm pb-2.5 border-b-2 transition-base ${customizeTab === t.id ? "border-primary text-foreground font-semibold" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                      className={`h-full text-sm font-medium border-b-2 transition-base ${customizeTab === t.id ? "border-primary text-primary font-semibold" : "border-transparent text-muted-foreground hover:text-foreground"}`}
                     >
                       {t.label}
                     </button>
                   ))}
                 </div>
 
+                <div className="px-6 py-5">
                 {customizeTab === "theme" && (
                   <div>
                     <ColorField label="Background color" value={theme.background} onChange={v => setTheme(t => ({ ...t, background: v }))} />
@@ -1718,16 +1719,17 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
                     </label>
                   </div>
                 )}
+                </div>
               </div>
 
               {/* Live preview */}
               <div className="w-[300px] shrink-0 border-l border-border flex flex-col">
-                <div className="flex items-center justify-center gap-5 px-3 py-3 border-b border-border shrink-0">
+                <div className="flex items-center justify-center gap-5 border-b border-border shrink-0" style={{ height: "49px" }}>
                   {(["minimized", "welcome", "chat"] as const).map(s => (
                     <button
                       key={s}
                       onClick={() => setPreviewState(s)}
-                      className={`text-xs capitalize pb-1 border-b-2 transition-base ${previewState === s ? "border-primary text-primary font-semibold" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                      className={`h-full text-sm font-medium capitalize border-b-2 transition-base ${previewState === s ? "border-primary text-primary font-semibold" : "border-transparent text-muted-foreground hover:text-foreground"}`}
                     >
                       {s}
                     </button>
