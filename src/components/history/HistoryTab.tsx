@@ -261,11 +261,11 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
         </div>
       ) : (
         <>
-          <div className="rounded-xl border border-border overflow-hidden">
-            <div className="grid grid-cols-[165px,235px,155px,1fr,80px] gap-5 px-6 py-2.5 bg-surface-muted section-eyebrow">
+          <div className="rounded-xl border border-border overflow-x-auto">
+            <div className="grid grid-cols-[165px,235px,155px,1fr,80px] gap-5 px-6 py-2.5 bg-surface-muted section-eyebrow min-w-[980px]">
               <div>Ended</div><div>Conversation ID</div><div>Channel</div><div>User</div><div>Messages</div>
             </div>
-            <div className="divide-y divide-border">
+            <div className="divide-y divide-border min-w-[980px]">
               {shownConversations.map((c: ConversationRecord) => (
                 <button
                   key={c.id}
@@ -281,7 +281,10 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
                     <ChannelLogo channel={c.channel} size={26} />
                     <span className="text-sm truncate">{CHANNEL_META[c.channel].label}</span>
                   </div>
-                  <div className="text-sm truncate">{c.username}</div>
+                  <div className="min-w-0">
+                    <div className="text-sm truncate">{c.username}</div>
+                    <div className="text-xs text-muted-foreground truncate">{c.email ?? "—"}</div>
+                  </div>
                   <div className="text-sm text-muted-foreground">{c.messages.length}</div>
                 </button>
               ))}

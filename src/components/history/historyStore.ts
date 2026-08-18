@@ -46,6 +46,8 @@ export interface ConversationRecord {
   agentId: string;
   channel: ConversationChannel;
   username: string;
+  /** Not every channel captures an email (e.g. anonymous widget chats) — optional on purpose. */
+  email?: string;
   startedAt: number;
   endedAt: number;
   messages: ConversationMessage[];
@@ -100,6 +102,7 @@ function seedAgent(agentId: string) {
       id: pseudoUlid("CV-1042"),
       channel: "messenger",
       username: "Nguyen Thi Lan",
+      email: "nguyen.thi.lan@gmail.com",
       startedAt: now - 45 * MIN,
       endedAt: now - 40 * MIN,
       messages: buildMessages("CV-1042", now - 40 * MIN, [
@@ -113,6 +116,7 @@ function seedAgent(agentId: string) {
       id: pseudoUlid("CV-1041"),
       channel: "zalo",
       username: "Tran Van Hung",
+      email: "tran.van.hung@gmail.com",
       startedAt: now - 3 * 60 * MIN,
       endedAt: now - 2 * 60 * MIN - 55 * MIN,
       messages: buildMessages("CV-1041", now - 2 * 60 * MIN - 55 * MIN, [
@@ -125,6 +129,7 @@ function seedAgent(agentId: string) {
       id: pseudoUlid("CV-1038"),
       channel: "whatsapp",
       username: "Le Thi Mai",
+      email: "le.thi.mai@gmail.com",
       startedAt: now - DAY - 2 * 60 * MIN,
       endedAt: now - DAY,
       messages: buildMessages("CV-1038", now - DAY, [
@@ -139,6 +144,7 @@ function seedAgent(agentId: string) {
       id: pseudoUlid("CV-1035"),
       channel: "api",
       username: "Pham Duc Anh",
+      email: "pham.duc.anh@gmail.com",
       startedAt: now - 2 * DAY - 10 * MIN,
       endedAt: now - 2 * DAY,
       messages: buildMessages("CV-1035", now - 2 * DAY, [
@@ -153,6 +159,7 @@ function seedAgent(agentId: string) {
       id: pseudoUlid("CV-1030"),
       channel: "zalo",
       username: "Hoang Thi Thu",
+      email: "hoang.thi.thu@gmail.com",
       startedAt: now - 4 * DAY - 6 * MIN,
       endedAt: now - 4 * DAY,
       messages: buildMessages("CV-1030", now - 4 * DAY, [
@@ -166,6 +173,7 @@ function seedAgent(agentId: string) {
       id: pseudoUlid("CV-1027"),
       channel: "instagram",
       username: "Vu Minh Khoa",
+      email: "vu.minh.khoa@gmail.com",
       startedAt: now - 6 * DAY - 8 * MIN,
       endedAt: now - 6 * DAY,
       messages: buildMessages("CV-1027", now - 6 * DAY, [
@@ -191,6 +199,7 @@ function seedAgent(agentId: string) {
       id: pseudoUlid("CV-1016"),
       channel: "zalo",
       username: "Bui Thi Ngoc",
+      email: "bui.thi.ngoc@gmail.com",
       startedAt: now - 15 * DAY - 10 * MIN,
       endedAt: now - 15 * DAY,
       messages: buildMessages("CV-1016", now - 15 * DAY, [
@@ -205,6 +214,7 @@ function seedAgent(agentId: string) {
       id: pseudoUlid("CV-1009"),
       channel: "line",
       username: "Ngo Van Phuc",
+      email: "ngo.van.phuc@gmail.com",
       startedAt: now - 22 * DAY - 6 * MIN,
       endedAt: now - 22 * DAY,
       messages: buildMessages("CV-1009", now - 22 * DAY, [
@@ -218,6 +228,7 @@ function seedAgent(agentId: string) {
       id: pseudoUlid("CV-1004"),
       channel: "zalo",
       username: "Dang Thi Hoa",
+      email: "dang.thi.hoa@gmail.com",
       startedAt: now - 28 * DAY - 4 * MIN,
       endedAt: now - 28 * DAY,
       messages: buildMessages("CV-1004", now - 28 * DAY, [
@@ -231,6 +242,7 @@ function seedAgent(agentId: string) {
       id: pseudoUlid("CV-0988"),
       channel: "workspace",
       username: "Trinh Van Duc",
+      email: "trinh.van.duc@gmail.com",
       startedAt: now - 45 * DAY - 4 * MIN,
       endedAt: now - 45 * DAY,
       messages: buildMessages("CV-0988", now - 45 * DAY, [
