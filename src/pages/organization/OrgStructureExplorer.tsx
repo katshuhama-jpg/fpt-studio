@@ -232,7 +232,8 @@ function MemberTypeCell({
                 <Crown size={12} /> Admin
               </div>
               <div className="text-xs text-muted-foreground mt-0.5 leading-snug">
-                Also approves Agents, Skills, and Knowledge published into this unit — and every unit nested below it.
+                Also approves Agents, Knowledge, Skills, and Guardrails published into this unit — and every unit nested below it.
+                <span className="block mt-1 text-muted-foreground/70">This also appears in Unit Admins above.</span>
               </div>
             </div>
             {isAdmin && <Check size={13} className="text-primary shrink-0 mt-0.5" />}
@@ -313,7 +314,11 @@ function AssignAdminPopover({
         type="button"
         onClick={() => setOpen(v => !v)}
         disabled={candidates.length === 0}
-        title={candidates.length === 0 ? "Every member of this unit is already an admin" : undefined}
+        title={
+          candidates.length === 0
+            ? "Every member of this unit is already an admin"
+            : "Adds them to Unit Admins — you can also toggle this per member in the list below."
+        }
         className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-glow transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-primary shrink-0"
       >
         <Plus size={12} /> Assign admin
@@ -407,6 +412,8 @@ export default function OrgStructureExplorer() {
     });
   };
 
+  const hasTreeMatches = treeQuery.trim() ? unitMatches(tree, treeQuery) : true;
+
   const filteredMembers = selected.members.filter(m => {
     const q = memberQuery.trim().toLowerCase();
     if (!q) return true;
@@ -474,10 +481,16 @@ export default function OrgStructureExplorer() {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
-          <TreeRow
-            unit={tree} depth={0} selectedId={selectedId}
-            expanded={expanded} onToggle={toggleExpand} onSelect={selectUnit} query={treeQuery}
-          />
+          {hasTreeMatches ? (
+            <TreeRow
+              unit={tree} depth={0} selectedId={selectedId}
+              expanded={expanded} onToggle={toggleExpand} onSelect={selectUnit} query={treeQuery}
+            />
+          ) : (
+            <div className="text-sm text-muted-foreground border border-dashed border-border rounded-lg py-10 px-3 text-center">
+              No units or people found.
+            </div>
+          )}
         </div>
       </div>
 
@@ -530,7 +543,7 @@ export default function OrgStructureExplorer() {
             />
           </div>
           <p className="text-xs text-muted-foreground mb-2">
-            Unit Admins can approve Agents, Skills, and Knowledge published into this unit and every unit nested below it.
+            Unit Admins can approve Agents, Knowledge, Skills, and Guardrails published into this unit and every unit nested below it.
           </p>
           {effectiveAdmins.length === 0 ? (
             <div className="text-sm text-muted-foreground border border-dashed border-border rounded-lg py-4 text-center">
