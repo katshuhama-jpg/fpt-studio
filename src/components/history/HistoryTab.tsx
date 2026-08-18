@@ -33,7 +33,7 @@ function ChannelFilterDropdown({ value, onChange }: { value: string; onChange: (
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         className={`h-9 ${FILTER_WIDTH} flex items-center gap-2 px-3 rounded-lg border border-border bg-surface text-sm hover:bg-surface-muted transition-base`}
       >
-        {selected && <ChannelLogo channel={selected.id} size={16} />}
+        {selected && <ChannelLogo channel={selected.id} size={18} />}
         <span className="flex-1 min-w-0 truncate text-left">{selected ? selected.label : "All channels"}</span>
         <ChevronDown size={12} className={`text-muted-foreground shrink-0 transition-base ${open ? "rotate-180" : ""}`} />
       </button>
@@ -55,7 +55,7 @@ function ChannelFilterDropdown({ value, onChange }: { value: string; onChange: (
                 value === o.id ? "text-primary font-medium bg-primary-soft" : "text-foreground"
               }`}
             >
-              <ChannelLogo channel={o.id} size={18} />
+              <ChannelLogo channel={o.id} size={22} />
               <span className="truncate">{o.label}</span>
             </button>
           ))}
@@ -243,7 +243,7 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
       ) : (
         <>
           <div className="rounded-xl border border-border overflow-hidden">
-            <div className="grid grid-cols-[160px,150px,140px,1fr,70px] gap-3 px-6 py-2.5 bg-surface-muted section-eyebrow">
+            <div className="grid grid-cols-[165px,235px,155px,1fr,80px] gap-5 px-6 py-2.5 bg-surface-muted section-eyebrow">
               <div>Ended</div><div>Conversation ID</div><div>Channel</div><div>User</div><div>Messages</div>
             </div>
             <div className="divide-y divide-border">
@@ -252,14 +252,14 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
                   key={c.id}
                   type="button"
                   onClick={() => selectConversation(c.id)}
-                  className={`w-full grid grid-cols-[160px,150px,140px,1fr,70px] gap-3 px-6 py-3 items-center transition-base text-left ${
+                  className={`w-full grid grid-cols-[165px,235px,155px,1fr,80px] gap-5 px-6 py-3 items-center transition-base text-left ${
                     c.id === selectedId ? "bg-primary-soft" : "hover:bg-surface-muted/50"
                   }`}
                 >
                   <div className="text-sm text-muted-foreground whitespace-nowrap">{format(new Date(c.endedAt), "dd/MM/yyyy - HH:mm")}</div>
                   <div className="text-sm font-mono truncate">{c.id}</div>
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <ChannelLogo channel={c.channel} size={18} />
+                  <div className="flex items-center gap-2 min-w-0">
+                    <ChannelLogo channel={c.channel} size={26} />
                     <span className="text-sm truncate">{CHANNEL_META[c.channel].label}</span>
                   </div>
                   <div className="text-sm truncate">{c.username}</div>

@@ -34,7 +34,7 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-semibold leading-tight truncate">{record.username}</div>
                 <div className="flex items-center gap-1.5 mt-0.5 text-xs text-muted-foreground">
-                  <ChannelLogo channel={record.channel} size={14} />
+                  <ChannelLogo channel={record.channel} size={16} />
                   <span>{CHANNEL_META[record.channel].label}</span>
                   <span>·</span>
                   <span>{format(new Date(record.endedAt), "dd/MM/yyyy - HH:mm")}</span>
