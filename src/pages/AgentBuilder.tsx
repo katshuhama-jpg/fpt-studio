@@ -1723,7 +1723,8 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
               </div>
 
               {/* Live preview */}
-              <div className="w-[320px] shrink-0 border-l border-border flex flex-col">
+              <div className="w-[352px] shrink-0 p-4 flex flex-col">
+              <div className="flex-1 rounded-2xl border border-border shadow-md overflow-hidden flex flex-col">
                 <div className="flex items-center justify-center gap-5 shrink-0" style={{ height: "49px" }}>
                   {(["minimized", "welcome", "chat"] as const).map(s => (
                     <button
