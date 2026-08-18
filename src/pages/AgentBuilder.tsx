@@ -1574,12 +1574,12 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
             <div className="flex h-full">
               {/* Settings */}
               <div className="flex-1 overflow-y-auto flex flex-col">
-                <div className="flex items-center gap-5 px-6 border-b border-border shrink-0" style={{ height: "49px" }}>
+                <div className="flex items-center gap-6 px-6 border-b border-border shrink-0" style={{ height: "49px" }}>
                   {CUSTOMIZE_SUBTABS.map(t => (
                     <button
                       key={t.id}
                       onClick={() => setCustomizeTab(t.id)}
-                      className={`h-full text-sm font-medium border-b-2 transition-base ${customizeTab === t.id ? "border-primary text-primary font-semibold" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                      className={`-mb-px py-3.5 text-sm font-medium border-b-2 transition-base ${customizeTab === t.id ? "border-primary text-primary font-semibold" : "border-transparent text-muted-foreground hover:text-foreground"}`}
                     >
                       {t.label}
                     </button>
@@ -1723,27 +1723,28 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
               </div>
 
               {/* Live preview */}
-              <div className="w-[300px] shrink-0 border-l border-border flex flex-col">
-                <div className="flex items-center justify-center gap-5 border-b border-border shrink-0" style={{ height: "49px" }}>
-                  {(["minimized", "welcome", "chat"] as const).map(s => (
-                    <button
-                      key={s}
-                      onClick={() => setPreviewState(s)}
-                      className={`h-full text-sm font-medium capitalize border-b-2 transition-base ${previewState === s ? "border-primary text-primary font-semibold" : "border-transparent text-muted-foreground hover:text-foreground"}`}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex-1 bg-surface-muted/60 p-3 flex flex-col">
-                  <div className="rounded-lg border border-border bg-white overflow-hidden shadow-sm flex-1 flex flex-col">
-                    <div className="flex items-center gap-1.5 px-2.5 py-2 border-b border-border bg-surface-muted/70 shrink-0">
-                      <span className="w-2 h-2 rounded-full bg-border" />
-                      <span className="w-2 h-2 rounded-full bg-border" />
-                      <span className="w-2 h-2 rounded-full bg-border" />
-                      <span className="flex-1 h-4 rounded bg-white border border-border ml-1" />
-                    </div>
-                    <div className="flex-1 bg-surface-muted/30 flex items-end justify-end p-3">
+              <div className="w-[320px] shrink-0 bg-surface-muted/50 p-4">
+                <div className="rounded-xl border border-border bg-white shadow-sm overflow-hidden flex flex-col h-full">
+                  <div className="flex items-center justify-center gap-5 border-b border-border shrink-0" style={{ height: "49px" }}>
+                    {(["minimized", "welcome", "chat"] as const).map(s => (
+                      <button
+                        key={s}
+                        onClick={() => setPreviewState(s)}
+                        className={`-mb-px py-3.5 text-sm font-medium capitalize border-b-2 transition-base ${previewState === s ? "border-primary text-primary font-semibold" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex-1 bg-surface-muted/40 p-3 flex flex-col">
+                    <div className="rounded-lg border border-border bg-white overflow-hidden shadow-sm flex-1 flex flex-col">
+                      <div className="flex items-center gap-1.5 px-2.5 py-2 border-b border-border bg-surface-muted/70 shrink-0">
+                        <span className="w-2 h-2 rounded-full bg-border" />
+                        <span className="w-2 h-2 rounded-full bg-border" />
+                        <span className="w-2 h-2 rounded-full bg-border" />
+                        <span className="flex-1 h-4 rounded bg-white border border-border ml-1" />
+                      </div>
+                      <div className="flex-1 bg-surface-muted/30 flex items-end justify-end p-3">
                       {previewState === "minimized" && (
                         <button
                           className="w-11 h-11 rounded-full flex items-center justify-center shadow-md"
@@ -1795,6 +1796,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
                     </div>
                   )}
                     </div>
+                  </div>
                   </div>
                 </div>
               </div>
