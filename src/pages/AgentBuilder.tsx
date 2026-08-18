@@ -1735,7 +1735,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
                     </button>
                   ))}
                 </div>
-                <div className="flex-1 flex items-end justify-end p-4">
+                <div className="flex-1 bg-surface-muted/40 flex items-end justify-end p-4">
                     {previewState === "minimized" && (
                       <button
                         className="w-11 h-11 rounded-full flex items-center justify-center shadow-md"
