@@ -3353,12 +3353,12 @@ function SkillsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:number;
 
 /* ============ Sub-Agents ============ */
 const SUB_AGENT_CONNECTORS = [
-  { id: "gmail",   name: "Gmail",        logo: "G" },
-  { id: "slack",   name: "Slack",        logo: "S" },
-  { id: "drive",   name: "Google Drive", logo: "D" },
-  { id: "sheets",  name: "Sheets",       logo: "Sh" },
-  { id: "notion",  name: "Notion",       logo: "N" },
-  { id: "hubspot", name: "HubSpot",      logo: "H" },
+  { id: "drive",   name: "Google Drive", logo: "D",  category: "Documents",   connected: true,  desc: "Browse, search, and read files and spreadsheets from Google Drive." },
+  { id: "sheets",  name: "Sheets",       logo: "Sh", category: "Documents",   connected: false, desc: "Read and write rows in Google Sheets spreadsheets." },
+  { id: "gmail",   name: "Gmail",        logo: "G",  category: "Email",       connected: true,  desc: "Read, search, and send email from your Gmail mailbox." },
+  { id: "slack",   name: "Slack",        logo: "S",  category: "Messaging",   connected: true,  desc: "Read channels and send messages in your connected Slack workspace." },
+  { id: "notion",  name: "Notion",       logo: "N",  category: "Productivity", connected: false, desc: "Browse and edit pages and databases in your Notion workspace." },
+  { id: "hubspot", name: "HubSpot",      logo: "H",  category: "CRM",         connected: false, desc: "Read and update contacts, deals, and tickets in HubSpot." },
 ];
 
 interface SubAgent {
@@ -3470,30 +3470,38 @@ function InstructionsEditorModal({ value, onClose, onDone }: {
 }
 
 function ConnectorPickerModal({ connectors, added, onToggle, onClose }: {
-  connectors: { id: string; name: string; logo: string }[];
+  connectors: { id: string; name: string; logo: string; category: string; connected: boolean; desc: string }[];
   added: string[];
   onToggle: (id: string) => void;
   onClose: () => void;
 }) {
   const [search, setSearch] = useState("");
-  const filtered = connectors.filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()));
+  const filtered = connectors.filter(c =>
+    !search || c.name.toLowerCase().includes(search.toLowerCase()) || c.desc.toLowerCase().includes(search.toLowerCase())
+  );
+  const categories = Array.from(new Set(filtered.map(c => c.category)));
+  const allSelected = filtered.length > 0 && filtered.every(c => added.includes(c.id));
+  const toggleAll = () => {
+    if (allSelected) { filtered.forEach(c => { if (added.includes(c.id)) onToggle(c.id); }); }
+    else { filtered.forEach(c => { if (!added.includes(c.id)) onToggle(c.id); }); }
+  };
 
   return createPortal(
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-md bg-white rounded-2xl shadow-lg border border-border flex flex-col max-h-[80vh] animate-fade-up">
-        <div className="flex items-start justify-between px-5 pt-5 pb-2 shrink-0">
+      <div className="relative z-10 w-full max-w-xl bg-white rounded-2xl shadow-lg border border-border flex flex-col max-h-[85vh] animate-fade-up">
+        <div className="flex items-start justify-between px-6 pt-6 pb-2 shrink-0">
           <div>
-            <h2 className="text-base font-semibold">Add connectors</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Accounts and systems this sub-agent may use.</p>
+            <h2 className="text-lg font-semibold">Shared connectors</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">What this agent can do.</p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0">
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 mt-0.5">
             <HugeiconsIcon icon={Cancel01Icon} size={16} />
           </button>
         </div>
 
-        <div className="px-5 pb-3 pt-2 shrink-0">
-          <div className="relative">
+        <div className="px-6 pb-4 pt-3 shrink-0 flex items-center gap-3">
+          <div className="relative flex-1">
             <HugeiconsIcon icon={Search01Icon} size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               autoFocus
@@ -3503,27 +3511,69 @@ function ConnectorPickerModal({ connectors, added, onToggle, onClose }: {
               className="w-full h-9 pl-9 pr-3 rounded-lg border border-primary/50 bg-white text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-base"
             />
           </div>
+          <button
+            type="button"
+            onClick={toggleAll}
+            className="flex items-center gap-1.5 text-sm font-medium text-primary hover:underline shrink-0"
+          >
+            <HugeiconsIcon icon={CheckmarkCircle01Icon} size={16} />
+            {allSelected ? "Deselect all" : "Select all"}
+          </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 pb-5 flex flex-col gap-1.5">
-          {filtered.map(c => {
-            const active = added.includes(c.id);
-            return (
-              <div key={c.id} className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-border">
-                <span className="w-8 h-8 rounded-lg bg-surface-muted border border-border flex items-center justify-center text-xs font-bold shrink-0">{c.logo}</span>
-                <span className="text-sm font-medium flex-1">{c.name}</span>
-                <button
-                  type="button"
-                  onClick={() => onToggle(c.id)}
-                  className={`h-7 px-3 rounded-lg text-xs font-semibold transition-base ${
-                    active ? "bg-surface-muted text-muted-foreground hover:text-destructive" : "bg-primary text-primary-foreground hover:opacity-90"
-                  }`}
-                >
-                  {active ? "Remove" : "Add"}
-                </button>
+        <div className="flex-1 overflow-y-auto px-6 pb-4 flex flex-col gap-5">
+          {categories.map(cat => (
+            <div key={cat}>
+              <div className="flex items-center gap-1.5 mb-2">
+                <span className="w-1 h-1 rounded-full bg-muted-foreground/50" />
+                <span className="text-xs font-medium text-muted-foreground">{cat}</span>
               </div>
-            );
-          })}
+              <div className="flex flex-col gap-1.5">
+                {filtered.filter(c => c.category === cat).map(c => {
+                  const active = added.includes(c.id);
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => onToggle(c.id)}
+                      className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-xl border text-left transition-base ${
+                        active ? "border-primary/30 bg-primary-soft" : "border-border hover:bg-surface-muted"
+                      }`}
+                    >
+                      <span className="w-9 h-9 rounded-lg bg-surface-muted border border-border flex items-center justify-center text-xs font-bold shrink-0">{c.logo}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-sm font-semibold">{c.name}</span>
+                          {active && (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0" style={{ background: "#EEF2FF", color: "#4338CA", border: "0.5px solid #C7D2FE" }}>Added · Shared</span>
+                          )}
+                          {!c.connected && (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0" style={{ background: "#FFF7ED", color: "#C2410C", border: "0.5px solid #FED7AA" }}>Not connected</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate">{c.desc}</p>
+                      </div>
+                      <HugeiconsIcon
+                        icon={CheckmarkCircle01Icon}
+                        size={20}
+                        className={`shrink-0 transition-base ${active ? "text-primary" : "text-border"}`}
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-border shrink-0">
+          <button
+            type="button"
+            className="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-border text-sm font-medium text-muted-foreground opacity-70 cursor-not-allowed"
+          >
+            <HugeiconsIcon icon={Add01Icon} size={14} /> Add custom connector
+          </button>
+          <button onClick={onClose} className="btn-primary">Done</button>
         </div>
       </div>
     </div>,
