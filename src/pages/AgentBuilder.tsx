@@ -3469,6 +3469,68 @@ function InstructionsEditorModal({ value, onClose, onDone }: {
   );
 }
 
+function ConnectorPickerModal({ connectors, added, onToggle, onClose }: {
+  connectors: { id: string; name: string; logo: string }[];
+  added: string[];
+  onToggle: (id: string) => void;
+  onClose: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const filtered = connectors.filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()));
+
+  return createPortal(
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-md bg-white rounded-2xl shadow-lg border border-border flex flex-col max-h-[80vh] animate-fade-up">
+        <div className="flex items-start justify-between px-5 pt-5 pb-2 shrink-0">
+          <div>
+            <h2 className="text-base font-semibold">Add connectors</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Accounts and systems this sub-agent may use.</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0">
+            <HugeiconsIcon icon={Cancel01Icon} size={16} />
+          </button>
+        </div>
+
+        <div className="px-5 pb-3 pt-2 shrink-0">
+          <div className="relative">
+            <HugeiconsIcon icon={Search01Icon} size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              autoFocus
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search connectors..."
+              className="w-full h-9 pl-9 pr-3 rounded-lg border border-primary/50 bg-white text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-base"
+            />
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 pb-5 flex flex-col gap-1.5">
+          {filtered.map(c => {
+            const active = added.includes(c.id);
+            return (
+              <div key={c.id} className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-border">
+                <span className="w-8 h-8 rounded-lg bg-surface-muted border border-border flex items-center justify-center text-xs font-bold shrink-0">{c.logo}</span>
+                <span className="text-sm font-medium flex-1">{c.name}</span>
+                <button
+                  type="button"
+                  onClick={() => onToggle(c.id)}
+                  className={`h-7 px-3 rounded-lg text-xs font-semibold transition-base ${
+                    active ? "bg-surface-muted text-muted-foreground hover:text-destructive" : "bg-primary text-primary-foreground hover:opacity-90"
+                  }`}
+                >
+                  {active ? "Remove" : "Add"}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 function CreateSubAgentModal({ onClose, onSave }: {
   onClose: () => void;
   onSave: (agent: Omit<SubAgent, "id">) => void;
@@ -3478,10 +3540,9 @@ function CreateSubAgentModal({ onClose, onSave }: {
   const [model, setModel] = useState("deepseek-v4-flash");
   const [instructions, setInstructions] = useState("");
   const [showInstructionsEditor, setShowInstructionsEditor] = useState(false);
-  const [skillIds, setSkillIds] = useState<number[]>([]);
   const [connectorIds, setConnectorIds] = useState<string[]>([]);
+  const [showConnectorPicker, setShowConnectorPicker] = useState(false);
 
-  const toggleSkill = (id: number) => setSkillIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   const toggleConnector = (id: string) => setConnectorIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
   const canSave = name.trim().length > 0;
@@ -3560,49 +3621,56 @@ function CreateSubAgentModal({ onClose, onSave }: {
           )}
 
           <div>
-            <label className="text-xs font-semibold text-foreground mb-1.5 block">Skills</label>
-            <div className="flex flex-wrap gap-1.5">
-              {WS_SKILLS.map(s => {
-                const active = skillIds.includes(s.id);
-                return (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => toggleSkill(s.id)}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-base ${
-                      active ? "border-primary bg-primary-soft text-primary" : "border-border bg-surface hover:bg-surface-muted text-foreground"
-                    }`}
-                  >
-                    <HugeiconsIcon icon={PuzzleIcon} size={12} />
-                    {s.name}
-                  </button>
-                );
-              })}
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-semibold text-foreground">Connectors</label>
+              <button
+                type="button"
+                onClick={() => setShowConnectorPicker(true)}
+                className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+              >
+                <HugeiconsIcon icon={Add01Icon} size={12} /> Add connector
+              </button>
             </div>
-          </div>
-
-          <div>
-            <label className="text-xs font-semibold text-foreground mb-1.5 block">Connectors</label>
-            <div className="flex flex-wrap gap-1.5">
-              {SUB_AGENT_CONNECTORS.map(c => {
-                const active = connectorIds.includes(c.id);
-                return (
-                  <button
+            {connectorIds.length === 0 ? (
+              <button
+                type="button"
+                onClick={() => setShowConnectorPicker(true)}
+                className="w-full rounded-xl border-2 border-dashed border-border flex flex-col items-center justify-center gap-1.5 py-5 text-center hover:bg-surface-muted transition-base"
+              >
+                <HugeiconsIcon icon={ConnectIcon} size={18} className="text-muted-foreground/50" />
+                <span className="text-xs text-muted-foreground">The outside accounts and systems this sub-agent may use.</span>
+              </button>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {SUB_AGENT_CONNECTORS.filter(c => connectorIds.includes(c.id)).map(c => (
+                  <span
                     key={c.id}
-                    type="button"
-                    onClick={() => toggleConnector(c.id)}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-base ${
-                      active ? "border-primary bg-primary-soft text-primary" : "border-border bg-surface hover:bg-surface-muted text-foreground"
-                    }`}
+                    className="flex items-center gap-1.5 pl-2 pr-1.5 py-1.5 rounded-lg border border-primary bg-primary-soft text-primary text-xs font-medium"
                   >
-                    <span className="w-4 h-4 rounded bg-surface-muted border border-border flex items-center justify-center text-[9px] font-bold shrink-0">{c.logo}</span>
+                    <span className="w-4 h-4 rounded bg-white border border-border flex items-center justify-center text-[9px] font-bold shrink-0 text-foreground">{c.logo}</span>
                     {c.name}
-                  </button>
-                );
-              })}
-            </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleConnector(c.id)}
+                      className="w-4 h-4 rounded flex items-center justify-center hover:bg-primary/10 transition-base"
+                    >
+                      <HugeiconsIcon icon={Cancel01Icon} size={10} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </div>
+
+        {showConnectorPicker && (
+          <ConnectorPickerModal
+            connectors={SUB_AGENT_CONNECTORS}
+            added={connectorIds}
+            onToggle={toggleConnector}
+            onClose={() => setShowConnectorPicker(false)}
+          />
+        )}
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border shrink-0">
@@ -3611,7 +3679,7 @@ function CreateSubAgentModal({ onClose, onSave }: {
             disabled={!canSave}
             onClick={() => {
               if (!canSave) return;
-              onSave({ name: name.trim(), description: description.trim(), model, instructions, skillIds, connectorIds });
+              onSave({ name: name.trim(), description: description.trim(), model, instructions, skillIds: [], connectorIds });
               onClose();
             }}
             className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-base"
