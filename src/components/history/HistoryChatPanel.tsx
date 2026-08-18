@@ -1,5 +1,5 @@
 import { useSearchParams } from "react-router-dom";
-import { MessageCircle, ThumbsUp, ThumbsDown } from "lucide-react";
+import { MessageCircle, X } from "lucide-react";
 import { format } from "date-fns";
 import { historyStore, CHANNEL_META } from "./historyStore";
 import ChannelLogo from "./ChannelLogo";
@@ -11,9 +11,15 @@ import ChannelLogo from "./ChannelLogo";
  * agent live, just read-only.
  */
 export default function HistoryChatPanel({ agentId }: { agentId: string }) {
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const conversationId = params.get("conversationId");
   const record = conversationId ? historyStore.get(agentId, conversationId) : undefined;
+
+  const closePanel = () => {
+    const next = new URLSearchParams(params);
+    next.set("panel", "hidden");
+    setParams(next, { replace: true });
+  };
 
   if (params.get("panel") === "hidden") return null;
 
@@ -29,21 +35,28 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
         </div>
       ) : (
         <>
-          {/* Agent header — mirrors PreviewPanel's chat header */}
-          <div className="px-4 py-3 border-b border-border shrink-0">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-primary-soft flex items-center justify-center text-lg shrink-0">🏦</div>
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold leading-tight truncate">{record.username}</div>
-                <div className="flex items-center gap-1.5 mt-0.5 text-xs text-muted-foreground">
+          {/* Conversation header — no avatar, higher-contrast identity + close */}
+          <div className="px-4 py-3.5 border-b border-border shrink-0">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="text-sm font-semibold leading-tight text-foreground truncate">{record.username}</div>
+                <div className="flex items-center gap-1.5 mt-1.5 text-xs">
                   <ChannelLogo channel={record.channel} size={16} />
-                  <span>{CHANNEL_META[record.channel].label}</span>
-                  <span>·</span>
-                  <span>{format(new Date(record.endedAt), "dd/MM/yyyy - HH:mm")}</span>
+                  <span className="font-medium text-foreground/80">{CHANNEL_META[record.channel].label}</span>
+                  <span className="text-muted-foreground">·</span>
+                  <span className="text-muted-foreground">{format(new Date(record.endedAt), "dd/MM/yyyy - HH:mm")}</span>
                 </div>
               </div>
+              <button
+                type="button"
+                onClick={closePanel}
+                aria-label="Close conversation"
+                className="h-7 w-7 shrink-0 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base"
+              >
+                <X size={16} />
+              </button>
             </div>
-            <div className="text-[10px] font-mono text-muted-foreground truncate mt-1.5 pl-[42px]">{record.id}</div>
+            <div className="text-[10px] font-mono text-muted-foreground truncate mt-2">{record.id}</div>
           </div>
 
           {/* Messages — same bubble styling as PreviewPanel's chat view */}
@@ -63,10 +76,8 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
                   >
                     {m.content}
                   </div>
-                  <div className={`flex items-center gap-1 mt-1 text-[10px] text-muted-foreground ${m.role === "customer" ? "justify-end" : "justify-start"}`}>
-                    <span>{format(new Date(m.at), "HH:mm")}</span>
-                    {m.feedback === "up" && <ThumbsUp size={10} className="text-success" />}
-                    {m.feedback === "down" && <ThumbsDown size={10} className="text-destructive" />}
+                  <div className={`mt-1 text-[10px] text-muted-foreground ${m.role === "customer" ? "text-right" : "text-left"}`}>
+                    {format(new Date(m.at), "HH:mm")}
                   </div>
                 </div>
               </div>
