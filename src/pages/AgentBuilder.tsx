@@ -1736,67 +1736,60 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
                       </button>
                     ))}
                   </div>
-                  <div className="flex-1 bg-surface-muted/40 p-3 flex flex-col">
-                    <div className="rounded-lg border border-border bg-white overflow-hidden shadow-sm flex-1 flex flex-col">
-                      <div className="flex items-center gap-1.5 px-2.5 py-2 border-b border-border bg-surface-muted/70 shrink-0">
-                        <span className="w-2 h-2 rounded-full bg-border" />
-                        <span className="w-2 h-2 rounded-full bg-border" />
-                        <span className="w-2 h-2 rounded-full bg-border" />
-                        <span className="flex-1 h-4 rounded bg-white border border-border ml-1" />
-                      </div>
-                      <div className="flex-1 bg-surface-muted/30 flex items-end justify-end p-3">
-                      {previewState === "minimized" && (
-                        <button
-                          className="w-11 h-11 rounded-full flex items-center justify-center shadow-md"
-                          style={{ background: theme.brand }}
-                        >
-                          <HugeiconsIcon icon={Chat01Icon} size={18} className="text-white" />
-                        </button>
-                      )}
-                      {previewState !== "minimized" && (
-                        <div className="w-full rounded-xl border border-border bg-white shadow-md overflow-hidden flex flex-col" style={{ height: "360px" }}>
-                      <div className="flex items-center justify-between px-4 py-3 shrink-0" style={{ background: theme.header }}>
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
-                            <HugeiconsIcon icon={Chat01Icon} size={13} style={{ color: theme.brandText }} />
+                  <div className="flex-1 bg-surface-muted/40 flex items-end justify-end p-4">
+                    {previewState === "minimized" && (
+                      <button
+                        className="w-11 h-11 rounded-full flex items-center justify-center shadow-md"
+                        style={{ background: theme.brand }}
+                      >
+                        <HugeiconsIcon icon={Chat01Icon} size={18} className="text-white" />
+                      </button>
+                    )}
+                    {previewState !== "minimized" && (
+                      <div className="w-full rounded-xl border border-border bg-white shadow-md overflow-hidden flex flex-col" style={{ height: "380px" }}>
+                        <div className="flex items-center justify-between px-4 py-3 shrink-0" style={{ background: theme.header }}>
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+                              <HugeiconsIcon icon={Chat01Icon} size={13} style={{ color: theme.brandText }} />
+                            </div>
+                            <span className="text-sm font-semibold" style={{ color: theme.brandText }}>{chat.headerTitle}</span>
                           </div>
-                          <span className="text-sm font-semibold" style={{ color: theme.brandText }}>{chat.headerTitle}</span>
+                          <div className="flex items-center gap-2" style={{ color: theme.brandText }}>
+                            <HugeiconsIcon icon={ArrowRight01Icon} size={13} className="rotate-[-45deg]" />
+                            <span className="text-lg leading-none">–</span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2" style={{ color: theme.brandText }}>
-                          <HugeiconsIcon icon={ArrowRight01Icon} size={13} className="rotate-[-45deg]" />
-                          <span className="text-lg leading-none">–</span>
-                        </div>
-                      </div>
-                      {previewState === "welcome" ? (
-                        <div className="flex-1 flex flex-col items-center justify-center text-center px-6" style={{ background: theme.background }}>
-                          <div className="w-16 h-16 rounded-2xl bg-primary-soft flex items-center justify-center mb-4">
-                            <HugeiconsIcon icon={Chat01Icon} size={26} className="text-primary" />
+                        {previewState === "welcome" ? (
+                          <div className="flex-1 flex flex-col items-center justify-center text-center px-6" style={{ background: theme.background }}>
+                            <div className="w-16 h-16 rounded-2xl bg-primary-soft flex items-center justify-center mb-4">
+                              <HugeiconsIcon icon={Chat01Icon} size={26} className="text-primary" />
+                            </div>
+                            <p className="text-base font-bold mb-1" style={{ color: theme.botText }}>{welcome.title}</p>
+                            <p className="text-sm mb-5" style={{ color: theme.botText, opacity: 0.7 }}>{welcome.subtitle}</p>
+                            <button className="w-full h-10 rounded-lg text-sm font-semibold" style={{ background: theme.customerBubble, color: theme.customerText }}>
+                              {welcome.buttonLabel}
+                            </button>
                           </div>
-                          <p className="text-base font-bold mb-1" style={{ color: theme.botText }}>{welcome.title}</p>
-                          <p className="text-sm mb-5" style={{ color: theme.botText, opacity: 0.7 }}>{welcome.subtitle}</p>
-                          <button className="w-full h-10 rounded-lg text-sm font-semibold" style={{ background: theme.customerBubble, color: theme.customerText }}>
-                            {welcome.buttonLabel}
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex-1 flex flex-col p-3 gap-2 overflow-y-auto" style={{ background: theme.background }}>
-                          <div className="self-start max-w-[80%] rounded-xl rounded-tl-sm px-3 py-2 text-xs" style={{ background: theme.botBubble, color: theme.botText }}>
-                            {chat.emptyState}
-                          </div>
-                          <div className="self-end max-w-[80%] rounded-xl rounded-tr-sm px-3 py-2 text-xs" style={{ background: theme.customerBubble, color: theme.customerText }}>
-                            Hi, I need help
-                          </div>
-                          <div className="mt-auto pt-2 border-t border-border">
-                            <div className="h-8 rounded-lg bg-surface-muted flex items-center px-2.5 text-xs text-muted-foreground">
-                              {chat.inputPlaceholder}
+                        ) : (
+                          <div className="flex-1 flex flex-col p-3 gap-2 overflow-y-auto" style={{ background: theme.background }}>
+                            <div className="self-start max-w-[80%] rounded-xl rounded-tl-sm px-3 py-2 text-xs" style={{ background: theme.botBubble, color: theme.botText }}>
+                              {chat.emptyState}
+                            </div>
+                            <div className="self-end max-w-[80%] rounded-xl rounded-tr-sm px-3 py-2 text-xs" style={{ background: theme.customerBubble, color: theme.customerText }}>
+                              Hi, I need help
+                            </div>
+                            <div className="mt-auto pt-2 border-t border-border">
+                              <div className="h-8 rounded-lg bg-surface-muted flex items-center px-2.5 text-xs text-muted-foreground">
+                                {chat.inputPlaceholder}
+                              </div>
                             </div>
                           </div>
+                        )}
+                        <div className="text-center py-2 text-[11px] text-muted-foreground shrink-0 border-t border-border/60">
+                          Powered by FPT.AI
                         </div>
-                      )}
-                    </div>
-                  )}
-                    </div>
-                  </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
