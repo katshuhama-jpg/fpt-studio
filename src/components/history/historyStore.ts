@@ -2,12 +2,35 @@
 // Mirrors the Task store pattern (src/components/tasks/taskStore.ts). Read-only —
 // past conversations can't be edited — so this only exposes list/get, no CRUD.
 
-export type ConversationChannel = "web" | "zalo" | "api";
+import {
+  Building02Icon, MessengerIcon, ApiIcon, HeadsetIcon, WhatsappIcon,
+  InstagramIcon, LineIcon, ViberIcon, GoogleIcon,
+} from "@hugeicons/core-free-icons";
 
-export const CHANNEL_META: Record<ConversationChannel, { label: string; emoji: string }> = {
-  web: { label: "Web widget", emoji: "🌐" },
-  zalo: { label: "Zalo", emoji: "💬" },
-  api: { label: "API", emoji: "⚡" },
+export type ConversationChannel =
+  | "workspace" | "messenger" | "zalo" | "teams" | "hifpt" | "api"
+  | "engage" | "whatsapp" | "instagram" | "line" | "viber" | "google";
+
+/**
+ * `icon` renders via HugeiconsIcon (matches the icon set already used for channel
+ * logos elsewhere in this app, e.g. AgentBuilder.tsx's Deploy tab) for channels that
+ * have one; `textBadge` is the fallback for channels with no matching icon (Zalo,
+ * Microsoft Teams, Hi FPT — same "colored text mark" convention already used for
+ * Zalo in AgentBuilder.tsx's EXTERNAL_DEPLOY_CHANNELS).
+ */
+export const CHANNEL_META: Record<ConversationChannel, { label: string; color: string; icon?: any; textBadge?: string }> = {
+  workspace: { label: "Workspace", icon: Building02Icon, color: "#0F172A" },
+  messenger: { label: "Messenger", icon: MessengerIcon, color: "#0084FF" },
+  zalo: { label: "Zalo", textBadge: "Zalo", color: "#0068FF" },
+  teams: { label: "Microsoft Teams", textBadge: "T", color: "#6264A7" },
+  hifpt: { label: "Hi FPT", textBadge: "Hi", color: "#0068FF" },
+  api: { label: "API", icon: ApiIcon, color: "#64748B" },
+  engage: { label: "Engage", icon: HeadsetIcon, color: "#2563EB" },
+  whatsapp: { label: "WhatsApp", icon: WhatsappIcon, color: "#25D366" },
+  instagram: { label: "Instagram", icon: InstagramIcon, color: "#E4405F" },
+  line: { label: "Line", icon: LineIcon, color: "#00B900" },
+  viber: { label: "Viber", icon: ViberIcon, color: "#7360F2" },
+  google: { label: "Google Business", icon: GoogleIcon, color: "#4285F4" },
 };
 
 export interface ConversationMessage {
@@ -75,7 +98,7 @@ function seedAgent(agentId: string) {
   const seed: Omit<ConversationRecord, "agentId">[] = [
     {
       id: pseudoUlid("CV-1042"),
-      channel: "web",
+      channel: "messenger",
       username: "Nguyen Thi Lan",
       startedAt: now - 45 * MIN,
       endedAt: now - 40 * MIN,
@@ -100,7 +123,7 @@ function seedAgent(agentId: string) {
     },
     {
       id: pseudoUlid("CV-1038"),
-      channel: "web",
+      channel: "whatsapp",
       username: "Le Thi Mai",
       startedAt: now - DAY - 2 * 60 * MIN,
       endedAt: now - DAY,
@@ -141,7 +164,7 @@ function seedAgent(agentId: string) {
     },
     {
       id: pseudoUlid("CV-1027"),
-      channel: "web",
+      channel: "instagram",
       username: "Vu Minh Khoa",
       startedAt: now - 6 * DAY - 8 * MIN,
       endedAt: now - 6 * DAY,
@@ -180,7 +203,7 @@ function seedAgent(agentId: string) {
     },
     {
       id: pseudoUlid("CV-1009"),
-      channel: "web",
+      channel: "line",
       username: "Ngo Van Phuc",
       startedAt: now - 22 * DAY - 6 * MIN,
       endedAt: now - 22 * DAY,
@@ -206,7 +229,7 @@ function seedAgent(agentId: string) {
     },
     {
       id: pseudoUlid("CV-0988"),
-      channel: "web",
+      channel: "workspace",
       username: "Trinh Van Duc",
       startedAt: now - 45 * DAY - 4 * MIN,
       endedAt: now - 45 * DAY,

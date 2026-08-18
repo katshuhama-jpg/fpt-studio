@@ -2,6 +2,7 @@ import { useSearchParams } from "react-router-dom";
 import { MessageCircle, ThumbsUp, ThumbsDown } from "lucide-react";
 import { format } from "date-fns";
 import { historyStore, CHANNEL_META } from "./historyStore";
+import ChannelLogo from "./ChannelLogo";
 
 /**
  * Right-side conversation viewer for the History section — same aside chrome and
@@ -32,8 +33,9 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
               <div className="w-8 h-8 rounded-lg bg-primary-soft flex items-center justify-center text-lg shrink-0">🏦</div>
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-semibold leading-tight truncate">{record.username}</div>
-                <div className="flex items-center gap-1 mt-0.5 text-xs text-muted-foreground">
-                  <span>{CHANNEL_META[record.channel].emoji} {CHANNEL_META[record.channel].label}</span>
+                <div className="flex items-center gap-1.5 mt-0.5 text-xs text-muted-foreground">
+                  <ChannelLogo channel={record.channel} size={14} />
+                  <span>{CHANNEL_META[record.channel].label}</span>
                   <span>·</span>
                   <span>{format(new Date(record.endedAt), "dd/MM/yyyy - HH:mm")}</span>
                 </div>
