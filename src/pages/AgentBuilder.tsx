@@ -3552,7 +3552,10 @@ function ConnectorPickerModal({ connectors, added, onToggle, onClose }: {
               </div>
             )}
           </div>
+        </div>
 
+        <div className="px-6 pb-2 flex items-center justify-between shrink-0">
+          <span className="text-xs text-muted-foreground">{filtered.length} connector{filtered.length === 1 ? "" : "s"}</span>
           <button
             type="button"
             onClick={toggleAll}
