@@ -3481,6 +3481,8 @@ function ConnectorPickerModal({ connectors, added, onToggle, onClose }: {
 }) {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All integrations");
+  const [catOpen, setCatOpen] = useState(false);
+  const catRef = useRef<HTMLDivElement>(null);
   const allSelected = connectors.length > 0 && connectors.every(c => added.includes(c.id));
   const toggleAll = () => {
     if (allSelected) { connectors.forEach(c => { if (added.includes(c.id)) onToggle(c.id); }); }
@@ -3490,6 +3492,12 @@ function ConnectorPickerModal({ connectors, added, onToggle, onClose }: {
     (!search || c.name.toLowerCase().includes(search.toLowerCase())) &&
     (activeCategory === "All integrations" || c.category === activeCategory)
   );
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => { if (catRef.current && !catRef.current.contains(e.target as Node)) setCatOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   return createPortal(
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
@@ -3505,7 +3513,7 @@ function ConnectorPickerModal({ connectors, added, onToggle, onClose }: {
           </button>
         </div>
 
-        <div className="px-6 pb-4 pt-3 shrink-0 flex items-center gap-3">
+        <div className="px-6 pb-4 pt-3 shrink-0 flex items-center gap-2">
           <div className="relative flex-1">
             <HugeiconsIcon icon={Search01Icon} size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -3516,6 +3524,35 @@ function ConnectorPickerModal({ connectors, added, onToggle, onClose }: {
               className="w-full h-9 pl-9 pr-3 rounded-lg border border-primary/50 bg-white text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-base"
             />
           </div>
+
+          <div ref={catRef} className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => setCatOpen(o => !o)}
+              className="h-9 pl-3 pr-2.5 rounded-lg border border-border bg-white text-sm font-medium flex items-center gap-1.5 hover:bg-surface-muted transition-base"
+            >
+              {activeCategory}
+              <HugeiconsIcon icon={ChevronDownIcon} size={13} className={`text-muted-foreground transition-transform ${catOpen ? "rotate-180" : ""}`} />
+            </button>
+            {catOpen && (
+              <div className="absolute z-50 top-full right-0 mt-1 w-[180px] bg-white border border-border rounded-xl shadow-lg overflow-hidden py-1">
+                {CONNECTOR_CATEGORIES.map(cat => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => { setActiveCategory(cat); setCatOpen(false); }}
+                    className={`w-full flex items-center justify-between text-left text-sm px-3.5 py-2 transition-base ${
+                      activeCategory === cat ? "text-primary font-medium bg-primary-soft/40" : "text-foreground hover:bg-surface-muted"
+                    }`}
+                  >
+                    {cat}
+                    {activeCategory === cat && <HugeiconsIcon icon={CheckmarkCircle01Icon} size={13} />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           <button
             type="button"
             onClick={toggleAll}
@@ -3526,48 +3563,30 @@ function ConnectorPickerModal({ connectors, added, onToggle, onClose }: {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto flex min-h-0">
-          {/* Category filter sidebar */}
-          <div className="w-[160px] shrink-0 border-r border-border px-3 py-3 flex flex-col gap-0.5">
-            {CONNECTOR_CATEGORIES.map(cat => (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => setActiveCategory(cat)}
-                className={`text-left text-sm px-3 py-2 rounded-lg transition-base ${
-                  activeCategory === cat ? "bg-primary text-primary-foreground font-medium" : "text-foreground hover:bg-surface-muted"
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-
-          {/* Connector grid */}
-          <div className="flex-1 overflow-y-auto px-5 py-4">
-            <div className="grid grid-cols-3 gap-3">
-              {filtered.map(c => {
-                const active = added.includes(c.id);
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => onToggle(c.id)}
-                    className={`flex items-center gap-2.5 px-3 py-3 rounded-xl border text-left transition-base ${
-                      active ? "border-primary/30 bg-primary-soft" : "border-border hover:bg-surface-muted"
-                    }`}
-                  >
-                    <span className="w-9 h-9 rounded-lg bg-white border border-border flex items-center justify-center text-xs font-bold shrink-0">{c.logo}</span>
-                    <span className="flex-1 min-w-0 text-sm font-semibold truncate">{c.name}</span>
-                    {active && (
-                      <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ background: "#DCFCE7", color: "#15803D" }}>
-                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> Added
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+        {/* Connector grid */}
+        <div className="flex-1 overflow-y-auto px-6 pb-4">
+          <div className="grid grid-cols-3 gap-3">
+            {filtered.map(c => {
+              const active = added.includes(c.id);
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => onToggle(c.id)}
+                  className={`flex items-center gap-2.5 px-3 py-3 rounded-xl border text-left transition-base ${
+                    active ? "border-primary/30 bg-primary-soft" : "border-border hover:bg-surface-muted"
+                  }`}
+                >
+                  <span className="w-9 h-9 rounded-lg bg-white border border-border flex items-center justify-center text-xs font-bold shrink-0">{c.logo}</span>
+                  <span className="flex-1 min-w-0 text-sm font-semibold truncate">{c.name}</span>
+                  {active && (
+                    <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ background: "#DCFCE7", color: "#15803D" }}>
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> Added
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
 
