@@ -97,7 +97,7 @@ export default function AgentBuilder() {
             {([
               { id: "build",    label: "Build",    Icon: PencilEdit01Icon },
               { id: "test",     label: "Test",     Icon: FlaskConicalIcon },
-              { id: "deploy",   label: "Deploy",   Icon: Rocket01Icon },
+              { id: "deploy",   label: "Channels", Icon: GridViewIcon },
               { id: "insights", label: "Insights", Icon: Analytics01Icon },
             ] as const).map(({ id, label, Icon }) => (
               <button key={id} onClick={() => setTab(id as Tab)}
@@ -1381,6 +1381,68 @@ const CUSTOMIZE_SUBTABS = [
   { id: "chat",    label: "Chat" },
 ] as const;
 
+function CounterTextarea({ label, value, onChange, maxLength, placeholder }: { label: string; value: string; onChange: (v: string) => void; maxLength: number; placeholder?: string }) {
+  return (
+    <div>
+      <p className="text-sm font-semibold mb-1.5">{label}</p>
+      <div className="relative">
+        <textarea
+          value={value}
+          maxLength={maxLength}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          rows={3}
+          className="ds-textarea w-full resize-none pb-6"
+        />
+        <span className="absolute right-3 bottom-2 text-xs text-muted-foreground">{value.length}/{maxLength}</span>
+      </div>
+    </div>
+  );
+}
+
+function CounterField({ label, value, onChange, maxLength }: { label: string; value: string; onChange: (v: string) => void; maxLength: number }) {
+  return (
+    <div>
+      <p className="text-sm font-semibold mb-1.5">{label}</p>
+      <div className="relative">
+        <input
+          value={value}
+          maxLength={maxLength}
+          onChange={e => onChange(e.target.value)}
+          className="ds-input w-full pr-14"
+        />
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{value.length}/{maxLength}</span>
+      </div>
+    </div>
+  );
+}
+
+function SwitchField({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className="flex items-center gap-2.5 cursor-pointer select-none">
+      <button
+        type="button"
+        onClick={() => onChange(!checked)}
+        className={`w-10 h-6 rounded-full p-0.5 transition-base shrink-0 ${checked ? "bg-[#22C55E]" : "bg-border-strong"}`}
+      >
+        <div className={`w-5 h-5 rounded-full bg-white shadow-soft transition-base ${checked ? "translate-x-4" : ""}`} />
+      </button>
+      <span className="text-sm">{label}</span>
+    </label>
+  );
+}
+
+function UploadBox({ hint }: { hint: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="w-16 h-16 rounded-xl bg-surface-muted flex items-center justify-center shrink-0">
+        <HugeiconsIcon icon={Upload01Icon} size={18} className="text-muted-foreground" />
+      </div>
+      <p className="text-xs text-muted-foreground leading-relaxed">{hint}</p>
+    </div>
+  );
+}
+
 function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <div>
@@ -1416,10 +1478,10 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
     botText: "#262626",
     header: "#0052CC",
   });
-  const [general, setGeneral] = useState({ position: "right" as "left" | "right", triggerText: "Chat with us", language: "English", showPoweredBy: true });
-  const [starters, setStarters] = useState<string[]>(["How do I reset my password?", "What are your business hours?", "Talk to a human"]);
-  const [welcome, setWelcome] = useState({ title: "Chat with Us", subtitle: "How can I help you?", buttonLabel: "Start chat", askName: true });
-  const [chat, setChat] = useState({ headerTitle: "Test", inputPlaceholder: "Type a message…", emptyState: "Ask me anything…", showTyping: true });
+  const [general, setGeneral] = useState({ companyName: "" });
+  const [starterGreeting, setStarterGreeting] = useState("Hi! How can I help you?");
+  const [welcome, setWelcome] = useState({ enabled: true, guestMode: false, title: "Chat with Us", description: "How can I help you?", buttonLabel: "Start chat", placeholderInput: "Enter your name" });
+  const [chat, setChat] = useState({ headerTitle: "Test", showLogoHeader: true, placeholderMessage: "Enter your message", aiDisclaimer: "" });
 
   const url = "https://agents.fpt.ai/live-chat/chat?tenant_id=01JED250RPXCYQE6MAVTNSQCAM";
 
@@ -1429,7 +1491,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
       tenant_id: "01JED250RPXCYQE6MAVTNSQCAM",
       bot_code: "01JMVB17JRYN1VPBS7N1DWD5HD",
       ui_config: {
-        position: "${general.position}",
+        position: "right",
         hide_greeting: false
       },
       extra: {}
@@ -1579,12 +1641,12 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
             <div className="flex h-full">
               {/* Settings */}
               <div className="flex-1 overflow-y-auto flex flex-col">
-                <div className="flex items-center gap-6 px-6 border-b border-border shrink-0" style={{ height: "49px" }}>
+                <div className="flex items-center gap-6 px-6 shrink-0" style={{ height: "49px" }}>
                   {CUSTOMIZE_SUBTABS.map(t => (
                     <button
                       key={t.id}
-                      onClick={() => setCustomizeTab(t.id)}
-                      className={`-mb-px px-0 py-3.5 text-sm font-medium border-b-2 transition-base ${customizeTab === t.id ? "border-primary text-primary font-semibold" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                      onClick={() => { setCustomizeTab(t.id); setPreviewState(t.id === "chat" ? "chat" : t.id === "starter" ? "minimized" : "welcome"); }}
+                      className={`px-0 py-3.5 text-sm font-medium border-b-2 transition-base ${customizeTab === t.id ? "border-primary text-primary font-semibold" : "border-transparent text-muted-foreground hover:text-foreground"}`}
                     >
                       {t.label}
                     </button>
@@ -1620,142 +1682,123 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
                 )}
 
                 {customizeTab === "general" && (
-                  <div className="flex flex-col gap-5 max-w-md">
+                  <div className="flex flex-col gap-6 max-w-md">
+                    <CounterField label="Company name" value={general.companyName} onChange={v => setGeneral(g => ({ ...g, companyName: v }))} maxLength={30} />
                     <div>
-                      <p className="text-sm font-semibold mb-1.5">Widget position</p>
-                      <div className="flex items-center gap-2">
-                        {(["left", "right"] as const).map(p => (
-                          <button
-                            key={p}
-                            onClick={() => setGeneral(g => ({ ...g, position: p }))}
-                            className={`h-9 px-4 rounded-lg border text-sm font-medium capitalize transition-base ${general.position === p ? "border-primary bg-primary-soft text-primary" : "border-border bg-surface hover:bg-surface-muted"}`}
-                          >
-                            {p}
-                          </button>
-                        ))}
-                      </div>
+                      <p className="text-sm font-semibold mb-1.5">Chatbot icon</p>
+                      <UploadBox hint="Images in 1:1 ratio with minimum size 256 \u00d7 256. Supports PNG/JPG/GIF formats" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold mb-1.5">Trigger button text</p>
-                      <input value={general.triggerText} onChange={e => setGeneral(g => ({ ...g, triggerText: e.target.value }))} className="ds-input w-full" />
+                      <p className="text-sm font-semibold mb-1.5">Brand logo</p>
+                      <UploadBox hint="Images in 1:1 ratio with minimum size 256 \u00d7 256. Supports PNG/JPG/GIF formats" />
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold mb-1.5">Language</p>
-                      <select value={general.language} onChange={e => setGeneral(g => ({ ...g, language: e.target.value }))} className="ds-input w-full">
-                        <option>English</option>
-                        <option>Vietnamese</option>
-                      </select>
-                    </div>
-                    <label className="flex items-center gap-2.5 cursor-pointer">
-                      <input type="checkbox" checked={general.showPoweredBy} onChange={e => setGeneral(g => ({ ...g, showPoweredBy: e.target.checked }))} className="w-4 h-4 accent-primary" />
-                      <span className="text-sm">Show "Powered by FPT.AI" badge</span>
-                    </label>
+                    <button
+                      onClick={() => setGeneral({ companyName: "" })}
+                      className="text-xs font-medium text-primary hover:underline w-fit"
+                    >
+                      Reset default
+                    </button>
                   </div>
                 )}
 
                 {customizeTab === "starter" && (
-                  <div className="max-w-md">
-                    <p className="text-sm font-semibold mb-1.5">Quick start prompts</p>
-                    <p className="text-xs text-muted-foreground mb-3">Suggested questions shown to visitors before they start typing.</p>
-                    <div className="flex flex-col gap-2">
-                      {starters.map((s, i) => (
-                        <div key={i} className="flex items-center gap-2">
-                          <input
-                            value={s}
-                            onChange={e => setStarters(prev => prev.map((x, idx) => idx === i ? e.target.value : x))}
-                            className="ds-input flex-1"
-                          />
-                          <button
-                            onClick={() => setStarters(prev => prev.filter((_, idx) => idx !== i))}
-                            className="w-9 h-9 rounded-lg bg-surface-muted hover:bg-border/40 flex items-center justify-center text-muted-foreground transition-base shrink-0"
-                          >
-                            <HugeiconsIcon icon={MinusSignIcon} size={15} />
-                          </button>
-                        </div>
-                      ))}
-                      <button
-                        onClick={() => setStarters(prev => [...prev, ""])}
-                        className="flex items-center gap-1 text-xs font-medium text-primary hover:underline w-fit mt-1"
-                      >
-                        <HugeiconsIcon icon={Add01Icon} size={12} /> Add prompt
-                      </button>
-                    </div>
+                  <div className="flex flex-col gap-6 max-w-md">
+                    <CounterField label="Greeting" value={starterGreeting} onChange={setStarterGreeting} maxLength={30} />
+                    <button
+                      onClick={() => setStarterGreeting("Hi! How can I help you?")}
+                      className="text-xs font-medium text-primary hover:underline w-fit"
+                    >
+                      Reset default
+                    </button>
                   </div>
                 )}
 
                 {customizeTab === "welcome" && (
-                  <div className="flex flex-col gap-5 max-w-md">
-                    <div>
-                      <p className="text-sm font-semibold mb-1.5">Welcome title</p>
-                      <input value={welcome.title} onChange={e => setWelcome(w => ({ ...w, title: e.target.value }))} className="ds-input w-full" />
+                  <div className="flex flex-col gap-6 max-w-md">
+                    <div className="flex items-center gap-8">
+                      <SwitchField label="Welcome screen" checked={welcome.enabled} onChange={v => setWelcome(w => ({ ...w, enabled: v }))} />
+                      <SwitchField label="Guest mode" checked={welcome.guestMode} onChange={v => setWelcome(w => ({ ...w, guestMode: v }))} />
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold mb-1.5">Welcome subtitle</p>
-                      <input value={welcome.subtitle} onChange={e => setWelcome(w => ({ ...w, subtitle: e.target.value }))} className="ds-input w-full" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold mb-1.5">Start button label</p>
-                      <input value={welcome.buttonLabel} onChange={e => setWelcome(w => ({ ...w, buttonLabel: e.target.value }))} className="ds-input w-full" />
-                    </div>
-                    <label className="flex items-center gap-2.5 cursor-pointer">
-                      <input type="checkbox" checked={welcome.askName} onChange={e => setWelcome(w => ({ ...w, askName: e.target.checked }))} className="w-4 h-4 accent-primary" />
-                      <span className="text-sm">Ask for visitor's name before starting</span>
-                    </label>
+                    <CounterField label="Title" value={welcome.title} onChange={v => setWelcome(w => ({ ...w, title: v }))} maxLength={30} />
+                    <CounterField label="Description" value={welcome.description} onChange={v => setWelcome(w => ({ ...w, description: v }))} maxLength={90} />
+                    <CounterField label="Button text" value={welcome.buttonLabel} onChange={v => setWelcome(w => ({ ...w, buttonLabel: v }))} maxLength={30} />
+                    <CounterField label="Placeholder input" value={welcome.placeholderInput} onChange={v => setWelcome(w => ({ ...w, placeholderInput: v }))} maxLength={30} />
+                    <button
+                      onClick={() => setWelcome({ enabled: true, guestMode: false, title: "Chat with Us", description: "How can I help you?", buttonLabel: "Start chat", placeholderInput: "Enter your name" })}
+                      className="text-xs font-medium text-primary hover:underline w-fit"
+                    >
+                      Reset default
+                    </button>
                   </div>
                 )}
 
                 {customizeTab === "chat" && (
-                  <div className="flex flex-col gap-5 max-w-md">
-                    <div>
-                      <p className="text-sm font-semibold mb-1.5">Chat header title</p>
-                      <input value={chat.headerTitle} onChange={e => setChat(c => ({ ...c, headerTitle: e.target.value }))} className="ds-input w-full" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold mb-1.5">Input placeholder</p>
-                      <input value={chat.inputPlaceholder} onChange={e => setChat(c => ({ ...c, inputPlaceholder: e.target.value }))} className="ds-input w-full" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold mb-1.5">Empty state message</p>
-                      <input value={chat.emptyState} onChange={e => setChat(c => ({ ...c, emptyState: e.target.value }))} className="ds-input w-full" />
-                    </div>
-                    <label className="flex items-center gap-2.5 cursor-pointer">
-                      <input type="checkbox" checked={chat.showTyping} onChange={e => setChat(c => ({ ...c, showTyping: e.target.checked }))} className="w-4 h-4 accent-primary" />
-                      <span className="text-sm">Show typing indicator</span>
-                    </label>
+                  <div className="flex flex-col gap-6 max-w-md">
+                    <SwitchField label="Show logo header" checked={chat.showLogoHeader} onChange={v => setChat(c => ({ ...c, showLogoHeader: v }))} />
+                    <CounterField label="Placeholder message" value={chat.placeholderMessage} onChange={v => setChat(c => ({ ...c, placeholderMessage: v }))} maxLength={30} />
+                    <CounterTextarea
+                      label="AI Disclaimer"
+                      value={chat.aiDisclaimer}
+                      onChange={v => setChat(c => ({ ...c, aiDisclaimer: v }))}
+                      maxLength={120}
+                      placeholder="Eg. AI may provide inaccurate info. Double-check its responses."
+                    />
+                    <button
+                      onClick={() => setChat(c => ({ ...c, showLogoHeader: true, placeholderMessage: "Enter your message", aiDisclaimer: "" }))}
+                      className="text-xs font-medium text-primary hover:underline w-fit"
+                    >
+                      Reset default
+                    </button>
                   </div>
                 )}
                 </div>
               </div>
 
               {/* Live preview */}
-              <div className="w-[320px] shrink-0 border-l border-border flex flex-col">
-                <div className="flex items-center justify-center gap-5 border-b border-border shrink-0" style={{ height: "49px" }}>
+              <div className="w-[352px] shrink-0 p-4 flex flex-col">
+              <div className="flex-1 rounded-2xl border border-border shadow-md overflow-hidden flex flex-col">
+                <div className="flex items-center justify-center gap-5 shrink-0" style={{ height: "49px" }}>
                   {(["minimized", "welcome", "chat"] as const).map(s => (
                     <button
                       key={s}
                       onClick={() => setPreviewState(s)}
-                      className={`-mb-px px-0 py-3.5 text-sm font-medium capitalize border-b-2 transition-base ${previewState === s ? "border-primary text-primary font-semibold" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                      className={`px-0 py-3.5 text-sm font-medium capitalize border-b-2 transition-base ${previewState === s ? "border-primary text-primary font-semibold" : "border-transparent text-muted-foreground hover:text-foreground"}`}
                     >
                       {s}
                     </button>
                   ))}
                 </div>
-                <div className="flex-1 bg-surface-muted/40 flex items-end justify-end p-4">
+                <div className="flex-1 flex items-end justify-end p-4">
                     {previewState === "minimized" && (
-                      <button
-                        className="w-11 h-11 rounded-full flex items-center justify-center shadow-md"
-                        style={{ background: theme.brand }}
-                      >
-                        <HugeiconsIcon icon={Chat01Icon} size={18} className="text-white" />
-                      </button>
+                      <div className="flex items-center gap-2.5">
+                        {starterGreeting && (
+                          <div
+                            className="flex items-center gap-2.5 pl-4 pr-1.5 py-1.5 rounded-full shadow-md"
+                            style={{ background: theme.brand }}
+                          >
+                            <span className="text-sm font-medium whitespace-nowrap" style={{ color: theme.brandText }}>{starterGreeting}</span>
+                            <span className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                              <HugeiconsIcon icon={ArrowRight01Icon} size={13} style={{ color: theme.brandText }} />
+                            </span>
+                          </div>
+                        )}
+                        <button
+                          className="w-11 h-11 rounded-full flex items-center justify-center shadow-md shrink-0"
+                          style={{ background: theme.brand }}
+                        >
+                          <HugeiconsIcon icon={Chat01Icon} size={18} className="text-white" />
+                        </button>
+                      </div>
                     )}
                     {previewState !== "minimized" && (
                       <div className="w-full rounded-xl border border-border bg-white shadow-md overflow-hidden flex flex-col" style={{ height: "380px" }}>
                         <div className="flex items-center justify-between px-4 py-3 shrink-0" style={{ background: theme.header }}>
                           <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
-                              <HugeiconsIcon icon={Chat01Icon} size={13} style={{ color: theme.brandText }} />
-                            </div>
+                            {chat.showLogoHeader && (
+                              <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+                                <HugeiconsIcon icon={Chat01Icon} size={13} style={{ color: theme.brandText }} />
+                              </div>
+                            )}
                             <span className="text-sm font-semibold" style={{ color: theme.brandText }}>{chat.headerTitle}</span>
                           </div>
                           <div className="flex items-center gap-2" style={{ color: theme.brandText }}>
@@ -1764,28 +1807,105 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
                           </div>
                         </div>
                         {previewState === "welcome" ? (
-                          <div className="flex-1 flex flex-col items-center justify-center text-center px-6" style={{ background: theme.background }}>
-                            <div className="w-16 h-16 rounded-2xl bg-primary-soft flex items-center justify-center mb-4">
-                              <HugeiconsIcon icon={Chat01Icon} size={26} className="text-primary" />
-                            </div>
-                            <p className="text-base font-bold mb-1" style={{ color: theme.botText }}>{welcome.title}</p>
-                            <p className="text-sm mb-5" style={{ color: theme.botText, opacity: 0.7 }}>{welcome.subtitle}</p>
-                            <button className="w-full h-10 rounded-lg text-sm font-semibold" style={{ background: theme.customerBubble, color: theme.customerText }}>
-                              {welcome.buttonLabel}
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex-1 flex flex-col p-3 gap-2 overflow-y-auto" style={{ background: theme.background }}>
-                            <div className="self-start max-w-[80%] rounded-xl rounded-tl-sm px-3 py-2 text-xs" style={{ background: theme.botBubble, color: theme.botText }}>
-                              {chat.emptyState}
-                            </div>
-                            <div className="self-end max-w-[80%] rounded-xl rounded-tr-sm px-3 py-2 text-xs" style={{ background: theme.customerBubble, color: theme.customerText }}>
-                              Hi, I need help
-                            </div>
-                            <div className="mt-auto pt-2 border-t border-border">
-                              <div className="h-8 rounded-lg bg-surface-muted flex items-center px-2.5 text-xs text-muted-foreground">
-                                {chat.inputPlaceholder}
+                          welcome.enabled ? (
+                            <div className="flex-1 flex flex-col items-center justify-center text-center px-6" style={{ background: theme.background }}>
+                              <div className="w-16 h-16 rounded-2xl bg-primary-soft flex items-center justify-center mb-4">
+                                <HugeiconsIcon icon={Chat01Icon} size={26} className="text-primary" />
                               </div>
+                              <p className="text-base font-bold mb-1" style={{ color: theme.botText }}>{welcome.title}</p>
+                              <p className="text-sm mb-5" style={{ color: theme.botText, opacity: 0.7 }}>{welcome.description}</p>
+                              {!welcome.guestMode && (
+                                <input
+                                  readOnly
+                                  placeholder={welcome.placeholderInput}
+                                  className="w-full h-10 rounded-lg border border-border px-3 text-sm mb-2.5 placeholder:text-muted-foreground"
+                                />
+                              )}
+                              <button className="w-full h-10 rounded-lg text-sm font-semibold" style={{ background: theme.customerBubble, color: theme.customerText }}>
+                                {welcome.buttonLabel}
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex-1 flex flex-col items-center justify-center text-center px-6 gap-1.5" style={{ background: theme.background }}>
+                              <HugeiconsIcon icon={InformationCircleIcon} size={18} className="text-muted-foreground" />
+                              <p className="text-xs text-muted-foreground">Welcome screen is disabled</p>
+                            </div>
+                          )
+                        ) : (
+                          <div className="flex-1 flex flex-col gap-3 p-3 overflow-y-auto" style={{ background: theme.background }}>
+                            <p className="text-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground opacity-70">Today</p>
+
+                            <div className="self-end max-w-[85%] rounded-xl rounded-tr-sm px-3 py-2 text-xs" style={{ background: theme.customerBubble, color: theme.customerText }}>
+                              What kind of messages do you support?
+                            </div>
+
+                            {/* 1. Text + attachments */}
+                            <div className="self-start max-w-[85%] flex flex-col gap-1.5">
+                              <div className="rounded-xl rounded-tl-sm px-3 py-2 text-xs" style={{ background: theme.botBubble, color: theme.botText }}>
+                                This is a plain text message.
+                              </div>
+                              <div className="flex flex-wrap gap-1.5">
+                                <span className="flex items-center gap-1 px-2 py-1 rounded-lg border border-border bg-white text-[10px] font-semibold" style={{ color: "#D33B3B" }}>
+                                  <span className="w-3.5 h-3.5 rounded bg-[#D33B3B] text-white flex items-center justify-center text-[6px] font-bold">PDF</span>
+                                  Reference doc
+                                </span>
+                                <span className="px-2 py-1 rounded-lg border border-border bg-white text-[10px] font-semibold" style={{ color: theme.brand }}>1</span>
+                                <span className="px-2 py-1 rounded-lg border border-border bg-white text-[10px] font-semibold" style={{ color: theme.brand }}>2</span>
+                                <span className="flex items-center gap-1 px-2 py-1 rounded-lg border border-border bg-white text-[10px] font-semibold" style={{ color: theme.brand }}>
+                                  <HugeiconsIcon icon={ExternalLinkIcon} size={10} /> Go to link
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* 2. Button list */}
+                            <div className="self-start max-w-[85%] flex flex-col gap-1.5 w-full">
+                              <div className="rounded-xl rounded-tl-sm px-3 py-2 text-xs" style={{ background: theme.botBubble, color: theme.botText }}>
+                                This is a button-list message.
+                              </div>
+                              <div className="flex flex-col gap-1.5 w-full">
+                                <button className="w-full h-8 rounded-lg border text-xs font-semibold bg-white" style={{ borderColor: theme.brand, color: theme.brand }}>FPT AI</button>
+                                <button className="w-full h-8 rounded-lg border text-xs font-semibold bg-white" style={{ borderColor: theme.brand, color: theme.brand }}>FPT Cloud</button>
+                              </div>
+                            </div>
+
+                            {/* 3. Quick replies */}
+                            <div className="self-start max-w-[85%] flex flex-col gap-1.5">
+                              <div className="rounded-xl rounded-tl-sm px-3 py-2 text-xs" style={{ background: theme.botBubble, color: theme.botText }}>
+                                Here are 3 quick replies.
+                              </div>
+                              <div className="flex flex-wrap gap-1.5">
+                                {["How can I help you?", "Thank you!", "Got it"].map(t => (
+                                  <button key={t} className="px-2.5 py-1.5 rounded-full border text-[10px] font-semibold bg-white" style={{ borderColor: theme.brand, color: theme.brand }}>{t}</button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* 4. Carousel */}
+                            <div className="self-start flex flex-col gap-1.5" style={{ maxWidth: "100%" }}>
+                              <div className="rounded-xl rounded-tl-sm px-3 py-2 text-xs w-fit" style={{ background: theme.botBubble, color: theme.botText }}>
+                                This is a carousel message.
+                              </div>
+                              <div className="flex gap-2 overflow-x-auto pb-1">
+                                {[{ title: "Visa Credit Card", sub: "Up to 5% cashback", color: theme.brand }, { title: "24/7 Support", sub: "Talk to an agent", color: "#F5A623" }].map((c, i) => (
+                                  <div key={i} className="shrink-0 rounded-lg border border-border bg-white overflow-hidden" style={{ width: "132px" }}>
+                                    <div className="h-14 flex items-center justify-center text-[9px] font-bold text-white text-center px-2 leading-tight" style={{ background: c.color }}>{c.title}</div>
+                                    <div className="p-2 flex flex-col gap-1">
+                                      <p className="text-[10px] font-semibold leading-tight">{c.title}</p>
+                                      <p className="text-[9px] text-muted-foreground leading-tight">{c.sub}</p>
+                                      <button className="mt-1 h-6 rounded text-[9px] font-semibold" style={{ background: theme.customerBubble, color: theme.customerText }}>View details</button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="mt-auto pt-2 border-t border-border">
+                              <div className="h-8 rounded-full bg-surface-muted flex items-center px-3 text-xs text-muted-foreground">
+                                {chat.placeholderMessage}
+                              </div>
+                              {chat.aiDisclaimer && (
+                                <p className="text-[10px] text-muted-foreground text-center mt-1.5 leading-snug">{chat.aiDisclaimer}</p>
+                              )}
                             </div>
                           </div>
                         )}
@@ -1797,6 +1917,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
                   </div>
                 </div>
               </div>
+            </div>
           )}
         </div>
 
@@ -2321,20 +2442,18 @@ function EmptyStateBox({ icon, description, addLabel, onAdd }: {
 }
 
 function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange: (id: string) => void }) {
-  const [open, setOpen] = useState<Record<string, boolean>>({ connectors: true, skills: true, guardrails: true });
+  const [open, setOpen] = useState<Record<string, boolean>>({ connectors: true, skills: true, guardrails: true, "sub-agents": true });
   const guardrailsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
   const skillsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
   const subAgentsAddRef = useRef<(() => void) | null>(null);
+  const connectorsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
 
   const sections = [
     {
       id: "connectors", icon: ConnectIcon, label: "Connectors",
+      onAdd: (pos: {top:number;left:number}) => connectorsAddRef.current?.(pos),
       content: (
-        <EmptyStateBox
-          icon={ConnectIcon}
-          description="The outside accounts and systems this agent may use."
-          addLabel="Add Connectors"
-        />
+        <ConnectorsInner onRegisterAdd={(fn) => { connectorsAddRef.current = fn; }} />
       ),
     },
     {
@@ -3246,6 +3365,111 @@ function ConnectWorkspaceSkillModal({ onClose, onAdd, added }: {
   );
 }
 
+function ConnectorsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:number;left:number}) => void) => void } = {}) {
+  const [showMenu, setShowMenu] = useState(false);
+  const [menuPos, setMenuPos] = useState<{top:number;left:number}>({top:0,left:0});
+  const [showPicker, setShowPicker] = useState(false);
+  const [pickerMode, setPickerMode] = useState<"shared" | "per-user">("shared");
+  const [connected, setConnected] = useState<{ id: string; mode: "shared" | "per-user" }[]>([]);
+
+  useEffect(() => {
+    onRegisterAdd?.((pos: {top:number;left:number}) => { setMenuPos(pos); setShowMenu(true); });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!showMenu) return;
+    const h = () => setShowMenu(false);
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [showMenu]);
+
+  const menuItems = [
+    { icon: Building02Icon, label: "Shared", sub: "One workspace account", mode: "shared" as const },
+    { icon: UserIcon, label: "Per-user", sub: "Each person's own account", mode: "per-user" as const },
+  ];
+
+  const connectedIds = connected.map(c => c.id);
+  const toggleConnector = (id: string) => {
+    setConnected(prev => prev.some(c => c.id === id) ? prev.filter(c => c.id !== id) : [...prev, { id, mode: pickerMode }]);
+  };
+
+  return (
+    <>
+      {connected.length === 0 ? (
+        <EmptyStateBox
+          icon={ConnectIcon}
+          description="The outside accounts and systems this agent may use."
+          addLabel="Add Connectors"
+          onAdd={e => {
+            const r = e.currentTarget.getBoundingClientRect();
+            setMenuPos({ top: r.bottom + 4, left: r.right });
+            setShowMenu(true);
+          }}
+        />
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          {connected.map(c => {
+            const meta = SUB_AGENT_CONNECTORS.find(x => x.id === c.id);
+            if (!meta) return null;
+            return (
+              <div key={c.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base">
+                <span className="w-6 h-6 rounded bg-surface-muted border border-border flex items-center justify-center text-[9px] font-bold shrink-0">{meta.logo}</span>
+                <span className="text-xs font-medium flex-1 truncate">{meta.name}</span>
+                <span
+                  className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap"
+                  style={c.mode === "shared" ? { background: "#EEF2FF", color: "#4338CA", border: "0.5px solid #C7D2FE" } : { background: "#ECFDF5", color: "#047857", border: "0.5px solid #A7F3D0" }}
+                >
+                  {c.mode === "shared" ? "Shared" : "Per-user"}
+                </span>
+                <button
+                  onClick={() => setConnected(prev => prev.filter(x => x.id !== c.id))}
+                  className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-surface-muted transition-base shrink-0">
+                  <HugeiconsIcon icon={Delete01Icon} size={12} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Shared / Per-user dropdown */}
+      {showMenu && createPortal(
+        <div
+          className="fixed z-[9999]"
+          style={{ top: menuPos.top, right: window.innerWidth - menuPos.left }}
+          onMouseDown={e => e.stopPropagation()}
+        >
+          <div className="bg-white rounded-xl border border-border shadow-elev py-1.5 min-w-[230px] animate-fade-up">
+            {menuItems.map((item, i) => (
+              <button
+                key={i}
+                className="w-full flex items-start gap-2.5 px-3.5 py-2.5 text-left hover:bg-surface-muted transition-base"
+                onClick={() => { setShowMenu(false); setPickerMode(item.mode); setShowPicker(true); }}
+              >
+                <HugeiconsIcon icon={item.icon} size={16} className="text-muted-foreground shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium">{item.label}</p>
+                  <p className="text-xs text-muted-foreground">{item.sub}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {showPicker && (
+        <ConnectorPickerModal
+          connectors={SUB_AGENT_CONNECTORS}
+          added={connectedIds}
+          onToggle={toggleConnector}
+          onClose={() => setShowPicker(false)}
+        />
+      )}
+    </>
+  );
+}
+
 function SkillsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:number;left:number}) => void) => void } = {}) {
   const [showMenu, setShowMenu]     = useState(false);
   const [showWsModal, setShowWsModal] = useState(false);
@@ -3355,13 +3579,17 @@ function SkillsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:number;
 }
 
 /* ============ Sub-Agents ============ */
+const CONNECTOR_CATEGORIES = ["All integrations", "Communication", "Productivity", "Developer", "Data", "Research", "Other"];
+
 const SUB_AGENT_CONNECTORS = [
-  { id: "gmail",   name: "Gmail",        logo: "G" },
-  { id: "slack",   name: "Slack",        logo: "S" },
-  { id: "drive",   name: "Google Drive", logo: "D" },
-  { id: "sheets",  name: "Sheets",       logo: "Sh" },
-  { id: "notion",  name: "Notion",       logo: "N" },
-  { id: "hubspot", name: "HubSpot",      logo: "H" },
+  { id: "drive",    name: "Google Drive", logo: "D",  category: "Productivity",  connected: true  },
+  { id: "sheets",   name: "Sheets",       logo: "Sh", category: "Productivity",  connected: false },
+  { id: "gmail",    name: "Gmail",        logo: "G",  category: "Communication", connected: true  },
+  { id: "slack",    name: "Slack",        logo: "S",  category: "Communication", connected: true  },
+  { id: "notion",   name: "Notion",       logo: "N",  category: "Productivity",  connected: false },
+  { id: "hubspot",  name: "HubSpot",      logo: "H",  category: "Data",          connected: false },
+  { id: "github",   name: "GitHub",       logo: "Gh", category: "Developer",     connected: false },
+  { id: "exa",      name: "Exa",          logo: "Ex", category: "Research",      connected: false },
 ];
 
 interface SubAgent {
@@ -3472,6 +3700,240 @@ function InstructionsEditorModal({ value, onClose, onDone }: {
   );
 }
 
+function AddCustomMcpModal({ onClose }: { onClose: () => void }) {
+  const [name, setName] = useState("");
+  const [url, setUrl] = useState("");
+  const [auth, setAuth] = useState<"none" | "static">("none");
+
+  const authOptions = [
+    { id: "none" as const,   label: "No authentication", disabled: false },
+    { id: "static" as const, label: "Static Headers",    disabled: false },
+    { id: "oauth-auto",      label: "OAuth 2.1 (Auto)",   disabled: true },
+    { id: "oauth-manual",    label: "OAuth 2.1 (Manual)", disabled: true },
+  ];
+
+  return createPortal(
+    <div className="fixed inset-0 z-[10001] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-md bg-white rounded-2xl shadow-lg border border-border flex flex-col max-h-[88vh] animate-fade-up">
+        <div className="flex items-start justify-between px-6 pt-6 pb-2 shrink-0">
+          <div>
+            <h2 className="text-lg font-semibold">Add custom MCP</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">Connect an MCP server to give your agents its tools.</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 mt-0.5">
+            <HugeiconsIcon icon={Cancel01Icon} size={16} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-4">
+          <div className="flex items-start gap-2.5 px-3.5 py-3 rounded-xl bg-surface-muted/60">
+            <HugeiconsIcon icon={UserGroupIcon} size={16} className="text-muted-foreground shrink-0 mt-0.5" />
+            <p className="text-xs text-muted-foreground leading-relaxed">Shared connector: the agent will always use the workspace's account for this server.</p>
+          </div>
+
+          <div>
+            <p className="text-sm font-semibold mb-1.5">Name</p>
+            <input
+              autoFocus
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="my-mcp-server"
+              className="ds-input w-full"
+            />
+          </div>
+
+          <div>
+            <p className="text-sm font-semibold mb-1.5">URL</p>
+            <input
+              value={url}
+              onChange={e => setUrl(e.target.value)}
+              placeholder="https://api.example.com/mcp"
+              className="ds-input w-full"
+            />
+          </div>
+
+          <div>
+            <p className="text-sm font-semibold mb-2">Authentication</p>
+            <div className="flex flex-col gap-2.5">
+              {authOptions.map(opt => (
+                <label key={opt.id} className={`flex items-center gap-2.5 ${opt.disabled ? "cursor-not-allowed" : "cursor-pointer"}`}>
+                  <input
+                    type="radio"
+                    name="mcp-auth"
+                    disabled={opt.disabled}
+                    checked={auth === opt.id}
+                    onChange={() => !opt.disabled && setAuth(opt.id as "none" | "static")}
+                    className="w-4 h-4 accent-primary"
+                  />
+                  <span className={`text-sm ${opt.disabled ? "text-muted-foreground" : "text-foreground"}`}>
+                    {opt.label}
+                    {opt.disabled && <span className="text-muted-foreground"> · Soon</span>}
+                  </span>
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-2.5 leading-relaxed">Use static headers (e.g. an API key) to authenticate. OAuth 2.1 is coming soon.</p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border shrink-0">
+          <button onClick={onClose} className="btn-secondary">Cancel</button>
+          <button
+            disabled={!name.trim() || !url.trim()}
+            onClick={onClose}
+            className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Save server
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function ConnectorPickerModal({ connectors, added, onToggle, onClose }: {
+  connectors: { id: string; name: string; logo: string; category: string; connected: boolean }[];
+  added: string[];
+  onToggle: (id: string) => void;
+  onClose: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [activeCategory, setActiveCategory] = useState("All integrations");
+  const [catOpen, setCatOpen] = useState(false);
+  const [showCustomMcp, setShowCustomMcp] = useState(false);
+  const catRef = useRef<HTMLDivElement>(null);
+  const allSelected = connectors.length > 0 && connectors.every(c => added.includes(c.id));
+  const toggleAll = () => {
+    if (allSelected) { connectors.forEach(c => { if (added.includes(c.id)) onToggle(c.id); }); }
+    else { connectors.forEach(c => { if (!added.includes(c.id)) onToggle(c.id); }); }
+  };
+  const filtered = connectors.filter(c =>
+    (!search || c.name.toLowerCase().includes(search.toLowerCase())) &&
+    (activeCategory === "All integrations" || c.category === activeCategory)
+  );
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => { if (catRef.current && !catRef.current.contains(e.target as Node)) setCatOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return createPortal(
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-2xl bg-white rounded-2xl shadow-lg border border-border flex flex-col max-h-[85vh] animate-fade-up">
+        <div className="flex items-start justify-between px-6 pt-6 pb-2 shrink-0">
+          <div>
+            <h2 className="text-lg font-semibold">Add connection</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">What this agent can do.</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 mt-0.5">
+            <HugeiconsIcon icon={Cancel01Icon} size={16} />
+          </button>
+        </div>
+
+        <div className="px-6 pb-4 pt-3 shrink-0 flex items-center gap-2">
+          <div className="relative flex-1">
+            <HugeiconsIcon icon={Search01Icon} size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              autoFocus
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search connectors..."
+              className="w-full h-9 pl-9 pr-3 rounded-lg border border-primary/50 bg-white text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-base"
+            />
+          </div>
+
+          <div ref={catRef} className="relative shrink-0" style={{ width: "168px" }}>
+            <button
+              type="button"
+              onClick={() => setCatOpen(o => !o)}
+              className="w-full h-9 pl-3 pr-2.5 rounded-lg border border-border bg-white text-sm font-medium flex items-center gap-1.5 hover:bg-surface-muted transition-base"
+            >
+              <span className="flex-1 min-w-0 truncate text-left">{activeCategory}</span>
+              <HugeiconsIcon icon={ChevronDownIcon} size={13} className={`text-muted-foreground shrink-0 transition-transform ${catOpen ? "rotate-180" : ""}`} />
+            </button>
+            {catOpen && (
+              <div className="absolute z-50 top-full right-0 mt-1 w-[180px] bg-white border border-border rounded-xl shadow-lg overflow-hidden py-1">
+                {CONNECTOR_CATEGORIES.map(cat => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => { setActiveCategory(cat); setCatOpen(false); }}
+                    className={`w-full flex items-center justify-between text-left text-sm px-3.5 py-2 transition-base ${
+                      activeCategory === cat ? "text-primary font-medium bg-primary-soft/40" : "text-foreground hover:bg-surface-muted"
+                    }`}
+                  >
+                    {cat}
+                    {activeCategory === cat && <HugeiconsIcon icon={CheckmarkCircle01Icon} size={13} />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="px-6 pb-2 flex items-center justify-between shrink-0">
+          <span className="text-xs text-muted-foreground">{filtered.length} connector{filtered.length === 1 ? "" : "s"}</span>
+          <button
+            type="button"
+            onClick={toggleAll}
+            className="flex items-center gap-1.5 text-sm font-medium text-primary hover:underline shrink-0"
+          >
+            <HugeiconsIcon icon={CheckmarkCircle01Icon} size={16} />
+            {allSelected ? "Deselect all" : "Select all"}
+          </button>
+        </div>
+
+        {/* Connector grid */}
+        <div className="flex-1 overflow-y-auto px-6 pb-4">
+          <div className="grid grid-cols-3 gap-3">
+            {filtered.map(c => {
+              const active = added.includes(c.id);
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => onToggle(c.id)}
+                  className={`flex items-center gap-2.5 px-3 py-3 rounded-xl border text-left transition-base ${
+                    active ? "border-primary/30 bg-primary-soft" : "border-border hover:bg-surface-muted"
+                  }`}
+                >
+                  <span className="w-9 h-9 rounded-lg bg-white border border-border flex items-center justify-center text-xs font-bold shrink-0">{c.logo}</span>
+                  <span className="flex-1 min-w-0 text-sm font-semibold truncate">{c.name}</span>
+                  {active && (
+                    <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ background: "#DCFCE7", color: "#15803D" }}>
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> Added
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-border shrink-0">
+          <button
+            type="button"
+            onClick={() => setShowCustomMcp(true)}
+            className="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-border text-sm font-medium text-foreground hover:bg-surface-muted transition-base"
+          >
+            <HugeiconsIcon icon={Add01Icon} size={14} /> Add custom MCP
+          </button>
+          <button onClick={onClose} className="btn-primary">Done</button>
+        </div>
+      </div>
+
+      {showCustomMcp && (
+        <AddCustomMcpModal onClose={() => setShowCustomMcp(false)} />
+      )}
+    </div>,
+    document.body
+  );
+}
+
 function CreateSubAgentModal({ onClose, onSave }: {
   onClose: () => void;
   onSave: (agent: Omit<SubAgent, "id">) => void;
@@ -3480,148 +3942,243 @@ function CreateSubAgentModal({ onClose, onSave }: {
   const [description, setDescription] = useState("");
   const [model, setModel] = useState("deepseek-v4-flash");
   const [instructions, setInstructions] = useState("");
-  const [showInstructionsEditor, setShowInstructionsEditor] = useState(false);
-  const [skillIds, setSkillIds] = useState<number[]>([]);
+  const [editingInstructions, setEditingInstructions] = useState(false);
+  const [editorViewMode, setEditorViewMode] = useState<"preview" | "source">("source");
+  const editorRef = useRef<HTMLTextAreaElement>(null);
   const [connectorIds, setConnectorIds] = useState<string[]>([]);
+  const [showConnectorPicker, setShowConnectorPicker] = useState(false);
 
-  const toggleSkill = (id: number) => setSkillIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   const toggleConnector = (id: string) => setConnectorIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
   const canSave = name.trim().length > 0;
 
+  const wrapSelection = (before: string, after: string = before) => {
+    const el = editorRef.current;
+    if (!el) return;
+    const { selectionStart: s, selectionEnd: e } = el;
+    const next = instructions.slice(0, s) + before + instructions.slice(s, e) + after + instructions.slice(e);
+    setInstructions(next);
+    requestAnimationFrame(() => { el.focus(); el.setSelectionRange(s + before.length, e + before.length); });
+  };
+
+  const prependLine = (prefix: string) => {
+    const el = editorRef.current;
+    if (!el) return;
+    const s = el.selectionStart;
+    const lineStart = instructions.lastIndexOf("\n", s - 1) + 1;
+    const next = instructions.slice(0, lineStart) + prefix + instructions.slice(lineStart);
+    setInstructions(next);
+    requestAnimationFrame(() => { el.focus(); el.setSelectionRange(s + prefix.length, s + prefix.length); });
+  };
+
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-xl bg-white rounded-2xl shadow-lg border border-border flex flex-col max-h-[88vh] animate-fade-up">
-        {/* Header */}
-        <div className="flex items-start justify-between px-6 pt-6 pb-4 shrink-0 border-b border-border">
-          <div>
-            <h2 className="text-lg font-semibold">Create sub-agent</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">A specialized agent this agent can delegate tasks to.</p>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 mt-0.5">
-            <HugeiconsIcon icon={Cancel01Icon} size={16} />
-          </button>
-        </div>
-
-        {/* Form */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-          <div>
-            <label className="text-xs font-semibold text-foreground mb-1.5 block">Name</label>
-            <input
-              autoFocus
-              value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder="e.g. candidate-email-sender"
-              className="ds-input w-full"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs font-semibold text-foreground mb-1.5 block">Description</label>
-            <input
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              placeholder="Use when sending recruiting emails…"
-              className="ds-input w-full"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs font-semibold text-foreground mb-1.5 block">Model</label>
-            <ModelDropdown value={model} onChange={setModel} />
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-semibold text-foreground">Instructions (agent.md)</label>
+      <div className="relative z-10 w-full max-w-xl bg-white rounded-2xl shadow-lg border border-border flex flex-col max-h-[88vh] animate-fade-up overflow-hidden">
+        {editingInstructions ? (
+          <>
+            {/* Instructions editor — shown inline in the same dialog */}
+            <div className="flex items-center justify-between px-6 py-4 shrink-0 border-b border-border">
+              <h2 className="text-lg font-semibold">Instructions</h2>
               <button
-                type="button"
-                onClick={() => setShowInstructionsEditor(true)}
-                className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                onClick={() => setEditingInstructions(false)}
+                className="h-8 px-3 rounded-lg text-sm font-medium hover:bg-surface-muted transition-base"
               >
-                <HugeiconsIcon icon={Edit01Icon} size={12} /> Edit
+                Done
               </button>
             </div>
-            <textarea
-              value={instructions}
-              onChange={e => setInstructions(e.target.value)}
-              onClick={() => setShowInstructionsEditor(true)}
-              readOnly
-              placeholder={"# Sub-agent instructions\n\nDescribe what this sub-agent does, its tone, and its limits…"}
-              rows={6}
-              className="ds-input w-full resize-none font-mono text-xs leading-relaxed cursor-pointer bg-surface-muted/40"
-            />
-          </div>
 
-          {showInstructionsEditor && (
-            <InstructionsEditorModal
-              value={instructions}
-              onClose={() => setShowInstructionsEditor(false)}
-              onDone={v => setInstructions(v)}
-            />
-          )}
+            <div className="flex items-center gap-0.5 px-3 py-2 border-b border-border bg-surface-muted/60 shrink-0">
+              <button onClick={() => wrapSelection("**")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Bold"><HugeiconsIcon icon={TextBoldIcon} size={14} /></button>
+              <button onClick={() => wrapSelection("*")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Italic"><HugeiconsIcon icon={TextItalicIcon} size={14} /></button>
+              <button onClick={() => wrapSelection("~~")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Strikethrough"><HugeiconsIcon icon={TextStrikethroughIcon} size={14} /></button>
+              <div className="w-px h-4 bg-border mx-1" />
+              <button onClick={() => prependLine("# ")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Heading 1"><HugeiconsIcon icon={Heading01Icon} size={14} /></button>
+              <button onClick={() => prependLine("## ")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Heading 2"><HugeiconsIcon icon={Heading02Icon} size={14} /></button>
+              <div className="w-px h-4 bg-border mx-1" />
+              <button onClick={() => prependLine("- ")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Bullet list"><HugeiconsIcon icon={LeftToRightListBulletIcon} size={14} /></button>
+              <button onClick={() => prependLine("1. ")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Numbered list"><HugeiconsIcon icon={LeftToRightListNumberIcon} size={14} /></button>
+              <div className="w-px h-4 bg-border mx-1" />
+              <button onClick={() => wrapSelection("`")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Inline code"><HugeiconsIcon icon={CodeIcon} size={14} /></button>
+              <button onClick={() => wrapSelection("```\n", "\n```")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Code block"><HugeiconsIcon icon={SourceCodeIcon} size={14} /></button>
 
-          <div>
-            <label className="text-xs font-semibold text-foreground mb-1.5 block">Skills</label>
-            <div className="flex flex-wrap gap-1.5">
-              {WS_SKILLS.map(s => {
-                const active = skillIds.includes(s.id);
-                return (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => toggleSkill(s.id)}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-base ${
-                      active ? "border-primary bg-primary-soft text-primary" : "border-border bg-surface hover:bg-surface-muted text-foreground"
-                    }`}
-                  >
-                    <HugeiconsIcon icon={PuzzleIcon} size={12} />
-                    {s.name}
-                  </button>
-                );
-              })}
+              <div className="flex-1" />
+
+              <button onClick={() => navigator.clipboard?.writeText(instructions)} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Copy"><HugeiconsIcon icon={Copy01Icon} size={14} /></button>
+              <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-surface border border-border ml-1.5">
+                <button
+                  onClick={() => setEditorViewMode("preview")}
+                  className={`flex items-center gap-1.5 h-6 px-2.5 rounded-md text-xs font-medium transition-base ${editorViewMode === "preview" ? "bg-surface-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  <HugeiconsIcon icon={EyeIcon} size={12} /> Preview
+                </button>
+                <button
+                  onClick={() => setEditorViewMode("source")}
+                  className={`flex items-center gap-1.5 h-6 px-2.5 rounded-md text-xs font-medium transition-base ${editorViewMode === "source" ? "bg-surface-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  <HugeiconsIcon icon={SourceCodeIcon} size={12} /> Source
+                </button>
+              </div>
             </div>
-          </div>
 
-          <div>
-            <label className="text-xs font-semibold text-foreground mb-1.5 block">Connectors</label>
-            <div className="flex flex-wrap gap-1.5">
-              {SUB_AGENT_CONNECTORS.map(c => {
-                const active = connectorIds.includes(c.id);
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => toggleConnector(c.id)}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-base ${
-                      active ? "border-primary bg-primary-soft text-primary" : "border-border bg-surface hover:bg-surface-muted text-foreground"
-                    }`}
-                  >
-                    <span className="w-4 h-4 rounded bg-surface-muted border border-border flex items-center justify-center text-[9px] font-bold shrink-0">{c.logo}</span>
-                    {c.name}
-                  </button>
-                );
-              })}
+            <div className="flex-1 overflow-y-auto px-5 py-4" style={{ minHeight: "360px" }}>
+              {editorViewMode === "preview" ? (
+                <div className="text-sm">{renderMarkdown(instructions || "*Nothing to preview yet.*")}</div>
+              ) : (
+                <textarea
+                  ref={editorRef}
+                  value={instructions}
+                  onChange={e => setInstructions(e.target.value)}
+                  placeholder={"# Sub-agent instructions\n\nDescribe what this sub-agent does, its tone, and its limits…"}
+                  className="w-full h-full resize-none bg-transparent outline-none text-sm font-mono leading-relaxed text-foreground"
+                  style={{ minHeight: "340px" }}
+                  spellCheck={false}
+                  autoFocus
+                />
+              )}
             </div>
-          </div>
-        </div>
+          </>
+        ) : (
+          <>
+            {/* Header */}
+            <div className="flex items-start justify-between px-6 pt-6 pb-4 shrink-0 border-b border-border">
+              <div>
+                <h2 className="text-lg font-semibold">Create sub-agent</h2>
+                <p className="text-sm text-muted-foreground mt-0.5">A specialized agent this agent can delegate tasks to.</p>
+              </div>
+              <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 mt-0.5">
+                <HugeiconsIcon icon={Cancel01Icon} size={16} />
+              </button>
+            </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border shrink-0">
-          <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">Cancel</button>
-          <button
-            disabled={!canSave}
-            onClick={() => {
-              if (!canSave) return;
-              onSave({ name: name.trim(), description: description.trim(), model, instructions, skillIds, connectorIds });
-              onClose();
-            }}
-            className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-base"
-          >
-            Create sub-agent
-          </button>
-        </div>
+            {/* Form */}
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-foreground mb-1.5 block">Name</label>
+                <input
+                  autoFocus
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder="e.g. candidate-email-sender"
+                  className="ds-input w-full"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-foreground mb-1.5 block">Description</label>
+                <input
+                  value={description}
+                  onChange={e => setDescription(e.target.value)}
+                  placeholder="Use when sending recruiting emails…"
+                  className="ds-input w-full"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-foreground mb-1.5 block">Model</label>
+                <ModelDropdown value={model} onChange={setModel} />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-foreground">Instructions (agent.md)</label>
+                  <button
+                    type="button"
+                    onClick={() => setEditingInstructions(true)}
+                    className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                  >
+                    <HugeiconsIcon icon={Edit01Icon} size={12} /> Edit
+                  </button>
+                </div>
+                <textarea
+                  value={instructions}
+                  onChange={e => setInstructions(e.target.value)}
+                  onClick={() => setEditingInstructions(true)}
+                  readOnly
+                  placeholder={"# Sub-agent instructions\n\nDescribe what this sub-agent does, its tone, and its limits…"}
+                  className="ds-textarea w-full resize-none font-mono text-xs leading-relaxed cursor-pointer bg-surface-muted/40"
+                  style={{ height: "128px" }}
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-foreground">Connectors</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowConnectorPicker(true)}
+                    className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                  >
+                    <HugeiconsIcon icon={Add01Icon} size={12} /> Add connector
+                  </button>
+                </div>
+                {connectorIds.length === 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowConnectorPicker(true)}
+                    className="w-full rounded-xl border-2 border-dashed border-border flex flex-col items-center justify-center gap-1.5 py-5 text-center hover:bg-surface-muted transition-base"
+                  >
+                    <HugeiconsIcon icon={ConnectIcon} size={18} className="text-muted-foreground/50" />
+                    <span className="text-xs text-muted-foreground">The outside accounts and systems this sub-agent may use.</span>
+                  </button>
+                ) : (
+                  <div className="flex flex-col gap-1.5">
+                    {SUB_AGENT_CONNECTORS.filter(c => connectorIds.includes(c.id)).map(c => (
+                      <div
+                        key={c.id}
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-surface-muted/60"
+                      >
+                        <span className="w-7 h-7 rounded-lg bg-white border border-border flex items-center justify-center text-[10px] font-bold shrink-0">{c.logo}</span>
+                        <div className="flex-1 min-w-0 flex items-center gap-1.5 text-xs">
+                          <span className="font-semibold text-foreground truncate">{c.name}</span>
+                          {!c.connected && (
+                            <>
+                              <span className="text-muted-foreground">·</span>
+                              <span className="font-medium" style={{ color: "#C2410C" }}>Not connected</span>
+                            </>
+                          )}
+                        </div>
+                        <HugeiconsIcon icon={ChevronDownIcon} size={14} className="text-muted-foreground shrink-0" />
+                        <button
+                          type="button"
+                          onClick={() => toggleConnector(c.id)}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center text-destructive hover:bg-destructive/10 transition-base shrink-0"
+                        >
+                          <HugeiconsIcon icon={Delete01Icon} size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {showConnectorPicker && (
+              <ConnectorPickerModal
+                connectors={SUB_AGENT_CONNECTORS}
+                added={connectorIds}
+                onToggle={toggleConnector}
+                onClose={() => setShowConnectorPicker(false)}
+              />
+            )}
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border shrink-0">
+              <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">Cancel</button>
+              <button
+                disabled={!canSave}
+                onClick={() => {
+                  if (!canSave) return;
+                  onSave({ name: name.trim(), description: description.trim(), model, instructions, skillIds: [], connectorIds });
+                  onClose();
+                }}
+                className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-base"
+              >
+                Create sub-agent
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>,
     document.body
