@@ -1376,6 +1376,49 @@ const CUSTOMIZE_SUBTABS = [
   { id: "chat",    label: "Chat" },
 ] as const;
 
+function CounterField({ label, value, onChange, maxLength }: { label: string; value: string; onChange: (v: string) => void; maxLength: number }) {
+  return (
+    <div>
+      <p className="text-sm font-semibold mb-1.5">{label}</p>
+      <div className="relative">
+        <input
+          value={value}
+          maxLength={maxLength}
+          onChange={e => onChange(e.target.value)}
+          className="ds-input w-full pr-14"
+        />
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{value.length}/{maxLength}</span>
+      </div>
+    </div>
+  );
+}
+
+function SwitchField({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className="flex items-center gap-2.5 cursor-pointer select-none">
+      <button
+        type="button"
+        onClick={() => onChange(!checked)}
+        className={`w-10 h-6 rounded-full p-0.5 transition-base shrink-0 ${checked ? "bg-[#22C55E]" : "bg-border-strong"}`}
+      >
+        <div className={`w-5 h-5 rounded-full bg-white shadow-soft transition-base ${checked ? "translate-x-4" : ""}`} />
+      </button>
+      <span className="text-sm">{label}</span>
+    </label>
+  );
+}
+
+function UploadBox({ hint }: { hint: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="w-16 h-16 rounded-xl bg-surface-muted flex items-center justify-center shrink-0">
+        <HugeiconsIcon icon={Upload01Icon} size={18} className="text-muted-foreground" />
+      </div>
+      <p className="text-xs text-muted-foreground leading-relaxed">{hint}</p>
+    </div>
+  );
+}
+
 function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <div>
@@ -1411,9 +1454,9 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
     botText: "#262626",
     header: "#0052CC",
   });
-  const [general, setGeneral] = useState({ position: "right" as "left" | "right", triggerText: "Chat with us", language: "English", showPoweredBy: true });
+  const [general, setGeneral] = useState({ companyName: "" });
   const [starters, setStarters] = useState<string[]>(["How do I reset my password?", "What are your business hours?", "Talk to a human"]);
-  const [welcome, setWelcome] = useState({ title: "Chat with Us", subtitle: "How can I help you?", buttonLabel: "Start chat", askName: true });
+  const [welcome, setWelcome] = useState({ enabled: true, guestMode: false, title: "Chat with Us", description: "How can I help you?", buttonLabel: "Start chat", placeholderInput: "Enter your name" });
   const [chat, setChat] = useState({ headerTitle: "Test", inputPlaceholder: "Type a message…", emptyState: "Ask me anything…", showTyping: true });
 
   const url = "https://agents.fpt.ai/live-chat/chat?tenant_id=01JED250RPXCYQE6MAVTNSQCAM";
@@ -1424,7 +1467,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
       tenant_id: "01JED250RPXCYQE6MAVTNSQCAM",
       bot_code: "01JMVB17JRYN1VPBS7N1DWD5HD",
       ui_config: {
-        position: "${general.position}",
+        position: "right",
         hide_greeting: false
       },
       extra: {}
@@ -1578,7 +1621,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
                   {CUSTOMIZE_SUBTABS.map(t => (
                     <button
                       key={t.id}
-                      onClick={() => setCustomizeTab(t.id)}
+                      onClick={() => { setCustomizeTab(t.id); setPreviewState(t.id === "chat" ? "chat" : "welcome"); }}
                       className={`px-0 py-3.5 text-sm font-medium border-b-2 transition-base ${customizeTab === t.id ? "border-primary text-primary font-semibold" : "border-transparent text-muted-foreground hover:text-foreground"}`}
                     >
                       {t.label}
@@ -1615,36 +1658,22 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
                 )}
 
                 {customizeTab === "general" && (
-                  <div className="flex flex-col gap-5 max-w-md">
+                  <div className="flex flex-col gap-6 max-w-md">
+                    <CounterField label="Company name" value={general.companyName} onChange={v => setGeneral(g => ({ ...g, companyName: v }))} maxLength={30} />
                     <div>
-                      <p className="text-sm font-semibold mb-1.5">Widget position</p>
-                      <div className="flex items-center gap-2">
-                        {(["left", "right"] as const).map(p => (
-                          <button
-                            key={p}
-                            onClick={() => setGeneral(g => ({ ...g, position: p }))}
-                            className={`h-9 px-4 rounded-lg border text-sm font-medium capitalize transition-base ${general.position === p ? "border-primary bg-primary-soft text-primary" : "border-border bg-surface hover:bg-surface-muted"}`}
-                          >
-                            {p}
-                          </button>
-                        ))}
-                      </div>
+                      <p className="text-sm font-semibold mb-1.5">Chatbot icon</p>
+                      <UploadBox hint="Images in 1:1 ratio with minimum size 256 \u00d7 256. Supports PNG/JPG/GIF formats" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold mb-1.5">Trigger button text</p>
-                      <input value={general.triggerText} onChange={e => setGeneral(g => ({ ...g, triggerText: e.target.value }))} className="ds-input w-full" />
+                      <p className="text-sm font-semibold mb-1.5">Brand logo</p>
+                      <UploadBox hint="Images in 1:1 ratio with minimum size 256 \u00d7 256. Supports PNG/JPG/GIF formats" />
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold mb-1.5">Language</p>
-                      <select value={general.language} onChange={e => setGeneral(g => ({ ...g, language: e.target.value }))} className="ds-input w-full">
-                        <option>English</option>
-                        <option>Vietnamese</option>
-                      </select>
-                    </div>
-                    <label className="flex items-center gap-2.5 cursor-pointer">
-                      <input type="checkbox" checked={general.showPoweredBy} onChange={e => setGeneral(g => ({ ...g, showPoweredBy: e.target.checked }))} className="w-4 h-4 accent-primary" />
-                      <span className="text-sm">Show "Powered by FPT.AI" badge</span>
-                    </label>
+                    <button
+                      onClick={() => setGeneral({ companyName: "" })}
+                      className="text-xs font-medium text-primary hover:underline w-fit"
+                    >
+                      Reset default
+                    </button>
                   </div>
                 )}
 
@@ -1679,23 +1708,21 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
                 )}
 
                 {customizeTab === "welcome" && (
-                  <div className="flex flex-col gap-5 max-w-md">
-                    <div>
-                      <p className="text-sm font-semibold mb-1.5">Welcome title</p>
-                      <input value={welcome.title} onChange={e => setWelcome(w => ({ ...w, title: e.target.value }))} className="ds-input w-full" />
+                  <div className="flex flex-col gap-6 max-w-md">
+                    <div className="flex items-center gap-8">
+                      <SwitchField label="Welcome screen" checked={welcome.enabled} onChange={v => setWelcome(w => ({ ...w, enabled: v }))} />
+                      <SwitchField label="Guest mode" checked={welcome.guestMode} onChange={v => setWelcome(w => ({ ...w, guestMode: v }))} />
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold mb-1.5">Welcome subtitle</p>
-                      <input value={welcome.subtitle} onChange={e => setWelcome(w => ({ ...w, subtitle: e.target.value }))} className="ds-input w-full" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold mb-1.5">Start button label</p>
-                      <input value={welcome.buttonLabel} onChange={e => setWelcome(w => ({ ...w, buttonLabel: e.target.value }))} className="ds-input w-full" />
-                    </div>
-                    <label className="flex items-center gap-2.5 cursor-pointer">
-                      <input type="checkbox" checked={welcome.askName} onChange={e => setWelcome(w => ({ ...w, askName: e.target.checked }))} className="w-4 h-4 accent-primary" />
-                      <span className="text-sm">Ask for visitor's name before starting</span>
-                    </label>
+                    <CounterField label="Title" value={welcome.title} onChange={v => setWelcome(w => ({ ...w, title: v }))} maxLength={30} />
+                    <CounterField label="Description" value={welcome.description} onChange={v => setWelcome(w => ({ ...w, description: v }))} maxLength={90} />
+                    <CounterField label="Button text" value={welcome.buttonLabel} onChange={v => setWelcome(w => ({ ...w, buttonLabel: v }))} maxLength={30} />
+                    <CounterField label="Placeholder input" value={welcome.placeholderInput} onChange={v => setWelcome(w => ({ ...w, placeholderInput: v }))} maxLength={30} />
+                    <button
+                      onClick={() => setWelcome({ enabled: true, guestMode: false, title: "Chat with Us", description: "How can I help you?", buttonLabel: "Start chat", placeholderInput: "Enter your name" })}
+                      className="text-xs font-medium text-primary hover:underline w-fit"
+                    >
+                      Reset default
+                    </button>
                   </div>
                 )}
 
@@ -1760,16 +1787,30 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
                           </div>
                         </div>
                         {previewState === "welcome" ? (
-                          <div className="flex-1 flex flex-col items-center justify-center text-center px-6" style={{ background: theme.background }}>
-                            <div className="w-16 h-16 rounded-2xl bg-primary-soft flex items-center justify-center mb-4">
-                              <HugeiconsIcon icon={Chat01Icon} size={26} className="text-primary" />
+                          welcome.enabled ? (
+                            <div className="flex-1 flex flex-col items-center justify-center text-center px-6" style={{ background: theme.background }}>
+                              <div className="w-16 h-16 rounded-2xl bg-primary-soft flex items-center justify-center mb-4">
+                                <HugeiconsIcon icon={Chat01Icon} size={26} className="text-primary" />
+                              </div>
+                              <p className="text-base font-bold mb-1" style={{ color: theme.botText }}>{welcome.title}</p>
+                              <p className="text-sm mb-5" style={{ color: theme.botText, opacity: 0.7 }}>{welcome.description}</p>
+                              {!welcome.guestMode && (
+                                <input
+                                  readOnly
+                                  placeholder={welcome.placeholderInput}
+                                  className="w-full h-10 rounded-lg border border-border px-3 text-sm mb-2.5 placeholder:text-muted-foreground"
+                                />
+                              )}
+                              <button className="w-full h-10 rounded-lg text-sm font-semibold" style={{ background: theme.customerBubble, color: theme.customerText }}>
+                                {welcome.buttonLabel}
+                              </button>
                             </div>
-                            <p className="text-base font-bold mb-1" style={{ color: theme.botText }}>{welcome.title}</p>
-                            <p className="text-sm mb-5" style={{ color: theme.botText, opacity: 0.7 }}>{welcome.subtitle}</p>
-                            <button className="w-full h-10 rounded-lg text-sm font-semibold" style={{ background: theme.customerBubble, color: theme.customerText }}>
-                              {welcome.buttonLabel}
-                            </button>
-                          </div>
+                          ) : (
+                            <div className="flex-1 flex flex-col items-center justify-center text-center px-6 gap-1.5" style={{ background: theme.background }}>
+                              <HugeiconsIcon icon={InformationCircleIcon} size={18} className="text-muted-foreground" />
+                              <p className="text-xs text-muted-foreground">Welcome screen is disabled</p>
+                            </div>
+                          )
                         ) : (
                           <div className="flex-1 flex flex-col p-3 gap-2 overflow-y-auto" style={{ background: theme.background }}>
                             <div className="self-start max-w-[80%] rounded-xl rounded-tl-sm px-3 py-2 text-xs" style={{ background: theme.botBubble, color: theme.botText }}>
