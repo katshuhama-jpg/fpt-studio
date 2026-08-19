@@ -6,6 +6,7 @@ import {
   KeyRound, AlertTriangle, CheckCircle2, Plus
 } from "lucide-react";
 import { useState } from "react";
+import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 
 /* ─── Template data ─────────────────────────────────────────────────── */
 const categories = ["All", "Customer support", "Sales", "HR & Internal", "Operations", "Finance"] as const;
@@ -158,6 +159,8 @@ function CreateAgentModal({ onClose }: { onClose: () => void }) {
 
 export default function Home() {
   const navigate = useNavigate();
+  const { can } = useMyPermissions();
+  const canCreateAgent = can("agents.create");
   const [showCreate, setShowCreate]       = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
 
@@ -181,14 +184,18 @@ export default function Home() {
             </p>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setShowCreate(true)}
-                className="h-10 px-5 rounded-lg bg-white text-[#1a2d5a] text-sm font-semibold flex items-center gap-2 hover:bg-white/90 transition-base"
+                onClick={() => canCreateAgent && setShowCreate(true)}
+                disabled={!canCreateAgent}
+                title={!canCreateAgent ? "You don't have permission to create agents." : undefined}
+                className="h-10 px-5 rounded-lg bg-white text-[#1a2d5a] text-sm font-semibold flex items-center gap-2 hover:bg-white/90 transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white"
               >
                 Create new Agent <ArrowRight size={15} />
               </button>
               <button
-                onClick={() => setShowTemplates(true)}
-                className="h-10 px-5 rounded-lg border border-white/30 text-white text-sm font-medium hover:bg-white/10 transition-base"
+                onClick={() => canCreateAgent && setShowTemplates(true)}
+                disabled={!canCreateAgent}
+                title={!canCreateAgent ? "You don't have permission to create agents." : undefined}
+                className="h-10 px-5 rounded-lg border border-white/30 text-white text-sm font-medium hover:bg-white/10 transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
               >
                 Browse templates
               </button>
@@ -276,8 +283,10 @@ export default function Home() {
 
             {/* Create new CTA card */}
             <button
-              onClick={() => setShowCreate(true)}
-              className="rounded-xl border border-border bg-surface p-4 flex flex-col items-center justify-center text-center hover:border-primary/30 hover:shadow-soft transition-base group min-h-[200px]"
+              onClick={() => canCreateAgent && setShowCreate(true)}
+              disabled={!canCreateAgent}
+              title={!canCreateAgent ? "You don't have permission to create agents." : undefined}
+              className="rounded-xl border border-border bg-surface p-4 flex flex-col items-center justify-center text-center hover:border-primary/30 hover:shadow-soft transition-base group min-h-[200px] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-border disabled:hover:shadow-none"
             >
               <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center mb-3 group-hover:scale-110 transition-base">
                 <Plus size={22} className="text-white" />

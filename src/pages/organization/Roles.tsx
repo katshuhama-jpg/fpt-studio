@@ -296,7 +296,7 @@ function PermissionsModal({ onClose }: { onClose: () => void }) {
               <Info size={15} />
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Personal use is always free — permissions below only control publishing, editing, or deleting things in the shared workspace.
+              Using what you already have is always free. Creating something new — even just for yourself — now requires Create permission; publishing, editing, or deleting shared workspace resources requires the permissions below.
             </p>
           </div>
 

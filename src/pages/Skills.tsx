@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { Puzzle, BookOpen, Plus, Search, LayoutGrid, List, ChevronDown, X, ChevronRight, Copy, Trash2, Eye, Code2, Bold, Italic, Strikethrough, Heading1, Heading2, List as ListIcon, ListOrdered } from "lucide-react";
+import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 
 interface Skill {
   id: string;
@@ -254,6 +255,8 @@ function inlineRender(text: string): React.ReactNode {
 }
 
 export default function Skills() {
+  const { can } = useMyPermissions();
+  const canCreateSkill = can("skills.create");
   const [view, setView] = useState<"grid"|"list">("grid");
   const [filter, setFilter] = useState("All Skills");
   const [filterOpen, setFilterOpen] = useState(false);
@@ -324,7 +327,13 @@ export default function Skills() {
           </div>
           <div className="flex items-center gap-2">
             <button className="btn-secondary flex items-center gap-1.5"><BookOpen size={14} /> Browse Library</button>
-            <button className="btn-primary flex items-center gap-1.5"><Plus size={14} /> Create Skill <ChevronDown size={13} className="opacity-70" /></button>
+            <button
+              disabled={!canCreateSkill}
+              title={!canCreateSkill ? "You don't have permission to create skills." : undefined}
+              className="btn-primary flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Plus size={14} /> Create Skill <ChevronDown size={13} className="opacity-70" />
+            </button>
           </div>
         </div>
 
@@ -377,7 +386,13 @@ export default function Skills() {
             <p className="text-sm text-muted-foreground max-w-sm mb-6">Skills teach your agents how to handle specific tasks. Create your own, or browse pre-built templates from the skill library.</p>
             <div className="flex items-center gap-3">
               <button className="btn-secondary flex items-center gap-1.5"><BookOpen size={14} /> Browse Library</button>
-              <button className="btn-primary flex items-center gap-1.5"><Plus size={14} /> Create Skill</button>
+              <button
+                disabled={!canCreateSkill}
+                title={!canCreateSkill ? "You don't have permission to create skills." : undefined}
+                className="btn-primary flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Plus size={14} /> Create Skill
+              </button>
             </div>
           </div>
         ) : view === "grid" ? (

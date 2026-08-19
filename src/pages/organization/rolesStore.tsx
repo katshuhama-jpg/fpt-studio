@@ -10,10 +10,10 @@ export type RoleDef = {
 
 const ADMIN_IDS = new Set(ALL_PERMISSION_IDS);
 const BUILDER_IDS = new Set([
-  "agents.publish", "agents.manage",
-  "knowledge.publish", "knowledge.manage",
-  "skills.publish", "skills.manage",
-  "connectors.publish", "connectors.manage",
+  "agents.create", "agents.publish", "agents.manage",
+  "knowledge.create", "knowledge.publish", "knowledge.manage",
+  "skills.create", "skills.publish", "skills.manage",
+  "connectors.create", "connectors.publish", "connectors.manage",
   "structure.view",
 ]);
 const VIEWER_IDS = new Set([

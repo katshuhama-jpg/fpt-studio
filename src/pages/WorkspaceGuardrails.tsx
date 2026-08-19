@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Add01Icon, Cancel01Icon, Delete01Icon, MoreVerticalIcon, PencilEdit01Icon, Search01Icon } from "@hugeicons/core-free-icons";
 import { createPortal } from "react-dom";
+import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
 type ActionKind = "Autogenerate response" | "Custom response" | "Require approval" | "Block" | "Redact and warn" | "Politely decline";
@@ -214,6 +215,8 @@ function CreateModal({ onClose, onCreate, initialData }: {
 
 /* ─── Main page ──────────────────────────────────────────────────────── */
 export default function WorkspaceGuardrails() {
+  const { can } = useMyPermissions();
+  const canCreateGuardrail = can("guardrails.create");
   const [items, setItems] = useState<Guardrail[]>(SEED);
   const [query, setQuery]         = useState("");
   const [showCreate, setShowCreate] = useState(false);
@@ -268,8 +271,10 @@ export default function WorkspaceGuardrails() {
             />
           </div>
           <button
-            onClick={() => setShowCreate(true)}
-            className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 transition-base"
+            onClick={() => canCreateGuardrail && setShowCreate(true)}
+            disabled={!canCreateGuardrail}
+            title={!canCreateGuardrail ? "You don't have permission to create guardrails." : undefined}
+            className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-primary"
           >
             <HugeiconsIcon icon={Add01Icon} size={14} /> Create guardrail
           </button>

@@ -11,10 +11,11 @@ export const SECTIONS: { id: Section; label: string; desc: string }[] = [
 ];
 
 /**
- * Creating and using Agents, Knowledge, Skills, Guardrails, and Connectors for
- * personal use is always available to every member — no permission required,
- * and anyone can already see what's live. Publishing, approving, editing, or
- * removing something from the workspace is what these permissions control.
+ * Using an already-created Agent, Knowledge source, Skill, Guardrail, or Connector
+ * is always free — no permission required, and anyone can already see what's live.
+ * Creating a new one (even for personal use only) requires the Create permission;
+ * publishing, building, or removing something from the workspace is what the rest
+ * of these permissions control.
  */
 const FEATURES = [
   { id: "agents", label: "Agents", icon: Bot, thing: "agents" },
@@ -34,8 +35,9 @@ export const featureGroups: FeatureGroup[] = [
     const singular = singularOf(thing);
     const permissions: Permission[] = [
       { id: `${id}.view`, name: `View ${thing}`, desc: `See every live ${singular} across the whole workspace, including ones not shared with you. Not required to publish or manage your own ${thing}.` },
+      { id: `${id}.create`, name: `Create ${thing}`, desc: `Create a new ${singular}, including one only for personal use.` },
       { id: `${id}.publish`, name: `Publish ${thing}`, desc: `Make a personal ${singular} available to the whole workspace, or share it with specific teammates. Doesn't require "View ${thing}" — you can always publish your own.` },
-      { id: `${id}.manage`, name: `Manage ${thing}`, desc: `Edit a live ${singular}'s configuration in the workspace. Doesn't require "View ${thing}" — you can always manage your own.` },
+      { id: `${id}.manage`, name: `Build ${thing}`, desc: `Edit a live ${singular}'s configuration in the workspace. Doesn't require "View ${thing}" — you can always manage your own.` },
     ];
     if (id === "agents") {
       permissions.push({ id: "agents.pause", name: "Pause agents", desc: "Pause or resume a live agent in the workspace without deleting it." });

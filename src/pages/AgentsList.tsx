@@ -6,6 +6,7 @@ import {
   Attachment01Icon, AtSignIcon, SparklesIcon, SentIcon, Cancel01Icon
 } from "@hugeicons/core-free-icons";
 import { useState } from "react";
+import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 
 /* ─── Data ─────────────────────────────────────────────────────────────── */
 
@@ -203,6 +204,8 @@ function TemplateModal({ onClose }: { onClose: () => void }) {
 
 export default function AgentsList() {
   const navigate = useNavigate();
+  const { can } = useMyPermissions();
+  const canCreateAgent = can("agents.create");
   const [activeTab, setActiveTab] = useState<typeof tabs[number]>("All agents");
   const [showTemplates, setShowTemplates] = useState(false);
   const [prompt, setPrompt] = useState("");
@@ -222,7 +225,7 @@ export default function AgentsList() {
         : agents.filter(a => a.status === activeTab);
 
   const handleBuild = () => {
-    if (!prompt.trim()) return;
+    if (!prompt.trim() || !canCreateAgent) return;
     const params = new URLSearchParams();
     params.set("tab", "develop");
     params.set("section", "general");
@@ -283,14 +286,17 @@ export default function AgentsList() {
           {/* Right actions */}
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setShowTemplates(true)}
-              className="text-sm text-muted-foreground hover:text-foreground transition-base"
+              onClick={() => canCreateAgent && setShowTemplates(true)}
+              disabled={!canCreateAgent}
+              title={!canCreateAgent ? "You don't have permission to create agents." : undefined}
+              className="text-sm text-muted-foreground hover:text-foreground transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-muted-foreground"
             >
               Use a template
             </button>
             <button
               onClick={handleBuild}
-              disabled={!prompt.trim()}
+              disabled={!prompt.trim() || !canCreateAgent}
+              title={!canCreateAgent ? "You don't have permission to create agents." : undefined}
               className="btn-primary h-9 px-4 rounded-full disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <HugeiconsIcon icon={SparklesIcon} size={14} />

@@ -19,6 +19,7 @@ import { triggerStore } from "@/components/configure/triggerStore";
 import { guardrailStore } from "@/components/configure/guardrailStore";
 import { chatOptimizationStore } from "@/components/configure/chatOptimizationStore";
 import { updateUser } from "@/lib/onboarding";
+import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import BusinessProcessTree from "@/components/general/BusinessProcessTree";
 
 type Tab = "build" | "test" | "deploy" | "insights";
@@ -903,6 +904,8 @@ function MoreLink({ count, onClick }: { count: number; onClick: () => void }) {
 
 /* ============ KNOWLEDGE ============ */
 function KnowledgeTab() {
+  const { can } = useMyPermissions();
+  const canCreateKnowledge = can("knowledge.create");
   const sources = [
     { name: "Brochure 2024.pdf", type: "PDF", size: "2.4 MB", chunks: 184, version: "v2", icon: FileEditIcon, color: "text-destructive" },
     { name: "Customer FAQ", type: "FAQ", size: "47 entries", chunks: 47, version: "v5", icon: Chat01Icon, color: "text-primary" },
@@ -921,7 +924,9 @@ function KnowledgeTab() {
           ].map(s => (
             <button
               key={s.label}
-              className="flex flex-col items-center gap-1.5 py-3 px-2 rounded-lg border border-dashed border-border hover:border-primary/40 hover:bg-primary-soft/30 text-xs font-medium transition-base"
+              disabled={!canCreateKnowledge}
+              title={!canCreateKnowledge ? "You don't have permission to create knowledge sources." : undefined}
+              className="flex flex-col items-center gap-1.5 py-3 px-2 rounded-lg border border-dashed border-border hover:border-primary/40 hover:bg-primary-soft/30 text-xs font-medium transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-border disabled:hover:bg-transparent"
             >
               <HugeiconsIcon icon={s.icon} size={16} className="text-primary" />
               {s.label}
