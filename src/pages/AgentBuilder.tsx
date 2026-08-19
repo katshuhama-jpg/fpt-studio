@@ -2381,16 +2381,14 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
   const guardrailsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
   const skillsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
   const subAgentsAddRef = useRef<(() => void) | null>(null);
+  const connectorsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
 
   const sections = [
     {
       id: "connectors", icon: ConnectIcon, label: "Connectors",
+      onAdd: (pos: {top:number;left:number}) => connectorsAddRef.current?.(pos),
       content: (
-        <EmptyStateBox
-          icon={ConnectIcon}
-          description="The outside accounts and systems this agent may use."
-          addLabel="Add Connectors"
-        />
+        <ConnectorsInner onRegisterAdd={(fn) => { connectorsAddRef.current = fn; }} />
       ),
     },
     {
@@ -3299,6 +3297,111 @@ function ConnectWorkspaceSkillModal({ onClose, onAdd, added }: {
       </div>
     </div>,
     document.body
+  );
+}
+
+function ConnectorsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:number;left:number}) => void) => void } = {}) {
+  const [showMenu, setShowMenu] = useState(false);
+  const [menuPos, setMenuPos] = useState<{top:number;left:number}>({top:0,left:0});
+  const [showPicker, setShowPicker] = useState(false);
+  const [pickerMode, setPickerMode] = useState<"shared" | "per-user">("shared");
+  const [connected, setConnected] = useState<{ id: string; mode: "shared" | "per-user" }[]>([]);
+
+  useEffect(() => {
+    onRegisterAdd?.((pos: {top:number;left:number}) => { setMenuPos(pos); setShowMenu(true); });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!showMenu) return;
+    const h = () => setShowMenu(false);
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [showMenu]);
+
+  const menuItems = [
+    { icon: Building02Icon, label: "Shared", sub: "One workspace account", mode: "shared" as const },
+    { icon: UserIcon, label: "Per-user", sub: "Each person's own account", mode: "per-user" as const },
+  ];
+
+  const connectedIds = connected.map(c => c.id);
+  const toggleConnector = (id: string) => {
+    setConnected(prev => prev.some(c => c.id === id) ? prev.filter(c => c.id !== id) : [...prev, { id, mode: pickerMode }]);
+  };
+
+  return (
+    <>
+      {connected.length === 0 ? (
+        <EmptyStateBox
+          icon={ConnectIcon}
+          description="The outside accounts and systems this agent may use."
+          addLabel="Add Connectors"
+          onAdd={e => {
+            const r = e.currentTarget.getBoundingClientRect();
+            setMenuPos({ top: r.bottom + 4, left: r.right });
+            setShowMenu(true);
+          }}
+        />
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          {connected.map(c => {
+            const meta = SUB_AGENT_CONNECTORS.find(x => x.id === c.id);
+            if (!meta) return null;
+            return (
+              <div key={c.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base">
+                <span className="w-6 h-6 rounded bg-surface-muted border border-border flex items-center justify-center text-[9px] font-bold shrink-0">{meta.logo}</span>
+                <span className="text-xs font-medium flex-1 truncate">{meta.name}</span>
+                <span
+                  className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap"
+                  style={c.mode === "shared" ? { background: "#EEF2FF", color: "#4338CA", border: "0.5px solid #C7D2FE" } : { background: "#ECFDF5", color: "#047857", border: "0.5px solid #A7F3D0" }}
+                >
+                  {c.mode === "shared" ? "Shared" : "Per-user"}
+                </span>
+                <button
+                  onClick={() => setConnected(prev => prev.filter(x => x.id !== c.id))}
+                  className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-surface-muted transition-base shrink-0">
+                  <HugeiconsIcon icon={Delete01Icon} size={12} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Shared / Per-user dropdown */}
+      {showMenu && createPortal(
+        <div
+          className="fixed z-[9999]"
+          style={{ top: menuPos.top, right: window.innerWidth - menuPos.left }}
+          onMouseDown={e => e.stopPropagation()}
+        >
+          <div className="bg-white rounded-xl border border-border shadow-elev py-1.5 min-w-[230px] animate-fade-up">
+            {menuItems.map((item, i) => (
+              <button
+                key={i}
+                className="w-full flex items-start gap-2.5 px-3.5 py-2.5 text-left hover:bg-surface-muted transition-base"
+                onClick={() => { setShowMenu(false); setPickerMode(item.mode); setShowPicker(true); }}
+              >
+                <HugeiconsIcon icon={item.icon} size={16} className="text-muted-foreground shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium">{item.label}</p>
+                  <p className="text-xs text-muted-foreground">{item.sub}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {showPicker && (
+        <ConnectorPickerModal
+          connectors={SUB_AGENT_CONNECTORS}
+          added={connectedIds}
+          onToggle={toggleConnector}
+          onClose={() => setShowPicker(false)}
+        />
+      )}
+    </>
   );
 }
 
