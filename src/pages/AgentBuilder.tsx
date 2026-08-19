@@ -3695,6 +3695,99 @@ function InstructionsEditorModal({ value, onClose, onDone }: {
   );
 }
 
+function AddCustomMcpModal({ onClose }: { onClose: () => void }) {
+  const [name, setName] = useState("");
+  const [url, setUrl] = useState("");
+  const [auth, setAuth] = useState<"none" | "static">("none");
+
+  const authOptions = [
+    { id: "none" as const,   label: "No authentication", disabled: false },
+    { id: "static" as const, label: "Static Headers",    disabled: false },
+    { id: "oauth-auto",      label: "OAuth 2.1 (Auto)",   disabled: true },
+    { id: "oauth-manual",    label: "OAuth 2.1 (Manual)", disabled: true },
+  ];
+
+  return createPortal(
+    <div className="fixed inset-0 z-[10001] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-md bg-white rounded-2xl shadow-lg border border-border flex flex-col max-h-[88vh] animate-fade-up">
+        <div className="flex items-start justify-between px-6 pt-6 pb-2 shrink-0">
+          <div>
+            <h2 className="text-lg font-semibold">Add custom MCP</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">Connect an MCP server to give your agents its tools.</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 mt-0.5">
+            <HugeiconsIcon icon={Cancel01Icon} size={16} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-4">
+          <div className="flex items-start gap-2.5 px-3.5 py-3 rounded-xl bg-surface-muted/60">
+            <HugeiconsIcon icon={UserGroupIcon} size={16} className="text-muted-foreground shrink-0 mt-0.5" />
+            <p className="text-xs text-muted-foreground leading-relaxed">Shared connector: the agent will always use the workspace's account for this server.</p>
+          </div>
+
+          <div>
+            <p className="text-sm font-semibold mb-1.5">Name</p>
+            <input
+              autoFocus
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="my-mcp-server"
+              className="ds-input w-full"
+            />
+          </div>
+
+          <div>
+            <p className="text-sm font-semibold mb-1.5">URL</p>
+            <input
+              value={url}
+              onChange={e => setUrl(e.target.value)}
+              placeholder="https://api.example.com/mcp"
+              className="ds-input w-full"
+            />
+          </div>
+
+          <div>
+            <p className="text-sm font-semibold mb-2">Authentication</p>
+            <div className="flex flex-col gap-2.5">
+              {authOptions.map(opt => (
+                <label key={opt.id} className={`flex items-center gap-2.5 ${opt.disabled ? "cursor-not-allowed" : "cursor-pointer"}`}>
+                  <input
+                    type="radio"
+                    name="mcp-auth"
+                    disabled={opt.disabled}
+                    checked={auth === opt.id}
+                    onChange={() => !opt.disabled && setAuth(opt.id as "none" | "static")}
+                    className="w-4 h-4 accent-primary"
+                  />
+                  <span className={`text-sm ${opt.disabled ? "text-muted-foreground" : "text-foreground"}`}>
+                    {opt.label}
+                    {opt.disabled && <span className="text-muted-foreground"> · Soon</span>}
+                  </span>
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-2.5 leading-relaxed">Use static headers (e.g. an API key) to authenticate. OAuth 2.1 is coming soon.</p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border shrink-0">
+          <button onClick={onClose} className="btn-secondary">Cancel</button>
+          <button
+            disabled={!name.trim() || !url.trim()}
+            onClick={onClose}
+            className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Save server
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 function ConnectorPickerModal({ connectors, added, onToggle, onClose }: {
   connectors: { id: string; name: string; logo: string; category: string; connected: boolean }[];
   added: string[];
@@ -3704,6 +3797,7 @@ function ConnectorPickerModal({ connectors, added, onToggle, onClose }: {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All integrations");
   const [catOpen, setCatOpen] = useState(false);
+  const [showCustomMcp, setShowCustomMcp] = useState(false);
   const catRef = useRef<HTMLDivElement>(null);
   const allSelected = connectors.length > 0 && connectors.every(c => added.includes(c.id));
   const toggleAll = () => {
@@ -3818,13 +3912,18 @@ function ConnectorPickerModal({ connectors, added, onToggle, onClose }: {
         <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-border shrink-0">
           <button
             type="button"
-            className="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-border text-sm font-medium text-muted-foreground opacity-70 cursor-not-allowed"
+            onClick={() => setShowCustomMcp(true)}
+            className="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-border text-sm font-medium text-foreground hover:bg-surface-muted transition-base"
           >
             <HugeiconsIcon icon={Add01Icon} size={14} /> Add custom MCP
           </button>
           <button onClick={onClose} className="btn-primary">Done</button>
         </div>
       </div>
+
+      {showCustomMcp && (
+        <AddCustomMcpModal onClose={() => setShowCustomMcp(false)} />
+      )}
     </div>,
     document.body
   );
