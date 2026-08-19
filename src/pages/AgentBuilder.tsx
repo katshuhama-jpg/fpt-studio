@@ -1376,6 +1376,25 @@ const CUSTOMIZE_SUBTABS = [
   { id: "chat",    label: "Chat" },
 ] as const;
 
+function CounterTextarea({ label, value, onChange, maxLength, placeholder }: { label: string; value: string; onChange: (v: string) => void; maxLength: number; placeholder?: string }) {
+  return (
+    <div>
+      <p className="text-sm font-semibold mb-1.5">{label}</p>
+      <div className="relative">
+        <textarea
+          value={value}
+          maxLength={maxLength}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          rows={3}
+          className="ds-textarea w-full resize-none pb-6"
+        />
+        <span className="absolute right-3 bottom-2 text-xs text-muted-foreground">{value.length}/{maxLength}</span>
+      </div>
+    </div>
+  );
+}
+
 function CounterField({ label, value, onChange, maxLength }: { label: string; value: string; onChange: (v: string) => void; maxLength: number }) {
   return (
     <div>
@@ -1457,7 +1476,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
   const [general, setGeneral] = useState({ companyName: "" });
   const [starterGreeting, setStarterGreeting] = useState("Hi! How can I help you?");
   const [welcome, setWelcome] = useState({ enabled: true, guestMode: false, title: "Chat with Us", description: "How can I help you?", buttonLabel: "Start chat", placeholderInput: "Enter your name" });
-  const [chat, setChat] = useState({ headerTitle: "Test", inputPlaceholder: "Type a message…", emptyState: "Ask me anything…", showTyping: true });
+  const [chat, setChat] = useState({ headerTitle: "Test", showLogoHeader: true, placeholderMessage: "Enter your message", aiDisclaimer: "" });
 
   const url = "https://agents.fpt.ai/live-chat/chat?tenant_id=01JED250RPXCYQE6MAVTNSQCAM";
 
@@ -1709,23 +1728,22 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
                 )}
 
                 {customizeTab === "chat" && (
-                  <div className="flex flex-col gap-5 max-w-md">
-                    <div>
-                      <p className="text-sm font-semibold mb-1.5">Chat header title</p>
-                      <input value={chat.headerTitle} onChange={e => setChat(c => ({ ...c, headerTitle: e.target.value }))} className="ds-input w-full" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold mb-1.5">Input placeholder</p>
-                      <input value={chat.inputPlaceholder} onChange={e => setChat(c => ({ ...c, inputPlaceholder: e.target.value }))} className="ds-input w-full" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold mb-1.5">Empty state message</p>
-                      <input value={chat.emptyState} onChange={e => setChat(c => ({ ...c, emptyState: e.target.value }))} className="ds-input w-full" />
-                    </div>
-                    <label className="flex items-center gap-2.5 cursor-pointer">
-                      <input type="checkbox" checked={chat.showTyping} onChange={e => setChat(c => ({ ...c, showTyping: e.target.checked }))} className="w-4 h-4 accent-primary" />
-                      <span className="text-sm">Show typing indicator</span>
-                    </label>
+                  <div className="flex flex-col gap-6 max-w-md">
+                    <SwitchField label="Show logo header" checked={chat.showLogoHeader} onChange={v => setChat(c => ({ ...c, showLogoHeader: v }))} />
+                    <CounterField label="Placeholder message" value={chat.placeholderMessage} onChange={v => setChat(c => ({ ...c, placeholderMessage: v }))} maxLength={30} />
+                    <CounterTextarea
+                      label="AI Disclaimer"
+                      value={chat.aiDisclaimer}
+                      onChange={v => setChat(c => ({ ...c, aiDisclaimer: v }))}
+                      maxLength={120}
+                      placeholder="Eg. AI may provide inaccurate info. Double-check its responses."
+                    />
+                    <button
+                      onClick={() => setChat(c => ({ ...c, showLogoHeader: true, placeholderMessage: "Enter your message", aiDisclaimer: "" }))}
+                      className="text-xs font-medium text-primary hover:underline w-fit"
+                    >
+                      Reset default
+                    </button>
                   </div>
                 )}
                 </div>
@@ -1771,9 +1789,11 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
                       <div className="w-full rounded-xl border border-border bg-white shadow-md overflow-hidden flex flex-col" style={{ height: "380px" }}>
                         <div className="flex items-center justify-between px-4 py-3 shrink-0" style={{ background: theme.header }}>
                           <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
-                              <HugeiconsIcon icon={Chat01Icon} size={13} style={{ color: theme.brandText }} />
-                            </div>
+                            {chat.showLogoHeader && (
+                              <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+                                <HugeiconsIcon icon={Chat01Icon} size={13} style={{ color: theme.brandText }} />
+                              </div>
+                            )}
                             <span className="text-sm font-semibold" style={{ color: theme.brandText }}>{chat.headerTitle}</span>
                           </div>
                           <div className="flex items-center gap-2" style={{ color: theme.brandText }}>
@@ -1809,15 +1829,18 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
                         ) : (
                           <div className="flex-1 flex flex-col p-3 gap-2 overflow-y-auto" style={{ background: theme.background }}>
                             <div className="self-start max-w-[80%] rounded-xl rounded-tl-sm px-3 py-2 text-xs" style={{ background: theme.botBubble, color: theme.botText }}>
-                              {chat.emptyState}
+                              Ask me anything…
                             </div>
                             <div className="self-end max-w-[80%] rounded-xl rounded-tr-sm px-3 py-2 text-xs" style={{ background: theme.customerBubble, color: theme.customerText }}>
                               Hi, I need help
                             </div>
                             <div className="mt-auto pt-2 border-t border-border">
                               <div className="h-8 rounded-lg bg-surface-muted flex items-center px-2.5 text-xs text-muted-foreground">
-                                {chat.inputPlaceholder}
+                                {chat.placeholderMessage}
                               </div>
+                              {chat.aiDisclaimer && (
+                                <p className="text-[10px] text-muted-foreground text-center mt-1.5 leading-snug">{chat.aiDisclaimer}</p>
+                              )}
                             </div>
                           </div>
                         )}
