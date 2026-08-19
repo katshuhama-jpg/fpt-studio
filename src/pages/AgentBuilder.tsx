@@ -3525,14 +3525,14 @@ function ConnectorPickerModal({ connectors, added, onToggle, onClose }: {
             />
           </div>
 
-          <div ref={catRef} className="relative shrink-0">
+          <div ref={catRef} className="relative shrink-0" style={{ width: "168px" }}>
             <button
               type="button"
               onClick={() => setCatOpen(o => !o)}
-              className="h-9 pl-3 pr-2.5 rounded-lg border border-border bg-white text-sm font-medium flex items-center gap-1.5 hover:bg-surface-muted transition-base"
+              className="w-full h-9 pl-3 pr-2.5 rounded-lg border border-border bg-white text-sm font-medium flex items-center gap-1.5 hover:bg-surface-muted transition-base"
             >
-              {activeCategory}
-              <HugeiconsIcon icon={ChevronDownIcon} size={13} className={`text-muted-foreground transition-transform ${catOpen ? "rotate-180" : ""}`} />
+              <span className="flex-1 min-w-0 truncate text-left">{activeCategory}</span>
+              <HugeiconsIcon icon={ChevronDownIcon} size={13} className={`text-muted-foreground shrink-0 transition-transform ${catOpen ? "rotate-180" : ""}`} />
             </button>
             {catOpen && (
               <div className="absolute z-50 top-full right-0 mt-1 w-[180px] bg-white border border-border rounded-xl shadow-lg overflow-hidden py-1">
