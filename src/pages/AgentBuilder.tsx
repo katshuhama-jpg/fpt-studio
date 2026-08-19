@@ -3589,7 +3589,9 @@ function CreateSubAgentModal({ onClose, onSave }: {
   const [description, setDescription] = useState("");
   const [model, setModel] = useState("deepseek-v4-flash");
   const [instructions, setInstructions] = useState("");
-  const [showInstructionsEditor, setShowInstructionsEditor] = useState(false);
+  const [editingInstructions, setEditingInstructions] = useState(false);
+  const [editorViewMode, setEditorViewMode] = useState<"preview" | "source">("source");
+  const editorRef = useRef<HTMLTextAreaElement>(null);
   const [connectorIds, setConnectorIds] = useState<string[]>([]);
   const [showConnectorPicker, setShowConnectorPicker] = useState(false);
 
@@ -3597,155 +3599,233 @@ function CreateSubAgentModal({ onClose, onSave }: {
 
   const canSave = name.trim().length > 0;
 
+  const wrapSelection = (before: string, after: string = before) => {
+    const el = editorRef.current;
+    if (!el) return;
+    const { selectionStart: s, selectionEnd: e } = el;
+    const next = instructions.slice(0, s) + before + instructions.slice(s, e) + after + instructions.slice(e);
+    setInstructions(next);
+    requestAnimationFrame(() => { el.focus(); el.setSelectionRange(s + before.length, e + before.length); });
+  };
+
+  const prependLine = (prefix: string) => {
+    const el = editorRef.current;
+    if (!el) return;
+    const s = el.selectionStart;
+    const lineStart = instructions.lastIndexOf("\n", s - 1) + 1;
+    const next = instructions.slice(0, lineStart) + prefix + instructions.slice(lineStart);
+    setInstructions(next);
+    requestAnimationFrame(() => { el.focus(); el.setSelectionRange(s + prefix.length, s + prefix.length); });
+  };
+
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-xl bg-white rounded-2xl shadow-lg border border-border flex flex-col max-h-[88vh] animate-fade-up">
-        {/* Header */}
-        <div className="flex items-start justify-between px-6 pt-6 pb-4 shrink-0 border-b border-border">
-          <div>
-            <h2 className="text-lg font-semibold">Create sub-agent</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">A specialized agent this agent can delegate tasks to.</p>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 mt-0.5">
-            <HugeiconsIcon icon={Cancel01Icon} size={16} />
-          </button>
-        </div>
-
-        {/* Form */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-          <div>
-            <label className="text-xs font-semibold text-foreground mb-1.5 block">Name</label>
-            <input
-              autoFocus
-              value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder="e.g. candidate-email-sender"
-              className="ds-input w-full"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs font-semibold text-foreground mb-1.5 block">Description</label>
-            <input
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              placeholder="Use when sending recruiting emails…"
-              className="ds-input w-full"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs font-semibold text-foreground mb-1.5 block">Model</label>
-            <ModelDropdown value={model} onChange={setModel} />
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-semibold text-foreground">Instructions (agent.md)</label>
+      <div className="relative z-10 w-full max-w-xl bg-white rounded-2xl shadow-lg border border-border flex flex-col max-h-[88vh] animate-fade-up overflow-hidden">
+        {editingInstructions ? (
+          <>
+            {/* Instructions editor — shown inline in the same dialog */}
+            <div className="flex items-center justify-between px-6 py-4 shrink-0 border-b border-border">
+              <h2 className="text-lg font-semibold">Instructions</h2>
               <button
-                type="button"
-                onClick={() => setShowInstructionsEditor(true)}
-                className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                onClick={() => setEditingInstructions(false)}
+                className="h-8 px-3 rounded-lg text-sm font-medium hover:bg-surface-muted transition-base"
               >
-                <HugeiconsIcon icon={Edit01Icon} size={12} /> Edit
+                Done
               </button>
             </div>
-            <textarea
-              value={instructions}
-              onChange={e => setInstructions(e.target.value)}
-              onClick={() => setShowInstructionsEditor(true)}
-              readOnly
-              placeholder={"# Sub-agent instructions\n\nDescribe what this sub-agent does, its tone, and its limits…"}
-              className="ds-textarea w-full resize-none font-mono text-xs leading-relaxed cursor-pointer bg-surface-muted/40"
-              style={{ height: "128px" }}
-            />
-          </div>
 
-          {showInstructionsEditor && (
-            <InstructionsEditorModal
-              value={instructions}
-              onClose={() => setShowInstructionsEditor(false)}
-              onDone={v => setInstructions(v)}
-            />
-          )}
+            <div className="flex items-center gap-0.5 px-3 py-2 border-b border-border bg-surface-muted/60 shrink-0">
+              <button onClick={() => wrapSelection("**")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Bold"><HugeiconsIcon icon={TextBoldIcon} size={14} /></button>
+              <button onClick={() => wrapSelection("*")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Italic"><HugeiconsIcon icon={TextItalicIcon} size={14} /></button>
+              <button onClick={() => wrapSelection("~~")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Strikethrough"><HugeiconsIcon icon={TextStrikethroughIcon} size={14} /></button>
+              <div className="w-px h-4 bg-border mx-1" />
+              <button onClick={() => prependLine("# ")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Heading 1"><HugeiconsIcon icon={Heading01Icon} size={14} /></button>
+              <button onClick={() => prependLine("## ")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Heading 2"><HugeiconsIcon icon={Heading02Icon} size={14} /></button>
+              <div className="w-px h-4 bg-border mx-1" />
+              <button onClick={() => prependLine("- ")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Bullet list"><HugeiconsIcon icon={LeftToRightListBulletIcon} size={14} /></button>
+              <button onClick={() => prependLine("1. ")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Numbered list"><HugeiconsIcon icon={LeftToRightListNumberIcon} size={14} /></button>
+              <div className="w-px h-4 bg-border mx-1" />
+              <button onClick={() => wrapSelection("`")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Inline code"><HugeiconsIcon icon={CodeIcon} size={14} /></button>
+              <button onClick={() => wrapSelection("```\n", "\n```")} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Code block"><HugeiconsIcon icon={SourceCodeIcon} size={14} /></button>
 
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-semibold text-foreground">Connectors</label>
-              <button
-                type="button"
-                onClick={() => setShowConnectorPicker(true)}
-                className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-              >
-                <HugeiconsIcon icon={Add01Icon} size={12} /> Add connector
-              </button>
-            </div>
-            {connectorIds.length === 0 ? (
-              <button
-                type="button"
-                onClick={() => setShowConnectorPicker(true)}
-                className="w-full rounded-xl border-2 border-dashed border-border flex flex-col items-center justify-center gap-1.5 py-5 text-center hover:bg-surface-muted transition-base"
-              >
-                <HugeiconsIcon icon={ConnectIcon} size={18} className="text-muted-foreground/50" />
-                <span className="text-xs text-muted-foreground">The outside accounts and systems this sub-agent may use.</span>
-              </button>
-            ) : (
-              <div className="flex flex-col gap-1.5">
-                {SUB_AGENT_CONNECTORS.filter(c => connectorIds.includes(c.id)).map(c => (
-                  <div
-                    key={c.id}
-                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-surface-muted/60"
-                  >
-                    <span className="w-7 h-7 rounded-lg bg-white border border-border flex items-center justify-center text-[10px] font-bold shrink-0">{c.logo}</span>
-                    <div className="flex-1 min-w-0 flex items-center gap-1.5 text-xs">
-                      <span className="font-semibold text-foreground truncate">{c.name}</span>
-                      {!c.connected && (
-                        <>
-                          <span className="text-muted-foreground">·</span>
-                          <span className="font-medium" style={{ color: "#C2410C" }}>Not connected</span>
-                        </>
-                      )}
-                    </div>
-                    <HugeiconsIcon icon={ChevronDownIcon} size={14} className="text-muted-foreground shrink-0" />
-                    <button
-                      type="button"
-                      onClick={() => toggleConnector(c.id)}
-                      className="w-7 h-7 rounded-lg flex items-center justify-center text-destructive hover:bg-destructive/10 transition-base shrink-0"
-                    >
-                      <HugeiconsIcon icon={Delete01Icon} size={14} />
-                    </button>
-                  </div>
-                ))}
+              <div className="flex-1" />
+
+              <button onClick={() => navigator.clipboard?.writeText(instructions)} className="w-7 h-7 rounded-md hover:bg-surface flex items-center justify-center text-muted-foreground hover:text-foreground transition-base" title="Copy"><HugeiconsIcon icon={Copy01Icon} size={14} /></button>
+              <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-surface border border-border ml-1.5">
+                <button
+                  onClick={() => setEditorViewMode("preview")}
+                  className={`flex items-center gap-1.5 h-6 px-2.5 rounded-md text-xs font-medium transition-base ${editorViewMode === "preview" ? "bg-surface-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  <HugeiconsIcon icon={EyeIcon} size={12} /> Preview
+                </button>
+                <button
+                  onClick={() => setEditorViewMode("source")}
+                  className={`flex items-center gap-1.5 h-6 px-2.5 rounded-md text-xs font-medium transition-base ${editorViewMode === "source" ? "bg-surface-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  <HugeiconsIcon icon={SourceCodeIcon} size={12} /> Source
+                </button>
               </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-5 py-4" style={{ minHeight: "360px" }}>
+              {editorViewMode === "preview" ? (
+                <div className="text-sm">{renderMarkdown(instructions || "*Nothing to preview yet.*")}</div>
+              ) : (
+                <textarea
+                  ref={editorRef}
+                  value={instructions}
+                  onChange={e => setInstructions(e.target.value)}
+                  placeholder={"# Sub-agent instructions\n\nDescribe what this sub-agent does, its tone, and its limits…"}
+                  className="w-full h-full resize-none bg-transparent outline-none text-sm font-mono leading-relaxed text-foreground"
+                  style={{ minHeight: "340px" }}
+                  spellCheck={false}
+                  autoFocus
+                />
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Header */}
+            <div className="flex items-start justify-between px-6 pt-6 pb-4 shrink-0 border-b border-border">
+              <div>
+                <h2 className="text-lg font-semibold">Create sub-agent</h2>
+                <p className="text-sm text-muted-foreground mt-0.5">A specialized agent this agent can delegate tasks to.</p>
+              </div>
+              <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 mt-0.5">
+                <HugeiconsIcon icon={Cancel01Icon} size={16} />
+              </button>
+            </div>
+
+            {/* Form */}
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-foreground mb-1.5 block">Name</label>
+                <input
+                  autoFocus
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder="e.g. candidate-email-sender"
+                  className="ds-input w-full"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-foreground mb-1.5 block">Description</label>
+                <input
+                  value={description}
+                  onChange={e => setDescription(e.target.value)}
+                  placeholder="Use when sending recruiting emails…"
+                  className="ds-input w-full"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-foreground mb-1.5 block">Model</label>
+                <ModelDropdown value={model} onChange={setModel} />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-foreground">Instructions (agent.md)</label>
+                  <button
+                    type="button"
+                    onClick={() => setEditingInstructions(true)}
+                    className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                  >
+                    <HugeiconsIcon icon={Edit01Icon} size={12} /> Edit
+                  </button>
+                </div>
+                <textarea
+                  value={instructions}
+                  onChange={e => setInstructions(e.target.value)}
+                  onClick={() => setEditingInstructions(true)}
+                  readOnly
+                  placeholder={"# Sub-agent instructions\n\nDescribe what this sub-agent does, its tone, and its limits…"}
+                  className="ds-textarea w-full resize-none font-mono text-xs leading-relaxed cursor-pointer bg-surface-muted/40"
+                  style={{ height: "128px" }}
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-foreground">Connectors</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowConnectorPicker(true)}
+                    className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                  >
+                    <HugeiconsIcon icon={Add01Icon} size={12} /> Add connector
+                  </button>
+                </div>
+                {connectorIds.length === 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowConnectorPicker(true)}
+                    className="w-full rounded-xl border-2 border-dashed border-border flex flex-col items-center justify-center gap-1.5 py-5 text-center hover:bg-surface-muted transition-base"
+                  >
+                    <HugeiconsIcon icon={ConnectIcon} size={18} className="text-muted-foreground/50" />
+                    <span className="text-xs text-muted-foreground">The outside accounts and systems this sub-agent may use.</span>
+                  </button>
+                ) : (
+                  <div className="flex flex-col gap-1.5">
+                    {SUB_AGENT_CONNECTORS.filter(c => connectorIds.includes(c.id)).map(c => (
+                      <div
+                        key={c.id}
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-surface-muted/60"
+                      >
+                        <span className="w-7 h-7 rounded-lg bg-white border border-border flex items-center justify-center text-[10px] font-bold shrink-0">{c.logo}</span>
+                        <div className="flex-1 min-w-0 flex items-center gap-1.5 text-xs">
+                          <span className="font-semibold text-foreground truncate">{c.name}</span>
+                          {!c.connected && (
+                            <>
+                              <span className="text-muted-foreground">·</span>
+                              <span className="font-medium" style={{ color: "#C2410C" }}>Not connected</span>
+                            </>
+                          )}
+                        </div>
+                        <HugeiconsIcon icon={ChevronDownIcon} size={14} className="text-muted-foreground shrink-0" />
+                        <button
+                          type="button"
+                          onClick={() => toggleConnector(c.id)}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center text-destructive hover:bg-destructive/10 transition-base shrink-0"
+                        >
+                          <HugeiconsIcon icon={Delete01Icon} size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {showConnectorPicker && (
+              <ConnectorPickerModal
+                connectors={SUB_AGENT_CONNECTORS}
+                added={connectorIds}
+                onToggle={toggleConnector}
+                onClose={() => setShowConnectorPicker(false)}
+              />
             )}
-          </div>
-        </div>
 
-        {showConnectorPicker && (
-          <ConnectorPickerModal
-            connectors={SUB_AGENT_CONNECTORS}
-            added={connectorIds}
-            onToggle={toggleConnector}
-            onClose={() => setShowConnectorPicker(false)}
-          />
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border shrink-0">
+              <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">Cancel</button>
+              <button
+                disabled={!canSave}
+                onClick={() => {
+                  if (!canSave) return;
+                  onSave({ name: name.trim(), description: description.trim(), model, instructions, skillIds: [], connectorIds });
+                  onClose();
+                }}
+                className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-base"
+              >
+                Create sub-agent
+              </button>
+            </div>
+          </>
         )}
-
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border shrink-0">
-          <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">Cancel</button>
-          <button
-            disabled={!canSave}
-            onClick={() => {
-              if (!canSave) return;
-              onSave({ name: name.trim(), description: description.trim(), model, instructions, skillIds: [], connectorIds });
-              onClose();
-            }}
-            className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-base"
-          >
-            Create sub-agent
-          </button>
-        </div>
       </div>
     </div>,
     document.body
