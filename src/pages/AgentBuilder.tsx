@@ -1827,15 +1827,75 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
                             </div>
                           )
                         ) : (
-                          <div className="flex-1 flex flex-col p-3 gap-2 overflow-y-auto" style={{ background: theme.background }}>
-                            <div className="self-start max-w-[80%] rounded-xl rounded-tl-sm px-3 py-2 text-xs" style={{ background: theme.botBubble, color: theme.botText }}>
-                              Ask me anything…
+                          <div className="flex-1 flex flex-col gap-3 p-3 overflow-y-auto" style={{ background: theme.background }}>
+                            <p className="text-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground opacity-70">Today</p>
+
+                            <div className="self-end max-w-[85%] rounded-xl rounded-tr-sm px-3 py-2 text-xs" style={{ background: theme.customerBubble, color: theme.customerText }}>
+                              What kind of messages do you support?
                             </div>
-                            <div className="self-end max-w-[80%] rounded-xl rounded-tr-sm px-3 py-2 text-xs" style={{ background: theme.customerBubble, color: theme.customerText }}>
-                              Hi, I need help
+
+                            {/* 1. Text + attachments */}
+                            <div className="self-start max-w-[85%] flex flex-col gap-1.5">
+                              <div className="rounded-xl rounded-tl-sm px-3 py-2 text-xs" style={{ background: theme.botBubble, color: theme.botText }}>
+                                This is a plain text message.
+                              </div>
+                              <div className="flex flex-wrap gap-1.5">
+                                <span className="flex items-center gap-1 px-2 py-1 rounded-lg border border-border bg-white text-[10px] font-semibold" style={{ color: "#D33B3B" }}>
+                                  <span className="w-3.5 h-3.5 rounded bg-[#D33B3B] text-white flex items-center justify-center text-[6px] font-bold">PDF</span>
+                                  Reference doc
+                                </span>
+                                <span className="px-2 py-1 rounded-lg border border-border bg-white text-[10px] font-semibold" style={{ color: theme.brand }}>1</span>
+                                <span className="px-2 py-1 rounded-lg border border-border bg-white text-[10px] font-semibold" style={{ color: theme.brand }}>2</span>
+                                <span className="flex items-center gap-1 px-2 py-1 rounded-lg border border-border bg-white text-[10px] font-semibold" style={{ color: theme.brand }}>
+                                  <HugeiconsIcon icon={ExternalLinkIcon} size={10} /> Go to link
+                                </span>
+                              </div>
                             </div>
+
+                            {/* 2. Button list */}
+                            <div className="self-start max-w-[85%] flex flex-col gap-1.5 w-full">
+                              <div className="rounded-xl rounded-tl-sm px-3 py-2 text-xs" style={{ background: theme.botBubble, color: theme.botText }}>
+                                This is a button-list message.
+                              </div>
+                              <div className="flex flex-col gap-1.5 w-full">
+                                <button className="w-full h-8 rounded-lg border text-xs font-semibold bg-white" style={{ borderColor: theme.brand, color: theme.brand }}>FPT AI</button>
+                                <button className="w-full h-8 rounded-lg border text-xs font-semibold bg-white" style={{ borderColor: theme.brand, color: theme.brand }}>FPT Cloud</button>
+                              </div>
+                            </div>
+
+                            {/* 3. Quick replies */}
+                            <div className="self-start max-w-[85%] flex flex-col gap-1.5">
+                              <div className="rounded-xl rounded-tl-sm px-3 py-2 text-xs" style={{ background: theme.botBubble, color: theme.botText }}>
+                                Here are 3 quick replies.
+                              </div>
+                              <div className="flex flex-wrap gap-1.5">
+                                {["How can I help you?", "Thank you!", "Got it"].map(t => (
+                                  <button key={t} className="px-2.5 py-1.5 rounded-full border text-[10px] font-semibold bg-white" style={{ borderColor: theme.brand, color: theme.brand }}>{t}</button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* 4. Carousel */}
+                            <div className="self-start flex flex-col gap-1.5" style={{ maxWidth: "100%" }}>
+                              <div className="rounded-xl rounded-tl-sm px-3 py-2 text-xs w-fit" style={{ background: theme.botBubble, color: theme.botText }}>
+                                This is a carousel message.
+                              </div>
+                              <div className="flex gap-2 overflow-x-auto pb-1">
+                                {[{ title: "Visa Credit Card", sub: "Up to 5% cashback", color: theme.brand }, { title: "24/7 Support", sub: "Talk to an agent", color: "#F5A623" }].map((c, i) => (
+                                  <div key={i} className="shrink-0 rounded-lg border border-border bg-white overflow-hidden" style={{ width: "132px" }}>
+                                    <div className="h-14 flex items-center justify-center text-[9px] font-bold text-white text-center px-2 leading-tight" style={{ background: c.color }}>{c.title}</div>
+                                    <div className="p-2 flex flex-col gap-1">
+                                      <p className="text-[10px] font-semibold leading-tight">{c.title}</p>
+                                      <p className="text-[9px] text-muted-foreground leading-tight">{c.sub}</p>
+                                      <button className="mt-1 h-6 rounded text-[9px] font-semibold" style={{ background: theme.customerBubble, color: theme.customerText }}>View details</button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
                             <div className="mt-auto pt-2 border-t border-border">
-                              <div className="h-8 rounded-lg bg-surface-muted flex items-center px-2.5 text-xs text-muted-foreground">
+                              <div className="h-8 rounded-full bg-surface-muted flex items-center px-3 text-xs text-muted-foreground">
                                 {chat.placeholderMessage}
                               </div>
                               {chat.aiDisclaimer && (
