@@ -3505,7 +3505,7 @@ function ConnectorPickerModal({ connectors, added, onToggle, onClose }: {
       <div className="relative z-10 w-full max-w-2xl bg-white rounded-2xl shadow-lg border border-border flex flex-col max-h-[85vh] animate-fade-up">
         <div className="flex items-start justify-between px-6 pt-6 pb-2 shrink-0">
           <div>
-            <h2 className="text-lg font-semibold">Shared connectors</h2>
+            <h2 className="text-lg font-semibold">Add connection</h2>
             <p className="text-sm text-muted-foreground mt-0.5">What this agent can do.</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 mt-0.5">
