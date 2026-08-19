@@ -1455,7 +1455,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
     header: "#0052CC",
   });
   const [general, setGeneral] = useState({ companyName: "" });
-  const [starters, setStarters] = useState<string[]>(["How do I reset my password?", "What are your business hours?", "Talk to a human"]);
+  const [starterGreeting, setStarterGreeting] = useState("Hi! How can I help you?");
   const [welcome, setWelcome] = useState({ enabled: true, guestMode: false, title: "Chat with Us", description: "How can I help you?", buttonLabel: "Start chat", placeholderInput: "Enter your name" });
   const [chat, setChat] = useState({ headerTitle: "Test", inputPlaceholder: "Type a message…", emptyState: "Ask me anything…", showTyping: true });
 
@@ -1621,7 +1621,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
                   {CUSTOMIZE_SUBTABS.map(t => (
                     <button
                       key={t.id}
-                      onClick={() => { setCustomizeTab(t.id); setPreviewState(t.id === "chat" ? "chat" : "welcome"); }}
+                      onClick={() => { setCustomizeTab(t.id); setPreviewState(t.id === "chat" ? "chat" : t.id === "starter" ? "minimized" : "welcome"); }}
                       className={`px-0 py-3.5 text-sm font-medium border-b-2 transition-base ${customizeTab === t.id ? "border-primary text-primary font-semibold" : "border-transparent text-muted-foreground hover:text-foreground"}`}
                     >
                       {t.label}
@@ -1678,32 +1678,14 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
                 )}
 
                 {customizeTab === "starter" && (
-                  <div className="max-w-md">
-                    <p className="text-sm font-semibold mb-1.5">Quick start prompts</p>
-                    <p className="text-xs text-muted-foreground mb-3">Suggested questions shown to visitors before they start typing.</p>
-                    <div className="flex flex-col gap-2">
-                      {starters.map((s, i) => (
-                        <div key={i} className="flex items-center gap-2">
-                          <input
-                            value={s}
-                            onChange={e => setStarters(prev => prev.map((x, idx) => idx === i ? e.target.value : x))}
-                            className="ds-input flex-1"
-                          />
-                          <button
-                            onClick={() => setStarters(prev => prev.filter((_, idx) => idx !== i))}
-                            className="w-9 h-9 rounded-lg bg-surface-muted hover:bg-border/40 flex items-center justify-center text-muted-foreground transition-base shrink-0"
-                          >
-                            <HugeiconsIcon icon={MinusSignIcon} size={15} />
-                          </button>
-                        </div>
-                      ))}
-                      <button
-                        onClick={() => setStarters(prev => [...prev, ""])}
-                        className="flex items-center gap-1 text-xs font-medium text-primary hover:underline w-fit mt-1"
-                      >
-                        <HugeiconsIcon icon={Add01Icon} size={12} /> Add prompt
-                      </button>
-                    </div>
+                  <div className="flex flex-col gap-6 max-w-md">
+                    <CounterField label="Greeting" value={starterGreeting} onChange={setStarterGreeting} maxLength={30} />
+                    <button
+                      onClick={() => setStarterGreeting("Hi! How can I help you?")}
+                      className="text-xs font-medium text-primary hover:underline w-fit"
+                    >
+                      Reset default
+                    </button>
                   </div>
                 )}
 
@@ -1765,12 +1747,25 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
                 </div>
                 <div className="flex-1 flex items-end justify-end p-4">
                     {previewState === "minimized" && (
-                      <button
-                        className="w-11 h-11 rounded-full flex items-center justify-center shadow-md"
-                        style={{ background: theme.brand }}
-                      >
-                        <HugeiconsIcon icon={Chat01Icon} size={18} className="text-white" />
-                      </button>
+                      <div className="flex items-center gap-2.5">
+                        {starterGreeting && (
+                          <div
+                            className="flex items-center gap-2.5 pl-4 pr-1.5 py-1.5 rounded-full shadow-md"
+                            style={{ background: theme.brand }}
+                          >
+                            <span className="text-sm font-medium whitespace-nowrap" style={{ color: theme.brandText }}>{starterGreeting}</span>
+                            <span className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                              <HugeiconsIcon icon={ArrowRight01Icon} size={13} style={{ color: theme.brandText }} />
+                            </span>
+                          </div>
+                        )}
+                        <button
+                          className="w-11 h-11 rounded-full flex items-center justify-center shadow-md shrink-0"
+                          style={{ background: theme.brand }}
+                        >
+                          <HugeiconsIcon icon={Chat01Icon} size={18} className="text-white" />
+                        </button>
+                      </div>
                     )}
                     {previewState !== "minimized" && (
                       <div className="w-full rounded-xl border border-border bg-white shadow-md overflow-hidden flex flex-col" style={{ height: "380px" }}>
