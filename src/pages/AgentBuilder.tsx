@@ -96,7 +96,7 @@ export default function AgentBuilder() {
             {([
               { id: "build",    label: "Build",    Icon: PencilEdit01Icon },
               { id: "test",     label: "Test",     Icon: FlaskConicalIcon },
-              { id: "deploy",   label: "Deploy",   Icon: Rocket01Icon },
+              { id: "deploy",   label: "Channels", Icon: GridViewIcon },
               { id: "insights", label: "Insights", Icon: Analytics01Icon },
             ] as const).map(({ id, label, Icon }) => (
               <button key={id} onClick={() => setTab(id as Tab)}
