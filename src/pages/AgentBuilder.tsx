@@ -3691,22 +3691,31 @@ function CreateSubAgentModal({ onClose, onSave }: {
                 <span className="text-xs text-muted-foreground">The outside accounts and systems this sub-agent may use.</span>
               </button>
             ) : (
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-col gap-1.5">
                 {SUB_AGENT_CONNECTORS.filter(c => connectorIds.includes(c.id)).map(c => (
-                  <span
+                  <div
                     key={c.id}
-                    className="flex items-center gap-1.5 pl-2 pr-1.5 py-1.5 rounded-lg border border-primary bg-primary-soft text-primary text-xs font-medium"
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-surface-muted/60"
                   >
-                    <span className="w-4 h-4 rounded bg-white border border-border flex items-center justify-center text-[9px] font-bold shrink-0 text-foreground">{c.logo}</span>
-                    {c.name}
+                    <span className="w-7 h-7 rounded-lg bg-white border border-border flex items-center justify-center text-[10px] font-bold shrink-0">{c.logo}</span>
+                    <div className="flex-1 min-w-0 flex items-center gap-1.5 text-xs">
+                      <span className="font-semibold text-foreground truncate">{c.name}</span>
+                      {!c.connected && (
+                        <>
+                          <span className="text-muted-foreground">·</span>
+                          <span className="font-medium" style={{ color: "#C2410C" }}>Not connected</span>
+                        </>
+                      )}
+                    </div>
+                    <HugeiconsIcon icon={ChevronDownIcon} size={14} className="text-muted-foreground shrink-0" />
                     <button
                       type="button"
                       onClick={() => toggleConnector(c.id)}
-                      className="w-4 h-4 rounded flex items-center justify-center hover:bg-primary/10 transition-base"
+                      className="w-7 h-7 rounded-lg flex items-center justify-center text-destructive hover:bg-destructive/10 transition-base shrink-0"
                     >
-                      <HugeiconsIcon icon={Cancel01Icon} size={10} />
+                      <HugeiconsIcon icon={Delete01Icon} size={14} />
                     </button>
-                  </span>
+                  </div>
                 ))}
               </div>
             )}
