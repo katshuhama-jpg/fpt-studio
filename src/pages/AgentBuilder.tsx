@@ -2318,7 +2318,7 @@ function EmptyStateBox({ icon, description, addLabel, onAdd }: {
 }
 
 function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange: (id: string) => void }) {
-  const [open, setOpen] = useState<Record<string, boolean>>({ connectors: true, skills: true, guardrails: true });
+  const [open, setOpen] = useState<Record<string, boolean>>({ connectors: true, skills: true, guardrails: true, "sub-agents": true });
   const guardrailsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
   const skillsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
   const subAgentsAddRef = useRef<(() => void) | null>(null);
