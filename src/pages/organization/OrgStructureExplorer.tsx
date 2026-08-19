@@ -2,10 +2,45 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { Building2, ChevronRight, ChevronLeft, ChevronDown, Search, Users, Trash2, Plus, X, FolderInput, Crown, Check, User } from "lucide-react";
-import { OrgUnit, OrgMember, countAll, countDirect, findUnit, findPath, unitMatches, collectMembers } from "./orgData";
+import {
+  OrgUnit, OrgMember, ApprovalResource, APPROVAL_RESOURCES,
+  countAll, countDirect, findUnit, findPath, unitMatches, collectMembers,
+} from "./orgData";
 import { useOrg, deriveNameFromEmail } from "./orgStore";
 import { useRoles, RoleDef } from "./rolesStore";
 import { MoveMemberModal } from "./MoveMemberModal";
+
+/** Short label for a set of approval resource types — "All resource types" when every
+ * type is granted, otherwise a comma list of just the granted ones. */
+function scopeSummary(scope: ApprovalResource[]): string {
+  if (scope.length === APPROVAL_RESOURCES.length) return "All resource types";
+  return scope.map(id => APPROVAL_RESOURCES.find(r => r.id === id)?.label ?? id).join(", ");
+}
+
+/** Shared 4-checkbox resource-scope picker, used both when assigning a new Unit Admin
+ * and when editing an existing one's scope from the Member/Admin dropdown. */
+function ScopeCheckboxes({
+  scope, onToggle,
+}: {
+  scope: Set<ApprovalResource>;
+  onToggle: (id: ApprovalResource) => void;
+}) {
+  return (
+    <div className="space-y-1.5">
+      {APPROVAL_RESOURCES.map(r => (
+        <label key={r.id} className="flex items-center gap-2 text-sm cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={scope.has(r.id)}
+            onChange={() => onToggle(r.id)}
+            className="w-4 h-4 accent-primary shrink-0"
+          />
+          {r.label}
+        </label>
+      ))}
+    </div>
+  );
+}
 
 function TreeRow({
   unit, depth, selectedId, expanded, onToggle, onSelect, query,
@@ -157,6 +192,7 @@ function MemberModal({
               </div>
               <p className="text-xs text-muted-foreground mt-1.5">
                 This role's permissions only apply within {unitName ?? "the current unit"} — not other units. If the member moves to a different unit, the scope moves with them.
+                Making someone a Unit Admin is separate, and lets you choose exactly which resource types they approve.
               </p>
             </div>
           )}
@@ -182,19 +218,37 @@ function MemberModal({
 
 /* ─── Member type cell (Member vs. Unit Admin, each option explained inline like RoleCell) ─── */
 function MemberTypeCell({
-  memberName, isAdmin, onChange,
+  memberName, scope, onChange,
 }: {
   memberName: string;
-  isAdmin: boolean;
-  onChange: (isAdmin: boolean) => void;
+  /** Current granted resource types, or null if this member is a plain Member (not an admin). */
+  scope: ApprovalResource[] | null;
+  /** null demotes to Member; a non-empty array sets/updates the Unit Admin grant. */
+  onChange: (scope: ApprovalResource[] | null) => void;
 }) {
+  const isAdmin = scope !== null;
   const [open, setOpen] = useState(false);
+  const [editingScope, setEditingScope] = useState(false);
+  const [draft, setDraft] = useState<Set<ApprovalResource>>(new Set());
+
+  const closeAll = () => { setOpen(false); setEditingScope(false); };
+  const startEditingScope = () => {
+    setDraft(new Set(scope ?? APPROVAL_RESOURCES.map(r => r.id)));
+    setEditingScope(true);
+  };
+  const toggleDraft = (id: ApprovalResource) => {
+    setDraft(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   return (
     <div
       className="relative"
       onBlur={e => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false);
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) closeAll();
       }}
     >
       <button
@@ -207,11 +261,11 @@ function MemberTypeCell({
         {isAdmin ? "Admin" : "Member"}
         <ChevronDown size={11} className={`transition-base ${open ? "rotate-180" : ""}`} />
       </button>
-      {open && (
+      {open && !editingScope && (
         <div className="absolute right-0 top-[calc(100%+4px)] w-80 bg-surface rounded-xl ring-1 ring-border shadow-xl z-20 p-1">
           <button
             type="button"
-            onClick={() => { onChange(false); setOpen(false); }}
+            onClick={() => { onChange(null); closeAll(); }}
             className={`w-full flex items-start justify-between gap-2 text-left px-3 py-2.5 rounded-lg transition-base hover:bg-surface-muted ${!isAdmin ? "bg-primary-soft" : ""}`}
           >
             <div className="min-w-0">
@@ -224,7 +278,7 @@ function MemberTypeCell({
           </button>
           <button
             type="button"
-            onClick={() => { onChange(true); setOpen(false); }}
+            onClick={startEditingScope}
             className={`w-full flex items-start justify-between gap-2 text-left px-3 py-2.5 rounded-lg transition-base hover:bg-surface-muted ${isAdmin ? "bg-primary-soft" : ""}`}
           >
             <div className="min-w-0">
@@ -232,12 +286,39 @@ function MemberTypeCell({
                 <Crown size={12} /> Admin
               </div>
               <div className="text-xs text-muted-foreground mt-0.5 leading-snug">
-                Also approves Agents, Knowledge, Skills, and Guardrails published into this unit — and every unit nested below it.
+                Approves whichever resource types you pick, published into this unit — and every unit nested below it.
                 <span className="block mt-1 text-muted-foreground/70">This also appears in Unit Admins above.</span>
               </div>
             </div>
             {isAdmin && <Check size={13} className="text-primary shrink-0 mt-0.5" />}
           </button>
+        </div>
+      )}
+      {open && editingScope && (
+        <div className="absolute right-0 top-[calc(100%+4px)] w-72 bg-surface rounded-xl ring-1 ring-border shadow-xl z-20 p-3">
+          <div className="text-xs font-medium text-foreground mb-2">Approve publishes for</div>
+          <ScopeCheckboxes scope={draft} onToggle={toggleDraft} />
+          {draft.size === 0 && (
+            <p className="text-xs text-destructive mt-2">Select at least one resource type, or remove this admin.</p>
+          )}
+          <div className="flex items-center justify-end gap-2 mt-3">
+            <button
+              type="button"
+              onClick={() => setEditingScope(false)}
+              className="h-7 px-2.5 rounded-lg text-xs font-medium text-muted-foreground hover:bg-surface-muted transition-base"
+            >
+              Back
+            </button>
+            <button
+              type="button"
+              onClick={() => { onChange(draft.size > 0 ? [...draft] : null); closeAll(); }}
+              className={`h-7 px-3 rounded-lg text-xs font-medium text-white transition-base ${
+                draft.size === 0 ? "bg-destructive hover:opacity-90" : "bg-primary hover:opacity-90"
+              }`}
+            >
+              {draft.size === 0 ? "Remove admin" : "Save"}
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -289,25 +370,47 @@ function ConfirmDeleteModal({
   );
 }
 
-/* ─── Assign-admin popover — pick a member of this unit who isn't already an admin ─── */
+/* ─── Assign-admin popover — pick a member of this unit who isn't already an admin, then
+   choose which resource types they can approve before confirming ─── */
 function AssignAdminPopover({
   candidates, onAssign,
 }: {
   candidates: OrgMember[];
-  onAssign: (memberId: string) => void;
+  onAssign: (memberId: string, scope: ApprovalResource[]) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
+  const [picked, setPicked] = useState<OrgMember | null>(null);
+  const [scope, setScope] = useState<Set<ApprovalResource>>(new Set(APPROVAL_RESOURCES.map(r => r.id)));
   const query = q.trim().toLowerCase();
   const filtered = query
     ? candidates.filter(m => m.name.toLowerCase().includes(query) || (m.email ?? "").toLowerCase().includes(query))
     : candidates;
 
+  const reset = () => {
+    setQ("");
+    setPicked(null);
+    setScope(new Set(APPROVAL_RESOURCES.map(r => r.id)));
+  };
+  const close = () => { setOpen(false); reset(); };
+  const toggleScope = (id: ApprovalResource) => {
+    setScope(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const confirm = () => {
+    if (!picked || scope.size === 0) return;
+    onAssign(picked.id, [...scope]);
+    close();
+  };
+
   return (
     <div
       className="relative"
       onBlur={e => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false);
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) close();
       }}
     >
       <button
@@ -323,7 +426,7 @@ function AssignAdminPopover({
       >
         <Plus size={12} /> Assign admin
       </button>
-      {open && (
+      {open && !picked && (
         <div className="absolute right-0 top-[calc(100%+4px)] w-80 max-h-80 bg-surface rounded-xl ring-1 ring-border shadow-xl z-50 flex flex-col overflow-hidden">
           <div className="p-2 border-b border-border shrink-0">
             <div className="relative">
@@ -342,7 +445,7 @@ function AssignAdminPopover({
               <button
                 key={m.id}
                 type="button"
-                onClick={() => { onAssign(m.id); setOpen(false); setQ(""); }}
+                onClick={() => setPicked(m)}
                 className="w-full flex items-center gap-2.5 text-left py-2 px-2.5 rounded-lg hover:bg-surface-muted transition-base"
               >
                 <div className="w-7 h-7 rounded-full bg-accent-soft text-accent flex items-center justify-center text-[10px] font-semibold shrink-0">
@@ -360,12 +463,54 @@ function AssignAdminPopover({
           </div>
         </div>
       )}
+      {open && picked && (
+        <div className="absolute right-0 top-[calc(100%+4px)] w-80 bg-surface rounded-xl ring-1 ring-border shadow-xl z-50 p-3">
+          <div className="flex items-center gap-2.5 mb-3">
+            <div className="w-7 h-7 rounded-full bg-accent-soft text-accent flex items-center justify-center text-[10px] font-semibold shrink-0">
+              {picked.initials}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium text-foreground truncate">{picked.name}</div>
+              {picked.email && <div className="text-xs text-muted-foreground truncate">{picked.email}</div>}
+            </div>
+            <button
+              type="button"
+              onClick={() => setPicked(null)}
+              className="text-xs font-medium text-muted-foreground hover:text-foreground transition-base shrink-0"
+            >
+              Change
+            </button>
+          </div>
+          <div className="text-xs font-medium text-foreground mb-2">Approve publishes for</div>
+          <ScopeCheckboxes scope={scope} onToggle={toggleScope} />
+          {scope.size === 0 && (
+            <p className="text-xs text-destructive mt-2">Select at least one resource type, or remove this admin.</p>
+          )}
+          <div className="flex items-center justify-end gap-2 mt-3">
+            <button
+              type="button"
+              onClick={close}
+              className="h-8 px-3 rounded-lg text-xs font-medium text-muted-foreground hover:bg-surface-muted transition-base"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={confirm}
+              disabled={scope.size === 0}
+              className="h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-base disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Assign admin
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 export default function OrgStructureExplorer() {
-  const { tree, rootId, addMember, removeMember, setUnitAdmin } = useOrg();
+  const { tree, rootId, addMember, removeMember, setUnitAdminScope } = useOrg();
   const { roles } = useRoles();
   const [selectedId, setSelectedId] = useState(rootId);
   const [expanded, setExpanded] = useState<Set<string>>(new Set([tree.id, ...tree.units.map(u => u.id)]));
@@ -376,7 +521,7 @@ export default function OrgStructureExplorer() {
   const [showAddMember, setShowAddMember] = useState(false);
   const [movingMember, setMovingMember] = useState<OrgMember | null>(null);
   const [deleteConfirmMemberId, setDeleteConfirmMemberId] = useState<string | null>(null);
-  const [removeAdminTarget, setRemoveAdminTarget] = useState<{ member: OrgMember; sourceUnit: OrgUnit } | null>(null);
+  const [removeAdminTarget, setRemoveAdminTarget] = useState<{ member: OrgMember; sourceUnit: OrgUnit; scope: ApprovalResource[] } | null>(null);
 
   const allEmails = useMemo(
     () => collectMembers(tree).map(m => (m.email ?? "").trim().toLowerCase()).filter(Boolean),
@@ -387,12 +532,13 @@ export default function OrgStructureExplorer() {
   const deleteTargetMember = deleteConfirmMemberId ? selected.members.find(m => m.id === deleteConfirmMemberId) ?? null : null;
 
   // Approval rights are one-way inheritable: a Unit Admin assigned on an ancestor unit can also
-  // approve here, but a Unit Admin assigned here can't approve on ancestors. Walking `path` (root
-  // → selected) and collecting each unit's own unitAdminIds gives exactly that effective set.
+  // approve here, with the same resource scope, but a Unit Admin assigned here can't approve on
+  // ancestors. Walking `path` (root → selected) and collecting each unit's own unitAdmins gives
+  // exactly that effective set.
   const effectiveAdmins = path.flatMap(u =>
-    (u.unitAdminIds ?? [])
-      .map(id => ({ member: u.members.find(m => m.id === id), sourceUnit: u }))
-      .filter((x): x is { member: OrgMember; sourceUnit: OrgUnit } => !!x.member)
+    (u.unitAdmins ?? [])
+      .map(grant => ({ member: u.members.find(m => m.id === grant.memberId), sourceUnit: u, scope: grant.scope }))
+      .filter((x): x is { member: OrgMember; sourceUnit: OrgUnit; scope: ApprovalResource[] } => !!x.member)
   );
 
   const selectUnit = (id: string) => {
@@ -456,11 +602,11 @@ export default function OrgStructureExplorer() {
       {removeAdminTarget && (
         <ConfirmDeleteModal
           title={`Remove "${removeAdminTarget.member.name}" as Unit Admin?`}
-          desc={`${removeAdminTarget.member.name} will lose Unit Admin publish-approval rights for ${removeAdminTarget.sourceUnit.name} and every unit nested below it.`}
+          desc={`${removeAdminTarget.member.name} will lose approval rights for ${scopeSummary(removeAdminTarget.scope)} in ${removeAdminTarget.sourceUnit.name} and every unit nested below it.`}
           confirmLabel="Remove admin"
           onClose={() => setRemoveAdminTarget(null)}
           onConfirm={() => {
-            setUnitAdmin(removeAdminTarget.sourceUnit.id, removeAdminTarget.member.id, false);
+            setUnitAdminScope(removeAdminTarget.sourceUnit.id, removeAdminTarget.member.id, []);
             toast.success(`Removed "${removeAdminTarget.member.name}" as Unit Admin.`);
             setRemoveAdminTarget(null);
           }}
@@ -538,12 +684,12 @@ export default function OrgStructureExplorer() {
               Unit Admins ({effectiveAdmins.length})
             </div>
             <AssignAdminPopover
-              candidates={selected.members.filter(m => !(selected.unitAdminIds ?? []).includes(m.id))}
-              onAssign={memberId => setUnitAdmin(selected.id, memberId, true)}
+              candidates={selected.members.filter(m => !(selected.unitAdmins ?? []).some(a => a.memberId === m.id))}
+              onAssign={(memberId, scope) => setUnitAdminScope(selected.id, memberId, scope)}
             />
           </div>
           <p className="text-xs text-muted-foreground mb-2">
-            Unit Admins can approve Agents, Knowledge, Skills, and Guardrails published into this unit and every unit nested below it.
+            Unit Admins can approve publishes into this unit and every unit nested below it, scoped to whichever resource types (Agents, Knowledge, Skills, Guardrails) they're granted.
           </p>
           {effectiveAdmins.length === 0 ? (
             <div className="text-sm text-muted-foreground border border-dashed border-border rounded-lg py-4 text-center">
@@ -551,7 +697,7 @@ export default function OrgStructureExplorer() {
             </div>
           ) : (
             <div className="flex flex-wrap gap-2">
-              {effectiveAdmins.map(({ member, sourceUnit }) => (
+              {effectiveAdmins.map(({ member, sourceUnit, scope }) => (
                 <div
                   key={`${sourceUnit.id}-${member.id}`}
                   className="inline-flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full bg-[hsl(var(--warning-soft))] ring-1 ring-warning/20"
@@ -561,13 +707,14 @@ export default function OrgStructureExplorer() {
                   </div>
                   <div className="min-w-0">
                     <div className="text-xs font-medium text-foreground truncate leading-tight">{member.name}</div>
-                    {sourceUnit.id !== selected.id && (
-                      <div className="text-[10px] text-muted-foreground truncate leading-tight">via {sourceUnit.name}</div>
-                    )}
+                    <div className="text-[10px] text-muted-foreground truncate leading-tight">
+                      {scopeSummary(scope)}
+                      {sourceUnit.id !== selected.id && ` · via ${sourceUnit.name}`}
+                    </div>
                   </div>
                   <button
                     type="button"
-                    onClick={() => setRemoveAdminTarget({ member, sourceUnit })}
+                    onClick={() => setRemoveAdminTarget({ member, sourceUnit, scope })}
                     aria-label={`Remove ${member.name} as Unit Admin`}
                     title="Remove as Unit Admin"
                     className="w-5 h-5 rounded-full flex items-center justify-center text-warning/70 hover:text-destructive hover:bg-white/70 transition-base shrink-0"
@@ -672,7 +819,7 @@ export default function OrgStructureExplorer() {
             <>
               <div className="border-t border-border divide-y divide-border">
                 {shownFilteredMembers.map(m => {
-                  const isUnitAdmin = (selected.unitAdminIds ?? []).includes(m.id);
+                  const adminGrant = (selected.unitAdmins ?? []).find(a => a.memberId === m.id);
                   return (
                   <div key={m.id} className="flex items-center gap-3 py-2.5 hover:bg-surface-muted/60 transition-base group/row">
                     <div className="w-8 h-8 rounded-full bg-accent-soft text-accent flex items-center justify-center text-[11px] font-semibold shrink-0">
@@ -689,8 +836,8 @@ export default function OrgStructureExplorer() {
                     </div>
                     <MemberTypeCell
                       memberName={m.name}
-                      isAdmin={isUnitAdmin}
-                      onChange={isAdmin => setUnitAdmin(selected.id, m.id, isAdmin)}
+                      scope={adminGrant?.scope ?? null}
+                      onChange={scope => setUnitAdminScope(selected.id, m.id, scope ?? [])}
                     />
                     <div className="flex items-center gap-1 shrink-0">
                       <button

@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, ReactNode } from "react";
 import { getUser } from "@/lib/onboarding";
-import { OrgUnit, OrgMember, orgTree as SEED_TREE } from "./orgData";
+import { OrgUnit, OrgMember, ApprovalResource, orgTree as SEED_TREE } from "./orgData";
 
 const ROOT_ID = SEED_TREE.id;
 
@@ -86,8 +86,13 @@ type OrgContextValue = {
   moveMember: (memberId: string, targetUnitId: string) => void;
   /** Marks a member Active/Inactive without removing them — used when Auto Sync no longer sees the person in the source system but an admin wants to keep the audit trail instead of hard-deleting. */
   setMemberInactive: (memberId: string, inactive: boolean) => void;
-  /** Grants/revokes Unit Admin on `unitId` for `memberId` (who must be a direct member of that unit). Approval rights this grants cascade down to every nested unit, never upward. */
-  setUnitAdmin: (unitId: string, memberId: string, isAdmin: boolean) => void;
+  /**
+   * Sets `memberId`'s Unit Admin approval scope on `unitId` (who must be a direct member of
+   * that unit) to exactly `scope` — replacing whatever scope they had before. Passing an empty
+   * array removes the grant entirely (demotes them back to a plain Member). Approval rights
+   * cascade down to every nested unit, never upward.
+   */
+  setUnitAdminScope: (unitId: string, memberId: string, scope: ApprovalResource[]) => void;
 };
 
 /**
@@ -218,12 +223,12 @@ export function OrgProvider({ children }: { children: ReactNode }) {
     setTree(prev => updateMemberOwner(prev, memberId, members => members.map(m => (m.id === memberId ? { ...m, inactive } : m))));
   };
 
-  const setUnitAdmin = (unitId: string, memberId: string, isAdmin: boolean) => {
+  const setUnitAdminScope = (unitId: string, memberId: string, scope: ApprovalResource[]) => {
     setTree(prev => {
       const updated = updateUnit(prev, unitId, unit => {
-        const current = unit.unitAdminIds ?? [];
-        const next = isAdmin ? [...new Set([...current, memberId])] : current.filter(id => id !== memberId);
-        return { ...unit, unitAdminIds: next };
+        const withoutMember = (unit.unitAdmins ?? []).filter(a => a.memberId !== memberId);
+        const next = scope.length > 0 ? [...withoutMember, { memberId, scope }] : withoutMember;
+        return { ...unit, unitAdmins: next };
       });
       return updated ?? prev;
     });
@@ -231,7 +236,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
 
   return (
     <OrgContext.Provider
-      value={{ tree, rootId: ROOT_ID, createUnit, renameUnit, deleteUnit, addMember, updateMember, assignRole, removeMember, moveMember, setMemberInactive, setUnitAdmin }}
+      value={{ tree, rootId: ROOT_ID, createUnit, renameUnit, deleteUnit, addMember, updateMember, assignRole, removeMember, moveMember, setMemberInactive, setUnitAdminScope }}
     >
       {children}
     </OrgContext.Provider>
