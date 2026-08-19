@@ -3657,8 +3657,8 @@ function CreateSubAgentModal({ onClose, onSave }: {
               onClick={() => setShowInstructionsEditor(true)}
               readOnly
               placeholder={"# Sub-agent instructions\n\nDescribe what this sub-agent does, its tone, and its limits…"}
-              rows={6}
-              className="ds-input w-full resize-none font-mono text-xs leading-relaxed cursor-pointer bg-surface-muted/40"
+              className="ds-textarea w-full resize-none font-mono text-xs leading-relaxed cursor-pointer bg-surface-muted/40"
+              style={{ height: "128px" }}
             />
           </div>
 
