@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react";
 import {
-  Plus, Search, Pencil, Trash2, Zap, Clock, Code2, Globe,
+  Plus, Search, Zap, Clock, Code2, Globe,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import TriggerFormDialog from "./TriggerFormDialog";
+import TriggerDetailDialog from "./TriggerDetailDialog";
 import { triggerStore, EXTERNAL_APP_EVENTS, type TriggerRecord, type TriggerType, type CustomScheduleUnit } from "./triggerStore";
 import { toast } from "sonner";
 
@@ -63,6 +64,7 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
   const refresh = () => setTick(t => t + 1);
   const [query, setQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [detailTarget, setDetailTarget] = useState<TriggerRecord | null>(null);
   const [editTarget, setEditTarget] = useState<TriggerRecord | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<TriggerRecord | null>(null);
 
@@ -117,7 +119,11 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
             return (
               <div
                 key={t.id}
-                className="group relative rounded-xl bg-surface border border-border hover:border-primary/40 hover:shadow-soft transition-base overflow-hidden"
+                role="button"
+                tabIndex={0}
+                onClick={() => setDetailTarget(t)}
+                onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDetailTarget(t); } }}
+                className="group text-left rounded-xl bg-surface border border-border hover:border-primary/40 hover:shadow-soft transition-base overflow-hidden cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
               >
                 <div className="p-4">
                   <div className="flex items-start gap-3 mb-3">
@@ -147,28 +153,11 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
                     <span className="text-[11px] text-muted-foreground">
                       {t.enabled ? <span className="text-success font-medium">● Active</span> : <span>○ Disabled</span>}
                     </span>
-                    <Toggle on={t.enabled} onChange={() => { triggerStore.toggle(agentId, t.id); refresh(); }} />
+                    <span onClick={e => e.stopPropagation()}>
+                      <Toggle on={t.enabled} onChange={() => { triggerStore.toggle(agentId, t.id); refresh(); }} />
+                    </span>
                   </div>
                 </div>
-
-                {!t.isDefault && (
-                  <div className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-base">
-                    <button
-                      onClick={() => setEditTarget(t)}
-                      className="w-7 h-7 rounded-md bg-surface-muted hover:bg-surface-sunken flex items-center justify-center text-muted-foreground hover:text-foreground transition-base"
-                      title="Edit"
-                    >
-                      <Pencil size={12} />
-                    </button>
-                    <button
-                      onClick={() => setDeleteTarget(t)}
-                      className="w-7 h-7 rounded-md bg-surface-muted hover:bg-destructive-soft flex items-center justify-center text-muted-foreground hover:text-destructive transition-base"
-                      title="Delete"
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                  </div>
-                )}
               </div>
             );
           })}
@@ -189,6 +178,14 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
         agentId={agentId}
         trigger={editTarget ?? undefined}
         onSubmitted={refresh}
+      />
+
+      <TriggerDetailDialog
+        open={!!detailTarget}
+        onOpenChange={v => !v && setDetailTarget(null)}
+        trigger={detailTarget}
+        onEdit={t => { setDetailTarget(null); setEditTarget(t); }}
+        onDelete={t => { setDetailTarget(null); setDeleteTarget(t); }}
       />
 
       <AlertDialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>

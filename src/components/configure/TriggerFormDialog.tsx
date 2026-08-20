@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   triggerStore, type TriggerRecord, type TriggerType, type ScheduleFrequency, type CustomScheduleUnit,
-  type DeveloperMethod, type ExternalApp, TIMEZONE_OPTIONS, EXTERNAL_APP_EVENTS,
+  type DeveloperMethod, type ExternalApp, TIMEZONE_OPTIONS, EXTERNAL_APP_EVENTS, EXTERNAL_APP_META, EXTERNAL_APP_ORDER,
 } from "./triggerStore";
+import AppLogo from "./AppLogo";
 import { toast } from "sonner";
 import { Clock, Code2, Globe } from "lucide-react";
 
@@ -39,12 +40,6 @@ const METHOD_OPTIONS: { value: DeveloperMethod; label: string; desc: string }[] 
   { value: "api", label: "API", desc: "Call this Agent directly from your backend via REST API." },
   { value: "webhook", label: "Webhook", desc: "Receive a signed URL that any external system can POST to." },
   { value: "sdk", label: "SDK", desc: "Invoke this Agent from your application using our SDK." },
-];
-
-const APP_OPTIONS: { value: ExternalApp; label: string }[] = [
-  { value: "gmail", label: "Gmail" },
-  { value: "slack", label: "Slack" },
-  { value: "jira", label: "Jira" },
 ];
 
 interface Props {
@@ -405,19 +400,21 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-medium mb-1.5 block">Application</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {APP_OPTIONS.map(opt => {
-                    const active = app === opt.value;
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-56 overflow-y-auto pr-0.5">
+                  {EXTERNAL_APP_ORDER.map(value => {
+                    const meta = EXTERNAL_APP_META[value];
+                    const active = app === value;
                     return (
                       <button
-                        key={opt.value}
+                        key={value}
                         type="button"
-                        onClick={() => { setApp(opt.value); setEvent(EXTERNAL_APP_EVENTS[opt.value][0].value); }}
-                        className={`h-9 rounded-lg text-xs font-medium border transition-base ${
-                          active ? "border-primary bg-primary-soft text-primary" : "border-border bg-surface text-muted-foreground hover:border-primary/40"
+                        onClick={() => { setApp(value); setEvent(EXTERNAL_APP_EVENTS[value][0].value); }}
+                        className={`flex items-center gap-2 h-11 px-2.5 rounded-lg border text-left transition-base ${
+                          active ? "border-primary bg-primary-soft" : "border-border bg-surface hover:border-primary/40"
                         }`}
                       >
-                        {opt.label}
+                        <AppLogo app={value} size={22} />
+                        <span className={`text-xs font-medium truncate ${active ? "text-primary" : "text-foreground"}`}>{meta.label}</span>
                       </button>
                     );
                   })}
