@@ -7,7 +7,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import TriggerFormDialog from "./TriggerFormDialog";
-import { triggerStore, EXTERNAL_APP_EVENTS, type TriggerRecord, type TriggerType } from "./triggerStore";
+import { triggerStore, EXTERNAL_APP_EVENTS, EXTERNAL_APP_META, type TriggerRecord, type TriggerType } from "./triggerStore";
 import AppLogo from "./AppLogo";
 import { toast } from "sonner";
 
@@ -43,9 +43,8 @@ function summarizeConfig(t: TriggerRecord): string {
   }
   if (t.type === "external" && t.config.external) {
     const ext = t.config.external;
-    const appLabel = ext.app.charAt(0).toUpperCase() + ext.app.slice(1);
     const eventLabel = EXTERNAL_APP_EVENTS[ext.app].find(e => e.value === ext.event)?.label ?? ext.event;
-    return `${appLabel} · ${eventLabel}`;
+    return `${EXTERNAL_APP_META[ext.app].label} · ${eventLabel}`;
   }
   return "";
 }

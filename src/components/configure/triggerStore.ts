@@ -24,10 +24,39 @@ export interface DeveloperConfig {
   credentialId?: string;           // set when authentication !== "none"
 }
 
+export interface QueueWorkHoursConfig {
+  enabled: boolean;
+  timezone: string;
+  workDays: string[];      // values from WORK_DAY_OPTIONS
+  startTime: string;       // "HH:mm"
+  endTime: string;         // "HH:mm"
+  allDay: boolean;
+  tasksPerPeriod: number;
+}
+
 export interface ExternalConfig {
   app: ExternalApp;
-  event: string;          // preset value from EXTERNAL_APP_EVENTS[app]
-  conditions?: string;    // optional, revealed via progressive disclosure
+  accountId?: string;      // selected ConnectedAccount id
+  event: string;           // preset value from EXTERNAL_APP_EVENTS[app]
+  conditions?: string;     // optional, revealed via progressive disclosure — generic apps only
+
+  // Gmail
+  gmailMode?: "inbox" | "outreach_replies";
+  includeAttachments?: boolean;
+  filterSearch?: string;
+  excludeEmails?: string[];
+
+  // Google Drive
+  driveId?: string;
+  driveFolders?: string[];
+  customProperties?: boolean;
+
+  // Calendar / Slack / Teams / Outlook / Salesforce / HubSpot / Jira / Zoom — one bespoke
+  // select + one bespoke toggle each, described by EXTERNAL_APP_EXTRA_FIELD below.
+  extraSelect?: string;
+  extraToggle?: boolean;
+
+  queueWorkHours?: QueueWorkHoursConfig;
 }
 
 export interface TriggerRecord {
@@ -119,6 +148,114 @@ export const EXTERNAL_APP_EVENTS: Record<ExternalApp, { value: string; label: st
   ],
 };
 
+export const WORK_DAY_OPTIONS: { value: string; label: string }[] = [
+  { value: "weekdays", label: "Weekdays" },
+  { value: "weekends", label: "Weekends" },
+  { value: "monday", label: "Monday" },
+  { value: "tuesday", label: "Tuesday" },
+  { value: "wednesday", label: "Wednesday" },
+  { value: "thursday", label: "Thursday" },
+  { value: "friday", label: "Friday" },
+  { value: "saturday", label: "Saturday" },
+  { value: "sunday", label: "Sunday" },
+];
+
+export const DRIVE_OPTIONS: { value: string; label: string }[] = [
+  { value: "my-drive", label: "My Drive" },
+  { value: "shared-sales", label: "Shared drive — Sales" },
+  { value: "shared-support", label: "Shared drive — Support" },
+];
+
+export const DRIVE_FOLDER_OPTIONS: { value: string; label: string }[] = [
+  { value: "agents", label: "Agents" },
+  { value: "reports", label: "Reports" },
+  { value: "contracts", label: "Contracts" },
+  { value: "shared", label: "Shared" },
+  { value: "archive", label: "Archive" },
+];
+
+/** One bespoke select + one bespoke toggle per "generic" external app (Gmail and Google
+ * Drive get fully custom screens instead — see TriggerFormDialog.tsx). */
+export const EXTERNAL_APP_EXTRA_FIELD: Partial<Record<ExternalApp, {
+  selectLabel: string; selectOptions: { value: string; label: string }[];
+  toggleLabel: string;
+}>> = {
+  gcalendar: {
+    selectLabel: "Calendar",
+    selectOptions: [
+      { value: "primary", label: "Primary calendar" },
+      { value: "work", label: "Work" },
+      { value: "personal", label: "Personal" },
+    ],
+    toggleLabel: "Include all-day events",
+  },
+  slack: {
+    selectLabel: "Channel",
+    selectOptions: [
+      { value: "all", label: "All channels" },
+      { value: "general", label: "#general" },
+      { value: "sales", label: "#sales" },
+      { value: "support", label: "#support" },
+    ],
+    toggleLabel: "Include thread replies",
+  },
+  teams: {
+    selectLabel: "Channel",
+    selectOptions: [
+      { value: "all", label: "All channels" },
+      { value: "general", label: "General" },
+      { value: "sales", label: "Sales" },
+      { value: "support", label: "Support" },
+    ],
+    toggleLabel: "Include thread replies",
+  },
+  outlook: {
+    selectLabel: "Folder",
+    selectOptions: [
+      { value: "inbox", label: "Inbox" },
+      { value: "flagged", label: "Flagged" },
+    ],
+    toggleLabel: "Include attachments",
+  },
+  salesforce: {
+    selectLabel: "Object",
+    selectOptions: [
+      { value: "lead", label: "Lead" },
+      { value: "opportunity", label: "Opportunity" },
+      { value: "contact", label: "Contact" },
+    ],
+    toggleLabel: "Include updated records, not just new ones",
+  },
+  hubspot: {
+    selectLabel: "Object",
+    selectOptions: [
+      { value: "contact", label: "Contact" },
+      { value: "deal", label: "Deal" },
+      { value: "company", label: "Company" },
+    ],
+    toggleLabel: "Include updated records, not just new ones",
+  },
+  jira: {
+    selectLabel: "Project",
+    selectOptions: [
+      { value: "all", label: "All projects" },
+      { value: "engineering", label: "Engineering" },
+      { value: "support", label: "Support" },
+      { value: "product", label: "Product" },
+    ],
+    toggleLabel: "Include sub-tasks",
+  },
+  zoom: {
+    selectLabel: "Meeting type",
+    selectOptions: [
+      { value: "all", label: "All meetings" },
+      { value: "scheduled", label: "Scheduled only" },
+      { value: "instant", label: "Instant only" },
+    ],
+    toggleLabel: "Include recording link when available",
+  },
+};
+
 const store = new Map<string, TriggerRecord>();
 const k = (a: string, t: string) => `${a}:${t}`;
 
@@ -155,7 +292,7 @@ function seedAgent(agentId: string) {
       type: "external",
       enabled: true,
       description: "Trigger the agent when a new customer email arrives in Gmail.",
-      config: { external: { app: "gmail", event: "new_email" } },
+      config: { external: { app: "gmail", accountId: "acct-gmail-1", event: "new_email", gmailMode: "inbox", includeAttachments: true } },
       lastFiredAt: now - 86_400_000 * 2,
       createdAt: now - 86_400_000 * 10,
       updatedAt: now - 86_400_000 * 10,
