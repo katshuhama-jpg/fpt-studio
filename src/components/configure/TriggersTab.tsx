@@ -125,10 +125,12 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
                       <Icon size={16} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <h3 className="font-medium text-sm truncate">{t.name}</h3>
-                        {t.isDefault && <span className="chip text-[9px] chip-accent">Default</span>}
-                        <span className={`chip text-[9px] ${meta.chip}`}>{meta.label}</span>
+                      <div className="flex items-center gap-1.5">
+                        <h3 className="font-medium text-sm truncate min-w-0 flex-1" title={t.name}>{t.name}</h3>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {t.isDefault && <span className="chip text-[9px] chip-accent">Default</span>}
+                          <span className={`chip text-[9px] ${meta.chip}`}>{meta.label}</span>
+                        </div>
                       </div>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
                         Last fired {relativeTime(t.lastFiredAt)}

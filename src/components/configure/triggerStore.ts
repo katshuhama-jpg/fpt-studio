@@ -41,6 +41,9 @@ export interface TriggerRecord {
     external?: ExternalConfig;
   };
   lastFiredAt: number | null;
+  /** Set once at creation, never touched again — the list's sort key, so toggling
+   * or editing a trigger never reorders the grid (only updatedAt reflects those). */
+  createdAt: number;
   updatedAt: number;
   isDefault?: boolean;      // Manual is the seeded default
 }
@@ -78,6 +81,7 @@ function seedAgent(agentId: string) {
       description: "User manually invokes the agent from the chat UI or API.",
       config: {},
       lastFiredAt: now - 120_000,
+      createdAt: now - 86_400_000 * 7,
       updatedAt: now - 86_400_000 * 7,
       isDefault: true,
     },
@@ -89,6 +93,7 @@ function seedAgent(agentId: string) {
       description: "Run the agent every day at 08:00 to generate the daily report.",
       config: { schedule: { frequency: "daily", timeOfDay: "08:00", timezone: "GMT+07:00" } },
       lastFiredAt: now - 86_400_000,
+      createdAt: now - 86_400_000 * 14,
       updatedAt: now - 86_400_000 * 14,
     },
     {
@@ -99,6 +104,7 @@ function seedAgent(agentId: string) {
       description: "Trigger the agent when a new customer email arrives in Gmail.",
       config: { external: { app: "gmail", event: "new_email" } },
       lastFiredAt: now - 86_400_000 * 2,
+      createdAt: now - 86_400_000 * 10,
       updatedAt: now - 86_400_000 * 10,
     },
     {
@@ -115,6 +121,7 @@ function seedAgent(agentId: string) {
         },
       },
       lastFiredAt: null,
+      createdAt: now - 86_400_000 * 3,
       updatedAt: now - 86_400_000 * 3,
     },
   ];
@@ -128,7 +135,7 @@ export const triggerStore = {
       .filter(t => t.agentId === agentId)
       .sort((a, b) => {
         if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1;
-        return b.updatedAt - a.updatedAt;
+        return b.createdAt - a.createdAt;
       });
   },
   get(agentId: string, id: string) {
@@ -140,13 +147,14 @@ export const triggerStore = {
       t => t.name.trim().toLowerCase() === name.trim().toLowerCase() && t.id !== excludeId,
     );
   },
-  create(agentId: string, data: Omit<TriggerRecord, "id" | "agentId" | "updatedAt" | "lastFiredAt">) {
+  create(agentId: string, data: Omit<TriggerRecord, "id" | "agentId" | "createdAt" | "updatedAt" | "lastFiredAt">) {
     const id = `trg-${Date.now().toString(36)}`;
     const rec: TriggerRecord = {
       ...data,
       id,
       agentId,
       lastFiredAt: null,
+      createdAt: Date.now(),
       updatedAt: Date.now(),
     };
     store.set(k(agentId, id), rec);
