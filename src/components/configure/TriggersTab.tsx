@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Plus, Search, Zap, Clock, Webhook, Globe, Trash2,
+  Plus, Search, Zap, Clock, Webhook, Globe, Pause, MoreHorizontal,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import TriggerFormDialog from "./TriggerFormDialog";
 import { triggerStore, EXTERNAL_APP_EVENTS, type TriggerRecord, type TriggerType } from "./triggerStore";
+import AppLogo from "./AppLogo";
 import { toast } from "sonner";
 
 const TYPE_META: Record<TriggerType, { label: string; icon: any; chip: string }> = {
@@ -38,8 +39,7 @@ function summarizeConfig(t: TriggerRecord): string {
   }
   if (t.type === "developer" && t.config.developer) {
     const d = t.config.developer;
-    const authLabel = d.authentication === "bearer" ? "Bearer Token" : d.authentication === "basic" ? "Basic Auth" : "No auth";
-    return `Webhook · ${authLabel}`;
+    return d.authentication === "bearer" ? "Bearer Token" : d.authentication === "basic" ? "Basic Auth" : "No auth";
   }
   if (t.type === "external" && t.config.external) {
     const ext = t.config.external;
@@ -48,18 +48,6 @@ function summarizeConfig(t: TriggerRecord): string {
     return `${appLabel} · ${eventLabel}`;
   }
   return "";
-}
-
-function relativeTime(ts: number | null) {
-  if (!ts) return "Never";
-  const diff = Date.now() - ts;
-  const m = Math.floor(diff / 60_000);
-  if (m < 1) return "just now";
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  return `${d}d ago`;
 }
 
 export default function TriggersTab({ agentId }: { agentId: string }) {
@@ -81,6 +69,15 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
   }, [agentId, query, tick]);
 
   const isEmpty = triggers.length === 0 && !query;
+  const pausableCount = triggers.filter(t => t.enabled && !t.isDefault).length;
+
+  const pauseAll = () => {
+    const toPause = triggerStore.list(agentId).filter(t => t.enabled && !t.isDefault);
+    if (toPause.length === 0) return;
+    toPause.forEach(t => triggerStore.toggle(agentId, t.id));
+    toast.success(`${toPause.length} trigger${toPause.length === 1 ? "" : "s"} paused`);
+    refresh();
+  };
 
   return (
     <div className="p-8 w-full animate-fade-up">
@@ -88,7 +85,7 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
         <div>
           <h2 className="font-display text-xl font-semibold">Triggers</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Define when this agent runs automatically — Scheduled, Webhook, or External application triggers.
+            Triggers allow this agent to work on auto-pilot — Scheduled, Webhook, or External application triggers.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -101,8 +98,15 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
               className="h-9 w-56 pl-8 pr-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base"
             />
           </div>
+          <button
+            onClick={pauseAll}
+            disabled={pausableCount === 0}
+            className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-sm font-medium text-foreground hover:bg-surface-muted transition-base disabled:opacity-40 disabled:pointer-events-none"
+          >
+            <Pause size={13} /> Pause all triggers
+          </button>
           <button onClick={() => setCreateOpen(true)} className="btn-primary h-9">
-            <Plus size={13} /> Create
+            <Plus size={13} /> Add Trigger
           </button>
         </div>
       </div>
@@ -114,7 +118,7 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
           <p className="text-sm text-muted-foreground">No triggers match "{query}"</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+        <div className="flex flex-col gap-3">
           {triggers.map(t => {
             const meta = TYPE_META[t.type];
             const Icon = meta.icon;
@@ -126,53 +130,33 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
                 tabIndex={editable ? 0 : undefined}
                 onClick={editable ? () => setEditTarget(t) : undefined}
                 onKeyDown={editable ? (e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setEditTarget(t); } }) : undefined}
-                className={`group text-left rounded-xl bg-surface border border-border transition-base overflow-hidden ${
+                className={`flex items-center gap-3 rounded-xl bg-surface border border-border px-4 py-3.5 transition-base ${
                   editable ? "hover:border-primary/40 hover:shadow-soft cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1" : ""
                 }`}
               >
-                <div className="p-4">
-                  <div className="flex items-start gap-3 mb-3">
-                    <div className="w-9 h-9 rounded-lg bg-primary-soft text-primary flex items-center justify-center shrink-0">
-                      <Icon size={16} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <h3 className="font-medium text-sm truncate min-w-0 flex-1" title={t.name}>{t.name}</h3>
-                        <div className="flex items-center gap-1 shrink-0">
-                          {t.isDefault && <span className="chip text-[9px] chip-accent">Default</span>}
-                          <span className={`chip text-[9px] ${meta.chip}`}>{meta.label}</span>
-                          {editable && (
-                            <button
-                              type="button"
-                              onClick={e => { e.stopPropagation(); setDeleteTarget(t); }}
-                              className="w-5 h-5 rounded-md flex items-center justify-center text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive hover:bg-surface-muted transition-base"
-                              aria-label={`Delete ${t.name}`}
-                            >
-                              <Trash2 size={11} />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        Last fired {relativeTime(t.lastFiredAt)}
-                      </p>
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground line-clamp-2 min-h-[2.4em]">
-                    {t.description}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground font-medium mt-1 truncate">
-                    {summarizeConfig(t)}
-                  </p>
-                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-                    <span className="text-[11px] text-muted-foreground">
-                      {t.enabled ? <span className="text-success font-medium">● Active</span> : <span>○ Disabled</span>}
-                    </span>
-                    <span onClick={e => e.stopPropagation()}>
-                      <Toggle on={t.enabled} onChange={() => { triggerStore.toggle(agentId, t.id); refresh(); }} />
-                    </span>
-                  </div>
+                <div className="w-9 h-9 rounded-lg bg-primary-soft text-primary flex items-center justify-center shrink-0 overflow-hidden">
+                  {t.type === "external" && t.config.external
+                    ? <AppLogo app={t.config.external.app} size={36} />
+                    : <Icon size={16} />}
                 </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="font-medium text-sm truncate" title={t.name}>{t.name}</h3>
+                    {t.isDefault && <span className="chip text-[9px] chip-accent shrink-0">Default</span>}
+                    <span className={`chip text-[9px] shrink-0 ${t.enabled ? "chip-success" : "chip-warning"}`}>
+                      {t.enabled ? "Active" : "Paused"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate mt-0.5">
+                    {meta.label} · {summarizeConfig(t)}
+                  </p>
+                </div>
+                <RowMenu
+                  editable={editable}
+                  enabled={t.enabled}
+                  onToggle={() => { triggerStore.toggle(agentId, t.id); refresh(); }}
+                  onDelete={() => setDeleteTarget(t)}
+                />
               </div>
             );
           })}
@@ -242,13 +226,51 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
   );
 }
 
-function Toggle({ on, onChange }: { on: boolean; onChange: () => void }) {
+function RowMenu({ editable, enabled, onToggle, onDelete }: {
+  editable: boolean; enabled: boolean; onToggle: () => void; onDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+
   return (
-    <button
-      onClick={onChange}
-      className={`w-9 h-5 rounded-full p-0.5 transition-base shrink-0 ${on ? "bg-primary" : "bg-border-strong"}`}
-    >
-      <div className={`w-4 h-4 rounded-full bg-white shadow-soft transition-base ${on ? "translate-x-4" : ""}`} />
-    </button>
+    <div ref={containerRef} className="relative shrink-0" onClick={e => e.stopPropagation()}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base"
+        aria-label="Trigger actions"
+      >
+        <MoreHorizontal size={16} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 z-20 w-36 rounded-lg border border-border bg-white shadow-elev py-1">
+          <button
+            type="button"
+            onClick={() => { onToggle(); setOpen(false); }}
+            className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base"
+          >
+            {enabled ? "Pause" : "Resume"}
+          </button>
+          {editable && (
+            <button
+              type="button"
+              onClick={() => { onDelete(); setOpen(false); }}
+              className="w-full text-left px-3 py-1.5 text-xs text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base"
+            >
+              Delete
+            </button>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
