@@ -118,7 +118,7 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
           <p className="text-sm text-muted-foreground">No triggers match "{query}"</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {triggers.map(t => {
             const meta = TYPE_META[t.type];
             const Icon = meta.icon;
@@ -130,33 +130,44 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
                 tabIndex={editable ? 0 : undefined}
                 onClick={editable ? () => setEditTarget(t) : undefined}
                 onKeyDown={editable ? (e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setEditTarget(t); } }) : undefined}
-                className={`flex items-center gap-3 rounded-xl bg-surface border border-border px-4 py-3.5 transition-base ${
-                  editable ? "hover:border-primary/40 hover:shadow-soft cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1" : ""
+                className={`group rounded-xl border border-border bg-surface transition-base ${
+                  editable ? "hover:border-primary/30 hover:shadow-elev cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1" : ""
                 }`}
               >
-                <div className="w-9 h-9 rounded-lg bg-primary-soft text-primary flex items-center justify-center shrink-0 overflow-hidden">
-                  {t.type === "external" && t.config.external
-                    ? <AppLogo app={t.config.external.app} size={36} />
-                    : <Icon size={16} />}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <h3 className="font-medium text-sm truncate" title={t.name}>{t.name}</h3>
-                    {t.isDefault && <span className="chip text-[9px] chip-accent shrink-0">Default</span>}
-                    <span className={`chip text-[9px] shrink-0 ${t.enabled ? "chip-success" : "chip-warning"}`}>
-                      {t.enabled ? "Active" : "Paused"}
-                    </span>
+                <div className="p-5">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="w-11 h-11 rounded-xl bg-primary-soft text-primary flex items-center justify-center shrink-0 overflow-hidden">
+                      {t.type === "external" && t.config.external
+                        ? <AppLogo app={t.config.external.app} size={44} />
+                        : <Icon size={18} />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-sm truncate mb-0.5" title={t.name}>{t.name}</h3>
+                      <div className="flex items-center gap-1.5 text-xs">
+                        {t.isDefault && <span className="chip text-[9px] chip-accent shrink-0">Default</span>}
+                        <span className={`font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${
+                          t.enabled ? "bg-primary-soft text-primary" : "bg-surface-muted text-muted-foreground"
+                        }`}>
+                          {t.enabled ? "Active" : "Paused"}
+                        </span>
+                        <span className="text-muted-foreground truncate">· {meta.label}</span>
+                      </div>
+                    </div>
+                    <RowMenu
+                      editable={editable}
+                      enabled={t.enabled}
+                      onToggle={() => { triggerStore.toggle(agentId, t.id); refresh(); }}
+                      onDelete={() => setDeleteTarget(t)}
+                    />
                   </div>
-                  <p className="text-xs text-muted-foreground truncate mt-0.5">
-                    {meta.label} · {summarizeConfig(t)}
+
+                  <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 min-h-[32px]">
+                    {t.description}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground font-medium mt-1.5 truncate">
+                    {summarizeConfig(t)}
                   </p>
                 </div>
-                <RowMenu
-                  editable={editable}
-                  enabled={t.enabled}
-                  onToggle={() => { triggerStore.toggle(agentId, t.id); refresh(); }}
-                  onDelete={() => setDeleteTarget(t)}
-                />
               </div>
             );
           })}
@@ -246,7 +257,9 @@ function RowMenu({ editable, enabled, onToggle, onDelete }: {
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base"
+        className={`w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base shrink-0 ${
+          open ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+        }`}
         aria-label="Trigger actions"
       >
         <MoreHorizontal size={16} />
