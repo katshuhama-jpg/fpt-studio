@@ -31,7 +31,7 @@ const developNav = [
   { id: "guardrails",   label: "Guardrails",     icon: Shield01Icon,    hidden: true },
   { id: "knowledge",    label: "Knowledge",      icon: NoteIcon },
   { id: "history",      label: "History",        icon: HistoryIcon },
-  { id: "triggers",     label: "Triggers",       icon: TimeScheduleIcon, comingSoon: true, hidden: true },
+  { id: "triggers",     label: "Triggers",       icon: TimeScheduleIcon },
   { id: "sub-agents",   label: "Sub-Agents",     icon: UserMultipleIcon, comingSoon: true, hidden: true },
 ];
 
@@ -195,36 +195,45 @@ export default function AgentBuilder() {
           {/* Ready to publish + Collapse */}
           <div className="px-3 py-3 border-t border-border shrink-0 space-y-2">
             <div className="rounded-lg border border-border bg-surface-muted/50 p-2.5">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-semibold text-foreground">Ready to publish</span>
-                <span className="text-xs text-muted-foreground">4/5</span>
-              </div>
-              <div className="h-1.5 rounded-full bg-border overflow-hidden mb-2">
-                <div className="h-full w-[80%] rounded-full bg-primary" />
-              </div>
-              <div className="space-y-1">
-                {[
+              {(() => {
+                const checklist = [
                   { label: "Instructions written", done: true,  section: "instructions" },
                   { label: "Model chosen",          done: true,  section: "model" },
                   { label: "Skills attached",       done: true,  section: "skills" },
                   { label: "Guardrails configured", done: false, section: "guardrails" },
+                  { label: "Trigger configured",    done: triggerStore.list(id ?? "new").some(t => !t.isDefault), section: "triggers" },
                   { label: "Tried the agent",       done: true,  section: null },
-                ].map(item => (
-                  <div key={item.label} className="flex items-center gap-1.5 text-xs">
-                    {item.done
-                      ? <HugeiconsIcon icon={CheckmarkCircle01Icon} size={11} className="text-primary shrink-0" />
-                      : <span className="w-3 h-3 rounded-full border-2 border-muted-foreground shrink-0 inline-block" />}
-                    {item.done && item.section ? (
-                      <button
-                        onClick={() => setSection(item.section!)}
-                        className="text-primary hover:underline text-left"
-                      >{item.label}</button>
-                    ) : (
-                      <span className={item.done ? "text-primary" : "text-muted-foreground"}>{item.label}</span>
-                    )}
-                  </div>
-                ))}
-              </div>
+                ];
+                const doneCount = checklist.filter(i => i.done).length;
+                return (
+                  <>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-semibold text-foreground">Ready to publish</span>
+                      <span className="text-xs text-muted-foreground">{doneCount}/{checklist.length}</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-border overflow-hidden mb-2">
+                      <div className="h-full rounded-full bg-primary" style={{ width: `${(doneCount / checklist.length) * 100}%` }} />
+                    </div>
+                    <div className="space-y-1">
+                      {checklist.map(item => (
+                        <div key={item.label} className="flex items-center gap-1.5 text-xs">
+                          {item.done
+                            ? <HugeiconsIcon icon={CheckmarkCircle01Icon} size={11} className="text-primary shrink-0" />
+                            : <span className="w-3 h-3 rounded-full border-2 border-muted-foreground shrink-0 inline-block" />}
+                          {item.done && item.section ? (
+                            <button
+                              onClick={() => setSection(item.section!)}
+                              className="text-primary hover:underline text-left"
+                            >{item.label}</button>
+                          ) : (
+                            <span className={item.done ? "text-primary" : "text-muted-foreground"}>{item.label}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
             <button
               onClick={() => setBuildMode("ai")}
@@ -262,13 +271,14 @@ export default function AgentBuilder() {
           <div className="flex-1 flex flex-col overflow-hidden">
 
             <div className="flex-1 overflow-y-auto bg-background">
-              {tab === "build" && section === "instructions" && <GeneralTab onRefineWithAI={() => setBuildMode("ai")} onChatToTest={() => { setBuildMode("manual"); setPreviewView("chat"); }} />}
+              {tab === "build" && section === "instructions" && <GeneralTab agentId={id ?? "new"} onRefineWithAI={() => setBuildMode("ai")} onChatToTest={() => { setBuildMode("manual"); setPreviewView("chat"); }} onManageTriggers={() => setSection("triggers")} />}
               {tab === "build" && section === "knowledge" && <KnowledgeTab />}
               {tab === "build" && section === "history" && <HistoryTab agentId={id ?? "new"} />}
               {tab === "build" && section === "skills" && <PlaceholderTab title="Skills" />}
               {tab === "build" && section === "guardrails" && <GuardrailsTab agentId={id ?? "new"} />}
+              {tab === "build" && section === "triggers" && <TriggersTab agentId={id ?? "new"} />}
               {tab === "build" && section === "model" && <PlaceholderTab title="Model" />}
-              {tab === "build" && !["instructions","knowledge","history","skills","guardrails","model"].includes(section) && <PlaceholderTab title={section} />}
+              {tab === "build" && !["instructions","knowledge","history","skills","guardrails","triggers","model"].includes(section) && <PlaceholderTab title={section} />}
               {tab === "test" && <PlaceholderTab title="Test" />}
               {tab === "deploy" && <DeployTab agentVersion="v1.0.2" />}
               {tab === "insights" && <PerformanceTab />}
@@ -678,7 +688,7 @@ function inlineFormat(text: string): React.ReactNode {
   return parts.map((p, i) => i % 2 === 1 ? <strong key={i}>{p}</strong> : p);
 }
 
-function GeneralTab({ onRefineWithAI, onChatToTest }: { onRefineWithAI?: () => void; onChatToTest?: () => void }) {
+function GeneralTab({ agentId, onRefineWithAI, onChatToTest, onManageTriggers }: { agentId: string; onRefineWithAI?: () => void; onChatToTest?: () => void; onManageTriggers?: () => void }) {
   const [params] = useSearchParams();
   const initialName = params.get("agentName") || "Banking ABC — Customer Care";
   const initialPrompt = params.get("agentPrompt") || "";
@@ -687,6 +697,7 @@ function GeneralTab({ onRefineWithAI, onChatToTest }: { onRefineWithAI?: () => v
   const [viewMode, setViewMode] = useState<"preview" | "markdown" | "ai" | "chat">("preview");
   const [instructions, setInstructions] = useState("");
   const emojiOptions = ["🏦","🤖","💼","🧠","🎯","🛡️","⚡","🌐","📊","🔧","💡","🚀"];
+  const triggerCount = Math.max(0, triggerStore.list(agentId).length - 1);
 
   const defaultInstructions = initialPrompt || `# Banking ABC — Customer Care Agent
 
@@ -792,6 +803,11 @@ You are a customer-care specialist at ABC Bank. Help customers 24/7 with product
           <button onClick={() => onChatToTest?.()}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm text-foreground transition-base">
             <HugeiconsIcon icon={Chat01Icon} size={13} className="text-muted-foreground" /> Chat to Test
+          </button>
+          <button onClick={() => onManageTriggers?.()}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm text-foreground transition-base">
+            <HugeiconsIcon icon={TimeScheduleIcon} size={13} className="text-muted-foreground" /> Triggers
+            <span className="text-xs text-muted-foreground">{triggerCount > 0 ? `${triggerCount} configured` : "No triggers yet"}</span>
           </button>
         </div>
       </div>

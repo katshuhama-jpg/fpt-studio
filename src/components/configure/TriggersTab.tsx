@@ -1,22 +1,50 @@
 import { useMemo, useState } from "react";
 import {
-  Plus, Search, Pencil, Trash2, Zap, Clock, Webhook, MessageSquare, Mail,
+  Plus, Search, Pencil, Trash2, Zap, Clock, Code2, Globe,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import TriggerFormDialog from "./TriggerFormDialog";
-import { triggerStore, type TriggerRecord, type TriggerType } from "./triggerStore";
+import { triggerStore, EXTERNAL_APP_EVENTS, type TriggerRecord, type TriggerType, type CustomScheduleUnit } from "./triggerStore";
 import { toast } from "sonner";
 
 const TYPE_META: Record<TriggerType, { label: string; icon: any; chip: string }> = {
-  manual:   { label: "Manual",   icon: Zap,             chip: "chip-primary" },
-  schedule: { label: "Schedule", icon: Clock,           chip: "chip-accent" },
-  webhook:  { label: "Webhook",  icon: Webhook,         chip: "chip" },
-  event:    { label: "Event",    icon: MessageSquare,   chip: "chip" },
-  email:    { label: "Email",    icon: Mail,            chip: "chip" },
+  manual:    { label: "Manual",    icon: Zap,   chip: "chip-primary" },
+  scheduled: { label: "Scheduled", icon: Clock, chip: "chip-accent" },
+  developer: { label: "Developer", icon: Code2, chip: "chip-warning" },
+  external:  { label: "External",  icon: Globe, chip: "chip-success" },
 };
+
+const CUSTOM_UNIT_LABEL: Record<CustomScheduleUnit, string> = {
+  minute: "Every minute", hour: "Every hour", day: "Daily", week: "Weekly", month: "Monthly", year: "Annually", cron: "Cron",
+};
+const DAY_OF_WEEK_SHORT = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+function summarizeConfig(t: TriggerRecord): string {
+  if (t.type === "manual") return "Runs on demand";
+  if (t.type === "scheduled" && t.config.schedule) {
+    const s = t.config.schedule;
+    if (s.frequency === "daily") return `Every day at ${s.timeOfDay} · ${s.timezone}`;
+    if (s.frequency === "weekly") return `Every ${DAY_OF_WEEK_SHORT[s.dayOfWeek ?? 1]} at ${s.timeOfDay} · ${s.timezone}`;
+    if (s.frequency === "monthly") return `Day ${s.dayOfMonth} of every month at ${s.timeOfDay} · ${s.timezone}`;
+    if (s.frequency === "custom") {
+      if (s.customUnit === "cron") return `Cron: ${s.cron}`;
+      return `${CUSTOM_UNIT_LABEL[s.customUnit ?? "day"]} · ${s.timezone}`;
+    }
+  }
+  if (t.type === "developer" && t.config.developer) {
+    return t.config.developer.method.toUpperCase();
+  }
+  if (t.type === "external" && t.config.external) {
+    const ext = t.config.external;
+    const appLabel = ext.app.charAt(0).toUpperCase() + ext.app.slice(1);
+    const eventLabel = EXTERNAL_APP_EVENTS[ext.app].find(e => e.value === ext.event)?.label ?? ext.event;
+    return `${appLabel} · ${eventLabel}`;
+  }
+  return "";
+}
 
 function relativeTime(ts: number | null) {
   if (!ts) return "Never";
@@ -56,7 +84,7 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
         <div>
           <h2 className="font-display text-xl font-semibold">Triggers</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Define when this agent runs — manually, on a schedule, or via webhooks and events.
+            Define when this agent runs automatically — Scheduled, Developer, or External application triggers.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -109,6 +137,9 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
                   </div>
                   <p className="text-xs text-muted-foreground line-clamp-2 min-h-[2.4em]">
                     {t.description}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground font-medium mt-1 truncate">
+                    {summarizeConfig(t)}
                   </p>
                   <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
                     <span className="text-[11px] text-muted-foreground">
@@ -196,7 +227,7 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
       </div>
       <h3 className="font-display text-lg font-semibold mb-1.5">No triggers yet</h3>
       <p className="text-sm text-muted-foreground mb-5 max-w-md mx-auto">
-        Triggers tell your agent when to run — on a schedule, from a webhook, or in response to a keyword.
+        This Agent does not have any automatic triggers configured.
       </p>
       <button onClick={onCreate} className="btn-primary h-9 mx-auto">
         <Plus size={13} /> Create your first trigger

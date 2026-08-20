@@ -1,5 +1,32 @@
 // In-memory trigger store for the Triggers feature prototype.
-export type TriggerType = "manual" | "schedule" | "webhook" | "event" | "email";
+export type TriggerType = "manual" | "scheduled" | "developer" | "external";
+
+export type ScheduleFrequency = "daily" | "weekly" | "monthly" | "custom";
+export type CustomScheduleUnit = "minute" | "hour" | "day" | "week" | "month" | "year" | "cron";
+export type DeveloperMethod = "api" | "webhook" | "sdk";
+export type ExternalApp = "gmail" | "slack" | "jira";
+
+export interface ScheduleConfig {
+  frequency: ScheduleFrequency;
+  timeOfDay?: string;               // "HH:mm"
+  dayOfWeek?: number;                // 0-6, weekly only
+  dayOfMonth?: number;               // 1-31, monthly only
+  customUnit?: CustomScheduleUnit;   // frequency === "custom"
+  cron?: string;                     // customUnit === "cron" only — lives under "Advanced schedule"
+  timezone: string;
+}
+
+export interface DeveloperConfig {
+  method: DeveloperMethod;
+  webhookUrl?: string;    // method === "webhook", auto-generated
+  secret?: string;        // method === "webhook", auto-generated
+}
+
+export interface ExternalConfig {
+  app: ExternalApp;
+  event: string;          // preset value from EXTERNAL_APP_EVENTS[app]
+  conditions?: string;    // optional, revealed via progressive disclosure
+}
 
 export interface TriggerRecord {
   id: string;
@@ -9,16 +36,32 @@ export interface TriggerRecord {
   enabled: boolean;
   description: string;
   config: {
-    cron?: string;          // schedule
-    webhookUrl?: string;    // webhook (read-only generated)
-    secret?: string;        // webhook
-    keywords?: string[];    // event
-    emailAddress?: string;  // email
+    schedule?: ScheduleConfig;
+    developer?: DeveloperConfig;
+    external?: ExternalConfig;
   };
   lastFiredAt: number | null;
   updatedAt: number;
   isDefault?: boolean;      // Manual is the seeded default
 }
+
+export const TIMEZONE_OPTIONS: { value: string; label: string }[] = [
+  { value: "GMT+07:00", label: "GMT+07:00 — Vietnam, Bangkok, Jakarta" },
+  { value: "GMT+08:00", label: "GMT+08:00 — Singapore, Hong Kong, Manila" },
+  { value: "GMT+09:00", label: "GMT+09:00 — Tokyo, Seoul" },
+  { value: "GMT+00:00", label: "GMT+00:00 — UTC" },
+  { value: "GMT-05:00", label: "GMT-05:00 — US Eastern" },
+  { value: "GMT-08:00", label: "GMT-08:00 — US Pacific" },
+];
+
+export const EXTERNAL_APP_EVENTS: Record<ExternalApp, { value: string; label: string }[]> = {
+  gmail: [{ value: "new_email", label: "New email received" }],
+  slack: [{ value: "new_message", label: "New message posted" }],
+  jira: [
+    { value: "issue_created", label: "Issue created" },
+    { value: "issue_status_changed", label: "Issue status changed" },
+  ],
+};
 
 const store = new Map<string, TriggerRecord>();
 const k = (a: string, t: string) => `${a}:${t}`;
@@ -39,24 +82,37 @@ function seedAgent(agentId: string) {
       isDefault: true,
     },
     {
-      id: "weekly-report",
-      name: "Weekly summary",
-      type: "schedule",
+      id: "daily-report",
+      name: "Daily report",
+      type: "scheduled",
       enabled: true,
-      description: "Run the agent every Monday at 9:00 to generate weekly summary.",
-      config: { cron: "0 9 * * 1" },
-      lastFiredAt: now - 86_400_000 * 2,
+      description: "Run the agent every day at 08:00 to generate the daily report.",
+      config: { schedule: { frequency: "daily", timeOfDay: "08:00", timezone: "GMT+07:00" } },
+      lastFiredAt: now - 86_400_000,
       updatedAt: now - 86_400_000 * 14,
     },
     {
-      id: "card-lock-webhook",
-      name: "Card lock webhook",
-      type: "webhook",
+      id: "new-customer-email",
+      name: "New customer email",
+      type: "external",
+      enabled: true,
+      description: "Trigger the agent when a new customer email arrives in Gmail.",
+      config: { external: { app: "gmail", event: "new_email" } },
+      lastFiredAt: now - 86_400_000 * 2,
+      updatedAt: now - 86_400_000 * 10,
+    },
+    {
+      id: "order-created-webhook",
+      name: "Order created",
+      type: "developer",
       enabled: false,
-      description: "External system pushes a card-lock event to the agent.",
+      description: "External system pushes an order-created event to the agent.",
       config: {
-        webhookUrl: "https://api.tova.ai/agents/cskh/triggers/card-lock-webhook",
-        secret: "whsec_•••••••••",
+        developer: {
+          method: "webhook",
+          webhookUrl: "https://api.tova.ai/agents/cskh/triggers/order-created-webhook",
+          secret: "whsec_•••••••••",
+        },
       },
       lastFiredAt: null,
       updatedAt: now - 86_400_000 * 3,
