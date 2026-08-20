@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Plus, Search, Zap, Clock, Webhook, Globe, Pause, MoreHorizontal,
+  Plus, Search, Zap, Clock, Webhook, Globe, Pause, Play, MoreHorizontal,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -56,25 +56,69 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<TriggerRecord | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<TriggerRecord | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+
+  const allTriggers = useMemo(() => {
+    void tick;
+    return triggerStore.list(agentId);
+  }, [agentId, tick]);
 
   const triggers = useMemo(() => {
-    void tick;
-    const all = triggerStore.list(agentId);
     const q = query.trim().toLowerCase();
-    if (!q) return all;
-    return all.filter(t =>
+    if (!q) return allTriggers;
+    return allTriggers.filter(t =>
       t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q),
     );
-  }, [agentId, query, tick]);
+  }, [allTriggers, query]);
 
   const isEmpty = triggers.length === 0 && !query;
-  const pausableCount = triggers.filter(t => t.enabled && !t.isDefault).length;
+  const nonDefault = allTriggers.filter(t => !t.isDefault);
+  const pausableCount = nonDefault.filter(t => t.enabled).length;
+  const allPaused = nonDefault.length > 0 && pausableCount === 0;
 
   const pauseAll = () => {
-    const toPause = triggerStore.list(agentId).filter(t => t.enabled && !t.isDefault);
+    const toPause = allTriggers.filter(t => t.enabled && !t.isDefault);
     if (toPause.length === 0) return;
     toPause.forEach(t => triggerStore.toggle(agentId, t.id));
     toast.success(`${toPause.length} trigger${toPause.length === 1 ? "" : "s"} paused`);
+    refresh();
+  };
+
+  const resumeAll = () => {
+    const toResume = allTriggers.filter(t => !t.enabled && !t.isDefault);
+    if (toResume.length === 0) return;
+    toResume.forEach(t => triggerStore.toggle(agentId, t.id));
+    toast.success(`${toResume.length} trigger${toResume.length === 1 ? "" : "s"} resumed`);
+    refresh();
+  };
+
+  const duplicateTrigger = (t: TriggerRecord) => {
+    let name = `${t.name} (copy)`;
+    let n = 2;
+    while (triggerStore.isDuplicateName(agentId, name)) {
+      name = `${t.name} (copy ${n})`;
+      n++;
+    }
+    triggerStore.create(agentId, {
+      name,
+      type: t.type,
+      enabled: t.enabled,
+      description: t.description,
+      config: t.config,
+    });
+    toast.success("Trigger duplicated");
+    refresh();
+  };
+
+  const renameTrigger = (t: TriggerRecord, newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed || trimmed === t.name) { setRenamingId(null); return; }
+    if (triggerStore.isDuplicateName(agentId, trimmed, t.id)) {
+      toast.error("A trigger with this name already exists");
+      return;
+    }
+    triggerStore.update(agentId, t.id, { name: trimmed });
+    setRenamingId(null);
     refresh();
   };
 
@@ -97,13 +141,27 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
               className="h-9 w-56 pl-8 pr-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base"
             />
           </div>
-          <button
-            onClick={pauseAll}
-            disabled={pausableCount === 0}
-            className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-sm font-medium text-foreground hover:bg-surface-muted transition-base disabled:opacity-40 disabled:pointer-events-none"
-          >
-            <Pause size={13} /> Pause all triggers
-          </button>
+          {allPaused ? (
+            <>
+              <span className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[hsl(var(--warning-soft))] border border-warning/25 text-xs font-semibold text-warning">
+                <span className="w-1.5 h-1.5 rounded-full bg-warning" /> All triggers paused
+              </span>
+              <button
+                onClick={resumeAll}
+                className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-sm font-medium text-foreground hover:bg-surface-muted transition-base"
+              >
+                <Play size={13} /> Resume all triggers
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={pauseAll}
+              disabled={pausableCount === 0}
+              className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-sm font-medium text-foreground hover:bg-surface-muted transition-base disabled:opacity-40 disabled:pointer-events-none"
+            >
+              <Pause size={13} /> Pause all triggers
+            </button>
+          )}
           <button onClick={() => setCreateOpen(true)} className="btn-primary h-9">
             <Plus size={13} /> Add Trigger
           </button>
@@ -122,15 +180,17 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
             const meta = TYPE_META[t.type];
             const Icon = meta.icon;
             const editable = !t.isDefault;
+            const isRenaming = renamingId === t.id;
+            const clickable = editable && !isRenaming;
             return (
               <div
                 key={t.id}
-                role={editable ? "button" : undefined}
-                tabIndex={editable ? 0 : undefined}
-                onClick={editable ? () => setEditTarget(t) : undefined}
-                onKeyDown={editable ? (e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setEditTarget(t); } }) : undefined}
+                role={clickable ? "button" : undefined}
+                tabIndex={clickable ? 0 : undefined}
+                onClick={clickable ? () => setEditTarget(t) : undefined}
+                onKeyDown={clickable ? (e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setEditTarget(t); } }) : undefined}
                 className={`group rounded-xl border border-border bg-surface transition-base ${
-                  editable ? "hover:border-primary/30 hover:shadow-elev cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1" : ""
+                  clickable ? "hover:border-primary/30 hover:shadow-elev cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1" : ""
                 }`}
               >
                 <div className="p-5">
@@ -141,7 +201,22 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
                         : <Icon size={18} />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-sm truncate mb-0.5" title={t.name}>{t.name}</h3>
+                      {isRenaming ? (
+                        <input
+                          autoFocus
+                          defaultValue={t.name}
+                          onClick={e => e.stopPropagation()}
+                          onBlur={e => renameTrigger(t, e.target.value)}
+                          onKeyDown={e => {
+                            e.stopPropagation();
+                            if (e.key === "Enter") { e.preventDefault(); renameTrigger(t, (e.target as HTMLInputElement).value); }
+                            if (e.key === "Escape") { e.preventDefault(); setRenamingId(null); }
+                          }}
+                          className="w-full font-semibold text-sm mb-0.5 bg-surface border border-primary rounded-md px-1.5 py-0.5 outline-none"
+                        />
+                      ) : (
+                        <h3 className="font-semibold text-sm truncate mb-0.5" title={t.name}>{t.name}</h3>
+                      )}
                       <div className="flex items-center gap-1.5 text-xs">
                         {t.isDefault && <span className="chip text-[9px] chip-accent shrink-0">Default</span>}
                         <span className={`font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${
@@ -156,6 +231,9 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
                       editable={editable}
                       enabled={t.enabled}
                       onToggle={() => { triggerStore.toggle(agentId, t.id); refresh(); }}
+                      onEdit={() => setEditTarget(t)}
+                      onRename={() => setRenamingId(t.id)}
+                      onDuplicate={() => duplicateTrigger(t)}
                       onDelete={() => setDeleteTarget(t)}
                     />
                   </div>
@@ -236,8 +314,9 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
   );
 }
 
-function RowMenu({ editable, enabled, onToggle, onDelete }: {
-  editable: boolean; enabled: boolean; onToggle: () => void; onDelete: () => void;
+function RowMenu({ editable, enabled, onToggle, onEdit, onRename, onDuplicate, onDelete }: {
+  editable: boolean; enabled: boolean;
+  onToggle: () => void; onEdit: () => void; onRename: () => void; onDuplicate: () => void; onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -264,22 +343,45 @@ function RowMenu({ editable, enabled, onToggle, onDelete }: {
         <MoreHorizontal size={16} />
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-20 w-36 rounded-lg border border-border bg-white shadow-elev py-1">
+        <div className="absolute right-0 top-full mt-1 z-20 w-40 rounded-lg border border-border bg-white shadow-elev py-1">
           <button
             type="button"
             onClick={() => { onToggle(); setOpen(false); }}
             className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base"
           >
-            {enabled ? "Pause" : "Resume"}
+            {enabled ? "Pause trigger" : "Resume trigger"}
           </button>
           {editable && (
-            <button
-              type="button"
-              onClick={() => { onDelete(); setOpen(false); }}
-              className="w-full text-left px-3 py-1.5 text-xs text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base"
-            >
-              Delete
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => { onEdit(); setOpen(false); }}
+                className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base"
+              >
+                Edit trigger
+              </button>
+              <button
+                type="button"
+                onClick={() => { onRename(); setOpen(false); }}
+                className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base"
+              >
+                Rename
+              </button>
+              <button
+                type="button"
+                onClick={() => { onDelete(); setOpen(false); }}
+                className="w-full text-left px-3 py-1.5 text-xs text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base"
+              >
+                Remove
+              </button>
+              <button
+                type="button"
+                onClick={() => { onDuplicate(); setOpen(false); }}
+                className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base"
+              >
+                Duplicate
+              </button>
+            </>
           )}
         </div>
       )}
