@@ -1,12 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   triggerStore, type TriggerRecord, type TriggerType, type ScheduleFrequency, type CustomScheduleUnit,
   type WebhookAuthType, type ExternalApp, TIMEZONE_OPTIONS, EXTERNAL_APP_EVENTS, EXTERNAL_APP_META, EXTERNAL_APP_ORDER,
 } from "./triggerStore";
+import { credentialStore, type CredentialAuthType } from "./credentialStore";
+import CreateCredentialDialog from "./CreateCredentialDialog";
 import AppLogo from "./AppLogo";
 import { toast } from "sonner";
-import { Clock, Webhook, Globe, Copy, Check, TriangleAlert } from "lucide-react";
+import { Clock, Webhook, Globe, Copy, Check, ChevronDown, Plus } from "lucide-react";
 
 const NAME_MAX = 50;
 const DESC_MAX = 200;
@@ -128,7 +130,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
       e.schedule = "Minimum interval is 1 hour";
     }
     if (category === "developer" && authentication !== "none" && !credentialId) {
-      e.credential = "Select a credential to continue, or add one in Connectors first";
+      e.credential = "The credential is required";
     }
     return e;
   };
@@ -203,7 +205,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
             <input
               autoFocus
               value={name}
-              onChange={e => setName(e.target.value)}
+              onChange={e => { setName(e.target.value); if (errors.name) setErrors(er => ({ ...er, name: undefined })); }}
               placeholder="e.g. Daily report"
               className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm outline-none transition-base ${
                 errors.name ? "border-destructive" : "border-border focus:border-primary"
@@ -244,7 +246,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
             <textarea
               value={description}
               rows={2}
-              onChange={e => setDescription(e.target.value)}
+              onChange={e => { setDescription(e.target.value); if (errors.description) setErrors(er => ({ ...er, description: undefined })); }}
               placeholder="What does this trigger do?"
               className={`w-full px-3 py-2 rounded-lg border bg-surface text-sm outline-none resize-none transition-base ${
                 errors.description ? "border-destructive" : "border-border focus:border-primary"
@@ -281,7 +283,11 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                   <input
                     type="number" min={10}
                     value={intervalValue}
-                    onChange={e => setIntervalValue(e.target.value)}
+                    onChange={e => {
+                      const v = e.target.value;
+                      setIntervalValue(v);
+                      if (errors.schedule && Number(v) >= 10) setErrors(er => ({ ...er, schedule: undefined }));
+                    }}
                     placeholder="Minutes (minimum 10)"
                     className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm outline-none transition-base ${
                       errors.schedule ? "border-destructive" : "border-border focus:border-primary"
@@ -295,7 +301,11 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                   <input
                     type="number" min={1}
                     value={intervalValue}
-                    onChange={e => setIntervalValue(e.target.value)}
+                    onChange={e => {
+                      const v = e.target.value;
+                      setIntervalValue(v);
+                      if (errors.schedule && Number(v) >= 1) setErrors(er => ({ ...er, schedule: undefined }));
+                    }}
                     placeholder="Hours (minimum 1)"
                     className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm outline-none transition-base ${
                       errors.schedule ? "border-destructive" : "border-border focus:border-primary"
@@ -332,7 +342,11 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                   <label className="text-xs font-medium mb-1.5 block">Cron expression</label>
                   <input
                     value={cron}
-                    onChange={e => setCron(e.target.value)}
+                    onChange={e => {
+                      const v = e.target.value;
+                      setCron(v);
+                      if (errors.schedule && v.trim()) setErrors(er => ({ ...er, schedule: undefined }));
+                    }}
                     placeholder="0 9 * * 1"
                     className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm font-mono outline-none transition-base ${
                       errors.schedule ? "border-destructive" : "border-border focus:border-primary"
@@ -383,7 +397,11 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                 </label>
                 <select
                   value={authentication}
-                  onChange={e => { setAuthentication(e.target.value as WebhookAuthType); setCredentialId(""); }}
+                  onChange={e => {
+                    setAuthentication(e.target.value as WebhookAuthType);
+                    setCredentialId("");
+                    if (errors.credential) setErrors(er => ({ ...er, credential: undefined }));
+                  }}
                   className="ds-input h-9"
                 >
                   {AUTH_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
@@ -395,17 +413,13 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                   <label className="text-xs font-medium mb-1.5 block">
                     {authentication === "bearer" ? "Token" : "Credential for Basic Auth"} <span className="text-destructive">*</span>
                   </label>
-                  <select
+                  <CredentialField
+                    authType={authentication}
                     value={credentialId}
-                    onChange={e => setCredentialId(e.target.value)}
-                    className="w-full h-9 px-3 rounded-lg border text-sm outline-none transition-base border-destructive/30 bg-[hsl(var(--destructive-soft))] text-destructive"
-                  >
-                    <option value="">Select credential</option>
-                  </select>
-                  <p className="mt-1.5 flex items-start gap-1 text-[11px] text-destructive">
-                    <TriangleAlert size={12} className="shrink-0 mt-[1px]" />
-                    No credentials found. Add one in Connectors, then select it here.
-                  </p>
+                    onChange={id => { setCredentialId(id); if (errors.credential) setErrors(er => ({ ...er, credential: undefined })); }}
+                    error={errors.credential}
+                  />
+                  {errors.credential && <p className="mt-1 text-[11px] text-destructive">{errors.credential}</p>}
                 </div>
               )}
             </div>
@@ -474,5 +488,84 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function CredentialField({ authType, value, onChange, error }: {
+  authType: CredentialAuthType;
+  value: string;
+  onChange: (id: string) => void;
+  error?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [tick, setTick] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  void tick;
+  const credentials = credentialStore.list(authType);
+  const selected = credentials.find(c => c.id === value);
+
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm text-left flex items-center justify-between transition-base ${
+          error ? "border-destructive" : open ? "border-primary" : "border-border hover:border-primary/40"
+        }`}
+      >
+        <span className={`truncate ${selected ? "text-foreground" : "text-muted-foreground"}`}>
+          {selected ? selected.name : "Select credential"}
+        </span>
+        <ChevronDown size={14} className={`text-muted-foreground shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div className="absolute z-20 top-full left-0 right-0 mt-1 rounded-lg border border-border bg-white shadow-elev p-1.5">
+          {credentials.length === 0 ? (
+            <p className="py-3 text-center text-xs text-muted-foreground">No Result</p>
+          ) : (
+            <div className="max-h-40 overflow-y-auto space-y-0.5 mb-1">
+              {credentials.map(c => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => { onChange(c.id); setOpen(false); }}
+                  className={`w-full text-left px-2.5 py-1.5 rounded-md text-sm transition-base hover:bg-surface-muted ${
+                    c.id === value ? "text-primary font-medium" : "text-foreground"
+                  }`}
+                >
+                  {c.name}
+                </button>
+              ))}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => { setOpen(false); setCreateOpen(true); }}
+            className="w-full flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-md text-sm font-semibold text-primary hover:bg-primary-soft transition-base"
+          >
+            <Plus size={14} /> Create credential
+          </button>
+        </div>
+      )}
+
+      <CreateCredentialDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        authType={authType}
+        onCreated={rec => { onChange(rec.id); setTick(t => t + 1); }}
+      />
+    </div>
   );
 }
