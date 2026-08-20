@@ -3,7 +3,7 @@ export type TriggerType = "manual" | "scheduled" | "developer" | "external";
 
 export type ScheduleFrequency = "daily" | "weekly" | "monthly" | "custom";
 export type CustomScheduleUnit = "minute" | "hour" | "day" | "week" | "month" | "year" | "cron";
-export type DeveloperMethod = "api" | "webhook" | "sdk";
+export type WebhookAuthType = "none" | "bearer" | "basic";
 export type ExternalApp =
   | "gmail" | "gcalendar" | "gdrive" | "slack" | "teams" | "outlook" | "salesforce" | "hubspot" | "jira" | "zoom";
 
@@ -13,14 +13,15 @@ export interface ScheduleConfig {
   dayOfWeek?: number;                // 0-6, weekly only
   dayOfMonth?: number;               // 1-31, monthly only
   customUnit?: CustomScheduleUnit;   // frequency === "custom"
+  intervalValue?: number;           // customUnit === "minute" (>=10) or "hour" (>=1)
   cron?: string;                     // customUnit === "cron" only — lives under "Advanced schedule"
   timezone: string;
 }
 
 export interface DeveloperConfig {
-  method: DeveloperMethod;
-  webhookUrl?: string;    // method === "webhook", auto-generated
-  secret?: string;        // method === "webhook", auto-generated
+  webhookUrl: string;              // auto-generated
+  authentication: WebhookAuthType;
+  credentialId?: string;           // set when authentication !== "none"
 }
 
 export interface ExternalConfig {
@@ -167,9 +168,8 @@ function seedAgent(agentId: string) {
       description: "External system pushes an order-created event to the agent.",
       config: {
         developer: {
-          method: "webhook",
-          webhookUrl: "https://api.tova.ai/agents/cskh/triggers/order-created-webhook",
-          secret: "whsec_•••••••••",
+          webhookUrl: "https://agents.fpt.ai/console/api/webhooks/triggers/01M0F37JPXPMGYSMJ0VR9CFC7",
+          authentication: "bearer",
         },
       },
       lastFiredAt: null,

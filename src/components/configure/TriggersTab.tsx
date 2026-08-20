@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import {
-  Plus, Search, Zap, Clock, Code2, Globe, Trash2,
+  Plus, Search, Zap, Clock, Webhook, Globe, Trash2,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -11,10 +11,10 @@ import { triggerStore, EXTERNAL_APP_EVENTS, type TriggerRecord, type TriggerType
 import { toast } from "sonner";
 
 const TYPE_META: Record<TriggerType, { label: string; icon: any; chip: string }> = {
-  manual:    { label: "Manual",    icon: Zap,   chip: "chip-primary" },
-  scheduled: { label: "Scheduled", icon: Clock, chip: "chip-accent" },
-  developer: { label: "Developer", icon: Code2, chip: "chip-warning" },
-  external:  { label: "External",  icon: Globe, chip: "chip-success" },
+  manual:    { label: "Manual",    icon: Zap,     chip: "chip-primary" },
+  scheduled: { label: "Scheduled", icon: Clock,   chip: "chip-accent" },
+  developer: { label: "Webhook",   icon: Webhook, chip: "chip-warning" },
+  external:  { label: "External",  icon: Globe,   chip: "chip-success" },
 };
 
 const DAY_OF_WEEK_SHORT = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -29,15 +29,17 @@ function summarizeConfig(t: TriggerRecord): string {
     if (s.frequency === "custom") {
       const unit = s.customUnit ?? "day";
       if (unit === "cron") return `Cron: ${s.cron}`;
-      if (unit === "minute") return "Every minute";
-      if (unit === "hour") return "Every hour";
+      if (unit === "minute") return `Every ${s.intervalValue ?? "?"} minute${s.intervalValue === 1 ? "" : "s"}`;
+      if (unit === "hour") return `Every ${s.intervalValue ?? "?"} hour${s.intervalValue === 1 ? "" : "s"}`;
       if (unit === "day") return `Every day at ${s.timeOfDay} · ${s.timezone}`;
       if (unit === "week") return `Every ${DAY_OF_WEEK_SHORT[s.dayOfWeek ?? 1]} at ${s.timeOfDay} · ${s.timezone}`;
       return `Day ${s.dayOfMonth} of every ${unit === "year" ? "year" : "month"} at ${s.timeOfDay} · ${s.timezone}`;
     }
   }
   if (t.type === "developer" && t.config.developer) {
-    return t.config.developer.method.toUpperCase();
+    const d = t.config.developer;
+    const authLabel = d.authentication === "bearer" ? "Bearer Token" : d.authentication === "basic" ? "Basic Auth" : "No auth";
+    return `Webhook · ${authLabel}`;
   }
   if (t.type === "external" && t.config.external) {
     const ext = t.config.external;
@@ -86,7 +88,7 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
         <div>
           <h2 className="font-display text-xl font-semibold">Triggers</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Define when this agent runs automatically — Scheduled, Developer, or External application triggers.
+            Define when this agent runs automatically — Scheduled, Webhook, or External application triggers.
           </p>
         </div>
         <div className="flex items-center gap-2">

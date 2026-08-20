@@ -2,18 +2,18 @@ import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   triggerStore, type TriggerRecord, type TriggerType, type ScheduleFrequency, type CustomScheduleUnit,
-  type DeveloperMethod, type ExternalApp, TIMEZONE_OPTIONS, EXTERNAL_APP_EVENTS, EXTERNAL_APP_META, EXTERNAL_APP_ORDER,
+  type WebhookAuthType, type ExternalApp, TIMEZONE_OPTIONS, EXTERNAL_APP_EVENTS, EXTERNAL_APP_META, EXTERNAL_APP_ORDER,
 } from "./triggerStore";
 import AppLogo from "./AppLogo";
 import { toast } from "sonner";
-import { Clock, Code2, Globe } from "lucide-react";
+import { Clock, Webhook, Globe, Copy, Check, TriangleAlert } from "lucide-react";
 
 const NAME_MAX = 50;
 const DESC_MAX = 200;
 
 const CATEGORY_OPTIONS: { value: Exclude<TriggerType, "manual">; label: string; icon: any; desc: string }[] = [
   { value: "scheduled", label: "Scheduled", icon: Clock, desc: "Run this Agent automatically based on a recurring schedule." },
-  { value: "developer", label: "Developer", icon: Code2, desc: "Trigger this Agent from another application or system." },
+  { value: "developer", label: "Webhook", icon: Webhook, desc: "Receive a unique URL that any external system can call (POST) to trigger this Agent." },
   { value: "external", label: "External application", icon: Globe, desc: "Trigger this Agent when something happens in another application." },
 ];
 
@@ -29,11 +29,18 @@ const FREQUENCY_UNIT_OPTIONS: { value: CustomScheduleUnit; label: string }[] = [
 
 const DAY_OF_WEEK_OPTIONS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-const METHOD_OPTIONS: { value: DeveloperMethod; label: string; desc: string }[] = [
-  { value: "api", label: "API", desc: "Call this Agent directly from your backend via REST API." },
-  { value: "webhook", label: "Webhook", desc: "Receive a signed URL that any external system can POST to." },
-  { value: "sdk", label: "SDK", desc: "Invoke this Agent from your application using our SDK." },
+const AUTH_OPTIONS: { value: WebhookAuthType; label: string }[] = [
+  { value: "none", label: "None" },
+  { value: "bearer", label: "Bearer Token" },
+  { value: "basic", label: "Basic Auth" },
 ];
+
+function generateWebhookId() {
+  const alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+  let id = "";
+  for (let i = 0; i < 25; i++) id += alphabet[Math.floor(Math.random() * alphabet.length)];
+  return id;
+}
 
 interface Props {
   open: boolean;
@@ -54,11 +61,15 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
   const [dayOfWeek, setDayOfWeek] = useState(1);
   const [dayOfMonth, setDayOfMonth] = useState(1);
   const [customUnit, setCustomUnit] = useState<CustomScheduleUnit>("day");
+  const [intervalValue, setIntervalValue] = useState("");
   const [cron, setCron] = useState("0 9 * * 1");
   const [timezone, setTimezone] = useState("GMT+07:00");
 
-  // Developer
-  const [method, setMethod] = useState<DeveloperMethod>("webhook");
+  // Webhook
+  const [webhookUrl, setWebhookUrl] = useState("");
+  const [authentication, setAuthentication] = useState<WebhookAuthType>("none");
+  const [credentialId, setCredentialId] = useState("");
+  const [webhookCopied, setWebhookCopied] = useState(false);
 
   // External
   const [app, setApp] = useState<ExternalApp>("gmail");
@@ -66,7 +77,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
   const [showConditions, setShowConditions] = useState(false);
   const [conditions, setConditions] = useState("");
 
-  const [errors, setErrors] = useState<{ name?: string; description?: string; schedule?: string }>({});
+  const [errors, setErrors] = useState<{ name?: string; description?: string; schedule?: string; credential?: string }>({});
 
   useEffect(() => {
     if (!open) return;
@@ -79,15 +90,19 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
     setCategory(cat);
 
     const sched = t?.config.schedule;
+    const unit = sched?.customUnit ?? (sched?.frequency === "weekly" ? "week" : sched?.frequency === "monthly" ? "month" : "day");
     setTimeOfDay(sched?.timeOfDay ?? "08:00");
     setDayOfWeek(sched?.dayOfWeek ?? 1);
     setDayOfMonth(sched?.dayOfMonth ?? 1);
-    setCustomUnit(sched?.customUnit ?? (sched?.frequency === "weekly" ? "week" : sched?.frequency === "monthly" ? "month" : "day"));
+    setCustomUnit(unit);
+    setIntervalValue(sched?.intervalValue != null ? String(sched.intervalValue) : "");
     setCron(sched?.cron ?? "0 9 * * 1");
     setTimezone(sched?.timezone ?? "GMT+07:00");
 
     const dev = t?.config.developer;
-    setMethod(dev?.method ?? "webhook");
+    setWebhookUrl(dev?.webhookUrl ?? `https://agents.fpt.ai/console/api/webhooks/triggers/${generateWebhookId()}`);
+    setAuthentication(dev?.authentication ?? "none");
+    setCredentialId(dev?.credentialId ?? "");
 
     const ext = t?.config.external;
     setApp(ext?.app ?? "gmail");
@@ -106,6 +121,15 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
     if (category === "scheduled" && customUnit === "cron" && !cron.trim()) {
       e.schedule = "Cron expression is required";
     }
+    if (category === "scheduled" && customUnit === "minute" && Number(intervalValue) < 10) {
+      e.schedule = "Minimum interval is 10 minutes";
+    }
+    if (category === "scheduled" && customUnit === "hour" && Number(intervalValue) < 1) {
+      e.schedule = "Minimum interval is 1 hour";
+    }
+    if (category === "developer" && authentication !== "none" && !credentialId) {
+      e.credential = "Select a credential to continue, or add one in Connectors first";
+    }
     return e;
   };
 
@@ -121,6 +145,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
         timezone,
         customUnit,
         ...(customUnit === "cron" ? { cron: cron.trim() } : {}),
+        ...(customUnit === "minute" || customUnit === "hour" ? { intervalValue: Number(intervalValue) } : {}),
         ...(["day", "week", "month", "year"].includes(customUnit) ? { timeOfDay } : {}),
         ...(customUnit === "week" ? { dayOfWeek } : {}),
         ...(customUnit === "month" || customUnit === "year" ? { dayOfMonth } : {}),
@@ -128,11 +153,9 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
     }
     if (category === "developer") {
       config.developer = {
-        method,
-        ...(method === "webhook" && {
-          webhookUrl: trigger?.config.developer?.webhookUrl ?? `https://api.tova.ai/agents/${agentId}/triggers/${name.trim().toLowerCase().replace(/\s+/g, "-")}`,
-          secret: trigger?.config.developer?.secret ?? `whsec_${Math.random().toString(36).slice(2, 14)}`,
-        }),
+        webhookUrl,
+        authentication,
+        ...(authentication !== "none" && credentialId ? { credentialId } : {}),
       };
     }
     if (category === "external") {
@@ -239,7 +262,10 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                     <button
                       key={opt.value}
                       type="button"
-                      onClick={() => setCustomUnit(opt.value)}
+                      onClick={() => {
+                        setCustomUnit(opt.value);
+                        if (opt.value === "minute" || opt.value === "hour") setIntervalValue("");
+                      }}
                       className={`h-8 rounded-lg text-xs font-medium transition-base ${
                         customUnit === opt.value ? "bg-primary text-primary-foreground" : "bg-surface-muted text-muted-foreground hover:text-foreground"
                       }`}
@@ -249,6 +275,35 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                   ))}
                 </div>
               </div>
+
+              {customUnit === "minute" && (
+                <div>
+                  <input
+                    type="number" min={10}
+                    value={intervalValue}
+                    onChange={e => setIntervalValue(e.target.value)}
+                    placeholder="Minutes (minimum 10)"
+                    className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm outline-none transition-base ${
+                      errors.schedule ? "border-destructive" : "border-border focus:border-primary"
+                    }`}
+                  />
+                  {errors.schedule && <p className="mt-1 text-[11px] text-destructive">{errors.schedule}</p>}
+                </div>
+              )}
+              {customUnit === "hour" && (
+                <div>
+                  <input
+                    type="number" min={1}
+                    value={intervalValue}
+                    onChange={e => setIntervalValue(e.target.value)}
+                    placeholder="Hours (minimum 1)"
+                    className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm outline-none transition-base ${
+                      errors.schedule ? "border-destructive" : "border-border focus:border-primary"
+                    }`}
+                  />
+                  {errors.schedule && <p className="mt-1 text-[11px] text-destructive">{errors.schedule}</p>}
+                </div>
+              )}
 
               {["day", "week", "month", "year"].includes(customUnit) && (
                 <div>
@@ -300,35 +355,57 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
           {category === "developer" && (
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-medium mb-1.5 block">Method</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {METHOD_OPTIONS.map(opt => {
-                    const active = method === opt.value;
-                    return (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => setMethod(opt.value)}
-                        className={`flex flex-col items-start gap-1 p-2.5 rounded-lg border text-left transition-base ${
-                          active ? "border-primary bg-primary-soft" : "border-border bg-surface hover:border-primary/40"
-                        }`}
-                      >
-                        <div className={`text-xs font-medium ${active ? "text-primary" : ""}`}>{opt.label}</div>
-                        <div className="text-[10px] text-muted-foreground leading-snug">{opt.desc}</div>
-                      </button>
-                    );
-                  })}
+                <label className="text-xs font-medium mb-1.5 block">Webhook URL</label>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    readOnly
+                    value={webhookUrl}
+                    className="flex-1 h-9 px-3 rounded-lg border border-border bg-surface-muted text-xs font-mono text-muted-foreground outline-none truncate"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard?.writeText(webhookUrl).catch(() => {});
+                      setWebhookCopied(true);
+                      setTimeout(() => setWebhookCopied(false), 1500);
+                    }}
+                    className="w-9 h-9 shrink-0 rounded-lg border border-border bg-surface hover:bg-surface-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-base"
+                    aria-label="Copy webhook URL"
+                  >
+                    {webhookCopied ? <Check size={13} className="text-success" /> : <Copy size={13} />}
+                  </button>
                 </div>
               </div>
-              {method === "webhook" ? (
-                <div className="rounded-lg bg-surface-muted border border-border p-3 text-[11px] text-muted-foreground">
-                  A signed webhook URL will be generated when you save. POST any JSON payload to invoke the agent.
-                </div>
-              ) : (
-                <div className="rounded-lg bg-surface-muted border border-border p-3 text-[11px] text-muted-foreground">
-                  Authentication: Configured by platform. {method === "api"
-                    ? "Call this Agent's API endpoint to trigger a run."
-                    : "Use the FPT AI Agents SDK to trigger this Agent from your application."}
+
+              <div>
+                <label className="text-xs font-medium mb-1.5 block">
+                  Authentication <span className="text-destructive">*</span>
+                </label>
+                <select
+                  value={authentication}
+                  onChange={e => { setAuthentication(e.target.value as WebhookAuthType); setCredentialId(""); }}
+                  className="ds-input h-9"
+                >
+                  {AUTH_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                </select>
+              </div>
+
+              {authentication !== "none" && (
+                <div>
+                  <label className="text-xs font-medium mb-1.5 block">
+                    {authentication === "bearer" ? "Token" : "Credential for Basic Auth"} <span className="text-destructive">*</span>
+                  </label>
+                  <select
+                    value={credentialId}
+                    onChange={e => setCredentialId(e.target.value)}
+                    className="w-full h-9 px-3 rounded-lg border text-sm outline-none transition-base border-destructive/30 bg-[hsl(var(--destructive-soft))] text-destructive"
+                  >
+                    <option value="">Select credential</option>
+                  </select>
+                  <p className="mt-1.5 flex items-start gap-1 text-[11px] text-destructive">
+                    <TriangleAlert size={12} className="shrink-0 mt-[1px]" />
+                    No credentials found. Add one in Connectors, then select it here.
+                  </p>
                 </div>
               )}
             </div>

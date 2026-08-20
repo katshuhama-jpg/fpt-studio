@@ -4461,7 +4461,7 @@ function GuardrailsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:num
 const TRIGGER_TYPE_CHIP: Record<TriggerType, { label: string; bg: string; fg: string; border: string }> = {
   manual:    { label: "Manual",    bg: "#EEF2FF", fg: "#4338CA", border: "#C7D2FE" },
   scheduled: { label: "Scheduled", bg: "#EFF6FF", fg: "#1D4ED8", border: "#BFDBFE" },
-  developer: { label: "Developer", bg: "#FFF7ED", fg: "#C2410C", border: "#FED7AA" },
+  developer: { label: "Webhook",   bg: "#FFF7ED", fg: "#C2410C", border: "#FED7AA" },
   external:  { label: "External",  bg: "#ECFDF5", fg: "#047857", border: "#A7F3D0" },
 };
 
