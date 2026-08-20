@@ -1,14 +1,13 @@
 import { useMemo, useState } from "react";
 import {
-  Plus, Search, Zap, Clock, Code2, Globe,
+  Plus, Search, Zap, Clock, Code2, Globe, Trash2,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import TriggerFormDialog from "./TriggerFormDialog";
-import TriggerDetailDialog from "./TriggerDetailDialog";
-import { triggerStore, EXTERNAL_APP_EVENTS, type TriggerRecord, type TriggerType, type CustomScheduleUnit } from "./triggerStore";
+import { triggerStore, EXTERNAL_APP_EVENTS, type TriggerRecord, type TriggerType } from "./triggerStore";
 import { toast } from "sonner";
 
 const TYPE_META: Record<TriggerType, { label: string; icon: any; chip: string }> = {
@@ -18,9 +17,6 @@ const TYPE_META: Record<TriggerType, { label: string; icon: any; chip: string }>
   external:  { label: "External",  icon: Globe, chip: "chip-success" },
 };
 
-const CUSTOM_UNIT_LABEL: Record<CustomScheduleUnit, string> = {
-  minute: "Every minute", hour: "Every hour", day: "Daily", week: "Weekly", month: "Monthly", year: "Annually", cron: "Cron",
-};
 const DAY_OF_WEEK_SHORT = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 function summarizeConfig(t: TriggerRecord): string {
@@ -31,8 +27,13 @@ function summarizeConfig(t: TriggerRecord): string {
     if (s.frequency === "weekly") return `Every ${DAY_OF_WEEK_SHORT[s.dayOfWeek ?? 1]} at ${s.timeOfDay} · ${s.timezone}`;
     if (s.frequency === "monthly") return `Day ${s.dayOfMonth} of every month at ${s.timeOfDay} · ${s.timezone}`;
     if (s.frequency === "custom") {
-      if (s.customUnit === "cron") return `Cron: ${s.cron}`;
-      return `${CUSTOM_UNIT_LABEL[s.customUnit ?? "day"]} · ${s.timezone}`;
+      const unit = s.customUnit ?? "day";
+      if (unit === "cron") return `Cron: ${s.cron}`;
+      if (unit === "minute") return "Every minute";
+      if (unit === "hour") return "Every hour";
+      if (unit === "day") return `Every day at ${s.timeOfDay} · ${s.timezone}`;
+      if (unit === "week") return `Every ${DAY_OF_WEEK_SHORT[s.dayOfWeek ?? 1]} at ${s.timeOfDay} · ${s.timezone}`;
+      return `Day ${s.dayOfMonth} of every ${unit === "year" ? "year" : "month"} at ${s.timeOfDay} · ${s.timezone}`;
     }
   }
   if (t.type === "developer" && t.config.developer) {
@@ -64,7 +65,6 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
   const refresh = () => setTick(t => t + 1);
   const [query, setQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
-  const [detailTarget, setDetailTarget] = useState<TriggerRecord | null>(null);
   const [editTarget, setEditTarget] = useState<TriggerRecord | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<TriggerRecord | null>(null);
 
@@ -116,14 +116,17 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
           {triggers.map(t => {
             const meta = TYPE_META[t.type];
             const Icon = meta.icon;
+            const editable = !t.isDefault;
             return (
               <div
                 key={t.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => setDetailTarget(t)}
-                onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDetailTarget(t); } }}
-                className="group text-left rounded-xl bg-surface border border-border hover:border-primary/40 hover:shadow-soft transition-base overflow-hidden cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
+                role={editable ? "button" : undefined}
+                tabIndex={editable ? 0 : undefined}
+                onClick={editable ? () => setEditTarget(t) : undefined}
+                onKeyDown={editable ? (e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setEditTarget(t); } }) : undefined}
+                className={`group text-left rounded-xl bg-surface border border-border transition-base overflow-hidden ${
+                  editable ? "hover:border-primary/40 hover:shadow-soft cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1" : ""
+                }`}
               >
                 <div className="p-4">
                   <div className="flex items-start gap-3 mb-3">
@@ -136,6 +139,16 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
                         <div className="flex items-center gap-1 shrink-0">
                           {t.isDefault && <span className="chip text-[9px] chip-accent">Default</span>}
                           <span className={`chip text-[9px] ${meta.chip}`}>{meta.label}</span>
+                          {editable && (
+                            <button
+                              type="button"
+                              onClick={e => { e.stopPropagation(); setDeleteTarget(t); }}
+                              className="w-5 h-5 rounded-md flex items-center justify-center text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive hover:bg-surface-muted transition-base"
+                              aria-label={`Delete ${t.name}`}
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          )}
                         </div>
                       </div>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -178,14 +191,6 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
         agentId={agentId}
         trigger={editTarget ?? undefined}
         onSubmitted={refresh}
-      />
-
-      <TriggerDetailDialog
-        open={!!detailTarget}
-        onOpenChange={v => !v && setDetailTarget(null)}
-        trigger={detailTarget}
-        onEdit={t => { setDetailTarget(null); setEditTarget(t); }}
-        onDelete={t => { setDetailTarget(null); setDeleteTarget(t); }}
       />
 
       <AlertDialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>

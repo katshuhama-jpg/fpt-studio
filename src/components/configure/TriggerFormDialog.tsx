@@ -17,21 +17,14 @@ const CATEGORY_OPTIONS: { value: Exclude<TriggerType, "manual">; label: string; 
   { value: "external", label: "External application", icon: Globe, desc: "Trigger this Agent when something happens in another application." },
 ];
 
-const FREQUENCY_OPTIONS: { value: ScheduleFrequency; label: string }[] = [
-  { value: "daily", label: "Daily" },
-  { value: "weekly", label: "Weekly" },
-  { value: "monthly", label: "Monthly" },
-  { value: "custom", label: "Custom" },
-];
-
-const CUSTOM_UNIT_OPTIONS: { value: CustomScheduleUnit; label: string }[] = [
-  { value: "minute", label: "Every minute" },
-  { value: "hour", label: "Every hour" },
+const FREQUENCY_UNIT_OPTIONS: { value: CustomScheduleUnit; label: string }[] = [
+  { value: "minute", label: "Minutely" },
+  { value: "hour", label: "Hourly" },
   { value: "day", label: "Daily" },
   { value: "week", label: "Weekly" },
   { value: "month", label: "Monthly" },
   { value: "year", label: "Annually" },
-  { value: "cron", label: "Advanced schedule" },
+  { value: "cron", label: "Cron" },
 ];
 
 const DAY_OF_WEEK_OPTIONS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -57,7 +50,6 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
   const [description, setDescription] = useState("");
 
   // Scheduled
-  const [frequency, setFrequency] = useState<ScheduleFrequency>("daily");
   const [timeOfDay, setTimeOfDay] = useState("08:00");
   const [dayOfWeek, setDayOfWeek] = useState(1);
   const [dayOfMonth, setDayOfMonth] = useState(1);
@@ -87,11 +79,10 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
     setCategory(cat);
 
     const sched = t?.config.schedule;
-    setFrequency(sched?.frequency ?? "daily");
     setTimeOfDay(sched?.timeOfDay ?? "08:00");
     setDayOfWeek(sched?.dayOfWeek ?? 1);
     setDayOfMonth(sched?.dayOfMonth ?? 1);
-    setCustomUnit(sched?.customUnit ?? "day");
+    setCustomUnit(sched?.customUnit ?? (sched?.frequency === "weekly" ? "week" : sched?.frequency === "monthly" ? "month" : "day"));
     setCron(sched?.cron ?? "0 9 * * 1");
     setTimezone(sched?.timezone ?? "GMT+07:00");
 
@@ -112,7 +103,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
     else if (triggerStore.isDuplicateName(agentId, name, trigger?.id)) e.name = "Name already exists";
     if (!description.trim()) e.description = "Description is required";
     else if (description.length > DESC_MAX) e.description = `Description must be ≤ ${DESC_MAX} characters`;
-    if (category === "scheduled" && frequency === "custom" && customUnit === "cron" && !cron.trim()) {
+    if (category === "scheduled" && customUnit === "cron" && !cron.trim()) {
       e.schedule = "Cron expression is required";
     }
     return e;
@@ -126,18 +117,13 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
     const config: TriggerRecord["config"] = {};
     if (category === "scheduled") {
       config.schedule = {
-        frequency,
+        frequency: "custom",
         timezone,
-        ...(frequency === "daily" && { timeOfDay }),
-        ...(frequency === "weekly" && { timeOfDay, dayOfWeek }),
-        ...(frequency === "monthly" && { timeOfDay, dayOfMonth }),
-        ...(frequency === "custom" && {
-          customUnit,
-          ...(customUnit === "cron" ? { cron: cron.trim() } : {}),
-          ...(["day", "week", "month", "year"].includes(customUnit) ? { timeOfDay } : {}),
-          ...(customUnit === "week" ? { dayOfWeek } : {}),
-          ...(customUnit === "month" || customUnit === "year" ? { dayOfMonth } : {}),
-        }),
+        customUnit,
+        ...(customUnit === "cron" ? { cron: cron.trim() } : {}),
+        ...(["day", "week", "month", "year"].includes(customUnit) ? { timeOfDay } : {}),
+        ...(customUnit === "week" ? { dayOfWeek } : {}),
+        ...(customUnit === "month" || customUnit === "year" ? { dayOfMonth } : {}),
       };
     }
     if (category === "developer") {
@@ -246,107 +232,59 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
 
           {category === "scheduled" && (
             <div className="rounded-lg border border-border p-3 space-y-3">
-              <div className="grid grid-cols-4 gap-1.5">
-                {FREQUENCY_OPTIONS.map(opt => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setFrequency(opt.value)}
-                    className={`h-8 rounded-lg text-xs font-medium transition-base ${
-                      frequency === opt.value ? "bg-primary text-primary-foreground" : "bg-surface-muted text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
+              <div>
+                <label className="text-xs font-medium mb-1.5 block">Frequency</label>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {FREQUENCY_UNIT_OPTIONS.map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setCustomUnit(opt.value)}
+                      className={`h-8 rounded-lg text-xs font-medium transition-base ${
+                        customUnit === opt.value ? "bg-primary text-primary-foreground" : "bg-surface-muted text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              {frequency === "daily" && (
+              {["day", "week", "month", "year"].includes(customUnit) && (
                 <div>
                   <label className="text-xs font-medium mb-1.5 block">Time</label>
                   <input type="time" value={timeOfDay} onChange={e => setTimeOfDay(e.target.value)}
                     className="w-full h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base" />
                 </div>
               )}
-
-              {frequency === "weekly" && (
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-xs font-medium mb-1.5 block">Day of week</label>
-                    <select value={dayOfWeek} onChange={e => setDayOfWeek(Number(e.target.value))}
-                      className="ds-input h-9">
-                      {DAY_OF_WEEK_OPTIONS.map((d, i) => <option key={d} value={i}>{d}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium mb-1.5 block">Time</label>
-                    <input type="time" value={timeOfDay} onChange={e => setTimeOfDay(e.target.value)}
-                      className="w-full h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base" />
-                  </div>
+              {customUnit === "week" && (
+                <div>
+                  <label className="text-xs font-medium mb-1.5 block">Day of week</label>
+                  <select value={dayOfWeek} onChange={e => setDayOfWeek(Number(e.target.value))} className="ds-input h-9">
+                    {DAY_OF_WEEK_OPTIONS.map((d, i) => <option key={d} value={i}>{d}</option>)}
+                  </select>
                 </div>
               )}
-
-              {frequency === "monthly" && (
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-xs font-medium mb-1.5 block">Day of month</label>
-                    <input type="number" min={1} max={31} value={dayOfMonth} onChange={e => setDayOfMonth(Number(e.target.value))}
-                      className="w-full h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base" />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium mb-1.5 block">Time</label>
-                    <input type="time" value={timeOfDay} onChange={e => setTimeOfDay(e.target.value)}
-                      className="w-full h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base" />
-                  </div>
+              {(customUnit === "month" || customUnit === "year") && (
+                <div>
+                  <label className="text-xs font-medium mb-1.5 block">Day of month</label>
+                  <input type="number" min={1} max={31} value={dayOfMonth} onChange={e => setDayOfMonth(Number(e.target.value))}
+                    className="w-full h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base" />
                 </div>
               )}
-
-              {frequency === "custom" && (
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-xs font-medium mb-1.5 block">Choose how often this Agent should run</label>
-                    <select value={customUnit} onChange={e => setCustomUnit(e.target.value as CustomScheduleUnit)}
-                      className="ds-input h-9">
-                      {CUSTOM_UNIT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
-                  </div>
-                  {["day", "week", "month", "year"].includes(customUnit) && (
-                    <div>
-                      <label className="text-xs font-medium mb-1.5 block">Time</label>
-                      <input type="time" value={timeOfDay} onChange={e => setTimeOfDay(e.target.value)}
-                        className="w-full h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base" />
-                    </div>
-                  )}
-                  {customUnit === "week" && (
-                    <div>
-                      <label className="text-xs font-medium mb-1.5 block">Day of week</label>
-                      <select value={dayOfWeek} onChange={e => setDayOfWeek(Number(e.target.value))} className="ds-input h-9">
-                        {DAY_OF_WEEK_OPTIONS.map((d, i) => <option key={d} value={i}>{d}</option>)}
-                      </select>
-                    </div>
-                  )}
-                  {(customUnit === "month" || customUnit === "year") && (
-                    <div>
-                      <label className="text-xs font-medium mb-1.5 block">Day of month</label>
-                      <input type="number" min={1} max={31} value={dayOfMonth} onChange={e => setDayOfMonth(Number(e.target.value))}
-                        className="w-full h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base" />
-                    </div>
-                  )}
-                  {customUnit === "cron" && (
-                    <div>
-                      <label className="text-xs font-medium mb-1.5 block">Cron expression</label>
-                      <input
-                        value={cron}
-                        onChange={e => setCron(e.target.value)}
-                        placeholder="0 9 * * 1"
-                        className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm font-mono outline-none transition-base ${
-                          errors.schedule ? "border-destructive" : "border-border focus:border-primary"
-                        }`}
-                      />
-                      <p className="mt-1 text-[10px] text-muted-foreground">Standard cron format: minute hour day-of-month month day-of-week</p>
-                      {errors.schedule && <p className="mt-1 text-[11px] text-destructive">{errors.schedule}</p>}
-                    </div>
-                  )}
+              {customUnit === "cron" && (
+                <div>
+                  <label className="text-xs font-medium mb-1.5 block">Cron expression</label>
+                  <input
+                    value={cron}
+                    onChange={e => setCron(e.target.value)}
+                    placeholder="0 9 * * 1"
+                    className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm font-mono outline-none transition-base ${
+                      errors.schedule ? "border-destructive" : "border-border focus:border-primary"
+                    }`}
+                  />
+                  <p className="mt-1 text-[10px] text-muted-foreground">Standard cron format: minute hour day-of-month month day-of-week</p>
+                  {errors.schedule && <p className="mt-1 text-[11px] text-destructive">{errors.schedule}</p>}
                 </div>
               )}
 

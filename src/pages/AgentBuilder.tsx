@@ -8,6 +8,7 @@ import AgentToolsTab from "@/components/tool-builder/AgentToolsTab";
 import TasksGrid from "@/components/tasks/TasksGrid";
 import BusinessProcessesGrid from "@/components/business-processes/BusinessProcessesGrid";
 import TriggersTab from "@/components/configure/TriggersTab";
+import TriggerFormDialog from "@/components/configure/TriggerFormDialog";
 import GuardrailsTab from "@/components/configure/GuardrailsTab";
 import HistoryTab from "@/components/history/HistoryTab";
 import HistoryChatPanel from "@/components/history/HistoryChatPanel";
@@ -15,7 +16,7 @@ import ChatOptimizationTab from "@/components/configure/ChatOptimizationTab";
 import { businessProcessStore } from "@/components/business-processes/businessProcessStore";
 import { taskStore } from "@/components/tasks/taskStore";
 import { knowledgeStore } from "@/components/knowledge/knowledgeStore";
-import { triggerStore } from "@/components/configure/triggerStore";
+import { triggerStore, type TriggerRecord, type TriggerType } from "@/components/configure/triggerStore";
 import { guardrailStore } from "@/components/configure/guardrailStore";
 import { chatOptimizationStore } from "@/components/configure/chatOptimizationStore";
 import { updateUser } from "@/lib/onboarding";
@@ -267,7 +268,7 @@ export default function AgentBuilder() {
           <div className="flex-1 flex flex-col overflow-hidden">
 
             <div className="flex-1 overflow-y-auto bg-background">
-              {tab === "build" && section === "instructions" && <GeneralTab agentId={id ?? "new"} onRefineWithAI={() => setBuildMode("ai")} onChatToTest={() => { setBuildMode("manual"); setPreviewView("chat"); }} onManageTriggers={() => setSection("triggers")} />}
+              {tab === "build" && section === "instructions" && <GeneralTab agentId={id ?? "new"} onRefineWithAI={() => setBuildMode("ai")} onChatToTest={() => { setBuildMode("manual"); setPreviewView("chat"); }} />}
               {tab === "build" && section === "knowledge" && <KnowledgeTab />}
               {tab === "build" && section === "history" && <HistoryTab agentId={id ?? "new"} />}
               {tab === "build" && section === "skills" && <PlaceholderTab title="Skills" />}
@@ -281,7 +282,7 @@ export default function AgentBuilder() {
             </div>
           </div>
 
-          {tab === "build" && section === "instructions" && <PreviewPanel view={previewView} onViewChange={setPreviewView} />}
+          {tab === "build" && section === "instructions" && <PreviewPanel agentId={id ?? "new"} view={previewView} onViewChange={setPreviewView} />}
           {tab === "build" && section === "history" && <HistoryChatPanel agentId={id ?? "new"} />}
         </div>
       </div>
@@ -684,7 +685,7 @@ function inlineFormat(text: string): React.ReactNode {
   return parts.map((p, i) => i % 2 === 1 ? <strong key={i}>{p}</strong> : p);
 }
 
-function GeneralTab({ agentId, onRefineWithAI, onChatToTest, onManageTriggers }: { agentId: string; onRefineWithAI?: () => void; onChatToTest?: () => void; onManageTriggers?: () => void }) {
+function GeneralTab({ agentId, onRefineWithAI, onChatToTest }: { agentId: string; onRefineWithAI?: () => void; onChatToTest?: () => void }) {
   const [params] = useSearchParams();
   const initialName = params.get("agentName") || "Banking ABC — Customer Care";
   const initialPrompt = params.get("agentPrompt") || "";
@@ -693,7 +694,6 @@ function GeneralTab({ agentId, onRefineWithAI, onChatToTest, onManageTriggers }:
   const [viewMode, setViewMode] = useState<"preview" | "markdown" | "ai" | "chat">("preview");
   const [instructions, setInstructions] = useState("");
   const emojiOptions = ["🏦","🤖","💼","🧠","🎯","🛡️","⚡","🌐","📊","🔧","💡","🚀"];
-  const triggerCount = Math.max(0, triggerStore.list(agentId).length - 1);
 
   const defaultInstructions = initialPrompt || `# Banking ABC — Customer Care Agent
 
@@ -799,11 +799,6 @@ You are a customer-care specialist at ABC Bank. Help customers 24/7 with product
           <button onClick={() => onChatToTest?.()}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm text-foreground transition-base">
             <HugeiconsIcon icon={Chat01Icon} size={13} className="text-muted-foreground" /> Chat to Test
-          </button>
-          <button onClick={() => onManageTriggers?.()}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm text-foreground transition-base">
-            <HugeiconsIcon icon={TimeScheduleIcon} size={13} className="text-muted-foreground" /> Triggers
-            <span className="text-xs text-muted-foreground">{triggerCount > 0 ? `${triggerCount} configured` : "No triggers yet"}</span>
           </button>
         </div>
       </div>
@@ -2453,12 +2448,13 @@ function EmptyStateBox({ icon, description, addLabel, onAdd }: {
   );
 }
 
-function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange: (id: string) => void }) {
-  const [open, setOpen] = useState<Record<string, boolean>>({ connectors: true, skills: true, guardrails: true, "sub-agents": true });
+function NewConfigPanel({ agentId, model, onModelChange }: { agentId: string; model: string; onModelChange: (id: string) => void }) {
+  const [open, setOpen] = useState<Record<string, boolean>>({ connectors: true, skills: true, guardrails: true, triggers: true, "sub-agents": true });
   const guardrailsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
   const skillsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
   const subAgentsAddRef = useRef<(() => void) | null>(null);
   const connectorsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
+  const triggersAddRef = useRef<(() => void) | null>(null);
 
   const sections = [
     {
@@ -2483,7 +2479,13 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
       ),
     },
     { id: "knowledge",  icon: NoteIcon,         label: "Knowledge", comingSoon: true },
-    { id: "triggers",   icon: TimeScheduleIcon, label: "Triggers",  comingSoon: true },
+    {
+      id: "triggers", icon: TimeScheduleIcon, label: "Triggers",
+      onAdd: () => triggersAddRef.current?.(),
+      content: (
+        <TriggersInner agentId={agentId} onRegisterAdd={(fn) => { triggersAddRef.current = fn; }} />
+      ),
+    },
     {
       id: "sub-agents", icon: UserMultipleIcon, label: "Sub-Agents",
       onAdd: () => subAgentsAddRef.current?.(),
@@ -2547,7 +2549,7 @@ function NewConfigPanel({ model, onModelChange }: { model: string; onModelChange
   );
 }
 
-function PreviewPanel({ view, onViewChange }: { view: "config" | "chat"; onViewChange: (v: "config" | "chat") => void }) {
+function PreviewPanel({ agentId, view, onViewChange }: { agentId: string; view: "config" | "chat"; onViewChange: (v: "config" | "chat") => void }) {
   const setView = onViewChange;
   const [selectedModel, setSelectedModel] = useState("deepseek-v4-flash");
   const [messages, setMessages] = useState<{ role: "user" | "agent"; text: string }[]>([
@@ -2589,7 +2591,7 @@ function PreviewPanel({ view, onViewChange }: { view: "config" | "chat"; onViewC
 
       {view === "config" ? (
         <div className="flex-1 overflow-y-auto">
-          <NewConfigPanel model={selectedModel} onModelChange={setSelectedModel} />
+          <NewConfigPanel agentId={agentId} model={selectedModel} onModelChange={setSelectedModel} />
         </div>
       ) : (
         <div className="flex-1 flex flex-col overflow-hidden">
@@ -4452,6 +4454,91 @@ function GuardrailsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:num
         />,
         document.body
       )}
+    </>
+  );
+}
+
+const TRIGGER_TYPE_CHIP: Record<TriggerType, { label: string; bg: string; fg: string; border: string }> = {
+  manual:    { label: "Manual",    bg: "#EEF2FF", fg: "#4338CA", border: "#C7D2FE" },
+  scheduled: { label: "Scheduled", bg: "#EFF6FF", fg: "#1D4ED8", border: "#BFDBFE" },
+  developer: { label: "Developer", bg: "#FFF7ED", fg: "#C2410C", border: "#FED7AA" },
+  external:  { label: "External",  bg: "#ECFDF5", fg: "#047857", border: "#A7F3D0" },
+};
+
+function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAdd?: (fn: () => void) => void } = {}) {
+  const [tick, setTick] = useState(0);
+  const refresh = () => setTick(t => t + 1);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<TriggerRecord | null>(null);
+
+  useEffect(() => {
+    onRegisterAdd?.(() => setCreateOpen(true));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  void tick;
+  const triggers = triggerStore.list(agentId).filter(t => !t.isDefault);
+
+  return (
+    <>
+      {triggers.length === 0 ? (
+        <EmptyStateBox
+          icon={TimeScheduleIcon}
+          description="Define when this agent runs automatically — schedule, developer, or external app events."
+          addLabel="Add Trigger"
+          onAdd={() => setCreateOpen(true)}
+        />
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          {triggers.map(t => {
+            const chip = TRIGGER_TYPE_CHIP[t.type];
+            return (
+              <div
+                key={t.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => setEditTarget(t)}
+                onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setEditTarget(t); } }}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface cursor-pointer hover:bg-surface-muted transition-base"
+              >
+                {t.enabled
+                  ? <svg width="16" height="16" viewBox="0 0 14 14" fill="none" className="shrink-0"><circle cx="7" cy="7" r="7" fill="#22c55e"/><path d="M4 7l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  : <div className="w-4 h-4 rounded-full border-2 border-border shrink-0" />
+                }
+                <span className="text-[13px] font-medium flex-1 truncate min-w-0">{t.name}</span>
+                <span
+                  className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap"
+                  style={{ background: chip.bg, color: chip.fg, border: `0.5px solid ${chip.border}` }}
+                >
+                  {chip.label}
+                </span>
+                <button
+                  onClick={e => { e.stopPropagation(); triggerStore.remove(agentId, t.id); refresh(); }}
+                  className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-surface-muted transition-base shrink-0"
+                  title="Remove"
+                >
+                  <HugeiconsIcon icon={Delete01Icon} size={12} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <TriggerFormDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        mode="create"
+        agentId={agentId}
+        onSubmitted={refresh}
+      />
+      <TriggerFormDialog
+        open={!!editTarget}
+        onOpenChange={v => !v && setEditTarget(null)}
+        mode="edit"
+        agentId={agentId}
+        trigger={editTarget ?? undefined}
+        onSubmitted={refresh}
+      />
     </>
   );
 }
