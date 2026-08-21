@@ -32,8 +32,8 @@ const developNav = [
   { id: "skills",       label: "Skills",         icon: PuzzleIcon,      hidden: true },
   { id: "guardrails",   label: "Guardrails",     icon: Shield01Icon,    hidden: true },
   { id: "knowledge",    label: "Knowledge",      icon: NoteIcon },
-  { id: "history",      label: "History",        icon: HistoryIcon },
   { id: "triggers",     label: "Triggers",       icon: TimeScheduleIcon },
+  { id: "history",      label: "History",        icon: HistoryIcon },
   { id: "sub-agents",   label: "Sub-Agents",     icon: UserMultipleIcon, comingSoon: true, hidden: true },
 ];
 
@@ -2472,19 +2472,19 @@ function NewConfigPanel({ agentId, model, onModelChange }: { agentId: string; mo
         <SkillsInner onRegisterAdd={(fn) => { skillsAddRef.current = fn; }} />
       ),
     },
-    {
-      id: "guardrails", icon: Shield01Icon, label: "Guardrails",
-      onAdd: (pos: {top:number;left:number}) => guardrailsAddRef.current?.(pos),
-      content: (
-        <GuardrailsInner onRegisterAdd={(fn) => { guardrailsAddRef.current = fn; }} />
-      ),
-    },
     { id: "knowledge",  icon: NoteIcon,         label: "Knowledge", comingSoon: true },
     {
       id: "triggers", icon: TimeScheduleIcon, label: "Triggers",
       onAdd: () => triggersAddRef.current?.(),
       content: (
         <TriggersInner agentId={agentId} onRegisterAdd={(fn) => { triggersAddRef.current = fn; }} />
+      ),
+    },
+    {
+      id: "guardrails", icon: Shield01Icon, label: "Guardrails",
+      onAdd: (pos: {top:number;left:number}) => guardrailsAddRef.current?.(pos),
+      content: (
+        <GuardrailsInner onRegisterAdd={(fn) => { guardrailsAddRef.current = fn; }} />
       ),
     },
     {
