@@ -23,7 +23,7 @@ const NAME_MAX = 50;
 const DESC_MAX = 200;
 
 const CATEGORY_OPTIONS: { value: TriggerType; label: string; icon: any; desc: string }[] = [
-  { value: "scheduled", label: "Scheduled", icon: Clock, desc: "Run this Agent automatically based on a recurring schedule." },
+  { value: "scheduled", label: "Schedule", icon: Clock, desc: "Run this Agent automatically based on a recurring schedule." },
   { value: "developer", label: "Webhook", icon: Webhook, desc: "Receive a unique URL that any external system can call (POST) to trigger this Agent." },
   { value: "external", label: "External application", icon: Globe, desc: "Trigger this Agent when something happens in another application." },
 ];
@@ -447,7 +447,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                       >
                         <Icon size={14} className={active ? "text-primary" : "text-muted-foreground"} />
                         <div className={`text-xs font-medium ${active ? "text-primary" : ""}`}>{opt.label}</div>
-                        <div className="text-[10px] text-muted-foreground leading-snug">{opt.desc}</div>
+                        <div className="text-[11px] text-muted-foreground leading-snug">{opt.desc}</div>
                       </button>
                     );
                   })}
