@@ -4639,7 +4639,7 @@ function TriggerRowMenu({ enabled, needsSetup, onToggle, onEdit, onRename, onDup
                   Resume trigger
                 </span>
               </TooltipTrigger>
-              <TooltipContent side="left">Hoàn tất cấu hình trước khi kích hoạt trigger.</TooltipContent>
+              <TooltipContent side="left" sideOffset={8} align="center">Hoàn tất cấu hình trước khi kích hoạt trigger.</TooltipContent>
             </Tooltip>
           ) : (
             <button type="button" onClick={() => { onToggle(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">

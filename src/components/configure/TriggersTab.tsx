@@ -431,7 +431,7 @@ function RowMenu({ enabled, needsSetup, onToggle, onEdit, onRename, onDuplicate,
                   Resume trigger
                 </span>
               </TooltipTrigger>
-              <TooltipContent side="left">Hoàn tất cấu hình trước khi kích hoạt trigger.</TooltipContent>
+              <TooltipContent side="left" sideOffset={8} align="center">Hoàn tất cấu hình trước khi kích hoạt trigger.</TooltipContent>
             </Tooltip>
           ) : (
             <button
