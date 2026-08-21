@@ -186,9 +186,11 @@ export const DRIVE_FOLDER_OPTIONS: { value: string; label: string }[] = [
 
 const store = new Map<string, TriggerRecord>();
 const k = (a: string, t: string) => `${a}:${t}`;
+const seededAgents = new Set<string>();
 
 function seedAgent(agentId: string) {
-  if ([...store.keys()].some(key => key.startsWith(`${agentId}:`))) return;
+  if (seededAgents.has(agentId)) return;
+  seededAgents.add(agentId);
   const now = Date.now();
   const seed: Omit<TriggerRecord, "agentId">[] = [
     {
