@@ -25,13 +25,13 @@ function mockAffectedUserCount(t: TriggerRecord): number {
 }
 
 export const TYPE_META: Record<TriggerType, { label: string; icon: any; chip: string }> = {
-  scheduled: { label: "Scheduled", icon: Clock,   chip: "chip-accent" },
+  scheduled: { label: "Theo lịch", icon: Clock,   chip: "chip-accent" },
   developer: { label: "Webhook",   icon: Webhook, chip: "chip-warning" },
-  external:  { label: "External",  icon: Globe,   chip: "chip-success" },
+  external:  { label: "Ứng dụng bên ngoài",  icon: Globe,   chip: "chip-success" },
 };
 
-const DAY_OF_WEEK_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const DAY_OF_WEEK_SHORT = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+const MONTH_SHORT = ["Th1", "Th2", "Th3", "Th4", "Th5", "Th6", "Th7", "Th8", "Th9", "Th10", "Th11", "Th12"];
 
 function describeWeekDays(weekDays?: number[]): string {
   const days = weekDays?.length ? weekDays : [1];
@@ -41,18 +41,18 @@ function describeWeekDays(weekDays?: number[]): string {
 export function summarizeConfig(t: TriggerRecord): string {
   if (t.type === "scheduled" && t.config.schedule) {
     const s = t.config.schedule;
-    if (s.frequency === "daily") return `Every day at ${s.timeOfDay} · ${s.timezone}`;
-    if (s.frequency === "weekly") return `Every ${describeWeekDays(s.weekDays)} at ${s.timeOfDay} · ${s.timezone}`;
-    if (s.frequency === "monthly") return `Day ${s.dayOfMonth} of every month at ${s.timeOfDay} · ${s.timezone}`;
+    if (s.frequency === "daily") return `Hằng ngày lúc ${s.timeOfDay} · ${s.timezone}`;
+    if (s.frequency === "weekly") return `Hằng tuần vào ${describeWeekDays(s.weekDays)} lúc ${s.timeOfDay} · ${s.timezone}`;
+    if (s.frequency === "monthly") return `Ngày ${s.dayOfMonth} hằng tháng lúc ${s.timeOfDay} · ${s.timezone}`;
     if (s.frequency === "custom") {
       const unit = s.customUnit ?? "day";
       if (unit === "cron") return `Cron: ${s.cron}`;
-      if (unit === "minute") return `Every ${s.intervalValue ?? "?"} minute${s.intervalValue === 1 ? "" : "s"} from ${s.startTime ?? "?"}`;
-      if (unit === "hour") return `Every ${s.intervalValue ?? "?"} hour${s.intervalValue === 1 ? "" : "s"} from ${s.startTime ?? "?"}`;
-      if (unit === "day") return `Every day at ${s.timeOfDay} · ${s.timezone}`;
-      if (unit === "week") return `Every ${describeWeekDays(s.weekDays)} at ${s.timeOfDay} · ${s.timezone}`;
-      if (unit === "year") return `${MONTH_SHORT[s.month ?? 0]} ${s.dayOfMonth} every year at ${s.timeOfDay} · ${s.timezone}`;
-      return `Day ${s.dayOfMonth} of every month at ${s.timeOfDay} · ${s.timezone}`;
+      if (unit === "minute") return `Mỗi ${s.intervalValue ?? "?"} phút từ ${s.startTime ?? "?"}`;
+      if (unit === "hour") return `Mỗi ${s.intervalValue ?? "?"} giờ từ ${s.startTime ?? "?"}`;
+      if (unit === "day") return `Hằng ngày lúc ${s.timeOfDay} · ${s.timezone}`;
+      if (unit === "week") return `Hằng tuần vào ${describeWeekDays(s.weekDays)} lúc ${s.timeOfDay} · ${s.timezone}`;
+      if (unit === "year") return `${s.dayOfMonth} ${MONTH_SHORT[s.month ?? 0]} hằng năm lúc ${s.timeOfDay} · ${s.timezone}`;
+      return `Ngày ${s.dayOfMonth} hằng tháng lúc ${s.timeOfDay} · ${s.timezone}`;
     }
   }
   if (t.type === "developer" && t.config.developer) {
@@ -152,7 +152,7 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
         <div>
           <h2 className="font-display text-xl font-semibold">Triggers</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Triggers allow this agent to work on auto-pilot — Scheduled, Webhook, or External application triggers.
+            Trigger giúp agent tự động chạy — theo lịch, qua Webhook, hoặc theo sự kiện từ ứng dụng bên ngoài.
           </p>
         </div>
         {tab === "trigger" && (
@@ -166,7 +166,7 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
                   onClick={() => setConfirmBulk("resume")}
                   className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-sm font-medium text-foreground hover:bg-surface-muted transition-base"
                 >
-                  <Play size={13} /> Resume all triggers
+                  <Play size={13} /> Kích hoạt lại tất cả
                 </button>
               </>
             ) : (
@@ -175,11 +175,11 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
                 disabled={pausableCount === 0}
                 className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-sm font-medium text-foreground hover:bg-surface-muted transition-base disabled:opacity-40 disabled:pointer-events-none"
               >
-                <Pause size={13} /> Pause all triggers
+                <Pause size={13} /> Tạm dừng tất cả
               </button>
             )}
             <button onClick={() => setCreateOpen(true)} className="btn-primary h-9">
-              <Plus size={13} /> Add Trigger
+              <Plus size={13} /> Thêm Trigger
             </button>
           </div>
         )}
@@ -209,7 +209,7 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
       ) : isEmpty ? (
         <EmptyState onCreate={() => setCreateOpen(true)} />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           {triggers.map(t => {
             const meta = TYPE_META[t.type];
             const Icon = meta.icon;
@@ -263,7 +263,7 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
                             {t.enabled ? "Đang hoạt động" : "Tạm dừng"}
                           </span>
                         )}
-                        <span className="text-muted-foreground truncate">· {meta.label}</span>
+                        <span className="text-muted-foreground truncate min-w-0">· {meta.label}</span>
                       </div>
                     </div>
                     <RowMenu
@@ -385,7 +385,7 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
         Thêm trigger để agent tự động chạy theo lịch, theo webhook, hoặc theo sự kiện từ ứng dụng bên ngoài.
       </p>
       <button onClick={onCreate} className="btn-primary h-9 mx-auto">
-        <Plus size={13} /> Add Trigger
+        <Plus size={13} /> Thêm Trigger
       </button>
     </div>
   );
@@ -415,7 +415,7 @@ function RowMenu({ enabled, needsSetup, onToggle, onEdit, onRename, onDuplicate,
         className={`w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base shrink-0 ${
           open ? "opacity-100" : "opacity-0 group-hover:opacity-100"
         }`}
-        aria-label="Trigger actions"
+        aria-label="Thao tác trigger"
       >
         <MoreHorizontal size={16} />
       </button>
@@ -428,7 +428,7 @@ function RowMenu({ enabled, needsSetup, onToggle, onEdit, onRename, onDuplicate,
                   tabIndex={0}
                   className="block w-full text-left px-3 py-1.5 text-xs text-muted-foreground/60 cursor-not-allowed outline-none"
                 >
-                  Resume trigger
+                  Kích hoạt trigger
                 </span>
               </TooltipTrigger>
               <TooltipContent side="left" sideOffset={8} align="center">Hoàn tất cấu hình trước khi kích hoạt trigger.</TooltipContent>
@@ -439,7 +439,7 @@ function RowMenu({ enabled, needsSetup, onToggle, onEdit, onRename, onDuplicate,
               onClick={() => { onToggle(); setOpen(false); }}
               className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base"
             >
-              {enabled ? "Pause trigger" : "Resume trigger"}
+              {enabled ? "Tạm dừng trigger" : "Kích hoạt trigger"}
             </button>
           )}
           <button
@@ -447,14 +447,14 @@ function RowMenu({ enabled, needsSetup, onToggle, onEdit, onRename, onDuplicate,
             onClick={() => { onEdit(); setOpen(false); }}
             className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base"
           >
-            Edit trigger
+            Chỉnh sửa trigger
           </button>
           <button
             type="button"
             onClick={() => { onRename(); setOpen(false); }}
             className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base"
           >
-            Rename
+            Đổi tên
           </button>
           <button
             type="button"
@@ -468,7 +468,7 @@ function RowMenu({ enabled, needsSetup, onToggle, onEdit, onRename, onDuplicate,
             onClick={() => { onDuplicate(); setOpen(false); }}
             className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base"
           >
-            Duplicate
+            Nhân bản
           </button>
         </div>
       )}

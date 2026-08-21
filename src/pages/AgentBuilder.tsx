@@ -4501,8 +4501,8 @@ function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegister
       {triggers.length === 0 ? (
         <EmptyStateBox
           icon={TimeScheduleIcon}
-          description="Define when this agent runs automatically — schedule, developer, or external app events."
-          addLabel="Add Trigger"
+          description="Xác định khi nào agent chạy tự động — theo lịch, qua webhook, hoặc theo sự kiện từ ứng dụng bên ngoài."
+          addLabel="Thêm Trigger"
           onAdd={() => setCreateOpen(true)}
         />
       ) : (
@@ -4626,7 +4626,7 @@ function TriggerRowMenu({ enabled, needsSetup, onToggle, onEdit, onRename, onDup
         type="button"
         onClick={() => setOpen(o => !o)}
         className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base"
-        aria-label="Trigger actions"
+        aria-label="Thao tác trigger"
       >
         <HugeiconsIcon icon={MoreHorizontalIcon} size={13} />
       </button>
@@ -4636,27 +4636,27 @@ function TriggerRowMenu({ enabled, needsSetup, onToggle, onEdit, onRename, onDup
             <Tooltip delayDuration={300}>
               <TooltipTrigger asChild>
                 <span tabIndex={0} className="block w-full text-left px-3 py-1.5 text-xs text-muted-foreground/60 cursor-not-allowed outline-none">
-                  Resume trigger
+                  Kích hoạt trigger
                 </span>
               </TooltipTrigger>
               <TooltipContent side="left" sideOffset={8} align="center">Hoàn tất cấu hình trước khi kích hoạt trigger.</TooltipContent>
             </Tooltip>
           ) : (
             <button type="button" onClick={() => { onToggle(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">
-              {enabled ? "Pause trigger" : "Resume trigger"}
+              {enabled ? "Tạm dừng trigger" : "Kích hoạt trigger"}
             </button>
           )}
           <button type="button" onClick={() => { onEdit(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">
-            Edit trigger
+            Chỉnh sửa trigger
           </button>
           <button type="button" onClick={() => { onRename(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">
-            Rename
+            Đổi tên
           </button>
           <button type="button" onClick={() => { onDelete(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">
             Xoá trigger
           </button>
           <button type="button" onClick={() => { onDuplicate(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">
-            Duplicate
+            Nhân bản
           </button>
         </div>
       )}

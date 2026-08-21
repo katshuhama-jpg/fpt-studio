@@ -30,25 +30,25 @@ function seedAgent(agentId: string) {
   const now = Date.now();
   store.push(
     {
-      id: "run-seed-1", agentId, triggerId: "daily-report", triggerName: "Daily report", triggerType: "scheduled",
+      id: "run-seed-1", agentId, triggerId: "daily-report", triggerName: "Báo cáo hằng ngày", triggerType: "scheduled",
       source: "Theo lịch", status: "completed", startedAt: now - 3_600_000, timezone: "GMT+07:00", durationMs: 4200,
       configSnapshot: JSON.stringify({ frequency: "daily", timeOfDay: "08:00", timezone: "GMT+07:00" }, null, 2),
       outputSummary: "Đã tạo và gửi báo cáo ngày cho kênh #reports.",
     },
     {
-      id: "run-seed-2", agentId, triggerId: "new-customer-email", triggerName: "New customer email", triggerType: "external", app: "gmail",
+      id: "run-seed-2", agentId, triggerId: "new-customer-email", triggerName: "Email khách hàng mới", triggerType: "external", app: "gmail",
       source: "Google Mail — Email mới nhận được", status: "failed", startedAt: now - 7_200_000, timezone: "GMT+07:00", durationMs: 1800,
       payload: JSON.stringify({ from: "khachhang@vidu.com", subject: "Hỏi về đơn hàng #482" }, null, 2),
       errorReason: "Không thể xác thực với Google Mail API — token truy cập đã hết hạn.",
     },
     {
-      id: "run-seed-3", agentId, triggerId: "order-created-webhook", triggerName: "Order created", triggerType: "developer",
+      id: "run-seed-3", agentId, triggerId: "order-created-webhook", triggerName: "Đơn hàng được tạo", triggerType: "developer",
       source: "Webhook", status: "completed", startedAt: now - 10_800_000, timezone: "GMT+07:00", durationMs: 2100,
       payload: JSON.stringify({ event: "order.created", order_id: "12345", customer_id: "789" }, null, 2),
       outputSummary: "Đã xử lý đơn hàng #12345 và cập nhật hệ thống kho.",
     },
     {
-      id: "run-seed-4", agentId, triggerId: "daily-report", triggerName: "Daily report", triggerType: "scheduled",
+      id: "run-seed-4", agentId, triggerId: "daily-report", triggerName: "Báo cáo hằng ngày", triggerType: "scheduled",
       source: "Theo lịch", status: "running", startedAt: now - 20_000, timezone: "GMT+07:00",
     },
   );

@@ -36,12 +36,12 @@ export default function CreateCredentialDialog({ open, onOpenChange, authType, o
 
   const submit = () => {
     const e: typeof errors = {};
-    if (!name.trim()) e.name = "The name is required";
-    else if (name.trim().length > NAME_MAX) e.name = `Name must be ≤ ${NAME_MAX} characters`;
-    else if (credentialStore.isDuplicateName(name)) e.name = "A credential with this name already exists";
-    if (authType === "bearer" && !token.trim()) e.token = "The token is required";
-    if (authType === "basic" && !username.trim()) e.username = "The Username is required";
-    if (authType === "basic" && !password.trim()) e.password = "The password is required";
+    if (!name.trim()) e.name = "Vui lòng nhập tên";
+    else if (name.trim().length > NAME_MAX) e.name = `Tên không được vượt quá ${NAME_MAX} ký tự`;
+    else if (credentialStore.isDuplicateName(name)) e.name = "Đã tồn tại credential với tên này";
+    if (authType === "bearer" && !token.trim()) e.token = "Vui lòng nhập token";
+    if (authType === "basic" && !username.trim()) e.username = "Vui lòng nhập tên đăng nhập";
+    if (authType === "basic" && !password.trim()) e.password = "Vui lòng nhập mật khẩu";
     setErrors(e);
     if (Object.keys(e).length) return;
 
@@ -50,7 +50,7 @@ export default function CreateCredentialDialog({ open, onOpenChange, authType, o
       authType,
       ...(authType === "bearer" ? { token: token.trim() } : { username: username.trim(), password: password.trim() }),
     });
-    toast.success("Credential created");
+    toast.success("Đã tạo credential.");
     onCreated(rec);
     onOpenChange(false);
   };
@@ -59,14 +59,14 @@ export default function CreateCredentialDialog({ open, onOpenChange, authType, o
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[440px]">
         <DialogHeader>
-          <DialogTitle className="font-display">Create credential</DialogTitle>
-          <DialogDescription>Add credentials so your Agent can securely access external services.</DialogDescription>
+          <DialogTitle className="font-display">Tạo credential mới</DialogTitle>
+          <DialogDescription>Thêm credential để Agent truy cập an toàn vào các dịch vụ bên ngoài.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div>
             <label className="text-xs font-medium flex items-center justify-between mb-1.5">
-              <span>Credential name <span className="text-destructive">*</span></span>
+              <span>Tên credential <span className="text-destructive">*</span></span>
               <span className="text-[10px] font-mono text-muted-foreground">{name.length}/{NAME_MAX}</span>
             </label>
             <div className="relative">
@@ -75,7 +75,7 @@ export default function CreateCredentialDialog({ open, onOpenChange, authType, o
                 autoFocus
                 value={name}
                 onChange={e => { setName(e.target.value); if (errors.name) setErrors(er => ({ ...er, name: undefined })); }}
-                placeholder="Enter credential name"
+                placeholder="Nhập tên credential"
                 className={`w-full h-9 pl-8 pr-3 rounded-lg border bg-surface text-sm outline-none transition-base ${
                   errors.name ? "border-destructive" : "border-border focus:border-primary"
                 }`}
@@ -85,7 +85,7 @@ export default function CreateCredentialDialog({ open, onOpenChange, authType, o
           </div>
 
           <div>
-            <label className="text-xs font-medium mb-1.5 block">Auth type <span className="text-destructive">*</span></label>
+            <label className="text-xs font-medium mb-1.5 block">Loại xác thực <span className="text-destructive">*</span></label>
             <select disabled value={authType} className="ds-input h-9 opacity-60 cursor-not-allowed">
               <option value={authType}>{AUTH_TYPE_LABEL[authType]}</option>
             </select>
@@ -98,7 +98,7 @@ export default function CreateCredentialDialog({ open, onOpenChange, authType, o
                 type="password"
                 value={token}
                 onChange={e => { setToken(e.target.value); if (errors.token) setErrors(er => ({ ...er, token: undefined })); }}
-                placeholder="Enter token"
+                placeholder="Nhập token"
                 className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm outline-none transition-base ${
                   errors.token ? "border-destructive" : "border-border focus:border-primary"
                 }`}
@@ -110,11 +110,11 @@ export default function CreateCredentialDialog({ open, onOpenChange, authType, o
           {authType === "basic" && (
             <>
               <div>
-                <label className="text-xs font-medium mb-1.5 block">Username <span className="text-destructive">*</span></label>
+                <label className="text-xs font-medium mb-1.5 block">Tên đăng nhập <span className="text-destructive">*</span></label>
                 <input
                   value={username}
                   onChange={e => { setUsername(e.target.value); if (errors.username) setErrors(er => ({ ...er, username: undefined })); }}
-                  placeholder="Enter username"
+                  placeholder="Nhập tên đăng nhập"
                   className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm outline-none transition-base ${
                     errors.username ? "border-destructive" : "border-border focus:border-primary"
                   }`}
@@ -122,12 +122,12 @@ export default function CreateCredentialDialog({ open, onOpenChange, authType, o
                 {errors.username && <p className="mt-1 text-[11px] text-destructive">{errors.username}</p>}
               </div>
               <div>
-                <label className="text-xs font-medium mb-1.5 block">Password <span className="text-destructive">*</span></label>
+                <label className="text-xs font-medium mb-1.5 block">Mật khẩu <span className="text-destructive">*</span></label>
                 <input
                   type="password"
                   value={password}
                   onChange={e => { setPassword(e.target.value); if (errors.password) setErrors(er => ({ ...er, password: undefined })); }}
-                  placeholder="Enter password"
+                  placeholder="Nhập mật khẩu"
                   className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm outline-none transition-base ${
                     errors.password ? "border-destructive" : "border-border focus:border-primary"
                   }`}
@@ -144,10 +144,10 @@ export default function CreateCredentialDialog({ open, onOpenChange, authType, o
             onClick={() => onOpenChange(false)}
             className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base"
           >
-            Cancel
+            Huỷ
           </button>
           <button type="button" onClick={submit} className="btn-primary h-9 px-4">
-            Create credential
+            Tạo credential mới
           </button>
         </DialogFooter>
       </DialogContent>
