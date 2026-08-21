@@ -16,7 +16,9 @@ import ChatOptimizationTab from "@/components/configure/ChatOptimizationTab";
 import { businessProcessStore } from "@/components/business-processes/businessProcessStore";
 import { taskStore } from "@/components/tasks/taskStore";
 import { knowledgeStore } from "@/components/knowledge/knowledgeStore";
-import { triggerStore, type TriggerRecord, type TriggerType } from "@/components/configure/triggerStore";
+import { triggerStore, type TriggerRecord } from "@/components/configure/triggerStore";
+import AppLogo from "@/components/configure/AppLogo";
+import { TYPE_META, summarizeConfig } from "@/components/configure/TriggersTab";
 import { guardrailStore } from "@/components/configure/guardrailStore";
 import { chatOptimizationStore } from "@/components/configure/chatOptimizationStore";
 import { updateUser } from "@/lib/onboarding";
@@ -4455,12 +4457,6 @@ function GuardrailsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:num
   );
 }
 
-const TRIGGER_TYPE_CHIP: Record<TriggerType, { label: string; bg: string; fg: string; border: string }> = {
-  scheduled: { label: "Scheduled", bg: "#EFF6FF", fg: "#1D4ED8", border: "#BFDBFE" },
-  developer: { label: "Webhook",   bg: "#FFF7ED", fg: "#C2410C", border: "#FED7AA" },
-  external:  { label: "External",  bg: "#ECFDF5", fg: "#047857", border: "#A7F3D0" },
-};
-
 function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAdd?: (fn: () => void) => void } = {}) {
   const [tick, setTick] = useState(0);
   const refresh = () => setTick(t => t + 1);
@@ -4509,10 +4505,12 @@ function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegister
           onAdd={() => setCreateOpen(true)}
         />
       ) : (
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-2">
           {triggers.map(t => {
-            const chip = TRIGGER_TYPE_CHIP[t.type];
+            const meta = TYPE_META[t.type];
+            const Icon = meta.icon;
             const isRenaming = renamingId === t.id;
+            const summary = summarizeConfig(t);
             return (
               <div
                 key={t.id}
@@ -4520,38 +4518,56 @@ function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegister
                 tabIndex={isRenaming ? undefined : 0}
                 onClick={isRenaming ? undefined : () => setEditTarget(t)}
                 onKeyDown={isRenaming ? undefined : (e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setEditTarget(t); } })}
-                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface transition-base ${isRenaming ? "" : "cursor-pointer hover:bg-surface-muted"}`}
+                className={`rounded-xl px-3 py-2.5 transition-base ${
+                  t.enabled
+                    ? "border border-transparent hover:bg-surface-muted"
+                    : "border border-amber-300 bg-amber-50/50 hover:bg-amber-50"
+                } ${isRenaming ? "" : "cursor-pointer"}`}
               >
-                {isRenaming ? (
-                  <input
-                    autoFocus
-                    defaultValue={t.name}
-                    onClick={e => e.stopPropagation()}
-                    onBlur={e => renameTrigger(t, e.target.value)}
-                    onKeyDown={e => {
-                      e.stopPropagation();
-                      if (e.key === "Enter") { e.preventDefault(); renameTrigger(t, (e.target as HTMLInputElement).value); }
-                      if (e.key === "Escape") { e.preventDefault(); setRenamingId(null); }
-                    }}
-                    className="flex-1 min-w-0 text-[13px] font-medium bg-surface border border-primary rounded px-1.5 py-0.5 outline-none"
+                <div className="flex items-center gap-2">
+                  {t.type === "external" && t.config.external
+                    ? <AppLogo app={t.config.external.app} size={20} />
+                    : <Icon size={16} className="text-muted-foreground shrink-0" />
+                  }
+                  {isRenaming ? (
+                    <input
+                      autoFocus
+                      defaultValue={t.name}
+                      onClick={e => e.stopPropagation()}
+                      onBlur={e => renameTrigger(t, e.target.value)}
+                      onKeyDown={e => {
+                        e.stopPropagation();
+                        if (e.key === "Enter") { e.preventDefault(); renameTrigger(t, (e.target as HTMLInputElement).value); }
+                        if (e.key === "Escape") { e.preventDefault(); setRenamingId(null); }
+                      }}
+                      className="flex-1 min-w-0 text-[13px] font-semibold bg-surface border border-primary rounded px-1.5 py-0.5 outline-none"
+                    />
+                  ) : (
+                    <span className="text-[13px] font-semibold flex-1 truncate min-w-0">{t.name}</span>
+                  )}
+                  {!t.enabled && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap bg-amber-100 text-amber-700">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Paused
+                    </span>
+                  )}
+                  <TriggerRowMenu
+                    enabled={t.enabled}
+                    onToggle={() => { triggerStore.toggle(agentId, t.id); refresh(); }}
+                    onEdit={() => setEditTarget(t)}
+                    onRename={() => setRenamingId(t.id)}
+                    onDuplicate={() => duplicateTrigger(t)}
+                    onDelete={() => { triggerStore.remove(agentId, t.id); toast.success("Trigger removed"); refresh(); }}
                   />
-                ) : (
-                  <span className="text-[13px] font-medium flex-1 truncate min-w-0">{t.name}</span>
+                </div>
+                {summary && (
+                  <p className="text-xs text-muted-foreground mt-1 pl-7 truncate">{summary}</p>
                 )}
-                <span
-                  className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap"
-                  style={{ background: chip.bg, color: chip.fg, border: `0.5px solid ${chip.border}` }}
-                >
-                  {chip.label}
-                </span>
-                <TriggerRowMenu
-                  enabled={t.enabled}
-                  onToggle={() => { triggerStore.toggle(agentId, t.id); refresh(); }}
-                  onEdit={() => setEditTarget(t)}
-                  onRename={() => setRenamingId(t.id)}
-                  onDuplicate={() => duplicateTrigger(t)}
-                  onDelete={() => { triggerStore.remove(agentId, t.id); toast.success("Trigger removed"); refresh(); }}
-                />
+                {!t.enabled && (
+                  <div className="flex items-center gap-1.5 mt-1.5 pl-7 text-xs text-amber-700">
+                    <HugeiconsIcon icon={InformationCircleIcon} size={12} className="shrink-0" />
+                    <span>Trigger is disabled</span>
+                  </div>
+                )}
               </div>
             );
           })}

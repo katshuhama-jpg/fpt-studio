@@ -11,7 +11,7 @@ import { triggerStore, EXTERNAL_APP_EVENTS, EXTERNAL_APP_META, type TriggerRecor
 import AppLogo from "./AppLogo";
 import { toast } from "sonner";
 
-const TYPE_META: Record<TriggerType, { label: string; icon: any; chip: string }> = {
+export const TYPE_META: Record<TriggerType, { label: string; icon: any; chip: string }> = {
   scheduled: { label: "Scheduled", icon: Clock,   chip: "chip-accent" },
   developer: { label: "Webhook",   icon: Webhook, chip: "chip-warning" },
   external:  { label: "External",  icon: Globe,   chip: "chip-success" },
@@ -19,7 +19,7 @@ const TYPE_META: Record<TriggerType, { label: string; icon: any; chip: string }>
 
 const DAY_OF_WEEK_SHORT = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-function summarizeConfig(t: TriggerRecord): string {
+export function summarizeConfig(t: TriggerRecord): string {
   if (t.type === "scheduled" && t.config.schedule) {
     const s = t.config.schedule;
     if (s.frequency === "daily") return `Every day at ${s.timeOfDay} · ${s.timezone}`;
