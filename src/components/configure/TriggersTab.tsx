@@ -6,6 +6,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import TriggerFormDialog from "./TriggerFormDialog";
 import {
   triggerStore, triggerNeedsSetup, EXTERNAL_APP_EVENTS, EXTERNAL_APP_META, type TriggerRecord, type TriggerType,
@@ -83,15 +84,22 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
 
   const triggers = allTriggers;
   const isEmpty = triggers.length === 0;
-  const pausableCount = allTriggers.filter(t => t.enabled).length;
+  const nonSetupTriggers = allTriggers.filter(t => !triggerNeedsSetup(t));
+  const pausableCount = nonSetupTriggers.filter(t => t.enabled).length;
+  const pausedCount = nonSetupTriggers.filter(t => !t.enabled).length;
   const resumableTriggers = allTriggers.filter(t => !t.enabled && !triggerNeedsSetup(t));
-  const allPaused = allTriggers.length > 0 && pausableCount === 0;
+  const allPaused = pausableCount === 0 && pausedCount > 0;
 
   const pauseAll = () => {
     const toPause = allTriggers.filter(t => t.enabled);
-    if (toPause.length === 0) return;
-    toPause.forEach(t => triggerStore.toggle(agentId, t.id));
-    toast.success(`${toPause.length} trigger${toPause.length === 1 ? "" : "s"} paused`);
+    const pausable = toPause.filter(t => !triggerNeedsSetup(t));
+    const skipped = toPause.length - pausable.length;
+    if (pausable.length === 0 && skipped === 0) return;
+    pausable.forEach(t => triggerStore.toggle(agentId, t.id));
+    const msg = skipped > 0
+      ? `Đã tạm dừng ${pausable.length} trigger. ${skipped} trigger chưa được cấu hình xong.`
+      : `Đã tạm dừng ${pausable.length} trigger.`;
+    toast.success(msg);
     refresh();
   };
 
@@ -152,7 +160,7 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
             {allPaused ? (
               <>
                 <span className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[hsl(var(--warning-soft))] border border-warning/25 text-xs font-semibold text-warning">
-                  <span className="w-1.5 h-1.5 rounded-full bg-warning" /> All triggers paused
+                  <span className="w-1.5 h-1.5 rounded-full bg-warning" /> Tất cả trigger đã tạm dừng
                 </span>
                 <button
                   onClick={() => setConfirmBulk("resume")}
@@ -246,13 +254,13 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
                       <div className="flex items-center gap-1.5 text-xs flex-nowrap">
                         {needsSetup ? (
                           <span className="font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap chip-warning">
-                            Needs setup
+                            Cần cấu hình
                           </span>
                         ) : (
                           <span className={`font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap ${
                             t.enabled ? "chip-success" : "chip-warning"
                           }`}>
-                            {t.enabled ? "Active" : "Paused"}
+                            {t.enabled ? "Đang hoạt động" : "Tạm dừng"}
                           </span>
                         )}
                         <span className="text-muted-foreground truncate">· {meta.label}</span>
@@ -414,12 +422,17 @@ function RowMenu({ enabled, needsSetup, onToggle, onEdit, onRename, onDuplicate,
       {open && (
         <div className="absolute right-0 top-full mt-1 z-20 w-40 rounded-lg border border-border bg-white shadow-elev py-1">
           {!enabled && needsSetup ? (
-            <span
-              title="Hoàn tất cấu hình trước khi kích hoạt trigger."
-              className="block w-full text-left px-3 py-1.5 text-xs text-muted-foreground/60 cursor-not-allowed"
-            >
-              Resume trigger
-            </span>
+            <Tooltip delayDuration={300}>
+              <TooltipTrigger asChild>
+                <span
+                  tabIndex={0}
+                  className="block w-full text-left px-3 py-1.5 text-xs text-muted-foreground/60 cursor-not-allowed outline-none"
+                >
+                  Resume trigger
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="left">Hoàn tất cấu hình trước khi kích hoạt trigger.</TooltipContent>
+            </Tooltip>
           ) : (
             <button
               type="button"

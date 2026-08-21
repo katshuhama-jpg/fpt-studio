@@ -25,6 +25,7 @@ import { updateUser } from "@/lib/onboarding";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import BusinessProcessTree from "@/components/general/BusinessProcessTree";
 import { toast } from "sonner";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 type Tab = "build" | "test" | "deploy" | "insights";
 
@@ -4548,11 +4549,11 @@ function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegister
                   )}
                   {needsSetup ? (
                     <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap bg-amber-100 text-amber-700">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Needs setup
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Cần cấu hình
                     </span>
                   ) : !t.enabled && (
                     <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap bg-amber-100 text-amber-700">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Paused
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Tạm dừng
                     </span>
                   )}
                   <TriggerRowMenu
@@ -4576,7 +4577,7 @@ function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegister
                 ) : !t.enabled && (
                   <div className="flex items-center gap-1.5 mt-1.5 pl-7 text-xs text-amber-700">
                     <HugeiconsIcon icon={InformationCircleIcon} size={12} className="shrink-0" />
-                    <span>Trigger is disabled</span>
+                    <span>Trigger đang tạm dừng.</span>
                   </div>
                 )}
               </div>
@@ -4632,9 +4633,14 @@ function TriggerRowMenu({ enabled, needsSetup, onToggle, onEdit, onRename, onDup
       {open && (
         <div className="absolute right-0 top-full mt-1 z-20 w-36 rounded-lg border border-border bg-white shadow-elev py-1">
           {!enabled && needsSetup ? (
-            <span title="Hoàn tất cấu hình trước khi kích hoạt trigger." className="block w-full text-left px-3 py-1.5 text-xs text-muted-foreground/60 cursor-not-allowed">
-              Resume trigger
-            </span>
+            <Tooltip delayDuration={300}>
+              <TooltipTrigger asChild>
+                <span tabIndex={0} className="block w-full text-left px-3 py-1.5 text-xs text-muted-foreground/60 cursor-not-allowed outline-none">
+                  Resume trigger
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="left">Hoàn tất cấu hình trước khi kích hoạt trigger.</TooltipContent>
+            </Tooltip>
           ) : (
             <button type="button" onClick={() => { onToggle(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">
               {enabled ? "Pause trigger" : "Resume trigger"}

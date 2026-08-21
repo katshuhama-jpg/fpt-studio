@@ -28,7 +28,7 @@ const CATEGORY_OPTIONS: { value: TriggerType; label: string; icon: any; desc: st
   { value: "external", label: "External application", icon: Globe, desc: "Trigger this Agent when something happens in another application." },
 ];
 
-const PRIMARY_FREQUENCY_OPTIONS: { value: CustomScheduleUnit; label: string }[] = [
+const PRIMARY_FREQUENCY_OPTIONS: { value: Exclude<CustomScheduleUnit, "cron">; label: string }[] = [
   { value: "minute", label: "Minutely" },
   { value: "hour", label: "Hourly" },
   { value: "day", label: "Daily" },
@@ -103,10 +103,10 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
   const [month, setMonth] = useState(0);
   const [startTime, setStartTime] = useState(() => defaultStartTime());
   const [customUnit, setCustomUnit] = useState<CustomScheduleUnit>("day");
+  const [lastNonCronUnit, setLastNonCronUnit] = useState<Exclude<CustomScheduleUnit, "cron">>("day");
   const [intervalValue, setIntervalValue] = useState("");
   const [cron, setCron] = useState("0 9 * * 1");
   const [timezone, setTimezone] = useState("GMT+07:00");
-  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   // Webhook
   const [webhookUrl, setWebhookUrl] = useState("");
@@ -167,10 +167,10 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
     setMonth(sched?.month ?? 0);
     setStartTime(sched?.startTime ?? defaultStartTime());
     setCustomUnit(unit);
+    setLastNonCronUnit(unit === "cron" ? "day" : unit);
     setIntervalValue(sched?.intervalValue != null ? String(sched.intervalValue) : "");
     setCron(sched?.cron ?? "0 9 * * 1");
     setTimezone(sched?.timezone ?? "GMT+07:00");
-    setAdvancedOpen(unit === "cron");
 
     const dev = t?.config.developer;
     setWebhookUrl(dev?.webhookUrl ?? `https://agents.fpt.ai/console/api/webhooks/triggers/${generateWebhookId()}`);
@@ -409,13 +409,16 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
               </span>
             )}
           </div>
-          <DialogTitle className="font-display">
+          <DialogTitle className="font-display flex items-center gap-2">
             {step === "main" ? (mode === "create" ? "Create new trigger" : "Edit Trigger")
               : step === "details" ? categoryHeading
               : step === "app-picker" ? "Choose application"
               : step === "app-config" ? `${EXTERNAL_APP_META[app].label} — Event & điều kiện`
               : step === "queue-work-hours" ? "Queue Work Hours (tuỳ chọn)"
               : EXTERNAL_APP_META[app].label}
+            {step === "details" && category === "scheduled" && customUnit === "cron" && (
+              <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded chip-accent">CRON</span>
+            )}
           </DialogTitle>
         </DialogHeader>
 
@@ -495,53 +498,43 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
 
           {step === "details" && category === "scheduled" && (
             <div className="rounded-lg border border-border p-3 space-y-3">
-              <div>
-                <label className="text-xs font-medium mb-1.5 block">Frequency</label>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {PRIMARY_FREQUENCY_OPTIONS.map(opt => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => {
-                        setCustomUnit(opt.value);
-                        if (opt.value === "minute" || opt.value === "hour") setIntervalValue("");
-                        if (errors.schedule) setErrors(er => ({ ...er, schedule: undefined }));
-                      }}
-                      className={`h-8 rounded-lg text-xs font-medium transition-base ${
-                        customUnit === opt.value ? "bg-primary text-primary-foreground" : "bg-surface-muted text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-                <div className="mt-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setAdvancedOpen(o => !o)}
-                    className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-base"
-                  >
-                    <ChevronDown size={11} className={`transition-transform ${advancedOpen ? "rotate-180" : ""}`} />
-                    Custom / Advanced
-                  </button>
-                  {advancedOpen && (
-                    <div className="mt-1.5">
+              {customUnit !== "cron" && (
+                <div>
+                  <label className="text-xs font-medium mb-1.5 block">Frequency</label>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {PRIMARY_FREQUENCY_OPTIONS.map(opt => (
                       <button
+                        key={opt.value}
                         type="button"
                         onClick={() => {
-                          setCustomUnit("cron");
+                          setCustomUnit(opt.value);
+                          setLastNonCronUnit(opt.value);
+                          if (opt.value === "minute" || opt.value === "hour") setIntervalValue("");
                           if (errors.schedule) setErrors(er => ({ ...er, schedule: undefined }));
                         }}
-                        className={`h-8 px-3 rounded-lg text-xs font-medium transition-base ${
-                          customUnit === "cron" ? "bg-primary text-primary-foreground" : "bg-surface-muted text-muted-foreground hover:text-foreground"
+                        className={`h-8 rounded-lg text-xs font-medium transition-base ${
+                          customUnit === opt.value ? "bg-primary text-primary-foreground" : "bg-surface-muted text-muted-foreground hover:text-foreground"
                         }`}
                       >
-                        Cron
+                        {opt.label}
                       </button>
-                    </div>
-                  )}
+                    ))}
+                  </div>
+                  <p className="mt-1.5 text-[11px] text-muted-foreground">
+                    Cần lịch phức tạp hơn?{" "}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomUnit("cron");
+                        if (errors.schedule) setErrors(er => ({ ...er, schedule: undefined }));
+                      }}
+                      className="text-primary hover:underline font-medium"
+                    >
+                      Dùng Cron (nâng cao)
+                    </button>
+                  </p>
                 </div>
-              </div>
+              )}
 
               {customUnit === "minute" && (
                 <>
@@ -682,6 +675,13 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
               )}
               {customUnit === "cron" && (
                 <div>
+                  <button
+                    type="button"
+                    onClick={() => setCustomUnit(lastNonCronUnit)}
+                    className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-base mb-2"
+                  >
+                    <ChevronLeft size={11} /> Quay lại lịch cơ bản
+                  </button>
                   <label className="text-xs font-medium mb-1.5 block">Cron expression</label>
                   <input
                     value={cron}
@@ -899,7 +899,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                     const acct = connectedAccountStore.connect(app, `you+${app}@fptsmartcloud.com`);
                     setAccountId(acct.id);
                     setAccountsTick(t => t + 1);
-                    toast.success("Account connected");
+                    toast.success("Đã kết nối tài khoản.");
                   }}
                   className="flex items-center gap-1.5 h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base"
                 >
