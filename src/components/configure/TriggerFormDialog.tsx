@@ -910,7 +910,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
           )}
 
           {step === "app-config" && (
-            <div className="space-y-4">
+            <div className="space-y-5">
               {accountId && (
                 <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-muted">
                   <AppLogo app={app} size={18} />
@@ -940,15 +940,18 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
 
               {app === "gmail" && (
                 <>
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                      <input type="radio" name="gmail-mode" checked={gmailMode === "inbox"} onChange={() => setGmailMode("inbox")} className="w-4 h-4 accent-primary" />
-                      <span className="text-sm">All emails in inbox</span>
-                    </label>
-                    <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                      <input type="radio" name="gmail-mode" checked={gmailMode === "outreach_replies"} onChange={() => setGmailMode("outreach_replies")} className="w-4 h-4 accent-primary" />
-                      <span className="text-sm">Outreach replies only</span>
-                    </label>
+                  <div>
+                    <label className="text-xs font-medium mb-1.5 block">Phạm vi <span className="text-destructive">*</span></label>
+                    <div className="space-y-1.5">
+                      <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                        <input type="radio" name="gmail-mode" checked={gmailMode === "inbox"} onChange={() => setGmailMode("inbox")} className="w-4 h-4 accent-primary" />
+                        <span className="text-sm">All emails in inbox</span>
+                      </label>
+                      <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                        <input type="radio" name="gmail-mode" checked={gmailMode === "outreach_replies"} onChange={() => setGmailMode("outreach_replies")} className="w-4 h-4 accent-primary" />
+                        <span className="text-sm">Outreach replies only</span>
+                      </label>
+                    </div>
                   </div>
                   <label className="flex items-center gap-2.5 cursor-pointer select-none">
                     <input type="checkbox" checked={includeAttachments} onChange={e => setIncludeAttachments(e.target.checked)} className="w-4 h-4 accent-primary" />
