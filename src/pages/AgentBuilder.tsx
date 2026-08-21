@@ -199,7 +199,7 @@ export default function AgentBuilder() {
                   { label: "Model chosen",          done: true,  section: "model" },
                   { label: "Skills attached",       done: true,  section: "skills" },
                   { label: "Guardrails configured", done: false, section: "guardrails" },
-                  { label: "Trigger configured",    done: triggerStore.list(id ?? "new").some(t => !t.isDefault), section: "triggers" },
+                  { label: "Trigger configured",    done: triggerStore.list(id ?? "new").length > 0, section: "triggers" },
                   { label: "Tried the agent",       done: true,  section: null },
                 ];
                 const doneCount = checklist.filter(i => i.done).length;
@@ -4460,7 +4460,6 @@ function GuardrailsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:num
 }
 
 const TRIGGER_TYPE_CHIP: Record<TriggerType, { label: string; bg: string; fg: string; border: string }> = {
-  manual:    { label: "Manual",    bg: "#EEF2FF", fg: "#4338CA", border: "#C7D2FE" },
   scheduled: { label: "Scheduled", bg: "#EFF6FF", fg: "#1D4ED8", border: "#BFDBFE" },
   developer: { label: "Webhook",   bg: "#FFF7ED", fg: "#C2410C", border: "#FED7AA" },
   external:  { label: "External",  bg: "#ECFDF5", fg: "#047857", border: "#A7F3D0" },
@@ -4478,7 +4477,7 @@ function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegister
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   void tick;
-  const triggers = triggerStore.list(agentId).filter(t => !t.isDefault);
+  const triggers = triggerStore.list(agentId);
 
   const duplicateTrigger = (t: TriggerRecord) => {
     let name = `${t.name} (copy)`;

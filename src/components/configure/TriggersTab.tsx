@@ -12,7 +12,6 @@ import AppLogo from "./AppLogo";
 import { toast } from "sonner";
 
 const TYPE_META: Record<TriggerType, { label: string; icon: any; chip: string }> = {
-  manual:    { label: "Manual",    icon: Zap,     chip: "chip-primary" },
   scheduled: { label: "Scheduled", icon: Clock,   chip: "chip-accent" },
   developer: { label: "Webhook",   icon: Webhook, chip: "chip-warning" },
   external:  { label: "External",  icon: Globe,   chip: "chip-success" },
@@ -21,7 +20,6 @@ const TYPE_META: Record<TriggerType, { label: string; icon: any; chip: string }>
 const DAY_OF_WEEK_SHORT = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 function summarizeConfig(t: TriggerRecord): string {
-  if (t.type === "manual") return "Runs on demand";
   if (t.type === "scheduled" && t.config.schedule) {
     const s = t.config.schedule;
     if (s.frequency === "daily") return `Every day at ${s.timeOfDay} · ${s.timezone}`;
@@ -72,12 +70,11 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
   }, [allTriggers, query]);
 
   const isEmpty = triggers.length === 0 && !query;
-  const nonDefault = allTriggers.filter(t => !t.isDefault);
-  const pausableCount = nonDefault.filter(t => t.enabled).length;
-  const allPaused = nonDefault.length > 0 && pausableCount === 0;
+  const pausableCount = allTriggers.filter(t => t.enabled).length;
+  const allPaused = allTriggers.length > 0 && pausableCount === 0;
 
   const pauseAll = () => {
-    const toPause = allTriggers.filter(t => t.enabled && !t.isDefault);
+    const toPause = allTriggers.filter(t => t.enabled);
     if (toPause.length === 0) return;
     toPause.forEach(t => triggerStore.toggle(agentId, t.id));
     toast.success(`${toPause.length} trigger${toPause.length === 1 ? "" : "s"} paused`);
@@ -85,7 +82,7 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
   };
 
   const resumeAll = () => {
-    const toResume = allTriggers.filter(t => !t.enabled && !t.isDefault);
+    const toResume = allTriggers.filter(t => !t.enabled);
     if (toResume.length === 0) return;
     toResume.forEach(t => triggerStore.toggle(agentId, t.id));
     toast.success(`${toResume.length} trigger${toResume.length === 1 ? "" : "s"} resumed`);
@@ -179,9 +176,8 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
           {triggers.map(t => {
             const meta = TYPE_META[t.type];
             const Icon = meta.icon;
-            const editable = !t.isDefault;
             const isRenaming = renamingId === t.id;
-            const clickable = editable && !isRenaming;
+            const clickable = !isRenaming;
             return (
               <div
                 key={t.id}
@@ -218,7 +214,6 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
                         <h3 className="font-semibold text-sm truncate mb-0.5" title={t.name}>{t.name}</h3>
                       )}
                       <div className="flex items-center gap-1.5 text-xs">
-                        {t.isDefault && <span className="chip text-[9px] chip-accent shrink-0">Default</span>}
                         <span className={`font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${
                           t.enabled ? "bg-primary-soft text-primary" : "bg-surface-muted text-muted-foreground"
                         }`}>
@@ -228,7 +223,6 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
                       </div>
                     </div>
                     <RowMenu
-                      editable={editable}
                       enabled={t.enabled}
                       onToggle={() => { triggerStore.toggle(agentId, t.id); refresh(); }}
                       onEdit={() => setEditTarget(t)}
@@ -314,8 +308,8 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
   );
 }
 
-function RowMenu({ editable, enabled, onToggle, onEdit, onRename, onDuplicate, onDelete }: {
-  editable: boolean; enabled: boolean;
+function RowMenu({ enabled, onToggle, onEdit, onRename, onDuplicate, onDelete }: {
+  enabled: boolean;
   onToggle: () => void; onEdit: () => void; onRename: () => void; onDuplicate: () => void; onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -351,38 +345,34 @@ function RowMenu({ editable, enabled, onToggle, onEdit, onRename, onDuplicate, o
           >
             {enabled ? "Pause trigger" : "Resume trigger"}
           </button>
-          {editable && (
-            <>
-              <button
-                type="button"
-                onClick={() => { onEdit(); setOpen(false); }}
-                className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base"
-              >
-                Edit trigger
-              </button>
-              <button
-                type="button"
-                onClick={() => { onRename(); setOpen(false); }}
-                className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base"
-              >
-                Rename
-              </button>
-              <button
-                type="button"
-                onClick={() => { onDelete(); setOpen(false); }}
-                className="w-full text-left px-3 py-1.5 text-xs text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base"
-              >
-                Remove
-              </button>
-              <button
-                type="button"
-                onClick={() => { onDuplicate(); setOpen(false); }}
-                className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base"
-              >
-                Duplicate
-              </button>
-            </>
-          )}
+          <button
+            type="button"
+            onClick={() => { onEdit(); setOpen(false); }}
+            className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base"
+          >
+            Edit trigger
+          </button>
+          <button
+            type="button"
+            onClick={() => { onRename(); setOpen(false); }}
+            className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base"
+          >
+            Rename
+          </button>
+          <button
+            type="button"
+            onClick={() => { onDelete(); setOpen(false); }}
+            className="w-full text-left px-3 py-1.5 text-xs text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base"
+          >
+            Remove
+          </button>
+          <button
+            type="button"
+            onClick={() => { onDuplicate(); setOpen(false); }}
+            className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base"
+          >
+            Duplicate
+          </button>
         </div>
       )}
     </div>

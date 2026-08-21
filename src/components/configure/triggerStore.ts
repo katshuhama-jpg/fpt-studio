@@ -1,5 +1,5 @@
 // In-memory trigger store for the Triggers feature prototype.
-export type TriggerType = "manual" | "scheduled" | "developer" | "external";
+export type TriggerType = "scheduled" | "developer" | "external";
 
 export type ScheduleFrequency = "daily" | "weekly" | "monthly" | "custom";
 export type CustomScheduleUnit = "minute" | "hour" | "day" | "week" | "month" | "year" | "cron";
@@ -76,7 +76,6 @@ export interface TriggerRecord {
    * or editing a trigger never reorders the grid (only updatedAt reflects those). */
   createdAt: number;
   updatedAt: number;
-  isDefault?: boolean;      // Manual is the seeded default
 }
 
 export const TIMEZONE_OPTIONS: { value: string; label: string }[] = [
@@ -264,18 +263,6 @@ function seedAgent(agentId: string) {
   const now = Date.now();
   const seed: Omit<TriggerRecord, "agentId">[] = [
     {
-      id: "manual-default",
-      name: "Manual run",
-      type: "manual",
-      enabled: true,
-      description: "User manually invokes the agent from the chat UI or API.",
-      config: {},
-      lastFiredAt: now - 120_000,
-      createdAt: now - 86_400_000 * 7,
-      updatedAt: now - 86_400_000 * 7,
-      isDefault: true,
-    },
-    {
       id: "daily-report",
       name: "Daily report",
       type: "scheduled",
@@ -322,10 +309,7 @@ export const triggerStore = {
     seedAgent(agentId);
     return [...store.values()]
       .filter(t => t.agentId === agentId)
-      .sort((a, b) => {
-        if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1;
-        return b.createdAt - a.createdAt;
-      });
+      .sort((a, b) => b.createdAt - a.createdAt);
   },
   get(agentId: string, id: string) {
     seedAgent(agentId);
@@ -360,8 +344,7 @@ export const triggerStore = {
     store.set(k(agentId, id), { ...cur, enabled: !cur.enabled, updatedAt: Date.now() });
   },
   remove(agentId: string, id: string) {
-    const cur = store.get(k(agentId, id));
-    if (!cur || cur.isDefault) return;
+    if (!store.has(k(agentId, id))) return;
     store.delete(k(agentId, id));
   },
 };

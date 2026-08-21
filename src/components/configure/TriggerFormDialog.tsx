@@ -15,7 +15,7 @@ import { Clock, Webhook, Globe, Copy, Check, ChevronDown, ChevronLeft, Plus, X }
 const NAME_MAX = 50;
 const DESC_MAX = 200;
 
-const CATEGORY_OPTIONS: { value: Exclude<TriggerType, "manual">; label: string; icon: any; desc: string }[] = [
+const CATEGORY_OPTIONS: { value: TriggerType; label: string; icon: any; desc: string }[] = [
   { value: "scheduled", label: "Scheduled", icon: Clock, desc: "Run this Agent automatically based on a recurring schedule." },
   { value: "developer", label: "Webhook", icon: Webhook, desc: "Receive a unique URL that any external system can call (POST) to trigger this Agent." },
   { value: "external", label: "External application", icon: Globe, desc: "Trigger this Agent when something happens in another application." },
@@ -60,7 +60,7 @@ interface Props {
 export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, trigger, onSubmitted }: Props) {
   const [step, setStep] = useState<WizardStep>("main");
   const [name, setName] = useState("");
-  const [category, setCategory] = useState<Exclude<TriggerType, "manual">>("scheduled");
+  const [category, setCategory] = useState<TriggerType>("scheduled");
   const [description, setDescription] = useState("");
 
   // Scheduled
@@ -122,7 +122,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
     setDescription(t?.description ?? "");
     setErrors({});
 
-    const cat = (t?.type === "developer" || t?.type === "external" ? t.type : "scheduled") as Exclude<TriggerType, "manual">;
+    const cat: TriggerType = t?.type === "developer" || t?.type === "external" ? t.type : "scheduled";
     setCategory(cat);
 
     const sched = t?.config.schedule;
@@ -296,6 +296,9 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
 
   const connectedAccounts = connectedAccountStore.list(app);
   const extraField = EXTERNAL_APP_EXTRA_FIELD[app];
+  const categoryHeading = category === "scheduled" ? "Recurring Schedule"
+    : category === "developer" ? "Webhook"
+    : EXTERNAL_APP_META[app].label;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -311,7 +314,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
             </button>
           )}
           <DialogTitle className="font-display">
-            {step === "main" ? (mode === "create" ? "Create new trigger" : "Edit trigger")
+            {step === "main" ? (mode === "create" ? "Create new trigger" : "Edit Trigger")
               : step === "queue-work-hours" ? "Queue Work Hours"
               : EXTERNAL_APP_META[app].label}
           </DialogTitle>
@@ -320,6 +323,10 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
         <div className="space-y-4">
           {step === "main" && (
             <>
+              {mode === "edit" && (
+                <h3 className="font-display text-base font-semibold -mb-1">{categoryHeading}</h3>
+              )}
+
               <div>
                 <label className="text-xs font-medium flex items-center justify-between mb-1.5">
                   <span>Name <span className="text-destructive">*</span></span>
@@ -337,6 +344,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                 {errors.name && <p className="mt-1 text-[11px] text-destructive">{errors.name}</p>}
               </div>
 
+              {mode === "create" && (
               <div>
                 <label className="text-xs font-medium mb-1.5 block">Type</label>
                 <div className="grid grid-cols-3 gap-2">
@@ -360,6 +368,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                   })}
                 </div>
               </div>
+              )}
 
               <div>
                 <label className="text-xs font-medium flex items-center justify-between mb-1.5">
@@ -548,7 +557,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                 </div>
               )}
 
-              {category === "external" && (
+              {category === "external" && mode === "create" && (
                 <div>
                   <label className="text-xs font-medium mb-1.5 block">Application</label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-56 overflow-y-auto pr-0.5">
