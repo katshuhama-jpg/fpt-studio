@@ -4281,19 +4281,15 @@ function GuardrailsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:num
   const [detailEditable, setDetailEditable] = useState(false);
 
   // Chip: clickable to open detail
-  const Chip = ({ label, desc, action, onRemove, editable, onEdit, type, enabled = true }: {
+  const Chip = ({ label, desc, action, onRemove, editable, onEdit, type }: {
     label: string; desc?: string; action?: string;
     onRemove: () => void; editable?: boolean; onEdit?: () => void;
-    type?: "workspace" | "agent"; enabled?: boolean;
+    type?: "workspace" | "agent";
   }) => (
     <div
       className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface cursor-pointer hover:bg-surface-muted transition-base"
       onClick={() => { setDetailItem({ name: label, desc: desc ?? "", action: action ?? "" }); setDetailEditable(!!editable); }}
     >
-      {enabled
-        ? <svg width="16" height="16" viewBox="0 0 14 14" fill="none" className="shrink-0"><circle cx="7" cy="7" r="7" fill="#22c55e"/><path d="M4 7l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-        : <div className="w-4 h-4 rounded-full border-2 border-border shrink-0" />
-      }
       <span className="text-[13px] font-medium flex-1 truncate min-w-0">{label}</span>
       {type === "workspace" && (
         <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap" style={{background:"#EFF6FF",color:"#1D4ED8",border:"0.5px solid #BFDBFE"}}>Workspace</span>
@@ -4333,7 +4329,7 @@ function GuardrailsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:num
           <div className="space-y-1 mb-3">
             {wsAddedList.map(g => (
               <Chip key={g.id} label={g.name} desc={g.desc} action={g.action}
-                type="workspace" enabled={g.enabled !== false}
+                type="workspace"
                 onRemove={() => setWsAdded(prev => { const s = new Set(prev); s.delete(g.id); return s; })}
                 editable={false}
               />
@@ -4526,10 +4522,6 @@ function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegister
                 onKeyDown={isRenaming ? undefined : (e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setEditTarget(t); } })}
                 className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface transition-base ${isRenaming ? "" : "cursor-pointer hover:bg-surface-muted"}`}
               >
-                {t.enabled
-                  ? <svg width="16" height="16" viewBox="0 0 14 14" fill="none" className="shrink-0"><circle cx="7" cy="7" r="7" fill="#22c55e"/><path d="M4 7l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  : <div className="w-4 h-4 rounded-full border-2 border-border shrink-0" />
-                }
                 {isRenaming ? (
                   <input
                     autoFocus
