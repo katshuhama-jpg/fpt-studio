@@ -1,29 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   triggerStore, type TriggerRecord, type TriggerType, type ScheduleFrequency, type CustomScheduleUnit,
-  type WebhookAuthType, type ExternalApp, type NotificationRule, TIMEZONE_OPTIONS, EXTERNAL_APP_EVENTS, EXTERNAL_APP_META, EXTERNAL_APP_ORDER,
+  type WebhookAuthType, type ExternalApp, TIMEZONE_OPTIONS, EXTERNAL_APP_EVENTS, EXTERNAL_APP_META, EXTERNAL_APP_ORDER,
   WORK_DAY_OPTIONS, TASKS_PERIOD_UNIT_OPTIONS, DRIVE_OPTIONS, DRIVE_FOLDER_OPTIONS,
 } from "./triggerStore";
 import { connectedAccountStore } from "./connectedAccountStore";
 import { credentialStore, type CredentialAuthType } from "./credentialStore";
+import { checkCronExpression, describeCronVN } from "./cronUtils";
 import CreateCredentialDialog from "./CreateCredentialDialog";
 import AppLogo from "./AppLogo";
 import { toast } from "sonner";
-import { Clock, Webhook, Globe, Copy, Check, ChevronDown, ChevronLeft, Plus, X, Trash2 } from "lucide-react";
+import { Clock, Webhook, Globe, Copy, Check, ChevronDown, ChevronLeft, Plus, X, RefreshCw, AlertTriangle } from "lucide-react";
 
-const NOTIFICATION_UNIT_OPTIONS: { value: NotificationRule["unit"]; label: string }[] = [
-  { value: "minutes", label: "minutes" },
-  { value: "hours", label: "hours" },
-  { value: "days", label: "days" },
-];
-const NOTIFICATION_TIMING_OPTIONS: { value: NotificationRule["timing"]; label: string }[] = [
-  { value: "before", label: "before" },
-  { value: "after", label: "after" },
-];
-function defaultNotification(app: ExternalApp): NotificationRule {
-  return { id: `notif-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, value: 3, unit: "minutes", timing: "before", message: EXTERNAL_APP_EVENTS[app][0].value };
-}
+const SAMPLE_PAYLOAD = JSON.stringify({ event: "order.created", order_id: "12345", customer_id: "789" }, null, 2);
 
 const NAME_MAX = 50;
 const DESC_MAX = 200;
@@ -73,119 +67,7 @@ function defaultStartTime(): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
-function validateCronField(field: string, min: number, max: number): boolean {
-  if (field === "*") return true;
-  const parts = field.split(",");
-  if (parts.some(p => p === "")) return false;
-  for (const part of parts) {
-    const stepMatch = part.match(/^(\*|\d+(?:-\d+)?)\/(\d+)$/);
-    if (stepMatch) {
-      const step = Number(stepMatch[2]);
-      if (step <= 0) return false;
-      if (stepMatch[1] !== "*") {
-        const m = stepMatch[1].match(/^(\d+)(?:-(\d+))?$/);
-        if (!m) return false;
-        const a = Number(m[1]);
-        const b = m[2] !== undefined ? Number(m[2]) : max;
-        if (a < min || a > max || b < min || b > max || a > b) return false;
-      }
-      continue;
-    }
-    const m = part.match(/^(\d+)(?:-(\d+))?$/);
-    if (!m) return false;
-    const a = Number(m[1]);
-    const b = m[2] !== undefined ? Number(m[2]) : a;
-    if (a < min || a > max || b < min || b > max || a > b) return false;
-  }
-  return true;
-}
-
-function expandCronField(field: string, min: number, max: number): number[] {
-  if (field === "*") {
-    const out: number[] = [];
-    for (let i = min; i <= max; i++) out.push(i);
-    return out;
-  }
-  const result = new Set<number>();
-  for (const part of field.split(",")) {
-    const stepMatch = part.match(/^(\*|\d+(?:-\d+)?)\/(\d+)$/);
-    if (stepMatch) {
-      const step = Number(stepMatch[2]);
-      let a = min, b = max;
-      if (stepMatch[1] !== "*") {
-        const m = stepMatch[1].match(/^(\d+)(?:-(\d+))?$/)!;
-        a = Number(m[1]);
-        b = m[2] !== undefined ? Number(m[2]) : max;
-      }
-      for (let i = a; i <= b; i += step) result.add(i);
-      continue;
-    }
-    const m = part.match(/^(\d+)(?:-(\d+))?$/)!;
-    const a = Number(m[1]);
-    const b = m[2] !== undefined ? Number(m[2]) : a;
-    for (let i = a; i <= b; i++) result.add(i);
-  }
-  return [...result].sort((x, y) => x - y);
-}
-
-interface CronCheck { valid: boolean; tooFrequent: boolean; }
-function checkCronExpression(expr: string): CronCheck {
-  const fields = expr.trim().split(/\s+/);
-  if (fields.length !== 5) return { valid: false, tooFrequent: false };
-  const [minute, hour, dom, month, dow] = fields;
-  if (
-    !validateCronField(minute, 0, 59) ||
-    !validateCronField(hour, 0, 23) ||
-    !validateCronField(dom, 1, 31) ||
-    !validateCronField(month, 1, 12) ||
-    !validateCronField(dow, 0, 7)
-  ) return { valid: false, tooFrequent: false };
-
-  const minutes = expandCronField(minute, 0, 59);
-  let tooFrequent = false;
-  if (minutes.length > 1) {
-    let minGap = Infinity;
-    for (let i = 0; i < minutes.length; i++) {
-      const next = minutes[(i + 1) % minutes.length];
-      const gap = i === minutes.length - 1 ? next + 60 - minutes[i] : next - minutes[i];
-      minGap = Math.min(minGap, gap);
-    }
-    tooFrequent = minGap < 10;
-  }
-  return { valid: true, tooFrequent };
-}
-
-const DOW_VN = ["Chủ Nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
-function describeCronVN(expr: string): string {
-  const [minute, hour, dom, month, dow] = expr.trim().split(/\s+/);
-  const isSingle = (f: string) => /^\d+$/.test(f);
-  const timePart = isSingle(minute) && isSingle(hour) ? `${hour.padStart(2, "0")}:${minute.padStart(2, "0")}` : null;
-
-  let dowPart = "";
-  if (dow !== "*") {
-    const rangeMatch = dow.match(/^(\d)-(\d)$/);
-    if (rangeMatch) {
-      const a = Number(rangeMatch[1]) % 7, b = Number(rangeMatch[2]) % 7;
-      dowPart = ` các ngày trong tuần (${DOW_VN[a]} – ${DOW_VN[b]})`;
-    } else {
-      dowPart = ` vào ${expandCronField(dow, 0, 7).map(d => DOW_VN[d % 7]).join(", ")}`;
-    }
-  }
-
-  const domPart = dom !== "*" ? ` ngày ${dom} hàng tháng` : "";
-  const monthPart = month !== "*" ? ` (tháng ${month})` : "";
-
-  if (timePart) {
-    if (dow !== "*" && dom === "*" && month === "*") return `Chạy ${timePart}${dowPart}`;
-    if (dom !== "*" && dow === "*" && month === "*") return `Chạy ${timePart}${domPart}`;
-    if (dom === "*" && dow === "*" && month === "*") return `Chạy hàng ngày lúc ${timePart}`;
-    return `Chạy ${timePart}${domPart}${dowPart}${monthPart}`.trim();
-  }
-  return `Chạy theo lịch: phút ${minute}, giờ ${hour}, ngày ${dom}, tháng ${month}, thứ ${dow}`;
-}
-
 const AUTH_OPTIONS: { value: WebhookAuthType; label: string }[] = [
-  { value: "none", label: "None" },
   { value: "bearer", label: "Bearer Token" },
   { value: "basic", label: "Basic Auth" },
 ];
@@ -228,9 +110,11 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
 
   // Webhook
   const [webhookUrl, setWebhookUrl] = useState("");
-  const [authentication, setAuthentication] = useState<WebhookAuthType>("none");
+  const [authentication, setAuthentication] = useState<WebhookAuthType>("bearer");
   const [credentialId, setCredentialId] = useState("");
   const [webhookCopied, setWebhookCopied] = useState(false);
+  const [payloadJson, setPayloadJson] = useState(SAMPLE_PAYLOAD);
+  const [requiredFields, setRequiredFields] = useState("");
 
   // External — app + connected account
   const [app, setApp] = useState<ExternalApp>("gmail");
@@ -249,9 +133,6 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
   const [driveFolders, setDriveFolders] = useState<string[]>([]);
   const [customProperties, setCustomProperties] = useState(false);
 
-  // External — generic apps (Calendar, Slack, Teams, Outlook, Salesforce, HubSpot, Jira, Zoom)
-  const [notifications, setNotifications] = useState<NotificationRule[]>([]);
-
   // External — Queue Work Hours (shared)
   const [qwhEnabled, setQwhEnabled] = useState(false);
   const [qwhTimezone, setQwhTimezone] = useState("GMT+07:00");
@@ -262,7 +143,8 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
   const [qwhTasksPerPeriod, setQwhTasksPerPeriod] = useState("10");
   const [qwhTasksPeriodUnit, setQwhTasksPeriodUnit] = useState<"hour" | "day">("day");
 
-  const [errors, setErrors] = useState<{ name?: string; description?: string; schedule?: string; credential?: string }>({});
+  const [errors, setErrors] = useState<{ name?: string; description?: string; schedule?: string; credential?: string; payload?: string }>({});
+  const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false);
 
   void accountsTick;
 
@@ -292,8 +174,10 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
 
     const dev = t?.config.developer;
     setWebhookUrl(dev?.webhookUrl ?? `https://agents.fpt.ai/console/api/webhooks/triggers/${generateWebhookId()}`);
-    setAuthentication(dev?.authentication ?? "none");
+    setAuthentication(dev?.authentication ?? "bearer");
     setCredentialId(dev?.credentialId ?? "");
+    setPayloadJson(dev?.payloadSchema ?? SAMPLE_PAYLOAD);
+    setRequiredFields(dev?.requiredFields?.join(", ") ?? "");
 
     const ext = t?.config.external;
     const extApp = ext?.app ?? "gmail";
@@ -307,7 +191,6 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
     setDriveId(ext?.driveId ?? "my-drive");
     setDriveFolders(ext?.driveFolders ?? []);
     setCustomProperties(ext?.customProperties ?? false);
-    setNotifications(ext?.notifications?.length ? ext.notifications : (!["gmail", "gdrive"].includes(extApp) ? [defaultNotification(extApp)] : []));
     const qwh = ext?.queueWorkHours;
     setQwhEnabled(qwh?.enabled ?? false);
     setQwhTimezone(qwh?.timezone ?? "GMT+07:00");
@@ -319,11 +202,13 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
     setQwhTasksPeriodUnit(qwh?.tasksPeriodUnit ?? "day");
   }, [open, trigger]);
 
+  const isDuplicateName = name.trim() !== "" && triggerStore.isDuplicateName(agentId, name, trigger?.id);
+
   const validateBasics = () => {
     const e: typeof errors = {};
     if (!name.trim()) e.name = "Name is required";
     else if (name.trim().length > NAME_MAX) e.name = `Name must be ≤ ${NAME_MAX} characters`;
-    else if (triggerStore.isDuplicateName(agentId, name, trigger?.id)) e.name = "Name already exists";
+    else if (isDuplicateName) e.name = "Tên trigger này đã tồn tại trong agent. Vui lòng chọn tên khác.";
     if (!description.trim()) e.description = "Description is required";
     else if (description.length > DESC_MAX) e.description = `Description must be ≤ ${DESC_MAX} characters`;
     return e;
@@ -350,8 +235,15 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
         e.schedule = "Ngày trong tháng phải từ 1 đến 31.";
       }
     }
-    if (category === "developer" && authentication !== "none" && !credentialId) {
-      e.credential = "The credential is required";
+    if (category === "developer") {
+      if (!credentialId) {
+        e.credential = "Chọn credential để bảo vệ webhook trước khi kích hoạt.";
+      }
+      try {
+        if (payloadJson.trim()) JSON.parse(payloadJson);
+      } catch {
+        e.payload = "Payload mẫu chưa đúng định dạng JSON. Vui lòng kiểm tra lại.";
+      }
     }
     return e;
   };
@@ -381,10 +273,13 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
       };
     }
     if (category === "developer") {
+      const fields = requiredFields.split(",").map(f => f.trim()).filter(Boolean);
       config.developer = {
         webhookUrl,
         authentication,
-        ...(authentication !== "none" && credentialId ? { credentialId } : {}),
+        credentialId,
+        ...(payloadJson.trim() ? { payloadSchema: payloadJson.trim() } : {}),
+        ...(fields.length ? { requiredFields: fields } : {}),
       };
     }
     if (category === "external") {
@@ -403,7 +298,6 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
           ...(driveFolders.length ? { driveFolders } : {}),
           customProperties,
         } : {}),
-        ...(!["gmail", "gdrive"].includes(app) ? { notifications } : {}),
         queueWorkHours: {
           enabled: qwhEnabled,
           timezone: qwhTimezone,
@@ -417,25 +311,26 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
       };
     }
 
+    const trimmedName = name.trim();
     if (mode === "create") {
       const rec = triggerStore.create(agentId, {
-        name: name.trim(),
+        name: trimmedName,
         type: category,
         enabled: true,
         description: description.trim(),
         config,
       });
-      toast.success("Trigger created");
+      toast.success(`Đã tạo trigger "${trimmedName}".`);
       onSubmitted?.(rec);
     } else if (trigger) {
       triggerStore.update(agentId, trigger.id, {
-        name: name.trim(),
+        name: trimmedName,
         type: category,
         description: description.trim(),
         config,
       });
-      toast.success("Trigger updated");
-      onSubmitted?.({ ...trigger, name: name.trim(), type: category, description: description.trim(), config });
+      toast.success(`Đã cập nhật trigger "${trimmedName}".`);
+      onSubmitted?.({ ...trigger, name: trimmedName, type: category, description: description.trim(), config });
     }
     onOpenChange(false);
   };
@@ -448,6 +343,9 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
     else if (step === "queue-work-hours") setStep("app-config");
   };
 
+  const selectedAccount = accountId ? connectedAccountStore.get(accountId) : undefined;
+  const connectionExpired = !!selectedAccount?.expired;
+
   const primaryAction = () => {
     if (step === "main") {
       const e = validateBasics();
@@ -459,7 +357,11 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
     }
     if (step === "app-picker") { setStep("connected-accounts"); return; }
     if (step === "details") { submit(); return; }
-    if (step === "connected-accounts") { setStep("app-config"); return; }
+    if (step === "connected-accounts") {
+      if (connectionExpired) return;
+      setStep("app-config");
+      return;
+    }
     if (step === "app-config") { setStep("queue-work-hours"); return; }
     submit();
   };
@@ -481,8 +383,14 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
   const cronCheck = checkCronExpression(cron);
   const detailsInvalid = step === "details" && Object.keys(validateDetails()).length > 0;
 
+  const hasUnsavedInput = mode === "create" && (category !== "scheduled" || name.trim() !== "" || description.trim() !== "");
+  const requestClose = () => {
+    if (hasUnsavedInput) setConfirmDiscardOpen(true);
+    else onOpenChange(false);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={v => { if (!v) requestClose(); }}>
       <DialogContent className="sm:max-w-[560px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between mb-1.5">
@@ -505,7 +413,8 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
             {step === "main" ? (mode === "create" ? "Create new trigger" : "Edit Trigger")
               : step === "details" ? categoryHeading
               : step === "app-picker" ? "Choose application"
-              : step === "queue-work-hours" ? "Queue Work Hours"
+              : step === "app-config" ? `${EXTERNAL_APP_META[app].label} — Event & điều kiện`
+              : step === "queue-work-hours" ? "Queue Work Hours (tuỳ chọn)"
               : EXTERNAL_APP_META[app].label}
           </DialogTitle>
         </DialogHeader>
@@ -553,6 +462,9 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                     autoFocus
                     value={name}
                     onChange={e => { setName(e.target.value); if (errors.name) setErrors(er => ({ ...er, name: undefined })); }}
+                    onBlur={() => {
+                      if (isDuplicateName) setErrors(er => ({ ...er, name: "Tên trigger này đã tồn tại trong agent. Vui lòng chọn tên khác." }));
+                    }}
                     placeholder="e.g. Daily report"
                     className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm outline-none transition-base ${
                       errors.name ? "border-destructive" : "border-border focus:border-primary"
@@ -814,17 +726,19 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
             <div className="space-y-3">
               <div>
                 <label className="text-xs font-medium mb-1.5 block">Webhook URL</label>
-                <div className="flex items-center gap-1.5">
-                  <input
-                    readOnly
-                    value={webhookUrl}
-                    className="flex-1 h-9 px-3 rounded-lg border border-border bg-surface-muted text-xs font-mono text-muted-foreground outline-none truncate"
-                  />
+                <div className="flex items-start gap-1.5">
+                  <div
+                    title={webhookUrl}
+                    className="flex-1 px-3 py-2 rounded-lg border border-border bg-surface-muted text-xs font-mono text-muted-foreground break-all"
+                  >
+                    {webhookUrl}
+                  </div>
                   <button
                     type="button"
                     onClick={() => {
                       navigator.clipboard?.writeText(webhookUrl).catch(() => {});
                       setWebhookCopied(true);
+                      toast.success("Đã sao chép webhook URL.");
                       setTimeout(() => setWebhookCopied(false), 1500);
                     }}
                     className="w-9 h-9 shrink-0 rounded-lg border border-border bg-surface hover:bg-surface-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-base"
@@ -852,20 +766,52 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                 </select>
               </div>
 
-              {authentication !== "none" && (
-                <div>
-                  <label className="text-xs font-medium mb-1.5 block">
-                    {authentication === "bearer" ? "Token" : "Credential for Basic Auth"} <span className="text-destructive">*</span>
-                  </label>
-                  <CredentialField
-                    authType={authentication}
-                    value={credentialId}
-                    onChange={id => { setCredentialId(id); if (errors.credential) setErrors(er => ({ ...er, credential: undefined })); }}
-                    error={errors.credential}
-                  />
-                  {errors.credential && <p className="mt-1 text-[11px] text-destructive">{errors.credential}</p>}
-                </div>
-              )}
+              <div>
+                <label className="text-xs font-medium mb-1.5 block">
+                  {authentication === "bearer" ? "Token" : "Credential for Basic Auth"} <span className="text-destructive">*</span>
+                </label>
+                <CredentialField
+                  authType={authentication}
+                  value={credentialId}
+                  onChange={id => { setCredentialId(id); if (errors.credential) setErrors(er => ({ ...er, credential: undefined })); }}
+                  error={errors.credential}
+                />
+                {errors.credential && <p className="mt-1 text-[11px] text-destructive">{errors.credential}</p>}
+              </div>
+
+              <div className="pt-1 border-t border-border">
+                <label className="text-xs font-medium mb-1.5 block mt-3">Expected payload (JSON)</label>
+                <textarea
+                  value={payloadJson}
+                  rows={5}
+                  onChange={e => { setPayloadJson(e.target.value); if (errors.payload) setErrors(er => ({ ...er, payload: undefined })); }}
+                  onBlur={() => {
+                    try {
+                      if (payloadJson.trim()) JSON.parse(payloadJson);
+                      setErrors(er => ({ ...er, payload: undefined }));
+                    } catch {
+                      setErrors(er => ({ ...er, payload: "Payload mẫu chưa đúng định dạng JSON. Vui lòng kiểm tra lại." }));
+                    }
+                  }}
+                  className={`w-full px-3 py-2 rounded-lg border bg-surface text-xs font-mono outline-none resize-none transition-base ${
+                    errors.payload ? "border-destructive" : "border-border focus:border-primary"
+                  }`}
+                />
+                {errors.payload && <p className="mt-1 text-[11px] text-destructive">{errors.payload}</p>}
+              </div>
+
+              <div>
+                <label className="text-xs font-medium mb-1.5 block">
+                  Required fields <span className="text-[10px] font-normal text-muted-foreground">Optional</span>
+                </label>
+                <input
+                  value={requiredFields}
+                  onChange={e => setRequiredFields(e.target.value)}
+                  placeholder="e.g. event, order_id"
+                  className="w-full h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base"
+                />
+              </div>
+              <p className="text-[11px] text-muted-foreground">Payload sẽ được đưa vào context của Agent khi trigger chạy.</p>
             </div>
           )}
 
@@ -884,7 +830,6 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                         setApp(value);
                         setEvent(EXTERNAL_APP_EVENTS[value][0].value);
                         setAccountId("");
-                        setNotifications(!["gmail", "gdrive"].includes(value) ? [defaultNotification(value)] : []);
                       }}
                       className={`flex items-center gap-2 h-11 px-2.5 rounded-lg border text-left transition-base ${
                         active ? "border-primary bg-primary-soft" : "border-border bg-surface hover:border-primary/40"
@@ -915,6 +860,9 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                   >
                     <AppLogo app={app} size={20} />
                     <span className="flex-1 text-sm font-medium truncate">{acct.email}</span>
+                    {acct.expired && (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 chip-warning">Hết hạn</span>
+                    )}
                     <input
                       type="radio"
                       name="connected-account"
@@ -925,6 +873,25 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                   </label>
                 ))}
               </div>
+
+              {connectionExpired && (
+                <div className="flex items-start gap-2 mb-4 p-3 rounded-lg bg-[hsl(var(--warning-soft))] border border-warning/25">
+                  <AlertTriangle size={14} className="text-warning shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-warning">
+                      Kết nối tới {EXTERNAL_APP_META[app].label} đã hết hạn. Vui lòng kết nối lại để tiếp tục.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { if (accountId) connectedAccountStore.reconnect(accountId); setAccountsTick(t => t + 1); }}
+                    className="flex items-center gap-1 h-7 px-2.5 rounded-md bg-white border border-warning/30 text-[11px] font-semibold text-warning hover:bg-warning/5 transition-base shrink-0"
+                  >
+                    <RefreshCw size={11} /> Kết nối lại
+                  </button>
+                </div>
+              )}
+
               <div className="flex justify-center">
                 <button
                   type="button"
@@ -952,6 +919,24 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                   </span>
                 </div>
               )}
+
+              <div>
+                <label className="text-xs font-medium mb-1.5 block">Event <span className="text-destructive">*</span></label>
+                <div className="space-y-1.5">
+                  {EXTERNAL_APP_EVENTS[app].map(ev => (
+                    <label key={ev.value} className="flex items-center gap-2.5 cursor-pointer select-none">
+                      <input
+                        type="radio"
+                        name="external-event"
+                        checked={event === ev.value}
+                        onChange={() => setEvent(ev.value)}
+                        className="w-4 h-4 accent-primary"
+                      />
+                      <span className="text-sm">{ev.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
 
               {app === "gmail" && (
                 <>
@@ -1044,64 +1029,6 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                 </>
               )}
 
-              {!["gmail", "gdrive"].includes(app) && (
-                <div className="space-y-2.5">
-                  <h4 className="text-xs font-semibold text-foreground">Notifications</h4>
-                  {notifications.map((n, i) => (
-                    <div key={n.id} className="rounded-lg border border-border p-3 space-y-3">
-                      <div>
-                        <label className="text-xs font-medium mb-1.5 block">Notify when</label>
-                        <div className="grid grid-cols-3 gap-1.5">
-                          <input
-                            type="number" min={1}
-                            value={n.value}
-                            onChange={e => setNotifications(prev => prev.map((x, xi) => xi === i ? { ...x, value: Number(e.target.value) } : x))}
-                            className="h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base"
-                          />
-                          <select
-                            value={n.unit}
-                            onChange={e => setNotifications(prev => prev.map((x, xi) => xi === i ? { ...x, unit: e.target.value as NotificationRule["unit"] } : x))}
-                            className="ds-input h-9"
-                          >
-                            {NOTIFICATION_UNIT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                          </select>
-                          <select
-                            value={n.timing}
-                            onChange={e => setNotifications(prev => prev.map((x, xi) => xi === i ? { ...x, timing: e.target.value as NotificationRule["timing"] } : x))}
-                            className="ds-input h-9"
-                          >
-                            {NOTIFICATION_TIMING_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                          </select>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-xs font-medium mb-1.5 block">Message</label>
-                        <select
-                          value={n.message}
-                          onChange={e => setNotifications(prev => prev.map((x, xi) => xi === i ? { ...x, message: e.target.value } : x))}
-                          className="ds-input h-9"
-                        >
-                          {EXTERNAL_APP_EVENTS[app].map(ev => <option key={ev.value} value={ev.value}>{ev.label}</option>)}
-                        </select>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setNotifications(prev => prev.filter((_, xi) => xi !== i))}
-                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive transition-base"
-                      >
-                        <Trash2 size={12} /> Remove
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => setNotifications(prev => [...prev, defaultNotification(app)])}
-                    className="w-full flex items-center justify-center gap-1.5 h-9 rounded-lg border border-border bg-surface-muted hover:bg-surface text-sm font-medium text-foreground transition-base"
-                  >
-                    <Plus size={13} /> Add notification
-                  </button>
-                </div>
-              )}
             </div>
           )}
 
@@ -1114,6 +1041,11 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                 <input type="checkbox" checked={qwhEnabled} onChange={e => setQwhEnabled(e.target.checked)} className="w-4 h-4 accent-primary" />
                 <span className="text-sm font-medium">Enabled</span>
               </label>
+              {!qwhEnabled && (
+                <p className="text-[11px] text-muted-foreground -mt-2">
+                  Chưa bật — agent sẽ xử lý mọi sự kiện ngay khi nhận được.
+                </p>
+              )}
               <div className={`space-y-4 transition-base ${qwhEnabled ? "" : "opacity-40"}`}>
                 <div>
                   <label className="text-xs font-medium mb-1.5 block">Timezone</label>
@@ -1171,21 +1103,52 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
         <DialogFooter className="mt-2">
           <button
             type="button"
-            onClick={step === "main" ? () => onOpenChange(false) : stepBack}
+            onClick={step === "main" ? requestClose : stepBack}
             className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base"
           >
             {step === "main" ? "Cancel" : "Back"}
           </button>
+          {step === "queue-work-hours" && (
+            <button
+              type="button"
+              onClick={submit}
+              className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base"
+            >
+              Bỏ qua
+            </button>
+          )}
           <button
             type="button"
             onClick={primaryAction}
-            disabled={(step === "connected-accounts" && !accountId) || detailsInvalid}
+            disabled={
+              (step === "main" && isDuplicateName) ||
+              (step === "connected-accounts" && (!accountId || connectionExpired)) ||
+              detailsInvalid
+            }
             className="btn-primary h-9 px-4 disabled:opacity-40 disabled:pointer-events-none"
           >
             {primaryLabel}
           </button>
         </DialogFooter>
       </DialogContent>
+
+      <AlertDialog open={confirmDiscardOpen} onOpenChange={setConfirmDiscardOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Thoát mà không lưu?</AlertDialogTitle>
+            <AlertDialogDescription>Thông tin trigger bạn vừa nhập sẽ không được lưu lại.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Tiếp tục chỉnh sửa</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { setConfirmDiscardOpen(false); onOpenChange(false); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Thoát
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

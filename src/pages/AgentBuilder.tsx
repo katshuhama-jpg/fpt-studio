@@ -16,7 +16,7 @@ import ChatOptimizationTab from "@/components/configure/ChatOptimizationTab";
 import { businessProcessStore } from "@/components/business-processes/businessProcessStore";
 import { taskStore } from "@/components/tasks/taskStore";
 import { knowledgeStore } from "@/components/knowledge/knowledgeStore";
-import { triggerStore, type TriggerRecord } from "@/components/configure/triggerStore";
+import { triggerStore, triggerNeedsSetup, type TriggerRecord } from "@/components/configure/triggerStore";
 import AppLogo from "@/components/configure/AppLogo";
 import { TYPE_META, summarizeConfig } from "@/components/configure/TriggersTab";
 import { guardrailStore } from "@/components/configure/guardrailStore";
@@ -4457,7 +4457,7 @@ function GuardrailsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:num
   );
 }
 
-function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAdd?: (fn: () => void) => void } = {}) {
+function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAdd?: (fn: () => void) => void }) {
   const [tick, setTick] = useState(0);
   const refresh = () => setTick(t => t + 1);
   const [createOpen, setCreateOpen] = useState(false);
@@ -4479,7 +4479,7 @@ function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegister
       n++;
     }
     triggerStore.create(agentId, { name, type: t.type, enabled: t.enabled, description: t.description, config: t.config });
-    toast.success("Trigger duplicated");
+    toast.success(`Đã tạo trigger "${name}".`);
     refresh();
   };
 
@@ -4487,7 +4487,7 @@ function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegister
     const trimmed = newName.trim();
     if (!trimmed || trimmed === t.name) { setRenamingId(null); return; }
     if (triggerStore.isDuplicateName(agentId, trimmed, t.id)) {
-      toast.error("A trigger with this name already exists");
+      toast.error("Tên trigger này đã tồn tại trong agent. Vui lòng chọn tên khác.");
       return;
     }
     triggerStore.update(agentId, t.id, { name: trimmed });
@@ -4511,6 +4511,7 @@ function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegister
             const Icon = meta.icon;
             const isRenaming = renamingId === t.id;
             const summary = summarizeConfig(t);
+            const needsSetup = triggerNeedsSetup(t);
             return (
               <div
                 key={t.id}
@@ -4519,7 +4520,7 @@ function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegister
                 onClick={isRenaming ? undefined : () => setEditTarget(t)}
                 onKeyDown={isRenaming ? undefined : (e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setEditTarget(t); } })}
                 className={`rounded-xl px-3 py-2.5 transition-base ${
-                  t.enabled
+                  t.enabled && !needsSetup
                     ? "border border-transparent hover:bg-surface-muted"
                     : "border border-amber-300 bg-amber-50/50 hover:bg-amber-50"
                 } ${isRenaming ? "" : "cursor-pointer"}`}
@@ -4545,24 +4546,34 @@ function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegister
                   ) : (
                     <span className="text-[13px] font-semibold flex-1 truncate min-w-0">{t.name}</span>
                   )}
-                  {!t.enabled && (
+                  {needsSetup ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap bg-amber-100 text-amber-700">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Needs setup
+                    </span>
+                  ) : !t.enabled && (
                     <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap bg-amber-100 text-amber-700">
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Paused
                     </span>
                   )}
                   <TriggerRowMenu
                     enabled={t.enabled}
+                    needsSetup={needsSetup}
                     onToggle={() => { triggerStore.toggle(agentId, t.id); refresh(); }}
                     onEdit={() => setEditTarget(t)}
                     onRename={() => setRenamingId(t.id)}
                     onDuplicate={() => duplicateTrigger(t)}
-                    onDelete={() => { triggerStore.remove(agentId, t.id); toast.success("Trigger removed"); refresh(); }}
+                    onDelete={() => { const n = t.name; triggerStore.remove(agentId, t.id); toast.success(`Đã xoá trigger "${n}".`); refresh(); }}
                   />
                 </div>
                 {summary && (
                   <p className="text-xs text-muted-foreground mt-1 pl-7 truncate">{summary}</p>
                 )}
-                {!t.enabled && (
+                {needsSetup ? (
+                  <div className="flex items-center gap-1.5 mt-1.5 pl-7 text-xs text-amber-700">
+                    <HugeiconsIcon icon={InformationCircleIcon} size={12} className="shrink-0" />
+                    <span>Cần hoàn tất cấu hình trước khi kích hoạt.</span>
+                  </div>
+                ) : !t.enabled && (
                   <div className="flex items-center gap-1.5 mt-1.5 pl-7 text-xs text-amber-700">
                     <HugeiconsIcon icon={InformationCircleIcon} size={12} className="shrink-0" />
                     <span>Trigger is disabled</span>
@@ -4593,8 +4604,8 @@ function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegister
   );
 }
 
-function TriggerRowMenu({ enabled, onToggle, onEdit, onRename, onDuplicate, onDelete }: {
-  enabled: boolean; onToggle: () => void; onEdit: () => void; onRename: () => void; onDuplicate: () => void; onDelete: () => void;
+function TriggerRowMenu({ enabled, needsSetup, onToggle, onEdit, onRename, onDuplicate, onDelete }: {
+  enabled: boolean; needsSetup: boolean; onToggle: () => void; onEdit: () => void; onRename: () => void; onDuplicate: () => void; onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -4620,9 +4631,15 @@ function TriggerRowMenu({ enabled, onToggle, onEdit, onRename, onDuplicate, onDe
       </button>
       {open && (
         <div className="absolute right-0 top-full mt-1 z-20 w-36 rounded-lg border border-border bg-white shadow-elev py-1">
-          <button type="button" onClick={() => { onToggle(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">
-            {enabled ? "Pause trigger" : "Resume trigger"}
-          </button>
+          {!enabled && needsSetup ? (
+            <span title="Hoàn tất cấu hình trước khi kích hoạt trigger." className="block w-full text-left px-3 py-1.5 text-xs text-muted-foreground/60 cursor-not-allowed">
+              Resume trigger
+            </span>
+          ) : (
+            <button type="button" onClick={() => { onToggle(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">
+              {enabled ? "Pause trigger" : "Resume trigger"}
+            </button>
+          )}
           <button type="button" onClick={() => { onEdit(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">
             Edit trigger
           </button>
@@ -4630,7 +4647,7 @@ function TriggerRowMenu({ enabled, onToggle, onEdit, onRename, onDuplicate, onDe
             Rename
           </button>
           <button type="button" onClick={() => { onDelete(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">
-            Remove
+            Xoá trigger
           </button>
           <button type="button" onClick={() => { onDuplicate(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">
             Duplicate

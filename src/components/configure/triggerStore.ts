@@ -1,9 +1,12 @@
 // In-memory trigger store for the Triggers feature prototype.
+import { connectedAccountStore } from "./connectedAccountStore";
+import { checkCronExpression } from "./cronUtils";
+
 export type TriggerType = "scheduled" | "developer" | "external";
 
 export type ScheduleFrequency = "daily" | "weekly" | "monthly" | "custom";
 export type CustomScheduleUnit = "minute" | "hour" | "day" | "week" | "month" | "year" | "cron";
-export type WebhookAuthType = "none" | "bearer" | "basic";
+export type WebhookAuthType = "bearer" | "basic";
 export type ExternalApp =
   | "gmail" | "gcalendar" | "gdrive" | "slack" | "teams" | "outlook" | "salesforce" | "hubspot" | "jira" | "zoom";
 
@@ -23,7 +26,9 @@ export interface ScheduleConfig {
 export interface DeveloperConfig {
   webhookUrl: string;              // auto-generated
   authentication: WebhookAuthType;
-  credentialId?: string;           // set when authentication !== "none"
+  credentialId?: string;           // required — Create/Save is blocked without it
+  payloadSchema?: string;          // raw JSON text, sample of the expected request body
+  requiredFields?: string[];       // keys that must be present in every incoming request
 }
 
 export interface QueueWorkHoursConfig {
@@ -37,18 +42,10 @@ export interface QueueWorkHoursConfig {
   tasksPeriodUnit: "hour" | "day";
 }
 
-export interface NotificationRule {
-  id: string;
-  value: number;                    // e.g. 3
-  unit: "minutes" | "hours" | "days";
-  timing: "before" | "after";
-  message: string;                  // preset value from EXTERNAL_APP_EVENTS[app]
-}
-
 export interface ExternalConfig {
   app: ExternalApp;
   accountId?: string;      // selected ConnectedAccount id
-  event: string;           // preset value from EXTERNAL_APP_EVENTS[app] — Gmail/Drive's default event, not user-editable
+  event: string;           // preset value from EXTERNAL_APP_EVENTS[app], chosen explicitly by the builder
 
   // Gmail
   gmailMode?: "inbox" | "outreach_replies";
@@ -60,9 +57,6 @@ export interface ExternalConfig {
   driveId?: string;
   driveFolders?: string[];
   customProperties?: boolean;
-
-  // Calendar / Slack / Teams / Outlook / Salesforce / HubSpot / Jira / Zoom
-  notifications?: NotificationRule[];
 
   queueWorkHours?: QueueWorkHoursConfig;
 }
@@ -119,16 +113,19 @@ export const EXTERNAL_APP_META: Record<ExternalApp, { label: string; logoUrl: st
 };
 
 export const EXTERNAL_APP_EVENTS: Record<ExternalApp, { value: string; label: string }[]> = {
-  gmail: [{ value: "new_email", label: "New email received" }],
+  gmail: [{ value: "new_email", label: "Email mới nhận được" }],
   gcalendar: [
-    { value: "event_created", label: "New event created" },
-    { value: "event_starting", label: "Event starting soon" },
+    { value: "event_starting", label: "Sự kiện sắp diễn ra" },
+    { value: "event_created", label: "Sự kiện mới được tạo" },
   ],
   gdrive: [
     { value: "file_added", label: "New file added" },
     { value: "file_updated", label: "File updated" },
   ],
-  slack: [{ value: "new_message", label: "New message posted" }],
+  slack: [
+    { value: "new_message", label: "Tin nhắn mới" },
+    { value: "mention", label: "Được nhắc tên (mention)" },
+  ],
   teams: [
     { value: "new_message", label: "New message posted" },
     { value: "meeting_scheduled", label: "New meeting scheduled" },
@@ -146,8 +143,9 @@ export const EXTERNAL_APP_EVENTS: Record<ExternalApp, { value: string; label: st
     { value: "deal_stage_changed", label: "Deal stage changed" },
   ],
   jira: [
-    { value: "issue_created", label: "Issue created" },
-    { value: "issue_status_changed", label: "Issue status changed" },
+    { value: "issue_created", label: "Issue được tạo" },
+    { value: "issue_updated", label: "Issue được cập nhật" },
+    { value: "issue_status_changed", label: "Issue đổi trạng thái" },
   ],
   zoom: [
     { value: "meeting_started", label: "Meeting started" },
@@ -279,3 +277,20 @@ export const triggerStore = {
     store.delete(k(agentId, id));
   },
 };
+
+/** True when a trigger's required config is missing, so it can't safely be activated —
+ * a Webhook without a credential, an External app whose connection is missing/expired,
+ * or a Scheduled trigger whose saved cron expression is invalid. */
+export function triggerNeedsSetup(t: TriggerRecord): boolean {
+  if (t.type === "developer" && t.config.developer) {
+    return !t.config.developer.credentialId;
+  }
+  if (t.type === "external" && t.config.external) {
+    const acct = t.config.external.accountId ? connectedAccountStore.get(t.config.external.accountId) : undefined;
+    return !acct || !!acct.expired;
+  }
+  if (t.type === "scheduled" && t.config.schedule?.customUnit === "cron") {
+    return !checkCronExpression(t.config.schedule.cron ?? "").valid;
+  }
+  return false;
+}
