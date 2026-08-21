@@ -34,17 +34,155 @@ const CATEGORY_OPTIONS: { value: TriggerType; label: string; icon: any; desc: st
   { value: "external", label: "External application", icon: Globe, desc: "Trigger this Agent when something happens in another application." },
 ];
 
-const FREQUENCY_UNIT_OPTIONS: { value: CustomScheduleUnit; label: string }[] = [
+const PRIMARY_FREQUENCY_OPTIONS: { value: CustomScheduleUnit; label: string }[] = [
   { value: "minute", label: "Minutely" },
   { value: "hour", label: "Hourly" },
   { value: "day", label: "Daily" },
   { value: "week", label: "Weekly" },
   { value: "month", label: "Monthly" },
   { value: "year", label: "Annually" },
-  { value: "cron", label: "Cron" },
 ];
 
-const DAY_OF_WEEK_OPTIONS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const WEEKDAY_CHIPS: { value: number; label: string }[] = [
+  { value: 1, label: "Mon" },
+  { value: 2, label: "Tue" },
+  { value: 3, label: "Wed" },
+  { value: 4, label: "Thu" },
+  { value: 5, label: "Fri" },
+  { value: 6, label: "Sat" },
+  { value: 0, label: "Sun" },
+];
+
+const MONTH_OPTIONS: { value: number; label: string }[] = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+].map((label, value) => ({ value, label }));
+
+const MONTH_MAX_DAY = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+function daysInMonthDisplay(month: number): number {
+  return MONTH_MAX_DAY[month] ?? 31;
+}
+
+function defaultStartTime(): string {
+  const now = new Date();
+  let h = now.getHours(), m = now.getMinutes();
+  if (m !== 0 && m !== 30) {
+    if (m < 30) m = 30;
+    else { m = 0; h = (h + 1) % 24; }
+  }
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+function validateCronField(field: string, min: number, max: number): boolean {
+  if (field === "*") return true;
+  const parts = field.split(",");
+  if (parts.some(p => p === "")) return false;
+  for (const part of parts) {
+    const stepMatch = part.match(/^(\*|\d+(?:-\d+)?)\/(\d+)$/);
+    if (stepMatch) {
+      const step = Number(stepMatch[2]);
+      if (step <= 0) return false;
+      if (stepMatch[1] !== "*") {
+        const m = stepMatch[1].match(/^(\d+)(?:-(\d+))?$/);
+        if (!m) return false;
+        const a = Number(m[1]);
+        const b = m[2] !== undefined ? Number(m[2]) : max;
+        if (a < min || a > max || b < min || b > max || a > b) return false;
+      }
+      continue;
+    }
+    const m = part.match(/^(\d+)(?:-(\d+))?$/);
+    if (!m) return false;
+    const a = Number(m[1]);
+    const b = m[2] !== undefined ? Number(m[2]) : a;
+    if (a < min || a > max || b < min || b > max || a > b) return false;
+  }
+  return true;
+}
+
+function expandCronField(field: string, min: number, max: number): number[] {
+  if (field === "*") {
+    const out: number[] = [];
+    for (let i = min; i <= max; i++) out.push(i);
+    return out;
+  }
+  const result = new Set<number>();
+  for (const part of field.split(",")) {
+    const stepMatch = part.match(/^(\*|\d+(?:-\d+)?)\/(\d+)$/);
+    if (stepMatch) {
+      const step = Number(stepMatch[2]);
+      let a = min, b = max;
+      if (stepMatch[1] !== "*") {
+        const m = stepMatch[1].match(/^(\d+)(?:-(\d+))?$/)!;
+        a = Number(m[1]);
+        b = m[2] !== undefined ? Number(m[2]) : max;
+      }
+      for (let i = a; i <= b; i += step) result.add(i);
+      continue;
+    }
+    const m = part.match(/^(\d+)(?:-(\d+))?$/)!;
+    const a = Number(m[1]);
+    const b = m[2] !== undefined ? Number(m[2]) : a;
+    for (let i = a; i <= b; i++) result.add(i);
+  }
+  return [...result].sort((x, y) => x - y);
+}
+
+interface CronCheck { valid: boolean; tooFrequent: boolean; }
+function checkCronExpression(expr: string): CronCheck {
+  const fields = expr.trim().split(/\s+/);
+  if (fields.length !== 5) return { valid: false, tooFrequent: false };
+  const [minute, hour, dom, month, dow] = fields;
+  if (
+    !validateCronField(minute, 0, 59) ||
+    !validateCronField(hour, 0, 23) ||
+    !validateCronField(dom, 1, 31) ||
+    !validateCronField(month, 1, 12) ||
+    !validateCronField(dow, 0, 7)
+  ) return { valid: false, tooFrequent: false };
+
+  const minutes = expandCronField(minute, 0, 59);
+  let tooFrequent = false;
+  if (minutes.length > 1) {
+    let minGap = Infinity;
+    for (let i = 0; i < minutes.length; i++) {
+      const next = minutes[(i + 1) % minutes.length];
+      const gap = i === minutes.length - 1 ? next + 60 - minutes[i] : next - minutes[i];
+      minGap = Math.min(minGap, gap);
+    }
+    tooFrequent = minGap < 10;
+  }
+  return { valid: true, tooFrequent };
+}
+
+const DOW_VN = ["Chủ Nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
+function describeCronVN(expr: string): string {
+  const [minute, hour, dom, month, dow] = expr.trim().split(/\s+/);
+  const isSingle = (f: string) => /^\d+$/.test(f);
+  const timePart = isSingle(minute) && isSingle(hour) ? `${hour.padStart(2, "0")}:${minute.padStart(2, "0")}` : null;
+
+  let dowPart = "";
+  if (dow !== "*") {
+    const rangeMatch = dow.match(/^(\d)-(\d)$/);
+    if (rangeMatch) {
+      const a = Number(rangeMatch[1]) % 7, b = Number(rangeMatch[2]) % 7;
+      dowPart = ` các ngày trong tuần (${DOW_VN[a]} – ${DOW_VN[b]})`;
+    } else {
+      dowPart = ` vào ${expandCronField(dow, 0, 7).map(d => DOW_VN[d % 7]).join(", ")}`;
+    }
+  }
+
+  const domPart = dom !== "*" ? ` ngày ${dom} hàng tháng` : "";
+  const monthPart = month !== "*" ? ` (tháng ${month})` : "";
+
+  if (timePart) {
+    if (dow !== "*" && dom === "*" && month === "*") return `Chạy ${timePart}${dowPart}`;
+    if (dom !== "*" && dow === "*" && month === "*") return `Chạy ${timePart}${domPart}`;
+    if (dom === "*" && dow === "*" && month === "*") return `Chạy hàng ngày lúc ${timePart}`;
+    return `Chạy ${timePart}${domPart}${dowPart}${monthPart}`.trim();
+  }
+  return `Chạy theo lịch: phút ${minute}, giờ ${hour}, ngày ${dom}, tháng ${month}, thứ ${dow}`;
+}
 
 const AUTH_OPTIONS: { value: WebhookAuthType; label: string }[] = [
   { value: "none", label: "None" },
@@ -78,12 +216,15 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
 
   // Scheduled
   const [timeOfDay, setTimeOfDay] = useState("08:00");
-  const [dayOfWeek, setDayOfWeek] = useState(1);
+  const [weekDays, setWeekDays] = useState<number[]>([1]);
   const [dayOfMonth, setDayOfMonth] = useState(1);
+  const [month, setMonth] = useState(0);
+  const [startTime, setStartTime] = useState(() => defaultStartTime());
   const [customUnit, setCustomUnit] = useState<CustomScheduleUnit>("day");
   const [intervalValue, setIntervalValue] = useState("");
   const [cron, setCron] = useState("0 9 * * 1");
   const [timezone, setTimezone] = useState("GMT+07:00");
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   // Webhook
   const [webhookUrl, setWebhookUrl] = useState("");
@@ -139,12 +280,15 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
     const sched = t?.config.schedule;
     const unit = sched?.customUnit ?? (sched?.frequency === "weekly" ? "week" : sched?.frequency === "monthly" ? "month" : "day");
     setTimeOfDay(sched?.timeOfDay ?? "08:00");
-    setDayOfWeek(sched?.dayOfWeek ?? 1);
+    setWeekDays(sched?.weekDays?.length ? sched.weekDays : [1]);
     setDayOfMonth(sched?.dayOfMonth ?? 1);
+    setMonth(sched?.month ?? 0);
+    setStartTime(sched?.startTime ?? defaultStartTime());
     setCustomUnit(unit);
     setIntervalValue(sched?.intervalValue != null ? String(sched.intervalValue) : "");
     setCron(sched?.cron ?? "0 9 * * 1");
     setTimezone(sched?.timezone ?? "GMT+07:00");
+    setAdvancedOpen(unit === "cron");
 
     const dev = t?.config.developer;
     setWebhookUrl(dev?.webhookUrl ?? `https://agents.fpt.ai/console/api/webhooks/triggers/${generateWebhookId()}`);
@@ -187,14 +331,24 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
 
   const validateDetails = () => {
     const e: typeof errors = {};
-    if (category === "scheduled" && customUnit === "cron" && !cron.trim()) {
-      e.schedule = "Cron expression is required";
-    }
-    if (category === "scheduled" && customUnit === "minute" && Number(intervalValue) < 10) {
-      e.schedule = "Minimum interval is 10 minutes";
-    }
-    if (category === "scheduled" && customUnit === "hour" && Number(intervalValue) < 1) {
-      e.schedule = "Minimum interval is 1 hour";
+    if (category === "scheduled") {
+      if (customUnit === "cron") {
+        const check = checkCronExpression(cron);
+        if (!check.valid) e.schedule = "Biểu thức Cron không hợp lệ. Định dạng: phút giờ ngày tháng thứ (ví dụ: 0 8 * * 1-5)";
+        else if (check.tooFrequent) e.schedule = "Cron không được chạy dày hơn 10 phút một lần.";
+      }
+      if (customUnit === "minute" && Number(intervalValue) < 10) {
+        e.schedule = "Tối thiểu 10 phút.";
+      }
+      if (customUnit === "hour" && Number(intervalValue) < 1) {
+        e.schedule = "Tối thiểu 1 giờ.";
+      }
+      if (customUnit === "week" && weekDays.length === 0) {
+        e.schedule = "Chọn ít nhất một ngày trong tuần.";
+      }
+      if (customUnit === "month" && (dayOfMonth < 1 || dayOfMonth > 31)) {
+        e.schedule = "Ngày trong tháng phải từ 1 đến 31.";
+      }
     }
     if (category === "developer" && authentication !== "none" && !credentialId) {
       e.credential = "The credential is required";
@@ -219,10 +373,11 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
         timezone,
         customUnit,
         ...(customUnit === "cron" ? { cron: cron.trim() } : {}),
-        ...(customUnit === "minute" || customUnit === "hour" ? { intervalValue: Number(intervalValue) } : {}),
+        ...(customUnit === "minute" || customUnit === "hour" ? { intervalValue: Number(intervalValue), startTime } : {}),
         ...(["day", "week", "month", "year"].includes(customUnit) ? { timeOfDay } : {}),
-        ...(customUnit === "week" ? { dayOfWeek } : {}),
-        ...(customUnit === "month" || customUnit === "year" ? { dayOfMonth } : {}),
+        ...(customUnit === "week" ? { weekDays } : {}),
+        ...(customUnit === "month" ? { dayOfMonth } : {}),
+        ...(customUnit === "year" ? { dayOfMonth, month } : {}),
       };
     }
     if (category === "developer") {
@@ -322,6 +477,9 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
     : ["main", "details"];
   const stepIndex = stepSequence.indexOf(step);
   const stepTotal = stepSequence.length;
+
+  const cronCheck = checkCronExpression(cron);
+  const detailsInvalid = step === "details" && Object.keys(validateDetails()).length > 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -427,14 +585,15 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
             <div className="rounded-lg border border-border p-3 space-y-3">
               <div>
                 <label className="text-xs font-medium mb-1.5 block">Frequency</label>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {FREQUENCY_UNIT_OPTIONS.map(opt => (
+                <div className="grid grid-cols-3 gap-1.5">
+                  {PRIMARY_FREQUENCY_OPTIONS.map(opt => (
                     <button
                       key={opt.value}
                       type="button"
                       onClick={() => {
                         setCustomUnit(opt.value);
                         if (opt.value === "minute" || opt.value === "hour") setIntervalValue("");
+                        if (errors.schedule) setErrors(er => ({ ...er, schedule: undefined }));
                       }}
                       className={`h-8 rounded-lg text-xs font-medium transition-base ${
                         customUnit === opt.value ? "bg-primary text-primary-foreground" : "bg-surface-muted text-muted-foreground hover:text-foreground"
@@ -444,42 +603,136 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                     </button>
                   ))}
                 </div>
+                <div className="mt-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setAdvancedOpen(o => !o)}
+                    className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-base"
+                  >
+                    <ChevronDown size={11} className={`transition-transform ${advancedOpen ? "rotate-180" : ""}`} />
+                    Custom / Advanced
+                  </button>
+                  {advancedOpen && (
+                    <div className="mt-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomUnit("cron");
+                          if (errors.schedule) setErrors(er => ({ ...er, schedule: undefined }));
+                        }}
+                        className={`h-8 px-3 rounded-lg text-xs font-medium transition-base ${
+                          customUnit === "cron" ? "bg-primary text-primary-foreground" : "bg-surface-muted text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        Cron
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {customUnit === "minute" && (
-                <div>
-                  <input
-                    type="number" min={10}
-                    value={intervalValue}
-                    onChange={e => {
-                      const v = e.target.value;
-                      setIntervalValue(v);
-                      if (errors.schedule && Number(v) >= 10) setErrors(er => ({ ...er, schedule: undefined }));
-                    }}
-                    placeholder="Minutes (minimum 10)"
-                    className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm outline-none transition-base ${
-                      errors.schedule ? "border-destructive" : "border-border focus:border-primary"
-                    }`}
-                  />
-                  {errors.schedule && <p className="mt-1 text-[11px] text-destructive">{errors.schedule}</p>}
-                </div>
+                <>
+                  <div>
+                    <input
+                      type="number" min={10}
+                      value={intervalValue}
+                      onChange={e => setIntervalValue(e.target.value)}
+                      placeholder="Minutes"
+                      className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm outline-none transition-base ${
+                        intervalValue !== "" && Number(intervalValue) < 10 ? "border-destructive" : "border-border focus:border-primary"
+                      }`}
+                    />
+                    <p className={`mt-1 text-[11px] ${intervalValue !== "" && Number(intervalValue) < 10 ? "text-destructive" : "text-muted-foreground"}`}>
+                      Tối thiểu 10 phút.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium mb-1.5 block">Start time</label>
+                    <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
+                      className="w-full h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base" />
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Lịch chạy được tính từ Start time. Ví dụ: Start time 10:00, mỗi 2 giờ → 10:00, 12:00, 14:00…
+                    </p>
+                  </div>
+                </>
               )}
               {customUnit === "hour" && (
+                <>
+                  <div>
+                    <input
+                      type="number" min={1}
+                      value={intervalValue}
+                      onChange={e => setIntervalValue(e.target.value)}
+                      placeholder="Hours"
+                      className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm outline-none transition-base ${
+                        intervalValue !== "" && Number(intervalValue) < 1 ? "border-destructive" : "border-border focus:border-primary"
+                      }`}
+                    />
+                    <p className={`mt-1 text-[11px] ${intervalValue !== "" && Number(intervalValue) < 1 ? "text-destructive" : "text-muted-foreground"}`}>
+                      Tối thiểu 1 giờ.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium mb-1.5 block">Start time</label>
+                    <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
+                      className="w-full h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base" />
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Lịch chạy được tính từ Start time. Ví dụ: Start time 10:00, mỗi 2 giờ → 10:00, 12:00, 14:00…
+                    </p>
+                  </div>
+                </>
+              )}
+
+              {customUnit === "year" && (
                 <div>
-                  <input
-                    type="number" min={1}
-                    value={intervalValue}
+                  <label className="text-xs font-medium mb-1.5 block">Month</label>
+                  <select
+                    value={month}
                     onChange={e => {
-                      const v = e.target.value;
-                      setIntervalValue(v);
-                      if (errors.schedule && Number(v) >= 1) setErrors(er => ({ ...er, schedule: undefined }));
+                      const nv = Number(e.target.value);
+                      setMonth(nv);
+                      const max = daysInMonthDisplay(nv);
+                      if (dayOfMonth > max) setDayOfMonth(max);
                     }}
-                    placeholder="Hours (minimum 1)"
+                    className="ds-input h-9"
+                  >
+                    {MONTH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {(customUnit === "month" || customUnit === "year") && (
+                <div>
+                  <label className="text-xs font-medium mb-1.5 block">Day of month</label>
+                  <input
+                    type="number" min={1} max={customUnit === "year" ? daysInMonthDisplay(month) : 31}
+                    value={dayOfMonth}
+                    onChange={e => {
+                      let v = Number(e.target.value);
+                      if (customUnit === "year") {
+                        const max = daysInMonthDisplay(month);
+                        if (v > max) v = max;
+                      }
+                      setDayOfMonth(v);
+                    }}
                     className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm outline-none transition-base ${
-                      errors.schedule ? "border-destructive" : "border-border focus:border-primary"
+                      customUnit === "month" && (dayOfMonth < 1 || dayOfMonth > 31) ? "border-destructive" : "border-border focus:border-primary"
                     }`}
                   />
-                  {errors.schedule && <p className="mt-1 text-[11px] text-destructive">{errors.schedule}</p>}
+                  {customUnit === "year" && month === 1 && dayOfMonth === 29 && (
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Ngày 29/02 chỉ tồn tại trong năm nhuận. Những năm không nhuận, agent sẽ chạy vào 28/02.
+                    </p>
+                  )}
+                  {customUnit === "month" && [29, 30, 31].includes(dayOfMonth) && (
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Tháng không có ngày {dayOfMonth}, agent sẽ chạy vào ngày cuối cùng của tháng đó.
+                    </p>
+                  )}
+                  {customUnit === "month" && (dayOfMonth < 1 || dayOfMonth > 31) && (
+                    <p className="mt-1 text-[11px] text-destructive">Ngày trong tháng phải từ 1 đến 31.</p>
+                  )}
                 </div>
               )}
 
@@ -492,17 +745,27 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
               )}
               {customUnit === "week" && (
                 <div>
-                  <label className="text-xs font-medium mb-1.5 block">Day of week</label>
-                  <select value={dayOfWeek} onChange={e => setDayOfWeek(Number(e.target.value))} className="ds-input h-9">
-                    {DAY_OF_WEEK_OPTIONS.map((d, i) => <option key={d} value={i}>{d}</option>)}
-                  </select>
-                </div>
-              )}
-              {(customUnit === "month" || customUnit === "year") && (
-                <div>
-                  <label className="text-xs font-medium mb-1.5 block">Day of month</label>
-                  <input type="number" min={1} max={31} value={dayOfMonth} onChange={e => setDayOfMonth(Number(e.target.value))}
-                    className="w-full h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base" />
+                  <label className="text-xs font-medium mb-1.5 block">Days of week</label>
+                  <div className="grid grid-cols-7 gap-1">
+                    {WEEKDAY_CHIPS.map(d => {
+                      const active = weekDays.includes(d.value);
+                      return (
+                        <button
+                          key={d.value}
+                          type="button"
+                          onClick={() => setWeekDays(prev => active ? prev.filter(x => x !== d.value) : [...prev, d.value])}
+                          className={`h-8 rounded-lg text-xs font-medium transition-base ${
+                            active ? "bg-primary text-primary-foreground" : "bg-surface-muted text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          {d.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className={`mt-1 text-[11px] ${weekDays.length === 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                    Chọn ít nhất một ngày trong tuần.
+                  </p>
                 </div>
               )}
               {customUnit === "cron" && (
@@ -513,15 +776,28 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                     onChange={e => {
                       const v = e.target.value;
                       setCron(v);
-                      if (errors.schedule && v.trim()) setErrors(er => ({ ...er, schedule: undefined }));
+                      if (errors.schedule) {
+                        const check = checkCronExpression(v);
+                        if (check.valid && !check.tooFrequent) setErrors(er => ({ ...er, schedule: undefined }));
+                      }
                     }}
-                    placeholder="0 9 * * 1"
+                    onBlur={() => {
+                      const check = checkCronExpression(cron);
+                      if (!check.valid) setErrors(er => ({ ...er, schedule: "Biểu thức Cron không hợp lệ. Định dạng: phút giờ ngày tháng thứ (ví dụ: 0 8 * * 1-5)" }));
+                      else if (check.tooFrequent) setErrors(er => ({ ...er, schedule: "Cron không được chạy dày hơn 10 phút một lần." }));
+                      else setErrors(er => ({ ...er, schedule: undefined }));
+                    }}
+                    placeholder="0 8 * * 1-5"
                     className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm font-mono outline-none transition-base ${
                       errors.schedule ? "border-destructive" : "border-border focus:border-primary"
                     }`}
                   />
                   <p className="mt-1 text-[10px] text-muted-foreground">Standard cron format: minute hour day-of-month month day-of-week</p>
-                  {errors.schedule && <p className="mt-1 text-[11px] text-destructive">{errors.schedule}</p>}
+                  {errors.schedule ? (
+                    <p className="mt-1 text-[11px] text-destructive">{errors.schedule}</p>
+                  ) : cronCheck.valid && !cronCheck.tooFrequent && (
+                    <p className="mt-1 text-[11px] text-success">{describeCronVN(cron)}</p>
+                  )}
                 </div>
               )}
 
@@ -903,7 +1179,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
           <button
             type="button"
             onClick={primaryAction}
-            disabled={step === "connected-accounts" && !accountId}
+            disabled={(step === "connected-accounts" && !accountId) || detailsInvalid}
             className="btn-primary h-9 px-4 disabled:opacity-40 disabled:pointer-events-none"
           >
             {primaryLabel}

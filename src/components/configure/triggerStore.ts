@@ -10,11 +10,13 @@ export type ExternalApp =
 export interface ScheduleConfig {
   frequency: ScheduleFrequency;
   timeOfDay?: string;               // "HH:mm"
-  dayOfWeek?: number;                // 0-6, weekly only
-  dayOfMonth?: number;               // 1-31, monthly only
+  weekDays?: number[];               // 0-6 (0=Sun..6=Sat), weekly only, multi-select
+  dayOfMonth?: number;               // 1-31, monthly + annually
+  month?: number;                    // 0-11, annually only
+  startTime?: string;                // "HH:mm" anchor, minutely/hourly only
   customUnit?: CustomScheduleUnit;   // frequency === "custom"
   intervalValue?: number;           // customUnit === "minute" (>=10) or "hour" (>=1)
-  cron?: string;                     // customUnit === "cron" only — lives under "Advanced schedule"
+  cron?: string;                     // customUnit === "cron" only — lives under "Custom / Advanced"
   timezone: string;
 }
 

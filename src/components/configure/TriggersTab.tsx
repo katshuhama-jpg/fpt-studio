@@ -17,22 +17,29 @@ export const TYPE_META: Record<TriggerType, { label: string; icon: any; chip: st
   external:  { label: "External",  icon: Globe,   chip: "chip-success" },
 };
 
-const DAY_OF_WEEK_SHORT = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const DAY_OF_WEEK_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function describeWeekDays(weekDays?: number[]): string {
+  const days = weekDays?.length ? weekDays : [1];
+  return [...days].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map(d => DAY_OF_WEEK_SHORT[d]).join(", ");
+}
 
 export function summarizeConfig(t: TriggerRecord): string {
   if (t.type === "scheduled" && t.config.schedule) {
     const s = t.config.schedule;
     if (s.frequency === "daily") return `Every day at ${s.timeOfDay} · ${s.timezone}`;
-    if (s.frequency === "weekly") return `Every ${DAY_OF_WEEK_SHORT[s.dayOfWeek ?? 1]} at ${s.timeOfDay} · ${s.timezone}`;
+    if (s.frequency === "weekly") return `Every ${describeWeekDays(s.weekDays)} at ${s.timeOfDay} · ${s.timezone}`;
     if (s.frequency === "monthly") return `Day ${s.dayOfMonth} of every month at ${s.timeOfDay} · ${s.timezone}`;
     if (s.frequency === "custom") {
       const unit = s.customUnit ?? "day";
       if (unit === "cron") return `Cron: ${s.cron}`;
-      if (unit === "minute") return `Every ${s.intervalValue ?? "?"} minute${s.intervalValue === 1 ? "" : "s"}`;
-      if (unit === "hour") return `Every ${s.intervalValue ?? "?"} hour${s.intervalValue === 1 ? "" : "s"}`;
+      if (unit === "minute") return `Every ${s.intervalValue ?? "?"} minute${s.intervalValue === 1 ? "" : "s"} from ${s.startTime ?? "?"}`;
+      if (unit === "hour") return `Every ${s.intervalValue ?? "?"} hour${s.intervalValue === 1 ? "" : "s"} from ${s.startTime ?? "?"}`;
       if (unit === "day") return `Every day at ${s.timeOfDay} · ${s.timezone}`;
-      if (unit === "week") return `Every ${DAY_OF_WEEK_SHORT[s.dayOfWeek ?? 1]} at ${s.timeOfDay} · ${s.timezone}`;
-      return `Day ${s.dayOfMonth} of every ${unit === "year" ? "year" : "month"} at ${s.timeOfDay} · ${s.timezone}`;
+      if (unit === "week") return `Every ${describeWeekDays(s.weekDays)} at ${s.timeOfDay} · ${s.timezone}`;
+      if (unit === "year") return `${MONTH_SHORT[s.month ?? 0]} ${s.dayOfMonth} every year at ${s.timeOfDay} · ${s.timezone}`;
+      return `Day ${s.dayOfMonth} of every month at ${s.timeOfDay} · ${s.timezone}`;
     }
   }
   if (t.type === "developer" && t.config.developer) {
