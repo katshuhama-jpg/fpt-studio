@@ -34,11 +34,18 @@ export interface QueueWorkHoursConfig {
   tasksPerPeriod: number;
 }
 
+export interface NotificationRule {
+  id: string;
+  value: number;                    // e.g. 3
+  unit: "minutes" | "hours" | "days";
+  timing: "before" | "after";
+  message: string;                  // preset value from EXTERNAL_APP_EVENTS[app]
+}
+
 export interface ExternalConfig {
   app: ExternalApp;
   accountId?: string;      // selected ConnectedAccount id
-  event: string;           // preset value from EXTERNAL_APP_EVENTS[app]
-  conditions?: string;     // optional, revealed via progressive disclosure — generic apps only
+  event: string;           // preset value from EXTERNAL_APP_EVENTS[app] — Gmail/Drive's default event, not user-editable
 
   // Gmail
   gmailMode?: "inbox" | "outreach_replies";
@@ -51,10 +58,8 @@ export interface ExternalConfig {
   driveFolders?: string[];
   customProperties?: boolean;
 
-  // Calendar / Slack / Teams / Outlook / Salesforce / HubSpot / Jira / Zoom — one bespoke
-  // select + one bespoke toggle each, described by EXTERNAL_APP_EXTRA_FIELD below.
-  extraSelect?: string;
-  extraToggle?: boolean;
+  // Calendar / Slack / Teams / Outlook / Salesforce / HubSpot / Jira / Zoom
+  notifications?: NotificationRule[];
 
   queueWorkHours?: QueueWorkHoursConfig;
 }
@@ -98,7 +103,7 @@ export const EXTERNAL_APP_ORDER: ExternalApp[] = [
  * connector logos in WorkspaceConnectors.tsx.
  */
 export const EXTERNAL_APP_META: Record<ExternalApp, { label: string; logoUrl: string }> = {
-  gmail: { label: "Gmail", logoUrl: "https://upload.wikimedia.org/wikipedia/commons/7/7e/Gmail_icon_%282020%29.svg" },
+  gmail: { label: "Google Mail", logoUrl: "https://upload.wikimedia.org/wikipedia/commons/7/7e/Gmail_icon_%282020%29.svg" },
   gcalendar: { label: "Google Calendar", logoUrl: "https://upload.wikimedia.org/wikipedia/commons/a/a5/Google_Calendar_icon_%282020%29.svg" },
   gdrive: { label: "Google Drive", logoUrl: "https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg" },
   slack: { label: "Slack", logoUrl: "https://upload.wikimedia.org/wikipedia/commons/d/d5/Slack_icon_2019.svg" },
@@ -172,88 +177,6 @@ export const DRIVE_FOLDER_OPTIONS: { value: string; label: string }[] = [
   { value: "shared", label: "Shared" },
   { value: "archive", label: "Archive" },
 ];
-
-/** One bespoke select + one bespoke toggle per "generic" external app (Gmail and Google
- * Drive get fully custom screens instead — see TriggerFormDialog.tsx). */
-export const EXTERNAL_APP_EXTRA_FIELD: Partial<Record<ExternalApp, {
-  selectLabel: string; selectOptions: { value: string; label: string }[];
-  toggleLabel: string;
-}>> = {
-  gcalendar: {
-    selectLabel: "Calendar",
-    selectOptions: [
-      { value: "primary", label: "Primary calendar" },
-      { value: "work", label: "Work" },
-      { value: "personal", label: "Personal" },
-    ],
-    toggleLabel: "Include all-day events",
-  },
-  slack: {
-    selectLabel: "Channel",
-    selectOptions: [
-      { value: "all", label: "All channels" },
-      { value: "general", label: "#general" },
-      { value: "sales", label: "#sales" },
-      { value: "support", label: "#support" },
-    ],
-    toggleLabel: "Include thread replies",
-  },
-  teams: {
-    selectLabel: "Channel",
-    selectOptions: [
-      { value: "all", label: "All channels" },
-      { value: "general", label: "General" },
-      { value: "sales", label: "Sales" },
-      { value: "support", label: "Support" },
-    ],
-    toggleLabel: "Include thread replies",
-  },
-  outlook: {
-    selectLabel: "Folder",
-    selectOptions: [
-      { value: "inbox", label: "Inbox" },
-      { value: "flagged", label: "Flagged" },
-    ],
-    toggleLabel: "Include attachments",
-  },
-  salesforce: {
-    selectLabel: "Object",
-    selectOptions: [
-      { value: "lead", label: "Lead" },
-      { value: "opportunity", label: "Opportunity" },
-      { value: "contact", label: "Contact" },
-    ],
-    toggleLabel: "Include updated records, not just new ones",
-  },
-  hubspot: {
-    selectLabel: "Object",
-    selectOptions: [
-      { value: "contact", label: "Contact" },
-      { value: "deal", label: "Deal" },
-      { value: "company", label: "Company" },
-    ],
-    toggleLabel: "Include updated records, not just new ones",
-  },
-  jira: {
-    selectLabel: "Project",
-    selectOptions: [
-      { value: "all", label: "All projects" },
-      { value: "engineering", label: "Engineering" },
-      { value: "support", label: "Support" },
-      { value: "product", label: "Product" },
-    ],
-    toggleLabel: "Include sub-tasks",
-  },
-  zoom: {
-    selectLabel: "Meeting type",
-    selectOptions: [
-      { value: "all", label: "All meetings" },
-      { value: "scheduled", label: "Scheduled only" },
-      { value: "instant", label: "Instant only" },
-    ],
-    toggleLabel: "Include recording link when available",
-  },
-};
 
 const store = new Map<string, TriggerRecord>();
 const k = (a: string, t: string) => `${a}:${t}`;

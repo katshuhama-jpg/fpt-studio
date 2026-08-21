@@ -2,15 +2,28 @@ import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   triggerStore, type TriggerRecord, type TriggerType, type ScheduleFrequency, type CustomScheduleUnit,
-  type WebhookAuthType, type ExternalApp, TIMEZONE_OPTIONS, EXTERNAL_APP_EVENTS, EXTERNAL_APP_META, EXTERNAL_APP_ORDER,
-  EXTERNAL_APP_EXTRA_FIELD, WORK_DAY_OPTIONS, DRIVE_OPTIONS, DRIVE_FOLDER_OPTIONS,
+  type WebhookAuthType, type ExternalApp, type NotificationRule, TIMEZONE_OPTIONS, EXTERNAL_APP_EVENTS, EXTERNAL_APP_META, EXTERNAL_APP_ORDER,
+  WORK_DAY_OPTIONS, DRIVE_OPTIONS, DRIVE_FOLDER_OPTIONS,
 } from "./triggerStore";
 import { connectedAccountStore } from "./connectedAccountStore";
 import { credentialStore, type CredentialAuthType } from "./credentialStore";
 import CreateCredentialDialog from "./CreateCredentialDialog";
 import AppLogo from "./AppLogo";
 import { toast } from "sonner";
-import { Clock, Webhook, Globe, Copy, Check, ChevronDown, ChevronLeft, Plus, X } from "lucide-react";
+import { Clock, Webhook, Globe, Copy, Check, ChevronDown, ChevronLeft, Plus, X, Trash2 } from "lucide-react";
+
+const NOTIFICATION_UNIT_OPTIONS: { value: NotificationRule["unit"]; label: string }[] = [
+  { value: "minutes", label: "minutes" },
+  { value: "hours", label: "hours" },
+  { value: "days", label: "days" },
+];
+const NOTIFICATION_TIMING_OPTIONS: { value: NotificationRule["timing"]; label: string }[] = [
+  { value: "before", label: "before" },
+  { value: "after", label: "after" },
+];
+function defaultNotification(app: ExternalApp): NotificationRule {
+  return { id: `notif-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, value: 3, unit: "minutes", timing: "before", message: EXTERNAL_APP_EVENTS[app][0].value };
+}
 
 const NAME_MAX = 50;
 const DESC_MAX = 200;
@@ -83,23 +96,20 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
   const [accountId, setAccountId] = useState("");
   const [accountsTick, setAccountsTick] = useState(0);
   const [event, setEvent] = useState("new_email");
-  const [showConditions, setShowConditions] = useState(false);
-  const [conditions, setConditions] = useState("");
 
   // External — Gmail
   const [gmailMode, setGmailMode] = useState<"inbox" | "outreach_replies">("inbox");
   const [includeAttachments, setIncludeAttachments] = useState(true);
   const [filterSearch, setFilterSearch] = useState("");
-  const [excludeEmails, setExcludeEmails] = useState<string[]>([""]);
+  const [excludeEmails, setExcludeEmails] = useState<string[]>([]);
 
   // External — Google Drive
   const [driveId, setDriveId] = useState("my-drive");
   const [driveFolders, setDriveFolders] = useState<string[]>([]);
   const [customProperties, setCustomProperties] = useState(false);
 
-  // External — generic 8-app extra field
-  const [extraSelect, setExtraSelect] = useState("");
-  const [extraToggle, setExtraToggle] = useState(false);
+  // External — generic apps (Calendar, Slack, Teams, Outlook, Salesforce, HubSpot, Jira, Zoom)
+  const [notifications, setNotifications] = useState<NotificationRule[]>([]);
 
   // External — Queue Work Hours (shared)
   const [qwhEnabled, setQwhEnabled] = useState(false);
@@ -145,17 +155,14 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
     setApp(extApp);
     setAccountId(ext?.accountId ?? "");
     setEvent(ext?.event ?? EXTERNAL_APP_EVENTS[extApp][0].value);
-    setShowConditions(!!ext?.conditions);
-    setConditions(ext?.conditions ?? "");
     setGmailMode(ext?.gmailMode ?? "inbox");
     setIncludeAttachments(ext?.includeAttachments ?? true);
     setFilterSearch(ext?.filterSearch ?? "");
-    setExcludeEmails(ext?.excludeEmails?.length ? ext.excludeEmails : [""]);
+    setExcludeEmails(ext?.excludeEmails ?? []);
     setDriveId(ext?.driveId ?? "my-drive");
     setDriveFolders(ext?.driveFolders ?? []);
     setCustomProperties(ext?.customProperties ?? false);
-    setExtraSelect(ext?.extraSelect ?? (EXTERNAL_APP_EXTRA_FIELD[extApp]?.selectOptions[0]?.value ?? ""));
-    setExtraToggle(ext?.extraToggle ?? false);
+    setNotifications(ext?.notifications?.length ? ext.notifications : (!["gmail", "gdrive"].includes(extApp) ? [defaultNotification(extApp)] : []));
     const qwh = ext?.queueWorkHours;
     setQwhEnabled(qwh?.enabled ?? false);
     setQwhTimezone(qwh?.timezone ?? "GMT+07:00");
@@ -218,7 +225,6 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
         app,
         ...(accountId ? { accountId } : {}),
         event,
-        ...(showConditions && conditions.trim() ? { conditions: conditions.trim() } : {}),
         ...(app === "gmail" ? {
           gmailMode,
           includeAttachments,
@@ -230,7 +236,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
           ...(driveFolders.length ? { driveFolders } : {}),
           customProperties,
         } : {}),
-        ...(EXTERNAL_APP_EXTRA_FIELD[app] ? { extraSelect, extraToggle } : {}),
+        ...(!["gmail", "gdrive"].includes(app) ? { notifications } : {}),
         queueWorkHours: {
           enabled: qwhEnabled,
           timezone: qwhTimezone,
@@ -295,7 +301,6 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
     : "Continue";
 
   const connectedAccounts = connectedAccountStore.list(app);
-  const extraField = EXTERNAL_APP_EXTRA_FIELD[app];
   const categoryHeading = category === "scheduled" ? "Recurring Schedule"
     : category === "developer" ? "Webhook"
     : EXTERNAL_APP_META[app].label;
@@ -572,7 +577,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                             setApp(value);
                             setEvent(EXTERNAL_APP_EVENTS[value][0].value);
                             setAccountId("");
-                            setExtraSelect(EXTERNAL_APP_EXTRA_FIELD[value]?.selectOptions[0]?.value ?? "");
+                            setNotifications(!["gmail", "gdrive"].includes(value) ? [defaultNotification(value)] : []);
                           }}
                           className={`flex items-center gap-2 h-11 px-2.5 rounded-lg border text-left transition-base ${
                             active ? "border-primary bg-primary-soft" : "border-border bg-surface hover:border-primary/40"
@@ -640,13 +645,6 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                   <span className="text-xs font-medium text-foreground truncate flex-1">
                     {connectedAccountStore.get(accountId)?.email}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setStep("connected-accounts")}
-                    className="text-[11px] font-semibold text-primary hover:underline shrink-0"
-                  >
-                    Change
-                  </button>
                 </div>
               )}
 
@@ -668,7 +666,18 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                   </label>
                   <div>
                     <label className="text-xs font-medium mb-1 block">Filter by search</label>
-                    <p className="text-[11px] text-muted-foreground mb-1.5">Filter emails like you would in Google Mail.</p>
+                    <p className="text-[11px] text-muted-foreground mb-1.5">
+                      Filter emails like you would in Google Mail.{" "}
+                      <a
+                        href="https://support.google.com/mail/answer/7190"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        See here
+                      </a>{" "}
+                      for options.
+                    </p>
                     <input
                       value={filterSearch}
                       onChange={e => setFilterSearch(e.target.value)}
@@ -689,7 +698,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                         />
                         <button
                           type="button"
-                          onClick={() => setExcludeEmails(prev => prev.length > 1 ? prev.filter((_, xi) => xi !== i) : [""])}
+                          onClick={() => setExcludeEmails(prev => prev.filter((_, xi) => xi !== i))}
                           className="w-9 h-9 shrink-0 rounded-lg border border-border bg-surface hover:bg-surface-muted flex items-center justify-center text-muted-foreground hover:text-destructive transition-base"
                         >
                           <X size={13} />
@@ -699,9 +708,9 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                     <button
                       type="button"
                       onClick={() => setExcludeEmails(prev => [...prev, ""])}
-                      className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                      className="w-full flex items-center justify-center gap-1.5 h-9 rounded-lg border border-border bg-surface-muted hover:bg-surface text-sm font-medium text-foreground transition-base"
                     >
-                      <Plus size={12} /> Add email
+                      <Plus size={13} /> Add email
                     </button>
                   </div>
                 </>
@@ -730,40 +739,63 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                 </>
               )}
 
-              {extraField && (
-                <>
-                  <div>
-                    <label className="text-xs font-medium mb-1.5 block">Trigger when</label>
-                    <select value={event} onChange={e => setEvent(e.target.value)} className="ds-input h-9">
-                      {EXTERNAL_APP_EVENTS[app].map(ev => <option key={ev.value} value={ev.value}>{ev.label}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium mb-1.5 block">{extraField.selectLabel}</label>
-                    <select value={extraSelect} onChange={e => setExtraSelect(e.target.value)} className="ds-input h-9">
-                      {extraField.selectOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
-                  </div>
-                  <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                    <input type="checkbox" checked={extraToggle} onChange={e => setExtraToggle(e.target.checked)} className="w-4 h-4 accent-primary" />
-                    <span className="text-sm">{extraField.toggleLabel}</span>
-                  </label>
-                  {showConditions ? (
-                    <div>
-                      <label className="text-xs font-medium mb-1.5 block">Optional conditions</label>
-                      <input
-                        value={conditions}
-                        onChange={e => setConditions(e.target.value)}
-                        placeholder="e.g. From a specific sender"
-                        className="w-full h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base"
-                      />
+              {!["gmail", "gdrive"].includes(app) && (
+                <div className="space-y-2.5">
+                  <h4 className="text-xs font-semibold text-foreground">Notifications</h4>
+                  {notifications.map((n, i) => (
+                    <div key={n.id} className="rounded-lg border border-border p-3 space-y-3">
+                      <div>
+                        <label className="text-xs font-medium mb-1.5 block">Notify when</label>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          <input
+                            type="number" min={1}
+                            value={n.value}
+                            onChange={e => setNotifications(prev => prev.map((x, xi) => xi === i ? { ...x, value: Number(e.target.value) } : x))}
+                            className="h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base"
+                          />
+                          <select
+                            value={n.unit}
+                            onChange={e => setNotifications(prev => prev.map((x, xi) => xi === i ? { ...x, unit: e.target.value as NotificationRule["unit"] } : x))}
+                            className="ds-input h-9"
+                          >
+                            {NOTIFICATION_UNIT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                          </select>
+                          <select
+                            value={n.timing}
+                            onChange={e => setNotifications(prev => prev.map((x, xi) => xi === i ? { ...x, timing: e.target.value as NotificationRule["timing"] } : x))}
+                            className="ds-input h-9"
+                          >
+                            {NOTIFICATION_TIMING_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium mb-1.5 block">Message</label>
+                        <select
+                          value={n.message}
+                          onChange={e => setNotifications(prev => prev.map((x, xi) => xi === i ? { ...x, message: e.target.value } : x))}
+                          className="ds-input h-9"
+                        >
+                          {EXTERNAL_APP_EVENTS[app].map(ev => <option key={ev.value} value={ev.value}>{ev.label}</option>)}
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setNotifications(prev => prev.filter((_, xi) => xi !== i))}
+                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive transition-base"
+                      >
+                        <Trash2 size={12} /> Remove
+                      </button>
                     </div>
-                  ) : (
-                    <button type="button" onClick={() => setShowConditions(true)} className="text-xs text-primary hover:underline">
-                      + Add condition
-                    </button>
-                  )}
-                </>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setNotifications(prev => [...prev, defaultNotification(app)])}
+                    className="w-full flex items-center justify-center gap-1.5 h-9 rounded-lg border border-border bg-surface-muted hover:bg-surface text-sm font-medium text-foreground transition-base"
+                  >
+                    <Plus size={13} /> Add notification
+                  </button>
+                </div>
               )}
             </div>
           )}

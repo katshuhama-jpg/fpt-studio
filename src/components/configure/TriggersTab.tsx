@@ -41,6 +41,10 @@ function summarizeConfig(t: TriggerRecord): string {
   }
   if (t.type === "external" && t.config.external) {
     const ext = t.config.external;
+    if (ext.notifications?.length) {
+      const label = ext.notifications.length === 1 ? "1 notification" : `${ext.notifications.length} notifications`;
+      return `${EXTERNAL_APP_META[ext.app].label} · ${label}`;
+    }
     const eventLabel = EXTERNAL_APP_EVENTS[ext.app].find(e => e.value === ext.event)?.label ?? ext.event;
     return `${EXTERNAL_APP_META[ext.app].label} · ${eventLabel}`;
   }
