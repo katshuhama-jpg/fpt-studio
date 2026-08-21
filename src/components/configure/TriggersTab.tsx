@@ -198,7 +198,7 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
                       )}
                       <div className="flex items-center gap-1.5 text-xs">
                         <span className={`font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${
-                          t.enabled ? "bg-primary-soft text-primary" : "bg-surface-muted text-muted-foreground"
+                          t.enabled ? "chip-success" : "chip-warning"
                         }`}>
                           {t.enabled ? "Active" : "Paused"}
                         </span>
