@@ -22,6 +22,7 @@ import { chatOptimizationStore } from "@/components/configure/chatOptimizationSt
 import { updateUser } from "@/lib/onboarding";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import BusinessProcessTree from "@/components/general/BusinessProcessTree";
+import { toast } from "sonner";
 
 type Tab = "build" | "test" | "deploy" | "insights";
 
@@ -4470,6 +4471,7 @@ function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegister
   const refresh = () => setTick(t => t + 1);
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<TriggerRecord | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
 
   useEffect(() => {
     onRegisterAdd?.(() => setCreateOpen(true));
@@ -4477,6 +4479,30 @@ function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegister
 
   void tick;
   const triggers = triggerStore.list(agentId).filter(t => !t.isDefault);
+
+  const duplicateTrigger = (t: TriggerRecord) => {
+    let name = `${t.name} (copy)`;
+    let n = 2;
+    while (triggerStore.isDuplicateName(agentId, name)) {
+      name = `${t.name} (copy ${n})`;
+      n++;
+    }
+    triggerStore.create(agentId, { name, type: t.type, enabled: t.enabled, description: t.description, config: t.config });
+    toast.success("Trigger duplicated");
+    refresh();
+  };
+
+  const renameTrigger = (t: TriggerRecord, newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed || trimmed === t.name) { setRenamingId(null); return; }
+    if (triggerStore.isDuplicateName(agentId, trimmed, t.id)) {
+      toast.error("A trigger with this name already exists");
+      return;
+    }
+    triggerStore.update(agentId, t.id, { name: trimmed });
+    setRenamingId(null);
+    refresh();
+  };
 
   return (
     <>
@@ -4491,33 +4517,50 @@ function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegister
         <div className="flex flex-col gap-1.5">
           {triggers.map(t => {
             const chip = TRIGGER_TYPE_CHIP[t.type];
+            const isRenaming = renamingId === t.id;
             return (
               <div
                 key={t.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => setEditTarget(t)}
-                onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setEditTarget(t); } }}
-                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface cursor-pointer hover:bg-surface-muted transition-base"
+                role={isRenaming ? undefined : "button"}
+                tabIndex={isRenaming ? undefined : 0}
+                onClick={isRenaming ? undefined : () => setEditTarget(t)}
+                onKeyDown={isRenaming ? undefined : (e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setEditTarget(t); } })}
+                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface transition-base ${isRenaming ? "" : "cursor-pointer hover:bg-surface-muted"}`}
               >
                 {t.enabled
                   ? <svg width="16" height="16" viewBox="0 0 14 14" fill="none" className="shrink-0"><circle cx="7" cy="7" r="7" fill="#22c55e"/><path d="M4 7l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   : <div className="w-4 h-4 rounded-full border-2 border-border shrink-0" />
                 }
-                <span className="text-[13px] font-medium flex-1 truncate min-w-0">{t.name}</span>
+                {isRenaming ? (
+                  <input
+                    autoFocus
+                    defaultValue={t.name}
+                    onClick={e => e.stopPropagation()}
+                    onBlur={e => renameTrigger(t, e.target.value)}
+                    onKeyDown={e => {
+                      e.stopPropagation();
+                      if (e.key === "Enter") { e.preventDefault(); renameTrigger(t, (e.target as HTMLInputElement).value); }
+                      if (e.key === "Escape") { e.preventDefault(); setRenamingId(null); }
+                    }}
+                    className="flex-1 min-w-0 text-[13px] font-medium bg-surface border border-primary rounded px-1.5 py-0.5 outline-none"
+                  />
+                ) : (
+                  <span className="text-[13px] font-medium flex-1 truncate min-w-0">{t.name}</span>
+                )}
                 <span
                   className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap"
                   style={{ background: chip.bg, color: chip.fg, border: `0.5px solid ${chip.border}` }}
                 >
                   {chip.label}
                 </span>
-                <button
-                  onClick={e => { e.stopPropagation(); triggerStore.remove(agentId, t.id); refresh(); }}
-                  className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-surface-muted transition-base shrink-0"
-                  title="Remove"
-                >
-                  <HugeiconsIcon icon={Delete01Icon} size={12} />
-                </button>
+                <TriggerRowMenu
+                  enabled={t.enabled}
+                  onToggle={() => { triggerStore.toggle(agentId, t.id); refresh(); }}
+                  onEdit={() => setEditTarget(t)}
+                  onRename={() => setRenamingId(t.id)}
+                  onDuplicate={() => duplicateTrigger(t)}
+                  onDelete={() => { triggerStore.remove(agentId, t.id); toast.success("Trigger removed"); refresh(); }}
+                />
               </div>
             );
           })}
@@ -4540,5 +4583,53 @@ function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegister
         onSubmitted={refresh}
       />
     </>
+  );
+}
+
+function TriggerRowMenu({ enabled, onToggle, onEdit, onRename, onDuplicate, onDelete }: {
+  enabled: boolean; onToggle: () => void; onEdit: () => void; onRename: () => void; onDuplicate: () => void; onDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+
+  return (
+    <div ref={containerRef} className="relative shrink-0" onClick={e => e.stopPropagation()}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base"
+        aria-label="Trigger actions"
+      >
+        <HugeiconsIcon icon={MoreHorizontalIcon} size={13} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 z-20 w-36 rounded-lg border border-border bg-white shadow-elev py-1">
+          <button type="button" onClick={() => { onToggle(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">
+            {enabled ? "Pause trigger" : "Resume trigger"}
+          </button>
+          <button type="button" onClick={() => { onEdit(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">
+            Edit trigger
+          </button>
+          <button type="button" onClick={() => { onRename(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">
+            Rename
+          </button>
+          <button type="button" onClick={() => { onDelete(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">
+            Remove
+          </button>
+          <button type="button" onClick={() => { onDuplicate(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">
+            Duplicate
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
