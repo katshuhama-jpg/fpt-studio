@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Plus, Search, Zap, Clock, Webhook, Globe, Pause, Play, MoreHorizontal,
+  Plus, Zap, Clock, Webhook, Globe, Pause, Play, MoreHorizontal,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -54,7 +54,6 @@ function summarizeConfig(t: TriggerRecord): string {
 export default function TriggersTab({ agentId }: { agentId: string }) {
   const [tick, setTick] = useState(0);
   const refresh = () => setTick(t => t + 1);
-  const [query, setQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<TriggerRecord | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<TriggerRecord | null>(null);
@@ -65,15 +64,8 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
     return triggerStore.list(agentId);
   }, [agentId, tick]);
 
-  const triggers = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return allTriggers;
-    return allTriggers.filter(t =>
-      t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q),
-    );
-  }, [allTriggers, query]);
-
-  const isEmpty = triggers.length === 0 && !query;
+  const triggers = allTriggers;
+  const isEmpty = triggers.length === 0;
   const pausableCount = allTriggers.filter(t => t.enabled).length;
   const allPaused = allTriggers.length > 0 && pausableCount === 0;
 
@@ -133,15 +125,6 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Search triggers…"
-              className="h-9 w-56 pl-8 pr-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base"
-            />
-          </div>
           {allPaused ? (
             <>
               <span className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[hsl(var(--warning-soft))] border border-warning/25 text-xs font-semibold text-warning">
@@ -171,10 +154,6 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
 
       {isEmpty ? (
         <EmptyState onCreate={() => setCreateOpen(true)} />
-      ) : triggers.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border bg-surface/50 p-10 text-center">
-          <p className="text-sm text-muted-foreground">No triggers match "{query}"</p>
-        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {triggers.map(t => {
