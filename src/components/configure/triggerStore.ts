@@ -32,6 +32,7 @@ export interface QueueWorkHoursConfig {
   endTime: string;         // "HH:mm"
   allDay: boolean;
   tasksPerPeriod: number;
+  tasksPeriodUnit: "hour" | "day";
 }
 
 export interface NotificationRule {
@@ -162,6 +163,11 @@ export const WORK_DAY_OPTIONS: { value: string; label: string }[] = [
   { value: "friday", label: "Friday" },
   { value: "saturday", label: "Saturday" },
   { value: "sunday", label: "Sunday" },
+];
+
+export const TASKS_PERIOD_UNIT_OPTIONS: { value: "hour" | "day"; label: string }[] = [
+  { value: "hour", label: "Per hour" },
+  { value: "day", label: "Per day" },
 ];
 
 export const DRIVE_OPTIONS: { value: string; label: string }[] = [

@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import {
   triggerStore, type TriggerRecord, type TriggerType, type ScheduleFrequency, type CustomScheduleUnit,
   type WebhookAuthType, type ExternalApp, type NotificationRule, TIMEZONE_OPTIONS, EXTERNAL_APP_EVENTS, EXTERNAL_APP_META, EXTERNAL_APP_ORDER,
-  WORK_DAY_OPTIONS, DRIVE_OPTIONS, DRIVE_FOLDER_OPTIONS,
+  WORK_DAY_OPTIONS, TASKS_PERIOD_UNIT_OPTIONS, DRIVE_OPTIONS, DRIVE_FOLDER_OPTIONS,
 } from "./triggerStore";
 import { connectedAccountStore } from "./connectedAccountStore";
 import { credentialStore, type CredentialAuthType } from "./credentialStore";
@@ -119,6 +119,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
   const [qwhEndTime, setQwhEndTime] = useState("17:00");
   const [qwhAllDay, setQwhAllDay] = useState(false);
   const [qwhTasksPerPeriod, setQwhTasksPerPeriod] = useState("10");
+  const [qwhTasksPeriodUnit, setQwhTasksPeriodUnit] = useState<"hour" | "day">("day");
 
   const [errors, setErrors] = useState<{ name?: string; description?: string; schedule?: string; credential?: string }>({});
 
@@ -171,6 +172,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
     setQwhEndTime(qwh?.endTime ?? "17:00");
     setQwhAllDay(qwh?.allDay ?? false);
     setQwhTasksPerPeriod(qwh?.tasksPerPeriod != null ? String(qwh.tasksPerPeriod) : "10");
+    setQwhTasksPeriodUnit(qwh?.tasksPeriodUnit ?? "day");
   }, [open, trigger]);
 
   const validateMain = () => {
@@ -245,6 +247,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
           endTime: qwhEndTime,
           allDay: qwhAllDay,
           tasksPerPeriod: Number(qwhTasksPerPeriod) || 0,
+          tasksPeriodUnit: qwhTasksPeriodUnit,
         },
       };
     }
@@ -842,11 +845,21 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                 </div>
                 <div>
                   <label className="text-xs font-medium mb-1.5 block">Tasks to process per period</label>
-                  <input
-                    type="number" min={1} value={qwhTasksPerPeriod} onChange={e => setQwhTasksPerPeriod(e.target.value)}
-                    disabled={!qwhEnabled}
-                    className="w-full h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base disabled:cursor-not-allowed"
-                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number" min={1} value={qwhTasksPerPeriod} onChange={e => setQwhTasksPerPeriod(e.target.value)}
+                      disabled={!qwhEnabled}
+                      className="flex-1 h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base disabled:cursor-not-allowed"
+                    />
+                    <select
+                      value={qwhTasksPeriodUnit}
+                      onChange={e => setQwhTasksPeriodUnit(e.target.value as "hour" | "day")}
+                      disabled={!qwhEnabled}
+                      className="w-32 shrink-0 ds-input h-9 disabled:cursor-not-allowed"
+                    >
+                      {TASKS_PERIOD_UNIT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
                 </div>
               </div>
             </div>
