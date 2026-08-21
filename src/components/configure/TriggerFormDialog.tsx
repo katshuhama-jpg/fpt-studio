@@ -59,7 +59,7 @@ function generateWebhookId() {
   return id;
 }
 
-type WizardStep = "main" | "connected-accounts" | "app-config" | "queue-work-hours";
+type WizardStep = "main" | "details" | "app-picker" | "connected-accounts" | "app-config" | "queue-work-hours";
 
 interface Props {
   open: boolean;
@@ -175,13 +175,18 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
     setQwhTasksPeriodUnit(qwh?.tasksPeriodUnit ?? "day");
   }, [open, trigger]);
 
-  const validateMain = () => {
+  const validateBasics = () => {
     const e: typeof errors = {};
     if (!name.trim()) e.name = "Name is required";
     else if (name.trim().length > NAME_MAX) e.name = `Name must be ≤ ${NAME_MAX} characters`;
     else if (triggerStore.isDuplicateName(agentId, name, trigger?.id)) e.name = "Name already exists";
     if (!description.trim()) e.description = "Description is required";
     else if (description.length > DESC_MAX) e.description = `Description must be ≤ ${DESC_MAX} characters`;
+    return e;
+  };
+
+  const validateDetails = () => {
+    const e: typeof errors = {};
     if (category === "scheduled" && customUnit === "cron" && !cron.trim()) {
       e.schedule = "Cron expression is required";
     }
@@ -198,9 +203,14 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
   };
 
   const submit = () => {
-    const e = validateMain();
+    const eBasics = validateBasics();
+    const eDetails = category === "scheduled" || category === "developer" ? validateDetails() : {};
+    const e = { ...eBasics, ...eDetails };
     setErrors(e);
-    if (Object.keys(e).length) { setStep("main"); return; }
+    if (Object.keys(e).length) {
+      setStep(eBasics.name || eBasics.description ? "main" : "details");
+      return;
+    }
 
     const config: TriggerRecord["config"] = {};
     if (category === "scheduled") {
@@ -276,53 +286,67 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
   };
 
   const stepBack = () => {
-    if (step === "connected-accounts") setStep("main");
+    if (step === "details") setStep("main");
+    else if (step === "app-picker") setStep("main");
+    else if (step === "connected-accounts") setStep(mode === "create" ? "app-picker" : "main");
     else if (step === "app-config") setStep("connected-accounts");
     else if (step === "queue-work-hours") setStep("app-config");
   };
 
   const primaryAction = () => {
     if (step === "main") {
-      if (category === "external") {
-        const e = validateMain();
-        setErrors(e);
-        if (Object.keys(e).length) return;
-        setStep("connected-accounts");
-      } else {
-        submit();
-      }
+      const e = validateBasics();
+      setErrors(e);
+      if (Object.keys(e).length) return;
+      if (category === "external") setStep(mode === "create" ? "app-picker" : "connected-accounts");
+      else setStep("details");
       return;
     }
+    if (step === "app-picker") { setStep("connected-accounts"); return; }
+    if (step === "details") { submit(); return; }
     if (step === "connected-accounts") { setStep("app-config"); return; }
     if (step === "app-config") { setStep("queue-work-hours"); return; }
     submit();
   };
 
   const primaryLabel =
-    step === "queue-work-hours" ? (mode === "create" ? "Create" : "Save")
-    : step === "main" && category !== "external" ? (mode === "create" ? "Create" : "Save")
-    : "Continue";
+    step === "details" || step === "queue-work-hours" ? (mode === "create" ? "Create" : "Save") : "Continue";
 
   const connectedAccounts = connectedAccountStore.list(app);
   const categoryHeading = category === "scheduled" ? "Recurring Schedule"
     : category === "developer" ? "Webhook"
     : EXTERNAL_APP_META[app].label;
 
+  const stepSequence: WizardStep[] = category === "external"
+    ? (mode === "create" ? ["main", "app-picker", "connected-accounts", "app-config", "queue-work-hours"] : ["main", "connected-accounts", "app-config", "queue-work-hours"])
+    : ["main", "details"];
+  const stepIndex = stepSequence.indexOf(step);
+  const stepTotal = stepSequence.length;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[560px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          {step !== "main" && (
-            <button
-              type="button"
-              onClick={stepBack}
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-1.5 transition-base w-fit"
-            >
-              <ChevronLeft size={13} /> Back
-            </button>
-          )}
+          <div className="flex items-center justify-between mb-1.5">
+            {step !== "main" ? (
+              <button
+                type="button"
+                onClick={stepBack}
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-base w-fit"
+              >
+                <ChevronLeft size={13} /> Back
+              </button>
+            ) : <span />}
+            {stepTotal > 1 && (
+              <span className="text-[11px] font-medium text-muted-foreground shrink-0">
+                Step {stepIndex + 1} of {stepTotal}
+              </span>
+            )}
+          </div>
           <DialogTitle className="font-display">
             {step === "main" ? (mode === "create" ? "Create new trigger" : "Edit Trigger")
+              : step === "details" ? categoryHeading
+              : step === "app-picker" ? "Choose application"
               : step === "queue-work-hours" ? "Queue Work Hours"
               : EXTERNAL_APP_META[app].label}
           </DialogTitle>
@@ -334,23 +358,6 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
               {mode === "edit" && (
                 <h3 className="font-display text-base font-semibold -mb-1">{categoryHeading}</h3>
               )}
-
-              <div>
-                <label className="text-xs font-medium flex items-center justify-between mb-1.5">
-                  <span>Name <span className="text-destructive">*</span></span>
-                  <span className="text-[10px] font-mono text-muted-foreground">{name.length}/{NAME_MAX}</span>
-                </label>
-                <input
-                  autoFocus
-                  value={name}
-                  onChange={e => { setName(e.target.value); if (errors.name) setErrors(er => ({ ...er, name: undefined })); }}
-                  placeholder="e.g. Daily report"
-                  className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm outline-none transition-base ${
-                    errors.name ? "border-destructive" : "border-border focus:border-primary"
-                  }`}
-                />
-                {errors.name && <p className="mt-1 text-[11px] text-destructive">{errors.name}</p>}
-              </div>
 
               {mode === "create" && (
               <div>
@@ -378,223 +385,242 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
               </div>
               )}
 
+              <div className="rounded-xl border border-border bg-surface/60 p-3 space-y-3">
+                <div>
+                  <label className="text-xs font-medium flex items-center justify-between mb-1.5">
+                    <span>Name <span className="text-destructive">*</span></span>
+                    <span className="text-[10px] font-mono text-muted-foreground">{name.length}/{NAME_MAX}</span>
+                  </label>
+                  <input
+                    autoFocus
+                    value={name}
+                    onChange={e => { setName(e.target.value); if (errors.name) setErrors(er => ({ ...er, name: undefined })); }}
+                    placeholder="e.g. Daily report"
+                    className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm outline-none transition-base ${
+                      errors.name ? "border-destructive" : "border-border focus:border-primary"
+                    }`}
+                  />
+                  {errors.name && <p className="mt-1 text-[11px] text-destructive">{errors.name}</p>}
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium flex items-center justify-between mb-1.5">
+                    <span>Description <span className="text-destructive">*</span></span>
+                    <span className="text-[10px] font-mono text-muted-foreground">{description.length}/{DESC_MAX}</span>
+                  </label>
+                  <textarea
+                    value={description}
+                    rows={2}
+                    onChange={e => { setDescription(e.target.value); if (errors.description) setErrors(er => ({ ...er, description: undefined })); }}
+                    placeholder="What does this trigger do?"
+                    className={`w-full px-3 py-2 rounded-lg border bg-surface text-sm outline-none resize-none transition-base ${
+                      errors.description ? "border-destructive" : "border-border focus:border-primary"
+                    }`}
+                  />
+                  {errors.description && <p className="mt-1 text-[11px] text-destructive">{errors.description}</p>}
+                </div>
+              </div>
+            </>
+          )}
+
+          {step === "details" && category === "scheduled" && (
+            <div className="rounded-lg border border-border p-3 space-y-3">
               <div>
-                <label className="text-xs font-medium flex items-center justify-between mb-1.5">
-                  <span>Description <span className="text-destructive">*</span></span>
-                  <span className="text-[10px] font-mono text-muted-foreground">{description.length}/{DESC_MAX}</span>
-                </label>
-                <textarea
-                  value={description}
-                  rows={2}
-                  onChange={e => { setDescription(e.target.value); if (errors.description) setErrors(er => ({ ...er, description: undefined })); }}
-                  placeholder="What does this trigger do?"
-                  className={`w-full px-3 py-2 rounded-lg border bg-surface text-sm outline-none resize-none transition-base ${
-                    errors.description ? "border-destructive" : "border-border focus:border-primary"
-                  }`}
-                />
-                {errors.description && <p className="mt-1 text-[11px] text-destructive">{errors.description}</p>}
+                <label className="text-xs font-medium mb-1.5 block">Frequency</label>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {FREQUENCY_UNIT_OPTIONS.map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => {
+                        setCustomUnit(opt.value);
+                        if (opt.value === "minute" || opt.value === "hour") setIntervalValue("");
+                      }}
+                      className={`h-8 rounded-lg text-xs font-medium transition-base ${
+                        customUnit === opt.value ? "bg-primary text-primary-foreground" : "bg-surface-muted text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              {category === "scheduled" && (
-                <div className="rounded-lg border border-border p-3 space-y-3">
-                  <div>
-                    <label className="text-xs font-medium mb-1.5 block">Frequency</label>
-                    <div className="grid grid-cols-4 gap-1.5">
-                      {FREQUENCY_UNIT_OPTIONS.map(opt => (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          onClick={() => {
-                            setCustomUnit(opt.value);
-                            if (opt.value === "minute" || opt.value === "hour") setIntervalValue("");
-                          }}
-                          className={`h-8 rounded-lg text-xs font-medium transition-base ${
-                            customUnit === opt.value ? "bg-primary text-primary-foreground" : "bg-surface-muted text-muted-foreground hover:text-foreground"
-                          }`}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {customUnit === "minute" && (
-                    <div>
-                      <input
-                        type="number" min={10}
-                        value={intervalValue}
-                        onChange={e => {
-                          const v = e.target.value;
-                          setIntervalValue(v);
-                          if (errors.schedule && Number(v) >= 10) setErrors(er => ({ ...er, schedule: undefined }));
-                        }}
-                        placeholder="Minutes (minimum 10)"
-                        className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm outline-none transition-base ${
-                          errors.schedule ? "border-destructive" : "border-border focus:border-primary"
-                        }`}
-                      />
-                      {errors.schedule && <p className="mt-1 text-[11px] text-destructive">{errors.schedule}</p>}
-                    </div>
-                  )}
-                  {customUnit === "hour" && (
-                    <div>
-                      <input
-                        type="number" min={1}
-                        value={intervalValue}
-                        onChange={e => {
-                          const v = e.target.value;
-                          setIntervalValue(v);
-                          if (errors.schedule && Number(v) >= 1) setErrors(er => ({ ...er, schedule: undefined }));
-                        }}
-                        placeholder="Hours (minimum 1)"
-                        className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm outline-none transition-base ${
-                          errors.schedule ? "border-destructive" : "border-border focus:border-primary"
-                        }`}
-                      />
-                      {errors.schedule && <p className="mt-1 text-[11px] text-destructive">{errors.schedule}</p>}
-                    </div>
-                  )}
-
-                  {["day", "week", "month", "year"].includes(customUnit) && (
-                    <div>
-                      <label className="text-xs font-medium mb-1.5 block">Time</label>
-                      <input type="time" value={timeOfDay} onChange={e => setTimeOfDay(e.target.value)}
-                        className="w-full h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base" />
-                    </div>
-                  )}
-                  {customUnit === "week" && (
-                    <div>
-                      <label className="text-xs font-medium mb-1.5 block">Day of week</label>
-                      <select value={dayOfWeek} onChange={e => setDayOfWeek(Number(e.target.value))} className="ds-input h-9">
-                        {DAY_OF_WEEK_OPTIONS.map((d, i) => <option key={d} value={i}>{d}</option>)}
-                      </select>
-                    </div>
-                  )}
-                  {(customUnit === "month" || customUnit === "year") && (
-                    <div>
-                      <label className="text-xs font-medium mb-1.5 block">Day of month</label>
-                      <input type="number" min={1} max={31} value={dayOfMonth} onChange={e => setDayOfMonth(Number(e.target.value))}
-                        className="w-full h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base" />
-                    </div>
-                  )}
-                  {customUnit === "cron" && (
-                    <div>
-                      <label className="text-xs font-medium mb-1.5 block">Cron expression</label>
-                      <input
-                        value={cron}
-                        onChange={e => {
-                          const v = e.target.value;
-                          setCron(v);
-                          if (errors.schedule && v.trim()) setErrors(er => ({ ...er, schedule: undefined }));
-                        }}
-                        placeholder="0 9 * * 1"
-                        className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm font-mono outline-none transition-base ${
-                          errors.schedule ? "border-destructive" : "border-border focus:border-primary"
-                        }`}
-                      />
-                      <p className="mt-1 text-[10px] text-muted-foreground">Standard cron format: minute hour day-of-month month day-of-week</p>
-                      {errors.schedule && <p className="mt-1 text-[11px] text-destructive">{errors.schedule}</p>}
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="text-xs font-medium mb-1.5 block">Time zone</label>
-                    <select value={timezone} onChange={e => setTimezone(e.target.value)} className="ds-input h-9">
-                      {TIMEZONE_OPTIONS.map(tz => <option key={tz.value} value={tz.value}>{tz.label}</option>)}
-                    </select>
-                  </div>
-                </div>
-              )}
-
-              {category === "developer" && (
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-xs font-medium mb-1.5 block">Webhook URL</label>
-                    <div className="flex items-center gap-1.5">
-                      <input
-                        readOnly
-                        value={webhookUrl}
-                        className="flex-1 h-9 px-3 rounded-lg border border-border bg-surface-muted text-xs font-mono text-muted-foreground outline-none truncate"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          navigator.clipboard?.writeText(webhookUrl).catch(() => {});
-                          setWebhookCopied(true);
-                          setTimeout(() => setWebhookCopied(false), 1500);
-                        }}
-                        className="w-9 h-9 shrink-0 rounded-lg border border-border bg-surface hover:bg-surface-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-base"
-                        aria-label="Copy webhook URL"
-                      >
-                        {webhookCopied ? <Check size={13} className="text-success" /> : <Copy size={13} />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-medium mb-1.5 block">
-                      Authentication <span className="text-destructive">*</span>
-                    </label>
-                    <select
-                      value={authentication}
-                      onChange={e => {
-                        setAuthentication(e.target.value as WebhookAuthType);
-                        setCredentialId("");
-                        if (errors.credential) setErrors(er => ({ ...er, credential: undefined }));
-                      }}
-                      className="ds-input h-9"
-                    >
-                      {AUTH_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                    </select>
-                  </div>
-
-                  {authentication !== "none" && (
-                    <div>
-                      <label className="text-xs font-medium mb-1.5 block">
-                        {authentication === "bearer" ? "Token" : "Credential for Basic Auth"} <span className="text-destructive">*</span>
-                      </label>
-                      <CredentialField
-                        authType={authentication}
-                        value={credentialId}
-                        onChange={id => { setCredentialId(id); if (errors.credential) setErrors(er => ({ ...er, credential: undefined })); }}
-                        error={errors.credential}
-                      />
-                      {errors.credential && <p className="mt-1 text-[11px] text-destructive">{errors.credential}</p>}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {category === "external" && mode === "create" && (
+              {customUnit === "minute" && (
                 <div>
-                  <label className="text-xs font-medium mb-1.5 block">Application</label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-56 overflow-y-auto pr-0.5">
-                    {EXTERNAL_APP_ORDER.map(value => {
-                      const meta = EXTERNAL_APP_META[value];
-                      const active = app === value;
-                      return (
-                        <button
-                          key={value}
-                          type="button"
-                          onClick={() => {
-                            setApp(value);
-                            setEvent(EXTERNAL_APP_EVENTS[value][0].value);
-                            setAccountId("");
-                            setNotifications(!["gmail", "gdrive"].includes(value) ? [defaultNotification(value)] : []);
-                          }}
-                          className={`flex items-center gap-2 h-11 px-2.5 rounded-lg border text-left transition-base ${
-                            active ? "border-primary bg-primary-soft" : "border-border bg-surface hover:border-primary/40"
-                          }`}
-                        >
-                          <AppLogo app={value} size={22} />
-                          <span className={`text-xs font-medium truncate ${active ? "text-primary" : "text-foreground"}`}>{meta.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <input
+                    type="number" min={10}
+                    value={intervalValue}
+                    onChange={e => {
+                      const v = e.target.value;
+                      setIntervalValue(v);
+                      if (errors.schedule && Number(v) >= 10) setErrors(er => ({ ...er, schedule: undefined }));
+                    }}
+                    placeholder="Minutes (minimum 10)"
+                    className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm outline-none transition-base ${
+                      errors.schedule ? "border-destructive" : "border-border focus:border-primary"
+                    }`}
+                  />
+                  {errors.schedule && <p className="mt-1 text-[11px] text-destructive">{errors.schedule}</p>}
                 </div>
               )}
-            </>
+              {customUnit === "hour" && (
+                <div>
+                  <input
+                    type="number" min={1}
+                    value={intervalValue}
+                    onChange={e => {
+                      const v = e.target.value;
+                      setIntervalValue(v);
+                      if (errors.schedule && Number(v) >= 1) setErrors(er => ({ ...er, schedule: undefined }));
+                    }}
+                    placeholder="Hours (minimum 1)"
+                    className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm outline-none transition-base ${
+                      errors.schedule ? "border-destructive" : "border-border focus:border-primary"
+                    }`}
+                  />
+                  {errors.schedule && <p className="mt-1 text-[11px] text-destructive">{errors.schedule}</p>}
+                </div>
+              )}
+
+              {["day", "week", "month", "year"].includes(customUnit) && (
+                <div>
+                  <label className="text-xs font-medium mb-1.5 block">Time</label>
+                  <input type="time" value={timeOfDay} onChange={e => setTimeOfDay(e.target.value)}
+                    className="w-full h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base" />
+                </div>
+              )}
+              {customUnit === "week" && (
+                <div>
+                  <label className="text-xs font-medium mb-1.5 block">Day of week</label>
+                  <select value={dayOfWeek} onChange={e => setDayOfWeek(Number(e.target.value))} className="ds-input h-9">
+                    {DAY_OF_WEEK_OPTIONS.map((d, i) => <option key={d} value={i}>{d}</option>)}
+                  </select>
+                </div>
+              )}
+              {(customUnit === "month" || customUnit === "year") && (
+                <div>
+                  <label className="text-xs font-medium mb-1.5 block">Day of month</label>
+                  <input type="number" min={1} max={31} value={dayOfMonth} onChange={e => setDayOfMonth(Number(e.target.value))}
+                    className="w-full h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base" />
+                </div>
+              )}
+              {customUnit === "cron" && (
+                <div>
+                  <label className="text-xs font-medium mb-1.5 block">Cron expression</label>
+                  <input
+                    value={cron}
+                    onChange={e => {
+                      const v = e.target.value;
+                      setCron(v);
+                      if (errors.schedule && v.trim()) setErrors(er => ({ ...er, schedule: undefined }));
+                    }}
+                    placeholder="0 9 * * 1"
+                    className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm font-mono outline-none transition-base ${
+                      errors.schedule ? "border-destructive" : "border-border focus:border-primary"
+                    }`}
+                  />
+                  <p className="mt-1 text-[10px] text-muted-foreground">Standard cron format: minute hour day-of-month month day-of-week</p>
+                  {errors.schedule && <p className="mt-1 text-[11px] text-destructive">{errors.schedule}</p>}
+                </div>
+              )}
+
+              <div>
+                <label className="text-xs font-medium mb-1.5 block">Time zone</label>
+                <select value={timezone} onChange={e => setTimezone(e.target.value)} className="ds-input h-9">
+                  {TIMEZONE_OPTIONS.map(tz => <option key={tz.value} value={tz.value}>{tz.label}</option>)}
+                </select>
+              </div>
+            </div>
+          )}
+
+          {step === "details" && category === "developer" && (
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium mb-1.5 block">Webhook URL</label>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    readOnly
+                    value={webhookUrl}
+                    className="flex-1 h-9 px-3 rounded-lg border border-border bg-surface-muted text-xs font-mono text-muted-foreground outline-none truncate"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard?.writeText(webhookUrl).catch(() => {});
+                      setWebhookCopied(true);
+                      setTimeout(() => setWebhookCopied(false), 1500);
+                    }}
+                    className="w-9 h-9 shrink-0 rounded-lg border border-border bg-surface hover:bg-surface-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-base"
+                    aria-label="Copy webhook URL"
+                  >
+                    {webhookCopied ? <Check size={13} className="text-success" /> : <Copy size={13} />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium mb-1.5 block">
+                  Authentication <span className="text-destructive">*</span>
+                </label>
+                <select
+                  value={authentication}
+                  onChange={e => {
+                    setAuthentication(e.target.value as WebhookAuthType);
+                    setCredentialId("");
+                    if (errors.credential) setErrors(er => ({ ...er, credential: undefined }));
+                  }}
+                  className="ds-input h-9"
+                >
+                  {AUTH_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                </select>
+              </div>
+
+              {authentication !== "none" && (
+                <div>
+                  <label className="text-xs font-medium mb-1.5 block">
+                    {authentication === "bearer" ? "Token" : "Credential for Basic Auth"} <span className="text-destructive">*</span>
+                  </label>
+                  <CredentialField
+                    authType={authentication}
+                    value={credentialId}
+                    onChange={id => { setCredentialId(id); if (errors.credential) setErrors(er => ({ ...er, credential: undefined })); }}
+                    error={errors.credential}
+                  />
+                  {errors.credential && <p className="mt-1 text-[11px] text-destructive">{errors.credential}</p>}
+                </div>
+              )}
+            </div>
+          )}
+
+          {step === "app-picker" && (
+            <div>
+              <label className="text-xs font-medium mb-1.5 block">Application</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-72 overflow-y-auto pr-0.5">
+                {EXTERNAL_APP_ORDER.map(value => {
+                  const meta = EXTERNAL_APP_META[value];
+                  const active = app === value;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => {
+                        setApp(value);
+                        setEvent(EXTERNAL_APP_EVENTS[value][0].value);
+                        setAccountId("");
+                        setNotifications(!["gmail", "gdrive"].includes(value) ? [defaultNotification(value)] : []);
+                      }}
+                      className={`flex items-center gap-2 h-11 px-2.5 rounded-lg border text-left transition-base ${
+                        active ? "border-primary bg-primary-soft" : "border-border bg-surface hover:border-primary/40"
+                      }`}
+                    >
+                      <AppLogo app={value} size={22} />
+                      <span className={`text-xs font-medium truncate ${active ? "text-primary" : "text-foreground"}`}>{meta.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           )}
 
           {step === "connected-accounts" && (
