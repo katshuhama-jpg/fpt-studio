@@ -393,7 +393,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
     <Dialog open={open} onOpenChange={v => { if (!v) requestClose(); }}>
       <DialogContent className="sm:max-w-[560px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <div className="flex items-center justify-between mb-1.5">
+          <div className="flex items-center justify-between mb-1.5 pr-6">
             {step !== "main" ? (
               <button
                 type="button"
