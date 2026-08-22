@@ -3,10 +3,16 @@ import { Clock, Webhook, RefreshCw } from "lucide-react";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from "@/components/ui/sheet";
-import { triggerStore } from "./triggerStore";
+import { triggerStore, type TriggerType } from "./triggerStore";
 import { runsStore, type TriggerRun, type RunStatus } from "./runsStore";
 import AppLogo from "./AppLogo";
 import { toast } from "sonner";
+
+const TRIGGER_TYPE_LABEL: Record<TriggerType, string> = {
+  scheduled: "Theo lịch",
+  developer: "Webhook",
+  external: "Ứng dụng bên ngoài",
+};
 
 const STATUS_META: Record<RunStatus, { label: string; className: string; animate?: boolean }> = {
   waiting:   { label: "Đang chờ",     className: "bg-surface-muted text-muted-foreground" },
@@ -58,6 +64,7 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
   const [tick, setTick] = useState(0);
   const refresh = () => setTick(t => t + 1);
   const [triggerFilter, setTriggerFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | TriggerType>("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateRange, setDateRange] = useState("7");
   const [detailRun, setDetailRun] = useState<TriggerRun | null>(null);
@@ -67,6 +74,7 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
 
   const runs = allRuns.filter(r => {
     if (triggerFilter !== "all" && r.triggerId !== triggerFilter) return false;
+    if (typeFilter !== "all" && r.triggerType !== typeFilter) return false;
     if (statusFilter !== "all" && r.status !== statusFilter) return false;
     const range = DATE_RANGE_OPTIONS.find(o => o.value === dateRange);
     if (range?.days != null && r.startedAt < Date.now() - range.days * 86_400_000) return false;
@@ -92,6 +100,10 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
         <select value={triggerFilter} onChange={e => setTriggerFilter(e.target.value)} className="ds-input h-9 w-auto">
           <option value="all">Tất cả trigger</option>
           {triggers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+        </select>
+        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value as "all" | TriggerType)} className="ds-input h-9 w-auto">
+          <option value="all">Tất cả loại</option>
+          {(Object.keys(TRIGGER_TYPE_LABEL) as TriggerType[]).map(t => <option key={t} value={t}>{TRIGGER_TYPE_LABEL[t]}</option>)}
         </select>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="ds-input h-9 w-auto">
           <option value="all">Tất cả trạng thái</option>
