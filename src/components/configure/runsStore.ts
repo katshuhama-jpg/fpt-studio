@@ -1,17 +1,11 @@
 // In-memory trigger-execution-history store for the "Lịch sử chạy" tab prototype.
+// This screen only exists for Automation Agents (R3/R6) — one org-level configuration,
+// one timezone, no per-installer identity (a Console trigger has no installer at all).
 import type { TriggerType, ExternalApp } from "./triggerStore";
 
 export type RunStatus = "waiting" | "triggered" | "queued" | "running" | "completed" | "failed";
 
-/** One user's installation of this Agent — its own trigger config, timezone, and connections. */
-export interface Installer {
-  name: string;
-  email: string;
-  userId: string;         // e.g. "usr_8f3a91c4"
-  workspace: string;
-  timezone: string;       // this installation's timezone
-  installationId: string; // e.g. "inst_2b71d0e9"
-}
+export const ORG_TIMEZONE = "GMT+07:00";
 
 export interface TriggerRun {
   id: string;
@@ -24,30 +18,12 @@ export interface TriggerRun {
   status: RunStatus;
   startedAt: number;
   timezone: string;           // the trigger's configured timezone, for display
-  installer: Installer;       // which installation this run belongs to
   durationMs?: number;        // blank while waiting/queued/running
   payload?: string;           // pretty-printed JSON, Webhook/External runs only
   configSnapshot?: string;    // pretty-printed JSON of the trigger config used for this run
   outputSummary?: string;
   errorReason?: string;       // Failed runs only
 }
-
-const INSTALLER_LAN: Installer = {
-  name: "Nguyễn Ngọc Lan", email: "lan.nguyen@fpt.com", userId: "usr_8f3a91c4",
-  workspace: "FPT Smart Cloud", timezone: "GMT+07:00", installationId: "inst_2b71d0e9",
-};
-const INSTALLER_DUC: Installer = {
-  name: "Trần Minh Đức", email: "duc.tran@fpt.com", userId: "usr_1c04ba77",
-  workspace: "FPT Software", timezone: "GMT+07:00", installationId: "inst_7f4a2c31",
-};
-const INSTALLER_YUKI: Installer = {
-  name: "Yuki Tanaka", email: "yuki.tanaka@fpt.jp", userId: "usr_54e9d3f0",
-  workspace: "FPT Japan", timezone: "GMT+09:00", installationId: "inst_c91e5a08",
-};
-const INSTALLER_HA: Installer = {
-  name: "Phạm Thu Hà", email: "ha.pham@fpt.com", userId: "usr_9a27fe15",
-  workspace: "FPT Telecom", timezone: "GMT+07:00", installationId: "inst_4d8b6f72",
-};
 
 const store: TriggerRun[] = [];
 const seeded = new Set<string>();
@@ -59,112 +35,85 @@ function seedAgent(agentId: string) {
   store.push(
     {
       id: "run-seed-1", agentId, triggerId: "daily-report", triggerName: "Báo cáo hằng ngày", triggerType: "scheduled",
-      source: "Theo lịch", status: "completed", startedAt: now - 3_600_000, timezone: INSTALLER_LAN.timezone, durationMs: 4200,
-      installer: INSTALLER_LAN,
-      configSnapshot: JSON.stringify({ frequency: "daily", timeOfDay: "08:00", timezone: INSTALLER_LAN.timezone }, null, 2),
+      source: "Theo lịch", status: "completed", startedAt: now - 3_600_000, timezone: ORG_TIMEZONE, durationMs: 4200,
+      configSnapshot: JSON.stringify({ frequency: "daily", timeOfDay: "08:00", timezone: ORG_TIMEZONE }, null, 2),
       outputSummary: "Đã tạo và gửi báo cáo ngày cho kênh #reports.",
     },
     {
       id: "run-seed-2", agentId, triggerId: "daily-report", triggerName: "Báo cáo hằng ngày", triggerType: "scheduled",
-      source: "Theo lịch", status: "completed", startedAt: now - 4_500_000, timezone: INSTALLER_YUKI.timezone, durationMs: 3900,
-      installer: INSTALLER_YUKI,
-      configSnapshot: JSON.stringify({ frequency: "daily", timeOfDay: "08:00", timezone: INSTALLER_YUKI.timezone }, null, 2),
+      source: "Theo lịch", status: "completed", startedAt: now - 4_500_000, timezone: ORG_TIMEZONE, durationMs: 3900,
+      configSnapshot: JSON.stringify({ frequency: "daily", timeOfDay: "08:00", timezone: ORG_TIMEZONE }, null, 2),
       outputSummary: "Đã tạo và gửi báo cáo ngày cho kênh #reports.",
     },
     {
       id: "run-seed-3", agentId, triggerId: "new-customer-email", triggerName: "Email khách hàng mới", triggerType: "external", app: "gmail",
-      source: "Google Mail — Email mới nhận được", status: "failed", startedAt: now - 7_200_000, timezone: INSTALLER_LAN.timezone, durationMs: 1800,
-      installer: INSTALLER_LAN,
+      source: "Google Mail — Email mới nhận được", status: "failed", startedAt: now - 7_200_000, timezone: ORG_TIMEZONE, durationMs: 1800,
       payload: JSON.stringify({ from: "khachhang@vidu.com", subject: "Hỏi về đơn hàng #482" }, null, 2),
       errorReason: "Không thể xác thực với Google Mail API — token truy cập đã hết hạn.",
     },
     {
       id: "run-seed-4", agentId, triggerId: "new-customer-email", triggerName: "Email khách hàng mới", triggerType: "external", app: "gmail",
-      source: "Google Mail — Email mới nhận được", status: "completed", startedAt: now - 8_100_000, timezone: INSTALLER_YUKI.timezone, durationMs: 2300,
-      installer: INSTALLER_YUKI,
+      source: "Google Mail — Email mới nhận được", status: "completed", startedAt: now - 8_100_000, timezone: ORG_TIMEZONE, durationMs: 2300,
       payload: JSON.stringify({ from: "customer@example.jp", subject: "Order inquiry #219" }, null, 2),
       outputSummary: "Đã trả lời email và tạo ticket hỗ trợ #219.",
     },
     {
       id: "run-seed-5", agentId, triggerId: "new-customer-email", triggerName: "Email khách hàng mới", triggerType: "external", app: "gmail",
-      source: "Google Mail — Email mới nhận được", status: "running", startedAt: now - 15_000, timezone: INSTALLER_HA.timezone,
-      installer: INSTALLER_HA,
+      source: "Google Mail — Email mới nhận được", status: "running", startedAt: now - 15_000, timezone: ORG_TIMEZONE,
       payload: JSON.stringify({ from: "lead@doanhnghiep.vn", subject: "Yêu cầu báo giá" }, null, 2),
     },
     {
       id: "run-seed-6", agentId, triggerId: "order-created-webhook", triggerName: "Đơn hàng được tạo", triggerType: "developer",
-      source: "Webhook", status: "completed", startedAt: now - 10_800_000, timezone: INSTALLER_DUC.timezone, durationMs: 2100,
-      installer: INSTALLER_DUC,
+      source: "Webhook", status: "completed", startedAt: now - 10_800_000, timezone: ORG_TIMEZONE, durationMs: 2100,
       payload: JSON.stringify({ event: "order.created", order_id: "12345", customer_id: "789" }, null, 2),
       outputSummary: "Đã xử lý đơn hàng #12345 và cập nhật hệ thống kho.",
     },
     {
       id: "run-seed-7", agentId, triggerId: "order-created-webhook", triggerName: "Đơn hàng được tạo", triggerType: "developer",
-      source: "Webhook", status: "failed", startedAt: now - 12_600_000, timezone: INSTALLER_DUC.timezone, durationMs: 900,
-      installer: INSTALLER_DUC,
+      source: "Webhook", status: "failed", startedAt: now - 12_600_000, timezone: ORG_TIMEZONE, durationMs: 900,
       payload: JSON.stringify({ event: "order.created", order_id: "12346", customer_id: "790" }, null, 2),
       errorReason: "Webhook trả về lỗi 500 từ hệ thống kho hàng.",
     },
     {
       id: "run-seed-8", agentId, triggerId: "order-created-webhook", triggerName: "Đơn hàng được tạo", triggerType: "developer",
-      source: "Webhook", status: "completed", startedAt: now - 14_400_000, timezone: INSTALLER_HA.timezone, durationMs: 1650,
-      installer: INSTALLER_HA,
+      source: "Webhook", status: "completed", startedAt: now - 14_400_000, timezone: ORG_TIMEZONE, durationMs: 1650,
       payload: JSON.stringify({ event: "order.created", order_id: "12347", customer_id: "791" }, null, 2),
       outputSummary: "Đã xử lý đơn hàng #12347 và cập nhật hệ thống kho.",
     },
     {
       id: "run-seed-9", agentId, triggerId: "order-created-webhook", triggerName: "Đơn hàng được tạo", triggerType: "developer",
-      source: "Webhook", status: "running", startedAt: now - 30_000, timezone: INSTALLER_LAN.timezone,
-      installer: INSTALLER_LAN,
+      source: "Webhook", status: "running", startedAt: now - 30_000, timezone: ORG_TIMEZONE,
       payload: JSON.stringify({ event: "order.created", order_id: "12348", customer_id: "792" }, null, 2),
     },
     {
       id: "run-seed-10", agentId, triggerId: "order-created-webhook", triggerName: "Đơn hàng được tạo", triggerType: "developer",
-      source: "Webhook", status: "completed", startedAt: now - 16_200_000, timezone: INSTALLER_YUKI.timezone, durationMs: 1980,
-      installer: INSTALLER_YUKI,
+      source: "Webhook", status: "completed", startedAt: now - 16_200_000, timezone: ORG_TIMEZONE, durationMs: 1980,
       payload: JSON.stringify({ event: "order.created", order_id: "12349", customer_id: "793" }, null, 2),
       outputSummary: "Đã xử lý đơn hàng #12349 và cập nhật hệ thống kho.",
     },
     {
       id: "run-seed-11", agentId, triggerId: "daily-report", triggerName: "Báo cáo hằng ngày", triggerType: "scheduled",
-      source: "Theo lịch", status: "failed", startedAt: now - 18_000_000, timezone: INSTALLER_DUC.timezone, durationMs: 600,
-      installer: INSTALLER_DUC,
-      configSnapshot: JSON.stringify({ frequency: "daily", timeOfDay: "08:00", timezone: INSTALLER_DUC.timezone }, null, 2),
+      source: "Theo lịch", status: "failed", startedAt: now - 18_000_000, timezone: ORG_TIMEZONE, durationMs: 600,
+      configSnapshot: JSON.stringify({ frequency: "daily", timeOfDay: "08:00", timezone: ORG_TIMEZONE }, null, 2),
       errorReason: "Không thể kết nối tới kênh #reports — bot đã bị gỡ khỏi kênh.",
     },
     {
       id: "run-seed-12", agentId, triggerId: "daily-report", triggerName: "Báo cáo hằng ngày", triggerType: "scheduled",
-      source: "Theo lịch", status: "completed", startedAt: now - 19_800_000, timezone: INSTALLER_HA.timezone, durationMs: 4100,
-      installer: INSTALLER_HA,
-      configSnapshot: JSON.stringify({ frequency: "daily", timeOfDay: "08:00", timezone: INSTALLER_HA.timezone }, null, 2),
+      source: "Theo lịch", status: "completed", startedAt: now - 19_800_000, timezone: ORG_TIMEZONE, durationMs: 4100,
+      configSnapshot: JSON.stringify({ frequency: "daily", timeOfDay: "08:00", timezone: ORG_TIMEZONE }, null, 2),
       outputSummary: "Đã tạo và gửi báo cáo ngày cho kênh #reports.",
     },
     {
       id: "run-seed-13", agentId, triggerId: "daily-report", triggerName: "Báo cáo hằng ngày", triggerType: "scheduled",
-      source: "Theo lịch", status: "failed", startedAt: now - 21_600_000, timezone: INSTALLER_YUKI.timezone, durationMs: 500,
-      installer: INSTALLER_YUKI,
-      configSnapshot: JSON.stringify({ frequency: "daily", timeOfDay: "08:00", timezone: INSTALLER_YUKI.timezone }, null, 2),
+      source: "Theo lịch", status: "failed", startedAt: now - 21_600_000, timezone: ORG_TIMEZONE, durationMs: 500,
+      configSnapshot: JSON.stringify({ frequency: "daily", timeOfDay: "08:00", timezone: ORG_TIMEZONE }, null, 2),
       errorReason: "Hết hạn mức gọi API của kênh báo cáo.",
     },
     {
       id: "run-seed-14", agentId, triggerId: "order-created-webhook", triggerName: "Đơn hàng được tạo", triggerType: "developer",
-      source: "Webhook", status: "completed", startedAt: now - 23_400_000, timezone: INSTALLER_LAN.timezone, durationMs: 2250,
-      installer: INSTALLER_LAN,
+      source: "Webhook", status: "completed", startedAt: now - 23_400_000, timezone: ORG_TIMEZONE, durationMs: 2250,
       payload: JSON.stringify({ event: "order.created", order_id: "12350", customer_id: "794" }, null, 2),
       outputSummary: "Đã xử lý đơn hàng #12350 và cập nhật hệ thống kho.",
-    },
-    {
-      id: "run-seed-15", agentId, triggerId: "new-customer-email", triggerName: "Email khách hàng mới", triggerType: "external", app: "gmail",
-      source: "Google Mail — Email mới nhận được", status: "completed", startedAt: now - 25_200_000, timezone: INSTALLER_DUC.timezone, durationMs: 2050,
-      installer: INSTALLER_DUC,
-      payload: JSON.stringify({ from: "khachhang2@vidu.com", subject: "Hỏi về bảo hành" }, null, 2),
-      outputSummary: "Đã trả lời email và tạo ticket hỗ trợ #220.",
-    },
-    {
-      id: "run-seed-16", agentId, triggerId: "daily-report", triggerName: "Báo cáo hằng ngày", triggerType: "scheduled",
-      source: "Theo lịch", status: "running", startedAt: now - 20_000, timezone: INSTALLER_LAN.timezone,
-      installer: INSTALLER_LAN,
-      configSnapshot: JSON.stringify({ frequency: "daily", timeOfDay: "08:00", timezone: INSTALLER_LAN.timezone }, null, 2),
     },
   );
 }

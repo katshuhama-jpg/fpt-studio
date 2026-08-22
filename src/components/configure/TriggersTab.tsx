@@ -12,12 +12,12 @@ import {
   triggerStore, triggerNeedsSetup, EXTERNAL_APP_EVENTS, EXTERNAL_APP_META, type TriggerRecord, type TriggerType,
 } from "./triggerStore";
 import { agentConnectorStore } from "./agentConnectorStore";
-import {
-  agentPublishStore, TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON, TRIGGER_BLOCKED_BY_PUBLISHED_REASON,
-} from "./agentPublishStore";
-import TriggerRunsTab from "./TriggerRunsTab";
 import AppLogo from "./AppLogo";
 import { toast } from "sonner";
+
+const CONNECTOR_LABELS: Record<string, string> = {
+  gmail: "Gmail", gdrive: "Google Drive", sheets: "Google Sheets", slack: "Slack", notion: "Notion", hubspot: "HubSpot",
+};
 
 /** Deterministic mock count of Workspace users with a trigger enabled — this prototype has
  * no real multi-user install data, so derive a stable small number from the trigger id. */
@@ -72,7 +72,6 @@ export function summarizeConfig(t: TriggerRecord): string {
 }
 
 export default function TriggersTab({ agentId }: { agentId: string }) {
-  const [tab, setTab] = useState<"trigger" | "runs">("trigger");
   const [tick, setTick] = useState(0);
   const refresh = () => setTick(t => t + 1);
   const [createOpen, setCreateOpen] = useState(false);
@@ -80,6 +79,7 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
   const [deleteTarget, setDeleteTarget] = useState<TriggerRecord | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [confirmBulk, setConfirmBulk] = useState<"pause" | "resume" | null>(null);
+  const [blockedConnectorName, setBlockedConnectorName] = useState<string | null>(null);
 
   const allTriggers = useMemo(() => {
     void tick;
@@ -120,15 +120,21 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
     refresh();
   };
 
+  const personalConnector = agentConnectorStore.list(agentId).find(c => c.scope === "personal");
+
   const openCreate = () => {
-    if (agentPublishStore.isPublished(agentId)) { toast.error(TRIGGER_BLOCKED_BY_PUBLISHED_REASON); return; }
-    if (agentConnectorStore.hasPersonalConnector(agentId)) { toast.error(TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON); return; }
+    if (personalConnector) {
+      setBlockedConnectorName(CONNECTOR_LABELS[personalConnector.connectorId] ?? personalConnector.connectorId);
+      return;
+    }
     setCreateOpen(true);
   };
 
   const duplicateTrigger = (t: TriggerRecord) => {
-    if (agentPublishStore.isPublished(agentId)) { toast.error(TRIGGER_BLOCKED_BY_PUBLISHED_REASON); return; }
-    if (agentConnectorStore.hasPersonalConnector(agentId)) { toast.error(TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON); return; }
+    if (personalConnector) {
+      setBlockedConnectorName(CONNECTOR_LABELS[personalConnector.connectorId] ?? personalConnector.connectorId);
+      return;
+    }
     let name = `${t.name} (copy)`;
     let n = 2;
     while (triggerStore.isDuplicateName(agentId, name)) {
@@ -167,58 +173,35 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
             Trigger giúp agent tự động chạy — theo lịch, qua Webhook, hoặc theo sự kiện từ ứng dụng bên ngoài.
           </p>
         </div>
-        {tab === "trigger" && (
-          <div className="flex items-center gap-2">
-            {allPaused ? (
-              <>
-                <span className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[hsl(var(--warning-soft))] border border-warning/25 text-xs font-semibold text-warning">
-                  <span className="w-1.5 h-1.5 rounded-full bg-warning" /> Tất cả trigger đã tạm dừng
-                </span>
-                <button
-                  onClick={() => setConfirmBulk("resume")}
-                  className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-sm font-medium text-foreground hover:bg-surface-muted transition-base"
-                >
-                  <Play size={13} /> Kích hoạt lại tất cả
-                </button>
-              </>
-            ) : (
+        <div className="flex items-center gap-2">
+          {allPaused ? (
+            <>
+              <span className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[hsl(var(--warning-soft))] border border-warning/25 text-xs font-semibold text-warning">
+                <span className="w-1.5 h-1.5 rounded-full bg-warning" /> Tất cả trigger đã tạm dừng
+              </span>
               <button
-                onClick={() => setConfirmBulk("pause")}
-                disabled={pausableCount === 0}
-                className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-sm font-medium text-foreground hover:bg-surface-muted transition-base disabled:opacity-40 disabled:pointer-events-none"
+                onClick={() => setConfirmBulk("resume")}
+                className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-sm font-medium text-foreground hover:bg-surface-muted transition-base"
               >
-                <Pause size={13} /> Tạm dừng tất cả
+                <Play size={13} /> Kích hoạt lại tất cả
               </button>
-            )}
-            <button onClick={openCreate} className="btn-primary h-9">
-              <Plus size={13} /> Thêm Trigger
+            </>
+          ) : (
+            <button
+              onClick={() => setConfirmBulk("pause")}
+              disabled={pausableCount === 0}
+              className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-sm font-medium text-foreground hover:bg-surface-muted transition-base disabled:opacity-40 disabled:pointer-events-none"
+            >
+              <Pause size={13} /> Tạm dừng tất cả
             </button>
-          </div>
-        )}
+          )}
+          <button onClick={openCreate} className="btn-primary h-9">
+            <Plus size={13} /> Thêm Trigger
+          </button>
+        </div>
       </div>
 
-      <div className="inline-flex items-center gap-1 p-1 rounded-lg bg-surface-muted mb-5">
-        <button
-          onClick={() => setTab("trigger")}
-          className={`h-8 px-3 rounded-md text-xs font-medium transition-base ${
-            tab === "trigger" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          Trigger
-        </button>
-        <button
-          onClick={() => setTab("runs")}
-          className={`h-8 px-3 rounded-md text-xs font-medium transition-base ${
-            tab === "runs" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          Lịch sử chạy
-        </button>
-      </div>
-
-      {tab === "runs" ? (
-        <TriggerRunsTab agentId={agentId} />
-      ) : isEmpty ? (
+      {isEmpty ? (
         <EmptyState onCreate={openCreate} />
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
@@ -379,6 +362,23 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
             >
               {confirmBulk === "pause" ? "Tạm dừng tất cả" : "Kích hoạt lại tất cả"}
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!blockedConnectorName} onOpenChange={v => !v && setBlockedConnectorName(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Không thêm được trigger</AlertDialogTitle>
+            <AlertDialogDescription>
+              Agent này đang dùng kết nối riêng của từng người dùng ({blockedConnectorName}), nên chỉ chạy khi có
+              người trò chuyện. Trigger chạy nền không có người dùng nào để mượn kết nối. Hãy đổi sang kết nối dùng
+              chung của tổ chức, hoặc tạo một Automation Agent.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Xem kết nối</AlertDialogCancel>
+            <AlertDialogAction onClick={() => setBlockedConnectorName(null)}>Đã hiểu</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

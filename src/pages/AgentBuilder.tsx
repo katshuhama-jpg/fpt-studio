@@ -12,17 +12,21 @@ import TriggerFormDialog from "@/components/configure/TriggerFormDialog";
 import GuardrailsTab from "@/components/configure/GuardrailsTab";
 import HistoryTab from "@/components/history/HistoryTab";
 import HistoryChatPanel from "@/components/history/HistoryChatPanel";
+import TriggerRunsTab from "@/components/configure/TriggerRunsTab";
 import ChatOptimizationTab from "@/components/configure/ChatOptimizationTab";
 import { businessProcessStore } from "@/components/business-processes/businessProcessStore";
 import { taskStore } from "@/components/tasks/taskStore";
 import { knowledgeStore } from "@/components/knowledge/knowledgeStore";
-import { triggerStore, triggerNeedsSetup, type TriggerRecord } from "@/components/configure/triggerStore";
+import { triggerStore, triggerNeedsSetup, EXTERNAL_APP_META, type TriggerRecord } from "@/components/configure/triggerStore";
 import { agentConnectorStore, type ConnectorScope } from "@/components/configure/agentConnectorStore";
 import {
   agentPublishStore, isAutomationAgent, PUBLISH_BLOCKED_REASON,
   TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON, CONNECTOR_BLOCKED_BY_TRIGGER_REASON,
-  TRIGGER_BLOCKED_BY_PUBLISHED_REASON,
 } from "@/components/configure/agentPublishStore";
+import { agentKindStore, isAgentDraft, type AgentKind } from "@/components/configure/agentKindStore";
+import { automationStore } from "@/components/configure/automationStore";
+import { connectedAccountStore } from "@/components/configure/connectedAccountStore";
+import ConnectionsTab from "@/components/configure/ConnectionsTab";
 import AppLogo from "@/components/configure/AppLogo";
 import { TYPE_META, summarizeConfig } from "@/components/configure/TriggersTab";
 import { guardrailStore } from "@/components/configure/guardrailStore";
@@ -35,16 +39,30 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 
 type Tab = "build" | "test" | "deploy" | "insights";
 
-const developNav = [
+const developNavBase = [
   { id: "instructions", label: "Instructions", icon: FileEditIcon },
   { id: "model",        label: "Model",         icon: CpuIcon,          hidden: true },
   { id: "skills",       label: "Skills",         icon: PuzzleIcon,      hidden: true },
   { id: "guardrails",   label: "Guardrails",     icon: Shield01Icon,    hidden: true },
   { id: "knowledge",    label: "Knowledge",      icon: NoteIcon },
-  { id: "triggers",     label: "Triggers",       icon: TimeScheduleIcon },
-  { id: "history",      label: "History",        icon: HistoryIcon },
   { id: "sub-agents",   label: "Sub-Agents",     icon: UserMultipleIcon, comingSoon: true, hidden: true },
 ];
+
+/** Automation Agents get Triggers + "Lịch sử chạy"; Conversational agents get Kết nối +
+ * History instead — a Console trigger and a per-user connection can never coexist (R1-R4). */
+function buildDevelopNav(kind: AgentKind) {
+  const kindSpecific = kind === "automation"
+    ? [
+        { id: "triggers", label: "Triggers", icon: TimeScheduleIcon },
+        { id: "history", label: "Lịch sử chạy", icon: HistoryIcon },
+      ]
+    : [
+        { id: "connectors", label: "Kết nối", icon: ConnectIcon },
+        { id: "history", label: "History", icon: HistoryIcon },
+      ];
+  const idx = developNavBase.findIndex(i => i.id === "knowledge");
+  return [...developNavBase.slice(0, idx + 1), ...kindSpecific, ...developNavBase.slice(idx + 1)];
+}
 
 const monitorNav = [
   { label: "Reports", items: [
@@ -76,7 +94,47 @@ export default function AgentBuilder() {
   const [previewView, setPreviewView] = useState<"config" | "chat">("config");
   const [publishTick, setPublishTick] = useState(0);
   const [showAgentMenu, setShowAgentMenu] = useState(false);
+  const [showActivate, setShowActivate] = useState(false);
+  const [kindTick, setKindTick] = useState(0);
+  const kind = (() => { void kindTick; return agentKindStore.get(id); })();
   const published = (() => { void publishTick; return agentPublishStore.isPublished(id); })();
+  const automationStatus = (() => { void publishTick; return automationStore.get(id); })();
+  const draft = isAgentDraft(id, kind);
+
+  useEffect(() => {
+    const k = params.get("kind");
+    if (k === "automation" || k === "conversational") {
+      agentKindStore.set(id, k);
+      setKindTick(t => t + 1);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (kind === "conversational" && section === "triggers") setSection("instructions");
+    if (kind === "automation" && section === "connectors") setSection("instructions");
+  }, [kind, section]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (kind === "automation" && tab === "deploy") {
+      setTab("build");
+      toast.error("Automation Agent không phát hành lên kênh.");
+    }
+  }, [kind, tab]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const switchKind = () => {
+    const target: AgentKind = kind === "automation" ? "conversational" : "automation";
+    agentKindStore.set(id, target);
+    setKindTick(t => t + 1);
+    setShowAgentMenu(false);
+    toast.success(target === "automation" ? "Đã đổi thành Automation Agent." : "Đã đổi thành Agent trò chuyện.");
+  };
+  const kindSwitchBlockedReason = (() => {
+    if (!draft) return "Agent đã rời trạng thái Draft, không thể đổi loại.";
+    if (kind === "conversational" && !agentPublishStore.get(id).workspace && agentPublishStore.get(id).channels.length === 0) return null;
+    if (kind === "automation" && triggerStore.list(id).length === 0) return null;
+    return kind === "conversational" ? "Xoá kênh đã cấu hình trước khi đổi loại agent." : "Xoá trigger đã tạo trước khi đổi loại agent.";
+  })();
+
   useEffect(() => { setShowWelcome(welcome); }, [welcome]);
   const dismissWelcome = () => {
     setShowWelcome(false);
@@ -89,6 +147,7 @@ export default function AgentBuilder() {
   const setTab = (t: Tab) => setParams({ tab: t, section: "instructions" });
   const setSection = (s: string) => setParams({ tab, section: s });
 
+  const developNav = buildDevelopNav(kind);
   const nav = developNav.filter((it: any) => !it.hidden);
   const currentSectionLabel =
     developNav.find((i: any) => i.id === section)?.label ?? section;
@@ -100,9 +159,20 @@ export default function AgentBuilder() {
         <button onClick={() => navigate("/agents")} className="h-8 w-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0">
           <HugeiconsIcon icon={ChevronLeftIcon} size={16} />
         </button>
-        <div className="flex items-center gap-2">
+        <Link to="/agents" className="text-xs text-muted-foreground hover:text-foreground transition-base shrink-0">Agents</Link>
+        <span className="text-xs text-muted-foreground/50 shrink-0">/</span>
+        <div className="flex items-center gap-2 min-w-0">
           <div className="w-7 h-7 rounded-md bg-surface-muted border border-border flex items-center justify-center text-base shrink-0">🤖</div>
-          <span className="font-semibold text-sm">làm báo cáo cho sale</span>
+          <span className="font-semibold text-sm truncate">làm báo cáo cho sale</span>
+          {kind === "automation" ? (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 shrink-0">
+              <HugeiconsIcon icon={BoltIcon} size={10} /> Automation
+            </span>
+          ) : (
+            <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-surface-muted text-muted-foreground shrink-0">
+              Trò chuyện
+            </span>
+          )}
         </div>
 
         {/* Center tabs */}
@@ -111,7 +181,7 @@ export default function AgentBuilder() {
             {([
               { id: "build",    label: "Build",    Icon: PencilEdit01Icon },
               { id: "test",     label: "Test",     Icon: FlaskConicalIcon },
-              { id: "deploy",   label: "Channels", Icon: GridViewIcon },
+              ...(kind === "conversational" ? [{ id: "deploy", label: "Channels", Icon: GridViewIcon } as const] : []),
               { id: "insights", label: "Insights", Icon: Analytics01Icon },
             ] as const).map(({ id, label, Icon }) => (
               <button key={id} onClick={() => setTab(id as Tab)}
@@ -126,7 +196,21 @@ export default function AgentBuilder() {
         </div>
 
         <div className="flex items-center gap-2">
-          {published ? (
+          {kind === "automation" ? (
+            automationStatus === "running" ? (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-success/10 border border-success/20 text-success text-xs font-medium shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-success" /> Đang chạy · v1.0.1
+              </div>
+            ) : automationStatus === "paused" ? (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-warning-soft border border-warning/25 text-warning text-xs font-medium shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-warning" /> Tạm dừng
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-muted border border-border text-muted-foreground text-xs font-medium shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground" /> Draft
+              </div>
+            )
+          ) : published ? (
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-success/10 border border-success/20 text-success text-xs font-medium shrink-0">
               <span className="w-1.5 h-1.5 rounded-full bg-success" /> Live · v1.0.1
             </div>
@@ -135,9 +219,17 @@ export default function AgentBuilder() {
               <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground" /> Draft
             </div>
           )}
-          <button onClick={() => setShowPublish(true)} className="btn-primary h-9">
-            <HugeiconsIcon icon={Rocket01Icon} size={13} /> Publish
-          </button>
+          {kind === "automation" ? (
+            automationStatus === "draft" && (
+              <button onClick={() => setShowActivate(true)} className="btn-primary h-9">
+                <HugeiconsIcon icon={BoltIcon} size={13} /> Kích hoạt Automation
+              </button>
+            )
+          ) : (
+            <button onClick={() => setShowPublish(true)} className="btn-primary h-9">
+              <HugeiconsIcon icon={Rocket01Icon} size={13} /> Publish
+            </button>
+          )}
           <div className="relative">
             <button
               onClick={() => setShowAgentMenu(o => !o)}
@@ -148,18 +240,50 @@ export default function AgentBuilder() {
             {showAgentMenu && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setShowAgentMenu(false)} />
-                <div className="absolute right-0 top-full mt-1 z-20 w-44 rounded-lg border border-border bg-white shadow-elev py-1">
-                  <button
-                    disabled={!published}
-                    onClick={() => {
-                      agentPublishStore.unpublish(id);
-                      setPublishTick(t => t + 1);
-                      setShowAgentMenu(false);
-                    }}
-                    className="w-full text-left px-3 py-1.5 text-xs text-foreground hover:bg-surface-muted disabled:text-muted-foreground/50 disabled:cursor-not-allowed"
-                  >
-                    Unpublish agent
-                  </button>
+                <div className="absolute right-0 top-full mt-1 z-20 w-52 rounded-lg border border-border bg-white shadow-elev py-1">
+                  {kind === "automation" ? (
+                    automationStatus === "running" ? (
+                      <button
+                        onClick={() => { automationStore.pause(id); setPublishTick(t => t + 1); setShowAgentMenu(false); }}
+                        className="w-full text-left px-3 py-1.5 text-xs text-foreground hover:bg-surface-muted"
+                      >
+                        Tạm dừng Automation
+                      </button>
+                    ) : automationStatus === "paused" ? (
+                      <button
+                        onClick={() => { automationStore.resume(id); setPublishTick(t => t + 1); setShowAgentMenu(false); }}
+                        className="w-full text-left px-3 py-1.5 text-xs text-foreground hover:bg-surface-muted"
+                      >
+                        Tiếp tục Automation
+                      </button>
+                    ) : null
+                  ) : (
+                    <button
+                      disabled={!published}
+                      onClick={() => {
+                        agentPublishStore.unpublish(id);
+                        setPublishTick(t => t + 1);
+                        setShowAgentMenu(false);
+                      }}
+                      className="w-full text-left px-3 py-1.5 text-xs text-foreground hover:bg-surface-muted disabled:text-muted-foreground/50 disabled:cursor-not-allowed"
+                    >
+                      Unpublish agent
+                    </button>
+                  )}
+                  <Tooltip delayDuration={200}>
+                    <TooltipTrigger asChild>
+                      <span>
+                        <button
+                          disabled={!!kindSwitchBlockedReason}
+                          onClick={switchKind}
+                          className="w-full text-left px-3 py-1.5 text-xs text-foreground hover:bg-surface-muted disabled:text-muted-foreground/50 disabled:cursor-not-allowed"
+                        >
+                          Đổi loại agent
+                        </button>
+                      </span>
+                    </TooltipTrigger>
+                    {kindSwitchBlockedReason && <TooltipContent side="left">{kindSwitchBlockedReason}</TooltipContent>}
+                  </Tooltip>
                 </div>
               </>
             )}
@@ -173,6 +297,14 @@ export default function AgentBuilder() {
           onClose={() => setShowPublish(false)}
           onChatTest={() => { setShowPublish(false); setPreviewView("chat"); }}
           onPublished={() => setPublishTick(t => t + 1)}
+        />
+      )}
+
+      {showActivate && (
+        <ActivateAutomationModal
+          agentId={id}
+          onClose={() => setShowActivate(false)}
+          onActivated={() => { automationStore.activate(id); setPublishTick(t => t + 1); setShowActivate(false); }}
         />
       )}
 
@@ -240,12 +372,17 @@ export default function AgentBuilder() {
           <div className="px-3 py-3 border-t border-border shrink-0 space-y-2">
             <div className="rounded-lg border border-border bg-surface-muted/50 p-2.5">
               {(() => {
-                const checklist = [
+                const checklist = kind === "automation" ? [
                   { label: "Instructions written", done: true,  section: "instructions" },
                   { label: "Model chosen",          done: true,  section: "model" },
-                  { label: "Skills attached",       done: true,  section: "skills" },
-                  { label: "Guardrails configured", done: false, section: "guardrails" },
                   { label: "Trigger configured",    done: triggerStore.list(id ?? "new").length > 0, section: "triggers" },
+                  { label: "Connection hợp lệ",     done: triggerStore.list(id ?? "new").length > 0 && triggerStore.list(id ?? "new").every(t => !triggerNeedsSetup(t)), section: "triggers" },
+                  { label: "Đã chạy thử",           done: false, section: null },
+                ] : [
+                  { label: "Instructions written", done: true,  section: "instructions" },
+                  { label: "Model chosen",          done: true,  section: "model" },
+                  { label: "Guardrails configured", done: false, section: "guardrails" },
+                  { label: "Kênh đã chọn",          done: agentPublishStore.isPublished(id ?? "new"), section: null },
                   { label: "Tried the agent",       done: true,  section: null },
                 ];
                 const doneCount = checklist.filter(i => i.done).length;
@@ -315,14 +452,16 @@ export default function AgentBuilder() {
           <div className="flex-1 flex flex-col overflow-hidden">
 
             <div className="flex-1 overflow-y-auto bg-background">
-              {tab === "build" && section === "instructions" && <GeneralTab agentId={id ?? "new"} onRefineWithAI={() => setBuildMode("ai")} onChatToTest={() => { setBuildMode("manual"); setPreviewView("chat"); }} />}
+              {tab === "build" && section === "instructions" && <GeneralTab agentId={id ?? "new"} kind={kind} onRefineWithAI={() => setBuildMode("ai")} onChatToTest={() => { setBuildMode("manual"); setPreviewView("chat"); }} onCreateAutomation={() => navigate("/agents/new?tab=build&section=instructions&kind=automation")} />}
               {tab === "build" && section === "knowledge" && <KnowledgeTab />}
-              {tab === "build" && section === "history" && <HistoryTab agentId={id ?? "new"} />}
+              {tab === "build" && section === "history" && kind === "conversational" && <HistoryTab agentId={id ?? "new"} />}
+              {tab === "build" && section === "history" && kind === "automation" && <div className="p-8"><TriggerRunsTab agentId={id ?? "new"} /></div>}
               {tab === "build" && section === "skills" && <PlaceholderTab title="Skills" />}
               {tab === "build" && section === "guardrails" && <GuardrailsTab agentId={id ?? "new"} />}
-              {tab === "build" && section === "triggers" && <TriggersTab agentId={id ?? "new"} />}
+              {tab === "build" && section === "triggers" && kind === "automation" && <TriggersTab agentId={id ?? "new"} />}
+              {tab === "build" && section === "connectors" && kind === "conversational" && <ConnectionsTab agentId={id ?? "new"} kind={kind} />}
               {tab === "build" && section === "model" && <PlaceholderTab title="Model" />}
-              {tab === "build" && !["instructions","knowledge","history","skills","guardrails","triggers","model"].includes(section) && <PlaceholderTab title={section} />}
+              {tab === "build" && !["instructions","knowledge","history","skills","guardrails","triggers","connectors","model"].includes(section) && <PlaceholderTab title={section} />}
               {tab === "test" && <PlaceholderTab title="Test" />}
               {tab === "deploy" && <DeployTab agentVersion="v1.0.2" agentId={id} />}
               {tab === "insights" && <PerformanceTab />}
@@ -330,7 +469,7 @@ export default function AgentBuilder() {
           </div>
 
           {tab === "build" && section === "instructions" && <PreviewPanel agentId={id ?? "new"} view={previewView} onViewChange={setPreviewView} />}
-          {tab === "build" && section === "history" && <HistoryChatPanel agentId={id ?? "new"} />}
+          {tab === "build" && section === "history" && kind === "conversational" && <HistoryChatPanel agentId={id ?? "new"} />}
         </div>
       </div>
     </div>
@@ -732,7 +871,9 @@ function inlineFormat(text: string): React.ReactNode {
   return parts.map((p, i) => i % 2 === 1 ? <strong key={i}>{p}</strong> : p);
 }
 
-function GeneralTab({ agentId, onRefineWithAI, onChatToTest }: { agentId: string; onRefineWithAI?: () => void; onChatToTest?: () => void }) {
+function GeneralTab({ agentId, kind, onRefineWithAI, onChatToTest, onCreateAutomation }: {
+  agentId: string; kind: AgentKind; onRefineWithAI?: () => void; onChatToTest?: () => void; onCreateAutomation?: () => void;
+}) {
   const [params] = useSearchParams();
   const initialName = params.get("agentName") || "Banking ABC — Customer Care";
   const initialPrompt = params.get("agentPrompt") || "";
@@ -877,6 +1018,20 @@ You are a customer-care specialist at ABC Bank. Help customers 24/7 with product
         {(viewMode === "ai" || viewMode === "chat") && (
           <div className="prose prose-sm max-w-none text-foreground opacity-50 select-none pointer-events-none">
             {renderMarkdown(instructions || defaultInstructions)}
+          </div>
+        )}
+
+        {kind === "conversational" && (
+          <div className="mt-6 rounded-xl border border-border bg-surface-muted/40 p-4">
+            <h4 className="text-sm font-semibold text-foreground mb-1">Agent này không đặt trigger ở Console</h4>
+            <p className="text-xs text-muted-foreground leading-relaxed mb-2">
+              Agent trò chuyện chạy khi có người nhắn tin. Sau khi bạn phát hành, mỗi người dùng cài agent về
+              Workspace có thể tự đặt trigger riêng cho bản cài của họ — theo lịch và theo nhu cầu của chính họ.
+              Builder không đặt hộ được.
+            </p>
+            <button onClick={onCreateAutomation} className="text-xs font-medium text-primary hover:underline">
+              Cần agent tự chạy theo lịch? Tạo một Automation Agent.
+            </button>
           </div>
         )}
       </div>
@@ -2514,6 +2669,7 @@ function EmptyStateBox({ icon, description, addLabel, onAdd }: {
 }
 
 function NewConfigPanel({ agentId, model, onModelChange }: { agentId: string; model: string; onModelChange: (id: string) => void }) {
+  const kind = agentKindStore.get(agentId);
   const [open, setOpen] = useState<Record<string, boolean>>({ connectors: true, skills: true, guardrails: true, triggers: true, "sub-agents": true });
   const guardrailsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
   const skillsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
@@ -2522,13 +2678,15 @@ function NewConfigPanel({ agentId, model, onModelChange }: { agentId: string; mo
   const triggersAddRef = useRef<(() => void) | null>(null);
 
   const sections = [
-    {
+    // Connectors (shared/per-user scope) is a Conversational-only surface — an Automation
+    // Agent's connections are chosen per-trigger instead (R3/R4).
+    ...(kind === "conversational" ? [{
       id: "connectors", icon: ConnectIcon, label: "Connectors",
       onAdd: (pos: {top:number;left:number}) => connectorsAddRef.current?.(pos),
       content: (
         <ConnectorsInner agentId={agentId} onRegisterAdd={(fn) => { connectorsAddRef.current = fn; }} />
       ),
-    },
+    }] : []),
     {
       id: "skills", icon: PuzzleIcon, label: "Skills",
       onAdd: (pos: {top:number;left:number}) => skillsAddRef.current?.(pos),
@@ -2537,13 +2695,14 @@ function NewConfigPanel({ agentId, model, onModelChange }: { agentId: string; mo
       ),
     },
     { id: "knowledge",  icon: NoteIcon,         label: "Knowledge", comingSoon: true },
-    {
+    // Console triggers only ever belong to an Automation Agent (R1/R3).
+    ...(kind === "automation" ? [{
       id: "triggers", icon: TimeScheduleIcon, label: "Triggers",
       onAdd: () => triggersAddRef.current?.(),
       content: (
         <TriggersInner agentId={agentId} onRegisterAdd={(fn) => { triggersAddRef.current = fn; }} />
       ),
-    },
+    }] : []),
     {
       id: "guardrails", icon: Shield01Icon, label: "Guardrails",
       onAdd: (pos: {top:number;left:number}) => guardrailsAddRef.current?.(pos),
@@ -3018,7 +3177,11 @@ function PublishModal({ agentId, onClose, onChatTest, onPublished }: {
 
         {/* Footer */}
         <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-border shrink-0">
-          <span className="text-xs text-muted-foreground">{deployEnabled ? `${selected.size} channel${selected.size !== 1 ? "s" : ""} selected` : "No channel deployment"}</span>
+          {!blocked && selected.size === 0 ? (
+            <span className="text-xs text-destructive">Chọn ít nhất một kênh trước khi phát hành.</span>
+          ) : (
+            <span className="text-xs text-muted-foreground">{deployEnabled ? `${selected.size} channel${selected.size !== 1 ? "s" : ""} selected` : "No channel deployment"}</span>
+          )}
           <div className="flex items-center gap-2">
             <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Cancel</button>
             <Tooltip delayDuration={200}>
@@ -3044,6 +3207,84 @@ function PublishModal({ agentId, onClose, onChatTest, onPublished }: {
               {blocked && <TooltipContent side="top">{PUBLISH_BLOCKED_REASON}</TooltipContent>}
             </Tooltip>
           </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function ActivateAutomationModal({ agentId, onClose, onActivated }: {
+  agentId: string; onClose: () => void; onActivated: () => void;
+}) {
+  const triggers = triggerStore.list(agentId);
+  const accountIds = Array.from(new Set(
+    triggers
+      .filter(t => t.type === "external" && t.config.external?.accountId)
+      .map(t => t.config.external!.accountId!)
+  ));
+  const accounts = accountIds.map(aid => connectedAccountStore.get(aid)).filter((a): a is NonNullable<typeof a> => !!a);
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-lg bg-white rounded-2xl border border-border shadow-lg flex flex-col max-h-[85vh] animate-fade-up">
+        <div className="flex items-start justify-between px-6 py-5 border-b border-border shrink-0">
+          <div>
+            <h2 className="font-display text-lg font-semibold">Kích hoạt Automation Agent</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">Phiên bản v1.0.1</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base mt-0.5">
+            <HugeiconsIcon icon={Cancel01Icon} size={15} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{triggers.length} trigger</p>
+            <div className="rounded-xl border border-border overflow-hidden">
+              {triggers.map((t, i) => (
+                <div key={t.id} className={`flex items-center gap-3 px-4 py-2.5 ${i > 0 ? "border-t border-border" : ""}`}>
+                  <HugeiconsIcon icon={t.type === "scheduled" ? TimeScheduleIcon : t.type === "developer" ? BoltIcon : Globe02Icon} size={13} className="text-muted-foreground shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">{t.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{TYPE_META[t.type].label} · {summarizeConfig(t)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Kết nối dùng chung</p>
+            {accounts.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Không có kết nối ứng dụng bên ngoài nào được dùng.</p>
+            ) : (
+              <div className="rounded-xl border border-border overflow-hidden">
+                {accounts.map((a, i) => (
+                  <div key={a.id} className={`flex items-center gap-3 px-4 py-2.5 ${i > 0 ? "border-t border-border" : ""}`}>
+                    <AppLogo app={a.app} size={16} />
+                    <span className="text-sm truncate">{EXTERNAL_APP_META[a.app].label} — {a.email}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-start gap-2.5 p-3.5 rounded-xl border border-indigo-200 bg-indigo-50">
+            <HugeiconsIcon icon={InformationCircleIcon} size={15} className="text-indigo-600 shrink-0 mt-0.5" />
+            <p className="text-sm text-indigo-800">
+              Agent này chạy nền cho toàn tổ chức. Không phát hành lên Workspace, không lên kênh Web / Zalo / Slack /
+              Facebook, và người dùng cuối không trò chuyện với nó.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border shrink-0">
+          <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Huỷ</button>
+          <button onClick={onActivated} className="h-9 px-5 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 transition-base">
+            <HugeiconsIcon icon={BoltIcon} size={13} /> Kích hoạt
+          </button>
         </div>
       </div>
     </div>,
@@ -4562,7 +4803,6 @@ function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegister
   const [renamingId, setRenamingId] = useState<string | null>(null);
 
   const openCreate = () => {
-    if (agentPublishStore.isPublished(agentId)) { toast.error(TRIGGER_BLOCKED_BY_PUBLISHED_REASON); return; }
     if (agentConnectorStore.hasPersonalConnector(agentId)) { toast.error(TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON); return; }
     setCreateOpen(true);
   };
@@ -4575,7 +4815,6 @@ function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegister
   const triggers = triggerStore.list(agentId);
 
   const duplicateTrigger = (t: TriggerRecord) => {
-    if (agentPublishStore.isPublished(agentId)) { toast.error(TRIGGER_BLOCKED_BY_PUBLISHED_REASON); return; }
     if (agentConnectorStore.hasPersonalConnector(agentId)) { toast.error(TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON); return; }
     let name = `${t.name} (copy)`;
     let n = 2;

@@ -40,5 +40,3 @@ export const TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON =
   "Agent đang dùng connector riêng cá nhân — không thể thêm trigger vì trigger chạy không có người trực, sẽ không có danh tính người dùng để dùng connector đó.";
 export const CONNECTOR_BLOCKED_BY_TRIGGER_REASON =
   "Agent đã có trigger nên chỉ chạy dạng automation — không thể chọn connector riêng cá nhân vì không có người trực khi trigger tự chạy.";
-export const TRIGGER_BLOCKED_BY_PUBLISHED_REASON =
-  "Agent đang được publish — hãy unpublish agent trước khi thêm trigger.";

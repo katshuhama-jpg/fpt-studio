@@ -4,7 +4,9 @@ import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from "@/components/ui/sheet";
 import { triggerStore, type TriggerType } from "./triggerStore";
-import { runsStore, type TriggerRun, type RunStatus } from "./runsStore";
+import { connectedAccountStore } from "./connectedAccountStore";
+import { EXTERNAL_APP_META } from "./triggerStore";
+import { runsStore, type TriggerRun, type RunStatus, ORG_TIMEZONE } from "./runsStore";
 import AppLogo from "./AppLogo";
 import { toast } from "sonner";
 
@@ -56,6 +58,14 @@ function formatDuration(ms?: number): string {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
+/** Deterministic mock Automation ID — this prototype has no real backend, so derive a
+ * stable id from the agentId the same way other mock identifiers are derived in this app. */
+function mockAutomationId(agentId: string): string {
+  let h = 0;
+  for (const c of agentId) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return `auto_${h.toString(16).padStart(8, "0")}`;
+}
+
 const DATE_RANGE_OPTIONS: { value: string; label: string; days: number | null }[] = [
   { value: "7", label: "7 ngày qua", days: 7 },
   { value: "30", label: "30 ngày qua", days: 30 },
@@ -86,7 +96,7 @@ function CopyButton({ value }: { value: string }) {
   );
 }
 
-function InstallerRow({ label, value, mono, copyable }: { label: string; value: string; mono?: boolean; copyable?: boolean }) {
+function ScopeRow({ label, value, mono, copyable }: { label: string; value: string; mono?: boolean; copyable?: boolean }) {
   return (
     <div className="group flex items-center justify-between gap-2 py-1">
       <span className="text-xs text-muted-foreground shrink-0">{label}</span>
@@ -117,21 +127,18 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
   const triggers = triggerStore.list(agentId);
   const allRuns = useMemo(() => { void tick; return runsStore.list(agentId); }, [agentId, tick]);
 
+  const sharedAccountId = triggers.find(t => t.type === "external" && t.config.external?.accountId)?.config.external?.accountId;
+  const sharedAccount = sharedAccountId ? connectedAccountStore.get(sharedAccountId) : undefined;
+  const sharedConnectionLabel = sharedAccount ? `${EXTERNAL_APP_META[sharedAccount.app].label} — ${sharedAccount.email}` : "Không có";
+  const automationId = mockAutomationId(agentId);
+
   const runs = allRuns.filter(r => {
     if (triggerFilter !== "all" && r.triggerId !== triggerFilter) return false;
     if (typeFilter !== "all" && r.triggerType !== typeFilter) return false;
     if (statusFilter !== "all" && r.status !== statusFilter) return false;
     const range = DATE_RANGE_OPTIONS.find(o => o.value === dateRange);
     if (range?.days != null && r.startedAt < Date.now() - range.days * 86_400_000) return false;
-    if (searchQuery) {
-      const userIdNoPrefix = r.installer.userId.replace(/^usr_/, "").toLowerCase();
-      const matches =
-        r.installer.email.toLowerCase().includes(searchQuery) ||
-        r.installer.userId.toLowerCase().includes(searchQuery) ||
-        userIdNoPrefix.includes(searchQuery) ||
-        r.triggerName.toLowerCase().includes(searchQuery);
-      if (!matches) return false;
-    }
+    if (searchQuery && !r.triggerName.toLowerCase().includes(searchQuery)) return false;
     return true;
   });
 
@@ -169,7 +176,7 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
             value={searchInput}
             onChange={e => setSearchInput(e.target.value.slice(0, SEARCH_MAX))}
             maxLength={SEARCH_MAX}
-            placeholder="Tìm theo email, User ID hoặc tên trigger"
+            placeholder="Tìm theo tên trigger"
             className="w-full h-9 pl-9 pr-8 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base"
           />
           {searchInput && (
@@ -236,7 +243,6 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
               <tr className="border-b border-border bg-surface-muted">
                 <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Thời gian</th>
                 <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Trigger</th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Người cài Agent</th>
                 <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Nguồn kích hoạt</th>
                 <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Trạng thái</th>
                 <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Thời lượng</th>
@@ -252,10 +258,6 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
                       <RunIcon run={r} />
                       <span className="font-medium truncate">{r.triggerName}</span>
                     </div>
-                  </td>
-                  <td className="px-4 py-2.5 max-w-[220px]">
-                    <div className="truncate" title={r.installer.name}>{r.installer.name}</div>
-                    <div className="truncate text-[11px] text-muted-foreground" title={r.installer.email}>{r.installer.email}</div>
                   </td>
                   <td className="px-4 py-2.5 text-xs text-muted-foreground truncate max-w-[220px]">{r.source}</td>
                   <td className="px-4 py-2.5"><StatusPill status={r.status} /></td>
@@ -296,14 +298,12 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
                 </div>
 
                 <div className="rounded-lg border border-border p-3">
-                  <h4 className="text-xs font-semibold text-foreground mb-1.5">Người cài Agent</h4>
+                  <h4 className="text-xs font-semibold text-foreground mb-1.5">Phạm vi chạy</h4>
                   <div className="divide-y divide-border/60">
-                    <InstallerRow label="Tên" value={detailRun.installer.name} />
-                    <InstallerRow label="Email" value={detailRun.installer.email} copyable />
-                    <InstallerRow label="User ID" value={detailRun.installer.userId} mono copyable />
-                    <InstallerRow label="Workspace" value={detailRun.installer.workspace} />
-                    <InstallerRow label="Installation ID" value={detailRun.installer.installationId} mono copyable />
-                    <InstallerRow label="Múi giờ" value={detailRun.installer.timezone} />
+                    <ScopeRow label="Tổ chức" value="FPT Smart Cloud" />
+                    <ScopeRow label="Automation ID" value={automationId} mono copyable />
+                    <ScopeRow label="Múi giờ" value={ORG_TIMEZONE} />
+                    <ScopeRow label="Kết nối dùng" value={sharedConnectionLabel} />
                   </div>
                 </div>
 
@@ -317,7 +317,7 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
                     <h4 className="text-xs font-semibold text-foreground mb-1">Cấu hình trigger</h4>
                     <pre className="text-[11px] font-mono bg-surface-muted rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-all">{detailRun.configSnapshot}</pre>
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                      Đây là cấu hình riêng của bản cài này, không phải cấu hình mặc định của Agent Definition.
+                      Đây là cấu hình của Automation Agent, dùng chung cho cả tổ chức.
                     </p>
                   </div>
                 )}

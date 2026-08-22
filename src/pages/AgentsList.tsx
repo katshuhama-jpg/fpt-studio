@@ -3,10 +3,13 @@ import { Link, useNavigate } from "react-router-dom";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Add01Icon, Search01Icon, FilterIcon, MoreVerticalIcon, Chat01Icon, Activity01Icon,
-  Attachment01Icon, AtSignIcon, SparklesIcon, SentIcon, Cancel01Icon
+  Attachment01Icon, AtSignIcon, SparklesIcon, SentIcon, Cancel01Icon, BoltIcon, TimeScheduleIcon,
 } from "@hugeicons/core-free-icons";
 import { useState } from "react";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
+import { agentKindStore, type AgentKind } from "@/components/configure/agentKindStore";
+import { automationStore } from "@/components/configure/automationStore";
+import { triggerStore, type TriggerType } from "@/components/configure/triggerStore";
 
 /* ─── Data ─────────────────────────────────────────────────────────────── */
 
@@ -26,9 +29,113 @@ const agents = [
   { id: "ops", name: "IT Helpdesk", emoji: "🛠️", bg: "bg-accent-soft", status: "Published",
     desc: "Password reset, VPN setup and ticket triage for L1 support.", model: "Gemini 1.5 Flash",
     convs: 967, success: 79, channels: ["Teams"], updated: "1w ago", accent: "bg-accent" },
+  { id: "nightly-report", name: "Nightly Sales Report", emoji: "📊", bg: "bg-indigo-50", status: "Draft",
+    desc: "Compiles yesterday's sales into a summary and posts it to the team channel every morning.",
+    model: "GPT-4o mini", convs: 0, success: 0, channels: [], updated: "6h ago", accent: "bg-indigo-500" },
+  { id: "invoice-reminder", name: "Invoice Reminder Bot", emoji: "🧾", bg: "bg-indigo-50", status: "Draft",
+    desc: "Watches for overdue invoices in the finance sheet and sends reminder emails automatically.",
+    model: "Claude 3.5", convs: 0, success: 0, channels: [], updated: "2d ago", accent: "bg-indigo-500" },
 ];
 
 const tabs = ["All agents", "Published", "Draft", "Shared with me"] as const;
+const kindFilters = ["Tất cả loại", "Agent trò chuyện", "Automation"] as const;
+
+const TRIGGER_TYPE_LABEL: Record<TriggerType, string> = {
+  scheduled: "Theo lịch",
+  developer: "Webhook",
+  external: "Ứng dụng bên ngoài",
+};
+
+function relativeTime(ts: number): string {
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return "vừa xong";
+  if (mins < 60) return `${mins} phút trước`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} giờ trước`;
+  return `${Math.floor(hours / 24)} ngày trước`;
+}
+
+function agentTabStatus(a: typeof agents[number]): "Published" | "Draft" | "Running" | "Paused" {
+  if (agentKindStore.get(a.id) === "automation") {
+    const s = automationStore.get(a.id);
+    return s === "draft" ? "Draft" : s === "running" ? "Running" : "Paused";
+  }
+  return a.status as "Published" | "Draft";
+}
+
+/* ─── Kind picker (R1) ───────────────────────────────────────────────── */
+
+function KindPickerModal({ onClose, onSelect }: { onClose: () => void; onSelect: (kind: AgentKind) => void }) {
+  const Card = ({ kind, icon, title, line, bullets, accent }: {
+    kind: AgentKind; icon: any; title: string; line: string; bullets: string[]; accent: string;
+  }) => (
+    <button
+      onClick={() => onSelect(kind)}
+      className="flex-1 text-left rounded-2xl border-2 border-border bg-white hover:border-primary/50 hover:shadow-elev transition-base p-5 flex flex-col gap-3"
+    >
+      <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${accent}`}>
+        <HugeiconsIcon icon={icon} size={20} className="text-white" />
+      </div>
+      <div>
+        <h3 className="font-display text-base font-semibold mb-1">{title}</h3>
+        <p className="text-sm text-muted-foreground leading-relaxed">{line}</p>
+      </div>
+      <ul className="space-y-1.5 mt-1">
+        {bullets.map((b, i) => (
+          <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground leading-relaxed">
+            <span className="w-1 h-1 rounded-full bg-muted-foreground mt-1.5 shrink-0" />
+            {b}
+          </li>
+        ))}
+      </ul>
+    </button>
+  );
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-2xl bg-white rounded-2xl shadow-lg border border-border p-6 animate-fade-up">
+        <div className="flex items-start justify-between mb-5">
+          <div>
+            <h2 className="font-display text-xl font-semibold">Chọn loại agent</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">Không thể đổi loại sau khi agent được phát hành hoặc kích hoạt.</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0">
+            <HugeiconsIcon icon={Cancel01Icon} size={16} />
+          </button>
+        </div>
+        <div className="flex gap-4">
+          <Card
+            kind="conversational"
+            icon={Chat01Icon}
+            title="Agent trò chuyện"
+            line="Người dùng trò chuyện trực tiếp với agent."
+            accent="bg-primary"
+            bullets={[
+              "Phát hành lên Workspace và các kênh Web, Zalo, Slack, Facebook.",
+              "Mỗi người dùng có thể tự kết nối tài khoản riêng của mình.",
+              "Người dùng tự đặt trigger riêng trong Workspace sau khi cài.",
+            ]}
+          />
+          <Card
+            kind="automation"
+            icon={BoltIcon}
+            title="Automation Agent"
+            line="Agent tự chạy theo trigger, không có người trò chuyện."
+            accent="bg-indigo-600"
+            bullets={[
+              "Chạy theo lịch, Webhook, hoặc sự kiện từ ứng dụng bên ngoài.",
+              "Dùng kết nối chung của tổ chức, do Builder cấu hình một lần.",
+              "Không phát hành lên Workspace hay kênh ngoài.",
+            ]}
+          />
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
 
 /* ─── Template data ─────────────────────────────────────────────────── */
 const CONNECTOR_ICONS: Record<string, string> = {
@@ -78,7 +185,6 @@ const templates = [
 function TemplateModal({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
-  const [role, setRole] = useState("All");
   const [useCase, setUseCase] = useState("All");
 
   const filtered = templates.filter(t => {
@@ -94,10 +200,11 @@ function TemplateModal({ onClose }: { onClose: () => void }) {
 
   const handleUse = (t: typeof templates[number]) => {
     const params = new URLSearchParams();
-    params.set("tab", "develop");
-    params.set("section", "general");
+    params.set("tab", "build");
+    params.set("section", "instructions");
     params.set("agentName", t.name);
     params.set("agentPrompt", t.systemPrompt);
+    params.set("kind", "conversational");
     onClose();
     navigate(`/agents/new?${params.toString()}`);
   };
@@ -200,6 +307,142 @@ function TemplateModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+/* ─── Agent cards (R2) ──────────────────────────────────────────────── */
+
+function ConversationalCard({ a }: { a: typeof agents[number] }) {
+  return (
+    <Link
+      to={`/agents/${a.id}`}
+      className="group rounded-xl border border-border bg-surface hover:border-primary/30 hover:shadow-elev transition-base"
+    >
+      <div className="p-5">
+        <div className="flex items-start gap-3 mb-3">
+          <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-lg shrink-0 ${a.bg}`}>
+            {a.emoji}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-sm truncate mb-0.5">{a.name}</h3>
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className={`font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                a.status === "Published"
+                  ? "bg-primary-soft text-primary"
+                  : "bg-surface-muted text-muted-foreground"
+              }`}>
+                {a.status}
+              </span>
+              <span className="text-muted-foreground">· {a.model}</span>
+            </div>
+          </div>
+          <button className="opacity-0 group-hover:opacity-100 transition-base text-muted-foreground hover:text-foreground p-1">
+            <HugeiconsIcon icon={MoreVerticalIcon} size={14} />
+          </button>
+        </div>
+
+        <p className="text-xs text-muted-foreground leading-relaxed mb-4 line-clamp-2 min-h-[32px]">{a.desc}</p>
+
+        <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
+          <div className="flex items-center gap-1.5">
+            <HugeiconsIcon icon={Chat01Icon} size={12} className="text-muted-foreground" />
+            <span className="text-xs">
+              <b className="font-display">{a.convs.toLocaleString()}</b>
+              <span className="text-muted-foreground ml-1">convs</span>
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <HugeiconsIcon icon={Activity01Icon} size={12} className="text-muted-foreground" />
+            <span className="text-xs">
+              <b className="font-display">{a.success}%</b>
+              <span className="text-muted-foreground ml-1">resolved</span>
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5 mt-3 text-xs text-muted-foreground">
+          <span>Updated {a.updated}</span>
+          {a.channels.length > 0 && (
+            <>
+              <span>·</span>
+              {a.channels.map(c => (
+                <span key={c} className="px-1.5 py-0.5 rounded bg-surface-muted">{c}</span>
+              ))}
+            </>
+          )}
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function AutomationCard({ a }: { a: typeof agents[number] }) {
+  const status = automationStore.get(a.id);
+  const badgeLabel = status === "draft" ? "DRAFT" : status === "running" ? "ĐANG CHẠY" : "TẠM DỪNG";
+  const badgeClass = status === "running"
+    ? "bg-success/10 text-success"
+    : status === "paused"
+      ? "bg-warning-soft text-warning"
+      : "bg-surface-muted text-muted-foreground";
+  const triggers = triggerStore.list(a.id);
+  const lastFired = triggers.reduce<number | null>((max, t) => t.lastFiredAt != null && (max == null || t.lastFiredAt > max) ? t.lastFiredAt : max, null);
+  const types = Array.from(new Set(triggers.map(t => t.type)));
+
+  return (
+    <Link
+      to={`/agents/${a.id}`}
+      className="group rounded-xl border border-border bg-surface hover:border-indigo-300 hover:shadow-elev transition-base"
+    >
+      <div className="p-5">
+        <div className="flex items-start gap-3 mb-3">
+          <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-lg shrink-0 ${a.bg}`}>
+            {a.emoji}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-sm truncate mb-0.5">{a.name}</h3>
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className={`font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${badgeClass}`}>
+                {badgeLabel}
+              </span>
+              <span className="text-muted-foreground">· {a.model}</span>
+            </div>
+          </div>
+          <button className="opacity-0 group-hover:opacity-100 transition-base text-muted-foreground hover:text-foreground p-1">
+            <HugeiconsIcon icon={MoreVerticalIcon} size={14} />
+          </button>
+        </div>
+
+        <p className="text-xs text-muted-foreground leading-relaxed mb-4 line-clamp-2 min-h-[32px]">{a.desc}</p>
+
+        <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
+          <div className="flex items-center gap-1.5">
+            <HugeiconsIcon icon={BoltIcon} size={12} className="text-muted-foreground" />
+            <span className="text-xs">
+              <b className="font-display">{triggers.length}</b>
+              <span className="text-muted-foreground ml-1">trigger</span>
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <HugeiconsIcon icon={TimeScheduleIcon} size={12} className="text-muted-foreground" />
+            <span className="text-xs text-muted-foreground truncate">
+              Lần chạy gần nhất: {lastFired ? relativeTime(lastFired) : "chưa chạy"}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5 mt-3 text-xs text-muted-foreground flex-wrap">
+          <span>Updated {a.updated}</span>
+          {types.length > 0 && (
+            <>
+              <span>·</span>
+              {types.map(t => (
+                <span key={t} className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700">{TRIGGER_TYPE_LABEL[t]}</span>
+              ))}
+            </>
+          )}
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 /* ─── Main Page ─────────────────────────────────────────────────────────── */
 
 export default function AgentsList() {
@@ -207,34 +450,71 @@ export default function AgentsList() {
   const { can } = useMyPermissions();
   const canCreateAgent = can("agents.create");
   const [activeTab, setActiveTab] = useState<typeof tabs[number]>("All agents");
+  const [kindFilter, setKindFilter] = useState<typeof kindFilters[number]>("Tất cả loại");
+  const [search, setSearch] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
   const [prompt, setPrompt] = useState("");
+  const [kindPickerFor, setKindPickerFor] = useState<"build" | "template" | null>(null);
 
   const tabCounts: Record<typeof tabs[number], number> = {
     "All agents": agents.length,
-    "Published": agents.filter(a => a.status === "Published").length,
-    "Draft": agents.filter(a => a.status === "Draft").length,
+    "Published": agents.filter(a => agentTabStatus(a) === "Published").length,
+    "Draft": agents.filter(a => agentTabStatus(a) === "Draft").length,
     "Shared with me": 0,
   };
 
-  const visibleAgents =
+  const tabFiltered =
     activeTab === "All agents"
       ? agents
       : activeTab === "Shared with me"
         ? []
-        : agents.filter(a => a.status === activeTab);
+        : agents.filter(a => agentTabStatus(a) === activeTab);
+
+  const q = search.trim().toLowerCase();
+  const searched = q
+    ? tabFiltered.filter(a => a.name.toLowerCase().includes(q) || a.desc.toLowerCase().includes(q))
+    : tabFiltered;
+
+  const conversationalAgents = searched.filter(a => agentKindStore.get(a.id) === "conversational");
+  const automationAgents = searched.filter(a => agentKindStore.get(a.id) === "automation");
+
+  const showConversational = kindFilter !== "Automation" && conversationalAgents.length > 0;
+  const showAutomation = kindFilter !== "Agent trò chuyện" && automationAgents.length > 0;
+  const singleKindView = kindFilter !== "Tất cả loại";
 
   const handleBuild = () => {
     if (!prompt.trim() || !canCreateAgent) return;
+    setKindPickerFor("build");
+  };
+
+  const goToNewAgent = (kind: AgentKind, extra?: Record<string, string>) => {
     const params = new URLSearchParams();
-    params.set("tab", "develop");
-    params.set("section", "general");
-    params.set("agentPrompt", prompt);
+    params.set("tab", "build");
+    params.set("section", "instructions");
+    params.set("kind", kind);
+    if (extra) for (const [k, v] of Object.entries(extra)) params.set(k, v);
     navigate(`/agents/new?${params.toString()}`);
+  };
+
+  const handleKindSelected = (kind: AgentKind) => {
+    if (kindPickerFor === "build") {
+      setKindPickerFor(null);
+      goToNewAgent(kind, { agentPrompt: prompt });
+    } else if (kindPickerFor === "template") {
+      setKindPickerFor(null);
+      if (kind === "automation") {
+        goToNewAgent("automation");
+      } else {
+        setShowTemplates(true);
+      }
+    }
   };
 
   return (
     <div className="px-8 py-8 max-w-[1280px] mx-auto animate-fade-up">
+      {kindPickerFor && (
+        <KindPickerModal onClose={() => setKindPickerFor(null)} onSelect={handleKindSelected} />
+      )}
       {showTemplates && (
         <TemplateModal onClose={() => setShowTemplates(false)} />
       )}
@@ -286,7 +566,7 @@ export default function AgentsList() {
           {/* Right actions */}
           <div className="flex items-center gap-3">
             <button
-              onClick={() => canCreateAgent && setShowTemplates(true)}
+              onClick={() => canCreateAgent && setKindPickerFor("template")}
               disabled={!canCreateAgent}
               title={!canCreateAgent ? "You don't have permission to create agents." : undefined}
               className="text-sm text-muted-foreground hover:text-foreground transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-muted-foreground"
@@ -309,7 +589,7 @@ export default function AgentsList() {
       </div>
 
       {/* ── Tabs + search toolbar ─────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-5 border-b border-border pb-3">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3 border-b border-border pb-3">
         <div className="flex items-center gap-1">
           {tabs.map(t => (
             <button
@@ -339,6 +619,8 @@ export default function AgentsList() {
             <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               placeholder="Search agents…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
               className="h-9 w-56 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
             />
           </div>
@@ -348,77 +630,57 @@ export default function AgentsList() {
         </div>
       </div>
 
-      {/* ── Agents grid ───────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {visibleAgents.map(a => (
-          <Link
-            key={a.id}
-            to={`/agents/${a.id}`}
-            className="group rounded-xl border border-border bg-surface hover:border-primary/30 hover:shadow-elev transition-base"
+      {/* ── Kind filter ───────────────────────────────────────────────── */}
+      <div className="flex items-center gap-1 mb-6">
+        {kindFilters.map(k => (
+          <button
+            key={k}
+            onClick={() => setKindFilter(k)}
+            className={`px-3 h-7 rounded-full text-xs font-medium transition-base ${
+              kindFilter === k
+                ? "bg-foreground text-background"
+                : "border border-border text-muted-foreground hover:bg-surface-muted"
+            }`}
           >
-<div className="p-5">
-              <div className="flex items-start gap-3 mb-3">
-                <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-lg shrink-0 ${a.bg}`}>
-                  {a.emoji}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-sm truncate mb-0.5">{a.name}</h3>
-                  <div className="flex items-center gap-1.5 text-xs">
-                    <span className={`font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                      a.status === "Published"
-                        ? "bg-primary-soft text-primary"
-                        : "bg-surface-muted text-muted-foreground"
-                    }`}>
-                      {a.status}
-                    </span>
-                    <span className="text-muted-foreground">· {a.model}</span>
-                  </div>
-                </div>
-                <button className="opacity-0 group-hover:opacity-100 transition-base text-muted-foreground hover:text-foreground p-1">
-                  <HugeiconsIcon icon={MoreVerticalIcon} size={14} />
-                </button>
-              </div>
-
-              <p className="text-xs text-muted-foreground leading-relaxed mb-4 line-clamp-2 min-h-[32px]">{a.desc}</p>
-
-              <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
-                <div className="flex items-center gap-1.5">
-                  <HugeiconsIcon icon={Chat01Icon} size={12} className="text-muted-foreground" />
-                  <span className="text-xs">
-                    <b className="font-display">{a.convs.toLocaleString()}</b>
-                    <span className="text-muted-foreground ml-1">convs</span>
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <HugeiconsIcon icon={Activity01Icon} size={12} className="text-muted-foreground" />
-                  <span className="text-xs">
-                    <b className="font-display">{a.success}%</b>
-                    <span className="text-muted-foreground ml-1">resolved</span>
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-1.5 mt-3 text-xs text-muted-foreground">
-                <span>Updated {a.updated}</span>
-                {a.channels.length > 0 && (
-                  <>
-                    <span>·</span>
-                    {a.channels.map(c => (
-                      <span key={c} className="px-1.5 py-0.5 rounded bg-surface-muted">{c}</span>
-                    ))}
-                  </>
-                )}
-              </div>
-            </div>
-          </Link>
+            {k}
+          </button>
         ))}
-
-        {visibleAgents.length === 0 && activeTab !== "All agents" && (
-          <div className="col-span-3 py-16 text-center text-muted-foreground text-sm">
-            No agents in this tab yet.
-          </div>
-        )}
       </div>
+
+      {/* ── Agents sections ───────────────────────────────────────────── */}
+      {showConversational && (
+        <div className="mb-8">
+          {!singleKindView && (
+            <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+              Agent trò chuyện
+              <span className="text-xs font-normal text-muted-foreground">{conversationalAgents.length}</span>
+            </h2>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {conversationalAgents.map(a => <ConversationalCard key={a.id} a={a} />)}
+          </div>
+        </div>
+      )}
+
+      {showAutomation && (
+        <div className="mb-8">
+          {!singleKindView && (
+            <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+              Automation Agents
+              <span className="text-xs font-normal text-muted-foreground">{automationAgents.length}</span>
+            </h2>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {automationAgents.map(a => <AutomationCard key={a.id} a={a} />)}
+          </div>
+        </div>
+      )}
+
+      {!showConversational && !showAutomation && (
+        <div className="py-16 text-center text-muted-foreground text-sm">
+          {activeTab === "All agents" ? "No agents found." : "No agents in this tab yet."}
+        </div>
+      )}
     </div>
   );
 }
