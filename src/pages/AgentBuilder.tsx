@@ -17,6 +17,12 @@ import { businessProcessStore } from "@/components/business-processes/businessPr
 import { taskStore } from "@/components/tasks/taskStore";
 import { knowledgeStore } from "@/components/knowledge/knowledgeStore";
 import { triggerStore, triggerNeedsSetup, type TriggerRecord } from "@/components/configure/triggerStore";
+import { agentConnectorStore, type ConnectorScope } from "@/components/configure/agentConnectorStore";
+import {
+  agentPublishStore, isAutomationAgent, PUBLISH_BLOCKED_REASON,
+  TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON, CONNECTOR_BLOCKED_BY_TRIGGER_REASON,
+  TRIGGER_BLOCKED_BY_PUBLISHED_REASON,
+} from "@/components/configure/agentPublishStore";
 import AppLogo from "@/components/configure/AppLogo";
 import { TYPE_META, summarizeConfig } from "@/components/configure/TriggersTab";
 import { guardrailStore } from "@/components/configure/guardrailStore";
@@ -68,6 +74,9 @@ export default function AgentBuilder() {
   const [showWelcome, setShowWelcome] = useState(welcome);
   const [showPublish, setShowPublish] = useState(false);
   const [previewView, setPreviewView] = useState<"config" | "chat">("config");
+  const [publishTick, setPublishTick] = useState(0);
+  const [showAgentMenu, setShowAgentMenu] = useState(false);
+  const published = (() => { void publishTick; return agentPublishStore.isPublished(id); })();
   useEffect(() => { setShowWelcome(welcome); }, [welcome]);
   const dismissWelcome = () => {
     setShowWelcome(false);
@@ -117,20 +126,54 @@ export default function AgentBuilder() {
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-success/10 border border-success/20 text-success text-xs font-medium shrink-0">
-            <span className="w-1.5 h-1.5 rounded-full bg-success" /> Live · v1.0.1
-          </div>
+          {published ? (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-success/10 border border-success/20 text-success text-xs font-medium shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-success" /> Live · v1.0.1
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-muted border border-border text-muted-foreground text-xs font-medium shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground" /> Draft
+            </div>
+          )}
           <button onClick={() => setShowPublish(true)} className="btn-primary h-9">
             <HugeiconsIcon icon={Rocket01Icon} size={13} /> Publish
           </button>
-          <button className="h-9 w-9 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base">
-            <HugeiconsIcon icon={MoreHorizontalIcon} size={16} />
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowAgentMenu(o => !o)}
+              className="h-9 w-9 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base"
+            >
+              <HugeiconsIcon icon={MoreHorizontalIcon} size={16} />
+            </button>
+            {showAgentMenu && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setShowAgentMenu(false)} />
+                <div className="absolute right-0 top-full mt-1 z-20 w-44 rounded-lg border border-border bg-white shadow-elev py-1">
+                  <button
+                    disabled={!published}
+                    onClick={() => {
+                      agentPublishStore.unpublish(id);
+                      setPublishTick(t => t + 1);
+                      setShowAgentMenu(false);
+                    }}
+                    className="w-full text-left px-3 py-1.5 text-xs text-foreground hover:bg-surface-muted disabled:text-muted-foreground/50 disabled:cursor-not-allowed"
+                  >
+                    Unpublish agent
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
       {showPublish && (
-        <PublishModal onClose={() => setShowPublish(false)} onChatTest={() => { setShowPublish(false); setPreviewView("chat"); }} />
+        <PublishModal
+          agentId={id}
+          onClose={() => setShowPublish(false)}
+          onChatTest={() => { setShowPublish(false); setPreviewView("chat"); }}
+          onPublished={() => setPublishTick(t => t + 1)}
+        />
       )}
 
       {/* Welcome banner (first-time onboarding success) */}
@@ -281,7 +324,7 @@ export default function AgentBuilder() {
               {tab === "build" && section === "model" && <PlaceholderTab title="Model" />}
               {tab === "build" && !["instructions","knowledge","history","skills","guardrails","triggers","model"].includes(section) && <PlaceholderTab title={section} />}
               {tab === "test" && <PlaceholderTab title="Test" />}
-              {tab === "deploy" && <DeployTab agentVersion="v1.0.2" />}
+              {tab === "deploy" && <DeployTab agentVersion="v1.0.2" agentId={id} />}
               {tab === "insights" && <PerformanceTab />}
             </div>
           </div>
@@ -1949,13 +1992,30 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-function DeployTab({ agentVersion }: { agentVersion: string }) {
+function DeployTab({ agentVersion, agentId }: { agentVersion: string; agentId: string }) {
   const [showPublish, setShowPublish] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showVersionSelect, setShowVersionSelect] = useState(false);
   const [showWebWidgetConfig, setShowWebWidgetConfig] = useState(false);
   const [servingVersion, setServingVersion] = useState(agentVersion);
   const [recipients, setRecipients] = useState<{ id: number; name: string; sub: string }[]>([]);
+  const blocked = isAutomationAgent(agentId);
+
+  if (blocked) {
+    return (
+      <div className="max-w-[1040px] mx-auto px-8 py-8">
+        <div className="rounded-2xl border-2 border-dashed border-border flex flex-col items-center justify-center text-center py-20 px-6">
+          <div className="w-12 h-12 rounded-xl bg-warning-soft flex items-center justify-center mb-4">
+            <HugeiconsIcon icon={BoltIcon} size={20} className="text-warning" />
+          </div>
+          <h3 className="text-base font-semibold mb-1.5">Automation Agent — không có kênh trò chuyện</h3>
+          <p className="text-sm text-muted-foreground max-w-md leading-relaxed">
+            Agent này chạy tự động qua trigger nên không có kênh chat hay cấu hình publish. Xoá hết trigger trong tab Build để publish agent này như một agent hội thoại.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-[1040px] mx-auto px-8 py-8">
@@ -1968,6 +2028,7 @@ function DeployTab({ agentVersion }: { agentVersion: string }) {
           onPublish={audience => {
             const info = AUDIENCE_INFO[audience] ?? AUDIENCE_INFO.me;
             setRecipients(prev => [...prev, { id: Date.now(), name: info.name, sub: info.sub }]);
+            agentPublishStore.publish(agentId, true, agentPublishStore.get(agentId).channels);
             setShowSuccess(true);
           }}
         />
@@ -2005,7 +2066,7 @@ function DeployTab({ agentVersion }: { agentVersion: string }) {
           </div>
           <div>
             <p className="text-xs text-muted-foreground mb-1">Live channels</p>
-            <p className="text-base font-semibold">0</p>
+            <p className="text-base font-semibold">{agentPublishStore.get(agentId).channels.length}</p>
           </div>
         </div>
         <button onClick={() => setShowVersionSelect(true)} className="btn-primary">
@@ -2465,7 +2526,7 @@ function NewConfigPanel({ agentId, model, onModelChange }: { agentId: string; mo
       id: "connectors", icon: ConnectIcon, label: "Connectors",
       onAdd: (pos: {top:number;left:number}) => connectorsAddRef.current?.(pos),
       content: (
-        <ConnectorsInner onRegisterAdd={(fn) => { connectorsAddRef.current = fn; }} />
+        <ConnectorsInner agentId={agentId} onRegisterAdd={(fn) => { connectorsAddRef.current = fn; }} />
       ),
     },
     {
@@ -2762,7 +2823,10 @@ const INTERNAL_CHANNELS = [
   { id: "workspace", name: "Internal workspace", category: "Workspace", emoji: "🏢", connected: true },
 ];
 
-function PublishModal({ onClose, onChatTest }: { onClose: () => void; onChatTest: () => void }) {
+function PublishModal({ agentId, onClose, onChatTest, onPublished }: {
+  agentId: string; onClose: () => void; onChatTest: () => void; onPublished?: () => void;
+}) {
+  const blocked = isAutomationAgent(agentId);
   const [reason, setReason] = useState("");
   const [deployEnabled, setDeployEnabled] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set(["web", "zalo", "api", "workspace"]));
@@ -2820,6 +2884,12 @@ function PublishModal({ onClose, onChatTest }: { onClose: () => void; onChatTest
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          {blocked && (
+            <div className="flex items-start gap-2.5 p-3.5 rounded-xl border border-destructive/30 bg-destructive/5">
+              <HugeiconsIcon icon={Alert01Icon} size={15} className="text-destructive shrink-0 mt-0.5" />
+              <p className="text-sm text-destructive">{PUBLISH_BLOCKED_REASON}</p>
+            </div>
+          )}
           {/* Warning */}
           <div className="flex items-start gap-2.5 p-3.5 rounded-xl border border-amber-200 bg-amber-50">
             <HugeiconsIcon icon={Alert01Icon} size={15} className="text-amber-600 shrink-0 mt-0.5" />
@@ -2951,13 +3021,28 @@ function PublishModal({ onClose, onChatTest }: { onClose: () => void; onChatTest
           <span className="text-xs text-muted-foreground">{deployEnabled ? `${selected.size} channel${selected.size !== 1 ? "s" : ""} selected` : "No channel deployment"}</span>
           <div className="flex items-center gap-2">
             <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Cancel</button>
-            <button
-              disabled={!reason.trim() || selected.size === 0}
-              className="h-9 px-5 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 transition-base disabled:opacity-40 disabled:cursor-not-allowed"
-              onClick={onClose}
-            >
-              <HugeiconsIcon icon={Rocket01Icon} size={13} /> Publish
-            </button>
+            <Tooltip delayDuration={200}>
+              <TooltipTrigger asChild>
+                <span>
+                  <button
+                    disabled={blocked || !reason.trim() || selected.size === 0}
+                    className="h-9 px-5 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 transition-base disabled:opacity-40 disabled:cursor-not-allowed"
+                    onClick={() => {
+                      agentPublishStore.publish(
+                        agentId,
+                        selected.has("workspace"),
+                        [...selected].filter(id => id !== "workspace"),
+                      );
+                      onPublished?.();
+                      onClose();
+                    }}
+                  >
+                    <HugeiconsIcon icon={Rocket01Icon} size={13} /> Publish
+                  </button>
+                </span>
+              </TooltipTrigger>
+              {blocked && <TooltipContent side="top">{PUBLISH_BLOCKED_REASON}</TooltipContent>}
+            </Tooltip>
           </div>
         </div>
       </div>
@@ -3383,12 +3468,14 @@ function ConnectWorkspaceSkillModal({ onClose, onAdd, added }: {
   );
 }
 
-function ConnectorsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:number;left:number}) => void) => void } = {}) {
+function ConnectorsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAdd?: (fn: (pos:{top:number;left:number}) => void) => void }) {
   const [showMenu, setShowMenu] = useState(false);
   const [menuPos, setMenuPos] = useState<{top:number;left:number}>({top:0,left:0});
   const [showPicker, setShowPicker] = useState(false);
-  const [pickerMode, setPickerMode] = useState<"shared" | "per-user">("shared");
-  const [connected, setConnected] = useState<{ id: string; mode: "shared" | "per-user" }[]>([]);
+  const [pickerMode, setPickerMode] = useState<ConnectorScope>("shared");
+  const [tick, setTick] = useState(0);
+  void tick;
+  const connected = agentConnectorStore.list(agentId).map(c => ({ id: c.connectorId, mode: c.scope }));
 
   useEffect(() => {
     onRegisterAdd?.((pos: {top:number;left:number}) => { setMenuPos(pos); setShowMenu(true); });
@@ -3403,12 +3490,21 @@ function ConnectorsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:num
 
   const menuItems = [
     { icon: Building02Icon, label: "Shared", sub: "One workspace account", mode: "shared" as const },
-    { icon: UserIcon, label: "Per-user", sub: "Each person's own account", mode: "per-user" as const },
+    { icon: UserIcon, label: "Per-user", sub: "Each person's own account", mode: "personal" as const },
   ];
 
   const connectedIds = connected.map(c => c.id);
   const toggleConnector = (id: string) => {
-    setConnected(prev => prev.some(c => c.id === id) ? prev.filter(c => c.id !== id) : [...prev, { id, mode: pickerMode }]);
+    if (agentConnectorStore.list(agentId).some(c => c.connectorId === id)) {
+      agentConnectorStore.remove(agentId, id);
+    } else {
+      if (pickerMode === "personal" && isAutomationAgent(agentId)) {
+        toast.error(CONNECTOR_BLOCKED_BY_TRIGGER_REASON);
+        return;
+      }
+      agentConnectorStore.add(agentId, id, pickerMode);
+    }
+    setTick(t => t + 1);
   };
 
   return (
@@ -3440,7 +3536,7 @@ function ConnectorsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:num
                   {c.mode === "shared" ? "Shared" : "Per-user"}
                 </span>
                 <button
-                  onClick={() => setConnected(prev => prev.filter(x => x.id !== c.id))}
+                  onClick={() => { agentConnectorStore.remove(agentId, c.id); setTick(t => t + 1); }}
                   className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-surface-muted transition-base shrink-0">
                   <HugeiconsIcon icon={Delete01Icon} size={12} />
                 </button>
@@ -4465,14 +4561,22 @@ function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegister
   const [editTarget, setEditTarget] = useState<TriggerRecord | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
 
+  const openCreate = () => {
+    if (agentPublishStore.isPublished(agentId)) { toast.error(TRIGGER_BLOCKED_BY_PUBLISHED_REASON); return; }
+    if (agentConnectorStore.hasPersonalConnector(agentId)) { toast.error(TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON); return; }
+    setCreateOpen(true);
+  };
+
   useEffect(() => {
-    onRegisterAdd?.(() => setCreateOpen(true));
+    onRegisterAdd?.(openCreate);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   void tick;
   const triggers = triggerStore.list(agentId);
 
   const duplicateTrigger = (t: TriggerRecord) => {
+    if (agentPublishStore.isPublished(agentId)) { toast.error(TRIGGER_BLOCKED_BY_PUBLISHED_REASON); return; }
+    if (agentConnectorStore.hasPersonalConnector(agentId)) { toast.error(TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON); return; }
     let name = `${t.name} (copy)`;
     let n = 2;
     while (triggerStore.isDuplicateName(agentId, name)) {
@@ -4503,7 +4607,7 @@ function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegister
           icon={TimeScheduleIcon}
           description="Xác định khi nào agent chạy tự động — theo lịch, qua webhook, hoặc theo sự kiện từ ứng dụng bên ngoài."
           addLabel="Thêm Trigger"
-          onAdd={() => setCreateOpen(true)}
+          onAdd={openCreate}
         />
       ) : (
         <div className="flex flex-col gap-2">

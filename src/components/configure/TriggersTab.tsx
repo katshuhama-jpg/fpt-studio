@@ -11,6 +11,10 @@ import TriggerFormDialog from "./TriggerFormDialog";
 import {
   triggerStore, triggerNeedsSetup, EXTERNAL_APP_EVENTS, EXTERNAL_APP_META, type TriggerRecord, type TriggerType,
 } from "./triggerStore";
+import { agentConnectorStore } from "./agentConnectorStore";
+import {
+  agentPublishStore, TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON, TRIGGER_BLOCKED_BY_PUBLISHED_REASON,
+} from "./agentPublishStore";
 import TriggerRunsTab from "./TriggerRunsTab";
 import AppLogo from "./AppLogo";
 import { toast } from "sonner";
@@ -116,7 +120,15 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
     refresh();
   };
 
+  const openCreate = () => {
+    if (agentPublishStore.isPublished(agentId)) { toast.error(TRIGGER_BLOCKED_BY_PUBLISHED_REASON); return; }
+    if (agentConnectorStore.hasPersonalConnector(agentId)) { toast.error(TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON); return; }
+    setCreateOpen(true);
+  };
+
   const duplicateTrigger = (t: TriggerRecord) => {
+    if (agentPublishStore.isPublished(agentId)) { toast.error(TRIGGER_BLOCKED_BY_PUBLISHED_REASON); return; }
+    if (agentConnectorStore.hasPersonalConnector(agentId)) { toast.error(TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON); return; }
     let name = `${t.name} (copy)`;
     let n = 2;
     while (triggerStore.isDuplicateName(agentId, name)) {
@@ -178,7 +190,7 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
                 <Pause size={13} /> Tạm dừng tất cả
               </button>
             )}
-            <button onClick={() => setCreateOpen(true)} className="btn-primary h-9">
+            <button onClick={openCreate} className="btn-primary h-9">
               <Plus size={13} /> Thêm Trigger
             </button>
           </div>
@@ -207,7 +219,7 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
       {tab === "runs" ? (
         <TriggerRunsTab agentId={agentId} />
       ) : isEmpty ? (
-        <EmptyState onCreate={() => setCreateOpen(true)} />
+        <EmptyState onCreate={openCreate} />
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           {triggers.map(t => {
