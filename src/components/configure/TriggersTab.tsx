@@ -96,8 +96,8 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
     if (pausable.length === 0 && skipped === 0) return;
     pausable.forEach(t => triggerStore.toggle(agentId, t.id));
     const msg = skipped > 0
-      ? `Paused ${pausable.length} triggers. ${skipped} triggers are still incomplete.`
-      : `Paused ${pausable.length} triggers.`;
+      ? `Paused ${pausable.length} trigger${pausable.length === 1 ? "" : "s"}. ${skipped} trigger${skipped === 1 ? "" : "s"} ${skipped === 1 ? "is" : "are"} still incomplete.`
+      : `Paused ${pausable.length} trigger${pausable.length === 1 ? "" : "s"}.`;
     toast.success(msg);
     refresh();
   };
@@ -109,8 +109,8 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
     if (resumable.length === 0 && blocked === 0) return;
     resumable.forEach(t => triggerStore.toggle(agentId, t.id));
     const msg = blocked > 0
-      ? `Resumed ${resumable.length} triggers. ${blocked} triggers still need to be fully configured.`
-      : `Resumed ${resumable.length} triggers.`;
+      ? `Resumed ${resumable.length} trigger${resumable.length === 1 ? "" : "s"}. ${blocked} trigger${blocked === 1 ? "" : "s"} still ${blocked === 1 ? "needs" : "need"} to be fully configured.`
+      : `Resumed ${resumable.length} trigger${resumable.length === 1 ? "" : "s"}.`;
     toast.success(msg);
     refresh();
   };
@@ -328,7 +328,7 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
                   This agent will stop running on its own and will move out of Automation. Its scheduled and
                   event-driven runs will stop immediately.
                   {publishInfo.isPublished && publishInfo.channelCount > 0 && (
-                    <> It stays live on {publishInfo.channelCount} channel{publishInfo.channelCount === 1 ? "" : "s"}, but nothing will trigger it.</>
+                    <> It stays on the channels it's already live on, but nothing will trigger it. To open it to Workspace, publish again.</>
                   )}
                 </AlertDialogDescription>
               </AlertDialogHeader>

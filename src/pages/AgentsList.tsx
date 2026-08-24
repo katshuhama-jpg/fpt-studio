@@ -9,7 +9,7 @@ import { useState } from "react";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import { getAgentKind } from "@/components/configure/agentKindStore";
 import { agentPublishStore } from "@/components/configure/agentPublishStore";
-import { triggerStore, type TriggerType } from "@/components/configure/triggerStore";
+import { triggerStore, triggerNeedsSetup, type TriggerType } from "@/components/configure/triggerStore";
 import { AGENTS as agents } from "@/components/configure/agentStore";
 import { getChannelName } from "@/components/configure/channelCatalog";
 
@@ -284,6 +284,7 @@ function AutomationCard({ a }: { a: typeof agents[number] }) {
   const triggers = triggerStore.list(a.id);
   const lastFired = triggers.reduce<number | null>((max, t) => t.lastFiredAt != null && (max == null || t.lastFiredAt > max) ? t.lastFiredAt : max, null);
   const types = Array.from(new Set(triggers.map(t => t.type)));
+  const needsSetupCount = triggers.filter(triggerNeedsSetup).length;
 
   return (
     <Link
@@ -316,7 +317,10 @@ function AutomationCard({ a }: { a: typeof agents[number] }) {
             <HugeiconsIcon icon={BoltIcon} size={12} className="text-muted-foreground" />
             <span className="text-xs">
               <b className="font-display">{triggers.length}</b>
-              <span className="text-muted-foreground ml-1">trigger</span>
+              <span className="text-muted-foreground ml-1">trigger{triggers.length === 1 ? "" : "s"}</span>
+              {needsSetupCount > 0 && (
+                <span className="text-warning ml-1">· {needsSetupCount} needs setup</span>
+              )}
             </span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -404,13 +408,15 @@ export default function AgentsList() {
   const allConversationalCount = agents.filter(a => getAgentKind(a.id) === "conversational").length;
   const allAutomationCount = agents.filter(a => getAgentKind(a.id) === "automation").length;
 
-  const conversationalFilterSelected = kindFilter === "Agents";
-  const automationFilterSelected = kindFilter === "Automation Agents";
-  const showConversational = kindFilter !== "Automation Agents"
-    && (conversationalAgents.length > 0 || allConversationalCount === 0 || conversationalFilterSelected);
-  const showAutomation = kindFilter !== "Agents"
-    && (automationAgents.length > 0 || allAutomationCount === 0 || automationFilterSelected);
+  const showConversational = kindFilter !== "Automation Agents";
+  const showAutomation = kindFilter !== "Agents";
   const singleKindView = kindFilter !== "All";
+
+  const clearFilters = () => {
+    setKindFilter("All");
+    setSearch("");
+    setActiveTab("All agents");
+  };
 
   const handleBuild = () => {
     if (!prompt.trim() || !canCreateAgent) return;
@@ -566,8 +572,10 @@ export default function AgentsList() {
           )}
           {conversationalAgents.length === 0 ? (
             <GroupEmptyState
-              message="No agents yet — build one above and it will appear here."
-              onShowAll={conversationalFilterSelected && allConversationalCount > 0 ? () => setKindFilter("All") : undefined}
+              message={allConversationalCount === 0
+                ? "No agents yet — build one above and it will appear here."
+                : "No agents match your search"}
+              onShowAll={allConversationalCount > 0 ? clearFilters : undefined}
             />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -587,20 +595,16 @@ export default function AgentsList() {
           )}
           {automationAgents.length === 0 ? (
             <GroupEmptyState
-              message="No automation agents yet — add a trigger to an agent in Console and it will appear here."
-              onShowAll={automationFilterSelected && allAutomationCount > 0 ? () => setKindFilter("All") : undefined}
+              message={allAutomationCount === 0
+                ? "No automation agents yet — add a trigger to an agent in Console and it will appear here."
+                : "No agents match your search"}
+              onShowAll={allAutomationCount > 0 ? clearFilters : undefined}
             />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {automationAgents.map(a => <AutomationCard key={a.id} a={a} />)}
             </div>
           )}
-        </div>
-      )}
-
-      {!showConversational && !showAutomation && (
-        <div className="py-16 text-center text-muted-foreground text-sm">
-          {activeTab === "All agents" ? "No agents found." : "No agents in this tab yet."}
         </div>
       )}
     </div>

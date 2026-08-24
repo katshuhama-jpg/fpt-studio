@@ -26,7 +26,7 @@ import {
 } from "@/components/configure/agentPublishStore";
 import { getAgentKind, type AgentKind } from "@/components/configure/agentKindStore";
 import { getAgent } from "@/components/configure/agentStore";
-import { CHANNEL_CATALOG, type ChannelCatalogEntry } from "@/components/configure/channelCatalog";
+import { CHANNEL_CATALOG, getChannelName, type ChannelCatalogEntry } from "@/components/configure/channelCatalog";
 import { connectedAccountStore } from "@/components/configure/connectedAccountStore";
 import ConnectionsTab, { CATALOG as CONNECTOR_CATALOG } from "@/components/configure/ConnectionsTab";
 import AppLogo from "@/components/configure/AppLogo";
@@ -157,7 +157,15 @@ export default function AgentBuilder() {
                 : "bg-success/10 border-success/20 text-success"
             }`}>
               <span className={`w-1.5 h-1.5 rounded-full ${kind === "automation" ? "bg-indigo-500" : "bg-success"}`} />
-              {kind === "automation" ? "Automation" : "Live on Workspace"} · {publishState.version}
+              {kind === "automation"
+                ? "Automation"
+                : publishState.placement === "workspace"
+                  ? "Live on Workspace"
+                  : publishState.channels.length === 1
+                    ? `Live on ${getChannelName(publishState.channels[0])}`
+                    : publishState.channels.length > 1
+                      ? `Live on ${publishState.channels.length} channels`
+                      : "Live"} · {publishState.version}
             </div>
           ) : (
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-muted border border-border text-muted-foreground text-xs font-medium shrink-0">
@@ -242,8 +250,8 @@ export default function AgentBuilder() {
             minWidth: 0,
           }}
         >
-          {/* Nav items */}
-          <nav className="flex-1 px-2 pt-2 pb-1 overflow-y-auto flex flex-col" style={{ gap: "4px" }}>
+          {/* Nav items — fixed height, always renders in full; the panel below scrolls instead */}
+          <nav className="shrink-0 px-2 pt-2 pb-1 flex flex-col" style={{ gap: "4px" }}>
             {nav.map((it: any) => (
               <button
                 key={it.id}
@@ -269,8 +277,8 @@ export default function AgentBuilder() {
             ))}
           </nav>
 
-          {/* Ready to publish + Collapse */}
-          <div className="px-3 py-3 border-t border-border shrink-0 space-y-2">
+          {/* Ready to publish + Collapse — flexible region, scrolls/shrinks instead of clipping the nav above */}
+          <div className="px-3 py-3 border-t border-border flex-1 min-h-0 overflow-y-auto space-y-2">
             <HowThisAgentRuns agentId={id ?? "new"} onViewSection={setSection} />
             <div className="rounded-lg border border-border bg-surface-muted/50 p-2.5">
               {(() => {

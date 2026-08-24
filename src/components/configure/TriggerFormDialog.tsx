@@ -383,7 +383,11 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
   };
 
   const primaryLabel =
-    step === "details" || step === "queue-work-hours" ? (mode === "create" ? "Create" : "Save") : "Continue";
+    step === "queue-work-hours"
+      ? (mode === "create"
+          ? (qwhEnabled ? "Create trigger" : "Create — process events right away")
+          : (qwhEnabled ? "Save trigger" : "Save — process events right away"))
+      : step === "details" ? (mode === "create" ? "Create" : "Save") : "Continue";
 
   const connectedAccounts = connectedAccountStore.list(app);
   const categoryHeading = category === "scheduled" ? "Repeating schedule"
@@ -1171,17 +1175,6 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
           >
             {step === "main" ? "Cancel" : "Back"}
           </button>
-          {step === "queue-work-hours" && (
-            <button
-              type="button"
-              onClick={submit}
-              className={`h-9 px-4 rounded-lg text-sm font-medium transition-base ${
-                !qwhEnabled ? "bg-primary text-primary-foreground hover:bg-primary-glow" : "border border-border bg-surface hover:bg-surface-muted"
-              }`}
-            >
-              {qwhEnabled ? "Skip" : "Skip — process events right away"}
-            </button>
-          )}
           <button
             type="button"
             onClick={primaryAction}
@@ -1190,11 +1183,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
               (step === "app" && (!accountId || connectionExpired)) ||
               detailsInvalid
             }
-            className={`h-9 px-4 disabled:opacity-40 disabled:pointer-events-none ${
-              step === "queue-work-hours" && !qwhEnabled
-                ? "rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base"
-                : "btn-primary"
-            }`}
+            className="h-9 px-4 btn-primary disabled:opacity-40 disabled:pointer-events-none"
           >
             {primaryLabel}
           </button>
