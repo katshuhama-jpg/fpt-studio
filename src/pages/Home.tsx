@@ -297,6 +297,26 @@ export default function Home() {
           </div>
         </section>
 
+        {/* ── Recommended AI agents ─────────────────────────────── */}
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-display text-lg font-semibold">Recommended AI agents</h2>
+            <button className="text-xs text-muted-foreground flex items-center gap-1 hover:text-foreground transition-base">
+              More <ArrowRight size={12} />
+            </button>
+          </div>
+          <div className="rounded-xl border border-border bg-surface divide-y divide-border overflow-hidden">
+            {recommendedAgents.map(a => (
+              <div key={a.id} className="flex items-center gap-3 px-4 py-3.5 hover:bg-surface-muted/50 transition-base">
+                <div className={`w-10 h-10 rounded-xl ${a.bg} flex items-center justify-center text-xl shrink-0`}>{a.emoji}</div>
+                <p className="text-sm font-medium flex-1 min-w-0 truncate">{a.name}</p>
+                <span className="text-xs text-muted-foreground shrink-0">{a.clones.toLocaleString()} clones</span>
+                <button className="shrink-0 h-8 px-4 rounded-lg border border-border text-xs font-medium hover:bg-surface-muted transition-base">View</button>
+              </div>
+            ))}
+          </div>
+        </section>
+
         {/* ── Agent Governance ──────────────────────────────────── */}
         <section>
           <div className="flex items-center justify-between mb-4">
@@ -345,4 +365,11 @@ const governance = [
   { label: "Access requests",    val: 3,    desc: "Users requesting Agent access",      icon: KeyRound,       iconBg: "bg-amber-50",  iconColor: "text-amber-500" },
   { label: "Policy alerts",      val: 2,    desc: "Guardrail violations this week",     icon: AlertTriangle,  iconBg: "bg-red-50",    iconColor: "text-red-500" },
   { label: "Compliance",         val: "98%", desc: "Agents meeting governance policies", icon: CheckCircle2,  iconBg: "bg-green-50",  iconColor: "text-green-500" },
+];
+
+const recommendedAgents = [
+  { id: "r1", emoji: "\uD83E\uDDD9", bg: "bg-purple-100", name: "Multi-Platform Workforce",  clones: 2005 },
+  { id: "r2", emoji: "\uD83D\uDD0D", bg: "bg-amber-100",  name: "Sales Researcher",            clones: 1764 },
+  { id: "r3", emoji: "\uD83D\uDCBC", bg: "bg-blue-100",   name: "LinkedIn Outreach & Follow up", clones: 1377 },
+  { id: "r4", emoji: "\uD83D\uDCAC", bg: "bg-green-100",  name: "WhatsApp AI Agent",           clones: 1238 },
 ];
