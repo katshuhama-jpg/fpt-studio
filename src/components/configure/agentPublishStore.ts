@@ -94,12 +94,3 @@ export const TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON = (connectorName: stri
   `This agent uses a per-user connection (${connectorName}). Triggers run in the background with nobody signed in, so there's no personal account to borrow.`;
 export const CONNECTOR_BLOCKED_BY_TRIGGER_REASON = (n: number) =>
   `This agent has ${n} background trigger${n === 1 ? "" : "s"} running, so it's in Automation mode for the whole organization. When a trigger fires, there's no signed-in user to borrow an account from.`;
-
-// Warn-then-allow variants: unlike the two reasons above (still used to hard-block the
-// compact right-sidebar Connectors/Triggers panels), the main Connections and Triggers
-// tabs let the Builder proceed and resolve the conflict by pausing instead. One canonical
-// string per direction, rendered through TriggerConnectorNotice everywhere it's shown.
-export const TRIGGER_PERSONAL_CONNECTOR_PAUSE_WARNING = (connectorName: string) =>
-  `This agent uses a per-user connection (${connectorName}). Triggers run in the background with nobody signed in, so there is no personal account to use.`;
-export const CONNECTOR_TRIGGER_PAUSE_WARNING = (n: number) =>
-  `This agent has ${n} trigger${n === 1 ? "" : "s"}, so it runs as an Automation for the whole organization. A per-user connection needs someone signed in.`;

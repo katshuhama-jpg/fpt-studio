@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Search, CheckCircle2, ChevronRight, Pencil, Trash2, User, Building2, X, AlertTriangle } from "lucide-react";
 import { agentConnectorStore, type ConnectorScope } from "./agentConnectorStore";
 import { triggerStore } from "./triggerStore";
-import { CONNECTOR_TRIGGER_PAUSE_WARNING } from "./agentPublishStore";
+import { CONNECTOR_BLOCKED_BY_TRIGGER_REASON } from "./agentPublishStore";
 import { toast } from "sonner";
 
 export const CATALOG = [
@@ -19,19 +19,19 @@ function ScopeModal({ agentId, connectorId, editing, onClose, onSaved, onViewTri
 }) {
   const meta = CATALOG.find(c => c.id === connectorId);
   const existing = agentConnectorStore.list(agentId).find(c => c.connectorId === connectorId);
-  const [scope, setScope] = useState<ConnectorScope>(existing?.scope ?? "shared");
-
-  const activeTriggers = triggerStore.list(agentId).filter(t => t.enabled);
-  const willPauseTriggers = scope === "personal" && activeTriggers.length > 0;
+  const triggerCount = triggerStore.list(agentId).length;
+  const blockedByTriggers = triggerCount > 0;
+  const [scope, setScope] = useState<ConnectorScope>(blockedByTriggers ? "shared" : (existing?.scope ?? "shared"));
 
   const save = () => {
-    agentConnectorStore.add(agentId, connectorId, scope);
-    if (willPauseTriggers) {
-      activeTriggers.forEach(t => triggerStore.toggle(agentId, t.id));
-      toast.success(`Connection saved. Paused ${activeTriggers.length} trigger${activeTriggers.length === 1 ? "" : "s"}.`);
-    } else {
-      toast.success("Connection saved.");
+    // Backstop: the radio is disabled whenever blockedByTriggers, so this should be
+    // unreachable through the UI — reject rather than silently coercing to "shared".
+    if (blockedByTriggers && scope === "personal") {
+      toast.error(CONNECTOR_BLOCKED_BY_TRIGGER_REASON(triggerCount));
+      return;
     }
+    agentConnectorStore.add(agentId, connectorId, scope);
+    toast.success("Connection saved.");
     onSaved();
   };
 
@@ -52,18 +52,25 @@ function ScopeModal({ agentId, connectorId, editing, onClose, onSaved, onViewTri
         </div>
         <div className="px-5 py-4 space-y-1.5">
           <label
+            aria-disabled={blockedByTriggers}
             className={`flex items-start gap-3 w-full text-left rounded-xl border px-3.5 py-3 transition-base ${
-              scope === "personal" ? "border-primary bg-primary-soft/40 ring-1 ring-primary" : "border-border hover:bg-surface-muted"
-            } cursor-pointer`}
+              blockedByTriggers
+                ? "border-border opacity-50 cursor-not-allowed"
+                : scope === "personal"
+                  ? "border-primary bg-primary-soft/40 ring-1 ring-primary cursor-pointer"
+                  : "border-border hover:bg-surface-muted cursor-pointer"
+            }`}
           >
             <input
               type="radio"
               name="connector-scope"
               value="personal"
               checked={scope === "personal"}
-              onChange={() => setScope("personal")}
-              aria-describedby={willPauseTriggers ? "connector-scope-personal-warning" : undefined}
-              className="mt-[3px] w-4 h-4 accent-primary shrink-0"
+              disabled={blockedByTriggers}
+              aria-disabled={blockedByTriggers}
+              onChange={() => { if (!blockedByTriggers) setScope("personal"); }}
+              aria-describedby={blockedByTriggers ? "connector-scope-personal-warning" : undefined}
+              className="mt-[3px] w-4 h-4 accent-primary shrink-0 disabled:cursor-not-allowed"
             />
             <span className="flex-1 min-w-0">
               <span className="flex items-center gap-2 mb-1">
@@ -75,11 +82,11 @@ function ScopeModal({ agentId, connectorId, editing, onClose, onSaved, onViewTri
               </span>
             </span>
           </label>
-          {willPauseTriggers && (
+          {blockedByTriggers && (
             <div id="connector-scope-personal-warning" className="flex items-start gap-2 text-xs text-warning bg-[hsl(var(--warning-soft))] border border-warning/25 rounded-lg px-3 py-2.5">
               <AlertTriangle size={14} className="shrink-0 mt-0.5" />
               <p>
-                {CONNECTOR_TRIGGER_PAUSE_WARNING(activeTriggers.length)}{" "}
+                {CONNECTOR_BLOCKED_BY_TRIGGER_REASON(triggerCount)}{" "}
                 {onViewTriggers && (
                   <button type="button" onClick={onViewTriggers} className="font-semibold hover:underline">
                     View triggers

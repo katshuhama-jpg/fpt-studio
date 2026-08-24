@@ -12,7 +12,7 @@ import {
   triggerStore, triggerNeedsSetup, EXTERNAL_APP_EVENTS, EXTERNAL_APP_META, type TriggerRecord, type TriggerType,
 } from "./triggerStore";
 import { agentConnectorStore } from "./agentConnectorStore";
-import { TRIGGER_PERSONAL_CONNECTOR_PAUSE_WARNING, agentPublishStore } from "./agentPublishStore";
+import { TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON, agentPublishStore } from "./agentPublishStore";
 import { CATALOG as CONNECTOR_CATALOG } from "./ConnectionsTab";
 import TriggerConnectorNotice from "./TriggerConnectorNotice";
 import AppLogo from "./AppLogo";
@@ -73,8 +73,6 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
   const [deleteTarget, setDeleteTarget] = useState<TriggerRecord | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [confirmPauseAll, setConfirmPauseAll] = useState(false);
-  const [showPersonalWarning, setShowPersonalWarning] = useState(false);
-  const [pendingPauseOnCreate, setPendingPauseOnCreate] = useState(false);
 
   const allTriggers = useMemo(() => {
     void tick;
@@ -125,27 +123,12 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
   const limitReached = allTriggers.length >= TRIGGER_LIMIT;
 
   const openCreate = () => {
-    if (limitReached) return;
-    if (personalConnectorBlocked) { setShowPersonalWarning(true); return; }
+    if (limitReached || personalConnectorBlocked) return;
     setCreateOpen(true);
-  };
-
-  const confirmPersonalWarning = () => {
-    setShowPersonalWarning(false);
-    setPendingPauseOnCreate(true);
-    setCreateOpen(true);
-  };
-
-  const onCreated = (rec: TriggerRecord) => {
-    if (pendingPauseOnCreate) {
-      if (rec.enabled) triggerStore.toggle(agentId, rec.id);
-      setPendingPauseOnCreate(false);
-    }
-    refresh();
   };
 
   const duplicateTrigger = (t: TriggerRecord) => {
-    if (limitReached) return;
+    if (limitReached || personalConnectorBlocked) return;
     let name = `${t.name} (copy)`;
     let n = 2;
     while (triggerStore.isDuplicateName(agentId, name)) {
@@ -155,7 +138,7 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
     triggerStore.create(agentId, {
       name,
       type: t.type,
-      enabled: personalConnectorBlocked ? false : t.enabled,
+      enabled: t.enabled,
       description: t.description,
       config: t.config,
     });
@@ -192,7 +175,8 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
               </span>
               <button
                 onClick={resumeAll}
-                className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-sm font-medium text-foreground hover:bg-surface-muted transition-base"
+                disabled={personalConnectorBlocked}
+                className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-sm font-medium text-foreground hover:bg-surface-muted transition-base disabled:opacity-40 disabled:pointer-events-none"
               >
                 <Play size={13} /> Resume all
               </button>
@@ -200,13 +184,13 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
           ) : (
             <button
               onClick={() => setConfirmPauseAll(true)}
-              disabled={allTriggers.length === 0 || pausableCount === 0}
+              disabled={allTriggers.length === 0 || pausableCount === 0 || personalConnectorBlocked}
               className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-sm font-medium text-foreground hover:bg-surface-muted transition-base disabled:opacity-40 disabled:pointer-events-none"
             >
               <Pause size={13} /> Pause all
             </button>
           )}
-          <button onClick={openCreate} disabled={limitReached} className="btn-primary h-9 disabled:opacity-40 disabled:cursor-not-allowed">
+          <button onClick={openCreate} disabled={limitReached || personalConnectorBlocked} className="btn-primary h-9 disabled:opacity-40 disabled:cursor-not-allowed">
             <Plus size={13} /> Add trigger
           </button>
         </div>
@@ -215,7 +199,7 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
       {personalConnectorBlocked ? (
         <div className="mb-4">
           <TriggerConnectorNotice
-            message={TRIGGER_PERSONAL_CONNECTOR_PAUSE_WARNING(personalConnectorName)}
+            message={TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON(personalConnectorName)}
             linkLabel="Review connections"
             onLinkClick={onViewConnections}
           />
@@ -228,7 +212,7 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
       )}
 
       {isEmpty ? (
-        <EmptyState onCreate={openCreate} disabled={limitReached} />
+        <EmptyState onCreate={openCreate} disabled={limitReached || personalConnectorBlocked} />
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           {triggers.map(t => {
@@ -290,7 +274,8 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
                     <RowMenu
                       enabled={t.enabled}
                       needsSetup={needsSetup}
-                      duplicateBlocked={limitReached}
+                      duplicateBlocked={limitReached || personalConnectorBlocked}
+                      enableBlocked={personalConnectorBlocked}
                       onToggle={() => { triggerStore.toggle(agentId, t.id); refresh(); }}
                       onEdit={() => setEditTarget(t)}
                       onRename={() => setRenamingId(t.id)}
@@ -319,10 +304,10 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
 
       <TriggerFormDialog
         open={createOpen}
-        onOpenChange={v => { setCreateOpen(v); if (!v) setPendingPauseOnCreate(false); }}
+        onOpenChange={setCreateOpen}
         mode="create"
         agentId={agentId}
-        onSubmitted={onCreated}
+        onSubmitted={refresh}
       />
       <TriggerFormDialog
         open={!!editTarget}
@@ -413,22 +398,6 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <AlertDialog open={showPersonalWarning} onOpenChange={v => !v && setShowPersonalWarning(false)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>This trigger will be created paused</AlertDialogTitle>
-            <AlertDialogDescription>
-              {TRIGGER_PERSONAL_CONNECTOR_PAUSE_WARNING(personalConnectorName)} The new trigger will be created
-              paused — enable it once you've resolved the connection.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmPersonalWarning}>Continue</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
@@ -450,8 +419,8 @@ function EmptyState({ onCreate, disabled }: { onCreate: () => void; disabled?: b
   );
 }
 
-function RowMenu({ enabled, needsSetup, duplicateBlocked, onToggle, onEdit, onRename, onDuplicate, onDelete }: {
-  enabled: boolean; needsSetup: boolean; duplicateBlocked?: boolean;
+function RowMenu({ enabled, needsSetup, duplicateBlocked, enableBlocked, onToggle, onEdit, onRename, onDuplicate, onDelete }: {
+  enabled: boolean; needsSetup: boolean; duplicateBlocked?: boolean; enableBlocked?: boolean;
   onToggle: () => void; onEdit: () => void; onRename: () => void; onDuplicate: () => void; onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -491,6 +460,18 @@ function RowMenu({ enabled, needsSetup, duplicateBlocked, onToggle, onEdit, onRe
                 </span>
               </TooltipTrigger>
               <TooltipContent side="left" sideOffset={8} align="center">Finish configuring this trigger before enabling it.</TooltipContent>
+            </Tooltip>
+          ) : !enabled && enableBlocked ? (
+            <Tooltip delayDuration={300}>
+              <TooltipTrigger asChild>
+                <span
+                  tabIndex={0}
+                  className="block w-full text-left px-3 py-1.5 text-xs text-muted-foreground/60 cursor-not-allowed outline-none"
+                >
+                  Enable trigger
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="left" sideOffset={8} align="center">This agent uses a per-user connection — resolve it before enabling triggers.</TooltipContent>
             </Tooltip>
           ) : (
             <button
