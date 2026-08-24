@@ -7,8 +7,8 @@ import {
 } from "@hugeicons/core-free-icons";
 import { useState } from "react";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
-import { agentKindStore, type AgentKind } from "@/components/configure/agentKindStore";
-import { automationStore } from "@/components/configure/automationStore";
+import { getAgentKind } from "@/components/configure/agentKindStore";
+import { agentPublishStore } from "@/components/configure/agentPublishStore";
 import { triggerStore, type TriggerType } from "@/components/configure/triggerStore";
 
 /* ─── Data ─────────────────────────────────────────────────────────────── */
@@ -56,85 +56,11 @@ function relativeTime(ts: number): string {
   return `${Math.floor(hours / 24)} ngày trước`;
 }
 
-function agentTabStatus(a: typeof agents[number]): "Published" | "Draft" | "Running" | "Paused" {
-  if (agentKindStore.get(a.id) === "automation") {
-    const s = automationStore.get(a.id);
-    return s === "draft" ? "Draft" : s === "running" ? "Running" : "Paused";
+function agentTabStatus(a: typeof agents[number]): "Published" | "Draft" {
+  if (getAgentKind(a.id) === "automation") {
+    return agentPublishStore.isPublished(a.id) ? "Published" : "Draft";
   }
   return a.status as "Published" | "Draft";
-}
-
-/* ─── Kind picker (R1) ───────────────────────────────────────────────── */
-
-function KindPickerModal({ onClose, onSelect }: { onClose: () => void; onSelect: (kind: AgentKind) => void }) {
-  const Card = ({ kind, icon, title, line, bullets, accent }: {
-    kind: AgentKind; icon: any; title: string; line: string; bullets: string[]; accent: string;
-  }) => (
-    <button
-      onClick={() => onSelect(kind)}
-      className="flex-1 text-left rounded-2xl border-2 border-border bg-white hover:border-primary/50 hover:shadow-elev transition-base p-5 flex flex-col gap-3"
-    >
-      <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${accent}`}>
-        <HugeiconsIcon icon={icon} size={20} className="text-white" />
-      </div>
-      <div>
-        <h3 className="font-display text-base font-semibold mb-1">{title}</h3>
-        <p className="text-sm text-muted-foreground leading-relaxed">{line}</p>
-      </div>
-      <ul className="space-y-1.5 mt-1">
-        {bullets.map((b, i) => (
-          <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground leading-relaxed">
-            <span className="w-1 h-1 rounded-full bg-muted-foreground mt-1.5 shrink-0" />
-            {b}
-          </li>
-        ))}
-      </ul>
-    </button>
-  );
-
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-2xl bg-white rounded-2xl shadow-lg border border-border p-6 animate-fade-up">
-        <div className="flex items-start justify-between mb-5">
-          <div>
-            <h2 className="font-display text-xl font-semibold">Chọn loại agent</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">Không thể đổi loại sau khi agent được phát hành hoặc kích hoạt.</p>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0">
-            <HugeiconsIcon icon={Cancel01Icon} size={16} />
-          </button>
-        </div>
-        <div className="flex gap-4">
-          <Card
-            kind="conversational"
-            icon={Chat01Icon}
-            title="Agent trò chuyện"
-            line="Người dùng trò chuyện trực tiếp với agent."
-            accent="bg-primary"
-            bullets={[
-              "Phát hành lên Workspace và các kênh Web, Zalo, Slack, Facebook.",
-              "Mỗi người dùng có thể tự kết nối tài khoản riêng của mình.",
-              "Người dùng tự đặt trigger riêng trong Workspace sau khi cài.",
-            ]}
-          />
-          <Card
-            kind="automation"
-            icon={BoltIcon}
-            title="Automation Agent"
-            line="Agent tự chạy theo trigger, không có người trò chuyện."
-            accent="bg-indigo-600"
-            bullets={[
-              "Chạy theo lịch, Webhook, hoặc sự kiện từ ứng dụng bên ngoài.",
-              "Dùng kết nối chung của tổ chức, do Builder cấu hình một lần.",
-              "Không phát hành lên Workspace hay kênh ngoài.",
-            ]}
-          />
-        </div>
-      </div>
-    </div>,
-    document.body
-  );
 }
 
 /* ─── Template data ─────────────────────────────────────────────────── */
@@ -204,7 +130,6 @@ function TemplateModal({ onClose }: { onClose: () => void }) {
     params.set("section", "instructions");
     params.set("agentName", t.name);
     params.set("agentPrompt", t.systemPrompt);
-    params.set("kind", "conversational");
     onClose();
     navigate(`/agents/new?${params.toString()}`);
   };
@@ -374,13 +299,10 @@ function ConversationalCard({ a }: { a: typeof agents[number] }) {
 }
 
 function AutomationCard({ a }: { a: typeof agents[number] }) {
-  const status = automationStore.get(a.id);
-  const badgeLabel = status === "draft" ? "DRAFT" : status === "running" ? "ĐANG CHẠY" : "TẠM DỪNG";
-  const badgeClass = status === "running"
-    ? "bg-success/10 text-success"
-    : status === "paused"
-      ? "bg-warning-soft text-warning"
-      : "bg-surface-muted text-muted-foreground";
+  const published = agentPublishStore.isPublished(a.id);
+  const channels = agentPublishStore.get(a.id).channels;
+  const badgeLabel = published ? "ĐANG CHẠY" : "DRAFT";
+  const badgeClass = published ? "bg-success/10 text-success" : "bg-surface-muted text-muted-foreground";
   const triggers = triggerStore.list(a.id);
   const lastFired = triggers.reduce<number | null>((max, t) => t.lastFiredAt != null && (max == null || t.lastFiredAt > max) ? t.lastFiredAt : max, null);
   const types = Array.from(new Set(triggers.map(t => t.type)));
@@ -437,6 +359,14 @@ function AutomationCard({ a }: { a: typeof agents[number] }) {
               ))}
             </>
           )}
+          {channels.length > 0 && (
+            <>
+              <span>·</span>
+              <span title="Kênh gửi kết quả (outbound)" className="px-1.5 py-0.5 rounded bg-surface-muted">
+                {channels.length} kênh gửi kết quả
+              </span>
+            </>
+          )}
         </div>
       </div>
     </Link>
@@ -454,7 +384,6 @@ export default function AgentsList() {
   const [search, setSearch] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
   const [prompt, setPrompt] = useState("");
-  const [kindPickerFor, setKindPickerFor] = useState<"build" | "template" | null>(null);
 
   const tabCounts: Record<typeof tabs[number], number> = {
     "All agents": agents.length,
@@ -475,8 +404,8 @@ export default function AgentsList() {
     ? tabFiltered.filter(a => a.name.toLowerCase().includes(q) || a.desc.toLowerCase().includes(q))
     : tabFiltered;
 
-  const conversationalAgents = searched.filter(a => agentKindStore.get(a.id) === "conversational");
-  const automationAgents = searched.filter(a => agentKindStore.get(a.id) === "automation");
+  const conversationalAgents = searched.filter(a => getAgentKind(a.id) === "conversational");
+  const automationAgents = searched.filter(a => getAgentKind(a.id) === "automation");
 
   const showConversational = kindFilter !== "Automation" && conversationalAgents.length > 0;
   const showAutomation = kindFilter !== "Agent trò chuyện" && automationAgents.length > 0;
@@ -484,37 +413,15 @@ export default function AgentsList() {
 
   const handleBuild = () => {
     if (!prompt.trim() || !canCreateAgent) return;
-    setKindPickerFor("build");
-  };
-
-  const goToNewAgent = (kind: AgentKind, extra?: Record<string, string>) => {
     const params = new URLSearchParams();
     params.set("tab", "build");
     params.set("section", "instructions");
-    params.set("kind", kind);
-    if (extra) for (const [k, v] of Object.entries(extra)) params.set(k, v);
+    params.set("agentPrompt", prompt);
     navigate(`/agents/new?${params.toString()}`);
-  };
-
-  const handleKindSelected = (kind: AgentKind) => {
-    if (kindPickerFor === "build") {
-      setKindPickerFor(null);
-      goToNewAgent(kind, { agentPrompt: prompt });
-    } else if (kindPickerFor === "template") {
-      setKindPickerFor(null);
-      if (kind === "automation") {
-        goToNewAgent("automation");
-      } else {
-        setShowTemplates(true);
-      }
-    }
   };
 
   return (
     <div className="px-8 py-8 max-w-[1280px] mx-auto animate-fade-up">
-      {kindPickerFor && (
-        <KindPickerModal onClose={() => setKindPickerFor(null)} onSelect={handleKindSelected} />
-      )}
       {showTemplates && (
         <TemplateModal onClose={() => setShowTemplates(false)} />
       )}
@@ -566,7 +473,7 @@ export default function AgentsList() {
           {/* Right actions */}
           <div className="flex items-center gap-3">
             <button
-              onClick={() => canCreateAgent && setKindPickerFor("template")}
+              onClick={() => canCreateAgent && setShowTemplates(true)}
               disabled={!canCreateAgent}
               title={!canCreateAgent ? "You don't have permission to create agents." : undefined}
               className="text-sm text-muted-foreground hover:text-foreground transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-muted-foreground"

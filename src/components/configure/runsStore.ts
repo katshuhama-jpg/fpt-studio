@@ -1,7 +1,7 @@
 // In-memory trigger-execution-history store for the "Lịch sử chạy" tab prototype.
-// This screen only exists for Automation Agents (R3/R6) — one org-level configuration,
-// one timezone, no per-installer identity (a Console trigger has no installer at all).
-import type { TriggerType, ExternalApp } from "./triggerStore";
+// A Console trigger belongs to the org-level Automation placement — one configuration,
+// one timezone, no per-installer identity.
+import { triggerStore, type TriggerType, type ExternalApp } from "./triggerStore";
 
 export type RunStatus = "waiting" | "triggered" | "queued" | "running" | "completed" | "failed";
 
@@ -31,6 +31,8 @@ const seeded = new Set<string>();
 function seedAgent(agentId: string) {
   if (seeded.has(agentId)) return;
   seeded.add(agentId);
+  // Sample run history only makes sense once the agent actually has triggers to run.
+  if (triggerStore.list(agentId).length === 0) return;
   const now = Date.now();
   store.push(
     {

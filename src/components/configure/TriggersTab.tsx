@@ -12,12 +12,9 @@ import {
   triggerStore, triggerNeedsSetup, EXTERNAL_APP_EVENTS, EXTERNAL_APP_META, type TriggerRecord, type TriggerType,
 } from "./triggerStore";
 import { agentConnectorStore } from "./agentConnectorStore";
+import { TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON } from "./agentPublishStore";
 import AppLogo from "./AppLogo";
 import { toast } from "sonner";
-
-const CONNECTOR_LABELS: Record<string, string> = {
-  gmail: "Gmail", gdrive: "Google Drive", sheets: "Google Sheets", slack: "Slack", notion: "Notion", hubspot: "HubSpot",
-};
 
 /** Deterministic mock count of Workspace users with a trigger enabled — this prototype has
  * no real multi-user install data, so derive a stable small number from the trigger id. */
@@ -71,15 +68,16 @@ export function summarizeConfig(t: TriggerRecord): string {
   return "";
 }
 
-export default function TriggersTab({ agentId }: { agentId: string }) {
+export default function TriggersTab({ agentId, onViewConnections, onChange }: {
+  agentId: string; onViewConnections?: () => void; onChange?: () => void;
+}) {
   const [tick, setTick] = useState(0);
-  const refresh = () => setTick(t => t + 1);
+  const refresh = () => { setTick(t => t + 1); onChange?.(); };
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<TriggerRecord | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<TriggerRecord | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [confirmBulk, setConfirmBulk] = useState<"pause" | "resume" | null>(null);
-  const [blockedConnectorName, setBlockedConnectorName] = useState<string | null>(null);
 
   const allTriggers = useMemo(() => {
     void tick;
@@ -120,21 +118,15 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
     refresh();
   };
 
-  const personalConnector = agentConnectorStore.list(agentId).find(c => c.scope === "personal");
+  const personalConnectorBlocked = agentConnectorStore.list(agentId).some(c => c.scope === "personal");
 
   const openCreate = () => {
-    if (personalConnector) {
-      setBlockedConnectorName(CONNECTOR_LABELS[personalConnector.connectorId] ?? personalConnector.connectorId);
-      return;
-    }
+    if (personalConnectorBlocked) return;
     setCreateOpen(true);
   };
 
   const duplicateTrigger = (t: TriggerRecord) => {
-    if (personalConnector) {
-      setBlockedConnectorName(CONNECTOR_LABELS[personalConnector.connectorId] ?? personalConnector.connectorId);
-      return;
-    }
+    if (personalConnectorBlocked) return;
     let name = `${t.name} (copy)`;
     let n = 2;
     while (triggerStore.isDuplicateName(agentId, name)) {
@@ -195,14 +187,25 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
               <Pause size={13} /> Tạm dừng tất cả
             </button>
           )}
-          <button onClick={openCreate} className="btn-primary h-9">
+          <button onClick={openCreate} disabled={personalConnectorBlocked} className="btn-primary h-9 disabled:opacity-40 disabled:cursor-not-allowed">
             <Plus size={13} /> Thêm Trigger
           </button>
         </div>
       </div>
 
+      {personalConnectorBlocked && (
+        <p className="text-xs text-muted-foreground mb-4 -mt-2">
+          {TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON}{" "}
+          {onViewConnections && (
+            <button type="button" onClick={onViewConnections} className="text-primary font-medium hover:underline">
+              Xem kết nối
+            </button>
+          )}
+        </p>
+      )}
+
       {isEmpty ? (
-        <EmptyState onCreate={openCreate} />
+        <EmptyState onCreate={openCreate} disabled={personalConnectorBlocked} />
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           {triggers.map(t => {
@@ -264,6 +267,7 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
                     <RowMenu
                       enabled={t.enabled}
                       needsSetup={needsSetup}
+                      duplicateBlocked={personalConnectorBlocked}
                       onToggle={() => { triggerStore.toggle(agentId, t.id); refresh(); }}
                       onEdit={() => setEditTarget(t)}
                       onRename={() => setRenamingId(t.id)}
@@ -365,28 +369,11 @@ export default function TriggersTab({ agentId }: { agentId: string }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <AlertDialog open={!!blockedConnectorName} onOpenChange={v => !v && setBlockedConnectorName(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Không thêm được trigger</AlertDialogTitle>
-            <AlertDialogDescription>
-              Agent này đang dùng kết nối riêng của từng người dùng ({blockedConnectorName}), nên chỉ chạy khi có
-              người trò chuyện. Trigger chạy nền không có người dùng nào để mượn kết nối. Hãy đổi sang kết nối dùng
-              chung của tổ chức, hoặc tạo một Automation Agent.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Xem kết nối</AlertDialogCancel>
-            <AlertDialogAction onClick={() => setBlockedConnectorName(null)}>Đã hiểu</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
 
-function EmptyState({ onCreate }: { onCreate: () => void }) {
+function EmptyState({ onCreate, disabled }: { onCreate: () => void; disabled?: boolean }) {
   return (
     <div className="rounded-2xl border border-dashed border-border bg-gradient-soft p-12 text-center">
       <div className="w-14 h-14 mx-auto rounded-2xl bg-primary-soft text-primary flex items-center justify-center mb-4">
@@ -396,15 +383,15 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
       <p className="text-sm text-muted-foreground mb-5 max-w-md mx-auto">
         Thêm trigger để agent tự động chạy theo lịch, theo webhook, hoặc theo sự kiện từ ứng dụng bên ngoài.
       </p>
-      <button onClick={onCreate} className="btn-primary h-9 mx-auto">
+      <button onClick={onCreate} disabled={disabled} className="btn-primary h-9 mx-auto disabled:opacity-40 disabled:cursor-not-allowed">
         <Plus size={13} /> Thêm Trigger
       </button>
     </div>
   );
 }
 
-function RowMenu({ enabled, needsSetup, onToggle, onEdit, onRename, onDuplicate, onDelete }: {
-  enabled: boolean; needsSetup: boolean;
+function RowMenu({ enabled, needsSetup, duplicateBlocked, onToggle, onEdit, onRename, onDuplicate, onDelete }: {
+  enabled: boolean; needsSetup: boolean; duplicateBlocked?: boolean;
   onToggle: () => void; onEdit: () => void; onRename: () => void; onDuplicate: () => void; onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -477,8 +464,9 @@ function RowMenu({ enabled, needsSetup, onToggle, onEdit, onRename, onDuplicate,
           </button>
           <button
             type="button"
+            disabled={duplicateBlocked}
             onClick={() => { onDuplicate(); setOpen(false); }}
-            className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base"
+            className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base disabled:text-muted-foreground/50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
           >
             Nhân bản
           </button>

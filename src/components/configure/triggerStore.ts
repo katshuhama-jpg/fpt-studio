@@ -188,9 +188,16 @@ const store = new Map<string, TriggerRecord>();
 const k = (a: string, t: string) => `${a}:${t}`;
 const seededAgents = new Set<string>();
 
+/** Demo agents seeded with sample triggers so their Automation identity (kind is derived
+ * from trigger count — see agentKindStore.ts) is visible without manual setup. Every other
+ * agent, including freshly created ones, starts with zero triggers and is Conversational
+ * until the Builder actually adds one. */
+const AUTO_SEEDED_AGENT_IDS = new Set(["nightly-report", "invoice-reminder"]);
+
 function seedAgent(agentId: string) {
   if (seededAgents.has(agentId)) return;
   seededAgents.add(agentId);
+  if (!AUTO_SEEDED_AGENT_IDS.has(agentId)) return;
   const now = Date.now();
   const seed: Omit<TriggerRecord, "agentId">[] = [
     {

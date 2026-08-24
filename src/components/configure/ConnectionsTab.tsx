@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Plus, Trash2, User, Building2, X } from "lucide-react";
 import { agentConnectorStore, type ConnectorScope } from "./agentConnectorStore";
 import { triggerStore } from "./triggerStore";
-import type { AgentKind } from "./agentKindStore";
+import { CONNECTOR_BLOCKED_BY_TRIGGER_REASON } from "./agentPublishStore";
 import { toast } from "sonner";
 
 const CATALOG = [
@@ -14,50 +14,23 @@ const CATALOG = [
   { id: "hubspot", name: "HubSpot", logo: "H" },
 ];
 
-function AddConnectionModal({ agentId, kind, onClose, onSaved }: {
-  agentId: string; kind: AgentKind; onClose: () => void; onSaved: () => void;
+function AddConnectionModal({ agentId, onClose, onSaved, onViewTriggers }: {
+  agentId: string; onClose: () => void; onSaved: () => void; onViewTriggers?: () => void;
 }) {
   const [connectorId, setConnectorId] = useState(CATALOG[0].id);
   const [scope, setScope] = useState<ConnectorScope>("shared");
-  const [showGuard2, setShowGuard2] = useState(false);
 
-  // Only check for real Console triggers when this agent could plausibly be automation —
-  // triggerStore.list() lazily seeds demo triggers on first read, so calling it for an
-  // agent that structurally never has triggers (conversational) would contaminate it.
-  const triggerCount = kind === "automation" ? triggerStore.list(agentId).length : 0;
+  const triggerCount = triggerStore.list(agentId).length;
+  const personalBlocked = triggerCount > 0;
 
   const save = () => {
-    if (scope === "personal" && triggerCount > 0) {
-      setShowGuard2(true);
-      return;
-    }
+    // The personal option is disabled whenever this is true, so this can only be reached
+    // by a stale scope value from before a trigger was added elsewhere — fall back safely.
+    if (scope === "personal" && personalBlocked) { setScope("shared"); return; }
     agentConnectorStore.add(agentId, connectorId, scope);
     toast.success("Đã lưu kết nối.");
     onSaved();
   };
-
-  if (showGuard2) {
-    return (
-      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-        <div className="absolute inset-0 bg-black/40" onClick={() => setShowGuard2(false)} />
-        <div className="relative z-10 w-full max-w-md bg-white rounded-2xl border border-border shadow-lg p-6 animate-fade-up">
-          <h3 className="font-display text-lg font-semibold mb-2">Không đổi được kiểu kết nối</h3>
-          <p className="text-sm text-muted-foreground leading-relaxed mb-5">
-            Agent này đang có {triggerCount} trigger chạy nền. Kết nối riêng của từng người dùng chỉ dùng được cho
-            agent trò chuyện. Xoá hết trigger trước, hoặc giữ kết nối dùng chung.
-          </p>
-          <div className="flex items-center justify-end gap-2">
-            <button onClick={() => setShowGuard2(false)} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">
-              Xem trigger
-            </button>
-            <button onClick={() => setShowGuard2(false)} className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium transition-base">
-              Đã hiểu
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -77,24 +50,33 @@ function AddConnectionModal({ agentId, kind, onClose, onSaved }: {
             </select>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <button
-              onClick={() => kind === "conversational" && setScope("personal")}
-              disabled={kind === "automation"}
+              onClick={() => !personalBlocked && setScope("personal")}
+              disabled={personalBlocked}
               className={`w-full text-left rounded-xl border px-3.5 py-3 transition-base ${
                 scope === "personal" ? "border-primary bg-primary-soft/40 ring-1 ring-primary" : "border-border"
-              } ${kind === "automation" ? "opacity-50 cursor-not-allowed" : "hover:bg-surface-muted"}`}
+              } ${personalBlocked ? "opacity-50 cursor-not-allowed" : "hover:bg-surface-muted"}`}
             >
               <div className="flex items-center gap-2 mb-1">
                 <User size={14} className="text-foreground shrink-0" />
                 <span className="text-sm font-semibold">Kết nối riêng của từng người dùng</span>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                {kind === "automation"
-                  ? "Trigger chạy nền khi không có người dùng nào đăng nhập, nên không mượn được tài khoản cá nhân."
-                  : "Mỗi người dùng tự đăng nhập tài khoản của họ khi dùng agent. Agent chạy dưới quyền của chính người đang trò chuyện."}
+                Mỗi người dùng tự đăng nhập tài khoản của họ khi dùng agent. Agent chạy dưới quyền của chính người
+                đang trò chuyện.
               </p>
             </button>
+            {personalBlocked && (
+              <p className="text-xs text-muted-foreground px-1 leading-relaxed">
+                {CONNECTOR_BLOCKED_BY_TRIGGER_REASON}{" "}
+                {onViewTriggers && (
+                  <button type="button" onClick={onViewTriggers} className="text-primary font-medium hover:underline">
+                    Xem trigger
+                  </button>
+                )}
+              </p>
+            )}
 
             <button
               onClick={() => setScope("shared")}
@@ -123,7 +105,7 @@ function AddConnectionModal({ agentId, kind, onClose, onSaved }: {
   );
 }
 
-export default function ConnectionsTab({ agentId, kind }: { agentId: string; kind: AgentKind }) {
+export default function ConnectionsTab({ agentId, onViewTriggers }: { agentId: string; onViewTriggers?: () => void }) {
   const [tick, setTick] = useState(0);
   const refresh = () => setTick(t => t + 1);
   const [showAdd, setShowAdd] = useState(false);
@@ -136,7 +118,7 @@ export default function ConnectionsTab({ agentId, kind }: { agentId: string; kin
         <div>
           <h2 className="font-display text-xl font-semibold">Kết nối</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Tài khoản và hệ thống bên ngoài mà agent có thể dùng khi trò chuyện.
+            Tài khoản và hệ thống bên ngoài mà agent có thể dùng.
           </p>
         </div>
         <button onClick={() => setShowAdd(true)} className="btn-primary h-9">
@@ -180,9 +162,9 @@ export default function ConnectionsTab({ agentId, kind }: { agentId: string; kin
       {showAdd && (
         <AddConnectionModal
           agentId={agentId}
-          kind={kind}
           onClose={() => setShowAdd(false)}
           onSaved={() => { refresh(); setShowAdd(false); }}
+          onViewTriggers={onViewTriggers}
         />
       )}
     </div>
