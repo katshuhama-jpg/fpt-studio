@@ -604,6 +604,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                   >
                     {MONTH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
+                  <p className="mt-1 text-[11px] text-muted-foreground">Which month this trigger runs in every year.</p>
                 </div>
               )}
 
@@ -625,18 +626,18 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                       customUnit === "month" && (dayOfMonth < 1 || dayOfMonth > 31) ? "border-destructive" : "border-border focus:border-primary"
                     }`}
                   />
-                  {customUnit === "year" && month === 1 && dayOfMonth === 29 && (
+                  {customUnit === "month" && (dayOfMonth < 1 || dayOfMonth > 31) ? (
+                    <p className="mt-1 text-[11px] text-destructive">Day of month must be between 1 and 31.</p>
+                  ) : customUnit === "year" && month === 1 && dayOfMonth === 29 ? (
                     <p className="mt-1 text-[11px] text-muted-foreground">
                       February 29 only exists in leap years. In other years, the agent will run on February 28.
                     </p>
-                  )}
-                  {customUnit === "month" && [29, 30, 31].includes(dayOfMonth) && (
+                  ) : customUnit === "month" && [29, 30, 31].includes(dayOfMonth) ? (
                     <p className="mt-1 text-[11px] text-muted-foreground">
                       Months without day {dayOfMonth} will run the agent on that month's last day instead.
                     </p>
-                  )}
-                  {customUnit === "month" && (dayOfMonth < 1 || dayOfMonth > 31) && (
-                    <p className="mt-1 text-[11px] text-destructive">Day of month must be between 1 and 31.</p>
+                  ) : (
+                    <p className="mt-1 text-[11px] text-muted-foreground">Which day of the month this trigger runs on.</p>
                   )}
                 </div>
               )}
@@ -646,6 +647,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                   <label className="text-xs font-medium mb-1.5 block">Run time</label>
                   <input type="time" value={timeOfDay} onChange={e => setTimeOfDay(e.target.value)}
                     className="w-full h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base" />
+                  <p className="mt-1 text-[11px] text-muted-foreground">The time this trigger runs, in the timezone below.</p>
                 </div>
               )}
               {customUnit === "week" && (
@@ -718,6 +720,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                 <select value={timezone} onChange={e => setTimezone(e.target.value)} className="ds-input h-9">
                   {TIMEZONE_OPTIONS.map(tz => <option key={tz.value} value={tz.value}>{tz.label}</option>)}
                 </select>
+                <p className="mt-1 text-[11px] text-muted-foreground">Used to calculate all the times above.</p>
               </div>
             </div>
           )}
