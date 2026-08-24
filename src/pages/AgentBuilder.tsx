@@ -2912,6 +2912,57 @@ const EXTERNAL_CHANNELS = [
   { id: "fb",    name: "Facebook",   emoji: "💙" },
 ];
 
+function PlacementOption({ icon, title, description, selected, current, disabled, onClick, blockedReason }: {
+  icon: any; title: string; description: string;
+  selected: boolean; current?: boolean; disabled?: boolean; onClick: () => void;
+  blockedReason?: React.ReactNode;
+}) {
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => !disabled && onClick()}
+        disabled={disabled}
+        className={`w-full flex items-start gap-3 text-left rounded-xl border px-4 py-3.5 transition-base ${
+          selected ? "border-primary bg-primary-soft/50 ring-1 ring-primary" : "border-border bg-surface"
+        } ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:border-primary/40 hover:bg-surface-muted"}`}
+      >
+        <span
+          className={`mt-[3px] w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-base ${
+            selected ? "border-primary" : "border-border"
+          }`}
+        >
+          {selected && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
+        </span>
+        <span
+          className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-base ${
+            selected ? "bg-white text-primary" : "bg-surface-muted text-muted-foreground"
+          }`}
+        >
+          <HugeiconsIcon icon={icon} size={16} />
+        </span>
+        <span className="flex-1 min-w-0 pt-px">
+          <span className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-semibold text-foreground">{title}</span>
+            {current && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full chip-success">
+                <span className="w-1.5 h-1.5 rounded-full bg-current shrink-0" /> Live now
+              </span>
+            )}
+          </span>
+          <span className="block text-xs text-muted-foreground leading-relaxed mt-0.5">{description}</span>
+        </span>
+      </button>
+      {disabled && blockedReason && (
+        <div className="flex items-start gap-2 text-xs text-warning bg-[hsl(var(--warning-soft))] border border-warning/25 rounded-lg px-3 py-2.5 mt-2">
+          <HugeiconsIcon icon={Alert01Icon} size={14} className="shrink-0 mt-0.5" />
+          <p>{blockedReason}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PublishModal({ agentId, onClose, onChatTest, onPublished, onViewSection }: {
   agentId: string; onClose: () => void; onChatTest: () => void; onPublished?: () => void; onViewSection?: (section: string) => void;
 }) {
@@ -2980,69 +3031,45 @@ function PublishModal({ agentId, onClose, onChatTest, onPublished, onViewSection
           {/* Placement */}
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Where the agent runs</p>
-            <div className="grid grid-cols-2 gap-2 items-start">
-              <div>
-                <button
-                  onClick={() => !workspaceBlocked && setPlacement("workspace")}
-                  disabled={workspaceBlocked}
-                  className={`w-full text-left rounded-xl border px-3.5 py-3 transition-base ${
-                    placement === "workspace" ? "border-primary bg-primary-soft/40 ring-1 ring-primary" : "border-border"
-                  } ${workspaceBlocked ? "opacity-50 cursor-not-allowed" : "hover:bg-surface-muted"}`}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <HugeiconsIcon icon={UserGroupIcon} size={14} className="text-foreground shrink-0" />
-                    <span className="text-sm font-semibold">Workspace</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    People across the organization install this agent to Workspace and use it. Each person sets up
-                    their own triggers on their install.
-                  </p>
-                </button>
-                {workspaceBlocked && (
-                  <div className="flex items-start gap-2 text-xs text-warning bg-[hsl(var(--warning-soft))] border border-warning/25 rounded-lg px-3 py-2.5 mt-2">
-                    <HugeiconsIcon icon={Alert01Icon} size={14} className="shrink-0 mt-0.5" />
-                    <p>
-                      {WORKSPACE_BLOCKED_BY_TRIGGER_REASON(triggerCount)}{" "}
-                      {onViewSection && (
-                        <button type="button" onClick={() => onViewSection("triggers")} className="font-semibold hover:underline">
-                          View triggers
-                        </button>
-                      )}
-                    </p>
-                  </div>
-                )}
-              </div>
-              <div>
-                <button
-                  onClick={() => !automationBlocked && setPlacement("automation")}
-                  disabled={automationBlocked}
-                  className={`w-full text-left rounded-xl border px-3.5 py-3 transition-base ${
-                    placement === "automation" ? "border-primary bg-primary-soft/40 ring-1 ring-primary" : "border-border"
-                  } ${automationBlocked ? "opacity-50 cursor-not-allowed" : "hover:bg-surface-muted"}`}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <HugeiconsIcon icon={BoltIcon} size={14} className="text-foreground shrink-0" />
-                    <span className="text-sm font-semibold">Automation — organization-wide</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    The agent runs on its own based on the triggers you set up in Console, for the whole
-                    organization. Nobody installs it, nobody chats with it directly.
-                  </p>
-                </button>
-                {automationBlocked && (
-                  <div className="flex items-start gap-2 text-xs text-warning bg-[hsl(var(--warning-soft))] border border-warning/25 rounded-lg px-3 py-2.5 mt-2">
-                    <HugeiconsIcon icon={Alert01Icon} size={14} className="shrink-0 mt-0.5" />
-                    <p>
-                      {AUTOMATION_BLOCKED_BY_NO_TRIGGER_REASON}{" "}
-                      {onViewSection && (
-                        <button type="button" onClick={() => onViewSection("triggers")} className="font-semibold hover:underline">
-                          Add trigger
-                        </button>
-                      )}
-                    </p>
-                  </div>
-                )}
-              </div>
+            <div className="space-y-2">
+              <PlacementOption
+                icon={UserGroupIcon}
+                title="Workspace"
+                description="People across the organization install this agent to Workspace and use it. Each person sets up their own triggers on their install."
+                selected={placement === "workspace"}
+                current={current.placement === "workspace"}
+                disabled={workspaceBlocked}
+                onClick={() => setPlacement("workspace")}
+                blockedReason={
+                  <>
+                    {WORKSPACE_BLOCKED_BY_TRIGGER_REASON(triggerCount)}{" "}
+                    {onViewSection && (
+                      <button type="button" onClick={() => onViewSection("triggers")} className="font-semibold hover:underline">
+                        View triggers
+                      </button>
+                    )}
+                  </>
+                }
+              />
+              <PlacementOption
+                icon={BoltIcon}
+                title="Automation — organization-wide"
+                description="The agent runs on its own based on the triggers you set up in Console, for the whole organization. Nobody installs it, nobody chats with it directly."
+                selected={placement === "automation"}
+                current={current.placement === "automation"}
+                disabled={automationBlocked}
+                onClick={() => setPlacement("automation")}
+                blockedReason={
+                  <>
+                    {AUTOMATION_BLOCKED_BY_NO_TRIGGER_REASON}{" "}
+                    {onViewSection && (
+                      <button type="button" onClick={() => onViewSection("triggers")} className="font-semibold hover:underline">
+                        Add trigger
+                      </button>
+                    )}
+                  </>
+                }
+              />
             </div>
           </div>
 
