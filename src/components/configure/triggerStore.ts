@@ -1,6 +1,8 @@
-// In-memory trigger store for the Triggers feature prototype.
+// sessionStorage-backed trigger store for the Triggers feature prototype — mutations
+// survive a page reload and client-side navigation within the same browser session.
 import { connectedAccountStore } from "./connectedAccountStore";
 import { checkCronExpression } from "./cronUtils";
+import { loadMap, saveMap, loadSet, saveSet } from "@/lib/sessionPersist";
 
 export type TriggerType = "scheduled" | "developer" | "external";
 
@@ -184,19 +186,23 @@ export const DRIVE_FOLDER_OPTIONS: { value: string; label: string }[] = [
   { value: "archive", label: "Archive" },
 ];
 
-const store = new Map<string, TriggerRecord>();
+const STORE_KEY = "trigger_store";
+const SEEDED_KEY = "trigger_store_seeded";
+const store = loadMap<string, TriggerRecord>(STORE_KEY);
 const k = (a: string, t: string) => `${a}:${t}`;
-const seededAgents = new Set<string>();
+const seededAgents = loadSet<string>(SEEDED_KEY);
+const persist = () => saveMap(STORE_KEY, store);
 
 /** Demo agents seeded with sample triggers so their Automation identity (kind is derived
  * from trigger count — see agentKindStore.ts) is visible without manual setup. Every other
  * agent, including freshly created ones, starts with zero triggers and is Conversational
  * until the Builder actually adds one. */
-const AUTO_SEEDED_AGENT_IDS = new Set(["nightly-report", "invoice-reminder"]);
+const AUTO_SEEDED_AGENT_IDS = new Set(["nightly-report", "invoice-reminder", "shipping-alerts"]);
 
 function seedAgent(agentId: string) {
   if (seededAgents.has(agentId)) return;
   seededAgents.add(agentId);
+  saveSet(SEEDED_KEY, seededAgents);
   if (!AUTO_SEEDED_AGENT_IDS.has(agentId)) return;
   const now = Date.now();
   const seed: Omit<TriggerRecord, "agentId">[] = [
@@ -240,6 +246,7 @@ function seedAgent(agentId: string) {
     },
   ];
   for (const s of seed) store.set(k(agentId, s.id), { ...s, agentId });
+  persist();
 }
 
 export const triggerStore = {
@@ -269,21 +276,25 @@ export const triggerStore = {
       updatedAt: Date.now(),
     };
     store.set(k(agentId, id), rec);
+    persist();
     return rec;
   },
   update(agentId: string, id: string, patch: Partial<TriggerRecord>) {
     const cur = store.get(k(agentId, id));
     if (!cur) return;
     store.set(k(agentId, id), { ...cur, ...patch, updatedAt: Date.now() });
+    persist();
   },
   toggle(agentId: string, id: string) {
     const cur = store.get(k(agentId, id));
     if (!cur) return;
     store.set(k(agentId, id), { ...cur, enabled: !cur.enabled, updatedAt: Date.now() });
+    persist();
   },
   remove(agentId: string, id: string) {
     if (!store.has(k(agentId, id))) return;
     store.delete(k(agentId, id));
+    persist();
   },
 };
 

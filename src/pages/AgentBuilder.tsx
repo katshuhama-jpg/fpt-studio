@@ -25,6 +25,7 @@ import {
   type Placement,
 } from "@/components/configure/agentPublishStore";
 import { getAgentKind, type AgentKind } from "@/components/configure/agentKindStore";
+import { getAgent } from "@/components/configure/agentStore";
 import { connectedAccountStore } from "@/components/configure/connectedAccountStore";
 import ConnectionsTab, { CATALOG as CONNECTOR_CATALOG } from "@/components/configure/ConnectionsTab";
 import AppLogo from "@/components/configure/AppLogo";
@@ -73,6 +74,7 @@ const monitorNav = [
 
 export default function AgentBuilder() {
   const { id = "cskh" } = useParams();
+  const agent = getAgent(id);
   const [params, setParams] = useSearchParams();
   const tab = (params.get("tab") as Tab) || "build";
   const section = params.get("section") || "instructions";
@@ -117,8 +119,8 @@ export default function AgentBuilder() {
         <Link to="/agents" className="text-xs text-muted-foreground hover:text-foreground transition-base shrink-0">Agents</Link>
         <span className="text-xs text-muted-foreground/50 shrink-0">/</span>
         <div className="flex items-center gap-2 min-w-0">
-          <div className="w-7 h-7 rounded-md bg-surface-muted border border-border flex items-center justify-center text-base shrink-0">🤖</div>
-          <span className="font-semibold text-sm truncate">{AGENT_NAME}</span>
+          <div className="w-7 h-7 rounded-md bg-surface-muted border border-border flex items-center justify-center text-base shrink-0">{agent.emoji}</div>
+          <span className="font-semibold text-sm truncate">{agent.name}</span>
           {kind === "automation" && (
             <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 shrink-0">
               <HugeiconsIcon icon={BoltIcon} size={10} /> Automation
@@ -196,6 +198,7 @@ export default function AgentBuilder() {
       {showPublish && (
         <PublishModal
           agentId={id}
+          agentName={agent.name}
           onClose={() => setShowPublish(false)}
           onChatTest={() => { setShowPublish(false); setPreviewView("chat"); }}
           onPublished={() => setPublishTick(t => t + 1)}
@@ -344,7 +347,7 @@ export default function AgentBuilder() {
           <div className="flex-1 flex flex-col overflow-hidden">
 
             <div className="flex-1 overflow-y-auto bg-background">
-              {tab === "build" && section === "instructions" && <GeneralTab agentId={id ?? "new"} onRefineWithAI={() => setBuildMode("ai")} onChatToTest={() => { setBuildMode("manual"); setPreviewView("chat"); }} />}
+              {tab === "build" && section === "instructions" && <GeneralTab key={id ?? "new"} agentId={id ?? "new"} onRefineWithAI={() => setBuildMode("ai")} onChatToTest={() => { setBuildMode("manual"); setPreviewView("chat"); }} />}
               {tab === "build" && section === "knowledge" && <KnowledgeTab />}
               {tab === "build" && section === "history" && (
                 kind === "automation"
@@ -835,32 +838,16 @@ function GeneralTab({ agentId, onRefineWithAI, onChatToTest }: {
   agentId: string; onRefineWithAI?: () => void; onChatToTest?: () => void;
 }) {
   const [params] = useSearchParams();
-  const initialName = params.get("agentName") || "Banking ABC — Customer Care";
+  const agent = getAgent(agentId);
+  const initialName = params.get("agentName") || agent.name;
   const initialPrompt = params.get("agentPrompt") || "";
-  const [avatar, setAvatar] = useState("🏦");
+  const [avatar, setAvatar] = useState(agent.emoji);
   const [editingAvatar, setEditingAvatar] = useState(false);
   const [viewMode, setViewMode] = useState<"preview" | "markdown" | "ai" | "chat">("preview");
   const [instructions, setInstructions] = useState("");
   const emojiOptions = ["🏦","🤖","💼","🧠","🎯","🛡️","⚡","🌐","📊","🔧","💡","🚀"];
 
-  const defaultInstructions = initialPrompt || `# Banking ABC — Customer Care Agent
-
-You are a customer-care specialist at ABC Bank. Help customers 24/7 with products, services and banking requests.
-
-## Tone & Style
-- Professional, warm, and empathetic
-- Use clear, plain language — avoid jargon
-- Keep responses concise but complete
-
-## Capabilities
-- **Account inquiries**: balance, transactions, statements
-- **Card services**: block/unblock, limits, PIN reset
-- **Loan products**: eligibility, rates, application status
-
-## Limits
-- Only answer questions within the scope of ABC Bank products and services
-- Never provide personalized financial or legal advice
-- If unsure, escalate to a human agent`;
+  const defaultInstructions = initialPrompt || agent.instructions;
 
   return (
     <div className="w-full animate-fade-up">
@@ -906,7 +893,7 @@ You are a customer-care specialist at ABC Bank. Help customers 24/7 with product
             />
             <input
               className="w-full text-sm text-muted-foreground bg-transparent border border-transparent rounded-md px-2 py-0.5 -mx-2 outline-none hover:border-border hover:bg-surface focus:border-ring focus:bg-surface transition-base truncate"
-              defaultValue="Handles customer queries 24/7 for ABC Bank — products, services, and support."
+              defaultValue={agent.desc}
               placeholder="Short description…"
               style={{ textOverflow: "ellipsis" }}
             />
@@ -2904,7 +2891,6 @@ const metrics = [
 const bars = [50, 62, 45, 75, 68, 95, 80];
 
 /* ============ PublishModal ============ */
-const AGENT_NAME = "sales report generator";
 const EXTERNAL_CHANNELS = [
   { id: "web",   name: "Web widget", emoji: "🌐" },
   { id: "zalo",  name: "Zalo",       emoji: "💬" },
@@ -2963,8 +2949,8 @@ function PlacementOption({ icon, title, description, selected, current, disabled
   );
 }
 
-function PublishModal({ agentId, onClose, onChatTest, onPublished, onViewSection }: {
-  agentId: string; onClose: () => void; onChatTest: () => void; onPublished?: () => void; onViewSection?: (section: string) => void;
+function PublishModal({ agentId, agentName, onClose, onChatTest, onPublished, onViewSection }: {
+  agentId: string; agentName: string; onClose: () => void; onChatTest: () => void; onPublished?: () => void; onViewSection?: (section: string) => void;
 }) {
   const triggerCount = triggerStore.list(agentId).length;
   const workspaceBlocked = triggerCount > 0;
@@ -3221,20 +3207,20 @@ function PublishModal({ agentId, onClose, onChatTest, onPublished, onViewSection
               along with any personal triggers those people set up.
             </p>
             <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-              Type "{AGENT_NAME}" to confirm
+              Type "{agentName}" to confirm
             </label>
             <input
               value={confirmName}
               onChange={e => setConfirmName(e.target.value)}
               className="w-full h-9 px-3 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base mb-4"
-              placeholder={AGENT_NAME}
+              placeholder={agentName}
             />
             <div className="flex items-center justify-end gap-2">
               <button onClick={() => setShowUninstallGuard(false)} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">
                 Cancel
               </button>
               <button
-                disabled={confirmName.trim() !== AGENT_NAME}
+                disabled={confirmName.trim() !== agentName}
                 onClick={() => {
                   if (!placement) return;
                   agentPublishStore.unpublish(agentId);

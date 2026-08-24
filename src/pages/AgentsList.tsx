@@ -10,32 +10,9 @@ import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import { getAgentKind } from "@/components/configure/agentKindStore";
 import { agentPublishStore } from "@/components/configure/agentPublishStore";
 import { triggerStore, type TriggerType } from "@/components/configure/triggerStore";
+import { AGENTS as agents } from "@/components/configure/agentStore";
 
 /* ─── Data ─────────────────────────────────────────────────────────────── */
-
-const agents = [
-  { id: "cskh", name: "Banking ABC — Customer Care", emoji: "🏦", bg: "bg-primary-soft", status: "Published",
-    desc: "24/7 multilingual customer support with card-lock and product Q&A.", model: "Gemini 1.5 Pro",
-    convs: 2841, success: 84, channels: ["Web", "Zalo"], updated: "2h ago", accent: "bg-primary" },
-  { id: "hr", name: "HR Onboarding Bot", emoji: "🤝", bg: "bg-accent-soft", status: "Draft",
-    desc: "New-joiner onboarding, policy lookup and meeting scheduling.", model: "GPT-4o mini",
-    convs: 412, success: 91, channels: ["Slack"], updated: "1d ago", accent: "bg-accent" },
-  { id: "faq", name: "Product FAQ Assistant", emoji: "📦", bg: "bg-surface-muted", status: "Published",
-    desc: "Product manuals, troubleshooting and warranty information.", model: "FPT.AI LLM",
-    convs: 1240, success: 88, channels: ["Web", "FB"], updated: "3d ago", accent: "bg-primary-glow" },
-  { id: "sales", name: "Sales Lead Qualifier", emoji: "🎯", bg: "bg-primary-soft", status: "Draft",
-    desc: "Lead scoring, BANT qualification and CRM hand-off.", model: "Claude 3.5",
-    convs: 0, success: 0, channels: [], updated: "Just now", accent: "bg-gradient-brand" },
-  { id: "ops", name: "IT Helpdesk", emoji: "🛠️", bg: "bg-accent-soft", status: "Published",
-    desc: "Password reset, VPN setup and ticket triage for L1 support.", model: "Gemini 1.5 Flash",
-    convs: 967, success: 79, channels: ["Teams"], updated: "1w ago", accent: "bg-accent" },
-  { id: "nightly-report", name: "Nightly Sales Report", emoji: "📊", bg: "bg-indigo-50", status: "Draft",
-    desc: "Compiles yesterday's sales into a summary and posts it to the team channel every morning.",
-    model: "GPT-4o mini", convs: 0, success: 0, channels: [], updated: "6h ago", accent: "bg-indigo-500" },
-  { id: "invoice-reminder", name: "Invoice Reminder Bot", emoji: "🧾", bg: "bg-indigo-50", status: "Draft",
-    desc: "Watches for overdue invoices in the finance sheet and sends reminder emails automatically.",
-    model: "Claude 3.5", convs: 0, success: 0, channels: [], updated: "2d ago", accent: "bg-indigo-500" },
-];
 
 const tabs = ["All agents", "Published", "Draft", "Shared with me"] as const;
 const kindFilters = ["All", "Agents", "Automation Agents"] as const;
