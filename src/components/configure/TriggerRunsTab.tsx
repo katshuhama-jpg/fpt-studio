@@ -17,18 +17,18 @@ const CHANNEL_NAME: Record<string, string> = {
 };
 
 const TRIGGER_TYPE_LABEL: Record<TriggerType, string> = {
-  scheduled: "Theo lịch",
+  scheduled: "Schedule",
   developer: "Webhook",
-  external: "Ứng dụng bên ngoài",
+  external: "External app",
 };
 
 const STATUS_META: Record<RunStatus, { label: string; className: string; animate?: boolean }> = {
-  waiting:   { label: "Đang chờ",     className: "bg-surface-muted text-muted-foreground" },
-  triggered: { label: "Đã kích hoạt", className: "chip-accent" },
-  queued:    { label: "Trong hàng đợi", className: "chip-accent" },
-  running:   { label: "Đang chạy",    className: "chip-accent", animate: true },
-  completed: { label: "Hoàn tất",     className: "chip-success" },
-  failed:    { label: "Thất bại",     className: "chip-danger" },
+  waiting:   { label: "Waiting",    className: "bg-surface-muted text-muted-foreground" },
+  triggered: { label: "Triggered",  className: "chip-accent" },
+  queued:    { label: "Queued",     className: "chip-accent" },
+  running:   { label: "Running",    className: "chip-accent", animate: true },
+  completed: { label: "Completed",  className: "chip-success" },
+  failed:    { label: "Failed",     className: "chip-danger" },
 };
 
 function StatusPill({ status }: { status: RunStatus }) {
@@ -71,9 +71,9 @@ function mockAutomationId(agentId: string): string {
 }
 
 const DATE_RANGE_OPTIONS: { value: string; label: string; days: number | null }[] = [
-  { value: "7", label: "7 ngày qua", days: 7 },
-  { value: "30", label: "30 ngày qua", days: 30 },
-  { value: "all", label: "Toàn bộ thời gian", days: null },
+  { value: "7", label: "Last 7 days", days: 7 },
+  { value: "30", label: "Last 30 days", days: 30 },
+  { value: "all", label: "All time", days: null },
 ];
 
 const DEFAULT_TRIGGER_FILTER = "all";
@@ -83,7 +83,7 @@ const DEFAULT_DATE_RANGE = "7";
 
 function copyValue(value: string) {
   navigator.clipboard?.writeText(value).catch(() => {});
-  toast.success("Đã sao chép.");
+  toast.success("Copied.");
 }
 
 function CopyButton({ value }: { value: string }) {
@@ -93,7 +93,7 @@ function CopyButton({ value }: { value: string }) {
       type="button"
       onClick={() => { copyValue(value); setCopied(true); setTimeout(() => setCopied(false), 1200); }}
       className="opacity-0 group-hover:opacity-100 shrink-0 text-muted-foreground hover:text-foreground transition-base"
-      aria-label="Sao chép"
+      aria-label="Copy"
     >
       {copied ? <Check size={12} className="text-success" /> : <Copy size={12} />}
     </button>
@@ -133,12 +133,12 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
 
   const sharedAccountId = triggers.find(t => t.type === "external" && t.config.external?.accountId)?.config.external?.accountId;
   const sharedAccount = sharedAccountId ? connectedAccountStore.get(sharedAccountId) : undefined;
-  const sharedConnectionLabel = sharedAccount ? `${EXTERNAL_APP_META[sharedAccount.app].label} — ${sharedAccount.email}` : "Không có";
+  const sharedConnectionLabel = sharedAccount ? `${EXTERNAL_APP_META[sharedAccount.app].label} — ${sharedAccount.email}` : "None";
   const automationId = mockAutomationId(agentId);
   const outboundChannels = agentPublishStore.get(agentId).channels;
   const outboundChannelsLabel = outboundChannels.length > 0
     ? outboundChannels.map(id => CHANNEL_NAME[id] ?? id).join(" · ")
-    : "Không có";
+    : "None";
 
   const runs = allRuns.filter(r => {
     if (triggerFilter !== "all" && r.triggerId !== triggerFilter) return false;
@@ -162,11 +162,11 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
   const retry = (run: TriggerRun) => {
     const clone = runsStore.retry(run.id);
     if (!clone) return;
-    toast.success("Đang chạy lại trigger…");
+    toast.success("Retrying the trigger…");
     refresh();
     setDetailRun(clone);
     setTimeout(() => {
-      runsStore.complete(clone.id, "completed", { outputSummary: "Chạy lại thành công." });
+      runsStore.complete(clone.id, "completed", { outputSummary: "Retry succeeded." });
       refresh();
       setDetailRun(cur => (cur?.id === clone.id ? runsStore.get(clone.id) ?? null : cur));
     }, 1800);
@@ -184,14 +184,14 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
             value={searchInput}
             onChange={e => setSearchInput(e.target.value.slice(0, SEARCH_MAX))}
             maxLength={SEARCH_MAX}
-            placeholder="Tìm theo tên trigger"
+            placeholder="Search by trigger name"
             className="w-full h-9 pl-9 pr-8 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base"
           />
           {searchInput && (
             <button
               type="button"
               onClick={() => setSearchInput("")}
-              aria-label="Xoá tìm kiếm"
+              aria-label="Clear search"
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-base"
             >
               <X size={14} />
@@ -199,15 +199,15 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
           )}
         </div>
         <select value={triggerFilter} onChange={e => setTriggerFilter(e.target.value)} className="ds-input h-9 w-auto">
-          <option value="all">Tất cả trigger</option>
+          <option value="all">All triggers</option>
           {triggers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
         <select value={typeFilter} onChange={e => setTypeFilter(e.target.value as "all" | TriggerType)} className="ds-input h-9 w-auto">
-          <option value="all">Tất cả loại</option>
+          <option value="all">All types</option>
           {(Object.keys(TRIGGER_TYPE_LABEL) as TriggerType[]).map(t => <option key={t} value={t}>{TRIGGER_TYPE_LABEL[t]}</option>)}
         </select>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="ds-input h-9 w-auto">
-          <option value="all">Tất cả trạng thái</option>
+          <option value="all">All statuses</option>
           {(Object.keys(STATUS_META) as RunStatus[]).map(s => <option key={s} value={s}>{STATUS_META[s].label}</option>)}
         </select>
         <select value={dateRange} onChange={e => setDateRange(e.target.value)} className="ds-input h-9 w-auto">
@@ -217,14 +217,14 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
 
       {!hasNoHistoryAtAll && (
         <p className="text-xs text-muted-foreground mb-3">
-          Hiển thị {runs.length} / {allRuns.length} lần chạy
+          Showing {runs.length} of {allRuns.length} runs
         </p>
       )}
 
       {hasNoHistoryAtAll ? (
         <div className="rounded-2xl border border-dashed border-border bg-gradient-soft p-12 text-center">
           <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            Chưa có lần chạy nào — khi trigger được kích hoạt, lịch sử sẽ hiển thị tại đây.
+            No runs yet — history will show up here once a trigger fires.
           </p>
         </div>
       ) : hasNoFilteredResults ? (
@@ -232,16 +232,16 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
           <div className="w-12 h-12 mx-auto rounded-full bg-surface-muted text-muted-foreground flex items-center justify-center mb-3">
             <Search size={18} />
           </div>
-          <h3 className="font-display text-base font-semibold mb-1">Không có lần chạy nào khớp bộ lọc</h3>
+          <h3 className="font-display text-base font-semibold mb-1">No runs match these filters</h3>
           <p className="text-sm text-muted-foreground mb-4 max-w-sm mx-auto">
-            Thử đổi loại trigger, trạng thái, khoảng thời gian, hoặc xoá từ khoá tìm kiếm.
+            Try a different trigger type, status, or date range, or clear your search.
           </p>
           <button
             type="button"
             onClick={clearFilters}
             className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base"
           >
-            Xoá bộ lọc
+            Clear filters
           </button>
         </div>
       ) : (
@@ -249,11 +249,11 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-surface-muted">
-                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Thời gian</th>
+                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Time</th>
                 <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Trigger</th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Nguồn kích hoạt</th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Trạng thái</th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Thời lượng</th>
+                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Source</th>
+                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Status</th>
+                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Duration</th>
                 <th className="px-4 py-2.5 w-24" />
               </tr>
             </thead>
@@ -276,7 +276,7 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
                       onClick={() => setDetailRun(r)}
                       className="text-xs font-semibold text-primary hover:underline"
                     >
-                      Xem chi tiết
+                      View details
                     </button>
                   </td>
                 </tr>
@@ -306,55 +306,55 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
                 </div>
 
                 <div className="rounded-lg border border-border p-3">
-                  <h4 className="text-xs font-semibold text-foreground mb-1.5">Phạm vi chạy</h4>
+                  <h4 className="text-xs font-semibold text-foreground mb-1.5">Run scope</h4>
                   <div className="divide-y divide-border/60">
-                    <ScopeRow label="Tổ chức" value="FPT Smart Cloud" />
+                    <ScopeRow label="Organization" value="FPT Smart Cloud" />
                     <ScopeRow label="Automation ID" value={automationId} mono copyable />
-                    <ScopeRow label="Múi giờ" value={ORG_TIMEZONE} />
-                    <ScopeRow label="Kết nối dùng" value={sharedConnectionLabel} />
-                    <ScopeRow label="Gửi kết quả tới" value={outboundChannelsLabel} />
+                    <ScopeRow label="Timezone" value={ORG_TIMEZONE} />
+                    <ScopeRow label="Connection used" value={sharedConnectionLabel} />
+                    <ScopeRow label="Sends results to" value={outboundChannelsLabel} />
                   </div>
                 </div>
 
                 <div>
-                  <h4 className="text-xs font-semibold text-foreground mb-1">Nguồn kích hoạt</h4>
+                  <h4 className="text-xs font-semibold text-foreground mb-1">Source</h4>
                   <p className="text-xs text-muted-foreground">{detailRun.source}</p>
                 </div>
 
                 {detailRun.configSnapshot && (
                   <div>
-                    <h4 className="text-xs font-semibold text-foreground mb-1">Cấu hình trigger</h4>
+                    <h4 className="text-xs font-semibold text-foreground mb-1">Trigger configuration</h4>
                     <pre className="text-[11px] font-mono bg-surface-muted rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-all">{detailRun.configSnapshot}</pre>
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                      Đây là cấu hình của agent tự động, dùng chung cho cả doanh nghiệp.
+                      This is the automation agent's configuration, shared across the whole organization.
                     </p>
                   </div>
                 )}
 
                 {detailRun.payload && (
                   <div>
-                    <h4 className="text-xs font-semibold text-foreground mb-1">Payload đầu vào</h4>
+                    <h4 className="text-xs font-semibold text-foreground mb-1">Input payload</h4>
                     <pre className="text-[11px] font-mono bg-surface-muted rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-all">{detailRun.payload}</pre>
                   </div>
                 )}
 
                 {detailRun.outputSummary && (
                   <div>
-                    <h4 className="text-xs font-semibold text-foreground mb-1">Kết quả</h4>
+                    <h4 className="text-xs font-semibold text-foreground mb-1">Result</h4>
                     <p className="text-xs text-muted-foreground">{detailRun.outputSummary}</p>
                   </div>
                 )}
 
                 {detailRun.status === "failed" && (
                   <div className="rounded-lg border border-destructive/25 bg-[hsl(var(--destructive-soft))] p-3">
-                    <h4 className="text-xs font-semibold text-destructive mb-1">Lý do thất bại</h4>
+                    <h4 className="text-xs font-semibold text-destructive mb-1">Failure reason</h4>
                     <p className="text-xs text-destructive/90 mb-3">{detailRun.errorReason}</p>
                     <button
                       type="button"
                       onClick={() => retry(detailRun)}
                       className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-destructive text-destructive-foreground text-xs font-semibold hover:bg-destructive/90 transition-base"
                     >
-                      <RefreshCw size={12} /> Chạy lại
+                      <RefreshCw size={12} /> Retry
                     </button>
                   </div>
                 )}

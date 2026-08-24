@@ -113,75 +113,75 @@ export const EXTERNAL_APP_META: Record<ExternalApp, { label: string; logoUrl: st
 };
 
 export const EXTERNAL_APP_EVENTS: Record<ExternalApp, { value: string; label: string }[]> = {
-  gmail: [{ value: "new_email", label: "Email mới nhận được" }],
+  gmail: [{ value: "new_email", label: "New email received" }],
   gcalendar: [
-    { value: "event_starting", label: "Sự kiện sắp diễn ra" },
-    { value: "event_created", label: "Sự kiện mới được tạo" },
+    { value: "event_starting", label: "Event starting soon" },
+    { value: "event_created", label: "New event created" },
   ],
   gdrive: [
-    { value: "file_added", label: "Tệp mới được thêm" },
-    { value: "file_updated", label: "Tệp được cập nhật" },
+    { value: "file_added", label: "New file added" },
+    { value: "file_updated", label: "File updated" },
   ],
   slack: [
-    { value: "new_message", label: "Tin nhắn mới" },
-    { value: "mention", label: "Được nhắc tên (mention)" },
+    { value: "new_message", label: "New message" },
+    { value: "mention", label: "Mentioned" },
   ],
   teams: [
-    { value: "new_message", label: "Tin nhắn mới được đăng" },
-    { value: "meeting_scheduled", label: "Cuộc họp mới được lên lịch" },
+    { value: "new_message", label: "New message posted" },
+    { value: "meeting_scheduled", label: "New meeting scheduled" },
   ],
   outlook: [
-    { value: "new_email", label: "Email mới nhận được" },
-    { value: "event_created", label: "Sự kiện lịch mới" },
+    { value: "new_email", label: "New email received" },
+    { value: "event_created", label: "New calendar event" },
   ],
   salesforce: [
-    { value: "lead_created", label: "Lead mới được tạo" },
-    { value: "deal_stage_changed", label: "Giai đoạn deal thay đổi" },
+    { value: "lead_created", label: "New lead created" },
+    { value: "deal_stage_changed", label: "Deal stage changed" },
   ],
   hubspot: [
-    { value: "contact_created", label: "Liên hệ mới được tạo" },
-    { value: "deal_stage_changed", label: "Giai đoạn deal thay đổi" },
+    { value: "contact_created", label: "New contact created" },
+    { value: "deal_stage_changed", label: "Deal stage changed" },
   ],
   jira: [
-    { value: "issue_created", label: "Issue được tạo" },
-    { value: "issue_updated", label: "Issue được cập nhật" },
-    { value: "issue_status_changed", label: "Issue đổi trạng thái" },
+    { value: "issue_created", label: "Issue created" },
+    { value: "issue_updated", label: "Issue updated" },
+    { value: "issue_status_changed", label: "Issue status changed" },
   ],
   zoom: [
-    { value: "meeting_started", label: "Cuộc họp bắt đầu" },
-    { value: "meeting_ended", label: "Cuộc họp kết thúc" },
+    { value: "meeting_started", label: "Meeting started" },
+    { value: "meeting_ended", label: "Meeting ended" },
   ],
 };
 
 export const WORK_DAY_OPTIONS: { value: string; label: string }[] = [
-  { value: "weekdays", label: "Ngày trong tuần" },
-  { value: "weekends", label: "Cuối tuần" },
-  { value: "monday", label: "Thứ Hai" },
-  { value: "tuesday", label: "Thứ Ba" },
-  { value: "wednesday", label: "Thứ Tư" },
-  { value: "thursday", label: "Thứ Năm" },
-  { value: "friday", label: "Thứ Sáu" },
-  { value: "saturday", label: "Thứ Bảy" },
-  { value: "sunday", label: "Chủ Nhật" },
+  { value: "weekdays", label: "Weekdays" },
+  { value: "weekends", label: "Weekends" },
+  { value: "monday", label: "Monday" },
+  { value: "tuesday", label: "Tuesday" },
+  { value: "wednesday", label: "Wednesday" },
+  { value: "thursday", label: "Thursday" },
+  { value: "friday", label: "Friday" },
+  { value: "saturday", label: "Saturday" },
+  { value: "sunday", label: "Sunday" },
 ];
 
 export const TASKS_PERIOD_UNIT_OPTIONS: { value: "hour" | "day"; label: string }[] = [
-  { value: "hour", label: "Mỗi giờ" },
-  { value: "day", label: "Mỗi ngày" },
+  { value: "hour", label: "Per hour" },
+  { value: "day", label: "Per day" },
 ];
 
 export const DRIVE_OPTIONS: { value: string; label: string }[] = [
-  { value: "my-drive", label: "Drive của tôi" },
-  { value: "shared-sales", label: "Drive dùng chung — Sales" },
-  { value: "shared-support", label: "Drive dùng chung — Support" },
+  { value: "my-drive", label: "My Drive" },
+  { value: "shared-sales", label: "Shared Drive — Sales" },
+  { value: "shared-support", label: "Shared Drive — Support" },
 ];
 
 export const DRIVE_FOLDER_OPTIONS: { value: string; label: string }[] = [
-  { value: "agents", label: "Agent" },
-  { value: "reports", label: "Báo cáo" },
-  { value: "contracts", label: "Hợp đồng" },
-  { value: "shared", label: "Dùng chung" },
-  { value: "archive", label: "Lưu trữ" },
+  { value: "agents", label: "Agents" },
+  { value: "reports", label: "Reports" },
+  { value: "contracts", label: "Contracts" },
+  { value: "shared", label: "Shared" },
+  { value: "archive", label: "Archive" },
 ];
 
 const store = new Map<string, TriggerRecord>();
@@ -202,10 +202,10 @@ function seedAgent(agentId: string) {
   const seed: Omit<TriggerRecord, "agentId">[] = [
     {
       id: "daily-report",
-      name: "Báo cáo hằng ngày",
+      name: "Daily report",
       type: "scheduled",
       enabled: true,
-      description: "Chạy agent mỗi ngày lúc 08:00 để tạo báo cáo hằng ngày.",
+      description: "Runs the agent every day at 08:00 to generate the daily report.",
       config: { schedule: { frequency: "daily", timeOfDay: "08:00", timezone: "GMT+07:00" } },
       lastFiredAt: now - 86_400_000,
       createdAt: now - 86_400_000 * 14,
@@ -213,10 +213,10 @@ function seedAgent(agentId: string) {
     },
     {
       id: "new-customer-email",
-      name: "Email khách hàng mới",
+      name: "New customer email",
       type: "external",
       enabled: true,
-      description: "Kích hoạt agent khi có email khách hàng mới đến trong Google Mail.",
+      description: "Triggers the agent when a new customer email arrives in Google Mail.",
       config: { external: { app: "gmail", accountId: "acct-gmail-1", event: "new_email", gmailMode: "inbox", includeAttachments: true } },
       lastFiredAt: now - 86_400_000 * 2,
       createdAt: now - 86_400_000 * 10,
@@ -224,10 +224,10 @@ function seedAgent(agentId: string) {
     },
     {
       id: "order-created-webhook",
-      name: "Đơn hàng được tạo",
+      name: "Order created",
       type: "developer",
       enabled: false,
-      description: "Hệ thống bên ngoài đẩy sự kiện đơn hàng được tạo đến agent.",
+      description: "An external system pushes order-created events to the agent.",
       config: {
         developer: {
           webhookUrl: "https://agents.fpt.ai/console/api/webhooks/triggers/01M0F37JPXPMGYSMJ0VR9CFC7",

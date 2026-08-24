@@ -49,7 +49,7 @@ const developNav = [
   { id: "skills",       label: "Skills",         icon: PuzzleIcon,      hidden: true },
   { id: "guardrails",   label: "Guardrails",     icon: Shield01Icon,    hidden: true },
   { id: "knowledge",    label: "Knowledge",      icon: NoteIcon },
-  { id: "connectors",   label: "Kết nối",        icon: ConnectIcon },
+  { id: "connectors",   label: "Connections",    icon: ConnectIcon },
   { id: "triggers",     label: "Triggers",       icon: TimeScheduleIcon },
   { id: "history",      label: "History",        icon: HistoryIcon },
   { id: "sub-agents",   label: "Sub-Agents",     icon: UserMultipleIcon, comingSoon: true, hidden: true },
@@ -154,7 +154,7 @@ export default function AgentBuilder() {
                 : "bg-success/10 border-success/20 text-success"
             }`}>
               <span className={`w-1.5 h-1.5 rounded-full ${publishState.placement === "automation" ? "bg-indigo-500" : "bg-success"}`} />
-              {publishState.placement === "automation" ? "Tự động hoá cho doanh nghiệp" : "Live trên Workspace"} · v1.0.1
+              {publishState.placement === "automation" ? "Organization-wide Automation" : "Live on Workspace"} · v1.0.1
             </div>
           ) : (
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-muted border border-border text-muted-foreground text-xs font-medium shrink-0">
@@ -256,7 +256,7 @@ export default function AgentBuilder() {
               >
                 <HugeiconsIcon icon={it.icon} size={18} className="shrink-0" />
                 <span className="flex-1 text-left truncate ml-2.5">
-                  {it.id === "history" && kind === "automation" ? "Lịch sử chạy" : it.label}
+                  {it.id === "history" && kind === "automation" ? "Run history" : it.label}
                 </span>
                 {it.comingSoon && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-surface border border-border text-muted-foreground shrink-0 whitespace-nowrap">Coming soon</span>
@@ -405,7 +405,7 @@ function AiBuildSidebar({
     if (seedPrompt) {
       base.push({ kind: "text", role: "user", text: seedPrompt });
       base.push({ kind: "tool", name: `analyze_request("${seedPrompt.slice(0, 30)}…")`, done: true });
-      base.push({ kind: "text", role: "ai", text: "Tôi đã phân tích yêu cầu. Đây là đề xuất system prompt ban đầu:" });
+      base.push({ kind: "text", role: "ai", text: "I've analyzed the request. Here's a proposed starting system prompt:" });
       base.push({ kind: "diff", before: "Help customers 24/7 in a friendly tone.", after: seedPrompt.slice(0, 100) + (seedPrompt.length > 100 ? "…" : "") });
     }
     return base;
@@ -449,16 +449,16 @@ function AiBuildSidebar({
     if (lower.includes("gmail") || lower.includes("email") || lower.includes("outlook")) {
       const svc = lower.includes("outlook") ? "Outlook" : "Gmail";
       await runTool(`check_connector_auth("${svc}")`);
-      streamAi(`Agent cần quyền truy cập ${svc} để gửi/đọc email thay bạn. Vui lòng xác nhận kết nối bên dưới.`);
+      streamAi(`The agent needs access to ${svc} to send and read email on your behalf. Please confirm the connection below.`);
       await new Promise(r => setTimeout(r, 800));
       push({
         kind: "connector",
         service: svc,
         logo: svc === "Gmail" ? "📧" : "📨",
         perms: [
-          "Đọc email và metadata",
-          "Gửi email thay bạn",
-          "Quản lý nhãn (labels)",
+          "Read email and metadata",
+          "Send email on your behalf",
+          "Manage labels",
         ],
       });
       return;
@@ -467,11 +467,11 @@ function AiBuildSidebar({
     await runTool(`analyze_request("${msg.slice(0, 22)}…")`);
     push({
       kind: "clarify",
-      question: `"${msg.slice(0, 32)}${msg.length > 32 ? "…" : ""}" — agent xử lý theo cách nào?`,
+      question: `"${msg.slice(0, 32)}${msg.length > 32 ? "…" : ""}" — how should the agent handle this?`,
       options: [
-        { icon: "bolt", title: "Tự động hoàn toàn", desc: "Agent tự quyết định, không cần hỏi thêm" },
-        { icon: "eye", title: "Đề xuất, bạn duyệt", desc: "Agent soạn đề xuất, bạn approve trước khi apply" },
-        { icon: "hand-stop", title: "Chỉ khi được yêu cầu", desc: "Agent chờ lệnh cụ thể từ người dùng" },
+        { icon: "bolt", title: "Fully autonomous", desc: "Agent decides on its own, no need to ask further" },
+        { icon: "eye", title: "Propose, you approve", desc: "Agent drafts a proposal, you approve before it's applied" },
+        { icon: "hand-stop", title: "Only when asked", desc: "Agent waits for a specific instruction from the user" },
       ],
     });
   };
@@ -480,11 +480,11 @@ function AiBuildSidebar({
     setMessages(m => m.map((x, i) => i === msgIdx && x.kind === "clarify" ? { ...x, answered: answer } : x));
     await new Promise(r => setTimeout(r, 400));
     const replies = [
-      "Rõ — chế độ tự động. Tôi cập nhật instructions:",
-      "Hiểu — agent soạn đề xuất trước khi apply:",
-      "OK — agent chờ lệnh, không tự động:",
+      "Got it — fully autonomous mode. Updating instructions:",
+      "Understood — the agent will draft proposals before applying them:",
+      "OK — the agent will wait for instructions, no autonomy:",
     ];
-    streamAi(idx === -1 ? `Hiểu rồi — "${answer.slice(0, 55)}". Tôi cấu hình theo yêu cầu này:` : replies[idx]);
+    streamAi(idx === -1 ? `Got it — "${answer.slice(0, 55)}". I'll configure this based on your request:` : replies[idx]);
     await new Promise(r => setTimeout(r, 600));
     push({ kind: "diff", before: "Current agent behavior.", after: idx === -1 ? answer.slice(0, 80) : ["Act autonomously without confirmation.", "Always draft a proposal for user review before applying.", "Only act when explicitly instructed."][idx] });
   };
@@ -553,10 +553,10 @@ function AiBuildSidebar({
           );
           if (msg.kind === "clarify") return (
             <div key={i} className="rounded-xl border border-primary/20 bg-primary-soft/20 p-2.5 space-y-2">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-primary"><HugeiconsIcon icon={Chat01Icon} size={11} /> Cần thêm thông tin</div>
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-primary"><HugeiconsIcon icon={Chat01Icon} size={11} /> Need more information</div>
               <p className="text-xs text-foreground leading-relaxed">{msg.question}</p>
               {msg.answered ? (
-                <div className="flex items-center gap-1.5 text-xs text-primary"><HugeiconsIcon icon={CheckmarkCircle01Icon} size={11} /> Đã chọn: <strong>{msg.answered}</strong></div>
+                <div className="flex items-center gap-1.5 text-xs text-primary"><HugeiconsIcon icon={CheckmarkCircle01Icon} size={11} /> Selected: <strong>{msg.answered}</strong></div>
               ) : (
                 <div className="space-y-1.5">
                   {msg.options.map((opt, oi) => (
@@ -570,10 +570,10 @@ function AiBuildSidebar({
                   ))}
                   {/* Custom input — always visible */}
                   <div className="border border-border rounded-lg bg-surface p-2 space-y-1.5">
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium"><HugeiconsIcon icon={Add01Icon} size={11} /> Tự điền câu trả lời</div>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium"><HugeiconsIcon icon={Add01Icon} size={11} /> Write your own answer</div>
                     <textarea
                       rows={2}
-                      placeholder="Nhập yêu cầu cụ thể của bạn…"
+                      placeholder="Enter your specific request…"
                       value={customAnswers[i] ?? ""}
                       onChange={e => setCustomAnswers(a => ({ ...a, [i]: e.target.value }))}
                       className="w-full resize-none bg-surface-muted text-xs placeholder:text-muted-foreground outline-none px-2 py-1.5 rounded-md border border-border focus:border-primary transition-base"
@@ -583,7 +583,7 @@ function AiBuildSidebar({
                       onClick={() => { const v = customAnswers[i]?.trim(); if (v) handleAnswer(-1, v, i); }}
                       className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-primary text-primary-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-base"
                     >
-                      <HugeiconsIcon icon={SentIcon} size={10} /> Gửi
+                      <HugeiconsIcon icon={SentIcon} size={10} /> Send
                     </button>
                   </div>
                 </div>
@@ -592,7 +592,7 @@ function AiBuildSidebar({
           );
           if (msg.kind === "connector") return (
             <div key={i} className="rounded-xl border border-warning/40 bg-warning-soft/30 p-2.5">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-warning mb-2"><HugeiconsIcon icon={Plug01Icon} size={11} /> Yêu cầu kết nối tài khoản</div>
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-warning mb-2"><HugeiconsIcon icon={Plug01Icon} size={11} /> Account connection requested</div>
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-9 h-9 rounded-xl bg-white border border-border flex items-center justify-center shrink-0 shadow-sm">
                   {msg.service === "Gmail" ? (
@@ -615,9 +615,9 @@ function AiBuildSidebar({
                     <span className="text-lg">{msg.logo}</span>
                   )}
                 </div>
-                <div><div className="text-xs font-medium">{msg.service}</div><div className="text-xs text-muted-foreground">Agent cần quyền truy cập để thực hiện tác vụ thay bạn.</div></div>
+                <div><div className="text-xs font-medium">{msg.service}</div><div className="text-xs text-muted-foreground">The agent needs access to perform tasks on your behalf.</div></div>
               </div>
-              <div className="text-xs font-medium mb-1.5">Quyền được yêu cầu:</div>
+              <div className="text-xs font-medium mb-1.5">Permissions requested:</div>
               {msg.perms.map((p, pi) => <div key={pi} className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1"><HugeiconsIcon icon={CheckmarkCircle01Icon} size={10} className="text-success" />{p}</div>)}
               {msg.connected ? (
                 <div className="flex items-center gap-1.5 text-xs text-success mt-2"><HugeiconsIcon icon={CheckmarkCircle01Icon} size={11} /> {msg.service} connected</div>
@@ -631,9 +631,9 @@ function AiBuildSidebar({
                       <path fill="#fff" opacity=".8" d="M44 13.3L36 8v15.8l8-5.8z"/>
                       <path fill="#fff" d="M12 8v15.8l12 8.7 12-8.7V8L24 17.3z"/>
                     </svg>
-                    Kết nối {msg.service}
+                    Connect {msg.service}
                   </button>
-                  <button onClick={() => setMessages(m => m.map((x, j) => j === i && x.kind === "connector" ? { ...x, connected: false, perms: [] } : x))} className="h-7 px-2.5 rounded-md border border-border text-xs text-muted-foreground">Bỏ qua</button>
+                  <button onClick={() => setMessages(m => m.map((x, j) => j === i && x.kind === "connector" ? { ...x, connected: false, perms: [] } : x))} className="h-7 px-2.5 rounded-md border border-border text-xs text-muted-foreground">Skip</button>
                 </div>
               )}
             </div>
@@ -785,7 +785,7 @@ function HowThisAgentRuns({ agentId, onViewSection }: { agentId: string; onViewS
 
   return (
     <div className="rounded-lg border border-border bg-surface p-2.5 space-y-2">
-      <p className="text-xs font-semibold text-foreground">Cách agent này chạy</p>
+      <p className="text-xs font-semibold text-foreground">How this agent runs</p>
 
       <div className="flex items-start gap-1.5">
         <HugeiconsIcon
@@ -795,9 +795,9 @@ function HowThisAgentRuns({ agentId, onViewSection }: { agentId: string; onViewS
         />
         <p className="text-[11px] text-muted-foreground leading-relaxed">
           {kind === "automation" ? (
-            <><span className="font-medium text-foreground">Tự động hoá cho doanh nghiệp</span> — agent tự chạy theo {triggers.length} trigger bạn đặt ở đây, chạy cho toàn doanh nghiệp. Không ai cài về Workspace, không ai nhắn tin trực tiếp.</>
+            <><span className="font-medium text-foreground">Organization-wide Automation</span> — the agent runs on its own based on the {triggers.length} trigger{triggers.length === 1 ? "" : "s"} you've set up here, for the whole organization. Nobody installs it to Workspace, nobody chats with it directly.</>
           ) : (
-            <><span className="font-medium text-foreground">Agent trò chuyện</span> — người dùng trong doanh nghiệp cài agent về Workspace và sử dụng. Mỗi người tự đặt trigger riêng cho bản cài của họ.</>
+            <><span className="font-medium text-foreground">Conversational agent</span> — people across the organization install this agent to Workspace and use it. Each person sets up their own triggers on their install.</>
           )}
         </p>
       </div>
@@ -807,9 +807,9 @@ function HowThisAgentRuns({ agentId, onViewSection }: { agentId: string; onViewS
           <HugeiconsIcon icon={personalConn ? UserIcon : Building02Icon} size={12} className="text-muted-foreground shrink-0 mt-0.5" />
           <p className="text-[11px] text-muted-foreground leading-relaxed">
             {personalConn ? (
-              "Kết nối riêng của từng người dùng — agent chạy dưới tài khoản của chính người đang dùng."
+              "Per-user connection — the agent runs under the account of whoever is using it."
             ) : (
-              <>Kết nối dùng chung của tổ chức — mọi lần chạy dùng tài khoản {CONNECTOR_CATALOG.find(c => c.id === sharedConn!.connectorId)?.name ?? sharedConn!.connectorId}.</>
+              <>Shared organization connection — every run uses the {CONNECTOR_CATALOG.find(c => c.id === sharedConn!.connectorId)?.name ?? sharedConn!.connectorId} account.</>
             )}
           </p>
         </div>
@@ -820,9 +820,9 @@ function HowThisAgentRuns({ agentId, onViewSection }: { agentId: string; onViewS
           <HugeiconsIcon icon={GridViewIcon} size={12} className="text-muted-foreground shrink-0 mt-0.5" />
           <p className="text-[11px] text-muted-foreground leading-relaxed">
             {kind === "automation" ? (
-              <>Kênh gửi ra: {channelNames.join(", ")}. Agent gửi kết quả ra các kênh này; khách không nhắn tin vào.</>
+              <>Outbound channels: {channelNames.join(", ")}. The agent sends results to these channels; customers don't message in.</>
             ) : (
-              <>Kênh trò chuyện: {channelNames.join(", ")}. Người dùng nhắn tin cho agent qua các kênh này.</>
+              <>Chat channels: {channelNames.join(", ")}. Users message the agent through these channels.</>
             )}
           </p>
         </div>
@@ -2711,7 +2711,7 @@ function PreviewPanel({ agentId, view, onViewChange }: { agentId: string; view: 
   const setView = onViewChange;
   const [selectedModel, setSelectedModel] = useState("deepseek-v4-flash");
   const [messages, setMessages] = useState<{ role: "user" | "agent"; text: string }[]>([
-    { role: "agent", text: "Xin chào! Tôi là Banking ABC Customer Care. Tôi có thể giúp gì cho bạn?" },
+    { role: "agent", text: "Hello! I'm Banking ABC Customer Care. How can I help you today?" },
   ]);
   const [input, setInput] = useState("");
 
@@ -2721,7 +2721,7 @@ function PreviewPanel({ agentId, view, onViewChange }: { agentId: string; view: 
     setMessages(m => [...m, { role: "user", text: userMsg }]);
     setInput("");
     setTimeout(() => {
-      setMessages(m => [...m, { role: "agent", text: `Cảm ơn bạn đã liên hệ! Tôi đang xử lý yêu cầu của bạn về "${userMsg}". Vui lòng chờ trong giây lát.` }]);
+      setMessages(m => [...m, { role: "agent", text: `Thanks for reaching out! I'm processing your request about "${userMsg}". Please give me a moment.` }]);
     }, 800);
   };
 
@@ -2764,7 +2764,7 @@ function PreviewPanel({ agentId, view, onViewChange }: { agentId: string; view: 
               </div>
             </div>
             <button
-              onClick={() => setMessages([{ role: "agent", text: "Xin chào! Tôi là Banking ABC Customer Care. Tôi có thể giúp gì cho bạn?" }])}
+              onClick={() => setMessages([{ role: "agent", text: "Hello! I'm Banking ABC Customer Care. How can I help you today?" }])}
               className="ml-auto text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-base"
             >
               <HugeiconsIcon icon={HistoryIcon} size={11} /> Reset
@@ -2793,7 +2793,7 @@ function PreviewPanel({ agentId, view, onViewChange }: { agentId: string; view: 
 
           {/* Quick replies */}
           <div className="px-3 pb-2 flex gap-1.5 flex-wrap shrink-0">
-            {["Khóa thẻ tín dụng", "Lãi suất vay", "Mở tài khoản"].map(q => (
+            {["Lock my credit card", "Loan interest rates", "Open an account"].map(q => (
               <button
                 key={q}
                 onClick={() => { setInput(q); }}
@@ -2809,7 +2809,7 @@ function PreviewPanel({ agentId, view, onViewChange }: { agentId: string; view: 
             <div className="flex items-center gap-2 bg-surface-muted rounded-xl border border-border px-3 py-2 focus-within:border-primary focus-within:ring-glow transition-base">
               <input
                 className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-                placeholder="Nhập tin nhắn để test…"
+                placeholder="Type a message to test…"
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && send()}
@@ -2904,7 +2904,7 @@ const metrics = [
 const bars = [50, 62, 45, 75, 68, 95, 80];
 
 /* ============ PublishModal ============ */
-const AGENT_NAME = "làm báo cáo cho sale";
+const AGENT_NAME = "sales report generator";
 const EXTERNAL_CHANNELS = [
   { id: "web",   name: "Web widget", emoji: "🌐" },
   { id: "zalo",  name: "Zalo",       emoji: "💬" },
@@ -2979,7 +2979,7 @@ function PublishModal({ agentId, onClose, onChatTest, onPublished, onViewSection
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
           {/* Placement */}
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Nơi agent chạy</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Where the agent runs</p>
             <div className="grid grid-cols-2 gap-2 items-start">
               <div>
                 <button
@@ -2994,8 +2994,8 @@ function PublishModal({ agentId, onClose, onChatTest, onPublished, onViewSection
                     <span className="text-sm font-semibold">Workspace</span>
                   </div>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    Người dùng trong doanh nghiệp cài agent về Workspace và sử dụng. Mỗi người tự đặt trigger riêng
-                    cho bản cài của họ.
+                    People across the organization install this agent to Workspace and use it. Each person sets up
+                    their own triggers on their install.
                   </p>
                 </button>
                 {workspaceBlocked && (
@@ -3005,7 +3005,7 @@ function PublishModal({ agentId, onClose, onChatTest, onPublished, onViewSection
                       {WORKSPACE_BLOCKED_BY_TRIGGER_REASON(triggerCount)}{" "}
                       {onViewSection && (
                         <button type="button" onClick={() => onViewSection("triggers")} className="font-semibold hover:underline">
-                          Xem trigger
+                          View triggers
                         </button>
                       )}
                     </p>
@@ -3022,11 +3022,11 @@ function PublishModal({ agentId, onClose, onChatTest, onPublished, onViewSection
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <HugeiconsIcon icon={BoltIcon} size={14} className="text-foreground shrink-0" />
-                    <span className="text-sm font-semibold">Automation — Tự động hoá cho doanh nghiệp</span>
+                    <span className="text-sm font-semibold">Automation — organization-wide</span>
                   </div>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    Agent tự chạy theo trigger bạn đặt ở Console, cho toàn doanh nghiệp. Không ai cài, không ai nhắn
-                    tin trực tiếp.
+                    The agent runs on its own based on the triggers you set up in Console, for the whole
+                    organization. Nobody installs it, nobody chats with it directly.
                   </p>
                 </button>
                 {automationBlocked && (
@@ -3036,7 +3036,7 @@ function PublishModal({ agentId, onClose, onChatTest, onPublished, onViewSection
                       {AUTOMATION_BLOCKED_BY_NO_TRIGGER_REASON}{" "}
                       {onViewSection && (
                         <button type="button" onClick={() => onViewSection("triggers")} className="font-semibold hover:underline">
-                          Thêm trigger
+                          Add trigger
                         </button>
                       )}
                     </p>
@@ -3141,12 +3141,12 @@ function PublishModal({ agentId, onClose, onChatTest, onPublished, onViewSection
           {/* External channels — available in both placements */}
           <div>
             <p className="text-sm font-medium mb-0.5">
-              {placement === "automation" ? "Kênh gửi ra" : "Kênh trò chuyện"}
+              {placement === "automation" ? "Outbound channels" : "Chat channels"}
             </p>
             <p className="text-xs text-muted-foreground mb-2">
               {placement === "automation"
-                ? "Agent gửi kết quả hoặc thực hiện hành động ra các kênh này. Khách hàng không chủ động nhắn tin vào agent tự động."
-                : "Người dùng nhắn tin cho agent qua các kênh này."}
+                ? "The agent sends results or performs actions to these channels. Customers don't proactively message an automation agent."
+                : "Users message the agent through these channels."}
             </p>
             <div className="grid grid-cols-2 gap-2">
               {EXTERNAL_CHANNELS.map(ch => <ChannelChip key={ch.id} ch={ch} />)}
@@ -3157,10 +3157,10 @@ function PublishModal({ agentId, onClose, onChatTest, onPublished, onViewSection
         {/* Footer */}
         <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-border shrink-0">
           {!placement ? (
-            <span className="text-xs text-destructive">Chọn nơi phát hành trước khi tiếp tục.</span>
+            <span className="text-xs text-destructive">Choose where to publish before continuing.</span>
           ) : (
             <span className="text-xs text-muted-foreground">
-              {selected.size > 0 ? `${selected.size} kênh đã chọn` : "Không chọn kênh nào"}
+              {selected.size > 0 ? `${selected.size} channels selected` : "No channels selected"}
             </span>
           )}
           <div className="flex items-center gap-2">
@@ -3186,14 +3186,15 @@ function PublishModal({ agentId, onClose, onChatTest, onPublished, onViewSection
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowUninstallGuard(false)} />
           <div className="relative z-10 w-full max-w-md bg-white rounded-2xl border border-border shadow-lg p-6 animate-fade-up">
-            <h3 className="font-display text-lg font-semibold mb-2">Cần gỡ agent khỏi Workspace trước</h3>
+            <h3 className="font-display text-lg font-semibold mb-2">Remove the agent from Workspace first</h3>
             <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-              Phiên bản này có {triggerCount} trigger nên chỉ chạy được ở chế độ Automation cho toàn doanh nghiệp.
-              Agent đang được {installCount} người cài về Workspace. Gỡ agent khỏi Workspace trước khi phát hành —
-              {" "}{installCount} bản cài đó sẽ bị xoá, kèm mọi trigger cá nhân những người đó đã tự đặt.
+              This version has {triggerCount} trigger{triggerCount === 1 ? "" : "s"}, so it can only run in
+              organization-wide Automation mode. The agent is currently installed by {installCount} people in
+              Workspace. Remove it from Workspace before publishing — those {installCount} installs will be deleted,
+              along with any personal triggers those people set up.
             </p>
             <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-              Nhập "{AGENT_NAME}" để xác nhận
+              Type "{AGENT_NAME}" to confirm
             </label>
             <input
               value={confirmName}
@@ -3203,7 +3204,7 @@ function PublishModal({ agentId, onClose, onChatTest, onPublished, onViewSection
             />
             <div className="flex items-center justify-end gap-2">
               <button onClick={() => setShowUninstallGuard(false)} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">
-                Huỷ
+                Cancel
               </button>
               <button
                 disabled={confirmName.trim() !== AGENT_NAME}
@@ -3217,7 +3218,7 @@ function PublishModal({ agentId, onClose, onChatTest, onPublished, onViewSection
                 }}
                 className="h-9 px-4 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 text-sm font-medium transition-base disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                Gỡ khỏi Workspace và phát hành
+                Remove from Workspace and publish
               </button>
             </div>
           </div>
@@ -4767,7 +4768,7 @@ function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegister
       n++;
     }
     triggerStore.create(agentId, { name, type: t.type, enabled: t.enabled, description: t.description, config: t.config });
-    toast.success(`Đã tạo trigger "${name}".`);
+    toast.success(`Created trigger "${name}".`);
     refresh();
   };
 
@@ -4775,7 +4776,7 @@ function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegister
     const trimmed = newName.trim();
     if (!trimmed || trimmed === t.name) { setRenamingId(null); return; }
     if (triggerStore.isDuplicateName(agentId, trimmed, t.id)) {
-      toast.error("Tên trigger này đã tồn tại trong agent. Vui lòng chọn tên khác.");
+      toast.error("A trigger with this name already exists on this agent. Please choose another name.");
       return;
     }
     triggerStore.update(agentId, t.id, { name: trimmed });
@@ -4788,8 +4789,8 @@ function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegister
       {triggers.length === 0 ? (
         <EmptyStateBox
           icon={TimeScheduleIcon}
-          description="Xác định khi nào agent chạy tự động — theo lịch, qua webhook, hoặc theo sự kiện từ ứng dụng bên ngoài."
-          addLabel="Thêm Trigger"
+          description="Define when the agent runs automatically — on a schedule, via a webhook, or on events from an external app."
+          addLabel="Add Trigger"
           onAdd={openCreate}
           disabled={personalConnectorBlocked}
           disabledReason={personalConnectorBlocked ? TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON(personalConnectorName) : undefined}
@@ -4838,11 +4839,11 @@ function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegister
                   )}
                   {needsSetup ? (
                     <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap bg-amber-100 text-amber-700">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Cần cấu hình
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Needs setup
                     </span>
                   ) : !t.enabled && (
                     <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap bg-amber-100 text-amber-700">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Tạm dừng
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Paused
                     </span>
                   )}
                   <TriggerRowMenu
@@ -4852,7 +4853,7 @@ function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegister
                     onEdit={() => setEditTarget(t)}
                     onRename={() => setRenamingId(t.id)}
                     onDuplicate={() => duplicateTrigger(t)}
-                    onDelete={() => { const n = t.name; triggerStore.remove(agentId, t.id); toast.success(`Đã xoá trigger "${n}".`); refresh(); }}
+                    onDelete={() => { const n = t.name; triggerStore.remove(agentId, t.id); toast.success(`Deleted trigger "${n}".`); refresh(); }}
                   />
                 </div>
                 {summary && (
@@ -4861,12 +4862,12 @@ function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegister
                 {needsSetup ? (
                   <div className="flex items-center gap-1.5 mt-1.5 pl-7 text-xs text-amber-700">
                     <HugeiconsIcon icon={InformationCircleIcon} size={12} className="shrink-0" />
-                    <span>Cần hoàn tất cấu hình trước khi kích hoạt.</span>
+                    <span>Finish configuring this trigger before turning it on.</span>
                   </div>
                 ) : !t.enabled && (
                   <div className="flex items-center gap-1.5 mt-1.5 pl-7 text-xs text-amber-700">
                     <HugeiconsIcon icon={InformationCircleIcon} size={12} className="shrink-0" />
-                    <span>Trigger đang tạm dừng.</span>
+                    <span>This trigger is paused.</span>
                   </div>
                 )}
               </div>
@@ -4915,7 +4916,7 @@ function TriggerRowMenu({ enabled, needsSetup, onToggle, onEdit, onRename, onDup
         type="button"
         onClick={() => setOpen(o => !o)}
         className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base"
-        aria-label="Thao tác trigger"
+        aria-label="Trigger actions"
       >
         <HugeiconsIcon icon={MoreHorizontalIcon} size={13} />
       </button>
@@ -4925,27 +4926,27 @@ function TriggerRowMenu({ enabled, needsSetup, onToggle, onEdit, onRename, onDup
             <Tooltip delayDuration={300}>
               <TooltipTrigger asChild>
                 <span tabIndex={0} className="block w-full text-left px-3 py-1.5 text-xs text-muted-foreground/60 cursor-not-allowed outline-none">
-                  Kích hoạt trigger
+                  Enable trigger
                 </span>
               </TooltipTrigger>
-              <TooltipContent side="left" sideOffset={8} align="center">Hoàn tất cấu hình trước khi kích hoạt trigger.</TooltipContent>
+              <TooltipContent side="left" sideOffset={8} align="center">Finish configuring this trigger before enabling it.</TooltipContent>
             </Tooltip>
           ) : (
             <button type="button" onClick={() => { onToggle(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">
-              {enabled ? "Tạm dừng trigger" : "Kích hoạt trigger"}
+              {enabled ? "Pause trigger" : "Enable trigger"}
             </button>
           )}
           <button type="button" onClick={() => { onEdit(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">
-            Chỉnh sửa trigger
+            Edit trigger
           </button>
           <button type="button" onClick={() => { onRename(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">
-            Đổi tên
+            Rename
           </button>
           <button type="button" onClick={() => { onDelete(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">
-            Xoá trigger
+            Delete trigger
           </button>
           <button type="button" onClick={() => { onDuplicate(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">
-            Nhân bản
+            Duplicate
           </button>
         </div>
       )}

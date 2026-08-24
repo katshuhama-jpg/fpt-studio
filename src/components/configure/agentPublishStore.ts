@@ -39,10 +39,10 @@ export function mockInstallCount(agentId: string): number {
 }
 
 export const WORKSPACE_BLOCKED_BY_TRIGGER_REASON = (n: number) =>
-  `Agent này đã có ${n} trigger do bạn đặt ở Console, nên chạy cho toàn doanh nghiệp ở chế độ Automation. Muốn người dùng cài về Workspace và tự đặt trigger riêng, hãy xoá trigger ở Console.`;
+  `This agent already has ${n} trigger${n === 1 ? "" : "s"} set up in Console, so it runs organization-wide in Automation mode. To let people install it to Workspace and set up their own triggers instead, remove the triggers in Console first.`;
 export const AUTOMATION_BLOCKED_BY_NO_TRIGGER_REASON =
-  "Thêm ít nhất một trigger để dùng chế độ này.";
+  "Add at least one trigger to use this mode.";
 export const TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON = (connectorName: string) =>
-  `Agent đang dùng kết nối riêng của từng người dùng (${connectorName}). Trigger chạy nền khi không có ai đăng nhập, nên không mượn được tài khoản cá nhân của người dùng.`;
+  `This agent uses a per-user connection (${connectorName}). Triggers run in the background with nobody signed in, so there's no personal account to borrow.`;
 export const CONNECTOR_BLOCKED_BY_TRIGGER_REASON = (n: number) =>
-  `Agent đang có ${n} trigger chạy nền, nên đang ở chế độ Tự động hoá cho doanh nghiệp. Lúc trigger chạy không có người dùng nào đăng nhập để mượn tài khoản.`;
+  `This agent has ${n} background trigger${n === 1 ? "" : "s"} running, so it's in Automation mode for the whole organization. When a trigger fires, there's no signed-in user to borrow an account from.`;

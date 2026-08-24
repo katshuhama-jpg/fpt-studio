@@ -84,7 +84,7 @@ export function checkCronExpression(expr: string): CronCheck {
   return { valid: true, tooFrequent };
 }
 
-const DOW_VN = ["Chủ Nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
+const DOW_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 export function describeCronVN(expr: string): string {
   const [minute, hour, dom, month, dow] = expr.trim().split(/\s+/);
@@ -96,20 +96,20 @@ export function describeCronVN(expr: string): string {
     const rangeMatch = dow.match(/^(\d)-(\d)$/);
     if (rangeMatch) {
       const a = Number(rangeMatch[1]) % 7, b = Number(rangeMatch[2]) % 7;
-      dowPart = ` các ngày trong tuần (${DOW_VN[a]} – ${DOW_VN[b]})`;
+      dowPart = ` on weekdays (${DOW_NAMES[a]} – ${DOW_NAMES[b]})`;
     } else {
-      dowPart = ` vào ${expandCronField(dow, 0, 7).map(d => DOW_VN[d % 7]).join(", ")}`;
+      dowPart = ` on ${expandCronField(dow, 0, 7).map(d => DOW_NAMES[d % 7]).join(", ")}`;
     }
   }
 
-  const domPart = dom !== "*" ? ` ngày ${dom} hàng tháng` : "";
-  const monthPart = month !== "*" ? ` (tháng ${month})` : "";
+  const domPart = dom !== "*" ? ` on day ${dom} of the month` : "";
+  const monthPart = month !== "*" ? ` (month ${month})` : "";
 
   if (timePart) {
-    if (dow !== "*" && dom === "*" && month === "*") return `Chạy ${timePart}${dowPart}`;
-    if (dom !== "*" && dow === "*" && month === "*") return `Chạy ${timePart}${domPart}`;
-    if (dom === "*" && dow === "*" && month === "*") return `Chạy hàng ngày lúc ${timePart}`;
-    return `Chạy ${timePart}${domPart}${dowPart}${monthPart}`.trim();
+    if (dow !== "*" && dom === "*" && month === "*") return `Runs at ${timePart}${dowPart}`;
+    if (dom !== "*" && dow === "*" && month === "*") return `Runs at ${timePart}${domPart}`;
+    if (dom === "*" && dow === "*" && month === "*") return `Runs daily at ${timePart}`;
+    return `Runs at ${timePart}${domPart}${dowPart}${monthPart}`.trim();
   }
-  return `Chạy theo lịch: phút ${minute}, giờ ${hour}, ngày ${dom}, tháng ${month}, thứ ${dow}`;
+  return `Runs on schedule: minute ${minute}, hour ${hour}, day ${dom}, month ${month}, weekday ${dow}`;
 }

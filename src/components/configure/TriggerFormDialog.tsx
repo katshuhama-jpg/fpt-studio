@@ -23,33 +23,33 @@ const NAME_MAX = 50;
 const DESC_MAX = 200;
 
 const CATEGORY_OPTIONS: { value: TriggerType; label: string; icon: any; desc: string }[] = [
-  { value: "scheduled", label: "Theo lịch", icon: Clock, desc: "Chạy Agent tự động theo một lịch lặp lại." },
-  { value: "developer", label: "Webhook", icon: Webhook, desc: "Nhận một URL duy nhất mà hệ thống bên ngoài có thể gọi (POST) để kích hoạt Agent này." },
-  { value: "external", label: "Ứng dụng bên ngoài", icon: Globe, desc: "Kích hoạt Agent khi có sự kiện xảy ra trong một ứng dụng khác." },
+  { value: "scheduled", label: "Schedule", icon: Clock, desc: "Run the agent automatically on a repeating schedule." },
+  { value: "developer", label: "Webhook", icon: Webhook, desc: "Get a single URL that an external system can call (POST) to fire this agent." },
+  { value: "external", label: "External app", icon: Globe, desc: "Fire the agent when something happens in another app." },
 ];
 
 const PRIMARY_FREQUENCY_OPTIONS: { value: Exclude<CustomScheduleUnit, "cron">; label: string }[] = [
-  { value: "minute", label: "Theo phút" },
-  { value: "hour", label: "Theo giờ" },
-  { value: "day", label: "Hằng ngày" },
-  { value: "week", label: "Hằng tuần" },
-  { value: "month", label: "Hằng tháng" },
-  { value: "year", label: "Hằng năm" },
+  { value: "minute", label: "Minutely" },
+  { value: "hour", label: "Hourly" },
+  { value: "day", label: "Daily" },
+  { value: "week", label: "Weekly" },
+  { value: "month", label: "Monthly" },
+  { value: "year", label: "Annually" },
 ];
 
 const WEEKDAY_CHIPS: { value: number; label: string }[] = [
-  { value: 1, label: "T2" },
-  { value: 2, label: "T3" },
-  { value: 3, label: "T4" },
-  { value: 4, label: "T5" },
-  { value: 5, label: "T6" },
-  { value: 6, label: "T7" },
-  { value: 0, label: "CN" },
+  { value: 1, label: "Mon" },
+  { value: 2, label: "Tue" },
+  { value: 3, label: "Wed" },
+  { value: 4, label: "Thu" },
+  { value: 5, label: "Fri" },
+  { value: 6, label: "Sat" },
+  { value: 0, label: "Sun" },
 ];
 
 const MONTH_OPTIONS: { value: number; label: string }[] = [
-  "Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6",
-  "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12",
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
 ].map((label, value) => ({ value, label }));
 
 const MONTH_MAX_DAY = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
@@ -206,11 +206,11 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
 
   const validateBasics = () => {
     const e: typeof errors = {};
-    if (!name.trim()) e.name = "Vui lòng nhập tên";
-    else if (name.trim().length > NAME_MAX) e.name = `Tên không được vượt quá ${NAME_MAX} ký tự`;
-    else if (isDuplicateName) e.name = "Tên trigger này đã tồn tại trong agent. Vui lòng chọn tên khác.";
-    if (!description.trim()) e.description = "Vui lòng nhập mô tả";
-    else if (description.length > DESC_MAX) e.description = `Mô tả không được vượt quá ${DESC_MAX} ký tự`;
+    if (!name.trim()) e.name = "Please enter a name";
+    else if (name.trim().length > NAME_MAX) e.name = `Name can't be longer than ${NAME_MAX} characters`;
+    else if (isDuplicateName) e.name = "A trigger with this name already exists on this agent. Please choose another name.";
+    if (!description.trim()) e.description = "Please enter a description";
+    else if (description.length > DESC_MAX) e.description = `Description can't be longer than ${DESC_MAX} characters`;
     return e;
   };
 
@@ -219,30 +219,30 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
     if (category === "scheduled") {
       if (customUnit === "cron") {
         const check = checkCronExpression(cron);
-        if (!check.valid) e.schedule = "Biểu thức Cron không hợp lệ. Định dạng: phút giờ ngày tháng thứ (ví dụ: 0 8 * * 1-5)";
-        else if (check.tooFrequent) e.schedule = "Cron không được chạy dày hơn 10 phút một lần.";
+        if (!check.valid) e.schedule = "Invalid cron expression. Format: minute hour day month weekday (e.g. 0 8 * * 1-5)";
+        else if (check.tooFrequent) e.schedule = "Cron can't run more often than every 10 minutes.";
       }
       if (customUnit === "minute" && Number(intervalValue) < 10) {
-        e.schedule = "Tối thiểu 10 phút.";
+        e.schedule = "Minimum 10 minutes.";
       }
       if (customUnit === "hour" && Number(intervalValue) < 1) {
-        e.schedule = "Tối thiểu 1 giờ.";
+        e.schedule = "Minimum 1 hour.";
       }
       if (customUnit === "week" && weekDays.length === 0) {
-        e.schedule = "Chọn ít nhất một ngày trong tuần.";
+        e.schedule = "Select at least one day of the week.";
       }
       if (customUnit === "month" && (dayOfMonth < 1 || dayOfMonth > 31)) {
-        e.schedule = "Ngày trong tháng phải từ 1 đến 31.";
+        e.schedule = "Day of month must be between 1 and 31.";
       }
     }
     if (category === "developer") {
       if (!credentialId) {
-        e.credential = "Chọn credential để bảo vệ webhook trước khi kích hoạt.";
+        e.credential = "Choose a credential to protect the webhook before enabling it.";
       }
       try {
         if (payloadJson.trim()) JSON.parse(payloadJson);
       } catch {
-        e.payload = "Payload mẫu chưa đúng định dạng JSON. Vui lòng kiểm tra lại.";
+        e.payload = "The sample payload isn't valid JSON. Please check it.";
       }
     }
     return e;
@@ -320,7 +320,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
         description: description.trim(),
         config,
       });
-      toast.success(`Đã tạo trigger "${trimmedName}".`);
+      toast.success(`Created trigger "${trimmedName}".`);
       onSubmitted?.(rec);
     } else if (trigger) {
       triggerStore.update(agentId, trigger.id, {
@@ -329,7 +329,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
         description: description.trim(),
         config,
       });
-      toast.success(`Đã cập nhật trigger "${trimmedName}".`);
+      toast.success(`Updated trigger "${trimmedName}".`);
       onSubmitted?.({ ...trigger, name: trimmedName, type: category, description: description.trim(), config });
     }
     onOpenChange(false);
@@ -367,10 +367,10 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
   };
 
   const primaryLabel =
-    step === "details" || step === "queue-work-hours" ? (mode === "create" ? "Tạo" : "Lưu") : "Tiếp tục";
+    step === "details" || step === "queue-work-hours" ? (mode === "create" ? "Create" : "Save") : "Continue";
 
   const connectedAccounts = connectedAccountStore.list(app);
-  const categoryHeading = category === "scheduled" ? "Lịch lặp lại"
+  const categoryHeading = category === "scheduled" ? "Repeating schedule"
     : category === "developer" ? "Webhook"
     : EXTERNAL_APP_META[app].label;
 
@@ -400,21 +400,21 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                 onClick={stepBack}
                 className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-base w-fit"
               >
-                <ChevronLeft size={13} /> Quay lại
+                <ChevronLeft size={13} /> Back
               </button>
             ) : <span />}
             {stepTotal > 1 && (
               <span className="text-[11px] font-medium text-muted-foreground shrink-0">
-                Bước {stepIndex + 1}/{stepTotal}
+                Step {stepIndex + 1}/{stepTotal}
               </span>
             )}
           </div>
           <DialogTitle className="font-display flex items-center gap-2">
-            {step === "main" ? (mode === "create" ? "Tạo Trigger mới" : "Chỉnh sửa Trigger")
+            {step === "main" ? (mode === "create" ? "Create a new trigger" : "Edit trigger")
               : step === "details" ? categoryHeading
-              : step === "app-picker" ? "Chọn ứng dụng"
-              : step === "app-config" ? `${EXTERNAL_APP_META[app].label} — Sự kiện & điều kiện`
-              : step === "queue-work-hours" ? "Giờ làm việc của hàng đợi (tuỳ chọn)"
+              : step === "app-picker" ? "Choose an app"
+              : step === "app-config" ? `${EXTERNAL_APP_META[app].label} — Event & conditions`
+              : step === "queue-work-hours" ? "Queue work hours (optional)"
               : EXTERNAL_APP_META[app].label}
             {step === "details" && category === "scheduled" && customUnit === "cron" && (
               <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded chip-accent">CRON</span>
@@ -431,7 +431,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
 
               {mode === "create" && (
               <div>
-                <label className="text-xs font-medium mb-1.5 block">Loại</label>
+                <label className="text-xs font-medium mb-1.5 block">Type</label>
                 <div className="grid grid-cols-3 gap-2">
                   {CATEGORY_OPTIONS.map(opt => {
                     const Icon = opt.icon;
@@ -458,7 +458,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
               <div className="rounded-xl border border-border bg-surface/60 p-3 space-y-3">
                 <div>
                   <label className="text-xs font-medium flex items-center justify-between mb-1.5">
-                    <span>Tên <span className="text-destructive">*</span></span>
+                    <span>Name <span className="text-destructive">*</span></span>
                     <span className="text-[10px] font-mono text-muted-foreground">{name.length}/{NAME_MAX}</span>
                   </label>
                   <input
@@ -466,9 +466,9 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                     value={name}
                     onChange={e => { setName(e.target.value); if (errors.name) setErrors(er => ({ ...er, name: undefined })); }}
                     onBlur={() => {
-                      if (isDuplicateName) setErrors(er => ({ ...er, name: "Tên trigger này đã tồn tại trong agent. Vui lòng chọn tên khác." }));
+                      if (isDuplicateName) setErrors(er => ({ ...er, name: "A trigger with this name already exists on this agent. Please choose another name." }));
                     }}
-                    placeholder="VD: Báo cáo hằng ngày"
+                    placeholder="e.g. Daily report"
                     className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm outline-none transition-base ${
                       errors.name ? "border-destructive" : "border-border focus:border-primary"
                     }`}
@@ -478,14 +478,14 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
 
                 <div>
                   <label className="text-xs font-medium flex items-center justify-between mb-1.5">
-                    <span>Mô tả <span className="text-destructive">*</span></span>
+                    <span>Description <span className="text-destructive">*</span></span>
                     <span className="text-[10px] font-mono text-muted-foreground">{description.length}/{DESC_MAX}</span>
                   </label>
                   <textarea
                     value={description}
                     rows={2}
                     onChange={e => { setDescription(e.target.value); if (errors.description) setErrors(er => ({ ...er, description: undefined })); }}
-                    placeholder="Trigger này dùng để làm gì?"
+                    placeholder="What is this trigger for?"
                     className={`w-full px-3 py-2 rounded-lg border bg-surface text-sm outline-none resize-none transition-base ${
                       errors.description ? "border-destructive" : "border-border focus:border-primary"
                     }`}
@@ -500,7 +500,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
             <div className="rounded-lg border border-border p-3 space-y-3">
               {customUnit !== "cron" && (
                 <div>
-                  <label className="text-xs font-medium mb-1.5 block">Tần suất</label>
+                  <label className="text-xs font-medium mb-1.5 block">Frequency</label>
                   <div className="grid grid-cols-3 gap-1.5">
                     {PRIMARY_FREQUENCY_OPTIONS.map(opt => (
                       <button
@@ -521,7 +521,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                     ))}
                   </div>
                   <p className="mt-1.5 text-[11px] text-muted-foreground">
-                    Cần lịch phức tạp hơn?{" "}
+                    Need something more complex?{" "}
                     <button
                       type="button"
                       onClick={() => {
@@ -530,7 +530,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                       }}
                       className="text-primary hover:underline font-medium"
                     >
-                      Dùng Cron (nâng cao)
+                      Use Cron (advanced)
                     </button>
                   </p>
                 </div>
@@ -543,21 +543,21 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                       type="number" min={10}
                       value={intervalValue}
                       onChange={e => setIntervalValue(e.target.value)}
-                      placeholder="Số phút"
+                      placeholder="Number of minutes"
                       className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm outline-none transition-base ${
                         intervalValue !== "" && Number(intervalValue) < 10 ? "border-destructive" : "border-border focus:border-primary"
                       }`}
                     />
                     <p className={`mt-1 text-[11px] ${intervalValue !== "" && Number(intervalValue) < 10 ? "text-destructive" : "text-muted-foreground"}`}>
-                      Tối thiểu 10 phút.
+                      Minimum 10 minutes.
                     </p>
                   </div>
                   <div>
-                    <label className="text-xs font-medium mb-1.5 block">Thời điểm bắt đầu</label>
+                    <label className="text-xs font-medium mb-1.5 block">Start time</label>
                     <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
                       className="w-full h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base" />
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                      Lịch chạy được tính từ Thời điểm bắt đầu. Ví dụ: Thời điểm bắt đầu 10:00, mỗi 2 giờ → 10:00, 12:00, 14:00…
+                      The schedule is calculated from the start time. Example: start time 10:00, every 2 hours → 10:00, 12:00, 14:00…
                     </p>
                   </div>
                 </>
@@ -569,21 +569,21 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                       type="number" min={1}
                       value={intervalValue}
                       onChange={e => setIntervalValue(e.target.value)}
-                      placeholder="Số giờ"
+                      placeholder="Number of hours"
                       className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm outline-none transition-base ${
                         intervalValue !== "" && Number(intervalValue) < 1 ? "border-destructive" : "border-border focus:border-primary"
                       }`}
                     />
                     <p className={`mt-1 text-[11px] ${intervalValue !== "" && Number(intervalValue) < 1 ? "text-destructive" : "text-muted-foreground"}`}>
-                      Tối thiểu 1 giờ.
+                      Minimum 1 hour.
                     </p>
                   </div>
                   <div>
-                    <label className="text-xs font-medium mb-1.5 block">Thời điểm bắt đầu</label>
+                    <label className="text-xs font-medium mb-1.5 block">Start time</label>
                     <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
                       className="w-full h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base" />
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                      Lịch chạy được tính từ Thời điểm bắt đầu. Ví dụ: Thời điểm bắt đầu 10:00, mỗi 2 giờ → 10:00, 12:00, 14:00…
+                      The schedule is calculated from the start time. Example: start time 10:00, every 2 hours → 10:00, 12:00, 14:00…
                     </p>
                   </div>
                 </>
@@ -591,7 +591,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
 
               {customUnit === "year" && (
                 <div>
-                  <label className="text-xs font-medium mb-1.5 block">Tháng</label>
+                  <label className="text-xs font-medium mb-1.5 block">Month</label>
                   <select
                     value={month}
                     onChange={e => {
@@ -609,7 +609,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
 
               {(customUnit === "month" || customUnit === "year") && (
                 <div>
-                  <label className="text-xs font-medium mb-1.5 block">Ngày trong tháng</label>
+                  <label className="text-xs font-medium mb-1.5 block">Day of month</label>
                   <input
                     type="number" min={1} max={customUnit === "year" ? daysInMonthDisplay(month) : 31}
                     value={dayOfMonth}
@@ -627,30 +627,30 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                   />
                   {customUnit === "year" && month === 1 && dayOfMonth === 29 && (
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                      Ngày 29/02 chỉ tồn tại trong năm nhuận. Những năm không nhuận, agent sẽ chạy vào 28/02.
+                      February 29 only exists in leap years. In other years, the agent will run on February 28.
                     </p>
                   )}
                   {customUnit === "month" && [29, 30, 31].includes(dayOfMonth) && (
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                      Tháng không có ngày {dayOfMonth}, agent sẽ chạy vào ngày cuối cùng của tháng đó.
+                      Months without day {dayOfMonth} will run the agent on that month's last day instead.
                     </p>
                   )}
                   {customUnit === "month" && (dayOfMonth < 1 || dayOfMonth > 31) && (
-                    <p className="mt-1 text-[11px] text-destructive">Ngày trong tháng phải từ 1 đến 31.</p>
+                    <p className="mt-1 text-[11px] text-destructive">Day of month must be between 1 and 31.</p>
                   )}
                 </div>
               )}
 
               {["day", "week", "month", "year"].includes(customUnit) && (
                 <div>
-                  <label className="text-xs font-medium mb-1.5 block">Giờ chạy</label>
+                  <label className="text-xs font-medium mb-1.5 block">Run time</label>
                   <input type="time" value={timeOfDay} onChange={e => setTimeOfDay(e.target.value)}
                     className="w-full h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base" />
                 </div>
               )}
               {customUnit === "week" && (
                 <div>
-                  <label className="text-xs font-medium mb-1.5 block">Ngày trong tuần</label>
+                  <label className="text-xs font-medium mb-1.5 block">Days of the week</label>
                   <div className="grid grid-cols-7 gap-1">
                     {WEEKDAY_CHIPS.map(d => {
                       const active = weekDays.includes(d.value);
@@ -669,7 +669,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                     })}
                   </div>
                   <p className={`mt-1 text-[11px] ${weekDays.length === 0 ? "text-destructive" : "text-muted-foreground"}`}>
-                    Chọn ít nhất một ngày trong tuần.
+                    Select at least one day of the week.
                   </p>
                 </div>
               )}
@@ -680,9 +680,9 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                     onClick={() => setCustomUnit(lastNonCronUnit)}
                     className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-base mb-2"
                   >
-                    <ChevronLeft size={11} /> Quay lại lịch cơ bản
+                    <ChevronLeft size={11} /> Back to basic schedule
                   </button>
-                  <label className="text-xs font-medium mb-1.5 block">Biểu thức Cron</label>
+                  <label className="text-xs font-medium mb-1.5 block">Cron expression</label>
                   <input
                     value={cron}
                     onChange={e => {
@@ -695,8 +695,8 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                     }}
                     onBlur={() => {
                       const check = checkCronExpression(cron);
-                      if (!check.valid) setErrors(er => ({ ...er, schedule: "Biểu thức Cron không hợp lệ. Định dạng: phút giờ ngày tháng thứ (ví dụ: 0 8 * * 1-5)" }));
-                      else if (check.tooFrequent) setErrors(er => ({ ...er, schedule: "Cron không được chạy dày hơn 10 phút một lần." }));
+                      if (!check.valid) setErrors(er => ({ ...er, schedule: "Invalid cron expression. Format: minute hour day month weekday (e.g. 0 8 * * 1-5)" }));
+                      else if (check.tooFrequent) setErrors(er => ({ ...er, schedule: "Cron can't run more often than every 10 minutes." }));
                       else setErrors(er => ({ ...er, schedule: undefined }));
                     }}
                     placeholder="0 8 * * 1-5"
@@ -704,7 +704,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                       errors.schedule ? "border-destructive" : "border-border focus:border-primary"
                     }`}
                   />
-                  <p className="mt-1 text-[10px] text-muted-foreground">Định dạng Cron chuẩn: phút · giờ · ngày · tháng · thứ</p>
+                  <p className="mt-1 text-[10px] text-muted-foreground">Standard cron format: minute · hour · day · month · weekday</p>
                   {errors.schedule ? (
                     <p className="mt-1 text-[11px] text-destructive">{errors.schedule}</p>
                   ) : cronCheck.valid && !cronCheck.tooFrequent && (
@@ -714,7 +714,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
               )}
 
               <div>
-                <label className="text-xs font-medium mb-1.5 block">Múi giờ</label>
+                <label className="text-xs font-medium mb-1.5 block">Timezone</label>
                 <select value={timezone} onChange={e => setTimezone(e.target.value)} className="ds-input h-9">
                   {TIMEZONE_OPTIONS.map(tz => <option key={tz.value} value={tz.value}>{tz.label}</option>)}
                 </select>
@@ -738,11 +738,11 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                     onClick={() => {
                       navigator.clipboard?.writeText(webhookUrl).catch(() => {});
                       setWebhookCopied(true);
-                      toast.success("Đã sao chép webhook URL.");
+                      toast.success("Webhook URL copied.");
                       setTimeout(() => setWebhookCopied(false), 1500);
                     }}
                     className="w-9 h-9 shrink-0 rounded-lg border border-border bg-surface hover:bg-surface-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-base"
-                    aria-label="Sao chép webhook URL"
+                    aria-label="Copy webhook URL"
                   >
                     {webhookCopied ? <Check size={13} className="text-success" /> : <Copy size={13} />}
                   </button>
@@ -751,7 +751,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
 
               <div>
                 <label className="text-xs font-medium mb-1.5 block">
-                  Phương thức xác thực <span className="text-destructive">*</span>
+                  Authentication method <span className="text-destructive">*</span>
                 </label>
                 <select
                   value={authentication}
@@ -768,7 +768,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
 
               <div>
                 <label className="text-xs font-medium mb-1.5 block">
-                  {authentication === "bearer" ? "Token" : "Credential cho Basic Auth"} <span className="text-destructive">*</span>
+                  {authentication === "bearer" ? "Token" : "Credential for Basic Auth"} <span className="text-destructive">*</span>
                 </label>
                 <CredentialField
                   authType={authentication}
@@ -780,7 +780,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
               </div>
 
               <div className="pt-1 border-t border-border">
-                <label className="text-xs font-medium mb-1.5 block mt-3">Payload dự kiến (JSON)</label>
+                <label className="text-xs font-medium mb-1.5 block mt-3">Expected payload (JSON)</label>
                 <textarea
                   value={payloadJson}
                   rows={5}
@@ -790,7 +790,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                       if (payloadJson.trim()) JSON.parse(payloadJson);
                       setErrors(er => ({ ...er, payload: undefined }));
                     } catch {
-                      setErrors(er => ({ ...er, payload: "Payload mẫu chưa đúng định dạng JSON. Vui lòng kiểm tra lại." }));
+                      setErrors(er => ({ ...er, payload: "The sample payload isn't valid JSON. Please check it." }));
                     }
                   }}
                   className={`w-full px-3 py-2 rounded-lg border bg-surface text-xs font-mono outline-none resize-none transition-base ${
@@ -802,22 +802,22 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
 
               <div>
                 <label className="text-xs font-medium mb-1.5 block">
-                  Trường bắt buộc <span className="text-[10px] font-normal text-muted-foreground">Tuỳ chọn</span>
+                  Required fields <span className="text-[10px] font-normal text-muted-foreground">Optional</span>
                 </label>
                 <input
                   value={requiredFields}
                   onChange={e => setRequiredFields(e.target.value)}
-                  placeholder="VD: event, order_id"
+                  placeholder="e.g. event, order_id"
                   className="w-full h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base"
                 />
               </div>
-              <p className="text-[11px] text-muted-foreground">Payload sẽ được đưa vào context của Agent khi trigger chạy.</p>
+              <p className="text-[11px] text-muted-foreground">The payload will be included in the agent's context when this trigger fires.</p>
             </div>
           )}
 
           {step === "app-picker" && (
             <div>
-              <label className="text-xs font-medium mb-1.5 block">Ứng dụng</label>
+              <label className="text-xs font-medium mb-1.5 block">App</label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-72 overflow-y-auto pr-0.5">
                 {EXTERNAL_APP_ORDER.map(value => {
                   const meta = EXTERNAL_APP_META[value];
@@ -846,10 +846,10 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
 
           {step === "connected-accounts" && (
             <div>
-              <h4 className="text-xs font-semibold text-foreground mb-2">Tài khoản đã kết nối</h4>
+              <h4 className="text-xs font-semibold text-foreground mb-2">Connected accounts</h4>
               <div className="space-y-1.5 mb-4">
                 {connectedAccounts.length === 0 && (
-                  <p className="text-xs text-muted-foreground py-1">Chưa có tài khoản nào được kết nối.</p>
+                  <p className="text-xs text-muted-foreground py-1">No accounts connected yet.</p>
                 )}
                 {connectedAccounts.map(acct => (
                   <label
@@ -861,7 +861,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                     <AppLogo app={app} size={20} />
                     <span className="flex-1 text-sm font-medium truncate">{acct.email}</span>
                     {acct.expired && (
-                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 chip-warning">Hết hạn</span>
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 chip-warning">Expired</span>
                     )}
                     <input
                       type="radio"
@@ -879,7 +879,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                   <AlertTriangle size={14} className="text-warning shrink-0 mt-0.5" />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-warning">
-                      Kết nối tới {EXTERNAL_APP_META[app].label} đã hết hạn. Vui lòng kết nối lại để tiếp tục.
+                      The connection to {EXTERNAL_APP_META[app].label} has expired. Please reconnect to continue.
                     </p>
                   </div>
                   <button
@@ -887,7 +887,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                     onClick={() => { if (accountId) connectedAccountStore.reconnect(accountId); setAccountsTick(t => t + 1); }}
                     className="flex items-center gap-1 h-7 px-2.5 rounded-md bg-white border border-warning/30 text-[11px] font-semibold text-warning hover:bg-warning/5 transition-base shrink-0"
                   >
-                    <RefreshCw size={11} /> Kết nối lại
+                    <RefreshCw size={11} /> Reconnect
                   </button>
                 </div>
               )}
@@ -899,11 +899,11 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                     const acct = connectedAccountStore.connect(app, `you+${app}@fptsmartcloud.com`);
                     setAccountId(acct.id);
                     setAccountsTick(t => t + 1);
-                    toast.success("Đã kết nối tài khoản.");
+                    toast.success("Account connected.");
                   }}
                   className="flex items-center gap-1.5 h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base"
                 >
-                  <Plus size={14} /> Kết nối tài khoản
+                  <Plus size={14} /> Connect account
                 </button>
               </div>
             </div>
@@ -921,7 +921,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
               )}
 
               <div>
-                <label className="text-xs font-medium mb-1.5 block">Sự kiện <span className="text-destructive">*</span></label>
+                <label className="text-xs font-medium mb-1.5 block">Event <span className="text-destructive">*</span></label>
                 <div className="space-y-1.5">
                   {EXTERNAL_APP_EVENTS[app].map(ev => (
                     <label key={ev.value} className="flex items-center gap-2.5 cursor-pointer select-none">
@@ -941,52 +941,52 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
               {app === "gmail" && (
                 <>
                   <div>
-                    <label className="text-xs font-medium mb-1.5 block">Phạm vi <span className="text-destructive">*</span></label>
+                    <label className="text-xs font-medium mb-1.5 block">Scope <span className="text-destructive">*</span></label>
                     <div className="space-y-1.5">
                       <label className="flex items-center gap-2.5 cursor-pointer select-none">
                         <input type="radio" name="gmail-mode" checked={gmailMode === "inbox"} onChange={() => setGmailMode("inbox")} className="w-4 h-4 accent-primary" />
-                        <span className="text-sm">Tất cả email trong hộp thư</span>
+                        <span className="text-sm">All emails in the inbox</span>
                       </label>
                       <label className="flex items-center gap-2.5 cursor-pointer select-none">
                         <input type="radio" name="gmail-mode" checked={gmailMode === "outreach_replies"} onChange={() => setGmailMode("outreach_replies")} className="w-4 h-4 accent-primary" />
-                        <span className="text-sm">Chỉ email phản hồi chiến dịch</span>
+                        <span className="text-sm">Only replies to outreach campaigns</span>
                       </label>
                     </div>
                   </div>
                   <label className="flex items-center gap-2.5 cursor-pointer select-none">
                     <input type="checkbox" checked={includeAttachments} onChange={e => setIncludeAttachments(e.target.checked)} className="w-4 h-4 accent-primary" />
-                    <span className="text-sm">Bao gồm tệp đính kèm</span>
+                    <span className="text-sm">Include attachments</span>
                   </label>
                   <div>
-                    <label className="text-xs font-medium mb-1 block">Lọc theo từ khoá</label>
+                    <label className="text-xs font-medium mb-1 block">Filter by keyword</label>
                     <p className="text-[11px] text-muted-foreground mb-1.5">
-                      Lọc email giống như trong Google Mail.{" "}
+                      Filters emails the same way Google Mail search does.{" "}
                       <a
                         href="https://support.google.com/mail/answer/7190"
                         target="_blank"
                         rel="noreferrer"
                         className="text-primary hover:underline"
                       >
-                        Xem hướng dẫn
+                        See the guide
                       </a>
                       .
                     </p>
                     <input
                       value={filterSearch}
                       onChange={e => setFilterSearch(e.target.value)}
-                      placeholder="VD: from:sales@acme.com"
+                      placeholder="e.g. from:sales@acme.com"
                       className="w-full h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base"
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-medium mb-1 block">Loại trừ email từ</label>
-                    <p className="text-[11px] text-muted-foreground mb-1.5">Bỏ qua email từ các địa chỉ chứa giá trị bên dưới.</p>
+                    <label className="text-xs font-medium mb-1 block">Exclude emails from</label>
+                    <p className="text-[11px] text-muted-foreground mb-1.5">Skip emails from addresses containing the values below.</p>
                     {excludeEmails.map((email, i) => (
                       <div key={i} className="flex items-center gap-1.5 mb-1.5">
                         <input
                           value={email}
                           onChange={e => setExcludeEmails(prev => prev.map((x, xi) => xi === i ? e.target.value : x))}
-                          placeholder="Nhập email…"
+                          placeholder="Enter an email…"
                           className="flex-1 h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base"
                         />
                         <button
@@ -1003,7 +1003,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                       onClick={() => setExcludeEmails(prev => [...prev, ""])}
                       className="w-full flex items-center justify-center gap-1.5 h-9 rounded-lg border border-border bg-surface-muted hover:bg-surface text-sm font-medium text-foreground transition-base"
                     >
-                      <Plus size={13} /> Thêm email
+                      <Plus size={13} /> Add email
                     </button>
                   </div>
                 </>
@@ -1013,21 +1013,21 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                 <>
                   <div>
                     <label className="text-xs font-medium mb-1 block">Drive</label>
-                    <p className="text-[11px] text-muted-foreground mb-1.5">Chọn drive cần theo dõi thay đổi.</p>
+                    <p className="text-[11px] text-muted-foreground mb-1.5">Choose which drive to watch for changes.</p>
                     <select value={driveId} onChange={e => setDriveId(e.target.value)} className="ds-input h-9">
                       {DRIVE_OPTIONS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="text-xs font-medium mb-1 block">
-                      Thư mục <span className="text-[10px] font-normal text-muted-foreground">Tuỳ chọn</span>
+                      Folders <span className="text-[10px] font-normal text-muted-foreground">Optional</span>
                     </label>
-                    <p className="text-[11px] text-muted-foreground mb-1.5">Giới hạn theo thư mục cụ thể. Để trống để theo dõi toàn bộ drive.</p>
-                    <ChipMultiSelect options={DRIVE_FOLDER_OPTIONS} value={driveFolders} onChange={setDriveFolders} placeholder="Toàn bộ drive" />
+                    <p className="text-[11px] text-muted-foreground mb-1.5">Restrict to specific folders. Leave blank to watch the whole drive.</p>
+                    <ChipMultiSelect options={DRIVE_FOLDER_OPTIONS} value={driveFolders} onChange={setDriveFolders} placeholder="Whole drive" />
                   </div>
                   <label className="flex items-center gap-2.5 cursor-pointer select-none">
                     <input type="checkbox" checked={customProperties} onChange={e => setCustomProperties(e.target.checked)} className="w-4 h-4 accent-primary" />
-                    <span className="text-sm">Cũng kích hoạt khi thuộc tính tuỳ chỉnh của tệp thay đổi, không chỉ khi nội dung thay đổi.</span>
+                    <span className="text-sm">Also fire when a file's custom properties change, not just its content.</span>
                   </label>
                 </>
               )}
@@ -1038,37 +1038,37 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
           {step === "queue-work-hours" && (
             <div className="space-y-4">
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Tuỳ chỉnh cách và thời điểm agent xử lý sự kiện từ trigger này. Cấu hình các thiết lập bên dưới để đảm bảo trigger được xử lý phù hợp với giờ làm việc của bạn.
+                Control how and when the agent processes events from this trigger. Configure the settings below to match this trigger's handling to your working hours.
               </p>
               <label className="flex items-center gap-2.5 cursor-pointer select-none">
                 <input type="checkbox" checked={qwhEnabled} onChange={e => setQwhEnabled(e.target.checked)} className="w-4 h-4 accent-primary" />
-                <span className="text-sm font-medium">Bật</span>
+                <span className="text-sm font-medium">Enable</span>
               </label>
               {!qwhEnabled && (
                 <p className="text-[11px] text-muted-foreground -mt-2">
-                  Chưa bật — agent sẽ xử lý mọi sự kiện ngay khi nhận được.
+                  Not enabled — the agent will process every event as soon as it arrives.
                 </p>
               )}
               <div className={`space-y-4 transition-base ${qwhEnabled ? "" : "opacity-40"}`}>
                 <div>
-                  <label className="text-xs font-medium mb-1.5 block">Múi giờ</label>
+                  <label className="text-xs font-medium mb-1.5 block">Timezone</label>
                   <select value={qwhTimezone} onChange={e => setQwhTimezone(e.target.value)} disabled={!qwhEnabled} className="ds-input h-9 disabled:cursor-not-allowed">
                     {TIMEZONE_OPTIONS.map(tz => <option key={tz.value} value={tz.value}>{tz.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-medium mb-1.5 block">Ngày làm việc</label>
-                  <ChipMultiSelect options={WORK_DAY_OPTIONS} value={qwhWorkDays} onChange={setQwhWorkDays} placeholder="Chọn ngày làm việc" disabled={!qwhEnabled} />
+                  <label className="text-xs font-medium mb-1.5 block">Working days</label>
+                  <ChipMultiSelect options={WORK_DAY_OPTIONS} value={qwhWorkDays} onChange={setQwhWorkDays} placeholder="Choose working days" disabled={!qwhEnabled} />
                 </div>
                 <div>
-                  <label className="text-xs font-medium mb-1.5 block">Giờ làm việc</label>
+                  <label className="text-xs font-medium mb-1.5 block">Working hours</label>
                   <div className="flex items-center gap-2">
                     <input
                       type="time" value={qwhStartTime} onChange={e => setQwhStartTime(e.target.value)}
                       disabled={!qwhEnabled || qwhAllDay}
                       className="flex-1 h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base disabled:cursor-not-allowed"
                     />
-                    <span className="text-xs text-muted-foreground shrink-0">đến</span>
+                    <span className="text-xs text-muted-foreground shrink-0">to</span>
                     <input
                       type="time" value={qwhEndTime} onChange={e => setQwhEndTime(e.target.value)}
                       disabled={!qwhEnabled || qwhAllDay}
@@ -1076,12 +1076,12 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                     />
                     <label className="flex items-center gap-1.5 shrink-0 cursor-pointer select-none">
                       <input type="checkbox" checked={qwhAllDay} onChange={e => setQwhAllDay(e.target.checked)} disabled={!qwhEnabled} className="w-4 h-4 accent-primary" />
-                      <span className="text-xs">Cả ngày</span>
+                      <span className="text-xs">All day</span>
                     </label>
                   </div>
                 </div>
                 <div>
-                  <label className="text-xs font-medium mb-1.5 block">Số tác vụ xử lý mỗi kỳ</label>
+                  <label className="text-xs font-medium mb-1.5 block">Tasks processed per period</label>
                   <div className="flex items-center gap-2">
                     <input
                       type="number" min={1} value={qwhTasksPerPeriod} onChange={e => setQwhTasksPerPeriod(e.target.value)}
@@ -1109,7 +1109,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
             onClick={step === "main" ? requestClose : stepBack}
             className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base"
           >
-            {step === "main" ? "Huỷ" : "Quay lại"}
+            {step === "main" ? "Cancel" : "Back"}
           </button>
           {step === "queue-work-hours" && (
             <button
@@ -1117,7 +1117,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
               onClick={submit}
               className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base"
             >
-              Bỏ qua
+              Skip
             </button>
           )}
           <button
@@ -1138,16 +1138,16 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
       <AlertDialog open={confirmDiscardOpen} onOpenChange={setConfirmDiscardOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Thoát mà không lưu?</AlertDialogTitle>
-            <AlertDialogDescription>Thông tin trigger bạn vừa nhập sẽ không được lưu lại.</AlertDialogDescription>
+            <AlertDialogTitle>Leave without saving?</AlertDialogTitle>
+            <AlertDialogDescription>The trigger details you entered won't be saved.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Tiếp tục chỉnh sửa</AlertDialogCancel>
+            <AlertDialogCancel>Keep editing</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => { setConfirmDiscardOpen(false); onOpenChange(false); }}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Thoát
+              Leave
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1190,7 +1190,7 @@ function CredentialField({ authType, value, onChange, error }: {
         }`}
       >
         <span className={`truncate ${selected ? "text-foreground" : "text-muted-foreground"}`}>
-          {selected ? selected.name : "Chọn credential"}
+          {selected ? selected.name : "Choose a credential"}
         </span>
         <ChevronDown size={14} className={`text-muted-foreground shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
@@ -1198,7 +1198,7 @@ function CredentialField({ authType, value, onChange, error }: {
       {open && (
         <div className="absolute z-20 top-full left-0 right-0 mt-1 rounded-lg border border-border bg-white shadow-elev p-1.5">
           {credentials.length === 0 ? (
-            <p className="py-3 text-center text-xs text-muted-foreground">Không có kết quả</p>
+            <p className="py-3 text-center text-xs text-muted-foreground">No results</p>
           ) : (
             <div className="max-h-40 overflow-y-auto space-y-0.5 mb-1">
               {credentials.map(c => (
@@ -1220,7 +1220,7 @@ function CredentialField({ authType, value, onChange, error }: {
             onClick={() => { setOpen(false); setCreateOpen(true); }}
             className="w-full flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-md text-sm font-semibold text-primary hover:bg-primary-soft transition-base"
           >
-            <Plus size={14} /> Tạo credential mới
+            <Plus size={14} /> Create a new credential
           </button>
         </div>
       )}
@@ -1287,7 +1287,7 @@ function ChipMultiSelect({ options, value, onChange, placeholder, disabled }: {
       {open && (
         <div className="absolute z-20 top-full left-0 right-0 mt-1 rounded-lg border border-border bg-white shadow-elev py-1 max-h-48 overflow-y-auto">
           {available.length === 0 ? (
-            <p className="py-2 text-center text-xs text-muted-foreground">Không còn tuỳ chọn nào</p>
+            <p className="py-2 text-center text-xs text-muted-foreground">No more options</p>
           ) : (
             available.map(o => (
               <button

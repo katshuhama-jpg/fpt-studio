@@ -38,12 +38,12 @@ const agents = [
 ];
 
 const tabs = ["All agents", "Published", "Draft", "Shared with me"] as const;
-const kindFilters = ["Tất cả", "Agents", "Automation Agents"] as const;
+const kindFilters = ["All", "Agents", "Automation Agents"] as const;
 
 const TRIGGER_TYPE_LABEL: Record<TriggerType, string> = {
-  scheduled: "Theo lịch",
+  scheduled: "Schedule",
   developer: "Webhook",
-  external: "Ứng dụng bên ngoài",
+  external: "External app",
 };
 
 const CHANNEL_NAME: Record<string, string> = {
@@ -53,11 +53,11 @@ const CHANNEL_NAME: Record<string, string> = {
 function relativeTime(ts: number): string {
   const diff = Date.now() - ts;
   const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "vừa xong";
-  if (mins < 60) return `${mins} phút trước`;
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours} giờ trước`;
-  return `${Math.floor(hours / 24)} ngày trước`;
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
 }
 
 function agentTabStatus(a: typeof agents[number]): "Published" | "Draft" {
@@ -348,7 +348,7 @@ function AutomationCard({ a }: { a: typeof agents[number] }) {
           <div className="flex items-center gap-1.5">
             <HugeiconsIcon icon={TimeScheduleIcon} size={12} className="text-muted-foreground" />
             <span className="text-xs text-muted-foreground truncate">
-              Lần chạy gần nhất: {lastFired ? relativeTime(lastFired) : "chưa chạy"}
+              Last run: {lastFired ? relativeTime(lastFired) : "never run"}
             </span>
           </div>
         </div>
@@ -366,7 +366,7 @@ function AutomationCard({ a }: { a: typeof agents[number] }) {
         </div>
         {channels.length > 0 && (
           <div className="flex items-center gap-1.5 mt-1.5 text-xs text-muted-foreground flex-wrap">
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">Gửi ra:</span>
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">Sends to:</span>
             {channels.map(id => (
               <span key={id} className="px-1.5 py-0.5 rounded bg-surface-muted">{CHANNEL_NAME[id] ?? id}</span>
             ))}
@@ -384,7 +384,7 @@ export default function AgentsList() {
   const { can } = useMyPermissions();
   const canCreateAgent = can("agents.create");
   const [activeTab, setActiveTab] = useState<typeof tabs[number]>("All agents");
-  const [kindFilter, setKindFilter] = useState<typeof kindFilters[number]>("Tất cả");
+  const [kindFilter, setKindFilter] = useState<typeof kindFilters[number]>("All");
   const [search, setSearch] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
   const [prompt, setPrompt] = useState("");
@@ -413,7 +413,7 @@ export default function AgentsList() {
 
   const showConversational = kindFilter !== "Automation Agents" && conversationalAgents.length > 0;
   const showAutomation = kindFilter !== "Agents" && automationAgents.length > 0;
-  const singleKindView = kindFilter !== "Tất cả";
+  const singleKindView = kindFilter !== "All";
 
   const handleBuild = () => {
     if (!prompt.trim() || !canCreateAgent) return;
