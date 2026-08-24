@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Search, CheckCircle2, ChevronRight, Pencil, Trash2, User, Building2, X, AlertTriangle } from "lucide-react";
 import { agentConnectorStore, type ConnectorScope } from "./agentConnectorStore";
 import { triggerStore } from "./triggerStore";
-import { CONNECTOR_BLOCKED_BY_TRIGGER_REASON } from "./agentPublishStore";
+import { CONNECTOR_TRIGGER_PAUSE_WARNING } from "./agentPublishStore";
 import { toast } from "sonner";
 
 export const CATALOG = [
@@ -21,15 +21,17 @@ function ScopeModal({ agentId, connectorId, editing, onClose, onSaved, onViewTri
   const existing = agentConnectorStore.list(agentId).find(c => c.connectorId === connectorId);
   const [scope, setScope] = useState<ConnectorScope>(existing?.scope ?? "shared");
 
-  const triggerCount = triggerStore.list(agentId).length;
-  const personalBlocked = triggerCount > 0;
+  const activeTriggers = triggerStore.list(agentId).filter(t => t.enabled);
+  const willPauseTriggers = scope === "personal" && activeTriggers.length > 0;
 
   const save = () => {
-    // The personal option is disabled whenever this is true, so this can only be reached
-    // by a stale scope value from before a trigger was added elsewhere — fall back safely.
-    if (scope === "personal" && personalBlocked) { setScope("shared"); return; }
     agentConnectorStore.add(agentId, connectorId, scope);
-    toast.success("Connection saved.");
+    if (willPauseTriggers) {
+      activeTriggers.forEach(t => triggerStore.toggle(agentId, t.id));
+      toast.success(`Connection saved. Paused ${activeTriggers.length} trigger${activeTriggers.length === 1 ? "" : "s"}.`);
+    } else {
+      toast.success("Connection saved.");
+    }
     onSaved();
   };
 
@@ -50,11 +52,10 @@ function ScopeModal({ agentId, connectorId, editing, onClose, onSaved, onViewTri
         </div>
         <div className="px-5 py-4 space-y-1.5">
           <button
-            onClick={() => !personalBlocked && setScope("personal")}
-            disabled={personalBlocked}
-            className={`w-full text-left rounded-xl border px-3.5 py-3 transition-base ${
+            onClick={() => setScope("personal")}
+            className={`w-full text-left rounded-xl border px-3.5 py-3 transition-base hover:bg-surface-muted ${
               scope === "personal" ? "border-primary bg-primary-soft/40 ring-1 ring-primary" : "border-border"
-            } ${personalBlocked ? "opacity-50 cursor-not-allowed" : "hover:bg-surface-muted"}`}
+            }`}
           >
             <div className="flex items-center gap-2 mb-1">
               <User size={14} className="text-foreground shrink-0" />
@@ -64,11 +65,11 @@ function ScopeModal({ agentId, connectorId, editing, onClose, onSaved, onViewTri
               Each person signs in with their own account. The agent runs under whoever is currently using it.
             </p>
           </button>
-          {personalBlocked && (
+          {willPauseTriggers && (
             <div className="flex items-start gap-2 text-xs text-warning bg-[hsl(var(--warning-soft))] border border-warning/25 rounded-lg px-3 py-2.5">
               <AlertTriangle size={14} className="shrink-0 mt-0.5" />
               <p>
-                {CONNECTOR_BLOCKED_BY_TRIGGER_REASON(triggerCount)}{" "}
+                {CONNECTOR_TRIGGER_PAUSE_WARNING(activeTriggers.length)}{" "}
                 {onViewTriggers && (
                   <button type="button" onClick={onViewTriggers} className="font-semibold hover:underline">
                     View triggers

@@ -12,8 +12,7 @@ import {
   triggerStore, triggerNeedsSetup, EXTERNAL_APP_EVENTS, EXTERNAL_APP_META, type TriggerRecord, type TriggerType,
 } from "./triggerStore";
 import { agentConnectorStore } from "./agentConnectorStore";
-import { TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON } from "./agentPublishStore";
-import { automationHeadsUpStore } from "./agentKindStore";
+import { TRIGGER_PERSONAL_CONNECTOR_PAUSE_WARNING } from "./agentPublishStore";
 import { CATALOG as CONNECTOR_CATALOG } from "./ConnectionsTab";
 import AppLogo from "./AppLogo";
 import { toast } from "sonner";
@@ -82,7 +81,8 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
   const [deleteTarget, setDeleteTarget] = useState<TriggerRecord | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [confirmBulk, setConfirmBulk] = useState<"pause" | "resume" | null>(null);
-  const [showHeadsUp, setShowHeadsUp] = useState(false);
+  const [showPersonalWarning, setShowPersonalWarning] = useState(false);
+  const [pendingPauseOnCreate, setPendingPauseOnCreate] = useState(false);
 
   const allTriggers = useMemo(() => {
     void tick;
@@ -129,25 +129,29 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
     ? (CONNECTOR_CATALOG.find(c => c.id === personalConnector.connectorId)?.name ?? personalConnector.connectorId)
     : "";
   const limitReached = allTriggers.length >= TRIGGER_LIMIT;
-  const addBlocked = personalConnectorBlocked || limitReached;
 
   const openCreate = () => {
-    if (addBlocked) return;
-    if (allTriggers.length === 0 && !automationHeadsUpStore.hasSeen(agentId)) {
-      setShowHeadsUp(true);
-      return;
-    }
+    if (limitReached) return;
+    if (personalConnectorBlocked) { setShowPersonalWarning(true); return; }
     setCreateOpen(true);
   };
 
-  const confirmHeadsUp = () => {
-    automationHeadsUpStore.markSeen(agentId);
-    setShowHeadsUp(false);
+  const confirmPersonalWarning = () => {
+    setShowPersonalWarning(false);
+    setPendingPauseOnCreate(true);
     setCreateOpen(true);
+  };
+
+  const onCreated = (rec: TriggerRecord) => {
+    if (pendingPauseOnCreate) {
+      if (rec.enabled) triggerStore.toggle(agentId, rec.id);
+      setPendingPauseOnCreate(false);
+    }
+    refresh();
   };
 
   const duplicateTrigger = (t: TriggerRecord) => {
-    if (addBlocked) return;
+    if (limitReached) return;
     let name = `${t.name} (copy)`;
     let n = 2;
     while (triggerStore.isDuplicateName(agentId, name)) {
@@ -157,7 +161,7 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
     triggerStore.create(agentId, {
       name,
       type: t.type,
-      enabled: t.enabled,
+      enabled: personalConnectorBlocked ? false : t.enabled,
       description: t.description,
       config: t.config,
     });
@@ -208,7 +212,7 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
               <Pause size={13} /> Pause all
             </button>
           )}
-          <button onClick={openCreate} disabled={addBlocked} className="btn-primary h-9 disabled:opacity-40 disabled:cursor-not-allowed">
+          <button onClick={openCreate} disabled={limitReached} className="btn-primary h-9 disabled:opacity-40 disabled:cursor-not-allowed">
             <Plus size={13} /> Add trigger
           </button>
         </div>
@@ -218,7 +222,7 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
         <div className="flex items-start gap-2 text-xs text-warning bg-[hsl(var(--warning-soft))] border border-warning/25 rounded-lg px-3 py-2.5 mb-4">
           <AlertTriangle size={14} className="shrink-0 mt-0.5" />
           <p>
-            {TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON(personalConnectorName)}{" "}
+            {TRIGGER_PERSONAL_CONNECTOR_PAUSE_WARNING(personalConnectorName)}{" "}
             {onViewConnections && (
               <button type="button" onClick={onViewConnections} className="font-semibold hover:underline">
                 View connections
@@ -234,7 +238,7 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
       )}
 
       {isEmpty ? (
-        <EmptyState onCreate={openCreate} disabled={addBlocked} />
+        <EmptyState onCreate={openCreate} disabled={limitReached} />
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           {triggers.map(t => {
@@ -296,7 +300,7 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
                     <RowMenu
                       enabled={t.enabled}
                       needsSetup={needsSetup}
-                      duplicateBlocked={addBlocked}
+                      duplicateBlocked={limitReached}
                       onToggle={() => { triggerStore.toggle(agentId, t.id); refresh(); }}
                       onEdit={() => setEditTarget(t)}
                       onRename={() => setRenamingId(t.id)}
@@ -325,10 +329,10 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
 
       <TriggerFormDialog
         open={createOpen}
-        onOpenChange={setCreateOpen}
+        onOpenChange={v => { setCreateOpen(v); if (!v) setPendingPauseOnCreate(false); }}
         mode="create"
         agentId={agentId}
-        onSubmitted={refresh}
+        onSubmitted={onCreated}
       />
       <TriggerFormDialog
         open={!!editTarget}
@@ -399,17 +403,17 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={showHeadsUp} onOpenChange={v => !v && setShowHeadsUp(false)}>
+      <AlertDialog open={showPersonalWarning} onOpenChange={v => !v && setShowPersonalWarning(false)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>This agent is switching to organization-wide Automation</AlertDialogTitle>
+            <AlertDialogTitle>This trigger will be created paused</AlertDialogTitle>
             <AlertDialogDescription>
-              Having a trigger means the agent now runs on its own for the whole organization, and can no longer be installed to Workspace. It can still be published to Web, Zalo, Slack, and Facebook to send results out.
+              {TRIGGER_PERSONAL_CONNECTOR_PAUSE_WARNING(personalConnectorName)}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel, don't add a trigger</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmHeadsUp}>I understand, add the trigger</AlertDialogAction>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmPersonalWarning}>Continue</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
