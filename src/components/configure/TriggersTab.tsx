@@ -12,21 +12,13 @@ import {
   triggerStore, triggerNeedsSetup, EXTERNAL_APP_EVENTS, EXTERNAL_APP_META, type TriggerRecord, type TriggerType,
 } from "./triggerStore";
 import { agentConnectorStore } from "./agentConnectorStore";
-import { TRIGGER_PERSONAL_CONNECTOR_PAUSE_WARNING } from "./agentPublishStore";
+import { TRIGGER_PERSONAL_CONNECTOR_PAUSE_WARNING, agentPublishStore } from "./agentPublishStore";
 import { CATALOG as CONNECTOR_CATALOG } from "./ConnectionsTab";
+import TriggerConnectorNotice from "./TriggerConnectorNotice";
 import AppLogo from "./AppLogo";
 import { toast } from "sonner";
 
 const TRIGGER_LIMIT = 10;
-
-/** Deterministic mock count of Workspace users with a trigger enabled — this prototype has
- * no real multi-user install data, so derive a stable small number from the trigger id. */
-function mockAffectedUserCount(t: TriggerRecord): number {
-  if (!t.enabled) return 0;
-  let h = 0;
-  for (const c of t.id) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return h % 5;
-}
 
 export const TYPE_META: Record<TriggerType, { label: string; icon: any; chip: string }> = {
   scheduled: { label: "Schedule", icon: Clock,   chip: "chip-accent" },
@@ -80,7 +72,7 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
   const [editTarget, setEditTarget] = useState<TriggerRecord | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<TriggerRecord | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
-  const [confirmBulk, setConfirmBulk] = useState<"pause" | "resume" | null>(null);
+  const [confirmPauseAll, setConfirmPauseAll] = useState(false);
   const [showPersonalWarning, setShowPersonalWarning] = useState(false);
   const [pendingPauseOnCreate, setPendingPauseOnCreate] = useState(false);
 
@@ -91,10 +83,12 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
 
   const triggers = allTriggers;
   const isEmpty = triggers.length === 0;
+  const isLastTrigger = allTriggers.length === 1;
+  const publishState = agentPublishStore.get(agentId);
+  const publishInfo = { isPublished: publishState.placement !== null, channelCount: publishState.channels.length };
   const nonSetupTriggers = allTriggers.filter(t => !triggerNeedsSetup(t));
   const pausableCount = nonSetupTriggers.filter(t => t.enabled).length;
   const pausedCount = nonSetupTriggers.filter(t => !t.enabled).length;
-  const resumableTriggers = allTriggers.filter(t => !t.enabled && !triggerNeedsSetup(t));
   const allPaused = pausableCount === 0 && pausedCount > 0;
 
   const pauseAll = () => {
@@ -197,7 +191,7 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
                 <span className="w-1.5 h-1.5 rounded-full bg-warning" /> All triggers paused
               </span>
               <button
-                onClick={() => setConfirmBulk("resume")}
+                onClick={resumeAll}
                 className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-sm font-medium text-foreground hover:bg-surface-muted transition-base"
               >
                 <Play size={13} /> Resume all
@@ -205,8 +199,8 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
             </>
           ) : (
             <button
-              onClick={() => setConfirmBulk("pause")}
-              disabled={pausableCount === 0}
+              onClick={() => setConfirmPauseAll(true)}
+              disabled={allTriggers.length === 0 || pausableCount === 0}
               className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-sm font-medium text-foreground hover:bg-surface-muted transition-base disabled:opacity-40 disabled:pointer-events-none"
             >
               <Pause size={13} /> Pause all
@@ -219,16 +213,12 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
       </div>
 
       {personalConnectorBlocked ? (
-        <div className="flex items-start gap-2 text-xs text-warning bg-[hsl(var(--warning-soft))] border border-warning/25 rounded-lg px-3 py-2.5 mb-4">
-          <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-          <p>
-            {TRIGGER_PERSONAL_CONNECTOR_PAUSE_WARNING(personalConnectorName)}{" "}
-            {onViewConnections && (
-              <button type="button" onClick={onViewConnections} className="font-semibold hover:underline">
-                View connections
-              </button>
-            )}
-          </p>
+        <div className="mb-4">
+          <TriggerConnectorNotice
+            message={TRIGGER_PERSONAL_CONNECTOR_PAUSE_WARNING(personalConnectorName)}
+            linkLabel="Review connections"
+            onLinkClick={onViewConnections}
+          />
         </div>
       ) : limitReached && (
         <div className="flex items-start gap-2 text-xs text-warning bg-[hsl(var(--warning-soft))] border border-warning/25 rounded-lg px-3 py-2.5 mb-4">
@@ -345,59 +335,80 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
 
       <AlertDialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this trigger?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {deleteTarget && (() => {
-                const n = mockAffectedUserCount(deleteTarget);
-                return n > 0
-                  ? `The trigger "${deleteTarget.name}" will be permanently deleted. ${n} users who have it enabled in Workspace will stop receiving automatic results. Runs already in progress will still finish.`
-                  : `The trigger "${deleteTarget.name}" will be permanently deleted. No users currently have this trigger enabled in Workspace.`;
-              })()}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => {
-                if (deleteTarget) {
-                  const delName = deleteTarget.name;
-                  triggerStore.remove(agentId, deleteTarget.id);
-                  toast.success(`Deleted trigger "${delName}".`);
-                  setDeleteTarget(null);
-                  refresh();
-                }
-              }}
-            >
-              Delete trigger
-            </AlertDialogAction>
-          </AlertDialogFooter>
+          {deleteTarget && isLastTrigger ? (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Remove the last trigger?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This agent will stop running on its own and will move out of Automation. Its scheduled and
+                  event-driven runs will stop immediately.
+                  {publishInfo.isPublished && publishInfo.channelCount > 0 && (
+                    <> It stays live on {publishInfo.channelCount} channel{publishInfo.channelCount === 1 ? "" : "s"}, but nothing will trigger it.</>
+                  )}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={() => {
+                    triggerStore.remove(agentId, deleteTarget.id);
+                    toast.success("Trigger removed. This agent no longer runs on its own.");
+                    setDeleteTarget(null);
+                    refresh();
+                  }}
+                >
+                  Remove trigger
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </>
+          ) : (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete this trigger?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {deleteTarget && `The trigger "${deleteTarget.name}" will be permanently deleted. Any runs already in progress will finish.`}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={() => {
+                    if (deleteTarget) {
+                      const delName = deleteTarget.name;
+                      triggerStore.remove(agentId, deleteTarget.id);
+                      toast.success(`Deleted trigger "${delName}".`);
+                      setDeleteTarget(null);
+                      refresh();
+                    }
+                  }}
+                >
+                  Delete trigger
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </>
+          )}
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={!!confirmBulk} onOpenChange={v => !v && setConfirmBulk(null)}>
+      <AlertDialog open={confirmPauseAll} onOpenChange={setConfirmPauseAll}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {confirmBulk === "pause" ? "Pause all triggers?" : "Resume all triggers?"}
-            </AlertDialogTitle>
+            <AlertDialogTitle>Pause all triggers?</AlertDialogTitle>
             <AlertDialogDescription>
-              {confirmBulk === "pause"
-                ? `${pausableCount} triggers will stop running the agent until you turn them back on.`
-                : `${resumableTriggers.length} triggers will be re-enabled and start running the agent automatically.`}
+              This agent will stop running until you resume at least one trigger.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                if (confirmBulk === "pause") pauseAll();
-                else resumeAll();
-                setConfirmBulk(null);
+                pauseAll();
+                setConfirmPauseAll(false);
               }}
             >
-              {confirmBulk === "pause" ? "Pause all" : "Resume all"}
+              Pause all
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -408,7 +419,8 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
           <AlertDialogHeader>
             <AlertDialogTitle>This trigger will be created paused</AlertDialogTitle>
             <AlertDialogDescription>
-              {TRIGGER_PERSONAL_CONNECTOR_PAUSE_WARNING(personalConnectorName)}
+              {TRIGGER_PERSONAL_CONNECTOR_PAUSE_WARNING(personalConnectorName)} The new trigger will be created
+              paused — enable it once you've resolved the connection.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

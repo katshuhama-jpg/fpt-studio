@@ -177,6 +177,11 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
 
   return (
     <div>
+      <div className="mb-4">
+        <h2 className="font-display text-xl font-semibold">Run history</h2>
+        <p className="text-sm text-muted-foreground mt-0.5">Every time a trigger fired this agent, and what happened.</p>
+      </div>
+
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <div className="relative w-full lg:w-80 shrink-0">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
@@ -224,7 +229,7 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
       {hasNoHistoryAtAll ? (
         <div className="rounded-2xl border border-dashed border-border bg-gradient-soft p-12 text-center">
           <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            No runs yet — history will show up here once a trigger fires.
+            No runs yet — this agent will appear here the first time a trigger fires.
           </p>
         </div>
       ) : hasNoFilteredResults ? (

@@ -26,6 +26,7 @@ import {
 } from "@/components/configure/agentPublishStore";
 import { getAgentKind, type AgentKind } from "@/components/configure/agentKindStore";
 import { getAgent } from "@/components/configure/agentStore";
+import { CHANNEL_CATALOG, type ChannelCatalogEntry } from "@/components/configure/channelCatalog";
 import { connectedAccountStore } from "@/components/configure/connectedAccountStore";
 import ConnectionsTab, { CATALOG as CONNECTOR_CATALOG } from "@/components/configure/ConnectionsTab";
 import AppLogo from "@/components/configure/AppLogo";
@@ -151,12 +152,12 @@ export default function AgentBuilder() {
         <div className="flex items-center gap-2">
           {published ? (
             <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium shrink-0 ${
-              publishState.placement === "automation"
+              kind === "automation"
                 ? "bg-indigo-50 border-indigo-200 text-indigo-700"
                 : "bg-success/10 border-success/20 text-success"
             }`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${publishState.placement === "automation" ? "bg-indigo-500" : "bg-success"}`} />
-              {publishState.placement === "automation" ? "Organization-wide Automation" : "Live on Workspace"} · v1.0.1
+              <span className={`w-1.5 h-1.5 rounded-full ${kind === "automation" ? "bg-indigo-500" : "bg-success"}`} />
+              {kind === "automation" ? "Automation" : "Live on Workspace"} · {publishState.version}
             </div>
           ) : (
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-muted border border-border text-muted-foreground text-xs font-medium shrink-0">
@@ -259,7 +260,7 @@ export default function AgentBuilder() {
               >
                 <HugeiconsIcon icon={it.icon} size={18} className="shrink-0" />
                 <span className="flex-1 text-left truncate ml-2.5">
-                  {it.id === "history" && kind === "automation" ? "Run history" : it.label}
+                  {it.id === "history" ? "Run history" : it.label}
                 </span>
                 {it.comingSoon && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-surface border border-border text-muted-foreground shrink-0 whitespace-nowrap">Coming soon</span>
@@ -365,7 +366,7 @@ export default function AgentBuilder() {
               {tab === "build" && section === "model" && <PlaceholderTab title="Model" />}
               {tab === "build" && !["instructions","knowledge","history","skills","guardrails","triggers","connectors","model"].includes(section) && <PlaceholderTab title={section} />}
               {tab === "test" && <PlaceholderTab title="Test" />}
-              {tab === "deploy" && <DeployTab agentVersion="v1.0.2" agentId={id} />}
+              {tab === "deploy" && <DeployTab agentId={id} />}
               {tab === "insights" && <PerformanceTab />}
             </div>
           </div>
@@ -784,7 +785,7 @@ function HowThisAgentRuns({ agentId, onViewSection }: { agentId: string; onViewS
   const kind = triggers.length > 0 ? "automation" : "conversational";
   const personalConn = connections.find(c => c.scope === "personal");
   const sharedConn = connections.find(c => c.scope === "shared");
-  const channelNames = channels.map(id => EXTERNAL_CHANNELS.find(c => c.id === id)?.name ?? id);
+  const channelNames = channels.map(id => CHANNEL_CATALOG.find(c => c.id === id)?.name ?? id);
 
   return (
     <div className="rounded-lg border border-border bg-surface p-2.5 space-y-2">
@@ -798,7 +799,7 @@ function HowThisAgentRuns({ agentId, onViewSection }: { agentId: string; onViewS
         />
         <p className="text-[11px] text-muted-foreground leading-relaxed">
           {kind === "automation" ? (
-            <><span className="font-medium text-foreground">Organization-wide Automation</span> — the agent runs on its own based on the {triggers.length} trigger{triggers.length === 1 ? "" : "s"} you've set up here, for the whole organization. Nobody installs it to Workspace, nobody chats with it directly.</>
+            <><span className="font-medium text-foreground">Automation</span> — the agent runs on its own based on the {triggers.length} trigger{triggers.length === 1 ? "" : "s"} you've set up here, for the whole organization. Nobody installs it to Workspace, nobody chats with it directly.</>
           ) : (
             <><span className="font-medium text-foreground">Conversational agent</span> — people across the organization install this agent to Workspace and use it. Each person sets up their own triggers on their install.</>
           )}
@@ -1265,18 +1266,12 @@ function PerformanceTab() {
 
 /* TOOLS — moved to src/components/tool-builder/AgentToolsTab.tsx */
 
-/* ============ PLACEHOLDER ============ */
-const API_DEPLOY_CHANNELS = [
-  { id: "web",       name: "Web widget", sub: "Web", icon: Globe02Icon, color: "text-foreground" },
-  { id: "api",       name: "API",        sub: "API", icon: ApiIcon,     color: "text-foreground" },
-];
-
-const EXTERNAL_DEPLOY_CHANNELS = [
-  { id: "zalo",      name: "Zalo",       sub: "Messaging", icon: null,          color: "" },
-  { id: "messenger", name: "Messenger",  sub: "Messaging", icon: MessengerIcon, color: "text-[#0084FF]" },
-  { id: "whatsapp",  name: "WhatsApp",   sub: "Messaging", icon: WhatsappIcon,  color: "text-[#25D366]" },
-  { id: "telegram",  name: "Telegram",   sub: "Messaging", icon: TelegramIcon,  color: "text-[#26A5E4]" },
-];
+function ChannelIcon({ ch, size = 16 }: { ch: ChannelCatalogEntry; size?: number }) {
+  if (ch.icon) return <HugeiconsIcon icon={ch.icon} size={size} className={ch.color} />;
+  if (ch.logoUrl) return <img src={ch.logoUrl} alt={ch.name} className="object-contain" style={{ width: size, height: size }} />;
+  if (ch.id === "zalo") return <span className="text-[11px] font-bold" style={{ color: "#0068FF" }}>Zalo</span>;
+  return <span className="text-[10px] font-bold text-muted-foreground">{ch.name[0]}</span>;
+}
 
 function PublishAgentModal({ onClose, onPublish }: {
   onClose: () => void;
@@ -2080,14 +2075,27 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-function DeployTab({ agentVersion, agentId }: { agentVersion: string; agentId: string }) {
+function DeployTab({ agentId }: { agentId: string }) {
+  const [tick, setTick] = useState(0);
+  const refresh = () => setTick(t => t + 1);
   const [showPublish, setShowPublish] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showVersionSelect, setShowVersionSelect] = useState(false);
   const [showWebWidgetConfig, setShowWebWidgetConfig] = useState(false);
-  const [servingVersion, setServingVersion] = useState(agentVersion);
   const [recipients, setRecipients] = useState<{ id: number; name: string; sub: string }[]>([]);
   const workspaceBlocked = triggerStore.list(agentId).length > 0;
+  void tick;
+  const publishState = agentPublishStore.get(agentId);
+  const published = publishState.placement !== null;
+  const servingVersion = publishState.version;
+
+  const toggleChannel = (id: string) => {
+    if (!published) return;
+    const set = new Set(publishState.channels);
+    set.has(id) ? set.delete(id) : set.add(id);
+    agentPublishStore.setChannels(agentId, [...set]);
+    refresh();
+  };
 
   return (
     <div className="max-w-[1040px] mx-auto px-8 py-8">
@@ -2100,7 +2108,8 @@ function DeployTab({ agentVersion, agentId }: { agentVersion: string; agentId: s
           onPublish={audience => {
             const info = AUDIENCE_INFO[audience] ?? AUDIENCE_INFO.me;
             setRecipients(prev => [...prev, { id: Date.now(), name: info.name, sub: info.sub }]);
-            agentPublishStore.publish(agentId, "workspace", agentPublishStore.get(agentId).channels);
+            agentPublishStore.publish(agentId, "workspace", publishState.channels, servingVersion);
+            refresh();
             setShowSuccess(true);
           }}
         />
@@ -2115,7 +2124,7 @@ function DeployTab({ agentVersion, agentId }: { agentVersion: string; agentId: s
         <VersionSelectModal
           currentVersion={servingVersion}
           onClose={() => setShowVersionSelect(false)}
-          onRelease={v => setServingVersion(v)}
+          onRelease={v => { agentPublishStore.publish(agentId, publishState.placement, publishState.channels, v); refresh(); }}
         />
       )}
       {/* Header */}
@@ -2138,7 +2147,7 @@ function DeployTab({ agentVersion, agentId }: { agentVersion: string; agentId: s
           </div>
           <div>
             <p className="text-xs text-muted-foreground mb-1">Live channels</p>
-            <p className="text-base font-semibold">{agentPublishStore.get(agentId).channels.length}</p>
+            <p className="text-base font-semibold">{publishState.channels.length}</p>
           </div>
         </div>
         <button onClick={() => setShowVersionSelect(true)} className="btn-primary">
@@ -2206,25 +2215,31 @@ function DeployTab({ agentVersion, agentId }: { agentVersion: string; agentId: s
           <h2 className="text-sm font-semibold">Web widget & API</h2>
         </div>
         <div className="grid grid-cols-3 gap-3">
-          {API_DEPLOY_CHANNELS.map(c => {
-            const enabled = c.id === "web";
+          {CHANNEL_CATALOG.filter(c => c.group === "core").map(c => {
+            const live = published && publishState.channels.includes(c.id);
             return (
               <button
                 key={c.id}
-                onClick={() => enabled && setShowWebWidgetConfig(true)}
-                disabled={!enabled}
+                onClick={() => {
+                  if (!published) return;
+                  if (c.id === "web") setShowWebWidgetConfig(true);
+                  else toggleChannel(c.id);
+                }}
+                disabled={!published}
                 className={`flex items-center gap-3 px-4 py-3.5 rounded-xl border text-left transition-base ${
-                  enabled
+                  published
                     ? "border-border bg-surface hover:border-primary/30 hover:shadow-soft cursor-pointer"
                     : "border-border bg-surface-muted/40 opacity-70 cursor-not-allowed"
                 }`}
               >
                 <div className="w-8 h-8 rounded-lg bg-surface border border-border flex items-center justify-center shrink-0">
-                  <HugeiconsIcon icon={c.icon} size={16} className={c.color} />
+                  <ChannelIcon ch={c} size={16} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium truncate">{c.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">{enabled ? "Configure" : c.sub}</p>
+                  <p className={`text-xs truncate ${live ? "text-success" : "text-muted-foreground"}`}>
+                    {!published ? "Publish the agent to enable this channel" : live ? `Live · ${servingVersion}` : "Not connected"}
+                  </p>
                 </div>
               </button>
             );
@@ -2236,25 +2251,36 @@ function DeployTab({ agentVersion, agentId }: { agentVersion: string; agentId: s
       <div>
         <div className="flex items-baseline gap-2 mb-3">
           <h2 className="text-sm font-semibold">External channels</h2>
-          <span className="text-xs text-muted-foreground">Not available yet</span>
+          {publishState.channels.length === 0 && (
+            <span className="text-xs text-muted-foreground">Not available yet</span>
+          )}
         </div>
         <div className="grid grid-cols-3 gap-3">
-          {EXTERNAL_DEPLOY_CHANNELS.map(c => (
-            <div
-              key={c.id}
-              className="flex items-center gap-3 px-4 py-3.5 rounded-xl border border-border bg-surface-muted/40 opacity-70 cursor-not-allowed"
-            >
-              <div className="w-8 h-8 rounded-lg bg-surface border border-border flex items-center justify-center shrink-0">
-                {c.icon
-                  ? <HugeiconsIcon icon={c.icon} size={16} className={c.color} />
-                  : <span className="text-[11px] font-bold" style={{ color: "#0068FF" }}>Zalo</span>}
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium truncate">{c.name}</p>
-                <p className="text-xs text-muted-foreground truncate">{c.sub}</p>
-              </div>
-            </div>
-          ))}
+          {CHANNEL_CATALOG.filter(c => c.group === "messaging").map(c => {
+            const live = published && publishState.channels.includes(c.id);
+            return (
+              <button
+                key={c.id}
+                onClick={() => toggleChannel(c.id)}
+                disabled={!published}
+                className={`flex items-center gap-3 px-4 py-3.5 rounded-xl border text-left transition-base ${
+                  published
+                    ? "border-border bg-surface hover:border-primary/30 hover:shadow-soft cursor-pointer"
+                    : "border-border bg-surface-muted/40 opacity-70 cursor-not-allowed"
+                }`}
+              >
+                <div className="w-8 h-8 rounded-lg bg-surface border border-border flex items-center justify-center shrink-0">
+                  <ChannelIcon ch={c} size={16} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{c.name}</p>
+                  <p className={`text-xs truncate ${live ? "text-success" : "text-muted-foreground"}`}>
+                    {!published ? "Publish the agent to enable this channel" : live ? `Live · ${servingVersion}` : "Not connected"}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -2891,13 +2917,6 @@ const metrics = [
 const bars = [50, 62, 45, 75, 68, 95, 80];
 
 /* ============ PublishModal ============ */
-const EXTERNAL_CHANNELS = [
-  { id: "web",   name: "Web widget", emoji: "🌐" },
-  { id: "zalo",  name: "Zalo",       emoji: "💬" },
-  { id: "slack", name: "Slack",      emoji: "💜" },
-  { id: "fb",    name: "Facebook",   emoji: "💙" },
-];
-
 function PlacementOption({ icon, title, description, selected, current, disabled, onClick, blockedReason }: {
   icon: any; title: string; description: string;
   selected: boolean; current?: boolean; disabled?: boolean; onClick: () => void;
@@ -2965,7 +2984,7 @@ function PublishModal({ agentId, agentName, onClose, onChatTest, onPublished, on
   const wasOnWorkspace = current.placement === "workspace";
   const installCount = mockInstallCount(agentId);
   const needsUninstallGuard = wasOnWorkspace && triggerCount > 0;
-  const BASE = [1, 0, 1]; // current: v1.0.1
+  const BASE = current.version.replace(/^v/, "").split(".").map(Number);
   const newVersion = (() => {
     const [maj, min, pat] = BASE;
     if (versionType === "major") return [maj+1, 0, 0];
@@ -2980,7 +2999,7 @@ function PublishModal({ agentId, agentName, onClose, onChatTest, onPublished, on
     return s;
   });
 
-  const ChannelChip = ({ ch }: { ch: typeof EXTERNAL_CHANNELS[0] }) => {
+  const ChannelChip = ({ ch }: { ch: ChannelCatalogEntry }) => {
     const on = selected.has(ch.id);
     return (
       <button
@@ -2992,7 +3011,7 @@ function PublishModal({ agentId, agentName, onClose, onChatTest, onPublished, on
         <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-base ${on ? "border-primary bg-primary" : "border-border"}`}>
           {on && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
         </div>
-        <span className="text-base leading-none">{ch.emoji}</span>
+        <span className="w-4 h-4 flex items-center justify-center shrink-0"><ChannelIcon ch={ch} size={14} /></span>
         <p className="text-xs font-medium truncate">{ch.name}</p>
       </button>
     );
@@ -3039,7 +3058,7 @@ function PublishModal({ agentId, agentName, onClose, onChatTest, onPublished, on
               />
               <PlacementOption
                 icon={BoltIcon}
-                title="Automation — organization-wide"
+                title="Automation"
                 description="The agent runs on its own based on the triggers you set up in Console, for the whole organization. Nobody installs it, nobody chats with it directly."
                 selected={placement === "automation"}
                 current={current.placement === "automation"}
@@ -3161,8 +3180,8 @@ function PublishModal({ agentId, agentName, onClose, onChatTest, onPublished, on
                 ? "The agent sends results or performs actions to these channels. Customers don't proactively message an automation agent."
                 : "Users message the agent through these channels."}
             </p>
-            <div className="grid grid-cols-2 gap-2">
-              {EXTERNAL_CHANNELS.map(ch => <ChannelChip key={ch.id} ch={ch} />)}
+            <div className="grid grid-cols-3 gap-2">
+              {CHANNEL_CATALOG.map(ch => <ChannelChip key={ch.id} ch={ch} />)}
             </div>
           </div>
         </div>
@@ -3173,7 +3192,7 @@ function PublishModal({ agentId, agentName, onClose, onChatTest, onPublished, on
             <span className="text-xs text-destructive">Choose where to publish before continuing.</span>
           ) : (
             <span className="text-xs text-muted-foreground">
-              {selected.size > 0 ? `${selected.size} channels selected` : "No channels selected"}
+              {selected.size > 0 ? `${selected.size} channel${selected.size === 1 ? "" : "s"} selected` : "Select at least one channel"}
             </span>
           )}
           <div className="flex items-center gap-2">
@@ -3184,7 +3203,7 @@ function PublishModal({ agentId, agentName, onClose, onChatTest, onPublished, on
               onClick={() => {
                 if (!placement) return;
                 if (needsUninstallGuard) { setShowUninstallGuard(true); return; }
-                agentPublishStore.publish(agentId, placement, [...selected]);
+                agentPublishStore.publish(agentId, placement, [...selected], versionName);
                 onPublished?.();
                 onClose();
               }}
@@ -3224,7 +3243,7 @@ function PublishModal({ agentId, agentName, onClose, onChatTest, onPublished, on
                 onClick={() => {
                   if (!placement) return;
                   agentPublishStore.unpublish(agentId);
-                  agentPublishStore.publish(agentId, placement, [...selected]);
+                  agentPublishStore.publish(agentId, placement, [...selected], versionName);
                   onPublished?.();
                   setShowUninstallGuard(false);
                   onClose();

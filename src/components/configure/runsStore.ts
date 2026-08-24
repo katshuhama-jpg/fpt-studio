@@ -65,35 +65,6 @@ function seedAgent(agentId: string) {
       payload: JSON.stringify({ from: "lead@business.com", subject: "Requesting a quote" }, null, 2),
     },
     {
-      id: "run-seed-6", agentId, triggerId: "order-created-webhook", triggerName: "Order created", triggerType: "developer",
-      source: "Webhook", status: "completed", startedAt: now - 10_800_000, timezone: ORG_TIMEZONE, durationMs: 2100,
-      payload: JSON.stringify({ event: "order.created", order_id: "12345", customer_id: "789" }, null, 2),
-      outputSummary: "Processed order #12345 and updated the inventory system.",
-    },
-    {
-      id: "run-seed-7", agentId, triggerId: "order-created-webhook", triggerName: "Order created", triggerType: "developer",
-      source: "Webhook", status: "failed", startedAt: now - 12_600_000, timezone: ORG_TIMEZONE, durationMs: 900,
-      payload: JSON.stringify({ event: "order.created", order_id: "12346", customer_id: "790" }, null, 2),
-      errorReason: "The warehouse system returned a 500 error from the webhook.",
-    },
-    {
-      id: "run-seed-8", agentId, triggerId: "order-created-webhook", triggerName: "Order created", triggerType: "developer",
-      source: "Webhook", status: "completed", startedAt: now - 14_400_000, timezone: ORG_TIMEZONE, durationMs: 1650,
-      payload: JSON.stringify({ event: "order.created", order_id: "12347", customer_id: "791" }, null, 2),
-      outputSummary: "Processed order #12347 and updated the inventory system.",
-    },
-    {
-      id: "run-seed-9", agentId, triggerId: "order-created-webhook", triggerName: "Order created", triggerType: "developer",
-      source: "Webhook", status: "running", startedAt: now - 30_000, timezone: ORG_TIMEZONE,
-      payload: JSON.stringify({ event: "order.created", order_id: "12348", customer_id: "792" }, null, 2),
-    },
-    {
-      id: "run-seed-10", agentId, triggerId: "order-created-webhook", triggerName: "Order created", triggerType: "developer",
-      source: "Webhook", status: "completed", startedAt: now - 16_200_000, timezone: ORG_TIMEZONE, durationMs: 1980,
-      payload: JSON.stringify({ event: "order.created", order_id: "12349", customer_id: "793" }, null, 2),
-      outputSummary: "Processed order #12349 and updated the inventory system.",
-    },
-    {
       id: "run-seed-11", agentId, triggerId: "daily-report", triggerName: "Daily report", triggerType: "scheduled",
       source: "Schedule", status: "failed", startedAt: now - 18_000_000, timezone: ORG_TIMEZONE, durationMs: 600,
       configSnapshot: JSON.stringify({ frequency: "daily", timeOfDay: "08:00", timezone: ORG_TIMEZONE }, null, 2),
@@ -110,12 +81,6 @@ function seedAgent(agentId: string) {
       source: "Schedule", status: "failed", startedAt: now - 21_600_000, timezone: ORG_TIMEZONE, durationMs: 500,
       configSnapshot: JSON.stringify({ frequency: "daily", timeOfDay: "08:00", timezone: ORG_TIMEZONE }, null, 2),
       errorReason: "Hit the API rate limit for the reporting channel.",
-    },
-    {
-      id: "run-seed-14", agentId, triggerId: "order-created-webhook", triggerName: "Order created", triggerType: "developer",
-      source: "Webhook", status: "completed", startedAt: now - 23_400_000, timezone: ORG_TIMEZONE, durationMs: 2250,
-      payload: JSON.stringify({ event: "order.created", order_id: "12350", customer_id: "794" }, null, 2),
-      outputSummary: "Processed order #12350 and updated the inventory system.",
     },
   );
 }

@@ -51,22 +51,32 @@ function ScopeModal({ agentId, connectorId, editing, onClose, onSaved, onViewTri
           </button>
         </div>
         <div className="px-5 py-4 space-y-1.5">
-          <button
-            onClick={() => setScope("personal")}
-            className={`w-full text-left rounded-xl border px-3.5 py-3 transition-base hover:bg-surface-muted ${
-              scope === "personal" ? "border-primary bg-primary-soft/40 ring-1 ring-primary" : "border-border"
-            }`}
+          <label
+            className={`flex items-start gap-3 w-full text-left rounded-xl border px-3.5 py-3 transition-base ${
+              scope === "personal" ? "border-primary bg-primary-soft/40 ring-1 ring-primary" : "border-border hover:bg-surface-muted"
+            } cursor-pointer`}
           >
-            <div className="flex items-center gap-2 mb-1">
-              <User size={14} className="text-foreground shrink-0" />
-              <span className="text-sm font-semibold">Per-user connection</span>
-            </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Each person signs in with their own account. The agent runs under whoever is currently using it.
-            </p>
-          </button>
+            <input
+              type="radio"
+              name="connector-scope"
+              value="personal"
+              checked={scope === "personal"}
+              onChange={() => setScope("personal")}
+              aria-describedby={willPauseTriggers ? "connector-scope-personal-warning" : undefined}
+              className="mt-[3px] w-4 h-4 accent-primary shrink-0"
+            />
+            <span className="flex-1 min-w-0">
+              <span className="flex items-center gap-2 mb-1">
+                <User size={14} className="text-foreground shrink-0" />
+                <span className="text-sm font-semibold">Per-user connection</span>
+              </span>
+              <span className="block text-xs text-muted-foreground leading-relaxed">
+                Each person signs in with their own account. The agent runs under whoever is currently using it.
+              </span>
+            </span>
+          </label>
           {willPauseTriggers && (
-            <div className="flex items-start gap-2 text-xs text-warning bg-[hsl(var(--warning-soft))] border border-warning/25 rounded-lg px-3 py-2.5">
+            <div id="connector-scope-personal-warning" className="flex items-start gap-2 text-xs text-warning bg-[hsl(var(--warning-soft))] border border-warning/25 rounded-lg px-3 py-2.5">
               <AlertTriangle size={14} className="shrink-0 mt-0.5" />
               <p>
                 {CONNECTOR_TRIGGER_PAUSE_WARNING(activeTriggers.length)}{" "}
@@ -79,20 +89,29 @@ function ScopeModal({ agentId, connectorId, editing, onClose, onSaved, onViewTri
             </div>
           )}
 
-          <button
-            onClick={() => setScope("shared")}
-            className={`w-full text-left rounded-xl border px-3.5 py-3 transition-base hover:bg-surface-muted ${
-              scope === "shared" ? "border-primary bg-primary-soft/40 ring-1 ring-primary" : "border-border"
-            }`}
+          <label
+            className={`flex items-start gap-3 w-full text-left rounded-xl border px-3.5 py-3 transition-base ${
+              scope === "shared" ? "border-primary bg-primary-soft/40 ring-1 ring-primary" : "border-border hover:bg-surface-muted"
+            } cursor-pointer`}
           >
-            <div className="flex items-center gap-2 mb-1">
-              <Building2 size={14} className="text-foreground shrink-0" />
-              <span className="text-sm font-semibold">Shared organization connection</span>
-            </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              You connect once. Every run uses this same account.
-            </p>
-          </button>
+            <input
+              type="radio"
+              name="connector-scope"
+              value="shared"
+              checked={scope === "shared"}
+              onChange={() => setScope("shared")}
+              className="mt-[3px] w-4 h-4 accent-primary shrink-0"
+            />
+            <span className="flex-1 min-w-0">
+              <span className="flex items-center gap-2 mb-1">
+                <Building2 size={14} className="text-foreground shrink-0" />
+                <span className="text-sm font-semibold">Shared organization connection</span>
+              </span>
+              <span className="block text-xs text-muted-foreground leading-relaxed">
+                You connect once. Every run uses this same account.
+              </span>
+            </span>
+          </label>
         </div>
         <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
           <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Cancel</button>

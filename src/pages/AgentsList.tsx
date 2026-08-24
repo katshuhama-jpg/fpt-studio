@@ -11,6 +11,7 @@ import { getAgentKind } from "@/components/configure/agentKindStore";
 import { agentPublishStore } from "@/components/configure/agentPublishStore";
 import { triggerStore, type TriggerType } from "@/components/configure/triggerStore";
 import { AGENTS as agents } from "@/components/configure/agentStore";
+import { getChannelName } from "@/components/configure/channelCatalog";
 
 /* ─── Data ─────────────────────────────────────────────────────────────── */
 
@@ -21,10 +22,6 @@ const TRIGGER_TYPE_LABEL: Record<TriggerType, string> = {
   scheduled: "Schedule",
   developer: "Webhook",
   external: "External app",
-};
-
-const CHANNEL_NAME: Record<string, string> = {
-  web: "Web widget", zalo: "Zalo", slack: "Slack", fb: "Facebook",
 };
 
 function relativeTime(ts: number): string {
@@ -325,7 +322,7 @@ function AutomationCard({ a }: { a: typeof agents[number] }) {
           <div className="flex items-center gap-1.5">
             <HugeiconsIcon icon={TimeScheduleIcon} size={12} className="text-muted-foreground" />
             <span className="text-xs text-muted-foreground truncate">
-              Last run: {lastFired ? relativeTime(lastFired) : "never run"}
+              Last run: {lastFired ? relativeTime(lastFired) : "never"}
             </span>
           </div>
         </div>
@@ -345,12 +342,29 @@ function AutomationCard({ a }: { a: typeof agents[number] }) {
           <div className="flex items-center gap-1.5 mt-1.5 text-xs text-muted-foreground flex-wrap">
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">Sends to:</span>
             {channels.map(id => (
-              <span key={id} className="px-1.5 py-0.5 rounded bg-surface-muted">{CHANNEL_NAME[id] ?? id}</span>
+              <span key={id} className="px-1.5 py-0.5 rounded bg-surface-muted">{getChannelName(id)}</span>
             ))}
           </div>
         )}
       </div>
     </Link>
+  );
+}
+
+function GroupEmptyState({ message, onShowAll }: { message: string; onShowAll?: () => void }) {
+  return (
+    <div className="rounded-2xl border border-dashed border-border bg-gradient-soft p-10 text-center">
+      <p className="text-sm text-muted-foreground max-w-md mx-auto">{message}</p>
+      {onShowAll && (
+        <button
+          type="button"
+          onClick={onShowAll}
+          className="mt-4 h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base"
+        >
+          Show all agents
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -387,9 +401,15 @@ export default function AgentsList() {
 
   const conversationalAgents = searched.filter(a => getAgentKind(a.id) === "conversational");
   const automationAgents = searched.filter(a => getAgentKind(a.id) === "automation");
+  const allConversationalCount = agents.filter(a => getAgentKind(a.id) === "conversational").length;
+  const allAutomationCount = agents.filter(a => getAgentKind(a.id) === "automation").length;
 
-  const showConversational = kindFilter !== "Automation Agents" && conversationalAgents.length > 0;
-  const showAutomation = kindFilter !== "Agents" && automationAgents.length > 0;
+  const conversationalFilterSelected = kindFilter === "Agents";
+  const automationFilterSelected = kindFilter === "Automation Agents";
+  const showConversational = kindFilter !== "Automation Agents"
+    && (conversationalAgents.length > 0 || allConversationalCount === 0 || conversationalFilterSelected);
+  const showAutomation = kindFilter !== "Agents"
+    && (automationAgents.length > 0 || allAutomationCount === 0 || automationFilterSelected);
   const singleKindView = kindFilter !== "All";
 
   const handleBuild = () => {
@@ -544,9 +564,16 @@ export default function AgentsList() {
               <span className="text-xs font-normal text-muted-foreground">{conversationalAgents.length}</span>
             </h2>
           )}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {conversationalAgents.map(a => <ConversationalCard key={a.id} a={a} />)}
-          </div>
+          {conversationalAgents.length === 0 ? (
+            <GroupEmptyState
+              message="No agents yet — build one above and it will appear here."
+              onShowAll={conversationalFilterSelected && allConversationalCount > 0 ? () => setKindFilter("All") : undefined}
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {conversationalAgents.map(a => <ConversationalCard key={a.id} a={a} />)}
+            </div>
+          )}
         </div>
       )}
 
@@ -558,9 +585,16 @@ export default function AgentsList() {
               <span className="text-xs font-normal text-muted-foreground">{automationAgents.length}</span>
             </h2>
           )}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {automationAgents.map(a => <AutomationCard key={a.id} a={a} />)}
-          </div>
+          {automationAgents.length === 0 ? (
+            <GroupEmptyState
+              message="No automation agents yet — add a trigger to an agent in Console and it will appear here."
+              onShowAll={automationFilterSelected && allAutomationCount > 0 ? () => setKindFilter("All") : undefined}
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {automationAgents.map(a => <AutomationCard key={a.id} a={a} />)}
+            </div>
+          )}
         </div>
       )}
 

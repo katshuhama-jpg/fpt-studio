@@ -79,7 +79,7 @@ function generateWebhookId() {
   return id;
 }
 
-type WizardStep = "main" | "details" | "app-picker" | "connected-accounts" | "app-config" | "queue-work-hours";
+type WizardStep = "main" | "details" | "app" | "app-config" | "queue-work-hours";
 
 interface Props {
   open: boolean;
@@ -145,6 +145,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
 
   const [errors, setErrors] = useState<{ name?: string; description?: string; schedule?: string; credential?: string; payload?: string }>({});
   const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false);
+  const [initialSnapshot, setInitialSnapshot] = useState("");
 
   void accountsTick;
 
@@ -200,6 +201,23 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
     setQwhAllDay(qwh?.allDay ?? false);
     setQwhTasksPerPeriod(qwh?.tasksPerPeriod != null ? String(qwh.tasksPerPeriod) : "10");
     setQwhTasksPeriodUnit(qwh?.tasksPeriodUnit ?? "day");
+
+    setInitialSnapshot(JSON.stringify({
+      name: t?.name ?? "", description: t?.description ?? "", category: cat,
+      timeOfDay: sched?.timeOfDay ?? "08:00", weekDays: sched?.weekDays?.length ? sched.weekDays : [1],
+      dayOfMonth: sched?.dayOfMonth ?? 1, month: sched?.month ?? 0, startTime: sched?.startTime ?? defaultStartTime(),
+      customUnit: unit, intervalValue: sched?.intervalValue != null ? String(sched.intervalValue) : "",
+      cron: sched?.cron ?? "0 9 * * 1", timezone: sched?.timezone ?? "GMT+07:00",
+      authentication: dev?.authentication ?? "bearer", credentialId: dev?.credentialId ?? "",
+      payloadJson: dev?.payloadSchema ?? SAMPLE_PAYLOAD, requiredFields: dev?.requiredFields?.join(", ") ?? "",
+      app: extApp, accountId: ext?.accountId ?? "", event: ext?.event ?? EXTERNAL_APP_EVENTS[extApp][0].value,
+      gmailMode: ext?.gmailMode ?? "inbox", includeAttachments: ext?.includeAttachments ?? true,
+      filterSearch: ext?.filterSearch ?? "", excludeEmails: ext?.excludeEmails ?? [],
+      driveId: ext?.driveId ?? "my-drive", driveFolders: ext?.driveFolders ?? [], customProperties: ext?.customProperties ?? false,
+      qwhEnabled: qwh?.enabled ?? false, qwhTimezone: qwh?.timezone ?? "GMT+07:00", qwhWorkDays: qwh?.workDays ?? ["weekdays"],
+      qwhStartTime: qwh?.startTime ?? "09:00", qwhEndTime: qwh?.endTime ?? "17:00", qwhAllDay: qwh?.allDay ?? false,
+      qwhTasksPerPeriod: qwh?.tasksPerPeriod != null ? String(qwh.tasksPerPeriod) : "10", qwhTasksPeriodUnit: qwh?.tasksPeriodUnit ?? "day",
+    }));
   }, [open, trigger]);
 
   const isDuplicateName = name.trim() !== "" && triggerStore.isDuplicateName(agentId, name, trigger?.id);
@@ -337,9 +355,8 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
 
   const stepBack = () => {
     if (step === "details") setStep("main");
-    else if (step === "app-picker") setStep("main");
-    else if (step === "connected-accounts") setStep(mode === "create" ? "app-picker" : "main");
-    else if (step === "app-config") setStep("connected-accounts");
+    else if (step === "app") setStep("main");
+    else if (step === "app-config") setStep("app");
     else if (step === "queue-work-hours") setStep("app-config");
   };
 
@@ -351,14 +368,13 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
       const e = validateBasics();
       setErrors(e);
       if (Object.keys(e).length) return;
-      if (category === "external") setStep(mode === "create" ? "app-picker" : "connected-accounts");
+      if (category === "external") setStep("app");
       else setStep("details");
       return;
     }
-    if (step === "app-picker") { setStep("connected-accounts"); return; }
     if (step === "details") { submit(); return; }
-    if (step === "connected-accounts") {
-      if (connectionExpired) return;
+    if (step === "app") {
+      if (!accountId || connectionExpired) return;
       setStep("app-config");
       return;
     }
@@ -375,7 +391,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
     : EXTERNAL_APP_META[app].label;
 
   const stepSequence: WizardStep[] = category === "external"
-    ? (mode === "create" ? ["main", "app-picker", "connected-accounts", "app-config", "queue-work-hours"] : ["main", "connected-accounts", "app-config", "queue-work-hours"])
+    ? ["main", "app", "app-config", "queue-work-hours"]
     : ["main", "details"];
   const stepIndex = stepSequence.indexOf(step);
   const stepTotal = stepSequence.length;
@@ -383,7 +399,15 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
   const cronCheck = checkCronExpression(cron);
   const detailsInvalid = step === "details" && Object.keys(validateDetails()).length > 0;
 
-  const hasUnsavedInput = mode === "create" && (category !== "scheduled" || name.trim() !== "" || description.trim() !== "");
+  const currentSnapshot = JSON.stringify({
+    name, description, category,
+    timeOfDay, weekDays, dayOfMonth, month, startTime, customUnit, intervalValue, cron, timezone,
+    authentication, credentialId, payloadJson, requiredFields,
+    app, accountId, event, gmailMode, includeAttachments, filterSearch, excludeEmails,
+    driveId, driveFolders, customProperties,
+    qwhEnabled, qwhTimezone, qwhWorkDays, qwhStartTime, qwhEndTime, qwhAllDay, qwhTasksPerPeriod, qwhTasksPeriodUnit,
+  });
+  const hasUnsavedInput = initialSnapshot !== "" && currentSnapshot !== initialSnapshot;
   const requestClose = () => {
     if (hasUnsavedInput) setConfirmDiscardOpen(true);
     else onOpenChange(false);
@@ -412,7 +436,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
           <DialogTitle className="font-display flex items-center gap-2">
             {step === "main" ? (mode === "create" ? "Create a new trigger" : "Edit trigger")
               : step === "details" ? categoryHeading
-              : step === "app-picker" ? "Choose an app"
+              : step === "app" ? "Choose an app"
               : step === "app-config" ? `${EXTERNAL_APP_META[app].label} — Event & conditions`
               : step === "queue-work-hours" ? "Queue work hours (optional)"
               : EXTERNAL_APP_META[app].label}
@@ -425,9 +449,21 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
         <div className="space-y-4">
           {step === "main" && (
             <>
-              {mode === "edit" && (
-                <h3 className="font-display text-base font-semibold -mb-1">{categoryHeading}</h3>
-              )}
+              {mode === "edit" && (() => {
+                const opt = CATEGORY_OPTIONS.find(o => o.value === category);
+                const Icon = opt?.icon ?? Clock;
+                return (
+                  <div className="flex items-start gap-2.5 p-2.5 rounded-lg border border-border bg-surface-muted/60">
+                    <Icon size={14} className="text-muted-foreground shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium">{opt?.label ?? categoryHeading}</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Trigger type can't be changed. Create a new trigger to use a different type.
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {mode === "create" && (
               <div>
@@ -750,6 +786,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                     {webhookCopied ? <Check size={13} className="text-success" /> : <Copy size={13} />}
                   </button>
                 </div>
+                <p className="mt-1 text-[11px] text-muted-foreground">Give this URL to whoever is sending the events.</p>
               </div>
 
               <div>
@@ -783,7 +820,12 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
               </div>
 
               <div className="pt-1 border-t border-border">
-                <label className="text-xs font-medium mb-1.5 block mt-3">Expected payload (JSON)</label>
+                <label className="text-xs font-medium mb-1.5 block mt-3">
+                  Expected payload (JSON) <span className="text-[10px] font-normal text-muted-foreground">Optional</span>
+                </label>
+                <p className="text-[11px] text-muted-foreground mb-1.5">
+                  A sample of what the external system will send. We use it to show you which fields the agent can read.
+                </p>
                 <textarea
                   value={payloadJson}
                   rows={5}
@@ -807,6 +849,9 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                 <label className="text-xs font-medium mb-1.5 block">
                   Required fields <span className="text-[10px] font-normal text-muted-foreground">Optional</span>
                 </label>
+                <p className="text-[11px] text-muted-foreground mb-1.5">
+                  Runs will be rejected if these fields are missing from the payload. Leave empty to accept anything.
+                </p>
                 <input
                   value={requiredFields}
                   onChange={e => setRequiredFields(e.target.value)}
@@ -818,96 +863,108 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
             </div>
           )}
 
-          {step === "app-picker" && (
-            <div>
-              <label className="text-xs font-medium mb-1.5 block">App</label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-72 overflow-y-auto pr-0.5">
-                {EXTERNAL_APP_ORDER.map(value => {
-                  const meta = EXTERNAL_APP_META[value];
-                  const active = app === value;
-                  return (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => {
-                        setApp(value);
-                        setEvent(EXTERNAL_APP_EVENTS[value][0].value);
-                        setAccountId("");
-                      }}
-                      className={`flex items-center gap-2 h-11 px-2.5 rounded-lg border text-left transition-base ${
-                        active ? "border-primary bg-primary-soft" : "border-border bg-surface hover:border-primary/40"
-                      }`}
-                    >
-                      <AppLogo app={value} size={22} />
-                      <span className={`text-xs font-medium truncate ${active ? "text-primary" : "text-foreground"}`}>{meta.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {step === "connected-accounts" && (
-            <div>
-              <h4 className="text-xs font-semibold text-foreground mb-2">Connected accounts</h4>
-              <div className="space-y-1.5 mb-4">
-                {connectedAccounts.length === 0 && (
-                  <p className="text-xs text-muted-foreground py-1">No accounts connected yet.</p>
-                )}
-                {connectedAccounts.map(acct => (
-                  <label
-                    key={acct.id}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border cursor-pointer transition-base ${
-                      accountId === acct.id ? "border-primary bg-primary-soft" : "border-border bg-surface hover:border-primary/40"
-                    }`}
-                  >
-                    <AppLogo app={app} size={20} />
-                    <span className="flex-1 text-sm font-medium truncate">{acct.email}</span>
-                    {acct.expired && (
-                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 chip-warning">Expired</span>
-                    )}
-                    <input
-                      type="radio"
-                      name="connected-account"
-                      checked={accountId === acct.id}
-                      onChange={() => setAccountId(acct.id)}
-                      className="w-4 h-4 accent-primary shrink-0"
-                    />
-                  </label>
-                ))}
-              </div>
-
-              {connectionExpired && (
-                <div className="flex items-start gap-2 mb-4 p-3 rounded-lg bg-[hsl(var(--warning-soft))] border border-warning/25">
-                  <AlertTriangle size={14} className="text-warning shrink-0 mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-warning">
-                      The connection to {EXTERNAL_APP_META[app].label} has expired. Please reconnect to continue.
+          {step === "app" && (
+            <div className="space-y-4">
+              {mode === "create" ? (
+                <div>
+                  <label className="text-xs font-medium mb-1.5 block">App</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-72 overflow-y-auto pr-0.5">
+                    {EXTERNAL_APP_ORDER.map(value => {
+                      const meta = EXTERNAL_APP_META[value];
+                      const active = app === value;
+                      return (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => {
+                            setApp(value);
+                            setEvent(EXTERNAL_APP_EVENTS[value][0].value);
+                            setAccountId("");
+                          }}
+                          className={`flex items-center gap-2 h-11 px-2.5 rounded-lg border text-left transition-base ${
+                            active ? "border-primary bg-primary-soft" : "border-border bg-surface hover:border-primary/40"
+                          }`}
+                        >
+                          <AppLogo app={value} size={22} />
+                          <span className={`text-xs font-medium truncate ${active ? "text-primary" : "text-foreground"}`}>{meta.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-start gap-2.5 p-2.5 rounded-lg border border-border bg-surface-muted/60">
+                  <AppLogo app={app} size={22} />
+                  <div>
+                    <p className="text-sm font-medium">{EXTERNAL_APP_META[app].label}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Trigger type can't be changed. Create a new trigger to use a different app.
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => { if (accountId) connectedAccountStore.reconnect(accountId); setAccountsTick(t => t + 1); }}
-                    className="flex items-center gap-1 h-7 px-2.5 rounded-md bg-white border border-warning/30 text-[11px] font-semibold text-warning hover:bg-warning/5 transition-base shrink-0"
-                  >
-                    <RefreshCw size={11} /> Reconnect
-                  </button>
                 </div>
               )}
 
-              <div className="flex justify-center">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const acct = connectedAccountStore.connect(app, `you+${app}@fptsmartcloud.com`);
-                    setAccountId(acct.id);
-                    setAccountsTick(t => t + 1);
-                    toast.success("Account connected.");
-                  }}
-                  className="flex items-center gap-1.5 h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base"
-                >
-                  <Plus size={14} /> Connect account
-                </button>
+              <div>
+                <h4 className="text-xs font-semibold text-foreground mb-2">Connected accounts</h4>
+                <div className="space-y-1.5 mb-4">
+                  {connectedAccounts.length === 0 && (
+                    <p className="text-xs text-muted-foreground py-1">No accounts connected yet.</p>
+                  )}
+                  {connectedAccounts.map(acct => (
+                    <label
+                      key={acct.id}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border cursor-pointer transition-base ${
+                        accountId === acct.id ? "border-primary bg-primary-soft" : "border-border bg-surface hover:border-primary/40"
+                      }`}
+                    >
+                      <AppLogo app={app} size={20} />
+                      <span className="flex-1 text-sm font-medium truncate">{acct.email}</span>
+                      {acct.expired && (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 chip-warning">Expired</span>
+                      )}
+                      <input
+                        type="radio"
+                        name="connected-account"
+                        checked={accountId === acct.id}
+                        onChange={() => setAccountId(acct.id)}
+                        className="w-4 h-4 accent-primary shrink-0"
+                      />
+                    </label>
+                  ))}
+                </div>
+
+                {connectionExpired && (
+                  <div className="flex items-start gap-2 mb-4 p-3 rounded-lg bg-[hsl(var(--warning-soft))] border border-warning/25">
+                    <AlertTriangle size={14} className="text-warning shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-warning">
+                        The connection to {EXTERNAL_APP_META[app].label} has expired. Please reconnect to continue.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { if (accountId) connectedAccountStore.reconnect(accountId); setAccountsTick(t => t + 1); }}
+                      className="flex items-center gap-1 h-7 px-2.5 rounded-md bg-white border border-warning/30 text-[11px] font-semibold text-warning hover:bg-warning/5 transition-base shrink-0"
+                    >
+                      <RefreshCw size={11} /> Reconnect
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const acct = connectedAccountStore.connect(app, `you+${app}@fptsmartcloud.com`);
+                      setAccountId(acct.id);
+                      setAccountsTick(t => t + 1);
+                      toast.success("Account connected.");
+                    }}
+                    className="flex items-center gap-1.5 h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base"
+                  >
+                    <Plus size={14} /> Connect account
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -1118,9 +1175,11 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
             <button
               type="button"
               onClick={submit}
-              className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base"
+              className={`h-9 px-4 rounded-lg text-sm font-medium transition-base ${
+                !qwhEnabled ? "bg-primary text-primary-foreground hover:bg-primary-glow" : "border border-border bg-surface hover:bg-surface-muted"
+              }`}
             >
-              Skip
+              {qwhEnabled ? "Skip" : "Skip — process events right away"}
             </button>
           )}
           <button
@@ -1128,10 +1187,14 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
             onClick={primaryAction}
             disabled={
               (step === "main" && isDuplicateName) ||
-              (step === "connected-accounts" && (!accountId || connectionExpired)) ||
+              (step === "app" && (!accountId || connectionExpired)) ||
               detailsInvalid
             }
-            className="btn-primary h-9 px-4 disabled:opacity-40 disabled:pointer-events-none"
+            className={`h-9 px-4 disabled:opacity-40 disabled:pointer-events-none ${
+              step === "queue-work-hours" && !qwhEnabled
+                ? "rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base"
+                : "btn-primary"
+            }`}
           >
             {primaryLabel}
           </button>

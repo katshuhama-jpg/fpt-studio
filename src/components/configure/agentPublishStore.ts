@@ -9,9 +9,14 @@ import { loadMap, saveMap, loadSet, saveSet } from "@/lib/sessionPersist";
 
 export type Placement = "workspace" | "automation" | null;
 
+export const BASELINE_VERSION = "v1.0.1";
+
 export interface AgentPublishState {
   placement: Placement;
   channels: string[];
+  /** The version currently live. Stays at BASELINE_VERSION until the agent is actually
+   * published; unpublishing doesn't reset it, so a later republish keeps counting up. */
+  version: string;
 }
 
 const STORE_KEY = "agent_publish_store";
@@ -24,7 +29,7 @@ const persist = () => saveMap(STORE_KEY, store);
  * published-automation state can be reviewed without publishing it manually first.
  * Seeded once per session — unpublishing it during the session is not undone on reload. */
 const AUTO_PUBLISHED_SEED: Record<string, AgentPublishState> = {
-  "shipping-alerts": { placement: "automation", channels: ["slack"] },
+  "shipping-alerts": { placement: "automation", channels: ["slack"], version: BASELINE_VERSION },
 };
 
 function seedAgent(agentId: string) {
@@ -40,16 +45,29 @@ function seedAgent(agentId: string) {
 export const agentPublishStore = {
   get(agentId: string): AgentPublishState {
     seedAgent(agentId);
-    return store.get(agentId) ?? { placement: null, channels: [] };
+    const s = store.get(agentId);
+    if (!s) return { placement: null, channels: [], version: BASELINE_VERSION };
+    // Defend against sessionStorage from an earlier build that predates a field — e.g. `version`
+    // added after some sessions had already persisted state without it.
+    return { placement: s.placement, channels: s.channels ?? [], version: s.version ?? BASELINE_VERSION };
   },
-  publish(agentId: string, placement: Placement, channels: string[]) {
+  publish(agentId: string, placement: Placement, channels: string[], version: string) {
     seedAgent(agentId);
-    store.set(agentId, { placement, channels });
+    store.set(agentId, { placement, channels, version });
+    persist();
+  },
+  /** Toggles a channel's live/not-connected state on the currently-serving version,
+   * without treating it as a new release. */
+  setChannels(agentId: string, channels: string[]) {
+    seedAgent(agentId);
+    const cur = this.get(agentId);
+    store.set(agentId, { ...cur, channels });
     persist();
   },
   unpublish(agentId: string) {
     seedAgent(agentId);
-    store.set(agentId, { placement: null, channels: [] });
+    const cur = this.get(agentId);
+    store.set(agentId, { ...cur, placement: null, channels: [] });
     persist();
   },
   isPublished(agentId: string): boolean {
@@ -79,8 +97,9 @@ export const CONNECTOR_BLOCKED_BY_TRIGGER_REASON = (n: number) =>
 
 // Warn-then-allow variants: unlike the two reasons above (still used to hard-block the
 // compact right-sidebar Connectors/Triggers panels), the main Connections and Triggers
-// tabs let the Builder proceed and resolve the conflict by pausing instead.
+// tabs let the Builder proceed and resolve the conflict by pausing instead. One canonical
+// string per direction, rendered through TriggerConnectorNotice everywhere it's shown.
 export const TRIGGER_PERSONAL_CONNECTOR_PAUSE_WARNING = (connectorName: string) =>
-  `This agent uses a per-user connection (${connectorName}). Triggers run with nobody signed in, so the new trigger will be created paused — enable it once you've resolved the connection.`;
+  `This agent uses a per-user connection (${connectorName}). Triggers run in the background with nobody signed in, so there is no personal account to use.`;
 export const CONNECTOR_TRIGGER_PAUSE_WARNING = (n: number) =>
-  `This agent has ${n} active trigger${n === 1 ? "" : "s"}. Switching to a per-user connection will pause ${n === 1 ? "it" : "them"}, since a trigger runs with nobody signed in to borrow an account from.`;
+  `This agent has ${n} trigger${n === 1 ? "" : "s"}, so it runs as an Automation for the whole organization. A per-user connection needs someone signed in.`;
