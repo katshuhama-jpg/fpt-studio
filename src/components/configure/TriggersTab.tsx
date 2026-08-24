@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Plus, Zap, Clock, Webhook, Globe, Pause, Play, MoreHorizontal,
+  Plus, Zap, Clock, Webhook, Globe, Pause, Play, MoreHorizontal, AlertTriangle,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -13,8 +13,12 @@ import {
 } from "./triggerStore";
 import { agentConnectorStore } from "./agentConnectorStore";
 import { TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON } from "./agentPublishStore";
+import { automationHeadsUpStore } from "./agentKindStore";
+import { CATALOG as CONNECTOR_CATALOG } from "./ConnectionsTab";
 import AppLogo from "./AppLogo";
 import { toast } from "sonner";
+
+const TRIGGER_LIMIT = 10;
 
 /** Deterministic mock count of Workspace users with a trigger enabled — this prototype has
  * no real multi-user install data, so derive a stable small number from the trigger id. */
@@ -78,6 +82,7 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
   const [deleteTarget, setDeleteTarget] = useState<TriggerRecord | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [confirmBulk, setConfirmBulk] = useState<"pause" | "resume" | null>(null);
+  const [showHeadsUp, setShowHeadsUp] = useState(false);
 
   const allTriggers = useMemo(() => {
     void tick;
@@ -118,15 +123,31 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
     refresh();
   };
 
-  const personalConnectorBlocked = agentConnectorStore.list(agentId).some(c => c.scope === "personal");
+  const personalConnector = agentConnectorStore.list(agentId).find(c => c.scope === "personal");
+  const personalConnectorBlocked = !!personalConnector;
+  const personalConnectorName = personalConnector
+    ? (CONNECTOR_CATALOG.find(c => c.id === personalConnector.connectorId)?.name ?? personalConnector.connectorId)
+    : "";
+  const limitReached = allTriggers.length >= TRIGGER_LIMIT;
+  const addBlocked = personalConnectorBlocked || limitReached;
 
   const openCreate = () => {
-    if (personalConnectorBlocked) return;
+    if (addBlocked) return;
+    if (allTriggers.length === 0 && !automationHeadsUpStore.hasSeen(agentId)) {
+      setShowHeadsUp(true);
+      return;
+    }
+    setCreateOpen(true);
+  };
+
+  const confirmHeadsUp = () => {
+    automationHeadsUpStore.markSeen(agentId);
+    setShowHeadsUp(false);
     setCreateOpen(true);
   };
 
   const duplicateTrigger = (t: TriggerRecord) => {
-    if (personalConnectorBlocked) return;
+    if (addBlocked) return;
     let name = `${t.name} (copy)`;
     let n = 2;
     while (triggerStore.isDuplicateName(agentId, name)) {
@@ -187,25 +208,33 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
               <Pause size={13} /> Tạm dừng tất cả
             </button>
           )}
-          <button onClick={openCreate} disabled={personalConnectorBlocked} className="btn-primary h-9 disabled:opacity-40 disabled:cursor-not-allowed">
+          <button onClick={openCreate} disabled={addBlocked} className="btn-primary h-9 disabled:opacity-40 disabled:cursor-not-allowed">
             <Plus size={13} /> Thêm Trigger
           </button>
         </div>
       </div>
 
-      {personalConnectorBlocked && (
-        <p className="text-xs text-muted-foreground mb-4 -mt-2">
-          {TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON}{" "}
-          {onViewConnections && (
-            <button type="button" onClick={onViewConnections} className="text-primary font-medium hover:underline">
-              Xem kết nối
-            </button>
-          )}
-        </p>
+      {personalConnectorBlocked ? (
+        <div className="flex items-start gap-2 text-xs text-warning bg-[hsl(var(--warning-soft))] border border-warning/25 rounded-lg px-3 py-2.5 mb-4">
+          <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+          <p>
+            {TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON(personalConnectorName)}{" "}
+            {onViewConnections && (
+              <button type="button" onClick={onViewConnections} className="font-semibold hover:underline">
+                Xem kết nối
+              </button>
+            )}
+          </p>
+        </div>
+      ) : limitReached && (
+        <div className="flex items-start gap-2 text-xs text-warning bg-[hsl(var(--warning-soft))] border border-warning/25 rounded-lg px-3 py-2.5 mb-4">
+          <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+          <p>Agent đã đạt giới hạn 10 trigger.</p>
+        </div>
       )}
 
       {isEmpty ? (
-        <EmptyState onCreate={openCreate} disabled={personalConnectorBlocked} />
+        <EmptyState onCreate={openCreate} disabled={addBlocked} />
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           {triggers.map(t => {
@@ -267,7 +296,7 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
                     <RowMenu
                       enabled={t.enabled}
                       needsSetup={needsSetup}
-                      duplicateBlocked={personalConnectorBlocked}
+                      duplicateBlocked={addBlocked}
                       onToggle={() => { triggerStore.toggle(agentId, t.id); refresh(); }}
                       onEdit={() => setEditTarget(t)}
                       onRename={() => setRenamingId(t.id)}
@@ -366,6 +395,22 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
             >
               {confirmBulk === "pause" ? "Tạm dừng tất cả" : "Kích hoạt lại tất cả"}
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showHeadsUp} onOpenChange={v => !v && setShowHeadsUp(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Agent này chuyển sang Tự động hoá cho doanh nghiệp</AlertDialogTitle>
+            <AlertDialogDescription>
+              Có trigger nghĩa là agent tự chạy cho toàn doanh nghiệp, không cài về Workspace được nữa. Agent vẫn
+              phát hành được lên Web, Zalo, Slack, Facebook để gửi kết quả ra ngoài.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Huỷ, không thêm trigger</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmHeadsUp}>Tôi hiểu, thêm trigger</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

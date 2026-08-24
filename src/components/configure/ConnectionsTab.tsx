@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { Plus, Trash2, User, Building2, X } from "lucide-react";
+import { Plus, Trash2, Pencil, User, Building2, X, AlertTriangle } from "lucide-react";
 import { agentConnectorStore, type ConnectorScope } from "./agentConnectorStore";
 import { triggerStore } from "./triggerStore";
 import { CONNECTOR_BLOCKED_BY_TRIGGER_REASON } from "./agentPublishStore";
 import { toast } from "sonner";
 
-const CATALOG = [
+export const CATALOG = [
   { id: "gmail", name: "Gmail", logo: "G" },
   { id: "gdrive", name: "Google Drive", logo: "D" },
   { id: "sheets", name: "Google Sheets", logo: "Sh" },
@@ -14,11 +14,11 @@ const CATALOG = [
   { id: "hubspot", name: "HubSpot", logo: "H" },
 ];
 
-function AddConnectionModal({ agentId, onClose, onSaved, onViewTriggers }: {
-  agentId: string; onClose: () => void; onSaved: () => void; onViewTriggers?: () => void;
+function AddConnectionModal({ agentId, editing, onClose, onSaved, onViewTriggers }: {
+  agentId: string; editing?: { connectorId: string; scope: ConnectorScope }; onClose: () => void; onSaved: () => void; onViewTriggers?: () => void;
 }) {
-  const [connectorId, setConnectorId] = useState(CATALOG[0].id);
-  const [scope, setScope] = useState<ConnectorScope>("shared");
+  const [connectorId, setConnectorId] = useState(editing?.connectorId ?? CATALOG[0].id);
+  const [scope, setScope] = useState<ConnectorScope>(editing?.scope ?? "shared");
 
   const triggerCount = triggerStore.list(agentId).length;
   const personalBlocked = triggerCount > 0;
@@ -37,7 +37,7 @@ function AddConnectionModal({ agentId, onClose, onSaved, onViewTriggers }: {
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative z-10 w-full max-w-md bg-white rounded-2xl border border-border shadow-lg animate-fade-up">
         <div className="flex items-start justify-between px-5 py-4 border-b border-border">
-          <h3 className="font-display text-base font-semibold">Thêm kết nối</h3>
+          <h3 className="font-display text-base font-semibold">{editing ? "Sửa kết nối" : "Thêm kết nối"}</h3>
           <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground">
             <X size={14} />
           </button>
@@ -45,7 +45,7 @@ function AddConnectionModal({ agentId, onClose, onSaved, onViewTriggers }: {
         <div className="px-5 py-4 space-y-4">
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Ứng dụng</label>
-            <select value={connectorId} onChange={e => setConnectorId(e.target.value)} className="ds-input h-9 w-full">
+            <select value={connectorId} onChange={e => setConnectorId(e.target.value)} disabled={!!editing} className="ds-input h-9 w-full disabled:opacity-60 disabled:cursor-not-allowed">
               {CATALOG.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
@@ -63,19 +63,21 @@ function AddConnectionModal({ agentId, onClose, onSaved, onViewTriggers }: {
                 <span className="text-sm font-semibold">Kết nối riêng của từng người dùng</span>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Mỗi người dùng tự đăng nhập tài khoản của họ khi dùng agent. Agent chạy dưới quyền của chính người
-                đang trò chuyện.
+                Mỗi người dùng tự đăng nhập tài khoản của họ. Agent chạy dưới quyền của chính người đang dùng.
               </p>
             </button>
             {personalBlocked && (
-              <p className="text-xs text-muted-foreground px-1 leading-relaxed">
-                {CONNECTOR_BLOCKED_BY_TRIGGER_REASON}{" "}
-                {onViewTriggers && (
-                  <button type="button" onClick={onViewTriggers} className="text-primary font-medium hover:underline">
-                    Xem trigger
-                  </button>
-                )}
-              </p>
+              <div className="flex items-start gap-2 text-xs text-warning bg-[hsl(var(--warning-soft))] border border-warning/25 rounded-lg px-3 py-2.5">
+                <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                <p>
+                  {CONNECTOR_BLOCKED_BY_TRIGGER_REASON(triggerCount)}{" "}
+                  {onViewTriggers && (
+                    <button type="button" onClick={onViewTriggers} className="font-semibold hover:underline">
+                      Xem trigger
+                    </button>
+                  )}
+                </p>
+              </div>
             )}
 
             <button
@@ -89,7 +91,7 @@ function AddConnectionModal({ agentId, onClose, onSaved, onViewTriggers }: {
                 <span className="text-sm font-semibold">Kết nối dùng chung của tổ chức</span>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Builder kết nối một lần. Mọi lần chạy đều dùng tài khoản này.
+                Bạn kết nối một lần. Mọi lần chạy đều dùng tài khoản này.
               </p>
             </button>
           </div>
@@ -105,12 +107,16 @@ function AddConnectionModal({ agentId, onClose, onSaved, onViewTriggers }: {
   );
 }
 
-export default function ConnectionsTab({ agentId, onViewTriggers }: { agentId: string; onViewTriggers?: () => void }) {
+export default function ConnectionsTab({ agentId, onViewTriggers, onChange }: {
+  agentId: string; onViewTriggers?: () => void; onChange?: () => void;
+}) {
   const [tick, setTick] = useState(0);
-  const refresh = () => setTick(t => t + 1);
+  const refresh = () => { setTick(t => t + 1); onChange?.(); };
   const [showAdd, setShowAdd] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   void tick;
   const connections = agentConnectorStore.list(agentId);
+  const editingConnection = editingId ? connections.find(c => c.connectorId === editingId) : undefined;
 
   return (
     <div className="p-8 w-full animate-fade-up max-w-3xl">
@@ -148,8 +154,20 @@ export default function ConnectionsTab({ agentId, onViewTriggers }: { agentId: s
                   {c.scope === "shared" ? "Dùng chung" : "Riêng cá nhân"}
                 </span>
                 <button
-                  onClick={() => { agentConnectorStore.remove(agentId, c.connectorId); refresh(); }}
+                  onClick={() => setEditingId(c.connectorId)}
+                  className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base shrink-0"
+                  aria-label="Sửa kết nối"
+                >
+                  <Pencil size={13} />
+                </button>
+                <button
+                  onClick={() => {
+                    agentConnectorStore.remove(agentId, c.connectorId);
+                    toast.success(`Đã gỡ kết nối "${meta?.name ?? c.connectorId}".`);
+                    refresh();
+                  }}
                   className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-surface-muted transition-base shrink-0"
+                  aria-label="Gỡ kết nối"
                 >
                   <Trash2 size={13} />
                 </button>
@@ -164,6 +182,16 @@ export default function ConnectionsTab({ agentId, onViewTriggers }: { agentId: s
           agentId={agentId}
           onClose={() => setShowAdd(false)}
           onSaved={() => { refresh(); setShowAdd(false); }}
+          onViewTriggers={onViewTriggers}
+        />
+      )}
+
+      {editingConnection && (
+        <AddConnectionModal
+          agentId={agentId}
+          editing={{ connectorId: editingConnection.connectorId, scope: editingConnection.scope }}
+          onClose={() => setEditingId(null)}
+          onSaved={() => { refresh(); setEditingId(null); }}
           onViewTriggers={onViewTriggers}
         />
       )}

@@ -14,3 +14,15 @@ export function getAgentKind(agentId: string): AgentKind {
 export function isAgentDraft(agentId: string): boolean {
   return !agentPublishStore.isPublished(agentId);
 }
+
+/** Tracks whether the Builder has already seen the one-time "this agent just became
+ * Automation" heads-up, so it never fires again for the same agent. */
+const seenAutomationHeadsUp = new Set<string>();
+export const automationHeadsUpStore = {
+  hasSeen(agentId: string): boolean {
+    return seenAutomationHeadsUp.has(agentId);
+  },
+  markSeen(agentId: string) {
+    seenAutomationHeadsUp.add(agentId);
+  },
+};

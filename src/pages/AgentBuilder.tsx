@@ -20,13 +20,13 @@ import { knowledgeStore } from "@/components/knowledge/knowledgeStore";
 import { triggerStore, triggerNeedsSetup, EXTERNAL_APP_META, type TriggerRecord } from "@/components/configure/triggerStore";
 import { agentConnectorStore, type ConnectorScope } from "@/components/configure/agentConnectorStore";
 import {
-  agentPublishStore, WORKSPACE_BLOCKED_BY_TRIGGER_REASON, AUTOMATION_BLOCKED_BY_NO_TRIGGER_REASON,
+  agentPublishStore, WORKSPACE_BLOCKED_BY_TRIGGER_REASON, AUTOMATION_BLOCKED_BY_NO_TRIGGER_REASON, mockInstallCount,
   TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON, CONNECTOR_BLOCKED_BY_TRIGGER_REASON,
   type Placement,
 } from "@/components/configure/agentPublishStore";
 import { getAgentKind, type AgentKind } from "@/components/configure/agentKindStore";
 import { connectedAccountStore } from "@/components/configure/connectedAccountStore";
-import ConnectionsTab from "@/components/configure/ConnectionsTab";
+import ConnectionsTab, { CATALOG as CONNECTOR_CATALOG } from "@/components/configure/ConnectionsTab";
 import AppLogo from "@/components/configure/AppLogo";
 import { TYPE_META, summarizeConfig } from "@/components/configure/TriggersTab";
 import { guardrailStore } from "@/components/configure/guardrailStore";
@@ -86,6 +86,7 @@ export default function AgentBuilder() {
   const [publishTick, setPublishTick] = useState(0);
   const [showAgentMenu, setShowAgentMenu] = useState(false);
   const [triggerTick, setTriggerTick] = useState(0);
+  const [connectionTick, setConnectionTick] = useState(0);
   const kind = (() => { void publishTick; void triggerTick; return getAgentKind(id); })();
   const publishState = (() => { void publishTick; return agentPublishStore.get(id); })();
   const published = publishState.placement !== null;
@@ -117,14 +118,10 @@ export default function AgentBuilder() {
         <span className="text-xs text-muted-foreground/50 shrink-0">/</span>
         <div className="flex items-center gap-2 min-w-0">
           <div className="w-7 h-7 rounded-md bg-surface-muted border border-border flex items-center justify-center text-base shrink-0">🤖</div>
-          <span className="font-semibold text-sm truncate">làm báo cáo cho sale</span>
-          {kind === "automation" ? (
+          <span className="font-semibold text-sm truncate">{AGENT_NAME}</span>
+          {kind === "automation" && (
             <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 shrink-0">
               <HugeiconsIcon icon={BoltIcon} size={10} /> Automation
-            </span>
-          ) : (
-            <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-surface-muted text-muted-foreground shrink-0">
-              Trò chuyện
             </span>
           )}
         </div>
@@ -270,6 +267,7 @@ export default function AgentBuilder() {
 
           {/* Ready to publish + Collapse */}
           <div className="px-3 py-3 border-t border-border shrink-0 space-y-2">
+            <HowThisAgentRuns agentId={id ?? "new"} onViewSection={setSection} />
             <div className="rounded-lg border border-border bg-surface-muted/50 p-2.5">
               {(() => {
                 const checklist = [
@@ -359,7 +357,7 @@ export default function AgentBuilder() {
                 <TriggersTab agentId={id ?? "new"} onChange={() => setTriggerTick(t => t + 1)} onViewConnections={() => setSection("connectors")} />
               )}
               {tab === "build" && section === "connectors" && (
-                <ConnectionsTab agentId={id ?? "new"} onViewTriggers={() => setSection("triggers")} />
+                <ConnectionsTab agentId={id ?? "new"} onViewTriggers={() => setSection("triggers")} onChange={() => setConnectionTick(t => t + 1)} />
               )}
               {tab === "build" && section === "model" && <PlaceholderTab title="Model" />}
               {tab === "build" && !["instructions","knowledge","history","skills","guardrails","triggers","connectors","model"].includes(section) && <PlaceholderTab title={section} />}
@@ -770,6 +768,67 @@ function renderMarkdown(md: string): React.ReactNode {
 function inlineFormat(text: string): React.ReactNode {
   const parts = text.split(/\*\*(.+?)\*\*/g);
   return parts.map((p, i) => i % 2 === 1 ? <strong key={i}>{p}</strong> : p);
+}
+
+/** Persistent live-status panel — reads current trigger/connection/channel config and tells
+ * the Builder in plain language what that configuration means, so the moment an agent
+ * becomes Automation is visible immediately, not discovered later at Publish. */
+function HowThisAgentRuns({ agentId, onViewSection }: { agentId: string; onViewSection: (section: string) => void }) {
+  void onViewSection; // reserved for future deep-links from this panel
+  const triggers = triggerStore.list(agentId);
+  const connections = agentConnectorStore.list(agentId);
+  const channels = agentPublishStore.get(agentId).channels;
+  const kind = triggers.length > 0 ? "automation" : "conversational";
+  const personalConn = connections.find(c => c.scope === "personal");
+  const sharedConn = connections.find(c => c.scope === "shared");
+  const channelNames = channels.map(id => EXTERNAL_CHANNELS.find(c => c.id === id)?.name ?? id);
+
+  return (
+    <div className="rounded-lg border border-border bg-surface p-2.5 space-y-2">
+      <p className="text-xs font-semibold text-foreground">Cách agent này chạy</p>
+
+      <div className="flex items-start gap-1.5">
+        <HugeiconsIcon
+          icon={kind === "automation" ? BoltIcon : Chat01Icon}
+          size={12}
+          className={`shrink-0 mt-0.5 ${kind === "automation" ? "text-indigo-600" : "text-muted-foreground"}`}
+        />
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
+          {kind === "automation" ? (
+            <><span className="font-medium text-foreground">Tự động hoá cho doanh nghiệp</span> — agent tự chạy theo {triggers.length} trigger bạn đặt ở đây, chạy cho toàn doanh nghiệp. Không ai cài về Workspace, không ai nhắn tin trực tiếp.</>
+          ) : (
+            <><span className="font-medium text-foreground">Agent trò chuyện</span> — người dùng trong doanh nghiệp cài agent về Workspace và sử dụng. Mỗi người tự đặt trigger riêng cho bản cài của họ.</>
+          )}
+        </p>
+      </div>
+
+      {(personalConn || sharedConn) && (
+        <div className="flex items-start gap-1.5">
+          <HugeiconsIcon icon={personalConn ? UserIcon : Building02Icon} size={12} className="text-muted-foreground shrink-0 mt-0.5" />
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            {personalConn ? (
+              "Kết nối riêng của từng người dùng — agent chạy dưới tài khoản của chính người đang dùng."
+            ) : (
+              <>Kết nối dùng chung của tổ chức — mọi lần chạy dùng tài khoản {CONNECTOR_CATALOG.find(c => c.id === sharedConn!.connectorId)?.name ?? sharedConn!.connectorId}.</>
+            )}
+          </p>
+        </div>
+      )}
+
+      {channelNames.length > 0 && (
+        <div className="flex items-start gap-1.5">
+          <HugeiconsIcon icon={GridViewIcon} size={12} className="text-muted-foreground shrink-0 mt-0.5" />
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            {kind === "automation" ? (
+              <>Kênh gửi ra: {channelNames.join(", ")}. Agent gửi kết quả ra các kênh này; khách không nhắn tin vào.</>
+            ) : (
+              <>Kênh trò chuyện: {channelNames.join(", ")}. Người dùng nhắn tin cho agent qua các kênh này.</>
+            )}
+          </p>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function GeneralTab({ agentId, onRefineWithAI, onChatToTest }: {
@@ -2127,7 +2186,7 @@ function DeployTab({ agentVersion, agentId }: { agentVersion: string; agentId: s
             </p>
             <button onClick={() => setShowPublish(true)} disabled={workspaceBlocked} className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed">Publish</button>
             {workspaceBlocked && (
-              <p className="text-xs text-muted-foreground mt-2 max-w-sm">{WORKSPACE_BLOCKED_BY_TRIGGER_REASON}</p>
+              <p className="text-xs text-muted-foreground mt-2 max-w-sm">{WORKSPACE_BLOCKED_BY_TRIGGER_REASON(triggerStore.list(agentId).length)}</p>
             )}
           </div>
         ) : (
@@ -2845,13 +2904,12 @@ const metrics = [
 const bars = [50, 62, 45, 75, 68, 95, 80];
 
 /* ============ PublishModal ============ */
+const AGENT_NAME = "làm báo cáo cho sale";
 const EXTERNAL_CHANNELS = [
-  { id: "web",       name: "Web widget", category: "Web",       emoji: "🌐", connected: true  },
-  { id: "zalo",      name: "Zalo",       category: "Messaging", emoji: "💬", connected: true  },
-  { id: "messenger", name: "Messenger",  category: "Messaging", emoji: "💙", connected: false },
-  { id: "whatsapp",  name: "WhatsApp",   category: "Messaging", emoji: "🟢", connected: false },
-  { id: "telegram",  name: "Telegram",   category: "Messaging", emoji: "✈️", connected: false },
-  { id: "api",       name: "API",        category: "API",       emoji: "⚡", connected: true  },
+  { id: "web",   name: "Web widget", emoji: "🌐" },
+  { id: "zalo",  name: "Zalo",       emoji: "💬" },
+  { id: "slack", name: "Slack",      emoji: "💜" },
+  { id: "fb",    name: "Facebook",   emoji: "💙" },
 ];
 
 function PublishModal({ agentId, onClose, onChatTest, onPublished, onViewSection }: {
@@ -2861,11 +2919,15 @@ function PublishModal({ agentId, onClose, onChatTest, onPublished, onViewSection
   const workspaceBlocked = triggerCount > 0;
   const automationBlocked = triggerCount === 0;
   const current = agentPublishStore.get(agentId);
-  const [placement, setPlacement] = useState<Placement>(current.placement ?? (workspaceBlocked ? "automation" : null));
+  const [placement, setPlacement] = useState<Placement>(current.placement ?? (workspaceBlocked ? "automation" : !automationBlocked ? "workspace" : null));
   const [reason, setReason] = useState("");
-  const [deployEnabled, setDeployEnabled] = useState(current.channels.length > 0);
-  const [selected, setSelected] = useState<Set<string>>(new Set(current.channels.length > 0 ? current.channels : ["web", "zalo", "api"]));
+  const [selected, setSelected] = useState<Set<string>>(new Set(current.channels));
   const [versionType, setVersionType] = useState<"patch"|"minor"|"major">("patch");
+  const [showUninstallGuard, setShowUninstallGuard] = useState(false);
+  const [confirmName, setConfirmName] = useState("");
+  const wasOnWorkspace = current.placement === "workspace";
+  const installCount = mockInstallCount(agentId);
+  const needsUninstallGuard = wasOnWorkspace && triggerCount > 0;
   const BASE = [1, 0, 1]; // current: v1.0.1
   const newVersion = (() => {
     const [maj, min, pat] = BASE;
@@ -2894,11 +2956,7 @@ function PublishModal({ agentId, onClose, onChatTest, onPublished, onViewSection
           {on && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
         </div>
         <span className="text-base leading-none">{ch.emoji}</span>
-        <div className="min-w-0">
-          <p className="text-xs font-medium truncate">{ch.name}</p>
-          <p className="text-[10px] text-muted-foreground">{ch.category}</p>
-        </div>
-        {ch.connected && <span className="w-1.5 h-1.5 rounded-full bg-success ml-auto shrink-0" title="Connected" />}
+        <p className="text-xs font-medium truncate">{ch.name}</p>
       </button>
     );
   };
@@ -2921,59 +2979,71 @@ function PublishModal({ agentId, onClose, onChatTest, onPublished, onViewSection
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
           {/* Placement */}
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Phát hành đến</p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => !workspaceBlocked && setPlacement("workspace")}
-                disabled={workspaceBlocked}
-                className={`text-left rounded-xl border px-3.5 py-3 transition-base ${
-                  placement === "workspace" ? "border-primary bg-primary-soft/40 ring-1 ring-primary" : "border-border"
-                } ${workspaceBlocked ? "opacity-50 cursor-not-allowed" : "hover:bg-surface-muted"}`}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <HugeiconsIcon icon={UserGroupIcon} size={14} className="text-foreground shrink-0" />
-                  <span className="text-sm font-semibold">Workspace</span>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Người trong tổ chức cài agent và tự trò chuyện với nó.
-                </p>
-              </button>
-              <button
-                onClick={() => !automationBlocked && setPlacement("automation")}
-                disabled={automationBlocked}
-                className={`text-left rounded-xl border px-3.5 py-3 transition-base ${
-                  placement === "automation" ? "border-primary bg-primary-soft/40 ring-1 ring-primary" : "border-border"
-                } ${automationBlocked ? "opacity-50 cursor-not-allowed" : "hover:bg-surface-muted"}`}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <HugeiconsIcon icon={BoltIcon} size={14} className="text-foreground shrink-0" />
-                  <span className="text-sm font-semibold">Tự động hoá cho doanh nghiệp</span>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Agent chạy nền cho cả tổ chức, theo trigger Builder đã đặt. Không ai trò chuyện với nó.
-                </p>
-              </button>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Nơi agent chạy</p>
+            <div className="grid grid-cols-2 gap-2 items-start">
+              <div>
+                <button
+                  onClick={() => !workspaceBlocked && setPlacement("workspace")}
+                  disabled={workspaceBlocked}
+                  className={`w-full text-left rounded-xl border px-3.5 py-3 transition-base ${
+                    placement === "workspace" ? "border-primary bg-primary-soft/40 ring-1 ring-primary" : "border-border"
+                  } ${workspaceBlocked ? "opacity-50 cursor-not-allowed" : "hover:bg-surface-muted"}`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <HugeiconsIcon icon={UserGroupIcon} size={14} className="text-foreground shrink-0" />
+                    <span className="text-sm font-semibold">Workspace</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Người dùng trong doanh nghiệp cài agent về Workspace và sử dụng. Mỗi người tự đặt trigger riêng
+                    cho bản cài của họ.
+                  </p>
+                </button>
+                {workspaceBlocked && (
+                  <div className="flex items-start gap-2 text-xs text-warning bg-[hsl(var(--warning-soft))] border border-warning/25 rounded-lg px-3 py-2.5 mt-2">
+                    <HugeiconsIcon icon={Alert01Icon} size={14} className="shrink-0 mt-0.5" />
+                    <p>
+                      {WORKSPACE_BLOCKED_BY_TRIGGER_REASON(triggerCount)}{" "}
+                      {onViewSection && (
+                        <button type="button" onClick={() => onViewSection("triggers")} className="font-semibold hover:underline">
+                          Xem trigger
+                        </button>
+                      )}
+                    </p>
+                  </div>
+                )}
+              </div>
+              <div>
+                <button
+                  onClick={() => !automationBlocked && setPlacement("automation")}
+                  disabled={automationBlocked}
+                  className={`w-full text-left rounded-xl border px-3.5 py-3 transition-base ${
+                    placement === "automation" ? "border-primary bg-primary-soft/40 ring-1 ring-primary" : "border-border"
+                  } ${automationBlocked ? "opacity-50 cursor-not-allowed" : "hover:bg-surface-muted"}`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <HugeiconsIcon icon={BoltIcon} size={14} className="text-foreground shrink-0" />
+                    <span className="text-sm font-semibold">Automation — Tự động hoá cho doanh nghiệp</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Agent tự chạy theo trigger bạn đặt ở Console, cho toàn doanh nghiệp. Không ai cài, không ai nhắn
+                    tin trực tiếp.
+                  </p>
+                </button>
+                {automationBlocked && (
+                  <div className="flex items-start gap-2 text-xs text-warning bg-[hsl(var(--warning-soft))] border border-warning/25 rounded-lg px-3 py-2.5 mt-2">
+                    <HugeiconsIcon icon={Alert01Icon} size={14} className="shrink-0 mt-0.5" />
+                    <p>
+                      {AUTOMATION_BLOCKED_BY_NO_TRIGGER_REASON}{" "}
+                      {onViewSection && (
+                        <button type="button" onClick={() => onViewSection("triggers")} className="font-semibold hover:underline">
+                          Thêm trigger
+                        </button>
+                      )}
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
-            {workspaceBlocked && (
-              <p className="text-xs text-muted-foreground mt-2">
-                {WORKSPACE_BLOCKED_BY_TRIGGER_REASON}{" "}
-                {onViewSection && (
-                  <button type="button" onClick={() => onViewSection("triggers")} className="text-primary font-medium hover:underline">
-                    Xem trigger
-                  </button>
-                )}
-              </p>
-            )}
-            {automationBlocked && (
-              <p className="text-xs text-muted-foreground mt-2">
-                {AUTOMATION_BLOCKED_BY_NO_TRIGGER_REASON}{" "}
-                {onViewSection && (
-                  <button type="button" onClick={() => onViewSection("triggers")} className="text-primary font-medium hover:underline">
-                    Xem trigger
-                  </button>
-                )}
-              </p>
-            )}
           </div>
 
           {/* Warning */}
@@ -3068,32 +3138,19 @@ function PublishModal({ agentId, onClose, onChatTest, onPublished, onViewSection
             />
           </div>
 
-          {/* Publish to channels — accordion, no checkbox */}
-          <div className="rounded-xl border border-border overflow-hidden">
-            <button
-              onClick={() => setDeployEnabled(v => !v)}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-surface-muted transition-base"
-            >
-              <div className="flex-1 text-left">
-                <p className="text-sm font-medium">Kênh bên ngoài (Web, Zalo, Slack, Facebook...)</p>
-                <p className="text-xs text-muted-foreground">
-                  {placement === "automation"
-                    ? "Kênh gửi kết quả — agent chủ động gửi kết quả hoặc thực hiện hành động tới khách hàng/nhân viên. Không ai nhắn tin vào agent."
-                    : "Kênh tiếp nhận tin nhắn — người dùng cuối nhắn tin đến agent qua các kênh này."}
-                </p>
-              </div>
-              {deployEnabled
-                ? <HugeiconsIcon icon={ChevronUpIcon} size={14} className="text-muted-foreground shrink-0" />
-                : <HugeiconsIcon icon={ChevronDownIcon} size={14} className="text-muted-foreground shrink-0" />}
-            </button>
-
-            {deployEnabled && (
-              <div className="border-t border-border px-4 py-4 bg-surface-muted/30">
-                <div className="grid grid-cols-2 gap-2">
-                  {EXTERNAL_CHANNELS.map(ch => <ChannelChip key={ch.id} ch={ch} />)}
-                </div>
-              </div>
-            )}
+          {/* External channels — available in both placements */}
+          <div>
+            <p className="text-sm font-medium mb-0.5">
+              {placement === "automation" ? "Kênh gửi ra" : "Kênh trò chuyện"}
+            </p>
+            <p className="text-xs text-muted-foreground mb-2">
+              {placement === "automation"
+                ? "Agent gửi kết quả hoặc thực hiện hành động ra các kênh này. Khách hàng không chủ động nhắn tin vào agent tự động."
+                : "Người dùng nhắn tin cho agent qua các kênh này."}
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {EXTERNAL_CHANNELS.map(ch => <ChannelChip key={ch.id} ch={ch} />)}
+            </div>
           </div>
         </div>
 
@@ -3102,7 +3159,9 @@ function PublishModal({ agentId, onClose, onChatTest, onPublished, onViewSection
           {!placement ? (
             <span className="text-xs text-destructive">Chọn nơi phát hành trước khi tiếp tục.</span>
           ) : (
-            <span className="text-xs text-muted-foreground">{deployEnabled ? `${selected.size} channel${selected.size !== 1 ? "s" : ""} selected` : "No channel deployment"}</span>
+            <span className="text-xs text-muted-foreground">
+              {selected.size > 0 ? `${selected.size} kênh đã chọn` : "Không chọn kênh nào"}
+            </span>
           )}
           <div className="flex items-center gap-2">
             <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Cancel</button>
@@ -3111,6 +3170,7 @@ function PublishModal({ agentId, onClose, onChatTest, onPublished, onViewSection
               className="h-9 px-5 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 transition-base disabled:opacity-40 disabled:cursor-not-allowed"
               onClick={() => {
                 if (!placement) return;
+                if (needsUninstallGuard) { setShowUninstallGuard(true); return; }
                 agentPublishStore.publish(agentId, placement, [...selected]);
                 onPublished?.();
                 onClose();
@@ -3121,6 +3181,48 @@ function PublishModal({ agentId, onClose, onChatTest, onPublished, onViewSection
           </div>
         </div>
       </div>
+
+      {showUninstallGuard && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowUninstallGuard(false)} />
+          <div className="relative z-10 w-full max-w-md bg-white rounded-2xl border border-border shadow-lg p-6 animate-fade-up">
+            <h3 className="font-display text-lg font-semibold mb-2">Cần gỡ agent khỏi Workspace trước</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+              Phiên bản này có {triggerCount} trigger nên chỉ chạy được ở chế độ Automation cho toàn doanh nghiệp.
+              Agent đang được {installCount} người cài về Workspace. Gỡ agent khỏi Workspace trước khi phát hành —
+              {" "}{installCount} bản cài đó sẽ bị xoá, kèm mọi trigger cá nhân những người đó đã tự đặt.
+            </p>
+            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+              Nhập "{AGENT_NAME}" để xác nhận
+            </label>
+            <input
+              value={confirmName}
+              onChange={e => setConfirmName(e.target.value)}
+              className="w-full h-9 px-3 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base mb-4"
+              placeholder={AGENT_NAME}
+            />
+            <div className="flex items-center justify-end gap-2">
+              <button onClick={() => setShowUninstallGuard(false)} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">
+                Huỷ
+              </button>
+              <button
+                disabled={confirmName.trim() !== AGENT_NAME}
+                onClick={() => {
+                  if (!placement) return;
+                  agentPublishStore.unpublish(agentId);
+                  agentPublishStore.publish(agentId, placement, [...selected]);
+                  onPublished?.();
+                  setShowUninstallGuard(false);
+                  onClose();
+                }}
+                className="h-9 px-4 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 text-sm font-medium transition-base disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Gỡ khỏi Workspace và phát hành
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>,
     document.body
   );
@@ -3639,7 +3741,7 @@ function ConnectorsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
                 <div>
                   <p className="text-sm font-medium">{item.label}</p>
                   <p className="text-xs text-muted-foreground">
-                    {item.disabled ? CONNECTOR_BLOCKED_BY_TRIGGER_REASON : item.sub}
+                    {item.disabled ? CONNECTOR_BLOCKED_BY_TRIGGER_REASON(triggerStore.list(agentId).length) : item.sub}
                   </p>
                 </div>
               </button>
@@ -4638,7 +4740,11 @@ function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegister
   const [editTarget, setEditTarget] = useState<TriggerRecord | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
 
-  const personalConnectorBlocked = agentConnectorStore.hasPersonalConnector(agentId);
+  const personalConnectorRecord = agentConnectorStore.list(agentId).find(c => c.scope === "personal");
+  const personalConnectorBlocked = !!personalConnectorRecord;
+  const personalConnectorName = personalConnectorRecord
+    ? (CONNECTOR_CATALOG.find(c => c.id === personalConnectorRecord.connectorId)?.name ?? personalConnectorRecord.connectorId)
+    : "";
 
   const openCreate = () => {
     if (personalConnectorBlocked) return;
@@ -4686,7 +4792,7 @@ function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegister
           addLabel="Thêm Trigger"
           onAdd={openCreate}
           disabled={personalConnectorBlocked}
-          disabledReason={personalConnectorBlocked ? TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON : undefined}
+          disabledReason={personalConnectorBlocked ? TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON(personalConnectorName) : undefined}
         />
       ) : (
         <div className="flex flex-col gap-2">

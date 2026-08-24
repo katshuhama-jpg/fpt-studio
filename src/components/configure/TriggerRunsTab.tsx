@@ -7,10 +7,14 @@ import { triggerStore, type TriggerType } from "./triggerStore";
 import { connectedAccountStore } from "./connectedAccountStore";
 import { EXTERNAL_APP_META } from "./triggerStore";
 import { runsStore, type TriggerRun, type RunStatus, ORG_TIMEZONE } from "./runsStore";
+import { agentPublishStore } from "./agentPublishStore";
 import AppLogo from "./AppLogo";
 import { toast } from "sonner";
 
 const SEARCH_MAX = 200;
+const CHANNEL_NAME: Record<string, string> = {
+  web: "Web widget", zalo: "Zalo", slack: "Slack", fb: "Facebook",
+};
 
 const TRIGGER_TYPE_LABEL: Record<TriggerType, string> = {
   scheduled: "Theo lịch",
@@ -131,6 +135,10 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
   const sharedAccount = sharedAccountId ? connectedAccountStore.get(sharedAccountId) : undefined;
   const sharedConnectionLabel = sharedAccount ? `${EXTERNAL_APP_META[sharedAccount.app].label} — ${sharedAccount.email}` : "Không có";
   const automationId = mockAutomationId(agentId);
+  const outboundChannels = agentPublishStore.get(agentId).channels;
+  const outboundChannelsLabel = outboundChannels.length > 0
+    ? outboundChannels.map(id => CHANNEL_NAME[id] ?? id).join(" · ")
+    : "Không có";
 
   const runs = allRuns.filter(r => {
     if (triggerFilter !== "all" && r.triggerId !== triggerFilter) return false;
@@ -304,6 +312,7 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
                     <ScopeRow label="Automation ID" value={automationId} mono copyable />
                     <ScopeRow label="Múi giờ" value={ORG_TIMEZONE} />
                     <ScopeRow label="Kết nối dùng" value={sharedConnectionLabel} />
+                    <ScopeRow label="Gửi kết quả tới" value={outboundChannelsLabel} />
                   </div>
                 </div>
 
@@ -317,7 +326,7 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
                     <h4 className="text-xs font-semibold text-foreground mb-1">Cấu hình trigger</h4>
                     <pre className="text-[11px] font-mono bg-surface-muted rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-all">{detailRun.configSnapshot}</pre>
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                      Đây là cấu hình của Automation Agent, dùng chung cho cả tổ chức.
+                      Đây là cấu hình của agent tự động, dùng chung cho cả doanh nghiệp.
                     </p>
                   </div>
                 )}

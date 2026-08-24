@@ -29,11 +29,20 @@ export const agentPublishStore = {
   },
 };
 
-export const WORKSPACE_BLOCKED_BY_TRIGGER_REASON =
-  "Agent có trigger nên chỉ chạy dạng Automation — không thể phát hành lên Workspace.";
+/** Deterministic mock install count for a Workspace-published agent — this prototype has
+ * no real install data, so derive a stable, non-zero small number from the agentId, the
+ * same way other mock counts are derived elsewhere in this app. */
+export function mockInstallCount(agentId: string): number {
+  let h = 0;
+  for (const c of agentId) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return (h % 8) + 1;
+}
+
+export const WORKSPACE_BLOCKED_BY_TRIGGER_REASON = (n: number) =>
+  `Agent này đã có ${n} trigger do bạn đặt ở Console, nên chạy cho toàn doanh nghiệp ở chế độ Automation. Muốn người dùng cài về Workspace và tự đặt trigger riêng, hãy xoá trigger ở Console.`;
 export const AUTOMATION_BLOCKED_BY_NO_TRIGGER_REASON =
-  "Chưa có trigger nào — thêm trigger để phát hành dạng Automation.";
-export const TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON =
-  "Agent đang dùng kết nối riêng của từng người dùng — trigger chạy nền không có người dùng nào để mượn kết nối đó.";
-export const CONNECTOR_BLOCKED_BY_TRIGGER_REASON =
-  "Agent đã có trigger nên chạy nền không có người dùng trực — không thể dùng kết nối riêng của từng người dùng.";
+  "Thêm ít nhất một trigger để dùng chế độ này.";
+export const TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON = (connectorName: string) =>
+  `Agent đang dùng kết nối riêng của từng người dùng (${connectorName}). Trigger chạy nền khi không có ai đăng nhập, nên không mượn được tài khoản cá nhân của người dùng.`;
+export const CONNECTOR_BLOCKED_BY_TRIGGER_REASON = (n: number) =>
+  `Agent đang có ${n} trigger chạy nền, nên đang ở chế độ Tự động hoá cho doanh nghiệp. Lúc trigger chạy không có người dùng nào đăng nhập để mượn tài khoản.`;

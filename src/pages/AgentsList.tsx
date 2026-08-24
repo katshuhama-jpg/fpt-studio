@@ -38,12 +38,16 @@ const agents = [
 ];
 
 const tabs = ["All agents", "Published", "Draft", "Shared with me"] as const;
-const kindFilters = ["Tất cả loại", "Agent trò chuyện", "Automation"] as const;
+const kindFilters = ["Tất cả", "Agents", "Automation Agents"] as const;
 
 const TRIGGER_TYPE_LABEL: Record<TriggerType, string> = {
   scheduled: "Theo lịch",
   developer: "Webhook",
   external: "Ứng dụng bên ngoài",
+};
+
+const CHANNEL_NAME: Record<string, string> = {
+  web: "Web widget", zalo: "Zalo", slack: "Slack", fb: "Facebook",
 };
 
 function relativeTime(ts: number): string {
@@ -301,8 +305,8 @@ function ConversationalCard({ a }: { a: typeof agents[number] }) {
 function AutomationCard({ a }: { a: typeof agents[number] }) {
   const published = agentPublishStore.isPublished(a.id);
   const channels = agentPublishStore.get(a.id).channels;
-  const badgeLabel = published ? "ĐANG CHẠY" : "DRAFT";
-  const badgeClass = published ? "bg-success/10 text-success" : "bg-surface-muted text-muted-foreground";
+  const badgeLabel = published ? "PUBLISHED" : "DRAFT";
+  const badgeClass = published ? "bg-primary-soft text-primary" : "bg-surface-muted text-muted-foreground";
   const triggers = triggerStore.list(a.id);
   const lastFired = triggers.reduce<number | null>((max, t) => t.lastFiredAt != null && (max == null || t.lastFiredAt > max) ? t.lastFiredAt : max, null);
   const types = Array.from(new Set(triggers.map(t => t.type)));
@@ -355,19 +359,19 @@ function AutomationCard({ a }: { a: typeof agents[number] }) {
             <>
               <span>·</span>
               {types.map(t => (
-                <span key={t} className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700">{TRIGGER_TYPE_LABEL[t]}</span>
+                <span key={t} className="px-1.5 py-0.5 rounded border border-indigo-300 text-indigo-700 bg-white">{TRIGGER_TYPE_LABEL[t]}</span>
               ))}
             </>
           )}
-          {channels.length > 0 && (
-            <>
-              <span>·</span>
-              <span title="Kênh gửi kết quả (outbound)" className="px-1.5 py-0.5 rounded bg-surface-muted">
-                {channels.length} kênh gửi kết quả
-              </span>
-            </>
-          )}
         </div>
+        {channels.length > 0 && (
+          <div className="flex items-center gap-1.5 mt-1.5 text-xs text-muted-foreground flex-wrap">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">Gửi ra:</span>
+            {channels.map(id => (
+              <span key={id} className="px-1.5 py-0.5 rounded bg-surface-muted">{CHANNEL_NAME[id] ?? id}</span>
+            ))}
+          </div>
+        )}
       </div>
     </Link>
   );
@@ -380,7 +384,7 @@ export default function AgentsList() {
   const { can } = useMyPermissions();
   const canCreateAgent = can("agents.create");
   const [activeTab, setActiveTab] = useState<typeof tabs[number]>("All agents");
-  const [kindFilter, setKindFilter] = useState<typeof kindFilters[number]>("Tất cả loại");
+  const [kindFilter, setKindFilter] = useState<typeof kindFilters[number]>("Tất cả");
   const [search, setSearch] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
   const [prompt, setPrompt] = useState("");
@@ -407,9 +411,9 @@ export default function AgentsList() {
   const conversationalAgents = searched.filter(a => getAgentKind(a.id) === "conversational");
   const automationAgents = searched.filter(a => getAgentKind(a.id) === "automation");
 
-  const showConversational = kindFilter !== "Automation" && conversationalAgents.length > 0;
-  const showAutomation = kindFilter !== "Agent trò chuyện" && automationAgents.length > 0;
-  const singleKindView = kindFilter !== "Tất cả loại";
+  const showConversational = kindFilter !== "Automation Agents" && conversationalAgents.length > 0;
+  const showAutomation = kindFilter !== "Agents" && automationAgents.length > 0;
+  const singleKindView = kindFilter !== "Tất cả";
 
   const handleBuild = () => {
     if (!prompt.trim() || !canCreateAgent) return;
@@ -559,7 +563,7 @@ export default function AgentsList() {
         <div className="mb-8">
           {!singleKindView && (
             <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-              Agent trò chuyện
+              Agents
               <span className="text-xs font-normal text-muted-foreground">{conversationalAgents.length}</span>
             </h2>
           )}
