@@ -169,7 +169,7 @@ export default function ConnectionsTab({ agentId, onViewTriggers, onChange }: {
   }, [query]);
 
   return (
-    <div className="p-8 w-full animate-fade-up max-w-4xl">
+    <div className="p-8 w-full max-w-[1200px] mx-auto animate-fade-up">
       <div className="mb-6">
         <h2 className="font-display text-xl font-semibold">Connections</h2>
         <p className="text-sm text-muted-foreground mt-0.5">Connect services so this agent can access and act on your data.</p>
@@ -185,7 +185,7 @@ export default function ConnectionsTab({ agentId, onViewTriggers, onChange }: {
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {filtered.map(meta => {
           const attached = connections.find(c => c.connectorId === meta.id);
           return (
