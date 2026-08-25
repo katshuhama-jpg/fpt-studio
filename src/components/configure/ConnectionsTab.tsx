@@ -298,8 +298,9 @@ export default function ConnectionsTab({ agentId, onViewTriggers, onChange, high
                 <p>"{deletingMeta?.name}" will be removed from this agent.</p>
                 {affectedTriggers.length > 0 && (
                   <p className="text-warning">
-                    {affectedTriggers.length} trigger{affectedTriggers.length === 1 ? "" : "s"} use this
-                    connection and will stop working: {affectedTriggers.map(t => t.name).join(", ")}.
+                    {affectedTriggers.length} trigger{affectedTriggers.length === 1 ? "" : "s"}{" "}
+                    {affectedTriggers.length === 1 ? "uses" : "use"} this connection and will stop
+                    working: {affectedTriggers.map(t => t.name).join(", ")}.
                   </p>
                 )}
               </div>

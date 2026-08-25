@@ -84,18 +84,18 @@ const DEFAULT_TYPE_FILTER = "all" as const;
 const DEFAULT_STATUS_FILTER = "all";
 const DEFAULT_DATE_RANGE = "7";
 
-function copyValue(value: string) {
+function copyValue(value: string, message: string) {
   navigator.clipboard?.writeText(value).catch(() => {});
-  toast.success("Copied.");
+  toast.success(message);
 }
 
-function CopyButton({ value }: { value: string }) {
+function CopyButton({ value, toastMessage = "Copied." }: { value: string; toastMessage?: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <button
       type="button"
-      onClick={() => { copyValue(value); setCopied(true); setTimeout(() => setCopied(false), 1200); }}
-      className="opacity-0 group-hover:opacity-100 shrink-0 text-muted-foreground hover:text-foreground transition-base"
+      onClick={() => { copyValue(value, toastMessage); setCopied(true); setTimeout(() => setCopied(false), 1200); }}
+      className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 shrink-0 text-muted-foreground hover:text-foreground transition-base outline-none rounded focus-visible:ring-2 focus-visible:ring-ring"
       aria-label="Copy"
     >
       {copied ? <Check size={12} className="text-success" /> : <Copy size={12} />}
@@ -103,13 +103,18 @@ function CopyButton({ value }: { value: string }) {
   );
 }
 
-function ScopeRow({ label, value, mono, copyable }: { label: string; value: string; mono?: boolean; copyable?: boolean }) {
+function ScopeRow({ label, value, mono, copyable, copyToastMessage, badge }: {
+  label: string; value: string; mono?: boolean; copyable?: boolean; copyToastMessage?: string; badge?: string;
+}) {
   return (
     <div className="group flex items-center justify-between gap-2 py-1">
       <span className="text-xs text-muted-foreground shrink-0">{label}</span>
       <span className="flex items-center gap-1.5 min-w-0">
         <span className={`text-xs text-foreground truncate ${mono ? "font-mono" : ""}`} title={value}>{value}</span>
-        {copyable && <CopyButton value={value} />}
+        {badge && (
+          <span className="text-[9px] font-semibold px-1 py-0.5 rounded-full bg-surface-muted text-muted-foreground shrink-0 whitespace-nowrap">{badge}</span>
+        )}
+        {copyable && <CopyButton value={value} toastMessage={copyToastMessage} />}
       </span>
     </div>
   );
@@ -137,7 +142,7 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
   const sharedAccountId = triggers.find(t => t.type === "external" && t.config.external?.accountId)?.config.external?.accountId;
   const sharedAccount = sharedAccountId ? connectedAccountStore.get(sharedAccountId) : undefined;
   const sharedConnectionLabel = sharedAccount
-    ? `${EXTERNAL_APP_META[sharedAccount.app].label} — ${sharedAccount.email} (organization account)`
+    ? `${EXTERNAL_APP_META[sharedAccount.app].label} — ${sharedAccount.email}`
     : "None";
   const automationId = mockAutomationId(agentId);
   const isDraft = !agentPublishStore.isPublished(agentId);
@@ -341,9 +346,9 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
                   <div className="divide-y divide-border/60">
                     <ScopeRow label="Organization" value="FPT Smart Cloud" />
                     <ScopeRow label="Automation ID" value={automationId} mono copyable />
-                    <ScopeRow label="Run ID" value={detailRun.id} mono copyable />
+                    <ScopeRow label="Run ID" value={detailRun.id} mono copyable copyToastMessage="Run ID copied." />
                     <ScopeRow label="Timezone" value={ORG_TIMEZONE} />
-                    <ScopeRow label="Connection used" value={sharedConnectionLabel} />
+                    <ScopeRow label="Connection used" value={sharedConnectionLabel} badge={sharedAccount ? "Org account" : undefined} />
                     <ScopeRow label="Sends results to" value={outboundChannelsLabel} />
                   </div>
                 </div>

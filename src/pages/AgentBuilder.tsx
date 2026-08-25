@@ -800,6 +800,7 @@ function HowThisAgentRuns({ agentId, onViewSection }: { agentId: string; onViewS
   const triggers = triggerStore.list(agentId);
   const connections = agentConnectorStore.list(agentId);
   const channels = agentPublishStore.get(agentId).channels;
+  const isPublished = agentPublishStore.isPublished(agentId);
   const kind = triggers.length > 0 ? "automation" : "conversational";
   const personalConn = connections.find(c => c.scope === "personal");
   const sharedConn = connections.find(c => c.scope === "shared");
@@ -817,7 +818,11 @@ function HowThisAgentRuns({ agentId, onViewSection }: { agentId: string; onViewS
         />
         <p className="text-[11px] text-muted-foreground leading-relaxed">
           {kind === "automation" ? (
-            <><span className="font-medium text-foreground">Automation</span> — the agent runs on its own based on the {triggers.length} trigger{triggers.length === 1 ? "" : "s"} you've set up here, for the whole organization. Nobody installs it to Workspace, nobody chats with it directly.</>
+            isPublished ? (
+              <><span className="font-medium text-foreground">Automation</span> — the agent runs on its own based on the {triggers.length} trigger{triggers.length === 1 ? "" : "s"} you've set up here, for the whole organization. Nobody installs it to Workspace, nobody chats with it directly.</>
+            ) : (
+              <><span className="font-medium text-foreground">Automation</span> — once you publish, the agent will run on its own from the {triggers.length} trigger{triggers.length === 1 ? "" : "s"} you've set up here, for the whole organization. Nobody installs it to Workspace and nobody chats with it directly.</>
+            )
           ) : (
             <><span className="font-medium text-foreground">Conversational agent</span> — people across the organization install this agent to Workspace and use it. Each person sets up their own triggers on their install.</>
           )}
@@ -3030,7 +3035,7 @@ function AudienceRadioRow({ icon, title, description, selected, liveNow, onClick
 function PublishChannelRow({ ch, checked, onToggle }: { ch: ChannelCatalogEntry; checked: boolean; onToggle: () => void }) {
   const disabled = ch.available === false;
   return (
-    <label className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg border transition-base ${
+    <label className={`flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2.5 rounded-lg border transition-base ${
       disabled ? "border-border bg-surface-muted/40 cursor-not-allowed" : "border-border bg-surface hover:bg-surface-muted cursor-pointer"
     }`}>
       <input
@@ -3041,9 +3046,11 @@ function PublishChannelRow({ ch, checked, onToggle }: { ch: ChannelCatalogEntry;
         className="w-4 h-4 rounded accent-primary shrink-0 disabled:cursor-not-allowed"
       />
       <span className="w-5 h-5 flex items-center justify-center shrink-0"><ChannelIcon ch={ch} size={16} /></span>
-      <span className={`text-sm font-medium flex-1 truncate ${disabled ? "text-muted-foreground" : "text-foreground"}`}>{ch.name}</span>
+      {/* No truncate/flex-1 here — the name must never clip. If the "Coming soon" badge doesn't
+          fit on this line, flex-wrap drops it to a second line instead. */}
+      <span className={`text-sm font-medium whitespace-nowrap ${disabled ? "text-muted-foreground" : "text-foreground"}`}>{ch.name}</span>
       {disabled && (
-        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-surface-muted text-muted-foreground shrink-0 whitespace-nowrap">Coming soon</span>
+        <span className="text-[9px] font-semibold px-1 py-0.5 rounded-full bg-surface-muted text-muted-foreground shrink-0 whitespace-nowrap ml-auto">Coming soon</span>
       )}
     </label>
   );
@@ -3227,7 +3234,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
               ))}
             </div>
             <p className="text-xs text-muted-foreground">
-              {versionType === "patch" && "Small fixes and patches. Nothing the agent can do changes."}
+              {versionType === "patch" && "Small fixes and patches. What the agent can do stays the same."}
               {versionType === "minor" && "New capabilities, still compatible with the previous version."}
               {versionType === "major" && "Big changes that may not be compatible with the previous version."}
             </p>
@@ -3369,7 +3376,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
 
         {/* Footer */}
         <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-border shrink-0">
-          <span className="text-xs text-destructive">{footerHelper}</span>
+          <span className="text-xs text-muted-foreground">{footerHelper}</span>
           <div className="flex items-center gap-2">
             <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Cancel</button>
             <button
