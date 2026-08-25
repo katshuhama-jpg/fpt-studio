@@ -215,7 +215,6 @@ export default function AgentBuilder() {
           agentName={agent.name}
           onClose={() => setShowPublish(false)}
           onPublished={() => setPublishTick(t => t + 1)}
-          onViewSection={(s) => { setShowPublish(false); setSection(s); }}
           onManageChannels={() => { setShowPublish(false); setTab("deploy"); }}
         />
       )}
@@ -3053,9 +3052,9 @@ function PublishChannelRow({ ch, checked, onToggle }: { ch: ChannelCatalogEntry;
   );
 }
 
-function PublishModal({ agentId, agentName, onClose, onPublished, onViewSection, onManageChannels }: {
+function PublishModal({ agentId, agentName, onClose, onPublished, onManageChannels }: {
   agentId: string; agentName: string; onClose: () => void; onPublished?: () => void;
-  onViewSection?: (section: string) => void; onManageChannels?: () => void;
+  onManageChannels?: () => void;
 }) {
   const triggerCount = triggerStore.list(agentId).length;
   const isAutomation = triggerCount > 0;
@@ -3080,7 +3079,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onViewSection,
   const noteRef = useRef<HTMLTextAreaElement>(null);
   const orgUnitRef = useRef<HTMLDivElement>(null);
 
-  const [publishToWorkspace, setPublishToWorkspace] = useState(!isAutomation);
+  const [publishToWorkspace, setPublishToWorkspace] = useState(true);
   const [audience, setAudience] = useState<"all" | "org-unit" | "just-me">("all");
   const [orgUnitSelection, setOrgUnitSelection] = useState<Set<string>>(new Set());
 
@@ -3107,7 +3106,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onViewSection,
   const noteEmpty = note.trim().length === 0;
   const showNoteError = (noteTouched || attemptedSubmit) && noteEmpty;
   const orgUnitInvalid = !isAutomation && publishToWorkspace && audience === "org-unit" && orgUnitSelection.size === 0;
-  const hasPublishTarget = isAutomation ? true : (publishToWorkspace || selectedChannels.size > 0);
+  const hasPublishTarget = publishToWorkspace || selectedChannels.size > 0;
   const canPublish = !noteEmpty && !orgUnitInvalid && hasPublishTarget;
   const footerHelper = noteEmpty
     ? "Nhập ghi chú phát hành để xuất bản"
@@ -3117,13 +3116,15 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onViewSection,
         ? "Chọn nơi phát hành agent"
         : null;
 
-  const currentAudienceChip = audience === "all"
-    ? "Tất cả người dùng trong Workspace"
-    : audience === "just-me"
-      ? "Chỉ mình tôi"
-      : orgUnitSelection.size > 0
-        ? `${orgUnitSelection.size} đơn vị/nhân viên đã chọn`
-        : "Công ty / phòng ban";
+  const currentAudienceChip = isAutomation
+    ? "Automation"
+    : audience === "all"
+      ? "Tất cả người dùng trong Workspace"
+      : audience === "just-me"
+        ? "Chỉ mình tôi"
+        : orgUnitSelection.size > 0
+          ? `${orgUnitSelection.size} đơn vị/nhân viên đã chọn`
+          : "Công ty / phòng ban";
 
   const doPublish = () => {
     if (!canPublish) {
@@ -3259,51 +3260,36 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onViewSection,
             </div>
           </div>
 
-          {/* Chế độ chạy — automation only */}
-          {isAutomation && (
-            <div className="rounded-xl border border-border p-4">
-              <p className="text-xs font-semibold text-muted-foreground mb-2">Chế độ chạy</p>
-              <div className="w-full flex items-start gap-3 text-left rounded-xl border border-primary bg-primary-soft/50 ring-1 ring-primary px-4 py-3.5">
-                <span className="mt-[3px] w-4 h-4 rounded-full border-2 border-primary flex items-center justify-center shrink-0">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                </span>
-                <span className="w-8 h-8 rounded-lg bg-white text-primary flex items-center justify-center shrink-0">
-                  <HugeiconsIcon icon={BoltIcon} size={16} />
-                </span>
-                <span className="flex-1 min-w-0 pt-px">
-                  <span className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-semibold text-foreground">Automation</span>
-                    <LiveDotChip label="Đang bật" />
-                  </span>
-                  <span className="block text-xs text-muted-foreground leading-relaxed mt-0.5">
-                    Agent tự chạy theo {triggerCount} trigger đã đặt trong Console, cho cả tổ chức. Không ai cài agent
-                    này về Workspace và không ai chat trực tiếp với nó.
-                  </span>
-                </span>
-              </div>
-            </div>
-          )}
-
           {/* Phát hành tới */}
-          <div className={`rounded-xl border border-border p-4 ${isAutomation ? "opacity-60" : ""}`}>
-            <label className={`flex items-center gap-2.5 ${isAutomation ? "cursor-not-allowed" : "cursor-pointer"}`}>
+          <div className="rounded-xl border border-border p-4">
+            <label className="flex items-center gap-2.5 cursor-pointer">
               <input
                 type="checkbox"
-                checked={isAutomation ? false : publishToWorkspace}
-                disabled={isAutomation}
+                checked={publishToWorkspace}
                 onChange={e => setPublishToWorkspace(e.target.checked)}
-                className="w-4 h-4 rounded accent-primary disabled:cursor-not-allowed"
+                className="w-4 h-4 rounded accent-primary"
               />
               <span className="text-sm font-semibold">Phát hành tới</span>
-              {!isAutomation && publishToWorkspace && <LiveDotChip label={currentAudienceChip} />}
+              {publishToWorkspace && <LiveDotChip label={currentAudienceChip} />}
             </label>
 
-            {!isAutomation && (
-              <div className="mt-3.5 space-y-4">
-                {/* Unchecking "Phát hành tới" only retracts the Workspace audience choice — the
-                    Kênh ngoài grid below stays interactive, per the footer's own validation rule
-                    that channels alone can still satisfy "somewhere to publish to". */}
-                {publishToWorkspace && (
+            <div className="mt-3.5 space-y-4">
+              {/* Unchecking "Phát hành tới" only retracts the destination sub-section
+                  (Automation, or Agent Workspace) — Kênh ngoài below stays interactive
+                  regardless, since channels alone can still satisfy "somewhere to publish to". */}
+              {publishToWorkspace && (
+                isAutomation ? (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground mb-2">Automation</p>
+                    <AudienceRadioRow
+                      icon={BoltIcon}
+                      title="Automation"
+                      description={`Agent tự chạy theo ${triggerCount} trigger đã đặt trong Console, cho cả tổ chức. Không ai cài agent này về Workspace và không ai chat trực tiếp với nó.`}
+                      selected
+                      onClick={() => {}}
+                    />
+                  </div>
+                ) : (
                   <div>
                     <p className="text-xs font-semibold text-muted-foreground mb-2">Agent Workspace</p>
                     <div className="space-y-2">
@@ -3352,56 +3338,25 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onViewSection,
                       />
                     </div>
                   </div>
-                )}
+                )
+              )}
 
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground mb-2">Kênh ngoài</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {PUBLISH_CHANNEL_IDS.map(id => {
-                      const ch = CHANNEL_CATALOG.find(c => c.id === id);
-                      return ch && <PublishChannelRow key={id} ch={ch} checked={selectedChannels.has(id)} onToggle={() => toggleChannel(id)} />;
-                    })}
-                  </div>
-                  <div className="text-right mt-2">
-                    <button type="button" onClick={onManageChannels} className="text-xs font-semibold text-primary hover:underline">
-                      Quản lý ›
-                    </button>
-                  </div>
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground mb-2">Kênh ngoài</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {PUBLISH_CHANNEL_IDS.map(id => {
+                    const ch = CHANNEL_CATALOG.find(c => c.id === id);
+                    return ch && <PublishChannelRow key={id} ch={ch} checked={selectedChannels.has(id)} onToggle={() => toggleChannel(id)} />;
+                  })}
+                </div>
+                <div className="text-right mt-2">
+                  <button type="button" onClick={onManageChannels} className="text-xs font-semibold text-primary hover:underline">
+                    Quản lý ›
+                  </button>
                 </div>
               </div>
-            )}
+            </div>
           </div>
-
-          {isAutomation && (
-            <div className="flex items-start gap-2 text-xs text-warning bg-[hsl(var(--warning-soft))] border border-warning/25 rounded-lg px-3 py-2.5">
-              <HugeiconsIcon icon={Alert01Icon} size={14} className="shrink-0 mt-0.5" />
-              <p>
-                Agent đang có {triggerCount} trigger nên chạy ở chế độ Automation. Bỏ hết trigger trong Console nếu
-                muốn phát hành agent này lên Workspace.{" "}
-                {onViewSection && (
-                  <button type="button" onClick={() => onViewSection("triggers")} className="font-semibold hover:underline">
-                    Xem trigger
-                  </button>
-                )}
-              </p>
-            </div>
-          )}
-
-          {/* Kênh nhận kết quả — automation only, replaces "Kênh ngoài" as a top-level section */}
-          {isAutomation && (
-            <div>
-              <p className="text-sm font-medium mb-0.5">Kênh nhận kết quả</p>
-              <p className="text-xs text-muted-foreground mb-2">
-                Agent gửi kết quả ra các kênh này. Người dùng không nhắn tin vào agent tự động.
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                {PUBLISH_CHANNEL_IDS.map(id => {
-                  const ch = CHANNEL_CATALOG.find(c => c.id === id);
-                  return ch && <PublishChannelRow key={id} ch={ch} checked={selectedChannels.has(id)} onToggle={() => toggleChannel(id)} />;
-                })}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Footer */}
