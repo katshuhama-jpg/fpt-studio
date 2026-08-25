@@ -11,7 +11,7 @@ export interface ConnectedAccount {
 
 const now = Date.now();
 const store: ConnectedAccount[] = [
-  { id: "acct-gmail-1", app: "gmail", email: "katshuhama@gmail.com", connectedAt: now - 86_400_000 * 30 },
+  { id: "acct-gmail-1", app: "gmail", email: "automation@fpt.com.vn", connectedAt: now - 86_400_000 * 30 },
   { id: "acct-gdrive-1", app: "gdrive", email: "tudq1989@gmail.com", connectedAt: now - 86_400_000 * 20 },
   { id: "acct-teams-1", app: "teams", email: "workspace@fptsmartcloud.com", connectedAt: now - 86_400_000 * 60, expired: true },
 ];

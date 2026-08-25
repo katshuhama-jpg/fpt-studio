@@ -3,6 +3,9 @@ import { Clock, Webhook, RefreshCw, Search, X, Copy, Check } from "lucide-react"
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from "@/components/ui/sheet";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { triggerStore, type TriggerType } from "./triggerStore";
 import { connectedAccountStore } from "./connectedAccountStore";
 import { EXTERNAL_APP_META } from "./triggerStore";
@@ -133,8 +136,11 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
 
   const sharedAccountId = triggers.find(t => t.type === "external" && t.config.external?.accountId)?.config.external?.accountId;
   const sharedAccount = sharedAccountId ? connectedAccountStore.get(sharedAccountId) : undefined;
-  const sharedConnectionLabel = sharedAccount ? `${EXTERNAL_APP_META[sharedAccount.app].label} — ${sharedAccount.email}` : "None";
+  const sharedConnectionLabel = sharedAccount
+    ? `${EXTERNAL_APP_META[sharedAccount.app].label} — ${sharedAccount.email} (organization account)`
+    : "None";
   const automationId = mockAutomationId(agentId);
+  const isDraft = !agentPublishStore.isPublished(agentId);
   const outboundChannels = agentPublishStore.get(agentId).channels;
   const outboundChannelsLabel = outboundChannels.length > 0
     ? outboundChannels.map(id => CHANNEL_NAME[id] ?? id).join(" · ")
@@ -162,13 +168,14 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
   const retry = (run: TriggerRun) => {
     const clone = runsStore.retry(run.id);
     if (!clone) return;
-    toast.success("Retrying the trigger…");
+    const toastId = toast.loading("Running again…");
     refresh();
     setDetailRun(clone);
     setTimeout(() => {
       runsStore.complete(clone.id, "completed", { outputSummary: "Retry succeeded." });
       refresh();
       setDetailRun(cur => (cur?.id === clone.id ? runsStore.get(clone.id) ?? null : cur));
+      toast.success("Run finished.", { id: toastId });
     }, 1800);
   };
 
@@ -203,21 +210,33 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
             </button>
           )}
         </div>
-        <select value={triggerFilter} onChange={e => setTriggerFilter(e.target.value)} className="ds-input h-9 w-auto">
-          <option value="all">All triggers</option>
-          {triggers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-        </select>
-        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value as "all" | TriggerType)} className="ds-input h-9 w-auto">
-          <option value="all">All types</option>
-          {(Object.keys(TRIGGER_TYPE_LABEL) as TriggerType[]).map(t => <option key={t} value={t}>{TRIGGER_TYPE_LABEL[t]}</option>)}
-        </select>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="ds-input h-9 w-auto">
-          <option value="all">All statuses</option>
-          {(Object.keys(STATUS_META) as RunStatus[]).map(s => <option key={s} value={s}>{STATUS_META[s].label}</option>)}
-        </select>
-        <select value={dateRange} onChange={e => setDateRange(e.target.value)} className="ds-input h-9 w-auto">
-          {DATE_RANGE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
+        <Select value={triggerFilter} onValueChange={setTriggerFilter}>
+          <SelectTrigger className="h-9 w-auto min-w-[140px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All triggers</SelectItem>
+            {triggers.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={typeFilter} onValueChange={v => setTypeFilter(v as "all" | TriggerType)}>
+          <SelectTrigger className="h-9 w-auto min-w-[130px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All types</SelectItem>
+            {(Object.keys(TRIGGER_TYPE_LABEL) as TriggerType[]).map(t => <SelectItem key={t} value={t}>{TRIGGER_TYPE_LABEL[t]}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="h-9 w-auto min-w-[130px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            {(Object.keys(STATUS_META) as RunStatus[]).map(s => <SelectItem key={s} value={s}>{STATUS_META[s].label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={dateRange} onValueChange={setDateRange}>
+          <SelectTrigger className="h-9 w-auto min-w-[130px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {DATE_RANGE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
 
       {!hasNoHistoryAtAll && (
@@ -229,8 +248,15 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
       {hasNoHistoryAtAll ? (
         <div className="rounded-2xl border border-dashed border-border bg-gradient-soft p-12 text-center">
           <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            No runs yet — this agent will appear here the first time a trigger fires.
+            {isDraft
+              ? "No runs yet."
+              : "No runs yet — this agent will appear here the first time a trigger fires."}
           </p>
+          {isDraft && (
+            <p className="text-sm text-muted-foreground max-w-md mx-auto mt-1">
+              Triggers start after you publish this agent.
+            </p>
+          )}
         </div>
       ) : hasNoFilteredResults ? (
         <div className="rounded-2xl border border-dashed border-border bg-gradient-soft p-12 text-center">
@@ -279,9 +305,9 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
                     <button
                       type="button"
                       onClick={() => setDetailRun(r)}
-                      className="text-xs font-semibold text-primary hover:underline"
+                      className="text-xs font-semibold text-primary hover:underline whitespace-nowrap"
                     >
-                      View details
+                      Details
                     </button>
                   </td>
                 </tr>
@@ -315,6 +341,7 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
                   <div className="divide-y divide-border/60">
                     <ScopeRow label="Organization" value="FPT Smart Cloud" />
                     <ScopeRow label="Automation ID" value={automationId} mono copyable />
+                    <ScopeRow label="Run ID" value={detailRun.id} mono copyable />
                     <ScopeRow label="Timezone" value={ORG_TIMEZONE} />
                     <ScopeRow label="Connection used" value={sharedConnectionLabel} />
                     <ScopeRow label="Sends results to" value={outboundChannelsLabel} />

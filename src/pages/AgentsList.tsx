@@ -9,6 +9,7 @@ import { useState } from "react";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import { getAgentKind } from "@/components/configure/agentKindStore";
 import { agentPublishStore } from "@/components/configure/agentPublishStore";
+import { runsStore } from "@/components/configure/runsStore";
 import { triggerStore, triggerNeedsSetup, type TriggerType } from "@/components/configure/triggerStore";
 import { AGENTS as agents } from "@/components/configure/agentStore";
 import { getChannelName } from "@/components/configure/channelCatalog";
@@ -282,7 +283,7 @@ function AutomationCard({ a }: { a: typeof agents[number] }) {
   const badgeLabel = published ? "PUBLISHED" : "DRAFT";
   const badgeClass = published ? "bg-primary-soft text-primary" : "bg-surface-muted text-muted-foreground";
   const triggers = triggerStore.list(a.id);
-  const lastFired = triggers.reduce<number | null>((max, t) => t.lastFiredAt != null && (max == null || t.lastFiredAt > max) ? t.lastFiredAt : max, null);
+  const lastRun = runsStore.list(a.id)[0]?.startedAt ?? null;
   const types = Array.from(new Set(triggers.map(t => t.type)));
   const needsSetupCount = triggers.filter(triggerNeedsSetup).length;
 
@@ -326,7 +327,7 @@ function AutomationCard({ a }: { a: typeof agents[number] }) {
           <div className="flex items-center gap-1.5">
             <HugeiconsIcon icon={TimeScheduleIcon} size={12} className="text-muted-foreground" />
             <span className="text-xs text-muted-foreground truncate">
-              Last run: {lastFired ? relativeTime(lastFired) : "never"}
+              {!published ? "Not run yet" : lastRun ? `Last run: ${relativeTime(lastRun)}` : "Last run: never"}
             </span>
           </div>
         </div>
@@ -342,14 +343,14 @@ function AutomationCard({ a }: { a: typeof agents[number] }) {
             </>
           )}
         </div>
-        {channels.length > 0 && (
-          <div className="flex items-center gap-1.5 mt-1.5 text-xs text-muted-foreground flex-wrap">
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">Sends to:</span>
-            {channels.map(id => (
-              <span key={id} className="px-1.5 py-0.5 rounded bg-surface-muted">{getChannelName(id)}</span>
-            ))}
-          </div>
-        )}
+        <div className="flex items-center gap-1.5 mt-1.5 text-xs text-muted-foreground flex-wrap">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">Sends to:</span>
+          {channels.length > 0
+            ? channels.map(id => (
+                <span key={id} className="px-1.5 py-0.5 rounded bg-surface-muted">{getChannelName(id)}</span>
+              ))
+            : <span>no channel yet</span>}
+        </div>
       </div>
     </Link>
   );

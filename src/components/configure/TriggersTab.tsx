@@ -86,6 +86,7 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
   const isLastTrigger = allTriggers.length === 1;
   const publishState = agentPublishStore.get(agentId);
   const publishInfo = { isPublished: publishState.placement !== null, channelCount: publishState.channels.length };
+  const isDraft = !publishInfo.isPublished;
   const nonSetupTriggers = allTriggers.filter(t => !triggerNeedsSetup(t));
   const pausableCount = nonSetupTriggers.filter(t => t.enabled).length;
   const pausedCount = nonSetupTriggers.filter(t => !t.enabled).length;
@@ -171,6 +172,9 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
           <p className="text-xs text-muted-foreground mt-0.5">
             Triggers make the agent run automatically — on a schedule, via a webhook, or on events from an external app.
           </p>
+          {isDraft && !isEmpty && (
+            <p className="text-xs text-muted-foreground mt-1">Triggers start running after you publish this agent.</p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {allPaused ? (
@@ -205,7 +209,7 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
         <div className="mb-4">
           <TriggerConnectorNotice
             message={TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON(personalConnectorName)}
-            linkLabel="Xem kết nối"
+            linkLabel="View connections"
             onLinkClick={() => onViewConnections?.(personalConnector?.connectorId)}
           />
         </div>
@@ -266,6 +270,10 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
                           <span className="font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap chip-warning">
                             Needs setup
                           </span>
+                        ) : isDraft ? (
+                          <span className="font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap bg-surface-muted text-muted-foreground border border-border">
+                            Waiting for publish
+                          </span>
                         ) : (
                           <span className={`font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap ${
                             t.enabled ? "chip-success" : "chip-warning"
@@ -325,60 +333,42 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
 
       <AlertDialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>
         <AlertDialogContent>
-          {deleteTarget && isLastTrigger ? (
-            <>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Remove the last trigger?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This agent will stop running on its own and will move out of Automation. Its scheduled and
-                  event-driven runs will stop immediately.
-                  {publishInfo.isPublished && publishInfo.channelCount > 0 && (
-                    <> It stays on the channels it's already live on, but nothing will trigger it. To open it to Workspace, publish again.</>
-                  )}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  onClick={() => {
-                    triggerStore.remove(agentId, deleteTarget.id);
-                    toast.success("Trigger removed. This agent no longer runs on its own.");
-                    setDeleteTarget(null);
-                    refresh();
-                  }}
-                >
-                  Remove trigger
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </>
-          ) : (
-            <>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete this trigger?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  {deleteTarget && `The trigger "${deleteTarget.name}" will be permanently deleted. Any runs already in progress will finish.`}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  onClick={() => {
-                    if (deleteTarget) {
-                      const delName = deleteTarget.name;
-                      triggerStore.remove(agentId, deleteTarget.id);
-                      toast.success(`Deleted trigger "${delName}".`);
-                      setDeleteTarget(null);
-                      refresh();
-                    }
-                  }}
-                >
-                  Delete trigger
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </>
-          )}
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this trigger?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2.5 text-left">
+                {deleteTarget && (
+                  <p>The trigger "{deleteTarget.name}" will be permanently deleted. Any runs already in progress will finish.</p>
+                )}
+                {deleteTarget && isLastTrigger && (
+                  <p>
+                    This is the last trigger. The agent will stop running as an Automation and move back to the
+                    Agents group. It will not be published to Workspace automatically.
+                  </p>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteTarget) {
+                  const delName = deleteTarget.name;
+                  const wasLast = isLastTrigger;
+                  triggerStore.remove(agentId, deleteTarget.id);
+                  toast.success(wasLast
+                    ? `Deleted trigger "${delName}". This agent moved out of Automation.`
+                    : `Deleted trigger "${delName}".`);
+                  setDeleteTarget(null);
+                  refresh();
+                }
+              }}
+            >
+              Delete trigger
+            </AlertDialogAction>
+          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 

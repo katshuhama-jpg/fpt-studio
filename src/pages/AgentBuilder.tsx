@@ -22,7 +22,7 @@ import { triggerStore, triggerNeedsSetup, EXTERNAL_APP_META, type TriggerRecord 
 import { agentConnectorStore, type ConnectorScope } from "@/components/configure/agentConnectorStore";
 import { hasTriggers, perUserConnector } from "@/components/configure/agentAutomationGuard";
 import {
-  agentPublishStore, WORKSPACE_BLOCKED_BY_TRIGGER_REASON,
+  agentPublishStore,
   CONNECTOR_BLOCKED_BY_TRIGGER_REASON, CONNECTOR_BLOCKED_BY_TRIGGER_TOAST,
 } from "@/components/configure/agentPublishStore";
 import { getAgentKind, type AgentKind } from "@/components/configure/agentKindStore";
@@ -40,7 +40,7 @@ import BusinessProcessTree from "@/components/general/BusinessProcessTree";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
-type Tab = "build" | "test" | "deploy" | "insights";
+type Tab = "build" | "test" | "channels" | "insights";
 
 // Every section is always visible for every agent — kind is derived from trigger count,
 // not a fixed mode, so hiding a section would force a jarring layout change the moment a
@@ -141,7 +141,7 @@ export default function AgentBuilder() {
             {([
               { id: "build",    label: "Build",    Icon: PencilEdit01Icon },
               { id: "test",     label: "Test",     Icon: FlaskConicalIcon },
-              { id: "deploy",   label: "Channels", Icon: GridViewIcon },
+              { id: "channels", label: "Channels", Icon: GridViewIcon },
               { id: "insights", label: "Insights", Icon: Analytics01Icon },
             ] as const).map(({ id, label, Icon }) => (
               <button key={id} onClick={() => setTab(id as Tab)}
@@ -216,7 +216,8 @@ export default function AgentBuilder() {
           agentName={agent.name}
           onClose={() => setShowPublish(false)}
           onPublished={() => setPublishTick(t => t + 1)}
-          onManageChannels={() => { setShowPublish(false); setTab("deploy"); }}
+          onManageChannels={() => { setShowPublish(false); setTab("channels"); }}
+          onManageTriggers={() => { setShowPublish(false); setParams({ tab: "build", section: "triggers" }); }}
         />
       )}
 
@@ -287,12 +288,16 @@ export default function AgentBuilder() {
             <HowThisAgentRuns agentId={id ?? "new"} onViewSection={setSection} />
             <div className="rounded-lg border border-border bg-surface-muted/50 p-2.5">
               {(() => {
+                const agentTriggers = triggerStore.list(id ?? "new");
                 const checklist = [
                   { label: "Instructions written",  done: true,  section: "instructions" },
                   { label: "Model chosen",           done: true,  section: "model" },
                   { label: "Guardrails configured",  done: false, section: "guardrails" },
                   { label: "Connections configured", done: agentConnectorStore.list(id ?? "new").length > 0, section: "connectors" },
                   { label: "Tried the agent",        done: true,  section: null },
+                  ...(agentTriggers.length > 0
+                    ? [{ label: "Triggers configured", done: !agentTriggers.some(triggerNeedsSetup), section: "triggers" }]
+                    : []),
                 ];
                 const doneCount = checklist.filter(i => i.done).length;
                 return (
@@ -379,7 +384,7 @@ export default function AgentBuilder() {
               {tab === "build" && section === "model" && <PlaceholderTab title="Model" />}
               {tab === "build" && !["instructions","knowledge","history","skills","guardrails","triggers","connectors","model"].includes(section) && <PlaceholderTab title={section} />}
               {tab === "test" && <PlaceholderTab title="Test" />}
-              {tab === "deploy" && <DeployTab agentId={id} />}
+              {tab === "channels" && <DeployTab agentId={id} onViewTriggers={() => setParams({ tab: "build", section: "triggers" })} />}
               {tab === "insights" && <PerformanceTab />}
             </div>
           </div>
@@ -2088,7 +2093,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-function DeployTab({ agentId }: { agentId: string }) {
+function DeployTab({ agentId, onViewTriggers }: { agentId: string; onViewTriggers?: () => void }) {
   const [tick, setTick] = useState(0);
   const refresh = () => setTick(t => t + 1);
   const [showPublish, setShowPublish] = useState(false);
@@ -2096,11 +2101,15 @@ function DeployTab({ agentId }: { agentId: string }) {
   const [showVersionSelect, setShowVersionSelect] = useState(false);
   const [showWebWidgetConfig, setShowWebWidgetConfig] = useState(false);
   const [recipients, setRecipients] = useState<{ id: number; name: string; sub: string }[]>([]);
-  const workspaceBlocked = triggerStore.list(agentId).length > 0;
+  const agentTriggers = triggerStore.list(agentId);
+  const isAutomation = agentTriggers.length > 0;
   void tick;
   const publishState = agentPublishStore.get(agentId);
   const published = publishState.placement !== null;
   const servingVersion = publishState.version;
+  // Automation counts as one live destination alongside external channels — otherwise the
+  // header pill reads "Automation · v1.0.2" while this summary bar contradicts it with 0.
+  const liveDestinationCount = publishState.channels.length + (published && isAutomation ? 1 : 0);
 
   const toggleChannel = (id: string) => {
     if (!published) return;
@@ -2160,7 +2169,7 @@ function DeployTab({ agentId }: { agentId: string }) {
           </div>
           <div>
             <p className="text-xs text-muted-foreground mb-1">Live channels</p>
-            <p className="text-base font-semibold">{publishState.channels.length}</p>
+            <p className="text-base font-semibold">{liveDestinationCount}</p>
           </div>
         </div>
         <button onClick={() => setShowVersionSelect(true)} className="btn-primary">
@@ -2168,79 +2177,106 @@ function DeployTab({ agentId }: { agentId: string }) {
         </button>
       </div>
 
-      {/* Agent Workspace */}
-      <div className="mb-8">
-        <div className="flex items-center gap-2 mb-3">
-          <h2 className="text-sm font-semibold">Agent Workspace</h2>
-          {recipients.length > 0 ? (
-            <>
-              <span className="text-xs text-muted-foreground">{recipients.length} recipient{recipients.length > 1 ? "s" : ""}</span>
-              <a href="#" className="text-xs font-medium text-primary hover:underline flex items-center gap-0.5 ml-auto">
-                Open in workspace <HugeiconsIcon icon={ChevronRightIcon} size={12} />
-              </a>
-            </>
-          ) : (
-            <span className="text-xs text-muted-foreground">Not open to anyone yet</span>
-          )}
-        </div>
-
-        {recipients.length === 0 ? (
-          <div className="rounded-2xl border-2 border-dashed border-border flex flex-col items-center justify-center text-center py-16 px-6">
-            <div className="w-12 h-12 rounded-xl bg-surface-muted flex items-center justify-center mb-4">
-              <HugeiconsIcon icon={Share08Icon} size={20} className="text-muted-foreground" />
+      {/* Agent Workspace (conversational) / Automation (has triggers) — mutually exclusive,
+          mirroring the Publish modal's "Publish to" destination sub-section exactly. */}
+      {isAutomation ? (
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-3">
+            <h2 className="text-sm font-semibold">Automation</h2>
+            <span className="text-xs text-muted-foreground">Running on {agentTriggers.length} trigger{agentTriggers.length === 1 ? "" : "s"}</span>
+          </div>
+          <div className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-6">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-lg bg-white border border-indigo-200 flex items-center justify-center shrink-0 text-indigo-600">
+                <HugeiconsIcon icon={BoltIcon} size={18} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground mb-1">Automation</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  This agent runs on its own from the {agentTriggers.length} trigger{agentTriggers.length === 1 ? "" : "s"} set
+                  up in Console, for the whole organization. Nobody installs it to Workspace and nobody chats with it directly.
+                </p>
+                {onViewTriggers && (
+                  <button type="button" onClick={onViewTriggers} className="text-xs font-semibold text-primary hover:underline mt-2">
+                    View triggers
+                  </button>
+                )}
+              </div>
             </div>
-            <h3 className="text-base font-semibold mb-1.5">No one has this agent yet</h3>
-            <p className="text-sm text-muted-foreground max-w-sm mb-5 leading-relaxed">
-              Publish to open this agent to a small group first, then expand.
-            </p>
-            <button onClick={() => setShowPublish(true)} disabled={workspaceBlocked} className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed">Publish</button>
-            {workspaceBlocked && (
-              <p className="text-xs text-muted-foreground mt-2 max-w-sm">{WORKSPACE_BLOCKED_BY_TRIGGER_REASON(triggerStore.list(agentId).length)}</p>
+          </div>
+        </div>
+      ) : (
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-3">
+            <h2 className="text-sm font-semibold">Agent Workspace</h2>
+            {recipients.length > 0 ? (
+              <>
+                <span className="text-xs text-muted-foreground">{recipients.length} recipient{recipients.length > 1 ? "s" : ""}</span>
+                <a href="#" className="text-xs font-medium text-primary hover:underline flex items-center gap-0.5 ml-auto">
+                  Open in workspace <HugeiconsIcon icon={ChevronRightIcon} size={12} />
+                </a>
+              </>
+            ) : (
+              <span className="text-xs text-muted-foreground">Not open to anyone yet</span>
             )}
           </div>
-        ) : (
-          <div className="rounded-xl border border-border overflow-hidden">
-            {recipients.map((r, i) => (
-              <div key={r.id} className={`flex items-center gap-3 px-4 py-3 ${i > 0 ? "border-t border-border" : ""}`}>
-                <div className="w-9 h-9 rounded-lg bg-surface-muted flex items-center justify-center shrink-0">
-                  <HugeiconsIcon icon={UserIcon} size={16} className="text-muted-foreground" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold truncate">{r.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">{r.sub}</p>
-                </div>
-                <button
-                  onClick={() => setRecipients(prev => prev.filter(x => x.id !== r.id))}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-destructive hover:bg-destructive/10 transition-base shrink-0"
-                  title="Remove"
-                >
-                  <HugeiconsIcon icon={Delete01Icon} size={16} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
 
-      {/* Web widget & API */}
-      <div className="mb-8">
+          {recipients.length === 0 ? (
+            <div className="rounded-2xl border-2 border-dashed border-border flex flex-col items-center justify-center text-center py-16 px-6">
+              <div className="w-12 h-12 rounded-xl bg-surface-muted flex items-center justify-center mb-4">
+                <HugeiconsIcon icon={Share08Icon} size={20} className="text-muted-foreground" />
+              </div>
+              <h3 className="text-base font-semibold mb-1.5">No one has this agent yet</h3>
+              <p className="text-sm text-muted-foreground max-w-sm mb-5 leading-relaxed">
+                Publish to open this agent to a small group first, then expand.
+              </p>
+              <button onClick={() => setShowPublish(true)} className="btn-primary">Publish</button>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-border overflow-hidden">
+              {recipients.map((r, i) => (
+                <div key={r.id} className={`flex items-center gap-3 px-4 py-3 ${i > 0 ? "border-t border-border" : ""}`}>
+                  <div className="w-9 h-9 rounded-lg bg-surface-muted flex items-center justify-center shrink-0">
+                    <HugeiconsIcon icon={UserIcon} size={16} className="text-muted-foreground" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold truncate">{r.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{r.sub}</p>
+                  </div>
+                  <button
+                    onClick={() => setRecipients(prev => prev.filter(x => x.id !== r.id))}
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-destructive hover:bg-destructive/10 transition-base shrink-0"
+                    title="Remove"
+                  >
+                    <HugeiconsIcon icon={Delete01Icon} size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* External channels — one shared list with the Publish modal, in CHANNEL_CATALOG's order. */}
+      <div>
         <div className="flex items-baseline gap-2 mb-3">
-          <h2 className="text-sm font-semibold">Web widget & API</h2>
+          <h2 className="text-sm font-semibold">External channels</h2>
         </div>
         <div className="grid grid-cols-3 gap-3">
-          {CHANNEL_CATALOG.filter(c => c.group === "core").map(c => {
+          {CHANNEL_CATALOG.map(c => {
             const live = published && publishState.channels.includes(c.id);
+            const disabled = !published || c.available === false;
             return (
               <button
                 key={c.id}
                 onClick={() => {
-                  if (!published) return;
+                  if (!published || c.available === false) return;
                   if (c.id === "web") setShowWebWidgetConfig(true);
                   else toggleChannel(c.id);
                 }}
-                disabled={!published}
+                disabled={disabled}
                 className={`flex items-center gap-3 px-4 py-3.5 rounded-xl border text-left transition-base ${
-                  published
+                  !disabled
                     ? "border-border bg-surface hover:border-primary/30 hover:shadow-soft cursor-pointer"
                     : "border-border bg-surface-muted/40 opacity-70 cursor-not-allowed"
                 }`}
@@ -2251,44 +2287,7 @@ function DeployTab({ agentId }: { agentId: string }) {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium truncate">{c.name}</p>
                   <p className={`text-xs truncate ${live ? "text-success" : "text-muted-foreground"}`}>
-                    {!published ? "Publish the agent to enable this channel" : live ? `Live · ${servingVersion}` : "Not connected"}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* External channels */}
-      <div>
-        <div className="flex items-baseline gap-2 mb-3">
-          <h2 className="text-sm font-semibold">External channels</h2>
-          {publishState.channels.length === 0 && (
-            <span className="text-xs text-muted-foreground">Not available yet</span>
-          )}
-        </div>
-        <div className="grid grid-cols-3 gap-3">
-          {CHANNEL_CATALOG.filter(c => c.group === "messaging").map(c => {
-            const live = published && publishState.channels.includes(c.id);
-            return (
-              <button
-                key={c.id}
-                onClick={() => toggleChannel(c.id)}
-                disabled={!published}
-                className={`flex items-center gap-3 px-4 py-3.5 rounded-xl border text-left transition-base ${
-                  published
-                    ? "border-border bg-surface hover:border-primary/30 hover:shadow-soft cursor-pointer"
-                    : "border-border bg-surface-muted/40 opacity-70 cursor-not-allowed"
-                }`}
-              >
-                <div className="w-8 h-8 rounded-lg bg-surface border border-border flex items-center justify-center shrink-0">
-                  <ChannelIcon ch={c} size={16} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">{c.name}</p>
-                  <p className={`text-xs truncate ${live ? "text-success" : "text-muted-foreground"}`}>
-                    {!published ? "Publish the agent to enable this channel" : live ? `Live · ${servingVersion}` : "Not connected"}
+                    {c.available === false ? "Coming soon" : !published ? "Publish the agent to enable this channel" : live ? `Live · ${servingVersion}` : "Not connected"}
                   </p>
                 </div>
               </button>
@@ -2957,7 +2956,7 @@ function mockPublishChanges(agentId: string): PublishChange[] {
   const count = h % 4; // 0..3
   const out: PublishChange[] = [];
   for (let i = 0; i < PUBLISH_CHANGE_CANDIDATES.length && out.length < count; i++) {
-    const c = PUBLISH_CHANGE_CANDIDATES[(h >> (i * 3)) % PUBLISH_CHANGE_CANDIDATES.length];
+    const c = PUBLISH_CHANGE_CANDIDATES[(h >>> (i * 3)) % PUBLISH_CHANGE_CANDIDATES.length];
     if (out.some(o => o.id === c.id)) continue;
     const seed = hashString(agentId + c.id);
     const marker: PublishChange["marker"] = seed % 5 === 0 ? "+" : seed % 7 === 0 ? "-" : "~";
@@ -2970,16 +2969,13 @@ function mockPublishChanges(agentId: string): PublishChange[] {
   return out;
 }
 
-// Order fixed by design; Slack isn't offered from this modal (no broadcast setup flow yet).
-const PUBLISH_CHANNEL_IDS = ["web", "zalo", "messenger", "whatsapp", "telegram", "api"];
-
 const ORG_UNIT_OPTIONS = [
-  { id: "org-all",    label: "Toàn công ty" },
-  { id: "dept-sales", label: "Phòng Kinh doanh" },
-  { id: "dept-cx",    label: "Phòng Chăm sóc khách hàng" },
-  { id: "dept-eng",   label: "Phòng Kỹ thuật" },
-  { id: "emp-a",      label: "Nguyễn Văn A" },
-  { id: "emp-b",      label: "Trần Thị B" },
+  { id: "org-all",    label: "Entire company" },
+  { id: "dept-sales", label: "Sales" },
+  { id: "dept-cx",    label: "Customer Care" },
+  { id: "dept-eng",   label: "Engineering" },
+  { id: "emp-a",      label: "Nguyen Van A" },
+  { id: "emp-b",      label: "Tran Thi B" },
 ];
 
 function LiveDotChip({ label }: { label: string }) {
@@ -3021,7 +3017,7 @@ function AudienceRadioRow({ icon, title, description, selected, liveNow, onClick
         <span className="flex-1 min-w-0 pt-px">
           <span className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-semibold text-foreground">{title}</span>
-            {liveNow && <LiveDotChip label="Đang phát hành" />}
+            {liveNow && <LiveDotChip label="Live now" />}
           </span>
           <span className="block text-xs text-muted-foreground leading-relaxed mt-0.5">{description}</span>
         </span>
@@ -3047,18 +3043,20 @@ function PublishChannelRow({ ch, checked, onToggle }: { ch: ChannelCatalogEntry;
       <span className="w-5 h-5 flex items-center justify-center shrink-0"><ChannelIcon ch={ch} size={16} /></span>
       <span className={`text-sm font-medium flex-1 truncate ${disabled ? "text-muted-foreground" : "text-foreground"}`}>{ch.name}</span>
       {disabled && (
-        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-surface-muted text-muted-foreground shrink-0 whitespace-nowrap">Sắp có</span>
+        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-surface-muted text-muted-foreground shrink-0 whitespace-nowrap">Coming soon</span>
       )}
     </label>
   );
 }
 
-function PublishModal({ agentId, agentName, onClose, onPublished, onManageChannels }: {
+function PublishModal({ agentId, agentName, onClose, onPublished, onManageChannels, onManageTriggers }: {
   agentId: string; agentName: string; onClose: () => void; onPublished?: () => void;
-  onManageChannels?: () => void;
+  onManageChannels?: () => void; onManageTriggers?: () => void;
 }) {
-  const triggerCount = triggerStore.list(agentId).length;
+  const agentTriggers = triggerStore.list(agentId);
+  const triggerCount = agentTriggers.length;
   const isAutomation = triggerCount > 0;
+  const needsSetupCount = agentTriggers.filter(triggerNeedsSetup).length;
   const current = agentPublishStore.get(agentId);
   const BASE = current.version.replace(/^v/, "").split(".").map(Number);
 
@@ -3100,7 +3098,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
 
   const draftNoteFromChanges = () => {
     if (changes.length === 0) return;
-    setNote(changes.map(c => `- ${c.label}: ${c.before} → ${c.after} dòng`).join("\n"));
+    setNote(changes.map(c => `- ${c.label}: ${c.before} → ${c.after} lines`).join("\n"));
     setNoteTouched(true);
   };
 
@@ -3110,22 +3108,22 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
   const hasPublishTarget = publishToWorkspace || selectedChannels.size > 0;
   const canPublish = !noteEmpty && !orgUnitInvalid && hasPublishTarget;
   const footerHelper = noteEmpty
-    ? "Nhập ghi chú phát hành để xuất bản"
+    ? "Add release notes to publish"
     : orgUnitInvalid
-      ? "Chọn ít nhất một đơn vị hoặc nhân viên"
+      ? "Pick at least one department or person"
       : !hasPublishTarget
-        ? "Chọn nơi phát hành agent"
+        ? "Choose where to publish the agent"
         : null;
 
   const currentAudienceChip = isAutomation
     ? "Automation"
     : audience === "all"
-      ? "Tất cả người dùng trong Workspace"
+      ? "Everyone in the Workspace"
       : audience === "just-me"
-        ? "Chỉ mình tôi"
+        ? "Only me"
         : orgUnitSelection.size > 0
-          ? `${orgUnitSelection.size} đơn vị/nhân viên đã chọn`
-          : "Công ty / phòng ban";
+          ? `${orgUnitSelection.size} unit${orgUnitSelection.size === 1 ? "" : "s"}/people selected`
+          : "Company / department";
 
   const doPublish = () => {
     if (!canPublish) {
@@ -3140,7 +3138,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
     }
     const placement: "workspace" | "automation" = (!isAutomation && publishToWorkspace) ? "workspace" : "automation";
     agentPublishStore.publish(agentId, placement, [...selectedChannels], versionName);
-    toast.success(`Đã phát hành ${versionName}.`);
+    toast.success(`Published ${versionName}.`);
     onPublished?.();
     onClose();
   };
@@ -3153,7 +3151,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
         <div className="flex items-start justify-between px-6 py-5 border-b border-border shrink-0">
           <div>
             <h2 className="font-display text-lg font-semibold">Publish "{agentName}"</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">Publish sẽ tạo bản {versionName} và thay bản đang live.</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Publishing creates {versionName} and replaces the live version.</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base mt-0.5">
             <HugeiconsIcon icon={Cancel01Icon} size={15} />
@@ -3161,12 +3159,12 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-          {/* Section 1 — Thay đổi */}
+          {/* Section 1 — Changes */}
           {changes.length > 0 && (
             <div>
               <button type="button" onClick={() => setChangesOpen(o => !o)} className="w-full flex items-center justify-between mb-2">
                 <span className="flex items-center gap-2 text-sm font-medium">
-                  Thay đổi
+                  Changes
                   <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-surface-muted text-muted-foreground">{changes.length}</span>
                 </span>
                 <HugeiconsIcon icon={changesOpen ? ChevronUpIcon : ChevronDownIcon} size={16} className="text-muted-foreground" />
@@ -3181,7 +3179,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
                           c.marker === "+" ? "text-success" : c.marker === "-" ? "text-destructive" : "text-muted-foreground"
                         }`}>{c.marker}</span>
                         <span className="text-sm font-medium shrink-0">{c.label}</span>
-                        <span className="flex-1 text-xs text-muted-foreground text-right">{c.before} → {c.after} dòng</span>
+                        <span className="flex-1 text-xs text-muted-foreground text-right">{c.before} → {c.after} lines</span>
                         <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${
                           delta > 0 ? "bg-success/10 text-success" : delta < 0 ? "bg-destructive/10 text-destructive" : "bg-surface-muted text-muted-foreground"
                         }`}>{delta > 0 ? `+${delta}` : delta}</span>
@@ -3193,12 +3191,12 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
             </div>
           )}
 
-          {/* Section 2 — Loại phiên bản */}
+          {/* Section 2 — Version type */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium">Loại phiên bản</p>
+              <p className="text-sm font-medium">Version type</p>
               <div className="text-right">
-                <p className="text-xs text-muted-foreground">Phiên bản mới</p>
+                <p className="text-xs text-muted-foreground">New version</p>
                 <p className="text-xl font-bold tracking-tight text-foreground font-display">
                   v<span className={versionType === "major" ? "text-primary underline underline-offset-4 decoration-2" : ""}>{newVersion[0]}</span>
                   .
@@ -3229,25 +3227,25 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
               ))}
             </div>
             <p className="text-xs text-muted-foreground">
-              {versionType === "patch" && "Sửa lỗi nhỏ, vá lỗ hổng, giữ nguyên tính năng cũ."}
-              {versionType === "minor" && "Thêm tính năng mới, vẫn tương thích với bản cũ."}
-              {versionType === "major" && "Thay đổi lớn, có thể không tương thích với bản cũ."}
+              {versionType === "patch" && "Small fixes and patches. Nothing the agent can do changes."}
+              {versionType === "minor" && "New capabilities, still compatible with the previous version."}
+              {versionType === "major" && "Big changes that may not be compatible with the previous version."}
             </p>
           </div>
 
-          {/* Section 3 — Ghi chú phát hành */}
+          {/* Section 3 — Release notes */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-sm font-medium">Ghi chú phát hành <span className="text-destructive">*</span></label>
+              <label className="text-sm font-medium">Release notes <span className="text-destructive">*</span></label>
               <button type="button" onClick={draftNoteFromChanges} className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
-                <HugeiconsIcon icon={SparklesIcon} size={12} /> Soạn từ thay đổi
+                <HugeiconsIcon icon={SparklesIcon} size={12} /> Draft from changes
               </button>
             </div>
             <textarea
               ref={noteRef}
               rows={3}
               maxLength={2000}
-              placeholder="Phiên bản này có gì mới? Người dùng agent sẽ đọc phần này."
+              placeholder="What's new in this version? People who use the agent will read this."
               className={`w-full px-3 py-2.5 rounded-lg border bg-white text-sm outline-none focus:ring-2 transition-base resize-none ${
                 showNoteError ? "border-destructive focus:border-destructive focus:ring-destructive/20" : "border-border focus:border-primary focus:ring-primary/20"
               }`}
@@ -3256,12 +3254,12 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
               onBlur={() => setNoteTouched(true)}
             />
             <div className="flex items-center justify-between mt-1">
-              {showNoteError ? <span className="text-xs text-destructive">Vui lòng nhập ghi chú phát hành</span> : <span />}
+              {showNoteError ? <span className="text-xs text-destructive">Please add release notes</span> : <span />}
               <span className="text-xs text-muted-foreground shrink-0">{note.length}/2000</span>
             </div>
           </div>
 
-          {/* Phát hành tới */}
+          {/* Publish to */}
           <div className="rounded-xl border border-border p-4">
             <label className="flex items-center gap-2.5 cursor-pointer">
               <input
@@ -3270,13 +3268,13 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
                 onChange={e => setPublishToWorkspace(e.target.checked)}
                 className="w-4 h-4 rounded accent-primary"
               />
-              <span className="text-sm font-semibold">Phát hành tới</span>
+              <span className="text-sm font-semibold">Publish to</span>
               {publishToWorkspace && <LiveDotChip label={currentAudienceChip} />}
             </label>
 
             <div className="mt-3.5 space-y-4">
-              {/* Unchecking "Phát hành tới" only retracts the destination sub-section
-                  (Automation, or Agent Workspace) — Kênh ngoài below stays interactive
+              {/* Unchecking "Publish to" only retracts the destination sub-section
+                  (Automation, or Agent Workspace) — External channels below stays interactive
                   regardless, since channels alone can still satisfy "somewhere to publish to". */}
               {publishToWorkspace && (
                 isAutomation ? (
@@ -3285,10 +3283,20 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
                     <AudienceRadioRow
                       icon={BoltIcon}
                       title="Automation"
-                      description={`Agent tự chạy theo ${triggerCount} trigger đã đặt trong Console, cho cả tổ chức. Không ai cài agent này về Workspace và không ai chat trực tiếp với nó.`}
+                      description={`The agent runs on its own from the ${triggerCount} trigger${triggerCount === 1 ? "" : "s"} you set up in Console, for the whole organization. Nobody installs it to Workspace and nobody chats with it directly.`}
                       selected
                       onClick={() => {}}
                     />
+                    {needsSetupCount > 0 && (
+                      <p className="text-xs text-warning mt-2">
+                        {needsSetupCount} trigger{needsSetupCount === 1 ? " isn't" : "s aren't"} finished yet and won't run after you publish.{" "}
+                        {onManageTriggers && (
+                          <button type="button" onClick={onManageTriggers} className="font-semibold hover:underline">
+                            Finish setup
+                          </button>
+                        )}
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <div>
@@ -3296,8 +3304,8 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
                     <div className="space-y-2">
                       <AudienceRadioRow
                         icon={UserGroupIcon}
-                        title="Tất cả người dùng trong Workspace"
-                        description="Mọi người dùng trong Workspace có thể sử dụng Agent sau khi xuất bản."
+                        title="Everyone in the Workspace"
+                        description="Anyone in the Workspace can use this agent once it's published."
                         selected={audience === "all"}
                         liveNow={current.placement === "workspace"}
                         onClick={() => setAudience("all")}
@@ -3305,8 +3313,8 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
                       <div ref={orgUnitRef}>
                       <AudienceRadioRow
                         icon={Building02Icon}
-                        title="Công ty / phòng ban"
-                        description="Chọn cả công ty, một phòng ban, hoặc từng nhân viên."
+                        title="Company / department"
+                        description="Pick the whole company, a department, or individual people."
                         selected={audience === "org-unit"}
                         onClick={() => setAudience("org-unit")}
                       >
@@ -3326,14 +3334,14 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
                           </div>
                         )}
                         {orgUnitInvalid && (
-                          <p className="text-xs text-destructive mt-1.5">Chọn ít nhất một đơn vị hoặc nhân viên</p>
+                          <p className="text-xs text-destructive mt-1.5">Pick at least one department or person</p>
                         )}
                       </AudienceRadioRow>
                       </div>
                       <AudienceRadioRow
                         icon={UserIcon}
-                        title="Chỉ mình tôi"
-                        description="Chỉ bạn dùng được, và agent sẽ vào thẳng Agent của tôi bên Workspace."
+                        title="Only me"
+                        description="Only you can use it, and the agent goes straight to My agents in Workspace."
                         selected={audience === "just-me"}
                         onClick={() => setAudience("just-me")}
                       />
@@ -3343,16 +3351,15 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
               )}
 
               <div>
-                <p className="text-xs font-semibold text-muted-foreground mb-2">Kênh ngoài</p>
+                <p className="text-xs font-semibold text-muted-foreground mb-2">External channels</p>
                 <div className="grid grid-cols-2 gap-2">
-                  {PUBLISH_CHANNEL_IDS.map(id => {
-                    const ch = CHANNEL_CATALOG.find(c => c.id === id);
-                    return ch && <PublishChannelRow key={id} ch={ch} checked={selectedChannels.has(id)} onToggle={() => toggleChannel(id)} />;
-                  })}
+                  {CHANNEL_CATALOG.map(ch => (
+                    <PublishChannelRow key={ch.id} ch={ch} checked={selectedChannels.has(ch.id)} onToggle={() => toggleChannel(ch.id)} />
+                  ))}
                 </div>
                 <div className="text-right mt-2">
                   <button type="button" onClick={onManageChannels} className="text-xs font-semibold text-primary hover:underline">
-                    Quản lý ›
+                    Manage ›
                   </button>
                 </div>
               </div>
@@ -3364,7 +3371,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
         <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-border shrink-0">
           <span className="text-xs text-destructive">{footerHelper}</span>
           <div className="flex items-center gap-2">
-            <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Hủy</button>
+            <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Cancel</button>
             <button
               className="h-9 px-5 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-2 transition-base"
               onClick={doPublish}

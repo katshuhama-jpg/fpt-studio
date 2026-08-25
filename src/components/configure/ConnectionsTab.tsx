@@ -1,7 +1,11 @@
 import { useState, useMemo, useEffect } from "react";
 import { Search, CheckCircle2, ChevronRight, Pencil, Trash2, User, Building2, X, AlertTriangle } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { agentConnectorStore, type ConnectorScope } from "./agentConnectorStore";
-import { triggerStore } from "./triggerStore";
+import { triggerStore, type ExternalApp } from "./triggerStore";
 import { hasTriggers } from "./agentAutomationGuard";
 import { CONNECTOR_BLOCKED_BY_TRIGGER_REASON, CONNECTOR_BLOCKED_BY_TRIGGER_TOAST } from "./agentPublishStore";
 import { toast } from "sonner";
@@ -102,7 +106,7 @@ function ScopeModal({ agentId, connectorId, editing, onClose, onSaved, onViewTri
                 {CONNECTOR_BLOCKED_BY_TRIGGER_REASON(triggerCount)}{" "}
                 {onViewTriggers && (
                   <button type="button" onClick={onViewTriggers} className="font-semibold hover:underline">
-                    Xem trigger
+                    View triggers
                   </button>
                 )}
               </p>
@@ -203,9 +207,14 @@ export default function ConnectionsTab({ agentId, onViewTriggers, onChange, high
   const [query, setQuery] = useState("");
   const [addingId, setAddingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [flashId, setFlashId] = useState<string | undefined>(undefined);
   void tick;
   const connections = agentConnectorStore.list(agentId);
+  const deletingMeta = deletingId ? CATALOG.find(c => c.id === deletingId) : undefined;
+  const affectedTriggers = deletingId
+    ? triggerStore.list(agentId).filter(t => t.type === "external" && t.config.external?.app === (deletingId as ExternalApp))
+    : [];
 
   useEffect(() => {
     if (!highlightConnectorId) return;
@@ -249,11 +258,7 @@ export default function ConnectionsTab({ agentId, onViewTriggers, onChange, high
               highlighted={flashId === meta.id}
               onAdd={() => setAddingId(meta.id)}
               onEdit={() => setEditingId(meta.id)}
-              onRemove={() => {
-                agentConnectorStore.remove(agentId, meta.id);
-                toast.success(`Connection "${meta.name}" removed.`);
-                refresh();
-              }}
+              onRemove={() => setDeletingId(meta.id)}
             />
           );
         })}
@@ -283,6 +288,47 @@ export default function ConnectionsTab({ agentId, onViewTriggers, onChange, high
           onViewTriggers={onViewTriggers}
         />
       )}
+
+      <AlertDialog open={!!deletingId} onOpenChange={v => !v && setDeletingId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this connection?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2.5 text-left">
+                <p>"{deletingMeta?.name}" will be removed from this agent.</p>
+                {affectedTriggers.length > 0 && (
+                  <p className="text-warning">
+                    {affectedTriggers.length} trigger{affectedTriggers.length === 1 ? "" : "s"} use this
+                    connection and will stop working: {affectedTriggers.map(t => t.name).join(", ")}.
+                  </p>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (!deletingId || !deletingMeta) return;
+                agentConnectorStore.remove(agentId, deletingId);
+                affectedTriggers.forEach(t => {
+                  if (t.type === "external" && t.config.external) {
+                    triggerStore.update(agentId, t.id, {
+                      config: { ...t.config, external: { ...t.config.external, accountId: undefined } },
+                    });
+                  }
+                });
+                toast.success(`Connection "${deletingMeta.name}" deleted.`);
+                setDeletingId(null);
+                refresh();
+              }}
+            >
+              Delete connection
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -2,6 +2,7 @@
 // A Console trigger belongs to the org-level Automation placement — one configuration,
 // one timezone, no per-installer identity.
 import { triggerStore, type TriggerType, type ExternalApp } from "./triggerStore";
+import { agentPublishStore } from "./agentPublishStore";
 
 export type RunStatus = "waiting" | "triggered" | "queued" | "running" | "completed" | "failed";
 
@@ -31,8 +32,10 @@ const seeded = new Set<string>();
 function seedAgent(agentId: string) {
   if (seeded.has(agentId)) return;
   seeded.add(agentId);
-  // Sample run history only makes sense once the agent actually has triggers to run.
+  // A trigger only fires once the agent is published — a Draft agent has never run, so
+  // sample run history only makes sense once the agent actually has triggers AND is live.
   if (triggerStore.list(agentId).length === 0) return;
+  if (!agentPublishStore.isPublished(agentId)) return;
   const now = Date.now();
   store.push(
     {
