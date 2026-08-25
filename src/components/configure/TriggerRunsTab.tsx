@@ -107,10 +107,13 @@ function ScopeRow({ label, value, mono, copyable, copyToastMessage, badge }: {
   label: string; value: string; mono?: boolean; copyable?: boolean; copyToastMessage?: string; badge?: string;
 }) {
   return (
-    <div className="group flex items-center justify-between gap-2 py-1">
-      <span className="text-xs text-muted-foreground shrink-0">{label}</span>
-      <span className="flex items-center gap-1.5 min-w-0">
-        <span className={`text-xs text-foreground truncate ${mono ? "font-mono" : ""}`} title={value}>{value}</span>
+    <div className="group grid grid-cols-[110px,1fr] items-start gap-2 py-1">
+      <span className="text-xs text-muted-foreground pt-px whitespace-nowrap">{label}</span>
+      {/* No truncate/ellipsis — a narrow, fixed label column leaves the value the rest of the
+          row's width, and break-words wraps it onto a second line (right-aligned) if it's
+          still too long, rather than clipping it. */}
+      <span className="flex flex-wrap items-center justify-end gap-1.5 text-right">
+        <span className={`text-xs text-foreground break-words ${mono ? "font-mono" : ""}`}>{value}</span>
         {badge && (
           <span className="text-[9px] font-semibold px-1 py-0.5 rounded-full bg-surface-muted text-muted-foreground shrink-0 whitespace-nowrap">{badge}</span>
         )}
