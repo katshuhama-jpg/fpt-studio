@@ -286,14 +286,6 @@ export default function AgentsList() {
           {/* Right actions */}
           <div className="flex items-center gap-3">
             <button
-              onClick={() => canCreateAgent && navigate("/agents/new?tab=develop&section=general")}
-              disabled={!canCreateAgent}
-              title={!canCreateAgent ? "You don't have permission to create agents." : undefined}
-              className="text-sm text-muted-foreground hover:text-foreground transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-muted-foreground"
-            >
-              Create from blank
-            </button>
-            <button
               onClick={() => canCreateAgent && setShowTemplates(true)}
               disabled={!canCreateAgent}
               title={!canCreateAgent ? "You don't have permission to create agents." : undefined}
@@ -314,6 +306,15 @@ export default function AgentsList() {
           </div>
         </div>
         </div>
+
+        <button
+          onClick={() => canCreateAgent && navigate("/agents/new?tab=develop&section=general")}
+          disabled={!canCreateAgent}
+          title={!canCreateAgent ? "You don't have permission to create agents." : undefined}
+          className="mt-4 h-9 px-4 rounded-full border border-border text-sm font-medium text-foreground hover:bg-surface-muted transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+        >
+          Create from blank
+        </button>
       </div>
 
       {/* ── Tabs + search toolbar ─────────────────────────────────────── */}
