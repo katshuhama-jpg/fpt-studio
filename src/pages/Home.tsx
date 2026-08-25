@@ -317,35 +317,6 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ── Agent Governance ──────────────────────────────────── */}
-        <section>
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="font-display text-lg font-semibold">Agent Governance</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Review approvals, access, and risks across your Agent workforce.</p>
-            </div>
-            <Link to="/governance" className="text-xs text-primary flex items-center gap-1 hover:text-primary-glow transition-base">
-              Open Governance <ArrowRight size={12} />
-            </Link>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {governance.map(g => (
-              <div key={g.label} className="rounded-xl border border-border bg-surface p-4 hover:border-primary/30 hover:shadow-soft transition-base cursor-pointer group flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${g.iconBg}`}>
-                    <g.icon size={17} className={g.iconColor} />
-                  </div>
-                  <ArrowRight size={14} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-base" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold font-display">{g.val}</div>
-                  <div className="text-sm font-medium">{g.label}</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">{g.desc}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
       </div>
     </div>
   );
