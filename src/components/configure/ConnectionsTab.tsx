@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Search, CheckCircle2, ChevronRight, Pencil, Trash2, User, Building2, X, AlertTriangle } from "lucide-react";
 import { agentConnectorStore, type ConnectorScope } from "./agentConnectorStore";
 import { triggerStore } from "./triggerStore";
+import { hasTriggers } from "./agentAutomationGuard";
 import { CONNECTOR_BLOCKED_BY_TRIGGER_REASON, CONNECTOR_BLOCKED_BY_TRIGGER_TOAST } from "./agentPublishStore";
 import { toast } from "sonner";
 
@@ -20,7 +21,7 @@ function ScopeModal({ agentId, connectorId, editing, onClose, onSaved, onViewTri
   const meta = CATALOG.find(c => c.id === connectorId);
   const existing = agentConnectorStore.list(agentId).find(c => c.connectorId === connectorId);
   const triggerCount = triggerStore.list(agentId).length;
-  const blockedByTriggers = triggerCount > 0;
+  const blockedByTriggers = hasTriggers(agentId);
   const [scope, setScope] = useState<ConnectorScope>(blockedByTriggers ? "shared" : (existing?.scope ?? "shared"));
 
   const warnBlockedByTriggers = () => {
@@ -35,13 +36,13 @@ function ScopeModal({ agentId, connectorId, editing, onClose, onSaved, onViewTri
   };
 
   const save = () => {
-    // Backstop: the radio is disabled whenever blockedByTriggers, so this should be
-    // unreachable through the UI — reject rather than silently coercing to "shared".
-    if (blockedByTriggers && scope === "personal") {
-      toast.error(CONNECTOR_BLOCKED_BY_TRIGGER_REASON(triggerCount));
+    const ok = agentConnectorStore.add(agentId, connectorId, scope);
+    if (!ok) {
+      // Backstop: the radio is disabled whenever blockedByTriggers, so this should be
+      // unreachable through the UI — the store itself rejected the write regardless.
+      toast.error(CONNECTOR_BLOCKED_BY_TRIGGER_REASON(triggerStore.list(agentId).length));
       return;
     }
-    agentConnectorStore.add(agentId, connectorId, scope);
     toast.success("Connection saved.");
     onSaved();
   };

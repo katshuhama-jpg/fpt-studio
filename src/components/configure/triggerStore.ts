@@ -3,6 +3,7 @@
 import { connectedAccountStore } from "./connectedAccountStore";
 import { checkCronExpression } from "./cronUtils";
 import { loadMap, saveMap, loadSet, saveSet } from "@/lib/sessionPersist";
+import { perUserConnector } from "./agentAutomationGuard";
 
 export type TriggerType = "scheduled" | "developer" | "external";
 
@@ -265,7 +266,10 @@ export const triggerStore = {
       t => t.name.trim().toLowerCase() === name.trim().toLowerCase() && t.id !== excludeId,
     );
   },
-  create(agentId: string, data: Omit<TriggerRecord, "id" | "agentId" | "createdAt" | "updatedAt" | "lastFiredAt">) {
+  /** Returns null (and writes nothing) when the agent uses a per-user connector — an agent
+   * can never have both, regardless of what any caller's own UI-level check already did. */
+  create(agentId: string, data: Omit<TriggerRecord, "id" | "agentId" | "createdAt" | "updatedAt" | "lastFiredAt">): TriggerRecord | null {
+    if (perUserConnector(agentId) !== null) return null;
     const id = `trg-${Date.now().toString(36)}`;
     const rec: TriggerRecord = {
       ...data,

@@ -16,19 +16,10 @@ export default function TriggerBlockedByConnectorDialog({ open, onOpenChange, co
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Không thêm được trigger cho agent này</AlertDialogTitle>
-          <AlertDialogDescription asChild>
-            <div className="space-y-2.5 text-sm text-muted-foreground text-left">
-              <p>
-                Agent đang dùng kết nối riêng của từng người ({connectorName}). Trigger chạy nền khi không có ai
-                đăng nhập, nên không có tài khoản cá nhân nào để agent dùng.
-              </p>
-              <p>
-                Nếu muốn agent chạy tự động cho cả tổ chức, hãy đổi kết nối sang Shared organization connection.
-                Còn nếu muốn giữ kết nối riêng của từng người, mỗi người có thể tự đặt trigger cho bản agent họ
-                cài trong Workspace.
-              </p>
-            </div>
+          <AlertDialogTitle>Không thêm được trigger</AlertDialogTitle>
+          <AlertDialogDescription className="text-left">
+            Agent đang dùng kết nối riêng ({connectorName}) — trigger chạy nền, không có ai đăng nhập để dùng kết
+            nối này. Đổi sang kết nối dùng chung để thêm trigger.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

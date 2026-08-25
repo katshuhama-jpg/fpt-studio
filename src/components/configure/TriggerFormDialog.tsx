@@ -14,6 +14,9 @@ import { credentialStore, type CredentialAuthType } from "./credentialStore";
 import { checkCronExpression, describeCronVN } from "./cronUtils";
 import CreateCredentialDialog from "./CreateCredentialDialog";
 import AppLogo from "./AppLogo";
+import { perUserConnector } from "./agentAutomationGuard";
+import { TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON } from "./agentPublishStore";
+import { CATALOG as CONNECTOR_CATALOG } from "./ConnectionsTab";
 import { toast } from "sonner";
 import { Clock, Webhook, Globe, Copy, Check, ChevronDown, ChevronLeft, Plus, X, RefreshCw, AlertTriangle } from "lucide-react";
 
@@ -338,6 +341,15 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
         description: description.trim(),
         config,
       });
+      if (!rec) {
+        // Backstop: every entry point that opens this wizard already checks
+        // perUserConnector() first, so this should be unreachable — but if it's ever
+        // reached anyway, fail loudly instead of silently discarding what was entered.
+        const blocked = perUserConnector(agentId);
+        const blockedName = blocked ? (CONNECTOR_CATALOG.find(c => c.id === blocked.connectorId)?.name ?? blocked.connectorId) : "";
+        toast.error(TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON(blockedName));
+        return;
+      }
       toast.success(`Created trigger "${trimmedName}".`);
       onSubmitted?.(rec);
     } else if (trigger) {

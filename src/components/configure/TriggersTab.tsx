@@ -11,7 +11,7 @@ import TriggerFormDialog from "./TriggerFormDialog";
 import {
   triggerStore, triggerNeedsSetup, EXTERNAL_APP_EVENTS, EXTERNAL_APP_META, type TriggerRecord, type TriggerType,
 } from "./triggerStore";
-import { agentConnectorStore } from "./agentConnectorStore";
+import { perUserConnector } from "./agentAutomationGuard";
 import { TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON, agentPublishStore } from "./agentPublishStore";
 import { CATALOG as CONNECTOR_CATALOG } from "./ConnectionsTab";
 import TriggerConnectorNotice from "./TriggerConnectorNotice";
@@ -117,8 +117,8 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
     refresh();
   };
 
-  const personalConnector = agentConnectorStore.list(agentId).find(c => c.scope === "personal");
-  const personalConnectorBlocked = !!personalConnector;
+  const personalConnector = perUserConnector(agentId);
+  const personalConnectorBlocked = personalConnector !== null;
   const personalConnectorName = personalConnector
     ? (CONNECTOR_CATALOG.find(c => c.id === personalConnector.connectorId)?.name ?? personalConnector.connectorId)
     : "";
@@ -126,25 +126,27 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
 
   const openCreate = () => {
     if (limitReached) return;
-    if (personalConnectorBlocked) { setShowBlockedByConnectorDialog(true); return; }
+    if (perUserConnector(agentId) !== null) { setShowBlockedByConnectorDialog(true); return; }
     setCreateOpen(true);
   };
 
   const duplicateTrigger = (t: TriggerRecord) => {
-    if (limitReached || personalConnectorBlocked) return;
+    if (limitReached) return;
+    if (perUserConnector(agentId) !== null) { setShowBlockedByConnectorDialog(true); return; }
     let name = `${t.name} (copy)`;
     let n = 2;
     while (triggerStore.isDuplicateName(agentId, name)) {
       name = `${t.name} (copy ${n})`;
       n++;
     }
-    triggerStore.create(agentId, {
+    const rec = triggerStore.create(agentId, {
       name,
       type: t.type,
       enabled: t.enabled,
       description: t.description,
       config: t.config,
     });
+    if (!rec) { setShowBlockedByConnectorDialog(true); return; }
     toast.success(`Created trigger "${name}".`);
     refresh();
   };
@@ -277,7 +279,7 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
                     <RowMenu
                       enabled={t.enabled}
                       needsSetup={needsSetup}
-                      duplicateBlocked={limitReached || personalConnectorBlocked}
+                      duplicateBlocked={limitReached}
                       enableBlocked={personalConnectorBlocked}
                       onToggle={() => { triggerStore.toggle(agentId, t.id); refresh(); }}
                       onEdit={() => setEditTarget(t)}

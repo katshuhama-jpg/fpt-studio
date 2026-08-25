@@ -20,9 +20,10 @@ import { taskStore } from "@/components/tasks/taskStore";
 import { knowledgeStore } from "@/components/knowledge/knowledgeStore";
 import { triggerStore, triggerNeedsSetup, EXTERNAL_APP_META, type TriggerRecord } from "@/components/configure/triggerStore";
 import { agentConnectorStore, type ConnectorScope } from "@/components/configure/agentConnectorStore";
+import { hasTriggers, perUserConnector } from "@/components/configure/agentAutomationGuard";
 import {
   agentPublishStore, WORKSPACE_BLOCKED_BY_TRIGGER_REASON,
-  CONNECTOR_BLOCKED_BY_TRIGGER_REASON,
+  CONNECTOR_BLOCKED_BY_TRIGGER_REASON, CONNECTOR_BLOCKED_BY_TRIGGER_TOAST,
 } from "@/components/configure/agentPublishStore";
 import { getAgentKind, type AgentKind } from "@/components/configure/agentKindStore";
 import { getAgent } from "@/components/configure/agentStore";
@@ -3816,7 +3817,7 @@ function ConnectorsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
     return () => document.removeEventListener("mousedown", h);
   }, [showMenu]);
 
-  const personalBlocked = getAgentKind(agentId) === "automation";
+  const personalBlocked = hasTriggers(agentId);
   const menuItems = [
     { icon: Building02Icon, label: "Shared", sub: "One workspace account", mode: "shared" as const, disabled: false },
     { icon: UserIcon, label: "Per-user", sub: "Each person's own account", mode: "personal" as const, disabled: personalBlocked },
@@ -3827,8 +3828,11 @@ function ConnectorsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
     if (agentConnectorStore.list(agentId).some(c => c.connectorId === id)) {
       agentConnectorStore.remove(agentId, id);
     } else {
-      if (pickerMode === "personal" && personalBlocked) return;
-      agentConnectorStore.add(agentId, id, pickerMode);
+      const ok = agentConnectorStore.add(agentId, id, pickerMode);
+      if (!ok) {
+        toast.error(CONNECTOR_BLOCKED_BY_TRIGGER_REASON(triggerStore.list(agentId).length));
+        return;
+      }
     }
     setTick(t => t + 1);
   };
@@ -3879,18 +3883,33 @@ function ConnectorsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
           style={{ top: menuPos.top, right: window.innerWidth - menuPos.left }}
           onMouseDown={e => e.stopPropagation()}
         >
-          <div className="bg-white rounded-xl border border-border shadow-elev py-1.5 min-w-[230px] animate-fade-up">
+          <div className="bg-white rounded-xl border border-border shadow-elev py-1.5 w-64 animate-fade-up">
             {menuItems.map((item, i) => (
               <button
                 key={i}
-                disabled={item.disabled}
-                className="w-full flex items-start gap-2.5 px-3.5 py-2.5 text-left hover:bg-surface-muted transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                onClick={() => { if (item.disabled) return; setShowMenu(false); setPickerMode(item.mode); setShowPicker(true); }}
+                aria-disabled={item.disabled}
+                className={`w-full flex items-start gap-2.5 px-3.5 py-2.5 text-left transition-base ${
+                  item.disabled ? "cursor-not-allowed" : "hover:bg-surface-muted"
+                }`}
+                onClick={() => {
+                  if (item.disabled) {
+                    toast.warning(CONNECTOR_BLOCKED_BY_TRIGGER_TOAST(triggerStore.list(agentId).length), {
+                      duration: 4000,
+                      style: {
+                        background: "hsl(var(--warning-soft))",
+                        color: "hsl(var(--warning))",
+                        border: "1px solid hsl(var(--warning) / 0.25)",
+                      },
+                    });
+                    return;
+                  }
+                  setShowMenu(false); setPickerMode(item.mode); setShowPicker(true);
+                }}
               >
-                <HugeiconsIcon icon={item.icon} size={16} className="text-muted-foreground shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium">{item.label}</p>
-                  <p className="text-xs text-muted-foreground">
+                <HugeiconsIcon icon={item.icon} size={16} className={`shrink-0 mt-0.5 ${item.disabled ? "text-muted-foreground/40" : "text-muted-foreground"}`} />
+                <div className="min-w-0">
+                  <p className={`text-sm font-medium ${item.disabled ? "text-muted-foreground" : ""}`}>{item.label}</p>
+                  <p className={`text-xs leading-relaxed ${item.disabled ? "text-warning" : "text-muted-foreground"}`}>
                     {item.disabled ? CONNECTOR_BLOCKED_BY_TRIGGER_REASON(triggerStore.list(agentId).length) : item.sub}
                   </p>
                 </div>
@@ -4891,14 +4910,19 @@ function TriggersInner({ agentId, onRegisterAdd, onNavigateToConnections }: { ag
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [showBlockedByConnectorDialog, setShowBlockedByConnectorDialog] = useState(false);
 
-  const personalConnectorRecord = agentConnectorStore.list(agentId).find(c => c.scope === "personal");
-  const personalConnectorBlocked = !!personalConnectorRecord;
+  const personalConnectorRecord = perUserConnector(agentId);
+  const personalConnectorBlocked = personalConnectorRecord !== null;
   const personalConnectorName = personalConnectorRecord
     ? (CONNECTOR_CATALOG.find(c => c.id === personalConnectorRecord.connectorId)?.name ?? personalConnectorRecord.connectorId)
     : "";
 
+  // Reads perUserConnector(agentId) fresh on every call rather than closing over the
+  // render-time `personalConnectorBlocked` above — this function is captured once by the
+  // registration effect below and invoked much later from the accordion header's "+"
+  // button, so a stale boolean here would silently let a since-added personal connector
+  // through.
   const openCreate = () => {
-    if (personalConnectorBlocked) { setShowBlockedByConnectorDialog(true); return; }
+    if (perUserConnector(agentId) !== null) { setShowBlockedByConnectorDialog(true); return; }
     setCreateOpen(true);
   };
 
@@ -4910,14 +4934,15 @@ function TriggersInner({ agentId, onRegisterAdd, onNavigateToConnections }: { ag
   const triggers = triggerStore.list(agentId);
 
   const duplicateTrigger = (t: TriggerRecord) => {
-    if (personalConnectorBlocked) return;
+    if (perUserConnector(agentId) !== null) { setShowBlockedByConnectorDialog(true); return; }
     let name = `${t.name} (copy)`;
     let n = 2;
     while (triggerStore.isDuplicateName(agentId, name)) {
       name = `${t.name} (copy ${n})`;
       n++;
     }
-    triggerStore.create(agentId, { name, type: t.type, enabled: t.enabled, description: t.description, config: t.config });
+    const rec = triggerStore.create(agentId, { name, type: t.type, enabled: t.enabled, description: t.description, config: t.config });
+    if (!rec) { setShowBlockedByConnectorDialog(true); return; }
     toast.success(`Created trigger "${name}".`);
     refresh();
   };
