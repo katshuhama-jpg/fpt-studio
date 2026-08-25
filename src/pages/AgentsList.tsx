@@ -286,6 +286,14 @@ export default function AgentsList() {
           {/* Right actions */}
           <div className="flex items-center gap-3">
             <button
+              onClick={() => canCreateAgent && navigate("/agents/new?tab=develop&section=general")}
+              disabled={!canCreateAgent}
+              title={!canCreateAgent ? "You don't have permission to create agents." : undefined}
+              className="text-sm text-muted-foreground hover:text-foreground transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-muted-foreground"
+            >
+              Create from blank
+            </button>
+            <button
               onClick={() => canCreateAgent && setShowTemplates(true)}
               disabled={!canCreateAgent}
               title={!canCreateAgent ? "You don't have permission to create agents." : undefined}
@@ -381,24 +389,7 @@ export default function AgentsList() {
 
               <p className="text-xs text-muted-foreground leading-relaxed mb-4 line-clamp-2 min-h-[32px]">{a.desc}</p>
 
-              <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
-                <div className="flex items-center gap-1.5">
-                  <HugeiconsIcon icon={Chat01Icon} size={12} className="text-muted-foreground" />
-                  <span className="text-xs">
-                    <b className="font-display">{a.convs.toLocaleString()}</b>
-                    <span className="text-muted-foreground ml-1">convs</span>
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <HugeiconsIcon icon={Activity01Icon} size={12} className="text-muted-foreground" />
-                  <span className="text-xs">
-                    <b className="font-display">{a.success}%</b>
-                    <span className="text-muted-foreground ml-1">resolved</span>
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-1.5 mt-3 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1.5 pt-3 border-t border-border text-xs text-muted-foreground">
                 <span>Updated {a.updated}</span>
                 {a.channels.length > 0 && (
                   <>
