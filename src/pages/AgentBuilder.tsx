@@ -21,9 +21,8 @@ import { knowledgeStore } from "@/components/knowledge/knowledgeStore";
 import { triggerStore, triggerNeedsSetup, EXTERNAL_APP_META, type TriggerRecord } from "@/components/configure/triggerStore";
 import { agentConnectorStore, type ConnectorScope } from "@/components/configure/agentConnectorStore";
 import {
-  agentPublishStore, WORKSPACE_BLOCKED_BY_TRIGGER_REASON, AUTOMATION_BLOCKED_BY_NO_TRIGGER_REASON, mockInstallCount,
+  agentPublishStore, WORKSPACE_BLOCKED_BY_TRIGGER_REASON,
   CONNECTOR_BLOCKED_BY_TRIGGER_REASON,
-  type Placement,
 } from "@/components/configure/agentPublishStore";
 import { getAgentKind, type AgentKind } from "@/components/configure/agentKindStore";
 import { getAgent } from "@/components/configure/agentStore";
@@ -215,9 +214,9 @@ export default function AgentBuilder() {
           agentId={id}
           agentName={agent.name}
           onClose={() => setShowPublish(false)}
-          onChatTest={() => { setShowPublish(false); setPreviewView("chat"); }}
           onPublished={() => setPublishTick(t => t + 1)}
           onViewSection={(s) => { setShowPublish(false); setSection(s); }}
+          onManageChannels={() => { setShowPublish(false); setTab("deploy"); }}
         />
       )}
 
@@ -2931,20 +2930,79 @@ const metrics = [
 const bars = [50, 62, 45, 75, 68, 95, 80];
 
 /* ============ PublishModal ============ */
-function PlacementOption({ icon, title, description, selected, current, disabled, onClick, blockedReason }: {
+
+interface PublishChange { id: string; label: string; marker: "~" | "+" | "-"; before: number; after: number; }
+
+const PUBLISH_CHANGE_CANDIDATES: { id: string; label: string }[] = [
+  { id: "instructions", label: "Instructions" },
+  { id: "model",        label: "Model" },
+  { id: "skills",       label: "Skills" },
+  { id: "guardrails",   label: "Guardrails" },
+  { id: "connections",  label: "Connections" },
+  { id: "triggers",     label: "Triggers" },
+];
+
+function hashString(s: string): number {
+  let h = 0;
+  for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return h;
+}
+
+/** Deterministic mock "what changed since last publish" list — this prototype has no real
+ * version-diff data, so derive a small, stable set from the agentId (same pattern as
+ * mockInstallCount) instead of randomizing on every render. Occasionally empty on purpose so
+ * the "hide the section when nothing changed" path is reachable. */
+function mockPublishChanges(agentId: string): PublishChange[] {
+  const h = hashString(agentId);
+  const count = h % 4; // 0..3
+  const out: PublishChange[] = [];
+  for (let i = 0; i < PUBLISH_CHANGE_CANDIDATES.length && out.length < count; i++) {
+    const c = PUBLISH_CHANGE_CANDIDATES[(h >> (i * 3)) % PUBLISH_CHANGE_CANDIDATES.length];
+    if (out.some(o => o.id === c.id)) continue;
+    const seed = hashString(agentId + c.id);
+    const marker: PublishChange["marker"] = seed % 5 === 0 ? "+" : seed % 7 === 0 ? "-" : "~";
+    const base = 30 + (seed % 90);
+    const delta = marker === "~" ? (seed % 13) - 6 : marker === "+" ? 5 + (seed % 20) : -(5 + (seed % 15));
+    const before = marker === "+" ? 0 : base;
+    const after = marker === "-" ? 0 : Math.max(0, base + delta);
+    out.push({ id: c.id, label: c.label, marker, before, after });
+  }
+  return out;
+}
+
+// Order fixed by design; Slack isn't offered from this modal (no broadcast setup flow yet).
+const PUBLISH_CHANNEL_IDS = ["web", "zalo", "messenger", "whatsapp", "telegram", "api"];
+
+const ORG_UNIT_OPTIONS = [
+  { id: "org-all",    label: "Toàn công ty" },
+  { id: "dept-sales", label: "Phòng Kinh doanh" },
+  { id: "dept-cx",    label: "Phòng Chăm sóc khách hàng" },
+  { id: "dept-eng",   label: "Phòng Kỹ thuật" },
+  { id: "emp-a",      label: "Nguyễn Văn A" },
+  { id: "emp-b",      label: "Trần Thị B" },
+];
+
+function LiveDotChip({ label }: { label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-success bg-success/10 border border-success/20 rounded-full px-2 py-0.5 whitespace-nowrap">
+      <span className="w-1.5 h-1.5 rounded-full bg-success shrink-0" /> {label}
+    </span>
+  );
+}
+
+function AudienceRadioRow({ icon, title, description, selected, liveNow, onClick, children }: {
   icon: any; title: string; description: string;
-  selected: boolean; current?: boolean; disabled?: boolean; onClick: () => void;
-  blockedReason?: React.ReactNode;
+  selected: boolean; liveNow?: boolean; onClick: () => void;
+  children?: React.ReactNode;
 }) {
   return (
     <div>
       <button
         type="button"
-        onClick={() => !disabled && onClick()}
-        disabled={disabled}
-        className={`w-full flex items-start gap-3 text-left rounded-xl border px-4 py-3.5 transition-base ${
-          selected ? "border-primary bg-primary-soft/50 ring-1 ring-primary" : "border-border bg-surface"
-        } ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:border-primary/40 hover:bg-surface-muted"}`}
+        onClick={onClick}
+        className={`w-full flex items-start gap-3 text-left rounded-xl border px-4 py-3.5 transition-base cursor-pointer ${
+          selected ? "border-primary bg-primary-soft/50 ring-1 ring-primary" : "border-border bg-surface hover:border-primary/40 hover:bg-surface-muted"
+        }`}
       >
         <span
           className={`mt-[3px] w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-base ${
@@ -2963,72 +3021,108 @@ function PlacementOption({ icon, title, description, selected, current, disabled
         <span className="flex-1 min-w-0 pt-px">
           <span className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-semibold text-foreground">{title}</span>
-            {current && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full chip-success">
-                <span className="w-1.5 h-1.5 rounded-full bg-current shrink-0" /> Live now
-              </span>
-            )}
+            {liveNow && <LiveDotChip label="Đang phát hành" />}
           </span>
           <span className="block text-xs text-muted-foreground leading-relaxed mt-0.5">{description}</span>
         </span>
       </button>
-      {disabled && blockedReason && (
-        <div className="flex items-start gap-2 text-xs text-warning bg-[hsl(var(--warning-soft))] border border-warning/25 rounded-lg px-3 py-2.5 mt-2">
-          <HugeiconsIcon icon={Alert01Icon} size={14} className="shrink-0 mt-0.5" />
-          <p>{blockedReason}</p>
-        </div>
-      )}
+      {children}
     </div>
   );
 }
 
-function PublishModal({ agentId, agentName, onClose, onChatTest, onPublished, onViewSection }: {
-  agentId: string; agentName: string; onClose: () => void; onChatTest: () => void; onPublished?: () => void; onViewSection?: (section: string) => void;
+function PublishChannelRow({ ch, checked, onToggle }: { ch: ChannelCatalogEntry; checked: boolean; onToggle: () => void }) {
+  const disabled = ch.available === false;
+  return (
+    <label className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg border transition-base ${
+      disabled ? "border-border bg-surface-muted/40 cursor-not-allowed" : "border-border bg-surface hover:bg-surface-muted cursor-pointer"
+    }`}>
+      <input
+        type="checkbox"
+        checked={checked && !disabled}
+        disabled={disabled}
+        onChange={onToggle}
+        className="w-4 h-4 rounded accent-primary shrink-0 disabled:cursor-not-allowed"
+      />
+      <span className="w-5 h-5 flex items-center justify-center shrink-0"><ChannelIcon ch={ch} size={16} /></span>
+      <span className={`text-sm font-medium flex-1 truncate ${disabled ? "text-muted-foreground" : "text-foreground"}`}>{ch.name}</span>
+      {disabled && (
+        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-surface-muted text-muted-foreground shrink-0 whitespace-nowrap">Sắp có</span>
+      )}
+    </label>
+  );
+}
+
+function PublishModal({ agentId, agentName, onClose, onPublished, onViewSection, onManageChannels }: {
+  agentId: string; agentName: string; onClose: () => void; onPublished?: () => void;
+  onViewSection?: (section: string) => void; onManageChannels?: () => void;
 }) {
   const triggerCount = triggerStore.list(agentId).length;
-  const workspaceBlocked = triggerCount > 0;
-  const automationBlocked = triggerCount === 0;
+  const isAutomation = triggerCount > 0;
   const current = agentPublishStore.get(agentId);
-  const [placement, setPlacement] = useState<Placement>(current.placement ?? (workspaceBlocked ? "automation" : !automationBlocked ? "workspace" : null));
-  const [reason, setReason] = useState("");
-  const [selected, setSelected] = useState<Set<string>>(new Set(current.channels));
-  const [versionType, setVersionType] = useState<"patch"|"minor"|"major">("patch");
-  const [showUninstallGuard, setShowUninstallGuard] = useState(false);
-  const [confirmName, setConfirmName] = useState("");
-  const wasOnWorkspace = current.placement === "workspace";
-  const installCount = mockInstallCount(agentId);
-  const needsUninstallGuard = wasOnWorkspace && triggerCount > 0;
   const BASE = current.version.replace(/^v/, "").split(".").map(Number);
+
+  const [versionType, setVersionType] = useState<"patch" | "minor" | "major">("patch");
   const newVersion = (() => {
     const [maj, min, pat] = BASE;
-    if (versionType === "major") return [maj+1, 0, 0];
-    if (versionType === "minor") return [maj, min+1, 0];
-    return [maj, min, pat+1];
+    if (versionType === "major") return [maj + 1, 0, 0];
+    if (versionType === "minor") return [maj, min + 1, 0];
+    return [maj, min, pat + 1];
   })();
   const versionName = `v${newVersion.join(".")}`;
 
-  const toggle = (id: string) => setSelected(prev => {
+  const changes = mockPublishChanges(agentId);
+  const [changesOpen, setChangesOpen] = useState(true);
+
+  const [note, setNote] = useState("");
+  const [noteTouched, setNoteTouched] = useState(false);
+
+  const [publishToWorkspace, setPublishToWorkspace] = useState(!isAutomation);
+  const [audience, setAudience] = useState<"all" | "org-unit" | "just-me">("all");
+  const [orgUnitSelection, setOrgUnitSelection] = useState<Set<string>>(new Set());
+
+  const [selectedChannels, setSelectedChannels] = useState<Set<string>>(new Set(current.channels));
+
+  const toggleChannel = (id: string) => setSelectedChannels(prev => {
     const s = new Set(prev);
     s.has(id) ? s.delete(id) : s.add(id);
     return s;
   });
 
-  const ChannelChip = ({ ch }: { ch: ChannelCatalogEntry }) => {
-    const on = selected.has(ch.id);
-    return (
-      <button
-        onClick={() => toggle(ch.id)}
-        className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-base text-left ${
-          on ? "border-primary bg-primary-soft text-primary" : "border-border bg-surface text-foreground hover:bg-surface-muted"
-        }`}
-      >
-        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-base ${on ? "border-primary bg-primary" : "border-border"}`}>
-          {on && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-        </div>
-        <span className="w-4 h-4 flex items-center justify-center shrink-0"><ChannelIcon ch={ch} size={14} /></span>
-        <p className="text-xs font-medium truncate">{ch.name}</p>
-      </button>
-    );
+  const toggleOrgUnit = (id: string) => setOrgUnitSelection(prev => {
+    const s = new Set(prev);
+    s.has(id) ? s.delete(id) : s.add(id);
+    return s;
+  });
+
+  const draftNoteFromChanges = () => {
+    if (changes.length === 0) return;
+    setNote(changes.map(c => `- ${c.label}: ${c.before} → ${c.after} dòng`).join("\n"));
+    setNoteTouched(true);
+  };
+
+  const noteEmpty = note.trim().length === 0;
+  const showNoteError = noteTouched && noteEmpty;
+  const orgUnitInvalid = !isAutomation && publishToWorkspace && audience === "org-unit" && orgUnitSelection.size === 0;
+  const hasPublishTarget = isAutomation ? true : (publishToWorkspace || selectedChannels.size > 0);
+  const canPublish = !noteEmpty && !orgUnitInvalid && hasPublishTarget;
+  const footerHelper = !hasPublishTarget ? "Chọn nơi phát hành agent" : null;
+
+  const currentAudienceChip = audience === "all"
+    ? "Tất cả người dùng trong Workspace"
+    : audience === "just-me"
+      ? "Chỉ mình tôi"
+      : orgUnitSelection.size > 0
+        ? `${orgUnitSelection.size} đơn vị/nhân viên đã chọn`
+        : "Công ty / phòng ban";
+
+  const doPublish = () => {
+    if (!canPublish) return;
+    const placement: "workspace" | "automation" = (!isAutomation && publishToWorkspace) ? "workspace" : "automation";
+    agentPublishStore.publish(agentId, placement, [...selectedChannels], versionName);
+    toast.success(`Đã phát hành ${versionName}.`);
+    onPublished?.();
+    onClose();
   };
 
   return createPortal(
@@ -3038,8 +3132,8 @@ function PublishModal({ agentId, agentName, onClose, onChatTest, onPublished, on
         {/* Header */}
         <div className="flex items-start justify-between px-6 py-5 border-b border-border shrink-0">
           <div>
-            <h2 className="font-display text-lg font-semibold">Save version</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">Creates {versionName} — choose where to deploy.</p>
+            <h2 className="font-display text-lg font-semibold">Publish "{agentName}"</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">Publish sẽ tạo bản {versionName} và thay bản đang live.</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base mt-0.5">
             <HugeiconsIcon icon={Cancel01Icon} size={15} />
@@ -3047,105 +3141,58 @@ function PublishModal({ agentId, agentName, onClose, onChatTest, onPublished, on
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-          {/* Placement */}
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Where the agent runs</p>
-            <div className="space-y-2">
-              <PlacementOption
-                icon={UserGroupIcon}
-                title="Workspace"
-                description="People across the organization install this agent to Workspace and use it. Each person sets up their own triggers on their install."
-                selected={placement === "workspace"}
-                current={current.placement === "workspace"}
-                disabled={workspaceBlocked}
-                onClick={() => setPlacement("workspace")}
-                blockedReason={
-                  <>
-                    {WORKSPACE_BLOCKED_BY_TRIGGER_REASON(triggerCount)}{" "}
-                    {onViewSection && (
-                      <button type="button" onClick={() => onViewSection("triggers")} className="font-semibold hover:underline">
-                        View triggers
-                      </button>
-                    )}
-                  </>
-                }
-              />
-              <PlacementOption
-                icon={BoltIcon}
-                title="Automation"
-                description="The agent runs on its own based on the triggers you set up in Console, for the whole organization. Nobody installs it, nobody chats with it directly."
-                selected={placement === "automation"}
-                current={current.placement === "automation"}
-                disabled={automationBlocked}
-                onClick={() => setPlacement("automation")}
-                blockedReason={
-                  <>
-                    {AUTOMATION_BLOCKED_BY_NO_TRIGGER_REASON}{" "}
-                    {onViewSection && (
-                      <button type="button" onClick={() => onViewSection("triggers")} className="font-semibold hover:underline">
-                        Add trigger
-                      </button>
-                    )}
-                  </>
-                }
-              />
-            </div>
-          </div>
-
-          {/* Warning */}
-          <div className="flex items-start gap-2.5 p-3.5 rounded-xl border border-amber-200 bg-amber-50">
-            <HugeiconsIcon icon={Alert01Icon} size={15} className="text-amber-600 shrink-0 mt-0.5" />
-            <p className="text-sm text-amber-800">
-              Try it before publishing — Model, Skills, Guardrails changed.{" "}
-              <button onClick={onChatTest} className="font-semibold underline underline-offset-2 hover:text-amber-900 transition-base">
-                Chat once
-              </button>{" "}
-              to check the agent answers well.
-            </p>
-          </div>
-
-          {/* What will be saved */}
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">What will be saved</p>
-            <div className="rounded-xl border border-border overflow-hidden">
-              {[
-                { icon: CpuIcon,    label: "Model",      value: "DeepSeek V4 Flash", sub: "deepseek-v4-flash" },
-                { icon: PuzzleIcon, label: "Skills",     value: "meo",               sub: "v1.0.0" },
-                { icon: Shield01Icon, label: "Guardrails", value: "2 rules",           sub: null },
-              ].map((row, i) => (
-                <div key={i} className={`flex items-center gap-3 px-4 py-2.5 ${i > 0 ? "border-t border-border" : ""}`}>
-                  <HugeiconsIcon icon={row.icon} size={13} className="text-muted-foreground shrink-0" />
-                  <span className="text-sm font-medium w-20 shrink-0">{row.label}</span>
-                  <span className="flex-1 flex items-center gap-2 min-w-0">
-                    <span className="text-sm text-foreground truncate">{row.value}</span>
-                    {row.sub && <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-muted text-muted-foreground shrink-0">{row.sub}</span>}
-                  </span>
-                  <HugeiconsIcon icon={CheckmarkCircle01Icon} size={13} className="text-success shrink-0" />
+          {/* Section 1 — Thay đổi */}
+          {changes.length > 0 && (
+            <div>
+              <button type="button" onClick={() => setChangesOpen(o => !o)} className="w-full flex items-center justify-between mb-2">
+                <span className="flex items-center gap-2 text-sm font-medium">
+                  Thay đổi
+                  <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-surface-muted text-muted-foreground">{changes.length}</span>
+                </span>
+                <HugeiconsIcon icon={changesOpen ? ChevronUpIcon : ChevronDownIcon} size={16} className="text-muted-foreground" />
+              </button>
+              {changesOpen && (
+                <div className="space-y-1.5">
+                  {changes.map(c => {
+                    const delta = c.after - c.before;
+                    return (
+                      <div key={c.id} className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg bg-surface-muted/60">
+                        <span className={`w-4 text-center text-sm font-semibold shrink-0 ${
+                          c.marker === "+" ? "text-success" : c.marker === "-" ? "text-destructive" : "text-muted-foreground"
+                        }`}>{c.marker}</span>
+                        <span className="text-sm font-medium shrink-0">{c.label}</span>
+                        <span className="flex-1 text-xs text-muted-foreground text-right">{c.before} → {c.after} dòng</span>
+                        <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${
+                          delta > 0 ? "bg-success/10 text-success" : delta < 0 ? "bg-destructive/10 text-destructive" : "bg-surface-muted text-muted-foreground"
+                        }`}>{delta > 0 ? `+${delta}` : delta}</span>
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
+              )}
             </div>
-          </div>
+          )}
 
-          {/* Version type */}
+          {/* Section 2 — Loại phiên bản */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium">Version type</p>
+              <p className="text-sm font-medium">Loại phiên bản</p>
               <div className="text-right">
-                <p className="text-xs text-muted-foreground">New version</p>
+                <p className="text-xs text-muted-foreground">Phiên bản mới</p>
                 <p className="text-xl font-bold tracking-tight text-foreground font-display">
-                  v<span className={versionType === "major" ? "text-primary" : ""}>{newVersion[0]}</span>
+                  v<span className={versionType === "major" ? "text-primary underline underline-offset-4 decoration-2" : ""}>{newVersion[0]}</span>
                   .
-                  <span className={versionType === "minor" ? "text-primary" : ""}>{newVersion[1]}</span>
+                  <span className={versionType === "minor" ? "text-primary underline underline-offset-4 decoration-2" : ""}>{newVersion[1]}</span>
                   .
-                  <span className={versionType === "patch" ? "text-primary" : ""}>{newVersion[2]}</span>
+                  <span className={versionType === "patch" ? "text-primary underline underline-offset-4 decoration-2" : ""}>{newVersion[2]}</span>
                 </p>
               </div>
             </div>
             <div className="flex gap-2 mb-2">
               {([
-                { key: "patch", label: "Patch", desc: "Small fixes and patches; existing features stay the same." },
-                { key: "minor", label: "Minor", desc: "New features added in a backward-compatible manner." },
-                { key: "major", label: "Major", desc: "Breaking changes or major new functionality." },
+                { key: "patch", label: "Patch" },
+                { key: "minor", label: "Minor" },
+                { key: "major", label: "Major" },
               ] as const).map(opt => (
                 <button
                   key={opt.key}
@@ -3162,114 +3209,195 @@ function PublishModal({ agentId, agentName, onClose, onChatTest, onPublished, on
               ))}
             </div>
             <p className="text-xs text-muted-foreground">
-              {versionType === "patch" && "Small fixes and patches; existing features stay the same."}
-              {versionType === "minor" && "New features added in a backward-compatible manner."}
-              {versionType === "major" && "Breaking changes or major new functionality."}
+              {versionType === "patch" && "Sửa lỗi nhỏ, vá lỗ hổng, giữ nguyên tính năng cũ."}
+              {versionType === "minor" && "Thêm tính năng mới, vẫn tương thích với bản cũ."}
+              {versionType === "major" && "Thay đổi lớn, có thể không tương thích với bản cũ."}
             </p>
           </div>
 
-          {/* Version note */}
+          {/* Section 3 — Ghi chú phát hành */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-sm font-medium">Version note <span className="text-destructive">*</span></label>
-              <span className="text-xs text-muted-foreground">{reason.length}/500</span>
+              <label className="text-sm font-medium">Ghi chú phát hành <span className="text-destructive">*</span></label>
+              <button type="button" onClick={draftNoteFromChanges} className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
+                <HugeiconsIcon icon={SparklesIcon} size={12} /> Soạn từ thay đổi
+              </button>
             </div>
             <textarea
               rows={3}
-              maxLength={500}
-              placeholder="Describe what changed in this version…"
-              className="w-full px-3 py-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none"
-              value={reason}
-              onChange={e => setReason(e.target.value)}
+              maxLength={2000}
+              placeholder="Phiên bản này có gì mới? Người dùng agent sẽ đọc phần này."
+              className={`w-full px-3 py-2.5 rounded-lg border bg-white text-sm outline-none focus:ring-2 transition-base resize-none ${
+                showNoteError ? "border-destructive focus:border-destructive focus:ring-destructive/20" : "border-border focus:border-primary focus:ring-primary/20"
+              }`}
+              value={note}
+              onChange={e => setNote(e.target.value)}
+              onBlur={() => setNoteTouched(true)}
             />
-          </div>
-
-          {/* External channels — available in both placements */}
-          <div>
-            <p className="text-sm font-medium mb-0.5">
-              {placement === "automation" ? "Outbound channels" : "Chat channels"}
-            </p>
-            <p className="text-xs text-muted-foreground mb-2">
-              {placement === "automation"
-                ? "The agent sends results or performs actions to these channels. Customers don't proactively message an automation agent."
-                : "Users message the agent through these channels."}
-            </p>
-            <div className="grid grid-cols-3 gap-2">
-              {CHANNEL_CATALOG.map(ch => <ChannelChip key={ch.id} ch={ch} />)}
+            <div className="flex items-center justify-between mt-1">
+              {showNoteError ? <span className="text-xs text-destructive">Vui lòng nhập ghi chú phát hành</span> : <span />}
+              <span className="text-xs text-muted-foreground shrink-0">{note.length}/2000</span>
             </div>
           </div>
+
+          {/* Chế độ chạy — automation only */}
+          {isAutomation && (
+            <div className="rounded-xl border border-border p-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Chế độ chạy</p>
+              <div className="w-full flex items-start gap-3 text-left rounded-xl border border-primary bg-primary-soft/50 ring-1 ring-primary px-4 py-3.5">
+                <span className="mt-[3px] w-4 h-4 rounded-full border-2 border-primary flex items-center justify-center shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                </span>
+                <span className="w-8 h-8 rounded-lg bg-white text-primary flex items-center justify-center shrink-0">
+                  <HugeiconsIcon icon={BoltIcon} size={16} />
+                </span>
+                <span className="flex-1 min-w-0 pt-px">
+                  <span className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-semibold text-foreground">Automation</span>
+                    <LiveDotChip label="Đang bật" />
+                  </span>
+                  <span className="block text-xs text-muted-foreground leading-relaxed mt-0.5">
+                    Agent tự chạy theo {triggerCount} trigger đã đặt trong Console, cho cả tổ chức. Không ai cài agent
+                    này về Workspace và không ai chat trực tiếp với nó.
+                  </span>
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Phát hành tới */}
+          <div className={`rounded-xl border border-border p-4 ${isAutomation ? "opacity-60" : ""}`}>
+            <label className={`flex items-center gap-2.5 ${isAutomation ? "cursor-not-allowed" : "cursor-pointer"}`}>
+              <input
+                type="checkbox"
+                checked={isAutomation ? false : publishToWorkspace}
+                disabled={isAutomation}
+                onChange={e => setPublishToWorkspace(e.target.checked)}
+                className="w-4 h-4 rounded accent-primary disabled:cursor-not-allowed"
+              />
+              <span className="text-sm font-semibold">Phát hành tới</span>
+              {!isAutomation && publishToWorkspace && <LiveDotChip label={currentAudienceChip} />}
+            </label>
+
+            {!isAutomation && (
+              <div className="mt-3.5 space-y-4">
+                {/* Unchecking "Phát hành tới" only retracts the Workspace audience choice — the
+                    Kênh ngoài grid below stays interactive, per the footer's own validation rule
+                    that channels alone can still satisfy "somewhere to publish to". */}
+                {publishToWorkspace && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Agent Workspace</p>
+                    <div className="space-y-2">
+                      <AudienceRadioRow
+                        icon={UserGroupIcon}
+                        title="Tất cả người dùng trong Workspace"
+                        description="Mọi người dùng trong Workspace có thể sử dụng Agent sau khi xuất bản."
+                        selected={audience === "all"}
+                        liveNow={current.placement === "workspace"}
+                        onClick={() => setAudience("all")}
+                      />
+                      <AudienceRadioRow
+                        icon={Building02Icon}
+                        title="Công ty / phòng ban"
+                        description="Chọn cả công ty, một phòng ban, hoặc từng nhân viên."
+                        selected={audience === "org-unit"}
+                        onClick={() => setAudience("org-unit")}
+                      >
+                        {audience === "org-unit" && (
+                          <div className="mt-2 rounded-lg border border-border bg-surface p-2 max-h-40 overflow-y-auto space-y-0.5">
+                            {ORG_UNIT_OPTIONS.map(o => (
+                              <label key={o.id} className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-surface-muted cursor-pointer text-sm">
+                                <input
+                                  type="checkbox"
+                                  checked={orgUnitSelection.has(o.id)}
+                                  onChange={() => toggleOrgUnit(o.id)}
+                                  className="w-3.5 h-3.5 rounded accent-primary"
+                                />
+                                {o.label}
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                        {orgUnitInvalid && (
+                          <p className="text-xs text-destructive mt-1.5">Chọn ít nhất một đơn vị hoặc nhân viên</p>
+                        )}
+                      </AudienceRadioRow>
+                      <AudienceRadioRow
+                        icon={UserIcon}
+                        title="Chỉ mình tôi"
+                        description="Chỉ bạn dùng được, và agent sẽ vào thẳng Agent của tôi bên Workspace."
+                        selected={audience === "just-me"}
+                        onClick={() => setAudience("just-me")}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Kênh ngoài</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {PUBLISH_CHANNEL_IDS.map(id => {
+                      const ch = CHANNEL_CATALOG.find(c => c.id === id);
+                      return ch && <PublishChannelRow key={id} ch={ch} checked={selectedChannels.has(id)} onToggle={() => toggleChannel(id)} />;
+                    })}
+                  </div>
+                  <div className="text-right mt-2">
+                    <button type="button" onClick={onManageChannels} className="text-xs font-semibold text-primary hover:underline">
+                      Quản lý ›
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {isAutomation && (
+            <div className="flex items-start gap-2 text-xs text-warning bg-[hsl(var(--warning-soft))] border border-warning/25 rounded-lg px-3 py-2.5">
+              <HugeiconsIcon icon={Alert01Icon} size={14} className="shrink-0 mt-0.5" />
+              <p>
+                Agent đang có {triggerCount} trigger nên chạy ở chế độ Automation. Bỏ hết trigger trong Console nếu
+                muốn phát hành agent này lên Workspace.{" "}
+                {onViewSection && (
+                  <button type="button" onClick={() => onViewSection("triggers")} className="font-semibold hover:underline">
+                    Xem trigger
+                  </button>
+                )}
+              </p>
+            </div>
+          )}
+
+          {/* Kênh nhận kết quả — automation only, replaces "Kênh ngoài" as a top-level section */}
+          {isAutomation && (
+            <div>
+              <p className="text-sm font-medium mb-0.5">Kênh nhận kết quả</p>
+              <p className="text-xs text-muted-foreground mb-2">
+                Agent gửi kết quả ra các kênh này. Người dùng không nhắn tin vào agent tự động.
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {PUBLISH_CHANNEL_IDS.map(id => {
+                  const ch = CHANNEL_CATALOG.find(c => c.id === id);
+                  return ch && <PublishChannelRow key={id} ch={ch} checked={selectedChannels.has(id)} onToggle={() => toggleChannel(id)} />;
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
         <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-border shrink-0">
-          {!placement ? (
-            <span className="text-xs text-destructive">Choose where to publish before continuing.</span>
-          ) : (
-            <span className="text-xs text-muted-foreground">
-              {selected.size > 0 ? `${selected.size} channel${selected.size === 1 ? "" : "s"} selected` : "Select at least one channel"}
-            </span>
-          )}
+          <span className="text-xs text-destructive">{footerHelper}</span>
           <div className="flex items-center gap-2">
-            <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Cancel</button>
+            <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Hủy</button>
             <button
-              disabled={!placement || !reason.trim()}
+              disabled={!canPublish}
               className="h-9 px-5 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 transition-base disabled:opacity-40 disabled:cursor-not-allowed"
-              onClick={() => {
-                if (!placement) return;
-                if (needsUninstallGuard) { setShowUninstallGuard(true); return; }
-                agentPublishStore.publish(agentId, placement, [...selected], versionName);
-                onPublished?.();
-                onClose();
-              }}
+              onClick={doPublish}
             >
-              <HugeiconsIcon icon={Rocket01Icon} size={13} /> Publish
+              🚀 Publish {versionName}
             </button>
           </div>
         </div>
       </div>
-
-      {showUninstallGuard && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setShowUninstallGuard(false)} />
-          <div className="relative z-10 w-full max-w-md bg-white rounded-2xl border border-border shadow-lg p-6 animate-fade-up">
-            <h3 className="font-display text-lg font-semibold mb-2">Remove the agent from Workspace first</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-              This version has {triggerCount} trigger{triggerCount === 1 ? "" : "s"}, so it can only run in
-              organization-wide Automation mode. The agent is currently installed by {installCount} people in
-              Workspace. Remove it from Workspace before publishing — those {installCount} installs will be deleted,
-              along with any personal triggers those people set up.
-            </p>
-            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-              Type "{agentName}" to confirm
-            </label>
-            <input
-              value={confirmName}
-              onChange={e => setConfirmName(e.target.value)}
-              className="w-full h-9 px-3 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base mb-4"
-              placeholder={agentName}
-            />
-            <div className="flex items-center justify-end gap-2">
-              <button onClick={() => setShowUninstallGuard(false)} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">
-                Cancel
-              </button>
-              <button
-                disabled={confirmName.trim() !== agentName}
-                onClick={() => {
-                  if (!placement) return;
-                  agentPublishStore.unpublish(agentId);
-                  agentPublishStore.publish(agentId, placement, [...selected], versionName);
-                  onPublished?.();
-                  setShowUninstallGuard(false);
-                  onClose();
-                }}
-                className="h-9 px-4 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 text-sm font-medium transition-base disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Remove from Workspace and publish
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>,
     document.body
   );
