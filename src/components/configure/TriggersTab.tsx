@@ -15,6 +15,7 @@ import { agentConnectorStore } from "./agentConnectorStore";
 import { TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON, agentPublishStore } from "./agentPublishStore";
 import { CATALOG as CONNECTOR_CATALOG } from "./ConnectionsTab";
 import TriggerConnectorNotice from "./TriggerConnectorNotice";
+import TriggerBlockedByConnectorDialog from "./TriggerBlockedByConnectorDialog";
 import AppLogo from "./AppLogo";
 import { toast } from "sonner";
 
@@ -64,7 +65,7 @@ export function summarizeConfig(t: TriggerRecord): string {
 }
 
 export default function TriggersTab({ agentId, onViewConnections, onChange }: {
-  agentId: string; onViewConnections?: () => void; onChange?: () => void;
+  agentId: string; onViewConnections?: (connectorId?: string) => void; onChange?: () => void;
 }) {
   const [tick, setTick] = useState(0);
   const refresh = () => { setTick(t => t + 1); onChange?.(); };
@@ -73,6 +74,7 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
   const [deleteTarget, setDeleteTarget] = useState<TriggerRecord | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [confirmPauseAll, setConfirmPauseAll] = useState(false);
+  const [showBlockedByConnectorDialog, setShowBlockedByConnectorDialog] = useState(false);
 
   const allTriggers = useMemo(() => {
     void tick;
@@ -123,7 +125,8 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
   const limitReached = allTriggers.length >= TRIGGER_LIMIT;
 
   const openCreate = () => {
-    if (limitReached || personalConnectorBlocked) return;
+    if (limitReached) return;
+    if (personalConnectorBlocked) { setShowBlockedByConnectorDialog(true); return; }
     setCreateOpen(true);
   };
 
@@ -190,7 +193,7 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
               <Pause size={13} /> Pause all
             </button>
           )}
-          <button onClick={openCreate} disabled={limitReached || personalConnectorBlocked} className="btn-primary h-9 disabled:opacity-40 disabled:cursor-not-allowed">
+          <button onClick={openCreate} disabled={limitReached} className="btn-primary h-9 disabled:opacity-40 disabled:cursor-not-allowed">
             <Plus size={13} /> Add trigger
           </button>
         </div>
@@ -200,8 +203,8 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
         <div className="mb-4">
           <TriggerConnectorNotice
             message={TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON(personalConnectorName)}
-            linkLabel="Review connections"
-            onLinkClick={onViewConnections}
+            linkLabel="Xem kết nối"
+            onLinkClick={() => onViewConnections?.(personalConnector?.connectorId)}
           />
         </div>
       ) : limitReached && (
@@ -212,7 +215,7 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
       )}
 
       {isEmpty ? (
-        <EmptyState onCreate={openCreate} disabled={limitReached || personalConnectorBlocked} />
+        <EmptyState onCreate={openCreate} disabled={limitReached} />
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           {triggers.map(t => {
@@ -398,6 +401,13 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <TriggerBlockedByConnectorDialog
+        open={showBlockedByConnectorDialog}
+        onOpenChange={setShowBlockedByConnectorDialog}
+        connectorName={personalConnectorName}
+        onSwitchToShared={() => onViewConnections?.(personalConnector?.connectorId)}
+      />
     </div>
   );
 }

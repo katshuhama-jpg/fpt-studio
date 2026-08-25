@@ -9,6 +9,7 @@ import TasksGrid from "@/components/tasks/TasksGrid";
 import BusinessProcessesGrid from "@/components/business-processes/BusinessProcessesGrid";
 import TriggersTab from "@/components/configure/TriggersTab";
 import TriggerFormDialog from "@/components/configure/TriggerFormDialog";
+import TriggerBlockedByConnectorDialog from "@/components/configure/TriggerBlockedByConnectorDialog";
 import GuardrailsTab from "@/components/configure/GuardrailsTab";
 import HistoryTab from "@/components/history/HistoryTab";
 import HistoryChatPanel from "@/components/history/HistoryChatPanel";
@@ -21,7 +22,7 @@ import { triggerStore, triggerNeedsSetup, EXTERNAL_APP_META, type TriggerRecord 
 import { agentConnectorStore, type ConnectorScope } from "@/components/configure/agentConnectorStore";
 import {
   agentPublishStore, WORKSPACE_BLOCKED_BY_TRIGGER_REASON, AUTOMATION_BLOCKED_BY_NO_TRIGGER_REASON, mockInstallCount,
-  TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON, CONNECTOR_BLOCKED_BY_TRIGGER_REASON,
+  CONNECTOR_BLOCKED_BY_TRIGGER_REASON,
   type Placement,
 } from "@/components/configure/agentPublishStore";
 import { getAgentKind, type AgentKind } from "@/components/configure/agentKindStore";
@@ -90,6 +91,11 @@ export default function AgentBuilder() {
   const [showAgentMenu, setShowAgentMenu] = useState(false);
   const [triggerTick, setTriggerTick] = useState(0);
   const [connectionTick, setConnectionTick] = useState(0);
+  const [highlightConnectorId, setHighlightConnectorId] = useState<string | undefined>(undefined);
+  const navigateToConnections = (connectorId?: string) => {
+    setSection("connectors");
+    setHighlightConnectorId(connectorId);
+  };
   const kind = (() => { void publishTick; void triggerTick; return getAgentKind(id); })();
   const publishState = (() => { void publishTick; return agentPublishStore.get(id); })();
   const published = publishState.placement !== null;
@@ -366,10 +372,10 @@ export default function AgentBuilder() {
               {tab === "build" && section === "skills" && <PlaceholderTab title="Skills" />}
               {tab === "build" && section === "guardrails" && <GuardrailsTab agentId={id ?? "new"} />}
               {tab === "build" && section === "triggers" && (
-                <TriggersTab agentId={id ?? "new"} onChange={() => setTriggerTick(t => t + 1)} onViewConnections={() => setSection("connectors")} />
+                <TriggersTab agentId={id ?? "new"} onChange={() => setTriggerTick(t => t + 1)} onViewConnections={navigateToConnections} />
               )}
               {tab === "build" && section === "connectors" && (
-                <ConnectionsTab agentId={id ?? "new"} onViewTriggers={() => setSection("triggers")} onChange={() => setConnectionTick(t => t + 1)} />
+                <ConnectionsTab agentId={id ?? "new"} onViewTriggers={() => setSection("triggers")} onChange={() => setConnectionTick(t => t + 1)} highlightConnectorId={highlightConnectorId} />
               )}
               {tab === "build" && section === "model" && <PlaceholderTab title="Model" />}
               {tab === "build" && !["instructions","knowledge","history","skills","guardrails","triggers","connectors","model"].includes(section) && <PlaceholderTab title={section} />}
@@ -379,7 +385,7 @@ export default function AgentBuilder() {
             </div>
           </div>
 
-          {tab === "build" && section === "instructions" && <PreviewPanel agentId={id ?? "new"} view={previewView} onViewChange={setPreviewView} />}
+          {tab === "build" && section === "instructions" && <PreviewPanel agentId={id ?? "new"} view={previewView} onViewChange={setPreviewView} onNavigateToConnections={navigateToConnections} />}
           {tab === "build" && section === "history" && kind === "conversational" && <HistoryChatPanel agentId={id ?? "new"} />}
         </div>
       </div>
@@ -2627,7 +2633,7 @@ function EmptyStateBox({ icon, description, addLabel, onAdd, disabled, disabledR
   );
 }
 
-function NewConfigPanel({ agentId, model, onModelChange }: { agentId: string; model: string; onModelChange: (id: string) => void }) {
+function NewConfigPanel({ agentId, model, onModelChange, onNavigateToConnections }: { agentId: string; model: string; onModelChange: (id: string) => void; onNavigateToConnections?: (connectorId?: string) => void }) {
   const [open, setOpen] = useState<Record<string, boolean>>({ connectors: true, skills: true, guardrails: true, triggers: true, "sub-agents": true });
   const guardrailsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
   const skillsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
@@ -2655,7 +2661,7 @@ function NewConfigPanel({ agentId, model, onModelChange }: { agentId: string; mo
       id: "triggers", icon: TimeScheduleIcon, label: "Triggers",
       onAdd: () => triggersAddRef.current?.(),
       content: (
-        <TriggersInner agentId={agentId} onRegisterAdd={(fn) => { triggersAddRef.current = fn; }} />
+        <TriggersInner agentId={agentId} onRegisterAdd={(fn) => { triggersAddRef.current = fn; }} onNavigateToConnections={onNavigateToConnections} />
       ),
     },
     {
@@ -2728,7 +2734,7 @@ function NewConfigPanel({ agentId, model, onModelChange }: { agentId: string; mo
   );
 }
 
-function PreviewPanel({ agentId, view, onViewChange }: { agentId: string; view: "config" | "chat"; onViewChange: (v: "config" | "chat") => void }) {
+function PreviewPanel({ agentId, view, onViewChange, onNavigateToConnections }: { agentId: string; view: "config" | "chat"; onViewChange: (v: "config" | "chat") => void; onNavigateToConnections?: (connectorId?: string) => void }) {
   const setView = onViewChange;
   const [selectedModel, setSelectedModel] = useState("deepseek-v4-flash");
   const [messages, setMessages] = useState<{ role: "user" | "agent"; text: string }[]>([
@@ -2770,7 +2776,7 @@ function PreviewPanel({ agentId, view, onViewChange }: { agentId: string; view: 
 
       {view === "config" ? (
         <div className="flex-1 overflow-y-auto">
-          <NewConfigPanel agentId={agentId} model={selectedModel} onModelChange={setSelectedModel} />
+          <NewConfigPanel agentId={agentId} model={selectedModel} onModelChange={setSelectedModel} onNavigateToConnections={onNavigateToConnections} />
         </div>
       ) : (
         <div className="flex-1 flex flex-col overflow-hidden">
@@ -4774,12 +4780,13 @@ function GuardrailsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:num
   );
 }
 
-function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAdd?: (fn: () => void) => void }) {
+function TriggersInner({ agentId, onRegisterAdd, onNavigateToConnections }: { agentId: string; onRegisterAdd?: (fn: () => void) => void; onNavigateToConnections?: (connectorId?: string) => void }) {
   const [tick, setTick] = useState(0);
   const refresh = () => setTick(t => t + 1);
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<TriggerRecord | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [showBlockedByConnectorDialog, setShowBlockedByConnectorDialog] = useState(false);
 
   const personalConnectorRecord = agentConnectorStore.list(agentId).find(c => c.scope === "personal");
   const personalConnectorBlocked = !!personalConnectorRecord;
@@ -4788,7 +4795,7 @@ function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegister
     : "";
 
   const openCreate = () => {
-    if (personalConnectorBlocked) return;
+    if (personalConnectorBlocked) { setShowBlockedByConnectorDialog(true); return; }
     setCreateOpen(true);
   };
 
@@ -4832,8 +4839,6 @@ function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegister
           description="Define when the agent runs automatically — on a schedule, via a webhook, or on events from an external app."
           addLabel="Add Trigger"
           onAdd={openCreate}
-          disabled={personalConnectorBlocked}
-          disabledReason={personalConnectorBlocked ? TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON(personalConnectorName) : undefined}
         />
       ) : (
         <div className="flex flex-col gap-2">
@@ -4930,6 +4935,12 @@ function TriggersInner({ agentId, onRegisterAdd }: { agentId: string; onRegister
         agentId={agentId}
         trigger={editTarget ?? undefined}
         onSubmitted={refresh}
+      />
+      <TriggerBlockedByConnectorDialog
+        open={showBlockedByConnectorDialog}
+        onOpenChange={setShowBlockedByConnectorDialog}
+        connectorName={personalConnectorName}
+        onSwitchToShared={() => onNavigateToConnections?.(personalConnectorRecord?.connectorId)}
       />
     </>
   );

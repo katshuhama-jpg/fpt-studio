@@ -1,8 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Search, CheckCircle2, ChevronRight, Pencil, Trash2, User, Building2, X, AlertTriangle } from "lucide-react";
 import { agentConnectorStore, type ConnectorScope } from "./agentConnectorStore";
 import { triggerStore } from "./triggerStore";
-import { CONNECTOR_BLOCKED_BY_TRIGGER_REASON } from "./agentPublishStore";
+import { CONNECTOR_BLOCKED_BY_TRIGGER_REASON, CONNECTOR_BLOCKED_BY_TRIGGER_TOAST } from "./agentPublishStore";
 import { toast } from "sonner";
 
 export const CATALOG = [
@@ -22,6 +22,17 @@ function ScopeModal({ agentId, connectorId, editing, onClose, onSaved, onViewTri
   const triggerCount = triggerStore.list(agentId).length;
   const blockedByTriggers = triggerCount > 0;
   const [scope, setScope] = useState<ConnectorScope>(blockedByTriggers ? "shared" : (existing?.scope ?? "shared"));
+
+  const warnBlockedByTriggers = () => {
+    toast.warning(CONNECTOR_BLOCKED_BY_TRIGGER_TOAST(triggerCount), {
+      duration: 4000,
+      style: {
+        background: "hsl(var(--warning-soft))",
+        color: "hsl(var(--warning))",
+        border: "1px solid hsl(var(--warning) / 0.25)",
+      },
+    });
+  };
 
   const save = () => {
     // Backstop: the radio is disabled whenever blockedByTriggers, so this should be
@@ -53,6 +64,7 @@ function ScopeModal({ agentId, connectorId, editing, onClose, onSaved, onViewTri
         <div className="px-5 py-4 space-y-1.5">
           <label
             aria-disabled={blockedByTriggers}
+            onClick={() => { if (blockedByTriggers) warnBlockedByTriggers(); }}
             className={`flex items-start gap-3 w-full text-left rounded-xl border px-3.5 py-3 transition-base ${
               blockedByTriggers
                 ? "border-border opacity-50 cursor-not-allowed"
@@ -89,7 +101,7 @@ function ScopeModal({ agentId, connectorId, editing, onClose, onSaved, onViewTri
                 {CONNECTOR_BLOCKED_BY_TRIGGER_REASON(triggerCount)}{" "}
                 {onViewTriggers && (
                   <button type="button" onClick={onViewTriggers} className="font-semibold hover:underline">
-                    View triggers
+                    Xem trigger
                   </button>
                 )}
               </p>
@@ -131,17 +143,21 @@ function ScopeModal({ agentId, connectorId, editing, onClose, onSaved, onViewTri
   );
 }
 
-function ConnectionCard({ meta, attached, onAdd, onEdit, onRemove }: {
+function ConnectionCard({ meta, attached, highlighted, onAdd, onEdit, onRemove }: {
   meta: typeof CATALOG[number];
   attached?: { scope: ConnectorScope };
+  highlighted?: boolean;
   onAdd: () => void;
   onEdit: () => void;
   onRemove: () => void;
 }) {
   return (
-    <div className={`flex items-start gap-3 p-4 rounded-xl border bg-surface transition-base ${
-      attached ? "border-primary/30" : "border-border"
-    }`}>
+    <div
+      id={`connector-card-${meta.id}`}
+      className={`flex items-start gap-3 p-4 rounded-xl border bg-surface transition-base ${
+        highlighted ? "border-warning ring-2 ring-warning/40" : attached ? "border-primary/30" : "border-border"
+      }`}
+    >
       <div className="w-10 h-10 rounded-xl border border-border bg-white flex items-center justify-center shrink-0 overflow-hidden p-1">
         <img src={meta.logo} alt={meta.name} className="w-full h-full object-contain" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
       </div>
@@ -178,16 +194,25 @@ function ConnectionCard({ meta, attached, onAdd, onEdit, onRemove }: {
   );
 }
 
-export default function ConnectionsTab({ agentId, onViewTriggers, onChange }: {
-  agentId: string; onViewTriggers?: () => void; onChange?: () => void;
+export default function ConnectionsTab({ agentId, onViewTriggers, onChange, highlightConnectorId }: {
+  agentId: string; onViewTriggers?: () => void; onChange?: () => void; highlightConnectorId?: string;
 }) {
   const [tick, setTick] = useState(0);
   const refresh = () => { setTick(t => t + 1); onChange?.(); };
   const [query, setQuery] = useState("");
   const [addingId, setAddingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [flashId, setFlashId] = useState<string | undefined>(undefined);
   void tick;
   const connections = agentConnectorStore.list(agentId);
+
+  useEffect(() => {
+    if (!highlightConnectorId) return;
+    setFlashId(highlightConnectorId);
+    document.getElementById(`connector-card-${highlightConnectorId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const timer = setTimeout(() => setFlashId(undefined), 2500);
+    return () => clearTimeout(timer);
+  }, [highlightConnectorId]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -220,6 +245,7 @@ export default function ConnectionsTab({ agentId, onViewTriggers, onChange }: {
               key={meta.id}
               meta={meta}
               attached={attached}
+              highlighted={flashId === meta.id}
               onAdd={() => setAddingId(meta.id)}
               onEdit={() => setEditingId(meta.id)}
               onRemove={() => {
