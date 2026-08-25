@@ -389,7 +389,7 @@ export default function AgentsList() {
 
               <p className="text-xs text-muted-foreground leading-relaxed mb-4 line-clamp-2 min-h-[32px]">{a.desc}</p>
 
-              <div className="flex items-center gap-1.5 pt-3 border-t border-border text-xs text-muted-foreground">
+              <div className="flex items-center gap-1.5 mt-3 text-xs text-muted-foreground">
                 <span>Updated {a.updated}</span>
                 {a.channels.length > 0 && (
                   <>
