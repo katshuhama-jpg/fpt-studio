@@ -3076,6 +3076,9 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onViewSection,
 
   const [note, setNote] = useState("");
   const [noteTouched, setNoteTouched] = useState(false);
+  const [attemptedSubmit, setAttemptedSubmit] = useState(false);
+  const noteRef = useRef<HTMLTextAreaElement>(null);
+  const orgUnitRef = useRef<HTMLDivElement>(null);
 
   const [publishToWorkspace, setPublishToWorkspace] = useState(!isAutomation);
   const [audience, setAudience] = useState<"all" | "org-unit" | "just-me">("all");
@@ -3102,11 +3105,17 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onViewSection,
   };
 
   const noteEmpty = note.trim().length === 0;
-  const showNoteError = noteTouched && noteEmpty;
+  const showNoteError = (noteTouched || attemptedSubmit) && noteEmpty;
   const orgUnitInvalid = !isAutomation && publishToWorkspace && audience === "org-unit" && orgUnitSelection.size === 0;
   const hasPublishTarget = isAutomation ? true : (publishToWorkspace || selectedChannels.size > 0);
   const canPublish = !noteEmpty && !orgUnitInvalid && hasPublishTarget;
-  const footerHelper = !hasPublishTarget ? "Chọn nơi phát hành agent" : null;
+  const footerHelper = noteEmpty
+    ? "Nhập ghi chú phát hành để xuất bản"
+    : orgUnitInvalid
+      ? "Chọn ít nhất một đơn vị hoặc nhân viên"
+      : !hasPublishTarget
+        ? "Chọn nơi phát hành agent"
+        : null;
 
   const currentAudienceChip = audience === "all"
     ? "Tất cả người dùng trong Workspace"
@@ -3117,7 +3126,16 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onViewSection,
         : "Công ty / phòng ban";
 
   const doPublish = () => {
-    if (!canPublish) return;
+    if (!canPublish) {
+      setAttemptedSubmit(true);
+      if (noteEmpty) {
+        noteRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+        noteRef.current?.focus();
+      } else if (orgUnitInvalid) {
+        orgUnitRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      return;
+    }
     const placement: "workspace" | "automation" = (!isAutomation && publishToWorkspace) ? "workspace" : "automation";
     agentPublishStore.publish(agentId, placement, [...selectedChannels], versionName);
     toast.success(`Đã phát hành ${versionName}.`);
@@ -3224,6 +3242,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onViewSection,
               </button>
             </div>
             <textarea
+              ref={noteRef}
               rows={3}
               maxLength={2000}
               placeholder="Phiên bản này có gì mới? Người dùng agent sẽ đọc phần này."
@@ -3243,7 +3262,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onViewSection,
           {/* Chế độ chạy — automation only */}
           {isAutomation && (
             <div className="rounded-xl border border-border p-4">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Chế độ chạy</p>
+              <p className="text-xs font-semibold text-muted-foreground mb-2">Chế độ chạy</p>
               <div className="w-full flex items-start gap-3 text-left rounded-xl border border-primary bg-primary-soft/50 ring-1 ring-primary px-4 py-3.5">
                 <span className="mt-[3px] w-4 h-4 rounded-full border-2 border-primary flex items-center justify-center shrink-0">
                   <span className="w-1.5 h-1.5 rounded-full bg-primary" />
@@ -3286,7 +3305,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onViewSection,
                     that channels alone can still satisfy "somewhere to publish to". */}
                 {publishToWorkspace && (
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Agent Workspace</p>
+                    <p className="text-xs font-semibold text-muted-foreground mb-2">Agent Workspace</p>
                     <div className="space-y-2">
                       <AudienceRadioRow
                         icon={UserGroupIcon}
@@ -3296,6 +3315,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onViewSection,
                         liveNow={current.placement === "workspace"}
                         onClick={() => setAudience("all")}
                       />
+                      <div ref={orgUnitRef}>
                       <AudienceRadioRow
                         icon={Building02Icon}
                         title="Công ty / phòng ban"
@@ -3322,6 +3342,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onViewSection,
                           <p className="text-xs text-destructive mt-1.5">Chọn ít nhất một đơn vị hoặc nhân viên</p>
                         )}
                       </AudienceRadioRow>
+                      </div>
                       <AudienceRadioRow
                         icon={UserIcon}
                         title="Chỉ mình tôi"
@@ -3334,7 +3355,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onViewSection,
                 )}
 
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Kênh ngoài</p>
+                  <p className="text-xs font-semibold text-muted-foreground mb-2">Kênh ngoài</p>
                   <div className="grid grid-cols-2 gap-2">
                     {PUBLISH_CHANNEL_IDS.map(id => {
                       const ch = CHANNEL_CATALOG.find(c => c.id === id);
@@ -3389,11 +3410,10 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onViewSection,
           <div className="flex items-center gap-2">
             <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Hủy</button>
             <button
-              disabled={!canPublish}
-              className="h-9 px-5 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 transition-base disabled:opacity-40 disabled:cursor-not-allowed"
+              className="h-9 px-5 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-2 transition-base"
               onClick={doPublish}
             >
-              🚀 Publish {versionName}
+              <HugeiconsIcon icon={Rocket01Icon} size={14} /> Publish {versionName}
             </button>
           </div>
         </div>
