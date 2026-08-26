@@ -8,8 +8,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import TriggerFormDialog from "./TriggerFormDialog";
+import DeleteTriggerDialog from "./DeleteTriggerDialog";
 import {
-  triggerStore, triggerNeedsSetup, EXTERNAL_APP_EVENTS, EXTERNAL_APP_META, type TriggerRecord, type TriggerType,
+  triggerStore, triggerNeedsSetup, TRIGGER_LIMIT, EXTERNAL_APP_EVENTS, EXTERNAL_APP_META, type TriggerRecord, type TriggerType,
 } from "./triggerStore";
 import { perUserConnector } from "./agentAutomationGuard";
 import { TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON, agentPublishStore } from "./agentPublishStore";
@@ -18,8 +19,6 @@ import TriggerConnectorNotice from "./TriggerConnectorNotice";
 import TriggerBlockedByConnectorDialog from "./TriggerBlockedByConnectorDialog";
 import AppLogo from "./AppLogo";
 import { toast } from "sonner";
-
-const TRIGGER_LIMIT = 10;
 
 export const TYPE_META: Record<TriggerType, { label: string; icon: any; chip: string }> = {
   scheduled: { label: "Lịch", icon: Clock,   chip: "chip-accent" },
@@ -330,37 +329,12 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
         onSubmitted={refresh}
       />
 
-      <AlertDialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Xoá trigger "{deleteTarget?.name}"?</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <ul className="space-y-1.5 text-left list-disc pl-4">
-                <li>Agent sẽ không còn tự chạy theo trigger này.</li>
-                <li>Cấu hình webhook URL / lịch / điều kiện sự kiện sẽ bị xoá và không khôi phục được.</li>
-                <li>Lịch sử chạy đã ghi nhận vẫn được giữ lại.</li>
-              </ul>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Huỷ</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => {
-                if (deleteTarget) {
-                  const delName = deleteTarget.name;
-                  triggerStore.remove(agentId, deleteTarget.id);
-                  toast.success(`Đã xoá trigger "${delName}".`);
-                  setDeleteTarget(null);
-                  refresh();
-                }
-              }}
-            >
-              Xoá trigger
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteTriggerDialog
+        agentId={agentId}
+        target={deleteTarget}
+        onOpenChange={v => !v && setDeleteTarget(null)}
+        onDeleted={refresh}
+      />
 
       <AlertDialog open={confirmPauseAll} onOpenChange={setConfirmPauseAll}>
         <AlertDialogContent>

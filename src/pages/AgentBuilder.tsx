@@ -11,6 +11,7 @@ import TriggersTab from "@/components/configure/TriggersTab";
 import TriggerFormDialog from "@/components/configure/TriggerFormDialog";
 import TriggerBlockedByConnectorDialog from "@/components/configure/TriggerBlockedByConnectorDialog";
 import TriggerConnectorNotice from "@/components/configure/TriggerConnectorNotice";
+import DeleteTriggerDialog from "@/components/configure/DeleteTriggerDialog";
 import GuardrailsTab from "@/components/configure/GuardrailsTab";
 import HistoryTab from "@/components/history/HistoryTab";
 import HistoryChatPanel from "@/components/history/HistoryChatPanel";
@@ -19,7 +20,7 @@ import ChatOptimizationTab from "@/components/configure/ChatOptimizationTab";
 import { businessProcessStore } from "@/components/business-processes/businessProcessStore";
 import { taskStore } from "@/components/tasks/taskStore";
 import { knowledgeStore } from "@/components/knowledge/knowledgeStore";
-import { triggerStore, triggerNeedsSetup, EXTERNAL_APP_META, type TriggerRecord } from "@/components/configure/triggerStore";
+import { triggerStore, triggerNeedsSetup, TRIGGER_LIMIT, EXTERNAL_APP_META, type TriggerRecord } from "@/components/configure/triggerStore";
 import { agentConnectorStore, type ConnectorScope } from "@/components/configure/agentConnectorStore";
 import { hasTriggers, perUserConnector } from "@/components/configure/agentAutomationGuard";
 import {
@@ -4908,6 +4909,7 @@ function TriggersInner({ agentId, onRegisterAdd, onNavigateToConnections }: { ag
   const refresh = () => setTick(t => t + 1);
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<TriggerRecord | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<TriggerRecord | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [showBlockedByConnectorDialog, setShowBlockedByConnectorDialog] = useState(false);
 
@@ -4933,8 +4935,10 @@ function TriggersInner({ agentId, onRegisterAdd, onNavigateToConnections }: { ag
 
   void tick;
   const triggers = triggerStore.list(agentId);
+  const limitReached = triggers.length >= TRIGGER_LIMIT;
 
   const duplicateTrigger = (t: TriggerRecord) => {
+    if (limitReached) return;
     if (perUserConnector(agentId) !== null) { setShowBlockedByConnectorDialog(true); return; }
     let name = `${t.name} (copy)`;
     let n = 2;
@@ -5025,11 +5029,13 @@ function TriggersInner({ agentId, onRegisterAdd, onNavigateToConnections }: { ag
                   <TriggerRowMenu
                     enabled={t.enabled}
                     needsSetup={needsSetup}
+                    duplicateBlocked={limitReached}
+                    enableBlocked={personalConnectorBlocked}
                     onToggle={() => { triggerStore.toggle(agentId, t.id); refresh(); }}
                     onEdit={() => setEditTarget(t)}
                     onRename={() => setRenamingId(t.id)}
                     onDuplicate={() => duplicateTrigger(t)}
-                    onDelete={() => { const n = t.name; triggerStore.remove(agentId, t.id); toast.success(`Đã xoá trigger "${n}".`); refresh(); }}
+                    onDelete={() => setDeleteTarget(t)}
                   />
                 </div>
                 {summary && (
@@ -5075,6 +5081,12 @@ function TriggersInner({ agentId, onRegisterAdd, onNavigateToConnections }: { ag
         trigger={editTarget ?? undefined}
         onSubmitted={refresh}
       />
+      <DeleteTriggerDialog
+        agentId={agentId}
+        target={deleteTarget}
+        onOpenChange={v => !v && setDeleteTarget(null)}
+        onDeleted={refresh}
+      />
       <TriggerBlockedByConnectorDialog
         open={showBlockedByConnectorDialog}
         onOpenChange={setShowBlockedByConnectorDialog}
@@ -5088,8 +5100,9 @@ function TriggersInner({ agentId, onRegisterAdd, onNavigateToConnections }: { ag
 const TRIGGER_ROW_MENU_WIDTH = 144; // w-36
 const TRIGGER_ROW_MENU_HEIGHT_ESTIMATE = 176; // ~5 rows worst case, for the flip-up decision
 
-function TriggerRowMenu({ enabled, needsSetup, onToggle, onEdit, onRename, onDuplicate, onDelete }: {
-  enabled: boolean; needsSetup: boolean; onToggle: () => void; onEdit: () => void; onRename: () => void; onDuplicate: () => void; onDelete: () => void;
+function TriggerRowMenu({ enabled, needsSetup, duplicateBlocked, enableBlocked, onToggle, onEdit, onRename, onDuplicate, onDelete }: {
+  enabled: boolean; needsSetup: boolean; duplicateBlocked?: boolean; enableBlocked?: boolean;
+  onToggle: () => void; onEdit: () => void; onRename: () => void; onDuplicate: () => void; onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
@@ -5147,6 +5160,15 @@ function TriggerRowMenu({ enabled, needsSetup, onToggle, onEdit, onRename, onDup
               </TooltipTrigger>
               <TooltipContent side="left" sideOffset={8} align="center">Hoàn tất cấu hình trigger trước khi bật.</TooltipContent>
             </Tooltip>
+          ) : !enabled && enableBlocked ? (
+            <Tooltip delayDuration={300}>
+              <TooltipTrigger asChild>
+                <span tabIndex={0} className="block w-full text-left px-3 py-1.5 text-xs text-muted-foreground/60 cursor-not-allowed outline-none">
+                  Bật trigger
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="left" sideOffset={8} align="center">Agent đang dùng kết nối riêng — xử lý việc này trước khi bật trigger.</TooltipContent>
+            </Tooltip>
           ) : (
             <button type="button" onClick={() => { onToggle(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">
               {enabled ? "Tạm dừng trigger" : "Bật trigger"}
@@ -5161,7 +5183,12 @@ function TriggerRowMenu({ enabled, needsSetup, onToggle, onEdit, onRename, onDup
           <button type="button" onClick={() => { onDelete(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">
             Xoá trigger
           </button>
-          <button type="button" onClick={() => { onDuplicate(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">
+          <button
+            type="button"
+            disabled={duplicateBlocked}
+            onClick={() => { onDuplicate(); setOpen(false); }}
+            className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base disabled:text-muted-foreground/50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+          >
             Nhân bản
           </button>
         </div>,

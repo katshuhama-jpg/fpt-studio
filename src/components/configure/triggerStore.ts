@@ -5,6 +5,8 @@ import { checkCronExpression } from "./cronUtils";
 import { loadMap, saveMap, loadSet, saveSet } from "@/lib/sessionPersist";
 import { perUserConnector } from "./agentAutomationGuard";
 
+export const TRIGGER_LIMIT = 10;
+
 export type TriggerType = "scheduled" | "developer" | "external";
 
 export type ScheduleFrequency = "daily" | "weekly" | "monthly" | "custom";
