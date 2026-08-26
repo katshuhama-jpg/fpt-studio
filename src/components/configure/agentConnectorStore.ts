@@ -35,6 +35,14 @@ export const agentConnectorStore = {
     store.set(agentId, list.filter(c => c.connectorId !== connectorId));
     persist();
   },
+  /** Switches an already-attached connector's scope in place (e.g. personal -> shared)
+   * without detaching/reattaching it — used by the "Đổi sang kết nối Dùng chung" action. */
+  setScope(agentId: string, connectorId: string, scope: ConnectorScope) {
+    const list = store.get(agentId);
+    if (!list || !list.some(c => c.connectorId === connectorId)) return;
+    store.set(agentId, list.map(c => (c.connectorId === connectorId ? { ...c, scope } : c)));
+    persist();
+  },
   hasPersonalConnector(agentId: string): boolean {
     return (store.get(agentId) ?? []).some(c => c.scope === "personal");
   },
