@@ -10,6 +10,7 @@ import BusinessProcessesGrid from "@/components/business-processes/BusinessProce
 import TriggersTab from "@/components/configure/TriggersTab";
 import TriggerFormDialog from "@/components/configure/TriggerFormDialog";
 import TriggerBlockedByConnectorDialog from "@/components/configure/TriggerBlockedByConnectorDialog";
+import TriggerConnectorNotice from "@/components/configure/TriggerConnectorNotice";
 import GuardrailsTab from "@/components/configure/GuardrailsTab";
 import HistoryTab from "@/components/history/HistoryTab";
 import HistoryChatPanel from "@/components/history/HistoryChatPanel";
@@ -2663,6 +2664,7 @@ function NewConfigPanel({ agentId, model, onModelChange, onNavigateToConnections
     {
       id: "triggers", icon: TimeScheduleIcon, label: "Triggers",
       onAdd: () => triggersAddRef.current?.(),
+      disabled: perUserConnector(agentId) !== null,
       content: (
         <TriggersInner agentId={agentId} onRegisterAdd={(fn) => { triggersAddRef.current = fn; }} onNavigateToConnections={onNavigateToConnections} />
       ),
@@ -2715,8 +2717,10 @@ function NewConfigPanel({ agentId, model, onModelChange, onNavigateToConnections
               {s.comingSoon
                 ? <span className="text-xs px-2 py-0.5 rounded-full bg-surface-muted border border-border text-muted-foreground">Coming soon</span>
                 : <button
-                  className="text-muted-foreground hover:text-foreground transition-base"
+                  aria-disabled={!!s.disabled}
+                  className={`transition-base ${s.disabled ? "text-muted-foreground opacity-[0.45] cursor-not-allowed" : "text-muted-foreground hover:text-foreground"}`}
                   onClick={(e) => {
+                    if (s.disabled) return;
                     setOpen(o => ({ ...o, [s.id]: true }));
                     if (s.onAdd) {
                       const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -2778,7 +2782,7 @@ function PreviewPanel({ agentId, view, onViewChange, onNavigateToConnections }: 
       </div>
 
       {view === "config" ? (
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto pb-[88px]">
           <NewConfigPanel agentId={agentId} model={selectedModel} onModelChange={setSelectedModel} onNavigateToConnections={onNavigateToConnections} />
         </div>
       ) : (
@@ -4987,7 +4991,7 @@ function TriggersInner({ agentId, onRegisterAdd, onNavigateToConnections }: { ag
     }
     const rec = triggerStore.create(agentId, { name, type: t.type, enabled: t.enabled, description: t.description, config: t.config });
     if (!rec) { setShowBlockedByConnectorDialog(true); return; }
-    toast.success(`Created trigger "${name}".`);
+    toast.success(`Đã tạo trigger "${name}".`);
     refresh();
   };
 
@@ -4995,7 +4999,7 @@ function TriggersInner({ agentId, onRegisterAdd, onNavigateToConnections }: { ag
     const trimmed = newName.trim();
     if (!trimmed || trimmed === t.name) { setRenamingId(null); return; }
     if (triggerStore.isDuplicateName(agentId, trimmed, t.id)) {
-      toast.error("A trigger with this name already exists on this agent. Please choose another name.");
+      toast.error("Agent này đã có trigger dùng tên này. Hãy chọn tên khác.");
       return;
     }
     triggerStore.update(agentId, t.id, { name: trimmed });
@@ -5006,12 +5010,14 @@ function TriggersInner({ agentId, onRegisterAdd, onNavigateToConnections }: { ag
   return (
     <>
       {triggers.length === 0 ? (
-        <EmptyStateBox
-          icon={TimeScheduleIcon}
-          description="Define when the agent runs automatically — on a schedule, via a webhook, or on events from an external app."
-          addLabel="Add Trigger"
-          onAdd={openCreate}
-        />
+        personalConnectorBlocked ? null : (
+          <EmptyStateBox
+            icon={TimeScheduleIcon}
+            description="Agent tự động chạy theo lịch, webhook hoặc sự kiện từ ứng dụng."
+            addLabel="Thêm Trigger"
+            onAdd={openCreate}
+          />
+        )
       ) : (
         <div className="flex flex-col gap-2">
           {triggers.map(t => {
@@ -5056,11 +5062,11 @@ function TriggersInner({ agentId, onRegisterAdd, onNavigateToConnections }: { ag
                   )}
                   {needsSetup ? (
                     <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap bg-amber-100 text-amber-700">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Needs setup
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Cần cấu hình
                     </span>
                   ) : !t.enabled && (
                     <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap bg-amber-100 text-amber-700">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Paused
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Tạm dừng
                     </span>
                   )}
                   <TriggerRowMenu
@@ -5070,7 +5076,7 @@ function TriggersInner({ agentId, onRegisterAdd, onNavigateToConnections }: { ag
                     onEdit={() => setEditTarget(t)}
                     onRename={() => setRenamingId(t.id)}
                     onDuplicate={() => duplicateTrigger(t)}
-                    onDelete={() => { const n = t.name; triggerStore.remove(agentId, t.id); toast.success(`Deleted trigger "${n}".`); refresh(); }}
+                    onDelete={() => { const n = t.name; triggerStore.remove(agentId, t.id); toast.success(`Đã xoá trigger "${n}".`); refresh(); }}
                   />
                 </div>
                 {summary && (
@@ -5079,17 +5085,25 @@ function TriggersInner({ agentId, onRegisterAdd, onNavigateToConnections }: { ag
                 {needsSetup ? (
                   <div className="flex items-center gap-1.5 mt-1.5 pl-7 text-xs text-amber-700">
                     <HugeiconsIcon icon={InformationCircleIcon} size={12} className="shrink-0" />
-                    <span>Finish configuring this trigger before turning it on.</span>
+                    <span>Hoàn tất cấu hình trigger trước khi bật.</span>
                   </div>
                 ) : !t.enabled && (
                   <div className="flex items-center gap-1.5 mt-1.5 pl-7 text-xs text-amber-700">
                     <HugeiconsIcon icon={InformationCircleIcon} size={12} className="shrink-0" />
-                    <span>This trigger is paused.</span>
+                    <span>Trigger này đang tạm dừng.</span>
                   </div>
                 )}
               </div>
             );
           })}
+        </div>
+      )}
+
+      {personalConnectorBlocked && (
+        <div className="mt-2">
+          <TriggerConnectorNotice
+            message='Agent đang dùng kết nối Riêng cá nhân nên chưa thêm được Trigger. Đổi kết nối sang Dùng chung để bật Trigger.'
+          />
         </div>
       )}
 
@@ -5118,60 +5132,87 @@ function TriggersInner({ agentId, onRegisterAdd, onNavigateToConnections }: { ag
   );
 }
 
+const TRIGGER_ROW_MENU_WIDTH = 144; // w-36
+const TRIGGER_ROW_MENU_HEIGHT_ESTIMATE = 176; // ~5 rows worst case, for the flip-up decision
+
 function TriggerRowMenu({ enabled, needsSetup, onToggle, onEdit, onRename, onDuplicate, onDelete }: {
   enabled: boolean; needsSetup: boolean; onToggle: () => void; onEdit: () => void; onRename: () => void; onDuplicate: () => void; onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const openMenu = () => {
+    const r = btnRef.current?.getBoundingClientRect();
+    if (r) {
+      // Flip upward when there isn't room below for the menu, so it's never clipped by the
+      // panel's own overflow — clamp horizontally so it never spills past the viewport edge.
+      const openUpward = window.innerHeight - r.bottom < TRIGGER_ROW_MENU_HEIGHT_ESTIMATE && r.top > TRIGGER_ROW_MENU_HEIGHT_ESTIMATE;
+      const left = Math.min(Math.max(r.right - TRIGGER_ROW_MENU_WIDTH, 8), window.innerWidth - TRIGGER_ROW_MENU_WIDTH - 8);
+      setPos(openUpward ? { bottom: window.innerHeight - r.top + 4, left } : { top: r.bottom + 4, left });
+    }
+    setOpen(true);
+  };
 
   useEffect(() => {
     if (!open) return;
     const h = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
+      if (
+        menuRef.current && !menuRef.current.contains(e.target as Node) &&
+        btnRef.current && !btnRef.current.contains(e.target as Node)
+      ) setOpen(false);
     };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
 
   return (
-    <div ref={containerRef} className="relative shrink-0" onClick={e => e.stopPropagation()}>
+    <div className="relative shrink-0" onClick={e => e.stopPropagation()}>
       <button
+        ref={btnRef}
         type="button"
-        onClick={() => setOpen(o => !o)}
+        onClick={() => (open ? setOpen(false) : openMenu())}
         className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base"
         aria-label="Trigger actions"
       >
         <HugeiconsIcon icon={MoreHorizontalIcon} size={13} />
       </button>
-      {open && (
-        <div className="absolute right-0 top-full mt-1 z-20 w-36 rounded-lg border border-border bg-white shadow-elev py-1">
+      {open && createPortal(
+        <div
+          ref={menuRef}
+          className="fixed z-[9999] w-36 rounded-lg border border-border bg-white shadow-elev py-1"
+          style={{ top: pos.top, bottom: pos.bottom, left: pos.left }}
+          onMouseDown={e => e.stopPropagation()}
+        >
           {!enabled && needsSetup ? (
             <Tooltip delayDuration={300}>
               <TooltipTrigger asChild>
                 <span tabIndex={0} className="block w-full text-left px-3 py-1.5 text-xs text-muted-foreground/60 cursor-not-allowed outline-none">
-                  Enable trigger
+                  Bật trigger
                 </span>
               </TooltipTrigger>
-              <TooltipContent side="left" sideOffset={8} align="center">Finish configuring this trigger before enabling it.</TooltipContent>
+              <TooltipContent side="left" sideOffset={8} align="center">Hoàn tất cấu hình trigger trước khi bật.</TooltipContent>
             </Tooltip>
           ) : (
             <button type="button" onClick={() => { onToggle(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">
-              {enabled ? "Pause trigger" : "Enable trigger"}
+              {enabled ? "Tạm dừng trigger" : "Bật trigger"}
             </button>
           )}
           <button type="button" onClick={() => { onEdit(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">
-            Edit trigger
+            Chỉnh sửa trigger
           </button>
           <button type="button" onClick={() => { onRename(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">
-            Rename
+            Đổi tên
           </button>
           <button type="button" onClick={() => { onDelete(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">
-            Delete trigger
+            Xoá trigger
           </button>
           <button type="button" onClick={() => { onDuplicate(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">
-            Duplicate
+            Nhân bản
           </button>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

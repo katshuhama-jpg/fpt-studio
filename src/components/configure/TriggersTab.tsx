@@ -22,9 +22,9 @@ import { toast } from "sonner";
 const TRIGGER_LIMIT = 10;
 
 export const TYPE_META: Record<TriggerType, { label: string; icon: any; chip: string }> = {
-  scheduled: { label: "Schedule", icon: Clock,   chip: "chip-accent" },
+  scheduled: { label: "Lịch", icon: Clock,   chip: "chip-accent" },
   developer: { label: "Webhook",   icon: Webhook, chip: "chip-warning" },
-  external:  { label: "External app",  icon: Globe,   chip: "chip-success" },
+  external:  { label: "Ứng dụng bên ngoài",  icon: Globe,   chip: "chip-success" },
 };
 
 const DAY_OF_WEEK_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -83,7 +83,6 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
 
   const triggers = allTriggers;
   const isEmpty = triggers.length === 0;
-  const isLastTrigger = allTriggers.length === 1;
   const publishState = agentPublishStore.get(agentId);
   const publishInfo = { isPublished: publishState.placement !== null, channelCount: publishState.channels.length };
   const isDraft = !publishInfo.isPublished;
@@ -99,8 +98,8 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
     if (pausable.length === 0 && skipped === 0) return;
     pausable.forEach(t => triggerStore.toggle(agentId, t.id));
     const msg = skipped > 0
-      ? `Paused ${pausable.length} trigger${pausable.length === 1 ? "" : "s"}. ${skipped} trigger${skipped === 1 ? "" : "s"} ${skipped === 1 ? "is" : "are"} still incomplete.`
-      : `Paused ${pausable.length} trigger${pausable.length === 1 ? "" : "s"}.`;
+      ? `Đã tạm dừng ${pausable.length} trigger. ${skipped} trigger chưa cấu hình xong.`
+      : `Đã tạm dừng ${pausable.length} trigger.`;
     toast.success(msg);
     refresh();
   };
@@ -112,8 +111,8 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
     if (resumable.length === 0 && blocked === 0) return;
     resumable.forEach(t => triggerStore.toggle(agentId, t.id));
     const msg = blocked > 0
-      ? `Resumed ${resumable.length} trigger${resumable.length === 1 ? "" : "s"}. ${blocked} trigger${blocked === 1 ? "" : "s"} still ${blocked === 1 ? "needs" : "need"} to be fully configured.`
-      : `Resumed ${resumable.length} trigger${resumable.length === 1 ? "" : "s"}.`;
+      ? `Đã bật lại ${resumable.length} trigger. ${blocked} trigger vẫn cần cấu hình đầy đủ.`
+      : `Đã bật lại ${resumable.length} trigger.`;
     toast.success(msg);
     refresh();
   };
@@ -148,7 +147,7 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
       config: t.config,
     });
     if (!rec) { setShowBlockedByConnectorDialog(true); return; }
-    toast.success(`Created trigger "${name}".`);
+    toast.success(`Đã tạo trigger "${name}".`);
     refresh();
   };
 
@@ -156,7 +155,7 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
     const trimmed = newName.trim();
     if (!trimmed || trimmed === t.name) { setRenamingId(null); return; }
     if (triggerStore.isDuplicateName(agentId, trimmed, t.id)) {
-      toast.error("A trigger with this name already exists on this agent. Please choose another name.");
+      toast.error("Agent này đã có trigger dùng tên này. Hãy chọn tên khác.");
       return;
     }
     triggerStore.update(agentId, t.id, { name: trimmed });
@@ -168,26 +167,26 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
     <div className="p-8 w-full animate-fade-up">
       <div className="flex items-end justify-between mb-5 gap-4 flex-wrap">
         <div>
-          <h2 className="font-display text-xl font-semibold">Triggers</h2>
+          <h2 className="font-display text-xl font-semibold">Trigger</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Triggers make the agent run automatically — on a schedule, via a webhook, or on events from an external app.
+            Trigger giúp agent tự chạy — theo lịch, qua webhook, hoặc theo sự kiện từ ứng dụng bên ngoài.
           </p>
           {isDraft && !isEmpty && (
-            <p className="text-xs text-muted-foreground mt-1">Triggers start running after you publish this agent.</p>
+            <p className="text-xs text-muted-foreground mt-1">Trigger sẽ bắt đầu chạy sau khi bạn publish agent này.</p>
           )}
         </div>
         <div className="flex items-center gap-2">
           {allPaused ? (
             <>
               <span className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[hsl(var(--warning-soft))] border border-warning/25 text-xs font-semibold text-warning">
-                <span className="w-1.5 h-1.5 rounded-full bg-warning" /> All triggers paused
+                <span className="w-1.5 h-1.5 rounded-full bg-warning" /> Đã tạm dừng tất cả trigger
               </span>
               <button
                 onClick={resumeAll}
                 disabled={personalConnectorBlocked}
                 className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-sm font-medium text-foreground hover:bg-surface-muted transition-base disabled:opacity-40 disabled:pointer-events-none"
               >
-                <Play size={13} /> Resume all
+                <Play size={13} /> Bật lại tất cả
               </button>
             </>
           ) : (
@@ -196,11 +195,11 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
               disabled={allTriggers.length === 0 || pausableCount === 0 || personalConnectorBlocked}
               className="flex items-center gap-1.5 h-9 px-3 rounded-lg border border-border bg-surface text-sm font-medium text-foreground hover:bg-surface-muted transition-base disabled:opacity-40 disabled:pointer-events-none"
             >
-              <Pause size={13} /> Pause all
+              <Pause size={13} /> Tạm dừng tất cả
             </button>
           )}
           <button onClick={openCreate} disabled={limitReached} className="btn-primary h-9 disabled:opacity-40 disabled:cursor-not-allowed">
-            <Plus size={13} /> Add trigger
+            <Plus size={13} /> Thêm trigger
           </button>
         </div>
       </div>
@@ -209,14 +208,14 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
         <div className="mb-4">
           <TriggerConnectorNotice
             message={TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON(personalConnectorName)}
-            linkLabel="View connections"
+            linkLabel="Xem kết nối"
             onLinkClick={() => onViewConnections?.(personalConnector?.connectorId)}
           />
         </div>
       ) : limitReached && (
         <div className="flex items-start gap-2 text-xs text-warning bg-[hsl(var(--warning-soft))] border border-warning/25 rounded-lg px-3 py-2.5 mb-4">
           <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-          <p>This agent has reached the limit of 10 triggers.</p>
+          <p>Agent đã đạt giới hạn 10 trigger.</p>
         </div>
       )}
 
@@ -268,17 +267,17 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
                       <div className="flex items-center gap-1.5 text-xs flex-nowrap">
                         {needsSetup ? (
                           <span className="font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap chip-warning">
-                            Needs setup
+                            Cần cấu hình
                           </span>
                         ) : isDraft ? (
                           <span className="font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap bg-surface-muted text-muted-foreground border border-border">
-                            Waiting for publish
+                            Chờ publish
                           </span>
                         ) : (
                           <span className={`font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap ${
                             t.enabled ? "chip-success" : "chip-warning"
                           }`}>
-                            {t.enabled ? "Active" : "Paused"}
+                            {t.enabled ? "Đang hoạt động" : "Tạm dừng"}
                           </span>
                         )}
                         <span className="text-muted-foreground truncate min-w-0">· {meta.label}</span>
@@ -305,7 +304,7 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
                   </p>
                   {needsSetup && (
                     <p className="text-[11px] text-warning font-medium mt-1.5">
-                      Finish configuring this trigger before turning it on.
+                      Hoàn tất cấu hình trigger trước khi bật.
                     </p>
                   )}
                 </div>
@@ -334,39 +333,30 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
       <AlertDialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this trigger?</AlertDialogTitle>
+            <AlertDialogTitle>Xoá trigger "{deleteTarget?.name}"?</AlertDialogTitle>
             <AlertDialogDescription asChild>
-              <div className="space-y-2.5 text-left">
-                {deleteTarget && (
-                  <p>The trigger "{deleteTarget.name}" will be permanently deleted. Any runs already in progress will finish.</p>
-                )}
-                {deleteTarget && isLastTrigger && (
-                  <p>
-                    This is the last trigger. The agent will stop running as an Automation and move back to the
-                    Agents group. It will not be published to Workspace automatically.
-                  </p>
-                )}
-              </div>
+              <ul className="space-y-1.5 text-left list-disc pl-4">
+                <li>Agent sẽ không còn tự chạy theo trigger này.</li>
+                <li>Cấu hình webhook URL / lịch / điều kiện sự kiện sẽ bị xoá và không khôi phục được.</li>
+                <li>Lịch sử chạy đã ghi nhận vẫn được giữ lại.</li>
+              </ul>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Huỷ</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => {
                 if (deleteTarget) {
                   const delName = deleteTarget.name;
-                  const wasLast = isLastTrigger;
                   triggerStore.remove(agentId, deleteTarget.id);
-                  toast.success(wasLast
-                    ? `Deleted trigger "${delName}". This agent moved out of Automation.`
-                    : `Deleted trigger "${delName}".`);
+                  toast.success(`Đã xoá trigger "${delName}".`);
                   setDeleteTarget(null);
                   refresh();
                 }
               }}
             >
-              Delete trigger
+              Xoá trigger
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -375,20 +365,20 @@ export default function TriggersTab({ agentId, onViewConnections, onChange }: {
       <AlertDialog open={confirmPauseAll} onOpenChange={setConfirmPauseAll}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Pause all triggers?</AlertDialogTitle>
+            <AlertDialogTitle>Tạm dừng tất cả trigger?</AlertDialogTitle>
             <AlertDialogDescription>
-              This agent will stop running until you resume at least one trigger.
+              Agent sẽ ngừng tự chạy cho đến khi bạn bật lại ít nhất một trigger.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Huỷ</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 pauseAll();
                 setConfirmPauseAll(false);
               }}
             >
-              Pause all
+              Tạm dừng tất cả
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -410,12 +400,12 @@ function EmptyState({ onCreate, disabled }: { onCreate: () => void; disabled?: b
       <div className="w-14 h-14 mx-auto rounded-2xl bg-primary-soft text-primary flex items-center justify-center mb-4">
         <Zap size={22} />
       </div>
-      <h3 className="font-display text-lg font-semibold mb-1.5">No triggers yet</h3>
+      <h3 className="font-display text-lg font-semibold mb-1.5">Chưa có trigger nào</h3>
       <p className="text-sm text-muted-foreground mb-5 max-w-md mx-auto">
-        Add a trigger to run the agent automatically on a schedule, via a webhook, or on events from an external app.
+        Agent tự động chạy theo lịch, webhook hoặc sự kiện từ ứng dụng.
       </p>
       <button onClick={onCreate} disabled={disabled} className="btn-primary h-9 mx-auto disabled:opacity-40 disabled:cursor-not-allowed">
-        <Plus size={13} /> Add trigger
+        <Plus size={13} /> Thêm Trigger
       </button>
     </div>
   );
@@ -458,10 +448,10 @@ function RowMenu({ enabled, needsSetup, duplicateBlocked, enableBlocked, onToggl
                   tabIndex={0}
                   className="block w-full text-left px-3 py-1.5 text-xs text-muted-foreground/60 cursor-not-allowed outline-none"
                 >
-                  Enable trigger
+                  Bật trigger
                 </span>
               </TooltipTrigger>
-              <TooltipContent side="left" sideOffset={8} align="center">Finish configuring this trigger before enabling it.</TooltipContent>
+              <TooltipContent side="left" sideOffset={8} align="center">Hoàn tất cấu hình trigger trước khi bật.</TooltipContent>
             </Tooltip>
           ) : !enabled && enableBlocked ? (
             <Tooltip delayDuration={300}>
@@ -470,10 +460,10 @@ function RowMenu({ enabled, needsSetup, duplicateBlocked, enableBlocked, onToggl
                   tabIndex={0}
                   className="block w-full text-left px-3 py-1.5 text-xs text-muted-foreground/60 cursor-not-allowed outline-none"
                 >
-                  Enable trigger
+                  Bật trigger
                 </span>
               </TooltipTrigger>
-              <TooltipContent side="left" sideOffset={8} align="center">This agent uses a per-user connection — resolve it before enabling triggers.</TooltipContent>
+              <TooltipContent side="left" sideOffset={8} align="center">Agent đang dùng kết nối riêng — xử lý việc này trước khi bật trigger.</TooltipContent>
             </Tooltip>
           ) : (
             <button
@@ -481,7 +471,7 @@ function RowMenu({ enabled, needsSetup, duplicateBlocked, enableBlocked, onToggl
               onClick={() => { onToggle(); setOpen(false); }}
               className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base"
             >
-              {enabled ? "Pause trigger" : "Enable trigger"}
+              {enabled ? "Tạm dừng trigger" : "Bật trigger"}
             </button>
           )}
           <button
@@ -489,21 +479,21 @@ function RowMenu({ enabled, needsSetup, duplicateBlocked, enableBlocked, onToggl
             onClick={() => { onEdit(); setOpen(false); }}
             className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base"
           >
-            Edit trigger
+            Chỉnh sửa trigger
           </button>
           <button
             type="button"
             onClick={() => { onRename(); setOpen(false); }}
             className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base"
           >
-            Rename
+            Đổi tên
           </button>
           <button
             type="button"
             onClick={() => { onDelete(); setOpen(false); }}
             className="w-full text-left px-3 py-1.5 text-xs text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base"
           >
-            Delete trigger
+            Xoá trigger
           </button>
           <button
             type="button"
@@ -511,7 +501,7 @@ function RowMenu({ enabled, needsSetup, duplicateBlocked, enableBlocked, onToggl
             onClick={() => { onDuplicate(); setOpen(false); }}
             className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base disabled:text-muted-foreground/50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
           >
-            Duplicate
+            Nhân bản
           </button>
         </div>
       )}

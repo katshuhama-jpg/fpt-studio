@@ -87,8 +87,8 @@ export function mockInstallCount(agentId: string): number {
 }
 
 export const TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON = (connectorName: string) =>
-  `This agent uses a per-user connection (${connectorName}). Triggers run in the background when nobody is signed in, so they can't use this connection. Each person can still set up their own triggers on the copy they install in Workspace.`;
+  `Agent đang dùng kết nối riêng của từng người (${connectorName}). Trigger chạy nền khi không có ai đăng nhập nên không dùng được kết nối này. Mỗi người vẫn có thể tự đặt trigger cho bản agent họ cài trong Workspace.`;
 export const CONNECTOR_BLOCKED_BY_TRIGGER_REASON = (n: number) =>
-  `This agent has ${n} trigger${n === 1 ? "" : "s"}, so it runs as an Automation for the whole organization. A per-user connection needs someone signed in.`;
+  `Agent đang có ${n} trigger nên chạy ở chế độ Automation cho cả tổ chức. Kết nối riêng của từng người cần có người đăng nhập.`;
 export const CONNECTOR_BLOCKED_BY_TRIGGER_TOAST = (n: number) =>
-  `This agent has ${n} trigger${n === 1 ? "" : "s"}, so it must use a shared connection. Remove all triggers to switch to a per-user connection.`;
+  `Agent đang có ${n} trigger nên phải dùng kết nối dùng chung. Xoá hết trigger nếu muốn chuyển sang kết nối riêng của từng người.`;

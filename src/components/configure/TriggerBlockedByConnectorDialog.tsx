@@ -16,25 +16,25 @@ export default function TriggerBlockedByConnectorDialog({ open, onOpenChange, co
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Can't add a trigger to this agent</AlertDialogTitle>
+          <AlertDialogTitle>Không thêm được trigger cho agent này</AlertDialogTitle>
           <AlertDialogDescription asChild>
             <div className="space-y-2.5 text-sm text-muted-foreground text-left">
               <p>
-                This agent uses a per-user connection ({connectorName}). Triggers run in the background when
-                nobody is signed in, so there is no personal account for the agent to borrow.
+                Agent đang dùng kết nối riêng của từng người ({connectorName}). Trigger chạy nền khi không có
+                ai đăng nhập, nên không có tài khoản cá nhân nào để agent dùng.
               </p>
               <p>
-                To let the agent run automatically for the whole organization, switch the connection to a
-                shared organization connection. To keep per-user connections, each person can set up their own
-                triggers on the copy they install in Workspace.
+                Để agent chạy tự động cho cả tổ chức, hãy đổi kết nối sang kết nối dùng chung. Nếu muốn giữ
+                kết nối riêng của từng người, mỗi người vẫn có thể tự đặt trigger cho bản agent họ cài trong
+                Workspace.
               </p>
             </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Got it</AlertDialogCancel>
+          <AlertDialogCancel>Đã hiểu</AlertDialogCancel>
           <AlertDialogAction onClick={() => { onOpenChange(false); onSwitchToShared(); }}>
-            Switch to a shared connection
+            Đổi sang kết nối dùng chung
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

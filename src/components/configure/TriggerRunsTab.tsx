@@ -20,18 +20,18 @@ const CHANNEL_NAME: Record<string, string> = {
 };
 
 const TRIGGER_TYPE_LABEL: Record<TriggerType, string> = {
-  scheduled: "Schedule",
+  scheduled: "Lịch",
   developer: "Webhook",
-  external: "External app",
+  external: "Ứng dụng bên ngoài",
 };
 
 const STATUS_META: Record<RunStatus, { label: string; className: string; animate?: boolean }> = {
-  waiting:   { label: "Waiting",    className: "bg-surface-muted text-muted-foreground" },
-  triggered: { label: "Triggered",  className: "chip-accent" },
-  queued:    { label: "Queued",     className: "chip-accent" },
-  running:   { label: "Running",    className: "chip-accent", animate: true },
-  completed: { label: "Completed",  className: "chip-success" },
-  failed:    { label: "Failed",     className: "chip-danger" },
+  waiting:   { label: "Đang chờ",    className: "bg-surface-muted text-muted-foreground" },
+  triggered: { label: "Đã kích hoạt",  className: "chip-accent" },
+  queued:    { label: "Trong hàng đợi",     className: "chip-accent" },
+  running:   { label: "Đang chạy",    className: "chip-accent", animate: true },
+  completed: { label: "Hoàn tất",  className: "chip-success" },
+  failed:    { label: "Thất bại",     className: "chip-danger" },
 };
 
 function StatusPill({ status }: { status: RunStatus }) {
@@ -74,9 +74,9 @@ function mockAutomationId(agentId: string): string {
 }
 
 const DATE_RANGE_OPTIONS: { value: string; label: string; days: number | null }[] = [
-  { value: "7", label: "Last 7 days", days: 7 },
-  { value: "30", label: "Last 30 days", days: 30 },
-  { value: "all", label: "All time", days: null },
+  { value: "7", label: "7 ngày qua", days: 7 },
+  { value: "30", label: "30 ngày qua", days: 30 },
+  { value: "all", label: "Toàn bộ thời gian", days: null },
 ];
 
 const DEFAULT_TRIGGER_FILTER = "all";
@@ -89,7 +89,7 @@ function copyValue(value: string, message: string) {
   toast.success(message);
 }
 
-function CopyButton({ value, toastMessage = "Copied." }: { value: string; toastMessage?: string }) {
+function CopyButton({ value, toastMessage = "Đã sao chép." }: { value: string; toastMessage?: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <button
@@ -146,13 +146,13 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
   const sharedAccount = sharedAccountId ? connectedAccountStore.get(sharedAccountId) : undefined;
   const sharedConnectionLabel = sharedAccount
     ? `${EXTERNAL_APP_META[sharedAccount.app].label} — ${sharedAccount.email}`
-    : "None";
+    : "Chưa có";
   const automationId = mockAutomationId(agentId);
   const isDraft = !agentPublishStore.isPublished(agentId);
   const outboundChannels = agentPublishStore.get(agentId).channels;
   const outboundChannelsLabel = outboundChannels.length > 0
     ? outboundChannels.map(id => CHANNEL_NAME[id] ?? id).join(" · ")
-    : "None";
+    : "Chưa có";
 
   const runs = allRuns.filter(r => {
     if (triggerFilter !== "all" && r.triggerId !== triggerFilter) return false;
@@ -176,14 +176,14 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
   const retry = (run: TriggerRun) => {
     const clone = runsStore.retry(run.id);
     if (!clone) return;
-    const toastId = toast.loading("Running again…");
+    const toastId = toast.loading("Đang chạy lại…");
     refresh();
     setDetailRun(clone);
     setTimeout(() => {
-      runsStore.complete(clone.id, "completed", { outputSummary: "Retry succeeded." });
+      runsStore.complete(clone.id, "completed", { outputSummary: "Thử lại thành công." });
       refresh();
       setDetailRun(cur => (cur?.id === clone.id ? runsStore.get(clone.id) ?? null : cur));
-      toast.success("Run finished.", { id: toastId });
+      toast.success("Đã chạy xong.", { id: toastId });
     }, 1800);
   };
 
@@ -193,8 +193,8 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
   return (
     <div>
       <div className="mb-4">
-        <h2 className="font-display text-xl font-semibold">Run history</h2>
-        <p className="text-sm text-muted-foreground mt-0.5">Every time a trigger fired this agent, and what happened.</p>
+        <h2 className="font-display text-xl font-semibold">Lịch sử chạy</h2>
+        <p className="text-sm text-muted-foreground mt-0.5">Mỗi lần trigger chạy agent này, và kết quả.</p>
       </div>
 
       <div className="flex items-center gap-2 mb-3 flex-wrap">
@@ -204,14 +204,14 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
             value={searchInput}
             onChange={e => setSearchInput(e.target.value.slice(0, SEARCH_MAX))}
             maxLength={SEARCH_MAX}
-            placeholder="Search by trigger name"
+            placeholder="Tìm theo tên trigger"
             className="w-full h-9 pl-9 pr-8 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base"
           />
           {searchInput && (
             <button
               type="button"
               onClick={() => setSearchInput("")}
-              aria-label="Clear search"
+              aria-label="Xoá tìm kiếm"
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-base"
             >
               <X size={14} />
@@ -221,21 +221,21 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
         <Select value={triggerFilter} onValueChange={setTriggerFilter}>
           <SelectTrigger className="h-9 w-auto min-w-[140px]"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All triggers</SelectItem>
+            <SelectItem value="all">Tất cả trigger</SelectItem>
             {triggers.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={typeFilter} onValueChange={v => setTypeFilter(v as "all" | TriggerType)}>
           <SelectTrigger className="h-9 w-auto min-w-[130px]"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All types</SelectItem>
+            <SelectItem value="all">Tất cả loại</SelectItem>
             {(Object.keys(TRIGGER_TYPE_LABEL) as TriggerType[]).map(t => <SelectItem key={t} value={t}>{TRIGGER_TYPE_LABEL[t]}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="h-9 w-auto min-w-[130px]"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
+            <SelectItem value="all">Tất cả trạng thái</SelectItem>
             {(Object.keys(STATUS_META) as RunStatus[]).map(s => <SelectItem key={s} value={s}>{STATUS_META[s].label}</SelectItem>)}
           </SelectContent>
         </Select>
@@ -249,7 +249,7 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
 
       {!hasNoHistoryAtAll && (
         <p className="text-xs text-muted-foreground mb-3">
-          Showing {runs.length} of {allRuns.length} runs
+          Hiển thị {runs.length}/{allRuns.length} lần chạy
         </p>
       )}
 
@@ -257,12 +257,12 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
         <div className="rounded-2xl border border-dashed border-border bg-gradient-soft p-12 text-center">
           <p className="text-sm text-muted-foreground max-w-md mx-auto">
             {isDraft
-              ? "No runs yet."
-              : "No runs yet — this agent will appear here the first time a trigger fires."}
+              ? "Chưa có lần chạy nào."
+              : "Chưa có lần chạy nào — agent sẽ xuất hiện ở đây khi trigger chạy lần đầu."}
           </p>
           {isDraft && (
             <p className="text-sm text-muted-foreground max-w-md mx-auto mt-1">
-              Triggers start after you publish this agent.
+              Trigger sẽ bắt đầu chạy sau khi bạn publish agent này.
             </p>
           )}
         </div>
@@ -271,16 +271,13 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
           <div className="w-12 h-12 mx-auto rounded-full bg-surface-muted text-muted-foreground flex items-center justify-center mb-3">
             <Search size={18} />
           </div>
-          <h3 className="font-display text-base font-semibold mb-1">No runs match these filters</h3>
-          <p className="text-sm text-muted-foreground mb-4 max-w-sm mx-auto">
-            Try a different trigger type, status, or date range, or clear your search.
-          </p>
+          <h3 className="font-display text-base font-semibold mb-1">Chưa có lần chạy nào trong khoảng thời gian này.</h3>
           <button
             type="button"
             onClick={clearFilters}
-            className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base"
+            className="text-sm font-semibold text-primary hover:underline mt-2"
           >
-            Clear filters
+            Đổi bộ lọc
           </button>
         </div>
       ) : (
@@ -288,11 +285,11 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-surface-muted">
-                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Time</th>
+                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Thời gian</th>
                 <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Trigger</th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Source</th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Status</th>
-                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Duration</th>
+                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Nguồn</th>
+                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Trạng thái</th>
+                <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Thời lượng</th>
                 <th className="px-4 py-2.5 w-24" />
               </tr>
             </thead>
@@ -315,7 +312,7 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
                       onClick={() => setDetailRun(r)}
                       className="text-xs font-semibold text-primary hover:underline whitespace-nowrap"
                     >
-                      Details
+                      Chi tiết
                     </button>
                   </td>
                 </tr>
@@ -345,56 +342,56 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
                 </div>
 
                 <div className="rounded-lg border border-border p-3">
-                  <h4 className="text-xs font-semibold text-foreground mb-1.5">Run scope</h4>
+                  <h4 className="text-xs font-semibold text-foreground mb-1.5">Phạm vi lần chạy</h4>
                   <div className="divide-y divide-border/60">
-                    <ScopeRow label="Organization" value="FPT Smart Cloud" />
+                    <ScopeRow label="Tổ chức" value="FPT Smart Cloud" />
                     <ScopeRow label="Automation ID" value={automationId} mono copyable />
-                    <ScopeRow label="Run ID" value={detailRun.id} mono copyable copyToastMessage="Run ID copied." />
-                    <ScopeRow label="Timezone" value={ORG_TIMEZONE} />
-                    <ScopeRow label="Connection used" value={sharedConnectionLabel} badge={sharedAccount ? "Org account" : undefined} />
-                    <ScopeRow label="Sends results to" value={outboundChannelsLabel} />
+                    <ScopeRow label="Run ID" value={detailRun.id} mono copyable copyToastMessage="Đã sao chép Run ID." />
+                    <ScopeRow label="Múi giờ" value={ORG_TIMEZONE} />
+                    <ScopeRow label="Kết nối sử dụng" value={sharedConnectionLabel} badge={sharedAccount ? "Tài khoản tổ chức" : undefined} />
+                    <ScopeRow label="Gửi kết quả tới" value={outboundChannelsLabel} />
                   </div>
                 </div>
 
                 <div>
-                  <h4 className="text-xs font-semibold text-foreground mb-1">Source</h4>
+                  <h4 className="text-xs font-semibold text-foreground mb-1">Nguồn</h4>
                   <p className="text-xs text-muted-foreground">{detailRun.source}</p>
                 </div>
 
                 {detailRun.configSnapshot && (
                   <div>
-                    <h4 className="text-xs font-semibold text-foreground mb-1">Trigger configuration</h4>
+                    <h4 className="text-xs font-semibold text-foreground mb-1">Cấu hình trigger</h4>
                     <pre className="text-[11px] font-mono bg-surface-muted rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-all">{detailRun.configSnapshot}</pre>
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                      This is the automation agent's configuration, shared across the whole organization.
+                      Đây là cấu hình của automation agent, dùng chung cho cả tổ chức.
                     </p>
                   </div>
                 )}
 
                 {detailRun.payload && (
                   <div>
-                    <h4 className="text-xs font-semibold text-foreground mb-1">Input payload</h4>
+                    <h4 className="text-xs font-semibold text-foreground mb-1">Payload đầu vào</h4>
                     <pre className="text-[11px] font-mono bg-surface-muted rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-all">{detailRun.payload}</pre>
                   </div>
                 )}
 
                 {detailRun.outputSummary && (
                   <div>
-                    <h4 className="text-xs font-semibold text-foreground mb-1">Result</h4>
+                    <h4 className="text-xs font-semibold text-foreground mb-1">Kết quả</h4>
                     <p className="text-xs text-muted-foreground">{detailRun.outputSummary}</p>
                   </div>
                 )}
 
                 {detailRun.status === "failed" && (
                   <div className="rounded-lg border border-destructive/25 bg-[hsl(var(--destructive-soft))] p-3">
-                    <h4 className="text-xs font-semibold text-destructive mb-1">Failure reason</h4>
+                    <h4 className="text-xs font-semibold text-destructive mb-1">Lý do thất bại</h4>
                     <p className="text-xs text-destructive/90 mb-3">{detailRun.errorReason}</p>
                     <button
                       type="button"
                       onClick={() => retry(detailRun)}
                       className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-destructive text-destructive-foreground text-xs font-semibold hover:bg-destructive/90 transition-base"
                     >
-                      <RefreshCw size={12} /> Retry
+                      <RefreshCw size={12} /> Thử lại
                     </button>
                   </div>
                 )}
