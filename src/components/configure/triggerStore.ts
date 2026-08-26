@@ -44,7 +44,7 @@ export interface QueueWorkHoursConfig {
   endTime: string;         // "HH:mm"
   allDay: boolean;
   tasksPerPeriod: number;
-  tasksPeriodUnit: "hour" | "day";
+  tasksPeriodUnit: "hour" | "day" | "week";
 }
 
 export interface ExternalConfig {
@@ -159,20 +159,22 @@ export const EXTERNAL_APP_EVENTS: Record<ExternalApp, { value: string; label: st
 };
 
 export const WORK_DAY_OPTIONS: { value: string; label: string }[] = [
-  { value: "weekdays", label: "Weekdays" },
-  { value: "weekends", label: "Weekends" },
-  { value: "monday", label: "Monday" },
-  { value: "tuesday", label: "Tuesday" },
-  { value: "wednesday", label: "Wednesday" },
-  { value: "thursday", label: "Thursday" },
-  { value: "friday", label: "Friday" },
-  { value: "saturday", label: "Saturday" },
-  { value: "sunday", label: "Sunday" },
+  { value: "weekdays", label: "Ngày trong tuần" },
+  { value: "weekends", label: "Cuối tuần" },
+  { value: "all", label: "Tất cả các ngày" },
+  { value: "monday", label: "Thứ 2" },
+  { value: "tuesday", label: "Thứ 3" },
+  { value: "wednesday", label: "Thứ 4" },
+  { value: "thursday", label: "Thứ 5" },
+  { value: "friday", label: "Thứ 6" },
+  { value: "saturday", label: "Thứ 7" },
+  { value: "sunday", label: "Chủ nhật" },
 ];
 
-export const TASKS_PERIOD_UNIT_OPTIONS: { value: "hour" | "day"; label: string }[] = [
-  { value: "hour", label: "Per hour" },
-  { value: "day", label: "Per day" },
+export const TASKS_PERIOD_UNIT_OPTIONS: { value: "hour" | "day" | "week"; label: string }[] = [
+  { value: "hour", label: "Mỗi giờ" },
+  { value: "day", label: "Mỗi ngày" },
+  { value: "week", label: "Mỗi tuần" },
 ];
 
 export const DRIVE_OPTIONS: { value: string; label: string }[] = [

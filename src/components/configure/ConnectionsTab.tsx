@@ -44,10 +44,10 @@ function ScopeModal({ agentId, connectorId, editing, onClose, onSaved, onViewTri
     if (!ok) {
       // Backstop: the radio is disabled whenever blockedByTriggers, so this should be
       // unreachable through the UI — the store itself rejected the write regardless.
-      toast.error(CONNECTOR_BLOCKED_BY_TRIGGER_REASON(triggerStore.list(agentId).length));
+      toast.error(CONNECTOR_BLOCKED_BY_TRIGGER_REASON());
       return;
     }
-    toast.success("Connection saved.");
+    toast.success("Đã lưu kết nối.");
     onSaved();
   };
 
@@ -60,7 +60,7 @@ function ScopeModal({ agentId, connectorId, editing, onClose, onSaved, onViewTri
             {meta && <img src={meta.logo} alt={meta.name} className="w-full h-full object-contain" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />}
           </div>
           <h3 className="font-display text-base font-semibold flex-1">
-            {editing ? `Edit ${meta?.name ?? connectorId}` : `Connect ${meta?.name ?? connectorId}`}
+            {editing ? `Chỉnh sửa kết nối ${meta?.name ?? connectorId}` : `Kết nối ${meta?.name ?? connectorId}`}
           </h3>
           <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground shrink-0">
             <X size={14} />
@@ -92,10 +92,10 @@ function ScopeModal({ agentId, connectorId, editing, onClose, onSaved, onViewTri
             <span className="flex-1 min-w-0">
               <span className="flex items-center gap-2 mb-1">
                 <User size={14} className="text-foreground shrink-0" />
-                <span className="text-sm font-semibold">Per-user connection</span>
+                <span className="text-sm font-semibold">Riêng cá nhân</span>
               </span>
               <span className="block text-xs text-muted-foreground leading-relaxed">
-                Each person signs in with their own account. The agent runs under whoever is currently using it.
+                Mỗi người tự đăng nhập tài khoản của mình. Agent chạy dưới tài khoản của người đang dùng.
               </span>
             </span>
           </label>
@@ -103,10 +103,10 @@ function ScopeModal({ agentId, connectorId, editing, onClose, onSaved, onViewTri
             <div id="connector-scope-personal-warning" className="flex items-start gap-2 text-xs text-warning bg-[hsl(var(--warning-soft))] border border-warning/25 rounded-lg px-3 py-2.5">
               <AlertTriangle size={14} className="shrink-0 mt-0.5" />
               <p>
-                {CONNECTOR_BLOCKED_BY_TRIGGER_REASON(triggerCount)}{" "}
+                {CONNECTOR_BLOCKED_BY_TRIGGER_REASON()}{" "}
                 {onViewTriggers && (
                   <button type="button" onClick={onViewTriggers} className="font-semibold hover:underline">
-                    View triggers
+                    Xem trigger
                   </button>
                 )}
               </p>
@@ -129,18 +129,18 @@ function ScopeModal({ agentId, connectorId, editing, onClose, onSaved, onViewTri
             <span className="flex-1 min-w-0">
               <span className="flex items-center gap-2 mb-1">
                 <Building2 size={14} className="text-foreground shrink-0" />
-                <span className="text-sm font-semibold">Shared organization connection</span>
+                <span className="text-sm font-semibold">Dùng chung</span>
               </span>
               <span className="block text-xs text-muted-foreground leading-relaxed">
-                You connect once. Every run uses this same account.
+                Bạn kết nối một lần. Mọi lần chạy đều dùng chung tài khoản này.
               </span>
             </span>
           </label>
         </div>
         <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
-          <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Cancel</button>
+          <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Huỷ</button>
           <button onClick={save} className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium transition-base">
-            Save connection
+            Lưu kết nối
           </button>
         </div>
       </div>
@@ -175,7 +175,7 @@ function ConnectionCard({ meta, attached, highlighted, onAdd, onEdit, onRemove }
               className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap"
               style={attached.scope === "shared" ? { background: "#EEF2FF", color: "#4338CA", border: "0.5px solid #C7D2FE" } : { background: "#ECFDF5", color: "#047857", border: "0.5px solid #A7F3D0" }}
             >
-              {attached.scope === "shared" ? "Shared" : "Per-user"}
+              {attached.scope === "shared" ? "Dùng chung" : "Riêng cá nhân"}
             </span>
           )}
         </div>
@@ -183,15 +183,15 @@ function ConnectionCard({ meta, attached, highlighted, onAdd, onEdit, onRemove }
       </div>
       {attached ? (
         <div className="flex items-center gap-1 shrink-0">
-          <button onClick={onEdit} aria-label="Edit connection" className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base">
+          <button onClick={onEdit} aria-label="Chỉnh sửa kết nối" className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base">
             <Pencil size={13} />
           </button>
-          <button onClick={onRemove} aria-label="Remove connection" className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-surface-muted transition-base">
+          <button onClick={onRemove} aria-label="Xoá kết nối" className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-surface-muted transition-base">
             <Trash2 size={13} />
           </button>
         </div>
       ) : (
-        <button onClick={onAdd} aria-label={`Add ${meta.name}`} className="text-muted-foreground hover:text-primary shrink-0 mt-0.5">
+        <button onClick={onAdd} aria-label={`Thêm ${meta.name}`} className="text-muted-foreground hover:text-primary shrink-0 mt-0.5">
           <ChevronRight size={16} />
         </button>
       )}
@@ -233,8 +233,8 @@ export default function ConnectionsTab({ agentId, onViewTriggers, onChange, high
   return (
     <div className="p-8 w-full animate-fade-up">
       <div className="mb-6">
-        <h2 className="font-display text-xl font-semibold">Connections</h2>
-        <p className="text-sm text-muted-foreground mt-0.5">Connect services so this agent can access and act on your data.</p>
+        <h2 className="font-display text-xl font-semibold">Kết nối</h2>
+        <p className="text-sm text-muted-foreground mt-0.5">Kết nối dịch vụ để agent truy cập và thao tác trên dữ liệu của bạn.</p>
       </div>
 
       <div className="relative mb-6">
@@ -242,7 +242,7 @@ export default function ConnectionsTab({ agentId, onViewTriggers, onChange, high
         <input
           value={query}
           onChange={e => setQuery(e.target.value)}
-          placeholder="Search connections…"
+          placeholder="Tìm kết nối..."
           className="h-9 w-full max-w-xs pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
         />
       </div>
@@ -265,7 +265,7 @@ export default function ConnectionsTab({ agentId, onViewTriggers, onChange, high
       </div>
 
       {filtered.length === 0 && (
-        <div className="py-16 text-center text-muted-foreground text-sm">No connections found.</div>
+        <div className="py-16 text-center text-muted-foreground text-sm">Không tìm thấy kết nối nào.</div>
       )}
 
       {addingId && (
@@ -292,22 +292,21 @@ export default function ConnectionsTab({ agentId, onViewTriggers, onChange, high
       <AlertDialog open={!!deletingId} onOpenChange={v => !v && setDeletingId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this connection?</AlertDialogTitle>
+            <AlertDialogTitle>Xoá kết nối này?</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2.5 text-left">
-                <p>"{deletingMeta?.name}" will be removed from this agent.</p>
+                <p>"{deletingMeta?.name}" sẽ bị xoá khỏi agent này.</p>
                 {affectedTriggers.length > 0 && (
                   <p className="text-warning">
-                    {affectedTriggers.length} trigger{affectedTriggers.length === 1 ? "" : "s"}{" "}
-                    {affectedTriggers.length === 1 ? "uses" : "use"} this connection and will stop
-                    working: {affectedTriggers.map(t => t.name).join(", ")}.
+                    {affectedTriggers.length} trigger đang dùng kết nối này và sẽ ngừng hoạt động:{" "}
+                    {affectedTriggers.map(t => t.name).join(", ")}.
                   </p>
                 )}
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Huỷ</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => {
@@ -320,12 +319,12 @@ export default function ConnectionsTab({ agentId, onViewTriggers, onChange, high
                     });
                   }
                 });
-                toast.success(`Connection "${deletingMeta.name}" deleted.`);
+                toast.success(`Đã xoá kết nối "${deletingMeta.name}".`);
                 setDeletingId(null);
                 refresh();
               }}
             >
-              Delete connection
+              Xoá kết nối
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

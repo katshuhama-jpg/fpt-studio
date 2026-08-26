@@ -144,7 +144,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
   const [qwhEndTime, setQwhEndTime] = useState("17:00");
   const [qwhAllDay, setQwhAllDay] = useState(false);
   const [qwhTasksPerPeriod, setQwhTasksPerPeriod] = useState("10");
-  const [qwhTasksPeriodUnit, setQwhTasksPeriodUnit] = useState<"hour" | "day">("day");
+  const [qwhTasksPeriodUnit, setQwhTasksPeriodUnit] = useState<"hour" | "day" | "week">("day");
 
   const [errors, setErrors] = useState<{
     name?: string; description?: string; schedule?: string; credential?: string; payload?: string; requiredFields?: string;
@@ -449,8 +449,8 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) requestClose(); }}>
-      <DialogContent className="sm:max-w-[560px] max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[560px] max-h-[88vh] p-0 gap-0 flex flex-col overflow-hidden">
+        <DialogHeader className="px-6 pt-6 pb-0 shrink-0">
           <div className="flex items-center justify-between mb-1.5 pr-6">
             {step !== "main" ? (
               <button
@@ -479,7 +479,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-4 flex-1 overflow-y-auto px-6 py-4">
           {step === "main" && (
             <>
               {mode === "edit" && (() => {
@@ -1179,7 +1179,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
 
         </div>
 
-        <DialogFooter className="mt-2">
+        <DialogFooter className="mt-0 px-6 pb-6 pt-4 border-t border-border shrink-0">
           <button
             type="button"
             onClick={step === "main" ? requestClose : stepBack}
@@ -1243,7 +1243,7 @@ function QueueWorkHoursAccordion({
   endTime: string; onEndTimeChange: (v: string) => void;
   allDay: boolean; onAllDayChange: (v: boolean) => void;
   tasksPerPeriod: string; onTasksPerPeriodChange: (v: string) => void;
-  tasksPeriodUnit: "hour" | "day"; onTasksPeriodUnitChange: (v: "hour" | "day") => void;
+  tasksPeriodUnit: "hour" | "day" | "week"; onTasksPeriodUnitChange: (v: "hour" | "day" | "week") => void;
   errors: { qwhWorkDays?: string; qwhTime?: string; qwhTasksPerPeriod?: string };
   onClearError: (key: "qwhWorkDays" | "qwhTime" | "qwhTasksPerPeriod") => void;
   onValidate: () => void;
@@ -1327,7 +1327,7 @@ function QueueWorkHoursAccordion({
                 />
                 <select
                   value={tasksPeriodUnit}
-                  onChange={e => onTasksPeriodUnitChange(e.target.value as "hour" | "day")}
+                  onChange={e => onTasksPeriodUnitChange(e.target.value as "hour" | "day" | "week")}
                   disabled={!enabled}
                   className="w-32 shrink-0 ds-input h-9 disabled:cursor-not-allowed"
                 >
