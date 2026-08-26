@@ -84,32 +84,35 @@ export function checkCronExpression(expr: string): CronCheck {
   return { valid: true, tooFrequent };
 }
 
-const DOW_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const DOW_NAMES_VN = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
 
 export function describeCronVN(expr: string): string {
   const [minute, hour, dom, month, dow] = expr.trim().split(/\s+/);
   const isSingle = (f: string) => /^\d+$/.test(f);
   const timePart = isSingle(minute) && isSingle(hour) ? `${hour.padStart(2, "0")}:${minute.padStart(2, "0")}` : null;
 
-  let dowPart = "";
-  if (dow !== "*") {
-    const rangeMatch = dow.match(/^(\d)-(\d)$/);
-    if (rangeMatch) {
-      const a = Number(rangeMatch[1]) % 7, b = Number(rangeMatch[2]) % 7;
-      dowPart = ` on weekdays (${DOW_NAMES[a]} – ${DOW_NAMES[b]})`;
-    } else {
-      dowPart = ` on ${expandCronField(dow, 0, 7).map(d => DOW_NAMES[d % 7]).join(", ")}`;
-    }
+  // A step pattern on the minute field with every other field wildcard ("*/15 * * * *") is a
+  // plain "every N minutes" interval schedule, not a specific time of day.
+  const minuteStepMatch = minute.match(/^(?:\*|0)\/(\d+)$/);
+  if (minuteStepMatch && hour === "*" && dom === "*" && month === "*" && dow === "*") {
+    return `Chạy mỗi ${minuteStepMatch[1]} phút`;
   }
-
-  const domPart = dom !== "*" ? ` on day ${dom} of the month` : "";
-  const monthPart = month !== "*" ? ` (month ${month})` : "";
 
   if (timePart) {
-    if (dow !== "*" && dom === "*" && month === "*") return `Runs at ${timePart}${dowPart}`;
-    if (dom !== "*" && dow === "*" && month === "*") return `Runs at ${timePart}${domPart}`;
-    if (dom === "*" && dow === "*" && month === "*") return `Runs daily at ${timePart}`;
-    return `Runs at ${timePart}${domPart}${dowPart}${monthPart}`.trim();
+    if (dow !== "*" && dom === "*" && month === "*") {
+      const rangeMatch = dow.match(/^(\d)-(\d)$/);
+      const dayList = rangeMatch
+        ? `các ngày trong tuần (${DOW_NAMES_VN[Number(rangeMatch[1]) % 7]} – ${DOW_NAMES_VN[Number(rangeMatch[2]) % 7]})`
+        : expandCronField(dow, 0, 7).map(d => DOW_NAMES_VN[d % 7]).join(", ");
+      return `Chạy lúc ${timePart} vào ${dayList}`;
+    }
+    if (dom !== "*" && dow === "*" && month === "*") return `Chạy ngày ${dom} hằng tháng lúc ${timePart}`;
+    if (dom === "*" && dow === "*" && month === "*") return `Chạy hằng ngày lúc ${timePart}`;
+    const parts: string[] = [];
+    if (dom !== "*") parts.push(`ngày ${dom}`);
+    if (dow !== "*") parts.push(`vào ${expandCronField(dow, 0, 7).map(d => DOW_NAMES_VN[d % 7]).join(", ")}`);
+    if (month !== "*") parts.push(`(tháng ${month})`);
+    return `Chạy lúc ${timePart} ${parts.join(" ")}`.trim();
   }
-  return `Runs on schedule: minute ${minute}, hour ${hour}, day ${dom}, month ${month}, weekday ${dow}`;
+  return `Chạy theo lịch: phút ${minute}, giờ ${hour}, ngày ${dom}, tháng ${month}, thứ ${dow}`;
 }

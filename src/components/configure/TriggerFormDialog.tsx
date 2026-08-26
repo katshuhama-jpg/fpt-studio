@@ -32,27 +32,27 @@ const CATEGORY_OPTIONS: { value: TriggerType; label: string; icon: any; desc: st
 ];
 
 const PRIMARY_FREQUENCY_OPTIONS: { value: Exclude<CustomScheduleUnit, "cron">; label: string }[] = [
-  { value: "minute", label: "Minutely" },
-  { value: "hour", label: "Hourly" },
-  { value: "day", label: "Daily" },
-  { value: "week", label: "Weekly" },
-  { value: "month", label: "Monthly" },
-  { value: "year", label: "Annually" },
+  { value: "minute", label: "Theo phút" },
+  { value: "hour", label: "Theo giờ" },
+  { value: "day", label: "Hằng ngày" },
+  { value: "week", label: "Hằng tuần" },
+  { value: "month", label: "Hằng tháng" },
+  { value: "year", label: "Hằng năm" },
 ];
 
 const WEEKDAY_CHIPS: { value: number; label: string }[] = [
-  { value: 1, label: "Mon" },
-  { value: 2, label: "Tue" },
-  { value: 3, label: "Wed" },
-  { value: 4, label: "Thu" },
-  { value: 5, label: "Fri" },
-  { value: 6, label: "Sat" },
-  { value: 0, label: "Sun" },
+  { value: 1, label: "T2" },
+  { value: 2, label: "T3" },
+  { value: 3, label: "T4" },
+  { value: 4, label: "T5" },
+  { value: 5, label: "T6" },
+  { value: 6, label: "T7" },
+  { value: 0, label: "CN" },
 ];
 
 const MONTH_OPTIONS: { value: number; label: string }[] = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6",
+  "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12",
 ].map((label, value) => ({ value, label }));
 
 const MONTH_MAX_DAY = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
@@ -244,20 +244,23 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
     if (category === "scheduled") {
       if (customUnit === "cron") {
         const check = checkCronExpression(cron);
-        if (!check.valid) e.schedule = "Invalid cron expression. Format: minute hour day month weekday (e.g. 0 8 * * 1-5)";
-        else if (check.tooFrequent) e.schedule = "Cron can't run more often than every 10 minutes.";
+        if (!check.valid) e.schedule = "Biểu thức Cron chưa đúng định dạng. Ví dụ hợp lệ: 0 9 * * 1";
+        else if (check.tooFrequent) e.schedule = "Cron không được chạy dày hơn mỗi 10 phút.";
       }
       if (customUnit === "minute" && Number(intervalValue) < 10) {
-        e.schedule = "Minimum 10 minutes.";
+        e.schedule = "Tối thiểu 10 phút.";
       }
       if (customUnit === "hour" && Number(intervalValue) < 1) {
-        e.schedule = "Minimum 1 hour.";
+        e.schedule = "Tối thiểu 1 giờ.";
       }
       if (customUnit === "week" && weekDays.length === 0) {
-        e.schedule = "Select at least one day of the week.";
+        e.schedule = "Hãy chọn ngày chạy.";
       }
       if (customUnit === "month" && (dayOfMonth < 1 || dayOfMonth > 31)) {
-        e.schedule = "Day of month must be between 1 and 31.";
+        e.schedule = "Hãy chọn ngày chạy.";
+      }
+      if (!e.schedule && ["day", "week", "month", "year"].includes(customUnit) && !timeOfDay) {
+        e.schedule = "Hãy chọn giờ chạy.";
       }
     }
     if (category === "developer") {
@@ -420,7 +423,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
       : step === "details" ? (mode === "create" ? "Tạo" : "Lưu") : "Tiếp tục";
 
   const connectedAccounts = connectedAccountStore.list(app);
-  const categoryHeading = category === "scheduled" ? "Repeating schedule"
+  const categoryHeading = category === "scheduled" ? "Lịch lặp lại"
     : category === "developer" ? "Webhook"
     : EXTERNAL_APP_META[app].label;
 
@@ -569,7 +572,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
             <div className="rounded-lg border border-border p-3 space-y-3">
               {customUnit !== "cron" && (
                 <div>
-                  <label className="text-xs font-medium mb-1.5 block">Frequency</label>
+                  <label className="text-xs font-medium mb-1.5 block">Tần suất</label>
                   <div className="grid grid-cols-3 gap-1.5">
                     {PRIMARY_FREQUENCY_OPTIONS.map(opt => (
                       <button
@@ -590,7 +593,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                     ))}
                   </div>
                   <p className="mt-1.5 text-[11px] text-muted-foreground">
-                    Need something more complex?{" "}
+                    Cần lịch phức tạp hơn?{" "}
                     <button
                       type="button"
                       onClick={() => {
@@ -599,7 +602,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                       }}
                       className="text-primary hover:underline font-medium"
                     >
-                      Use Cron (advanced)
+                      Dùng Cron (nâng cao)
                     </button>
                   </p>
                 </div>
@@ -612,21 +615,21 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                       type="number" min={10}
                       value={intervalValue}
                       onChange={e => setIntervalValue(e.target.value)}
-                      placeholder="Number of minutes"
+                      placeholder="Số phút"
                       className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm outline-none transition-base ${
                         intervalValue !== "" && Number(intervalValue) < 10 ? "border-destructive" : "border-border focus:border-primary"
                       }`}
                     />
                     <p className={`mt-1 text-[11px] ${intervalValue !== "" && Number(intervalValue) < 10 ? "text-destructive" : "text-muted-foreground"}`}>
-                      Minimum 10 minutes.
+                      Tối thiểu 10 phút.
                     </p>
                   </div>
                   <div>
-                    <label className="text-xs font-medium mb-1.5 block">Start time</label>
+                    <label className="text-xs font-medium mb-1.5 block">Giờ bắt đầu</label>
                     <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
                       className="w-full h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base" />
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                      The schedule is calculated from the start time. Example: start time 10:00, every 2 hours → 10:00, 12:00, 14:00…
+                      Lịch được tính từ giờ bắt đầu. Ví dụ: giờ bắt đầu 10:00, mỗi 15 phút → 10:00, 10:15, 10:30…
                     </p>
                   </div>
                 </>
@@ -638,21 +641,21 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                       type="number" min={1}
                       value={intervalValue}
                       onChange={e => setIntervalValue(e.target.value)}
-                      placeholder="Number of hours"
+                      placeholder="Số giờ"
                       className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm outline-none transition-base ${
                         intervalValue !== "" && Number(intervalValue) < 1 ? "border-destructive" : "border-border focus:border-primary"
                       }`}
                     />
                     <p className={`mt-1 text-[11px] ${intervalValue !== "" && Number(intervalValue) < 1 ? "text-destructive" : "text-muted-foreground"}`}>
-                      Minimum 1 hour.
+                      Tối thiểu 1 giờ.
                     </p>
                   </div>
                   <div>
-                    <label className="text-xs font-medium mb-1.5 block">Start time</label>
+                    <label className="text-xs font-medium mb-1.5 block">Giờ bắt đầu</label>
                     <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
                       className="w-full h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base" />
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                      The schedule is calculated from the start time. Example: start time 10:00, every 2 hours → 10:00, 12:00, 14:00…
+                      Lịch được tính từ giờ bắt đầu. Ví dụ: giờ bắt đầu 10:00, mỗi 2 giờ → 10:00, 12:00, 14:00…
                     </p>
                   </div>
                 </>
@@ -660,7 +663,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
 
               {customUnit === "year" && (
                 <div>
-                  <label className="text-xs font-medium mb-1.5 block">Month</label>
+                  <label className="text-xs font-medium mb-1.5 block">Tháng</label>
                   <select
                     value={month}
                     onChange={e => {
@@ -673,13 +676,13 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                   >
                     {MONTH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
-                  <p className="mt-1 text-[11px] text-muted-foreground">Which month this trigger runs in every year.</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">Tháng mà trigger này chạy hằng năm.</p>
                 </div>
               )}
 
               {(customUnit === "month" || customUnit === "year") && (
                 <div>
-                  <label className="text-xs font-medium mb-1.5 block">Day of month</label>
+                  <label className="text-xs font-medium mb-1.5 block">Ngày trong tháng</label>
                   <input
                     type="number" min={1} max={customUnit === "year" ? daysInMonthDisplay(month) : 31}
                     value={dayOfMonth}
@@ -690,38 +693,59 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                         if (v > max) v = max;
                       }
                       setDayOfMonth(v);
+                      if (v >= 1 && v <= 31 && errors.schedule === "Hãy chọn ngày chạy.") setErrors(er => ({ ...er, schedule: undefined }));
+                    }}
+                    onBlur={() => {
+                      if (customUnit === "month" && (dayOfMonth < 1 || dayOfMonth > 31)) {
+                        setErrors(er => ({ ...er, schedule: "Hãy chọn ngày chạy." }));
+                      }
                     }}
                     className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm outline-none transition-base ${
-                      customUnit === "month" && (dayOfMonth < 1 || dayOfMonth > 31) ? "border-destructive" : "border-border focus:border-primary"
+                      customUnit === "month" && errors.schedule === "Hãy chọn ngày chạy." ? "border-destructive" : "border-border focus:border-primary"
                     }`}
                   />
-                  {customUnit === "month" && (dayOfMonth < 1 || dayOfMonth > 31) ? (
-                    <p className="mt-1 text-[11px] text-destructive">Day of month must be between 1 and 31.</p>
+                  {customUnit === "month" && errors.schedule === "Hãy chọn ngày chạy." ? (
+                    <p className="mt-1 text-[11px] text-destructive">Hãy chọn ngày chạy.</p>
                   ) : customUnit === "year" && month === 1 && dayOfMonth === 29 ? (
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                      February 29 only exists in leap years. In other years, the agent will run on February 28.
+                      Ngày 29/2 chỉ có trong năm nhuận. Các năm khác, agent sẽ chạy vào ngày 28/2.
                     </p>
                   ) : customUnit === "month" && [29, 30, 31].includes(dayOfMonth) ? (
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                      Months without day {dayOfMonth} will run the agent on that month's last day instead.
+                      Những tháng không có ngày {dayOfMonth} sẽ chạy agent vào ngày cuối cùng của tháng đó.
                     </p>
                   ) : (
-                    <p className="mt-1 text-[11px] text-muted-foreground">Which day of the month this trigger runs on.</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">Ngày trong tháng mà trigger này chạy.</p>
                   )}
                 </div>
               )}
 
               {["day", "week", "month", "year"].includes(customUnit) && (
                 <div>
-                  <label className="text-xs font-medium mb-1.5 block">Run time</label>
-                  <input type="time" value={timeOfDay} onChange={e => setTimeOfDay(e.target.value)}
-                    className="w-full h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base" />
-                  <p className="mt-1 text-[11px] text-muted-foreground">The time this trigger runs, in the timezone below.</p>
+                  <label className="text-xs font-medium mb-1.5 block">Giờ chạy</label>
+                  <input
+                    type="time" value={timeOfDay}
+                    onChange={e => {
+                      setTimeOfDay(e.target.value);
+                      if (e.target.value && errors.schedule === "Hãy chọn giờ chạy.") setErrors(er => ({ ...er, schedule: undefined }));
+                    }}
+                    onBlur={() => {
+                      if (!timeOfDay) setErrors(er => ({ ...er, schedule: "Hãy chọn giờ chạy." }));
+                    }}
+                    className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm outline-none transition-base ${
+                      errors.schedule === "Hãy chọn giờ chạy." ? "border-destructive" : "border-border focus:border-primary"
+                    }`}
+                  />
+                  {errors.schedule === "Hãy chọn giờ chạy." ? (
+                    <p className="mt-1 text-[11px] text-destructive">Hãy chọn giờ chạy.</p>
+                  ) : (
+                    <p className="mt-1 text-[11px] text-muted-foreground">Giờ trigger chạy, theo múi giờ bên dưới.</p>
+                  )}
                 </div>
               )}
               {customUnit === "week" && (
                 <div>
-                  <label className="text-xs font-medium mb-1.5 block">Days of the week</label>
+                  <label className="text-xs font-medium mb-1.5 block">Ngày trong tuần</label>
                   <div className="grid grid-cols-7 gap-1">
                     {WEEKDAY_CHIPS.map(d => {
                       const active = weekDays.includes(d.value);
@@ -729,7 +753,12 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                         <button
                           key={d.value}
                           type="button"
-                          onClick={() => setWeekDays(prev => active ? prev.filter(x => x !== d.value) : [...prev, d.value])}
+                          onClick={() => {
+                            const next = active ? weekDays.filter(x => x !== d.value) : [...weekDays, d.value];
+                            setWeekDays(next);
+                            if (next.length === 0) setErrors(er => ({ ...er, schedule: "Hãy chọn ngày chạy." }));
+                            else if (errors.schedule === "Hãy chọn ngày chạy.") setErrors(er => ({ ...er, schedule: undefined }));
+                          }}
                           className={`h-8 rounded-lg text-xs font-medium transition-base ${
                             active ? "bg-primary text-primary-foreground" : "bg-surface-muted text-muted-foreground hover:text-foreground"
                           }`}
@@ -739,9 +768,11 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                       );
                     })}
                   </div>
-                  <p className={`mt-1 text-[11px] ${weekDays.length === 0 ? "text-destructive" : "text-muted-foreground"}`}>
-                    Select at least one day of the week.
-                  </p>
+                  {errors.schedule === "Hãy chọn ngày chạy." ? (
+                    <p className="mt-1 text-[11px] text-destructive">Hãy chọn ngày chạy.</p>
+                  ) : (
+                    <p className="mt-1 text-[11px] text-muted-foreground">Các ngày trong tuần agent sẽ chạy.</p>
+                  )}
                 </div>
               )}
               {customUnit === "cron" && (
@@ -751,9 +782,9 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                     onClick={() => setCustomUnit(lastNonCronUnit)}
                     className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-base mb-2"
                   >
-                    <ChevronLeft size={11} /> Back to basic schedule
+                    <ChevronLeft size={11} /> Quay về lịch cơ bản
                   </button>
-                  <label className="text-xs font-medium mb-1.5 block">Cron expression</label>
+                  <label className="text-xs font-medium mb-1.5 block">Biểu thức Cron</label>
                   <input
                     value={cron}
                     onChange={e => {
@@ -766,8 +797,8 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                     }}
                     onBlur={() => {
                       const check = checkCronExpression(cron);
-                      if (!check.valid) setErrors(er => ({ ...er, schedule: "Invalid cron expression. Format: minute hour day month weekday (e.g. 0 8 * * 1-5)" }));
-                      else if (check.tooFrequent) setErrors(er => ({ ...er, schedule: "Cron can't run more often than every 10 minutes." }));
+                      if (!check.valid) setErrors(er => ({ ...er, schedule: "Biểu thức Cron chưa đúng định dạng. Ví dụ hợp lệ: 0 9 * * 1" }));
+                      else if (check.tooFrequent) setErrors(er => ({ ...er, schedule: "Cron không được chạy dày hơn mỗi 10 phút." }));
                       else setErrors(er => ({ ...er, schedule: undefined }));
                     }}
                     placeholder="0 8 * * 1-5"
@@ -775,7 +806,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                       errors.schedule ? "border-destructive" : "border-border focus:border-primary"
                     }`}
                   />
-                  <p className="mt-1 text-[10px] text-muted-foreground">Standard cron format: minute · hour · day · month · weekday</p>
+                  <p className="mt-1 text-[10px] text-muted-foreground">Định dạng cron chuẩn: phút · giờ · ngày · tháng · thứ</p>
                   {errors.schedule ? (
                     <p className="mt-1 text-[11px] text-destructive">{errors.schedule}</p>
                   ) : cronCheck.valid && !cronCheck.tooFrequent && (
@@ -785,11 +816,11 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
               )}
 
               <div>
-                <label className="text-xs font-medium mb-1.5 block">Timezone</label>
+                <label className="text-xs font-medium mb-1.5 block">Múi giờ</label>
                 <select value={timezone} onChange={e => setTimezone(e.target.value)} className="ds-input h-9">
                   {TIMEZONE_OPTIONS.map(tz => <option key={tz.value} value={tz.value}>{tz.label}</option>)}
                 </select>
-                <p className="mt-1 text-[11px] text-muted-foreground">Used to calculate all the times above.</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">Dùng để tính toàn bộ mốc giờ ở trên.</p>
               </div>
             </div>
           )}
