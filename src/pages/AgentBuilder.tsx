@@ -3867,13 +3867,14 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
           style={{ top: menuPos.top, right: window.innerWidth - menuPos.left }}
           onMouseDown={e => e.stopPropagation()}
         >
-          <div className="bg-white rounded-xl border border-border shadow-elev py-1.5 w-64 animate-fade-up">
+          <div className="bg-white rounded-2xl border border-border shadow-elev p-1.5 w-72 animate-fade-up">
             {menuItems.map((item, i) => (
               <div key={i}>
+                {i > 0 && <div className="h-px bg-border mx-2.5 my-1" />}
                 <button
                   type="button"
                   aria-disabled={item.disabled}
-                  className={`w-full flex items-start gap-2.5 px-3.5 py-2.5 text-left transition-base ${
+                  className={`w-full flex items-start gap-3 rounded-xl px-2.5 py-2.5 text-left transition-base ${
                     item.disabled ? "opacity-[0.45] cursor-not-allowed" : "hover:bg-surface-muted cursor-pointer"
                   }`}
                   onClick={() => {
@@ -3881,19 +3882,26 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
                     setShowMenu(false); setPickerMode(item.mode); setShowPicker(true);
                   }}
                 >
-                  <HugeiconsIcon icon={item.icon} size={16} className="shrink-0 mt-0.5 text-muted-foreground" />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium">{item.label}</p>
-                    <p className="text-xs leading-relaxed text-muted-foreground">{item.sub}</p>
-                  </div>
+                  <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                    item.disabled ? "bg-surface-muted text-muted-foreground" : "bg-primary-soft text-primary"
+                  }`}>
+                    <HugeiconsIcon icon={item.icon} size={16} />
+                  </span>
+                  <span className="min-w-0 pt-0.5">
+                    <span className="block text-sm font-semibold text-foreground">{item.label}</span>
+                    <span className="block text-xs leading-relaxed text-muted-foreground mt-0.5">{item.sub}</span>
+                  </span>
                 </button>
-                {item.disabled && (
-                  <p className="px-3.5 pb-2 -mt-1 text-[11px] text-warning leading-relaxed">
-                    Agent đang có Trigger nên chỉ dùng được kết nối Dùng chung.
-                  </p>
-                )}
               </div>
             ))}
+            {menuItems.some(m => m.disabled) && (
+              <div className="mt-1 flex items-start gap-2 px-3 py-2.5 rounded-xl border border-warning/25 bg-[hsl(var(--warning-soft))]">
+                <HugeiconsIcon icon={Alert01Icon} size={13} className="shrink-0 mt-0.5 text-warning" />
+                <p className="text-[11px] text-warning leading-relaxed">
+                  Agent đang có Trigger nên chỉ dùng được kết nối Dùng chung.
+                </p>
+              </div>
+            )}
           </div>
         </div>,
         document.body
