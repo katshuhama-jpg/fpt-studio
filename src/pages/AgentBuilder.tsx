@@ -59,7 +59,9 @@ const monitorNav = [
 export default function AgentBuilder() {
   const { id = "cskh" } = useParams();
   const [params, setParams] = useSearchParams();
-  const tab = (params.get("tab") as Tab) || "build";
+  const VALID_TABS: Tab[] = ["build", "test", "deploy", "insights"];
+  const rawTab = params.get("tab");
+  const tab: Tab = VALID_TABS.includes(rawTab as Tab) ? (rawTab as Tab) : "build";
   const section = params.get("section") || "instructions";
   const navigate = useNavigate();
   const buildModeParam = params.get("buildMode");

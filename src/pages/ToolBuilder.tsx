@@ -67,7 +67,7 @@ export default function ToolBuilder() {
       enabled, code, params, credentials, cardBinding,
     };
     toolStore.save(agentId, def);
-    navigate(`/agents/${agentId}?tab=develop&section=tool`);
+    navigate(`/agents/${agentId}?tab=build&section=tool`);
   };
 
   const runTest = async () => {
@@ -101,7 +101,7 @@ export default function ToolBuilder() {
       {/* Topbar */}
       <div className="h-14 border-b border-border bg-surface flex items-center px-4 gap-3 shrink-0">
         <button
-          onClick={() => navigate(`/agents/${agentId}?tab=develop&section=tool`)}
+          onClick={() => navigate(`/agents/${agentId}?tab=build&section=tool`)}
           className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-base"
         >
           <ChevronLeft size={15} /> Back to agent
