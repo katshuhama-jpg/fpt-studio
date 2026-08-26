@@ -23,7 +23,7 @@ import { agentConnectorStore, type ConnectorScope } from "@/components/configure
 import { hasTriggers, perUserConnector } from "@/components/configure/agentAutomationGuard";
 import {
   agentPublishStore,
-  CONNECTOR_BLOCKED_BY_TRIGGER_REASON, CONNECTOR_BLOCKED_BY_TRIGGER_TOAST,
+  CONNECTOR_BLOCKED_BY_TRIGGER_REASON,
 } from "@/components/configure/agentPublishStore";
 import { getAgentKind, type AgentKind } from "@/components/configure/agentKindStore";
 import { getAgent } from "@/components/configure/agentStore";
@@ -2646,7 +2646,7 @@ function NewConfigPanel({ agentId, model, onModelChange, onNavigateToConnections
 
   const sections = [
     {
-      id: "connectors", icon: ConnectIcon, label: "Connectors",
+      id: "connectors", icon: ConnectIcon, label: "Kết nối",
       onAdd: (pos: {top:number;left:number}) => connectorsAddRef.current?.(pos),
       content: (
         <ConnectorsInner agentId={agentId} onRegisterAdd={(fn) => { connectorsAddRef.current = fn; }} />
@@ -3831,10 +3831,13 @@ function ConnectorsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
     return () => document.removeEventListener("mousedown", h);
   }, [showMenu]);
 
-  const personalBlocked = hasTriggers(agentId);
+  // hasTriggers() counts ANY trigger — schedule, webhook, or external app, regardless of
+  // status — so this doesn't distinguish trigger types, matching the business rule that an
+  // agent can never mix a per-user connection with unattended trigger runs.
+  const hasTrigger = hasTriggers(agentId);
   const menuItems = [
-    { icon: Building02Icon, label: "Shared", sub: "One workspace account", mode: "shared" as const, disabled: false },
-    { icon: UserIcon, label: "Per-user", sub: "Each person's own account", mode: "personal" as const, disabled: personalBlocked },
+    { icon: Building02Icon, label: "Dùng chung", sub: "Một tài khoản cho cả workspace", mode: "shared" as const, disabled: false },
+    { icon: UserIcon, label: "Riêng cá nhân", sub: "Mỗi người dùng tự kết nối tài khoản của mình", mode: "personal" as const, disabled: hasTrigger },
   ];
 
   const connectedIds = connected.map(c => c.id);
@@ -3856,8 +3859,8 @@ function ConnectorsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
       {connected.length === 0 ? (
         <EmptyStateBox
           icon={ConnectIcon}
-          description="The outside accounts and systems this agent may use."
-          addLabel="Add Connectors"
+          description="Các tài khoản và hệ thống bên ngoài mà agent này có thể sử dụng."
+          addLabel="Thêm Connector"
           onAdd={e => {
             const r = e.currentTarget.getBoundingClientRect();
             setMenuPos({ top: r.bottom + 4, left: r.right });
@@ -3867,17 +3870,19 @@ function ConnectorsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
       ) : (
         <div className="flex flex-col gap-1.5">
           {connected.map(c => {
+            // Fall back to the raw id instead of silently dropping the row — a connector
+            // whose metadata can't be found would otherwise vanish from the list while still
+            // sitting in the store, which reads to the Builder as "my connector disappeared".
             const meta = SUB_AGENT_CONNECTORS.find(x => x.id === c.id);
-            if (!meta) return null;
             return (
               <div key={c.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base">
-                <span className="w-6 h-6 rounded bg-surface-muted border border-border flex items-center justify-center text-[9px] font-bold shrink-0">{meta.logo}</span>
-                <span className="text-xs font-medium flex-1 truncate">{meta.name}</span>
+                <span className="w-6 h-6 rounded bg-surface-muted border border-border flex items-center justify-center text-[9px] font-bold shrink-0">{meta?.logo ?? "?"}</span>
+                <span className="text-xs font-medium flex-1 truncate">{meta?.name ?? c.id}</span>
                 <span
                   className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap"
                   style={c.mode === "shared" ? { background: "#EEF2FF", color: "#4338CA", border: "0.5px solid #C7D2FE" } : { background: "#ECFDF5", color: "#047857", border: "0.5px solid #A7F3D0" }}
                 >
-                  {c.mode === "shared" ? "Shared" : "Per-user"}
+                  {c.mode === "shared" ? "Dùng chung" : "Riêng cá nhân"}
                 </span>
                 <button
                   onClick={() => { agentConnectorStore.remove(agentId, c.id); setTick(t => t + 1); }}
@@ -3890,7 +3895,16 @@ function ConnectorsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
         </div>
       )}
 
-      {/* Shared / Per-user dropdown */}
+      {hasTrigger && (
+        <div className="mt-2 flex items-start gap-2 px-3 py-2.5 rounded-lg border border-blue-200 bg-blue-50">
+          <HugeiconsIcon icon={InformationCircleIcon} size={14} className="text-blue-600 shrink-0 mt-0.5" />
+          <p className="text-xs text-blue-800 leading-relaxed">
+            Agent này có Trigger nên chạy bằng tài khoản Dùng chung. Trigger được setup ở Workspace.
+          </p>
+        </div>
+      )}
+
+      {/* Dùng chung / Riêng cá nhân dropdown */}
       {showMenu && createPortal(
         <div
           className="fixed z-[9999]"
@@ -3899,35 +3913,30 @@ function ConnectorsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
         >
           <div className="bg-white rounded-xl border border-border shadow-elev py-1.5 w-64 animate-fade-up">
             {menuItems.map((item, i) => (
-              <button
-                key={i}
-                aria-disabled={item.disabled}
-                className={`w-full flex items-start gap-2.5 px-3.5 py-2.5 text-left transition-base ${
-                  item.disabled ? "cursor-not-allowed" : "hover:bg-surface-muted"
-                }`}
-                onClick={() => {
-                  if (item.disabled) {
-                    toast.warning(CONNECTOR_BLOCKED_BY_TRIGGER_TOAST(triggerStore.list(agentId).length), {
-                      duration: 4000,
-                      style: {
-                        background: "hsl(var(--warning-soft))",
-                        color: "hsl(var(--warning))",
-                        border: "1px solid hsl(var(--warning) / 0.25)",
-                      },
-                    });
-                    return;
-                  }
-                  setShowMenu(false); setPickerMode(item.mode); setShowPicker(true);
-                }}
-              >
-                <HugeiconsIcon icon={item.icon} size={16} className={`shrink-0 mt-0.5 ${item.disabled ? "text-muted-foreground/40" : "text-muted-foreground"}`} />
-                <div className="min-w-0">
-                  <p className={`text-sm font-medium ${item.disabled ? "text-muted-foreground" : ""}`}>{item.label}</p>
-                  <p className={`text-xs leading-relaxed ${item.disabled ? "text-warning" : "text-muted-foreground"}`}>
-                    {item.disabled ? CONNECTOR_BLOCKED_BY_TRIGGER_REASON(triggerStore.list(agentId).length) : item.sub}
+              <div key={i}>
+                <button
+                  type="button"
+                  aria-disabled={item.disabled}
+                  className={`w-full flex items-start gap-2.5 px-3.5 py-2.5 text-left transition-base ${
+                    item.disabled ? "opacity-[0.45] cursor-not-allowed" : "hover:bg-surface-muted cursor-pointer"
+                  }`}
+                  onClick={() => {
+                    if (item.disabled) return;
+                    setShowMenu(false); setPickerMode(item.mode); setShowPicker(true);
+                  }}
+                >
+                  <HugeiconsIcon icon={item.icon} size={16} className="shrink-0 mt-0.5 text-muted-foreground" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{item.label}</p>
+                    <p className="text-xs leading-relaxed text-muted-foreground">{item.sub}</p>
+                  </div>
+                </button>
+                {item.disabled && (
+                  <p className="px-3.5 pb-2 -mt-1 text-[11px] text-warning leading-relaxed">
+                    Agent đang có Trigger nên chỉ dùng được kết nối Dùng chung.
                   </p>
-                </div>
-              </button>
+                )}
+              </div>
             ))}
           </div>
         </div>,
@@ -3940,6 +3949,8 @@ function ConnectorsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
           added={connectedIds}
           onToggle={toggleConnector}
           onClose={() => setShowPicker(false)}
+          mode={pickerMode}
+          onChangeMode={() => { setShowPicker(false); setShowMenu(true); }}
         />
       )}
     </>
@@ -4055,17 +4066,17 @@ function SkillsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:number;
 }
 
 /* ============ Sub-Agents ============ */
-const CONNECTOR_CATEGORIES = ["All integrations", "Communication", "Productivity", "Developer", "Data", "Research", "Other"];
+const CONNECTOR_CATEGORIES = ["Tất cả tích hợp", "Giao tiếp", "Năng suất", "Nhà phát triển", "Dữ liệu", "Nghiên cứu", "Khác"];
 
 const SUB_AGENT_CONNECTORS = [
-  { id: "drive",    name: "Google Drive", logo: "D",  category: "Productivity",  connected: true  },
-  { id: "sheets",   name: "Sheets",       logo: "Sh", category: "Productivity",  connected: false },
-  { id: "gmail",    name: "Gmail",        logo: "G",  category: "Communication", connected: true  },
-  { id: "slack",    name: "Slack",        logo: "S",  category: "Communication", connected: true  },
-  { id: "notion",   name: "Notion",       logo: "N",  category: "Productivity",  connected: false },
-  { id: "hubspot",  name: "HubSpot",      logo: "H",  category: "Data",          connected: false },
-  { id: "github",   name: "GitHub",       logo: "Gh", category: "Developer",     connected: false },
-  { id: "exa",      name: "Exa",          logo: "Ex", category: "Research",      connected: false },
+  { id: "drive",    name: "Google Drive", logo: "D",  category: "Năng suất",       connected: true  },
+  { id: "sheets",   name: "Sheets",       logo: "Sh", category: "Năng suất",       connected: false },
+  { id: "gmail",    name: "Gmail",        logo: "G",  category: "Giao tiếp",       connected: true  },
+  { id: "slack",    name: "Slack",        logo: "S",  category: "Giao tiếp",       connected: true  },
+  { id: "notion",   name: "Notion",       logo: "N",  category: "Năng suất",       connected: false },
+  { id: "hubspot",  name: "HubSpot",      logo: "H",  category: "Dữ liệu",         connected: false },
+  { id: "github",   name: "GitHub",       logo: "Gh", category: "Nhà phát triển",  connected: false },
+  { id: "exa",      name: "Exa",          logo: "Ex", category: "Nghiên cứu",      connected: false },
 ];
 
 interface SubAgent {
@@ -4182,10 +4193,10 @@ function AddCustomMcpModal({ onClose }: { onClose: () => void }) {
   const [auth, setAuth] = useState<"none" | "static">("none");
 
   const authOptions = [
-    { id: "none" as const,   label: "No authentication", disabled: false },
-    { id: "static" as const, label: "Static Headers",    disabled: false },
-    { id: "oauth-auto",      label: "OAuth 2.1 (Auto)",   disabled: true },
-    { id: "oauth-manual",    label: "OAuth 2.1 (Manual)", disabled: true },
+    { id: "none" as const,   label: "Không xác thực",        disabled: false },
+    { id: "static" as const, label: "Static Headers",        disabled: false },
+    { id: "oauth-auto",      label: "OAuth 2.1 (Tự động)",   disabled: true },
+    { id: "oauth-manual",    label: "OAuth 2.1 (Thủ công)",  disabled: true },
   ];
 
   return createPortal(
@@ -4194,8 +4205,8 @@ function AddCustomMcpModal({ onClose }: { onClose: () => void }) {
       <div className="relative z-10 w-full max-w-md bg-white rounded-2xl shadow-lg border border-border flex flex-col max-h-[88vh] animate-fade-up">
         <div className="flex items-start justify-between px-6 pt-6 pb-2 shrink-0">
           <div>
-            <h2 className="text-lg font-semibold">Add custom MCP</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">Connect an MCP server to give your agents its tools.</p>
+            <h2 className="text-lg font-semibold">Thêm MCP tuỳ chỉnh</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">Kết nối một MCP server để cấp công cụ cho agent.</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 mt-0.5">
             <HugeiconsIcon icon={Cancel01Icon} size={16} />
@@ -4205,11 +4216,11 @@ function AddCustomMcpModal({ onClose }: { onClose: () => void }) {
         <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-4">
           <div className="flex items-start gap-2.5 px-3.5 py-3 rounded-xl bg-surface-muted/60">
             <HugeiconsIcon icon={UserGroupIcon} size={16} className="text-muted-foreground shrink-0 mt-0.5" />
-            <p className="text-xs text-muted-foreground leading-relaxed">Shared connector: the agent will always use the workspace's account for this server.</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">Kết nối dùng chung: agent luôn dùng tài khoản của workspace cho server này.</p>
           </div>
 
           <div>
-            <p className="text-sm font-semibold mb-1.5">Name</p>
+            <p className="text-sm font-semibold mb-1.5">Tên</p>
             <input
               autoFocus
               value={name}
@@ -4230,7 +4241,7 @@ function AddCustomMcpModal({ onClose }: { onClose: () => void }) {
           </div>
 
           <div>
-            <p className="text-sm font-semibold mb-2">Authentication</p>
+            <p className="text-sm font-semibold mb-2">Xác thực</p>
             <div className="flex flex-col gap-2.5">
               {authOptions.map(opt => (
                 <label key={opt.id} className={`flex items-center gap-2.5 ${opt.disabled ? "cursor-not-allowed" : "cursor-pointer"}`}>
@@ -4244,23 +4255,23 @@ function AddCustomMcpModal({ onClose }: { onClose: () => void }) {
                   />
                   <span className={`text-sm ${opt.disabled ? "text-muted-foreground" : "text-foreground"}`}>
                     {opt.label}
-                    {opt.disabled && <span className="text-muted-foreground"> · Soon</span>}
+                    {opt.disabled && <span className="text-muted-foreground"> · Sắp có</span>}
                   </span>
                 </label>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground mt-2.5 leading-relaxed">Use static headers (e.g. an API key) to authenticate. OAuth 2.1 is coming soon.</p>
+            <p className="text-xs text-muted-foreground mt-2.5 leading-relaxed">Dùng static headers (ví dụ API key) để xác thực. OAuth 2.1 sắp ra mắt.</p>
           </div>
         </div>
 
         <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border shrink-0">
-          <button onClick={onClose} className="btn-secondary">Cancel</button>
+          <button onClick={onClose} className="btn-secondary">Huỷ</button>
           <button
             disabled={!name.trim() || !url.trim()}
             onClick={onClose}
             className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Save server
+            Lưu server
           </button>
         </div>
       </div>
@@ -4269,14 +4280,18 @@ function AddCustomMcpModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-function ConnectorPickerModal({ connectors, added, onToggle, onClose }: {
+function ConnectorPickerModal({ connectors, added, onToggle, onClose, mode, onChangeMode }: {
   connectors: { id: string; name: string; logo: string; category: string; connected: boolean }[];
   added: string[];
   onToggle: (id: string) => void;
   onClose: () => void;
+  /** Scope the row was opened under (Dùng chung / Riêng cá nhân) — omitted for callers that
+   * don't have the concept of connector scope (e.g. the Sub-Agents picker). */
+  mode?: ConnectorScope;
+  onChangeMode?: () => void;
 }) {
   const [search, setSearch] = useState("");
-  const [activeCategory, setActiveCategory] = useState("All integrations");
+  const [activeCategory, setActiveCategory] = useState("Tất cả tích hợp");
   const [catOpen, setCatOpen] = useState(false);
   const [showCustomMcp, setShowCustomMcp] = useState(false);
   const catRef = useRef<HTMLDivElement>(null);
@@ -4287,7 +4302,7 @@ function ConnectorPickerModal({ connectors, added, onToggle, onClose }: {
   };
   const filtered = connectors.filter(c =>
     (!search || c.name.toLowerCase().includes(search.toLowerCase())) &&
-    (activeCategory === "All integrations" || c.category === activeCategory)
+    (activeCategory === "Tất cả tích hợp" || c.category === activeCategory)
   );
 
   useEffect(() => {
@@ -4302,8 +4317,23 @@ function ConnectorPickerModal({ connectors, added, onToggle, onClose }: {
       <div className="relative z-10 w-full max-w-2xl bg-white rounded-2xl shadow-lg border border-border flex flex-col max-h-[85vh] animate-fade-up">
         <div className="flex items-start justify-between px-6 pt-6 pb-2 shrink-0">
           <div>
-            <h2 className="text-lg font-semibold">Add connection</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">What this agent can do.</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-lg font-semibold">Thêm kết nối</h2>
+              {mode && (
+                <span
+                  className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap"
+                  style={mode === "shared" ? { background: "#EEF2FF", color: "#4338CA", border: "0.5px solid #C7D2FE" } : { background: "#ECFDF5", color: "#047857", border: "0.5px solid #A7F3D0" }}
+                >
+                  {mode === "shared" ? "Dùng chung" : "Riêng cá nhân"}
+                </span>
+              )}
+              {onChangeMode && (
+                <button type="button" onClick={onChangeMode} className="text-xs font-semibold text-primary hover:underline shrink-0">
+                  Đổi
+                </button>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground mt-0.5">Những gì agent này có thể làm.</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 mt-0.5">
             <HugeiconsIcon icon={Cancel01Icon} size={16} />
@@ -4317,7 +4347,7 @@ function ConnectorPickerModal({ connectors, added, onToggle, onClose }: {
               autoFocus
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search connectors..."
+              placeholder="Tìm connector..."
               className="w-full h-9 pl-9 pr-3 rounded-lg border border-primary/50 bg-white text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-base"
             />
           </div>
@@ -4352,14 +4382,14 @@ function ConnectorPickerModal({ connectors, added, onToggle, onClose }: {
         </div>
 
         <div className="px-6 pb-2 flex items-center justify-between shrink-0">
-          <span className="text-xs text-muted-foreground">{filtered.length} connector{filtered.length === 1 ? "" : "s"}</span>
+          <span className="text-xs text-muted-foreground">{filtered.length} connector</span>
           <button
             type="button"
             onClick={toggleAll}
             className="flex items-center gap-1.5 text-sm font-medium text-primary hover:underline shrink-0"
           >
             <HugeiconsIcon icon={CheckmarkCircle01Icon} size={16} />
-            {allSelected ? "Deselect all" : "Select all"}
+            {allSelected ? "Bỏ chọn tất cả" : "Chọn tất cả"}
           </button>
         </div>
 
@@ -4381,7 +4411,7 @@ function ConnectorPickerModal({ connectors, added, onToggle, onClose }: {
                   <span className="flex-1 min-w-0 text-sm font-semibold truncate">{c.name}</span>
                   {active && (
                     <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ background: "#DCFCE7", color: "#15803D" }}>
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> Added
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} /> Đã thêm
                     </span>
                   )}
                 </button>
@@ -4396,9 +4426,9 @@ function ConnectorPickerModal({ connectors, added, onToggle, onClose }: {
             onClick={() => setShowCustomMcp(true)}
             className="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-border text-sm font-medium text-foreground hover:bg-surface-muted transition-base"
           >
-            <HugeiconsIcon icon={Add01Icon} size={14} /> Add custom MCP
+            <HugeiconsIcon icon={Add01Icon} size={14} /> Thêm MCP tuỳ chỉnh
           </button>
-          <button onClick={onClose} className="btn-primary">Done</button>
+          <button onClick={onClose} className="btn-primary">Xong</button>
         </div>
       </div>
 
