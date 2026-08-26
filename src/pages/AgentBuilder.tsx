@@ -691,7 +691,7 @@ function inlineFormat(text: string): React.ReactNode {
 
 function GeneralTab({ agentId, onRefineWithAI, onChatToTest }: { agentId: string; onRefineWithAI?: () => void; onChatToTest?: () => void }) {
   const [params] = useSearchParams();
-  const isBlank = !params.get("agentName") && !params.get("agentPrompt");
+  const isBlank = agentId === "new" && !params.get("agentName") && !params.get("agentPrompt");
   const initialName = params.get("agentName") || "";
   const initialPrompt = params.get("agentPrompt") || "";
   const [avatar, setAvatar] = useState(isBlank ? "" : "🏦");
