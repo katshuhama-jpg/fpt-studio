@@ -691,15 +691,16 @@ function inlineFormat(text: string): React.ReactNode {
 
 function GeneralTab({ agentId, onRefineWithAI, onChatToTest }: { agentId: string; onRefineWithAI?: () => void; onChatToTest?: () => void }) {
   const [params] = useSearchParams();
-  const initialName = params.get("agentName") || "Banking ABC — Customer Care";
+  const isBlank = !params.get("agentName") && !params.get("agentPrompt");
+  const initialName = params.get("agentName") || "";
   const initialPrompt = params.get("agentPrompt") || "";
-  const [avatar, setAvatar] = useState("🏦");
+  const [avatar, setAvatar] = useState(isBlank ? "" : "🏦");
   const [editingAvatar, setEditingAvatar] = useState(false);
   const [viewMode, setViewMode] = useState<"preview" | "markdown" | "ai" | "chat">("preview");
   const [instructions, setInstructions] = useState("");
   const emojiOptions = ["🏦","🤖","💼","🧠","🎯","🛡️","⚡","🌐","📊","🔧","💡","🚀"];
 
-  const defaultInstructions = initialPrompt || `# Banking ABC — Customer Care Agent
+  const sampleInstructions = `# Banking ABC — Customer Care Agent
 
 You are a customer-care specialist at ABC Bank. Help customers 24/7 with products, services and banking requests.
 
@@ -718,6 +719,8 @@ You are a customer-care specialist at ABC Bank. Help customers 24/7 with product
 - Never provide personalized financial or legal advice
 - If unsure, escalate to a human agent`;
 
+  const defaultInstructions = isBlank ? "" : (initialPrompt || sampleInstructions);
+
   return (
     <div className="w-full animate-fade-up">
       {/* ── Sticky header ── */}
@@ -729,7 +732,7 @@ You are a customer-care specialist at ABC Bank. Help customers 24/7 with product
               onClick={() => setEditingAvatar(o => !o)}
               className="w-12 h-12 rounded-xl bg-primary-soft border border-border hover:border-primary/40 flex items-center justify-center text-2xl transition-base"
             >
-              {avatar}
+              {avatar || <HugeiconsIcon icon={Robot01Icon} size={20} className="text-muted-foreground" />}
             </button>
             <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-md bg-surface border border-border flex items-center justify-center pointer-events-none">
               <HugeiconsIcon icon={PencilEdit01Icon} size={9} className="text-muted-foreground" />
@@ -762,7 +765,7 @@ You are a customer-care specialist at ABC Bank. Help customers 24/7 with product
             />
             <input
               className="w-full text-sm text-muted-foreground bg-transparent border border-transparent rounded-md px-2 py-0.5 -mx-2 outline-none hover:border-border hover:bg-surface focus:border-ring focus:bg-surface transition-base truncate"
-              defaultValue="Handles customer queries 24/7 for ABC Bank — products, services, and support."
+              defaultValue={isBlank ? "" : "Handles customer queries 24/7 for ABC Bank — products, services, and support."}
               placeholder="Short description…"
               style={{ textOverflow: "ellipsis" }}
             />
@@ -819,7 +822,9 @@ You are a customer-care specialist at ABC Bank. Help customers 24/7 with product
         )}
         {viewMode === "preview" && (
           <div className="prose prose-sm max-w-none text-foreground">
-            {renderMarkdown(instructions || defaultInstructions)}
+            {(instructions || defaultInstructions)
+              ? renderMarkdown(instructions || defaultInstructions)
+              : <p className="text-sm text-muted-foreground">No instructions yet. Switch to Markdown to start writing, or use Refine with AI.</p>}
           </div>
         )}
         {viewMode === "markdown" && (
