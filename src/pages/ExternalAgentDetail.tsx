@@ -440,16 +440,16 @@ export default function ExternalAgentDetail() {
                 </InfoRow>
                 <InfoRow label="Last health check">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span>
-                      {agent.lastHealthCheckAt == null
-                        ? "Never checked"
-                        : `${relativeTime(agent.lastHealthCheckAt)} · `}
-                      {agent.lastHealthCheckAt != null && (
-                        <span className={agent.lastHealthCheckOk ? "text-success font-medium" : "text-destructive font-medium"}>
+                    {agent.lastHealthCheckAt == null ? (
+                      <span className="text-muted-foreground">Never checked</span>
+                    ) : (
+                      <>
+                        <span className="text-muted-foreground">{relativeTime(agent.lastHealthCheckAt)}</span>
+                        <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border ${agent.lastHealthCheckOk ? "chip-success" : "chip-danger"}`}>
                           {agent.lastHealthCheckOk ? "Healthy" : "Unreachable"}
                         </span>
-                      )}
-                    </span>
+                      </>
+                    )}
                     <button
                       type="button"
                       disabled={checkingHealth}
