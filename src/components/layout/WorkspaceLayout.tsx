@@ -1,7 +1,7 @@
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { clearUser, getUser } from "@/lib/onboarding";
 import {
-  Home, MessageSquare, Bot, BookOpen, Plug,
+  Home, MessageSquare, Bot, BookOpen, Plug, Globe,
   Puzzle, ChevronsLeft, ChevronsRight, Search, Bell, Plus,
   ChevronRight, LifeBuoy, KeyRound, LogOut, User, ChevronDown, ChevronsUpDown,
   Check, Building2, PlusCircle, Sparkles, Shield, FileText, Rocket,
@@ -34,6 +34,7 @@ const groups: Group[] = [
     label: "Build",
     items: [
       { to: "/agents", label: "Agents", icon: Bot },
+      { to: "/external-agents", label: "External Agents", icon: Globe },
       { to: "/knowledge", label: "Knowledge", icon: BookOpen },
       { to: "/tools", label: "Skills", icon: Puzzle },
       { to: "/guardrails", label: "Guardrails", icon: Shield },
@@ -70,7 +71,8 @@ export default function WorkspaceLayout() {
   const loc = useLocation();
   const navigate = useNavigate();
   const orgItems: Item[] = orgItemsBase;
-  const inAgentBuilder = loc.pathname.startsWith("/agents/");
+  const inExternalAgentDetail = /^\/external-agents\/(?!guides(?:\/|$))[^/]+\/?$/.test(loc.pathname);
+  const inAgentBuilder = loc.pathname.startsWith("/agents/") || inExternalAgentDetail;
   const inOrganization = loc.pathname.startsWith("/organization");
   const handleSignOut = () => {
     clearUser();

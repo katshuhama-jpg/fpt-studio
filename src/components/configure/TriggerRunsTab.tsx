@@ -26,9 +26,6 @@ const TRIGGER_TYPE_LABEL: Record<TriggerType, string> = {
 };
 
 const STATUS_META: Record<RunStatus, { label: string; className: string; animate?: boolean }> = {
-  waiting:   { label: "Đang chờ",    className: "bg-surface-muted text-muted-foreground" },
-  triggered: { label: "Đã kích hoạt",  className: "chip-accent" },
-  queued:    { label: "Trong hàng đợi",     className: "chip-accent" },
   running:   { label: "Đang chạy",    className: "chip-accent", animate: true },
   completed: { label: "Hoàn tất",  className: "chip-success" },
   failed:    { label: "Thất bại",     className: "chip-danger" },
@@ -74,9 +71,10 @@ function mockAutomationId(agentId: string): string {
 }
 
 const DATE_RANGE_OPTIONS: { value: string; label: string; days: number | null }[] = [
+  { value: "1", label: "24 giờ qua", days: 1 },
   { value: "7", label: "7 ngày qua", days: 7 },
   { value: "30", label: "30 ngày qua", days: 30 },
-  { value: "all", label: "Toàn bộ thời gian", days: null },
+  { value: "custom", label: "Tuỳ chọn", days: null },
 ];
 
 const DEFAULT_TRIGGER_FILTER = "all";
@@ -130,6 +128,8 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
   const [typeFilter, setTypeFilter] = useState<"all" | TriggerType>(DEFAULT_TYPE_FILTER);
   const [statusFilter, setStatusFilter] = useState(DEFAULT_STATUS_FILTER);
   const [dateRange, setDateRange] = useState(DEFAULT_DATE_RANGE);
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [detailRun, setDetailRun] = useState<TriggerRun | null>(null);
@@ -154,12 +154,33 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
     ? outboundChannels.map(id => CHANNEL_NAME[id] ?? id).join(" · ")
     : "Chưa có";
 
+  // Runs may reference a trigger that's since been deleted — still offer it in the filter
+  // dropdown (suffixed) so its history stays reachable, without it appearing in TriggersTab.
+  const knownTriggerIds = new Set(triggers.map(t => t.id));
+  const deletedTriggerOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const result: { id: string; name: string }[] = [];
+    for (const r of allRuns) {
+      if (!knownTriggerIds.has(r.triggerId) && !seen.has(r.triggerId)) {
+        seen.add(r.triggerId);
+        result.push({ id: r.triggerId, name: r.triggerName });
+      }
+    }
+    return result;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allRuns, agentId]);
+
   const runs = allRuns.filter(r => {
     if (triggerFilter !== "all" && r.triggerId !== triggerFilter) return false;
     if (typeFilter !== "all" && r.triggerType !== typeFilter) return false;
     if (statusFilter !== "all" && r.status !== statusFilter) return false;
-    const range = DATE_RANGE_OPTIONS.find(o => o.value === dateRange);
-    if (range?.days != null && r.startedAt < Date.now() - range.days * 86_400_000) return false;
+    if (dateRange === "custom") {
+      if (customFrom && r.startedAt < new Date(`${customFrom}T00:00:00`).getTime()) return false;
+      if (customTo && r.startedAt > new Date(`${customTo}T23:59:59.999`).getTime()) return false;
+    } else {
+      const range = DATE_RANGE_OPTIONS.find(o => o.value === dateRange);
+      if (range?.days != null && r.startedAt < Date.now() - range.days * 86_400_000) return false;
+    }
     if (searchQuery && !r.triggerName.toLowerCase().includes(searchQuery)) return false;
     return true;
   });
@@ -169,6 +190,8 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
     setTypeFilter(DEFAULT_TYPE_FILTER);
     setStatusFilter(DEFAULT_STATUS_FILTER);
     setDateRange(DEFAULT_DATE_RANGE);
+    setCustomFrom("");
+    setCustomTo("");
     setSearchInput("");
     setSearchQuery("");
   };
@@ -176,16 +199,18 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
   const retry = (run: TriggerRun) => {
     const clone = runsStore.retry(run.id);
     if (!clone) return;
-    const toastId = toast.loading("Đang chạy lại…");
+    toast.success("Đã tạo lần chạy mới.");
     refresh();
     setDetailRun(clone);
     setTimeout(() => {
       runsStore.complete(clone.id, "completed", { outputSummary: "Thử lại thành công." });
       refresh();
       setDetailRun(cur => (cur?.id === clone.id ? runsStore.get(clone.id) ?? null : cur));
-      toast.success("Đã chạy xong.", { id: toastId });
     }, 1800);
   };
+
+  const detailTrigger = detailRun ? triggerStore.get(agentId, detailRun.triggerId) : undefined;
+  const detailTriggerInactive = !!detailRun && (!detailTrigger || !detailTrigger.enabled);
 
   const hasNoHistoryAtAll = allRuns.length === 0;
   const hasNoFilteredResults = !hasNoHistoryAtAll && runs.length === 0;
@@ -223,6 +248,7 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
           <SelectContent>
             <SelectItem value="all">Tất cả trigger</SelectItem>
             {triggers.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+            {deletedTriggerOptions.map(t => <SelectItem key={t.id} value={t.id}>{t.name} (đã xoá)</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={typeFilter} onValueChange={v => setTypeFilter(v as "all" | TriggerType)}>
@@ -245,6 +271,23 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
             {DATE_RANGE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
           </SelectContent>
         </Select>
+        {dateRange === "custom" && (
+          <div className="flex items-center gap-1.5">
+            <input
+              type="date"
+              value={customFrom}
+              onChange={e => setCustomFrom(e.target.value)}
+              className="h-9 px-2.5 rounded-lg border border-border bg-surface text-xs outline-none focus:border-primary transition-base"
+            />
+            <span className="text-xs text-muted-foreground">–</span>
+            <input
+              type="date"
+              value={customTo}
+              onChange={e => setCustomTo(e.target.value)}
+              className="h-9 px-2.5 rounded-lg border border-border bg-surface text-xs outline-none focus:border-primary transition-base"
+            />
+          </div>
+        )}
       </div>
 
       {!hasNoHistoryAtAll && (
@@ -300,10 +343,10 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
                   <td className="px-4 py-2.5">
                     <div className="flex items-center gap-2">
                       <RunIcon run={r} />
-                      <span className="font-medium truncate">{r.triggerName}</span>
+                      <span className="font-semibold truncate">{r.triggerName}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-2.5 text-xs text-muted-foreground truncate max-w-[220px]">{r.source}</td>
+                  <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">{r.source}</td>
                   <td className="px-4 py-2.5"><StatusPill status={r.status} /></td>
                   <td className="px-4 py-2.5 text-xs text-muted-foreground">{formatDuration(r.durationMs)}</td>
                   <td className="px-4 py-2.5 text-right">
@@ -358,22 +401,14 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
                   <p className="text-xs text-muted-foreground">{detailRun.source}</p>
                 </div>
 
-                {detailRun.configSnapshot && (
-                  <div>
-                    <h4 className="text-xs font-semibold text-foreground mb-1">Cấu hình trigger</h4>
-                    <pre className="text-[11px] font-mono bg-surface-muted rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-all">{detailRun.configSnapshot}</pre>
-                    <p className="mt-1 text-[11px] text-muted-foreground">
-                      Đây là cấu hình của automation agent, dùng chung cho cả tổ chức.
-                    </p>
-                  </div>
-                )}
-
-                {detailRun.payload && (
-                  <div>
-                    <h4 className="text-xs font-semibold text-foreground mb-1">Payload đầu vào</h4>
-                    <pre className="text-[11px] font-mono bg-surface-muted rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-all">{detailRun.payload}</pre>
-                  </div>
-                )}
+                <div>
+                  <h4 className="text-xs font-semibold text-foreground mb-1">Payload đầu vào</h4>
+                  {detailRun.triggerType === "scheduled" ? (
+                    <p className="text-xs text-muted-foreground">Trigger loại Lịch không có payload đầu vào.</p>
+                  ) : (
+                    <pre className="text-[11px] font-mono bg-surface-muted rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-all">{detailRun.payload ?? "—"}</pre>
+                  )}
+                </div>
 
                 {detailRun.outputSummary && (
                   <div>
@@ -386,13 +421,29 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
                   <div className="rounded-lg border border-destructive/25 bg-[hsl(var(--destructive-soft))] p-3">
                     <h4 className="text-xs font-semibold text-destructive mb-1">Lý do thất bại</h4>
                     <p className="text-xs text-destructive/90 mb-3">{detailRun.errorReason}</p>
-                    <button
-                      type="button"
-                      onClick={() => retry(detailRun)}
-                      className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-destructive text-destructive-foreground text-xs font-semibold hover:bg-destructive/90 transition-base"
-                    >
-                      <RefreshCw size={12} /> Thử lại
-                    </button>
+                    {detailTriggerInactive ? (
+                      <>
+                        <button
+                          type="button"
+                          disabled
+                          aria-disabled="true"
+                          className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-destructive text-destructive-foreground text-xs font-semibold opacity-45 cursor-not-allowed"
+                        >
+                          <RefreshCw size={12} /> Thử lại
+                        </button>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Trigger này không còn hoạt động nên không chạy lại được.
+                        </p>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => retry(detailRun)}
+                        className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-destructive text-destructive-foreground text-xs font-semibold hover:bg-destructive/90 transition-base"
+                      >
+                        <RefreshCw size={12} /> Thử lại
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
