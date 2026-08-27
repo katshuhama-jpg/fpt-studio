@@ -38,7 +38,7 @@ export default function TriggerBlockedByConnectorNotice({ agentId, onSwitched }:
             Agent đang dùng kết nối Riêng cá nhân ({nameList}). Trigger chạy nền khi không có ai đăng nhập, nên không có tài khoản cá nhân nào để agent dùng.
           </p>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Để agent chạy tự động cho cả tổ chức, hãy đổi kết nối sang Dùng chung. Nếu muốn giữ kết nối Riêng cá nhân, mỗi người vẫn có thể tự đặt trigger cho bản agent họ cài trong Workspace.
+            Muốn giữ kết nối Riêng cá nhân? Mỗi người vẫn có thể tự đặt trigger trên bản agent họ cài trong Workspace.
           </p>
         </div>
       </div>
