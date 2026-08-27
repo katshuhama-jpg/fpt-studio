@@ -3,9 +3,9 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowRight, ArrowUpRight, Sparkles, Send, Paperclip, AtSign,
   Play, ExternalLink, X, Search, Edit, Copy, ShieldCheck,
-  KeyRound, AlertTriangle, CheckCircle2, Plus
+  KeyRound, AlertTriangle, CheckCircle2, Plus, MoreVertical, Trash2
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 
 /* ─── Template data ─────────────────────────────────────────────────── */
@@ -98,6 +98,59 @@ function TemplateModal({ onClose }: { onClose: () => void }) {
         </div>
       </div>
     </div>, document.body
+  );
+}
+
+function RecentAgentCard({ a }: { a: typeof recent[number] }) {
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showMenu) return;
+    const h = (e: MouseEvent) => { if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [showMenu]);
+
+  return (
+    <Link to={`/agents/${a.id}`} className="group relative rounded-xl border border-border bg-surface p-4 hover:border-primary/30 hover:shadow-soft transition-base flex flex-col">
+      <div className={`w-10 h-10 rounded-xl ${a.bg} flex items-center justify-center text-xl mb-3`}>{a.emoji}</div>
+      <div className="font-semibold text-sm mb-1">{a.name}</div>
+      <div className="flex items-center gap-1.5 mb-2">
+        <span className={`w-1.5 h-1.5 rounded-full ${a.status === "Active" ? "bg-emerald-500" : "bg-amber-400"}`} />
+        <span className="text-xs text-muted-foreground">{a.status}</span>
+      </div>
+      <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 flex-1 mb-3">{a.desc}</p>
+      <div className="flex items-center justify-between">
+        <div className="text-xs text-muted-foreground">
+          <span className="font-medium">{a.editor}</span> · Edited {a.edited}
+        </div>
+        <div ref={menuRef} className="relative shrink-0">
+          <button
+            onClick={e => { e.preventDefault(); setShowMenu(o => !o); }}
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base"
+          >
+            <MoreVertical size={14} />
+          </button>
+          {showMenu && (
+            <div
+              className="absolute z-20 top-full right-0 mt-1 w-40 bg-white rounded-xl border border-border shadow-elev py-1 animate-fade-up"
+              onMouseDown={e => e.stopPropagation()}
+            >
+              <button onClick={e => { e.preventDefault(); setShowMenu(false); }} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-foreground hover:bg-surface-muted transition-base text-left">
+                <Edit size={14} /> Edit
+              </button>
+              <button onClick={e => { e.preventDefault(); setShowMenu(false); }} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-foreground hover:bg-surface-muted transition-base text-left">
+                <Copy size={14} /> Duplicate
+              </button>
+              <button onClick={e => { e.preventDefault(); setShowMenu(false); }} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-destructive hover:bg-surface-muted transition-base text-left">
+                <Trash2 size={14} /> Delete
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </Link>
   );
 }
 
@@ -259,26 +312,7 @@ export default function Home() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {recent.map(a => (
-              <Link key={a.id} to={`/agents/${a.id}`} className="group rounded-xl border border-border bg-surface p-4 hover:border-primary/30 hover:shadow-soft transition-base flex flex-col">
-                <div className={`w-10 h-10 rounded-xl ${a.bg} flex items-center justify-center text-xl mb-3`}>{a.emoji}</div>
-                <div className="font-semibold text-sm mb-1">{a.name}</div>
-                <div className="flex items-center gap-1.5 mb-2">
-                  <span className={`w-1.5 h-1.5 rounded-full ${a.status === "Active" ? "bg-emerald-500" : "bg-amber-400"}`} />
-                  <span className="text-xs text-muted-foreground">{a.status}</span>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 flex-1 mb-3">{a.desc}</p>
-                <div className="flex items-center gap-3 pt-3 border-t border-border">
-                  <button onClick={e => { e.preventDefault(); }} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-base">
-                    <Edit size={12} /> Edit
-                  </button>
-                  <button onClick={e => { e.preventDefault(); }} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-base">
-                    <Copy size={12} /> Duplicate
-                  </button>
-                </div>
-                <div className="mt-2 text-xs text-muted-foreground">
-                  <span className="font-medium">{a.editor}</span> · Edited {a.edited}
-                </div>
-              </Link>
+              <RecentAgentCard key={a.id} a={a} />
             ))}
 
             {/* Create new CTA card */}
@@ -297,35 +331,26 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ── Agent Governance ──────────────────────────────────── */}
+        {/* ── Recommended AI agents ─────────────────────────────── */}
         <section>
           <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="font-display text-lg font-semibold">Agent Governance</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Review approvals, access, and risks across your Agent workforce.</p>
-            </div>
-            <Link to="/governance" className="text-xs text-primary flex items-center gap-1 hover:text-primary-glow transition-base">
-              Open Governance <ArrowRight size={12} />
-            </Link>
+            <h2 className="font-display text-lg font-semibold">Recommended AI agents</h2>
+            <button className="text-xs text-muted-foreground flex items-center gap-1 hover:text-foreground transition-base">
+              More <ArrowRight size={12} />
+            </button>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {governance.map(g => (
-              <div key={g.label} className="rounded-xl border border-border bg-surface p-4 hover:border-primary/30 hover:shadow-soft transition-base cursor-pointer group flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${g.iconBg}`}>
-                    <g.icon size={17} className={g.iconColor} />
-                  </div>
-                  <ArrowRight size={14} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-base" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold font-display">{g.val}</div>
-                  <div className="text-sm font-medium">{g.label}</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">{g.desc}</div>
-                </div>
+          <div className="rounded-xl border border-border bg-surface divide-y divide-border overflow-hidden">
+            {recommendedAgents.map(a => (
+              <div key={a.id} className="flex items-center gap-3 px-4 py-3.5 hover:bg-surface-muted/50 transition-base">
+                <div className={`w-10 h-10 rounded-xl ${a.bg} flex items-center justify-center text-xl shrink-0`}>{a.emoji}</div>
+                <p className="text-sm font-medium flex-1 min-w-0 truncate">{a.name}</p>
+                <span className="text-xs text-muted-foreground shrink-0">{a.clones.toLocaleString()} clones</span>
+                <button className="shrink-0 h-8 px-4 rounded-lg border border-border text-xs font-medium hover:bg-surface-muted transition-base">View</button>
               </div>
             ))}
           </div>
         </section>
+
       </div>
     </div>
   );
@@ -345,4 +370,11 @@ const governance = [
   { label: "Access requests",    val: 3,    desc: "Users requesting Agent access",      icon: KeyRound,       iconBg: "bg-amber-50",  iconColor: "text-amber-500" },
   { label: "Policy alerts",      val: 2,    desc: "Guardrail violations this week",     icon: AlertTriangle,  iconBg: "bg-red-50",    iconColor: "text-red-500" },
   { label: "Compliance",         val: "98%", desc: "Agents meeting governance policies", icon: CheckCircle2,  iconBg: "bg-green-50",  iconColor: "text-green-500" },
+];
+
+const recommendedAgents = [
+  { id: "r1", emoji: "\uD83E\uDDD9", bg: "bg-purple-100", name: "Multi-Platform Workforce",  clones: 2005 },
+  { id: "r2", emoji: "\uD83D\uDD0D", bg: "bg-amber-100",  name: "Sales Researcher",            clones: 1764 },
+  { id: "r3", emoji: "\uD83D\uDCBC", bg: "bg-blue-100",   name: "LinkedIn Outreach & Follow up", clones: 1377 },
+  { id: "r4", emoji: "\uD83D\uDCAC", bg: "bg-green-100",  name: "WhatsApp AI Agent",           clones: 1238 },
 ];

@@ -195,7 +195,7 @@ export default function TaskEditor() {
       {/* Top bar */}
       <div className="h-14 border-b border-border bg-surface flex items-center px-5 gap-3 shrink-0">
         <button
-          onClick={() => navigate(`/agents/${agentId}?tab=develop&section=task`)}
+          onClick={() => navigate(`/agents/${agentId}?tab=build&section=task`)}
           className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-base"
         >
           <ChevronLeft size={15} /> Back
@@ -204,7 +204,7 @@ export default function TaskEditor() {
         <nav className="flex items-center gap-1.5 text-sm min-w-0">
           <Link to="/agents" className="text-muted-foreground hover:text-foreground">Agents</Link>
           <span className="text-muted-foreground">/</span>
-          <Link to={`/agents/${agentId}?tab=develop&section=task`} className="text-muted-foreground hover:text-foreground">Tasks</Link>
+          <Link to={`/agents/${agentId}?tab=build&section=task`} className="text-muted-foreground hover:text-foreground">Tasks</Link>
           <span className="text-muted-foreground">/</span>
           <input
             value={name}
