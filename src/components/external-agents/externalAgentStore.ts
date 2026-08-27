@@ -16,7 +16,7 @@ export const PUBLISH_CHANNELS: { id: string; name: string }[] = [
   { id: "api", name: "API" },
   { id: "workspace", name: "Workspace" },
 ];
-function channelLabel(id: string): string {
+export function channelLabel(id: string): string {
   return PUBLISH_CHANNELS.find(c => c.id === id)?.name ?? id;
 }
 

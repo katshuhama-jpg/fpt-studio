@@ -7,7 +7,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import {
-  externalAgentStore, type ExternalAgent,
+  externalAgentStore, channelLabel, type ExternalAgent,
 } from "@/components/external-agents/externalAgentStore";
 import { StatusBadge, relativeTime } from "@/components/external-agents/statusMeta";
 import ConnectExternalAgentModal from "@/components/external-agents/ConnectExternalAgentModal";
@@ -187,6 +187,15 @@ export default function ExternalAgentDetail() {
 
         <div className="flex items-center gap-2">
           <StatusBadge status={agent.status} />
+          {agent.status === "published" && agent.channels.length > 0 && (
+            <div className="flex items-center gap-1">
+              {agent.channels.map(id => (
+                <span key={id} className="px-1.5 py-0.5 rounded bg-surface-muted text-xs text-muted-foreground whitespace-nowrap">
+                  {channelLabel(id)}
+                </span>
+              ))}
+            </div>
+          )}
 
           {agent.status === "draft" && (
             <div className="flex items-center gap-2">
@@ -228,6 +237,10 @@ export default function ExternalAgentDetail() {
                 Approve
               </button>
             </>
+          )}
+
+          {agent.status === "rejected" && (
+            <button onClick={() => setShowEdit(true)} className="btn-primary h-9">Edit connection</button>
           )}
 
           {(agent.status === "approved" || agent.status === "published") && (
