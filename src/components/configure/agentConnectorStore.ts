@@ -1,7 +1,7 @@
 // sessionStorage-backed per-agent connector attachment store — tracks whether each
 // connector an agent uses is a shared (organization) account or a personal (per-user) one.
 // Mutations survive a page reload and client-side navigation within the same session.
-import { loadMap, saveMap } from "@/lib/sessionPersist";
+import { loadMap, saveMap, loadSet, saveSet } from "@/lib/sessionPersist";
 import { hasTriggers } from "./agentAutomationGuard";
 
 export type ConnectorScope = "shared" | "personal";
@@ -12,11 +12,31 @@ export interface AgentConnector {
 }
 
 const STORE_KEY = "agent_connector_store";
+const SEEDED_KEY = "agent_connector_store_seeded";
 const store = loadMap<string, AgentConnector[]>(STORE_KEY);
+const seededAgents = loadSet<string>(SEEDED_KEY);
 const persist = () => saveMap(STORE_KEY, store);
+
+/** Demo agents seeded with a sample connection so the Connections tab has something real
+ * to show without manual setup. */
+const AUTO_SEED: Record<string, AgentConnector[]> = {
+  cskh: [{ connectorId: "gmail", scope: "shared" }],
+  "shipping-alerts": [{ connectorId: "gmail", scope: "shared" }],
+};
+
+function seedAgent(agentId: string) {
+  if (seededAgents.has(agentId)) return;
+  seededAgents.add(agentId);
+  saveSet(SEEDED_KEY, seededAgents);
+  const seed = AUTO_SEED[agentId];
+  if (!seed) return;
+  store.set(agentId, seed);
+  persist();
+}
 
 export const agentConnectorStore = {
   list(agentId: string): AgentConnector[] {
+    seedAgent(agentId);
     return store.get(agentId) ?? [];
   },
   /** Returns false (and writes nothing) when saving a per-user connector on an agent that
