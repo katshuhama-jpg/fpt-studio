@@ -8,6 +8,9 @@ import WorkspaceLayout from "./components/layout/WorkspaceLayout";
 import Home from "./pages/Home";
 import MyAgents from "./pages/MyAgents";
 import AgentsList from "./pages/AgentsList";
+import ExternalAgentsList from "./pages/ExternalAgentsList";
+import ExternalAgentDetail from "./pages/ExternalAgentDetail";
+import PerUserConnectorGuide from "./pages/PerUserConnectorGuide";
 import AgentBuilder from "./pages/AgentBuilder";
 import AgentScaffold from "./pages/AgentScaffold";
 import Inventor from "./pages/Inventor";
@@ -64,6 +67,9 @@ const App = () => (
               <Route path="/agents/new" element={<AgentBuilder />} />
               <Route path="/agents/:id" element={<AgentBuilder />} />
               <Route path="/agents/:id/tasks/:taskId" element={<TaskEditor />} />
+              <Route path="/external-agents" element={<ExternalAgentsList />} />
+              <Route path="/external-agents/guides/per-user-connector" element={<PerUserConnectorGuide />} />
+              <Route path="/external-agents/:id" element={<ExternalAgentDetail />} />
             </Route>
             <Route path="/inventor" element={<RequireAuth><Inventor /></RequireAuth>} />
             <Route path="/agents/:id/tools/new" element={<RequireAuth><ToolBuilder /></RequireAuth>} />
