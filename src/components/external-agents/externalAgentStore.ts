@@ -2,7 +2,7 @@
 // list → detail → status changes all read/write the same in-memory + sessionStorage map and
 // stay in sync across navigation within the session, the same pattern as triggerStore.ts /
 // agentConnectorStore.ts.
-import { loadMap, saveMap } from "@/lib/sessionPersist";
+import { loadMap, saveMap, loadSet, saveSet } from "@/lib/sessionPersist";
 
 export type ExternalAgentStatus = "draft" | "submitted_for_approval" | "approved" | "rejected" | "published" | "paused";
 
@@ -64,12 +64,136 @@ export interface HistoryEntry {
 
 const STORE_KEY = "external_agent_store";
 const HISTORY_KEY = "external_agent_history";
+const SEEDED_KEY = "external_agent_store_seeded";
 const store = loadMap<string, ExternalAgent>(STORE_KEY);
 const history = loadMap<string, HistoryEntry[]>(HISTORY_KEY);
 const persistStore = () => saveMap(STORE_KEY, store);
 const persistHistory = () => saveMap(HISTORY_KEY, history);
 
 const CURRENT_USER = "Tran Nam";
+
+const MIN = 60_000;
+const HOUR = 3_600_000;
+const DAY = 86_400_000;
+
+const PASSED_VALIDATION: ValidationResult = {
+  at: Date.now(), endpointReachable: true, authVerified: true, protocolSupported: true,
+  runsAvailable: true, requiresPerUserConnection: false, passed: true,
+};
+
+function seedRun(agentId: string, at: number, runOk: boolean, durationMs: number, detail: string) {
+  addHistory(agentId, { at, actor: "System", kind: "run", runOk, durationMs, summary: runOk ? "Run completed" : "Run failed", detail });
+}
+
+/** Demo data so opening External Agents shows real content covering all 6 statuses instead of
+ * an empty list — seeded once per session. Draft and Submitted for Approval are left with
+ * little to no History (one shows the genuine empty state, the other just a couple of
+ * entries) since neither has ever actually run. */
+function seedDefaultAgents() {
+  const seededFlag = loadSet<string>(SEEDED_KEY);
+  if (seededFlag.has("done")) return;
+  seededFlag.add("done");
+  saveSet(SEEDED_KEY, seededFlag);
+  const now = Date.now();
+
+  const put = (agent: ExternalAgent) => store.set(agent.id, agent);
+
+  // 1 — Flight Assistant (Published, Web + Zalo)
+  put({
+    id: "ext-seed-1", name: "Flight Assistant", description: "Search and book flights for staff travel.",
+    baseUrl: "https://agent.abc.ai", hasToken: true, status: "published", channels: ["web", "zalo"],
+    createdAt: now - 20 * DAY, updatedAt: now - 2 * HOUR,
+    lastHealthCheckAt: now - 2 * MIN, lastHealthCheckOk: true,
+    lastValidation: PASSED_VALIDATION, rejection: null,
+  });
+  addHistory("ext-seed-1", { at: now - 20 * DAY, actor: CURRENT_USER, kind: "change", summary: "Connection created" });
+  addHistory("ext-seed-1", { at: now - 19 * DAY, actor: CURRENT_USER, kind: "change", summary: "Submitted for approval" });
+  addHistory("ext-seed-1", { at: now - 18 * DAY, actor: CURRENT_USER, kind: "change", summary: "Approved" });
+  addHistory("ext-seed-1", { at: now - 17 * DAY, actor: CURRENT_USER, kind: "change", summary: "Published to Web, Zalo" });
+  seedRun("ext-seed-1", now - 3 * HOUR, true, 1400, "Booked a round-trip flight for a business trip.");
+  seedRun("ext-seed-1", now - 26 * HOUR, false, 900, "No flights matched the requested dates.");
+  seedRun("ext-seed-1", now - 3 * DAY, true, 1100, "Checked the status of an existing booking.");
+
+  // 2 — HR Helpdesk (Published, Slack)
+  put({
+    id: "ext-seed-2", name: "HR Helpdesk", description: "Leave balance, payroll and policy questions.",
+    baseUrl: "https://hr.xyz-ai.com", hasToken: true, status: "published", channels: ["slack"],
+    createdAt: now - 15 * DAY, updatedAt: now - 1 * DAY,
+    lastHealthCheckAt: now - 1 * MIN, lastHealthCheckOk: true,
+    lastValidation: PASSED_VALIDATION, rejection: null,
+  });
+  addHistory("ext-seed-2", { at: now - 15 * DAY, actor: CURRENT_USER, kind: "change", summary: "Connection created" });
+  addHistory("ext-seed-2", { at: now - 14 * DAY, actor: CURRENT_USER, kind: "change", summary: "Submitted for approval" });
+  addHistory("ext-seed-2", { at: now - 13 * DAY, actor: CURRENT_USER, kind: "change", summary: "Approved" });
+  addHistory("ext-seed-2", { at: now - 12 * DAY, actor: CURRENT_USER, kind: "change", summary: "Published to Slack" });
+  seedRun("ext-seed-2", now - 5 * HOUR, true, 760, "Answered a question about remaining annual leave.");
+  seedRun("ext-seed-2", now - 30 * HOUR, true, 640, "Explained a payroll deduction line item.");
+  seedRun("ext-seed-2", now - 4 * DAY, false, 2100, "Could not find the requested policy document.");
+
+  // 3 — Finance Reporter (Approved, not published yet)
+  put({
+    id: "ext-seed-3", name: "Finance Reporter", description: "Monthly revenue summary from the finance system.",
+    baseUrl: "https://fin.abc.ai", hasToken: true, status: "approved", channels: [],
+    createdAt: now - 5 * DAY, updatedAt: now - 3 * HOUR,
+    lastHealthCheckAt: now - 5 * MIN, lastHealthCheckOk: true,
+    lastValidation: PASSED_VALIDATION, rejection: null,
+  });
+  addHistory("ext-seed-3", { at: now - 5 * DAY, actor: CURRENT_USER, kind: "change", summary: "Connection created" });
+  addHistory("ext-seed-3", { at: now - 4 * DAY, actor: CURRENT_USER, kind: "change", summary: "Submitted for approval" });
+  addHistory("ext-seed-3", { at: now - 3 * HOUR, actor: CURRENT_USER, kind: "change", summary: "Approved" });
+
+  // 4 — Legal Doc Checker (Submitted for approval)
+  put({
+    id: "ext-seed-4", name: "Legal Doc Checker", description: "Contract clause review against company policy.",
+    baseUrl: "https://legal.partner-ai.com", hasToken: true, status: "submitted_for_approval", channels: [],
+    createdAt: now - 1 * DAY, updatedAt: now - 30 * MIN,
+    lastHealthCheckAt: now - 30 * MIN, lastHealthCheckOk: true,
+    lastValidation: PASSED_VALIDATION, rejection: null,
+  });
+  addHistory("ext-seed-4", { at: now - 1 * DAY, actor: CURRENT_USER, kind: "change", summary: "Connection created" });
+  addHistory("ext-seed-4", { at: now - 30 * MIN, actor: CURRENT_USER, kind: "change", summary: "Submitted for approval" });
+
+  // 5 — Warehouse Bot (Rejected)
+  put({
+    id: "ext-seed-5", name: "Warehouse Bot", description: "Stock lookup and restock suggestions.",
+    baseUrl: "https://wh.partner.io", hasToken: true, status: "rejected", channels: [],
+    createdAt: now - 3 * DAY, updatedAt: now - 1 * DAY,
+    lastHealthCheckAt: now - 1 * DAY, lastHealthCheckOk: true,
+    lastValidation: PASSED_VALIDATION,
+    rejection: { at: now - 1 * DAY, by: "Tran Nam", reason: "Domain is not on the approved partner list." },
+  });
+  addHistory("ext-seed-5", { at: now - 3 * DAY, actor: CURRENT_USER, kind: "change", summary: "Connection created" });
+  addHistory("ext-seed-5", { at: now - 2 * DAY, actor: CURRENT_USER, kind: "change", summary: "Submitted for approval" });
+  addHistory("ext-seed-5", { at: now - 1 * DAY, actor: "Tran Nam", kind: "change", summary: 'Rejected — "Domain is not on the approved partner list."' });
+
+  // 6 — Marketing Copywriter (Paused, was published to Web)
+  put({
+    id: "ext-seed-6", name: "Marketing Copywriter", description: "Campaign copy drafts for social channels.",
+    baseUrl: "https://mkt.abc.ai", hasToken: true, status: "paused", channels: ["web"],
+    createdAt: now - 10 * DAY, updatedAt: now - 4 * DAY,
+    lastHealthCheckAt: now - 4 * DAY, lastHealthCheckOk: false,
+    lastValidation: PASSED_VALIDATION, rejection: null,
+  });
+  addHistory("ext-seed-6", { at: now - 10 * DAY, actor: CURRENT_USER, kind: "change", summary: "Connection created" });
+  addHistory("ext-seed-6", { at: now - 9 * DAY, actor: CURRENT_USER, kind: "change", summary: "Submitted for approval" });
+  addHistory("ext-seed-6", { at: now - 8 * DAY, actor: CURRENT_USER, kind: "change", summary: "Approved" });
+  addHistory("ext-seed-6", { at: now - 7 * DAY, actor: CURRENT_USER, kind: "change", summary: "Published to Web" });
+  seedRun("ext-seed-6", now - 6 * DAY, true, 1800, "Drafted three social captions for a product launch.");
+  seedRun("ext-seed-6", now - 5 * DAY, false, 4200, "Upstream image API timed out while generating a visual.");
+  addHistory("ext-seed-6", { at: now - 4 * DAY, actor: "Tran Nam", kind: "change", summary: "Paused" });
+
+  // 7 — Insurance Claim Agent (Draft, no description, no History at all)
+  put({
+    id: "ext-seed-7", name: "Insurance Claim Agent", description: "",
+    baseUrl: "https://claims.abc.ai", hasToken: true, status: "draft", channels: [],
+    createdAt: now, updatedAt: now,
+    lastHealthCheckAt: now, lastHealthCheckOk: true,
+    lastValidation: PASSED_VALIDATION, rejection: null,
+  });
+
+  persistStore();
+  persistHistory();
+}
 
 function hashString(s: string): number {
   let h = 0;
@@ -106,9 +230,11 @@ export function runValidation(baseUrl: string, bearerToken: string): ValidationR
 
 export const externalAgentStore = {
   list(): ExternalAgent[] {
+    seedDefaultAgents();
     return [...store.values()].sort((a, b) => b.updatedAt - a.updatedAt);
   },
   get(id: string): ExternalAgent | undefined {
+    seedDefaultAgents();
     return store.get(id);
   },
   isDuplicateName(name: string, excludeId?: string): boolean {

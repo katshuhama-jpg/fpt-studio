@@ -1,35 +1,37 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Globe, Search, MoreVertical, Plus, AlertTriangle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import {
-  externalAgentStore, type ExternalAgent, type ExternalAgentStatus,
+  externalAgentStore, channelLabel, type ExternalAgent, type ExternalAgentStatus,
 } from "@/components/external-agents/externalAgentStore";
 import { StatusBadge, relativeTime } from "@/components/external-agents/statusMeta";
 import ConnectExternalAgentModal from "@/components/external-agents/ConnectExternalAgentModal";
+import PublishExternalAgentModal from "@/components/external-agents/PublishExternalAgentModal";
 import {
-  DeleteExternalAgentDialog, PauseExternalAgentDialog,
+  DeleteExternalAgentDialog, PauseExternalAgentDialog, RejectExternalAgentDialog,
 } from "@/components/external-agents/ExternalAgentDialogs";
 import { toast } from "sonner";
 
 const TABS: { key: ExternalAgentStatus | "all"; label: string }[] = [
   { key: "all", label: "All" },
   { key: "draft", label: "Draft" },
-  { key: "submitted_for_approval", label: "Submitted for Approval" },
+  { key: "submitted_for_approval", label: "Submitted for approval" },
   { key: "approved", label: "Approved" },
-  { key: "rejected", label: "Rejected" },
   { key: "published", label: "Published" },
+  { key: "rejected", label: "Rejected" },
   { key: "paused", label: "Paused" },
 ];
 
 const ROW_MENU_WIDTH = 176; // w-44
-const ROW_MENU_HEIGHT_ESTIMATE = 176; // worst case, 4 rows — for the flip-up decision
+const ROW_MENU_HEIGHT_ESTIMATE = 220; // worst case, 5 rows — for the flip-up decision
 
-function RowMenu({ agent, isAdmin, onOpen, onEdit, onPauseResume, onDelete }: {
+function RowMenu({ agent, isAdmin, onOpen, onEdit, onSubmit, onApprove, onReject, onPublish, onPauseResume, onDelete }: {
   agent: ExternalAgent; isAdmin: boolean;
-  onOpen: () => void; onEdit: () => void; onPauseResume: () => void; onDelete: () => void;
+  onOpen: () => void; onEdit: () => void; onSubmit: () => void; onApprove: () => void;
+  onReject: () => void; onPublish: () => void; onPauseResume: () => void; onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
@@ -62,6 +64,41 @@ function RowMenu({ agent, isAdmin, onOpen, onEdit, onPauseResume, onDelete }: {
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
 
+  // Only ever render the actions that are actually valid for this status — never a
+  // disabled/greyed-out item — matching the per-status action table exactly.
+  const items: { label: string; onClick: () => void; danger?: boolean }[] = [
+    { label: "Open", onClick: onOpen },
+  ];
+  switch (agent.status) {
+    case "draft":
+      items.push({ label: "Edit connection", onClick: onEdit });
+      if (agent.lastValidation?.passed) items.push({ label: "Submit for approval", onClick: onSubmit });
+      break;
+    case "submitted_for_approval":
+      if (isAdmin) {
+        items.push({ label: "Approve", onClick: onApprove });
+        items.push({ label: "Reject", onClick: onReject });
+      }
+      break;
+    case "approved":
+      items.push({ label: "Edit connection", onClick: onEdit });
+      items.push({ label: "Publish", onClick: onPublish });
+      break;
+    case "rejected":
+      items.push({ label: "Edit connection", onClick: onEdit });
+      break;
+    case "published":
+      items.push({ label: "Edit connection", onClick: onEdit });
+      items.push({ label: "Publish", onClick: onPublish });
+      if (isAdmin) items.push({ label: "Pause", onClick: onPauseResume });
+      break;
+    case "paused":
+      items.push({ label: "Edit connection", onClick: onEdit });
+      if (isAdmin) items.push({ label: "Resume", onClick: onPauseResume });
+      break;
+  }
+  items.push({ label: "Delete", onClick: onDelete, danger: true });
+
   return (
     <div className="relative shrink-0" onClick={e => e.stopPropagation()}>
       <button
@@ -80,14 +117,17 @@ function RowMenu({ agent, isAdmin, onOpen, onEdit, onPauseResume, onDelete }: {
           style={{ top: pos.top, bottom: pos.bottom, left: pos.left }}
           onMouseDown={e => e.stopPropagation()}
         >
-          <button onClick={() => { onOpen(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">Open</button>
-          <button onClick={() => { onEdit(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">Edit connection</button>
-          {isAdmin && (agent.status === "published" || agent.status === "paused") && (
-            <button onClick={() => { onPauseResume(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">
-              {agent.status === "published" ? "Pause" : "Resume"}
+          {items.map(item => (
+            <button
+              key={item.label}
+              onClick={() => { item.onClick(); setOpen(false); }}
+              className={`w-full text-left px-3 py-1.5 text-xs transition-base ${
+                item.danger ? "text-destructive hover:bg-[hsl(var(--destructive-soft))]" : "hover:bg-surface-muted"
+              }`}
+            >
+              {item.label}
             </button>
-          )}
-          <button onClick={() => { onDelete(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">Delete</button>
+          ))}
         </div>,
         document.body
       )}
@@ -97,25 +137,30 @@ function RowMenu({ agent, isAdmin, onOpen, onEdit, onPauseResume, onDelete }: {
 
 export default function ExternalAgentsList() {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const forceEmpty = params.get("empty") === "1";
   const { role } = useMyPermissions();
   const isAdmin = role?.id === "admin";
 
   const [loadState, setLoadState] = useState<"loading" | "error" | "ready">("loading");
   const [tick, setTick] = useState(0);
-  const [agents, setAgents] = useState<ExternalAgent[]>([]);
+  const [agentsRaw, setAgentsRaw] = useState<ExternalAgent[]>([]);
+  const agents = forceEmpty ? [] : agentsRaw;
   const [tab, setTab] = useState<ExternalAgentStatus | "all">("all");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [showConnect, setShowConnect] = useState(false);
   const [editTarget, setEditTarget] = useState<ExternalAgent | null>(null);
   const [pauseTarget, setPauseTarget] = useState<ExternalAgent | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<ExternalAgent | null>(null);
+  const [publishTarget, setPublishTarget] = useState<ExternalAgent | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ExternalAgent | null>(null);
 
   useEffect(() => {
     setLoadState("loading");
     const t = setTimeout(() => {
       try {
-        setAgents(externalAgentStore.list());
+        setAgentsRaw(externalAgentStore.list());
         setLoadState("ready");
       } catch {
         setLoadState("error");
@@ -265,13 +310,19 @@ export default function ExternalAgentsList() {
                     <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Agent</th>
                     <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Status</th>
                     <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Base URL</th>
-                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Last health check</th>
+                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Health</th>
                     <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Updated</th>
                     <th className="px-4 py-2.5 w-12" />
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map(a => (
+                  {filtered.map(a => {
+                    const statusContext =
+                      a.status === "published" && a.channels.length > 0 ? a.channels.map(channelLabel).join(" · ")
+                      : a.status === "approved" ? "Not published yet"
+                      : a.status === "rejected" && a.rejection ? a.rejection.reason
+                      : null;
+                    return (
                     <tr
                       key={a.id}
                       role="button"
@@ -282,12 +333,15 @@ export default function ExternalAgentsList() {
                     >
                       <td className="px-4 py-3 max-w-[280px]">
                         <div className="font-medium text-foreground truncate">{a.name}</div>
-                        {a.description && <div className="text-xs text-muted-foreground truncate mt-0.5">{a.description}</div>}
+                        <div className="text-xs text-muted-foreground truncate mt-0.5">{a.description || "—"}</div>
                       </td>
-                      <td className="px-4 py-3"><StatusBadge status={a.status} /></td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground font-mono truncate max-w-[220px]">{a.baseUrl}</td>
+                      <td className="px-4 py-3 max-w-[200px]">
+                        <StatusBadge status={a.status} />
+                        {statusContext && <div className="text-xs text-muted-foreground truncate mt-1">{statusContext}</div>}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground font-mono truncate max-w-[220px]" title={a.baseUrl}>{a.baseUrl}</td>
                       <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                        {a.lastHealthCheckAt == null ? "Never" : `${relativeTime(a.lastHealthCheckAt)} · ${a.lastHealthCheckOk ? "Healthy" : "Unreachable"}`}
+                        {a.lastHealthCheckAt == null ? "Never checked" : `${a.lastHealthCheckOk ? "Healthy" : "Unreachable"} · ${relativeTime(a.lastHealthCheckAt)}`}
                       </td>
                       <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{relativeTime(a.updatedAt)}</td>
                       <td className="px-4 py-3 text-right">
@@ -296,6 +350,18 @@ export default function ExternalAgentsList() {
                           isAdmin={isAdmin}
                           onOpen={() => navigate(`/external-agents/${a.id}`)}
                           onEdit={() => setEditTarget(a)}
+                          onSubmit={() => {
+                            externalAgentStore.submitForApproval(a.id);
+                            toast.success("Sent for approval. We'll notify you once an admin reviews it.");
+                            refresh();
+                          }}
+                          onApprove={() => {
+                            externalAgentStore.approve(a.id);
+                            toast.success(`"${a.name}" is approved. Publish it to make it available to your workspace.`);
+                            refresh();
+                          }}
+                          onReject={() => setRejectTarget(a)}
+                          onPublish={() => setPublishTarget(a)}
                           onPauseResume={() => {
                             if (a.status === "published") setPauseTarget(a);
                             else { externalAgentStore.resume(a.id); toast.success(`"${a.name}" is published again.`); refresh(); }
@@ -304,7 +370,8 @@ export default function ExternalAgentsList() {
                         />
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -339,6 +406,31 @@ export default function ExternalAgentsList() {
             setPauseTarget(null);
             refresh();
           }}
+        />
+      )}
+
+      {rejectTarget && (
+        <RejectExternalAgentDialog
+          name={rejectTarget.name}
+          open={!!rejectTarget}
+          onOpenChange={v => !v && setRejectTarget(null)}
+          onConfirm={reason => {
+            externalAgentStore.reject(rejectTarget.id, reason);
+            toast.info(`"${rejectTarget.name}" was rejected. The creator can edit the connection and resubmit it.`);
+            setRejectTarget(null);
+            refresh();
+          }}
+        />
+      )}
+
+      {publishTarget && (
+        <PublishExternalAgentModal
+          open={!!publishTarget}
+          agentId={publishTarget.id}
+          agentName={publishTarget.name}
+          currentChannels={publishTarget.channels}
+          onClose={() => setPublishTarget(null)}
+          onPublished={refresh}
         />
       )}
 
