@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
-  ChevronLeft, MoreHorizontal, Copy, Check, RefreshCw, AlertTriangle, Globe, PlugZap,
+  ChevronLeft, ChevronRight, MoreHorizontal, Copy, Check, RefreshCw, AlertTriangle, Globe, PlugZap,
+  FileEdit, History as HistoryIcon, ShieldCheck,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
@@ -16,7 +17,20 @@ import {
 import ExternalAgentHistoryTab from "@/components/external-agents/ExternalAgentHistoryTab";
 import { toast } from "sonner";
 
-type Tab = "connection" | "history";
+type Section = "instruction" | "history";
+
+const NAV: { id: Section; label: string; icon: any }[] = [
+  { id: "instruction", label: "Instruction", icon: FileEdit },
+  { id: "history", label: "History", icon: HistoryIcon },
+];
+
+const ENDPOINTS: { method: string; path: string; purpose: string }[] = [
+  { method: "GET", path: "/health", purpose: "Status, protocol version, and the per-user-connection flag." },
+  { method: "POST", path: "/runs", purpose: "Calls the agent to run." },
+  { method: "GET", path: "/tools", purpose: "Lists the tools this agent declares." },
+];
+
+const STATUS_CHANGE_SUMMARIES = new Set(["Connection created", "Submitted for approval", "Approved", "Paused", "Resumed"]);
 
 function CopyButton({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
@@ -32,9 +46,25 @@ function CopyButton({ value }: { value: string }) {
   );
 }
 
+function CopyBlock({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="relative rounded-lg border border-border bg-surface-muted">
+      <button
+        type="button"
+        onClick={() => { navigator.clipboard?.writeText(code).catch(() => {}); setCopied(true); setTimeout(() => setCopied(false), 1200); }}
+        className="absolute top-2 right-2 flex items-center gap-1 h-7 px-2 rounded-md bg-white border border-border text-[11px] font-medium text-muted-foreground hover:text-foreground transition-base"
+      >
+        {copied ? <Check size={11} className="text-success" /> : <Copy size={11} />} {copied ? "Copied" : "Copy"}
+      </button>
+      <pre className="text-[11px] font-mono p-3 pr-16 overflow-x-auto whitespace-pre-wrap break-all">{code}</pre>
+    </div>
+  );
+}
+
 function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-[140px,1fr] items-start gap-2 py-2 border-b border-border last:border-0">
+    <div className="grid grid-cols-[160px,1fr] items-start gap-2 py-2.5 border-b border-border last:border-0">
       <span className="text-xs text-muted-foreground pt-0.5">{label}</span>
       <div className="text-sm text-foreground min-w-0">{children}</div>
     </div>
@@ -50,7 +80,8 @@ export default function ExternalAgentDetail() {
   const [loadState, setLoadState] = useState<"loading" | "error" | "ready">("loading");
   const [tick, setTick] = useState(0);
   const [agent, setAgent] = useState<ExternalAgent | undefined>(undefined);
-  const [tab, setTab] = useState<Tab>("connection");
+  const [section, setSection] = useState<Section>("instruction");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showPause, setShowPause] = useState(false);
@@ -71,7 +102,12 @@ export default function ExternalAgentDetail() {
     return () => clearTimeout(t);
   }, [id, tick]);
 
-  const refresh = () => setTick(t => t + 1);
+  // Re-reads the agent in place — used after every mutation (submit/approve/reject/pause/
+  // resume/health check) so the page updates immediately instead of flashing back through
+  // the full loading skeleton. hardRefresh (below) is reserved for the error-state Retry
+  // button, which genuinely needs to re-run the fetch attempt.
+  const refresh = () => setAgent(externalAgentStore.get(id));
+  const hardRefresh = () => setTick(t => t + 1);
 
   if (loadState === "loading") {
     return (
@@ -80,7 +116,7 @@ export default function ExternalAgentDetail() {
           <Skeleton className="h-8 w-8 rounded-lg" />
           <Skeleton className="h-4 w-64" />
         </div>
-        <div className="p-8 max-w-3xl mx-auto w-full space-y-3">
+        <div className="p-8 w-full space-y-3">
           <Skeleton className="h-32 w-full rounded-xl" />
           <Skeleton className="h-32 w-full rounded-xl" />
         </div>
@@ -93,7 +129,7 @@ export default function ExternalAgentDetail() {
       <div className="flex flex-col h-full bg-background items-center justify-center text-center px-6">
         <AlertTriangle size={22} className="text-muted-foreground/60 mb-3" />
         <p className="text-sm text-muted-foreground max-w-md mb-4">We couldn't load your external agents. Please try again.</p>
-        <button onClick={refresh} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Retry</button>
+        <button onClick={hardRefresh} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Retry</button>
       </div>
     );
   }
@@ -111,6 +147,18 @@ export default function ExternalAgentDetail() {
   }
 
   const submitEnabled = agent.status === "draft" && !!agent.lastValidation?.passed;
+  const historyEntries = externalAgentStore.history(agent.id);
+  const latestStatusChange = historyEntries.find(h =>
+    h.kind === "change" && (STATUS_CHANGE_SUMMARIES.has(h.summary) || h.summary.startsWith("Rejected"))
+  );
+
+  const readyChecklist = [
+    { label: "Connection validated", done: !!agent.lastValidation?.passed },
+    { label: "Description added", done: agent.description.trim().length > 0 },
+    { label: "Per-user connection reviewed", done: agent.lastValidation != null },
+    { label: "Submitted for approval", done: agent.status !== "draft" },
+  ];
+  const readyDoneCount = readyChecklist.filter(i => i.done).length;
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -217,27 +265,96 @@ export default function ExternalAgentDetail() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="border-b border-border bg-surface px-4 flex items-center gap-1 shrink-0">
-        {([
-          { id: "connection", label: "Connection Info" },
-          { id: "history", label: "History" },
-        ] as const).map(t => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`px-3 h-10 text-sm font-medium border-b-2 -mb-px transition-base ${
-              tab === t.id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {/* Body */}
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Inner left sidebar — same shell/pattern as /agents/[id], reduced to 2 items */}
+        <aside
+          className="border-r border-border overflow-hidden shrink-0 flex flex-col h-full bg-white"
+          style={{
+            width: sidebarCollapsed ? "0px" : "240px",
+            opacity: sidebarCollapsed ? 0 : 1,
+            transition: "width 320ms cubic-bezier(0.4,0,0.2,1), opacity 280ms ease",
+            minWidth: 0,
+          }}
+        >
+          <nav className="shrink-0 px-2 pt-2 pb-1 flex flex-col" style={{ gap: "4px" }}>
+            {NAV.map(it => {
+              const Icon = it.icon;
+              return (
+                <button
+                  key={it.id}
+                  onClick={() => setSection(it.id)}
+                  style={{ height: "36px", fontSize: "14px" }}
+                  className={`w-full flex items-center rounded-lg px-2.5 transition-base shrink-0 ${
+                    section === it.id ? "bg-primary-soft text-primary font-medium" : "text-foreground hover:bg-surface-muted"
+                  }`}
+                >
+                  <Icon size={18} className="shrink-0" />
+                  <span className="flex-1 text-left truncate ml-2.5">{it.label}</span>
+                </button>
+              );
+            })}
+          </nav>
 
-      <div className="flex-1 overflow-y-auto p-8">
-        <div className="max-w-3xl mx-auto">
-          {tab === "connection" ? (
+          <div className="px-3 py-3 border-t border-border flex-1 min-h-0 overflow-y-auto space-y-2">
+            <div className="rounded-lg border border-border bg-surface p-2.5 space-y-2">
+              <p className="text-xs font-semibold text-foreground">How this external agent runs</p>
+              <div className="flex items-start gap-1.5">
+                <Globe size={12} className="text-muted-foreground shrink-0 mt-0.5" />
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  This agent runs on its own external system — the FPT AI Platform calls it over HTTP for every request.
+                </p>
+              </div>
+              <div className="flex items-start gap-1.5">
+                <ShieldCheck size={12} className="text-muted-foreground shrink-0 mt-0.5" />
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  A Workspace Admin must approve it before anyone in this workspace can use it.
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-border bg-surface-muted/50 p-2.5">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-semibold text-foreground">Ready to submit</span>
+                <span className="text-xs text-muted-foreground">{readyDoneCount}/{readyChecklist.length}</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-border overflow-hidden mb-2">
+                <div className="h-full rounded-full bg-primary" style={{ width: `${(readyDoneCount / readyChecklist.length) * 100}%` }} />
+              </div>
+              <div className="space-y-1">
+                {readyChecklist.map(item => (
+                  <div key={item.label} className="flex items-center gap-1.5 text-xs">
+                    {item.done
+                      ? <Check size={11} className="text-primary shrink-0" />
+                      : <span className="w-3 h-3 rounded-full border-2 border-muted-foreground shrink-0 inline-block" />}
+                    <span className={item.done ? "text-primary" : "text-muted-foreground"}>{item.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <button
+              onClick={() => setSidebarCollapsed(true)}
+              className="w-full h-8 rounded-lg border border-border bg-surface text-muted-foreground hover:bg-surface-muted text-xs font-medium flex items-center justify-center gap-1.5 transition-base"
+            >
+              <ChevronLeft size={12} /> Collapse sidebar
+            </button>
+          </div>
+        </aside>
+
+        {sidebarCollapsed && (
+          <button
+            onClick={() => setSidebarCollapsed(false)}
+            aria-label="Expand sidebar"
+            className="w-6 border-r border-border bg-white shrink-0 flex items-start justify-center pt-3 text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base"
+          >
+            <ChevronRight size={13} />
+          </button>
+        )}
+
+        {/* Content — single full-width column, no markdown/preview toolbar, no right panel */}
+        <div className="flex-1 overflow-y-auto p-8">
+          {section === "instruction" ? (
             <div className="space-y-4">
               {agent.rejection && (
                 <div className="flex items-start gap-2.5 rounded-lg border border-warning/25 bg-[hsl(var(--warning-soft))] px-3.5 py-3">
@@ -259,7 +376,16 @@ export default function ExternalAgentDetail() {
 
               <div className="rounded-xl border border-border p-4">
                 <h3 className="text-sm font-semibold mb-2">Connection</h3>
-                <InfoRow label="Status"><StatusBadge status={agent.status} /></InfoRow>
+                <InfoRow label="Status">
+                  <div className="space-y-1">
+                    <StatusBadge status={agent.status} />
+                    {latestStatusChange && (
+                      <p className="text-xs text-muted-foreground">
+                        Changed by {latestStatusChange.actor} · {relativeTime(latestStatusChange.at)}
+                      </p>
+                    )}
+                  </div>
+                </InfoRow>
                 <InfoRow label="Description">{agent.description || "—"}</InfoRow>
                 <InfoRow label="Base URL"><span className="font-mono text-xs break-all">{agent.baseUrl}</span></InfoRow>
                 <InfoRow label="Authentication">Bearer Token</InfoRow>
@@ -272,12 +398,19 @@ export default function ExternalAgentDetail() {
                   </div>
                 </InfoRow>
                 <InfoRow label="Per-user connection">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span>{agent.lastValidation?.requiresPerUserConnection ? "Required" : "Not required"}</span>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span>{agent.lastValidation?.requiresPerUserConnection ? "Required" : "Not required"}</span>
+                      {agent.lastValidation?.requiresPerUserConnection && (
+                        <Link to="/external-agents/guides/per-user-connector" className="text-xs font-semibold text-primary hover:underline">
+                          See how to set this up
+                        </Link>
+                      )}
+                    </div>
                     {agent.lastValidation?.requiresPerUserConnection && (
-                      <Link to="/external-agents/guides/per-user-connector" className="text-xs font-semibold text-primary hover:underline">
-                        See how to set this up
-                      </Link>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Each user will be asked to connect their own account the first time they use this agent.
+                      </p>
                     )}
                   </div>
                 </InfoRow>
@@ -314,16 +447,56 @@ export default function ExternalAgentDetail() {
               </div>
 
               <div className="rounded-xl border border-border p-4">
-                <h3 className="text-sm font-semibold mb-2">Endpoints</h3>
-                {(["/health", "/runs", "/tools"] as const).map(path => {
-                  const full = `${agent.baseUrl}${path}`;
-                  return (
-                    <div key={path} className="flex items-center justify-between gap-2 py-1.5 border-b border-border last:border-0">
-                      <span className="font-mono text-xs text-foreground truncate">{full}</span>
-                      <CopyButton value={full} />
-                    </div>
-                  );
-                })}
+                <h3 className="text-sm font-semibold mb-1">Endpoints</h3>
+                <p className="text-xs text-muted-foreground mb-3">These are the addresses the platform calls on your agent.</p>
+                <div className="rounded-lg border border-border overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-surface-muted">
+                        <th className="text-left px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">Endpoint</th>
+                        <th className="text-left px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">URL</th>
+                        <th className="text-left px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Purpose</th>
+                        <th className="px-3 py-2 w-9" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ENDPOINTS.map(e => {
+                        const full = `${agent.baseUrl}${e.path}`;
+                        return (
+                          <tr key={e.path} className="border-t border-border">
+                            <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">{e.method} {e.path}</td>
+                            <td className="px-3 py-2 font-mono text-xs text-muted-foreground break-all">{full}</td>
+                            <td className="px-3 py-2 text-xs text-foreground">{e.purpose}</td>
+                            <td className="px-3 py-2 text-right"><CopyButton value={full} /></td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-border p-4">
+                <h3 className="text-sm font-semibold mb-1">Authentication</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                  Every call the platform makes to your agent includes an <code className="font-mono bg-surface-muted px-1 py-0.5 rounded">Authorization: Bearer &lt;token&gt;</code> header,
+                  so your agent can verify the request really came from the platform. The token is stored encrypted and is never shown again after saving.
+                </p>
+                <CopyBlock code={`POST ${agent.baseUrl}/runs HTTP/1.1\nAuthorization: Bearer <token>\nContent-Type: application/json`} />
+              </div>
+
+              <div className="rounded-xl border border-border p-4">
+                <h3 className="text-sm font-semibold mb-1">Expected response</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                  This is what the platform expects your agent's <code className="font-mono bg-surface-muted px-1 py-0.5 rounded">/health</code> endpoint to return.
+                </p>
+                <CopyBlock
+                  code={JSON.stringify(
+                    { status: "ok", protocol_version: "v1", agent_version: "2.3.1", requires_user_connection: true },
+                    null,
+                    2,
+                  )}
+                />
               </div>
             </div>
           ) : (
