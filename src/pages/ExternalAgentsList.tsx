@@ -17,8 +17,10 @@ import { toast } from "sonner";
 const TABS: { key: ExternalAgentStatus | "all"; label: string }[] = [
   { key: "all", label: "All" },
   { key: "draft", label: "Draft" },
-  { key: "waiting_approved", label: "Waiting Approved" },
-  { key: "active", label: "Active" },
+  { key: "submitted_for_approval", label: "Submitted for Approval" },
+  { key: "approved", label: "Approved" },
+  { key: "rejected", label: "Rejected" },
+  { key: "published", label: "Published" },
   { key: "paused", label: "Paused" },
 ];
 
@@ -80,9 +82,9 @@ function RowMenu({ agent, isAdmin, onOpen, onEdit, onPauseResume, onDelete }: {
         >
           <button onClick={() => { onOpen(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">Open</button>
           <button onClick={() => { onEdit(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">Edit connection</button>
-          {isAdmin && (agent.status === "active" || agent.status === "paused") && (
+          {isAdmin && (agent.status === "published" || agent.status === "paused") && (
             <button onClick={() => { onPauseResume(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">
-              {agent.status === "active" ? "Pause" : "Resume"}
+              {agent.status === "published" ? "Pause" : "Resume"}
             </button>
           )}
           <button onClick={() => { onDelete(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">Delete</button>
@@ -132,8 +134,10 @@ export default function ExternalAgentsList() {
   const counts: Record<ExternalAgentStatus | "all", number> = {
     all: agents.length,
     draft: agents.filter(a => a.status === "draft").length,
-    waiting_approved: agents.filter(a => a.status === "waiting_approved").length,
-    active: agents.filter(a => a.status === "active").length,
+    submitted_for_approval: agents.filter(a => a.status === "submitted_for_approval").length,
+    approved: agents.filter(a => a.status === "approved").length,
+    rejected: agents.filter(a => a.status === "rejected").length,
+    published: agents.filter(a => a.status === "published").length,
     paused: agents.filter(a => a.status === "paused").length,
   };
 
@@ -293,8 +297,8 @@ export default function ExternalAgentsList() {
                           onOpen={() => navigate(`/external-agents/${a.id}`)}
                           onEdit={() => setEditTarget(a)}
                           onPauseResume={() => {
-                            if (a.status === "active") setPauseTarget(a);
-                            else { externalAgentStore.resume(a.id); toast.success(`"${a.name}" is active again.`); refresh(); }
+                            if (a.status === "published") setPauseTarget(a);
+                            else { externalAgentStore.resume(a.id); toast.success(`"${a.name}" is published again.`); refresh(); }
                           }}
                           onDelete={() => setDeleteTarget(a)}
                         />

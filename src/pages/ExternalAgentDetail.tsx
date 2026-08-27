@@ -15,6 +15,7 @@ import {
   DeleteExternalAgentDialog, PauseExternalAgentDialog, RejectExternalAgentDialog,
 } from "@/components/external-agents/ExternalAgentDialogs";
 import ExternalAgentHistoryTab from "@/components/external-agents/ExternalAgentHistoryTab";
+import PublishExternalAgentModal from "@/components/external-agents/PublishExternalAgentModal";
 import { toast } from "sonner";
 
 type Section = "instruction" | "history";
@@ -84,6 +85,7 @@ export default function ExternalAgentDetail() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  const [showPublish, setShowPublish] = useState(false);
   const [showPause, setShowPause] = useState(false);
   const [showReject, setShowReject] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
@@ -149,7 +151,12 @@ export default function ExternalAgentDetail() {
   const submitEnabled = agent.status === "draft" && !!agent.lastValidation?.passed;
   const historyEntries = externalAgentStore.history(agent.id);
   const latestStatusChange = historyEntries.find(h =>
-    h.kind === "change" && (STATUS_CHANGE_SUMMARIES.has(h.summary) || h.summary.startsWith("Rejected"))
+    h.kind === "change" && (
+      STATUS_CHANGE_SUMMARIES.has(h.summary) ||
+      h.summary.startsWith("Rejected") ||
+      h.summary.startsWith("Published to") ||
+      h.summary === "Unpublished from all channels"
+    )
   );
 
   const readyChecklist = [
@@ -202,7 +209,7 @@ export default function ExternalAgentDetail() {
             </div>
           )}
 
-          {agent.status === "waiting_approved" && isAdmin && (
+          {agent.status === "submitted_for_approval" && isAdmin && (
             <>
               <button
                 onClick={() => setShowReject(true)}
@@ -213,7 +220,7 @@ export default function ExternalAgentDetail() {
               <button
                 onClick={() => {
                   externalAgentStore.approve(agent.id);
-                  toast.success(`"${agent.name}" is now active and ready to use.`);
+                  toast.success(`"${agent.name}" is approved. Publish it to make it available to your workspace.`);
                   refresh();
                 }}
                 className="btn-primary h-9"
@@ -223,15 +230,19 @@ export default function ExternalAgentDetail() {
             </>
           )}
 
-          {agent.status === "active" && isAdmin && (
-            <button onClick={() => setShowPause(true)} className="btn-primary h-9">Pause</button>
+          {(agent.status === "approved" || agent.status === "published") && (
+            <button onClick={() => setShowPublish(true)} className="btn-primary h-9">Publish</button>
+          )}
+
+          {agent.status === "published" && isAdmin && (
+            <button onClick={() => setShowPause(true)} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Pause</button>
           )}
 
           {agent.status === "paused" && isAdmin && (
             <button
               onClick={() => {
                 externalAgentStore.resume(agent.id);
-                toast.success(`"${agent.name}" is active again.`);
+                toast.success(`"${agent.name}" is published again.`);
                 refresh();
               }}
               className="btn-primary h-9"
@@ -512,6 +523,15 @@ export default function ExternalAgentDetail() {
         onSaved={() => { setShowEdit(false); refresh(); }}
       />
 
+      <PublishExternalAgentModal
+        open={showPublish}
+        agentId={agent.id}
+        agentName={agent.name}
+        currentChannels={agent.channels}
+        onClose={() => setShowPublish(false)}
+        onPublished={refresh}
+      />
+
       <PauseExternalAgentDialog
         name={agent.name}
         open={showPause}
@@ -530,7 +550,7 @@ export default function ExternalAgentDetail() {
         onOpenChange={setShowReject}
         onConfirm={reason => {
           externalAgentStore.reject(agent.id, reason);
-          toast.info(`"${agent.name}" was sent back to draft with a note for the creator.`);
+          toast.info(`"${agent.name}" was rejected. The creator can edit the connection and resubmit it.`);
           setShowReject(false);
           refresh();
         }}

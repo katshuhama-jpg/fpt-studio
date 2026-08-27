@@ -35,7 +35,7 @@ export function DeleteExternalAgentDialog({ name, open, onOpenChange, onConfirm 
   );
 }
 
-/** Pause confirmation — Active → Paused, admin-only action. */
+/** Pause confirmation — Published → Paused, admin-only action. */
 export function PauseExternalAgentDialog({ name, open, onOpenChange, onConfirm }: {
   name: string; open: boolean; onOpenChange: (open: boolean) => void; onConfirm: () => void;
 }) {
@@ -57,8 +57,9 @@ export function PauseExternalAgentDialog({ name, open, onOpenChange, onConfirm }
   );
 }
 
-/** Reject — Waiting Approved → Draft, requires a reason (max 500 chars) that gets written to
- * History and shown back to the creator as a banner on the detail page. */
+/** Reject — Submitted for Approval → Rejected, requires a reason (max 500 chars) that gets
+ * written to History and shown back to the creator as a banner on the detail page. Saving an
+ * edit from Rejected is what moves it back to Draft for resubmission. */
 export function RejectExternalAgentDialog({ name, open, onOpenChange, onConfirm }: {
   name: string; open: boolean; onOpenChange: (open: boolean) => void; onConfirm: (reason: string) => void;
 }) {
@@ -71,7 +72,7 @@ export function RejectExternalAgentDialog({ name, open, onOpenChange, onConfirm 
         <AlertDialogHeader>
           <AlertDialogTitle>Reject "{name}"?</AlertDialogTitle>
           <AlertDialogDescription>
-            It will go back to Draft so the creator can fix and resubmit it. Let them know what needs to change.
+            It will be marked Rejected with your note. The creator can edit the connection and resubmit it.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <div>
@@ -99,6 +100,29 @@ export function RejectExternalAgentDialog({ name, open, onOpenChange, onConfirm 
           >
             Reject
           </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+/** Unpublish-from-all-channels confirmation — shown when Publish is clicked with every
+ * channel unchecked while the agent is currently Published (Published → Approved). */
+export function UnpublishExternalAgentDialog({ name, open, onOpenChange, onConfirm }: {
+  name: string; open: boolean; onOpenChange: (open: boolean) => void; onConfirm: () => void;
+}) {
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Unpublish from all channels?</AlertDialogTitle>
+          <AlertDialogDescription>
+            "{name}" will stop receiving requests from every channel it's currently published to. You can publish it again at any time.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm}>Unpublish</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

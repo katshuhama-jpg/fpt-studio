@@ -2,8 +2,10 @@ import type { ExternalAgentStatus } from "./externalAgentStore";
 
 export const STATUS_META: Record<ExternalAgentStatus, { label: string; badgeClass: string; dotClass: string }> = {
   draft: { label: "Draft", badgeClass: "bg-surface-muted text-muted-foreground border-border", dotClass: "bg-muted-foreground" },
-  waiting_approved: { label: "Waiting Approved", badgeClass: "chip-warning", dotClass: "bg-warning" },
-  active: { label: "Active", badgeClass: "chip-success", dotClass: "bg-success" },
+  submitted_for_approval: { label: "Submitted for Approval", badgeClass: "chip-warning", dotClass: "bg-warning" },
+  approved: { label: "Approved", badgeClass: "chip-info", dotClass: "bg-[hsl(var(--info))]" },
+  rejected: { label: "Rejected", badgeClass: "chip-danger", dotClass: "bg-destructive" },
+  published: { label: "Published", badgeClass: "chip-success", dotClass: "bg-success" },
   paused: { label: "Paused", badgeClass: "bg-slate-100 text-slate-600 border-slate-200", dotClass: "bg-slate-400" },
 };
 
