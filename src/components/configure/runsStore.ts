@@ -4,7 +4,7 @@
 import { triggerStore, type TriggerType, type ExternalApp } from "./triggerStore";
 import { agentPublishStore } from "./agentPublishStore";
 
-export type RunStatus = "waiting" | "triggered" | "queued" | "running" | "completed" | "failed";
+export type RunStatus = "running" | "completed" | "failed";
 
 export const ORG_TIMEZONE = "GMT+07:00";
 
