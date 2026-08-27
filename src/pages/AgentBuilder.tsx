@@ -283,7 +283,6 @@ export default function AgentBuilder() {
 
           {/* Ready to publish + Collapse — flexible region, scrolls/shrinks instead of clipping the nav above */}
           <div className="px-3 py-3 border-t border-border flex-1 min-h-0 overflow-y-auto space-y-2">
-            <HowThisAgentRuns agentId={id ?? "new"} onViewSection={setSection} />
             <div className="rounded-lg border border-border bg-surface-muted/50 p-2.5">
               {(() => {
                 const agentTriggers = triggerStore.list(id ?? "new");
@@ -790,71 +789,6 @@ function inlineFormat(text: string): React.ReactNode {
   return parts.map((p, i) => i % 2 === 1 ? <strong key={i}>{p}</strong> : p);
 }
 
-/** Persistent live-status panel — reads current trigger/connection/channel config and tells
- * the Builder in plain language what that configuration means, so the moment an agent
- * becomes Automation is visible immediately, not discovered later at Publish. */
-function HowThisAgentRuns({ agentId, onViewSection }: { agentId: string; onViewSection: (section: string) => void }) {
-  void onViewSection; // reserved for future deep-links from this panel
-  const triggers = triggerStore.list(agentId);
-  const connections = agentConnectorStore.list(agentId);
-  const channels = agentPublishStore.get(agentId).channels;
-  const isPublished = agentPublishStore.isPublished(agentId);
-  const kind = triggers.length > 0 ? "automation" : "conversational";
-  const personalConn = connections.find(c => c.scope === "personal");
-  const sharedConn = connections.find(c => c.scope === "shared");
-  const channelNames = channels.map(id => CHANNEL_CATALOG.find(c => c.id === id)?.name ?? id);
-
-  return (
-    <div className="rounded-lg border border-border bg-surface p-2.5 space-y-2">
-      <p className="text-xs font-semibold text-foreground">Cách agent này chạy</p>
-
-      <div className="flex items-start gap-1.5">
-        <HugeiconsIcon
-          icon={kind === "automation" ? BoltIcon : Chat01Icon}
-          size={12}
-          className={`shrink-0 mt-0.5 ${kind === "automation" ? "text-indigo-600" : "text-muted-foreground"}`}
-        />
-        <p className="text-[11px] text-muted-foreground leading-relaxed">
-          {kind === "automation" ? (
-            isPublished ? (
-              <><span className="font-medium text-foreground">Automation</span> — Agent tự chạy theo {triggers.length} trigger bạn đặt ở đây, cho cả tổ chức. Không ai cần cài agent vào Workspace và không ai chat trực tiếp với nó.</>
-            ) : (
-              <><span className="font-medium text-foreground">Automation</span> — Sau khi publish, agent tự chạy theo {triggers.length} trigger bạn đặt ở đây, cho cả tổ chức. Không ai cần cài agent vào Workspace và không ai chat trực tiếp với nó.</>
-            )
-          ) : (
-            <><span className="font-medium text-foreground">Agent hội thoại</span> — Người dùng trong tổ chức cài agent này vào Workspace rồi sử dụng. Mỗi người tự đặt trigger riêng trên bản họ đã cài.</>
-          )}
-        </p>
-      </div>
-
-      {(personalConn || sharedConn) && (
-        <div className="flex items-start gap-1.5">
-          <HugeiconsIcon icon={personalConn ? UserIcon : Building02Icon} size={12} className="text-muted-foreground shrink-0 mt-0.5" />
-          <p className="text-[11px] text-muted-foreground leading-relaxed">
-            {personalConn ? (
-              "Kết nối Riêng cá nhân — agent chạy dưới tài khoản của người đang dùng."
-            ) : (
-              <>Kết nối Dùng chung — mọi lần chạy đều dùng tài khoản {CONNECTOR_CATALOG.find(c => c.id === sharedConn!.connectorId)?.name ?? sharedConn!.connectorId}.</>
-            )}
-          </p>
-        </div>
-      )}
-
-      {channelNames.length > 0 && (
-        <div className="flex items-start gap-1.5">
-          <HugeiconsIcon icon={GridViewIcon} size={12} className="text-muted-foreground shrink-0 mt-0.5" />
-          <p className="text-[11px] text-muted-foreground leading-relaxed">
-            {kind === "automation" ? (
-              <>Kênh gửi ra: {channelNames.join(", ")}. Agent gửi kết quả tới các kênh này; khách hàng không nhắn tin vào.</>
-            ) : (
-              <>Kênh chat: {channelNames.join(", ")}. Người dùng nhắn tin với agent qua các kênh này.</>
-            )}
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
 
 function GeneralTab({ agentId, onRefineWithAI, onChatToTest }: {
   agentId: string; onRefineWithAI?: () => void; onChatToTest?: () => void;
