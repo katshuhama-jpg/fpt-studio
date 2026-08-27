@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Globe, Search, MoreVertical, Plus, AlertTriangle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
@@ -202,9 +202,9 @@ export default function ExternalAgentsList() {
             <button onClick={() => setShowConnect(true)} className="btn-primary h-9">
               <Plus size={14} /> Connect External Agent
             </button>
-            <a href="/external-agents/guides/per-user-connector" className="text-sm font-medium text-primary hover:underline">
+            <Link to="/external-agents/guides/how-it-works" className="text-sm font-medium text-primary hover:underline">
               How external agents work
-            </a>
+            </Link>
           </div>
         </div>
       )}

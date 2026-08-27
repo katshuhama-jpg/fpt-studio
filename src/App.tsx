@@ -11,6 +11,7 @@ import AgentsList from "./pages/AgentsList";
 import ExternalAgentsList from "./pages/ExternalAgentsList";
 import ExternalAgentDetail from "./pages/ExternalAgentDetail";
 import PerUserConnectorGuide from "./pages/PerUserConnectorGuide";
+import HowExternalAgentsWorkGuide from "./pages/HowExternalAgentsWorkGuide";
 import AgentBuilder from "./pages/AgentBuilder";
 import AgentScaffold from "./pages/AgentScaffold";
 import Inventor from "./pages/Inventor";
@@ -69,6 +70,7 @@ const App = () => (
               <Route path="/agents/:id/tasks/:taskId" element={<TaskEditor />} />
               <Route path="/external-agents" element={<ExternalAgentsList />} />
               <Route path="/external-agents/guides/per-user-connector" element={<PerUserConnectorGuide />} />
+              <Route path="/external-agents/guides/how-it-works" element={<HowExternalAgentsWorkGuide />} />
               <Route path="/external-agents/:id" element={<ExternalAgentDetail />} />
             </Route>
             <Route path="/inventor" element={<RequireAuth><Inventor /></RequireAuth>} />
