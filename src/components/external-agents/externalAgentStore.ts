@@ -144,8 +144,11 @@ function seedDefaultAgents() {
   });
   addHistory("ext-seed-1", { at: now - 20 * DAY, actor: CURRENT_USER, summary: "Connection created" });
   addHistory("ext-seed-1", { at: now - 19 * DAY, actor: CURRENT_USER, summary: "Submitted for approval", detail: "Channels requested: Web, Zalo" });
-  addHistory("ext-seed-1", { at: now - 18 * DAY, actor: approvalLevelLabel("https://agent.abc.ai"), summary: `Approved by ${approvalLevelLabel("https://agent.abc.ai")}` });
-  addHistory("ext-seed-1", { at: now - 17 * DAY, actor: CURRENT_USER, summary: "Published to Web, Zalo" });
+  {
+    const by = approvalLevelLabel("https://agent.abc.ai");
+    addHistory("ext-seed-1", { at: now - 18 * DAY, actor: by, summary: `Approved by ${by}` });
+    addHistory("ext-seed-1", { at: now - 18 * DAY, actor: by, summary: "Published to Web, Zalo" });
+  }
 
   // 2 — HR Helpdesk (Published, Slack)
   put({
@@ -158,8 +161,11 @@ function seedDefaultAgents() {
   });
   addHistory("ext-seed-2", { at: now - 15 * DAY, actor: CURRENT_USER, summary: "Connection created" });
   addHistory("ext-seed-2", { at: now - 14 * DAY, actor: CURRENT_USER, summary: "Submitted for approval", detail: "Channels requested: Slack" });
-  addHistory("ext-seed-2", { at: now - 13 * DAY, actor: approvalLevelLabel("https://hr.xyz-ai.com"), summary: `Approved by ${approvalLevelLabel("https://hr.xyz-ai.com")}` });
-  addHistory("ext-seed-2", { at: now - 12 * DAY, actor: CURRENT_USER, summary: "Published to Slack" });
+  {
+    const by = approvalLevelLabel("https://hr.xyz-ai.com");
+    addHistory("ext-seed-2", { at: now - 13 * DAY, actor: by, summary: `Approved by ${by}` });
+    addHistory("ext-seed-2", { at: now - 13 * DAY, actor: by, summary: "Published to Slack" });
+  }
 
   // 3 — Finance Reporter (Draft — already approved, not published yet)
   put({
@@ -213,8 +219,11 @@ function seedDefaultAgents() {
   });
   addHistory("ext-seed-6", { at: now - 10 * DAY, actor: CURRENT_USER, summary: "Connection created" });
   addHistory("ext-seed-6", { at: now - 9 * DAY, actor: CURRENT_USER, summary: "Submitted for approval", detail: "Channels requested: Web" });
-  addHistory("ext-seed-6", { at: now - 8 * DAY, actor: approvalLevelLabel("https://mkt.abc.ai"), summary: `Approved by ${approvalLevelLabel("https://mkt.abc.ai")}` });
-  addHistory("ext-seed-6", { at: now - 7 * DAY, actor: CURRENT_USER, summary: "Published to Web" });
+  {
+    const by = approvalLevelLabel("https://mkt.abc.ai");
+    addHistory("ext-seed-6", { at: now - 8 * DAY, actor: by, summary: `Approved by ${by}` });
+    addHistory("ext-seed-6", { at: now - 8 * DAY, actor: by, summary: "Published to Web" });
+  }
   addHistory("ext-seed-6", { at: now - 4 * DAY, actor: "Tran Nam", summary: "Paused" });
 
   // 7 — Insurance Claim Agent (Draft, no description, no Activity at all)
@@ -392,21 +401,24 @@ export const externalAgentStore = {
     return { ok: true, mode: "pending" };
   },
   /** Called by the separate admin console (not reachable from this Builder's UI) once a
-   * connection is approved. Applies any channels that were requested when it was submitted. */
+   * connection is approved. Applies any channels that were requested when it was submitted —
+   * approval and going live happen as one action, with no separate manual Publish step for
+   * the Builder in between. */
   approve(id: string) {
     const cur = store.get(id);
     if (!cur || cur.status !== "pending_approval") return;
     const now = Date.now();
     const channels = cur.pendingChannels ?? [];
     const nowPublished = channels.length > 0;
+    const by = approvalLevelLabel(cur.baseUrl);
     store.set(id, {
       ...cur, status: nowPublished ? "published" : "draft", approved: true,
       channels, pendingChannels: null, rejection: null, updatedAt: now,
     });
     persistStore();
-    addHistory(id, { at: now, actor: approvalLevelLabel(cur.baseUrl), summary: `Approved by ${approvalLevelLabel(cur.baseUrl)}` });
+    addHistory(id, { at: now, actor: by, summary: `Approved by ${by}` });
     if (nowPublished) {
-      addHistory(id, { at: now, actor: CURRENT_USER, summary: `Published to ${channels.map(channelLabel).join(", ")}` });
+      addHistory(id, { at: now, actor: by, summary: `Published to ${channels.map(channelLabel).join(", ")}` });
     }
   },
   /** Called by the separate admin console (not reachable from this Builder's UI). */
