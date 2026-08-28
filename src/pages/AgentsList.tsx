@@ -503,7 +503,7 @@ export default function AgentsList() {
         </div>
 
         <button
-          onClick={() => canCreateAgent && navigate("/agents/new?tab=build&section=general")}
+          onClick={() => canCreateAgent && navigate("/agents/new?tab=build&section=instructions")}
           disabled={!canCreateAgent}
           title={!canCreateAgent ? "You don't have permission to create agents." : undefined}
           className="mt-4 h-9 px-4 rounded-full border border-border text-sm font-medium text-foreground hover:bg-surface-muted transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"

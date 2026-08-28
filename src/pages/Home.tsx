@@ -58,7 +58,7 @@ function TemplateModal({ onClose }: { onClose: () => void }) {
   const handleUse = (t: typeof templates[number]) => {
     const params = new URLSearchParams();
     params.set("tab", "develop");
-    params.set("section", "general");
+    params.set("section", "instructions");
     params.set("agentName", t.name);
     params.set("agentPrompt", t.systemPrompt);
     onClose();
@@ -163,7 +163,7 @@ function CreateAgentModal({ onClose }: { onClose: () => void }) {
     if (!prompt.trim()) return;
     const params = new URLSearchParams();
     params.set("tab", "develop");
-    params.set("section", "general");
+    params.set("section", "instructions");
     params.set("agentPrompt", prompt.trim());
     navigate(`/agents/new?${params.toString()}`);
     onClose();

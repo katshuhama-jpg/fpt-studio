@@ -79,7 +79,7 @@ export default function AgentBuilder() {
   const { id = "cskh" } = useParams();
   const agent = getAgent(id);
   const [params, setParams] = useSearchParams();
-  const VALID_TABS: Tab[] = ["build", "test", "deploy", "insights"];
+  const VALID_TABS: Tab[] = ["build", "test", "channels", "insights"];
   const rawTab = params.get("tab");
   const tab: Tab = VALID_TABS.includes(rawTab as Tab) ? (rawTab as Tab) : "build";
   const section = params.get("section") || "instructions";
