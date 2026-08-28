@@ -1,13 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
-  Search, ChevronRight as ChevronRightIcon, X, Copy, Check, MessageCircle,
-  Globe, MessageSquare, Facebook, Slack, Users, Webhook, Building2, CheckCircle2, XCircle, CircleHelp,
+  Search, X, Copy, Check, MessageCircle,
+  Globe, MessageSquare, Facebook, Slack, Users, Webhook, Building2,
 } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { startOfDay, endOfDay } from "date-fns";
+import type { DateRange } from "react-day-picker";
+import { TimeRangeFilter, type TimeFilter } from "@/components/history/TimeRangeFilter";
+import { ChannelFilterDropdown } from "@/components/history/ChannelFilterDropdown";
 import {
-  externalAgentConversationStore, conversationResult, conversationTurns,
-  type ExternalAgentChannel, type ExternalConversation, type ConversationMessage, type RunMeta,
+  externalAgentConversationStore,
+  type ExternalAgentChannel, type ExternalConversation, type ConversationMessage,
 } from "./externalAgentConversationStore";
 
 const CHANNEL_META: Record<ExternalAgentChannel, { label: string; icon: any }> = {
@@ -40,62 +43,16 @@ function formatTime(ts: number): string {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-type TimeFilter = "all" | "today" | "7d" | "30d";
 const DAY = 86_400_000;
-
-const RESULT_STYLES: Record<string, string> = {
-  Completed: "chip-success",
-  Failed: "chip-danger",
-  "Waiting for input": "chip-warning",
-};
-
-/** Collapsed-by-default row under an agent reply — the metadata a per-turn HTTP run carries
- * that a normal (non-external) agent's history doesn't need, since here one turn = one request. */
-function RunMetaRow({ run }: { run: RunMeta }) {
-  const [open, setOpen] = useState(false);
-  const outcomeMeta = run.outcome === "success"
-    ? { icon: CheckCircle2, cls: "text-success", label: "Completed" }
-    : run.outcome === "error"
-    ? { icon: XCircle, cls: "text-destructive", label: "Failed" }
-    : { icon: CircleHelp, cls: "text-warning", label: "Interrupt" };
-  const OutcomeIcon = outcomeMeta.icon;
-  const hasDetail = run.toolCalls.length > 0 || !!run.errorMessage;
-
-  return (
-    <div className="mt-1.5">
-      <button
-        type="button"
-        onClick={() => hasDetail && setOpen(o => !o)}
-        className={`flex items-center gap-1.5 text-[11px] ${outcomeMeta.cls} ${hasDetail ? "cursor-pointer hover:underline" : "cursor-default"}`}
-      >
-        {hasDetail && <ChevronRightIcon size={10} className={`transition-transform ${open ? "rotate-90" : ""}`} />}
-        <OutcomeIcon size={11} />
-        <span className="font-mono">Run {run.runId}</span>
-        <span>·</span>
-        <span>{(run.durationMs / 1000).toFixed(1)}s</span>
-        <span>·</span>
-        <span className="font-medium">{outcomeMeta.label}</span>
-      </button>
-      {open && hasDetail && (
-        <div className="mt-1.5 ml-4 space-y-1.5 border-l-2 border-border pl-2.5">
-          {run.toolCalls.map((tc, i) => (
-            <div key={i} className="text-[11px]">
-              <div className="font-mono font-medium text-foreground">{tc.name}()</div>
-              <div className="text-muted-foreground font-mono break-all">args: {tc.args}</div>
-              {tc.result && <div className="text-muted-foreground font-mono break-all">result: {tc.result}</div>}
-            </div>
-          ))}
-          {run.errorMessage && (
-            <div className="text-[11px] text-destructive leading-relaxed">{run.errorMessage}</div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function TranscriptPanel({ conversation, onClose }: { conversation: ExternalConversation | null; onClose: () => void }) {
   const [copied, setCopied] = useState(false);
+  const messagesRef = useRef<HTMLDivElement>(null);
+
+  // Land on the newest message when a conversation opens, instead of the top of a long thread.
+  useEffect(() => {
+    messagesRef.current?.scrollTo({ top: messagesRef.current.scrollHeight });
+  }, [conversation?.id]);
 
   const copyId = () => {
     if (!conversation) return;
@@ -150,7 +107,7 @@ function TranscriptPanel({ conversation, onClose }: { conversation: ExternalConv
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3 space-y-3">
+          <div ref={messagesRef} className="flex-1 overflow-y-auto p-3 space-y-3">
             {conversation.messages.map((m: ConversationMessage) => (
               <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                 {m.role === "agent" && (
@@ -171,7 +128,6 @@ function TranscriptPanel({ conversation, onClose }: { conversation: ExternalConv
                   <div className={`mt-1 text-[10px] text-muted-foreground ${m.role === "user" ? "text-right" : "text-left"}`}>
                     {formatTime(m.at)}
                   </div>
-                  {m.role === "agent" && m.run && <RunMetaRow run={m.run} />}
                 </div>
               </div>
             ))}
@@ -194,6 +150,7 @@ export default function ExternalAgentHistoryTab({ agentId }: { agentId: string }
   const [query, setQuery] = useState("");
   const [channelFilter, setChannelFilter] = useState("all");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
+  const [customRange, setCustomRange] = useState<DateRange | undefined>(undefined);
 
   const allConversations = useMemo(() => externalAgentConversationStore.list(agentId), [agentId]);
 
@@ -202,6 +159,9 @@ export default function ExternalAgentHistoryTab({ agentId }: { agentId: string }
     if (filter === "today") return { from: now - DAY, to: now };
     if (filter === "7d") return { from: now - 7 * DAY, to: now };
     if (filter === "30d") return { from: now - 30 * DAY, to: now };
+    if (filter === "custom" && customRange?.from && customRange?.to) {
+      return { from: startOfDay(customRange.from).getTime(), to: endOfDay(customRange.to).getTime() };
+    }
     return null;
   };
 
@@ -218,7 +178,7 @@ export default function ExternalAgentHistoryTab({ agentId }: { agentId: string }
         return c.messages.some(m => m.content.toLowerCase().includes(q) || m.id.toLowerCase().includes(q));
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allConversations, query, channelFilter, timeFilter]);
+  }, [allConversations, query, channelFilter, timeFilter, customRange]);
 
   // Land on the most recent conversation by default, and keep the URL linkable.
   useEffect(() => {
@@ -250,24 +210,13 @@ export default function ExternalAgentHistoryTab({ agentId }: { agentId: string }
           </div>
 
           <div className="flex items-center gap-2 mt-2.5">
-            <Select value={channelFilter} onValueChange={setChannelFilter}>
-              <SelectTrigger className="h-9 w-auto min-w-[160px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All channels</SelectItem>
-                {(Object.keys(CHANNEL_META) as ExternalAgentChannel[]).map(id => (
-                  <SelectItem key={id} value={id}>{CHANNEL_META[id].label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={timeFilter} onValueChange={v => setTimeFilter(v as TimeFilter)}>
-              <SelectTrigger className="h-9 w-auto min-w-[130px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All time</SelectItem>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="7d">Last 7 days</SelectItem>
-                <SelectItem value="30d">Last 30 days</SelectItem>
-              </SelectContent>
-            </Select>
+            <ChannelFilterDropdown value={channelFilter} onChange={setChannelFilter} />
+            <TimeRangeFilter
+              value={timeFilter}
+              customRange={customRange}
+              onPreset={v => setTimeFilter(v)}
+              onApplyCustom={range => { setCustomRange(range); setTimeFilter("custom"); }}
+            />
           </div>
         </div>
 
@@ -288,37 +237,32 @@ export default function ExternalAgentHistoryTab({ agentId }: { agentId: string }
           </div>
         ) : (
           <div className="rounded-xl border border-border overflow-x-auto">
-            <div className="grid grid-cols-[150px,220px,170px,1fr,70px,140px] gap-4 px-4 py-2.5 bg-surface-muted text-[10px] font-semibold uppercase tracking-wider text-muted-foreground min-w-[900px]">
-              <div>Ended</div><div>Conversation ID</div><div>Channel</div><div>User</div><div>Turns</div><div>Result</div>
+            <div className="grid grid-cols-[165px,235px,155px,1fr,80px] gap-4 px-4 py-2.5 bg-surface-muted text-[10px] font-semibold uppercase tracking-wider text-muted-foreground min-w-[850px]">
+              <div>Ended</div><div>Conversation ID</div><div>Channel</div><div>User</div><div className="text-right">Messages</div>
             </div>
-            <div className="divide-y divide-border min-w-[900px]">
-              {filtered.map(c => {
-                const result = conversationResult(c);
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => selectConversation(c.id)}
-                    className={`w-full grid grid-cols-[150px,220px,170px,1fr,70px,140px] gap-4 px-4 py-3 items-center transition-base text-left ${
-                      c.id === selectedId ? "bg-primary-soft" : "hover:bg-surface-muted/50"
-                    }`}
-                  >
-                    <div className="text-xs text-muted-foreground whitespace-nowrap">{formatDateTime(c.endedAt)}</div>
-                    <div className="text-xs font-mono truncate">{c.id}</div>
-                    <div className="flex items-center gap-2 min-w-0">
-                      <ChannelIcon channel={c.channel} size={22} />
-                      <span className="text-xs truncate">{CHANNEL_META[c.channel].label}</span>
-                    </div>
+            <div className="divide-y divide-border min-w-[850px]">
+              {filtered.map(c => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => selectConversation(c.id)}
+                  className={`w-full grid grid-cols-[165px,235px,155px,1fr,80px] gap-4 px-4 py-3 items-center transition-base text-left ${
+                    c.id === selectedId ? "bg-primary-soft" : "hover:bg-surface-muted/50"
+                  }`}
+                >
+                  <div className="text-xs text-muted-foreground whitespace-nowrap">{formatDateTime(c.endedAt)}</div>
+                  <div className="text-xs font-mono truncate">{c.id}</div>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <ChannelIcon channel={c.channel} size={22} />
+                    <span className="text-xs truncate">{CHANNEL_META[c.channel].label}</span>
+                  </div>
+                  <div className="min-w-0">
                     <div className="text-sm truncate">{c.username}</div>
-                    <div className="text-xs text-muted-foreground">{conversationTurns(c)}</div>
-                    <div>
-                      <span className={`inline-flex items-center text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full border ${RESULT_STYLES[result]}`}>
-                        {result}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
+                    <div className="text-xs text-muted-foreground truncate">{c.email ?? "—"}</div>
+                  </div>
+                  <div className="text-sm text-muted-foreground text-right">{c.messages.length}</div>
+                </button>
+              ))}
             </div>
           </div>
         )}

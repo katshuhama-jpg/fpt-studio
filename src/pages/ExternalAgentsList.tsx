@@ -185,21 +185,21 @@ export default function ExternalAgentsList() {
   const hasAnyAgents = agents.length > 0;
 
   return (
-    <div className="px-8 py-8 max-w-[1280px] mx-auto animate-fade-up">
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <div>
+    <div className="px-4 sm:px-8 py-6 sm:py-8 max-w-[1280px] mx-auto animate-fade-up">
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <div className="min-w-0">
           <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">External Agents</h1>
           <p className="text-sm text-muted-foreground">Connect and manage agents hosted outside the FPT AI Platform.</p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 flex-wrap sm:shrink-0">
           <Link
             to="/external-agents/guides/integration"
-            className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base flex items-center gap-1.5"
+            className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base flex items-center gap-1.5 whitespace-nowrap"
           >
             <BookOpen size={14} /> Integration guide
           </Link>
           {hasAnyAgents && (
-            <button onClick={() => setShowConnect(true)} className="btn-primary h-9">
+            <button onClick={() => setShowConnect(true)} className="btn-primary h-9 whitespace-nowrap">
               <Plus size={14} /> Connect External Agent
             </button>
           )}
@@ -301,7 +301,7 @@ export default function ExternalAgentsList() {
               )}
             </div>
           ) : (
-            <div className="rounded-xl border border-border overflow-x-auto">
+            <div className="rounded-xl border border-border overflow-x-auto scroll-shadow-x">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-surface-muted">

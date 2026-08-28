@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ChevronLeft, ChevronRight, MoreHorizontal, Copy, Check, RefreshCw, AlertTriangle, Globe, PlugZap,
-  FileEdit, History as HistoryIcon, Activity as ActivityIcon, FlaskConical, ShieldCheck, BookOpen, Eye, EyeOff,
+  FileEdit, History as HistoryIcon, Activity as ActivityIcon, FlaskConical, BookOpen, Eye, EyeOff,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
@@ -67,7 +67,7 @@ function CopyBlock({ code }: { code: string }) {
 
 function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-[160px,1fr] items-start gap-2 py-2.5 border-b border-border last:border-0">
+    <div className="grid grid-cols-1 sm:grid-cols-[160px,1fr] items-start gap-1 sm:gap-2 py-2.5 border-b border-border last:border-0">
       <span className="text-xs text-muted-foreground pt-0.5">{label}</span>
       <div className="text-sm text-foreground min-w-0">{children}</div>
     </div>
@@ -90,7 +90,7 @@ export default function ExternalAgentDetail() {
   const [tick, setTick] = useState(0);
   const [agent, setAgent] = useState<ExternalAgent | undefined>(undefined);
   const [section, setSection] = useState<Section>("instruction");
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches);
   const [showMenu, setShowMenu] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showPublish, setShowPublish] = useState(false);
@@ -104,6 +104,16 @@ export default function ExternalAgentDetail() {
   const [showNewToken, setShowNewToken] = useState(false);
   const [replaceChecking, setReplaceChecking] = useState(false);
   const [replaceResult, setReplaceResult] = useState<ValidationResult | null>(null);
+
+  // Sync the inner nav to the narrow breakpoint on resize, in both directions — at ~480px it
+  // was leaving so little room for content that InfoRow values wrapped one character per line,
+  // and only forcing collapse (never un-collapsing) would leave it stuck after resizing back up.
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const handleChange = (e: MediaQueryListEvent) => setSidebarCollapsed(e.matches);
+    mq.addEventListener("change", handleChange);
+    return () => mq.removeEventListener("change", handleChange);
+  }, []);
 
   useEffect(() => {
     setLoadState("loading");
@@ -192,26 +202,27 @@ export default function ExternalAgentDetail() {
 
   return (
     <div className="flex flex-col h-full bg-background">
-      {/* Top bar */}
-      <div className="h-14 border-b border-border bg-surface flex items-center px-4 gap-3 shrink-0">
-        <button onClick={() => navigate("/external-agents")} className="h-8 w-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0">
-          <ChevronLeft size={16} />
-        </button>
-        <Link to="/external-agents" className="text-xs text-muted-foreground hover:text-foreground transition-base shrink-0">External Agents</Link>
-        <span className="text-xs text-muted-foreground/50 shrink-0">/</span>
+      {/* Top bar — wraps onto its own second line on narrow viewports instead of clipping the
+          agent name or the action buttons; min-h instead of a fixed h-14 lets it grow when it does. */}
+      <div className="min-h-14 border-b border-border bg-surface flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          <div className="w-7 h-7 rounded-md bg-surface-muted border border-border flex items-center justify-center shrink-0">
-            <PlugZap size={14} className="text-muted-foreground" />
+          <button onClick={() => navigate("/external-agents")} className="h-8 w-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0">
+            <ChevronLeft size={16} />
+          </button>
+          <Link to="/external-agents" className="text-xs text-muted-foreground hover:text-foreground transition-base shrink-0 hidden sm:inline">External Agents</Link>
+          <span className="text-xs text-muted-foreground/50 shrink-0 hidden sm:inline">/</span>
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-7 h-7 rounded-md bg-surface-muted border border-border flex items-center justify-center shrink-0">
+              <PlugZap size={14} className="text-muted-foreground" />
+            </div>
+            <span className="font-semibold text-sm truncate">{agent.name}</span>
           </div>
-          <span className="font-semibold text-sm truncate">{agent.name}</span>
         </div>
 
-        <div className="flex-1" />
-
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <StatusBadge status={agent.status} />
           {agent.status === "published" && agent.channels.length > 0 && (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-wrap">
               {agent.channels.map(id => (
                 <span key={id} className="px-1.5 py-0.5 rounded bg-surface-muted text-xs text-muted-foreground whitespace-nowrap">
                   {channelLabel(id)}
@@ -221,7 +232,7 @@ export default function ExternalAgentDetail() {
           )}
 
           {agent.status === "draft" && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               {!validationPassed && (
                 <span className="text-xs text-muted-foreground max-w-[200px] text-right leading-tight">
                   Validate your connection first.
@@ -230,7 +241,7 @@ export default function ExternalAgentDetail() {
               <button
                 disabled={!validationPassed}
                 onClick={() => setShowPublish(true)}
-                className="btn-primary h-9 disabled:opacity-40 disabled:pointer-events-none"
+                className="btn-primary h-9 whitespace-nowrap disabled:opacity-40 disabled:pointer-events-none"
               >
                 Publish
               </button>
@@ -241,21 +252,21 @@ export default function ExternalAgentDetail() {
             <button
               disabled
               title="Waiting for approval."
-              className="h-9 px-4 rounded-lg bg-primary/40 text-primary-foreground text-sm font-medium cursor-not-allowed opacity-60"
+              className="h-9 px-4 rounded-lg bg-primary/40 text-primary-foreground text-sm font-medium cursor-not-allowed opacity-60 whitespace-nowrap"
             >
               Publish
             </button>
           )}
 
           {agent.status === "rejected" && (
-            <button onClick={() => setShowEdit(true)} className="btn-primary h-9">Edit connection</button>
+            <button onClick={() => setShowEdit(true)} className="btn-primary h-9 whitespace-nowrap">Edit connection</button>
           )}
 
           {agent.status === "published" && (
             <>
-              <button onClick={() => setShowPublish(true)} className="btn-primary h-9">Manage channels</button>
+              <button onClick={() => setShowPublish(true)} className="btn-primary h-9 whitespace-nowrap">Manage channels</button>
               {isAdmin && (
-                <button onClick={() => setShowPause(true)} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Pause</button>
+                <button onClick={() => setShowPause(true)} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base whitespace-nowrap">Pause</button>
               )}
             </>
           )}
@@ -267,7 +278,7 @@ export default function ExternalAgentDetail() {
                 toast.success(`"${agent.name}" is published again.`);
                 refresh();
               }}
-              className="btn-primary h-9"
+              className="btn-primary h-9 whitespace-nowrap"
             >
               Resume
             </button>
@@ -330,22 +341,6 @@ export default function ExternalAgentDetail() {
           </nav>
 
           <div className="px-3 py-3 border-t border-border flex-1 min-h-0 overflow-y-auto space-y-2">
-            <div className="rounded-lg border border-border bg-surface p-2.5 space-y-2">
-              <p className="text-xs font-semibold text-foreground">How this external agent runs</p>
-              <div className="flex items-start gap-1.5">
-                <Globe size={12} className="text-muted-foreground shrink-0 mt-0.5" />
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  This agent runs on its own external system — the FPT AI Platform calls it over HTTP for every request.
-                </p>
-              </div>
-              <div className="flex items-start gap-1.5">
-                <ShieldCheck size={12} className="text-muted-foreground shrink-0 mt-0.5" />
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  An FPT admin and then your Org admin must approve this connection before anyone in this workspace can use it. Approval happens once per connection.
-                </p>
-              </div>
-            </div>
-
             {showReadyCard && (
               <div className="rounded-lg border border-border bg-surface-muted/50 p-2.5">
                 <div className="flex items-center justify-between mb-1.5">
@@ -389,7 +384,7 @@ export default function ExternalAgentDetail() {
 
         {/* Content */}
         {section === "instruction" ? (
-          <div className="flex-1 overflow-y-auto p-8">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-8">
             <div className="space-y-4">
               <Link
                 to="/external-agents/guides/integration"
@@ -431,6 +426,35 @@ export default function ExternalAgentDetail() {
                       className="mt-1.5 text-xs font-semibold text-foreground hover:underline"
                     >
                       Dismiss
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {agent.lastHealthCheckOk === false && (
+                <div className="flex items-start gap-2.5 rounded-lg border border-destructive/25 bg-[hsl(var(--destructive-soft))] px-3.5 py-3">
+                  <AlertTriangle size={14} className="shrink-0 mt-0.5 text-destructive" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs text-destructive leading-relaxed">
+                      This agent has been unreachable since{" "}
+                      {agent.lastHealthyAt ? new Date(agent.lastHealthyAt).toLocaleDateString() : "it was first connected"}.
+                      Conversations on its published channels may be failing.
+                    </p>
+                    <button
+                      type="button"
+                      disabled={checkingHealth}
+                      onClick={() => {
+                        setCheckingHealth(true);
+                        setTimeout(() => {
+                          externalAgentStore.runHealthCheck(agent.id);
+                          setCheckingHealth(false);
+                          refresh();
+                        }, 700);
+                      }}
+                      className="mt-1.5 text-xs font-semibold text-destructive hover:underline disabled:opacity-50 flex items-center gap-1"
+                    >
+                      {checkingHealth && <RefreshCw size={11} className="animate-spin" />}
+                      Run check now
                     </button>
                   </div>
                 </div>
