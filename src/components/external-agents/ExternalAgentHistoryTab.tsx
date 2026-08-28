@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
-  Search, ChevronRight as ChevronRightIcon, X, Copy, Check, MessageCircle,
-  Globe, MessageSquare, Facebook, Slack, Users, Webhook, Building2, CheckCircle2, XCircle, CircleHelp,
+  Search, X, Copy, Check, MessageCircle,
+  Globe, MessageSquare, Facebook, Slack, Users, Webhook, Building2,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   externalAgentConversationStore,
-  type ExternalAgentChannel, type ExternalConversation, type ConversationMessage, type RunMeta,
+  type ExternalAgentChannel, type ExternalConversation, type ConversationMessage,
 } from "./externalAgentConversationStore";
 
 const CHANNEL_META: Record<ExternalAgentChannel, { label: string; icon: any }> = {
@@ -43,53 +43,14 @@ function formatTime(ts: number): string {
 type TimeFilter = "all" | "today" | "7d" | "30d";
 const DAY = 86_400_000;
 
-/** Collapsed-by-default row under an agent reply — the metadata a per-turn HTTP run carries
- * that a normal (non-external) agent's history doesn't need, since here one turn = one request. */
-function RunMetaRow({ run }: { run: RunMeta }) {
-  const [open, setOpen] = useState(false);
-  const outcomeMeta = run.outcome === "success"
-    ? { icon: CheckCircle2, cls: "text-success", label: "Completed" }
-    : run.outcome === "error"
-    ? { icon: XCircle, cls: "text-destructive", label: "Failed" }
-    : { icon: CircleHelp, cls: "text-warning", label: "Interrupt" };
-  const OutcomeIcon = outcomeMeta.icon;
-  const hasDetail = run.toolCalls.length > 0 || !!run.errorMessage;
-
-  return (
-    <div className="mt-1.5">
-      <button
-        type="button"
-        onClick={() => hasDetail && setOpen(o => !o)}
-        className={`flex items-center gap-1.5 text-[11px] ${outcomeMeta.cls} ${hasDetail ? "cursor-pointer hover:underline" : "cursor-default"}`}
-      >
-        {hasDetail && <ChevronRightIcon size={10} className={`transition-transform ${open ? "rotate-90" : ""}`} />}
-        <OutcomeIcon size={11} />
-        <span className="font-mono">Run {run.runId}</span>
-        <span>·</span>
-        <span>{(run.durationMs / 1000).toFixed(1)}s</span>
-        <span>·</span>
-        <span className="font-medium">{outcomeMeta.label}</span>
-      </button>
-      {open && hasDetail && (
-        <div className="mt-1.5 ml-4 space-y-1.5 border-l-2 border-border pl-2.5">
-          {run.toolCalls.map((tc, i) => (
-            <div key={i} className="text-[11px]">
-              <div className="font-mono font-medium text-foreground">{tc.name}()</div>
-              <div className="text-muted-foreground font-mono break-all">args: {tc.args}</div>
-              {tc.result && <div className="text-muted-foreground font-mono break-all">result: {tc.result}</div>}
-            </div>
-          ))}
-          {run.errorMessage && (
-            <div className="text-[11px] text-destructive leading-relaxed">{run.errorMessage}</div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function TranscriptPanel({ conversation, onClose }: { conversation: ExternalConversation | null; onClose: () => void }) {
   const [copied, setCopied] = useState(false);
+  const messagesRef = useRef<HTMLDivElement>(null);
+
+  // Land on the newest message when a conversation opens, instead of the top of a long thread.
+  useEffect(() => {
+    messagesRef.current?.scrollTo({ top: messagesRef.current.scrollHeight });
+  }, [conversation?.id]);
 
   const copyId = () => {
     if (!conversation) return;
@@ -144,7 +105,7 @@ function TranscriptPanel({ conversation, onClose }: { conversation: ExternalConv
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3 space-y-3">
+          <div ref={messagesRef} className="flex-1 overflow-y-auto p-3 space-y-3">
             {conversation.messages.map((m: ConversationMessage) => (
               <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                 {m.role === "agent" && (
@@ -165,7 +126,6 @@ function TranscriptPanel({ conversation, onClose }: { conversation: ExternalConv
                   <div className={`mt-1 text-[10px] text-muted-foreground ${m.role === "user" ? "text-right" : "text-left"}`}>
                     {formatTime(m.at)}
                   </div>
-                  {m.role === "agent" && m.run && <RunMetaRow run={m.run} />}
                 </div>
               </div>
             ))}
