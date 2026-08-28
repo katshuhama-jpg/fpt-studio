@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  externalAgentConversationStore, conversationResult, conversationTurns,
+  externalAgentConversationStore,
   type ExternalAgentChannel, type ExternalConversation, type ConversationMessage, type RunMeta,
 } from "./externalAgentConversationStore";
 
@@ -42,12 +42,6 @@ function formatTime(ts: number): string {
 
 type TimeFilter = "all" | "today" | "7d" | "30d";
 const DAY = 86_400_000;
-
-const RESULT_STYLES: Record<string, string> = {
-  Completed: "chip-success",
-  Failed: "chip-danger",
-  "Waiting for input": "chip-warning",
-};
 
 /** Collapsed-by-default row under an agent reply — the metadata a per-turn HTTP run carries
  * that a normal (non-external) agent's history doesn't need, since here one turn = one request. */
@@ -288,37 +282,32 @@ export default function ExternalAgentHistoryTab({ agentId }: { agentId: string }
           </div>
         ) : (
           <div className="rounded-xl border border-border overflow-x-auto">
-            <div className="grid grid-cols-[150px,220px,170px,1fr,70px,140px] gap-4 px-4 py-2.5 bg-surface-muted text-[10px] font-semibold uppercase tracking-wider text-muted-foreground min-w-[900px]">
-              <div>Ended</div><div>Conversation ID</div><div>Channel</div><div>User</div><div>Turns</div><div>Result</div>
+            <div className="grid grid-cols-[165px,235px,155px,1fr,80px] gap-4 px-4 py-2.5 bg-surface-muted text-[10px] font-semibold uppercase tracking-wider text-muted-foreground min-w-[850px]">
+              <div>Ended</div><div>Conversation ID</div><div>Channel</div><div>User</div><div className="text-right">Messages</div>
             </div>
-            <div className="divide-y divide-border min-w-[900px]">
-              {filtered.map(c => {
-                const result = conversationResult(c);
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => selectConversation(c.id)}
-                    className={`w-full grid grid-cols-[150px,220px,170px,1fr,70px,140px] gap-4 px-4 py-3 items-center transition-base text-left ${
-                      c.id === selectedId ? "bg-primary-soft" : "hover:bg-surface-muted/50"
-                    }`}
-                  >
-                    <div className="text-xs text-muted-foreground whitespace-nowrap">{formatDateTime(c.endedAt)}</div>
-                    <div className="text-xs font-mono truncate">{c.id}</div>
-                    <div className="flex items-center gap-2 min-w-0">
-                      <ChannelIcon channel={c.channel} size={22} />
-                      <span className="text-xs truncate">{CHANNEL_META[c.channel].label}</span>
-                    </div>
+            <div className="divide-y divide-border min-w-[850px]">
+              {filtered.map(c => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => selectConversation(c.id)}
+                  className={`w-full grid grid-cols-[165px,235px,155px,1fr,80px] gap-4 px-4 py-3 items-center transition-base text-left ${
+                    c.id === selectedId ? "bg-primary-soft" : "hover:bg-surface-muted/50"
+                  }`}
+                >
+                  <div className="text-xs text-muted-foreground whitespace-nowrap">{formatDateTime(c.endedAt)}</div>
+                  <div className="text-xs font-mono truncate">{c.id}</div>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <ChannelIcon channel={c.channel} size={22} />
+                    <span className="text-xs truncate">{CHANNEL_META[c.channel].label}</span>
+                  </div>
+                  <div className="min-w-0">
                     <div className="text-sm truncate">{c.username}</div>
-                    <div className="text-xs text-muted-foreground">{conversationTurns(c)}</div>
-                    <div>
-                      <span className={`inline-flex items-center text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full border ${RESULT_STYLES[result]}`}>
-                        {result}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
+                    <div className="text-xs text-muted-foreground truncate">{c.email ?? "—"}</div>
+                  </div>
+                  <div className="text-sm text-muted-foreground text-right">{c.messages.length}</div>
+                </button>
+              ))}
             </div>
           </div>
         )}

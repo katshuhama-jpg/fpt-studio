@@ -34,6 +34,8 @@ export interface ExternalConversation {
   agentId: string;
   channel: ExternalAgentChannel;
   username: string;
+  /** Not every channel captures an email (e.g. anonymous widget chats) — optional on purpose. */
+  email?: string;
   startedAt: number;
   endedAt: number;
   messages: ConversationMessage[];
@@ -91,6 +93,7 @@ function seedAgent(agentId: string) {
         id: pseudoUlid("EXT-CV-1"),
         channel: "web",
         username: "Nguyen Van An",
+        email: "nguyen.van.an@gmail.com",
         startedAt: now - 3 * 60 * MIN,
         endedAt: now - 3 * HOUR,
         messages: buildTurns("EXT-CV-1", now - 3 * 60 * MIN + 4 * MIN, [
@@ -114,6 +117,7 @@ function seedAgent(agentId: string) {
         id: pseudoUlid("EXT-CV-2"),
         channel: "zalo",
         username: "Tran Thi Bich",
+        email: "tran.thi.bich@gmail.com",
         startedAt: now - DAY - 20 * MIN,
         endedAt: now - DAY,
         messages: buildTurns("EXT-CV-2", now - DAY, [
@@ -128,6 +132,7 @@ function seedAgent(agentId: string) {
         id: pseudoUlid("EXT-CV-3"),
         channel: "web",
         username: "Le Quoc Bao",
+        email: "le.quoc.bao@gmail.com",
         startedAt: now - 3 * DAY - 10 * MIN,
         endedAt: now - 3 * DAY,
         messages: buildTurns("EXT-CV-3", now - 3 * DAY, [
@@ -150,6 +155,7 @@ function seedAgent(agentId: string) {
         id: pseudoUlid("EXT-CV-10"),
         channel: "slack",
         username: "Pham Thi Hoa",
+        email: "pham.thi.hoa@abc.ai",
         startedAt: now - 5 * HOUR - 5 * MIN,
         endedAt: now - 5 * HOUR,
         messages: buildTurns("EXT-CV-10", now - 5 * HOUR, [
@@ -183,17 +189,6 @@ function seedAgent(agentId: string) {
   }
 }
 
-
-export function conversationResult(c: ExternalConversation): "Completed" | "Failed" | "Waiting for input" {
-  const runs = c.messages.filter(m => m.role === "agent" && m.run).map(m => m.run!);
-  const last = runs[runs.length - 1];
-  if (!last) return "Completed";
-  return last.outcome === "interrupt" ? "Waiting for input" : last.outcome === "error" ? "Failed" : "Completed";
-}
-
-export function conversationTurns(c: ExternalConversation): number {
-  return c.messages.filter(m => m.role === "agent" && m.run).length;
-}
 
 export const externalAgentConversationStore = {
   list(agentId: string): ExternalConversation[] {
