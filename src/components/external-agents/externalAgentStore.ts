@@ -90,9 +90,14 @@ export interface HistoryEntry {
   detail?: string;
 }
 
-const STORE_KEY = "external_agent_store";
-const HISTORY_KEY = "external_agent_history";
-const SEEDED_KEY = "external_agent_store_seeded";
+// Versioned keys: bump the suffix whenever ExternalAgent/HistoryEntry's shape changes.
+// Without this, a browser tab that seeded data under an older shape (e.g. before authMethod/
+// signingSecret/guardrail/pendingChannels existed) would load stale objects missing the new
+// fields, and the page would crash on render with no error boundary — a blank white screen for
+// anyone who had the External Agents page open across a deploy that changed the data shape.
+const STORE_KEY = "external_agent_store_v2";
+const HISTORY_KEY = "external_agent_history_v2";
+const SEEDED_KEY = "external_agent_store_seeded_v2";
 const store = loadMap<string, ExternalAgent>(STORE_KEY);
 const history = loadMap<string, HistoryEntry[]>(HISTORY_KEY);
 const persistStore = () => saveMap(STORE_KEY, store);
