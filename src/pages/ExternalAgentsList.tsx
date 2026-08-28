@@ -11,7 +11,7 @@ import { StatusBadge, relativeTime } from "@/components/external-agents/statusMe
 import ConnectExternalAgentModal from "@/components/external-agents/ConnectExternalAgentModal";
 import PublishExternalAgentModal from "@/components/external-agents/PublishExternalAgentModal";
 import {
-  DeleteExternalAgentDialog, PauseExternalAgentDialog, RejectExternalAgentDialog,
+  DeleteExternalAgentDialog, PauseExternalAgentDialog,
 } from "@/components/external-agents/ExternalAgentDialogs";
 import { toast } from "sonner";
 
@@ -27,10 +27,9 @@ const TABS: { key: ExternalAgentStatus | "all"; label: string }[] = [
 const ROW_MENU_WIDTH = 176; // w-44
 const ROW_MENU_HEIGHT_ESTIMATE = 220; // worst case, 5 rows — for the flip-up decision
 
-function RowMenu({ agent, isAdmin, onOpen, onEdit, onSubmit, onApprove, onReject, onPublish, onPauseResume, onDelete }: {
+function RowMenu({ agent, isAdmin, onOpen, onEdit, onPublish, onPauseResume, onDelete }: {
   agent: ExternalAgent; isAdmin: boolean;
-  onOpen: () => void; onEdit: () => void; onSubmit: () => void; onApprove: () => void;
-  onReject: () => void; onPublish: () => void; onPauseResume: () => void; onDelete: () => void;
+  onOpen: () => void; onEdit: () => void; onPublish: () => void; onPauseResume: () => void; onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
@@ -64,21 +63,18 @@ function RowMenu({ agent, isAdmin, onOpen, onEdit, onSubmit, onApprove, onReject
   }, [open]);
 
   // Only ever render the actions that are actually valid for this status — never a
-  // disabled/greyed-out item — matching the per-status action table exactly.
+  // disabled/greyed-out item — matching the per-status action table exactly. Approving and
+  // rejecting a connection happens in a separate admin console that isn't part of this
+  // Builder product, so those actions never appear here.
   const items: { label: string; onClick: () => void; danger?: boolean }[] = [
     { label: "Open", onClick: onOpen },
   ];
   switch (agent.status) {
     case "draft":
       items.push({ label: "Edit connection", onClick: onEdit });
-      if (agent.approved) items.push({ label: "Publish", onClick: onPublish });
-      else if (agent.lastValidation?.passed) items.push({ label: "Submit for approval", onClick: onSubmit });
+      if (agent.lastValidation?.passed) items.push({ label: "Publish", onClick: onPublish });
       break;
     case "pending_approval":
-      if (isAdmin) {
-        items.push({ label: "Approve", onClick: onApprove });
-        items.push({ label: "Reject", onClick: onReject });
-      }
       break;
     case "rejected":
       items.push({ label: "Edit connection", onClick: onEdit });
@@ -148,7 +144,6 @@ export default function ExternalAgentsList() {
   const [showConnect, setShowConnect] = useState(false);
   const [editTarget, setEditTarget] = useState<ExternalAgent | null>(null);
   const [pauseTarget, setPauseTarget] = useState<ExternalAgent | null>(null);
-  const [rejectTarget, setRejectTarget] = useState<ExternalAgent | null>(null);
   const [publishTarget, setPublishTarget] = useState<ExternalAgent | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ExternalAgent | null>(null);
 
@@ -254,7 +249,7 @@ export default function ExternalAgentsList() {
             <button onClick={() => setShowConnect(true)} className="btn-primary h-9">
               <Plus size={14} /> Connect External Agent
             </button>
-            <Link to="/external-agents/guides/how-it-works" className="text-sm font-medium text-primary hover:underline">
+            <Link to="/external-agents/guides/integration" className="text-sm font-medium text-primary hover:underline">
               How external agents work
             </Link>
           </div>
@@ -378,17 +373,6 @@ export default function ExternalAgentsList() {
                           isAdmin={isAdmin}
                           onOpen={() => navigate(`/external-agents/${a.id}`)}
                           onEdit={() => setEditTarget(a)}
-                          onSubmit={() => {
-                            externalAgentStore.submitForApproval(a.id);
-                            toast.success("Sent for approval. We'll notify you once an admin reviews it.");
-                            refresh();
-                          }}
-                          onApprove={() => {
-                            externalAgentStore.approve(a.id);
-                            toast.success(`"${a.name}" is approved. Publish it to make it available to your workspace.`);
-                            refresh();
-                          }}
-                          onReject={() => setRejectTarget(a)}
                           onPublish={() => setPublishTarget(a)}
                           onPauseResume={() => {
                             if (a.status === "published") setPauseTarget(a);
@@ -437,26 +421,13 @@ export default function ExternalAgentsList() {
         />
       )}
 
-      {rejectTarget && (
-        <RejectExternalAgentDialog
-          name={rejectTarget.name}
-          open={!!rejectTarget}
-          onOpenChange={v => !v && setRejectTarget(null)}
-          onConfirm={reason => {
-            externalAgentStore.reject(rejectTarget.id, reason);
-            toast.info(`"${rejectTarget.name}" was rejected. The creator can edit the connection and resubmit it.`);
-            setRejectTarget(null);
-            refresh();
-          }}
-        />
-      )}
-
       {publishTarget && (
         <PublishExternalAgentModal
           open={!!publishTarget}
           agentId={publishTarget.id}
           agentName={publishTarget.name}
           currentChannels={publishTarget.channels}
+          alreadyApproved={publishTarget.approved}
           onClose={() => setPublishTarget(null)}
           onPublished={refresh}
         />

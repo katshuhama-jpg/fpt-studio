@@ -5,10 +5,12 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Check, X, Eye, EyeOff, Loader2, AlertTriangle, ExternalLink } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Check, X, Eye, EyeOff, Loader2, AlertTriangle, ExternalLink, Copy } from "lucide-react";
 import {
-  externalAgentStore, runValidation, type ExternalAgent, type ValidationResult,
+  externalAgentStore, runValidation, type AuthMethod, type ExternalAgent, type PerUserConnectorState, type ValidationResult,
 } from "./externalAgentStore";
+import { RotateSigningSecretDialog } from "./ExternalAgentDialogs";
 
 const NAME_MIN = 3;
 const NAME_MAX = 60;
@@ -26,7 +28,13 @@ interface CheckRow {
   message: string;
 }
 
-function buildCheckRows(v: ValidationResult): CheckRow[] {
+const PERUSER_COPY: Record<PerUserConnectorState, { label: string; message: string }> = {
+  none: { label: "Per-user Connector — not required", message: "This agent runs with workspace credentials." },
+  valid: { label: "Per-user Connector — detected and valid", message: "Each user will be asked to connect their own account the first time they use this agent." },
+  non_compliant: { label: "Per-user Connector — declared but not standard-compliant", message: "You can still save and fix this later." },
+};
+
+function buildCheckRows(v: ValidationResult, authMethod: AuthMethod): CheckRow[] {
   const rows: CheckRow[] = [];
   rows.push({
     key: "endpoint", label: "Endpoint reachable", pass: v.endpointReachable,
@@ -34,18 +42,18 @@ function buildCheckRows(v: ValidationResult): CheckRow[] {
   });
   if (!v.endpointReachable) return rows;
   rows.push({
-    key: "auth", label: "Authentication verified", pass: v.authVerified,
-    message: v.authVerified ? "The bearer token was accepted." : "The bearer token wasn't accepted. Check the token and try again.",
+    key: "auth",
+    label: authMethod === "none" ? "Request signature verified" : "Authentication verified",
+    pass: v.authVerified,
+    message: v.authVerified
+      ? (authMethod === "none" ? "The request signature (HMAC) was verified." : "The bearer token was accepted.")
+      : (authMethod === "none" ? "The request signature wasn't verified. Make sure your agent checks X-FPT-Signature." : "The bearer token wasn't accepted. Check the token and try again."),
   });
   if (!v.authVerified) return rows;
   rows.push({ key: "protocol", label: "Protocol version supported", pass: true, message: "Compatible with this platform's agent protocol." });
   rows.push({ key: "runs", label: "/runs endpoint available", pass: true, message: "The agent can accept run requests." });
-  rows.push({
-    key: "peruser", label: "Per-user Connector check", pass: true, warn: v.requiresPerUserConnection,
-    message: v.requiresPerUserConnection
-      ? "Each user will be asked to connect their own account the first time they use this agent."
-      : "No per-user connection required — this agent runs with workspace credentials.",
-  });
+  const pu = PERUSER_COPY[v.perUserConnector];
+  rows.push({ key: "peruser", label: pu.label, pass: true, warn: v.perUserConnector === "non_compliant", message: pu.message });
   return rows;
 }
 
@@ -54,10 +62,19 @@ function validateBaseUrl(raw: string): string | undefined {
   if (!v) return "Base URL is required.";
   let url: URL;
   try { url = new URL(v); } catch { return "Enter a valid HTTPS URL, for example https://agent.example.com"; }
-  if (url.protocol !== "https:") return "Enter a valid HTTPS URL, for example https://agent.example.com";
+  if (url.protocol !== "https:") return "The base URL must start with https://.";
+  if (url.username || url.password) return "The base URL must not contain a username or password.";
+  const host = url.hostname;
+  const isIpv4 = /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
+  const isBareIpv6 = host.includes(":");
+  if (isIpv4 || isBareIpv6) return "The base URL must use a domain name, not a bare IP address.";
   if (v.endsWith("/")) return "Enter a valid HTTPS URL, for example https://agent.example.com";
   if (url.search) return "Enter a valid HTTPS URL, for example https://agent.example.com";
   return undefined;
+}
+
+function maskSecret(secret: string): string {
+  return "•".repeat(Math.min(secret.length, 32));
 }
 
 export default function ConnectExternalAgentModal({ open, onClose, existing, onSaved }: {
@@ -71,9 +88,14 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
   const [name, setName] = useState(existing?.name ?? "");
   const [description, setDescription] = useState(existing?.description ?? "");
   const [baseUrl, setBaseUrl] = useState(existing?.baseUrl ?? "");
+  const [authMethod, setAuthMethod] = useState<AuthMethod>(existing?.authMethod ?? "bearer");
   const [replacingToken, setReplacingToken] = useState(!editing);
   const [token, setToken] = useState("");
   const [showToken, setShowToken] = useState(false);
+  const [showSecret, setShowSecret] = useState(false);
+  const [secretCopied, setSecretCopied] = useState(false);
+  const [showRotateConfirm, setShowRotateConfirm] = useState(false);
+  const [signingSecret, setSigningSecret] = useState(existing?.signingSecret ?? "");
   const [errors, setErrors] = useState<{ name?: string; baseUrl?: string; token?: string }>({});
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false);
 
@@ -91,9 +113,12 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
     setName(existing?.name ?? "");
     setDescription(existing?.description ?? "");
     setBaseUrl(existing?.baseUrl ?? "");
+    setAuthMethod(existing?.authMethod ?? "bearer");
     setReplacingToken(!editing);
     setToken("");
     setShowToken(false);
+    setShowSecret(false);
+    setSigningSecret(existing?.signingSecret ?? "");
     setErrors({});
     setChecking(false);
     setRevealCount(0);
@@ -101,8 +126,13 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, existing?.id]);
 
+  const approvedConnectionChanging =
+    !!existing?.approved &&
+    (baseUrl.trim() !== existing.baseUrl || authMethod !== existing.authMethod);
+
   const isDirty = editing
-    ? name.trim() !== existing!.name || description.trim() !== existing!.description || baseUrl.trim() !== existing!.baseUrl || (replacingToken && token.trim() !== "")
+    ? name.trim() !== existing!.name || description.trim() !== existing!.description || baseUrl.trim() !== existing!.baseUrl
+      || authMethod !== existing!.authMethod || (replacingToken && token.trim() !== "")
     : name.trim() !== "" || description.trim() !== "" || baseUrl.trim() !== "" || token.trim() !== "";
 
   const requestClose = () => {
@@ -120,6 +150,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
     }
     if (field === "baseUrl") return validateBaseUrl(baseUrl);
     if (field === "token") {
+      if (authMethod === "none") return undefined;
       if (!replacingToken) return undefined;
       const v = token.trim();
       if (!v) return "Bearer Token is required.";
@@ -142,7 +173,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
   const runChecking = (v: ValidationResult) => {
     setChecking(true);
     setRevealCount(0);
-    const rows = buildCheckRows(v);
+    const rows = buildCheckRows(v, authMethod);
     rows.forEach((_, i) => {
       setTimeout(() => setRevealCount(c => Math.max(c, i + 1)), (i + 1) * 450);
     });
@@ -156,7 +187,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
     if (e.baseUrl) { baseUrlRef.current?.focus(); baseUrlRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
     if (e.token) { tokenRef.current?.focus(); tokenRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
 
-    const effectiveToken = replacingToken ? token.trim() : EXISTING_TOKEN_SENTINEL;
+    const effectiveToken = authMethod === "none" ? "" : replacingToken ? token.trim() : EXISTING_TOKEN_SENTINEL;
     const v = runValidation(baseUrl.trim(), effectiveToken);
     setResult(v);
     setStep("validate");
@@ -164,7 +195,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
   };
 
   const retryCheck = () => {
-    const effectiveToken = replacingToken ? token.trim() : EXISTING_TOKEN_SENTINEL;
+    const effectiveToken = authMethod === "none" ? "" : replacingToken ? token.trim() : EXISTING_TOKEN_SENTINEL;
     const v = runValidation(baseUrl.trim(), effectiveToken);
     setResult(v);
     runChecking(v);
@@ -174,21 +205,35 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
     if (!result?.passed) return;
     if (editing) {
       externalAgentStore.update(existing!.id, {
-        name, description, baseUrl,
-        tokenReplaced: replacingToken && token.trim() !== "",
+        name, description, baseUrl, authMethod,
+        tokenReplaced: authMethod === "bearer" && replacingToken && token.trim() !== "",
         validation: result,
       });
       onSaved(externalAgentStore.get(existing!.id)!, false);
     } else {
-      const agent = externalAgentStore.create({ name, description, baseUrl, validation: result });
+      const agent = externalAgentStore.create({ name, description, baseUrl, authMethod, validation: result });
       onSaved(agent, true);
     }
   };
 
-  const rows = result ? buildCheckRows(result) : [];
+  const rows = result ? buildCheckRows(result, authMethod) : [];
   const visibleRows = rows.slice(0, revealCount);
   const doneChecking = !checking && revealCount >= rows.length;
   const failedRow = doneChecking ? visibleRows.find(r => !r.pass) : undefined;
+
+  const copySecret = () => {
+    navigator.clipboard?.writeText(signingSecret).catch(() => {});
+    setSecretCopied(true);
+    setTimeout(() => setSecretCopied(false), 1200);
+  };
+
+  const confirmRotate = () => {
+    if (!existing) return;
+    externalAgentStore.rotateSigningSecret(existing.id);
+    const updated = externalAgentStore.get(existing.id);
+    if (updated) setSigningSecret(updated.signingSecret);
+    setShowRotateConfirm(false);
+  };
 
   return (
     <>
@@ -262,49 +307,116 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
                   ) : (
                     <p className="mt-1 text-[11px] text-muted-foreground">We'll call /health, /runs and /tools under this URL.</p>
                   )}
+                  {!errors.baseUrl && approvedConnectionChanging && baseUrl.trim() !== existing?.baseUrl && (
+                    <p className="mt-1.5 flex items-start gap-1.5 text-[11px] text-warning leading-relaxed">
+                      <AlertTriangle size={12} className="shrink-0 mt-0.5" />
+                      Changing this requires approval again before the agent can be published.
+                    </p>
+                  )}
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium mb-1.5 block" htmlFor="ext-token">Bearer Token <span className="text-destructive">*</span></label>
-                  {editing && !replacingToken ? (
-                    <div className="flex items-center gap-2">
-                      <input disabled value="••••••••" className="flex-1 h-9 px-3 rounded-lg border border-border bg-surface-muted text-sm text-muted-foreground font-mono" />
-                      <button
-                        type="button"
-                        onClick={() => { setReplacingToken(true); setErrors(er => ({ ...er, token: undefined })); }}
-                        className="h-9 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-xs font-medium transition-base shrink-0"
-                      >
-                        Replace token
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="relative">
-                      <input
-                        id="ext-token"
-                        ref={tokenRef}
-                        type={showToken ? "text" : "password"}
-                        value={token}
-                        onChange={e => { setToken(e.target.value); clearError("token"); }}
-                        onBlur={() => setErrors(er => ({ ...er, token: validateField("token") }))}
-                        placeholder="Paste your agent's bearer token"
-                        className={`w-full h-9 pl-3 pr-16 rounded-lg border bg-surface text-sm font-mono outline-none transition-base ${
-                          errors.token ? "border-destructive" : "border-border focus:border-primary"
-                        }`}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowToken(v => !v)}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-base"
-                      >
-                        {showToken ? <EyeOff size={12} /> : <Eye size={12} />} {showToken ? "Hide" : "Show"}
-                      </button>
-                    </div>
+                  <label className="text-xs font-medium mb-1.5 block" htmlFor="ext-auth-method">Authentication</label>
+                  <Select value={authMethod} onValueChange={v => setAuthMethod(v as AuthMethod)}>
+                    <SelectTrigger id="ext-auth-method" className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="bearer">Bearer Token</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {authMethod === "none" && (
+                    <p className="mt-1.5 text-[11px] text-muted-foreground leading-relaxed">
+                      Requests are still signed with HMAC. Your agent must verify the X-FPT-Signature header.
+                    </p>
                   )}
-                  {errors.token && <p className="mt-1 text-[11px] text-destructive">{errors.token}</p>}
+                  {authMethod === "none" && approvedConnectionChanging && authMethod !== existing?.authMethod && (
+                    <p className="mt-1.5 flex items-start gap-1.5 text-[11px] text-warning leading-relaxed">
+                      <AlertTriangle size={12} className="shrink-0 mt-0.5" />
+                      Changing this requires approval again before the agent can be published.
+                    </p>
+                  )}
+                </div>
+
+                {authMethod === "bearer" && (
+                  <div>
+                    <label className="text-xs font-medium mb-1.5 block" htmlFor="ext-token">Bearer Token <span className="text-destructive">*</span></label>
+                    {editing && !replacingToken ? (
+                      <div className="flex items-center gap-2">
+                        <input disabled value="••••••••" className="flex-1 h-9 px-3 rounded-lg border border-border bg-surface-muted text-sm text-muted-foreground font-mono" />
+                        <button
+                          type="button"
+                          onClick={() => { setReplacingToken(true); setErrors(er => ({ ...er, token: undefined })); }}
+                          className="h-9 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-xs font-medium transition-base shrink-0"
+                        >
+                          Replace token
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        <input
+                          id="ext-token"
+                          ref={tokenRef}
+                          type={showToken ? "text" : "password"}
+                          value={token}
+                          onChange={e => { setToken(e.target.value); clearError("token"); }}
+                          onBlur={() => setErrors(er => ({ ...er, token: validateField("token") }))}
+                          placeholder="Paste your agent's bearer token"
+                          className={`w-full h-9 pl-3 pr-16 rounded-lg border bg-surface text-sm font-mono outline-none transition-base ${
+                            errors.token ? "border-destructive" : "border-border focus:border-primary"
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowToken(v => !v)}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-base"
+                        >
+                          {showToken ? <EyeOff size={12} /> : <Eye size={12} />} {showToken ? "Hide" : "Show"}
+                        </button>
+                      </div>
+                    )}
+                    {errors.token && <p className="mt-1 text-[11px] text-destructive">{errors.token}</p>}
+                  </div>
+                )}
+
+                <div className="rounded-lg border border-border bg-surface p-3">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-medium">Request signing</span>
+                    {editing && (
+                      <button type="button" onClick={() => setShowRotateConfirm(true)} className="text-[11px] font-semibold text-primary hover:underline">
+                        Rotate secret
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      disabled
+                      value={showSecret ? signingSecret : maskSecret(signingSecret)}
+                      className="flex-1 h-8 px-2.5 rounded-md border border-border bg-surface-muted text-xs font-mono text-foreground truncate"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowSecret(v => !v)}
+                      className="h-8 px-2 rounded-md border border-border bg-white hover:bg-surface-muted text-[11px] font-medium text-muted-foreground hover:text-foreground transition-base shrink-0 flex items-center gap-1"
+                    >
+                      {showSecret ? <EyeOff size={11} /> : <Eye size={11} />} {showSecret ? "Hide" : "Show"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={copySecret}
+                      className="h-8 px-2 rounded-md border border-border bg-white hover:bg-surface-muted text-[11px] font-medium text-muted-foreground hover:text-foreground transition-base shrink-0 flex items-center gap-1"
+                    >
+                      {secretCopied ? <Check size={11} className="text-success" /> : <Copy size={11} />} {secretCopied ? "Copied" : "Copy"}
+                    </button>
+                  </div>
+                  <p className="mt-1.5 text-[11px] text-muted-foreground leading-relaxed">
+                    Every request the platform sends is signed with this secret. Your agent must verify the X-FPT-Signature header on /runs, /tools and /credentials.
+                  </p>
                 </div>
 
                 <p className="text-[11px] text-muted-foreground leading-relaxed border-t border-border pt-3">
-                  The bearer token is used to authenticate requests to your agent. It is stored encrypted and never shown again after saving.
+                  {authMethod === "bearer"
+                    ? "The bearer token is used to authenticate requests to your agent. It is stored encrypted and never shown again after saving."
+                    : "No bearer token is used for this agent — every request is authenticated with the signing secret above."}
                 </p>
               </div>
             ) : (
@@ -324,13 +436,13 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
                       </span>
                       <div className="min-w-0">
                         <p className={`text-sm font-medium ${!row.pass ? "text-destructive" : row.warn ? "text-warning" : "text-foreground"}`}>
-                          {row.key === "peruser" && row.warn ? "Per-user connection required" : row.label}
+                          {row.label}
                         </p>
                         <p className={`text-xs leading-relaxed mt-0.5 ${!row.pass ? "text-destructive/90" : "text-muted-foreground"}`}>
                           {row.message}{" "}
                           {row.key === "peruser" && row.warn && (
                             <a
-                              href="/external-agents/guides/per-user-connector"
+                              href="/external-agents/guides/integration#per-user-connector"
                               target="_blank"
                               rel="noopener noreferrer"
                               className="font-semibold text-primary hover:underline inline-flex items-center gap-0.5"
@@ -389,6 +501,12 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <RotateSigningSecretDialog
+        open={showRotateConfirm}
+        onOpenChange={setShowRotateConfirm}
+        onConfirm={confirmRotate}
+      />
     </>
   );
 }
