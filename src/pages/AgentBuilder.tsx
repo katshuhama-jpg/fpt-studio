@@ -2573,6 +2573,7 @@ function EmptyStateBox({ icon, description, addLabel, onAdd, disabled, disabledR
 
 function NewConfigPanel({ agentId, model, onModelChange, onConnectionsChange }: { agentId: string; model: string; onModelChange: (id: string) => void; onConnectionsChange?: () => void }) {
   const [open, setOpen] = useState<Record<string, boolean>>({ connectors: true, skills: true, guardrails: true, triggers: true, "sub-agents": true });
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const guardrailsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
   const skillsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
   const subAgentsAddRef = useRef<(() => void) | null>(null);
@@ -2610,6 +2611,9 @@ function NewConfigPanel({ agentId, model, onModelChange, onConnectionsChange }: 
         <GuardrailsInner onRegisterAdd={(fn) => { guardrailsAddRef.current = fn; }} />
       ),
     },
+  ];
+
+  const advancedSections = [
     {
       id: "sub-agents", icon: UserMultipleIcon, label: "Sub-Agents",
       onAdd: () => subAgentsAddRef.current?.(),
@@ -2671,6 +2675,55 @@ function NewConfigPanel({ agentId, model, onModelChange, onConnectionsChange }: 
           </div>
         );
       })}
+
+      {/* Advanced settings — collapsible group */}
+      <div className="border-b border-border">
+        <button
+          onClick={() => setShowAdvanced(o => !o)}
+          className="w-full flex items-center gap-2.5 px-4 py-3 text-left hover:bg-surface-muted transition-base"
+        >
+          <HugeiconsIcon icon={SlidersHorizontalIcon} size={15} className="text-muted-foreground shrink-0" />
+          <span className="text-sm font-medium flex-1 text-muted-foreground">Advanced settings</span>
+          <HugeiconsIcon icon={ChevronDownIcon} size={14} className={`text-muted-foreground shrink-0 transition-transform ${showAdvanced ? "rotate-180" : ""}`} />
+        </button>
+        {showAdvanced && advancedSections.map((s: any) => {
+          const isOpen = !s.comingSoon && open[s.id];
+          const toggle = () => { if (!s.comingSoon) setOpen(o => ({ ...o, [s.id]: !o[s.id] })); };
+          return (
+            <div key={s.id} className="border-t border-border">
+              <div className="w-full flex items-center gap-2.5 px-4 py-3">
+                <button
+                  onClick={toggle}
+                  disabled={!!s.comingSoon}
+                  className="group rounded-lg bg-primary-soft flex items-center justify-center shrink-0 text-primary transition-base relative"
+                  style={{ width: "28px", height: "28px", opacity: s.comingSoon ? 0.5 : 1 }}
+                >
+                  <HugeiconsIcon icon={s.icon} size={16} className="group-hover:opacity-0 transition-opacity" />
+                  <HugeiconsIcon icon={ChevronUpIcon} size={14} className="absolute opacity-0 group-hover:opacity-100 transition-opacity" />
+                </button>
+                <span className="text-sm font-medium flex-1 text-left">{s.label}</span>
+                {s.comingSoon
+                  ? <span className="text-xs px-2 py-0.5 rounded-full bg-surface-muted border border-border text-muted-foreground">Coming soon</span>
+                  : <button
+                    className="text-muted-foreground hover:text-foreground transition-base"
+                    onClick={(e) => {
+                      setOpen(o => ({ ...o, [s.id]: true }));
+                      if (s.onAdd) {
+                        const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                        s.onAdd({ top: r.bottom + 4, left: r.right });
+                      }
+                    }}
+                  ><HugeiconsIcon icon={Add01Icon} size={15} /></button>}
+              </div>
+              {isOpen && (
+                <div className="px-4 pb-3">
+                  {s.content}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
