@@ -76,7 +76,7 @@ const monitorNav = [
 ];
 
 export default function AgentBuilder() {
-  const { id = "cskh" } = useParams();
+  const { id = "new" } = useParams();
   const agent = getAgent(id);
   const [params, setParams] = useSearchParams();
   const VALID_TABS: Tab[] = ["build", "test", "channels", "insights"];
