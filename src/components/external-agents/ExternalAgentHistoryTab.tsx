@@ -46,6 +46,11 @@ export default function ExternalAgentHistoryTab({ agentId }: { agentId: string }
 
   return (
     <div>
+      <div className="mb-4">
+        <h2 className="font-display text-xl font-semibold">History</h2>
+        <p className="text-xs text-muted-foreground mt-0.5">Every run and connection change, merged into one timeline.</p>
+      </div>
+
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <div className="flex items-center gap-1">
           {([
