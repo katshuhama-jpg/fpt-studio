@@ -376,9 +376,11 @@ export default function ExternalAgentDetail() {
           </button>
         )}
 
-        {/* Content — single full-width column, no markdown/preview toolbar, no right panel */}
-        <div className="flex-1 overflow-y-auto p-8">
-          {section === "instruction" ? (
+        {/* Content — single full-width column on Instruction (no markdown/preview toolbar);
+            History manages its own list + detail-panel layout, matching the regular Agent's
+            History tab. */}
+        {section === "instruction" ? (
+          <div className="flex-1 overflow-y-auto p-8">
             <div className="space-y-4">
               {agent.rejection && (
                 <div className="flex items-start gap-2.5 rounded-lg border border-warning/25 bg-[hsl(var(--warning-soft))] px-3.5 py-3">
@@ -523,10 +525,10 @@ export default function ExternalAgentDetail() {
                 />
               </div>
             </div>
-          ) : (
-            <ExternalAgentHistoryTab agentId={agent.id} />
-          )}
-        </div>
+          </div>
+        ) : (
+          <ExternalAgentHistoryTab agentId={agent.id} />
+        )}
       </div>
 
       <ConnectExternalAgentModal
