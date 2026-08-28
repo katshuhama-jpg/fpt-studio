@@ -4,7 +4,10 @@ import {
   Search, X, Copy, Check, MessageCircle,
   Globe, MessageSquare, Facebook, Slack, Users, Webhook, Building2,
 } from "lucide-react";
+import { startOfDay, endOfDay } from "date-fns";
+import type { DateRange } from "react-day-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TimeRangeFilter, type TimeFilter } from "@/components/history/TimeRangeFilter";
 import {
   externalAgentConversationStore,
   type ExternalAgentChannel, type ExternalConversation, type ConversationMessage,
@@ -40,7 +43,6 @@ function formatTime(ts: number): string {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-type TimeFilter = "all" | "today" | "7d" | "30d";
 const DAY = 86_400_000;
 
 function TranscriptPanel({ conversation, onClose }: { conversation: ExternalConversation | null; onClose: () => void }) {
@@ -148,6 +150,7 @@ export default function ExternalAgentHistoryTab({ agentId }: { agentId: string }
   const [query, setQuery] = useState("");
   const [channelFilter, setChannelFilter] = useState("all");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
+  const [customRange, setCustomRange] = useState<DateRange | undefined>(undefined);
 
   const allConversations = useMemo(() => externalAgentConversationStore.list(agentId), [agentId]);
 
@@ -156,6 +159,9 @@ export default function ExternalAgentHistoryTab({ agentId }: { agentId: string }
     if (filter === "today") return { from: now - DAY, to: now };
     if (filter === "7d") return { from: now - 7 * DAY, to: now };
     if (filter === "30d") return { from: now - 30 * DAY, to: now };
+    if (filter === "custom" && customRange?.from && customRange?.to) {
+      return { from: startOfDay(customRange.from).getTime(), to: endOfDay(customRange.to).getTime() };
+    }
     return null;
   };
 
@@ -172,7 +178,7 @@ export default function ExternalAgentHistoryTab({ agentId }: { agentId: string }
         return c.messages.some(m => m.content.toLowerCase().includes(q) || m.id.toLowerCase().includes(q));
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allConversations, query, channelFilter, timeFilter]);
+  }, [allConversations, query, channelFilter, timeFilter, customRange]);
 
   // Land on the most recent conversation by default, and keep the URL linkable.
   useEffect(() => {
@@ -213,15 +219,12 @@ export default function ExternalAgentHistoryTab({ agentId }: { agentId: string }
                 ))}
               </SelectContent>
             </Select>
-            <Select value={timeFilter} onValueChange={v => setTimeFilter(v as TimeFilter)}>
-              <SelectTrigger className="h-9 w-auto min-w-[130px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All time</SelectItem>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="7d">Last 7 days</SelectItem>
-                <SelectItem value="30d">Last 30 days</SelectItem>
-              </SelectContent>
-            </Select>
+            <TimeRangeFilter
+              value={timeFilter}
+              customRange={customRange}
+              onPreset={v => setTimeFilter(v)}
+              onApplyCustom={range => { setCustomRange(range); setTimeFilter("custom"); }}
+            />
           </div>
         </div>
 
