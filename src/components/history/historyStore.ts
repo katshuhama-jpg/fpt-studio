@@ -93,8 +93,15 @@ function buildMessages(
   }));
 }
 
+/** This demo conversation set is written specifically for "cskh" (Banking ABC — Customer
+ * Care) — card locks, account balances, loan schedules, wire transfers — so only that
+ * agent gets seeded. Every other agent, including Draft ones that have never been
+ * published or used, starts with zero conversations and shows the real empty state. */
+const AUTO_SEEDED_AGENT_IDS = new Set(["cskh"]);
+
 function seedAgent(agentId: string) {
   if ([...store.keys()].some(key => key.startsWith(`${agentId}:`))) return;
+  if (!AUTO_SEEDED_AGENT_IDS.has(agentId)) return;
   const now = Date.now();
 
   const seed: Omit<ConversationRecord, "agentId">[] = [
