@@ -71,6 +71,10 @@ export interface ExternalAgent {
   updatedAt: number;
   lastHealthCheckAt: number | null;
   lastHealthCheckOk: boolean | null;
+  /** Timestamp of the last health check that actually passed — kept as-is when a later check
+   * fails, so the Instruction tab can say how long the agent has been unreachable. Null if it
+   * has never once passed a check. */
+  lastHealthyAt: number | null;
   lastValidation: ValidationResult | null;
   /** Only non-null while status is "rejected" — drives the live "fix and resubmit" banner. */
   rejection: { at: number; by: string; reason: string } | null;
@@ -139,7 +143,7 @@ function seedDefaultAgents() {
     baseUrl: "https://agent.abc.ai", authMethod: "bearer", hasToken: true, signingSecret: generateSigningSecret(),
     guardrail: "Standard content safety", status: "published", approved: true, channels: ["web", "zalo"], pendingChannels: null,
     createdAt: now - 20 * DAY, updatedAt: now - 2 * HOUR,
-    lastHealthCheckAt: now - 2 * MIN, lastHealthCheckOk: true,
+    lastHealthCheckAt: now - 2 * MIN, lastHealthCheckOk: true, lastHealthyAt: now - 2 * MIN,
     lastValidation: PASSED_VALIDATION, rejection: null, lastRejection: null, rejectionBannerDismissed: false,
   });
   addHistory("ext-seed-1", { at: now - 20 * DAY, actor: CURRENT_USER, summary: "Connection created" });
@@ -156,7 +160,7 @@ function seedDefaultAgents() {
     baseUrl: "https://hr.xyz-ai.com", authMethod: "bearer", hasToken: true, signingSecret: generateSigningSecret(),
     guardrail: null, status: "published", approved: true, channels: ["slack"], pendingChannels: null,
     createdAt: now - 15 * DAY, updatedAt: now - 1 * DAY,
-    lastHealthCheckAt: now - 1 * MIN, lastHealthCheckOk: true,
+    lastHealthCheckAt: now - 1 * MIN, lastHealthCheckOk: true, lastHealthyAt: now - 1 * MIN,
     lastValidation: PASSED_VALIDATION, rejection: null, lastRejection: null, rejectionBannerDismissed: false,
   });
   addHistory("ext-seed-2", { at: now - 15 * DAY, actor: CURRENT_USER, summary: "Connection created" });
@@ -173,7 +177,7 @@ function seedDefaultAgents() {
     baseUrl: "https://fin.abc.ai", authMethod: "bearer", hasToken: true, signingSecret: generateSigningSecret(),
     guardrail: null, status: "draft", approved: true, channels: [], pendingChannels: null,
     createdAt: now - 5 * DAY, updatedAt: now - 3 * HOUR,
-    lastHealthCheckAt: now - 5 * MIN, lastHealthCheckOk: true,
+    lastHealthCheckAt: now - 5 * MIN, lastHealthCheckOk: true, lastHealthyAt: now - 5 * MIN,
     lastValidation: PASSED_VALIDATION, rejection: null, lastRejection: null, rejectionBannerDismissed: false,
   });
   addHistory("ext-seed-3", { at: now - 5 * DAY, actor: CURRENT_USER, summary: "Connection created" });
@@ -186,7 +190,7 @@ function seedDefaultAgents() {
     baseUrl: "https://legal.partner-ai.com", authMethod: "bearer", hasToken: true, signingSecret: generateSigningSecret(),
     guardrail: null, status: "pending_approval", approved: false, channels: [], pendingChannels: ["web"],
     createdAt: now - 1 * DAY, updatedAt: now - 30 * MIN,
-    lastHealthCheckAt: now - 30 * MIN, lastHealthCheckOk: true,
+    lastHealthCheckAt: now - 30 * MIN, lastHealthCheckOk: true, lastHealthyAt: now - 30 * MIN,
     lastValidation: PASSED_VALIDATION, rejection: null, lastRejection: null, rejectionBannerDismissed: false,
   });
   addHistory("ext-seed-4", { at: now - 1 * DAY, actor: CURRENT_USER, summary: "Connection created" });
@@ -198,7 +202,7 @@ function seedDefaultAgents() {
     baseUrl: "https://wh.partner.io", authMethod: "bearer", hasToken: true, signingSecret: generateSigningSecret(),
     guardrail: null, status: "rejected", approved: false, channels: [], pendingChannels: null,
     createdAt: now - 3 * DAY, updatedAt: now - 1 * DAY,
-    lastHealthCheckAt: now - 1 * DAY, lastHealthCheckOk: true,
+    lastHealthCheckAt: now - 1 * DAY, lastHealthCheckOk: true, lastHealthyAt: now - 1 * DAY,
     lastValidation: PASSED_VALIDATION,
     rejection: { at: now - 1 * DAY, by: approvalLevelLabel("https://wh.partner.io"), reason: "Domain is not on the approved partner list." },
     lastRejection: { at: now - 1 * DAY, by: approvalLevelLabel("https://wh.partner.io"), reason: "Domain is not on the approved partner list." },
@@ -214,7 +218,7 @@ function seedDefaultAgents() {
     baseUrl: "https://mkt.abc.ai", authMethod: "bearer", hasToken: true, signingSecret: generateSigningSecret(),
     guardrail: "Marketing brand-safety set", status: "paused", approved: true, channels: ["web"], pendingChannels: null,
     createdAt: now - 10 * DAY, updatedAt: now - 4 * DAY,
-    lastHealthCheckAt: now - 4 * DAY, lastHealthCheckOk: false,
+    lastHealthCheckAt: now - 4 * DAY, lastHealthCheckOk: false, lastHealthyAt: now - 5 * DAY,
     lastValidation: PASSED_VALIDATION, rejection: null, lastRejection: null, rejectionBannerDismissed: false,
   });
   addHistory("ext-seed-6", { at: now - 10 * DAY, actor: CURRENT_USER, summary: "Connection created" });
@@ -232,7 +236,7 @@ function seedDefaultAgents() {
     baseUrl: "https://claims.abc.ai", authMethod: "bearer", hasToken: true, signingSecret: generateSigningSecret(),
     guardrail: null, status: "draft", approved: false, channels: [], pendingChannels: null,
     createdAt: now, updatedAt: now,
-    lastHealthCheckAt: now, lastHealthCheckOk: true,
+    lastHealthCheckAt: now, lastHealthCheckOk: true, lastHealthyAt: now,
     lastValidation: PASSED_VALIDATION, rejection: null, lastRejection: null, rejectionBannerDismissed: false,
   });
 
@@ -314,6 +318,7 @@ export const externalAgentStore = {
       updatedAt: now,
       lastHealthCheckAt: null,
       lastHealthCheckOk: null,
+      lastHealthyAt: null,
       lastValidation: data.validation,
       rejection: null,
       lastRejection: null,
@@ -481,7 +486,11 @@ export const externalAgentStore = {
     if (!cur) return false;
     const ok = !cur.baseUrl.toLowerCase().includes("unreachable");
     const now = Date.now();
-    store.set(id, { ...cur, lastHealthCheckAt: now, lastHealthCheckOk: ok, updatedAt: cur.updatedAt });
+    store.set(id, {
+      ...cur, lastHealthCheckAt: now, lastHealthCheckOk: ok,
+      lastHealthyAt: ok ? now : cur.lastHealthyAt,
+      updatedAt: cur.updatedAt,
+    });
     persistStore();
     return ok;
   },

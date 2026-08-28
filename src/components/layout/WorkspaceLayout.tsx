@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 
 const APP_VERSION = "0.58.5";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import fptAiLogo from "@/assets/fpt-ai-logo.png";
 
 type Tenant = { id: string; name: string; plan: string; initial: string };
@@ -60,12 +60,25 @@ const orgItemsBase: Item[] = [
   { to: "/organization/structure", label: "Structure", icon: Network },
 ];
 
+const NARROW_QUERY = "(max-width: 767px)";
+
 export default function WorkspaceLayout() {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => typeof window !== "undefined" && window.matchMedia(NARROW_QUERY).matches);
   const [open, setOpen] = useState<Record<string, boolean>>({ build: true, workspace: true });
   const [userMenu, setUserMenu] = useState(false);
   const [orgSwitcherOpen, setOrgSwitcherOpen] = useState(false);
   const [tenantId, setTenantId] = useState(TENANTS[0].id);
+
+  // Sync the sidebar to the narrow/mobile breakpoint on resize, in both directions — otherwise
+  // shrinking the window narrow and back wide again would leave it stuck collapsed with no way
+  // to tell that was ever due to a resize rather than a deliberate manual toggle.
+  useEffect(() => {
+    const mq = window.matchMedia(NARROW_QUERY);
+    const handleChange = (e: MediaQueryListEvent) => setCollapsed(e.matches);
+    mq.addEventListener("change", handleChange);
+    return () => mq.removeEventListener("change", handleChange);
+  }, []);
+
   const currentTenant = TENANTS.find(t => t.id === tenantId) ?? TENANTS[0];
   const userEmail = getUser()?.email || "tran.nam@fpt.com";
   const loc = useLocation();
