@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ChevronLeft, ChevronRight, MoreHorizontal, Copy, Check, RefreshCw, AlertTriangle, Globe, PlugZap,
-  FileEdit, History as HistoryIcon, Activity as ActivityIcon, FlaskConical, ShieldCheck, BookOpen, Eye, EyeOff,
+  FileEdit, History as HistoryIcon, Activity as ActivityIcon, FlaskConical, BookOpen, Eye, EyeOff,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
@@ -330,22 +330,6 @@ export default function ExternalAgentDetail() {
           </nav>
 
           <div className="px-3 py-3 border-t border-border flex-1 min-h-0 overflow-y-auto space-y-2">
-            <div className="rounded-lg border border-border bg-surface p-2.5 space-y-2">
-              <p className="text-xs font-semibold text-foreground">How this external agent runs</p>
-              <div className="flex items-start gap-1.5">
-                <Globe size={12} className="text-muted-foreground shrink-0 mt-0.5" />
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  This agent runs on its own external system — the FPT AI Platform calls it over HTTP for every request.
-                </p>
-              </div>
-              <div className="flex items-start gap-1.5">
-                <ShieldCheck size={12} className="text-muted-foreground shrink-0 mt-0.5" />
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  An FPT admin and then your Org admin must approve this connection before anyone in this workspace can use it. Approval happens once per connection.
-                </p>
-              </div>
-            </div>
-
             {showReadyCard && (
               <div className="rounded-lg border border-border bg-surface-muted/50 p-2.5">
                 <div className="flex items-center justify-between mb-1.5">

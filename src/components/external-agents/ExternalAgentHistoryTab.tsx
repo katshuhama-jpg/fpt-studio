@@ -6,8 +6,8 @@ import {
 } from "lucide-react";
 import { startOfDay, endOfDay } from "date-fns";
 import type { DateRange } from "react-day-picker";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TimeRangeFilter, type TimeFilter } from "@/components/history/TimeRangeFilter";
+import { ChannelFilterDropdown } from "@/components/history/ChannelFilterDropdown";
 import {
   externalAgentConversationStore,
   type ExternalAgentChannel, type ExternalConversation, type ConversationMessage,
@@ -210,15 +210,7 @@ export default function ExternalAgentHistoryTab({ agentId }: { agentId: string }
           </div>
 
           <div className="flex items-center gap-2 mt-2.5">
-            <Select value={channelFilter} onValueChange={setChannelFilter}>
-              <SelectTrigger className="h-9 w-auto min-w-[160px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All channels</SelectItem>
-                {(Object.keys(CHANNEL_META) as ExternalAgentChannel[]).map(id => (
-                  <SelectItem key={id} value={id}>{CHANNEL_META[id].label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <ChannelFilterDropdown value={channelFilter} onChange={setChannelFilter} />
             <TimeRangeFilter
               value={timeFilter}
               customRange={customRange}
