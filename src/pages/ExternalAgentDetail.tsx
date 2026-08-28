@@ -163,7 +163,7 @@ export default function ExternalAgentDetail() {
     { label: "Connection validated", done: !!agent.lastValidation?.passed },
     { label: "Description added", done: agent.description.trim().length > 0 },
     { label: "Per-user connection reviewed", done: agent.lastValidation != null },
-    { label: "Submitted for approval", done: agent.status !== "draft" },
+    { label: "Submitted for approval", done: agent.approved || agent.status !== "draft" },
   ];
   const readyDoneCount = readyChecklist.filter(i => i.done).length;
 
@@ -197,7 +197,7 @@ export default function ExternalAgentDetail() {
             </div>
           )}
 
-          {agent.status === "draft" && (
+          {agent.status === "draft" && !agent.approved && (
             <div className="flex items-center gap-2">
               {!submitEnabled && (
                 <span className="text-xs text-muted-foreground max-w-[220px] text-right leading-tight">
@@ -218,7 +218,7 @@ export default function ExternalAgentDetail() {
             </div>
           )}
 
-          {agent.status === "submitted_for_approval" && isAdmin && (
+          {agent.status === "pending_approval" && isAdmin && (
             <>
               <button
                 onClick={() => setShowReject(true)}
@@ -243,7 +243,7 @@ export default function ExternalAgentDetail() {
             <button onClick={() => setShowEdit(true)} className="btn-primary h-9">Edit connection</button>
           )}
 
-          {(agent.status === "approved" || agent.status === "published") && (
+          {((agent.status === "draft" && agent.approved) || agent.status === "published") && (
             <button onClick={() => setShowPublish(true)} className="btn-primary h-9">Publish</button>
           )}
 

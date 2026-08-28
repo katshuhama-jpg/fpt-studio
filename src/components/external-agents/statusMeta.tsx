@@ -1,12 +1,13 @@
 import type { ExternalAgentStatus } from "./externalAgentStore";
 
+const GREY_BADGE = "bg-surface-muted text-muted-foreground border-border";
+
 export const STATUS_META: Record<ExternalAgentStatus, { label: string; badgeClass: string; dotClass: string }> = {
-  draft: { label: "Draft", badgeClass: "bg-surface-muted text-muted-foreground border-border", dotClass: "bg-muted-foreground" },
-  submitted_for_approval: { label: "Submitted for Approval", badgeClass: "chip-warning", dotClass: "bg-warning" },
-  approved: { label: "Approved", badgeClass: "chip-info", dotClass: "bg-[hsl(var(--info))]" },
-  rejected: { label: "Rejected", badgeClass: "chip-danger", dotClass: "bg-destructive" },
+  draft: { label: "Draft", badgeClass: GREY_BADGE, dotClass: "bg-muted-foreground" },
+  pending_approval: { label: "Pending Approval", badgeClass: "chip-warning", dotClass: "bg-warning" },
   published: { label: "Published", badgeClass: "chip-success", dotClass: "bg-success" },
-  paused: { label: "Paused", badgeClass: "bg-slate-100 text-slate-600 border-slate-200", dotClass: "bg-slate-400" },
+  rejected: { label: "Rejected", badgeClass: "chip-danger", dotClass: "bg-destructive" },
+  paused: { label: "Paused", badgeClass: GREY_BADGE, dotClass: "bg-muted-foreground" },
 };
 
 export function StatusBadge({ status }: { status: ExternalAgentStatus }) {

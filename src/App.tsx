@@ -71,6 +71,7 @@ const App = () => (
               <Route path="/external-agents" element={<ExternalAgentsList />} />
               <Route path="/external-agents/guides/per-user-connector" element={<PerUserConnectorGuide />} />
               <Route path="/external-agents/guides/how-it-works" element={<HowExternalAgentsWorkGuide />} />
+              <Route path="/external-agents/guides/integration" element={<HowExternalAgentsWorkGuide />} />
               <Route path="/external-agents/:id" element={<ExternalAgentDetail />} />
             </Route>
             <Route path="/inventor" element={<RequireAuth><Inventor /></RequireAuth>} />

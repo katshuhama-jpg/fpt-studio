@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { Globe, Search, MoreVertical, Plus, AlertTriangle } from "lucide-react";
+import { Globe, Search, MoreVertical, Plus, AlertTriangle, BookOpen, TriangleAlert } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import {
-  externalAgentStore, channelLabel, type ExternalAgent, type ExternalAgentStatus,
+  externalAgentStore, channelLabel, pendingApprovalLevel, type ExternalAgent, type ExternalAgentStatus,
 } from "@/components/external-agents/externalAgentStore";
 import { StatusBadge, relativeTime } from "@/components/external-agents/statusMeta";
 import ConnectExternalAgentModal from "@/components/external-agents/ConnectExternalAgentModal";
@@ -18,8 +18,7 @@ import { toast } from "sonner";
 const TABS: { key: ExternalAgentStatus | "all"; label: string }[] = [
   { key: "all", label: "All" },
   { key: "draft", label: "Draft" },
-  { key: "submitted_for_approval", label: "Submitted for approval" },
-  { key: "approved", label: "Approved" },
+  { key: "pending_approval", label: "Pending approval" },
   { key: "published", label: "Published" },
   { key: "rejected", label: "Rejected" },
   { key: "paused", label: "Paused" },
@@ -72,17 +71,14 @@ function RowMenu({ agent, isAdmin, onOpen, onEdit, onSubmit, onApprove, onReject
   switch (agent.status) {
     case "draft":
       items.push({ label: "Edit connection", onClick: onEdit });
-      if (agent.lastValidation?.passed) items.push({ label: "Submit for approval", onClick: onSubmit });
+      if (agent.approved) items.push({ label: "Publish", onClick: onPublish });
+      else if (agent.lastValidation?.passed) items.push({ label: "Submit for approval", onClick: onSubmit });
       break;
-    case "submitted_for_approval":
+    case "pending_approval":
       if (isAdmin) {
         items.push({ label: "Approve", onClick: onApprove });
         items.push({ label: "Reject", onClick: onReject });
       }
-      break;
-    case "approved":
-      items.push({ label: "Edit connection", onClick: onEdit });
-      items.push({ label: "Publish", onClick: onPublish });
       break;
     case "rejected":
       items.push({ label: "Edit connection", onClick: onEdit });
@@ -179,8 +175,7 @@ export default function ExternalAgentsList() {
   const counts: Record<ExternalAgentStatus | "all", number> = {
     all: agents.length,
     draft: agents.filter(a => a.status === "draft").length,
-    submitted_for_approval: agents.filter(a => a.status === "submitted_for_approval").length,
-    approved: agents.filter(a => a.status === "approved").length,
+    pending_approval: agents.filter(a => a.status === "pending_approval").length,
     rejected: agents.filter(a => a.status === "rejected").length,
     published: agents.filter(a => a.status === "published").length,
     paused: agents.filter(a => a.status === "paused").length,
@@ -201,11 +196,19 @@ export default function ExternalAgentsList() {
           <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">External Agents</h1>
           <p className="text-sm text-muted-foreground">Connect and manage agents hosted outside the FPT AI Platform.</p>
         </div>
-        {hasAnyAgents && (
-          <button onClick={() => setShowConnect(true)} className="btn-primary h-9 shrink-0">
-            <Plus size={14} /> Connect External Agent
-          </button>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          <Link
+            to="/external-agents/guides/integration"
+            className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base flex items-center gap-1.5"
+          >
+            <BookOpen size={14} /> Integration guide
+          </Link>
+          {hasAnyAgents && (
+            <button onClick={() => setShowConnect(true)} className="btn-primary h-9">
+              <Plus size={14} /> Connect External Agent
+            </button>
+          )}
+        </div>
       </div>
 
       {loadState === "loading" && (
@@ -309,6 +312,7 @@ export default function ExternalAgentsList() {
                   <tr className="border-b border-border bg-surface-muted">
                     <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Agent</th>
                     <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Status</th>
+                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Channels</th>
                     <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Base URL</th>
                     <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Health</th>
                     <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Updated</th>
@@ -318,10 +322,11 @@ export default function ExternalAgentsList() {
                 <tbody>
                   {filtered.map(a => {
                     const statusContext =
-                      a.status === "published" && a.channels.length > 0 ? a.channels.map(channelLabel).join(" · ")
-                      : a.status === "approved" ? "Not published yet"
+                      a.status === "pending_approval"
+                        ? (pendingApprovalLevel(a.baseUrl) === "fpt" ? "Waiting for FPT admin" : "Waiting for Org admin")
                       : a.status === "rejected" && a.rejection ? a.rejection.reason
                       : null;
+                    const unreachablePublished = a.status === "published" && a.lastHealthCheckOk === false;
                     return (
                     <tr
                       key={a.id}
@@ -337,11 +342,34 @@ export default function ExternalAgentsList() {
                       </td>
                       <td className="px-4 py-3 max-w-[200px]">
                         <StatusBadge status={a.status} />
-                        {statusContext && <div className="text-xs text-muted-foreground truncate mt-1">{statusContext}</div>}
+                        {statusContext && (
+                          <div
+                            className="text-xs text-muted-foreground truncate mt-1"
+                            title={a.status === "rejected" ? statusContext : undefined}
+                          >
+                            {statusContext}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground truncate max-w-[160px]">
+                        {a.channels.length > 0 ? a.channels.map(channelLabel).join(" · ") : "—"}
                       </td>
                       <td className="px-4 py-3 text-xs text-muted-foreground font-mono truncate max-w-[220px]" title={a.baseUrl}>{a.baseUrl}</td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                        {a.lastHealthCheckAt == null ? "Never checked" : `${a.lastHealthCheckOk ? "Healthy" : "Unreachable"} · ${relativeTime(a.lastHealthCheckAt)}`}
+                      <td className="px-4 py-3 text-xs whitespace-nowrap">
+                        {a.lastHealthCheckAt == null ? (
+                          <span className="text-muted-foreground">Never checked</span>
+                        ) : unreachablePublished ? (
+                          <span
+                            className="inline-flex items-center gap-1 text-destructive font-medium"
+                            title="This agent is published but not responding. Users may see errors."
+                          >
+                            <TriangleAlert size={12} /> Unreachable · {relativeTime(a.lastHealthCheckAt)}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">
+                            {a.lastHealthCheckOk ? "Healthy" : "Unreachable"} · {relativeTime(a.lastHealthCheckAt)}
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{relativeTime(a.updatedAt)}</td>
                       <td className="px-4 py-3 text-right">

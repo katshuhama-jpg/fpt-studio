@@ -4,7 +4,14 @@
 // agentConnectorStore.ts.
 import { loadMap, saveMap, loadSet, saveSet } from "@/lib/sessionPersist";
 
-export type ExternalAgentStatus = "draft" | "submitted_for_approval" | "approved" | "rejected" | "published" | "paused";
+export type ExternalAgentStatus = "draft" | "pending_approval" | "rejected" | "published" | "paused";
+
+/** Which review level a Pending Approval agent is waiting on — purely informational, derived
+ * from the base URL (partner-hosted domains route to FPT-level review). Not a real approval
+ * chain: Approve/Reject still just needs Workspace Admin, regardless of this label. */
+export function pendingApprovalLevel(baseUrl: string): "fpt" | "org" {
+  return baseUrl.toLowerCase().includes("partner") ? "fpt" : "org";
+}
 
 /** Fixed channel list for the Publish modal — ids are also what ExternalAgent.channels stores. */
 export const PUBLISH_CHANNELS: { id: string; name: string }[] = [
@@ -39,6 +46,11 @@ export interface ExternalAgent {
   // was saved" without ever letting a saved token round-trip back into the UI.
   hasToken: boolean;
   status: ExternalAgentStatus;
+  /** True once a Workspace Admin has approved this connection at least once. Persists across
+   * Draft (approved-but-not-yet-published) / Published / Paused, and is cleared on rejection.
+   * A Draft with approved=true shows "Publish" as its next action instead of "Submit for
+   * approval". */
+  approved: boolean;
   /** Channel ids currently published to. Empty whenever status isn't "published". */
   channels: string[];
   createdAt: number;
@@ -85,10 +97,10 @@ function seedRun(agentId: string, at: number, runOk: boolean, durationMs: number
   addHistory(agentId, { at, actor: "System", kind: "run", runOk, durationMs, summary: runOk ? "Run completed" : "Run failed", detail });
 }
 
-/** Demo data so opening External Agents shows real content covering all 6 statuses instead of
- * an empty list — seeded once per session. Draft and Submitted for Approval are left with
- * little to no History (one shows the genuine empty state, the other just a couple of
- * entries) since neither has ever actually run. */
+/** Demo data so opening External Agents shows real content covering every status instead of
+ * an empty list — seeded once per session. Draft and Pending Approval are left with little to
+ * no History (one shows the genuine empty state, the other just a couple of entries) since
+ * neither has ever actually run. */
 function seedDefaultAgents() {
   const seededFlag = loadSet<string>(SEEDED_KEY);
   if (seededFlag.has("done")) return;
@@ -101,7 +113,7 @@ function seedDefaultAgents() {
   // 1 — Flight Assistant (Published, Web + Zalo)
   put({
     id: "ext-seed-1", name: "Flight Assistant", description: "Search and book flights for staff travel.",
-    baseUrl: "https://agent.abc.ai", hasToken: true, status: "published", channels: ["web", "zalo"],
+    baseUrl: "https://agent.abc.ai", hasToken: true, status: "published", approved: true, channels: ["web", "zalo"],
     createdAt: now - 20 * DAY, updatedAt: now - 2 * HOUR,
     lastHealthCheckAt: now - 2 * MIN, lastHealthCheckOk: true,
     lastValidation: PASSED_VALIDATION, rejection: null,
@@ -117,7 +129,7 @@ function seedDefaultAgents() {
   // 2 — HR Helpdesk (Published, Slack)
   put({
     id: "ext-seed-2", name: "HR Helpdesk", description: "Leave balance, payroll and policy questions.",
-    baseUrl: "https://hr.xyz-ai.com", hasToken: true, status: "published", channels: ["slack"],
+    baseUrl: "https://hr.xyz-ai.com", hasToken: true, status: "published", approved: true, channels: ["slack"],
     createdAt: now - 15 * DAY, updatedAt: now - 1 * DAY,
     lastHealthCheckAt: now - 1 * MIN, lastHealthCheckOk: true,
     lastValidation: PASSED_VALIDATION, rejection: null,
@@ -130,10 +142,10 @@ function seedDefaultAgents() {
   seedRun("ext-seed-2", now - 30 * HOUR, true, 640, "Explained a payroll deduction line item.");
   seedRun("ext-seed-2", now - 4 * DAY, false, 2100, "Could not find the requested policy document.");
 
-  // 3 — Finance Reporter (Approved, not published yet)
+  // 3 — Finance Reporter (Draft — already approved, not published yet)
   put({
     id: "ext-seed-3", name: "Finance Reporter", description: "Monthly revenue summary from the finance system.",
-    baseUrl: "https://fin.abc.ai", hasToken: true, status: "approved", channels: [],
+    baseUrl: "https://fin.abc.ai", hasToken: true, status: "draft", approved: true, channels: [],
     createdAt: now - 5 * DAY, updatedAt: now - 3 * HOUR,
     lastHealthCheckAt: now - 5 * MIN, lastHealthCheckOk: true,
     lastValidation: PASSED_VALIDATION, rejection: null,
@@ -142,10 +154,10 @@ function seedDefaultAgents() {
   addHistory("ext-seed-3", { at: now - 4 * DAY, actor: CURRENT_USER, kind: "change", summary: "Submitted for approval" });
   addHistory("ext-seed-3", { at: now - 3 * HOUR, actor: CURRENT_USER, kind: "change", summary: "Approved" });
 
-  // 4 — Legal Doc Checker (Submitted for approval)
+  // 4 — Legal Doc Checker (Pending approval — partner domain, so FPT-level review)
   put({
     id: "ext-seed-4", name: "Legal Doc Checker", description: "Contract clause review against company policy.",
-    baseUrl: "https://legal.partner-ai.com", hasToken: true, status: "submitted_for_approval", channels: [],
+    baseUrl: "https://legal.partner-ai.com", hasToken: true, status: "pending_approval", approved: false, channels: [],
     createdAt: now - 1 * DAY, updatedAt: now - 30 * MIN,
     lastHealthCheckAt: now - 30 * MIN, lastHealthCheckOk: true,
     lastValidation: PASSED_VALIDATION, rejection: null,
@@ -156,7 +168,7 @@ function seedDefaultAgents() {
   // 5 — Warehouse Bot (Rejected)
   put({
     id: "ext-seed-5", name: "Warehouse Bot", description: "Stock lookup and restock suggestions.",
-    baseUrl: "https://wh.partner.io", hasToken: true, status: "rejected", channels: [],
+    baseUrl: "https://wh.partner.io", hasToken: true, status: "rejected", approved: false, channels: [],
     createdAt: now - 3 * DAY, updatedAt: now - 1 * DAY,
     lastHealthCheckAt: now - 1 * DAY, lastHealthCheckOk: true,
     lastValidation: PASSED_VALIDATION,
@@ -169,7 +181,7 @@ function seedDefaultAgents() {
   // 6 — Marketing Copywriter (Paused, was published to Web)
   put({
     id: "ext-seed-6", name: "Marketing Copywriter", description: "Campaign copy drafts for social channels.",
-    baseUrl: "https://mkt.abc.ai", hasToken: true, status: "paused", channels: ["web"],
+    baseUrl: "https://mkt.abc.ai", hasToken: true, status: "paused", approved: true, channels: ["web"],
     createdAt: now - 10 * DAY, updatedAt: now - 4 * DAY,
     lastHealthCheckAt: now - 4 * DAY, lastHealthCheckOk: false,
     lastValidation: PASSED_VALIDATION, rejection: null,
@@ -185,7 +197,7 @@ function seedDefaultAgents() {
   // 7 — Insurance Claim Agent (Draft, no description, no History at all)
   put({
     id: "ext-seed-7", name: "Insurance Claim Agent", description: "",
-    baseUrl: "https://claims.abc.ai", hasToken: true, status: "draft", channels: [],
+    baseUrl: "https://claims.abc.ai", hasToken: true, status: "draft", approved: false, channels: [],
     createdAt: now, updatedAt: now,
     lastHealthCheckAt: now, lastHealthCheckOk: true,
     lastValidation: PASSED_VALIDATION, rejection: null,
@@ -251,6 +263,7 @@ export const externalAgentStore = {
       baseUrl: data.baseUrl.trim(),
       hasToken: true,
       status: "draft",
+      approved: false,
       channels: [],
       createdAt: now,
       updatedAt: now,
@@ -283,6 +296,7 @@ export const externalAgentStore = {
       hasToken: patch.tokenReplaced ? true : cur.hasToken,
       lastValidation: patch.validation ?? cur.lastValidation,
       status: wasRejected ? "draft" : cur.status,
+      approved: wasRejected ? false : cur.approved,
       rejection: wasRejected ? null : cur.rejection,
       updatedAt: Date.now(),
     };
@@ -296,38 +310,41 @@ export const externalAgentStore = {
   },
   submitForApproval(id: string) {
     const cur = store.get(id);
-    if (!cur || cur.status !== "draft" || !cur.lastValidation?.passed) return;
+    if (!cur || cur.status !== "draft" || cur.approved || !cur.lastValidation?.passed) return;
     const now = Date.now();
-    store.set(id, { ...cur, status: "submitted_for_approval", updatedAt: now });
+    store.set(id, { ...cur, status: "pending_approval", updatedAt: now });
     persistStore();
     addHistory(id, { at: now, actor: CURRENT_USER, kind: "change", summary: "Submitted for approval" });
   },
+  /** Approve doesn't publish anything by itself — it just marks the connection approved and
+   * drops the agent back to Draft, where "Publish" (not "Submit for approval") becomes the
+   * next action. */
   approve(id: string) {
     const cur = store.get(id);
-    if (!cur || cur.status !== "submitted_for_approval") return;
+    if (!cur || cur.status !== "pending_approval") return;
     const now = Date.now();
-    store.set(id, { ...cur, status: "approved", rejection: null, updatedAt: now });
+    store.set(id, { ...cur, status: "draft", approved: true, rejection: null, updatedAt: now });
     persistStore();
     addHistory(id, { at: now, actor: CURRENT_USER, kind: "change", summary: "Approved" });
   },
   reject(id: string, reason: string) {
     const cur = store.get(id);
-    if (!cur || cur.status !== "submitted_for_approval") return;
+    if (!cur || cur.status !== "pending_approval") return;
     const now = Date.now();
-    store.set(id, { ...cur, status: "rejected", rejection: { at: now, by: CURRENT_USER, reason: reason.trim() }, updatedAt: now });
+    store.set(id, { ...cur, status: "rejected", approved: false, rejection: { at: now, by: CURRENT_USER, reason: reason.trim() }, updatedAt: now });
     persistStore();
     addHistory(id, { at: now, actor: CURRENT_USER, kind: "change", summary: `Rejected — "${reason.trim()}"` });
   },
-  /** Approved -> Published (channels.length > 0) or Published -> Approved (channels.length
-   * === 0, i.e. unpublished from every channel). Published -> Published with a different
-   * channel selection just updates the list — the UI decides when to confirm an unpublish-all
-   * before calling this. */
+  /** Approved Draft -> Published (channels.length > 0) or Published -> Draft (channels.length
+   * === 0, i.e. unpublished from every channel — stays approved, so Publish remains the next
+   * action). Published -> Published with a different channel selection just updates the list —
+   * the UI decides when to confirm an unpublish-all before calling this. */
   publish(id: string, channels: string[]) {
     const cur = store.get(id);
-    if (!cur || (cur.status !== "approved" && cur.status !== "published")) return;
+    if (!cur || !((cur.status === "draft" && cur.approved) || cur.status === "published")) return;
     const now = Date.now();
     const nowPublished = channels.length > 0;
-    store.set(id, { ...cur, status: nowPublished ? "published" : "approved", channels, updatedAt: now });
+    store.set(id, { ...cur, status: nowPublished ? "published" : "draft", channels, updatedAt: now });
     persistStore();
     if (nowPublished) {
       addHistory(id, { at: now, actor: CURRENT_USER, kind: "change", summary: `Published to ${channels.map(channelLabel).join(", ")}` });
