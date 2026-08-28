@@ -2,27 +2,31 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ChevronLeft, ChevronRight, MoreHorizontal, Copy, Check, RefreshCw, AlertTriangle, Globe, PlugZap,
-  FileEdit, History as HistoryIcon, ShieldCheck,
+  FileEdit, History as HistoryIcon, Activity as ActivityIcon, FlaskConical, ShieldCheck, BookOpen, Eye, EyeOff,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import {
-  externalAgentStore, channelLabel, type ExternalAgent,
+  externalAgentStore, channelLabel, runValidation, type ExternalAgent, type ValidationResult,
 } from "@/components/external-agents/externalAgentStore";
 import { StatusBadge, relativeTime } from "@/components/external-agents/statusMeta";
 import ConnectExternalAgentModal from "@/components/external-agents/ConnectExternalAgentModal";
 import {
-  DeleteExternalAgentDialog, PauseExternalAgentDialog, RejectExternalAgentDialog,
+  DeleteExternalAgentDialog, PauseExternalAgentDialog, ReplaceTokenConfirmDialog,
 } from "@/components/external-agents/ExternalAgentDialogs";
 import ExternalAgentHistoryTab from "@/components/external-agents/ExternalAgentHistoryTab";
+import ExternalAgentActivityTab from "@/components/external-agents/ExternalAgentActivityTab";
+import ExternalAgentTestTab from "@/components/external-agents/ExternalAgentTestTab";
 import PublishExternalAgentModal from "@/components/external-agents/PublishExternalAgentModal";
 import { toast } from "sonner";
 
-type Section = "instruction" | "history";
+type Section = "instruction" | "test" | "history" | "activity";
 
 const NAV: { id: Section; label: string; icon: any }[] = [
   { id: "instruction", label: "Instruction", icon: FileEdit },
+  { id: "test", label: "Test", icon: FlaskConical },
   { id: "history", label: "History", icon: HistoryIcon },
+  { id: "activity", label: "Activity", icon: ActivityIcon },
 ];
 
 const ENDPOINTS: { method: string; path: string; purpose: string }[] = [
@@ -30,8 +34,6 @@ const ENDPOINTS: { method: string; path: string; purpose: string }[] = [
   { method: "POST", path: "/runs", purpose: "Calls the agent to run." },
   { method: "GET", path: "/tools", purpose: "Lists the tools this agent declares." },
 ];
-
-const STATUS_CHANGE_SUMMARIES = new Set(["Connection created", "Submitted for approval", "Approved", "Paused", "Resumed"]);
 
 function CopyButton({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
@@ -72,6 +74,12 @@ function InfoRow({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
+const PERUSER_COPY: Record<string, { chip: string; label: string; message: string }> = {
+  none: { chip: "", label: "Not required", message: "" },
+  valid: { chip: "chip-success", label: "Valid", message: "Each user will be asked to connect their own account the first time they use this agent." },
+  non_compliant: { chip: "chip-warning", label: "Declared but non-compliant", message: "This agent declares a per-user connector, but it doesn't match the expected contract. You can still use it — fix this when you get a chance." },
+};
+
 export default function ExternalAgentDetail() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
@@ -87,9 +95,15 @@ export default function ExternalAgentDetail() {
   const [showEdit, setShowEdit] = useState(false);
   const [showPublish, setShowPublish] = useState(false);
   const [showPause, setShowPause] = useState(false);
-  const [showReject, setShowReject] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [checkingHealth, setCheckingHealth] = useState(false);
+
+  const [replacingToken, setReplacingToken] = useState(false);
+  const [showReplaceConfirm, setShowReplaceConfirm] = useState(false);
+  const [newToken, setNewToken] = useState("");
+  const [showNewToken, setShowNewToken] = useState(false);
+  const [replaceChecking, setReplaceChecking] = useState(false);
+  const [replaceResult, setReplaceResult] = useState<ValidationResult | null>(null);
 
   useEffect(() => {
     setLoadState("loading");
@@ -104,10 +118,9 @@ export default function ExternalAgentDetail() {
     return () => clearTimeout(t);
   }, [id, tick]);
 
-  // Re-reads the agent in place — used after every mutation (submit/approve/reject/pause/
-  // resume/health check) so the page updates immediately instead of flashing back through
-  // the full loading skeleton. hardRefresh (below) is reserved for the error-state Retry
-  // button, which genuinely needs to re-run the fetch attempt.
+  // Re-reads the agent in place — used after every mutation so the page updates immediately
+  // instead of flashing back through the full loading skeleton. hardRefresh is reserved for the
+  // error-state Retry button, which genuinely needs to re-run the fetch attempt.
   const refresh = () => setAgent(externalAgentStore.get(id));
   const hardRefresh = () => setTick(t => t + 1);
 
@@ -148,24 +161,34 @@ export default function ExternalAgentDetail() {
     );
   }
 
-  const submitEnabled = agent.status === "draft" && !!agent.lastValidation?.passed;
-  const historyEntries = externalAgentStore.history(agent.id);
-  const latestStatusChange = historyEntries.find(h =>
-    h.kind === "change" && (
-      STATUS_CHANGE_SUMMARIES.has(h.summary) ||
-      h.summary.startsWith("Rejected") ||
-      h.summary.startsWith("Published to") ||
-      h.summary === "Unpublished from all channels"
-    )
-  );
+  const activityEntries = externalAgentStore.activity(agent.id);
+  const latestStatusChange = activityEntries[0];
+  const validationPassed = !!agent.lastValidation?.passed;
 
   const readyChecklist = [
-    { label: "Connection validated", done: !!agent.lastValidation?.passed },
+    { label: "Connection validated", done: validationPassed },
     { label: "Description added", done: agent.description.trim().length > 0 },
     { label: "Per-user connection reviewed", done: agent.lastValidation != null },
-    { label: "Submitted for approval", done: agent.status !== "draft" },
+    { label: "Sent for approval", done: agent.approved || agent.status !== "draft" },
   ];
   const readyDoneCount = readyChecklist.filter(i => i.done).length;
+  const showReadyCard = agent.status !== "published" && agent.status !== "paused";
+
+  const submitReplaceToken = () => {
+    if (!newToken.trim()) return;
+    setReplaceChecking(true);
+    setTimeout(() => {
+      const v = runValidation(agent.baseUrl, newToken.trim());
+      externalAgentStore.update(agent.id, { tokenReplaced: true, validation: v });
+      setReplaceResult(v);
+      setReplaceChecking(false);
+      setReplacingToken(false);
+      setNewToken("");
+      refresh();
+    }, 600);
+  };
+
+  const perUser = agent.lastValidation ? PERUSER_COPY[agent.lastValidation.perUserConnector] : null;
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -199,56 +222,42 @@ export default function ExternalAgentDetail() {
 
           {agent.status === "draft" && (
             <div className="flex items-center gap-2">
-              {!submitEnabled && (
-                <span className="text-xs text-muted-foreground max-w-[220px] text-right leading-tight">
-                  Validate your connection before submitting for approval.
+              {!validationPassed && (
+                <span className="text-xs text-muted-foreground max-w-[200px] text-right leading-tight">
+                  Validate your connection first.
                 </span>
               )}
               <button
-                disabled={!submitEnabled}
-                onClick={() => {
-                  externalAgentStore.submitForApproval(agent.id);
-                  toast.success("Sent for approval. We'll notify you once an admin reviews it.");
-                  refresh();
-                }}
+                disabled={!validationPassed}
+                onClick={() => setShowPublish(true)}
                 className="btn-primary h-9 disabled:opacity-40 disabled:pointer-events-none"
               >
-                Submit for approval
+                Publish
               </button>
             </div>
           )}
 
-          {agent.status === "submitted_for_approval" && isAdmin && (
-            <>
-              <button
-                onClick={() => setShowReject(true)}
-                className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base"
-              >
-                Reject
-              </button>
-              <button
-                onClick={() => {
-                  externalAgentStore.approve(agent.id);
-                  toast.success(`"${agent.name}" is approved. Publish it to make it available to your workspace.`);
-                  refresh();
-                }}
-                className="btn-primary h-9"
-              >
-                Approve
-              </button>
-            </>
+          {agent.status === "pending_approval" && (
+            <button
+              disabled
+              title="Waiting for approval."
+              className="h-9 px-4 rounded-lg bg-primary/40 text-primary-foreground text-sm font-medium cursor-not-allowed opacity-60"
+            >
+              Publish
+            </button>
           )}
 
           {agent.status === "rejected" && (
             <button onClick={() => setShowEdit(true)} className="btn-primary h-9">Edit connection</button>
           )}
 
-          {(agent.status === "approved" || agent.status === "published") && (
-            <button onClick={() => setShowPublish(true)} className="btn-primary h-9">Publish</button>
-          )}
-
-          {agent.status === "published" && isAdmin && (
-            <button onClick={() => setShowPause(true)} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Pause</button>
+          {agent.status === "published" && (
+            <>
+              <button onClick={() => setShowPublish(true)} className="btn-primary h-9">Manage channels</button>
+              {isAdmin && (
+                <button onClick={() => setShowPause(true)} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Pause</button>
+              )}
+            </>
           )}
 
           {agent.status === "paused" && isAdmin && (
@@ -291,7 +300,7 @@ export default function ExternalAgentDetail() {
 
       {/* Body */}
       <div className="flex flex-1 overflow-hidden relative">
-        {/* Inner left sidebar — same shell/pattern as /agents/[id], reduced to 2 items */}
+        {/* Inner left sidebar — same shell/pattern as /agents/[id] */}
         <aside
           className="border-r border-border overflow-hidden shrink-0 flex flex-col h-full bg-white"
           style={{
@@ -332,30 +341,32 @@ export default function ExternalAgentDetail() {
               <div className="flex items-start gap-1.5">
                 <ShieldCheck size={12} className="text-muted-foreground shrink-0 mt-0.5" />
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  A Workspace Admin must approve it before anyone in this workspace can use it.
+                  An FPT admin and then your Org admin must approve this connection before anyone in this workspace can use it. Approval happens once per connection.
                 </p>
               </div>
             </div>
 
-            <div className="rounded-lg border border-border bg-surface-muted/50 p-2.5">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-semibold text-foreground">Ready to submit</span>
-                <span className="text-xs text-muted-foreground">{readyDoneCount}/{readyChecklist.length}</span>
+            {showReadyCard && (
+              <div className="rounded-lg border border-border bg-surface-muted/50 p-2.5">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-semibold text-foreground">Ready to submit</span>
+                  <span className="text-xs text-muted-foreground">{readyDoneCount}/{readyChecklist.length}</span>
+                </div>
+                <div className="h-1.5 rounded-full bg-border overflow-hidden mb-2">
+                  <div className="h-full rounded-full bg-primary" style={{ width: `${(readyDoneCount / readyChecklist.length) * 100}%` }} />
+                </div>
+                <div className="space-y-1">
+                  {readyChecklist.map(item => (
+                    <div key={item.label} className="flex items-center gap-1.5 text-xs">
+                      {item.done
+                        ? <Check size={11} className="text-primary shrink-0" />
+                        : <span className="w-3 h-3 rounded-full border-2 border-muted-foreground shrink-0 inline-block" />}
+                      <span className={item.done ? "text-primary" : "text-muted-foreground"}>{item.label}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="h-1.5 rounded-full bg-border overflow-hidden mb-2">
-                <div className="h-full rounded-full bg-primary" style={{ width: `${(readyDoneCount / readyChecklist.length) * 100}%` }} />
-              </div>
-              <div className="space-y-1">
-                {readyChecklist.map(item => (
-                  <div key={item.label} className="flex items-center gap-1.5 text-xs">
-                    {item.done
-                      ? <Check size={11} className="text-primary shrink-0" />
-                      : <span className="w-3 h-3 rounded-full border-2 border-muted-foreground shrink-0 inline-block" />}
-                    <span className={item.done ? "text-primary" : "text-muted-foreground"}>{item.label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            )}
 
             <button
               onClick={() => setSidebarCollapsed(true)}
@@ -376,11 +387,20 @@ export default function ExternalAgentDetail() {
           </button>
         )}
 
-        {/* Content — single full-width column, no markdown/preview toolbar, no right panel */}
-        <div className="flex-1 overflow-y-auto p-8">
-          {section === "instruction" ? (
+        {/* Content */}
+        {section === "instruction" ? (
+          <div className="flex-1 overflow-y-auto p-8">
             <div className="space-y-4">
-              {agent.rejection && (
+              <Link
+                to="/external-agents/guides/integration"
+                className="flex items-center gap-3 rounded-xl border border-border px-4 py-3 hover:bg-surface-muted transition-base"
+              >
+                <BookOpen size={16} className="text-primary shrink-0" />
+                <span className="text-sm font-medium flex-1">New to external agents? Read the integration guide</span>
+                <ChevronRight size={14} className="text-muted-foreground shrink-0" />
+              </Link>
+
+              {agent.status === "rejected" && agent.rejection && (
                 <div className="flex items-start gap-2.5 rounded-lg border border-warning/25 bg-[hsl(var(--warning-soft))] px-3.5 py-3">
                   <AlertTriangle size={14} className="shrink-0 mt-0.5 text-warning" />
                   <div className="min-w-0 flex-1">
@@ -393,6 +413,24 @@ export default function ExternalAgentDetail() {
                       className="mt-1.5 text-xs font-semibold text-warning hover:underline"
                     >
                       Edit connection
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {agent.status === "draft" && agent.lastRejection && !agent.rejectionBannerDismissed && (
+                <div className="flex items-start gap-2.5 rounded-lg border border-border bg-surface-muted px-3.5 py-3">
+                  <AlertTriangle size={14} className="shrink-0 mt-0.5 text-muted-foreground" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Previously rejected on {new Date(agent.lastRejection.at).toLocaleDateString()} by {agent.lastRejection.by} — "{agent.lastRejection.reason}"
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => { externalAgentStore.dismissRejectionBanner(agent.id); refresh(); }}
+                      className="mt-1.5 text-xs font-semibold text-foreground hover:underline"
+                    >
+                      Dismiss
                     </button>
                   </div>
                 </div>
@@ -412,31 +450,91 @@ export default function ExternalAgentDetail() {
                 </InfoRow>
                 <InfoRow label="Description">{agent.description || "—"}</InfoRow>
                 <InfoRow label="Base URL"><span className="font-mono text-xs break-all">{agent.baseUrl}</span></InfoRow>
-                <InfoRow label="Authentication">Bearer Token</InfoRow>
-                <InfoRow label="Bearer Token">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs">••••••••</span>
-                    <button type="button" onClick={() => setShowEdit(true)} className="text-xs font-semibold text-primary hover:underline">
-                      Replace token
-                    </button>
-                  </div>
-                </InfoRow>
+                <InfoRow label="Authentication">{agent.authMethod === "bearer" ? "Bearer Token" : "None"}</InfoRow>
+                {agent.authMethod === "bearer" && (
+                  <InfoRow label="Bearer Token">
+                    {replacingToken ? (
+                      <div className="space-y-2">
+                        <div className="relative max-w-sm">
+                          <input
+                            type={showNewToken ? "text" : "password"}
+                            value={newToken}
+                            onChange={e => setNewToken(e.target.value)}
+                            placeholder="Paste the new bearer token"
+                            className="w-full h-9 pl-3 pr-16 rounded-lg border border-border bg-surface text-sm font-mono outline-none focus:border-primary transition-base"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowNewToken(v => !v)}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-base"
+                          >
+                            {showNewToken ? <EyeOff size={12} /> : <Eye size={12} />} {showNewToken ? "Hide" : "Show"}
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={!newToken.trim() || replaceChecking}
+                            onClick={submitReplaceToken}
+                            className="btn-primary h-8 px-3 text-xs disabled:opacity-40 disabled:pointer-events-none flex items-center gap-1.5"
+                          >
+                            {replaceChecking && <RefreshCw size={11} className="animate-spin" />} Save token
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setReplacingToken(false); setNewToken(""); }}
+                            className="h-8 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-xs font-medium transition-base"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs">••••••••</span>
+                          <button type="button" onClick={() => setShowReplaceConfirm(true)} className="text-xs font-semibold text-primary hover:underline">
+                            Replace token
+                          </button>
+                        </div>
+                        {replaceResult && (
+                          <p className={`text-xs flex items-center gap-1 ${replaceResult.passed ? "text-success" : "text-destructive"}`}>
+                            {replaceResult.passed ? <Check size={11} /> : <AlertTriangle size={11} />}
+                            {replaceResult.passed ? "New token validated successfully." : "The new token failed validation — this agent may stop responding."}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </InfoRow>
+                )}
                 <InfoRow label="Per-user connection">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span>{agent.lastValidation?.requiresPerUserConnection ? "Required" : "Not required"}</span>
-                      {agent.lastValidation?.requiresPerUserConnection && (
-                        <Link to="/external-agents/guides/per-user-connector" className="text-xs font-semibold text-primary hover:underline">
+                      {perUser?.chip ? (
+                        <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border ${perUser.chip}`}>{perUser.label}</span>
+                      ) : (
+                        <span>{perUser?.label ?? "Not required"}</span>
+                      )}
+                      {agent.lastValidation && agent.lastValidation.perUserConnector !== "none" && (
+                        <Link to="/external-agents/guides/integration#per-user-connector" className="text-xs font-semibold text-primary hover:underline">
                           See how to set this up
                         </Link>
                       )}
                     </div>
-                    {agent.lastValidation?.requiresPerUserConnection && (
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        Each user will be asked to connect their own account the first time they use this agent.
-                      </p>
+                    {perUser?.message && (
+                      <p className="text-xs text-muted-foreground leading-relaxed">{perUser.message}</p>
                     )}
                   </div>
+                </InfoRow>
+                <InfoRow label="Guardrails">
+                  {agent.guardrail ? (
+                    <span>{agent.guardrail}</span>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground">Not configured</span>
+                      <Link to="/guardrails" className="text-xs font-semibold text-primary hover:underline">Configure</Link>
+                    </div>
+                  )}
                 </InfoRow>
                 <InfoRow label="Last health check">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -503,10 +601,19 @@ export default function ExternalAgentDetail() {
               <div className="rounded-xl border border-border p-4">
                 <h3 className="text-sm font-semibold mb-1">Authentication</h3>
                 <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                  Every call the platform makes to your agent includes an <code className="font-mono bg-surface-muted px-1 py-0.5 rounded">Authorization: Bearer &lt;token&gt;</code> header,
-                  so your agent can verify the request really came from the platform. The token is stored encrypted and is never shown again after saving.
+                  {agent.authMethod === "bearer" ? (
+                    <>
+                      Every call the platform makes to your agent includes an <code className="font-mono bg-surface-muted px-1 py-0.5 rounded">Authorization: Bearer &lt;token&gt;</code> header,
+                      so your agent can verify the request really came from the platform. The token is stored encrypted and is never shown again after saving.
+                    </>
+                  ) : (
+                    <>No bearer token is used for this agent. Every request is still signed with the HMAC signing secret — your agent must verify the X-FPT-Signature header.</>
+                  )}
                 </p>
-                <CopyBlock code={`POST ${agent.baseUrl}/runs HTTP/1.1\nAuthorization: Bearer <token>\nContent-Type: application/json`} />
+                <CopyBlock code={agent.authMethod === "bearer"
+                  ? `POST ${agent.baseUrl}/runs HTTP/1.1\nAuthorization: Bearer <token>\nX-FPT-Signature: t=<epoch seconds>,v1=<hex hmac-sha256>\nContent-Type: application/json`
+                  : `POST ${agent.baseUrl}/runs HTTP/1.1\nX-FPT-Signature: t=<epoch seconds>,v1=<hex hmac-sha256>\nContent-Type: application/json`}
+                />
               </div>
 
               <div className="rounded-xl border border-border p-4">
@@ -516,17 +623,21 @@ export default function ExternalAgentDetail() {
                 </p>
                 <CopyBlock
                   code={JSON.stringify(
-                    { status: "ok", protocol_version: "v1", agent_version: "2.3.1", requires_user_connection: true },
+                    { status: "ok", protocolVersions: ["1"], name: agent.name, version: "2.3.1" },
                     null,
                     2,
                   )}
                 />
               </div>
             </div>
-          ) : (
-            <ExternalAgentHistoryTab agentId={agent.id} />
-          )}
-        </div>
+          </div>
+        ) : section === "test" ? (
+          <ExternalAgentTestTab agent={agent} />
+        ) : section === "history" ? (
+          <ExternalAgentHistoryTab agentId={agent.id} />
+        ) : (
+          <ExternalAgentActivityTab agentId={agent.id} />
+        )}
       </div>
 
       <ConnectExternalAgentModal
@@ -541,6 +652,7 @@ export default function ExternalAgentDetail() {
         agentId={agent.id}
         agentName={agent.name}
         currentChannels={agent.channels}
+        alreadyApproved={agent.approved}
         onClose={() => setShowPublish(false)}
         onPublished={refresh}
       />
@@ -557,16 +669,10 @@ export default function ExternalAgentDetail() {
         }}
       />
 
-      <RejectExternalAgentDialog
-        name={agent.name}
-        open={showReject}
-        onOpenChange={setShowReject}
-        onConfirm={reason => {
-          externalAgentStore.reject(agent.id, reason);
-          toast.info(`"${agent.name}" was rejected. The creator can edit the connection and resubmit it.`);
-          setShowReject(false);
-          refresh();
-        }}
+      <ReplaceTokenConfirmDialog
+        open={showReplaceConfirm}
+        onOpenChange={setShowReplaceConfirm}
+        onConfirm={() => { setShowReplaceConfirm(false); setReplaceResult(null); setReplacingToken(true); }}
       />
 
       <DeleteExternalAgentDialog
