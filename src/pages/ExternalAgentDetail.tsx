@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ChevronLeft, ChevronRight, MoreHorizontal, Copy, Check, RefreshCw, AlertTriangle, Globe, PlugZap,
-  FileEdit, History as HistoryIcon, Activity as ActivityIcon, FlaskConical, BookOpen, Eye, EyeOff,
+  FileEdit, FlaskConical, LayoutGrid, BarChart3, BookOpen, Eye, EyeOff,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
@@ -14,19 +14,20 @@ import ConnectExternalAgentModal from "@/components/external-agents/ConnectExter
 import {
   DeleteExternalAgentDialog, PauseExternalAgentDialog, ReplaceTokenConfirmDialog,
 } from "@/components/external-agents/ExternalAgentDialogs";
-import ExternalAgentHistoryTab from "@/components/external-agents/ExternalAgentHistoryTab";
-import ExternalAgentActivityTab from "@/components/external-agents/ExternalAgentActivityTab";
+import ExternalAgentChannelsTab from "@/components/external-agents/ExternalAgentChannelsTab";
+import ExternalAgentInsightsTab from "@/components/external-agents/ExternalAgentInsightsTab";
 import ExternalAgentTestTab from "@/components/external-agents/ExternalAgentTestTab";
 import PublishExternalAgentModal from "@/components/external-agents/PublishExternalAgentModal";
 import { toast } from "sonner";
 
-type Section = "instruction" | "test" | "history" | "activity";
+type Tab = "build" | "test" | "channels" | "insights";
+const VALID_TABS: Tab[] = ["build", "test", "channels", "insights"];
 
-const NAV: { id: Section; label: string; icon: any }[] = [
-  { id: "instruction", label: "Instruction", icon: FileEdit },
-  { id: "test", label: "Test", icon: FlaskConical },
-  { id: "history", label: "History", icon: HistoryIcon },
-  { id: "activity", label: "Activity", icon: ActivityIcon },
+const TOP_TABS: { id: Tab; label: string; Icon: any }[] = [
+  { id: "build", label: "Build", Icon: FileEdit },
+  { id: "test", label: "Test", Icon: FlaskConical },
+  { id: "channels", label: "Channels", Icon: LayoutGrid },
+  { id: "insights", label: "Insights", Icon: BarChart3 },
 ];
 
 const ENDPOINTS: { method: string; path: string; purpose: string }[] = [
@@ -83,14 +84,17 @@ const PERUSER_COPY: Record<string, { chip: string; label: string; message: strin
 export default function ExternalAgentDetail() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
   const { role } = useMyPermissions();
   const isAdmin = role?.id === "admin";
+
+  const rawTab = params.get("tab");
+  const tab: Tab = VALID_TABS.includes(rawTab as Tab) ? (rawTab as Tab) : "build";
+  const setTab = (t: Tab) => setParams({ tab: t });
 
   const [loadState, setLoadState] = useState<"loading" | "error" | "ready">("loading");
   const [tick, setTick] = useState(0);
   const [agent, setAgent] = useState<ExternalAgent | undefined>(undefined);
-  const [section, setSection] = useState<Section>("instruction");
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches);
   const [showMenu, setShowMenu] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showPublish, setShowPublish] = useState(false);
@@ -104,16 +108,6 @@ export default function ExternalAgentDetail() {
   const [showNewToken, setShowNewToken] = useState(false);
   const [replaceChecking, setReplaceChecking] = useState(false);
   const [replaceResult, setReplaceResult] = useState<ValidationResult | null>(null);
-
-  // Sync the inner nav to the narrow breakpoint on resize, in both directions — at ~480px it
-  // was leaving so little room for content that InfoRow values wrapped one character per line,
-  // and only forcing collapse (never un-collapsing) would leave it stuck after resizing back up.
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 767px)");
-    const handleChange = (e: MediaQueryListEvent) => setSidebarCollapsed(e.matches);
-    mq.addEventListener("change", handleChange);
-    return () => mq.removeEventListener("change", handleChange);
-  }, []);
 
   useEffect(() => {
     setLoadState("loading");
@@ -202,9 +196,10 @@ export default function ExternalAgentDetail() {
 
   return (
     <div className="flex flex-col h-full bg-background">
-      {/* Top bar — wraps onto its own second line on narrow viewports instead of clipping the
-          agent name or the action buttons; min-h instead of a fixed h-14 lets it grow when it does. */}
-      <div className="min-h-14 border-b border-border bg-surface flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 shrink-0">
+      {/* Top bar — same 3-part layout as the internal Agent's: left (back/breadcrumb/name),
+          center (Build/Test/Channels/Insights), right (status + actions). Still wraps onto a
+          second line on narrow viewports instead of clipping. */}
+      <div className="min-h-14 border-b border-border bg-surface flex flex-wrap items-center gap-3 px-4 py-2.5 shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <button onClick={() => navigate("/external-agents")} className="h-8 w-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0">
             <ChevronLeft size={16} />
@@ -219,13 +214,30 @@ export default function ExternalAgentDetail() {
           </div>
         </div>
 
+        <div className="flex-1 flex items-center justify-center min-w-[240px]">
+          <div className="flex items-center gap-1">
+            {TOP_TABS.map(({ id, label, Icon }) => (
+              <button
+                key={id}
+                onClick={() => setTab(id)}
+                style={{ paddingLeft: "10px", paddingRight: "10px", height: "32px", gap: "10px" }}
+                className={`rounded-lg text-sm font-medium flex items-center transition-base ${
+                  tab === id ? "bg-primary-soft text-primary" : "text-muted-foreground hover:text-foreground hover:bg-surface-muted"
+                }`}
+              >
+                <Icon size={18} className="shrink-0" /> <span>{label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="flex items-center gap-2 flex-wrap">
           <StatusBadge status={agent.status} />
           {agent.status === "published" && agent.channels.length > 0 && (
             <div className="flex items-center gap-1 flex-wrap">
-              {agent.channels.map(id => (
-                <span key={id} className="px-1.5 py-0.5 rounded bg-surface-muted text-xs text-muted-foreground whitespace-nowrap">
-                  {channelLabel(id)}
+              {agent.channels.map(chId => (
+                <span key={chId} className="px-1.5 py-0.5 rounded bg-surface-muted text-xs text-muted-foreground whitespace-nowrap">
+                  {channelLabel(chId)}
                 </span>
               ))}
             </div>
@@ -262,13 +274,8 @@ export default function ExternalAgentDetail() {
             <button onClick={() => setShowEdit(true)} className="btn-primary h-9 whitespace-nowrap">Edit connection</button>
           )}
 
-          {agent.status === "published" && (
-            <>
-              <button onClick={() => setShowPublish(true)} className="btn-primary h-9 whitespace-nowrap">Manage channels</button>
-              {isAdmin && (
-                <button onClick={() => setShowPause(true)} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base whitespace-nowrap">Pause</button>
-              )}
-            </>
+          {agent.status === "published" && isAdmin && (
+            <button onClick={() => setShowPause(true)} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base whitespace-nowrap">Pause</button>
           )}
 
           {agent.status === "paused" && isAdmin && (
@@ -311,79 +318,7 @@ export default function ExternalAgentDetail() {
 
       {/* Body */}
       <div className="flex flex-1 overflow-hidden relative">
-        {/* Inner left sidebar — same shell/pattern as /agents/[id] */}
-        <aside
-          className="border-r border-border overflow-hidden shrink-0 flex flex-col h-full bg-white"
-          style={{
-            width: sidebarCollapsed ? "0px" : "240px",
-            opacity: sidebarCollapsed ? 0 : 1,
-            transition: "width 320ms cubic-bezier(0.4,0,0.2,1), opacity 280ms ease",
-            minWidth: 0,
-          }}
-        >
-          <nav className="shrink-0 px-2 pt-2 pb-1 flex flex-col" style={{ gap: "4px" }}>
-            {NAV.map(it => {
-              const Icon = it.icon;
-              return (
-                <button
-                  key={it.id}
-                  onClick={() => setSection(it.id)}
-                  style={{ height: "36px", fontSize: "14px" }}
-                  className={`w-full flex items-center rounded-lg px-2.5 transition-base shrink-0 ${
-                    section === it.id ? "bg-primary-soft text-primary font-medium" : "text-foreground hover:bg-surface-muted"
-                  }`}
-                >
-                  <Icon size={18} className="shrink-0" />
-                  <span className="flex-1 text-left truncate ml-2.5">{it.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-
-          <div className="px-3 py-3 border-t border-border flex-1 min-h-0 overflow-y-auto space-y-2">
-            {showReadyCard && (
-              <div className="rounded-lg border border-border bg-surface-muted/50 p-2.5">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs font-semibold text-foreground">Ready to submit</span>
-                  <span className="text-xs text-muted-foreground">{readyDoneCount}/{readyChecklist.length}</span>
-                </div>
-                <div className="h-1.5 rounded-full bg-border overflow-hidden mb-2">
-                  <div className="h-full rounded-full bg-primary" style={{ width: `${(readyDoneCount / readyChecklist.length) * 100}%` }} />
-                </div>
-                <div className="space-y-1">
-                  {readyChecklist.map(item => (
-                    <div key={item.label} className="flex items-center gap-1.5 text-xs">
-                      {item.done
-                        ? <Check size={11} className="text-primary shrink-0" />
-                        : <span className="w-3 h-3 rounded-full border-2 border-muted-foreground shrink-0 inline-block" />}
-                      <span className={item.done ? "text-primary" : "text-muted-foreground"}>{item.label}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <button
-              onClick={() => setSidebarCollapsed(true)}
-              className="w-full h-8 rounded-lg border border-border bg-surface text-muted-foreground hover:bg-surface-muted text-xs font-medium flex items-center justify-center gap-1.5 transition-base"
-            >
-              <ChevronLeft size={12} /> Collapse sidebar
-            </button>
-          </div>
-        </aside>
-
-        {sidebarCollapsed && (
-          <button
-            onClick={() => setSidebarCollapsed(false)}
-            aria-label="Expand sidebar"
-            className="w-6 border-r border-border bg-white shrink-0 flex items-start justify-center pt-3 text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base"
-          >
-            <ChevronRight size={13} />
-          </button>
-        )}
-
-        {/* Content */}
-        {section === "instruction" ? (
+        {tab === "build" && (
           <div className="flex-1 overflow-y-auto p-4 sm:p-8">
             <div className="space-y-4">
               <Link
@@ -394,6 +329,28 @@ export default function ExternalAgentDetail() {
                 <span className="text-sm font-medium flex-1">New to external agents? Read the integration guide</span>
                 <ChevronRight size={14} className="text-muted-foreground shrink-0" />
               </Link>
+
+              {showReadyCard && (
+                <div className="rounded-lg border border-border bg-surface-muted/50 p-3">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-semibold text-foreground">Ready to submit</span>
+                    <span className="text-xs text-muted-foreground">{readyDoneCount}/{readyChecklist.length}</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-border overflow-hidden mb-2">
+                    <div className="h-full rounded-full bg-primary" style={{ width: `${(readyDoneCount / readyChecklist.length) * 100}%` }} />
+                  </div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1">
+                    {readyChecklist.map(item => (
+                      <div key={item.label} className="flex items-center gap-1.5 text-xs">
+                        {item.done
+                          ? <Check size={11} className="text-primary shrink-0" />
+                          : <span className="w-3 h-3 rounded-full border-2 border-muted-foreground shrink-0 inline-block" />}
+                        <span className={item.done ? "text-primary" : "text-muted-foreground"}>{item.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {agent.status === "rejected" && agent.rejection && (
                 <div className="flex items-start gap-2.5 rounded-lg border border-warning/25 bg-[hsl(var(--warning-soft))] px-3.5 py-3">
@@ -655,13 +612,11 @@ export default function ExternalAgentDetail() {
               </div>
             </div>
           </div>
-        ) : section === "test" ? (
-          <ExternalAgentTestTab agent={agent} />
-        ) : section === "history" ? (
-          <ExternalAgentHistoryTab agentId={agent.id} />
-        ) : (
-          <ExternalAgentActivityTab agentId={agent.id} />
         )}
+
+        {tab === "test" && <ExternalAgentTestTab agent={agent} />}
+        {tab === "channels" && <ExternalAgentChannelsTab agent={agent} onChanged={refresh} />}
+        {tab === "insights" && <ExternalAgentInsightsTab agentId={agent.id} />}
       </div>
 
       <ConnectExternalAgentModal

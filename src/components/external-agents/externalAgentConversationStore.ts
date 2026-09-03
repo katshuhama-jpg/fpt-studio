@@ -468,6 +468,16 @@ function seedAgent(agentId: string) {
   }
 }
 
+export interface ConversationStats {
+  total: number;
+  /** Average gap between a user message and the agent's next reply, across every turn in
+   * every conversation — null when there's no turn to measure yet. Real data derived from
+   * message timestamps, not a fabricated number. */
+  avgResponseMs: number | null;
+  /** Conversations that ended on each of the last 7 days, oldest first. */
+  byDay: { label: string; count: number }[];
+}
+
 export const externalAgentConversationStore = {
   list(agentId: string): ExternalConversation[] {
     seedAgent(agentId);
@@ -478,5 +488,33 @@ export const externalAgentConversationStore = {
   get(agentId: string, threadId: string): ExternalConversation | undefined {
     seedAgent(agentId);
     return store.get(k(agentId, threadId));
+  },
+  stats(agentId: string): ConversationStats {
+    const conversations = externalAgentConversationStore.list(agentId);
+    const total = conversations.length;
+
+    let sumMs = 0;
+    let turnCount = 0;
+    for (const c of conversations) {
+      for (let i = 0; i < c.messages.length - 1; i++) {
+        if (c.messages[i].role === "user" && c.messages[i + 1].role === "agent") {
+          sumMs += c.messages[i + 1].at - c.messages[i].at;
+          turnCount++;
+        }
+      }
+    }
+    const avgResponseMs = turnCount > 0 ? sumMs / turnCount : null;
+
+    const now = Date.now();
+    const byDay = Array.from({ length: 7 }, (_, i) => {
+      const dayStart = new Date(now - (6 - i) * DAY);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEndMs = dayStart.getTime() + DAY;
+      const label = dayStart.toLocaleDateString(undefined, { weekday: "short" });
+      const count = conversations.filter(c => c.endedAt >= dayStart.getTime() && c.endedAt < dayEndMs).length;
+      return { label, count };
+    });
+
+    return { total, avgResponseMs, byDay };
   },
 };

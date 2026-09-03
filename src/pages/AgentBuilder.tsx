@@ -55,8 +55,12 @@ const developNav = [
   { id: "knowledge",    label: "Knowledge",      icon: NoteIcon },
   { id: "connectors",   label: "Connections",    icon: ConnectIcon },
   { id: "triggers",     label: "Triggers",       icon: TimeScheduleIcon },
-  { id: "history",      label: "History",        icon: HistoryIcon },
   { id: "sub-agents",   label: "Sub-Agents",     icon: UserMultipleIcon, comingSoon: true, hidden: true },
+];
+
+const INSIGHTS_SUBTABS = [
+  { id: "performance", label: "Performance" },
+  { id: "history", label: "History" },
 ];
 
 const monitorNav = [
@@ -82,7 +86,7 @@ export default function AgentBuilder() {
   const VALID_TABS: Tab[] = ["build", "test", "channels", "insights"];
   const rawTab = params.get("tab");
   const tab: Tab = VALID_TABS.includes(rawTab as Tab) ? (rawTab as Tab) : "build";
-  const section = params.get("section") || "instructions";
+  const section = params.get("section") || (tab === "insights" ? "performance" : "instructions");
   const navigate = useNavigate();
   const buildModeParam = params.get("buildMode");
   const [buildMode, setBuildMode] = useState<"manual" | "ai">(buildModeParam === "ai" ? "ai" : "manual");
@@ -107,7 +111,7 @@ export default function AgentBuilder() {
     setParams(p, { replace: true });
   };
 
-  const setTab = (t: Tab) => setParams({ tab: t, section: "instructions" });
+  const setTab = (t: Tab) => setParams({ tab: t, section: t === "insights" ? "performance" : "instructions" });
   const setSection = (s: string) => setParams({ tab, section: s });
 
   const nav = developNav.filter((it: any) => !it.hidden);
@@ -271,9 +275,7 @@ export default function AgentBuilder() {
                 }`}
               >
                 <HugeiconsIcon icon={it.icon} size={18} className="shrink-0" />
-                <span className="flex-1 text-left truncate ml-2.5">
-                  {it.id === "history" ? "Run history" : it.label}
-                </span>
+                <span className="flex-1 text-left truncate ml-2.5">{it.label}</span>
                 {it.comingSoon && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-surface border border-border text-muted-foreground shrink-0 whitespace-nowrap">Coming soon</span>
                 )}
@@ -362,14 +364,25 @@ export default function AgentBuilder() {
         <div className="flex-1 flex overflow-hidden">
           <div className="flex-1 flex flex-col overflow-hidden">
 
+            {tab === "insights" && (
+              <div className="px-8 pt-5 pb-3 border-b border-border shrink-0 flex items-center gap-1">
+                {INSIGHTS_SUBTABS.map(s => (
+                  <button
+                    key={s.id}
+                    onClick={() => setSection(s.id)}
+                    className={`px-3 h-8 rounded-lg text-sm font-medium transition-base ${
+                      section === s.id ? "bg-primary-soft text-primary" : "text-muted-foreground hover:bg-surface-muted"
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div className="flex-1 overflow-y-auto bg-background">
               {tab === "build" && section === "instructions" && <GeneralTab key={id ?? "new"} agentId={id ?? "new"} onRefineWithAI={() => setBuildMode("ai")} onChatToTest={() => { setBuildMode("manual"); setPreviewView("chat"); }} />}
               {tab === "build" && section === "knowledge" && <KnowledgeTab />}
-              {tab === "build" && section === "history" && (
-                kind === "automation"
-                  ? <div className="p-8"><TriggerRunsTab agentId={id ?? "new"} /></div>
-                  : <HistoryTab agentId={id ?? "new"} />
-              )}
               {tab === "build" && section === "skills" && <PlaceholderTab title="Skills" />}
               {tab === "build" && section === "guardrails" && <GuardrailsTab agentId={id ?? "new"} />}
               {tab === "build" && section === "triggers" && (
@@ -379,15 +392,20 @@ export default function AgentBuilder() {
                 <ConnectionsTab agentId={id ?? "new"} onViewTriggers={() => setSection("triggers")} onChange={() => setConnectionTick(t => t + 1)} />
               )}
               {tab === "build" && section === "model" && <PlaceholderTab title="Model" />}
-              {tab === "build" && !["instructions","knowledge","history","skills","guardrails","triggers","connectors","model"].includes(section) && <PlaceholderTab title={section} />}
+              {tab === "build" && !["instructions","knowledge","skills","guardrails","triggers","connectors","model"].includes(section) && <PlaceholderTab title={section} />}
               {tab === "test" && <PlaceholderTab title="Test" />}
               {tab === "channels" && <DeployTab agentId={id} onViewTriggers={() => setParams({ tab: "build", section: "triggers" })} />}
-              {tab === "insights" && <PerformanceTab />}
+              {tab === "insights" && section === "performance" && <PerformanceTab />}
+              {tab === "insights" && section === "history" && (
+                kind === "automation"
+                  ? <div className="p-8"><TriggerRunsTab agentId={id ?? "new"} /></div>
+                  : <HistoryTab agentId={id ?? "new"} />
+              )}
             </div>
           </div>
 
           {tab === "build" && section === "instructions" && <PreviewPanel agentId={id ?? "new"} view={previewView} onViewChange={setPreviewView} onConnectionsChange={() => setConnectionTick(t => t + 1)} />}
-          {tab === "build" && section === "history" && kind === "conversational" && <HistoryChatPanel agentId={id ?? "new"} />}
+          {tab === "insights" && section === "history" && kind === "conversational" && <HistoryChatPanel agentId={id ?? "new"} />}
         </div>
       </div>
     </div>
