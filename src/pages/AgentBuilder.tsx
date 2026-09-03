@@ -63,6 +63,17 @@ const INSIGHTS_SUBTABS = [
   { id: "history", label: "History", icon: HistoryIcon },
 ];
 
+const BUILD_SECTIONS = ["instructions", "knowledge", "guardrails", "triggers", "connectors"];
+const INSIGHTS_SECTIONS = INSIGHTS_SUBTABS.map(s => s.id);
+
+// Sections that moved out of Build during the v2 nav restructure — audited against the old
+// developNav list (see git history), "history" (→ Insights) is the only one with a real new
+// home. Old ?tab=build&section=<key> links redirect here instead of hitting an unknown-section
+// fallback, so a bookmarked/shared URL still lands on working content.
+const LEGACY_BUILD_TO_INSIGHTS: Record<string, string> = {
+  history: "history",
+};
+
 const monitorNav = [
   { label: "Reports", items: [
     { id: "perf", label: "Performance", icon: Activity01Icon },
@@ -85,8 +96,30 @@ export default function AgentBuilder() {
   const [params, setParams] = useSearchParams();
   const VALID_TABS: Tab[] = ["build", "test", "channels", "insights"];
   const rawTab = params.get("tab");
-  const tab: Tab = VALID_TABS.includes(rawTab as Tab) ? (rawTab as Tab) : "build";
-  const section = params.get("section") || (tab === "insights" ? "performance" : "instructions");
+  const rawSection = params.get("section");
+  const isLegacyBuildSection = rawTab === "build" && rawSection != null && rawSection in LEGACY_BUILD_TO_INSIGHTS;
+
+  const tab: Tab = isLegacyBuildSection
+    ? "insights"
+    : VALID_TABS.includes(rawTab as Tab) ? (rawTab as Tab) : "build";
+  const section = isLegacyBuildSection
+    ? LEGACY_BUILD_TO_INSIGHTS[rawSection!]
+    : tab === "insights"
+      ? (INSIGHTS_SECTIONS.includes(rawSection ?? "") ? rawSection! : "performance")
+      : (BUILD_SECTIONS.includes(rawSection ?? "") ? rawSection! : "instructions");
+
+  // A bookmarked/shared ?tab=build&section=history (or any other slug moved to Insights in
+  // v2) still renders the right content immediately via the fallback above — this just fixes
+  // the address bar to match, via replace so the stale URL doesn't linger in browser history.
+  useEffect(() => {
+    if (!isLegacyBuildSection) return;
+    const next = new URLSearchParams(params);
+    next.set("tab", "insights");
+    next.set("section", LEGACY_BUILD_TO_INSIGHTS[rawSection!]);
+    setParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLegacyBuildSection]);
+
   const navigate = useNavigate();
   const buildModeParam = params.get("buildMode");
   const [buildMode, setBuildMode] = useState<"manual" | "ai">(buildModeParam === "ai" ? "ai" : "manual");
@@ -382,7 +415,6 @@ export default function AgentBuilder() {
             <div className="flex-1 overflow-y-auto bg-background">
               {tab === "build" && section === "instructions" && <GeneralTab key={id ?? "new"} agentId={id ?? "new"} onRefineWithAI={() => setBuildMode("ai")} onChatToTest={() => { setBuildMode("manual"); setPreviewView("chat"); }} />}
               {tab === "build" && section === "knowledge" && <KnowledgeTab />}
-              {tab === "build" && section === "skills" && <PlaceholderTab title="Skills" />}
               {tab === "build" && section === "guardrails" && <GuardrailsTab agentId={id ?? "new"} />}
               {tab === "build" && section === "triggers" && (
                 <TriggersTab agentId={id ?? "new"} onChange={() => setTriggerTick(t => t + 1)} />
@@ -390,9 +422,7 @@ export default function AgentBuilder() {
               {tab === "build" && section === "connectors" && (
                 <ConnectionsTab agentId={id ?? "new"} onViewTriggers={() => setSection("triggers")} onChange={() => setConnectionTick(t => t + 1)} />
               )}
-              {tab === "build" && section === "model" && <PlaceholderTab title="Model" />}
-              {tab === "build" && !["instructions","knowledge","skills","guardrails","triggers","connectors","model"].includes(section) && <PlaceholderTab title={section} />}
-              {tab === "test" && <PlaceholderTab title="Test" />}
+              {tab === "test" && <TestTabNotBuilt />}
               {tab === "channels" && <DeployTab agentId={id} onViewTriggers={() => setParams({ tab: "build", section: "triggers" })} />}
               {tab === "insights" && section === "performance" && <PerformanceTab />}
               {tab === "insights" && section === "history" && (
@@ -2253,15 +2283,15 @@ function DeployTab({ agentId, onViewTriggers }: { agentId: string; onViewTrigger
   );
 }
 
-function PlaceholderTab({ title }: { title: string }) {
+function TestTabNotBuilt() {
   return (
     <div className="h-full flex flex-col items-center justify-center text-center p-10 animate-fade-up">
       <div className="w-16 h-16 rounded-2xl bg-primary-soft flex items-center justify-center mb-4">
         <HugeiconsIcon icon={SlidersHorizontalIcon} size={26} className="text-primary" />
       </div>
-      <h3 className="font-display text-xl font-semibold mb-2 capitalize">{title.replace(/-/g, " ")}</h3>
+      <h3 className="font-display text-xl font-semibold mb-2">Test</h3>
       <p className="text-sm text-muted-foreground max-w-sm">
-        This section is part of the v2 mockup. Layout and tokens are wired — content can be designed next.
+        This tab isn't built yet — check back soon.
       </p>
     </div>
   );
