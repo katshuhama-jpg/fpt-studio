@@ -57,7 +57,7 @@ function TemplateModal({ onClose }: { onClose: () => void }) {
   });
   const handleUse = (t: typeof templates[number]) => {
     const params = new URLSearchParams();
-    params.set("tab", "develop");
+    params.set("tab", "build");
     params.set("section", "instructions");
     params.set("agentName", t.name);
     params.set("agentPrompt", t.systemPrompt);
@@ -156,17 +156,25 @@ function RecentAgentCard({ a }: { a: typeof recent[number] }) {
 
 function CreateAgentModal({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
+  const { can } = useMyPermissions();
+  const canCreateAgent = can("agents.create");
   const [prompt, setPrompt] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
 
   const handleBuild = () => {
     if (!prompt.trim()) return;
     const params = new URLSearchParams();
-    params.set("tab", "develop");
+    params.set("tab", "build");
     params.set("section", "instructions");
     params.set("agentPrompt", prompt.trim());
     navigate(`/agents/new?${params.toString()}`);
     onClose();
+  };
+
+  const handleBlank = () => {
+    if (!canCreateAgent) return;
+    onClose();
+    navigate("/agents/new?tab=build&section=instructions");
   };
 
   if (showTemplates) return <TemplateModal onClose={onClose} />;
@@ -174,9 +182,13 @@ function CreateAgentModal({ onClose }: { onClose: () => void }) {
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-[672px] mx-4 animate-fade-up">
-        <div className="rounded-2xl border-2 border-primary/40 bg-white p-4 shadow-lg focus-within:border-primary transition-colors">
-          <p className="text-sm font-medium text-foreground mb-3 px-1">Describe your agent</p>
+      <div className="relative z-10 w-full max-w-[672px] mx-4 animate-fade-up text-center">
+        <button onClick={onClose} className="absolute -top-3 -right-3 w-7 h-7 rounded-full bg-white border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-base shadow-sm">
+          <X size={14} />
+        </button>
+        <h2 className="font-display text-2xl font-bold text-foreground mb-2 tracking-tight">Start to build your agent today</h2>
+        <p className="text-sm text-muted-foreground mb-6">Describe what you need and we'll build it for you</p>
+        <div className="rounded-2xl border-2 border-primary/40 bg-white p-4 shadow-lg focus-within:border-primary transition-colors text-left">
           <textarea
             autoFocus
             className="w-full resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none leading-relaxed min-h-[80px]"
@@ -199,8 +211,8 @@ function CreateAgentModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
         </div>
-        <button onClick={onClose} className="absolute -top-3 -right-3 w-7 h-7 rounded-full bg-white border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-base shadow-sm">
-          <X size={14} />
+        <button onClick={handleBlank} className="mt-5 h-9 px-5 rounded-full border border-border bg-white text-sm font-medium text-foreground hover:bg-surface-muted transition-base">
+          Create from blank
         </button>
       </div>
     </div>,
