@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { MessageCircle, X, Copy, Check } from "lucide-react";
+import { X, Copy, Check } from "lucide-react";
 import { format } from "date-fns";
 import { historyStore, CHANNEL_META } from "./historyStore";
 import ChannelLogo from "./ChannelLogo";
+import CollapsibleHistoryPanel from "./CollapsibleHistoryPanel";
 
 /**
  * Right-side conversation viewer for the History section — same aside chrome and
@@ -33,23 +34,9 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
   const hidden = params.get("panel") === "hidden";
 
   return (
-    <aside
-      className={`border-l border-border bg-background flex flex-col shrink-0 overflow-hidden transition-[width,opacity] duration-300 ease-in-out ${
-        hidden ? "w-0 opacity-0" : "w-[476px] opacity-100"
-      }`}
-    >
-      {/* Fixed-width inner frame so content doesn't reflow/wrap while the aside's width animates */}
-      <div className="w-[476px] h-full flex flex-col">
-        {!record ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-            <div className="w-12 h-12 rounded-xl bg-surface-muted flex items-center justify-center mb-3">
-              <MessageCircle size={20} className="text-muted-foreground" />
-            </div>
-            <p className="text-sm font-medium text-foreground mb-1">No conversation selected</p>
-            <p className="text-xs text-muted-foreground max-w-[220px]">Click a conversation in the list to view the full chat.</p>
-          </div>
-        ) : (
-          <>
+    <CollapsibleHistoryPanel hidden={hidden} width={476} emptyHint="Click a conversation in the list to view the full chat.">
+      {record && (
+        <>
             {/* Conversation header — no avatar, higher-contrast identity + close */}
             <div className="px-4 py-3.5 border-b border-border shrink-0">
               <div className="flex items-start justify-between gap-2">
@@ -117,8 +104,7 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
               </div>
             </div>
           </>
-        )}
-      </div>
-    </aside>
+      )}
+    </CollapsibleHistoryPanel>
   );
 }

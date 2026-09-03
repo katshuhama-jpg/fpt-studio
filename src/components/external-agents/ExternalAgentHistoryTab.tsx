@@ -1,36 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import {
-  Search, X, Copy, Check, MessageCircle,
-  Globe, MessageSquare, Facebook, Slack, Users, Webhook, Building2,
-} from "lucide-react";
+import { Search, X, Copy, Check } from "lucide-react";
 import { startOfDay, endOfDay } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import { TimeRangeFilter, type TimeFilter } from "@/components/history/TimeRangeFilter";
 import { ChannelFilterDropdown } from "@/components/history/ChannelFilterDropdown";
+import { CHANNEL_META } from "@/components/history/historyStore";
+import ChannelLogo from "@/components/history/ChannelLogo";
+import CollapsibleHistoryPanel from "@/components/history/CollapsibleHistoryPanel";
 import {
   externalAgentConversationStore,
-  type ExternalAgentChannel, type ExternalConversation, type ConversationMessage,
+  type ExternalConversation, type ConversationMessage,
 } from "./externalAgentConversationStore";
-
-const CHANNEL_META: Record<ExternalAgentChannel, { label: string; icon: any }> = {
-  web: { label: "Web", icon: Globe },
-  zalo: { label: "Zalo", icon: MessageSquare },
-  messenger: { label: "Facebook Messenger", icon: Facebook },
-  slack: { label: "Slack", icon: Slack },
-  teams: { label: "Microsoft Teams", icon: Users },
-  api: { label: "API", icon: Webhook },
-  workspace: { label: "Workspace", icon: Building2 },
-};
-
-function ChannelIcon({ channel, size = 18 }: { channel: ExternalAgentChannel; size?: number }) {
-  const Icon = CHANNEL_META[channel].icon;
-  return (
-    <span className="inline-flex items-center justify-center rounded-md bg-white border border-border shrink-0 text-muted-foreground" style={{ width: size, height: size }}>
-      <Icon size={Math.round(size * 0.6)} />
-    </span>
-  );
-}
 
 function formatDateTime(ts: number): string {
   const d = new Date(ts);
@@ -45,7 +26,7 @@ function formatTime(ts: number): string {
 
 const DAY = 86_400_000;
 
-function TranscriptPanel({ conversation, onClose }: { conversation: ExternalConversation | null; onClose: () => void }) {
+function TranscriptPanel({ conversation, hidden, onClose }: { conversation: ExternalConversation | null; hidden: boolean; onClose: () => void }) {
   const [copied, setCopied] = useState(false);
   const messagesRef = useRef<HTMLDivElement>(null);
 
@@ -62,23 +43,15 @@ function TranscriptPanel({ conversation, onClose }: { conversation: ExternalConv
   };
 
   return (
-    <aside className="w-[460px] border-l border-border bg-background flex flex-col shrink-0 overflow-hidden">
-      {!conversation ? (
-        <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-          <div className="w-12 h-12 rounded-xl bg-surface-muted flex items-center justify-center mb-3">
-            <MessageCircle size={20} className="text-muted-foreground" />
-          </div>
-          <p className="text-sm font-medium text-foreground mb-1">No conversation selected</p>
-          <p className="text-xs text-muted-foreground max-w-[220px]">Click a conversation in the list to view the full transcript.</p>
-        </div>
-      ) : (
+    <CollapsibleHistoryPanel hidden={hidden} width={460} emptyHint="Click a conversation in the list to view the full transcript.">
+      {conversation && (
         <>
           <div className="px-4 py-3.5 border-b border-border shrink-0">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <div className="text-sm font-semibold leading-tight text-foreground truncate">{conversation.username}</div>
                 <div className="flex items-center gap-1.5 mt-1.5 text-xs">
-                  <ChannelIcon channel={conversation.channel} size={16} />
+                  <ChannelLogo channel={conversation.channel} size={16} />
                   <span className="font-medium text-foreground/80">{CHANNEL_META[conversation.channel].label}</span>
                   <span className="text-muted-foreground">·</span>
                   <span className="text-muted-foreground">{formatDateTime(conversation.endedAt)}</span>
@@ -134,16 +107,23 @@ function TranscriptPanel({ conversation, onClose }: { conversation: ExternalConv
           </div>
         </>
       )}
-    </aside>
+    </CollapsibleHistoryPanel>
   );
 }
 
 export default function ExternalAgentHistoryTab({ agentId }: { agentId: string }) {
   const [params, setParams] = useSearchParams();
   const selectedId = params.get("conversationId");
+  const panelHidden = params.get("panel") === "hidden";
   const selectConversation = (id: string) => {
     const next = new URLSearchParams(params);
     next.set("conversationId", id);
+    next.delete("panel");
+    setParams(next, { replace: true });
+  };
+  const closePanel = () => {
+    const next = new URLSearchParams(params);
+    next.set("panel", "hidden");
     setParams(next, { replace: true });
   };
 
@@ -253,7 +233,7 @@ export default function ExternalAgentHistoryTab({ agentId }: { agentId: string }
                   <div className="text-xs text-muted-foreground whitespace-nowrap">{formatDateTime(c.endedAt)}</div>
                   <div className="text-xs font-mono truncate">{c.id}</div>
                   <div className="flex items-center gap-2 min-w-0">
-                    <ChannelIcon channel={c.channel} size={22} />
+                    <ChannelLogo channel={c.channel} size={22} />
                     <span className="text-xs truncate">{CHANNEL_META[c.channel].label}</span>
                   </div>
                   <div className="min-w-0">
@@ -270,11 +250,8 @@ export default function ExternalAgentHistoryTab({ agentId }: { agentId: string }
 
       <TranscriptPanel
         conversation={selectedConversation}
-        onClose={() => {
-          const next = new URLSearchParams(params);
-          next.delete("conversationId");
-          setParams(next, { replace: true });
-        }}
+        hidden={panelHidden}
+        onClose={closePanel}
       />
     </div>
   );

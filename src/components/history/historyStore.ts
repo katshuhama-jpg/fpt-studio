@@ -4,12 +4,17 @@
 
 import {
   Building02Icon, MessengerIcon, ApiIcon, HeadsetIcon, WhatsappIcon,
-  InstagramIcon, LineIcon, ViberIcon, GoogleIcon,
+  InstagramIcon, LineIcon, ViberIcon, GoogleIcon, Globe02Icon, SlackIcon,
 } from "@hugeicons/core-free-icons";
 
+// The single channel set for every run-history screen (conversational Agent, External
+// Agent) — "web"/"slack" are External-only in practice today, same as "hifpt"/"engage"/etc.
+// are conversational-only, but they all live in one union so a given channel id always
+// resolves to the same icon everywhere instead of each screen keeping its own copy.
 export type ConversationChannel =
   | "workspace" | "messenger" | "zalo" | "teams" | "hifpt" | "api"
-  | "engage" | "whatsapp" | "instagram" | "line" | "viber" | "google";
+  | "engage" | "whatsapp" | "instagram" | "line" | "viber" | "google"
+  | "web" | "slack";
 
 /**
  * `icon` renders via HugeiconsIcon (matches the icon set already used for channel
@@ -31,6 +36,8 @@ export const CHANNEL_META: Record<ConversationChannel, { label: string; color: s
   line: { label: "Line", icon: LineIcon, color: "#00B900" },
   viber: { label: "Viber", icon: ViberIcon, color: "#7360F2" },
   google: { label: "Google Business", icon: GoogleIcon, color: "#4285F4" },
+  web: { label: "Web", icon: Globe02Icon, color: "#475569" },
+  slack: { label: "Slack", icon: SlackIcon, color: "#611F69" },
 };
 
 export interface ConversationMessage {
