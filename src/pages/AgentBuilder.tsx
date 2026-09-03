@@ -59,8 +59,8 @@ const developNav = [
 ];
 
 const INSIGHTS_SUBTABS = [
-  { id: "performance", label: "Performance" },
-  { id: "history", label: "History" },
+  { id: "performance", label: "Performance", icon: Analytics01Icon },
+  { id: "history", label: "History", icon: HistoryIcon },
 ];
 
 const monitorNav = [
@@ -252,15 +252,15 @@ export default function AgentBuilder() {
           className="border-r border-border overflow-hidden shrink-0 flex flex-col h-full"
           style={{
             background:"#ffffff",
-            width: (buildMode === "manual" && tab === "build") ? "240px" : "0px",
-            opacity: (buildMode === "manual" && tab === "build") ? 1 : 0,
+            width: ((buildMode === "manual" && tab === "build") || tab === "insights") ? "240px" : "0px",
+            opacity: ((buildMode === "manual" && tab === "build") || tab === "insights") ? 1 : 0,
             transition: "width 320ms cubic-bezier(0.4,0,0.2,1), opacity 280ms ease",
             minWidth: 0,
           }}
         >
           {/* Nav items — fixed height, always renders in full; the panel below scrolls instead */}
           <nav className="shrink-0 px-2 pt-2 pb-1 flex flex-col" style={{ gap: "4px" }}>
-            {nav.map((it: any) => (
+            {tab === "build" && nav.map((it: any) => (
               <button
                 key={it.id}
                 onClick={() => !it.comingSoon && setSection(it.id)}
@@ -281,9 +281,23 @@ export default function AgentBuilder() {
                 )}
               </button>
             ))}
+            {tab === "insights" && INSIGHTS_SUBTABS.map(s => (
+              <button
+                key={s.id}
+                onClick={() => setSection(s.id)}
+                style={{ height: "36px", fontSize: "14px" }}
+                className={`w-full flex items-center rounded-lg px-2.5 transition-base shrink-0 ${
+                  section === s.id ? "bg-primary-soft text-primary font-medium" : "text-foreground hover:bg-surface-muted"
+                }`}
+              >
+                <HugeiconsIcon icon={s.icon} size={18} className="shrink-0" />
+                <span className="flex-1 text-left truncate ml-2.5">{s.label}</span>
+              </button>
+            ))}
           </nav>
 
-          {/* Ready to publish + Collapse — flexible region, scrolls/shrinks instead of clipping the nav above */}
+          {/* Ready to publish + Collapse — Build-tab only, flexible region, scrolls/shrinks instead of clipping the nav above */}
+          {tab === "build" && (
           <div className="px-3 py-3 border-t border-border flex-1 min-h-0 overflow-y-auto space-y-2">
             <div className="rounded-lg border border-border bg-surface-muted/50 p-2.5">
               {(() => {
@@ -336,6 +350,7 @@ export default function AgentBuilder() {
               <HugeiconsIcon icon={ChevronLeftIcon} size={12} /> Collapse sidebar
             </button>
           </div>
+          )}
         </aside>
 
         {/* AI chat sidebar — slides in from left */}
@@ -363,22 +378,6 @@ export default function AgentBuilder() {
         {/* Content + Preview */}
         <div className="flex-1 flex overflow-hidden">
           <div className="flex-1 flex flex-col overflow-hidden">
-
-            {tab === "insights" && (
-              <div className="px-8 pt-5 pb-3 border-b border-border shrink-0 flex items-center gap-1">
-                {INSIGHTS_SUBTABS.map(s => (
-                  <button
-                    key={s.id}
-                    onClick={() => setSection(s.id)}
-                    className={`px-3 h-8 rounded-lg text-sm font-medium transition-base ${
-                      section === s.id ? "bg-primary-soft text-primary" : "text-muted-foreground hover:bg-surface-muted"
-                    }`}
-                  >
-                    {s.label}
-                  </button>
-                ))}
-              </div>
-            )}
 
             <div className="flex-1 overflow-y-auto bg-background">
               {tab === "build" && section === "instructions" && <GeneralTab key={id ?? "new"} agentId={id ?? "new"} onRefineWithAI={() => setBuildMode("ai")} onChatToTest={() => { setBuildMode("manual"); setPreviewView("chat"); }} />}

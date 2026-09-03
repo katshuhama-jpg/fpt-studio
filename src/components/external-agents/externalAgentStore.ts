@@ -47,6 +47,10 @@ export interface ExternalAgent {
   id: string;
   name: string;
   description: string;
+  /** Per-agent identity, same emoji+bg pattern as the internal Agent's AGENTS seed data
+   * (agentStore.ts) — gives each row/breadcrumb a distinct icon instead of one generic mark. */
+  emoji: string;
+  bg: string;
   baseUrl: string;
   authMethod: AuthMethod;
   // Never store/display the real secret — a prototype stand-in that only proves "a token
@@ -99,9 +103,9 @@ export interface HistoryEntry {
 // signingSecret/guardrail/pendingChannels existed) would load stale objects missing the new
 // fields, and the page would crash on render with no error boundary — a blank white screen for
 // anyone who had the External Agents page open across a deploy that changed the data shape.
-const STORE_KEY = "external_agent_store_v2";
-const HISTORY_KEY = "external_agent_history_v2";
-const SEEDED_KEY = "external_agent_store_seeded_v2";
+const STORE_KEY = "external_agent_store_v3";
+const HISTORY_KEY = "external_agent_history_v3";
+const SEEDED_KEY = "external_agent_store_seeded_v3";
 const store = loadMap<string, ExternalAgent>(STORE_KEY);
 const history = loadMap<string, HistoryEntry[]>(HISTORY_KEY);
 const persistStore = () => saveMap(STORE_KEY, store);
@@ -140,6 +144,7 @@ function seedDefaultAgents() {
   // 1 — Flight Assistant (Published, Web + Zalo)
   put({
     id: "ext-seed-1", name: "Flight Assistant", description: "Search and book flights for staff travel.",
+    emoji: "✈️", bg: "bg-blue-50",
     baseUrl: "https://agent.abc.ai", authMethod: "bearer", hasToken: true, signingSecret: generateSigningSecret(),
     guardrail: "Standard content safety", status: "published", approved: true, channels: ["web", "zalo"], pendingChannels: null,
     createdAt: now - 20 * DAY, updatedAt: now - 2 * HOUR,
@@ -157,6 +162,7 @@ function seedDefaultAgents() {
   // 2 — HR Helpdesk (Published, Slack)
   put({
     id: "ext-seed-2", name: "HR Helpdesk", description: "Leave balance, payroll and policy questions.",
+    emoji: "🤝", bg: "bg-pink-50",
     baseUrl: "https://hr.xyz-ai.com", authMethod: "bearer", hasToken: true, signingSecret: generateSigningSecret(),
     guardrail: null, status: "published", approved: true, channels: ["slack"], pendingChannels: null,
     createdAt: now - 15 * DAY, updatedAt: now - 1 * DAY,
@@ -174,6 +180,7 @@ function seedDefaultAgents() {
   // 3 — Finance Reporter (Draft — already approved, not published yet)
   put({
     id: "ext-seed-3", name: "Finance Reporter", description: "Monthly revenue summary from the finance system.",
+    emoji: "📊", bg: "bg-green-50",
     baseUrl: "https://fin.abc.ai", authMethod: "bearer", hasToken: true, signingSecret: generateSigningSecret(),
     guardrail: null, status: "draft", approved: true, channels: [], pendingChannels: null,
     createdAt: now - 5 * DAY, updatedAt: now - 3 * HOUR,
@@ -187,6 +194,7 @@ function seedDefaultAgents() {
   // 4 — Legal Doc Checker (Pending approval — partner domain, so FPT-level review)
   put({
     id: "ext-seed-4", name: "Legal Doc Checker", description: "Contract clause review against company policy.",
+    emoji: "⚖️", bg: "bg-amber-50",
     baseUrl: "https://legal.partner-ai.com", authMethod: "bearer", hasToken: true, signingSecret: generateSigningSecret(),
     guardrail: null, status: "pending_approval", approved: false, channels: [], pendingChannels: ["web"],
     createdAt: now - 1 * DAY, updatedAt: now - 30 * MIN,
@@ -199,6 +207,7 @@ function seedDefaultAgents() {
   // 5 — Warehouse Bot (Rejected)
   put({
     id: "ext-seed-5", name: "Warehouse Bot", description: "Stock lookup and restock suggestions.",
+    emoji: "📦", bg: "bg-indigo-50",
     baseUrl: "https://wh.partner.io", authMethod: "bearer", hasToken: true, signingSecret: generateSigningSecret(),
     guardrail: null, status: "rejected", approved: false, channels: [], pendingChannels: null,
     createdAt: now - 3 * DAY, updatedAt: now - 1 * DAY,
@@ -215,6 +224,7 @@ function seedDefaultAgents() {
   // 6 — Marketing Copywriter (Paused, was published to Web)
   put({
     id: "ext-seed-6", name: "Marketing Copywriter", description: "Campaign copy drafts for social channels.",
+    emoji: "📣", bg: "bg-purple-50",
     baseUrl: "https://mkt.abc.ai", authMethod: "bearer", hasToken: true, signingSecret: generateSigningSecret(),
     guardrail: "Marketing brand-safety set", status: "paused", approved: true, channels: ["web"], pendingChannels: null,
     createdAt: now - 10 * DAY, updatedAt: now - 4 * DAY,
@@ -233,6 +243,7 @@ function seedDefaultAgents() {
   // 7 — Insurance Claim Agent (Draft, no description, no Activity at all)
   put({
     id: "ext-seed-7", name: "Insurance Claim Agent", description: "",
+    emoji: "🛡️", bg: "bg-rose-50",
     baseUrl: "https://claims.abc.ai", authMethod: "bearer", hasToken: true, signingSecret: generateSigningSecret(),
     guardrail: null, status: "draft", approved: false, channels: [], pendingChannels: null,
     createdAt: now, updatedAt: now,
@@ -305,6 +316,7 @@ export const externalAgentStore = {
       id,
       name: data.name.trim(),
       description: data.description.trim(),
+      emoji: "🔌", bg: "bg-primary-soft",
       baseUrl: data.baseUrl.trim(),
       authMethod: data.authMethod,
       hasToken: data.authMethod === "bearer",

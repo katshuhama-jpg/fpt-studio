@@ -1,12 +1,13 @@
 import { useSearchParams } from "react-router-dom";
+import { BarChart3, History, Activity as ActivityIcon } from "lucide-react";
 import { externalAgentConversationStore } from "./externalAgentConversationStore";
 import ExternalAgentHistoryTab from "./ExternalAgentHistoryTab";
 import ExternalAgentActivityTab from "./ExternalAgentActivityTab";
 
 const SUBTABS = [
-  { id: "performance", label: "Performance" },
-  { id: "history", label: "History" },
-  { id: "activity", label: "Activity" },
+  { id: "performance", label: "Performance", Icon: BarChart3 },
+  { id: "history", label: "History", Icon: History },
+  { id: "activity", label: "Activity", Icon: ActivityIcon },
 ];
 
 /** Performance — same stat-card + bar-chart layout as the internal Agent's Insights, but every
@@ -85,20 +86,29 @@ export default function ExternalAgentInsightsTab({ agentId }: { agentId: string 
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="px-8 pt-5 pb-3 border-b border-border shrink-0 flex items-center gap-1">
-        {SUBTABS.map(s => (
-          <button
-            key={s.id}
-            onClick={() => setSub(s.id)}
-            className={`px-3 h-8 rounded-lg text-sm font-medium transition-base ${
-              sub === s.id ? "bg-primary-soft text-primary" : "text-muted-foreground hover:bg-surface-muted"
-            }`}
-          >
-            {s.label}
-          </button>
-        ))}
-      </div>
+    <div className="flex-1 flex overflow-hidden">
+      {/* Left sidebar — same visual pattern as the Build tab's sidebar, so Insights sub-nav
+          matches instead of the old horizontal tab row. */}
+      <aside
+        className="border-r border-border overflow-hidden shrink-0 flex flex-col h-full"
+        style={{ background: "#ffffff", width: "240px" }}
+      >
+        <nav className="shrink-0 px-2 pt-2 pb-1 flex flex-col" style={{ gap: "4px" }}>
+          {SUBTABS.map(s => (
+            <button
+              key={s.id}
+              onClick={() => setSub(s.id)}
+              style={{ height: "36px", fontSize: "14px" }}
+              className={`w-full flex items-center rounded-lg px-2.5 transition-base shrink-0 ${
+                sub === s.id ? "bg-primary-soft text-primary font-medium" : "text-foreground hover:bg-surface-muted"
+              }`}
+            >
+              <s.Icon size={18} className="shrink-0" />
+              <span className="flex-1 text-left truncate ml-2.5">{s.label}</span>
+            </button>
+          ))}
+        </nav>
+      </aside>
 
       <div className="flex-1 flex overflow-hidden">
         {sub === "performance" && (

@@ -332,8 +332,15 @@ export default function ExternalAgentsList() {
                       className="border-b border-border last:border-0 hover:bg-surface-muted/50 transition-base cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                     >
                       <td className="px-4 py-3 max-w-[280px]">
-                        <div className="font-medium text-foreground truncate">{a.name}</div>
-                        <div className="text-xs text-muted-foreground truncate mt-0.5">{a.description || "—"}</div>
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-base shrink-0 ${a.bg}`}>
+                            {a.emoji}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-medium text-foreground truncate">{a.name}</div>
+                            <div className="text-xs text-muted-foreground truncate mt-0.5">{a.description || "—"}</div>
+                          </div>
+                        </div>
                       </td>
                       <td className="px-4 py-3 max-w-[200px]">
                         <StatusBadge status={a.status} />

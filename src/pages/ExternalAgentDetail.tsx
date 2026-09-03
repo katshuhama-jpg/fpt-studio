@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
-  ChevronLeft, ChevronRight, MoreHorizontal, Copy, Check, RefreshCw, AlertTriangle, Globe, PlugZap,
+  ChevronLeft, ChevronRight, MoreHorizontal, Copy, Check, RefreshCw, AlertTriangle, Globe,
   FileEdit, FlaskConical, LayoutGrid, BarChart3, BookOpen, Eye, EyeOff,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -207,8 +207,8 @@ export default function ExternalAgentDetail() {
           <Link to="/external-agents" className="text-xs text-muted-foreground hover:text-foreground transition-base shrink-0 hidden sm:inline">External Agents</Link>
           <span className="text-xs text-muted-foreground/50 shrink-0 hidden sm:inline">/</span>
           <div className="flex items-center gap-2 min-w-0">
-            <div className="w-7 h-7 rounded-md bg-surface-muted border border-border flex items-center justify-center shrink-0">
-              <PlugZap size={14} className="text-muted-foreground" />
+            <div className={`w-7 h-7 rounded-md flex items-center justify-center text-base shrink-0 ${agent.bg}`}>
+              {agent.emoji}
             </div>
             <span className="font-semibold text-sm truncate">{agent.name}</span>
           </div>
@@ -319,6 +319,24 @@ export default function ExternalAgentDetail() {
       {/* Body */}
       <div className="flex flex-1 overflow-hidden relative">
         {tab === "build" && (
+          <>
+            {/* Left sidebar — same visual pattern as the internal Agent's Build sidebar, but a
+                single "Instructions" item since External Agent has no Knowledge/Connections/
+                Triggers concept. Leaves room to add more items later without restructuring. */}
+            <aside
+              className="border-r border-border overflow-hidden shrink-0 flex flex-col h-full"
+              style={{ background: "#ffffff", width: "240px" }}
+            >
+              <nav className="shrink-0 px-2 pt-2 pb-1 flex flex-col" style={{ gap: "4px" }}>
+                <button
+                  style={{ height: "36px", fontSize: "14px" }}
+                  className="w-full flex items-center rounded-lg px-2.5 transition-base shrink-0 bg-primary-soft text-primary font-medium"
+                >
+                  <FileEdit size={18} className="shrink-0" />
+                  <span className="flex-1 text-left truncate ml-2.5">Instructions</span>
+                </button>
+              </nav>
+            </aside>
           <div className="flex-1 overflow-y-auto p-4 sm:p-8">
             <div className="space-y-4">
               <Link
@@ -612,6 +630,7 @@ export default function ExternalAgentDetail() {
               </div>
             </div>
           </div>
+          </>
         )}
 
         {tab === "test" && <ExternalAgentTestTab agent={agent} />}
