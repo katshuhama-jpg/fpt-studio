@@ -5338,14 +5338,15 @@ function SubAgentsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => void) =>
                   <HugeiconsIcon icon={UserMultipleIcon} size={12} className="text-muted-foreground" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-xs font-medium truncate">{a.name}</p>
-                    <span className={`chip text-[10px] shrink-0 ${paused ? "bg-orange-100 text-orange-800 border-orange-200" : "bg-green-100 text-green-700 border-green-200"}`}>
-                      {paused ? "Paused" : "Active"}
-                    </span>
-                  </div>
+                  <p className="text-xs font-medium truncate">{a.name}</p>
                   {a.description && <p className="text-[11px] text-muted-foreground truncate">{a.description}</p>}
                 </div>
+                <span
+                  className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap"
+                  style={paused ? { background: "#FFF7ED", color: "#9A3412", border: "0.5px solid #FED7AA" } : { background: "#ECFDF5", color: "#065F46", border: "0.5px solid #A7F3D0" }}
+                >
+                  {paused ? "Paused" : "Active"}
+                </span>
                 <SubAgentRowMenu
                   paused={paused}
                   canManage={canManage}
