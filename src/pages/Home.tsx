@@ -188,10 +188,10 @@ function CreateAgentModal({ onClose }: { onClose: () => void }) {
           <DialogDescription>Describe what you need and we'll build it for you</DialogDescription>
         </DialogHeader>
 
-        <div className="rounded-md border border-input bg-transparent p-3 focus-within:ring-[3px] focus-within:ring-ring/50 transition-colors">
+        <div className="rounded-[8px] border border-border bg-surface p-3 transition-base focus-within:border-ring">
           <textarea
             autoFocus
-            className="w-full resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none leading-relaxed min-h-[80px]"
+            className="w-full resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none leading-relaxed min-h-[80px] border-0 p-0"
             placeholder="e.g. A 24/7 banking customer-care agent that can lock cards, look up loan rates and book consultations…"
             rows={3}
             value={prompt}
@@ -200,12 +200,12 @@ function CreateAgentModal({ onClose }: { onClose: () => void }) {
           />
           <div className="flex items-center justify-between mt-3">
             <div className="flex items-center gap-1">
-              <button type="button" className="w-8 h-8 rounded-md hover:bg-accent flex items-center justify-center text-muted-foreground transition-base" title="Attach file"><Paperclip size={16} /></button>
-              <button type="button" className="w-8 h-8 rounded-md hover:bg-accent flex items-center justify-center text-muted-foreground transition-base" title="Mention knowledge"><AtSign size={16} /></button>
+              <button type="button" className="w-8 h-8 rounded-[8px] hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base" title="Attach file"><Paperclip size={16} /></button>
+              <button type="button" className="w-8 h-8 rounded-[8px] hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base" title="Mention knowledge"><AtSign size={16} /></button>
             </div>
             <div className="flex items-center gap-3">
               <button type="button" onClick={() => setShowTemplates(true)} className="text-sm text-muted-foreground hover:text-foreground transition-base">Use a template</button>
-              <button type="button" onClick={handleBuild} disabled={!prompt.trim()} className="h-9 px-4 rounded-md bg-primary hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed text-primary-foreground text-sm font-medium flex items-center gap-2 transition-base">
+              <button type="button" onClick={handleBuild} disabled={!prompt.trim()} className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
                 <Sparkles size={14} /> Build agent <Send size={13} />
               </button>
             </div>
@@ -213,7 +213,7 @@ function CreateAgentModal({ onClose }: { onClose: () => void }) {
         </div>
 
         <DialogFooter className="sm:justify-center">
-          <button type="button" onClick={handleBlank} className="h-9 px-5 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground text-sm font-medium transition-base">
+          <button type="button" onClick={handleBlank} className="btn-secondary">
             Create from blank
           </button>
         </DialogFooter>
