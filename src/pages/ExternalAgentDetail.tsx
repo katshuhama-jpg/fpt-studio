@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ChevronLeft, ChevronRight, MoreHorizontal, Copy, Check, RefreshCw, AlertTriangle, Globe,
-  FileEdit, FlaskConical, LayoutGrid, BarChart3, BookOpen, Eye, EyeOff,
+  FileEdit, BookOpen, Eye, EyeOff,
 } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { PencilEdit01Icon, FlaskConicalIcon, GridViewIcon, Analytics01Icon } from "@hugeicons/core-free-icons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
@@ -24,10 +26,10 @@ type Tab = "build" | "test" | "channels" | "insights";
 const VALID_TABS: Tab[] = ["build", "test", "channels", "insights"];
 
 const TOP_TABS: { id: Tab; label: string; Icon: any }[] = [
-  { id: "build", label: "Build", Icon: FileEdit },
-  { id: "test", label: "Test", Icon: FlaskConical },
-  { id: "channels", label: "Channels", Icon: LayoutGrid },
-  { id: "insights", label: "Insights", Icon: BarChart3 },
+  { id: "build", label: "Build", Icon: PencilEdit01Icon },
+  { id: "test", label: "Test", Icon: FlaskConicalIcon },
+  { id: "channels", label: "Channels", Icon: GridViewIcon },
+  { id: "insights", label: "Insights", Icon: Analytics01Icon },
 ];
 
 const ENDPOINTS: { method: string; path: string; purpose: string }[] = [
@@ -222,7 +224,7 @@ export default function ExternalAgentDetail() {
                   tab === id ? "bg-primary-soft text-primary" : "text-muted-foreground hover:text-foreground hover:bg-surface-muted"
                 }`}
               >
-                <Icon size={18} className="shrink-0" /> <span>{label}</span>
+                <HugeiconsIcon icon={Icon} size={18} className="shrink-0" /> <span>{label}</span>
               </button>
             ))}
           </div>
