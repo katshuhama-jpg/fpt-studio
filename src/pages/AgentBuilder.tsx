@@ -2864,6 +2864,8 @@ function EmptyStateBox({ icon, description, addLabel, onAdd, disabled, disabledR
 }
 
 function NewConfigPanel({ agentId, model, onModelChange, onConnectionsChange }: { agentId: string; model: string; onModelChange: (id: string) => void; onConnectionsChange?: () => void }) {
+  const { can } = useMyPermissions();
+  const canManageSubAgents = can("agents.manage");
   const [open, setOpen] = useState<Record<string, boolean>>({ connectors: true, skills: true, knowledge: true, guardrails: true, triggers: true, "sub-agents": true });
   const [showAdvanced, setShowAdvanced] = useState(false);
   const guardrailsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
@@ -2916,6 +2918,7 @@ function NewConfigPanel({ agentId, model, onModelChange, onConnectionsChange }: 
     {
       id: "sub-agents", icon: UserMultipleIcon, label: "Sub-Agents",
       onAdd: () => subAgentsAddRef.current?.(),
+      disabled: !canManageSubAgents,
       content: (
         <SubAgentsInner onRegisterAdd={(fn) => { subAgentsAddRef.current = fn; }} />
       ),
@@ -3004,8 +3007,10 @@ function NewConfigPanel({ agentId, model, onModelChange, onConnectionsChange }: 
                 {s.comingSoon
                   ? <span className="text-xs px-2 py-0.5 rounded-full bg-surface-muted border border-border text-muted-foreground">Coming soon</span>
                   : <button
-                    className="text-muted-foreground hover:text-foreground transition-base"
+                    aria-disabled={!!s.disabled}
+                    className={`transition-base ${s.disabled ? "text-muted-foreground opacity-[0.45] cursor-not-allowed" : "text-muted-foreground hover:text-foreground"}`}
                     onClick={(e) => {
+                      if (s.disabled) return;
                       setOpen(o => ({ ...o, [s.id]: true }));
                       if (s.onAdd) {
                         const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -4516,6 +4521,27 @@ interface SubAgent {
   instructions: string;
   skillIds: number[];
   connectorIds: string[];
+  /** Paused sub-agents keep their full config but must be excluded from delegation/orchestration
+   * at runtime — that routing check lives outside this UI (see note left where it's wired up). */
+  status: "active" | "paused";
+}
+
+const SUB_AGENT_NAME_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+function validateSubAgentName(raw: string, existingNames: string[]): string | undefined {
+  const v = raw.trim();
+  if (!v) return "Name is required.";
+  if (v.length < 3 || v.length > 50) return "Name must be 3–50 characters.";
+  if (!SUB_AGENT_NAME_PATTERN.test(v)) return "Use lowercase letters, numbers, and hyphens only, e.g. candidate-email-sender.";
+  if (existingNames.includes(v.toLowerCase())) return "A sub-agent with this name already exists.";
+  return undefined;
+}
+
+function validateSubAgentDescription(raw: string): string | undefined {
+  const v = raw.trim();
+  if (!v) return undefined;
+  if (v.length < 10 || v.length > 200) return "Description must be 10–200 characters if provided.";
+  return undefined;
 }
 
 function InstructionsEditorModal({ value, onClose, onDone }: {
@@ -4869,23 +4895,45 @@ function ConnectorPickerModal({ connectors, added, onToggle, onClose, mode, onCh
   );
 }
 
-function CreateSubAgentModal({ onClose, onSave }: {
+function CreateSubAgentModal({ onClose, onSave, initial, existingNames }: {
   onClose: () => void;
-  onSave: (agent: Omit<SubAgent, "id">) => void;
+  onSave: (agent: Omit<SubAgent, "id" | "status">) => void;
+  /** Present when editing an existing sub-agent — pre-fills every field and saves in place
+   * instead of creating a new one. */
+  initial?: SubAgent;
+  /** Lowercased names of every OTHER sub-agent on this agent, for the uniqueness check —
+   * excludes `initial`'s own name so editing without renaming doesn't collide with itself. */
+  existingNames: string[];
 }) {
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [model, setModel] = useState("deepseek-v4-flash");
-  const [instructions, setInstructions] = useState("");
+  const editing = !!initial;
+  const [name, setName] = useState(initial?.name ?? "");
+  const [description, setDescription] = useState(initial?.description ?? "");
+  const [model, setModel] = useState(initial?.model ?? "deepseek-v4-flash");
+  const [instructions, setInstructions] = useState(initial?.instructions ?? "");
   const [editingInstructions, setEditingInstructions] = useState(false);
   const [editorViewMode, setEditorViewMode] = useState<"preview" | "source">("source");
   const editorRef = useRef<HTMLTextAreaElement>(null);
-  const [connectorIds, setConnectorIds] = useState<string[]>([]);
+  const [connectorIds, setConnectorIds] = useState<string[]>(initial?.connectorIds ?? []);
   const [showConnectorPicker, setShowConnectorPicker] = useState(false);
+  const [errors, setErrors] = useState<{ name?: string; description?: string }>({});
+  const nameRef = useRef<HTMLInputElement>(null);
 
   const toggleConnector = (id: string) => setConnectorIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
-  const canSave = name.trim().length > 0;
+  const validateField = (field: "name" | "description"): string | undefined =>
+    field === "name" ? validateSubAgentName(name, existingNames) : validateSubAgentDescription(description);
+
+  const clearError = (field: "name" | "description") => {
+    if (errors[field]) setErrors(er => ({ ...er, [field]: undefined }));
+  };
+
+  const canSave = !validateSubAgentName(name, existingNames) && !validateSubAgentDescription(description);
+
+  const handleSave = () => {
+    if (!canSave) return;
+    onSave({ name: name.trim(), description: description.trim(), model, instructions, skillIds: initial?.skillIds ?? [], connectorIds });
+    onClose();
+  };
 
   const wrapSelection = (before: string, after: string = before) => {
     const el = editorRef.current;
@@ -4978,7 +5026,7 @@ function CreateSubAgentModal({ onClose, onSave }: {
             {/* Header */}
             <div className="flex items-start justify-between px-6 pt-6 pb-4 shrink-0 border-b border-border">
               <div>
-                <h2 className="text-lg font-semibold">Create sub-agent</h2>
+                <h2 className="text-lg font-semibold">{editing ? "Edit sub-agent" : "Create sub-agent"}</h2>
                 <p className="text-sm text-muted-foreground mt-0.5">A specialized agent this agent can delegate tasks to.</p>
               </div>
               <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 mt-0.5">
@@ -4992,21 +5040,26 @@ function CreateSubAgentModal({ onClose, onSave }: {
                 <label className="text-xs font-semibold text-foreground mb-1.5 block">Name</label>
                 <input
                   autoFocus
+                  ref={nameRef}
                   value={name}
-                  onChange={e => setName(e.target.value)}
+                  onChange={e => { setName(e.target.value); clearError("name"); }}
+                  onBlur={() => setErrors(er => ({ ...er, name: validateField("name") }))}
                   placeholder="e.g. candidate-email-sender"
-                  className="ds-input w-full"
+                  className={`ds-input w-full ${errors.name ? "border-destructive" : ""}`}
                 />
+                {errors.name && <p className="mt-1 text-[11px] text-destructive">{errors.name}</p>}
               </div>
 
               <div>
                 <label className="text-xs font-semibold text-foreground mb-1.5 block">Description</label>
                 <input
                   value={description}
-                  onChange={e => setDescription(e.target.value)}
+                  onChange={e => { setDescription(e.target.value); clearError("description"); }}
+                  onBlur={() => setErrors(er => ({ ...er, description: validateField("description") }))}
                   placeholder="Use when sending recruiting emails…"
-                  className="ds-input w-full"
+                  className={`ds-input w-full ${errors.description ? "border-destructive" : ""}`}
                 />
+                {errors.description && <p className="mt-1 text-[11px] text-destructive">{errors.description}</p>}
               </div>
 
               <div>
@@ -5102,14 +5155,10 @@ function CreateSubAgentModal({ onClose, onSave }: {
               <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">Cancel</button>
               <button
                 disabled={!canSave}
-                onClick={() => {
-                  if (!canSave) return;
-                  onSave({ name: name.trim(), description: description.trim(), model, instructions, skillIds: [], connectorIds });
-                  onClose();
-                }}
+                onClick={handleSave}
                 className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-base"
               >
-                Create sub-agent
+                {editing ? "Save changes" : "Create sub-agent"}
               </button>
             </div>
           </>
@@ -5120,13 +5169,150 @@ function CreateSubAgentModal({ onClose, onSave }: {
   );
 }
 
+/** Delete confirmation for a sub-agent — mirrors DeleteExternalAgentDialog's AlertDialog
+ * skeleton. Offers "Pause it instead" as a reversible alternative when pausing is available
+ * and the sub-agent isn't already paused. */
+function DeleteSubAgentDialog({ name, open, onOpenChange, onConfirm, onPauseInstead }: {
+  name: string; open: boolean; onOpenChange: (open: boolean) => void; onConfirm: () => void;
+  onPauseInstead?: () => void;
+}) {
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete sub-agent?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This will permanently delete "{name}" and its configuration. This can't be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        {onPauseInstead && (
+          <button type="button" onClick={onPauseInstead} className="-mt-2 text-left text-xs font-semibold text-primary hover:underline">
+            Pause it instead
+          </button>
+        )}
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={onConfirm}
+          >
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+const SUB_AGENT_ROW_MENU_WIDTH = 144; // w-36
+const SUB_AGENT_ROW_MENU_HEIGHT_ESTIMATE = 130; // Edit + Pause/Resume + divider + Delete
+
+/** Kebab row-action menu for a sub-agent — same createPortal/flip-up/outside-click skeleton as
+ * TriggerRowMenu above, with Viewer-role items disabled behind the same Tooltip explanation
+ * pattern used there instead of a plain disabled button (which wouldn't fire hover/focus). */
+function SubAgentRowMenu({ paused, canManage, canPause, canDelete, onEdit, onTogglePause, onDelete }: {
+  paused: boolean; canManage: boolean; canPause: boolean; canDelete: boolean;
+  onEdit: () => void; onTogglePause: () => void; onDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const openMenu = () => {
+    const r = btnRef.current?.getBoundingClientRect();
+    if (r) {
+      const openUpward = window.innerHeight - r.bottom < SUB_AGENT_ROW_MENU_HEIGHT_ESTIMATE && r.top > SUB_AGENT_ROW_MENU_HEIGHT_ESTIMATE;
+      const left = Math.min(Math.max(r.right - SUB_AGENT_ROW_MENU_WIDTH, 8), window.innerWidth - SUB_AGENT_ROW_MENU_WIDTH - 8);
+      setPos(openUpward ? { bottom: window.innerHeight - r.top + 4, left } : { top: r.bottom + 4, left });
+    }
+    setOpen(true);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => {
+      if (
+        menuRef.current && !menuRef.current.contains(e.target as Node) &&
+        btnRef.current && !btnRef.current.contains(e.target as Node)
+      ) setOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+
+  const item = (label: string, onClick: () => void, allowed: boolean, reason: string, danger?: boolean) =>
+    allowed ? (
+      <button
+        type="button"
+        onClick={() => { onClick(); setOpen(false); }}
+        className={`w-full text-left px-3 py-1.5 text-xs transition-base ${danger ? "text-destructive hover:bg-[hsl(var(--destructive-soft))]" : "hover:bg-surface-muted"}`}
+      >
+        {label}
+      </button>
+    ) : (
+      <Tooltip delayDuration={300}>
+        <TooltipTrigger asChild>
+          <span tabIndex={0} className="block w-full text-left px-3 py-1.5 text-xs text-muted-foreground/60 cursor-not-allowed outline-none">
+            {label}
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="left" sideOffset={8} align="center">{reason}</TooltipContent>
+      </Tooltip>
+    );
+
+  return (
+    <div className="relative shrink-0" onClick={e => e.stopPropagation()}>
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={() => (open ? setOpen(false) : openMenu())}
+        className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base shrink-0"
+        aria-label="Sub-agent actions"
+      >
+        <HugeiconsIcon icon={MoreHorizontalIcon} size={13} />
+      </button>
+      {open && createPortal(
+        <div
+          ref={menuRef}
+          className="fixed z-[9999] w-36 rounded-lg border border-border bg-white shadow-elev py-1"
+          style={{ top: pos.top, bottom: pos.bottom, left: pos.left }}
+          onMouseDown={e => e.stopPropagation()}
+        >
+          {item("Edit", onEdit, canManage, "You don't have permission to edit sub-agents.")}
+          {item(paused ? "Resume" : "Pause", onTogglePause, canPause, `You don't have permission to ${paused ? "resume" : "pause"} sub-agents.`)}
+          <div className="h-px bg-border my-1" />
+          {item("Delete", onDelete, canDelete, "You don't have permission to delete sub-agents.", true)}
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
+
 function SubAgentsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => void) => void } = {}) {
+  const { can } = useMyPermissions();
+  const canManage = can("agents.manage");
+  const canPause = can("agents.pause");
+  const canDelete = can("agents.delete");
+
   const [subAgents, setSubAgents] = useState<SubAgent[]>([]);
   const [showCreate, setShowCreate] = useState(false);
+  const [editTarget, setEditTarget] = useState<SubAgent | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<SubAgent | null>(null);
 
   useEffect(() => {
     onRegisterAdd?.(() => setShowCreate(true));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Paused sub-agents keep this full config but must be skipped when the parent agent resolves
+  // which sub-agent to delegate to at runtime. That routing lookup lives in the orchestration
+  // layer, not this Configuration UI — flagging here since it's outside this task's scope.
+  const togglePause = (id: number) => {
+    setSubAgents(prev => prev.map(x => x.id === id ? { ...x, status: x.status === "paused" ? "active" : "paused" } : x));
+  };
+
+  const closeModal = () => { setShowCreate(false); setEditTarget(null); };
 
   return (
     <>
@@ -5136,33 +5322,71 @@ function SubAgentsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => void) =>
           description="Specialized agents this agent can delegate to."
           addLabel="Add Sub-Agent"
           onAdd={() => setShowCreate(true)}
+          disabled={!canManage}
+          disabledReason={!canManage ? "You don't have permission to add sub-agents." : undefined}
         />
       ) : (
         <div className="flex flex-col gap-1.5">
-          {subAgents.map(a => (
-            <div key={a.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base">
-              <div className="w-6 h-6 rounded-lg bg-surface-muted border border-border flex items-center justify-center shrink-0">
-                <HugeiconsIcon icon={UserMultipleIcon} size={12} className="text-muted-foreground" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium truncate">{a.name}</p>
-                {a.description && <p className="text-[11px] text-muted-foreground truncate">{a.description}</p>}
-              </div>
-              <button
-                onClick={() => setSubAgents(prev => prev.filter(x => x.id !== a.id))}
-                className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-surface-muted transition-base shrink-0"
+          {subAgents.map(a => {
+            const paused = a.status === "paused";
+            return (
+              <div
+                key={a.id}
+                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base ${paused ? "opacity-60" : ""}`}
               >
-                <HugeiconsIcon icon={Delete01Icon} size={12} />
-              </button>
-            </div>
-          ))}
+                <div className="w-6 h-6 rounded-lg bg-surface-muted border border-border flex items-center justify-center shrink-0">
+                  <HugeiconsIcon icon={UserMultipleIcon} size={12} className="text-muted-foreground" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-xs font-medium truncate">{a.name}</p>
+                    {paused && <span className="chip chip-muted text-[10px] shrink-0">Paused</span>}
+                  </div>
+                  {a.description && <p className="text-[11px] text-muted-foreground truncate">{a.description}</p>}
+                </div>
+                <SubAgentRowMenu
+                  paused={paused}
+                  canManage={canManage}
+                  canPause={canPause}
+                  canDelete={canDelete}
+                  onEdit={() => setEditTarget(a)}
+                  onTogglePause={() => togglePause(a.id)}
+                  onDelete={() => setDeleteTarget(a)}
+                />
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {showCreate && (
+      {(showCreate || editTarget) && (
         <CreateSubAgentModal
-          onClose={() => setShowCreate(false)}
-          onSave={data => setSubAgents(prev => [...prev, { ...data, id: Date.now() }])}
+          initial={editTarget ?? undefined}
+          existingNames={subAgents.filter(x => x.id !== editTarget?.id).map(x => x.name.toLowerCase())}
+          onClose={closeModal}
+          onSave={data => {
+            if (editTarget) {
+              setSubAgents(prev => prev.map(x => x.id === editTarget.id ? { ...x, ...data } : x));
+            } else {
+              setSubAgents(prev => [...prev, { ...data, id: Date.now(), status: "active" }]);
+            }
+          }}
+        />
+      )}
+
+      {deleteTarget && (
+        <DeleteSubAgentDialog
+          name={deleteTarget.name}
+          open={!!deleteTarget}
+          onOpenChange={v => { if (!v) setDeleteTarget(null); }}
+          onConfirm={() => {
+            setSubAgents(prev => prev.filter(x => x.id !== deleteTarget.id));
+            setDeleteTarget(null);
+          }}
+          onPauseInstead={canPause && deleteTarget.status !== "paused" ? () => {
+            togglePause(deleteTarget.id);
+            setDeleteTarget(null);
+          } : undefined}
         />
       )}
     </>
