@@ -24,6 +24,8 @@ import { RolesProvider } from "./pages/organization/rolesStore";
 import { OrgProvider } from "./pages/organization/orgStore";
 import { ConflictsProvider } from "./pages/organization/conflictsStore";
 import PlaceholderPage from "./pages/PlaceholderPage";
+import KnowledgeList from "./pages/KnowledgeList";
+import KnowledgeDetail from "./pages/KnowledgeDetail";
 import Skills from "./pages/Skills";
 import WorkspaceGuardrails from "./pages/WorkspaceGuardrails";
 import WorkspaceConnectors from "./pages/WorkspaceConnectors";
@@ -77,7 +79,8 @@ const App = () => (
             <Route path="/agents/:id/tools/new" element={<RequireAuth><ToolBuilder /></RequireAuth>} />
             <Route path="/agents/:id/tools/:toolId" element={<RequireAuth><ToolBuilder /></RequireAuth>} />
             <Route element={<RequireAuth><WorkspaceLayout /></RequireAuth>}>
-              <Route path="/knowledge" element={<PlaceholderPage title="Workspace Knowledge" />} />
+              <Route path="/knowledge" element={<KnowledgeList />} />
+              <Route path="/knowledge/:id" element={<KnowledgeDetail />} />
               <Route path="/members" element={<OrgMembers />} />
               <Route path="/roles" element={<OrgRoles />} />
               <Route path="/organization" element={<OrgGeneral />} />

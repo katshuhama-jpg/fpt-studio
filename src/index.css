@@ -179,6 +179,8 @@
   .chip-warning { background: hsl(var(--warning-soft)); color: hsl(var(--warning)); border-color: hsl(var(--warning) / 0.25); }
   .chip-danger  { background: hsl(var(--destructive-soft)); color: hsl(var(--destructive)); border-color: hsl(var(--destructive) / 0.2); }
   .chip-info    { background: hsl(var(--info-soft)); color: hsl(var(--info)); border-color: hsl(var(--info) / 0.2); }
+  .chip-muted   { @apply bg-secondary text-muted-foreground border-border; }
+  .chip-outline { @apply bg-transparent text-muted-foreground border-border; }
 
   .btn-primary {
     @apply inline-flex items-center gap-2 h-9 px-4 rounded-[8px] bg-primary text-primary-foreground text-sm font-medium transition-base;
