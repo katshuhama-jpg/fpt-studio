@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Add01Icon, Search01Icon, FilterIcon, MoreVerticalIcon, Chat01Icon, Activity01Icon,
-  Attachment01Icon, AtSignIcon, SparklesIcon, SentIcon, Cancel01Icon, BoltIcon, TimeScheduleIcon,
+  SparklesIcon, Cancel01Icon, BoltIcon, TimeScheduleIcon,
 } from "@hugeicons/core-free-icons";
 import { useState } from "react";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
@@ -18,6 +18,12 @@ import { getChannelName } from "@/components/configure/channelCatalog";
 
 const tabs = ["All agents", "Published", "Draft", "Shared with me"] as const;
 const kindFilters = ["All", "Agents", "Automation Agents"] as const;
+
+const SUGGESTIONS = [
+  { label: "Customer support", prompt: "A customer-support agent that answers FAQs, guides users through documentation, and escalates tickets when needed." },
+  { label: "Internal lookup", prompt: "An internal lookup assistant that answers employee questions using company policies and the internal knowledge base." },
+  { label: "Sales assistant", prompt: "A sales assistant that qualifies inbound leads, answers product questions, and books demo calls." },
+] as const;
 
 const TRIGGER_TYPE_LABEL: Record<TriggerType, string> = {
   scheduled: "Schedule",
@@ -436,7 +442,7 @@ export default function AgentsList() {
 
       {/* Page header */}
       <div className="mb-6">
-        <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">Agents</h1>
+        <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">My agents</h1>
         <p className="text-sm text-muted-foreground">
           Manage every agent in this workspace — build, test, deploy and monitor.
         </p>
@@ -445,15 +451,15 @@ export default function AgentsList() {
       {/* ── Hero title + chat box ─────────────────────────────────────── */}
       <div className="flex flex-col items-center mb-8">
         <h2 className="font-display text-4xl font-semibold tracking-tight text-center mb-2">
-          Start to build your agent today
+          Where do you want to start?
         </h2>
         <p className="text-base text-muted-foreground text-center mb-6">
-          Describe what you need and we'll build it for you
+          Pick a starting point, then refine it in the builder.
         </p>
-        <div className="w-full max-w-[672px] rounded-2xl border-2 border-primary/40 bg-white p-4 shadow-sm focus-within:border-primary transition-colors">
+        <div className="w-full max-w-[672px] rounded-2xl border border-border bg-surface p-4 shadow-sm focus-within:border-ring transition-colors">
         <textarea
           className="w-full resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none leading-relaxed min-h-[56px]"
-          placeholder="e.g. A 24/7 banking customer-care agent that can lock cards, look up loan rates and book consultations…"
+          placeholder='e.g. "A bank customer-support assistant that answers credit-card questions in a formal tone."'
           rows={2}
           value={prompt}
           onChange={e => setPrompt(e.target.value)}
@@ -462,24 +468,12 @@ export default function AgentsList() {
           }}
         />
         <div className="flex items-center justify-between mt-3">
-          {/* Left tools */}
-          <div className="flex items-center gap-1">
-            <button
-              className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base"
-              title="Attach file"
-            >
-              <HugeiconsIcon icon={Attachment01Icon} size={16} />
-            </button>
-            <button
-              className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base"
-              title="Mention knowledge"
-            >
-              <HugeiconsIcon icon={AtSignIcon} size={16} />
-            </button>
-          </div>
+          <p className="text-xs text-muted-foreground">
+            The more specific, the closer the draft — at least 20 characters.
+          </p>
 
           {/* Right actions */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             <button
               onClick={() => canCreateAgent && setShowTemplates(true)}
               disabled={!canCreateAgent}
@@ -490,23 +484,36 @@ export default function AgentsList() {
             </button>
             <button
               onClick={handleBuild}
-              disabled={!prompt.trim() || !canCreateAgent}
+              disabled={prompt.trim().length < 20 || !canCreateAgent}
               title={!canCreateAgent ? "You don't have permission to create agents." : undefined}
-              className="btn-primary h-9 px-4 rounded-full disabled:opacity-40 disabled:cursor-not-allowed"
+              className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <HugeiconsIcon icon={SparklesIcon} size={14} />
               Build agent
-              <HugeiconsIcon icon={SentIcon} size={13} />
             </button>
           </div>
         </div>
+        </div>
+
+        <div className="flex items-center gap-2 mt-4">
+          <span className="text-xs text-muted-foreground">Suggestions</span>
+          {SUGGESTIONS.map(s => (
+            <button
+              key={s.label}
+              onClick={() => canCreateAgent && setPrompt(s.prompt)}
+              disabled={!canCreateAgent}
+              className="h-7 px-3 rounded-full border border-border text-xs font-medium text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {s.label}
+            </button>
+          ))}
         </div>
 
         <button
           onClick={() => canCreateAgent && navigate("/agents/new?tab=build&section=instructions")}
           disabled={!canCreateAgent}
           title={!canCreateAgent ? "You don't have permission to create agents." : undefined}
-          className="mt-4 h-9 px-4 rounded-full border border-border text-sm font-medium text-foreground hover:bg-surface-muted transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+          className="btn-secondary mt-4 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-surface"
         >
           Create from blank
         </button>

@@ -1,12 +1,13 @@
 import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  ArrowRight, ArrowUpRight, Sparkles, Send, Paperclip, AtSign,
+  ArrowRight, ArrowUpRight, Sparkles, Paperclip, AtSign,
   Play, ExternalLink, X, Search, Edit, Copy, ShieldCheck,
   KeyRound, AlertTriangle, CheckCircle2, Plus, MoreVertical, Trash2
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 /* ─── Template data ─────────────────────────────────────────────────── */
 const categories = ["All", "Customer support", "Sales", "HR & Internal", "Operations", "Finance"] as const;
@@ -57,7 +58,7 @@ function TemplateModal({ onClose }: { onClose: () => void }) {
   });
   const handleUse = (t: typeof templates[number]) => {
     const params = new URLSearchParams();
-    params.set("tab", "develop");
+    params.set("tab", "build");
     params.set("section", "instructions");
     params.set("agentName", t.name);
     params.set("agentPrompt", t.systemPrompt);
@@ -156,30 +157,41 @@ function RecentAgentCard({ a }: { a: typeof recent[number] }) {
 
 function CreateAgentModal({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
+  const { can } = useMyPermissions();
+  const canCreateAgent = can("agents.create");
   const [prompt, setPrompt] = useState("");
   const [showTemplates, setShowTemplates] = useState(false);
 
   const handleBuild = () => {
     if (!prompt.trim()) return;
     const params = new URLSearchParams();
-    params.set("tab", "develop");
+    params.set("tab", "build");
     params.set("section", "instructions");
     params.set("agentPrompt", prompt.trim());
     navigate(`/agents/new?${params.toString()}`);
     onClose();
   };
 
+  const handleBlank = () => {
+    if (!canCreateAgent) return;
+    onClose();
+    navigate("/agents/new?tab=build&section=instructions");
+  };
+
   if (showTemplates) return <TemplateModal onClose={onClose} />;
 
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-[672px] mx-4 animate-fade-up">
-        <div className="rounded-2xl border-2 border-primary/40 bg-white p-4 shadow-lg focus-within:border-primary transition-colors">
-          <p className="text-sm font-medium text-foreground mb-3 px-1">Describe your agent</p>
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader className="text-left">
+          <DialogTitle>Start to build your agent today</DialogTitle>
+          <DialogDescription>Describe what you need and we'll build it for you</DialogDescription>
+        </DialogHeader>
+
+        <div className="rounded-[8px] border border-border bg-surface p-3 transition-base focus-within:border-ring">
           <textarea
             autoFocus
-            className="w-full resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none leading-relaxed min-h-[80px]"
+            className="w-full resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none leading-relaxed min-h-[80px] border-0 p-0"
             placeholder="e.g. A 24/7 banking customer-care agent that can lock cards, look up loan rates and book consultations…"
             rows={3}
             value={prompt}
@@ -188,23 +200,25 @@ function CreateAgentModal({ onClose }: { onClose: () => void }) {
           />
           <div className="flex items-center justify-between mt-3">
             <div className="flex items-center gap-1">
-              <button className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base" title="Attach file"><Paperclip size={16} /></button>
-              <button className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base" title="Mention knowledge"><AtSign size={16} /></button>
+              <button type="button" className="w-8 h-8 rounded-[8px] hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base" title="Attach file"><Paperclip size={16} /></button>
+              <button type="button" className="w-8 h-8 rounded-[8px] hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base" title="Mention knowledge"><AtSign size={16} /></button>
             </div>
             <div className="flex items-center gap-3">
-              <button onClick={() => setShowTemplates(true)} className="text-sm text-muted-foreground hover:text-foreground transition-base">Use a template</button>
-              <button onClick={handleBuild} disabled={!prompt.trim()} className="h-9 px-4 rounded-full bg-primary/80 hover:bg-primary disabled:opacity-40 disabled:cursor-not-allowed text-primary-foreground text-sm font-medium flex items-center gap-2 transition-base">
-                <Sparkles size={14} /> Build agent <Send size={13} />
+              <button type="button" onClick={() => setShowTemplates(true)} className="text-sm text-muted-foreground hover:text-foreground transition-base">Use a template</button>
+              <button type="button" onClick={handleBuild} disabled={!prompt.trim()} className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
+                <Sparkles size={14} /> Build agent
               </button>
             </div>
           </div>
         </div>
-        <button onClick={onClose} className="absolute -top-3 -right-3 w-7 h-7 rounded-full bg-white border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-base shadow-sm">
-          <X size={14} />
-        </button>
-      </div>
-    </div>,
-    document.body
+
+        <DialogFooter className="sm:justify-center">
+          <button type="button" onClick={handleBlank} className="btn-secondary">
+            Create from blank
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
