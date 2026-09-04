@@ -4,7 +4,7 @@ import { Plus, X, Trash2, ChevronRight, Lock, Info } from "lucide-react";
 import { toast } from "sonner";
 import { Card, PageHeader } from "./shared";
 import { featureGroups, SECTIONS, ALL_PERMISSION_IDS, FeatureGroup } from "./permissionsData";
-import { useRoles } from "./rolesStore";
+import { useRoles, SCOPABLE_GROUP_IDS, defaultScope, type ScopeMap, type ScopeValue } from "./rolesStore";
 import { useOrg } from "./orgStore";
 import { collectMembers } from "./orgData";
 import { DEFAULT_ROLE_ID } from "./Members";
@@ -45,20 +45,22 @@ function impliedOnMap(enabled: Set<string>): Map<string, string> {
 
 /* ─── Create / edit role modal ─────────────────────────────────────────── */
 function RoleModal({
-  title, initialName, initialPermissionIds, readOnly, onClose, onSave, existingNames = [],
+  title, initialName, initialPermissionIds, initialScope, readOnly, onClose, onSave, existingNames = [],
 }: {
   title: string;
   initialName?: string;
   initialPermissionIds?: Set<string>;
+  initialScope?: ScopeMap;
   readOnly?: boolean;
   onClose: () => void;
-  onSave: (name: string, permissionIds: Set<string>) => void;
+  onSave: (name: string, permissionIds: Set<string>, scope: ScopeMap) => void;
   /** Names of other roles already in the workspace (excluding this one, if editing) — role names must be unique so admins can tell them apart when assigning. */
   existingNames?: string[];
 }) {
   const isEdit = initialName !== undefined;
   const [name, setName] = useState(initialName ?? "");
   const [enabled, setEnabled] = useState<Set<string>>(new Set(initialPermissionIds ?? []));
+  const [scope, setScope] = useState<ScopeMap>({ ...defaultScope(), ...initialScope });
   const trimmedName = name.trim();
   const isDuplicateName = trimmedName.length > 0 && existingNames.some(n => n.trim().toLowerCase() === trimmedName.toLowerCase());
 
@@ -89,7 +91,7 @@ function RoleModal({
   const canSubmit = !!trimmedName && !isDuplicateName;
   const submit = () => {
     if (!canSubmit) return;
-    onSave(trimmedName, effective);
+    onSave(trimmedName, effective, scope);
     onClose();
   };
 
@@ -143,12 +145,23 @@ function RoleModal({
             {featureGroups.map(group => {
               const ids = group.permissions.map(p => p.id);
               const allOn = ids.every(id => effective.has(id));
+              const isScopable = (SCOPABLE_GROUP_IDS as readonly string[]).includes(group.id);
+              const scopablePermIds = group.permissions.filter(p => p.id !== `${group.id}.create`).map(p => p.id);
+              const showScope = isScopable && scopablePermIds.some(id => effective.has(id));
+              const scopeValue: ScopeValue = scope[group.id] ?? "all";
               return (
                 <div key={group.id}>
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <group.icon size={14} className="text-muted-foreground" />
                       <span className="text-sm font-semibold">{group.label}</span>
+                      {readOnly && showScope && (
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                          scopeValue === "all" ? "bg-primary-soft text-primary" : "bg-surface-muted text-muted-foreground"
+                        }`}>
+                          {scopeValue === "all" ? "All in Console" : "Own & Shared"}
+                        </span>
+                      )}
                     </div>
                     {group.permissions.length > 1 && !readOnly && (
                       <button
@@ -182,6 +195,33 @@ function RoleModal({
                       );
                     })}
                   </div>
+                  {!readOnly && showScope && (
+                    <div className="mt-2.5">
+                      <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-surface border border-border w-fit">
+                        <button
+                          type="button"
+                          onClick={() => setScope(s => ({ ...s, [group.id]: "all" }))}
+                          className={`h-7 px-3 rounded-md text-xs font-medium transition-base ${
+                            scopeValue === "all" ? "bg-surface-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          All in Console
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setScope(s => ({ ...s, [group.id]: "own_shared" }))}
+                          className={`h-7 px-3 rounded-md text-xs font-medium transition-base ${
+                            scopeValue === "own_shared" ? "bg-surface-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          Own & Shared
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
+                        Applies to View, Publish, Build, Pause and Delete for {group.label}. Create always applies only to items the person creates themselves.
+                      </p>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -360,12 +400,12 @@ export default function Roles() {
   const effectiveRoleId = (m: { roleId?: string }) => (m.roleId && roleIdSet.has(m.roleId) ? m.roleId : DEFAULT_ROLE_ID);
   const memberCountByRole = new Map(roles.map(r => [r.id, allMembers.filter(m => effectiveRoleId(m) === r.id).length]));
 
-  const handleCreate = (name: string, permissionIds: Set<string>) => {
-    createRole(name, permissionIds);
+  const handleCreate = (name: string, permissionIds: Set<string>, scope: ScopeMap) => {
+    createRole(name, permissionIds, scope);
   };
 
-  const handleSaveEdit = (name: string, permissionIds: Set<string>) => {
-    if (editingId) updateRole(editingId, name, permissionIds);
+  const handleSaveEdit = (name: string, permissionIds: Set<string>, scope: ScopeMap) => {
+    if (editingId) updateRole(editingId, name, permissionIds, scope);
   };
 
   const handleDelete = (id: string) => {
@@ -405,6 +445,7 @@ export default function Roles() {
           title={editingRole.isDefault ? `View ${editingRole.name}` : `Edit ${editingRole.name}`}
           initialName={editingRole.name}
           initialPermissionIds={editingRole.permissionIds}
+          initialScope={editingRole.scope}
           readOnly={editingRole.isDefault}
           onClose={() => setEditingId(null)}
           onSave={handleSaveEdit}

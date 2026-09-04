@@ -1,11 +1,27 @@
 import { createContext, useContext, useState, ReactNode } from "react";
 import { ALL_PERMISSION_IDS } from "./permissionsData";
 
+/** The 5 resource groups whose permissions (other than Create) can be scoped to either every
+ * item in the Console or only items the role's member created or was shared with. */
+export const SCOPABLE_GROUP_IDS = ["agents", "knowledge", "skills", "guardrails", "connectors"] as const;
+export type ScopeValue = "all" | "own_shared";
+export type ScopeMap = Record<string, ScopeValue>;
+
+export function defaultScope(): ScopeMap {
+  const map: ScopeMap = {};
+  for (const id of SCOPABLE_GROUP_IDS) map[id] = "all";
+  return map;
+}
+
 export type RoleDef = {
   id: string;
   name: string;
   isDefault: boolean;
   permissionIds: Set<string>;
+  /** Per-resource-group scope for View/Publish/Build/Pause/Delete — "all" (every item in the
+   * Console) or "own_shared" (only items the member created or that were shared with them).
+   * Create is never scoped — it always applies only to items the person creates themselves. */
+  scope: ScopeMap;
 };
 
 const ADMIN_IDS = new Set(ALL_PERMISSION_IDS);
@@ -28,15 +44,15 @@ const VIEWER_IDS = new Set([
 ]);
 
 const SEED_ROLES: RoleDef[] = [
-  { id: "admin", name: "Admin", isDefault: true, permissionIds: ADMIN_IDS },
-  { id: "builder", name: "Builder", isDefault: true, permissionIds: BUILDER_IDS },
-  { id: "viewer", name: "Viewer", isDefault: true, permissionIds: VIEWER_IDS },
+  { id: "admin", name: "Admin", isDefault: true, permissionIds: ADMIN_IDS, scope: defaultScope() },
+  { id: "builder", name: "Builder", isDefault: true, permissionIds: BUILDER_IDS, scope: defaultScope() },
+  { id: "viewer", name: "Viewer", isDefault: true, permissionIds: VIEWER_IDS, scope: defaultScope() },
 ];
 
 type RolesContextValue = {
   roles: RoleDef[];
-  createRole: (name: string, permissionIds: Set<string>) => void;
-  updateRole: (id: string, name: string, permissionIds: Set<string>) => void;
+  createRole: (name: string, permissionIds: Set<string>, scope: ScopeMap) => void;
+  updateRole: (id: string, name: string, permissionIds: Set<string>, scope: ScopeMap) => void;
   deleteRole: (id: string) => void;
 };
 
@@ -45,12 +61,12 @@ const RolesContext = createContext<RolesContextValue | null>(null);
 export function RolesProvider({ children }: { children: ReactNode }) {
   const [roles, setRoles] = useState<RoleDef[]>(SEED_ROLES);
 
-  const createRole = (name: string, permissionIds: Set<string>) => {
-    setRoles(prev => [...prev, { id: `custom-${Date.now()}`, name, isDefault: false, permissionIds }]);
+  const createRole = (name: string, permissionIds: Set<string>, scope: ScopeMap) => {
+    setRoles(prev => [...prev, { id: `custom-${Date.now()}`, name, isDefault: false, permissionIds, scope }]);
   };
 
-  const updateRole = (id: string, name: string, permissionIds: Set<string>) => {
-    setRoles(prev => prev.map(r => (r.id === id ? { ...r, name, permissionIds } : r)));
+  const updateRole = (id: string, name: string, permissionIds: Set<string>, scope: ScopeMap) => {
+    setRoles(prev => prev.map(r => (r.id === id ? { ...r, name, permissionIds, scope } : r)));
   };
 
   const deleteRole = (id: string) => {
