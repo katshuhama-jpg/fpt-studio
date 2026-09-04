@@ -411,13 +411,13 @@ function TenantSwitcher({ tenantId, onChange }: { tenantId: string; onChange: (i
     <div className="relative">
       <button
         onClick={() => setOpen(v => !v)}
-        className="chip chip-primary hover:opacity-90 transition-base cursor-pointer pr-2 gap-1.5"
+        className="flex items-center gap-1.5 h-7 px-1.5 rounded-lg hover:bg-surface-muted transition-base cursor-pointer text-sm font-medium text-foreground"
       >
-        <span className="w-4 h-4 rounded-full bg-primary/15 flex items-center justify-center text-[9px] font-bold">
+        <span className="w-4 h-4 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[9px] font-bold">
           {tenant.initial}
         </span>
         {tenant.name}
-        <ChevronDown size={11} className={`transition-base ${open ? "rotate-180" : ""}`} />
+        <ChevronDown size={11} className={`text-muted-foreground transition-base ${open ? "rotate-180" : ""}`} />
       </button>
 
       {open && (
