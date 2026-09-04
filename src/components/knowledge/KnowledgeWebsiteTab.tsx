@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Search, ChevronDown, Plus, MoreVertical, Folder, Globe, Clock } from "lucide-react";
+import { Search, ChevronDown, Plus, MoreVertical, Folder, Globe, Clock, Settings2 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -8,11 +8,13 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { knowledgeUrlStore, type KnowledgeUrl, type UrlSource } from "./knowledgeUrlStore";
+import { knowledgeSettingsStore, shortCadence } from "./knowledgeSettingsStore";
 import { KnowledgeStatusPill, type KnowledgeProcessingStatus } from "./knowledgeStatus";
 import ChunkViewerModal from "./ChunkViewerModal";
 import AddUrlModal from "./AddUrlModal";
 import UrlScheduleOverrideModal from "./UrlScheduleOverrideModal";
 import VersionHistoryPanel from "./VersionHistoryPanel";
+import SyncSettingsDrawer from "./SyncSettingsDrawer";
 
 const STATUS_OPTIONS: { value: KnowledgeProcessingStatus | "all"; label: string }[] = [
   { value: "all", label: "Tất cả" },
@@ -55,6 +57,7 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [showAddUrl, setShowAddUrl] = useState(false);
+  const [showSyncSettings, setShowSyncSettings] = useState(false);
   const [scheduleTarget, setScheduleTarget] = useState<KnowledgeUrl | null>(null);
   const [versionTarget, setVersionTarget] = useState<KnowledgeUrl | null>(null);
   const [deleteTargets, setDeleteTargets] = useState<KnowledgeUrl[] | null>(null);
@@ -71,6 +74,7 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
   }, [showCreateMenu]);
 
   const all = knowledgeUrlStore.list(kbId);
+  const settings = knowledgeSettingsStore.get(kbId);
   void tick;
   const refresh = () => setTick(t => t + 1);
   const q = query.trim().toLowerCase();
@@ -94,7 +98,8 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
   };
 
   return (
-    <div className="h-full overflow-y-auto p-4 sm:p-8">
+    <div className="h-full overflow-y-auto">
+    <div className="p-4 sm:p-8 max-w-[1280px] mx-auto">
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap">
           <div className="relative">
@@ -129,28 +134,47 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
           </div>
         </div>
 
-        {!viewOnly && (
-          <div className="relative" ref={createMenuRef}>
-            <button onClick={() => setShowCreateMenu(v => !v)} className="btn-primary h-9">
-              <Plus size={14} /> Tạo <ChevronDown size={12} className={`transition-base ${showCreateMenu ? "rotate-180" : ""}`} />
-            </button>
-            {showCreateMenu && (
-              <div className="absolute right-0 top-full mt-1 z-20 w-44 rounded-lg border border-border bg-white shadow-elev py-1">
-                <button onClick={() => { setShowCreateMenu(false); setShowAddUrl(true); }} className="w-full text-left px-3 py-1.5 text-sm hover:bg-surface-muted transition-base">URL mới</button>
+        <div className="flex items-center gap-2">
+          <Tooltip delayDuration={300}>
+            <TooltipTrigger asChild>
+              <span tabIndex={0} className="outline-none">
                 <button
-                  onClick={() => {
-                    setShowCreateMenu(false);
-                    const name = window.prompt("Tên thư mục mới")?.trim();
-                    if (name) { knowledgeUrlStore.createFolder(kbId, name); refresh(); }
-                  }}
-                  className="w-full text-left px-3 py-1.5 text-sm hover:bg-surface-muted transition-base"
+                  onClick={() => setShowSyncSettings(true)}
+                  disabled={all.length === 0}
+                  className="h-9 px-3 flex items-center gap-1.5 rounded-lg border border-border bg-surface text-sm hover:bg-surface-muted transition-base disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed"
                 >
-                  Thư mục mới
+                  <Settings2 size={14} />
+                  Cài đặt đồng bộ
+                  {settings.scheduleEnabled && <span className="chip chip-muted ml-0.5">{shortCadence(settings.schedule)}</span>}
                 </button>
-              </div>
-            )}
-          </div>
-        )}
+              </span>
+            </TooltipTrigger>
+            {all.length === 0 && <TooltipContent>Thêm URL trước khi cài đặt lịch đồng bộ.</TooltipContent>}
+          </Tooltip>
+
+          {!viewOnly && (
+            <div className="relative" ref={createMenuRef}>
+              <button onClick={() => setShowCreateMenu(v => !v)} className="btn-primary h-9">
+                <Plus size={14} /> Tạo <ChevronDown size={12} className={`transition-base ${showCreateMenu ? "rotate-180" : ""}`} />
+              </button>
+              {showCreateMenu && (
+                <div className="absolute right-0 top-full mt-1 z-20 w-44 rounded-lg border border-border bg-white shadow-elev py-1">
+                  <button onClick={() => { setShowCreateMenu(false); setShowAddUrl(true); }} className="w-full text-left px-3 py-1.5 text-sm hover:bg-surface-muted transition-base">URL mới</button>
+                  <button
+                    onClick={() => {
+                      setShowCreateMenu(false);
+                      const name = window.prompt("Tên thư mục mới")?.trim();
+                      if (name) { knowledgeUrlStore.createFolder(kbId, name); refresh(); }
+                    }}
+                    className="w-full text-left px-3 py-1.5 text-sm hover:bg-surface-muted transition-base"
+                  >
+                    Thư mục mới
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {selected.size > 0 && !viewOnly && (
@@ -260,6 +284,7 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
       )}
 
       <AddUrlModal open={showAddUrl} kbId={kbId} onClose={() => { setShowAddUrl(false); refresh(); }} />
+      {showSyncSettings && <SyncSettingsDrawer kbId={kbId} viewOnly={viewOnly} onClose={() => setShowSyncSettings(false)} onSaved={refresh} />}
       {openUrl && <ChunkViewerModal kbId={kbId} sourceType="url" sourceId={openUrl.id} sourceName={openUrl.title ?? openUrl.name} onClose={closeViewer} viewOnly={viewOnly} />}
       {scheduleTarget && <UrlScheduleOverrideModal kbId={kbId} url={scheduleTarget} onClose={() => { setScheduleTarget(null); refresh(); }} />}
       {versionTarget && (
@@ -289,6 +314,7 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
     </div>
   );
 }

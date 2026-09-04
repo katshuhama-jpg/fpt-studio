@@ -80,7 +80,8 @@ export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; view
   const toggleCategory = (c: string) => setCategoryFilter(prev => { const n = new Set(prev); n.has(c) ? n.delete(c) : n.add(c); return n; });
 
   return (
-    <div className="h-full overflow-y-auto p-4 sm:p-8">
+    <div className="h-full overflow-y-auto">
+    <div className="p-4 sm:p-8 max-w-[1280px] mx-auto">
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap">
           <div className="relative">
@@ -222,6 +223,7 @@ export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; view
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
     </div>
   );
 }

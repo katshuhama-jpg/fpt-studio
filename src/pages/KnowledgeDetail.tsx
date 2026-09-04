@@ -1,24 +1,51 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
-  ChevronLeft, MoreHorizontal, FileText, Globe, HelpCircle, Database, Settings as SettingsIcon,
-  BarChart3, AlertTriangle, Check, X as XIcon,
+  ChevronLeft, MoreHorizontal, FileText, Globe, HelpCircle, Database,
+  BarChart3, AlertTriangle,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { toast } from "sonner";
 import {
   knowledgeBaseStore, isViewOnly, CURRENT_USER, type KnowledgeBase,
 } from "@/components/knowledge/knowledgeBaseStore";
+import { knowledgeDocumentStore } from "@/components/knowledge/knowledgeDocumentStore";
+import { knowledgeUrlStore } from "@/components/knowledge/knowledgeUrlStore";
+import { knowledgeFaqStore } from "@/components/knowledge/knowledgeFaqStore";
 import CreateKnowledgeBaseModal from "@/components/knowledge/CreateKnowledgeBaseModal";
 import ShareKnowledgeBaseModal from "@/components/knowledge/ShareKnowledgeBaseModal";
 import DeleteKnowledgeBaseDialog from "@/components/knowledge/DeleteKnowledgeBaseDialog";
 import KnowledgeDocumentsTab from "@/components/knowledge/KnowledgeDocumentsTab";
 import KnowledgeWebsiteTab from "@/components/knowledge/KnowledgeWebsiteTab";
 import KnowledgeFaqTab from "@/components/knowledge/KnowledgeFaqTab";
-import KnowledgeSettingsTab from "@/components/knowledge/KnowledgeSettingsTab";
 
-type Tab = "documents" | "website" | "faq" | "settings";
-const VALID_TABS: Tab[] = ["documents", "website", "faq", "settings"];
+type Tab = "documents" | "website" | "faq";
+const VALID_TABS: Tab[] = ["documents", "website", "faq"];
+
+function ClearContentDialog({ open, kbName, onClose, onConfirm }: { open: boolean; kbName: string; onClose: () => void; onConfirm: () => void }) {
+  const [typed, setTyped] = useState("");
+  const matches = typed.trim() === kbName;
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v) { setTyped(""); onClose(); } }}>
+      <DialogContent className="sm:max-w-[460px]">
+        <DialogHeader><DialogTitle>Xóa toàn bộ nội dung?</DialogTitle></DialogHeader>
+        <div className="space-y-4 py-1">
+          <p className="text-sm text-muted-foreground leading-relaxed">Toàn bộ tài liệu, URL, FAQ và chunk trong kho tri thức "{kbName}" sẽ bị xóa vĩnh viễn. Kho tri thức vẫn tồn tại nhưng sẽ trống hoàn toàn. Hành động này không thể hoàn tác.</p>
+          <div>
+            <label className="text-sm font-medium mb-1.5 block">Nhập tên kho tri thức để xác nhận</label>
+            <input value={typed} onChange={e => setTyped(e.target.value)} placeholder={kbName} className="w-full h-10 px-3 rounded-lg border border-border bg-white text-sm outline-none focus:border-destructive focus:ring-2 focus:ring-destructive/20 transition-base" />
+          </div>
+        </div>
+        <DialogFooter>
+          <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Hủy bỏ</button>
+          <button onClick={() => { onConfirm(); setTyped(""); }} disabled={!matches} className="h-9 px-4 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 text-sm font-medium transition-base disabled:opacity-40 disabled:pointer-events-none">Xác nhận và xóa</button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 function OwnershipChips({ kb }: { kb: KnowledgeBase }) {
   if (kb.ownerId === CURRENT_USER.id) {
@@ -50,8 +77,14 @@ export default function KnowledgeDetail() {
   const [showEdit, setShowEdit] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const [showClearContent, setShowClearContent] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
+
+  useEffect(() => {
+    // The "Cài đặt" tab was removed — its sync settings moved into the Website tab's drawer.
+    if (rawTab === "settings") setParams({ tab: "website" }, { replace: true });
+  }, [rawTab, setParams]);
 
   useEffect(() => {
     setLoadState("loading");
@@ -191,6 +224,14 @@ export default function KnowledgeDetail() {
                     <button
                       disabled={viewOnly}
                       title={viewOnly ? "Bạn chỉ có quyền xem kho tri thức này." : undefined}
+                      onClick={() => { setShowClearContent(true); setShowMenu(false); }}
+                      className="w-full text-left px-3 py-1.5 text-xs text-destructive hover:bg-[hsl(var(--destructive-soft))] disabled:text-muted-foreground/50 disabled:cursor-not-allowed transition-base"
+                    >
+                      Xóa toàn bộ nội dung
+                    </button>
+                    <button
+                      disabled={viewOnly}
+                      title={viewOnly ? "Bạn chỉ có quyền xem kho tri thức này." : undefined}
                       onClick={() => { setShowDelete(true); setShowMenu(false); }}
                       className="w-full text-left px-3 py-1.5 text-xs text-destructive hover:bg-[hsl(var(--destructive-soft))] disabled:text-muted-foreground/50 disabled:cursor-not-allowed transition-base"
                     >
@@ -225,14 +266,6 @@ export default function KnowledgeDetail() {
               </TooltipTrigger>
               <TooltipContent side="bottom">Tính năng này sẽ sớm ra mắt.</TooltipContent>
             </Tooltip>
-            <button
-              onClick={() => setTab("settings")}
-              className={`px-3 h-9 rounded-t-lg text-sm font-medium flex items-center gap-1.5 border-b-2 transition-base ${
-                tab === "settings" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <SettingsIcon size={15} /> Cài đặt
-            </button>
           </div>
 
           <Tooltip delayDuration={300}>
@@ -256,7 +289,6 @@ export default function KnowledgeDetail() {
         {tab === "documents" && <KnowledgeDocumentsTab kbId={kb.id} viewOnly={viewOnly} />}
         {tab === "website" && <KnowledgeWebsiteTab kbId={kb.id} viewOnly={viewOnly} />}
         {tab === "faq" && <KnowledgeFaqTab kbId={kb.id} viewOnly={viewOnly} />}
-        {tab === "settings" && <KnowledgeSettingsTab kb={kb} viewOnly={viewOnly} onChanged={refresh} onDeleted={() => navigate("/knowledge")} />}
       </div>
 
       {showEdit && <CreateKnowledgeBaseModal open={showEdit} editingKb={kb} onClose={() => setShowEdit(false)} onCreated={refresh} />}
@@ -271,6 +303,19 @@ export default function KnowledgeDetail() {
         />
       )}
       {showDelete && <DeleteKnowledgeBaseDialog open={showDelete} kb={kb} onClose={() => setShowDelete(false)} onDeleted={() => navigate("/knowledge")} />}
+      <ClearContentDialog
+        open={showClearContent}
+        kbName={kb.name}
+        onClose={() => setShowClearContent(false)}
+        onConfirm={() => {
+          knowledgeDocumentStore.removeMany(knowledgeDocumentStore.list(kb.id).map(d => d.id));
+          knowledgeUrlStore.removeMany(knowledgeUrlStore.list(kb.id).map(u => u.id));
+          knowledgeFaqStore.removeMany(knowledgeFaqStore.list(kb.id).map(f => f.id));
+          toast.success(`Đã xóa toàn bộ nội dung của "${kb.name}".`);
+          setShowClearContent(false);
+          hardRefresh();
+        }}
+      />
     </div>
   );
 }

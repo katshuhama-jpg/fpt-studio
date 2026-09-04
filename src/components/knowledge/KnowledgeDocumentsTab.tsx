@@ -24,6 +24,8 @@ const STATUS_OPTIONS: { value: KnowledgeProcessingStatus | "all"; label: string 
   { value: "cancelled", label: "Đã hủy" },
 ];
 
+const SUPPORTED_FORMATS_LINE = "Hỗ trợ TXT, MD, PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, CSV · Tối đa 10 tệp mỗi lần · 30MB mỗi tệp";
+
 function formatSize(bytes: number): string {
   if (bytes === 0) return "—";
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
@@ -73,7 +75,8 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
   });
 
   return (
-    <div className="h-full overflow-y-auto p-4 sm:p-8">
+    <div className="h-full overflow-y-auto">
+    <div className="p-4 sm:p-8 max-w-[1280px] mx-auto">
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap">
           <div className="relative">
@@ -132,6 +135,8 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
         )}
       </div>
 
+      <p className="text-xs text-muted-foreground mb-3 lg:whitespace-nowrap">{SUPPORTED_FORMATS_LINE}</p>
+
       {selected.size > 0 && !viewOnly && (
         <div className="flex items-center gap-3 mb-3 px-3 h-10 rounded-lg bg-primary-soft border border-primary/15">
           <span className="text-sm font-medium text-primary">Đã chọn {selected.size} mục</span>
@@ -159,7 +164,8 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
       {all.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-gradient-soft p-12 text-center">
           <h3 className="font-display text-base font-semibold mb-1">Chưa có tài liệu nào</h3>
-          <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">Tải tài liệu lên để Agent có thể tra cứu nội dung.</p>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto mb-2">Tải tài liệu lên để Agent có thể tra cứu nội dung.</p>
+          <p className="text-xs text-muted-foreground max-w-md mx-auto mb-4">{SUPPORTED_FORMATS_LINE}</p>
           {!viewOnly && <button onClick={() => setShowUpload(true)} className="btn-primary h-9 mx-auto">Tải tài liệu lên</button>}
         </div>
       ) : filtered.length === 0 ? (
@@ -299,6 +305,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
     </div>
   );
 }

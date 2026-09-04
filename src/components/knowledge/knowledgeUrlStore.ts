@@ -66,6 +66,9 @@ export const knowledgeUrlStore = {
     seedKb(kbId);
     return store.get(id);
   },
+  listFolders(kbId: string): KnowledgeUrl[] {
+    return this.list(kbId).filter(u => u.isFolder);
+  },
   isDuplicate(kbId: string, url: string): boolean {
     const n = url.trim().toLowerCase();
     return this.list(kbId).some(u => !u.isFolder && u.url?.trim().toLowerCase() === n);

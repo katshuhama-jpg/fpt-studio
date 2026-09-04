@@ -59,6 +59,9 @@ export const knowledgeDocumentStore = {
     seedKb(kbId);
     return store.get(id);
   },
+  listFolders(kbId: string): KnowledgeDocument[] {
+    return this.list(kbId).filter(d => d.isFolder);
+  },
   isDuplicateName(kbId: string, name: string, folderId: string | null): boolean {
     return this.list(kbId).some(d => !d.isFolder && d.folderId === folderId && d.name.trim().toLowerCase() === name.trim().toLowerCase());
   },

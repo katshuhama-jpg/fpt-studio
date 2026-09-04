@@ -61,6 +61,12 @@ export function describeSchedule(s: ScheduleConfig): string {
   return `Đồng bộ ${freqLabel} lúc ${s.time} (GMT+7). Lần chạy kế tiếp: ${nextLabel}.`;
 }
 
+/** Short cadence label for the "Cài đặt đồng bộ" toolbar button's state chip, e.g. "Hàng ngày 02:00". */
+export function shortCadence(s: ScheduleConfig): string {
+  const freqLabel = s.frequency === "daily" ? "Hàng ngày" : s.frequency === "weekly" ? "Hàng tuần" : "Hàng tháng";
+  return `${freqLabel} ${s.time}`;
+}
+
 const DAY_MS = 86_400_000;
 
 export function nextRun(s: ScheduleConfig): Date | null {

@@ -1,11 +1,13 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { UploadCloud, X, FileText, AlertTriangle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { UploadCloud, X, FileText, AlertTriangle, Info } from "lucide-react";
 import { toast } from "sonner";
 import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
 import { knowledgeStore } from "./knowledgeStore";
 
 const ALLOWED_EXT = ["txt", "md", "pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "csv"];
+const ACCEPT_ATTR = ALLOWED_EXT.map(ext => `.${ext}`).join(",");
 const MAX_FILES = 10;
 const MAX_SIZE = 30 * 1024 * 1024;
 
@@ -27,14 +29,21 @@ function formatSize(bytes: number): string {
 
 /** Pass either kbId (Console Documents tab, S7) or agentId (Agent Knowledge "Tải tài liệu"
  * tile, S14) — never both. Agent-scoped uploads skip folders/versioning, which don't apply
- * to per-Agent knowledge. */
-export default function UploadDocumentsModal({ open, kbId, agentId, onClose }: { open: boolean; kbId?: string; agentId?: string; onClose: () => void }) {
+ * to per-Agent knowledge. `initialFolderId` pre-selects the destination folder when the modal
+ * is opened from inside a folder. */
+export default function UploadDocumentsModal({ open, kbId, agentId, initialFolderId = null, onClose }: {
+  open: boolean; kbId?: string; agentId?: string; initialFolderId?: string | null; onClose: () => void;
+}) {
   const [staged, setStaged] = useState<StagedFile[]>([]);
   const [overLimitMsg, setOverLimitMsg] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [folderId] = useState<string | null>(null);
+  const [folderId, setFolderId] = useState<string | null>(initialFolderId);
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
+
+  useEffect(() => { if (open) setFolderId(initialFolderId); }, [open, initialFolderId]);
+
+  const folders = agentId ? [] : knowledgeDocumentStore.listFolders(kbId!);
 
   const validCount = staged.filter(s => !s.error).length;
 
@@ -128,12 +137,45 @@ export default function UploadDocumentsModal({ open, kbId, agentId, onClose }: {
           >
             <UploadCloud size={22} className="mx-auto text-muted-foreground mb-2" />
             <p className="text-sm font-medium">Kéo thả tệp vào đây hoặc bấm để chọn</p>
+            <div className="flex flex-wrap items-center justify-center gap-1.5 mt-3" onClick={e => e.stopPropagation()}>
+              {ALLOWED_EXT.map(ext => (
+                <span key={ext} className="inline-flex items-center rounded-full border border-border bg-surface px-2 py-0.5 text-[11px] font-medium text-foreground">
+                  {ext.toUpperCase()}
+                </span>
+              ))}
+              <Tooltip delayDuration={200}>
+                <TooltipTrigger asChild>
+                  <span tabIndex={0} className="text-muted-foreground outline-none cursor-default">
+                    <Info size={12} />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-[260px]">Các tệp Office được tự động chuyển sang PDF trước khi xử lý để trích xuất nội dung chính xác hơn.</TooltipContent>
+              </Tooltip>
+            </div>
             <input
-              ref={inputRef} type="file" multiple className="hidden"
+              ref={inputRef} type="file" multiple accept={ACCEPT_ATTR} className="hidden"
               onChange={e => { if (e.target.files) addFiles(e.target.files); e.target.value = ""; }}
             />
           </div>
-          <p className="text-xs text-muted-foreground -mt-2">Hỗ trợ TXT, MD, PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, CSV. Tối đa 10 tệp mỗi lần, 30MB mỗi tệp.</p>
+          <div className="space-y-1">
+            <p className="text-xs text-foreground">Tối đa 10 tệp mỗi lần tải.</p>
+            <p className="text-xs text-foreground">Dung lượng tối đa 30MB mỗi tệp.</p>
+          </div>
+
+          {!agentId && (
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">Thư mục đích</label>
+              <select
+                value={folderId ?? ""}
+                onChange={e => setFolderId(e.target.value || null)}
+                className="w-full h-9 px-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary transition-base"
+              >
+                <option value="">Danh sách tài liệu chung</option>
+                {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+              </select>
+            </div>
+          )}
+
           {overLimitMsg && (
             <p className="flex items-center gap-1.5 text-xs text-destructive"><AlertTriangle size={12} /> {overLimitMsg}</p>
           )}

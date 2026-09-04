@@ -38,6 +38,7 @@ function validateUrlChip(scope: { kbId?: string; agentId?: string }, value: stri
 interface Discovered { url: string; title: string; depth: number; selected: boolean }
 
 export default function AddUrlModal({ open, kbId, agentId, onClose }: { open: boolean; kbId?: string; agentId?: string; onClose: () => void }) {
+  const folders = agentId ? [] : knowledgeUrlStore.listFolders(kbId!);
   const [tab, setTab] = useState<ModalTab>("specified");
   const [pendingTab, setPendingTab] = useState<ModalTab | null>(null);
 
@@ -215,6 +216,7 @@ export default function AddUrlModal({ open, kbId, agentId, onClose }: { open: bo
                 <label className="text-sm font-medium mb-1.5 block">Thư mục</label>
                 <select value={folder1} onChange={e => setFolder1(e.target.value)} className="w-full h-9 px-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary transition-base">
                   <option value="">Danh sách URL chung</option>
+                  {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                 </select>
               </div>
               <AdvancedConfigSection value={advanced1} onChange={setAdvanced1} />
@@ -238,6 +240,7 @@ export default function AddUrlModal({ open, kbId, agentId, onClose }: { open: bo
                 <label className="text-sm font-medium mb-1.5 block">Thư mục</label>
                 <select value={folder2} onChange={e => setFolder2(e.target.value)} className="w-full h-9 px-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary transition-base">
                   <option value="">Không chọn</option>
+                  {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                 </select>
               </div>
               <div>
@@ -321,6 +324,7 @@ export default function AddUrlModal({ open, kbId, agentId, onClose }: { open: bo
                 <label className="text-sm font-medium mb-1.5 block">Thư mục</label>
                 <select value={folder3} onChange={e => setFolder3(e.target.value)} className="w-full h-9 px-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary transition-base">
                   <option value="">Website</option>
+                  {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                 </select>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

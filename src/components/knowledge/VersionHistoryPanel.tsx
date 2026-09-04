@@ -77,7 +77,7 @@ export default function VersionHistoryPanel({ source: doc, onClose }: { source: 
   if (viewing) {
     return (
       <Sheet open onOpenChange={v => !v && onClose()}>
-        <SheetContent className="w-full sm:max-w-md flex flex-col">
+        <SheetContent className="w-full sm:max-w-[480px] flex flex-col">
           <SheetHeader>
             <SheetTitle>Nội dung phiên bản v{viewing.version}</SheetTitle>
           </SheetHeader>
@@ -123,7 +123,7 @@ export default function VersionHistoryPanel({ source: doc, onClose }: { source: 
   return (
     <>
       <Sheet open onOpenChange={v => !v && onClose()}>
-        <SheetContent className="w-full sm:max-w-md">
+        <SheetContent className="w-full sm:max-w-[480px]">
           <SheetHeader>
             <SheetTitle>Lịch sử phiên bản</SheetTitle>
           </SheetHeader>
