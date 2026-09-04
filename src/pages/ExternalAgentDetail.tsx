@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ChevronLeft, ChevronRight, MoreHorizontal, Copy, Check, RefreshCw, AlertTriangle, Globe,
-  FileEdit, BookOpen, Eye, EyeOff, ListChecks,
+  FileEdit, BookOpen, Eye, EyeOff,
 } from "lucide-react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { PencilEdit01Icon, FlaskConicalIcon, GridViewIcon, Analytics01Icon } from "@hugeicons/core-free-icons";
@@ -345,37 +345,21 @@ export default function ExternalAgentDetail() {
               </Link>
 
               {showReadyCard && (
-                <div className="rounded-xl border border-border p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition-base ${
-                        readyDoneCount === readyChecklist.length ? "bg-success/15 text-success" : "bg-primary-soft text-primary"
-                      }`}>
-                        {readyDoneCount === readyChecklist.length ? <Check size={13} /> : <ListChecks size={13} />}
-                      </div>
-                      <h3 className="text-sm font-semibold">Ready to publish</h3>
-                    </div>
-                    <span className={`chip ${readyDoneCount === readyChecklist.length ? "chip-success" : "chip-muted"}`}>
-                      {readyDoneCount}/{readyChecklist.length}
-                    </span>
+                <div className="rounded-lg border border-border bg-surface-muted/50 p-3">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-semibold text-foreground">Ready to publish</span>
+                    <span className="text-xs text-muted-foreground">{readyDoneCount}/{readyChecklist.length}</span>
                   </div>
-                  <div className="h-2 rounded-full bg-border overflow-hidden mb-3.5">
-                    <div
-                      className={`h-full rounded-full transition-all duration-300 ${readyDoneCount === readyChecklist.length ? "bg-success" : "bg-primary"}`}
-                      style={{ width: `${(readyDoneCount / readyChecklist.length) * 100}%` }}
-                    />
+                  <div className="h-1.5 rounded-full bg-border overflow-hidden mb-2">
+                    <div className="h-full rounded-full bg-primary" style={{ width: `${(readyDoneCount / readyChecklist.length) * 100}%` }} />
                   </div>
-                  <div className="space-y-2">
+                  <div className="flex flex-wrap gap-x-4 gap-y-1">
                     {readyChecklist.map(item => (
-                      <div key={item.label} className="flex items-center gap-2.5 text-sm">
-                        {item.done ? (
-                          <span className="w-4 h-4 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                            <Check size={10} />
-                          </span>
-                        ) : (
-                          <span className="w-4 h-4 rounded-full border-2 border-border shrink-0 inline-block" />
-                        )}
-                        <span className={item.done ? "text-foreground" : "text-muted-foreground"}>{item.label}</span>
+                      <div key={item.label} className="flex items-center gap-1.5 text-xs">
+                        {item.done
+                          ? <Check size={11} className="text-primary shrink-0" />
+                          : <span className="w-3 h-3 rounded-full border-2 border-muted-foreground shrink-0 inline-block" />}
+                        <span className={item.done ? "text-primary" : "text-muted-foreground"}>{item.label}</span>
                       </div>
                     ))}
                   </div>
