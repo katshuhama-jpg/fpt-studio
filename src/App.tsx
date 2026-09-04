@@ -88,6 +88,7 @@ const App = () => (
               <Route path="/connectors" element={<WorkspaceConnectors />} />
               <Route path="/tools" element={<Skills />} />
               <Route path="/guardrails" element={<WorkspaceGuardrails />} />
+              <Route path="/models" element={<PlaceholderPage title="Models" />} />
               <Route path="/api-keys" element={<PlaceholderPage title="API Keys" />} />
               <Route path="/docs" element={<PlaceholderPage title="Document Center" />} />
             </Route>

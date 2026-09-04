@@ -5,7 +5,7 @@ import {
   Puzzle, ChevronsLeft, ChevronsRight, Search, Bell, Plus,
   ChevronRight, LifeBuoy, KeyRound, LogOut, User, ChevronDown, ChevronsUpDown,
   Check, Building2, PlusCircle, Sparkles, Shield, FileText, Rocket,
-  Network, Users,
+  Network, Users, Cpu,
 } from "lucide-react";
 
 const APP_VERSION = "0.58.5";
@@ -35,18 +35,25 @@ const groups: Group[] = [
     items: [
       { to: "/agents", label: "Agents", icon: Bot },
       { to: "/external-agents", label: "External Agents", icon: Globe },
-      { to: "/knowledge", label: "Knowledge", icon: BookOpen },
-      { to: "/tools", label: "Skills", icon: Puzzle },
-      { to: "/guardrails", label: "Guardrails", icon: Shield },
-      { to: "/connectors", label: "Connectors", icon: Plug },
     ],
   },
   {
-    id: "workspace",
-    label: "Management",
+    id: "resources",
+    label: "Resources",
     items: [
+      { to: "/knowledge", label: "Knowledge", icon: BookOpen },
+      { to: "/connectors", label: "Connectors", icon: Plug },
+      { to: "/tools", label: "Skills", icon: Puzzle },
+      { to: "/models", label: "Models", icon: Cpu },
+    ],
+  },
+  {
+    id: "trust",
+    label: "Trust & Governance",
+    items: [
+      { to: "/guardrails", label: "Guardrails", icon: Shield },
       { to: "/roles", label: "Roles", icon: Shield },
-      { to: "/members", label: "Members", icon: Users },
+      { to: "/members", label: "Governance", icon: Users },
     ],
   },
 ];
@@ -64,7 +71,7 @@ const NARROW_QUERY = "(max-width: 767px)";
 
 export default function WorkspaceLayout() {
   const [collapsed, setCollapsed] = useState(() => typeof window !== "undefined" && window.matchMedia(NARROW_QUERY).matches);
-  const [open, setOpen] = useState<Record<string, boolean>>({ build: true, workspace: true });
+  const [open, setOpen] = useState<Record<string, boolean>>({ build: true, resources: true, trust: true });
   const [userMenu, setUserMenu] = useState(false);
   const [orgSwitcherOpen, setOrgSwitcherOpen] = useState(false);
   const [tenantId, setTenantId] = useState(TENANTS[0].id);
