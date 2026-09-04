@@ -1,9 +1,9 @@
 import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  ArrowRight, ArrowUpRight, Sparkles, Paperclip, AtSign,
-  Play, ExternalLink, X, Search, Edit, Copy, ShieldCheck,
-  KeyRound, AlertTriangle, CheckCircle2, Plus, MoreVertical, Trash2
+  ArrowRight, Sparkles, Paperclip, AtSign,
+  ExternalLink, X, Search, Edit, Copy,
+  MoreVertical, Trash2
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
@@ -117,14 +117,13 @@ function RecentAgentCard({ a }: { a: typeof recent[number] }) {
     <Link to={`/agents/${a.id}`} className="group relative rounded-xl border border-border bg-surface p-4 hover:border-primary/30 hover:shadow-soft transition-base flex flex-col">
       <div className={`w-10 h-10 rounded-xl ${a.bg} flex items-center justify-center text-xl mb-3`}>{a.emoji}</div>
       <div className="font-semibold text-sm mb-1">{a.name}</div>
-      <div className="flex items-center gap-1.5 mb-2">
-        <span className={`w-1.5 h-1.5 rounded-full ${a.status === "Active" ? "bg-emerald-500" : "bg-amber-400"}`} />
-        <span className="text-xs text-muted-foreground">{a.status}</span>
-      </div>
+      <span className={`chip ${a.status === "Active" ? "chip-success" : ""} mb-2 w-fit`}>
+        <span className="w-1.5 h-1.5 rounded-full bg-current" /> {a.status}
+      </span>
       <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 flex-1 mb-3">{a.desc}</p>
       <div className="flex items-center justify-between">
         <div className="text-xs text-muted-foreground">
-          <span className="font-medium">{a.editor}</span> · Edited {a.edited}
+          Updated {a.edited}
         </div>
         <div ref={menuRef} className="relative shrink-0">
           <button
@@ -236,17 +235,25 @@ export default function Home() {
       {showCreate    && <CreateAgentModal onClose={() => setShowCreate(false)} />}
       {showTemplates && <TemplateModal onClose={() => setShowTemplates(false)} />}
 
+      {/* Page header */}
+      <div className="px-6 pt-6 mb-6">
+        <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">Home</h1>
+        <p className="text-sm text-muted-foreground">
+          Workspace overview — pick up a recent agent or create a new one.
+        </p>
+      </div>
+
       {/* ── Hero ──────────────────────────────────────────────────── */}
-      <section className="mx-6 mt-6 mb-6 rounded-2xl overflow-hidden" style={{background:"linear-gradient(135deg,#0f1c3f 0%,#1a2d5a 60%,#1e3a6e 100%)"}}>
+      <section
+        className="mx-6 mb-8 rounded-2xl overflow-hidden border border-border"
+        style={{ background: "linear-gradient(135deg, hsl(var(--primary-soft)) 0%, #eef1ff 55%, #ffffff 100%)" }}
+      >
         <div className="flex items-center justify-between px-10 py-10 gap-8">
           <div className="flex-1 min-w-0">
-            <div className="inline-flex items-center gap-1.5 bg-white/10 text-white/80 text-xs px-3 py-1 rounded-full mb-4">
-              <Sparkles size={11} /> Agent Studio
-            </div>
-            <h1 className="font-display text-3xl font-bold text-white mb-2 tracking-tight">
+            <h2 className="font-display text-3xl font-bold text-foreground mb-2 tracking-tight">
               Welcome to Agent Studio
-            </h1>
-            <p className="text-sm text-white/60 mb-7 max-w-sm leading-relaxed">
+            </h2>
+            <p className="text-sm text-muted-foreground mb-7 max-w-sm leading-relaxed">
               Build, connect, and operate your enterprise AI Agent workforce.
             </p>
             <div className="flex items-center gap-3">
@@ -254,7 +261,7 @@ export default function Home() {
                 onClick={() => canCreateAgent && setShowCreate(true)}
                 disabled={!canCreateAgent}
                 title={!canCreateAgent ? "You don't have permission to create agents." : undefined}
-                className="h-10 px-5 rounded-lg bg-white text-[#1a2d5a] text-sm font-semibold flex items-center gap-2 hover:bg-white/90 transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white"
+                className="btn-primary h-10 px-5 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Create new Agent <ArrowRight size={15} />
               </button>
@@ -262,59 +269,34 @@ export default function Home() {
                 onClick={() => canCreateAgent && setShowTemplates(true)}
                 disabled={!canCreateAgent}
                 title={!canCreateAgent ? "You don't have permission to create agents." : undefined}
-                className="h-10 px-5 rounded-lg border border-white/30 text-white text-sm font-medium hover:bg-white/10 transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                className="btn-secondary h-10 px-5 rounded-lg bg-surface/70 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Browse templates
               </button>
             </div>
           </div>
 
-          {/* Workspace snapshot */}
-          <div className="shrink-0 w-72 rounded-xl bg-white/8 border border-white/15 p-5">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-xs font-semibold text-white/70 uppercase tracking-wider">Workspace snapshot</span>
-              <span className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" /> Live
-              </span>
+          {/* Decorative illustration */}
+          <div className="relative shrink-0 w-72 h-56 hidden md:block">
+            <div className="absolute inset-4 rounded-2xl bg-white/70 border border-border shadow-sm" />
+            <div className="absolute top-6 right-4 w-28 h-16 rounded-lg bg-white border border-border shadow-sm flex items-center justify-center gap-1.5">
+              <Sparkles size={16} className="text-primary" />
+              <div className="space-y-1">
+                <div className="h-1.5 w-12 rounded-full bg-primary-soft" />
+                <div className="h-1.5 w-8 rounded-full bg-surface-muted" />
+              </div>
             </div>
-            <div className="grid grid-cols-3 gap-3">
-              {[{label:"Agents",val:12},{label:"Connectors",val:48},{label:"Knowledge",val:9}].map(s => (
-                <div key={s.label} className="rounded-lg bg-white/8 border border-white/10 p-3 text-center">
-                  <div className="text-2xl font-bold text-white mb-0.5">{s.val}</div>
-                  <div className="text-xs text-white/50">{s.label}</div>
-                </div>
-              ))}
+            <div className="absolute bottom-8 left-8 w-16 h-16 rounded-2xl bg-primary flex items-center justify-center shadow-md text-3xl">
+              🤖
+            </div>
+            <div className="absolute bottom-10 right-10 w-10 h-10 rounded-xl bg-white border border-border shadow-sm flex items-center justify-center">
+              <ExternalLink size={14} className="text-muted-foreground" />
             </div>
           </div>
         </div>
       </section>
 
-      <div className="px-6 pb-8 space-y-8">
-
-        {/* ── Get started ───────────────────────────────────────── */}
-        <section>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-display text-lg font-semibold">Get started</h2>
-            <button className="text-xs text-muted-foreground hover:text-foreground transition-base">Hide</button>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {getStarted.map(g => (
-              <div key={g.title} className="rounded-xl border border-border bg-surface overflow-hidden group cursor-pointer hover:border-primary/30 hover:shadow-soft transition-base">
-                <div className={`h-28 flex items-center justify-center ${g.bg} relative`}>
-                  {g.isAI
-                    ? <span className="text-5xl font-bold text-white/30 select-none">AI</span>
-                    : <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center shadow"><Play size={16} className="text-red-500 ml-0.5" fill="currentColor" /></div>
-                  }
-                  {g.external && <ExternalLink size={12} className="absolute top-2 right-2 text-white/40" />}
-                </div>
-                <div className="p-3">
-                  <p className="text-xs text-muted-foreground mb-0.5">{g.label}</p>
-                  <p className="text-xs font-semibold leading-snug">{g.title}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+      <div className="px-6 pb-8">
 
         {/* ── Recent ────────────────────────────────────────────── */}
         <section>
@@ -324,43 +306,9 @@ export default function Home() {
               All Agents <ArrowRight size={12} />
             </Link>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {recent.map(a => (
               <RecentAgentCard key={a.id} a={a} />
-            ))}
-
-            {/* Create new CTA card */}
-            <button
-              onClick={() => canCreateAgent && setShowCreate(true)}
-              disabled={!canCreateAgent}
-              title={!canCreateAgent ? "You don't have permission to create agents." : undefined}
-              className="rounded-xl border border-border bg-surface p-4 flex flex-col items-center justify-center text-center hover:border-primary/30 hover:shadow-soft transition-base group min-h-[200px] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-border disabled:hover:shadow-none"
-            >
-              <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center mb-3 group-hover:scale-110 transition-base">
-                <Plus size={22} className="text-white" />
-              </div>
-              <p className="font-semibold text-sm mb-1">Create new Agent</p>
-              <p className="text-xs text-muted-foreground leading-relaxed max-w-[140px]">Start from a ready-made template or build from scratch.</p>
-            </button>
-          </div>
-        </section>
-
-        {/* ── Recommended AI agents ─────────────────────────────── */}
-        <section>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-display text-lg font-semibold">Recommended AI agents</h2>
-            <button className="text-xs text-muted-foreground flex items-center gap-1 hover:text-foreground transition-base">
-              More <ArrowRight size={12} />
-            </button>
-          </div>
-          <div className="rounded-xl border border-border bg-surface divide-y divide-border overflow-hidden">
-            {recommendedAgents.map(a => (
-              <div key={a.id} className="flex items-center gap-3 px-4 py-3.5 hover:bg-surface-muted/50 transition-base">
-                <div className={`w-10 h-10 rounded-xl ${a.bg} flex items-center justify-center text-xl shrink-0`}>{a.emoji}</div>
-                <p className="text-sm font-medium flex-1 min-w-0 truncate">{a.name}</p>
-                <span className="text-xs text-muted-foreground shrink-0">{a.clones.toLocaleString()} clones</span>
-                <button className="shrink-0 h-8 px-4 rounded-lg border border-border text-xs font-medium hover:bg-surface-muted transition-base">View</button>
-              </div>
             ))}
           </div>
         </section>
@@ -370,25 +318,4 @@ export default function Home() {
   );
 }
 
-/* ─── Static data ────────────────────────────────────────────────────── */
 
-const getStarted = [
-  { label: "Introduction", title: "Why choose Agent Studio?",                      bg: "bg-amber-100",   isAI: false, external: false },
-  { label: "Tutorial",     title: "Build an HR Agent that answers policy questions in 10 minutes", bg: "bg-blue-100", isAI: false, external: false },
-  { label: "Case study",   title: "Automate your new employee onboarding process",  bg: "bg-indigo-100",  isAI: false, external: false },
-  { label: "Updates",      title: "Changelog & latest updates",                     bg: "bg-indigo-200",  isAI: true,  external: true  },
-];
-
-const governance = [
-  { label: "Pending approvals",  val: 7,    desc: "Agents awaiting deployment review", icon: ShieldCheck,    iconBg: "bg-blue-50",   iconColor: "text-blue-500" },
-  { label: "Access requests",    val: 3,    desc: "Users requesting Agent access",      icon: KeyRound,       iconBg: "bg-amber-50",  iconColor: "text-amber-500" },
-  { label: "Policy alerts",      val: 2,    desc: "Guardrail violations this week",     icon: AlertTriangle,  iconBg: "bg-red-50",    iconColor: "text-red-500" },
-  { label: "Compliance",         val: "98%", desc: "Agents meeting governance policies", icon: CheckCircle2,  iconBg: "bg-green-50",  iconColor: "text-green-500" },
-];
-
-const recommendedAgents = [
-  { id: "r1", emoji: "\uD83E\uDDD9", bg: "bg-purple-100", name: "Multi-Platform Workforce",  clones: 2005 },
-  { id: "r2", emoji: "\uD83D\uDD0D", bg: "bg-amber-100",  name: "Sales Researcher",            clones: 1764 },
-  { id: "r3", emoji: "\uD83D\uDCBC", bg: "bg-blue-100",   name: "LinkedIn Outreach & Follow up", clones: 1377 },
-  { id: "r4", emoji: "\uD83D\uDCAC", bg: "bg-green-100",  name: "WhatsApp AI Agent",           clones: 1238 },
-];
