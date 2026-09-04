@@ -5,11 +5,10 @@ import { Globe, Search, MoreVertical, Plus, AlertTriangle, BookOpen, TriangleAle
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import {
-  externalAgentStore, channelLabel, pendingApprovalLevel, type ExternalAgent, type ExternalAgentStatus,
+  externalAgentStore, type ExternalAgent, type ExternalAgentStatus,
 } from "@/components/external-agents/externalAgentStore";
 import { StatusBadge, relativeTime } from "@/components/external-agents/statusMeta";
 import ConnectExternalAgentModal from "@/components/external-agents/ConnectExternalAgentModal";
-import PublishExternalAgentModal from "@/components/external-agents/PublishExternalAgentModal";
 import {
   DeleteExternalAgentDialog, PauseExternalAgentDialog,
 } from "@/components/external-agents/ExternalAgentDialogs";
@@ -18,9 +17,7 @@ import { toast } from "sonner";
 const TABS: { key: ExternalAgentStatus | "all"; label: string }[] = [
   { key: "all", label: "All" },
   { key: "draft", label: "Draft" },
-  { key: "pending_approval", label: "Pending approval" },
   { key: "published", label: "Published" },
-  { key: "rejected", label: "Rejected" },
   { key: "paused", label: "Paused" },
 ];
 
@@ -63,10 +60,9 @@ function RowMenu({ agent, isAdmin, onOpen, onEdit, onPublish, onPauseResume, onD
   }, [open]);
 
   // Only ever render the actions that are actually valid for this status — never a
-  // disabled/greyed-out item — matching the per-status action table exactly. Approving and
-  // rejecting a connection happens in a separate admin console that isn't part of this
-  // Builder product, so those actions never appear here.
-  const items: { label: string; onClick: () => void; danger?: boolean }[] = [
+  // disabled/greyed-out item, except Delete, which is shown disabled (not omitted) while
+  // Published so it's clear Pause is required first rather than looking like it vanished.
+  const items: { label: string; onClick: () => void; danger?: boolean; disabled?: boolean; title?: string }[] = [
     { label: "Open", onClick: onOpen },
   ];
   switch (agent.status) {
@@ -74,14 +70,8 @@ function RowMenu({ agent, isAdmin, onOpen, onEdit, onPublish, onPauseResume, onD
       items.push({ label: "Edit connection", onClick: onEdit });
       if (agent.lastValidation?.passed) items.push({ label: "Publish", onClick: onPublish });
       break;
-    case "pending_approval":
-      break;
-    case "rejected":
-      items.push({ label: "Edit connection", onClick: onEdit });
-      break;
     case "published":
       items.push({ label: "Edit connection", onClick: onEdit });
-      items.push({ label: "Publish", onClick: onPublish });
       if (isAdmin) items.push({ label: "Pause", onClick: onPauseResume });
       break;
     case "paused":
@@ -89,7 +79,11 @@ function RowMenu({ agent, isAdmin, onOpen, onEdit, onPublish, onPauseResume, onD
       if (isAdmin) items.push({ label: "Resume", onClick: onPauseResume });
       break;
   }
-  items.push({ label: "Delete", onClick: onDelete, danger: true });
+  items.push({
+    label: "Delete", onClick: onDelete, danger: true,
+    disabled: agent.status === "published",
+    title: agent.status === "published" ? "Pause this agent before deleting." : undefined,
+  });
 
   return (
     <div className="relative shrink-0" onClick={e => e.stopPropagation()}>
@@ -112,8 +106,11 @@ function RowMenu({ agent, isAdmin, onOpen, onEdit, onPublish, onPauseResume, onD
           {items.map(item => (
             <button
               key={item.label}
-              onClick={() => { item.onClick(); setOpen(false); }}
+              disabled={item.disabled}
+              title={item.title}
+              onClick={() => { if (item.disabled) return; item.onClick(); setOpen(false); }}
               className={`w-full text-left px-3 py-1.5 text-xs transition-base ${
+                item.disabled ? "text-muted-foreground/50 cursor-not-allowed" :
                 item.danger ? "text-destructive hover:bg-[hsl(var(--destructive-soft))]" : "hover:bg-surface-muted"
               }`}
             >
@@ -144,7 +141,6 @@ export default function ExternalAgentsList() {
   const [showConnect, setShowConnect] = useState(false);
   const [editTarget, setEditTarget] = useState<ExternalAgent | null>(null);
   const [pauseTarget, setPauseTarget] = useState<ExternalAgent | null>(null);
-  const [publishTarget, setPublishTarget] = useState<ExternalAgent | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ExternalAgent | null>(null);
 
   useEffect(() => {
@@ -170,8 +166,6 @@ export default function ExternalAgentsList() {
   const counts: Record<ExternalAgentStatus | "all", number> = {
     all: agents.length,
     draft: agents.filter(a => a.status === "draft").length,
-    pending_approval: agents.filter(a => a.status === "pending_approval").length,
-    rejected: agents.filter(a => a.status === "rejected").length,
     published: agents.filter(a => a.status === "published").length,
     paused: agents.filter(a => a.status === "paused").length,
   };
@@ -307,7 +301,7 @@ export default function ExternalAgentsList() {
                   <tr className="border-b border-border bg-surface-muted">
                     <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Agent</th>
                     <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Status</th>
-                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Channels</th>
+                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Workspace</th>
                     <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Base URL</th>
                     <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Health</th>
                     <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Updated</th>
@@ -316,11 +310,6 @@ export default function ExternalAgentsList() {
                 </thead>
                 <tbody>
                   {filtered.map(a => {
-                    const statusContext =
-                      a.status === "pending_approval"
-                        ? (pendingApprovalLevel(a.baseUrl) === "fpt" ? "Waiting for FPT admin" : "Waiting for Org admin")
-                      : a.status === "rejected" && a.rejection ? a.rejection.reason
-                      : null;
                     const unreachablePublished = a.status === "published" && a.lastHealthCheckOk === false;
                     return (
                     <tr
@@ -344,17 +333,9 @@ export default function ExternalAgentsList() {
                       </td>
                       <td className="px-4 py-3 max-w-[200px]">
                         <StatusBadge status={a.status} />
-                        {statusContext && (
-                          <div
-                            className="text-xs text-muted-foreground truncate mt-1"
-                            title={a.status === "rejected" ? statusContext : undefined}
-                          >
-                            {statusContext}
-                          </div>
-                        )}
                       </td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground truncate max-w-[160px]">
-                        {a.channels.length > 0 ? a.channels.map(channelLabel).join(" · ") : "—"}
+                      <td className="px-4 py-3 text-xs truncate max-w-[160px]">
+                        {a.status === "published" ? <span className="text-success font-medium">Live</span> : <span className="text-muted-foreground">—</span>}
                       </td>
                       <td className="px-4 py-3 text-xs text-muted-foreground font-mono truncate max-w-[220px]" title={a.baseUrl}>{a.baseUrl}</td>
                       <td className="px-4 py-3 text-xs whitespace-nowrap">
@@ -380,7 +361,11 @@ export default function ExternalAgentsList() {
                           isAdmin={isAdmin}
                           onOpen={() => navigate(`/external-agents/${a.id}`)}
                           onEdit={() => setEditTarget(a)}
-                          onPublish={() => setPublishTarget(a)}
+                          onPublish={() => {
+                            externalAgentStore.publish(a.id);
+                            toast.success(`"${a.name}" is now published and ready to use on your Workspace.`);
+                            refresh();
+                          }}
                           onPauseResume={() => {
                             if (a.status === "published") setPauseTarget(a);
                             else { externalAgentStore.resume(a.id); toast.success(`"${a.name}" is published again.`); refresh(); }
@@ -406,7 +391,7 @@ export default function ExternalAgentsList() {
           setShowConnect(false);
           setEditTarget(null);
           if (isNew) {
-            toast.success(`"${agent.name}" saved as draft. Submit it for approval when you're ready.`);
+            toast.success(`"${agent.name}" saved as draft. Publish it when you're ready.`);
             navigate(`/external-agents/${agent.id}`);
           } else {
             refresh();
@@ -425,18 +410,6 @@ export default function ExternalAgentsList() {
             setPauseTarget(null);
             refresh();
           }}
-        />
-      )}
-
-      {publishTarget && (
-        <PublishExternalAgentModal
-          open={!!publishTarget}
-          agentId={publishTarget.id}
-          agentName={publishTarget.name}
-          currentChannels={publishTarget.channels}
-          alreadyApproved={publishTarget.approved}
-          onClose={() => setPublishTarget(null)}
-          onPublished={refresh}
         />
       )}
 

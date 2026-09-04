@@ -4,34 +4,10 @@
 // agentConnectorStore.ts.
 import { loadMap, saveMap, loadSet, saveSet } from "@/lib/sessionPersist";
 
-export type ExternalAgentStatus = "draft" | "pending_approval" | "rejected" | "published" | "paused";
+// Three statuses only — this round drops the admin-approval gate entirely, so there is no
+// Pending Approval / Rejected state to model. Publish goes straight to Published.
+export type ExternalAgentStatus = "draft" | "published" | "paused";
 export type AuthMethod = "bearer" | "none";
-export type PerUserConnectorState = "none" | "valid" | "non_compliant";
-
-/** Which review level a Pending Approval agent is waiting on — purely informational, derived
- * from the base URL (partner-hosted domains route to FPT-level review). Not a real approval
- * chain: approving/rejecting a connection happens in a separate admin console that isn't part
- * of this Builder product — this label just tells the Builder who's holding it up. */
-export function pendingApprovalLevel(baseUrl: string): "fpt" | "org" {
-  return baseUrl.toLowerCase().includes("partner") ? "fpt" : "org";
-}
-export function approvalLevelLabel(baseUrl: string): string {
-  return pendingApprovalLevel(baseUrl) === "fpt" ? "FPT admin" : "Org admin";
-}
-
-/** Fixed channel list for the Publish modal — ids are also what ExternalAgent.channels stores. */
-export const PUBLISH_CHANNELS: { id: string; name: string }[] = [
-  { id: "web", name: "Web" },
-  { id: "zalo", name: "Zalo" },
-  { id: "messenger", name: "Facebook Messenger" },
-  { id: "slack", name: "Slack" },
-  { id: "teams", name: "Microsoft Teams" },
-  { id: "api", name: "API" },
-  { id: "workspace", name: "Workspace" },
-];
-export function channelLabel(id: string): string {
-  return PUBLISH_CHANNELS.find(c => c.id === id)?.name ?? id;
-}
 
 export interface ValidationResult {
   at: number;
@@ -39,8 +15,7 @@ export interface ValidationResult {
   authVerified: boolean;
   protocolSupported: boolean;
   runsAvailable: boolean;
-  perUserConnector: PerUserConnectorState;
-  passed: boolean; // all four blocking checks passed (per-user check never blocks, regardless of state)
+  passed: boolean; // all four checks passed
 }
 
 export interface ExternalAgent {
@@ -61,16 +36,6 @@ export interface ExternalAgent {
   signingSecret: string;
   guardrail: string | null;
   status: ExternalAgentStatus;
-  /** True once a connection has been approved at least once (by the separate admin console).
-   * Persists across Draft (approved-but-not-yet-published) / Published / Paused, and is cleared
-   * on rejection. A Draft with approved=true publishes immediately; approved=false sends the
-   * connection for approval instead. */
-  approved: boolean;
-  /** Channel ids currently published to. Empty whenever status isn't "published". */
-  channels: string[];
-  /** Channels requested via Publish while not yet approved — applied automatically the moment
-   * approval completes, then cleared. Null whenever there's no approval in flight. */
-  pendingChannels: string[] | null;
   createdAt: number;
   updatedAt: number;
   lastHealthCheckAt: number | null;
@@ -80,13 +45,11 @@ export interface ExternalAgent {
    * has never once passed a check. */
   lastHealthyAt: number | null;
   lastValidation: ValidationResult | null;
-  /** Only non-null while status is "rejected" — drives the live "fix and resubmit" banner. */
-  rejection: { at: number; by: string; reason: string } | null;
-  /** Set on every rejection and never auto-cleared — drives the "Previously rejected…" banner
-   * that stays visible (until dismissed) even after the Builder has edited and moved back to
-   * Draft, so the context isn't lost the moment the live banner disappears. */
-  lastRejection: { at: number; by: string; reason: string } | null;
-  rejectionBannerDismissed: boolean;
+  /** Soft-delete: Delete wipes the connection settings below and hides the agent from list()/
+   * get(), but keeps its Activity log and conversation history (archived, not wiped) in case a
+   * later audit-export surface needs them. Never true for a Published agent — Delete requires
+   * Pause first. */
+  archived: boolean;
 }
 
 export interface HistoryEntry {
@@ -100,12 +63,12 @@ export interface HistoryEntry {
 
 // Versioned keys: bump the suffix whenever ExternalAgent/HistoryEntry's shape changes.
 // Without this, a browser tab that seeded data under an older shape (e.g. before authMethod/
-// signingSecret/guardrail/pendingChannels existed) would load stale objects missing the new
-// fields, and the page would crash on render with no error boundary — a blank white screen for
-// anyone who had the External Agents page open across a deploy that changed the data shape.
-const STORE_KEY = "external_agent_store_v3";
-const HISTORY_KEY = "external_agent_history_v3";
-const SEEDED_KEY = "external_agent_store_seeded_v3";
+// signingSecret/guardrail existed) would load stale objects missing the new fields, and the
+// page would crash on render with no error boundary — a blank white screen for anyone who had
+// the External Agents page open across a deploy that changed the data shape.
+const STORE_KEY = "external_agent_store_v4";
+const HISTORY_KEY = "external_agent_history_v4";
+const SEEDED_KEY = "external_agent_store_seeded_v4";
 const store = loadMap<string, ExternalAgent>(STORE_KEY);
 const history = loadMap<string, HistoryEntry[]>(HISTORY_KEY);
 const persistStore = () => saveMap(STORE_KEY, store);
@@ -124,14 +87,11 @@ function generateSigningSecret(): string {
 }
 
 const PASSED_VALIDATION: ValidationResult = {
-  at: Date.now(), endpointReachable: true, authVerified: true, protocolSupported: true,
-  runsAvailable: true, perUserConnector: "none", passed: true,
+  at: Date.now(), endpointReachable: true, authVerified: true, protocolSupported: true, runsAvailable: true, passed: true,
 };
 
 /** Demo data so opening External Agents shows real content covering every status instead of
- * an empty list — seeded once per session. Draft and Pending Approval are left with little to
- * no Activity (one shows the genuine empty state, the other just a couple of entries) since
- * neither has ever actually run. */
+ * an empty list — seeded once per session. */
 function seedDefaultAgents() {
   const seededFlag = loadSet<string>(SEEDED_KEY);
   if (seededFlag.has("done")) return;
@@ -141,124 +101,96 @@ function seedDefaultAgents() {
 
   const put = (agent: ExternalAgent) => store.set(agent.id, agent);
 
-  // 1 — Flight Assistant (Published, Web + Zalo)
+  // 1 — Flight Assistant (Published)
   put({
     id: "ext-seed-1", name: "Flight Assistant", description: "Search and book flights for staff travel.",
     emoji: "✈️", bg: "bg-blue-50",
     baseUrl: "https://agent.abc.ai", authMethod: "bearer", hasToken: true, signingSecret: generateSigningSecret(),
-    guardrail: "Standard content safety", status: "published", approved: true, channels: ["web", "zalo"], pendingChannels: null,
+    guardrail: "Standard content safety", status: "published", archived: false,
     createdAt: now - 20 * DAY, updatedAt: now - 2 * HOUR,
     lastHealthCheckAt: now - 2 * MIN, lastHealthCheckOk: true, lastHealthyAt: now - 2 * MIN,
-    lastValidation: PASSED_VALIDATION, rejection: null, lastRejection: null, rejectionBannerDismissed: false,
+    lastValidation: PASSED_VALIDATION,
   });
   addHistory("ext-seed-1", { at: now - 20 * DAY, actor: CURRENT_USER, summary: "Connection created" });
-  addHistory("ext-seed-1", { at: now - 19 * DAY, actor: CURRENT_USER, summary: "Submitted for approval", detail: "Channels requested: Web, Zalo" });
-  {
-    const by = approvalLevelLabel("https://agent.abc.ai");
-    addHistory("ext-seed-1", { at: now - 18 * DAY, actor: by, summary: `Approved by ${by}` });
-    addHistory("ext-seed-1", { at: now - 18 * DAY, actor: by, summary: "Published to Web, Zalo" });
-  }
+  addHistory("ext-seed-1", { at: now - 18 * DAY, actor: CURRENT_USER, summary: "Published" });
 
-  // 2 — HR Helpdesk (Published, Slack)
+  // 2 — HR Helpdesk (Published)
   put({
     id: "ext-seed-2", name: "HR Helpdesk", description: "Leave balance, payroll and policy questions.",
     emoji: "🤝", bg: "bg-pink-50",
     baseUrl: "https://hr.xyz-ai.com", authMethod: "bearer", hasToken: true, signingSecret: generateSigningSecret(),
-    guardrail: null, status: "published", approved: true, channels: ["slack"], pendingChannels: null,
+    guardrail: null, status: "published", archived: false,
     createdAt: now - 15 * DAY, updatedAt: now - 1 * DAY,
     lastHealthCheckAt: now - 1 * MIN, lastHealthCheckOk: true, lastHealthyAt: now - 1 * MIN,
-    lastValidation: PASSED_VALIDATION, rejection: null, lastRejection: null, rejectionBannerDismissed: false,
+    lastValidation: PASSED_VALIDATION,
   });
   addHistory("ext-seed-2", { at: now - 15 * DAY, actor: CURRENT_USER, summary: "Connection created" });
-  addHistory("ext-seed-2", { at: now - 14 * DAY, actor: CURRENT_USER, summary: "Submitted for approval", detail: "Channels requested: Slack" });
-  {
-    const by = approvalLevelLabel("https://hr.xyz-ai.com");
-    addHistory("ext-seed-2", { at: now - 13 * DAY, actor: by, summary: `Approved by ${by}` });
-    addHistory("ext-seed-2", { at: now - 13 * DAY, actor: by, summary: "Published to Slack" });
-  }
+  addHistory("ext-seed-2", { at: now - 13 * DAY, actor: CURRENT_USER, summary: "Published" });
 
-  // 3 — Finance Reporter (Draft — already approved, not published yet)
+  // 3 — Finance Reporter (Draft)
   put({
     id: "ext-seed-3", name: "Finance Reporter", description: "Monthly revenue summary from the finance system.",
     emoji: "📊", bg: "bg-green-50",
     baseUrl: "https://fin.abc.ai", authMethod: "bearer", hasToken: true, signingSecret: generateSigningSecret(),
-    guardrail: null, status: "draft", approved: true, channels: [], pendingChannels: null,
+    guardrail: null, status: "draft", archived: false,
     createdAt: now - 5 * DAY, updatedAt: now - 3 * HOUR,
     lastHealthCheckAt: now - 5 * MIN, lastHealthCheckOk: true, lastHealthyAt: now - 5 * MIN,
-    lastValidation: PASSED_VALIDATION, rejection: null, lastRejection: null, rejectionBannerDismissed: false,
+    lastValidation: PASSED_VALIDATION,
   });
   addHistory("ext-seed-3", { at: now - 5 * DAY, actor: CURRENT_USER, summary: "Connection created" });
-  addHistory("ext-seed-3", { at: now - 4 * DAY, actor: CURRENT_USER, summary: "Submitted for approval", detail: "Channels requested: none" });
-  addHistory("ext-seed-3", { at: now - 3 * HOUR, actor: approvalLevelLabel("https://fin.abc.ai"), summary: `Approved by ${approvalLevelLabel("https://fin.abc.ai")}` });
 
-  // 4 — Legal Doc Checker (Pending approval — partner domain, so FPT-level review)
+  // 4 — Legal Doc Checker (Draft — reseeded from the old Pending-approval example)
   put({
     id: "ext-seed-4", name: "Legal Doc Checker", description: "Contract clause review against company policy.",
     emoji: "⚖️", bg: "bg-amber-50",
     baseUrl: "https://legal.partner-ai.com", authMethod: "bearer", hasToken: true, signingSecret: generateSigningSecret(),
-    guardrail: null, status: "pending_approval", approved: false, channels: [], pendingChannels: ["web"],
+    guardrail: null, status: "draft", archived: false,
     createdAt: now - 1 * DAY, updatedAt: now - 30 * MIN,
     lastHealthCheckAt: now - 30 * MIN, lastHealthCheckOk: true, lastHealthyAt: now - 30 * MIN,
-    lastValidation: PASSED_VALIDATION, rejection: null, lastRejection: null, rejectionBannerDismissed: false,
+    lastValidation: PASSED_VALIDATION,
   });
   addHistory("ext-seed-4", { at: now - 1 * DAY, actor: CURRENT_USER, summary: "Connection created" });
-  addHistory("ext-seed-4", { at: now - 30 * MIN, actor: CURRENT_USER, summary: "Submitted for approval", detail: "Channels requested: Web" });
 
-  // 5 — Warehouse Bot (Rejected)
+  // 5 — Warehouse Bot (Published — reseeded from the old Rejected example)
   put({
     id: "ext-seed-5", name: "Warehouse Bot", description: "Stock lookup and restock suggestions.",
     emoji: "📦", bg: "bg-indigo-50",
     baseUrl: "https://wh.partner.io", authMethod: "bearer", hasToken: true, signingSecret: generateSigningSecret(),
-    guardrail: null, status: "rejected", approved: false, channels: [], pendingChannels: null,
+    guardrail: null, status: "published", archived: false,
     createdAt: now - 3 * DAY, updatedAt: now - 1 * DAY,
     lastHealthCheckAt: now - 1 * DAY, lastHealthCheckOk: true, lastHealthyAt: now - 1 * DAY,
     lastValidation: PASSED_VALIDATION,
-    rejection: { at: now - 1 * DAY, by: approvalLevelLabel("https://wh.partner.io"), reason: "Domain is not on the approved partner list." },
-    lastRejection: { at: now - 1 * DAY, by: approvalLevelLabel("https://wh.partner.io"), reason: "Domain is not on the approved partner list." },
-    rejectionBannerDismissed: false,
   });
   addHistory("ext-seed-5", { at: now - 3 * DAY, actor: CURRENT_USER, summary: "Connection created" });
-  addHistory("ext-seed-5", { at: now - 2 * DAY, actor: CURRENT_USER, summary: "Submitted for approval", detail: "Channels requested: none" });
-  addHistory("ext-seed-5", { at: now - 1 * DAY, actor: approvalLevelLabel("https://wh.partner.io"), summary: "Rejected", detail: "Domain is not on the approved partner list." });
+  addHistory("ext-seed-5", { at: now - 1 * DAY, actor: CURRENT_USER, summary: "Published" });
 
-  // 6 — Marketing Copywriter (Paused, was published to Web)
+  // 6 — Marketing Copywriter (Paused, was published)
   put({
     id: "ext-seed-6", name: "Marketing Copywriter", description: "Campaign copy drafts for social channels.",
     emoji: "📣", bg: "bg-purple-50",
     baseUrl: "https://mkt.abc.ai", authMethod: "bearer", hasToken: true, signingSecret: generateSigningSecret(),
-    guardrail: "Marketing brand-safety set", status: "paused", approved: true, channels: ["web"], pendingChannels: null,
+    guardrail: "Marketing brand-safety set", status: "paused", archived: false,
     createdAt: now - 10 * DAY, updatedAt: now - 4 * DAY,
     lastHealthCheckAt: now - 4 * DAY, lastHealthCheckOk: false, lastHealthyAt: now - 5 * DAY,
-    lastValidation: PASSED_VALIDATION, rejection: null, lastRejection: null, rejectionBannerDismissed: false,
+    lastValidation: PASSED_VALIDATION,
   });
   addHistory("ext-seed-6", { at: now - 10 * DAY, actor: CURRENT_USER, summary: "Connection created" });
-  addHistory("ext-seed-6", { at: now - 9 * DAY, actor: CURRENT_USER, summary: "Submitted for approval", detail: "Channels requested: Web" });
-  {
-    const by = approvalLevelLabel("https://mkt.abc.ai");
-    addHistory("ext-seed-6", { at: now - 8 * DAY, actor: by, summary: `Approved by ${by}` });
-    addHistory("ext-seed-6", { at: now - 8 * DAY, actor: by, summary: "Published to Web" });
-  }
-  addHistory("ext-seed-6", { at: now - 4 * DAY, actor: "Tran Nam", summary: "Paused" });
+  addHistory("ext-seed-6", { at: now - 8 * DAY, actor: CURRENT_USER, summary: "Published" });
+  addHistory("ext-seed-6", { at: now - 4 * DAY, actor: CURRENT_USER, summary: "Paused" });
 
   // 7 — Insurance Claim Agent (Draft, no description, no Activity at all)
   put({
     id: "ext-seed-7", name: "Insurance Claim Agent", description: "",
     emoji: "🛡️", bg: "bg-rose-50",
     baseUrl: "https://claims.abc.ai", authMethod: "bearer", hasToken: true, signingSecret: generateSigningSecret(),
-    guardrail: null, status: "draft", approved: false, channels: [], pendingChannels: null,
+    guardrail: null, status: "draft", archived: false,
     createdAt: now, updatedAt: now,
     lastHealthCheckAt: now, lastHealthCheckOk: true, lastHealthyAt: now,
-    lastValidation: PASSED_VALIDATION, rejection: null, lastRejection: null, rejectionBannerDismissed: false,
+    lastValidation: PASSED_VALIDATION,
   });
 
   persistStore();
   persistHistory();
-}
-
-function hashString(s: string): number {
-  let h = 0;
-  for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return h;
 }
 
 function addHistory(agentId: string, entry: Omit<HistoryEntry, "id" | "agentId">) {
@@ -268,18 +200,9 @@ function addHistory(agentId: string, entry: Omit<HistoryEntry, "id" | "agentId">
   persistHistory();
 }
 
-function perUserConnectorState(baseUrl: string, bearerToken: string): PerUserConnectorState {
-  const t = bearerToken.toLowerCase();
-  if (t.includes("noncompliant")) return "non_compliant";
-  if (t.includes("peruser")) return "valid";
-  const h = hashString(baseUrl) % 3;
-  return h === 0 ? "none" : h === 1 ? "valid" : "non_compliant";
-}
-
 /** Deterministic mock connection check — a real backend would actually call the endpoint.
  * Typing "unreachable" in the URL or "invalid" in the token lets a tester deliberately
- * reproduce each blocking failure; "peruser"/"noncompliant" in the token force the per-user
- * connector state; otherwise it's derived from the URL so it stays stable across reloads. */
+ * reproduce each blocking failure. */
 export function runValidation(baseUrl: string, bearerToken: string): ValidationResult {
   const endpointReachable = !baseUrl.toLowerCase().includes("unreachable");
   const authVerified = endpointReachable && !bearerToken.toLowerCase().includes("invalid");
@@ -291,7 +214,6 @@ export function runValidation(baseUrl: string, bearerToken: string): ValidationR
     authVerified,
     protocolSupported,
     runsAvailable,
-    perUserConnector: perUserConnectorState(baseUrl, bearerToken),
     passed: endpointReachable && authVerified && protocolSupported && runsAvailable,
   };
 }
@@ -299,7 +221,7 @@ export function runValidation(baseUrl: string, bearerToken: string): ValidationR
 export const externalAgentStore = {
   list(): ExternalAgent[] {
     seedDefaultAgents();
-    return [...store.values()].sort((a, b) => b.updatedAt - a.updatedAt);
+    return [...store.values()].filter(a => !a.archived).sort((a, b) => b.updatedAt - a.updatedAt);
   },
   get(id: string): ExternalAgent | undefined {
     seedDefaultAgents();
@@ -307,7 +229,7 @@ export const externalAgentStore = {
   },
   isDuplicateName(name: string, excludeId?: string): boolean {
     const n = name.trim().toLowerCase();
-    return [...store.values()].some(a => a.id !== excludeId && a.name.trim().toLowerCase() === n);
+    return [...store.values()].some(a => !a.archived && a.id !== excludeId && a.name.trim().toLowerCase() === n);
   },
   create(data: { name: string; description: string; baseUrl: string; authMethod: AuthMethod; validation: ValidationResult }): ExternalAgent {
     const id = `ext-${Date.now().toString(36)}`;
@@ -323,30 +245,28 @@ export const externalAgentStore = {
       signingSecret: generateSigningSecret(),
       guardrail: null,
       status: "draft",
-      approved: false,
-      channels: [],
-      pendingChannels: null,
+      archived: false,
       createdAt: now,
       updatedAt: now,
       lastHealthCheckAt: null,
       lastHealthCheckOk: null,
       lastHealthyAt: null,
       lastValidation: data.validation,
-      rejection: null,
-      lastRejection: null,
-      rejectionBannerDismissed: false,
     };
     store.set(id, agent);
     persistStore();
     addHistory(id, { at: now, actor: CURRENT_USER, summary: "Connection created" });
     return agent;
   },
+  /** Editing a Published agent's connection unpublishes it immediately, regardless of which
+   * field changed — returns `unpublished: true` so the caller can surface the "this agent was
+   * unpublished" banner and toast. */
   update(id: string, patch: {
     name?: string; description?: string; baseUrl?: string; authMethod?: AuthMethod;
     tokenReplaced?: boolean; validation?: ValidationResult;
-  }) {
+  }): { unpublished: boolean } {
     const cur = store.get(id);
-    if (!cur) return;
+    if (!cur) return { unpublished: false };
     const details: string[] = [];
     if (patch.name !== undefined && patch.name.trim() !== cur.name) details.push(`Agent name: ${cur.name} → ${patch.name.trim()}`);
     if (patch.description !== undefined && patch.description.trim() !== cur.description) details.push("Description updated");
@@ -354,11 +274,7 @@ export const externalAgentStore = {
     if (patch.authMethod !== undefined && patch.authMethod !== cur.authMethod) {
       details.push(`Authentication: ${cur.authMethod === "bearer" ? "Bearer Token" : "None"} → ${patch.authMethod === "bearer" ? "Bearer Token" : "None"}`);
     }
-    // Editing and saving a Rejected connection is how the creator resubmits it — moves the
-    // agent back to Draft, regardless of which fields changed. The live rejection banner
-    // clears, but lastRejection/rejectionBannerDismissed are untouched so the "Previously
-    // rejected…" banner keeps showing on Draft until the Builder dismisses it.
-    const wasRejected = cur.status === "rejected";
+    const wasPublished = cur.status === "published";
     const next: ExternalAgent = {
       ...cur,
       name: patch.name !== undefined ? patch.name.trim() : cur.name,
@@ -367,9 +283,7 @@ export const externalAgentStore = {
       authMethod: patch.authMethod ?? cur.authMethod,
       hasToken: patch.tokenReplaced ? true : cur.hasToken,
       lastValidation: patch.validation ?? cur.lastValidation,
-      status: wasRejected ? "draft" : cur.status,
-      approved: wasRejected ? false : cur.approved,
-      rejection: wasRejected ? null : cur.rejection,
+      status: wasPublished ? "draft" : cur.status,
       updatedAt: Date.now(),
     };
     store.set(id, next);
@@ -377,11 +291,13 @@ export const externalAgentStore = {
     if (patch.tokenReplaced) {
       addHistory(id, { at: next.updatedAt, actor: CURRENT_USER, summary: "Token replaced", detail: "Bearer token replaced" });
     }
-    if (details.length > 0) {
+    if (wasPublished) {
+      addHistory(id, { at: next.updatedAt, actor: CURRENT_USER, summary: "Connection updated", detail: details.length > 0 ? details.join(" · ") : undefined });
+      addHistory(id, { at: next.updatedAt, actor: CURRENT_USER, summary: "Unpublished (edited)" });
+    } else if (details.length > 0) {
       addHistory(id, { at: next.updatedAt, actor: CURRENT_USER, summary: "Connection edited", detail: details.join(" · ") });
-    } else if (wasRejected && !patch.tokenReplaced) {
-      addHistory(id, { at: next.updatedAt, actor: CURRENT_USER, summary: "Connection edited", detail: "Resubmitted after rejection" });
     }
+    return { unpublished: wasPublished };
   },
   rotateSigningSecret(id: string) {
     const cur = store.get(id);
@@ -391,85 +307,15 @@ export const externalAgentStore = {
     persistStore();
     addHistory(id, { at: now, actor: CURRENT_USER, summary: "Secret rotated" });
   },
-  dismissRejectionBanner(id: string) {
+  /** The only way an agent goes live — straight to Published on the Workspace audience, no
+   * channel selection and no approval step. */
+  publish(id: string) {
     const cur = store.get(id);
-    if (!cur) return;
-    store.set(id, { ...cur, rejectionBannerDismissed: true });
-    persistStore();
-  },
-  /** The single "Publish" action on a Draft agent. If the connection is already approved this
-   * publishes immediately; otherwise it sends the connection for approval (in the separate
-   * admin console this Builder doesn't have access to) and stores the requested channels so
-   * they're applied automatically the moment approval completes — see approve() below. */
-  publishOrSubmit(id: string, channels: string[]): { ok: boolean; mode?: "published" | "pending" } {
-    const cur = store.get(id);
-    if (!cur || cur.status !== "draft") return { ok: false };
-    if (cur.approved) {
-      this.publish(id, channels);
-      return { ok: true, mode: "published" };
-    }
+    if (!cur || cur.status !== "draft") return;
     const now = Date.now();
-    store.set(id, { ...cur, status: "pending_approval", pendingChannels: channels, updatedAt: now });
+    store.set(id, { ...cur, status: "published", updatedAt: now });
     persistStore();
-    addHistory(id, {
-      at: now, actor: CURRENT_USER, summary: "Submitted for approval",
-      detail: `Channels requested: ${channels.length > 0 ? channels.map(channelLabel).join(", ") : "none"}`,
-    });
-    return { ok: true, mode: "pending" };
-  },
-  /** Called by the separate admin console (not reachable from this Builder's UI) once a
-   * connection is approved. Applies any channels that were requested when it was submitted —
-   * approval and going live happen as one action, with no separate manual Publish step for
-   * the Builder in between. */
-  approve(id: string) {
-    const cur = store.get(id);
-    if (!cur || cur.status !== "pending_approval") return;
-    const now = Date.now();
-    const channels = cur.pendingChannels ?? [];
-    const nowPublished = channels.length > 0;
-    const by = approvalLevelLabel(cur.baseUrl);
-    store.set(id, {
-      ...cur, status: nowPublished ? "published" : "draft", approved: true,
-      channels, pendingChannels: null, rejection: null, updatedAt: now,
-    });
-    persistStore();
-    addHistory(id, { at: now, actor: by, summary: `Approved by ${by}` });
-    if (nowPublished) {
-      addHistory(id, { at: now, actor: by, summary: `Published to ${channels.map(channelLabel).join(", ")}` });
-    }
-  },
-  /** Called by the separate admin console (not reachable from this Builder's UI). */
-  reject(id: string, reason: string) {
-    const cur = store.get(id);
-    if (!cur || cur.status !== "pending_approval") return;
-    const now = Date.now();
-    const by = approvalLevelLabel(cur.baseUrl);
-    store.set(id, {
-      ...cur, status: "rejected", approved: false, pendingChannels: null,
-      rejection: { at: now, by, reason: reason.trim() },
-      lastRejection: { at: now, by, reason: reason.trim() },
-      rejectionBannerDismissed: false,
-      updatedAt: now,
-    });
-    persistStore();
-    addHistory(id, { at: now, actor: by, summary: "Rejected", detail: reason.trim() });
-  },
-  /** Approved Draft -> Published (channels.length > 0) or Published -> Draft (channels.length
-   * === 0, i.e. unpublished from every channel — stays approved). Published -> Published with a
-   * different channel selection just updates the list — the UI decides when to confirm an
-   * unpublish-all before calling this. */
-  publish(id: string, channels: string[]) {
-    const cur = store.get(id);
-    if (!cur || !((cur.status === "draft" && cur.approved) || cur.status === "published")) return;
-    const now = Date.now();
-    const nowPublished = channels.length > 0;
-    store.set(id, { ...cur, status: nowPublished ? "published" : "draft", channels, updatedAt: now });
-    persistStore();
-    if (nowPublished) {
-      addHistory(id, { at: now, actor: CURRENT_USER, summary: `Published to ${channels.map(channelLabel).join(", ")}` });
-    } else {
-      addHistory(id, { at: now, actor: CURRENT_USER, summary: "Unpublished from all channels" });
-    }
+    addHistory(id, { at: now, actor: CURRENT_USER, summary: "Published" });
   },
   pause(id: string) {
     const cur = store.get(id);
@@ -487,11 +333,19 @@ export const externalAgentStore = {
     persistStore();
     addHistory(id, { at: now, actor: CURRENT_USER, summary: "Resumed" });
   },
+  /** Delete is blocked (in the UI) while Published — Pause first. Connection settings are
+   * permanently wiped here; Activity and conversation history are kept (archived, not deleted)
+   * for reference, matching the updated confirm-dialog copy. */
   remove(id: string) {
-    store.delete(id);
-    history.delete(id);
+    const cur = store.get(id);
+    if (!cur || cur.status === "published") return;
+    const now = Date.now();
+    store.set(id, {
+      ...cur, archived: true, baseUrl: "", hasToken: false, signingSecret: "", guardrail: null,
+      lastValidation: null, updatedAt: now,
+    });
     persistStore();
-    persistHistory();
+    addHistory(id, { at: now, actor: CURRENT_USER, summary: "Deleted", detail: "Connection settings removed; history archived." });
   },
   runHealthCheck(id: string): boolean {
     const cur = store.get(id);
@@ -506,9 +360,8 @@ export const externalAgentStore = {
     persistStore();
     return ok;
   },
-  /** Activity — the connection lifecycle log (Connection created, Submitted for approval,
-   * Approved/Rejected, Published/Unpublished, Paused/Resumed, Connection edited, Token
-   * replaced, Secret rotated). Conversations live in externalAgentConversationStore instead. */
+  /** Activity — the connection lifecycle log (created, updated, published, unpublished, paused,
+   * resumed). Conversations live in externalAgentConversationStore instead. */
   activity(id: string): HistoryEntry[] {
     return [...(history.get(id) ?? [])].sort((a, b) => b.at - a.at);
   },

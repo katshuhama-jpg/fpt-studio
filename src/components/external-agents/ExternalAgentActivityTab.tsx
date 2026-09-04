@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Search, Zap, ThumbsDown, CheckCircle2 } from "lucide-react";
+import { Search, Zap, CheckCircle2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { externalAgentStore, type HistoryEntry } from "./externalAgentStore";
 
@@ -12,8 +12,7 @@ function formatTimestamp(ts: number): string {
 }
 
 function EntryIcon({ summary }: { summary: string }) {
-  if (summary === "Rejected") return <ThumbsDown size={15} className="text-destructive shrink-0" />;
-  if (summary.startsWith("Published to") || summary.startsWith("Approved")) return <CheckCircle2 size={15} className="text-success shrink-0" />;
+  if (summary === "Published") return <CheckCircle2 size={15} className="text-success shrink-0" />;
   return <Zap size={15} className="text-primary shrink-0" />;
 }
 
@@ -43,7 +42,7 @@ export default function ExternalAgentActivityTab({ agentId }: { agentId: string 
     <div className="flex-1 overflow-y-auto p-8">
       <div className="mb-4">
         <h2 className="font-display text-xl font-semibold">Activity</h2>
-        <p className="text-xs text-muted-foreground mt-0.5">Every connection lifecycle event — created, submitted, approved, published, edited.</p>
+        <p className="text-xs text-muted-foreground mt-0.5">Every connection lifecycle event — created, updated, published, unpublished, paused, resumed.</p>
       </div>
 
       <div className="relative mb-2.5">

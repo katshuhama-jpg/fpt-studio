@@ -14,7 +14,7 @@ export function DeleteExternalAgentDialog({ name, open, onOpenChange, onConfirm 
         <AlertDialogHeader>
           <AlertDialogTitle>Delete "{name}"?</AlertDialogTitle>
           <AlertDialogDescription>
-            The connection settings and its history will be permanently removed. Agents using this external agent will stop working.
+            The connection settings will be permanently removed. Conversation history will be archived (no longer visible), and the Activity log is kept for reference.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -47,29 +47,6 @@ export function PauseExternalAgentDialog({ name, open, onOpenChange, onConfirm }
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction onClick={onConfirm}>Pause</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
-}
-
-/** Unpublish-from-all-channels confirmation — shown when Publish is clicked with every
- * channel unchecked while the agent is currently Published (Published → Approved). */
-export function UnpublishExternalAgentDialog({ name, open, onOpenChange, onConfirm }: {
-  name: string; open: boolean; onOpenChange: (open: boolean) => void; onConfirm: () => void;
-}) {
-  return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Unpublish from all channels?</AlertDialogTitle>
-          <AlertDialogDescription>
-            "{name}" will stop receiving requests from every channel it's currently published to. You can publish it again at any time.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm}>Unpublish</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

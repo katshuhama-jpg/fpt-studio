@@ -4,9 +4,7 @@ const GREY_BADGE = "bg-surface-muted text-muted-foreground border-border";
 
 export const STATUS_META: Record<ExternalAgentStatus, { label: string; badgeClass: string; dotClass: string }> = {
   draft: { label: "Draft", badgeClass: GREY_BADGE, dotClass: "bg-muted-foreground" },
-  pending_approval: { label: "Pending Approval", badgeClass: "chip-warning", dotClass: "bg-warning" },
   published: { label: "Published", badgeClass: "chip-success", dotClass: "bg-success" },
-  rejected: { label: "Rejected", badgeClass: "chip-danger", dotClass: "bg-destructive" },
   paused: { label: "Paused", badgeClass: GREY_BADGE, dotClass: "bg-muted-foreground" },
 };
 

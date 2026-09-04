@@ -7,7 +7,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import {
-  externalAgentStore, channelLabel, runValidation, type ExternalAgent, type ValidationResult,
+  externalAgentStore, runValidation, type ExternalAgent, type ValidationResult,
 } from "@/components/external-agents/externalAgentStore";
 import { StatusBadge, relativeTime } from "@/components/external-agents/statusMeta";
 import ConnectExternalAgentModal from "@/components/external-agents/ConnectExternalAgentModal";
@@ -17,7 +17,6 @@ import {
 import ExternalAgentChannelsTab from "@/components/external-agents/ExternalAgentChannelsTab";
 import ExternalAgentInsightsTab from "@/components/external-agents/ExternalAgentInsightsTab";
 import ExternalAgentTestTab from "@/components/external-agents/ExternalAgentTestTab";
-import PublishExternalAgentModal from "@/components/external-agents/PublishExternalAgentModal";
 import { toast } from "sonner";
 
 type Tab = "build" | "test" | "channels" | "insights";
@@ -66,6 +65,10 @@ function CopyBlock({ code }: { code: string }) {
   );
 }
 
+function maskSecret(secret: string): string {
+  return "•".repeat(Math.min(secret.length, 32));
+}
+
 function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-[160px,1fr] items-start gap-1 sm:gap-2 py-2.5 border-b border-border last:border-0">
@@ -74,12 +77,6 @@ function InfoRow({ label, children }: { label: string; children: React.ReactNode
     </div>
   );
 }
-
-const PERUSER_COPY: Record<string, { chip: string; label: string; message: string }> = {
-  none: { chip: "", label: "Not required", message: "" },
-  valid: { chip: "chip-success", label: "Valid", message: "Each user will be asked to connect their own account the first time they use this agent." },
-  non_compliant: { chip: "chip-warning", label: "Declared but non-compliant", message: "This agent declares a per-user connector, but it doesn't match the expected contract. You can still use it — fix this when you get a chance." },
-};
 
 export default function ExternalAgentDetail() {
   const { id = "" } = useParams();
@@ -97,10 +94,12 @@ export default function ExternalAgentDetail() {
   const [agent, setAgent] = useState<ExternalAgent | undefined>(undefined);
   const [showMenu, setShowMenu] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
-  const [showPublish, setShowPublish] = useState(false);
   const [showPause, setShowPause] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [checkingHealth, setCheckingHealth] = useState(false);
+  const [justUnpublished, setJustUnpublished] = useState(false);
+  const [showSigningSecret, setShowSigningSecret] = useState(false);
+  const [signingSecretCopied, setSigningSecretCopied] = useState(false);
 
   const [replacingToken, setReplacingToken] = useState(false);
   const [showReplaceConfirm, setShowReplaceConfirm] = useState(false);
@@ -172,8 +171,7 @@ export default function ExternalAgentDetail() {
   const readyChecklist = [
     { label: "Connection validated", done: validationPassed },
     { label: "Description added", done: agent.description.trim().length > 0 },
-    { label: "Per-user connection reviewed", done: agent.lastValidation != null },
-    { label: "Sent for approval", done: agent.approved || agent.status !== "draft" },
+    { label: "Published", done: agent.status === "published" },
   ];
   const readyDoneCount = readyChecklist.filter(i => i.done).length;
   const showReadyCard = agent.status !== "published" && agent.status !== "paused";
@@ -191,8 +189,6 @@ export default function ExternalAgentDetail() {
       refresh();
     }, 600);
   };
-
-  const perUser = agent.lastValidation ? PERUSER_COPY[agent.lastValidation.perUserConnector] : null;
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -233,14 +229,8 @@ export default function ExternalAgentDetail() {
 
         <div className="flex items-center gap-2 flex-wrap">
           <StatusBadge status={agent.status} />
-          {agent.status === "published" && agent.channels.length > 0 && (
-            <div className="flex items-center gap-1 flex-wrap">
-              {agent.channels.map(chId => (
-                <span key={chId} className="px-1.5 py-0.5 rounded bg-surface-muted text-xs text-muted-foreground whitespace-nowrap">
-                  {channelLabel(chId)}
-                </span>
-              ))}
-            </div>
+          {agent.status === "published" && (
+            <span className="px-1.5 py-0.5 rounded bg-surface-muted text-xs text-muted-foreground whitespace-nowrap">Workspace</span>
           )}
 
           {agent.status === "draft" && (
@@ -252,26 +242,16 @@ export default function ExternalAgentDetail() {
               )}
               <button
                 disabled={!validationPassed}
-                onClick={() => setShowPublish(true)}
+                onClick={() => {
+                  externalAgentStore.publish(agent.id);
+                  toast.success(`"${agent.name}" is now published and ready to use on your Workspace.`);
+                  refresh();
+                }}
                 className="btn-primary h-9 whitespace-nowrap disabled:opacity-40 disabled:pointer-events-none"
               >
                 Publish
               </button>
             </div>
-          )}
-
-          {agent.status === "pending_approval" && (
-            <button
-              disabled
-              title="Waiting for approval."
-              className="h-9 px-4 rounded-lg bg-primary/40 text-primary-foreground text-sm font-medium cursor-not-allowed opacity-60 whitespace-nowrap"
-            >
-              Publish
-            </button>
-          )}
-
-          {agent.status === "rejected" && (
-            <button onClick={() => setShowEdit(true)} className="btn-primary h-9 whitespace-nowrap">Edit connection</button>
           )}
 
           {agent.status === "published" && isAdmin && (
@@ -306,7 +286,14 @@ export default function ExternalAgentDetail() {
                   <button onClick={() => { setShowEdit(true); setShowMenu(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">
                     Edit connection
                   </button>
-                  <button onClick={() => { setShowDelete(true); setShowMenu(false); }} className="w-full text-left px-3 py-1.5 text-xs text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">
+                  <button
+                    disabled={agent.status === "published"}
+                    title={agent.status === "published" ? "Pause this agent before deleting." : undefined}
+                    onClick={() => { setShowDelete(true); setShowMenu(false); }}
+                    className={`w-full text-left px-3 py-1.5 text-xs transition-base ${
+                      agent.status === "published" ? "text-muted-foreground/50 cursor-not-allowed" : "text-destructive hover:bg-[hsl(var(--destructive-soft))]"
+                    }`}
+                  >
                     Delete
                   </button>
                 </div>
@@ -351,7 +338,7 @@ export default function ExternalAgentDetail() {
               {showReadyCard && (
                 <div className="rounded-lg border border-border bg-surface-muted/50 p-3">
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs font-semibold text-foreground">Ready to submit</span>
+                    <span className="text-xs font-semibold text-foreground">Ready to publish</span>
                     <span className="text-xs text-muted-foreground">{readyDoneCount}/{readyChecklist.length}</span>
                   </div>
                   <div className="h-1.5 rounded-full bg-border overflow-hidden mb-2">
@@ -370,37 +357,24 @@ export default function ExternalAgentDetail() {
                 </div>
               )}
 
-              {agent.status === "rejected" && agent.rejection && (
+              {justUnpublished && (
                 <div className="flex items-start gap-2.5 rounded-lg border border-warning/25 bg-[hsl(var(--warning-soft))] px-3.5 py-3">
                   <AlertTriangle size={14} className="shrink-0 mt-0.5 text-warning" />
                   <div className="min-w-0 flex-1">
                     <p className="text-xs text-warning leading-relaxed">
-                      Rejected on {new Date(agent.rejection.at).toLocaleDateString()} by {agent.rejection.by} — "{agent.rejection.reason}"
+                      This agent was unpublished because its connection was edited. Publish it again to make it live.
                     </p>
                     <button
                       type="button"
-                      onClick={() => setShowEdit(true)}
+                      onClick={() => {
+                        externalAgentStore.publish(agent.id);
+                        toast.success(`"${agent.name}" is now published and ready to use on your Workspace.`);
+                        setJustUnpublished(false);
+                        refresh();
+                      }}
                       className="mt-1.5 text-xs font-semibold text-warning hover:underline"
                     >
-                      Edit connection
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {agent.status === "draft" && agent.lastRejection && !agent.rejectionBannerDismissed && (
-                <div className="flex items-start gap-2.5 rounded-lg border border-border bg-surface-muted px-3.5 py-3">
-                  <AlertTriangle size={14} className="shrink-0 mt-0.5 text-muted-foreground" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      Previously rejected on {new Date(agent.lastRejection.at).toLocaleDateString()} by {agent.lastRejection.by} — "{agent.lastRejection.reason}"
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => { externalAgentStore.dismissRejectionBanner(agent.id); refresh(); }}
-                      className="mt-1.5 text-xs font-semibold text-foreground hover:underline"
-                    >
-                      Dismiss
+                      Publish
                     </button>
                   </div>
                 </div>
@@ -506,23 +480,27 @@ export default function ExternalAgentDetail() {
                     )}
                   </InfoRow>
                 )}
-                <InfoRow label="Per-user connection">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {perUser?.chip ? (
-                        <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border ${perUser.chip}`}>{perUser.label}</span>
-                      ) : (
-                        <span>{perUser?.label ?? "Not required"}</span>
-                      )}
-                      {agent.lastValidation && agent.lastValidation.perUserConnector !== "none" && (
-                        <Link to="/external-agents/guides/integration#per-user-connector" className="text-xs font-semibold text-primary hover:underline">
-                          See how to set this up
-                        </Link>
-                      )}
-                    </div>
-                    {perUser?.message && (
-                      <p className="text-xs text-muted-foreground leading-relaxed">{perUser.message}</p>
-                    )}
+                <InfoRow label="Signing secret">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs truncate">{showSigningSecret ? agent.signingSecret : maskSecret(agent.signingSecret)}</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowSigningSecret(v => !v)}
+                      className="text-xs font-semibold text-primary hover:underline shrink-0"
+                    >
+                      {showSigningSecret ? "Hide" : "Show"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard?.writeText(agent.signingSecret).catch(() => {});
+                        setSigningSecretCopied(true);
+                        setTimeout(() => setSigningSecretCopied(false), 1200);
+                      }}
+                      className="text-xs font-semibold text-primary hover:underline shrink-0"
+                    >
+                      {signingSecretCopied ? "Copied" : "Copy"}
+                    </button>
                   </div>
                 </InfoRow>
                 <InfoRow label="Guardrails">
@@ -634,7 +612,7 @@ export default function ExternalAgentDetail() {
         )}
 
         {tab === "test" && <ExternalAgentTestTab agent={agent} />}
-        {tab === "channels" && <ExternalAgentChannelsTab agent={agent} onChanged={refresh} />}
+        {tab === "channels" && <ExternalAgentChannelsTab agent={agent} />}
         {tab === "insights" && <ExternalAgentInsightsTab agentId={agent.id} />}
       </div>
 
@@ -642,17 +620,11 @@ export default function ExternalAgentDetail() {
         open={showEdit}
         existing={agent}
         onClose={() => setShowEdit(false)}
-        onSaved={() => { setShowEdit(false); refresh(); }}
-      />
-
-      <PublishExternalAgentModal
-        open={showPublish}
-        agentId={agent.id}
-        agentName={agent.name}
-        currentChannels={agent.channels}
-        alreadyApproved={agent.approved}
-        onClose={() => setShowPublish(false)}
-        onPublished={refresh}
+        onSaved={(_, __, unpublished) => {
+          setShowEdit(false);
+          if (unpublished) setJustUnpublished(true);
+          refresh();
+        }}
       />
 
       <PauseExternalAgentDialog

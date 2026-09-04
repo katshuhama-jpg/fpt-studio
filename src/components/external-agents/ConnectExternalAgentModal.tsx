@@ -6,9 +6,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Check, X, Eye, EyeOff, Loader2, AlertTriangle, ExternalLink, Copy } from "lucide-react";
+import { Check, X, Eye, EyeOff, Loader2, AlertTriangle, Copy } from "lucide-react";
 import {
-  externalAgentStore, runValidation, type AuthMethod, type ExternalAgent, type PerUserConnectorState, type ValidationResult,
+  externalAgentStore, runValidation, type AuthMethod, type ExternalAgent, type ValidationResult,
 } from "./externalAgentStore";
 import { RotateSigningSecretDialog } from "./ExternalAgentDialogs";
 
@@ -28,12 +28,6 @@ interface CheckRow {
   message: string;
 }
 
-const PERUSER_COPY: Record<PerUserConnectorState, { label: string; message: string }> = {
-  none: { label: "Per-user Connector — not required", message: "This agent runs with workspace credentials." },
-  valid: { label: "Per-user Connector — detected and valid", message: "Each user will be asked to connect their own account the first time they use this agent." },
-  non_compliant: { label: "Per-user Connector — declared but not standard-compliant", message: "You can still save and fix this later." },
-};
-
 function buildCheckRows(v: ValidationResult, authMethod: AuthMethod): CheckRow[] {
   const rows: CheckRow[] = [];
   rows.push({
@@ -52,8 +46,6 @@ function buildCheckRows(v: ValidationResult, authMethod: AuthMethod): CheckRow[]
   if (!v.authVerified) return rows;
   rows.push({ key: "protocol", label: "Protocol version supported", pass: true, message: "Compatible with this platform's agent protocol." });
   rows.push({ key: "runs", label: "/runs endpoint available", pass: true, message: "The agent can accept run requests." });
-  const pu = PERUSER_COPY[v.perUserConnector];
-  rows.push({ key: "peruser", label: pu.label, pass: true, warn: v.perUserConnector === "non_compliant", message: pu.message });
   return rows;
 }
 
@@ -81,7 +73,9 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
   open: boolean;
   onClose: () => void;
   existing?: ExternalAgent;
-  onSaved: (agent: ExternalAgent, isNew: boolean) => void;
+  /** unpublished is true when saving this edit just knocked a Published agent back to Draft
+   * (see externalAgentStore.update) — irrelevant for a brand-new connection. */
+  onSaved: (agent: ExternalAgent, isNew: boolean, unpublished?: boolean) => void;
 }) {
   const editing = !!existing;
   const [step, setStep] = useState<Step>("connection");
@@ -125,10 +119,6 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
     setResult(existing?.lastValidation ?? null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, existing?.id]);
-
-  const approvedConnectionChanging =
-    !!existing?.approved &&
-    (baseUrl.trim() !== existing.baseUrl || authMethod !== existing.authMethod);
 
   const isDirty = editing
     ? name.trim() !== existing!.name || description.trim() !== existing!.description || baseUrl.trim() !== existing!.baseUrl
@@ -204,12 +194,12 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
   const save = () => {
     if (!result?.passed) return;
     if (editing) {
-      externalAgentStore.update(existing!.id, {
+      const { unpublished } = externalAgentStore.update(existing!.id, {
         name, description, baseUrl, authMethod,
         tokenReplaced: authMethod === "bearer" && replacingToken && token.trim() !== "",
         validation: result,
       });
-      onSaved(externalAgentStore.get(existing!.id)!, false);
+      onSaved(externalAgentStore.get(existing!.id)!, false, unpublished);
     } else {
       const agent = externalAgentStore.create({ name, description, baseUrl, authMethod, validation: result });
       onSaved(agent, true);
@@ -307,12 +297,6 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
                   ) : (
                     <p className="mt-1 text-[11px] text-muted-foreground">We'll call /health, /runs and /tools under this URL.</p>
                   )}
-                  {!errors.baseUrl && approvedConnectionChanging && baseUrl.trim() !== existing?.baseUrl && (
-                    <p className="mt-1.5 flex items-start gap-1.5 text-[11px] text-warning leading-relaxed">
-                      <AlertTriangle size={12} className="shrink-0 mt-0.5" />
-                      Changing this requires approval again before the agent can be published.
-                    </p>
-                  )}
                 </div>
 
                 <div>
@@ -327,12 +311,6 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
                   {authMethod === "none" && (
                     <p className="mt-1.5 text-[11px] text-muted-foreground leading-relaxed">
                       Requests are still signed with HMAC. Your agent must verify the X-FPT-Signature header.
-                    </p>
-                  )}
-                  {authMethod === "none" && approvedConnectionChanging && authMethod !== existing?.authMethod && (
-                    <p className="mt-1.5 flex items-start gap-1.5 text-[11px] text-warning leading-relaxed">
-                      <AlertTriangle size={12} className="shrink-0 mt-0.5" />
-                      Changing this requires approval again before the agent can be published.
                     </p>
                   )}
                 </div>
@@ -439,17 +417,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
                           {row.label}
                         </p>
                         <p className={`text-xs leading-relaxed mt-0.5 ${!row.pass ? "text-destructive/90" : "text-muted-foreground"}`}>
-                          {row.message}{" "}
-                          {row.key === "peruser" && row.warn && (
-                            <a
-                              href="/external-agents/guides/integration#per-user-connector"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="font-semibold text-primary hover:underline inline-flex items-center gap-0.5"
-                            >
-                              See how to set this up <ExternalLink size={10} />
-                            </a>
-                          )}
+                          {row.message}
                         </p>
                       </div>
                     </div>
