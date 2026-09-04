@@ -13,9 +13,9 @@ import {
   externalAgentStore, runValidation, type ExternalAgent, type ValidationResult,
 } from "@/components/external-agents/externalAgentStore";
 import { StatusBadge, relativeTime } from "@/components/external-agents/statusMeta";
-import ConnectExternalAgentModal from "@/components/external-agents/ConnectExternalAgentModal";
+import ConnectExternalAgentModal, { historyDeliveryLabel } from "@/components/external-agents/ConnectExternalAgentModal";
 import {
-  DeleteExternalAgentDialog, PauseExternalAgentDialog, ReplaceTokenConfirmDialog,
+  DeleteExternalAgentDialog, PauseExternalAgentDialog, ReplaceTokenConfirmDialog, RejectExternalAgentDialog,
 } from "@/components/external-agents/ExternalAgentDialogs";
 import ExternalAgentChannelsTab from "@/components/external-agents/ExternalAgentChannelsTab";
 import ExternalAgentInsightsTab from "@/components/external-agents/ExternalAgentInsightsTab";
@@ -32,10 +32,12 @@ const TOP_TABS: { id: Tab; label: string; Icon: any }[] = [
   { id: "insights", label: "Insights", Icon: Analytics01Icon },
 ];
 
-const ENDPOINTS: { method: string; path: string; purpose: string }[] = [
-  { method: "GET", path: "/health", purpose: "Status and protocol version." },
-  { method: "POST", path: "/runs", purpose: "Calls the agent to run." },
-  { method: "GET", path: "/tools", purpose: "Lists the tools this agent declares." },
+const ENDPOINTS: { method: string; path: string; purpose: string; required: boolean }[] = [
+  { method: "GET", path: "/health", purpose: "Status and protocol version.", required: true },
+  { method: "POST", path: "/runs", purpose: "Calls the agent to run.", required: true },
+  { method: "GET", path: "/tools", purpose: "Lists the tools this agent declares.", required: true },
+  { method: "POST", path: "/credentials", purpose: "Registers a per-user credential (optional, off this phase).", required: false },
+  { method: "POST", path: "/credentials/revoke", purpose: "Revokes a per-user credential (optional, off this phase).", required: false },
 ];
 
 function CopyButton({ value }: { value: string }) {
@@ -99,6 +101,7 @@ export default function ExternalAgentDetail() {
   const [showEdit, setShowEdit] = useState(false);
   const [showPause, setShowPause] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const [showReject, setShowReject] = useState(false);
   const [checkingHealth, setCheckingHealth] = useState(false);
   const [justUnpublished, setJustUnpublished] = useState(false);
   const [showSigningSecret, setShowSigningSecret] = useState(false);
@@ -246,15 +249,49 @@ export default function ExternalAgentDetail() {
               <button
                 disabled={!validationPassed}
                 onClick={() => {
-                  externalAgentStore.publish(agent.id);
-                  toast.success(`"${agent.name}" is now published and ready to use on your Workspace.`);
+                  externalAgentStore.submitForApproval(agent.id);
+                  toast.success(`"${agent.name}" was submitted for approval.`);
                   refresh();
                 }}
                 className="btn-primary h-9 whitespace-nowrap disabled:opacity-40 disabled:pointer-events-none"
               >
-                Publish
+                Submit for approval
               </button>
             </div>
+          )}
+
+          {agent.status === "pending_approval" && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={() => setShowReject(true)}
+                className="h-9 px-4 rounded-lg border border-destructive/30 text-destructive hover:bg-[hsl(var(--destructive-soft))] text-sm font-medium transition-base whitespace-nowrap"
+              >
+                Reject
+              </button>
+              <button
+                onClick={() => {
+                  externalAgentStore.approve(agent.id);
+                  toast.success(`"${agent.name}" was approved and is now published.`);
+                  refresh();
+                }}
+                className="btn-primary h-9 whitespace-nowrap"
+              >
+                Approve
+              </button>
+            </div>
+          )}
+
+          {agent.status === "rejected" && (
+            <button
+              onClick={() => {
+                externalAgentStore.submitForApproval(agent.id);
+                toast.success(`"${agent.name}" was submitted for approval.`);
+                refresh();
+              }}
+              className="btn-primary h-9 whitespace-nowrap"
+            >
+              Submit again
+            </button>
           )}
 
           {agent.status === "published" && isAdmin && (
@@ -371,21 +408,30 @@ export default function ExternalAgentDetail() {
                   <AlertTriangle size={14} className="shrink-0 mt-0.5 text-warning" />
                   <div className="min-w-0 flex-1">
                     <p className="text-xs text-warning leading-relaxed">
-                      This agent was unpublished because its connection was edited. Publish it again to make it live.
+                      This agent was unpublished because its connection was edited. Submit it for approval again to make it live.
                     </p>
                     <button
                       type="button"
                       onClick={() => {
-                        externalAgentStore.publish(agent.id);
-                        toast.success(`"${agent.name}" is now published and ready to use on your Workspace.`);
+                        externalAgentStore.submitForApproval(agent.id);
+                        toast.success(`"${agent.name}" was submitted for approval.`);
                         setJustUnpublished(false);
                         refresh();
                       }}
                       className="mt-1.5 text-xs font-semibold text-warning hover:underline"
                     >
-                      Publish
+                      Submit for approval
                     </button>
                   </div>
+                </div>
+              )}
+
+              {agent.status === "rejected" && agent.rejection && (
+                <div className="flex items-start gap-2.5 rounded-lg border border-destructive/25 bg-[hsl(var(--destructive-soft))] px-3.5 py-3">
+                  <AlertTriangle size={14} className="shrink-0 mt-0.5 text-destructive" />
+                  <p className="text-xs text-destructive leading-relaxed min-w-0 flex-1">
+                    Rejected: {agent.rejection.reason}
+                  </p>
                 </div>
               )}
 
@@ -512,6 +558,22 @@ export default function ExternalAgentDetail() {
                     </button>
                   </div>
                 </InfoRow>
+                <InfoRow label="Allowed hosts for authorizeUrl">
+                  {agent.allowedAuthorizeHosts.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {agent.allowedAuthorizeHosts.map(host => (
+                        <span key={host} className="inline-flex items-center h-6 px-2 rounded-md bg-surface-muted border border-border text-xs font-mono">
+                          {host}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </InfoRow>
+                <InfoRow label="History delivery">
+                  {historyDeliveryLabel(agent.historyDelivery.mode, agent.historyDelivery.lastN)}
+                </InfoRow>
                 <InfoRow label="Guardrails">
                   {agent.guardrail ? (
                     <span>{agent.guardrail}</span>
@@ -571,10 +633,19 @@ export default function ExternalAgentDetail() {
                       {ENDPOINTS.map(e => {
                         const full = `${agent.baseUrl}${e.path}`;
                         return (
-                          <tr key={e.path} className="border-t border-border">
-                            <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">{e.method} {e.path}</td>
-                            <td className="px-3 py-2 font-mono text-xs text-muted-foreground break-all">{full}</td>
-                            <td className="px-3 py-2 text-xs text-foreground">{e.purpose}</td>
+                          <tr key={e.path} className={`border-t border-border ${!e.required ? "bg-surface-muted/50" : ""}`}>
+                            <td className="px-3 py-2 whitespace-nowrap">
+                              <div className="flex items-center gap-1.5">
+                                <span className={`font-mono text-xs ${!e.required ? "text-muted-foreground" : ""}`}>{e.method} {e.path}</span>
+                                {e.required ? (
+                                  <span className="inline-flex items-center text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border chip-success">Required</span>
+                                ) : (
+                                  <span className="inline-flex items-center text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border bg-surface-muted text-muted-foreground border-border">Optional</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className={`px-3 py-2 font-mono text-xs break-all ${!e.required ? "text-muted-foreground/70" : "text-muted-foreground"}`}>{full}</td>
+                            <td className={`px-3 py-2 text-xs ${!e.required ? "text-muted-foreground" : "text-foreground"}`}>{e.purpose}</td>
                             <td className="px-3 py-2 text-right"><CopyButton value={full} /></td>
                           </tr>
                         );
@@ -644,6 +715,18 @@ export default function ExternalAgentDetail() {
           externalAgentStore.pause(agent.id);
           toast.info(`"${agent.name}" is paused. Resume it any time.`);
           setShowPause(false);
+          refresh();
+        }}
+      />
+
+      <RejectExternalAgentDialog
+        name={agent.name}
+        open={showReject}
+        onOpenChange={setShowReject}
+        onConfirm={reason => {
+          externalAgentStore.reject(agent.id, reason);
+          toast.info(`"${agent.name}" was rejected.`);
+          setShowReject(false);
           refresh();
         }}
       />

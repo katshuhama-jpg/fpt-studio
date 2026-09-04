@@ -18,6 +18,8 @@ import { toast } from "sonner";
 const TABS: { key: ExternalAgentStatus | "all"; label: string }[] = [
   { key: "all", label: "All" },
   { key: "draft", label: "Draft" },
+  { key: "pending_approval", label: "Pending approval" },
+  { key: "rejected", label: "Rejected" },
   { key: "published", label: "Published" },
   { key: "paused", label: "Paused" },
 ];
@@ -25,9 +27,9 @@ const TABS: { key: ExternalAgentStatus | "all"; label: string }[] = [
 const ROW_MENU_WIDTH = 176; // w-44
 const ROW_MENU_HEIGHT_ESTIMATE = 220; // worst case, 5 rows — for the flip-up decision
 
-function RowMenu({ agent, isAdmin, onOpen, onEdit, onPublish, onPauseResume, onDelete }: {
+function RowMenu({ agent, isAdmin, onOpen, onEdit, onSubmit, onPauseResume, onDelete }: {
   agent: ExternalAgent; isAdmin: boolean;
-  onOpen: () => void; onEdit: () => void; onPublish: () => void; onPauseResume: () => void; onDelete: () => void;
+  onOpen: () => void; onEdit: () => void; onSubmit: () => void; onPauseResume: () => void; onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
@@ -69,7 +71,11 @@ function RowMenu({ agent, isAdmin, onOpen, onEdit, onPublish, onPauseResume, onD
   switch (agent.status) {
     case "draft":
       items.push({ label: "Edit connection", onClick: onEdit });
-      if (agent.lastValidation?.passed) items.push({ label: "Publish", onClick: onPublish });
+      if (agent.lastValidation?.passed) items.push({ label: "Submit for approval", onClick: onSubmit });
+      break;
+    case "rejected":
+      items.push({ label: "Edit connection", onClick: onEdit });
+      items.push({ label: "Submit again", onClick: onSubmit });
       break;
     case "published":
       items.push({ label: "Edit connection", onClick: onEdit });
@@ -172,6 +178,8 @@ export default function ExternalAgentsList() {
   const counts: Record<ExternalAgentStatus | "all", number> = {
     all: agents.length,
     draft: agents.filter(a => a.status === "draft").length,
+    pending_approval: agents.filter(a => a.status === "pending_approval").length,
+    rejected: agents.filter(a => a.status === "rejected").length,
     published: agents.filter(a => a.status === "published").length,
     paused: agents.filter(a => a.status === "paused").length,
   };
@@ -367,9 +375,9 @@ export default function ExternalAgentsList() {
                           isAdmin={isAdmin}
                           onOpen={() => navigate(`/external-agents/${a.id}`)}
                           onEdit={() => setEditTarget(a)}
-                          onPublish={() => {
-                            externalAgentStore.publish(a.id);
-                            toast.success(`"${a.name}" is now published and ready to use on your Workspace.`);
+                          onSubmit={() => {
+                            externalAgentStore.submitForApproval(a.id);
+                            toast.success(`"${a.name}" was submitted for approval.`);
                             refresh();
                           }}
                           onPauseResume={() => {
@@ -397,7 +405,7 @@ export default function ExternalAgentsList() {
           setShowConnect(false);
           setEditTarget(null);
           if (isNew) {
-            toast.success(`"${agent.name}" saved as draft. Publish it when you're ready.`);
+            toast.success(`"${agent.name}" saved as draft. Submit it for approval when you're ready.`);
             navigate(`/external-agents/${agent.id}`);
           } else {
             refresh();

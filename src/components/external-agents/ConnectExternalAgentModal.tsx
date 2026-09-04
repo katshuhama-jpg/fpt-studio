@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Check, X, Eye, EyeOff, Loader2, AlertTriangle, Copy } from "lucide-react";
 import {
   externalAgentStore, runValidation, type AuthMethod, type ExternalAgent, type ValidationResult,
+  type HistoryDeliveryMode,
 } from "./externalAgentStore";
 import { RotateSigningSecretDialog } from "./ExternalAgentDialogs";
 
@@ -69,6 +70,27 @@ function maskSecret(secret: string): string {
   return "•".repeat(Math.min(secret.length, 32));
 }
 
+const HOSTNAME_PATTERN = /^(?!-)[a-zA-Z0-9-]{1,63}(?<!-)(\.(?!-)[a-zA-Z0-9-]{1,63}(?<!-))*$/;
+
+function validateHost(raw: string): string | undefined {
+  const v = raw.trim();
+  if (!v) return "Enter a host.";
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(v)) return "Enter a hostname only, without a scheme like https://.";
+  if (v.includes("/")) return "Enter a hostname only, without a path.";
+  if (!HOSTNAME_PATTERN.test(v)) return "Enter a valid hostname, for example auth.partner.com";
+  return undefined;
+}
+
+const HISTORY_N_MIN = 1;
+const HISTORY_N_MAX = 100;
+const HISTORY_N_DEFAULT = 10;
+
+export function historyDeliveryLabel(mode: HistoryDeliveryMode, lastN?: number): string {
+  if (mode === "full") return "Full history every turn";
+  if (mode === "none") return "No history (stateless)";
+  return `Last ${lastN ?? HISTORY_N_DEFAULT} turns`;
+}
+
 export default function ConnectExternalAgentModal({ open, onClose, existing, onSaved }: {
   open: boolean;
   onClose: () => void;
@@ -90,7 +112,11 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
   const [secretCopied, setSecretCopied] = useState(false);
   const [showRotateConfirm, setShowRotateConfirm] = useState(false);
   const [signingSecret, setSigningSecret] = useState(existing?.signingSecret ?? "");
-  const [errors, setErrors] = useState<{ name?: string; baseUrl?: string; token?: string }>({});
+  const [allowedHosts, setAllowedHosts] = useState<string[]>(existing?.allowedAuthorizeHosts ?? []);
+  const [hostInput, setHostInput] = useState("");
+  const [historyMode, setHistoryMode] = useState<HistoryDeliveryMode>(existing?.historyDelivery?.mode ?? "full");
+  const [historyN, setHistoryN] = useState(existing?.historyDelivery?.lastN ?? HISTORY_N_DEFAULT);
+  const [errors, setErrors] = useState<{ name?: string; baseUrl?: string; token?: string; hosts?: string }>({});
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false);
 
   const [checking, setChecking] = useState(false);
@@ -100,6 +126,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
   const nameRef = useRef<HTMLInputElement>(null);
   const baseUrlRef = useRef<HTMLInputElement>(null);
   const tokenRef = useRef<HTMLInputElement>(null);
+  const hostInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -113,6 +140,10 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
     setShowToken(false);
     setShowSecret(false);
     setSigningSecret(existing?.signingSecret ?? "");
+    setAllowedHosts(existing?.allowedAuthorizeHosts ?? []);
+    setHostInput("");
+    setHistoryMode(existing?.historyDelivery?.mode ?? "full");
+    setHistoryN(existing?.historyDelivery?.lastN ?? HISTORY_N_DEFAULT);
     setErrors({});
     setChecking(false);
     setRevealCount(0);
@@ -123,14 +154,17 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
   const isDirty = editing
     ? name.trim() !== existing!.name || description.trim() !== existing!.description || baseUrl.trim() !== existing!.baseUrl
       || authMethod !== existing!.authMethod || (replacingToken && token.trim() !== "")
-    : name.trim() !== "" || description.trim() !== "" || baseUrl.trim() !== "" || token.trim() !== "";
+      || allowedHosts.join(",") !== (existing!.allowedAuthorizeHosts ?? []).join(",")
+      || historyMode !== (existing!.historyDelivery?.mode ?? "full")
+      || (historyMode === "last_n" && historyN !== (existing!.historyDelivery?.lastN ?? HISTORY_N_DEFAULT))
+    : name.trim() !== "" || description.trim() !== "" || baseUrl.trim() !== "" || token.trim() !== "" || allowedHosts.length > 0 || hostInput.trim() !== "";
 
   const requestClose = () => {
     if (isDirty) setConfirmCloseOpen(true);
     else onClose();
   };
 
-  const validateField = (field: "name" | "baseUrl" | "token"): string | undefined => {
+  const validateField = (field: "name" | "baseUrl" | "token" | "hosts"): string | undefined => {
     if (field === "name") {
       const v = name.trim();
       if (!v) return "Agent name is required.";
@@ -147,6 +181,10 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
       if (v.length < TOKEN_MIN) return `Bearer Token must be at least ${TOKEN_MIN} characters.`;
       return undefined;
     }
+    if (field === "hosts") {
+      if (allowedHosts.length === 0) return "At least one allowed host is required.";
+      return undefined;
+    }
     return undefined;
   };
 
@@ -154,10 +192,29 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
     name: validateField("name"),
     baseUrl: validateField("baseUrl"),
     token: validateField("token"),
+    hosts: validateField("hosts"),
   });
 
-  const clearError = (field: "name" | "baseUrl" | "token") => {
+  const clearError = (field: "name" | "baseUrl" | "token" | "hosts") => {
     if (errors[field]) setErrors(er => ({ ...er, [field]: undefined }));
+  };
+
+  const addHost = (raw: string) => {
+    const v = raw.trim().replace(/,$/, "");
+    if (!v) return;
+    const err = validateHost(v);
+    if (err) { setErrors(er => ({ ...er, hosts: err })); return; }
+    if (allowedHosts.some(h => h.toLowerCase() === v.toLowerCase())) {
+      setErrors(er => ({ ...er, hosts: "This host is already in the list." }));
+      return;
+    }
+    setAllowedHosts(hs => [...hs, v]);
+    setHostInput("");
+    clearError("hosts");
+  };
+
+  const removeHost = (host: string) => {
+    setAllowedHosts(hs => hs.filter(h => h !== host));
   };
 
   const runChecking = (v: ValidationResult) => {
@@ -176,6 +233,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
     if (e.name) { nameRef.current?.focus(); nameRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
     if (e.baseUrl) { baseUrlRef.current?.focus(); baseUrlRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
     if (e.token) { tokenRef.current?.focus(); tokenRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
+    if (e.hosts) { hostInputRef.current?.focus(); hostInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
 
     const effectiveToken = authMethod === "none" ? "" : replacingToken ? token.trim() : EXISTING_TOKEN_SENTINEL;
     const v = runValidation(baseUrl.trim(), effectiveToken);
@@ -193,15 +251,22 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
 
   const save = () => {
     if (!result?.passed) return;
+    const historyDelivery = { mode: historyMode, lastN: historyMode === "last_n" ? historyN : undefined };
     if (editing) {
       const { unpublished } = externalAgentStore.update(existing!.id, {
         name, description, baseUrl, authMethod,
         tokenReplaced: authMethod === "bearer" && replacingToken && token.trim() !== "",
         validation: result,
+        allowedAuthorizeHosts: allowedHosts,
+        historyDelivery,
       });
       onSaved(externalAgentStore.get(existing!.id)!, false, unpublished);
     } else {
-      const agent = externalAgentStore.create({ name, description, baseUrl, authMethod, validation: result });
+      const agent = externalAgentStore.create({
+        name, description, baseUrl, authMethod, validation: result,
+        allowedAuthorizeHosts: allowedHosts,
+        historyDelivery,
+      });
       onSaved(agent, true);
     }
   };
@@ -388,6 +453,78 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
                   </div>
                   <p className="mt-1.5 text-[11px] text-muted-foreground leading-relaxed">
                     Every request the platform sends is signed with this secret. Your agent must verify the X-FPT-Signature header on /runs, /tools and /credentials.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium mb-1.5 block" htmlFor="ext-hosts">Allowed hosts for authorizeUrl <span className="text-destructive">*</span></label>
+                  {allowedHosts.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-1.5">
+                      {allowedHosts.map(host => (
+                        <span key={host} className="inline-flex items-center gap-1 h-6 pl-2 pr-1 rounded-md bg-surface-muted border border-border text-xs font-mono">
+                          {host}
+                          <button
+                            type="button"
+                            onClick={() => removeHost(host)}
+                            aria-label={`Remove ${host}`}
+                            className="text-muted-foreground hover:text-foreground transition-base"
+                          >
+                            <X size={11} />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <input
+                    id="ext-hosts"
+                    ref={hostInputRef}
+                    value={hostInput}
+                    onChange={e => { setHostInput(e.target.value); clearError("hosts"); }}
+                    onKeyDown={e => {
+                      if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addHost(hostInput); }
+                      else if (e.key === "Backspace" && hostInput === "" && allowedHosts.length > 0) {
+                        removeHost(allowedHosts[allowedHosts.length - 1]);
+                      }
+                    }}
+                    onBlur={() => { if (hostInput.trim()) addHost(hostInput); else setErrors(er => ({ ...er, hosts: validateField("hosts") })); }}
+                    placeholder="auth.partner.com"
+                    className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm font-mono outline-none transition-base ${
+                      errors.hosts ? "border-destructive" : "border-border focus:border-primary"
+                    }`}
+                  />
+                  {errors.hosts ? (
+                    <p className="mt-1 text-[11px] text-destructive">{errors.hosts}</p>
+                  ) : (
+                    <p className="mt-1 text-[11px] text-muted-foreground">The platform only calls back to authorizeUrl values that match this list.</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium mb-1.5 block" htmlFor="ext-history-mode">History delivery mode</label>
+                  <Select value={historyMode} onValueChange={v => setHistoryMode(v as HistoryDeliveryMode)}>
+                    <SelectTrigger id="ext-history-mode" className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="full">Full history every turn</SelectItem>
+                      <SelectItem value="last_n">Last N turns</SelectItem>
+                      <SelectItem value="none">No history (stateless)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {historyMode === "last_n" && (
+                    <div className="mt-2">
+                      <label className="text-xs font-medium mb-1.5 block" htmlFor="ext-history-n">N</label>
+                      <input
+                        id="ext-history-n"
+                        type="number"
+                        min={HISTORY_N_MIN}
+                        max={HISTORY_N_MAX}
+                        value={historyN}
+                        onChange={e => setHistoryN(Math.min(HISTORY_N_MAX, Math.max(HISTORY_N_MIN, Number(e.target.value) || HISTORY_N_MIN)))}
+                        className="w-24 h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base"
+                      />
+                    </div>
+                  )}
+                  <p className="mt-1.5 text-[11px] text-muted-foreground leading-relaxed">
+                    Controls how much prior conversation the platform sends to this agent on each call to /runs.
                   </p>
                 </div>
 
