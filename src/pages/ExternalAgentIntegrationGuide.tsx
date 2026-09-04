@@ -14,7 +14,6 @@ const SECTIONS: { id: string; label: string }[] = [
   { id: "frames", label: "Frame reference" },
   { id: "interrupts", label: "Asking the user a question" },
   { id: "health", label: "GET /health" },
-  { id: "per-user-connector", label: "Per-user connections and credentials" },
   { id: "attachments", label: "Files" },
   { id: "troubleshooting", label: "Troubleshooting" },
 ];
@@ -220,7 +219,7 @@ export default function ExternalAgentIntegrationGuide() {
             <Table
               head={["FPT Agent Platform does", "You must do"]}
               rows={[
-                ["Publishes the agent to Web, Zalo, Messenger, Slack, Teams, API, Workspace", "Implement /runs, /health, and stream valid frames back"],
+                ["Publishes the agent to Workspace", "Implement /runs, /health, and stream valid frames back"],
                 ["Renders the chat UI and displays streamed frames", "Own conversation state, keyed by threadId"],
                 ["Logs conversations for History", "Verify every request's signature"],
                 ["Sends attachments the user uploaded, with short-lived URLs", "Download attachments before urlExpiresAt if you need them"],
@@ -463,40 +462,6 @@ export default function ExternalAgentIntegrationGuide() {
             <p className="text-xs text-muted-foreground leading-relaxed">
               Not HMAC-signed, and polled every 30 seconds — keep it cheap: no model call, no database query, just a liveness check.
             </p>
-          </Section>
-
-          <Section id="per-user-connector" title="Per-user connections and credentials">
-            <p className="text-sm text-foreground leading-relaxed">
-              Use a per-user connector when your agent needs to act under a specific person's identity rather than a shared
-              workspace credential — reading a user's own calendar, posting to Slack as them, or enforcing per-employee data
-              visibility. Without one, every user shares the same workspace-wide credential.
-            </p>
-            <p className="text-sm text-foreground leading-relaxed">
-              End to end: <Code>GET /tools</Code> declares each tool and the credential fields it needs. The platform renders
-              that form to the user, and sends what they typed once via <Code>POST /credentials</Code>, keyed by{" "}
-              <Code>(userId, toolName)</Code> — <strong>workspaceId is deliberately not part of the key</strong>, since the
-              same person's credential should follow them across workspaces they belong to. <Code>POST /credentials/revoke</Code>{" "}
-              deletes it. <Code>POST /runs</Code> never carries credentials — your agent is the party that stores, uses, and
-              deletes them.
-            </p>
-            <Table
-              head={["Endpoint", "Request", "2xx", "4xx / 5xx"]}
-              rows={[
-                ["GET /tools", "No body", "200 with a tools array; 404 or 501 to opt out entirely", "5xx — platform retries later"],
-                ["POST /credentials", "{ userId, toolName, fields: {...} }", "200/201 stored", "400 invalid fields, 401 signature failed"],
-                ["POST /credentials/revoke", "{ userId, toolName }", "200/204 deleted", "404 nothing to revoke"],
-              ]}
-            />
-            <div>
-              <p className="text-xs font-medium text-muted-foreground mb-1.5">Example GET /tools response</p>
-              <CopyBlock code={JSON.stringify({
-                tools: [{ name: "read_calendar", requiresCredential: true, credentialFields: [{ key: "accessToken", label: "Calendar access token", type: "string" }] }],
-              }, null, 2)} />
-            </div>
-            <Callout>
-              A declared-but-non-compliant per-user connector is a <strong>warning</strong>, not a failure — the connection
-              check still lets you save a Draft and fix it afterwards.
-            </Callout>
           </Section>
 
           <Section id="attachments" title="Files">

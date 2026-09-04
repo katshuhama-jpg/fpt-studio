@@ -5,6 +5,7 @@ import {
   FileEdit, FlaskConical, LayoutGrid, BarChart3, BookOpen, Eye, EyeOff,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import {
   externalAgentStore, runValidation, type ExternalAgent, type ValidationResult,
@@ -30,7 +31,7 @@ const TOP_TABS: { id: Tab; label: string; Icon: any }[] = [
 ];
 
 const ENDPOINTS: { method: string; path: string; purpose: string }[] = [
-  { method: "GET", path: "/health", purpose: "Status, protocol version, and the per-user-connection flag." },
+  { method: "GET", path: "/health", purpose: "Status and protocol version." },
   { method: "POST", path: "/runs", purpose: "Calls the agent to run." },
   { method: "GET", path: "/tools", purpose: "Lists the tools this agent declares." },
 ];
@@ -286,16 +287,22 @@ export default function ExternalAgentDetail() {
                   <button onClick={() => { setShowEdit(true); setShowMenu(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">
                     Edit connection
                   </button>
-                  <button
-                    disabled={agent.status === "published"}
-                    title={agent.status === "published" ? "Pause this agent before deleting." : undefined}
-                    onClick={() => { setShowDelete(true); setShowMenu(false); }}
-                    className={`w-full text-left px-3 py-1.5 text-xs transition-base ${
-                      agent.status === "published" ? "text-muted-foreground/50 cursor-not-allowed" : "text-destructive hover:bg-[hsl(var(--destructive-soft))]"
-                    }`}
-                  >
-                    Delete
-                  </button>
+                  <Tooltip delayDuration={300}>
+                    <TooltipTrigger asChild>
+                      <span>
+                        <button
+                          disabled={agent.status === "published"}
+                          onClick={() => { setShowDelete(true); setShowMenu(false); }}
+                          className={`w-full text-left px-3 py-1.5 text-xs transition-base ${
+                            agent.status === "published" ? "text-muted-foreground/50 cursor-not-allowed" : "text-destructive hover:bg-[hsl(var(--destructive-soft))]"
+                          }`}
+                        >
+                          Delete
+                        </button>
+                      </span>
+                    </TooltipTrigger>
+                    {agent.status === "published" && <TooltipContent side="left">Pause this agent before deleting.</TooltipContent>}
+                  </Tooltip>
                 </div>
               </>
             )}

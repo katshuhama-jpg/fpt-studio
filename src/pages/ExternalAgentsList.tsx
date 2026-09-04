@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Globe, Search, MoreVertical, Plus, AlertTriangle, BookOpen, TriangleAlert } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import {
   externalAgentStore, type ExternalAgent, type ExternalAgentStatus,
@@ -104,18 +105,23 @@ function RowMenu({ agent, isAdmin, onOpen, onEdit, onPublish, onPauseResume, onD
           onMouseDown={e => e.stopPropagation()}
         >
           {items.map(item => (
-            <button
-              key={item.label}
-              disabled={item.disabled}
-              title={item.title}
-              onClick={() => { if (item.disabled) return; item.onClick(); setOpen(false); }}
-              className={`w-full text-left px-3 py-1.5 text-xs transition-base ${
-                item.disabled ? "text-muted-foreground/50 cursor-not-allowed" :
-                item.danger ? "text-destructive hover:bg-[hsl(var(--destructive-soft))]" : "hover:bg-surface-muted"
-              }`}
-            >
-              {item.label}
-            </button>
+            <Tooltip key={item.label} delayDuration={300}>
+              <TooltipTrigger asChild>
+                <span>
+                  <button
+                    disabled={item.disabled}
+                    onClick={() => { if (item.disabled) return; item.onClick(); setOpen(false); }}
+                    className={`w-full text-left px-3 py-1.5 text-xs transition-base ${
+                      item.disabled ? "text-muted-foreground/50 cursor-not-allowed" :
+                      item.danger ? "text-destructive hover:bg-[hsl(var(--destructive-soft))]" : "hover:bg-surface-muted"
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                </span>
+              </TooltipTrigger>
+              {item.disabled && item.title && <TooltipContent side="left">{item.title}</TooltipContent>}
+            </Tooltip>
           ))}
         </div>,
         document.body
