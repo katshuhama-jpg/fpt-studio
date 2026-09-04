@@ -2,6 +2,8 @@
 // Knowledge item's chunks, opened from any of their "Mở" row actions via ChunkViewerModal.
 import { loadMap, saveMap } from "@/lib/sessionPersist";
 import type { KnowledgeProcessingStatus } from "./knowledgeStatus";
+import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
+import { knowledgeUrlStore } from "./knowledgeUrlStore";
 
 export type ChunkSourceType = "document" | "url" | "agent-item";
 export type ChunkContentType = "text" | "html";
@@ -25,20 +27,46 @@ const store = loadMap<string, KnowledgeChunk>(STORE_KEY);
 const persist = () => saveMap(STORE_KEY, store);
 const sourceKey = (sourceType: ChunkSourceType, sourceId: string) => `${sourceType}:${sourceId}`;
 
+// A document/URL at status "done" has, by definition, already been processed — so it must open
+// with a real chunk list whose length matches the chunkCount shown in the table/aggregate
+// stats, rather than the empty state (which is reserved for sources genuinely never processed).
+// No historical per-document content exists in this prototype, so titles/content are generated
+// deterministically from a rotating template, consistent with this app's other seeded mock data.
+const MOCK_TITLES = [
+  "Phạm vi áp dụng", "Thời gian tiếp nhận", "Thời gian xử lý", "Điều kiện áp dụng",
+  "Quy trình thực hiện", "Trách nhiệm các bên", "Mức phí và lệ phí", "Kênh tiếp nhận yêu cầu",
+  "Hồ sơ cần chuẩn bị", "Thời hạn hiệu lực", "Ngoại lệ và trường hợp đặc biệt", "Liên hệ hỗ trợ",
+];
+const MOCK_BODY = "Nội dung chi tiết được trích xuất tự động từ tài liệu gốc, mô tả các quy định và hướng dẫn liên quan đến mục này.";
+
+function generateMockChunks(count: number): { title: string; content: string }[] {
+  return Array.from({ length: count }, (_, i) => {
+    const base = MOCK_TITLES[i % MOCK_TITLES.length];
+    const round = Math.floor(i / MOCK_TITLES.length);
+    return { title: round === 0 ? base : `${base} (${round + 1})`, content: MOCK_BODY };
+  });
+}
+
 function seedIfEmpty(kbId: string, sourceType: ChunkSourceType, sourceId: string) {
   const flagKey = `knowledge_chunk_seeded_v1:${sourceKey(sourceType, sourceId)}`;
   if (sessionStorage.getItem(flagKey)) return;
   sessionStorage.setItem(flagKey, "1");
-  // Only pre-populate chunks for a couple of seeded "done" sources, so most sources correctly
-  // show the "Chưa có chunk nào" empty state until "Xử lý kết quả" is clicked.
   const now = Date.now();
-  if (sourceType === "document" && sourceId === "doc-1-2") {
-    const seedTexts = [
-      { title: "Phạm vi áp dụng", content: "Chính sách này áp dụng cho toàn bộ khiếu nại liên quan đến sản phẩm, dịch vụ của ngân hàng ABC." },
-      { title: "Thời gian tiếp nhận", content: "Khiếu nại được tiếp nhận trong vòng 24 giờ qua tổng đài, ứng dụng hoặc tại quầy giao dịch." },
-      { title: "Thời gian xử lý", content: "Ngân hàng cam kết phản hồi kết quả xử lý khiếu nại trong tối đa 15 ngày làm việc." },
-    ];
-    seedTexts.forEach((t, i) => {
+
+  let chunkCount = 0;
+  let status: KnowledgeProcessingStatus | undefined;
+  if (sourceType === "document") {
+    const doc = knowledgeDocumentStore.get(kbId, sourceId);
+    chunkCount = doc?.chunkCount ?? 0;
+    status = doc?.status;
+  } else if (sourceType === "url") {
+    const url = knowledgeUrlStore.get(kbId, sourceId);
+    chunkCount = url?.chunkCount ?? 0;
+    status = url?.status;
+  }
+
+  if (status === "done" && chunkCount > 0) {
+    generateMockChunks(chunkCount).forEach((t, i) => {
       const id = `chunk-${sourceId}-${i}`;
       store.set(id, {
         id, kbId, sourceType, sourceId, index: i + 1, title: t.title, content: t.content,

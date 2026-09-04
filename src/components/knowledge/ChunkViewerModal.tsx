@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { X, Check, Pencil, Trash2, Info } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, X, Check, Pencil, Trash2, Info, Search } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -8,8 +8,9 @@ import { knowledgeChunkStore, type ChunkSourceType, type KnowledgeChunk, type Ch
 import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
 import { knowledgeUrlStore } from "./knowledgeUrlStore";
 import { knowledgeStore } from "./knowledgeStore";
-import { KnowledgeStatusPill } from "./knowledgeStatus";
-import DocumentPreviewPane from "./DocumentPreviewPane";
+import { KnowledgeStatusPill, type KnowledgeProcessingStatus } from "./knowledgeStatus";
+import FileTypeIcon from "./FileTypeIcon";
+import DocumentPreviewPane, { MOCK_PAGES } from "./DocumentPreviewPane";
 import HtmlTableEditor from "./HtmlTableEditor";
 
 const MOCK_CHUNK_SEED = [
@@ -17,6 +18,18 @@ const MOCK_CHUNK_SEED = [
   { title: "Thời gian tiếp nhận", content: "Khiếu nại được tiếp nhận trong vòng 24 giờ qua tổng đài, ứng dụng hoặc tại quầy giao dịch." },
   { title: "Thời gian xử lý", content: "Ngân hàng cam kết phản hồi kết quả xử lý khiếu nại trong tối đa 15 ngày làm việc." },
 ];
+
+function formatDate(ts: number): string {
+  const d = new Date(ts);
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** Deterministic page assignment for a chunk (this prototype has no real per-chunk page
+ * coordinates) — used to drive the two-way link between a chunk card and its preview page. */
+function pageForChunk(index: number): number {
+  return (index - 1) % MOCK_PAGES.length;
+}
 
 /** kbId doubles as agentId when sourceType is "agent-item" — the chunk store never filters by
  * it, it's purely denormalized, so this stays a single positional parameter across all three
@@ -28,11 +41,15 @@ function markParentDone(kbId: string, sourceType: ChunkSourceType, sourceId: str
 }
 
 export default function ChunkViewerModal({
-  kbId, sourceType, sourceId, sourceName, onClose, viewOnly,
+  kbId, sourceType, sourceId, sourceName, sourceStatus, sourceCreatedAt, onClose, viewOnly,
 }: {
-  kbId: string; sourceType: ChunkSourceType; sourceId: string; sourceName: string; onClose: () => void; viewOnly: boolean;
+  kbId: string; sourceType: ChunkSourceType; sourceId: string; sourceName: string;
+  sourceStatus: KnowledgeProcessingStatus; sourceCreatedAt: number; onClose: () => void; viewOnly: boolean;
 }) {
   const [tick, setTick] = useState(0);
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(0);
+  const [selectedChunkId, setSelectedChunkId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState("");
   const [draftContent, setDraftContent] = useState("");
@@ -43,10 +60,47 @@ export default function ChunkViewerModal({
   const [reprocessConfirm, setReprocessConfirm] = useState(false);
   const [keptBanner, setKeptBanner] = useState<number | null>(null);
   const [revealUpdateFor, setRevealUpdateFor] = useState<Set<string>>(new Set());
+  const [splitPct, setSplitPct] = useState(55);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const chunkRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const dragging = useRef(false);
 
   const chunks = knowledgeChunkStore.list(kbId, sourceType, sourceId);
   void tick;
   const refresh = () => setTick(t => t + 1);
+
+  const q = query.trim().toLowerCase();
+  const filteredChunks = useMemo(
+    () => (q ? chunks.filter(c => c.title.toLowerCase().includes(q) || c.content.toLowerCase().includes(q)) : chunks),
+    [chunks, q],
+  );
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!dragging.current || !containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const pct = ((e.clientX - rect.left) / rect.width) * 100;
+      setSplitPct(Math.min(70, Math.max(40, pct)));
+    };
+    const onUp = () => { dragging.current = false; };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    return () => { document.removeEventListener("mousemove", onMove); document.removeEventListener("mouseup", onUp); };
+  }, []);
+
+  const selectChunk = (c: KnowledgeChunk) => {
+    setSelectedChunkId(c.id);
+    setPage(pageForChunk(c.index));
+  };
+  const selectPage = (p: number) => {
+    setPage(p);
+    const onPage = filteredChunks.find(c => pageForChunk(c.index) === p);
+    if (onPage) {
+      setSelectedChunkId(onPage.id);
+      chunkRefs.current[onPage.id]?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  };
+  const gotoPage = (p: number) => { setPage(p); setSelectedChunkId(null); };
 
   const startEdit = (c: KnowledgeChunk) => {
     setEditingId(c.id);
@@ -97,38 +151,62 @@ export default function ChunkViewerModal({
     startEdit({ ...chunk });
   };
 
-  const editingChunk = chunks.find(c => c.id === editingId);
+  const isLoading = sourceStatus === "processing" && chunks.length === 0;
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
-      <div className="h-14 border-b border-border bg-surface flex items-center justify-between px-4 shrink-0">
-        <span className="text-sm font-semibold truncate">{sourceName}</span>
-        <button onClick={onClose} aria-label="Đóng" className="h-9 w-9 min-w-[44px] min-h-[44px] rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base">
-          <X size={16} />
-        </button>
+      <div className="h-14 border-b border-border bg-surface flex items-center justify-between px-4 shrink-0 gap-3">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <button onClick={onClose} aria-label="Quay lại" className="h-9 w-9 min-w-[44px] min-h-[44px] -m-1.5 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base">
+            <ArrowLeft size={16} />
+          </button>
+          <FileTypeIcon kind={sourceType === "url" ? "url" : undefined} name={sourceType !== "url" ? sourceName : undefined} size={17} />
+          <span className="text-sm font-semibold truncate">{sourceName}</span>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">Ngày tạo: {formatDate(sourceCreatedAt)}</span>
+          <KnowledgeStatusPill status={sourceStatus} />
+          <button onClick={onClose} aria-label="Đóng" className="h-9 w-9 min-w-[44px] min-h-[44px] rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base">
+            <X size={16} />
+          </button>
+        </div>
       </div>
 
-      <div className="flex-1 flex overflow-hidden">
-        <div className="w-1/2 border-r border-border overflow-hidden">
+      <div ref={containerRef} className="flex-1 flex overflow-hidden">
+        <div className="border-r border-border overflow-hidden" style={{ width: `${splitPct}%` }}>
           <DocumentPreviewPane
-            title={sourceName}
-            highlight={editingChunk?.content}
+            page={page}
+            onPageChange={gotoPage}
+            selected={selectedChunkId !== null}
+            onRegionClick={() => selectPage(page)}
             onSelectText={!viewOnly ? addChunkFromSelection : undefined}
+            onReprocess={() => setReprocessConfirm(true)}
+            onProcess={populate}
+            canReprocess={chunks.length > 0}
+            viewOnly={viewOnly}
           />
         </div>
 
-        <div className="w-1/2 flex flex-col overflow-hidden">
-          {!viewOnly && (
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-              <h2 className="text-sm font-semibold">Chunk ({chunks.length})</h2>
-              <div className="flex items-center gap-2">
-                <button onClick={populate} className="h-8 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-xs font-medium transition-base">Xử lý kết quả</button>
-                {chunks.length > 0 && (
-                  <button onClick={() => setReprocessConfirm(true)} className="h-8 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-xs font-medium transition-base">Xử lý lại</button>
-                )}
-              </div>
+        <div
+          onMouseDown={() => { dragging.current = true; }}
+          className="w-1 shrink-0 cursor-col-resize bg-border hover:bg-primary/40 transition-base"
+        />
+
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border shrink-0">
+            <h2 className="text-sm font-semibold flex items-center gap-1.5">
+              Chunk <span className="chip chip-muted">{chunks.length}</span>
+            </h2>
+            <div className="relative">
+              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Tìm trong chunk..."
+                className="h-8 w-52 pl-7 pr-3 rounded-lg bg-surface-muted border border-border text-xs placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+              />
             </div>
-          )}
+          </div>
 
           {keptBanner !== null && (
             <div className="flex items-start gap-2 px-4 py-2.5 bg-primary-soft/50 border-b border-border text-xs text-primary shrink-0">
@@ -138,83 +216,122 @@ export default function ChunkViewerModal({
             </div>
           )}
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {chunks.length === 0 ? (
+          <div className="flex-1 overflow-y-auto p-4">
+            {isLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="rounded-xl border border-border p-4 space-y-2 animate-pulse">
+                    <div className="h-3 w-16 bg-surface-muted rounded" />
+                    <div className="h-3.5 w-2/3 bg-surface-muted rounded" />
+                    <div className="h-3 w-full bg-surface-muted rounded" />
+                    <div className="h-3 w-5/6 bg-surface-muted rounded" />
+                  </div>
+                ))}
+              </div>
+            ) : chunks.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border bg-surface/50 p-8 text-center">
                 <p className="text-sm text-muted-foreground">Chưa có chunk nào. Bấm "Xử lý kết quả" để hệ thống phân tích tài liệu.</p>
               </div>
+            ) : filteredChunks.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border bg-surface/50 p-8 text-center">
+                <p className="text-sm text-muted-foreground">Không có chunk phù hợp với tìm kiếm.</p>
+              </div>
             ) : (
-              chunks.map(c => (
-                <div key={c.id} className="group rounded-xl border border-border p-3.5">
-                  {editingId === c.id ? (
-                    <div className="space-y-2.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-mono text-muted-foreground">#{c.index}</span>
-                        <div className="flex items-center gap-1 bg-surface-muted rounded-lg p-0.5">
-                          {(["text", "html"] as ChunkContentType[]).map(t => (
-                            <button key={t} onClick={() => setDraftType(t)} className={`px-2.5 h-6 rounded-md text-[11px] font-medium transition-base ${draftType === t ? "bg-white shadow-soft text-foreground" : "text-muted-foreground"}`}>
-                              {t === "text" ? "Text" : "HTML"}
-                            </button>
-                          ))}
+              <div className="space-y-4">
+                {filteredChunks.map(c => (
+                  <div
+                    key={c.id}
+                    ref={el => { chunkRefs.current[c.id] = el; }}
+                    onClick={() => editingId !== c.id && selectChunk(c)}
+                    className={`relative rounded-xl border bg-white pt-4 px-4 pb-4 transition-base ${
+                      editingId === c.id ? "border-primary/40" : selectedChunkId === c.id ? "border-primary ring-1 ring-primary/30 cursor-pointer" : "border-border hover:border-primary/30 cursor-pointer"
+                    }`}
+                  >
+                    <div className="absolute -top-3 left-3 flex items-center gap-1 bg-white border border-border rounded-md pl-2 pr-1 py-1 shadow-soft">
+                      <span className="text-xs font-semibold whitespace-nowrap">Chunk {c.index}</span>
+                      {c.manuallyEdited && (
+                        <button
+                          onClick={e => { e.stopPropagation(); setRevealUpdateFor(prev => { const n = new Set(prev); n.has(c.id) ? n.delete(c.id) : n.add(c.id); return n; }); }}
+                          className="chip chip-warning !text-[9px] !px-1.5 !py-0 ml-1"
+                        >
+                          Đã chỉnh sửa thủ công
+                        </button>
+                      )}
+                      {!viewOnly && editingId !== c.id && (
+                        <div className="flex items-center ml-0.5">
+                          <button onClick={e => { e.stopPropagation(); startEdit(c); }} aria-label="Sửa" className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base"><Pencil size={11} /></button>
+                          <button onClick={e => { e.stopPropagation(); setDeleteTarget(c); }} aria-label="Xóa" className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:bg-[hsl(var(--destructive-soft))] hover:text-destructive transition-base"><Trash2 size={11} /></button>
                         </div>
-                      </div>
-                      <input value={draftTitle} onChange={e => setDraftTitle(e.target.value)} placeholder="Tiêu đề" className="w-full h-9 px-2.5 rounded-lg border border-border bg-white text-sm font-medium outline-none focus:border-primary transition-base" />
-                      {draftType === "text" ? (
-                        <textarea value={draftContent} onChange={e => setDraftContent(e.target.value)} rows={5} className="w-full px-2.5 py-2 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary transition-base resize-none" />
-                      ) : (
-                        <div>
-                          <div className="flex items-center gap-1 bg-surface-muted rounded-lg p-0.5 mb-2 w-fit">
-                            {(["preview", "raw"] as const).map(m => (
-                              <button key={m} onClick={() => setHtmlMode(m)} className={`px-2.5 h-6 rounded-md text-[11px] font-medium transition-base ${htmlMode === m ? "bg-white shadow-soft text-foreground" : "text-muted-foreground"}`}>
-                                {m === "preview" ? "Xem trước" : "Dạng thô"}
+                      )}
+                    </div>
+                    {c.status !== "done" && (
+                      <div className="absolute -top-3 right-3"><KnowledgeStatusPill status={c.status} /></div>
+                    )}
+
+                    {editingId === c.id ? (
+                      <div className="space-y-2.5 mt-1" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-end">
+                          <div className="flex items-center gap-1 bg-surface-muted rounded-lg p-0.5">
+                            {(["text", "html"] as ChunkContentType[]).map(t => (
+                              <button key={t} onClick={() => setDraftType(t)} className={`px-2.5 h-6 rounded-md text-[11px] font-medium transition-base ${draftType === t ? "bg-white shadow-soft text-foreground" : "text-muted-foreground"}`}>
+                                {t === "text" ? "Text" : "HTML"}
                               </button>
                             ))}
                           </div>
-                          {htmlMode === "preview" ? (
-                            <HtmlTableEditor html={draftContent} onChange={setDraftContent} />
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">Title <span className="text-destructive">*</span></label>
+                          <input value={draftTitle} onChange={e => setDraftTitle(e.target.value)} className="w-full h-9 px-2.5 rounded-lg border border-border bg-white text-sm font-medium outline-none focus:border-primary transition-base" />
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">Content <span className="text-destructive">*</span></label>
+                          {draftType === "text" ? (
+                            <textarea value={draftContent} onChange={e => setDraftContent(e.target.value)} rows={5} className="w-full px-2.5 py-2 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary transition-base resize-none" />
                           ) : (
-                            <textarea value={draftContent} onChange={e => setDraftContent(e.target.value)} rows={6} className="w-full px-2.5 py-2 rounded-lg border border-border bg-white text-xs font-mono outline-none focus:border-primary transition-base resize-none" />
+                            <div>
+                              <div className="flex items-center gap-1 bg-surface-muted rounded-lg p-0.5 mb-2 w-fit">
+                                {(["preview", "raw"] as const).map(m => (
+                                  <button key={m} onClick={() => setHtmlMode(m)} className={`px-2.5 h-6 rounded-md text-[11px] font-medium transition-base ${htmlMode === m ? "bg-white shadow-soft text-foreground" : "text-muted-foreground"}`}>
+                                    {m === "preview" ? "Xem trước" : "Dạng thô"}
+                                  </button>
+                                ))}
+                              </div>
+                              {htmlMode === "preview" ? (
+                                <HtmlTableEditor html={draftContent} onChange={setDraftContent} />
+                              ) : (
+                                <textarea value={draftContent} onChange={e => setDraftContent(e.target.value)} rows={6} className="w-full px-2.5 py-2 rounded-lg border border-border bg-white text-xs font-mono outline-none focus:border-primary transition-base resize-none" />
+                              )}
+                            </div>
                           )}
                         </div>
-                      )}
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button onClick={() => cancelEdit(c)} aria-label="Hủy" className="h-8 w-8 min-w-[44px] min-h-[44px] -m-1.5 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-surface-muted transition-base"><X size={15} /></button>
-                        <button onClick={() => saveEdit(c)} aria-label="Lưu" className="h-8 w-8 min-w-[44px] min-h-[44px] -m-1.5 rounded-lg flex items-center justify-center text-success hover:bg-success/10 transition-base"><Check size={15} /></button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button onClick={() => cancelEdit(c)} aria-label="Hủy" className="h-8 w-8 min-w-[44px] min-h-[44px] -m-1.5 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-surface-muted transition-base"><X size={15} /></button>
+                          <button onClick={() => saveEdit(c)} aria-label="Lưu" className="h-8 w-8 min-w-[44px] min-h-[44px] -m-1.5 rounded-lg flex items-center justify-center text-success hover:bg-success/10 transition-base"><Check size={15} /></button>
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="flex items-center justify-between gap-2 mb-1.5">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-xs font-mono text-muted-foreground shrink-0">#{c.index}</span>
-                          <KnowledgeStatusPill status={c.status} />
-                          {c.manuallyEdited && (
-                            <button onClick={() => setRevealUpdateFor(prev => { const n = new Set(prev); n.has(c.id) ? n.delete(c.id) : n.add(c.id); return n; })} className="chip chip-warning shrink-0">
-                              Đã chỉnh sửa thủ công
-                            </button>
-                          )}
+                    ) : (
+                      <div className="space-y-2.5 mt-1">
+                        <div>
+                          <label className="text-xs font-medium text-muted-foreground mb-0.5 flex items-center gap-1">Title <span className="text-destructive">*</span></label>
+                          <p className="text-sm font-medium">{c.title}</p>
                         </div>
-                        {!viewOnly && (
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-base shrink-0">
-                            <button onClick={() => startEdit(c)} aria-label="Sửa" className="h-8 w-8 min-w-[44px] min-h-[44px] -m-1.5 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base"><Pencil size={13} /></button>
-                            <button onClick={() => setDeleteTarget(c)} aria-label="Xóa" className="h-8 w-8 min-w-[44px] min-h-[44px] -m-1.5 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-[hsl(var(--destructive-soft))] hover:text-destructive transition-base"><Trash2 size={13} /></button>
-                          </div>
+                        <div>
+                          <label className="text-xs font-medium text-muted-foreground mb-0.5 flex items-center gap-1">Content <span className="text-destructive">*</span></label>
+                          <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{c.content}</p>
+                        </div>
+                        {c.manuallyEdited && revealUpdateFor.has(c.id) && !viewOnly && (
+                          <button
+                            onClick={e => { e.stopPropagation(); knowledgeChunkStore.acceptLatest(c.id, c.content); refresh(); }}
+                            className="text-xs font-semibold text-primary hover:underline"
+                          >
+                            Cập nhật theo nội dung mới
+                          </button>
                         )}
                       </div>
-                      <p className="text-sm font-medium mb-1">{c.title}</p>
-                      <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{c.content}</p>
-                      {c.manuallyEdited && revealUpdateFor.has(c.id) && !viewOnly && (
-                        <button
-                          onClick={() => { knowledgeChunkStore.acceptLatest(c.id, c.content); refresh(); }}
-                          className="text-xs font-semibold text-primary hover:underline mt-1.5"
-                        >
-                          Cập nhật theo nội dung mới
-                        </button>
-                      )}
-                    </>
-                  )}
-                </div>
-              ))
+                    )}
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </div>

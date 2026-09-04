@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Search, ChevronDown, Plus, MoreVertical, Folder, Globe, Clock, Settings2 } from "lucide-react";
+import { Search, ChevronDown, Plus, MoreVertical, Clock, Settings2 } from "lucide-react";
+import FileTypeIcon from "./FileTypeIcon";
+import CreateFolderModal from "./CreateFolderModal";
+import MoveToFolderModal from "./MoveToFolderModal";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -14,7 +17,7 @@ import ChunkViewerModal from "./ChunkViewerModal";
 import AddUrlModal from "./AddUrlModal";
 import UrlScheduleOverrideModal from "./UrlScheduleOverrideModal";
 import VersionHistoryPanel from "./VersionHistoryPanel";
-import SyncSettingsDrawer from "./SyncSettingsDrawer";
+import SyncSettingsModal from "./SyncSettingsModal";
 
 const STATUS_OPTIONS: { value: KnowledgeProcessingStatus | "all"; label: string }[] = [
   { value: "all", label: "Tất cả" },
@@ -61,6 +64,9 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
   const [scheduleTarget, setScheduleTarget] = useState<KnowledgeUrl | null>(null);
   const [versionTarget, setVersionTarget] = useState<KnowledgeUrl | null>(null);
   const [deleteTargets, setDeleteTargets] = useState<KnowledgeUrl[] | null>(null);
+  const [showCreateFolder, setShowCreateFolder] = useState(false);
+  const [moveTargets, setMoveTargets] = useState<KnowledgeUrl[] | null>(null);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
   const createMenuRef = useRef<HTMLDivElement>(null);
 
   const openId = params.get("urlId");
@@ -161,11 +167,7 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
                 <div className="absolute right-0 top-full mt-1 z-20 w-44 rounded-lg border border-border bg-white shadow-elev py-1">
                   <button onClick={() => { setShowCreateMenu(false); setShowAddUrl(true); }} className="w-full text-left px-3 py-1.5 text-sm hover:bg-surface-muted transition-base">URL mới</button>
                   <button
-                    onClick={() => {
-                      setShowCreateMenu(false);
-                      const name = window.prompt("Tên thư mục mới")?.trim();
-                      if (name) { knowledgeUrlStore.createFolder(kbId, name); refresh(); }
-                    }}
+                    onClick={() => { setShowCreateMenu(false); setShowCreateFolder(true); }}
                     className="w-full text-left px-3 py-1.5 text-sm hover:bg-surface-muted transition-base"
                   >
                     Thư mục mới
@@ -181,16 +183,7 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
         <div className="flex items-center gap-3 mb-3 px-3 h-10 rounded-lg bg-primary-soft border border-primary/15">
           <span className="text-sm font-medium text-primary">Đã chọn {selected.size} mục</span>
           <button onClick={() => syncNow([...selected])} className="text-xs font-semibold text-primary hover:underline">Đồng bộ ngay</button>
-          <button
-            onClick={() => {
-              const folderId = window.prompt("Di chuyển tới thư mục (để trống = danh sách chung)");
-              if (folderId === null) return;
-              knowledgeUrlStore.moveMany([...selected], folderId.trim() || null);
-              setSelected(new Set());
-              refresh();
-            }}
-            className="text-xs font-semibold text-primary hover:underline"
-          >
+          <button onClick={() => setMoveTargets(all.filter(u => selected.has(u.id)))} className="text-xs font-semibold text-primary hover:underline">
             Di chuyển
           </button>
           <button onClick={() => setDeleteTargets(all.filter(u => selected.has(u.id)))} className="text-xs font-semibold text-destructive hover:underline">Xóa</button>
@@ -216,7 +209,6 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
                 <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Tên</th>
                 <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Nguồn</th>
                 <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Trạng thái</th>
-                <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Chunk</th>
                 <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Phiên bản</th>
                 <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Đồng bộ lần cuối</th>
                 <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Cập nhật bởi</th>
@@ -225,11 +217,11 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
             </thead>
             <tbody>
               {filtered.map(u => (
-                <tr key={u.id} className="border-b border-border last:border-0 hover:bg-surface-muted/50 transition-base">
+                <tr key={u.id} className={`border-b border-border last:border-0 hover:bg-surface-muted/50 transition-base ${highlightId === u.id ? "bg-primary-soft/40" : ""}`}>
                   <td className="px-4 py-3">{!u.isFolder && <input type="checkbox" checked={selected.has(u.id)} onChange={() => toggleRow(u.id)} className="w-4 h-4 accent-primary" aria-label={`Chọn ${u.name}`} />}</td>
-                  <td className="px-2 py-3 max-w-[220px]">
+                  <td className="px-2 py-3 max-w-[340px]">
                     <button onClick={() => !u.isFolder && openViewer(u.id)} disabled={u.isFolder} className="flex items-center gap-2 w-full min-w-0 text-left disabled:cursor-default">
-                      {u.isFolder ? <Folder size={15} className="text-muted-foreground shrink-0" /> : <Globe size={15} className="text-muted-foreground shrink-0" />}
+                      <FileTypeIcon kind={u.isFolder ? "folder" : "url"} />
                       <div className="min-w-0 block w-full">
                         <div className="text-sm font-medium truncate">{u.isFolder ? u.name : u.title}</div>
                         {!u.isFolder && u.url && <div className="text-xs text-muted-foreground truncate font-mono">{truncateMiddle(u.url)}</div>}
@@ -238,7 +230,6 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
                   </td>
                   <td className="px-2 py-3">{!u.isFolder && u.source && <span className="chip chip-muted">{SOURCE_LABEL[u.source]}</span>}</td>
                   <td className="px-2 py-3">{!u.isFolder && <KnowledgeStatusPill status={u.status} />}</td>
-                  <td className="px-2 py-3 text-xs font-mono">{u.isFolder ? "—" : u.chunkCount}</td>
                   <td className="px-2 py-3">{!u.isFolder && <button onClick={() => setVersionTarget(u)} className="chip chip-muted hover:opacity-80 transition-base">v{u.version}</button>}</td>
                   <td className="px-2 py-3 text-xs text-muted-foreground whitespace-nowrap">
                     {u.isFolder ? "—" : u.lastSyncAt ? (
@@ -266,12 +257,7 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
                         onOpen={() => openViewer(u.id)}
                         onSync={() => syncNow([u.id])}
                         onSchedule={() => setScheduleTarget(u)}
-                        onMove={() => {
-                          const folderId = window.prompt("Di chuyển tới thư mục (để trống = danh sách chung)");
-                          if (folderId === null) return;
-                          knowledgeUrlStore.moveMany([u.id], folderId.trim() || null);
-                          refresh();
-                        }}
+                        onMove={() => setMoveTargets([u])}
                         onDelete={() => setDeleteTargets([u])}
                       />
                     )}
@@ -284,8 +270,36 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
       )}
 
       <AddUrlModal open={showAddUrl} kbId={kbId} onClose={() => { setShowAddUrl(false); refresh(); }} />
-      {showSyncSettings && <SyncSettingsDrawer kbId={kbId} viewOnly={viewOnly} onClose={() => setShowSyncSettings(false)} onSaved={refresh} />}
-      {openUrl && <ChunkViewerModal kbId={kbId} sourceType="url" sourceId={openUrl.id} sourceName={openUrl.title ?? openUrl.name} onClose={closeViewer} viewOnly={viewOnly} />}
+      {showSyncSettings && <SyncSettingsModal kbId={kbId} viewOnly={viewOnly} onClose={() => setShowSyncSettings(false)} onSaved={refresh} />}
+      {openUrl && <ChunkViewerModal kbId={kbId} sourceType="url" sourceId={openUrl.id} sourceName={openUrl.title ?? openUrl.name} sourceStatus={openUrl.status} sourceCreatedAt={openUrl.createdAt} onClose={closeViewer} viewOnly={viewOnly} />}
+
+      <CreateFolderModal
+        open={showCreateFolder}
+        existingNames={knowledgeUrlStore.listFolders(kbId).map(f => f.name)}
+        onClose={() => setShowCreateFolder(false)}
+        onCreate={name => {
+          const folder = knowledgeUrlStore.createFolder(kbId, name);
+          toast.success(`Đã tạo thư mục "${name}".`);
+          setHighlightId(folder.id);
+          setTimeout(() => setHighlightId(null), 2000);
+          refresh();
+        }}
+      />
+
+      {moveTargets && (
+        <MoveToFolderModal
+          open={!!moveTargets}
+          count={moveTargets.length}
+          rootLabel="Danh sách URL chung"
+          folders={knowledgeUrlStore.listFolders(kbId).filter(f => !moveTargets.some(m => m.id === f.id))}
+          onClose={() => setMoveTargets(null)}
+          onConfirm={folderId => {
+            knowledgeUrlStore.moveMany(moveTargets.map(m => m.id), folderId);
+            setSelected(new Set());
+            refresh();
+          }}
+        />
+      )}
       {scheduleTarget && <UrlScheduleOverrideModal kbId={kbId} url={scheduleTarget} onClose={() => { setScheduleTarget(null); refresh(); }} />}
       {versionTarget && (
         <VersionHistoryPanel

@@ -26,6 +26,7 @@ export interface KnowledgeUrl {
   lastSyncOk: boolean | null;
   lastSyncError?: string;
   scheduleOverride?: UrlScheduleOverride;
+  createdAt: number;
   updatedAt: number;
   updatedBy: string;
 }
@@ -45,26 +46,32 @@ function seedKb(kbId: string) {
   const put = (u: KnowledgeUrl) => store.set(u.id, u);
 
   if (kbId === "kb-1") {
-    put({ id: "url-1-f1", kbId, name: "abcbank.com/products (sitemap)", isFolder: true, folderId: null, status: "done", chunkCount: 0, version: 1, lastSyncAt: null, lastSyncOk: null, updatedAt: now - 2 * DAY, updatedBy: "Tran Nam" });
-    put({ id: "url-1-1", kbId, name: "Sản phẩm vay mua nhà", isFolder: false, folderId: "url-1-f1", url: "https://abcbank.com/products/vay-mua-nha", title: "Sản phẩm vay mua nhà", source: "sitemap", status: "done", chunkCount: 22, version: 1, lastSyncAt: now - 2 * HOUR, lastSyncOk: true, updatedAt: now - 2 * HOUR, updatedBy: "Tran Nam" });
-    put({ id: "url-1-2", kbId, name: "Sản phẩm thẻ tín dụng", isFolder: false, folderId: "url-1-f1", url: "https://abcbank.com/products/the-tin-dung", title: "Sản phẩm thẻ tín dụng", source: "sitemap", status: "done", chunkCount: 19, version: 2, lastSyncAt: now - 2 * HOUR, lastSyncOk: true, updatedAt: now - 2 * HOUR, updatedBy: "Tran Nam" });
-    put({ id: "url-1-3", kbId, name: "Trang chủ ABC Bank", isFolder: false, folderId: null, url: "https://abcbank.com", title: "ABC Bank — Ngân hàng số hàng đầu", source: "specified", status: "failed", chunkCount: 0, version: 1, lastSyncAt: now - 6 * HOUR, lastSyncOk: false, lastSyncError: "Không kết nối được tới máy chủ.", updatedAt: now - 6 * HOUR, updatedBy: "Tran Nam" });
-    put({ id: "url-1-4", kbId, name: "Câu hỏi thường gặp", isFolder: false, folderId: null, url: "https://abcbank.com/faq", title: "Câu hỏi thường gặp — ABC Bank", source: "crawled_child", status: "processing", chunkCount: 0, version: 1, lastSyncAt: null, lastSyncOk: null, updatedAt: now - 5 * 60_000, updatedBy: "Tran Nam" });
+    put({ id: "url-1-f1", kbId, name: "abcbank.com/products (sitemap)", isFolder: true, folderId: null, status: "done", chunkCount: 0, version: 1, lastSyncAt: null, lastSyncOk: null, createdAt: now - 2 * DAY, updatedAt: now - 2 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "url-1-1", kbId, name: "Sản phẩm vay mua nhà", isFolder: false, folderId: "url-1-f1", url: "https://abcbank.com/products/vay-mua-nha", title: "Sản phẩm vay mua nhà", source: "sitemap", status: "done", chunkCount: 22, version: 1, lastSyncAt: now - 2 * HOUR, lastSyncOk: true, createdAt: now - 2 * DAY, updatedAt: now - 2 * HOUR, updatedBy: "Tran Nam" });
+    put({ id: "url-1-2", kbId, name: "Sản phẩm thẻ tín dụng", isFolder: false, folderId: "url-1-f1", url: "https://abcbank.com/products/the-tin-dung", title: "Sản phẩm thẻ tín dụng", source: "sitemap", status: "done", chunkCount: 19, version: 2, lastSyncAt: now - 2 * HOUR, lastSyncOk: true, createdAt: now - 2 * DAY, updatedAt: now - 2 * HOUR, updatedBy: "Tran Nam" });
+    put({ id: "url-1-3", kbId, name: "Trang chủ ABC Bank", isFolder: false, folderId: null, url: "https://abcbank.com", title: "ABC Bank — Ngân hàng số hàng đầu", source: "specified", status: "failed", chunkCount: 0, version: 1, lastSyncAt: now - 6 * HOUR, lastSyncOk: false, lastSyncError: "Không kết nối được tới máy chủ.", createdAt: now - 6 * HOUR, updatedAt: now - 6 * HOUR, updatedBy: "Tran Nam" });
+    put({ id: "url-1-4", kbId, name: "Câu hỏi thường gặp", isFolder: false, folderId: null, url: "https://abcbank.com/faq", title: "Câu hỏi thường gặp — ABC Bank", source: "crawled_child", status: "processing", chunkCount: 0, version: 1, lastSyncAt: null, lastSyncOk: null, createdAt: now - 5 * 60_000, updatedAt: now - 5 * 60_000, updatedBy: "Tran Nam" });
   }
 
   persist();
 }
+
+// Normalizes records created before `createdAt` existed on this store (stale sessionStorage
+// data from earlier in development) so components can always assume the field is present.
+const normalize = (u: KnowledgeUrl): KnowledgeUrl => (u.createdAt ? u : { ...u, createdAt: u.updatedAt });
 
 export const knowledgeUrlStore = {
   list(kbId: string): KnowledgeUrl[] {
     seedKb(kbId);
     return [...store.values()]
       .filter(u => u.kbId === kbId)
-      .sort((a, b) => (b.isFolder ? 1 : 0) - (a.isFolder ? 1 : 0) || b.updatedAt - a.updatedAt);
+      .sort((a, b) => (b.isFolder ? 1 : 0) - (a.isFolder ? 1 : 0) || b.updatedAt - a.updatedAt)
+      .map(normalize);
   },
   get(kbId: string, id: string): KnowledgeUrl | undefined {
     seedKb(kbId);
-    return store.get(id);
+    const u = store.get(id);
+    return u ? normalize(u) : undefined;
   },
   listFolders(kbId: string): KnowledgeUrl[] {
     return this.list(kbId).filter(u => u.isFolder);
@@ -75,10 +82,11 @@ export const knowledgeUrlStore = {
   },
   createFolder(kbId: string, name: string): KnowledgeUrl {
     const id = `url-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`;
+    const now = Date.now();
     const rec: KnowledgeUrl = {
       id, kbId, name: name.trim(), isFolder: true, folderId: null, status: "done",
       chunkCount: 0, version: 1, lastSyncAt: null, lastSyncOk: null,
-      updatedAt: Date.now(), updatedBy: "Tran Nam",
+      createdAt: now, updatedAt: now, updatedBy: "Tran Nam",
     };
     store.set(id, rec);
     persist();
@@ -86,11 +94,12 @@ export const knowledgeUrlStore = {
   },
   addUrl(kbId: string, data: { url: string; source: UrlSource; folderId?: string | null }): KnowledgeUrl {
     const id = `url-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`;
+    const now = Date.now();
     const rec: KnowledgeUrl = {
       id, kbId, name: data.url, isFolder: false, folderId: data.folderId ?? null,
       url: data.url, title: data.url.replace(/^https?:\/\//, ""), source: data.source,
       status: "pending", chunkCount: 0, version: 1,
-      lastSyncAt: null, lastSyncOk: null, updatedAt: Date.now(), updatedBy: "Tran Nam",
+      lastSyncAt: null, lastSyncOk: null, createdAt: now, updatedAt: now, updatedBy: "Tran Nam",
     };
     store.set(id, rec);
     persist();

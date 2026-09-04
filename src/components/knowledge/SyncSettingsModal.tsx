@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -28,9 +28,11 @@ function Toggle({ enabled, onChange, disabled }: { enabled: boolean; onChange: (
   );
 }
 
-/** Right-side drawer for the Website tab's "Cài đặt đồng bộ" button — relocated from the
- * former Kho-tri-thức-level "Cài đặt" tab, since these settings only ever affect crawled URLs. */
-export default function SyncSettingsDrawer({ kbId, viewOnly, onClose, onSaved }: {
+/** Centred modal for the Website tab's "Cài đặt đồng bộ" button — same Dialog component as
+ * "Tạo kho tri thức"/"Tải tài liệu lên", just wider (the schedule builder runs two columns) and
+ * with an internally-scrolling body so the footer stays pinned. Relocated from the former
+ * Kho-tri-thức-level "Cài đặt" tab, since these settings only ever affect crawled URLs. */
+export default function SyncSettingsModal({ kbId, viewOnly, onClose, onSaved }: {
   kbId: string; viewOnly: boolean; onClose: () => void; onSaved: () => void;
 }) {
   const [saved, setSaved] = useState(() => knowledgeSettingsStore.get(kbId));
@@ -57,14 +59,14 @@ export default function SyncSettingsDrawer({ kbId, viewOnly, onClose, onSaved }:
 
   return (
     <>
-      <Sheet open onOpenChange={v => !v && attemptClose()}>
-        <SheetContent className="w-full sm:max-w-[480px] flex flex-col">
-          <SheetHeader>
-            <SheetTitle>Cài đặt đồng bộ</SheetTitle>
-          </SheetHeader>
-          <p className="text-xs text-muted-foreground -mt-2 mb-2">Áp dụng cho các URL trong kho tri thức này.</p>
+      <Dialog open onOpenChange={v => !v && attemptClose()}>
+        <DialogContent className="sm:max-w-[640px] max-h-[80vh] p-0 gap-0 flex flex-col overflow-hidden">
+          <DialogHeader className="px-6 pt-6 pb-1">
+            <DialogTitle>Cài đặt đồng bộ</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground px-6 mb-3">Áp dụng cho các URL trong kho tri thức này.</p>
 
-          <div className="flex-1 overflow-y-auto space-y-5 pb-24">
+          <div className="flex-1 overflow-y-auto px-6 space-y-5 pb-4">
             <section className="rounded-xl border border-border p-5">
               <div className="flex items-center justify-between mb-1">
                 <h2 className="text-sm font-semibold">Lịch đồng bộ</h2>
@@ -158,13 +160,13 @@ export default function SyncSettingsDrawer({ kbId, viewOnly, onClose, onSaved }:
           </div>
 
           {!viewOnly && (
-            <div className="absolute bottom-0 left-0 right-0 -mx-6 -mb-6 border-t border-border bg-white px-6 py-3 flex items-center justify-end gap-2 shadow-elev">
+            <DialogFooter className="px-6 py-4 border-t border-border">
               <button onClick={attemptClose} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Hủy bỏ</button>
               <button onClick={saveAll} disabled={!dirty} className="btn-primary h-9 disabled:opacity-40 disabled:pointer-events-none">Lưu thay đổi</button>
-            </div>
+            </DialogFooter>
           )}
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={showDiscardConfirm} onOpenChange={setShowDiscardConfirm}>
         <AlertDialogContent>

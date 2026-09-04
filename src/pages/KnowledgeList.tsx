@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   knowledgeBaseStore, CURRENT_USER, isViewOnly, type KnowledgeBase,
 } from "@/components/knowledge/knowledgeBaseStore";
+import KnowledgeTypeIcon from "@/components/knowledge/KnowledgeTypeIcon";
 import CreateKnowledgeBaseModal from "@/components/knowledge/CreateKnowledgeBaseModal";
 import ConnectExternalKnowledgeBaseModal from "@/components/knowledge/ConnectExternalKnowledgeBaseModal";
 import ShareKnowledgeBaseModal from "@/components/knowledge/ShareKnowledgeBaseModal";
@@ -114,20 +115,22 @@ function KbCard({ kb, onOpen, onEdit, onShare, onDelete }: {
       className="group rounded-xl border border-border bg-surface hover:border-primary/30 hover:shadow-elev transition-base cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring p-5 flex flex-col"
     >
       <div className="flex items-start justify-between gap-2 mb-2">
-        <Link
-          to={`/knowledge/${kb.id}`}
-          onClick={e => e.stopPropagation()}
-          className="font-semibold text-sm leading-snug line-clamp-2 min-w-0 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
-        >
-          {kb.name}
-        </Link>
+        <div className="flex items-center gap-2.5 min-w-0">
+          <KnowledgeTypeIcon type={kb.type} />
+          <Link
+            to={`/knowledge/${kb.id}`}
+            onClick={e => e.stopPropagation()}
+            className="font-semibold text-sm leading-snug line-clamp-2 min-w-0 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+          >
+            {kb.name}
+          </Link>
+        </div>
         <RowMenu kb={kb} viewOnly={viewOnly} onOpen={onOpen} onEdit={onEdit} onShare={onShare} onDelete={onDelete} />
       </div>
       <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 mb-3 min-h-[32px]">
         {kb.description || <span className="italic">Chưa có mô tả</span>}
       </p>
       <div className="flex items-center gap-1.5 flex-wrap mb-3">
-        <span className="chip chip-muted">{kb.type === "internal" ? "Nội bộ" : "Kết nối ngoài"}</span>
         <OwnershipChips kb={kb} />
       </div>
       <div className="mt-auto pt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground gap-2 flex-wrap">

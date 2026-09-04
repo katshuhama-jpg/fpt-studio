@@ -14,6 +14,7 @@ import {
 import { knowledgeDocumentStore } from "@/components/knowledge/knowledgeDocumentStore";
 import { knowledgeUrlStore } from "@/components/knowledge/knowledgeUrlStore";
 import { knowledgeFaqStore } from "@/components/knowledge/knowledgeFaqStore";
+import KnowledgeTypeIcon from "@/components/knowledge/KnowledgeTypeIcon";
 import CreateKnowledgeBaseModal from "@/components/knowledge/CreateKnowledgeBaseModal";
 import ShareKnowledgeBaseModal from "@/components/knowledge/ShareKnowledgeBaseModal";
 import DeleteKnowledgeBaseDialog from "@/components/knowledge/DeleteKnowledgeBaseDialog";
@@ -168,27 +169,30 @@ export default function KnowledgeDetail() {
         </div>
 
         <div className="flex items-start justify-between gap-4 flex-wrap pb-4">
-          <div className="min-w-0 flex-1">
-            {editingName ? (
-              <input
-                autoFocus
-                value={nameDraft}
-                onChange={e => setNameDraft(e.target.value)}
-                onBlur={commitName}
-                onKeyDown={e => { if (e.key === "Enter") commitName(); if (e.key === "Escape") setEditingName(false); }}
-                maxLength={50}
-                className="font-display text-2xl font-semibold tracking-tight bg-transparent border-b border-primary outline-none w-full max-w-md"
-              />
-            ) : (
-              <h1
-                className={`font-display text-2xl font-semibold tracking-tight ${!viewOnly ? "cursor-pointer hover:opacity-70" : ""}`}
-                onClick={() => { if (viewOnly) return; setNameDraft(kb.name); setEditingName(true); }}
-                title={!viewOnly ? "Bấm để đổi tên" : undefined}
-              >
-                {kb.name}
-              </h1>
-            )}
-            <p className="text-sm text-muted-foreground mt-1">{kb.description || "Chưa có mô tả"}</p>
+          <div className="flex items-start gap-3 min-w-0 flex-1">
+            <KnowledgeTypeIcon type={kb.type} className="mt-1" />
+            <div className="min-w-0 flex-1">
+              {editingName ? (
+                <input
+                  autoFocus
+                  value={nameDraft}
+                  onChange={e => setNameDraft(e.target.value)}
+                  onBlur={commitName}
+                  onKeyDown={e => { if (e.key === "Enter") commitName(); if (e.key === "Escape") setEditingName(false); }}
+                  maxLength={50}
+                  className="font-display text-2xl font-semibold tracking-tight bg-transparent border-b border-primary outline-none w-full max-w-md"
+                />
+              ) : (
+                <h1
+                  className={`font-display text-2xl font-semibold tracking-tight ${!viewOnly ? "cursor-pointer hover:opacity-70" : ""}`}
+                  onClick={() => { if (viewOnly) return; setNameDraft(kb.name); setEditingName(true); }}
+                  title={!viewOnly ? "Bấm để đổi tên" : undefined}
+                >
+                  {kb.name}
+                </h1>
+              )}
+              <p className="text-sm text-muted-foreground mt-1">{kb.description || "Chưa có mô tả"}</p>
+            </div>
           </div>
 
           <div className="flex items-center gap-1.5 flex-wrap shrink-0">

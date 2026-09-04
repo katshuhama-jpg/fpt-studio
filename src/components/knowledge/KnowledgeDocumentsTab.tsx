@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
-  Search, ChevronDown, Plus, MoreVertical, Folder, FileText, X,
+  Search, ChevronDown, Plus, MoreVertical, X,
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -10,10 +11,13 @@ import {
 import { toast } from "sonner";
 import { knowledgeDocumentStore, type KnowledgeDocument } from "./knowledgeDocumentStore";
 import { KnowledgeStatusPill, type KnowledgeProcessingStatus } from "./knowledgeStatus";
+import FileTypeIcon from "./FileTypeIcon";
 import UploadDocumentsModal from "./UploadDocumentsModal";
 import ChunkViewerModal from "./ChunkViewerModal";
 import VersionHistoryPanel from "./VersionHistoryPanel";
 import DocumentLayoutViewer from "./DocumentLayoutViewer";
+import CreateFolderModal from "./CreateFolderModal";
+import MoveToFolderModal from "./MoveToFolderModal";
 
 const STATUS_OPTIONS: { value: KnowledgeProcessingStatus | "all"; label: string }[] = [
   { value: "all", label: "Tất cả" },
@@ -47,10 +51,14 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
   const [deleteTargets, setDeleteTargets] = useState<KnowledgeDocument[] | null>(null);
   const [layoutTarget, setLayoutTarget] = useState<KnowledgeDocument | null>(null);
   const [versionTarget, setVersionTarget] = useState<KnowledgeDocument | null>(null);
+  const [showCreateFolder, setShowCreateFolder] = useState(false);
+  const [moveTargets, setMoveTargets] = useState<KnowledgeDocument[] | null>(null);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
   const createMenuRef = useRef<HTMLDivElement>(null);
 
   const openId = params.get("docId");
   const openDoc = openId ? knowledgeDocumentStore.get(kbId, openId) : undefined;
+  const canOpen = (s: KnowledgeProcessingStatus) => s === "done" || s === "processing";
 
   useEffect(() => {
     if (!showCreateMenu) return;
@@ -117,11 +125,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
             {showCreateMenu && (
               <div className="absolute right-0 top-full mt-1 z-20 w-48 rounded-lg border border-border bg-white shadow-elev py-1">
                 <button
-                  onClick={() => {
-                    setShowCreateMenu(false);
-                    const name = window.prompt("Tên thư mục mới")?.trim();
-                    if (name) { knowledgeDocumentStore.createFolder(kbId, name); refresh(); }
-                  }}
+                  onClick={() => { setShowCreateMenu(false); setShowCreateFolder(true); }}
                   className="w-full text-left px-3 py-1.5 text-sm hover:bg-surface-muted transition-base"
                 >
                   Thư mục mới
@@ -140,16 +144,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
       {selected.size > 0 && !viewOnly && (
         <div className="flex items-center gap-3 mb-3 px-3 h-10 rounded-lg bg-primary-soft border border-primary/15">
           <span className="text-sm font-medium text-primary">Đã chọn {selected.size} mục</span>
-          <button
-            onClick={() => {
-              const folderId = window.prompt("Di chuyển tới thư mục (để trống = danh sách chung)");
-              if (folderId === null) return;
-              knowledgeDocumentStore.moveMany([...selected], folderId.trim() || null);
-              setSelected(new Set());
-              refresh();
-            }}
-            className="text-xs font-semibold text-primary hover:underline"
-          >
+          <button onClick={() => setMoveTargets(all.filter(d => selected.has(d.id)))} className="text-xs font-semibold text-primary hover:underline">
             Di chuyển
           </button>
           <button onClick={() => setDeleteTargets(all.filter(d => selected.has(d.id)))} className="text-xs font-semibold text-destructive hover:underline">
@@ -181,7 +176,6 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                 <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Tên</th>
                 <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Trạng thái</th>
                 <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Kích thước</th>
-                <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Chunk</th>
                 <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Phiên bản</th>
                 <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Cập nhật</th>
                 <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Cập nhật bởi</th>
@@ -189,22 +183,29 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
               </tr>
             </thead>
             <tbody>
-              {filtered.map(d => (
-                <tr key={d.id} className="border-b border-border last:border-0 hover:bg-surface-muted/50 transition-base">
+              {filtered.map(d => {
+                const openable = d.isFolder || canOpen(d.status);
+                return (
+                <tr key={d.id} className={`border-b border-border last:border-0 hover:bg-surface-muted/50 transition-base ${highlightId === d.id ? "bg-primary-soft/40" : ""}`}>
                   <td className="px-4 py-3">
                     {!d.isFolder && (
                       <input type="checkbox" checked={selected.has(d.id)} onChange={() => toggleRow(d.id)} className="w-4 h-4 accent-primary" aria-label={`Chọn ${d.name}`} />
                     )}
                   </td>
-                  <td className="px-2 py-3 max-w-[220px]">
-                    <button
-                      onClick={() => !d.isFolder && openDocument(d.id)}
-                      className="flex items-center gap-2 w-full min-w-0 text-left disabled:cursor-default"
-                      disabled={d.isFolder}
-                    >
-                      {d.isFolder ? <Folder size={15} className="text-muted-foreground shrink-0" /> : <FileText size={15} className="text-muted-foreground shrink-0" />}
-                      <span className="text-sm font-medium truncate block min-w-0">{d.name}</span>
-                    </button>
+                  <td className="px-2 py-3 max-w-[380px]">
+                    <Tooltip delayDuration={300}>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => !d.isFolder && openable && openDocument(d.id)}
+                          className="flex items-center gap-2 w-full min-w-0 text-left disabled:cursor-default"
+                          disabled={d.isFolder || !openable}
+                        >
+                          <FileTypeIcon kind={d.isFolder ? "folder" : undefined} name={d.isFolder ? undefined : d.name} />
+                          <span className={`text-sm font-medium truncate block min-w-0 ${!openable ? "text-muted-foreground" : ""}`}>{d.name}</span>
+                        </button>
+                      </TooltipTrigger>
+                      {!d.isFolder && !openable && <TooltipContent>Tài liệu chưa xử lý xong nên chưa xem được nội dung.</TooltipContent>}
+                    </Tooltip>
                   </td>
                   <td className="px-2 py-3">
                     {!d.isFolder && (
@@ -214,7 +215,6 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                     )}
                   </td>
                   <td className="px-2 py-3 text-xs text-muted-foreground whitespace-nowrap">{d.isFolder ? "—" : formatSize(d.sizeBytes)}</td>
-                  <td className="px-2 py-3 text-xs font-mono">{d.isFolder ? "—" : d.chunkCount}</td>
                   <td className="px-2 py-3">
                     {!d.isFolder && (
                       <button onClick={() => setVersionTarget(d)} className="chip chip-muted hover:opacity-80 transition-base">v{d.version}</button>
@@ -226,16 +226,19 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                     {!d.isFolder && (
                       <RowMenu
                         viewOnly={viewOnly}
+                        canOpen={openable}
                         onOpen={() => openDocument(d.id)}
                         onLayout={() => setLayoutTarget(d)}
                         onReprocess={() => setReprocessTarget(d)}
                         onRename={() => { setRenaming(d); setRenameValue(d.name); }}
+                        onMove={() => setMoveTargets([d])}
                         onDelete={() => setDeleteTargets([d])}
                       />
                     )}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -243,7 +246,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
 
       <UploadDocumentsModal open={showUpload} kbId={kbId} onClose={() => { setShowUpload(false); refresh(); }} />
 
-      {openDoc && <ChunkViewerModal kbId={kbId} sourceType="document" sourceId={openDoc.id} sourceName={openDoc.name} onClose={closeViewer} viewOnly={viewOnly} />}
+      {openDoc && <ChunkViewerModal kbId={kbId} sourceType="document" sourceId={openDoc.id} sourceName={openDoc.name} sourceStatus={openDoc.status} sourceCreatedAt={openDoc.createdAt} onClose={closeViewer} viewOnly={viewOnly} />}
       {layoutTarget && <DocumentLayoutViewer document={layoutTarget} onClose={() => setLayoutTarget(null)} />}
       {versionTarget && (
         <VersionHistoryPanel
@@ -258,6 +261,33 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
           onChange={setRenameValue}
           onCancel={() => setRenaming(null)}
           onConfirm={() => { knowledgeDocumentStore.rename(renaming.id, renameValue); setRenaming(null); refresh(); }}
+        />
+      )}
+
+      <CreateFolderModal
+        open={showCreateFolder}
+        existingNames={knowledgeDocumentStore.listFolders(kbId).map(f => f.name)}
+        onClose={() => setShowCreateFolder(false)}
+        onCreate={name => {
+          const folder = knowledgeDocumentStore.createFolder(kbId, name);
+          toast.success(`Đã tạo thư mục "${name}".`);
+          setHighlightId(folder.id);
+          setTimeout(() => setHighlightId(null), 2000);
+          refresh();
+        }}
+      />
+
+      {moveTargets && (
+        <MoveToFolderModal
+          open={!!moveTargets}
+          count={moveTargets.length}
+          folders={knowledgeDocumentStore.listFolders(kbId).filter(f => !moveTargets.some(m => m.id === f.id))}
+          onClose={() => setMoveTargets(null)}
+          onConfirm={folderId => {
+            knowledgeDocumentStore.moveMany(moveTargets.map(m => m.id), folderId);
+            setSelected(new Set());
+            refresh();
+          }}
         />
       )}
 
@@ -310,8 +340,8 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
   );
 }
 
-function RowMenu({ viewOnly, onOpen, onLayout, onReprocess, onRename, onDelete }: {
-  viewOnly: boolean; onOpen: () => void; onLayout: () => void; onReprocess: () => void; onRename: () => void; onDelete: () => void;
+function RowMenu({ viewOnly, canOpen, onOpen, onLayout, onReprocess, onRename, onMove, onDelete }: {
+  viewOnly: boolean; canOpen: boolean; onOpen: () => void; onLayout: () => void; onReprocess: () => void; onRename: () => void; onMove: () => void; onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -322,8 +352,16 @@ function RowMenu({ viewOnly, onOpen, onLayout, onReprocess, onRename, onDelete }
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
 
-  const items: { label: string; onClick: () => void; danger?: boolean }[] = [{ label: "Mở", onClick: onOpen }, { label: "Xem bố cục tài liệu", onClick: onLayout }];
-  if (!viewOnly) items.push({ label: "Xử lý lại", onClick: onReprocess }, { label: "Đổi tên", onClick: onRename }, { label: "Xóa", onClick: onDelete, danger: true });
+  const items: { label: string; onClick: () => void; danger?: boolean; disabled?: boolean; disabledTooltip?: string }[] = [
+    { label: "Mở", onClick: onOpen, disabled: !canOpen, disabledTooltip: "Tài liệu chưa xử lý xong nên chưa xem được nội dung." },
+    { label: "Xem bố cục tài liệu", onClick: onLayout },
+  ];
+  if (!viewOnly) items.push(
+    { label: "Xử lý lại", onClick: onReprocess },
+    { label: "Đổi tên", onClick: onRename },
+    { label: "Di chuyển", onClick: onMove },
+    { label: "Xóa", onClick: onDelete, danger: true },
+  );
 
   return (
     <div ref={ref} className="relative inline-block" onClick={e => e.stopPropagation()}>
@@ -333,13 +371,23 @@ function RowMenu({ viewOnly, onOpen, onLayout, onReprocess, onRename, onDelete }
       {open && (
         <div className="absolute right-0 top-full mt-1 z-20 w-44 rounded-lg border border-border bg-white shadow-elev py-1">
           {items.map(item => (
-            <button
-              key={item.label}
-              onClick={() => { setOpen(false); item.onClick(); }}
-              className={`w-full text-left px-3 py-1.5 text-xs transition-base ${item.danger ? "text-destructive hover:bg-[hsl(var(--destructive-soft))]" : "hover:bg-surface-muted"}`}
-            >
-              {item.label}
-            </button>
+            <Tooltip key={item.label} delayDuration={300}>
+              <TooltipTrigger asChild>
+                <span>
+                  <button
+                    disabled={item.disabled}
+                    onClick={() => { if (item.disabled) return; setOpen(false); item.onClick(); }}
+                    className={`w-full text-left px-3 py-1.5 text-xs transition-base ${
+                      item.disabled ? "text-muted-foreground/50 cursor-not-allowed" :
+                      item.danger ? "text-destructive hover:bg-[hsl(var(--destructive-soft))]" : "hover:bg-surface-muted"
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                </span>
+              </TooltipTrigger>
+              {item.disabled && item.disabledTooltip && <TooltipContent side="left">{item.disabledTooltip}</TooltipContent>}
+            </Tooltip>
           ))}
         </div>
       )}
@@ -347,7 +395,12 @@ function RowMenu({ viewOnly, onOpen, onLayout, onReprocess, onRename, onDelete }
   );
 }
 
+const RENAME_MAX = 100;
+
 function RenameDialog({ value, onChange, onCancel, onConfirm }: { value: string; onChange: (v: string) => void; onCancel: () => void; onConfirm: () => void }) {
+  const [touched, setTouched] = useState(false);
+  const error = touched && !value.trim() ? "Vui lòng nhập tên tài liệu." : null;
+  const submit = () => { if (!value.trim()) { setTouched(true); return; } onConfirm(); };
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onCancel} />
@@ -356,16 +409,23 @@ function RenameDialog({ value, onChange, onCancel, onConfirm }: { value: string;
           <h3 className="text-sm font-semibold">Đổi tên</h3>
           <button onClick={onCancel} className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground"><X size={14} /></button>
         </div>
+        <div className="flex items-center justify-between mb-1.5">
+          <label className="text-sm font-medium">Tên tài liệu <span className="text-destructive">*</span></label>
+          <span className="text-xs text-muted-foreground">{value.length}/{RENAME_MAX}</span>
+        </div>
         <input
           autoFocus
           value={value}
+          maxLength={RENAME_MAX}
           onChange={e => onChange(e.target.value)}
-          onKeyDown={e => { if (e.key === "Enter") onConfirm(); }}
-          className="w-full h-10 px-3 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base mb-4"
+          onBlur={() => setTouched(true)}
+          onKeyDown={e => { if (e.key === "Enter") submit(); }}
+          className={`w-full h-10 px-3 rounded-lg border bg-white text-sm outline-none focus:ring-2 transition-base ${error ? "border-destructive focus:ring-destructive/20" : "border-border focus:border-primary focus:ring-primary/20"}`}
         />
-        <div className="flex items-center justify-end gap-2">
+        {error && <p className="text-xs text-destructive mt-1.5">{error}</p>}
+        <div className="flex items-center justify-end gap-2 mt-4">
           <button onClick={onCancel} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Hủy bỏ</button>
-          <button onClick={onConfirm} disabled={!value.trim()} className="btn-primary h-9 disabled:opacity-40">Lưu</button>
+          <button onClick={submit} className="btn-primary h-9">Lưu</button>
         </div>
       </div>
     </div>

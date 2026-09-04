@@ -25,6 +25,7 @@ export interface KnowledgeItem {
    * distinct from "linking" a Console KB to an Agent (that's attachConsoleKb below). Absent
    * means private ("Chỉ mình tôi"). */
   sharing?: Sharing;
+  createdAt?: number;
   updatedAt: number;
 }
 
@@ -35,19 +36,23 @@ const attached = loadMap<string, string[]>(ATTACHED_KEY);
 const k = (a: string, id: string) => `${a}:${id}`;
 const persist = () => saveMap(STORE_KEY, store);
 const persistAttached = () => saveMap(ATTACHED_KEY, attached);
+const normalize = (i: KnowledgeItem): KnowledgeItem => (i.createdAt ? i : { ...i, createdAt: i.updatedAt });
 
 export const knowledgeStore = {
   list(agentId: string): KnowledgeItem[] {
     return [...store.values()]
       .filter(i => i.agentId === agentId)
-      .sort((a, b) => b.updatedAt - a.updatedAt);
+      .sort((a, b) => b.updatedAt - a.updatedAt)
+      .map(normalize);
   },
   get(agentId: string, id: string): KnowledgeItem | undefined {
-    return store.get(k(agentId, id));
+    const item = store.get(k(agentId, id));
+    return item ? normalize(item) : undefined;
   },
   add(agentId: string, item: Omit<KnowledgeItem, "id" | "agentId" | "updatedAt">) {
     const id = `kn-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-    const rec: KnowledgeItem = { status: "pending", version: 1, ...item, id, agentId, updatedAt: Date.now() };
+    const now = Date.now();
+    const rec: KnowledgeItem = { status: "pending", version: 1, ...item, id, agentId, createdAt: now, updatedAt: now };
     store.set(k(agentId, id), rec);
     persist();
     return rec;

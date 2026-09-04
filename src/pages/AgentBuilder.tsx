@@ -53,6 +53,7 @@ import UploadDocumentsModal from "@/components/knowledge/UploadDocumentsModal";
 import AddUrlModal from "@/components/knowledge/AddUrlModal";
 import AddEditFaqModal from "@/components/knowledge/AddEditFaqModal";
 import ChunkViewerModal from "@/components/knowledge/ChunkViewerModal";
+import FileTypeIcon from "@/components/knowledge/FileTypeIcon";
 import type { Sharing } from "@/components/knowledge/knowledgeBaseStore";
 
 type Tab = "build" | "test" | "channels" | "insights";
@@ -1213,7 +1214,10 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
             {filteredItems.map(item => (
               <div key={item.id} className="grid grid-cols-[24px,1fr,80px,80px,60px,70px,100px,110px,70px] gap-3 px-4 py-3 border-t border-border items-center hover:bg-surface-muted/50 transition-base group min-w-[820px]">
                 <input type="checkbox" className="w-4 h-4 accent-primary" aria-label={`Chọn ${item.name}`} />
-                <button onClick={() => setParams({ ...Object.fromEntries(params), itemId: item.id })} className="text-sm font-medium truncate text-left hover:underline">{item.name}</button>
+                <button onClick={() => setParams({ ...Object.fromEntries(params), itemId: item.id })} className="flex items-center gap-2 min-w-0 text-sm font-medium truncate text-left hover:underline">
+                  <FileTypeIcon kind={item.kind === "url" ? "url" : item.kind === "faq" ? "faq" : undefined} name={item.kind === "doc" ? item.name : undefined} />
+                  <span className="truncate">{item.name}</span>
+                </button>
                 <div className="text-xs text-muted-foreground">{KIND_LABEL[item.kind]}</div>
                 <div className="text-xs text-muted-foreground">{item.sizeBytes ? `${Math.round(item.sizeBytes / 1024)} KB` : "—"}</div>
                 <div className="text-xs font-mono">{item.chunkCount ?? 0}</div>
@@ -1243,7 +1247,7 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
       {showAddFaq && <AddEditFaqModal open={showAddFaq} agentId={agentId} onClose={() => { setShowAddFaq(false); refresh(); }} />}
       {promoteTarget && <PromoteToConsoleDialog agentId={agentId} item={promoteTarget} onClose={() => { setPromoteTarget(null); refresh(); }} />}
       {openItem && (
-        <ChunkViewerModal kbId={agentId} sourceType="agent-item" sourceId={openItem.id} sourceName={openItem.name} onClose={closeChunkViewer} viewOnly={false} />
+        <ChunkViewerModal kbId={agentId} sourceType="agent-item" sourceId={openItem.id} sourceName={openItem.name} sourceStatus={openItem.status ?? "done"} sourceCreatedAt={openItem.createdAt ?? openItem.updatedAt} onClose={closeChunkViewer} viewOnly={false} />
       )}
       {shareTarget && (
         <ShareKnowledgeBaseModal
@@ -4324,6 +4328,8 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
   const [showUpload, setShowUpload] = useState(false);
   const [showAddUrl, setShowAddUrl] = useState(false);
   const [showAddFaq, setShowAddFaq] = useState(false);
+  const [detachTarget, setDetachTarget] = useState<{ id: string; name: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const refresh = () => setTick(t => t + 1);
   void tick;
 
@@ -4350,7 +4356,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
       name: kb.name,
       icon: ConnectIcon,
       open: () => navigate(`/knowledge/${kb.id}`),
-      remove: () => { knowledgeStore.detachConsoleKb(agentId, kb.id); refresh(); },
+      remove: () => setDetachTarget({ id: kb.id, name: kb.name }),
       chip: <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-primary-soft text-primary shrink-0 whitespace-nowrap">
         {kb.sharing.mode === "all" ? "Dùng chung" : kb.sharing.mode === "specific" ? "Chia sẻ" : "Của tôi"}
       </span>,
@@ -4360,12 +4366,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
       name: item.name,
       icon: NoteIcon,
       open: () => setParams({ tab: "build", section: "knowledge", itemId: item.id }),
-      remove: () => {
-        if (window.confirm(`Xóa "${item.name}"? Nội dung sẽ bị xóa vĩnh viễn khỏi Agent.`)) {
-          knowledgeStore.remove(agentId, item.id);
-          refresh();
-        }
-      },
+      remove: () => setDeleteTarget({ id: item.id, name: item.name }),
       chip: (item.status ?? "done") !== "done"
         ? <KnowledgeStatusPill status={item.status ?? "done"} />
         : <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-surface-muted text-muted-foreground shrink-0 whitespace-nowrap">Của tôi</span>,
@@ -4396,13 +4397,34 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
       ) : (
         <div className="flex flex-col gap-1.5">
           {shown.map(row => (
-            <div key={row.key} className="group flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base">
+            <div
+              key={row.key}
+              role="button"
+              tabIndex={0}
+              onClick={row.open}
+              onKeyDown={e => { if (e.key === "Enter") row.open(); }}
+              className="group flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
               <HugeiconsIcon icon={row.icon} size={13} className="text-muted-foreground shrink-0" />
-              <span className="text-[13px] font-medium flex-1 truncate">{row.name}</span>
-              <span className="group-hover:hidden shrink-0">{row.chip}</span>
-              <div className="hidden group-hover:flex items-center gap-1 shrink-0">
-                <button onClick={row.open} className="text-[11px] font-semibold text-primary hover:underline">Mở</button>
-                <button onClick={row.remove} className="text-[11px] font-semibold text-destructive hover:underline">Gỡ</button>
+              <span className="text-[13px] font-medium flex-1 truncate" title={row.name}>{row.name}</span>
+              <span className="group-hover:hidden group-focus-within:hidden shrink-0">{row.chip}</span>
+              <div className="hidden group-hover:flex group-focus-within:flex items-center shrink-0" onClick={e => e.stopPropagation()}>
+                <Tooltip delayDuration={300}>
+                  <TooltipTrigger asChild>
+                    <button onClick={row.open} aria-label="Mở nguồn tri thức" className="w-7 h-7 -m-2 rounded-md flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                      <HugeiconsIcon icon={ExternalLinkIcon} size={13} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Mở nguồn tri thức</TooltipContent>
+                </Tooltip>
+                <Tooltip delayDuration={300}>
+                  <TooltipTrigger asChild>
+                    <button onClick={row.remove} aria-label="Gỡ nguồn tri thức" className="w-7 h-7 -m-2 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                      <HugeiconsIcon icon={Delete01Icon} size={13} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Gỡ nguồn tri thức</TooltipContent>
+                </Tooltip>
               </div>
             </div>
           ))}
@@ -4435,6 +4457,39 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
       {showUpload && <UploadDocumentsModal open={showUpload} agentId={agentId} onClose={() => { setShowUpload(false); refresh(); }} />}
       {showAddUrl && <AddUrlModal open={showAddUrl} agentId={agentId} onClose={() => { setShowAddUrl(false); refresh(); }} />}
       {showAddFaq && <AddEditFaqModal open={showAddFaq} agentId={agentId} onClose={() => { setShowAddFaq(false); refresh(); }} />}
+
+      <AlertDialog open={!!detachTarget} onOpenChange={v => !v && setDetachTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Gỡ liên kết kho tri thức?</AlertDialogTitle>
+            <AlertDialogDescription>Agent sẽ không còn tra cứu được nội dung trong kho này. Kho tri thức vẫn được giữ nguyên.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy bỏ</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { if (detachTarget) knowledgeStore.detachConsoleKb(agentId, detachTarget.id); setDetachTarget(null); refresh(); }}>
+              Gỡ liên kết
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xóa nguồn tri thức này?</AlertDialogTitle>
+            <AlertDialogDescription>Nội dung và toàn bộ chunk sẽ bị xóa vĩnh viễn khỏi Agent. Hành động này không thể hoàn tác.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy bỏ</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { if (deleteTarget) knowledgeStore.remove(agentId, deleteTarget.id); setDeleteTarget(null); refresh(); }}
+            >
+              Xóa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

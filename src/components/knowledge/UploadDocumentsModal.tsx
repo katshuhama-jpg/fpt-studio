@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { UploadCloud, X, FileText, AlertTriangle, Info } from "lucide-react";
+import { UploadCloud, X, AlertTriangle, Info } from "lucide-react";
 import { toast } from "sonner";
 import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
 import { knowledgeStore } from "./knowledgeStore";
+import FileTypeIcon from "./FileTypeIcon";
 
 const ALLOWED_EXT = ["txt", "md", "pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "csv"];
 const ACCEPT_ATTR = ALLOWED_EXT.map(ext => `.${ext}`).join(",");
@@ -189,7 +190,7 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
               {staged.map(s => (
                 <div key={s.key} className="rounded-lg border border-border px-3 py-2.5">
                   <div className="flex items-center gap-2.5">
-                    <FileText size={15} className="text-muted-foreground shrink-0" />
+                    <FileTypeIcon name={s.file.name} />
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium truncate">{s.file.name}</div>
                       <div className="text-xs text-muted-foreground">{formatSize(s.file.size)}</div>
