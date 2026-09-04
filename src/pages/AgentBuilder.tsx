@@ -5340,7 +5340,9 @@ function SubAgentsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => void) =>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
                     <p className="text-xs font-medium truncate">{a.name}</p>
-                    {paused && <span className="chip chip-muted text-[10px] shrink-0">Paused</span>}
+                    <span className={`chip text-[10px] shrink-0 ${paused ? "bg-orange-100 text-orange-800 border-orange-200" : "bg-green-100 text-green-700 border-green-200"}`}>
+                      {paused ? "Paused" : "Active"}
+                    </span>
                   </div>
                   {a.description && <p className="text-[11px] text-muted-foreground truncate">{a.description}</p>}
                 </div>
