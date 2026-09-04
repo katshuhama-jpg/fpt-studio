@@ -489,7 +489,7 @@ export default function AgentsList() {
               className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <HugeiconsIcon icon={SparklesIcon} size={14} />
-              Draft it
+              Build agent
             </button>
           </div>
         </div>
