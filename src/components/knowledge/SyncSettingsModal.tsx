@@ -39,6 +39,7 @@ export default function SyncSettingsModal({ kbId, viewOnly, onClose, onSaved }: 
   const [draft, setDraft] = useState(saved);
   const [showOverrides, setShowOverrides] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const [resetTarget, setResetTarget] = useState<{ id: string; name: string } | null>(null);
 
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
   const folders = knowledgeDocumentStore.listFolders(kbId);
@@ -72,40 +73,49 @@ export default function SyncSettingsModal({ kbId, viewOnly, onClose, onSaved }: 
                 <h2 className="text-sm font-semibold">Lịch đồng bộ</h2>
                 <Toggle enabled={draft.scheduleEnabled} disabled={viewOnly} onChange={() => setDraft(d => ({ ...d, scheduleEnabled: !d.scheduleEnabled }))} />
               </div>
-              <p className="text-xs text-muted-foreground mb-4">Tự động đồng bộ theo lịch</p>
-              {draft.scheduleEnabled && (
-                <div className="pt-2 border-t border-border">
-                  <ScheduleBuilder value={draft.schedule} onChange={(schedule: ScheduleConfig) => setDraft(d => ({ ...d, schedule }))} />
-                </div>
+              <p className="text-xs text-muted-foreground">Tự động đồng bộ theo lịch</p>
+              {!draft.scheduleEnabled && (
+                <p className="text-xs text-muted-foreground mt-1">Đang tắt. Bật để đặt lịch tự động đồng bộ các URL trong kho tri thức này.</p>
               )}
-              {urlsWithOverride.length > 0 && (
-                <div className="mt-4">
-                  <button onClick={() => setShowOverrides(v => !v)} className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
-                    Xem URL có lịch riêng ({urlsWithOverride.length})
-                    <ChevronDown size={12} className={`transition-base ${showOverrides ? "rotate-180" : ""}`} />
-                  </button>
-                  {showOverrides && (
-                    <div className="mt-2 space-y-2">
-                      {urlsWithOverride.map(u => (
-                        <div key={u.id} className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
-                          <div className="min-w-0">
-                            <p className="text-xs font-medium truncate">{u.title ?? u.name}</p>
-                            {u.scheduleOverride && <p className="text-[11px] text-muted-foreground">{shortCadence(u.scheduleOverride.schedule)}</p>}
+              <div className={`grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none motion-reduce:duration-0 ${draft.scheduleEnabled ? "grid-rows-[1fr] mt-3" : "grid-rows-[0fr] mt-0"}`}>
+                <div className="overflow-hidden">
+                  <div className="pt-2 border-t border-border">
+                    <ScheduleBuilder value={draft.schedule} onChange={(schedule: ScheduleConfig) => setDraft(d => ({ ...d, schedule }))} />
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4">
+                {urlsWithOverride.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Tất cả URL đang dùng lịch chung.</p>
+                ) : (
+                  <>
+                    <button onClick={() => setShowOverrides(v => !v)} className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
+                      Xem URL có lịch riêng ({urlsWithOverride.length})
+                      <ChevronDown size={12} className={`transition-base ${showOverrides ? "rotate-180" : ""}`} />
+                    </button>
+                    {showOverrides && (
+                      <div className="mt-2 space-y-2">
+                        {urlsWithOverride.map(u => (
+                          <div key={u.id} className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium truncate">{u.title ?? u.name}</p>
+                              {u.scheduleOverride && <p className="text-[11px] text-muted-foreground">{shortCadence(u.scheduleOverride.schedule)}</p>}
+                            </div>
+                            {!viewOnly && (
+                              <button
+                                onClick={() => setResetTarget({ id: u.id, name: u.title ?? u.name })}
+                                className="text-xs font-semibold text-primary hover:underline shrink-0"
+                              >
+                                Đưa về lịch chung
+                              </button>
+                            )}
                           </div>
-                          {!viewOnly && (
-                            <button
-                              onClick={() => { knowledgeUrlStore.setScheduleOverride(u.id, undefined); onSaved(); setShowOverrides(v => urlsWithOverride.length > 1 ? v : false); }}
-                              className="text-xs font-semibold text-primary hover:underline shrink-0"
-                            >
-                              Đưa về lịch chung
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </section>
 
             <section className="rounded-xl border border-border p-5 space-y-5">
@@ -175,8 +185,33 @@ export default function SyncSettingsModal({ kbId, viewOnly, onClose, onSaved }: 
             <AlertDialogDescription>Thông tin bạn vừa chỉnh sẽ không được lưu.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Tiếp tục chỉnh sửa</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setShowDiscardConfirm(false); onClose(); }}>Bỏ thay đổi</AlertDialogAction>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Tiếp tục chỉnh sửa</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setShowDiscardConfirm(false); onClose(); }} className="bg-surface text-foreground border border-border hover:bg-surface-muted">Bỏ thay đổi</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!resetTarget} onOpenChange={v => !v && setResetTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Đưa URL về lịch chung?</AlertDialogTitle>
+            <AlertDialogDescription>URL này sẽ đồng bộ theo lịch chung của kho tri thức thay vì lịch riêng hiện tại.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-surface text-foreground border border-border hover:bg-surface-muted"
+              onClick={() => {
+                if (resetTarget) {
+                  knowledgeUrlStore.setScheduleOverride(resetTarget.id, undefined);
+                  onSaved();
+                  setShowOverrides(v => urlsWithOverride.length > 1 ? v : false);
+                }
+                setResetTarget(null);
+              }}
+            >
+              Đưa về lịch chung
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

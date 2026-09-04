@@ -72,6 +72,40 @@ export const knowledgeDocumentStore = {
   isDuplicateName(kbId: string, name: string, folderId: string | null): boolean {
     return this.list(kbId).some(d => !d.isFolder && d.folderId === folderId && d.name.trim().toLowerCase() === name.trim().toLowerCase());
   },
+  isDuplicateFolderName(kbId: string, name: string, parentFolderId: string | null, excludeId?: string): boolean {
+    return this.list(kbId).some(d => d.isFolder && d.id !== excludeId && d.folderId === parentFolderId && d.name.trim().toLowerCase() === name.trim().toLowerCase());
+  },
+  /** Every folder id nested (at any depth) under `folderId` — used to keep a folder from being
+   * moved into itself or one of its own descendants. */
+  getDescendantFolderIds(kbId: string, folderId: string): Set<string> {
+    const all = this.list(kbId);
+    const result = new Set<string>();
+    const queue = [folderId];
+    while (queue.length > 0) {
+      const cur = queue.shift()!;
+      for (const d of all) {
+        if (d.isFolder && d.folderId === cur && !result.has(d.id)) {
+          result.add(d.id);
+          queue.push(d.id);
+        }
+      }
+    }
+    return result;
+  },
+  /** Total non-folder documents nested (at any depth) under `folderId` — drives the delete
+   * confirmation's cascade count. */
+  countDocumentsInFolder(kbId: string, folderId: string): number {
+    const descendantFolders = this.getDescendantFolderIds(kbId, folderId);
+    descendantFolders.add(folderId);
+    return this.list(kbId).filter(d => !d.isFolder && d.folderId !== null && descendantFolders.has(d.folderId)).length;
+  },
+  /** Deletes a folder and everything nested inside it (sub-folders and documents alike). */
+  removeFolderCascade(kbId: string, folderId: string) {
+    const descendantFolders = this.getDescendantFolderIds(kbId, folderId);
+    descendantFolders.add(folderId);
+    const ids = this.list(kbId).filter(d => d.id === folderId || (d.folderId !== null && descendantFolders.has(d.folderId))).map(d => d.id);
+    this.removeMany(ids);
+  },
   createFolder(kbId: string, name: string, folderId: string | null = null): KnowledgeDocument {
     const id = `doc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`;
     const now = Date.now();

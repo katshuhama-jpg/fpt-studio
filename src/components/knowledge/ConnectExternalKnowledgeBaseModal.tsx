@@ -36,6 +36,7 @@ export default function ConnectExternalKnowledgeBaseModal({ open, onClose }: { o
   const [sharingMode, setSharingMode] = useState<SharingMode>("private");
   const [people, setPeople] = useState<Sharing["people"]>([]);
   const [endpointTouched, setEndpointTouched] = useState(false);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const [testState, setTestState] = useState<TestState>("idle");
   const [submitting, setSubmitting] = useState(false);
 
@@ -66,6 +67,7 @@ export default function ConnectExternalKnowledgeBaseModal({ open, onClose }: { o
 
   const submit = async () => {
     setEndpointTouched(true);
+    setSubmitAttempted(true);
     if (!canSubmit) return;
     if (testState !== "success") {
       const ok = await runTest();
@@ -100,7 +102,7 @@ export default function ConnectExternalKnowledgeBaseModal({ open, onClose }: { o
               <span className="text-xs text-muted-foreground">{name.length}/{NAME_MAX}</span>
             </div>
             <input
-              autoFocus value={name} maxLength={NAME_MAX} onChange={e => setName(e.target.value)}
+              value={name} maxLength={NAME_MAX} onChange={e => setName(e.target.value)}
               className="w-full h-10 px-3 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base"
             />
           </div>
@@ -172,7 +174,9 @@ export default function ConnectExternalKnowledgeBaseModal({ open, onClose }: { o
                     {selected && opt.value === "specific" && (
                       <div className="mt-2 pl-3.5">
                         <MemberPicker value={people} onChange={setPeople} ownerRow={{ name: CURRENT_USER.name, email: CURRENT_USER.email }} />
-                        {people.length === 0 && <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người để chia sẻ.</p>}
+                        {submitAttempted && sharingMode === "specific" && people.length === 0 && (
+                          <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người để chia sẻ.</p>
+                        )}
                       </div>
                     )}
                   </div>

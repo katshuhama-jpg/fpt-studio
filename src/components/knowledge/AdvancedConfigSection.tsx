@@ -39,7 +39,7 @@ export default function AdvancedConfigSection({ value, onChange }: { value: Adva
         <AccordionTrigger className="text-sm font-medium hover:no-underline py-2.5">Cấu hình nâng cao</AccordionTrigger>
         <AccordionContent className="space-y-4 pb-4">
           <div>
-            <FieldLabel label="Main title xpath" tooltip="Chỉ lấy phần tiêu đề trong vùng bạn chỉ định thay vì đoán tự động. Để trống nếu không chắc." />
+            <FieldLabel label="Vùng chứa tiêu đề (xpath)" tooltip="Chỉ lấy phần tiêu đề trong vùng bạn chỉ định thay vì đoán tự động. Để trống nếu bạn không chắc." />
             <input
               value={value.titleXpath}
               onChange={e => onChange({ ...value, titleXpath: e.target.value })}
@@ -48,11 +48,11 @@ export default function AdvancedConfigSection({ value, onChange }: { value: Adva
             />
           </div>
           <div>
-            <FieldLabel label="Main content xpath" tooltip="Chỉ lấy nội dung trong vùng bạn chỉ định, bỏ qua menu và quảng cáo. Để trống nếu không chắc." />
+            <FieldLabel label="Vùng chứa nội dung chính (xpath)" tooltip="Chỉ lấy nội dung trong vùng bạn chỉ định, bỏ qua menu và quảng cáo. Để trống nếu bạn không chắc." />
             <ChipsInput chips={value.contentXpaths} onChange={c => onChange({ ...value, contentXpaths: c })} placeholder="//article" />
           </div>
           <div>
-            <FieldLabel label="Ignore HTML tags" tooltip="Các thẻ HTML sẽ bị bỏ qua khi thu thập nội dung." />
+            <FieldLabel label="Bỏ qua thẻ HTML" tooltip="Các thẻ HTML sẽ bị bỏ qua khi thu thập nội dung." />
             <div className="flex flex-wrap gap-1.5">
               {IGNORE_TAG_OPTIONS.map(tag => {
                 const active = value.ignoreTags.includes(tag);
@@ -70,7 +70,7 @@ export default function AdvancedConfigSection({ value, onChange }: { value: Adva
             </div>
           </div>
           <div>
-            <FieldLabel label="Ignore element xpath" tooltip="Các phần tử theo xpath này sẽ bị loại khỏi nội dung thu thập." />
+            <FieldLabel label="Bỏ qua phần tử (xpath)" tooltip="Loại bỏ những phần cụ thể bạn chỉ định khỏi nội dung thu thập, ví dụ menu phụ hoặc quảng cáo chèn giữa bài viết." />
             <ChipsInput chips={value.ignoreElementXpaths} onChange={c => onChange({ ...value, ignoreElementXpaths: c })} />
           </div>
           <label className="flex items-start gap-2.5 cursor-pointer select-none">

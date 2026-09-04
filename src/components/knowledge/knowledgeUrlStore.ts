@@ -80,6 +80,40 @@ export const knowledgeUrlStore = {
     const n = url.trim().toLowerCase();
     return this.list(kbId).some(u => !u.isFolder && u.url?.trim().toLowerCase() === n);
   },
+  isDuplicateFolderName(kbId: string, name: string, parentFolderId: string | null, excludeId?: string): boolean {
+    return this.list(kbId).some(u => u.isFolder && u.id !== excludeId && u.folderId === parentFolderId && u.name.trim().toLowerCase() === name.trim().toLowerCase());
+  },
+  /** Every folder id nested (at any depth) under `folderId` — used to keep a folder from being
+   * moved into itself or one of its own descendants. */
+  getDescendantFolderIds(kbId: string, folderId: string): Set<string> {
+    const all = this.list(kbId);
+    const result = new Set<string>();
+    const queue = [folderId];
+    while (queue.length > 0) {
+      const cur = queue.shift()!;
+      for (const u of all) {
+        if (u.isFolder && u.folderId === cur && !result.has(u.id)) {
+          result.add(u.id);
+          queue.push(u.id);
+        }
+      }
+    }
+    return result;
+  },
+  /** Total non-folder URLs nested (at any depth) under `folderId` — drives the delete
+   * confirmation's cascade count. */
+  countUrlsInFolder(kbId: string, folderId: string): number {
+    const descendantFolders = this.getDescendantFolderIds(kbId, folderId);
+    descendantFolders.add(folderId);
+    return this.list(kbId).filter(u => !u.isFolder && u.folderId !== null && descendantFolders.has(u.folderId)).length;
+  },
+  /** Deletes a folder and everything nested inside it (sub-folders and URLs alike). */
+  removeFolderCascade(kbId: string, folderId: string) {
+    const descendantFolders = this.getDescendantFolderIds(kbId, folderId);
+    descendantFolders.add(folderId);
+    const ids = this.list(kbId).filter(u => u.id === folderId || (u.folderId !== null && descendantFolders.has(u.folderId))).map(u => u.id);
+    this.removeMany(ids);
+  },
   createFolder(kbId: string, name: string): KnowledgeUrl {
     const id = `url-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`;
     const now = Date.now();
@@ -109,6 +143,12 @@ export const knowledgeUrlStore = {
     const cur = store.get(id);
     if (!cur) return;
     store.set(id, { ...cur, status, ...patch, updatedAt: Date.now() });
+    persist();
+  },
+  rename(id: string, name: string) {
+    const cur = store.get(id);
+    if (!cur) return;
+    store.set(id, { ...cur, name: name.trim(), updatedAt: Date.now() });
     persist();
   },
   setScheduleOverride(id: string, override: UrlScheduleOverride | undefined) {

@@ -61,7 +61,7 @@ export default function DeleteKnowledgeBaseDialog({
         </div>
 
         <DialogFooter>
-          <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Hủy bỏ</button>
+          <button onClick={onClose} className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium transition-base">Hủy bỏ</button>
           <button
             onClick={confirmDelete}
             disabled={!matches}

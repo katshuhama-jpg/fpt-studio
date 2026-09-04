@@ -40,7 +40,7 @@ function ClearContentDialog({ open, kbName, onClose, onConfirm }: { open: boolea
           </div>
         </div>
         <DialogFooter>
-          <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Hủy bỏ</button>
+          <button onClick={onClose} className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium transition-base">Hủy bỏ</button>
           <button onClick={() => { onConfirm(); setTyped(""); }} disabled={!matches} className="h-9 px-4 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 text-sm font-medium transition-base disabled:opacity-40 disabled:pointer-events-none">Xác nhận và xóa</button>
         </DialogFooter>
       </DialogContent>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -36,18 +36,22 @@ export default function CreateKnowledgeBaseModal({
   const [sharingMode, setSharingMode] = useState<SharingMode>(editingKb?.sharing.mode ?? "private");
   const [people, setPeople] = useState(editingKb?.sharing.people ?? []);
   const [nameTouched, setNameTouched] = useState(false);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const nameRef = useRef<HTMLInputElement>(null);
 
   const trimmedName = name.trim();
-  const nameError = nameTouched
+  const showNameError = nameTouched || submitAttempted;
+  const nameError = showNameError
     ? trimmedName.length === 0
       ? "Vui lòng nhập tên kho tri thức."
       : knowledgeBaseStore.isDuplicateName(trimmedName, editingKb?.id)
         ? "Tên kho tri thức đã tồn tại. Vui lòng chọn tên khác."
         : null
     : null;
+  const peopleError = sharingMode === "specific" && people.length === 0;
 
   const isDirty = trimmedName !== (editingKb?.name ?? "") || description.trim() !== (editingKb?.description ?? "") || sharingMode !== (editingKb?.sharing.mode ?? "private");
   const canSubmit = trimmedName.length > 0 && trimmedName.length <= NAME_MAX && (sharingMode !== "specific" || people.length > 0);
@@ -58,8 +62,12 @@ export default function CreateKnowledgeBaseModal({
   };
 
   const submit = () => {
+    setSubmitAttempted(true);
     setNameTouched(true);
-    if (!canSubmit) return;
+    if (!canSubmit) {
+      if (trimmedName.length === 0 || knowledgeBaseStore.isDuplicateName(trimmedName, editingKb?.id)) nameRef.current?.focus();
+      return;
+    }
     if (knowledgeBaseStore.isDuplicateName(trimmedName, editingKb?.id)) return;
     setSubmitting(true);
     setSubmitError(null);
@@ -106,7 +114,7 @@ export default function CreateKnowledgeBaseModal({
                 <span className="text-xs text-muted-foreground">{name.length}/{NAME_MAX}</span>
               </div>
               <input
-                autoFocus
+                ref={nameRef}
                 value={name}
                 maxLength={NAME_MAX}
                 onChange={e => setName(e.target.value)}
@@ -158,7 +166,7 @@ export default function CreateKnowledgeBaseModal({
                         {selected && opt.value === "specific" && (
                           <div className="mt-2 pl-3.5">
                             <MemberPicker value={people} onChange={setPeople} ownerRow={{ name: CURRENT_USER.name, email: CURRENT_USER.email }} />
-                            {people.length === 0 && (
+                            {peopleError && submitAttempted && (
                               <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người để chia sẻ.</p>
                             )}
                           </div>
@@ -192,8 +200,8 @@ export default function CreateKnowledgeBaseModal({
             <AlertDialogDescription>Thông tin bạn vừa nhập sẽ không được lưu.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Tiếp tục chỉnh sửa</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setShowDiscardConfirm(false); onClose(); }}>Bỏ thay đổi</AlertDialogAction>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Tiếp tục chỉnh sửa</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setShowDiscardConfirm(false); onClose(); }} className="bg-surface text-foreground border border-border hover:bg-surface-muted">Bỏ thay đổi</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -19,6 +19,47 @@ const MOCK_CHUNK_SEED = [
   { title: "Thời gian xử lý", content: "Ngân hàng cam kết phản hồi kết quả xử lý khiếu nại trong tối đa 15 ngày làm việc." },
 ];
 
+/** Text -> HTML: wraps each paragraph (blank-line separated) in <p>, escaping entities and
+ * turning single line breaks into <br> — never drops any of the original text. */
+function textToHtml(text: string): string {
+  const t = text.trim();
+  if (!t) return "";
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const paragraphs = t.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
+  const blocks = paragraphs.length > 0 ? paragraphs : [t];
+  return blocks.map(p => `<p>${esc(p).replace(/\n/g, "<br>")}</p>`).join("\n");
+}
+
+/** HTML -> Text: keeps the readable text of the HTML, inserting a newline at block boundaries
+ * (paragraphs, table rows, list items...) so content doesn't run together on one line. */
+function htmlToText(html: string): string {
+  const h = html.trim();
+  if (!h) return "";
+  try {
+    const doc = new DOMParser().parseFromString(h, "text/html");
+    doc.querySelectorAll("br").forEach(el => el.replaceWith("\n"));
+    doc.querySelectorAll("p, div, tr, li, h1, h2, h3, h4, h5, h6").forEach(el => el.append("\n"));
+    const text = (doc.body.textContent ?? "").replace(/\n{3,}/g, "\n\n").trim();
+    return text || h;
+  } catch {
+    return h; // never blank the field just because parsing failed
+  }
+}
+
+const RICH_HTML_TAGS = ["table", "ul", "ol", "li", "strong", "b", "em", "i", "a", "img", "h1", "h2", "h3", "h4", "h5", "h6", "code", "pre", "blockquote"];
+
+/** HTML -> Text loses real structure (tables, lists, links, emphasis...) when it's flattened
+ * to plain text — Text -> HTML never loses anything, since it only adds markup. */
+function isLossyHtmlToText(html: string): boolean {
+  if (!html.trim()) return false;
+  try {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    return RICH_HTML_TAGS.some(tag => doc.querySelector(tag) !== null);
+  } catch {
+    return false;
+  }
+}
+
 function formatDate(ts: number): string {
   const d = new Date(ts);
   const pad = (n: number) => n.toString().padStart(2, "0");
@@ -41,10 +82,14 @@ function markParentDone(kbId: string, sourceType: ChunkSourceType, sourceId: str
 }
 
 export default function ChunkViewerModal({
-  kbId, sourceType, sourceId, sourceName, sourceStatus, sourceCreatedAt, onClose, viewOnly,
+  kbId, sourceType, sourceId, sourceName, sourceStatus, sourceChunkCount, sourceCreatedAt, onClose, viewOnly,
 }: {
   kbId: string; sourceType: ChunkSourceType; sourceId: string; sourceName: string;
-  sourceStatus: KnowledgeProcessingStatus; sourceCreatedAt: number; onClose: () => void; viewOnly: boolean;
+  sourceStatus: KnowledgeProcessingStatus;
+  /** Only needed for sourceType "agent-item" — knowledgeChunkStore can't look this up itself
+   * without creating a circular import with knowledgeStore.ts, so the caller supplies it. */
+  sourceChunkCount?: number;
+  sourceCreatedAt: number; onClose: () => void; viewOnly: boolean;
 }) {
   const [tick, setTick] = useState(0);
   const [query, setQuery] = useState("");
@@ -55,6 +100,7 @@ export default function ChunkViewerModal({
   const [draftContent, setDraftContent] = useState("");
   const [draftType, setDraftType] = useState<ChunkContentType>("text");
   const [htmlMode, setHtmlMode] = useState<"preview" | "raw">("preview");
+  const [pendingTypeSwitch, setPendingTypeSwitch] = useState<ChunkContentType | null>(null);
   const [cancelConfirm, setCancelConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<KnowledgeChunk | null>(null);
   const [reprocessConfirm, setReprocessConfirm] = useState(false);
@@ -65,7 +111,7 @@ export default function ChunkViewerModal({
   const chunkRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const dragging = useRef(false);
 
-  const chunks = knowledgeChunkStore.list(kbId, sourceType, sourceId);
+  const chunks = knowledgeChunkStore.list(kbId, sourceType, sourceId, { status: sourceStatus, chunkCount: sourceChunkCount });
   void tick;
   const refresh = () => setTick(t => t + 1);
 
@@ -110,6 +156,22 @@ export default function ChunkViewerModal({
     setHtmlMode("preview");
   };
   const isDirty = (c: KnowledgeChunk) => draftTitle !== c.title || draftContent !== c.content || draftType !== c.contentType;
+
+  /** Converts draftContent to match the target type — never leaves it blank. Text -> HTML
+   * wraps the text in <p> markup (shown right away in "Dạng thô"); HTML -> Text keeps the
+   * HTML's readable text. */
+  const applyTypeSwitch = (t: ChunkContentType) => {
+    if (t === draftType) return;
+    setDraftContent(prev => (t === "html" ? textToHtml(prev) : htmlToText(prev)));
+    setDraftType(t);
+    if (t === "html") setHtmlMode("raw");
+  };
+
+  const requestTypeSwitch = (t: ChunkContentType) => {
+    if (t === draftType) return;
+    if (t === "text" && isLossyHtmlToText(draftContent)) { setPendingTypeSwitch(t); return; }
+    applyTypeSwitch(t);
+  };
 
   const cancelEdit = (c: KnowledgeChunk) => {
     if (isDirty(c)) { setCancelConfirm(true); return; }
@@ -273,18 +335,18 @@ export default function ChunkViewerModal({
                         <div className="flex items-center justify-end">
                           <div className="flex items-center gap-1 bg-surface-muted rounded-lg p-0.5">
                             {(["text", "html"] as ChunkContentType[]).map(t => (
-                              <button key={t} onClick={() => setDraftType(t)} className={`px-2.5 h-6 rounded-md text-[11px] font-medium transition-base ${draftType === t ? "bg-white shadow-soft text-foreground" : "text-muted-foreground"}`}>
-                                {t === "text" ? "Text" : "HTML"}
+                              <button key={t} onClick={() => requestTypeSwitch(t)} className={`px-2.5 h-6 rounded-md text-[11px] font-medium transition-base ${draftType === t ? "bg-white shadow-soft text-foreground" : "text-muted-foreground"}`}>
+                                {t === "text" ? "Văn bản" : "HTML"}
                               </button>
                             ))}
                           </div>
                         </div>
                         <div>
-                          <label className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">Title <span className="text-destructive">*</span></label>
+                          <label className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">Tiêu đề <span className="text-destructive">*</span></label>
                           <input value={draftTitle} onChange={e => setDraftTitle(e.target.value)} className="w-full h-9 px-2.5 rounded-lg border border-border bg-white text-sm font-medium outline-none focus:border-primary transition-base" />
                         </div>
                         <div>
-                          <label className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">Content <span className="text-destructive">*</span></label>
+                          <label className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">Nội dung <span className="text-destructive">*</span></label>
                           {draftType === "text" ? (
                             <textarea value={draftContent} onChange={e => setDraftContent(e.target.value)} rows={5} className="w-full px-2.5 py-2 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary transition-base resize-none" />
                           ) : (
@@ -312,11 +374,11 @@ export default function ChunkViewerModal({
                     ) : (
                       <div className="space-y-2.5 mt-1">
                         <div>
-                          <label className="text-xs font-medium text-muted-foreground mb-0.5 flex items-center gap-1">Title <span className="text-destructive">*</span></label>
+                          <label className="text-xs font-medium text-muted-foreground mb-0.5 flex items-center gap-1">Tiêu đề <span className="text-destructive">*</span></label>
                           <p className="text-sm font-medium">{c.title}</p>
                         </div>
                         <div>
-                          <label className="text-xs font-medium text-muted-foreground mb-0.5 flex items-center gap-1">Content <span className="text-destructive">*</span></label>
+                          <label className="text-xs font-medium text-muted-foreground mb-0.5 flex items-center gap-1">Nội dung <span className="text-destructive">*</span></label>
                           <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{c.content}</p>
                         </div>
                         {c.manuallyEdited && revealUpdateFor.has(c.id) && !viewOnly && (
@@ -344,8 +406,8 @@ export default function ChunkViewerModal({
             <AlertDialogDescription>Nội dung bạn vừa sửa sẽ không được lưu.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Tiếp tục chỉnh sửa</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmCancel}>Hủy thay đổi</AlertDialogAction>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Tiếp tục chỉnh sửa</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmCancel} className="bg-surface text-foreground border border-border hover:bg-surface-muted">Hủy thay đổi</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -357,8 +419,26 @@ export default function ChunkViewerModal({
             <AlertDialogDescription>Hệ thống sẽ tạo lại chunk từ tài liệu gốc. Các chunk bạn đã chỉnh sửa thủ công sẽ được giữ nguyên và đánh dấu.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Hủy bỏ</AlertDialogCancel>
-            <AlertDialogAction onClick={doReprocess}>Xử lý lại</AlertDialogAction>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
+            <AlertDialogAction onClick={doReprocess} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Xử lý lại</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={pendingTypeSwitch !== null} onOpenChange={v => { if (!v) setPendingTypeSwitch(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Chuyển định dạng nội dung?</AlertDialogTitle>
+            <AlertDialogDescription>Một số định dạng có thể không giữ nguyên khi chuyển. Bạn có muốn tiếp tục?</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-transparent text-foreground border border-border hover:bg-surface-muted"
+              onClick={() => { if (pendingTypeSwitch) applyTypeSwitch(pendingTypeSwitch); setPendingTypeSwitch(null); }}
+            >
+              Chuyển
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -370,7 +450,7 @@ export default function ChunkViewerModal({
             <AlertDialogDescription>Nội dung của chunk sẽ bị xóa vĩnh viễn khỏi kho tri thức và Agent sẽ không còn tra cứu được.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Hủy bỏ</AlertDialogCancel>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => { if (deleteTarget) knowledgeChunkStore.remove(deleteTarget.id); setDeleteTarget(null); refresh(); }}

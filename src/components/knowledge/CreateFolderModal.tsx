@@ -75,8 +75,8 @@ export default function CreateFolderModal({ open, existingNames, onClose, onCrea
             <AlertDialogDescription>Thông tin bạn vừa nhập sẽ không được lưu.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Tiếp tục chỉnh sửa</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setShowDiscardConfirm(false); reset(); onClose(); }}>Bỏ thay đổi</AlertDialogAction>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Tiếp tục chỉnh sửa</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setShowDiscardConfirm(false); reset(); onClose(); }} className="bg-surface text-foreground border border-border hover:bg-surface-muted">Bỏ thay đổi</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

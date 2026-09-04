@@ -129,8 +129,8 @@ export default function ShareKnowledgeBaseModal({
             <AlertDialogDescription>{revokedCount} người sẽ không còn xem được kho tri thức này.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Hủy bỏ</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setShowRevokeConfirm(false); applySave(); }}>Thu hồi quyền</AlertDialogAction>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { setShowRevokeConfirm(false); applySave(); }}>Thu hồi quyền</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

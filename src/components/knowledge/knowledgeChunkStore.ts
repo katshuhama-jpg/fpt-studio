@@ -47,7 +47,10 @@ function generateMockChunks(count: number): { title: string; content: string }[]
   });
 }
 
-function seedIfEmpty(kbId: string, sourceType: ChunkSourceType, sourceId: string) {
+function seedIfEmpty(
+  kbId: string, sourceType: ChunkSourceType, sourceId: string,
+  agentItemHint?: { status?: KnowledgeProcessingStatus; chunkCount?: number },
+) {
   const flagKey = `knowledge_chunk_seeded_v1:${sourceKey(sourceType, sourceId)}`;
   if (sessionStorage.getItem(flagKey)) return;
   sessionStorage.setItem(flagKey, "1");
@@ -63,6 +66,11 @@ function seedIfEmpty(kbId: string, sourceType: ChunkSourceType, sourceId: string
     const url = knowledgeUrlStore.get(kbId, sourceId);
     chunkCount = url?.chunkCount ?? 0;
     status = url?.status;
+  } else if (sourceType === "agent-item") {
+    // knowledgeStore.ts (agent items) can't be imported here without creating a circular
+    // dependency — the caller (ChunkViewerModal) passes the item's status/chunkCount instead.
+    chunkCount = agentItemHint?.chunkCount ?? 0;
+    status = agentItemHint?.status;
   }
 
   if (status === "done" && chunkCount > 0) {
@@ -77,9 +85,18 @@ function seedIfEmpty(kbId: string, sourceType: ChunkSourceType, sourceId: string
   }
 }
 
+/** Marks a source as already chunk-seeded so the lazy `seedIfEmpty` auto-population never
+ * overwrites chunks a caller populated directly (e.g. to pre-mark one as manually edited). */
+export function markChunksSeeded(sourceType: ChunkSourceType, sourceId: string) {
+  sessionStorage.setItem(`knowledge_chunk_seeded_v1:${sourceKey(sourceType, sourceId)}`, "1");
+}
+
 export const knowledgeChunkStore = {
-  list(kbId: string, sourceType: ChunkSourceType, sourceId: string): KnowledgeChunk[] {
-    seedIfEmpty(kbId, sourceType, sourceId);
+  list(
+    kbId: string, sourceType: ChunkSourceType, sourceId: string,
+    agentItemHint?: { status?: KnowledgeProcessingStatus; chunkCount?: number },
+  ): KnowledgeChunk[] {
+    seedIfEmpty(kbId, sourceType, sourceId, agentItemHint);
     return [...store.values()]
       .filter(c => c.sourceType === sourceType && c.sourceId === sourceId)
       .sort((a, b) => a.index - b.index);

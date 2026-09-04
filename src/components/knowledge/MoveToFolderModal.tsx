@@ -1,36 +1,51 @@
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Check } from "lucide-react";
 
 /** Store-agnostic folder picker for "Di chuyển" — only folders within the same Kho tri thức are
  * selectable, matching the source's own folder list (documents move among document folders,
- * URLs among URL folders). */
-export default function MoveToFolderModal({ open, folders, count, rootLabel = "Danh sách chung", onClose, onConfirm }: {
+ * URLs among URL folders). `disabledIds` covers a folder being moved and its own descendants,
+ * which can never be a valid destination for themselves. */
+export default function MoveToFolderModal({ open, folders, count, rootLabel = "Danh sách chung", disabledIds, onClose, onConfirm }: {
   open: boolean; folders: { id: string; name: string }[]; count: number; rootLabel?: string;
+  disabledIds?: Set<string>;
   onClose: () => void; onConfirm: (folderId: string | null) => void;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
   useEffect(() => { if (open) setSelected(null); }, [open]);
 
-  const Row = ({ id, label }: { id: string | null; label: string }) => (
-    <button
-      onClick={() => setSelected(id)}
-      className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-left text-sm transition-base ${
-        selected === id ? "bg-primary-soft text-primary font-medium" : "hover:bg-surface-muted"
-      }`}
-    >
-      {label}
-      {selected === id && <Check size={14} />}
-    </button>
-  );
+  const Row = ({ id, label, disabled }: { id: string | null; label: string; disabled?: boolean }) => {
+    const btn = (
+      <button
+        onClick={() => !disabled && setSelected(id)}
+        disabled={disabled}
+        aria-disabled={disabled}
+        className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-left text-sm transition-base ${
+          disabled ? "text-muted-foreground/50 cursor-not-allowed"
+            : selected === id ? "bg-primary-soft text-primary font-medium" : "hover:bg-surface-muted"
+        }`}
+      >
+        {label}
+        {!disabled && selected === id && <Check size={14} />}
+      </button>
+    );
+    if (!disabled) return btn;
+    return (
+      <Tooltip delayDuration={200}>
+        <TooltipTrigger asChild><span>{btn}</span></TooltipTrigger>
+        <TooltipContent>Không thể chuyển vào chính thư mục này hoặc thư mục con của nó.</TooltipContent>
+      </Tooltip>
+    );
+  };
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
       <DialogContent className="sm:max-w-[420px]">
         <DialogHeader><DialogTitle>Di chuyển {count > 1 ? `${count} mục` : "mục này"}</DialogTitle></DialogHeader>
         <div className="py-1 space-y-1 max-h-64 overflow-y-auto">
-          <Row id={null} label={rootLabel} />
-          {folders.map(f => <Row key={f.id} id={f.id} label={f.name} />)}
+          <Row id={null} label={rootLabel} disabled={disabledIds?.has("__root__")} />
+          {folders.map(f => <Row key={f.id} id={f.id} label={f.name} disabled={disabledIds?.has(f.id)} />)}
           {folders.length === 0 && <p className="text-xs text-muted-foreground px-3 py-2">Kho tri thức chưa có thư mục nào khác.</p>}
         </div>
         <DialogFooter>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { X } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export interface Chip { value: string; error?: string }
 
@@ -29,18 +30,26 @@ export default function ChipsInput({ chips, onChange, placeholder, validate }: {
 
   return (
     <div className="rounded-lg border border-border bg-white px-2 py-1.5 flex flex-wrap gap-1.5 min-h-[42px] focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-base">
-      {chips.map((c, i) => (
-        <span
-          key={i}
-          title={c.error}
-          className={`inline-flex items-center gap-1 pl-2 pr-1 h-7 rounded-md text-xs font-mono ${c.error ? "bg-[hsl(var(--destructive-soft))] text-destructive" : "bg-surface-muted text-foreground"}`}
-        >
-          {c.value}
-          <button type="button" onClick={() => onChange(chips.filter((_, ci) => ci !== i))} aria-label={`Xóa ${c.value}`} className="hover:opacity-70">
-            <X size={11} />
-          </button>
-        </span>
-      ))}
+      {chips.map((c, i) => {
+        const chip = (
+          <span
+            tabIndex={c.error ? 0 : undefined}
+            className={`inline-flex items-center gap-1 pl-2 pr-1 h-7 rounded-md text-xs font-mono outline-none ${c.error ? "bg-[hsl(var(--destructive-soft))] text-destructive focus-visible:ring-2 focus-visible:ring-destructive/40" : "bg-surface-muted text-foreground"}`}
+          >
+            {c.value}
+            <button type="button" onClick={() => onChange(chips.filter((_, ci) => ci !== i))} aria-label={`Xóa ${c.value}`} className="hover:opacity-70">
+              <X size={11} />
+            </button>
+          </span>
+        );
+        if (!c.error) return <span key={i}>{chip}</span>;
+        return (
+          <Tooltip key={i} delayDuration={200}>
+            <TooltipTrigger asChild>{chip}</TooltipTrigger>
+            <TooltipContent>{c.error}</TooltipContent>
+          </Tooltip>
+        );
+      })}
       <input
         value={draft}
         onChange={e => setDraft(e.target.value)}

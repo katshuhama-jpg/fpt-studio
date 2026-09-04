@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Info, Search, Loader2 } from "lucide-react";
+import { Info, Search, Loader2, Check, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import ChipsInput, { type Chip } from "./ChipsInput";
 import AdvancedConfigSection, { defaultAdvancedConfig, type AdvancedConfig } from "./AdvancedConfigSection";
@@ -37,21 +37,41 @@ function validateUrlChip(scope: { kbId?: string; agentId?: string }, value: stri
  * S14) — never both. Agent-scoped URLs skip folders, which don't apply to per-Agent knowledge. */
 interface Discovered { url: string; title: string; depth: number; selected: boolean }
 
-export default function AddUrlModal({ open, kbId, agentId, onClose }: { open: boolean; kbId?: string; agentId?: string; onClose: () => void }) {
+const DISCOVER_SEGMENTS = ["products", "blog", "about", "support", "pricing"];
+function makeDiscovered(base: string, i: number, maxDepth: number): Discovered {
+  const seg = DISCOVER_SEGMENTS[i % DISCOVER_SEGMENTS.length];
+  const depth = 1 + (i % Math.max(1, maxDepth));
+  return { url: `${base}/${seg}/muc-${i + 1}`, title: `Trang nội dung ${i + 1}`, depth, selected: true };
+}
+
+/** First path segment of a discovered URL, used to group step-2 results — e.g. "/products". */
+function groupKeyOf(url: string): string {
+  try {
+    const seg = new URL(url).pathname.split("/").filter(Boolean)[0];
+    return seg ? `/${seg}` : "/";
+  } catch {
+    return "/";
+  }
+}
+
+const GROUP_AUTO_EXPAND_LIMIT = 50;
+
+export default function AddUrlModal({ open, kbId, agentId, defaultFolderId, onClose }: { open: boolean; kbId?: string; agentId?: string; defaultFolderId?: string; onClose: () => void }) {
   const folders = agentId ? [] : knowledgeUrlStore.listFolders(kbId!);
+  const initialFolder = defaultFolderId ?? "";
   const [tab, setTab] = useState<ModalTab>("specified");
   const [pendingTab, setPendingTab] = useState<ModalTab | null>(null);
 
   // Tab 1 — specified URLs
   const [urlChips, setUrlChips] = useState<Chip[]>([]);
-  const [folder1, setFolder1] = useState("");
+  const [folder1, setFolder1] = useState(initialFolder);
   const [advanced1, setAdvanced1] = useState<AdvancedConfig>(defaultAdvancedConfig());
 
   // Tab 2 — crawl children
   const [step, setStep] = useState<1 | 2>(1);
   const [rootUrl, setRootUrl] = useState("");
   const [rootUrlError, setRootUrlError] = useState<string | null>(null);
-  const [folder2, setFolder2] = useState("");
+  const [folder2, setFolder2] = useState(initialFolder);
   const [maxDepth, setMaxDepth] = useState(3);
   const [maxPages, setMaxPages] = useState("");
   const [minContentLength, setMinContentLength] = useState("");
@@ -63,11 +83,12 @@ export default function AddUrlModal({ open, kbId, agentId, onClose }: { open: bo
   const [discoverQuery, setDiscoverQuery] = useState("");
   const discoverTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const [discoveredCount, setDiscoveredCount] = useState(0);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   // Tab 3 — sitemap
   const [sitemapUrl, setSitemapUrl] = useState("");
   const [sitemapTouched, setSitemapTouched] = useState(false);
-  const [folder3, setFolder3] = useState("");
+  const [folder3, setFolder3] = useState(initialFolder);
   const [includePaths3, setIncludePaths3] = useState<Chip[]>([]);
   const [excludePaths3, setExcludePaths3] = useState<Chip[]>([]);
   const [advanced3, setAdvanced3] = useState<AdvancedConfig>(defaultAdvancedConfig());
@@ -75,8 +96,9 @@ export default function AddUrlModal({ open, kbId, agentId, onClose }: { open: bo
   useEffect(() => () => { if (discoverTimer.current) clearInterval(discoverTimer.current); }, []);
 
   const resetAll = () => {
-    setTab("specified"); setUrlChips([]); setFolder1("");
+    setTab("specified"); setUrlChips([]); setFolder1(initialFolder);
     setStep(1); setRootUrl(""); setRootUrlError(null); setDiscovered([]); setDiscovering(false); setDiscoveredCount(0);
+    setCollapsedGroups(new Set());
     setSitemapUrl(""); setSitemapTouched(false);
   };
 
@@ -131,12 +153,10 @@ export default function AddUrlModal({ open, kbId, agentId, onClose }: { open: bo
       if (count >= total) {
         if (discoverTimer.current) clearInterval(discoverTimer.current);
         const base = rootUrl.trim().replace(/\/$/, "");
-        const items: Discovered[] = Array.from({ length: total }, (_, i) => {
-          const depth = 1 + (i % Math.max(1, maxDepth));
-          return { url: `${base}/muc-${i + 1}`, title: `Trang nội dung ${i + 1}`, depth, selected: true };
-        });
+        const items: Discovered[] = Array.from({ length: total }, (_, i) => makeDiscovered(base, i, maxDepth));
         setDiscovered(items);
         setDiscovering(false);
+        setCollapsedGroups(items.length > GROUP_AUTO_EXPAND_LIMIT ? new Set(items.map(d => groupKeyOf(d.url))) : new Set());
       }
     }, 180);
   };
@@ -144,12 +164,36 @@ export default function AddUrlModal({ open, kbId, agentId, onClose }: { open: bo
     if (discoverTimer.current) clearInterval(discoverTimer.current);
     setDiscovering(false);
     const base = rootUrl.trim().replace(/\/$/, "");
-    setDiscovered(Array.from({ length: discoveredCount }, (_, i) => ({ url: `${base}/muc-${i + 1}`, title: `Trang nội dung ${i + 1}`, depth: 1 + (i % Math.max(1, maxDepth)), selected: true })));
+    const items = Array.from({ length: discoveredCount }, (_, i) => makeDiscovered(base, i, maxDepth));
+    setDiscovered(items);
+    setCollapsedGroups(items.length > GROUP_AUTO_EXPAND_LIMIT ? new Set(items.map(d => groupKeyOf(d.url))) : new Set());
   };
 
-  const discoverFiltered = discovered.filter(d => !discoverQuery.trim() || d.url.includes(discoverQuery.trim()) || d.title.toLowerCase().includes(discoverQuery.trim().toLowerCase()));
+  const q = discoverQuery.trim().toLowerCase();
+  const matchesQuery = (d: Discovered) => !q || d.url.toLowerCase().includes(q) || d.title.toLowerCase().includes(q);
   const selectedCount = discovered.filter(d => d.selected).length;
   const allSelected = discovered.length > 0 && selectedCount === discovered.length;
+
+  const discoveredGroups = useMemo(() => {
+    const m = new Map<string, Discovered[]>();
+    for (const d of discovered) {
+      const k = groupKeyOf(d.url);
+      if (!m.has(k)) m.set(k, []);
+      m.get(k)!.push(d);
+    }
+    return [...m.entries()];
+  }, [discovered]);
+
+  const toggleGroupCollapsed = (key: string) => {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+  const toggleGroupSelection = (key: string, checked: boolean) => {
+    setDiscovered(prev => prev.map(d => groupKeyOf(d.url) === key ? { ...d, selected: checked } : d));
+  };
 
   const submitChildren = () => {
     const chosen = discovered.filter(d => d.selected);
@@ -209,7 +253,16 @@ export default function AddUrlModal({ open, kbId, agentId, onClose }: { open: bo
                 <ChipsInput chips={urlChips} onChange={setUrlChips} placeholder="https://..." validate={(v, existing) => validateUrlChip({ kbId, agentId }, v, existing)} />
                 <p className="text-xs text-muted-foreground mt-1">Nhập URL rồi nhấn Enter. Có thể dán nhiều URL cùng lúc.</p>
                 {urlChips.length > 0 && (
-                  <p className="text-xs mt-1"><span className="text-success font-medium">{validCount} URL hợp lệ</span> · <span className={invalidCount > 0 ? "text-destructive font-medium" : "text-muted-foreground"}>{invalidCount} URL cần sửa</span></p>
+                  <>
+                    <p className="text-xs mt-1"><span className="text-success font-medium">{validCount} URL hợp lệ</span> · <span className={invalidCount > 0 ? "text-destructive font-medium" : "text-muted-foreground"}>{invalidCount} URL cần sửa</span></p>
+                    {invalidCount > 0 && (
+                      <div className="mt-1.5 space-y-1">
+                        {urlChips.filter(c => c.error).map((c, i) => (
+                          <p key={i} className="text-xs text-destructive leading-relaxed">{c.value} — {c.error}</p>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
               <div>
@@ -220,6 +273,27 @@ export default function AddUrlModal({ open, kbId, agentId, onClose }: { open: bo
                 </select>
               </div>
               <AdvancedConfigSection value={advanced1} onChange={setAdvanced1} />
+            </div>
+          )}
+
+          {tab === "children" && (
+            <div className="flex items-center gap-2 py-2">
+              <button
+                type="button"
+                onClick={step === 2 ? () => setStep(1) : undefined}
+                disabled={step !== 2}
+                className={`flex items-center gap-1.5 text-xs font-medium ${step === 2 ? "text-success hover:underline cursor-pointer" : "text-primary cursor-default"}`}
+              >
+                <span className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 ${step === 2 ? "bg-success text-white" : "bg-primary text-primary-foreground"}`}>
+                  {step === 2 ? <Check size={10} /> : "1"}
+                </span>
+                Cấu hình
+              </button>
+              <div className="flex-1 h-px bg-border" />
+              <span className={`flex items-center gap-1.5 text-xs font-medium ${step === 2 ? "text-primary" : "text-muted-foreground"}`}>
+                <span className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 ${step === 2 ? "bg-primary text-primary-foreground" : "bg-surface-muted text-muted-foreground"}`}>2</span>
+                Chọn URL
+              </span>
             </div>
           )}
 
@@ -239,7 +313,7 @@ export default function AddUrlModal({ open, kbId, agentId, onClose }: { open: bo
               <div>
                 <label className="text-sm font-medium mb-1.5 block">Thư mục</label>
                 <select value={folder2} onChange={e => setFolder2(e.target.value)} className="w-full h-9 px-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary transition-base">
-                  <option value="">Không chọn</option>
+                  <option value="">Danh sách URL chung</option>
                   {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                 </select>
               </div>
@@ -288,19 +362,47 @@ export default function AddUrlModal({ open, kbId, agentId, onClose }: { open: bo
                     Chọn tất cả ({discovered.length})
                   </label>
                   <div className="max-h-64 overflow-y-auto rounded-lg border border-border divide-y divide-border">
-                    {discoverFiltered.map(d => (
-                      <label key={d.url} className="flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-surface-muted/50 transition-base">
-                        <input
-                          type="checkbox" checked={d.selected}
-                          onChange={() => setDiscovered(prev => prev.map(x => x.url === d.url ? { ...x, selected: !x.selected } : x))}
-                          className="w-4 h-4 accent-primary shrink-0"
-                        />
-                        <div className="min-w-0">
-                          <div className="text-sm truncate">{d.title}</div>
-                          <div className="text-xs text-muted-foreground font-mono truncate">{d.url}</div>
+                    {discoveredGroups.map(([key, items]) => {
+                      const groupMatches = items.filter(matchesQuery);
+                      if (q && groupMatches.length === 0) return null;
+                      const forceOpen = q.length > 0 && groupMatches.length > 0;
+                      const isCollapsed = collapsedGroups.has(key) && !forceOpen;
+                      const selectedInGroup = items.filter(d => d.selected).length;
+                      const allInGroupSelected = items.length > 0 && selectedInGroup === items.length;
+                      const rowsToShow = q ? groupMatches : items;
+                      return (
+                        <div key={key}>
+                          <div className="flex items-center gap-2 px-3 py-2 bg-surface-muted/60">
+                            <button type="button" onClick={() => toggleGroupCollapsed(key)} aria-label={isCollapsed ? "Mở rộng nhóm" : "Thu gọn nhóm"} className="text-muted-foreground hover:text-foreground transition-base shrink-0">
+                              {isCollapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
+                            </button>
+                            <input
+                              type="checkbox"
+                              checked={allInGroupSelected}
+                              ref={el => { if (el) el.indeterminate = selectedInGroup > 0 && !allInGroupSelected; }}
+                              onChange={e => toggleGroupSelection(key, e.target.checked)}
+                              className="w-4 h-4 accent-primary shrink-0"
+                            />
+                            <button type="button" onClick={() => toggleGroupCollapsed(key)} className="flex-1 text-left text-xs font-semibold truncate">
+                              {key} ({items.length})
+                            </button>
+                          </div>
+                          {!isCollapsed && rowsToShow.map(d => (
+                            <label key={d.url} className="flex items-center gap-2.5 pl-9 pr-3 py-2 cursor-pointer hover:bg-surface-muted/50 transition-base">
+                              <input
+                                type="checkbox" checked={d.selected}
+                                onChange={() => setDiscovered(prev => prev.map(x => x.url === d.url ? { ...x, selected: !x.selected } : x))}
+                                className="w-4 h-4 accent-primary shrink-0"
+                              />
+                              <div className="min-w-0">
+                                <div className="text-sm truncate">{d.title}</div>
+                                <div className="text-xs text-muted-foreground font-mono truncate">{d.url}</div>
+                              </div>
+                            </label>
+                          ))}
                         </div>
-                      </label>
-                    ))}
+                      );
+                    })}
                   </div>
                 </>
               )}
@@ -323,7 +425,7 @@ export default function AddUrlModal({ open, kbId, agentId, onClose }: { open: bo
               <div>
                 <label className="text-sm font-medium mb-1.5 block">Thư mục</label>
                 <select value={folder3} onChange={e => setFolder3(e.target.value)} className="w-full h-9 px-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary transition-base">
-                  <option value="">Website</option>
+                  <option value="">Danh sách URL chung</option>
                   {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                 </select>
               </div>
@@ -365,11 +467,12 @@ export default function AddUrlModal({ open, kbId, agentId, onClose }: { open: bo
       <AlertDialog open={!!pendingTab} onOpenChange={v => !v && setPendingTab(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Chuyển sang cách khác sẽ xóa thông tin bạn vừa nhập. Tiếp tục?</AlertDialogTitle>
+            <AlertDialogTitle>Chuyển sang cách khác?</AlertDialogTitle>
+            <AlertDialogDescription>Thông tin bạn vừa nhập ở tab này sẽ không được giữ lại.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setPendingTab(null)}>Ở lại</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmTabChange}>Chuyển</AlertDialogAction>
+            <AlertDialogCancel onClick={() => setPendingTab(null)} className="bg-primary text-primary-foreground hover:bg-primary/90">Ở lại</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmTabChange} className="bg-surface text-foreground border border-border hover:bg-surface-muted">Chuyển</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

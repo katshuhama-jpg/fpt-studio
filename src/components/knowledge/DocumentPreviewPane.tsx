@@ -38,33 +38,34 @@ export default function DocumentPreviewPane({
 
   return (
     <div className="relative flex flex-col h-full bg-surface-muted/40">
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-0.5 bg-white rounded-xl shadow-elev border border-border px-1.5 py-1.5">
-        <button onClick={() => onPageChange(Math.max(0, page - 1))} disabled={page === 0} aria-label="Trang trước" className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-muted disabled:opacity-40 transition-base">
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-0.5 bg-white rounded-xl shadow-elev border border-border px-1.5 py-1.5 max-w-[calc(100%-2rem)] overflow-x-auto">
+        <button onClick={() => onPageChange(Math.max(0, page - 1))} disabled={page === 0} aria-label="Trang trước" className="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-muted disabled:opacity-40 transition-base">
           <ChevronLeft size={14} />
         </button>
-        <span className="text-xs font-medium px-1 tabular-nums min-w-[36px] text-center">{page + 1}/{totalPages}</span>
-        <button onClick={() => onPageChange(Math.min(totalPages - 1, page + 1))} disabled={page === totalPages - 1} aria-label="Trang sau" className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-muted disabled:opacity-40 transition-base">
+        <span className="text-xs font-medium px-1 tabular-nums min-w-[36px] text-center shrink-0 whitespace-nowrap">{page + 1}/{totalPages}</span>
+        <button onClick={() => onPageChange(Math.min(totalPages - 1, page + 1))} disabled={page === totalPages - 1} aria-label="Trang sau" className="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-muted disabled:opacity-40 transition-base">
           <ChevronRight size={14} />
         </button>
-        <div className="w-px h-5 bg-border mx-1" />
-        <button onClick={() => setZoom(z => Math.max(0.6, z - 0.1))} aria-label="Thu nhỏ" className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-muted transition-base">
+        <div className="w-px h-5 bg-border mx-1 shrink-0" />
+        <button onClick={() => setZoom(z => Math.max(0.6, z - 0.1))} aria-label="Thu nhỏ" className="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-muted transition-base">
           <ZoomOut size={14} />
         </button>
-        <span className="text-xs font-medium px-1 tabular-nums min-w-[36px] text-center">{Math.round(zoom * 100)}%</span>
-        <button onClick={() => setZoom(z => Math.min(2, z + 0.1))} aria-label="Phóng to" className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-muted transition-base">
+        <span className="text-xs font-medium px-1 tabular-nums min-w-[36px] text-center shrink-0 whitespace-nowrap">{Math.round(zoom * 100)}%</span>
+        <button onClick={() => setZoom(z => Math.min(2, z + 0.1))} aria-label="Phóng to" className="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-muted transition-base">
           <ZoomIn size={14} />
         </button>
         {!viewOnly && (
           <>
-            <div className="w-px h-5 bg-border mx-1" />
+            <div className="w-px h-5 bg-border mx-1 shrink-0" />
             <button
               onClick={onReprocess}
               disabled={!canReprocess}
-              className="h-8 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-xs font-medium transition-base flex items-center gap-1.5 disabled:opacity-40 disabled:pointer-events-none"
+              title="Xử lý lại"
+              className="h-8 px-3 shrink-0 rounded-lg border border-border bg-surface hover:bg-surface-muted text-xs font-medium transition-base flex items-center gap-1.5 whitespace-nowrap disabled:opacity-40 disabled:pointer-events-none"
             >
-              <RefreshCw size={12} /> Xử lý lại
+              <RefreshCw size={12} className="shrink-0" /> <span className="whitespace-nowrap">Xử lý lại</span>
             </button>
-            <button onClick={onProcess} className="h-8 px-3 rounded-lg btn-primary text-xs">Xử lý kết quả</button>
+            <button onClick={onProcess} title="Xử lý kết quả" className="h-8 px-3 shrink-0 rounded-lg btn-primary text-xs whitespace-nowrap">Xử lý kết quả</button>
           </>
         )}
       </div>

@@ -8,15 +8,17 @@ import { ChevronLeft, ToggleLeft, ToggleRight } from "lucide-react";
 import { toast } from "sonner";
 import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
 import { knowledgeUrlStore } from "./knowledgeUrlStore";
+import { knowledgeStore } from "./knowledgeStore";
 import { knowledgeChunkStore, type ChunkSourceType } from "./knowledgeChunkStore";
 
-/** Common shape for either a KnowledgeDocument or a KnowledgeUrl — the version-history drawer
- * opens from either's "v3" badge (S12), so it doesn't need the full source-specific type. */
+/** Common shape for a KnowledgeDocument, a KnowledgeUrl, or an Agent-owned KnowledgeItem — the
+ * version-history drawer opens from any of their "v3" badges, so it doesn't need the full
+ * source-specific type. For "agent-item", `kbId` doubles as the agentId. */
 export interface VersionedSource {
   id: string;
   kbId: string;
   name: string;
-  sourceType: "document" | "url";
+  sourceType: "document" | "url" | "agent-item";
   version: number;
   updatedAt: number;
   updatedBy: string;
@@ -165,14 +167,18 @@ export default function VersionHistoryPanel({ source: doc, onClose }: { source: 
             <AlertDialogDescription>Nội dung hiện tại sẽ được lưu thành một phiên bản mới trước khi khôi phục, nên bạn luôn quay lại được.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Hủy bỏ</AlertDialogCancel>
-            <AlertDialogAction onClick={() => {
-              if (doc.sourceType === "document") knowledgeDocumentStore.restoreVersion(doc.id);
-              else knowledgeUrlStore.restoreVersion(doc.id);
-              toast.success(`Đã khôi phục về phiên bản v${restoreVersion}.`);
-              setRestoreVersion(null);
-              onClose();
-            }}>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-surface text-foreground border border-border hover:bg-surface-muted"
+              onClick={() => {
+                if (doc.sourceType === "document") knowledgeDocumentStore.restoreVersion(doc.id);
+                else if (doc.sourceType === "url") knowledgeUrlStore.restoreVersion(doc.id);
+                else knowledgeStore.restoreVersion(doc.kbId, doc.id);
+                toast.success(`Đã khôi phục về phiên bản v${restoreVersion}.`);
+                setRestoreVersion(null);
+                onClose();
+              }}
+            >
               Khôi phục
             </AlertDialogAction>
           </AlertDialogFooter>

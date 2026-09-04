@@ -89,9 +89,9 @@ export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; view
             <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm câu hỏi..." className="h-9 w-56 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30" />
           </div>
           <div className="relative">
-            <button onClick={() => setCategoryOpen(v => !v)} onBlur={() => setTimeout(() => setCategoryOpen(false), 150)} className="h-9 px-3 flex items-center gap-1.5 rounded-lg border border-border bg-surface text-sm hover:bg-surface-muted transition-base">
-              Danh mục {categoryFilter.size > 0 && `(${categoryFilter.size})`}
-              <ChevronDown size={12} className={`text-muted-foreground transition-base ${categoryOpen ? "rotate-180" : ""}`} />
+            <button onClick={() => setCategoryOpen(v => !v)} onBlur={() => setTimeout(() => setCategoryOpen(false), 150)} className={`h-9 px-3 flex items-center gap-1.5 rounded-lg border text-sm transition-base ${categoryFilter.size > 0 ? "border-primary/30 bg-primary-soft text-primary font-medium" : "border-border bg-surface hover:bg-surface-muted"}`}>
+              Danh mục: {categoryFilter.size > 0 ? `${categoryFilter.size} đã chọn` : "Tất cả"}
+              <ChevronDown size={12} className={`transition-base ${categoryFilter.size > 0 ? "text-primary" : "text-muted-foreground"} ${categoryOpen ? "rotate-180" : ""}`} />
             </button>
             {categoryOpen && (
               <div className="absolute left-0 top-[calc(100%+4px)] w-56 max-h-64 overflow-y-auto bg-white rounded-lg ring-1 ring-border shadow-elev z-20 p-1">
@@ -107,9 +107,9 @@ export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; view
             )}
           </div>
           <div className="relative">
-            <button onClick={() => setStatusOpen(v => !v)} onBlur={() => setTimeout(() => setStatusOpen(false), 150)} className="h-9 px-3 flex items-center gap-1.5 rounded-lg border border-border bg-surface text-sm hover:bg-surface-muted transition-base">
-              {STATUS_OPTIONS.find(o => o.value === statusFilter)?.label}
-              <ChevronDown size={12} className={`text-muted-foreground transition-base ${statusOpen ? "rotate-180" : ""}`} />
+            <button onClick={() => setStatusOpen(v => !v)} onBlur={() => setTimeout(() => setStatusOpen(false), 150)} className={`h-9 px-3 flex items-center gap-1.5 rounded-lg border text-sm transition-base ${statusFilter !== "all" ? "border-primary/30 bg-primary-soft text-primary font-medium" : "border-border bg-surface hover:bg-surface-muted"}`}>
+              Trạng thái: {STATUS_OPTIONS.find(o => o.value === statusFilter)?.label}
+              <ChevronDown size={12} className={`transition-base ${statusFilter !== "all" ? "text-primary" : "text-muted-foreground"} ${statusOpen ? "rotate-180" : ""}`} />
             </button>
             {statusOpen && (
               <div className="absolute left-0 top-[calc(100%+4px)] w-48 bg-white rounded-lg ring-1 ring-border shadow-elev z-20 p-1">
@@ -119,6 +119,11 @@ export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; view
               </div>
             )}
           </div>
+          {(statusFilter !== "all" || categoryFilter.size > 0) && (
+            <button onClick={() => { setStatusFilter("all"); setCategoryFilter(new Set()); }} className="text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline transition-base">
+              Xóa bộ lọc
+            </button>
+          )}
         </div>
         {!viewOnly && (
           <div className="relative" ref={createMenuRef}>
@@ -210,7 +215,7 @@ export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; view
             <AlertDialogDescription>Câu hỏi và câu trả lời sẽ bị xóa vĩnh viễn khỏi kho tri thức. Hành động này không thể hoàn tác.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Hủy bỏ</AlertDialogCancel>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => {

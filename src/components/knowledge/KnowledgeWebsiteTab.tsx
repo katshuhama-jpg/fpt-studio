@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Search, ChevronDown, Plus, MoreVertical, Clock, Settings2 } from "lucide-react";
+import { Search, ChevronDown, Plus, MoreVertical, Clock, Settings2, X } from "lucide-react";
 import FileTypeIcon from "./FileTypeIcon";
 import CreateFolderModal from "./CreateFolderModal";
 import MoveToFolderModal from "./MoveToFolderModal";
@@ -67,6 +67,9 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
   const [showCreateFolder, setShowCreateFolder] = useState(false);
   const [moveTargets, setMoveTargets] = useState<KnowledgeUrl[] | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [folderFilter, setFolderFilter] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<KnowledgeUrl | null>(null);
+  const [renameValue, setRenameValue] = useState("");
   const createMenuRef = useRef<HTMLDivElement>(null);
 
   const openId = params.get("urlId");
@@ -84,10 +87,12 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
   void tick;
   const refresh = () => setTick(t => t + 1);
   const q = query.trim().toLowerCase();
+  const openFolder = folderFilter ? all.find(u => u.id === folderFilter) : undefined;
   const filtered = all.filter(u =>
     (!q || u.name.toLowerCase().includes(q) || (u.url ?? "").toLowerCase().includes(q)) &&
     (statusFilter === "all" || u.status === statusFilter) &&
-    (sourceFilter === "all" || u.source === sourceFilter),
+    (sourceFilter === "all" || u.source === sourceFilter) &&
+    (folderFilter === null || u.folderId === folderFilter),
   );
 
   const openViewer = (id: string) => setParams({ urlId: id });
@@ -113,9 +118,9 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
             <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm URL hoặc thư mục..." className="h-9 w-56 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30" />
           </div>
           <div className="relative">
-            <button onClick={() => setStatusOpen(v => !v)} onBlur={() => setTimeout(() => setStatusOpen(false), 150)} className="h-9 px-3 flex items-center gap-1.5 rounded-lg border border-border bg-surface text-sm hover:bg-surface-muted transition-base">
-              {STATUS_OPTIONS.find(o => o.value === statusFilter)?.label}
-              <ChevronDown size={12} className={`text-muted-foreground transition-base ${statusOpen ? "rotate-180" : ""}`} />
+            <button onClick={() => setStatusOpen(v => !v)} onBlur={() => setTimeout(() => setStatusOpen(false), 150)} className={`h-9 px-3 flex items-center gap-1.5 rounded-lg border text-sm transition-base ${statusFilter !== "all" ? "border-primary/30 bg-primary-soft text-primary font-medium" : "border-border bg-surface hover:bg-surface-muted"}`}>
+              Trạng thái: {STATUS_OPTIONS.find(o => o.value === statusFilter)?.label}
+              <ChevronDown size={12} className={`transition-base ${statusFilter !== "all" ? "text-primary" : "text-muted-foreground"} ${statusOpen ? "rotate-180" : ""}`} />
             </button>
             {statusOpen && (
               <div className="absolute left-0 top-[calc(100%+4px)] w-48 bg-white rounded-lg ring-1 ring-border shadow-elev z-20 p-1">
@@ -126,9 +131,9 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
             )}
           </div>
           <div className="relative">
-            <button onClick={() => setSourceOpen(v => !v)} onBlur={() => setTimeout(() => setSourceOpen(false), 150)} className="h-9 px-3 flex items-center gap-1.5 rounded-lg border border-border bg-surface text-sm hover:bg-surface-muted transition-base">
-              {SOURCE_OPTIONS.find(o => o.value === sourceFilter)?.label}
-              <ChevronDown size={12} className={`text-muted-foreground transition-base ${sourceOpen ? "rotate-180" : ""}`} />
+            <button onClick={() => setSourceOpen(v => !v)} onBlur={() => setTimeout(() => setSourceOpen(false), 150)} className={`h-9 px-3 flex items-center gap-1.5 rounded-lg border text-sm transition-base ${sourceFilter !== "all" ? "border-primary/30 bg-primary-soft text-primary font-medium" : "border-border bg-surface hover:bg-surface-muted"}`}>
+              Nguồn: {SOURCE_OPTIONS.find(o => o.value === sourceFilter)?.label}
+              <ChevronDown size={12} className={`transition-base ${sourceFilter !== "all" ? "text-primary" : "text-muted-foreground"} ${sourceOpen ? "rotate-180" : ""}`} />
             </button>
             {sourceOpen && (
               <div className="absolute left-0 top-[calc(100%+4px)] w-48 bg-white rounded-lg ring-1 ring-border shadow-elev z-20 p-1">
@@ -138,6 +143,11 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
               </div>
             )}
           </div>
+          {(statusFilter !== "all" || sourceFilter !== "all") && (
+            <button onClick={() => { setStatusFilter("all"); setSourceFilter("all"); }} className="text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline transition-base">
+              Xóa bộ lọc
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -179,6 +189,14 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
         </div>
       </div>
 
+      {openFolder && (
+        <div className="flex items-center gap-1.5 text-sm mb-3">
+          <button onClick={() => setFolderFilter(null)} className="text-primary font-medium hover:underline">Tất cả URL</button>
+          <span className="text-muted-foreground">/</span>
+          <span className="font-medium truncate">{openFolder.name}</span>
+        </div>
+      )}
+
       {selected.size > 0 && !viewOnly && (
         <div className="flex items-center gap-3 mb-3 px-3 h-10 rounded-lg bg-primary-soft border border-primary/15">
           <span className="text-sm font-medium text-primary">Đã chọn {selected.size} mục</span>
@@ -218,9 +236,9 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
             <tbody>
               {filtered.map(u => (
                 <tr key={u.id} className={`border-b border-border last:border-0 hover:bg-surface-muted/50 transition-base ${highlightId === u.id ? "bg-primary-soft/40" : ""}`}>
-                  <td className="px-4 py-3">{!u.isFolder && <input type="checkbox" checked={selected.has(u.id)} onChange={() => toggleRow(u.id)} className="w-4 h-4 accent-primary" aria-label={`Chọn ${u.name}`} />}</td>
+                  <td className="px-4 py-3"><input type="checkbox" checked={selected.has(u.id)} onChange={() => toggleRow(u.id)} className="w-4 h-4 accent-primary" aria-label={`Chọn ${u.name}`} /></td>
                   <td className="px-2 py-3 max-w-[340px]">
-                    <button onClick={() => !u.isFolder && openViewer(u.id)} disabled={u.isFolder} className="flex items-center gap-2 w-full min-w-0 text-left disabled:cursor-default">
+                    <button onClick={() => u.isFolder ? setFolderFilter(u.id) : openViewer(u.id)} className="flex items-center gap-2 w-full min-w-0 text-left disabled:cursor-default">
                       <FileTypeIcon kind={u.isFolder ? "folder" : "url"} />
                       <div className="min-w-0 block w-full">
                         <div className="text-sm font-medium truncate">{u.isFolder ? u.name : u.title}</div>
@@ -230,7 +248,22 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
                   </td>
                   <td className="px-2 py-3">{!u.isFolder && u.source && <span className="chip chip-muted">{SOURCE_LABEL[u.source]}</span>}</td>
                   <td className="px-2 py-3">{!u.isFolder && <KnowledgeStatusPill status={u.status} />}</td>
-                  <td className="px-2 py-3">{!u.isFolder && <button onClick={() => setVersionTarget(u)} className="chip chip-muted hover:opacity-80 transition-base">v{u.version}</button>}</td>
+                  <td className="px-2 py-3">
+                    {!u.isFolder && (
+                      <Tooltip delayDuration={200}>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() => setVersionTarget(u)}
+                            aria-label="Xem lịch sử phiên bản"
+                            className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] -m-2.5 rounded-lg text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-base"
+                          >
+                            <span className="chip chip-muted pointer-events-none">v{u.version}</span>
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>Xem lịch sử phiên bản</TooltipContent>
+                      </Tooltip>
+                    )}
+                  </td>
                   <td className="px-2 py-3 text-xs text-muted-foreground whitespace-nowrap">
                     {u.isFolder ? "—" : u.lastSyncAt ? (
                       <span className="flex items-center gap-1.5">
@@ -251,7 +284,15 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
                   </td>
                   <td className="px-2 py-3 text-xs text-muted-foreground truncate">{u.updatedBy}</td>
                   <td className="px-4 py-3 text-right">
-                    {!u.isFolder && (
+                    {u.isFolder ? (
+                      <FolderRowMenu
+                        viewOnly={viewOnly}
+                        onOpen={() => setFolderFilter(u.id)}
+                        onRename={() => { setRenaming(u); setRenameValue(u.name); }}
+                        onMove={() => setMoveTargets([u])}
+                        onDelete={() => setDeleteTargets([u])}
+                      />
+                    ) : (
                       <RowMenu
                         viewOnly={viewOnly}
                         onOpen={() => openViewer(u.id)}
@@ -291,13 +332,24 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
           open={!!moveTargets}
           count={moveTargets.length}
           rootLabel="Danh sách URL chung"
-          folders={knowledgeUrlStore.listFolders(kbId).filter(f => !moveTargets.some(m => m.id === f.id))}
+          folders={knowledgeUrlStore.listFolders(kbId)}
+          disabledIds={new Set(moveTargets.filter(m => m.isFolder).flatMap(m => [m.id, ...knowledgeUrlStore.getDescendantFolderIds(kbId, m.id)]))}
           onClose={() => setMoveTargets(null)}
           onConfirm={folderId => {
             knowledgeUrlStore.moveMany(moveTargets.map(m => m.id), folderId);
             setSelected(new Set());
             refresh();
           }}
+        />
+      )}
+
+      {renaming && (
+        <RenameFolderDialog
+          value={renameValue}
+          onChange={setRenameValue}
+          onCancel={() => setRenaming(null)}
+          isDuplicate={name => knowledgeUrlStore.isDuplicateFolderName(kbId, name, renaming.folderId, renaming.id)}
+          onConfirm={() => { knowledgeUrlStore.rename(renaming.id, renameValue); setRenaming(null); refresh(); }}
         />
       )}
       {scheduleTarget && <UrlScheduleOverrideModal kbId={kbId} url={scheduleTarget} onClose={() => { setScheduleTarget(null); refresh(); }} />}
@@ -310,25 +362,129 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
 
       <AlertDialog open={!!deleteTargets} onOpenChange={v => !v && setDeleteTargets(null)}>
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{deleteTargets && deleteTargets.length === 1 ? "Xóa URL này?" : `Xóa ${deleteTargets?.length} URL?`}</AlertDialogTitle>
-            <AlertDialogDescription>Nội dung và toàn bộ chunk liên quan sẽ bị xóa vĩnh viễn khỏi kho tri thức.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Hủy bỏ</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => {
-                if (deleteTargets) { knowledgeUrlStore.removeMany(deleteTargets.map(u => u.id)); toast.success("Đã xóa URL đã chọn."); }
-                setDeleteTargets(null); setSelected(new Set()); refresh();
-              }}
-            >
-              Xóa
-            </AlertDialogAction>
-          </AlertDialogFooter>
+          {(() => {
+            if (!deleteTargets) return null;
+            const folderTargets = deleteTargets.filter(d => d.isFolder);
+            const cascadeCount = folderTargets.reduce((sum, f) => sum + knowledgeUrlStore.countUrlsInFolder(kbId, f.id), 0);
+            const isSingleFolder = deleteTargets.length === 1 && folderTargets.length === 1;
+            const title = isSingleFolder ? "Xóa thư mục này?" : deleteTargets.length === 1 ? "Xóa URL này?" : `Xóa ${deleteTargets.length} mục?`;
+            return (
+              <>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{title}</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {isSingleFolder ? (
+                      <>
+                        Thư mục "{folderTargets[0].name}" và toàn bộ URL bên trong sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác.
+                        <br /><br />
+                        Thư mục đang chứa {cascadeCount} URL.
+                      </>
+                    ) : (
+                      <>
+                        Nội dung và toàn bộ chunk liên quan sẽ bị xóa vĩnh viễn khỏi kho tri thức.
+                        {folderTargets.length > 0 && <><br /><br />Các thư mục đã chọn đang chứa {cascadeCount} URL.</>}
+                      </>
+                    )}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={() => {
+                      for (const f of folderTargets) knowledgeUrlStore.removeFolderCascade(kbId, f.id);
+                      const urlIds = deleteTargets.filter(d => !d.isFolder).map(d => d.id);
+                      if (urlIds.length > 0) knowledgeUrlStore.removeMany(urlIds);
+                      toast.success(deleteTargets.length === 1 ? "Đã xóa mục đã chọn." : `Đã xóa ${deleteTargets.length} mục.`);
+                      setDeleteTargets(null); setSelected(new Set()); refresh();
+                    }}
+                  >
+                    {isSingleFolder ? "Xác nhận và xóa" : "Xóa"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </>
+            );
+          })()}
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </div>
+  );
+}
+
+function FolderRowMenu({ viewOnly, onOpen, onRename, onMove, onDelete }: {
+  viewOnly: boolean; onOpen: () => void; onRename: () => void; onMove: () => void; onDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+  const items: { label: string; onClick: () => void; danger?: boolean }[] = [{ label: "Mở", onClick: onOpen }];
+  if (!viewOnly) items.push(
+    { label: "Đổi tên", onClick: onRename },
+    { label: "Di chuyển", onClick: onMove },
+    { label: "Xóa", onClick: onDelete, danger: true },
+  );
+  return (
+    <div ref={ref} className="relative inline-block" onClick={e => e.stopPropagation()}>
+      <button onClick={() => setOpen(v => !v)} aria-label="Thao tác thư mục" className="w-9 h-9 min-w-[44px] min-h-[44px] -m-1.5 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <MoreVertical size={15} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 z-20 w-44 rounded-lg border border-border bg-white shadow-elev py-1">
+          {items.map(item => (
+            <button key={item.label} onClick={() => { setOpen(false); item.onClick(); }} className={`w-full text-left px-3 py-1.5 text-xs transition-base ${item.danger ? "text-destructive hover:bg-[hsl(var(--destructive-soft))]" : "hover:bg-surface-muted"}`}>
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RenameFolderDialog({ value, onChange, onCancel, onConfirm, isDuplicate }: {
+  value: string; onChange: (v: string) => void; onCancel: () => void; onConfirm: () => void; isDuplicate: (name: string) => boolean;
+}) {
+  const [touched, setTouched] = useState(false);
+  const trimmed = value.trim();
+  const error = touched
+    ? !trimmed ? "Vui lòng nhập tên thư mục."
+      : isDuplicate(trimmed) ? "Tên thư mục đã tồn tại. Vui lòng chọn tên khác."
+      : null
+    : null;
+  const submit = () => { setTouched(true); if (!trimmed || isDuplicate(trimmed)) return; onConfirm(); };
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onCancel} />
+      <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold">Đổi tên thư mục</h3>
+          <button onClick={onCancel} className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground"><X size={14} /></button>
+        </div>
+        <div className="flex items-center justify-between mb-1.5">
+          <label className="text-sm font-medium">Tên thư mục <span className="text-destructive">*</span></label>
+          <span className="text-xs text-muted-foreground">{value.length}/50</span>
+        </div>
+        <input
+          autoFocus
+          value={value}
+          maxLength={50}
+          onChange={e => onChange(e.target.value)}
+          onBlur={() => setTouched(true)}
+          onKeyDown={e => { if (e.key === "Enter") submit(); }}
+          className={`w-full h-10 px-3 rounded-lg border bg-white text-sm outline-none focus:ring-2 transition-base ${error ? "border-destructive focus:ring-destructive/20" : "border-border focus:border-primary focus:ring-primary/20"}`}
+        />
+        {error && <p className="text-xs text-destructive mt-1.5">{error}</p>}
+        <div className="flex items-center justify-end gap-2 mt-4">
+          <button onClick={onCancel} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Hủy bỏ</button>
+          <button onClick={submit} className="btn-primary h-9">Lưu</button>
+        </div>
+      </div>
     </div>
   );
 }
