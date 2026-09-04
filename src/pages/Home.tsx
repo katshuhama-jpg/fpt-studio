@@ -1,7 +1,7 @@
 import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  ArrowRight, ArrowUpRight, Sparkles, Send, Paperclip, AtSign,
+  ArrowRight, ArrowUpRight, Sparkles, Paperclip, AtSign,
   Play, ExternalLink, X, Search, Edit, Copy, ShieldCheck,
   KeyRound, AlertTriangle, CheckCircle2, Plus, MoreVertical, Trash2
 } from "lucide-react";
@@ -206,7 +206,7 @@ function CreateAgentModal({ onClose }: { onClose: () => void }) {
             <div className="flex items-center gap-3">
               <button type="button" onClick={() => setShowTemplates(true)} className="text-sm text-muted-foreground hover:text-foreground transition-base">Use a template</button>
               <button type="button" onClick={handleBuild} disabled={!prompt.trim()} className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
-                <Sparkles size={14} /> Build agent <Send size={13} />
+                <Sparkles size={14} /> Build agent
               </button>
             </div>
           </div>
