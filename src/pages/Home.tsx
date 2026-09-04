@@ -183,7 +183,7 @@ function CreateAgentModal({ onClose }: { onClose: () => void }) {
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-lg">
-        <DialogHeader className="text-center sm:text-center">
+        <DialogHeader className="text-left">
           <DialogTitle>Start to build your agent today</DialogTitle>
           <DialogDescription>Describe what you need and we'll build it for you</DialogDescription>
         </DialogHeader>
