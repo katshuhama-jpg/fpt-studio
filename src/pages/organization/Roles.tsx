@@ -3,46 +3,27 @@ import { createPortal } from "react-dom";
 import { Plus, X, Trash2, ChevronRight, Lock, Info } from "lucide-react";
 import { toast } from "sonner";
 import { Card, PageHeader } from "./shared";
+import { Checkbox } from "@/components/ui/checkbox";
 import { featureGroups, SECTIONS, ALL_PERMISSION_IDS, FeatureGroup } from "./permissionsData";
 import { useRoles, isScopablePermission, defaultScope, type ScopeMap, type ScopeValue } from "./rolesStore";
 import { useOrg } from "./orgStore";
 import { collectMembers } from "./orgData";
 import { DEFAULT_ROLE_ID } from "./Members";
 
-/* ─── Toggle switch ────────────────────────────────────────────────────── */
-function Toggle({ enabled, onChange, disabled }: { enabled: boolean; onChange: () => void; disabled?: boolean }) {
-  return (
-    <button
-      type="button"
-      onClick={onChange}
-      disabled={disabled}
-      className={`shrink-0 relative inline-flex h-5 w-9 items-center rounded-full border transition-colors duration-200 focus:outline-none ${
-        enabled ? "bg-primary border-primary" : "bg-surface-muted border-border"
-      } ${disabled ? "opacity-50 pointer-events-none" : ""}`}
-      role="switch"
-      aria-checked={enabled}
-    >
-      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform duration-200 ${
-        enabled ? "translate-x-4" : "translate-x-0.5"
-      }`} />
-    </button>
-  );
-}
-
 /* ─── Inline per-permission Scope control — editable on Create/Edit Role,
    the exact same visual (just non-interactive, via readOnly) on View Role. ─── */
 function ScopePill({ value, onChange, readOnly }: { value: ScopeValue; onChange?: (v: ScopeValue) => void; readOnly?: boolean }) {
-  const optionClass = (active: boolean) =>
+  const optionClass = (active: boolean, variant: "all" | "own_shared") =>
     `h-6 px-2 rounded text-[10px] font-medium whitespace-nowrap transition-base ${
-      active ? "bg-surface-muted text-foreground shadow-sm" : "text-muted-foreground"
-    } ${readOnly ? "cursor-default" : "hover:text-foreground"}`;
+      active ? (variant === "all" ? "bg-primary-soft text-primary" : "sp-active-own") : "text-muted-foreground"
+    } ${readOnly ? "cursor-default" : active ? "" : "hover:text-foreground"}`;
   return (
     <div className="rp-pill inline-flex items-center gap-0.5 p-0.5 rounded-md bg-surface border border-border">
       <button
         type="button"
         onClick={readOnly ? undefined : () => onChange?.("all")}
         disabled={readOnly}
-        className={optionClass(value === "all")}
+        className={optionClass(value === "all", "all")}
       >
         All in Console
       </button>
@@ -50,7 +31,7 @@ function ScopePill({ value, onChange, readOnly }: { value: ScopeValue; onChange?
         type="button"
         onClick={readOnly ? undefined : () => onChange?.("own_shared")}
         disabled={readOnly}
-        className={optionClass(value === "own_shared")}
+        className={optionClass(value === "own_shared", "own_shared")}
       >
         Own & Shared
       </button>
@@ -194,12 +175,17 @@ function RoleModal({
                   <div className="rounded-xl border border-border divide-y divide-border overflow-hidden" style={{ containerType: "inline-size" }}>
                     {group.permissions.map(p => {
                       const impliedBy = implied.get(p.id);
-                      const showPill = isScopablePermission(p.id) && effective.has(p.id);
+                      const showPill = isScopablePermission(p.id);
                       const scopeValue: ScopeValue = scope[p.id] ?? "all";
                       return (
                         <div key={p.id} className={`rp-row px-3.5 py-2.5 ${showPill ? "rp-row--with-pill" : ""}`}>
                           <div className="rp-check flex items-center">
-                            <Toggle enabled={effective.has(p.id)} onChange={() => togglePerm(p.id)} disabled={!!impliedBy || readOnly} />
+                            <Checkbox
+                              checked={effective.has(p.id)}
+                              onCheckedChange={() => togglePerm(p.id)}
+                              disabled={!!impliedBy || readOnly}
+                              aria-label={p.name}
+                            />
                           </div>
                           <button
                             type="button"
@@ -264,6 +250,7 @@ function RoleModal({
           row-gap: 6px;
           align-items: start;
         }
+        .sp-active-own { background: hsl(var(--warning-soft)); color: hsl(var(--warning)); }
         .rp-check { grid-column: 1; grid-row: 1 / -1; align-self: center; }
         .rp-title { grid-column: 2; grid-row: 1; align-self: center; }
         .rp-desc { grid-column: 2; grid-row: 2; }
