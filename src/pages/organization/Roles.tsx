@@ -4,7 +4,7 @@ import { Plus, X, Trash2, ChevronRight, Lock, Info } from "lucide-react";
 import { toast } from "sonner";
 import { Card, PageHeader } from "./shared";
 import { featureGroups, SECTIONS, ALL_PERMISSION_IDS, FeatureGroup } from "./permissionsData";
-import { useRoles, SCOPABLE_GROUP_IDS, defaultScope, type ScopeMap, type ScopeValue } from "./rolesStore";
+import { useRoles, isScopablePermission, defaultScope, type ScopeMap, type ScopeValue } from "./rolesStore";
 import { useOrg } from "./orgStore";
 import { collectMembers } from "./orgData";
 import { DEFAULT_ROLE_ID } from "./Members";
@@ -26,6 +26,35 @@ function Toggle({ enabled, onChange, disabled }: { enabled: boolean; onChange: (
         enabled ? "translate-x-4" : "translate-x-0.5"
       }`} />
     </button>
+  );
+}
+
+/* ─── Inline per-permission Scope control — editable on Create/Edit Role,
+   the exact same visual (just non-interactive, via readOnly) on View Role. ─── */
+function ScopePill({ value, onChange, readOnly }: { value: ScopeValue; onChange?: (v: ScopeValue) => void; readOnly?: boolean }) {
+  const optionClass = (active: boolean) =>
+    `h-6 px-2 rounded text-[10px] font-medium whitespace-nowrap transition-base ${
+      active ? "bg-surface-muted text-foreground shadow-sm" : "text-muted-foreground"
+    } ${readOnly ? "cursor-default" : "hover:text-foreground"}`;
+  return (
+    <div className="rp-pill inline-flex items-center gap-0.5 p-0.5 rounded-md bg-surface border border-border">
+      <button
+        type="button"
+        onClick={readOnly ? undefined : () => onChange?.("all")}
+        disabled={readOnly}
+        className={optionClass(value === "all")}
+      >
+        All in Console
+      </button>
+      <button
+        type="button"
+        onClick={readOnly ? undefined : () => onChange?.("own_shared")}
+        disabled={readOnly}
+        className={optionClass(value === "own_shared")}
+      >
+        Own & Shared
+      </button>
+    </div>
   );
 }
 
@@ -145,23 +174,12 @@ function RoleModal({
             {featureGroups.map(group => {
               const ids = group.permissions.map(p => p.id);
               const allOn = ids.every(id => effective.has(id));
-              const isScopable = (SCOPABLE_GROUP_IDS as readonly string[]).includes(group.id);
-              const scopablePermIds = group.permissions.filter(p => p.id !== `${group.id}.create`).map(p => p.id);
-              const showScope = isScopable && scopablePermIds.some(id => effective.has(id));
-              const scopeValue: ScopeValue = scope[group.id] ?? "all";
               return (
                 <div key={group.id}>
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <group.icon size={14} className="text-muted-foreground" />
                       <span className="text-sm font-semibold">{group.label}</span>
-                      {readOnly && showScope && (
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
-                          scopeValue === "all" ? "bg-primary-soft text-primary" : "bg-surface-muted text-muted-foreground"
-                        }`}>
-                          {scopeValue === "all" ? "All in Console" : "Own & Shared"}
-                        </span>
-                      )}
                     </div>
                     {group.permissions.length > 1 && !readOnly && (
                       <button
@@ -173,55 +191,43 @@ function RoleModal({
                       </button>
                     )}
                   </div>
-                  <div className="rounded-xl border border-border divide-y divide-border overflow-hidden">
+                  <div className="rounded-xl border border-border divide-y divide-border overflow-hidden" style={{ containerType: "inline-size" }}>
                     {group.permissions.map(p => {
                       const impliedBy = implied.get(p.id);
+                      const showPill = isScopablePermission(p.id) && effective.has(p.id);
+                      const scopeValue: ScopeValue = scope[p.id] ?? "all";
                       return (
-                        <div key={p.id} className="flex items-center justify-between gap-4 px-3.5 py-2.5">
+                        <div key={p.id} className={`rp-row px-3.5 py-2.5 ${showPill ? "rp-row--with-pill" : ""}`}>
+                          <div className="rp-check flex items-center">
+                            <Toggle enabled={effective.has(p.id)} onChange={() => togglePerm(p.id)} disabled={!!impliedBy || readOnly} />
+                          </div>
                           <button
                             type="button"
                             onClick={() => togglePerm(p.id)}
                             disabled={!!impliedBy || readOnly}
-                            className={`min-w-0 flex-1 text-left ${impliedBy || readOnly ? "cursor-default" : "cursor-pointer"}`}
+                            className={`rp-title min-w-0 text-left text-sm font-medium ${impliedBy || readOnly ? "cursor-default" : "cursor-pointer"}`}
                           >
-                            <div className="text-sm font-medium">{p.name}</div>
-                            <div className="text-xs text-muted-foreground mt-0.5">{p.desc}</div>
+                            {p.name}
+                          </button>
+                          {showPill && (
+                            <div className="rp-pill-cell">
+                              <ScopePill
+                                value={scopeValue}
+                                onChange={v => setScope(s => ({ ...s, [p.id]: v }))}
+                                readOnly={readOnly}
+                              />
+                            </div>
+                          )}
+                          <div className="rp-desc text-xs text-muted-foreground">
+                            {p.desc}
                             {impliedBy && (
                               <div className="text-[11px] text-primary mt-1 italic">Already included via "{impliedBy}"</div>
                             )}
-                          </button>
-                          <Toggle enabled={effective.has(p.id)} onChange={() => togglePerm(p.id)} disabled={!!impliedBy || readOnly} />
+                          </div>
                         </div>
                       );
                     })}
                   </div>
-                  {!readOnly && showScope && (
-                    <div className="mt-2.5">
-                      <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-surface border border-border w-fit">
-                        <button
-                          type="button"
-                          onClick={() => setScope(s => ({ ...s, [group.id]: "all" }))}
-                          className={`h-7 px-3 rounded-md text-xs font-medium transition-base ${
-                            scopeValue === "all" ? "bg-surface-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                          }`}
-                        >
-                          All in Console
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setScope(s => ({ ...s, [group.id]: "own_shared" }))}
-                          className={`h-7 px-3 rounded-md text-xs font-medium transition-base ${
-                            scopeValue === "own_shared" ? "bg-surface-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                          }`}
-                        >
-                          Own & Shared
-                        </button>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
-                        Applies to View, Publish, Build, Pause and Delete for {group.label}. Create always applies only to items the person creates themselves.
-                      </p>
-                    </div>
-                  )}
                 </div>
               );
             })}
@@ -248,7 +254,28 @@ function RoleModal({
         </div>
       </div>
 
-      <style>{`@keyframes fadeScaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}`}</style>
+      <style>{`
+        @keyframes fadeScaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}
+        .rp-row {
+          display: grid;
+          grid-template-columns: auto 1fr auto;
+          grid-template-rows: auto auto;
+          column-gap: 12px;
+          row-gap: 6px;
+          align-items: start;
+        }
+        .rp-check { grid-column: 1; grid-row: 1 / -1; align-self: center; }
+        .rp-title { grid-column: 2; grid-row: 1; align-self: center; }
+        .rp-desc { grid-column: 2; grid-row: 2; }
+        .rp-pill-cell { grid-column: 3; grid-row: 1; align-self: center; justify-self: end; }
+        .rp-row--with-pill { grid-template-columns: auto 1fr auto; grid-template-rows: auto auto; }
+        @container (max-width: 340px) {
+          .rp-row--with-pill { grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto auto; }
+          .rp-row--with-pill .rp-pill-cell { grid-column: 2; grid-row: 2; justify-self: start; }
+          .rp-row--with-pill .rp-desc { grid-row: 3; }
+          .rp-row--with-pill .rp-pill { flex-direction: column; align-items: stretch; width: fit-content; }
+        }
+      `}</style>
     </div>,
     document.body
   );

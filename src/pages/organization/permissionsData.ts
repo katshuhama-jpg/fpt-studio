@@ -38,10 +38,8 @@ export const featureGroups: FeatureGroup[] = [
       { id: `${id}.create`, name: `Create ${thing}`, desc: `Create a new ${singular}, including one only for personal use.` },
       { id: `${id}.publish`, name: `Publish ${thing}`, desc: `Make a personal ${singular} available to the whole workspace, or share it with specific teammates. Doesn't require "View ${thing}" — you can always publish your own.` },
       { id: `${id}.manage`, name: `Build ${thing}`, desc: `Edit a live ${singular}'s configuration in the workspace. Doesn't require "View ${thing}" — you can always manage your own.` },
+      { id: `${id}.pause`, name: `Pause ${thing}`, desc: `Pause or resume a live ${singular} in the workspace without deleting it.` },
     ];
-    if (id === "agents") {
-      permissions.push({ id: "agents.pause", name: "Pause agents", desc: "Pause or resume a live agent in the workspace without deleting it." });
-    }
     permissions.push({ id: `${id}.delete`, name: `Delete ${thing}`, desc: `Permanently delete a live ${singular} from the workspace.` });
     return { id, label, icon, section: "console" as Section, permissions };
   }),

@@ -5,11 +5,20 @@ import { ALL_PERMISSION_IDS } from "./permissionsData";
  * item in the Console or only items the role's member created or was shared with. */
 export const SCOPABLE_GROUP_IDS = ["agents", "knowledge", "skills", "guardrails", "connectors"] as const;
 export type ScopeValue = "all" | "own_shared";
+/** Keyed by permission id (e.g. "agents.publish") — scope is chosen independently per
+ * permission, not shared across a whole resource group. */
 export type ScopeMap = Record<string, ScopeValue>;
+
+/** True for View/Publish/Build/Pause/Delete on one of the 5 publishable resource groups —
+ * false for Create (always personal-only) and for every Governance/Org-management permission. */
+export function isScopablePermission(permId: string): boolean {
+  const groupId = permId.split(".")[0];
+  return (SCOPABLE_GROUP_IDS as readonly string[]).includes(groupId) && !permId.endsWith(".create");
+}
 
 export function defaultScope(): ScopeMap {
   const map: ScopeMap = {};
-  for (const id of SCOPABLE_GROUP_IDS) map[id] = "all";
+  for (const id of ALL_PERMISSION_IDS) if (isScopablePermission(id)) map[id] = "all";
   return map;
 }
 
@@ -18,9 +27,10 @@ export type RoleDef = {
   name: string;
   isDefault: boolean;
   permissionIds: Set<string>;
-  /** Per-resource-group scope for View/Publish/Build/Pause/Delete — "all" (every item in the
-   * Console) or "own_shared" (only items the member created or that were shared with them).
-   * Create is never scoped — it always applies only to items the person creates themselves. */
+  /** Per-permission scope for View/Publish/Build/Pause/Delete across the 5 publishable resource
+   * groups — "all" (every item in the Console) or "own_shared" (only items the member created
+   * or that were shared with them). Create is never scoped — it always applies only to items
+   * the person creates themselves. */
   scope: ScopeMap;
 };
 
