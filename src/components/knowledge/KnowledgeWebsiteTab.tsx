@@ -211,8 +211,14 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
       {all.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-gradient-soft p-12 text-center">
           <h3 className="font-display text-base font-semibold mb-1">Chưa có URL nào</h3>
-          <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">Thêm đường dẫn website để Agent luôn tra cứu được nội dung mới nhất.</p>
-          {!viewOnly && <button onClick={() => setShowAddUrl(true)} className="btn-primary h-9 mx-auto">Thêm URL</button>}
+          {viewOnly ? (
+            <p className="text-sm text-muted-foreground max-w-md mx-auto">Chủ sở hữu chưa thêm đường dẫn website vào kho tri thức này.</p>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">Thêm đường dẫn website để Agent luôn tra cứu được nội dung mới nhất.</p>
+              <button onClick={() => setShowAddUrl(true)} className="btn-primary h-9 mx-auto">Thêm URL</button>
+            </>
+          )}
         </div>
       ) : filtered.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border bg-surface/50 p-10 text-center">
@@ -223,20 +229,22 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-surface-muted">
-                <th className="w-10 px-4 py-2.5" />
+                {!viewOnly && <th className="w-10 px-4 py-2.5" />}
                 <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Tên</th>
                 <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Nguồn</th>
                 <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Trạng thái</th>
                 <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Phiên bản</th>
                 <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Đồng bộ lần cuối</th>
                 <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Cập nhật bởi</th>
-                <th className="px-4 py-2.5 w-12" />
+                {!viewOnly && <th className="px-4 py-2.5 w-12" />}
               </tr>
             </thead>
             <tbody>
               {filtered.map(u => (
                 <tr key={u.id} className={`border-b border-border last:border-0 hover:bg-surface-muted/50 transition-base ${highlightId === u.id ? "bg-primary-soft/40" : ""}`}>
-                  <td className="px-4 py-3"><input type="checkbox" checked={selected.has(u.id)} onChange={() => toggleRow(u.id)} className="w-4 h-4 accent-primary" aria-label={`Chọn ${u.name}`} /></td>
+                  {!viewOnly && (
+                    <td className="px-4 py-3"><input type="checkbox" checked={selected.has(u.id)} onChange={() => toggleRow(u.id)} className="w-4 h-4 accent-primary" aria-label={`Chọn ${u.name}`} /></td>
+                  )}
                   <td className="px-2 py-3 max-w-[340px]">
                     <button onClick={() => u.isFolder ? setFolderFilter(u.id) : openViewer(u.id)} className="flex items-center gap-2 w-full min-w-0 text-left disabled:cursor-default">
                       <FileTypeIcon kind={u.isFolder ? "folder" : "url"} />
@@ -283,26 +291,26 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
                     ) : "Chưa đồng bộ"}
                   </td>
                   <td className="px-2 py-3 text-xs text-muted-foreground truncate">{u.updatedBy}</td>
-                  <td className="px-4 py-3 text-right">
-                    {u.isFolder ? (
-                      <FolderRowMenu
-                        viewOnly={viewOnly}
-                        onOpen={() => setFolderFilter(u.id)}
-                        onRename={() => { setRenaming(u); setRenameValue(u.name); }}
-                        onMove={() => setMoveTargets([u])}
-                        onDelete={() => setDeleteTargets([u])}
-                      />
-                    ) : (
-                      <RowMenu
-                        viewOnly={viewOnly}
-                        onOpen={() => openViewer(u.id)}
-                        onSync={() => syncNow([u.id])}
-                        onSchedule={() => setScheduleTarget(u)}
-                        onMove={() => setMoveTargets([u])}
-                        onDelete={() => setDeleteTargets([u])}
-                      />
-                    )}
-                  </td>
+                  {!viewOnly && (
+                    <td className="px-4 py-3 text-right">
+                      {u.isFolder ? (
+                        <FolderRowMenu
+                          onOpen={() => setFolderFilter(u.id)}
+                          onRename={() => { setRenaming(u); setRenameValue(u.name); }}
+                          onMove={() => setMoveTargets([u])}
+                          onDelete={() => setDeleteTargets([u])}
+                        />
+                      ) : (
+                        <RowMenu
+                          onOpen={() => openViewer(u.id)}
+                          onSync={() => syncNow([u.id])}
+                          onSchedule={() => setScheduleTarget(u)}
+                          onMove={() => setMoveTargets([u])}
+                          onDelete={() => setDeleteTargets([u])}
+                        />
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -357,6 +365,7 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
         <VersionHistoryPanel
           source={{ id: versionTarget.id, kbId: versionTarget.kbId, name: versionTarget.title ?? versionTarget.name, sourceType: "url", version: versionTarget.version, updatedAt: versionTarget.updatedAt, updatedBy: versionTarget.updatedBy }}
           onClose={() => setVersionTarget(null)}
+          viewOnly={viewOnly}
         />
       )}
 
@@ -412,8 +421,8 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
   );
 }
 
-function FolderRowMenu({ viewOnly, onOpen, onRename, onMove, onDelete }: {
-  viewOnly: boolean; onOpen: () => void; onRename: () => void; onMove: () => void; onDelete: () => void;
+function FolderRowMenu({ onOpen, onRename, onMove, onDelete }: {
+  onOpen: () => void; onRename: () => void; onMove: () => void; onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -423,12 +432,12 @@ function FolderRowMenu({ viewOnly, onOpen, onRename, onMove, onDelete }: {
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
-  const items: { label: string; onClick: () => void; danger?: boolean }[] = [{ label: "Mở", onClick: onOpen }];
-  if (!viewOnly) items.push(
+  const items: { label: string; onClick: () => void; danger?: boolean }[] = [
+    { label: "Mở", onClick: onOpen },
     { label: "Đổi tên", onClick: onRename },
     { label: "Di chuyển", onClick: onMove },
     { label: "Xóa", onClick: onDelete, danger: true },
-  );
+  ];
   return (
     <div ref={ref} className="relative inline-block" onClick={e => e.stopPropagation()}>
       <button onClick={() => setOpen(v => !v)} aria-label="Thao tác thư mục" className="w-9 h-9 min-w-[44px] min-h-[44px] -m-1.5 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -489,8 +498,8 @@ function RenameFolderDialog({ value, onChange, onCancel, onConfirm, isDuplicate 
   );
 }
 
-function RowMenu({ viewOnly, onOpen, onSync, onSchedule, onMove, onDelete }: {
-  viewOnly: boolean; onOpen: () => void; onSync: () => void; onSchedule: () => void; onMove: () => void; onDelete: () => void;
+function RowMenu({ onOpen, onSync, onSchedule, onMove, onDelete }: {
+  onOpen: () => void; onSync: () => void; onSchedule: () => void; onMove: () => void; onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -500,13 +509,13 @@ function RowMenu({ viewOnly, onOpen, onSync, onSchedule, onMove, onDelete }: {
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
-  const items: { label: string; onClick: () => void; danger?: boolean }[] = [{ label: "Mở", onClick: onOpen }];
-  if (!viewOnly) items.push(
+  const items: { label: string; onClick: () => void; danger?: boolean }[] = [
+    { label: "Mở", onClick: onOpen },
     { label: "Đồng bộ ngay", onClick: onSync },
     { label: "Cài đặt lịch riêng", onClick: onSchedule },
     { label: "Di chuyển", onClick: onMove },
     { label: "Xóa", onClick: onDelete, danger: true },
-  );
+  ];
   return (
     <div ref={ref} className="relative inline-block" onClick={e => e.stopPropagation()}>
       <button onClick={() => setOpen(v => !v)} aria-label="Thao tác" className="w-9 h-9 min-w-[44px] min-h-[44px] -m-1.5 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">

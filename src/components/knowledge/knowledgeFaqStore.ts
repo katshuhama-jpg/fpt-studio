@@ -14,8 +14,8 @@ export interface KnowledgeFaq {
   updatedBy: string;
 }
 
-const STORE_KEY = "knowledge_faq_store_v2";
-const SEEDED_KEY = "knowledge_faq_store_seeded_v2";
+const STORE_KEY = "knowledge_faq_store_v4";
+const SEEDED_KEY = "knowledge_faq_store_seeded_v4";
 const store = loadMap<string, KnowledgeFaq>(STORE_KEY);
 const persist = () => saveMap(STORE_KEY, store);
 
@@ -67,6 +67,21 @@ function seedKb(kbId: string) {
     put({ id: "faq-1-3", kbId, question: "Chính sách bảo mật thông tin khách hàng được quy định như thế nào?", answer: "Thông tin khách hàng được mã hóa và lưu trữ theo tiêu chuẩn bảo mật ngành ngân hàng, chỉ được chia sẻ khi có sự đồng ý của khách hàng hoặc theo yêu cầu của cơ quan nhà nước có thẩm quyền.", categories: ["Bảo mật"], status: "pending", chunkCount: 0, updatedAt: now - 3 * 60_000, updatedBy: "Tran Nam" });
     put({ id: "faq-1-4", kbId, question: "Quy trình khiếu nại khi phát hiện giao dịch gian lận là gì?", answer: "Khách hàng cần khóa thẻ/tài khoản ngay lập tức, sau đó liên hệ tổng đài hoặc chi nhánh gần nhất để lập biên bản khiếu nại kèm bằng chứng giao dịch để ngân hàng tiến hành điều tra và xử lý.", categories: ["Khiếu nại"], status: "done", chunkCount: 1, updatedAt: now - 4 * DAY, updatedBy: "Tran Nam" });
     put({ id: "faq-1-5", kbId, question: "Lãi suất tiết kiệm kỳ hạn 12 tháng hiện nay là bao nhiêu?", answer: "Lãi suất tiết kiệm kỳ hạn 12 tháng hiện là 5.5%/năm đối với hình thức lĩnh lãi cuối kỳ, có thể thay đổi theo từng thời điểm công bố của ngân hàng.", categories: ["Tiết kiệm"], status: "processing", chunkCount: 0, updatedAt: now - 8 * 60_000, updatedBy: "Tran Nam" });
+  }
+
+  // kb-4 "Chính sách nhân sự" — shared to Tran Nam by Linh Phan with "Có thể xem" access.
+  if (kbId === "kb-4") {
+    put({ id: "faq-4-1", kbId, question: "Nhân viên mới được nghỉ phép từ khi nào?", answer: "Nhân viên mới được cộng dồn ngày phép ngay từ tháng đầu tiên làm việc, theo tỷ lệ tương ứng với số tháng đã làm trong năm.", categories: ["Nghỉ phép"], status: "done", chunkCount: 1, updatedAt: now - 6 * DAY, updatedBy: "Linh Phan" });
+    put({ id: "faq-4-2", kbId, question: "Bảo hiểm y tế bắt đầu áp dụng từ lúc nào?", answer: "Bảo hiểm y tế được kích hoạt từ ngày ký hợp đồng chính thức, sau khi kết thúc thời gian thử việc.", categories: ["Bảo hiểm"], status: "done", chunkCount: 1, updatedAt: now - 9 * DAY, updatedBy: "Linh Phan" });
+    put({ id: "faq-4-3", kbId, question: "Làm sao để đăng ký nghỉ phép không lương?", answer: "Nhân viên gửi đơn xin nghỉ phép không lương qua hệ thống nhân sự nội bộ, cần được quản lý trực tiếp phê duyệt trước ít nhất 3 ngày làm việc.", categories: ["Nghỉ phép"], status: "pending", chunkCount: 0, updatedAt: now - 2 * 60_000, updatedBy: "Linh Phan" });
+    put({ id: "faq-4-4", kbId, question: "Chính sách làm việc từ xa được áp dụng như thế nào?", answer: "Nhân viên có thể làm việc từ xa tối đa 2 ngày/tuần sau khi được quản lý trực tiếp đồng ý, riêng vị trí yêu cầu có mặt tại văn phòng không áp dụng.", categories: ["Làm việc từ xa"], status: "processing", chunkCount: 0, updatedAt: now - 18 * 60_000, updatedBy: "Linh Phan" });
+  }
+
+  // kb-5 "Kịch bản bán hàng" — shared to Tran Nam by Mai Hoang with "Có thể chỉnh sửa" access.
+  if (kbId === "kb-5") {
+    put({ id: "faq-5-1", kbId, question: "Khách hàng từ chối vì giá cao thì nên phản hồi thế nào?", answer: "Tập trung làm rõ giá trị và lợi ích lâu dài của sản phẩm thay vì tranh luận về giá, đồng thời gợi ý các gói hoặc ưu đãi phù hợp với ngân sách khách hàng.", categories: ["Từ chối"], status: "done", chunkCount: 1, updatedAt: now - 3 * DAY, updatedBy: "Mai Hoang" });
+    put({ id: "faq-5-2", kbId, question: "Làm sao để mở đầu cuộc gọi tư vấn hiệu quả?", answer: "Giới thiệu ngắn gọn bản thân và mục đích cuộc gọi, xác nhận đây là thời điểm thuận tiện để trao đổi, sau đó đặt câu hỏi mở để hiểu nhu cầu khách hàng.", categories: ["Mở đầu"], status: "done", chunkCount: 1, updatedAt: now - 7 * DAY, updatedBy: "Mai Hoang" });
+    put({ id: "faq-5-3", kbId, question: "Khi nào nên đề xuất chương trình khuyến mãi?", answer: "Chỉ nên đề xuất khuyến mãi sau khi khách hàng đã hiểu rõ giá trị sản phẩm, để tránh khiến khách hàng chỉ chờ giảm giá thay vì cân nhắc nhu cầu thực tế.", categories: ["Khuyến mãi"], status: "pending", chunkCount: 0, updatedAt: now - 40 * 60_000, updatedBy: "Mai Hoang" });
   }
 
   persist();

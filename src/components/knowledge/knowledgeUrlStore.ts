@@ -31,8 +31,8 @@ export interface KnowledgeUrl {
   updatedBy: string;
 }
 
-const STORE_KEY = "knowledge_url_store_v1";
-const SEEDED_KEY = "knowledge_url_store_seeded_v1";
+const STORE_KEY = "knowledge_url_store_v3";
+const SEEDED_KEY = "knowledge_url_store_seeded_v3";
 const store = loadMap<string, KnowledgeUrl>(STORE_KEY);
 const persist = () => saveMap(STORE_KEY, store);
 
@@ -51,6 +51,12 @@ function seedKb(kbId: string) {
     put({ id: "url-1-2", kbId, name: "Sản phẩm thẻ tín dụng", isFolder: false, folderId: "url-1-f1", url: "https://abcbank.com/products/the-tin-dung", title: "Sản phẩm thẻ tín dụng", source: "sitemap", status: "done", chunkCount: 19, version: 2, lastSyncAt: now - 2 * HOUR, lastSyncOk: true, createdAt: now - 2 * DAY, updatedAt: now - 2 * HOUR, updatedBy: "Tran Nam" });
     put({ id: "url-1-3", kbId, name: "Trang chủ ABC Bank", isFolder: false, folderId: null, url: "https://abcbank.com", title: "ABC Bank — Ngân hàng số hàng đầu", source: "specified", status: "failed", chunkCount: 0, version: 1, lastSyncAt: now - 6 * HOUR, lastSyncOk: false, lastSyncError: "Không kết nối được tới máy chủ.", createdAt: now - 6 * HOUR, updatedAt: now - 6 * HOUR, updatedBy: "Tran Nam" });
     put({ id: "url-1-4", kbId, name: "Câu hỏi thường gặp", isFolder: false, folderId: null, url: "https://abcbank.com/faq", title: "Câu hỏi thường gặp — ABC Bank", source: "crawled_child", status: "processing", chunkCount: 0, version: 1, lastSyncAt: null, lastSyncOk: null, createdAt: now - 5 * 60_000, updatedAt: now - 5 * 60_000, updatedBy: "Tran Nam" });
+  }
+
+  // kb-4 "Chính sách nhân sự" — shared to Tran Nam by Linh Phan with "Có thể xem" access.
+  if (kbId === "kb-4") {
+    put({ id: "url-4-1", kbId, name: "Chính sách nghỉ phép", isFolder: false, folderId: null, url: "https://intranet.abc.com/hr/chinh-sach-nghi-phep", title: "Chính sách nghỉ phép", source: "specified", status: "done", chunkCount: 9, version: 1, lastSyncAt: now - 4 * HOUR, lastSyncOk: true, createdAt: now - 12 * DAY, updatedAt: now - 4 * HOUR, updatedBy: "Linh Phan" });
+    put({ id: "url-4-2", kbId, name: "Phúc lợi nhân viên", isFolder: false, folderId: null, url: "https://intranet.abc.com/hr/phuc-loi-nhan-vien", title: "Phúc lợi nhân viên", source: "specified", status: "processing", chunkCount: 0, version: 1, lastSyncAt: null, lastSyncOk: null, createdAt: now - 12 * 60_000, updatedAt: now - 12 * 60_000, updatedBy: "Linh Phan" });
   }
 
   persist();

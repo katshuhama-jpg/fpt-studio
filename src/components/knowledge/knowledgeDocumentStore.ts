@@ -18,8 +18,8 @@ export interface KnowledgeDocument {
   updatedBy: string;
 }
 
-const STORE_KEY = "knowledge_document_store_v2";
-const SEEDED_KEY = "knowledge_document_store_seeded_v2";
+const STORE_KEY = "knowledge_document_store_v4";
+const SEEDED_KEY = "knowledge_document_store_seeded_v4";
 const store = loadMap<string, KnowledgeDocument>(STORE_KEY);
 const persist = () => saveMap(STORE_KEY, store);
 
@@ -51,6 +51,25 @@ function seedKb(kbId: string) {
     put({ id: "doc-3-1", kbId, name: "Quy trình xử lý sự cố hạ tầng.pdf", isFolder: false, folderId: null, status: "done", sizeBytes: 980_000, chunkCount: 55, version: 3, createdAt: now - 9 * DAY, updatedAt: now - 4 * DAY, updatedBy: "Linh Phan" });
     put({ id: "doc-3-2", kbId, name: "Mẫu email thông báo bảo trì.docx", isFolder: false, folderId: null, status: "done", sizeBytes: 60_000, chunkCount: 6, version: 1, createdAt: now - 10 * DAY, updatedAt: now - 10 * DAY, updatedBy: "Tran Nam" });
     put({ id: "doc-3-3", kbId, name: "Runbook triển khai phiên bản mới.md", isFolder: false, folderId: null, status: "done", sizeBytes: 120_000, chunkCount: 31, version: 5, createdAt: now - 15 * DAY, updatedAt: now - DAY, updatedBy: "Duy Nguyen" });
+  }
+
+  // kb-4 "Chính sách nhân sự" — shared to Tran Nam by Linh Phan with "Có thể xem" (view-only)
+  // access, used to verify the read-only Documents table state.
+  if (kbId === "kb-4") {
+    put({ id: "doc-4-1", kbId, name: "Chính sách nghỉ phép 2026.pdf", isFolder: false, folderId: null, status: "done", sizeBytes: 410_000, chunkCount: 28, version: 2, createdAt: now - 20 * DAY, updatedAt: now - 3 * DAY, updatedBy: "Linh Phan" });
+    put({ id: "doc-4-2", kbId, name: "Bảng lương và phúc lợi.xlsx", isFolder: false, folderId: null, status: "done", sizeBytes: 95_000, chunkCount: 11, version: 1, createdAt: now - 18 * DAY, updatedAt: now - 18 * DAY, updatedBy: "Linh Phan" });
+    put({ id: "doc-4-3", kbId, name: "Quy trình onboarding nhân viên mới.docx", isFolder: false, folderId: null, status: "processing", sizeBytes: 260_000, chunkCount: 0, version: 1, createdAt: now - 15 * 60_000, updatedAt: now - 15 * 60_000, updatedBy: "Linh Phan" });
+    put({ id: "doc-4-4", kbId, name: "Hướng dẫn đăng ký bảo hiểm y tế.pdf", isFolder: false, folderId: null, status: "pending", sizeBytes: 180_000, chunkCount: 0, version: 1, createdAt: now - 5 * 60_000, updatedAt: now - 5 * 60_000, updatedBy: "Linh Phan" });
+    put({ id: "doc-4-5", kbId, name: "Mẫu đơn xin nghỉ phép.docx", isFolder: false, folderId: null, status: "failed", statusReason: "Không đọc được nội dung tệp. Thử tải lại hoặc dùng bản PDF.", sizeBytes: 45_000, chunkCount: 0, version: 1, createdAt: now - 2 * DAY, updatedAt: now - 2 * DAY, updatedBy: "Linh Phan" });
+  }
+
+  // kb-5 "Kịch bản bán hàng" — shared to Tran Nam by Mai Hoang with "Có thể chỉnh sửa" (edit)
+  // access, used to verify the shared-edit Documents table state.
+  if (kbId === "kb-5") {
+    put({ id: "doc-5-1", kbId, name: "Kịch bản tư vấn khách hàng mới.docx", isFolder: false, folderId: null, status: "done", sizeBytes: 130_000, chunkCount: 16, version: 1, createdAt: now - 10 * DAY, updatedAt: now - 4 * DAY, updatedBy: "Mai Hoang" });
+    put({ id: "doc-5-2", kbId, name: "Kịch bản xử lý từ chối giá.pdf", isFolder: false, folderId: null, status: "done", sizeBytes: 175_000, chunkCount: 12, version: 1, createdAt: now - 8 * DAY, updatedAt: now - 8 * DAY, updatedBy: "Mai Hoang" });
+    put({ id: "doc-5-3", kbId, name: "Bộ câu hỏi khảo sát nhu cầu khách hàng.xlsx", isFolder: false, folderId: null, status: "processing", sizeBytes: 62_000, chunkCount: 0, version: 1, createdAt: now - 20 * 60_000, updatedAt: now - 20 * 60_000, updatedBy: "Mai Hoang" });
+    put({ id: "doc-5-4", kbId, name: "Quy trình chốt đơn qua điện thoại.docx", isFolder: false, folderId: null, status: "pending", sizeBytes: 88_000, chunkCount: 0, version: 1, createdAt: now - 8 * 60_000, updatedAt: now - 8 * 60_000, updatedBy: "Mai Hoang" });
   }
 
   persist();

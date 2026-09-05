@@ -292,7 +292,9 @@ export default function ChunkViewerModal({
               </div>
             ) : chunks.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border bg-surface/50 p-8 text-center">
-                <p className="text-sm text-muted-foreground">Chưa có chunk nào. Bấm "Xử lý kết quả" để hệ thống phân tích tài liệu.</p>
+                <p className="text-sm text-muted-foreground">
+                  {viewOnly ? "Chưa có chunk nào." : "Chưa có chunk nào. Bấm \"Xử lý kết quả\" để hệ thống phân tích tài liệu."}
+                </p>
               </div>
             ) : filteredChunks.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border bg-surface/50 p-8 text-center">

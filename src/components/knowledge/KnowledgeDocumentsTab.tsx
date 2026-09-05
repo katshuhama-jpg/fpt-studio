@@ -155,7 +155,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
         </div>
       )}
 
-      <p className="text-xs text-muted-foreground mb-3 lg:whitespace-nowrap">{SUPPORTED_FORMATS_LINE}</p>
+      {!viewOnly && <p className="text-xs text-muted-foreground mb-3 lg:whitespace-nowrap">{SUPPORTED_FORMATS_LINE}</p>}
 
       {selected.size > 0 && !viewOnly && (
         <div className="flex items-center gap-3 mb-3 px-3 h-10 rounded-lg bg-primary-soft border border-primary/15">
@@ -175,9 +175,15 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
       {all.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-gradient-soft p-12 text-center">
           <h3 className="font-display text-base font-semibold mb-1">Chưa có tài liệu nào</h3>
-          <p className="text-sm text-muted-foreground max-w-md mx-auto mb-2">Tải tài liệu lên để Agent có thể tra cứu nội dung.</p>
-          <p className="text-xs text-muted-foreground max-w-md mx-auto mb-4">{SUPPORTED_FORMATS_LINE}</p>
-          {!viewOnly && <button onClick={() => setShowUpload(true)} className="btn-primary h-9 mx-auto">Tải tài liệu lên</button>}
+          {viewOnly ? (
+            <p className="text-sm text-muted-foreground max-w-md mx-auto">Chủ sở hữu chưa thêm tài liệu vào kho tri thức này.</p>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto mb-2">Tải tài liệu lên để Agent có thể tra cứu nội dung.</p>
+              <p className="text-xs text-muted-foreground max-w-md mx-auto mb-4">{SUPPORTED_FORMATS_LINE}</p>
+              <button onClick={() => setShowUpload(true)} className="btn-primary h-9 mx-auto">Tải tài liệu lên</button>
+            </>
+          )}
         </div>
       ) : filtered.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border bg-surface/50 p-10 text-center">
@@ -188,14 +194,14 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-surface-muted">
-                <th className="w-10 px-4 py-2.5"><span className="sr-only">Chọn</span></th>
+                {!viewOnly && <th className="w-10 px-4 py-2.5"><span className="sr-only">Chọn</span></th>}
                 <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Tên</th>
                 <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Trạng thái</th>
                 <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Kích thước</th>
                 <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Phiên bản</th>
                 <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Cập nhật</th>
                 <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Cập nhật bởi</th>
-                <th className="px-4 py-2.5 w-12" />
+                {!viewOnly && <th className="px-4 py-2.5 w-12" />}
               </tr>
             </thead>
             <tbody>
@@ -203,9 +209,11 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                 const openable = d.isFolder || canOpen(d.status);
                 return (
                 <tr key={d.id} className={`border-b border-border last:border-0 hover:bg-surface-muted/50 transition-base ${highlightId === d.id ? "bg-primary-soft/40" : ""}`}>
-                  <td className="px-4 py-3">
-                    <input type="checkbox" checked={selected.has(d.id)} onChange={() => toggleRow(d.id)} className="w-4 h-4 accent-primary" aria-label={`Chọn ${d.name}`} />
-                  </td>
+                  {!viewOnly && (
+                    <td className="px-4 py-3">
+                      <input type="checkbox" checked={selected.has(d.id)} onChange={() => toggleRow(d.id)} className="w-4 h-4 accent-primary" aria-label={`Chọn ${d.name}`} />
+                    </td>
+                  )}
                   <td className="px-2 py-3 max-w-[380px]">
                     <Tooltip delayDuration={300}>
                       <TooltipTrigger asChild>
@@ -247,28 +255,28 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                   </td>
                   <td className="px-2 py-3 text-xs text-muted-foreground whitespace-nowrap">{new Date(d.updatedAt).toLocaleDateString("vi-VN")}</td>
                   <td className="px-2 py-3 text-xs text-muted-foreground truncate">{d.updatedBy}</td>
-                  <td className="px-4 py-3 text-right">
-                    {d.isFolder ? (
-                      <FolderRowMenu
-                        viewOnly={viewOnly}
-                        onOpen={() => setFolderFilter(d.id)}
-                        onRename={() => { setRenaming(d); setRenameValue(d.name); }}
-                        onMove={() => setMoveTargets([d])}
-                        onDelete={() => setDeleteTargets([d])}
-                      />
-                    ) : (
-                      <RowMenu
-                        viewOnly={viewOnly}
-                        canOpen={openable}
-                        onOpen={() => openDocument(d.id)}
-                        onLayout={() => setLayoutTarget(d)}
-                        onReprocess={() => setReprocessTarget(d)}
-                        onRename={() => { setRenaming(d); setRenameValue(d.name); }}
-                        onMove={() => setMoveTargets([d])}
-                        onDelete={() => setDeleteTargets([d])}
-                      />
-                    )}
-                  </td>
+                  {!viewOnly && (
+                    <td className="px-4 py-3 text-right">
+                      {d.isFolder ? (
+                        <FolderRowMenu
+                          onOpen={() => setFolderFilter(d.id)}
+                          onRename={() => { setRenaming(d); setRenameValue(d.name); }}
+                          onMove={() => setMoveTargets([d])}
+                          onDelete={() => setDeleteTargets([d])}
+                        />
+                      ) : (
+                        <RowMenu
+                          canOpen={openable}
+                          onOpen={() => openDocument(d.id)}
+                          onLayout={() => setLayoutTarget(d)}
+                          onReprocess={() => setReprocessTarget(d)}
+                          onRename={() => { setRenaming(d); setRenameValue(d.name); }}
+                          onMove={() => setMoveTargets([d])}
+                          onDelete={() => setDeleteTargets([d])}
+                        />
+                      )}
+                    </td>
+                  )}
                 </tr>
                 );
               })}
@@ -285,6 +293,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
         <VersionHistoryPanel
           source={{ id: versionTarget.id, kbId: versionTarget.kbId, name: versionTarget.name, sourceType: "document", version: versionTarget.version, updatedAt: versionTarget.updatedAt, updatedBy: versionTarget.updatedBy }}
           onClose={() => setVersionTarget(null)}
+          viewOnly={viewOnly}
         />
       )}
 
@@ -404,8 +413,8 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
   );
 }
 
-function RowMenu({ viewOnly, canOpen, onOpen, onLayout, onReprocess, onRename, onMove, onDelete }: {
-  viewOnly: boolean; canOpen: boolean; onOpen: () => void; onLayout: () => void; onReprocess: () => void; onRename: () => void; onMove: () => void; onDelete: () => void;
+function RowMenu({ canOpen, onOpen, onLayout, onReprocess, onRename, onMove, onDelete }: {
+  canOpen: boolean; onOpen: () => void; onLayout: () => void; onReprocess: () => void; onRename: () => void; onMove: () => void; onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -419,13 +428,11 @@ function RowMenu({ viewOnly, canOpen, onOpen, onLayout, onReprocess, onRename, o
   const items: { label: string; onClick: () => void; danger?: boolean; disabled?: boolean; disabledTooltip?: string }[] = [
     { label: "Mở", onClick: onOpen, disabled: !canOpen, disabledTooltip: "Tài liệu chưa xử lý xong nên chưa xem được nội dung." },
     { label: "Xem bố cục tài liệu", onClick: onLayout },
-  ];
-  if (!viewOnly) items.push(
     { label: "Xử lý lại", onClick: onReprocess },
     { label: "Đổi tên", onClick: onRename },
     { label: "Di chuyển", onClick: onMove },
     { label: "Xóa", onClick: onDelete, danger: true },
-  );
+  ];
 
   return (
     <div ref={ref} className="relative inline-block" onClick={e => e.stopPropagation()}>
@@ -459,8 +466,8 @@ function RowMenu({ viewOnly, canOpen, onOpen, onLayout, onReprocess, onRename, o
   );
 }
 
-function FolderRowMenu({ viewOnly, onOpen, onRename, onMove, onDelete }: {
-  viewOnly: boolean; onOpen: () => void; onRename: () => void; onMove: () => void; onDelete: () => void;
+function FolderRowMenu({ onOpen, onRename, onMove, onDelete }: {
+  onOpen: () => void; onRename: () => void; onMove: () => void; onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -471,12 +478,12 @@ function FolderRowMenu({ viewOnly, onOpen, onRename, onMove, onDelete }: {
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
 
-  const items: { label: string; onClick: () => void; danger?: boolean }[] = [{ label: "Mở", onClick: onOpen }];
-  if (!viewOnly) items.push(
+  const items: { label: string; onClick: () => void; danger?: boolean }[] = [
+    { label: "Mở", onClick: onOpen },
     { label: "Đổi tên", onClick: onRename },
     { label: "Di chuyển", onClick: onMove },
     { label: "Xóa", onClick: onDelete, danger: true },
-  );
+  ];
 
   return (
     <div ref={ref} className="relative inline-block" onClick={e => e.stopPropagation()}>

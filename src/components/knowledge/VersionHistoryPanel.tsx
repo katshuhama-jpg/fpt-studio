@@ -67,7 +67,7 @@ function buildTimeline(doc: VersionedSource): VersionEntry[] {
   });
 }
 
-export default function VersionHistoryPanel({ source: doc, onClose }: { source: VersionedSource; onClose: () => void }) {
+export default function VersionHistoryPanel({ source: doc, onClose, viewOnly }: { source: VersionedSource; onClose: () => void; viewOnly?: boolean }) {
   const [restoreVersion, setRestoreVersion] = useState<number | null>(null);
   const [viewingVersion, setViewingVersion] = useState<number | null>(null);
   const [compareMode, setCompareMode] = useState(false);
@@ -148,7 +148,7 @@ export default function VersionHistoryPanel({ source: doc, onClose }: { source: 
                     <p className="text-xs text-muted-foreground mt-1">+{v.added} chunk · −{v.removed} chunk · {v.changed} chunk thay đổi</p>
                     <div className="flex items-center gap-3 mt-2">
                       <button onClick={() => setViewingVersion(v.version)} className="text-xs font-semibold text-primary hover:underline">Xem nội dung</button>
-                      {!v.isCurrent && (
+                      {!v.isCurrent && !viewOnly && (
                         <button onClick={() => setRestoreVersion(v.version)} className="text-xs font-semibold text-primary hover:underline">Khôi phục</button>
                       )}
                     </div>

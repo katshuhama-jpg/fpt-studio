@@ -157,8 +157,14 @@ export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; view
       {all.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border bg-gradient-soft p-12 text-center">
           <h3 className="font-display text-base font-semibold mb-1">Chưa có câu hỏi thường gặp</h3>
-          <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">Thêm cặp câu hỏi – câu trả lời để Agent phản hồi nhanh và nhất quán.</p>
-          {!viewOnly && <button onClick={() => setShowAdd(true)} className="btn-primary h-9 mx-auto">Tạo FAQ</button>}
+          {viewOnly ? (
+            <p className="text-sm text-muted-foreground max-w-md mx-auto">Chủ sở hữu chưa thêm câu hỏi nào vào kho tri thức này.</p>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">Thêm cặp câu hỏi – câu trả lời để Agent phản hồi nhanh và nhất quán.</p>
+              <button onClick={() => setShowAdd(true)} className="btn-primary h-9 mx-auto">Tạo FAQ</button>
+            </>
+          )}
         </div>
       ) : filtered.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border bg-surface/50 p-10 text-center">
@@ -169,20 +175,22 @@ export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; view
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-surface-muted">
-                <th className="w-10 px-4 py-2.5" />
+                {!viewOnly && <th className="w-10 px-4 py-2.5" />}
                 <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Câu hỏi</th>
                 <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Câu trả lời</th>
                 <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Danh mục</th>
                 <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Trạng thái</th>
                 <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Cập nhật lần cuối</th>
                 <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Cập nhật bởi</th>
-                <th className="px-4 py-2.5 w-12" />
+                {!viewOnly && <th className="px-4 py-2.5 w-12" />}
               </tr>
             </thead>
             <tbody>
               {filtered.map(f => (
                 <tr key={f.id} className="border-b border-border last:border-0 hover:bg-surface-muted/50 transition-base">
-                  <td className="px-4 py-3"><input type="checkbox" checked={selected.has(f.id)} onChange={() => toggleRow(f.id)} className="w-4 h-4 accent-primary" aria-label="Chọn" /></td>
+                  {!viewOnly && (
+                    <td className="px-4 py-3"><input type="checkbox" checked={selected.has(f.id)} onChange={() => toggleRow(f.id)} className="w-4 h-4 accent-primary" aria-label="Chọn" /></td>
+                  )}
                   <td className="px-2 py-3 max-w-[220px]">
                     <button onClick={() => setEditTarget(f)} className="text-left block w-full min-w-0" disabled={viewOnly}>
                       <TruncatedText text={f.question} className="text-sm font-medium" />
@@ -195,9 +203,11 @@ export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; view
                   <td className="px-2 py-3"><KnowledgeStatusPill status={f.status} /></td>
                   <td className="px-2 py-3 text-xs text-muted-foreground whitespace-nowrap">{new Date(f.updatedAt).toLocaleDateString("vi-VN")}</td>
                   <td className="px-2 py-3 text-xs text-muted-foreground truncate">{f.updatedBy}</td>
-                  <td className="px-4 py-3 text-right">
-                    {!viewOnly && <RowMenu onEdit={() => setEditTarget(f)} onDelete={() => setDeleteTargets([f])} />}
-                  </td>
+                  {!viewOnly && (
+                    <td className="px-4 py-3 text-right">
+                      <RowMenu onEdit={() => setEditTarget(f)} onDelete={() => setDeleteTargets([f])} />
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

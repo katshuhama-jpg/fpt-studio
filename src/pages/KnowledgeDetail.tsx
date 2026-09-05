@@ -141,6 +141,9 @@ export default function KnowledgeDetail() {
   }
 
   const viewOnly = isViewOnly(kb);
+  // Sharing, deleting, and the inline click-to-rename title are reserved for the owner — an
+  // editor (or anyone on a "Dùng chung" KB) can edit content but not the KB's own access/lifecycle.
+  const isOwner = kb.ownerId === CURRENT_USER.id;
   const indexedPct = kb.stats.chunks === 0 ? 100 : Math.round((kb.stats.chunks / Math.max(kb.stats.chunks, 1)) * 98);
 
   const commitName = () => {
@@ -184,9 +187,9 @@ export default function KnowledgeDetail() {
                 />
               ) : (
                 <h1
-                  className={`font-display text-2xl font-semibold tracking-tight ${!viewOnly ? "cursor-pointer hover:opacity-70" : ""}`}
-                  onClick={() => { if (viewOnly) return; setNameDraft(kb.name); setEditingName(true); }}
-                  title={!viewOnly ? "Bấm để đổi tên" : undefined}
+                  className={`font-display text-2xl font-semibold tracking-tight ${isOwner ? "cursor-pointer hover:opacity-70" : ""}`}
+                  onClick={() => { if (!isOwner) return; setNameDraft(kb.name); setEditingName(true); }}
+                  title={isOwner ? "Bấm để đổi tên" : undefined}
                 >
                   {kb.name}
                 </h1>
@@ -217,14 +220,14 @@ export default function KnowledgeDetail() {
                     >
                       Chỉnh sửa
                     </button>
-                    <button
-                      disabled={viewOnly}
-                      title={viewOnly ? "Bạn chỉ có quyền xem kho tri thức này." : undefined}
-                      onClick={() => { setShowShare(true); setShowMenu(false); }}
-                      className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted disabled:text-muted-foreground/50 disabled:cursor-not-allowed transition-base"
-                    >
-                      Chia sẻ
-                    </button>
+                    {isOwner && (
+                      <button
+                        onClick={() => { setShowShare(true); setShowMenu(false); }}
+                        className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base"
+                      >
+                        Chia sẻ
+                      </button>
+                    )}
                     <button
                       disabled={viewOnly}
                       title={viewOnly ? "Bạn chỉ có quyền xem kho tri thức này." : undefined}
@@ -233,14 +236,14 @@ export default function KnowledgeDetail() {
                     >
                       Xóa toàn bộ nội dung
                     </button>
-                    <button
-                      disabled={viewOnly}
-                      title={viewOnly ? "Bạn chỉ có quyền xem kho tri thức này." : undefined}
-                      onClick={() => { setShowDelete(true); setShowMenu(false); }}
-                      className="w-full text-left px-3 py-1.5 text-xs text-destructive hover:bg-[hsl(var(--destructive-soft))] disabled:text-muted-foreground/50 disabled:cursor-not-allowed transition-base"
-                    >
-                      Xóa
-                    </button>
+                    {isOwner && (
+                      <button
+                        onClick={() => { setShowDelete(true); setShowMenu(false); }}
+                        className="w-full text-left px-3 py-1.5 text-xs text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base"
+                      >
+                        Xóa
+                      </button>
+                    )}
                   </div>
                 </>
               )}
