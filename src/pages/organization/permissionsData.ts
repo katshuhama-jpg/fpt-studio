@@ -29,6 +29,13 @@ function singularOf(thing: string) {
   return thing.replace(/s$/, "");
 }
 
+/** Resource wording per publishable group, keyed by group id — reused wherever copy needs to
+ * name "the resource" generically (e.g. the View Permissions reference's Scope-neutral copy)
+ * without hand-writing it per group. */
+export const RESOURCE_WORDS: Record<string, { thing: string; singular: string }> = Object.fromEntries(
+  FEATURES.map(f => [f.id, { thing: f.thing, singular: singularOf(f.thing) }]),
+);
+
 export const featureGroups: FeatureGroup[] = [
   // ── Console: per-feature publish/manage/(pause)/delete ──────────────────
   ...FEATURES.map(({ id, label, icon, thing }) => {

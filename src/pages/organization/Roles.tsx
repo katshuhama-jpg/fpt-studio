@@ -4,7 +4,7 @@ import { Plus, X, Trash2, ChevronRight, Lock, Info } from "lucide-react";
 import { toast } from "sonner";
 import { Card, PageHeader } from "./shared";
 import { Checkbox } from "@/components/ui/checkbox";
-import { featureGroups, SECTIONS, ALL_PERMISSION_IDS, FeatureGroup } from "./permissionsData";
+import { featureGroups, SECTIONS, ALL_PERMISSION_IDS, RESOURCE_WORDS, FeatureGroup } from "./permissionsData";
 import { useRoles, isScopablePermission, defaultScope, type ScopeMap, type ScopeValue } from "./rolesStore";
 import { useOrg } from "./orgStore";
 import { collectMembers } from "./orgData";
@@ -317,6 +317,46 @@ function ConfirmDeleteRoleModal({
   );
 }
 
+/* ─── Scope-neutral copy template for the View Permissions reference ─────
+   One small set of copy patterns (not 25 hand-written strings) keyed by the
+   permission's verb suffix (view/publish/manage/pause/delete), parameterized
+   by the group's resource wording. The base description never asserts a
+   Scope-specific behavior; the Scope line spells out both values explicitly. */
+type ScopableVerb = "view" | "publish" | "manage" | "pause" | "delete";
+type ResourceWords = { thing: string; singular: string };
+
+function scopeNeutralDesc(verb: ScopableVerb, r: ResourceWords): string {
+  switch (verb) {
+    case "view": return `See ${r.thing}' configuration and details.`;
+    case "publish": return `Make a personal ${r.singular} available to the whole workspace, or share it with a specific group.`;
+    case "manage": return `Edit the configuration of a live ${r.singular}.`;
+    case "pause": return `Pause or resume a live ${r.singular} without deleting it.`;
+    case "delete": return `Permanently delete a live ${r.singular}.`;
+  }
+}
+
+function scopeLineParts(verb: ScopableVerb, r: ResourceWords): { all: string; ownShared: string } {
+  const ownShared = `only ${r.thing} you created or that were shared with you.`;
+  switch (verb) {
+    case "view": return { all: `every ${r.singular} in the Console, including ones not shared with you.`, ownShared };
+    case "publish": return { all: `publish any ${r.singular} in the Console.`, ownShared };
+    case "manage": return { all: `edit any ${r.singular} in the Console.`, ownShared };
+    case "pause": return { all: `pause any ${r.singular} in the Console.`, ownShared };
+    case "delete": return { all: `delete any ${r.singular} in the Console.`, ownShared };
+  }
+}
+
+function ScopeLine({ verb, resource }: { verb: ScopableVerb; resource: ResourceWords }) {
+  const { all, ownShared } = scopeLineParts(verb, resource);
+  return (
+    <div className="mt-2 px-3.5 py-2.5 rounded-lg bg-surface-muted border border-dashed border-border-strong text-[13.5px] leading-relaxed text-muted-foreground">
+      <b className="text-primary">All in Console:</b> {all}
+      <span className="text-border-strong mx-1.5">·</span>
+      <b className="text-warning">Own &amp; Shared:</b> {ownShared}
+    </div>
+  );
+}
+
 /* ─── Permissions reference modal ──────────────────────────────────────── */
 function PermissionsModal({ onClose }: { onClose: () => void }) {
   useEffect(() => {
@@ -349,8 +389,14 @@ function PermissionsModal({ onClose }: { onClose: () => void }) {
             <div className="w-8 h-8 rounded-lg bg-info/15 text-info flex items-center justify-center shrink-0">
               <Info size={15} />
             </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
+            <p className="text-sm text-muted-foreground leading-relaxed">
               Using what you already have is always free. Creating something new — even just for yourself — now requires Create permission; publishing, editing, or deleting shared workspace resources requires the permissions below.
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-border bg-surface-muted p-4">
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              <b className="text-foreground">Scope:</b> Some permissions can also be scoped. <b className="text-primary">All in Console</b> applies to every resource of that type. <b className="text-warning">Own &amp; Shared</b> limits it to resources this role's member created or was shared with.
             </p>
           </div>
 
@@ -370,12 +416,27 @@ function PermissionsModal({ onClose }: { onClose: () => void }) {
                   </div>
 
                   <div className="divide-y divide-border border-t border-border">
-                    {group.permissions.map(p => (
-                      <div key={p.id} className="py-4">
-                        <div className="text-sm font-semibold">{p.name}</div>
-                        <div className="text-xs text-muted-foreground mt-0.5">{p.desc}</div>
-                      </div>
-                    ))}
+                    {group.permissions.map(p => {
+                      const verb = p.id.split(".")[1] as ScopableVerb;
+                      const resource = RESOURCE_WORDS[group.id];
+                      const scopable = isScopablePermission(p.id) && !!resource;
+                      return (
+                        <div key={p.id} className="py-4">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-[15px] font-semibold">{p.name}</span>
+                            {scopable && (
+                              <span className="text-[12px] font-bold px-2.5 py-0.5 rounded-full bg-primary-soft text-primary whitespace-nowrap">
+                                Can be scoped
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[13.5px] text-muted-foreground mt-1 leading-relaxed">
+                            {scopable ? scopeNeutralDesc(verb, resource) : p.desc}
+                          </div>
+                          {scopable && <ScopeLine verb={verb} resource={resource} />}
+                        </div>
+                      );
+                    })}
                   </div>
                 </Card>
               ))}
