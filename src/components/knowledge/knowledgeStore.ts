@@ -37,9 +37,12 @@ export interface KnowledgeItem {
   updatedBy: string;
 }
 
-const STORE_KEY = "agent_knowledge_store_v3";
-const ATTACHED_KEY = "agent_knowledge_attached_v3";
-const SEEDED_KEY = "agent_knowledge_store_seeded_v3";
+// v4 — added an invalid-status FAQ row and an invalid-status document row so the Agent
+// knowledge table can demonstrate the full 6-value status enum (a stale v3 session would be
+// missing them).
+const STORE_KEY = "agent_knowledge_store_v4";
+const ATTACHED_KEY = "agent_knowledge_attached_v4";
+const SEEDED_KEY = "agent_knowledge_store_seeded_v4";
 const store = loadMap<string, KnowledgeItem>(STORE_KEY);
 const attached = loadMap<string, string[]>(ATTACHED_KEY);
 const k = (a: string, id: string) => `${a}:${id}`;
@@ -73,6 +76,8 @@ function seedAgent(agentId: string) {
     put({ id: "kn-cskh-6", agentId, kind: "url", name: "https://abcbank.com/cskh/danh-gia-dich-vu", title: "Đánh giá dịch vụ", description: "", status: "cancelled", chunkCount: 0, version: 1, createdAt: now - 15 * DAY, updatedAt: now - 12 * DAY, updatedBy: "Tran Nam" });
     put({ id: "kn-cskh-7", agentId, kind: "doc", name: "Sổ tay xử lý tình huống khó.pptx", description: "Hướng dẫn xử lý các tình huống khách hàng khó tính, leo thang.", status: "done", chunkCount: 20, sizeBytes: 5_100_000, version: 3, sharing: { mode: "all", people: [] }, createdAt: now - 25 * DAY, updatedAt: now - DAY, updatedBy: "Tran Nam" });
     put({ id: "kn-cskh-8", agentId, kind: "faq", name: "Khách hàng có thể đổi trả dịch vụ đã đăng ký không?", description: "Có, trong vòng 7 ngày kể từ ngày đăng ký nếu chưa sử dụng dịch vụ, không áp dụng với các gói đã kích hoạt.", status: "done", chunkCount: 1, version: 1, createdAt: now - 6 * DAY, updatedAt: now - 5 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "kn-cskh-9", agentId, kind: "faq", name: "Sao kê?", description: "Sao kê là gì đó liên quan tới lịch sử giao dịch, thực ra chưa rõ khách cần hỏi gì cụ thể ở đây.", status: "invalid", statusReason: "Câu hỏi quá ngắn để lập chỉ mục.", chunkCount: 0, version: 1, createdAt: now - DAY, updatedAt: now - DAY, updatedBy: "Tran Nam" });
+    put({ id: "kn-cskh-10", agentId, kind: "doc", name: "Ảnh chụp màn hình quy trình.png", description: "Tệp ảnh không có lớp văn bản để trích xuất nội dung.", status: "invalid", statusReason: "Tệp không chứa nội dung văn bản đọc được.", chunkCount: 0, sizeBytes: 1_800_000, version: 1, createdAt: now - 2 * DAY, updatedAt: now - 2 * DAY, updatedBy: "Tran Nam" });
 
     // kn-cskh-8 gets one manually-edited chunk so its "Đã chỉnh sửa thủ công" chip is visible
     // when opened — populate directly (bypassing the lazy auto-seed) so the edit sticks.

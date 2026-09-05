@@ -234,8 +234,8 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
                 <th className="text-left px-2 py-2.5 kb-table-header">Nguồn</th>
                 <th className="text-left px-2 py-2.5 kb-table-header">Trạng thái</th>
                 <th className="text-left px-2 py-2.5 kb-table-header">Phiên bản</th>
-                <th className="text-left px-2 py-2.5 kb-table-header">Đồng bộ lần cuối</th>
-                <th className="text-left px-2 py-2.5 kb-table-header">Cập nhật bởi</th>
+                <th className="text-left px-2 py-2.5 kb-table-header min-w-[160px]">Đồng bộ lần cuối</th>
+                <th className="text-left px-2 py-2.5 kb-table-header min-w-[120px]">Cập nhật bởi</th>
                 {!viewOnly && <th className="px-4 py-2.5 w-12" />}
               </tr>
             </thead>

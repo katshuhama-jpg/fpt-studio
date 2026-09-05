@@ -36,11 +36,11 @@ export type RoleDef = {
 
 const ADMIN_IDS = new Set(ALL_PERMISSION_IDS);
 const BUILDER_IDS = new Set([
-  "agents.create", "agents.publish", "agents.manage",
-  "knowledge.create", "knowledge.publish", "knowledge.manage",
-  "skills.create", "skills.publish", "skills.manage",
-  "guardrails.create", "guardrails.publish", "guardrails.manage",
-  "connectors.create", "connectors.publish", "connectors.manage",
+  "agents.create", "agents.publish", "agents.manage", "agents.pause", "agents.delete",
+  "knowledge.create", "knowledge.publish", "knowledge.manage", "knowledge.pause", "knowledge.delete",
+  "skills.create", "skills.publish", "skills.manage", "skills.pause", "skills.delete",
+  "guardrails.create", "guardrails.publish", "guardrails.manage", "guardrails.pause", "guardrails.delete",
+  "connectors.create", "connectors.publish", "connectors.manage", "connectors.pause", "connectors.delete",
   "members.view",
 ]);
 const VIEWER_IDS = new Set([
@@ -51,15 +51,15 @@ const VIEWER_IDS = new Set([
   "connectors.view",
 ]);
 
-/** Builder can publish/build only what its own member created or was shared with — never every
- * resource in the Console — across all 5 publishable groups. Create has no Scope. */
+/** Builder can publish/build/pause/delete only what its own member created or was shared with —
+ * never every resource in the Console — across all 5 publishable groups. Create has no Scope. */
 const BUILDER_SCOPE: ScopeMap = {
   ...defaultScope(),
-  "agents.publish": "own_shared", "agents.manage": "own_shared",
-  "knowledge.publish": "own_shared", "knowledge.manage": "own_shared",
-  "skills.publish": "own_shared", "skills.manage": "own_shared",
-  "guardrails.publish": "own_shared", "guardrails.manage": "own_shared",
-  "connectors.publish": "own_shared", "connectors.manage": "own_shared",
+  "agents.publish": "own_shared", "agents.manage": "own_shared", "agents.pause": "own_shared", "agents.delete": "own_shared",
+  "knowledge.publish": "own_shared", "knowledge.manage": "own_shared", "knowledge.pause": "own_shared", "knowledge.delete": "own_shared",
+  "skills.publish": "own_shared", "skills.manage": "own_shared", "skills.pause": "own_shared", "skills.delete": "own_shared",
+  "guardrails.publish": "own_shared", "guardrails.manage": "own_shared", "guardrails.pause": "own_shared", "guardrails.delete": "own_shared",
+  "connectors.publish": "own_shared", "connectors.manage": "own_shared", "connectors.pause": "own_shared", "connectors.delete": "own_shared",
 };
 
 /** Viewer can only see resources its own member created or was shared with, not every resource

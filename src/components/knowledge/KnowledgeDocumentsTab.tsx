@@ -197,10 +197,10 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                 {!viewOnly && <th className="w-10 px-4 py-2.5"><span className="sr-only">Chọn</span></th>}
                 <th className="text-left px-2 py-2.5 kb-table-header">Tên</th>
                 <th className="text-left px-2 py-2.5 kb-table-header">Trạng thái</th>
-                <th className="text-left px-2 py-2.5 kb-table-header">Kích thước</th>
+                <th className="text-left px-2 py-2.5 kb-table-header min-w-[110px]">Kích thước</th>
                 <th className="text-left px-2 py-2.5 kb-table-header">Phiên bản</th>
                 <th className="text-left px-2 py-2.5 kb-table-header">Cập nhật</th>
-                <th className="text-left px-2 py-2.5 kb-table-header">Cập nhật bởi</th>
+                <th className="text-left px-2 py-2.5 kb-table-header min-w-[120px]">Cập nhật bởi</th>
                 {!viewOnly && <th className="px-4 py-2.5 w-12" />}
               </tr>
             </thead>

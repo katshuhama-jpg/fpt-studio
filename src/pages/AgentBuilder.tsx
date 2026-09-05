@@ -1299,11 +1299,11 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
           </div>
         ) : (
           <div className="rounded-lg overflow-hidden border border-border overflow-x-auto scroll-shadow-x">
-            <div className="grid grid-cols-[24px,1fr,80px,80px,70px,132px,120px,70px] gap-3 px-4 py-2.5 bg-surface-muted kb-table-header min-w-[800px]">
+            <div className="grid grid-cols-[24px,1fr,80px,110px,70px,132px,120px,70px] gap-3 px-4 py-2.5 bg-surface-muted kb-table-header min-w-[830px]">
               <div></div><div>Nguồn</div><div>Loại</div><div>Kích thước</div><div>Phiên bản</div><div>Trạng thái</div><div>Quyền</div><div></div>
             </div>
             {filteredItems.map(item => (
-              <div key={item.id} className="grid grid-cols-[24px,1fr,80px,80px,70px,132px,120px,70px] gap-3 px-4 h-14 border-t border-border items-center hover:bg-surface-muted/50 transition-base group min-w-[800px]">
+              <div key={item.id} className="grid grid-cols-[24px,1fr,80px,110px,70px,132px,120px,70px] gap-3 px-4 h-14 border-t border-border items-center hover:bg-surface-muted/50 transition-base group min-w-[830px]">
                 <input type="checkbox" className="w-4 h-4 accent-primary" aria-label={`Chọn ${item.name}`} />
                 <button onClick={() => setParams({ ...Object.fromEntries(params), itemId: item.id })} className="flex items-center gap-2 min-w-0 text-sm font-medium truncate text-left hover:underline">
                   <FileTypeIcon kind={item.kind === "url" ? "url" : item.kind === "faq" ? "faq" : undefined} name={item.kind === "doc" ? item.name : undefined} />
@@ -1325,8 +1325,18 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
                     <TooltipContent>Xem lịch sử phiên bản</TooltipContent>
                   </Tooltip>
                 </div>
-                <div title={item.status === "failed" ? item.statusReason : undefined}>
+                <div className="flex items-center gap-1.5">
                   <KnowledgeStatusPill status={item.status ?? "done"} />
+                  {(item.status === "failed" || item.status === "invalid") && item.statusReason && (
+                    <Tooltip delayDuration={200}>
+                      <TooltipTrigger asChild>
+                        <span tabIndex={0} className="text-muted-foreground outline-none">
+                          <HugeiconsIcon icon={InformationCircleIcon} size={12} />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-[260px]">{item.statusReason}</TooltipContent>
+                    </Tooltip>
+                  )}
                 </div>
                 <button onClick={() => setShareTarget(item)} className="text-left">
                   <KnowledgeSharingChip sharing={item.sharing} />
@@ -1338,11 +1348,15 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
                     onPromote={() => setPromoteTarget(item)}
                     onReprocess={() => setReprocessTarget(item)}
                     onDelete={() => setDeleteTarget(item)}
-                    reprocessDisabled={item.kind === "faq" && item.status !== "failed"}
+                    reprocessDisabled={(item.kind === "faq" || item.kind === "doc") && item.status !== "failed"}
                     reprocessTooltip={
-                      item.kind !== "faq" ? undefined
-                        : item.status === "invalid" ? "Nội dung chưa hợp lệ. Hãy sửa câu hỏi hoặc câu trả lời trước khi xử lý lại."
-                        : item.status === "pending" || item.status === "processing" ? "Câu hỏi đang được xử lý."
+                      item.kind !== "faq" && item.kind !== "doc" ? undefined
+                        : item.status === "invalid" ? (
+                            item.kind === "faq"
+                              ? "Nội dung chưa hợp lệ. Hãy sửa câu hỏi hoặc câu trả lời trước khi xử lý lại."
+                              : "Nội dung chưa hợp lệ. Hãy tải lại tài liệu khác trước khi xử lý lại."
+                          )
+                        : item.status === "pending" || item.status === "processing" ? "Nguồn tri thức đang được xử lý."
                         : undefined
                     }
                   />

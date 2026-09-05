@@ -227,7 +227,7 @@
      the app for unrelated 11px overlines) since these headers belong to the 12px SECONDARY
      step of the scale, not the 11px OVERLINE step. */
   .kb-table-header {
-    @apply text-xs font-medium uppercase tracking-[0.04em] text-muted-foreground;
+    @apply text-xs font-medium uppercase tracking-[0.04em] text-muted-foreground whitespace-nowrap;
   }
 
   .stat-num {
