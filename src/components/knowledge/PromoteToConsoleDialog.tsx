@@ -12,16 +12,33 @@ const SHARING_OPTIONS: { value: SharingMode; label: string; helper?: string }[] 
   { value: "specific", label: "Người dùng cụ thể" },
 ];
 
+/** A Kho tri thức is a container, not a file/page/question — so the pre-filled name should
+ * never carry a document's file extension or a URL's raw address. Docs: strip the extension.
+ * URLs: use the page title (falling back to the bare host+path when no title was captured).
+ * FAQs: `name` already holds the question text, so it's used as-is. */
+function defaultPromoteName(item: KnowledgeItem): string {
+  if (item.kind === "doc") {
+    const idx = item.name.lastIndexOf(".");
+    return idx > 0 ? item.name.slice(0, idx) : item.name;
+  }
+  if (item.kind === "url") {
+    return item.title ?? item.name.replace(/^https?:\/\//, "");
+  }
+  return item.name;
+}
+
 export default function PromoteToConsoleDialog({ agentId, item, onClose, onPromoted }: {
   agentId: string; item: KnowledgeItem; onClose: () => void; onPromoted?: (kbId: string) => void;
 }) {
-  const [name, setName] = useState(item.name.slice(0, NAME_MAX));
+  const [name, setName] = useState(defaultPromoteName(item).slice(0, NAME_MAX));
   const [mode, setMode] = useState<SharingMode>("private");
   const [people, setPeople] = useState<Sharing["people"]>([]);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
 
   const canSubmit = name.trim().length > 0 && (mode !== "specific" || people.length > 0);
 
   const submit = () => {
+    setSubmitAttempted(true);
     if (!canSubmit) return;
     const sharing: Sharing = { mode, people: mode === "specific" ? people : [] };
     const result = knowledgeStore.promoteToConsole(agentId, item.id, name.trim(), sharing);
@@ -36,7 +53,7 @@ export default function PromoteToConsoleDialog({ agentId, item, onClose, onPromo
 
   return (
     <Dialog open onOpenChange={v => !v && onClose()}>
-      <DialogContent className="sm:max-w-[460px]">
+      <DialogContent className="sm:max-w-[460px]" onOpenAutoFocus={e => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>Chuyển thành kho tri thức chung</DialogTitle>
         </DialogHeader>
@@ -80,7 +97,7 @@ export default function PromoteToConsoleDialog({ agentId, item, onClose, onPromo
                   {selected && opt.value === "specific" && (
                     <div className="mt-2 pl-3.5">
                       <MemberPicker value={people} onChange={setPeople} ownerRow={{ name: CURRENT_USER.name, email: CURRENT_USER.email }} />
-                      {people.length === 0 && <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người để chia sẻ.</p>}
+                      {submitAttempted && people.length === 0 && <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người để chia sẻ.</p>}
                     </div>
                   )}
                 </div>

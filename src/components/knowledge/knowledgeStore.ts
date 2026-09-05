@@ -17,6 +17,9 @@ export interface KnowledgeItem {
   agentId: string;
   name: string;
   kind: KnowledgeKind;
+  /** url items only — the page's title, distinct from `name` (which holds the raw URL). Used
+   * to pre-fill a human-readable name when promoting the item to a Console KB. */
+  title?: string;
   description: string;
   status?: KnowledgeProcessingStatus;
   statusReason?: string;
@@ -32,9 +35,9 @@ export interface KnowledgeItem {
   updatedBy: string;
 }
 
-const STORE_KEY = "agent_knowledge_store_v2";
-const ATTACHED_KEY = "agent_knowledge_attached_v2";
-const SEEDED_KEY = "agent_knowledge_store_seeded_v2";
+const STORE_KEY = "agent_knowledge_store_v3";
+const ATTACHED_KEY = "agent_knowledge_attached_v3";
+const SEEDED_KEY = "agent_knowledge_store_seeded_v3";
 const store = loadMap<string, KnowledgeItem>(STORE_KEY);
 const attached = loadMap<string, string[]>(ATTACHED_KEY);
 const k = (a: string, id: string) => `${a}:${id}`;
@@ -59,13 +62,13 @@ function seedAgent(agentId: string) {
   if (agentId === "cskh") {
     put({ id: "kn-cskh-1", agentId, kind: "doc", name: "Kịch bản trả lời khiếu nại.pdf", description: "Kịch bản chuẩn cho tổng đài viên khi tiếp nhận khiếu nại.", status: "done", chunkCount: 12, sizeBytes: 480_000, version: 1, createdAt: now - 10 * DAY, updatedAt: now - 2 * DAY, updatedBy: "Tran Nam" });
     put({ id: "kn-cskh-2", agentId, kind: "doc", name: "Mẫu email chăm sóc khách hàng.docx", description: "Các mẫu email phản hồi khách hàng theo từng tình huống.", status: "done", chunkCount: 8, sizeBytes: 210_000, version: 1, sharing: { mode: "all", people: [] }, createdAt: now - 8 * DAY, updatedAt: now - 6 * DAY, updatedBy: "Tran Nam" });
-    put({ id: "kn-cskh-3", agentId, kind: "url", name: "https://abcbank.com/cskh/lien-he", description: "", status: "processing", chunkCount: 0, version: 1, sharing: sharedWith([
+    put({ id: "kn-cskh-3", agentId, kind: "url", name: "https://abcbank.com/cskh/lien-he", title: "Liên hệ chăm sóc khách hàng", description: "", status: "processing", chunkCount: 0, version: 1, sharing: sharedWith([
       { userId: "m-linh", name: "Linh Phan", email: "linh.phan@fpt.com", access: "view" },
       { userId: "m-mai", name: "Mai Hoang", email: "mai.hoang@fpt.com", access: "edit" },
     ]), createdAt: now - 3 * DAY, updatedAt: now - 20 * 60_000, updatedBy: "Tran Nam" });
     put({ id: "kn-cskh-4", agentId, kind: "faq", name: "Thời gian phản hồi khiếu nại tối đa là bao lâu?", description: "Ngân hàng cam kết phản hồi trong vòng 48 giờ làm việc kể từ khi tiếp nhận khiếu nại.", status: "pending", chunkCount: 0, version: 1, createdAt: now - 60_000, updatedAt: now - 60_000, updatedBy: "Tran Nam" });
     put({ id: "kn-cskh-5", agentId, kind: "doc", name: "Quy trình xử lý phàn nàn qua tổng đài.xlsx", description: "Bảng phân loại mức độ phàn nàn và thời hạn xử lý tương ứng.", status: "failed", statusReason: "Không đọc được nội dung tệp. Thử tải lại hoặc dùng bản PDF.", chunkCount: 0, sizeBytes: 3_200_000, version: 1, createdAt: now - 4 * DAY, updatedAt: now - 4 * DAY, updatedBy: "Tran Nam" });
-    put({ id: "kn-cskh-6", agentId, kind: "url", name: "https://abcbank.com/cskh/danh-gia-dich-vu", description: "", status: "cancelled", chunkCount: 0, version: 1, createdAt: now - 15 * DAY, updatedAt: now - 12 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "kn-cskh-6", agentId, kind: "url", name: "https://abcbank.com/cskh/danh-gia-dich-vu", title: "Đánh giá dịch vụ", description: "", status: "cancelled", chunkCount: 0, version: 1, createdAt: now - 15 * DAY, updatedAt: now - 12 * DAY, updatedBy: "Tran Nam" });
     put({ id: "kn-cskh-7", agentId, kind: "doc", name: "Sổ tay xử lý tình huống khó.pptx", description: "Hướng dẫn xử lý các tình huống khách hàng khó tính, leo thang.", status: "done", chunkCount: 20, sizeBytes: 5_100_000, version: 3, sharing: { mode: "all", people: [] }, createdAt: now - 25 * DAY, updatedAt: now - DAY, updatedBy: "Tran Nam" });
     put({ id: "kn-cskh-8", agentId, kind: "faq", name: "Khách hàng có thể đổi trả dịch vụ đã đăng ký không?", description: "Có, trong vòng 7 ngày kể từ ngày đăng ký nếu chưa sử dụng dịch vụ, không áp dụng với các gói đã kích hoạt.", status: "done", chunkCount: 1, version: 1, createdAt: now - 6 * DAY, updatedAt: now - 5 * DAY, updatedBy: "Tran Nam" });
 
@@ -86,7 +89,7 @@ function seedAgent(agentId: string) {
 
   if (agentId === "hr") {
     put({ id: "kn-hr-1", agentId, kind: "doc", name: "Checklist ngày đầu tiên.pdf", description: "Danh sách việc cần làm cho nhân viên mới trong ngày đầu tiên.", status: "done", chunkCount: 6, sizeBytes: 150_000, version: 1, createdAt: now - 12 * DAY, updatedAt: now - 9 * DAY, updatedBy: "Tran Nam" });
-    put({ id: "kn-hr-2", agentId, kind: "url", name: "https://intranet.abc.com/hr/quy-dinh-nghi-phep", description: "", status: "done", chunkCount: 4, version: 1, sharing: { mode: "all", people: [] }, createdAt: now - 7 * DAY, updatedAt: now - 3 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "kn-hr-2", agentId, kind: "url", name: "https://intranet.abc.com/hr/quy-dinh-nghi-phep", title: "Quy định nghỉ phép", description: "", status: "done", chunkCount: 4, version: 1, sharing: { mode: "all", people: [] }, createdAt: now - 7 * DAY, updatedAt: now - 3 * DAY, updatedBy: "Tran Nam" });
     put({ id: "kn-hr-3", agentId, kind: "faq", name: "Bảo hiểm y tế cho nhân viên mới bắt đầu từ khi nào?", description: "Bảo hiểm y tế được kích hoạt từ ngày ký hợp đồng chính thức, sau thời gian thử việc.", status: "pending", chunkCount: 0, version: 1, createdAt: now - 30 * 60_000, updatedAt: now - 30 * 60_000, updatedBy: "Tran Nam" });
   }
 

@@ -11,6 +11,7 @@ import {
 import { toast } from "sonner";
 import { knowledgeDocumentStore, type KnowledgeDocument } from "./knowledgeDocumentStore";
 import { KnowledgeStatusPill, type KnowledgeProcessingStatus } from "./knowledgeStatus";
+import { formatFileSize } from "./formatFileSize";
 import FileTypeIcon from "./FileTypeIcon";
 import UploadDocumentsModal from "./UploadDocumentsModal";
 import ChunkViewerModal from "./ChunkViewerModal";
@@ -29,12 +30,6 @@ const STATUS_OPTIONS: { value: KnowledgeProcessingStatus | "all"; label: string 
 ];
 
 const SUPPORTED_FORMATS_LINE = "Hỗ trợ TXT, MD, PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, CSV · Tối đa 10 tệp mỗi lần · 30MB mỗi tệp";
-
-function formatSize(bytes: number): string {
-  if (bytes === 0) return "—";
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string; viewOnly: boolean }) {
   const [params, setParams] = useSearchParams();
@@ -233,7 +228,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                       </span>
                     )}
                   </td>
-                  <td className="px-2 py-3 text-xs text-muted-foreground whitespace-nowrap">{d.isFolder ? "—" : formatSize(d.sizeBytes)}</td>
+                  <td className="px-2 py-3 text-xs text-muted-foreground whitespace-nowrap">{d.isFolder ? "—" : formatFileSize(d.sizeBytes)}</td>
                   <td className="px-2 py-3">
                     {!d.isFolder && (
                       <Tooltip delayDuration={200}>

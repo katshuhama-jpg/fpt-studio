@@ -32,6 +32,7 @@ export default function ShareKnowledgeBaseModal({
   const [mode, setMode] = useState<SharingMode>(initialSharing.mode);
   const [people, setPeople] = useState(initialSharing.people);
   const [showRevokeConfirm, setShowRevokeConfirm] = useState(false);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
 
   const canSubmit = mode !== "specific" || people.length > 0;
 
@@ -58,6 +59,7 @@ export default function ShareKnowledgeBaseModal({
   };
 
   const save = () => {
+    setSubmitAttempted(true);
     if (!canSubmit) return;
     const downgrading = initialSharing.mode === "all" && mode !== "all";
     if (downgrading || revokedCount > 0) {
@@ -70,7 +72,7 @@ export default function ShareKnowledgeBaseModal({
   return (
     <>
       <Dialog open={open} onOpenChange={v => !v && onClose()}>
-        <DialogContent className="sm:max-w-[520px]">
+        <DialogContent className="sm:max-w-[520px]" onOpenAutoFocus={e => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Chia sẻ kho tri thức</DialogTitle>
             <DialogDescription>{name}</DialogDescription>
@@ -101,7 +103,7 @@ export default function ShareKnowledgeBaseModal({
                       {selected && opt.value === "specific" && (
                         <div className="mt-2 pl-3.5">
                           <MemberPicker value={people} onChange={setPeople} ownerRow={{ name: ownerName, email: "" }} />
-                          {people.length === 0 && <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người để chia sẻ.</p>}
+                          {submitAttempted && people.length === 0 && <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người để chia sẻ.</p>}
                         </div>
                       )}
                     </div>

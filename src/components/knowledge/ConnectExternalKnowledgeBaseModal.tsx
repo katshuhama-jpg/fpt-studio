@@ -88,7 +88,7 @@ export default function ConnectExternalKnowledgeBaseModal({ open, onClose }: { o
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent className="sm:max-w-[560px] max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[560px] max-h-[85vh] overflow-y-auto" onOpenAutoFocus={e => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>Kết nối kho tri thức ngoài</DialogTitle>
         </DialogHeader>

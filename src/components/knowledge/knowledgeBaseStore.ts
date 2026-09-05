@@ -5,6 +5,9 @@
 // two-store architecture: an Agent can attach a Console KB by reference, or promote one of
 // its own items into a new Console KB, but the two stores are never merged.
 import { loadMap, saveMap } from "@/lib/sessionPersist";
+import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
+import { knowledgeUrlStore } from "./knowledgeUrlStore";
+import { knowledgeFaqStore } from "./knowledgeFaqStore";
 
 export type KnowledgeBaseType = "internal" | "external_api";
 export type SharingMode = "private" | "all" | "specific";
@@ -40,6 +43,8 @@ export interface KnowledgeBase {
   /** external_api only */
   apiEndpoint?: string;
   hasApiKey?: boolean;
+  /** Always derived from the KB's actual Documents/Website/FAQ contents (see computeStats) —
+   * never stored, so the card showing these numbers can never disagree with what's inside. */
   stats: KnowledgeBaseStats;
   /** Agent ids currently attaching this KB by reference — drives the Delete-KB warning
    * ("N Agent đang dùng kho tri thức này..."). */
@@ -48,12 +53,32 @@ export interface KnowledgeBase {
   updatedAt: number;
 }
 
+/** What's actually persisted — everything on KnowledgeBase except the derived `stats`. */
+type StoredKnowledgeBase = Omit<KnowledgeBase, "stats">;
+
 export const CURRENT_USER = { id: "tran-nam", name: "Tran Nam", email: "tran.nam@fpt.com" };
 
 const STORE_KEY = "knowledge_base_store_v1";
 const SEEDED_KEY = "knowledge_base_store_seeded_v1";
-const store = loadMap<string, KnowledgeBase>(STORE_KEY);
+const store = loadMap<string, StoredKnowledgeBase>(STORE_KEY);
 const persist = () => saveMap(STORE_KEY, store);
+
+/** Sums a KB's real Documents/Website/FAQ contents so the "N tài liệu · M URL · K chunk"
+ * readout shown on its card and detail header can never drift from what's actually inside. */
+function computeStats(kbId: string): KnowledgeBaseStats {
+  const docs = knowledgeDocumentStore.list(kbId).filter(d => !d.isFolder);
+  const urls = knowledgeUrlStore.list(kbId).filter(u => !u.isFolder);
+  const faqs = knowledgeFaqStore.list(kbId);
+  const sumChunks = (items: { chunkCount: number }[]) => items.reduce((sum, i) => sum + (i.chunkCount ?? 0), 0);
+  return {
+    docs: docs.length,
+    urls: urls.length,
+    faqs: faqs.length,
+    chunks: sumChunks(docs) + sumChunks(urls) + sumChunks(faqs),
+  };
+}
+
+const withStats = (kb: StoredKnowledgeBase): KnowledgeBase => ({ ...kb, stats: computeStats(kb.id) });
 
 function seed() {
   if (sessionStorage.getItem(SEEDED_KEY)) return;
@@ -61,7 +86,7 @@ function seed() {
   const now = Date.now();
   const DAY = 86_400_000;
 
-  const put = (kb: KnowledgeBase) => store.set(kb.id, kb);
+  const put = (kb: StoredKnowledgeBase) => store.set(kb.id, kb);
 
   // Owned by current user — private (default)
   put({
@@ -69,7 +94,6 @@ function seed() {
     description: "Chính sách sản phẩm, lãi suất và quy trình xử lý khiếu nại của ngân hàng ABC.",
     type: "internal", ownerId: CURRENT_USER.id, ownerName: CURRENT_USER.name,
     sharing: { mode: "private", people: [] },
-    stats: { docs: 18, urls: 6, faqs: 24, chunks: 842 },
     attachedByAgentIds: ["cskh"],
     createdAt: now - 30 * DAY, updatedAt: now - 2 * 3_600_000,
   });
@@ -80,7 +104,6 @@ function seed() {
     description: "Câu hỏi thường gặp dùng chung cho các Agent chăm sóc khách hàng.",
     type: "internal", ownerId: CURRENT_USER.id, ownerName: CURRENT_USER.name,
     sharing: { mode: "all", people: [] },
-    stats: { docs: 4, urls: 0, faqs: 63, chunks: 63 },
     attachedByAgentIds: ["cskh", "ops"],
     createdAt: now - 21 * DAY, updatedAt: now - DAY,
   });
@@ -98,7 +121,6 @@ function seed() {
         { userId: "m-fsoft-vn-1", name: "Duy Nguyen", email: "duy.nguyen@fpt.com", access: "view" },
       ],
     },
-    stats: { docs: 27, urls: 3, faqs: 8, chunks: 511 },
     attachedByAgentIds: [],
     createdAt: now - 45 * DAY, updatedAt: now - 6 * 3_600_000,
   });
@@ -112,7 +134,6 @@ function seed() {
       mode: "specific",
       people: [{ userId: CURRENT_USER.id, name: CURRENT_USER.name, email: CURRENT_USER.email, access: "view" }],
     },
-    stats: { docs: 9, urls: 1, faqs: 15, chunks: 203 },
     attachedByAgentIds: [],
     createdAt: now - 60 * DAY, updatedAt: now - 5 * DAY,
   });
@@ -126,7 +147,6 @@ function seed() {
       mode: "specific",
       people: [{ userId: CURRENT_USER.id, name: CURRENT_USER.name, email: CURRENT_USER.email, access: "edit" }],
     },
-    stats: { docs: 12, urls: 0, faqs: 30, chunks: 268 },
     attachedByAgentIds: ["sales"],
     createdAt: now - 12 * DAY, updatedAt: now - 3 * 3_600_000,
   });
@@ -138,7 +158,6 @@ function seed() {
     type: "external_api", ownerId: CURRENT_USER.id, ownerName: CURRENT_USER.name,
     sharing: { mode: "private", people: [] },
     apiEndpoint: "https://legal-kb.abc-corp.vn/api/v1/retrieve", hasApiKey: true,
-    stats: { docs: 0, urls: 0, faqs: 0, chunks: 0 },
     attachedByAgentIds: [],
     createdAt: now - 7 * DAY, updatedAt: now - 7 * DAY,
   });
@@ -149,11 +168,12 @@ function seed() {
 export const knowledgeBaseStore = {
   list(): KnowledgeBase[] {
     seed();
-    return [...store.values()].sort((a, b) => b.updatedAt - a.updatedAt);
+    return [...store.values()].sort((a, b) => b.updatedAt - a.updatedAt).map(withStats);
   },
   get(id: string): KnowledgeBase | undefined {
     seed();
-    return store.get(id);
+    const kb = store.get(id);
+    return kb ? withStats(kb) : undefined;
   },
   isDuplicateName(name: string, excludeId?: string): boolean {
     const n = name.trim().toLowerCase();
@@ -165,16 +185,15 @@ export const knowledgeBaseStore = {
   }): KnowledgeBase {
     const id = `kb-${Date.now().toString(36)}`;
     const now = Date.now();
-    const kb: KnowledgeBase = {
+    const kb: StoredKnowledgeBase = {
       id, name: data.name.trim(), description: data.description.trim(), type: data.type,
       ownerId: CURRENT_USER.id, ownerName: CURRENT_USER.name, sharing: data.sharing,
       apiEndpoint: data.apiEndpoint, hasApiKey: data.hasApiKey,
-      stats: { docs: 0, urls: 0, faqs: 0, chunks: 0 },
       attachedByAgentIds: [], createdAt: now, updatedAt: now,
     };
     store.set(id, kb);
     persist();
-    return kb;
+    return withStats(kb);
   },
   update(id: string, patch: Partial<Pick<KnowledgeBase, "name" | "description" | "apiEndpoint" | "hasApiKey">>) {
     const cur = store.get(id);

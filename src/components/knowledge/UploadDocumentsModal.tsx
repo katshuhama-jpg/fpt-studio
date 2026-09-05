@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
 import { knowledgeStore } from "./knowledgeStore";
 import FileTypeIcon from "./FileTypeIcon";
+import { formatFileSize } from "./formatFileSize";
 
 const ALLOWED_EXT = ["txt", "md", "pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "csv"];
 const ACCEPT_ATTR = ALLOWED_EXT.map(ext => `.${ext}`).join(",");
@@ -22,10 +23,6 @@ interface StagedFile {
 
 function extOf(name: string): string {
   return name.split(".").pop()?.toLowerCase() ?? "";
-}
-function formatSize(bytes: number): string {
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 /** Pass either kbId (Console Documents tab, S7) or agentId (Agent Knowledge "Tải tài liệu"
@@ -193,7 +190,7 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
                     <FileTypeIcon name={s.file.name} />
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium truncate">{s.file.name}</div>
-                      <div className="text-xs text-muted-foreground">{formatSize(s.file.size)}</div>
+                      <div className="text-xs text-muted-foreground">{formatFileSize(s.file.size)}</div>
                     </div>
                     {!uploading && (
                       <button onClick={() => removeFile(s.key)} aria-label={`Bỏ ${s.file.name}`} className="w-7 h-7 shrink-0 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base">

@@ -61,7 +61,7 @@ export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, onClo
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent className="sm:max-w-[520px] max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[520px] max-h-[85vh] overflow-y-auto" onOpenAutoFocus={e => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>{isEdit ? "Sửa FAQ" : "Tạo FAQ"}</DialogTitle>
         </DialogHeader>
@@ -72,7 +72,7 @@ export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, onClo
               <span className="text-xs text-muted-foreground">{question.length}/{QUESTION_MAX}</span>
             </div>
             <textarea
-              autoFocus rows={2} maxLength={QUESTION_MAX} value={question}
+              rows={2} maxLength={QUESTION_MAX} value={question}
               onChange={e => setQuestion(e.target.value)}
               onBlur={() => setQuestionTouched(true)}
               className="w-full px-3 py-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none"

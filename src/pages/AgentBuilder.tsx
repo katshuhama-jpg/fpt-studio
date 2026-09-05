@@ -55,6 +55,7 @@ import AddEditFaqModal from "@/components/knowledge/AddEditFaqModal";
 import ChunkViewerModal from "@/components/knowledge/ChunkViewerModal";
 import VersionHistoryPanel from "@/components/knowledge/VersionHistoryPanel";
 import FileTypeIcon from "@/components/knowledge/FileTypeIcon";
+import { formatFileSize } from "@/components/knowledge/formatFileSize";
 import type { Sharing } from "@/components/knowledge/knowledgeBaseStore";
 
 type Tab = "build" | "test" | "channels" | "insights";
@@ -1109,8 +1110,19 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, openLabel = "M
 
 function KnowledgeSharingChip({ sharing }: { sharing?: Sharing }) {
   const mode = sharing?.mode ?? "private";
-  const label = mode === "all" ? "Dùng chung" : mode === "specific" ? `Chia sẻ với ${sharing?.people.length ?? 0} người` : "Chỉ mình tôi";
-  return <span className="chip chip-muted text-xs">{label}</span>;
+  if (mode === "specific") {
+    const count = sharing?.people.length ?? 0;
+    return (
+      <Tooltip delayDuration={200}>
+        <TooltipTrigger asChild>
+          <span className="chip chip-muted text-xs whitespace-nowrap cursor-default">{`Chia sẻ · ${count}`}</span>
+        </TooltipTrigger>
+        <TooltipContent>{`Chia sẻ với ${count} người`}</TooltipContent>
+      </Tooltip>
+    );
+  }
+  const label = mode === "all" ? "Dùng chung" : "Chỉ mình tôi";
+  return <span className="chip chip-muted text-xs whitespace-nowrap">{label}</span>;
 }
 
 function KnowledgeTab({ agentId }: { agentId: string }) {
@@ -1252,19 +1264,18 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
           </div>
         ) : (
           <div className="rounded-lg overflow-hidden border border-border overflow-x-auto scroll-shadow-x">
-            <div className="grid grid-cols-[24px,1fr,80px,80px,60px,70px,100px,110px,70px] gap-3 px-4 py-2.5 bg-surface-muted section-eyebrow min-w-[820px]">
-              <div></div><div>Nguồn</div><div>Loại</div><div>Kích thước</div><div>Chunk</div><div>Phiên bản</div><div>Trạng thái</div><div>Quyền</div><div></div>
+            <div className="grid grid-cols-[24px,1fr,80px,80px,70px,132px,120px,70px] gap-3 px-4 py-2.5 bg-surface-muted section-eyebrow min-w-[800px]">
+              <div></div><div>Nguồn</div><div>Loại</div><div>Kích thước</div><div>Phiên bản</div><div>Trạng thái</div><div>Quyền</div><div></div>
             </div>
             {filteredItems.map(item => (
-              <div key={item.id} className="grid grid-cols-[24px,1fr,80px,80px,60px,70px,100px,110px,70px] gap-3 px-4 py-3 border-t border-border items-center hover:bg-surface-muted/50 transition-base group min-w-[820px]">
+              <div key={item.id} className="grid grid-cols-[24px,1fr,80px,80px,70px,132px,120px,70px] gap-3 px-4 h-14 border-t border-border items-center hover:bg-surface-muted/50 transition-base group min-w-[800px]">
                 <input type="checkbox" className="w-4 h-4 accent-primary" aria-label={`Chọn ${item.name}`} />
                 <button onClick={() => setParams({ ...Object.fromEntries(params), itemId: item.id })} className="flex items-center gap-2 min-w-0 text-sm font-medium truncate text-left hover:underline">
                   <FileTypeIcon kind={item.kind === "url" ? "url" : item.kind === "faq" ? "faq" : undefined} name={item.kind === "doc" ? item.name : undefined} />
                   <span className="truncate">{item.name}</span>
                 </button>
                 <div className="text-xs text-muted-foreground">{KIND_LABEL[item.kind]}</div>
-                <div className="text-xs text-muted-foreground">{item.sizeBytes ? `${Math.round(item.sizeBytes / 1024)} KB` : "—"}</div>
-                <div className="text-xs font-mono">{item.chunkCount ?? 0}</div>
+                <div className="text-xs text-muted-foreground">{item.sizeBytes ? formatFileSize(item.sizeBytes) : "—"}</div>
                 <div>
                   <Tooltip delayDuration={200}>
                     <TooltipTrigger asChild>

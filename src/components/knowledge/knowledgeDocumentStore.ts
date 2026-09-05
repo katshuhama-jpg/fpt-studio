@@ -18,8 +18,8 @@ export interface KnowledgeDocument {
   updatedBy: string;
 }
 
-const STORE_KEY = "knowledge_document_store_v1";
-const SEEDED_KEY = "knowledge_document_store_seeded_v1";
+const STORE_KEY = "knowledge_document_store_v2";
+const SEEDED_KEY = "knowledge_document_store_seeded_v2";
 const store = loadMap<string, KnowledgeDocument>(STORE_KEY);
 const persist = () => saveMap(STORE_KEY, store);
 
@@ -38,6 +38,13 @@ function seedKb(kbId: string) {
     put({ id: "doc-1-3", kbId, name: "Quy trình mở thẻ tín dụng.pdf", isFolder: false, folderId: null, status: "processing", sizeBytes: 2_100_000, chunkCount: 0, version: 1, createdAt: now - 5 * 60_000, updatedAt: now - 5 * 60_000, updatedBy: "Tran Nam" });
     put({ id: "doc-1-4", kbId, name: "Sổ tay sản phẩm vay.pptx", isFolder: false, folderId: null, status: "failed", statusReason: "Không đọc được nội dung tệp. Thử tải lại hoặc dùng bản PDF.", sizeBytes: 8_400_000, chunkCount: 0, version: 1, createdAt: now - DAY, updatedAt: now - DAY, updatedBy: "Tran Nam" });
     put({ id: "doc-1-5", kbId, name: "Câu hỏi khiếu nại thường gặp.csv", isFolder: false, folderId: null, status: "pending", sizeBytes: 90_000, chunkCount: 0, version: 1, createdAt: now - 60_000, updatedAt: now - 60_000, updatedBy: "Tran Nam" });
+  }
+
+  if (kbId === "kb-2") {
+    put({ id: "doc-2-1", kbId, name: "Kịch bản trả lời khiếu nại qua tổng đài.docx", isFolder: false, folderId: null, status: "done", sizeBytes: 210_000, chunkCount: 14, version: 1, createdAt: now - 5 * DAY, updatedAt: now - 2 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "doc-2-2", kbId, name: "Mẫu email xin lỗi khách hàng.docx", isFolder: false, folderId: null, status: "done", sizeBytes: 85_000, chunkCount: 6, version: 1, createdAt: now - 9 * DAY, updatedAt: now - 9 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "doc-2-3", kbId, name: "Quy trình chăm sóc khách hàng VIP.pdf", isFolder: false, folderId: null, status: "processing", sizeBytes: 640_000, chunkCount: 0, version: 1, createdAt: now - 10 * 60_000, updatedAt: now - 10 * 60_000, updatedBy: "Tran Nam" });
+    put({ id: "doc-2-4", kbId, name: "Bộ câu hỏi khảo sát hài lòng khách hàng.xlsx", isFolder: false, folderId: null, status: "done", sizeBytes: 55_000, chunkCount: 3, version: 1, createdAt: now - 14 * DAY, updatedAt: now - 14 * DAY, updatedBy: "Tran Nam" });
   }
 
   if (kbId === "kb-3") {

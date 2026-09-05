@@ -95,7 +95,7 @@ export default function CreateKnowledgeBaseModal({
   return (
     <>
       <Dialog open={open} onOpenChange={v => { if (!v) requestClose(); }}>
-        <DialogContent className="sm:max-w-[520px]">
+        <DialogContent className="sm:max-w-[520px]" onOpenAutoFocus={e => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>{isEdit ? "Chỉnh sửa kho tri thức" : "Tạo kho tri thức"}</DialogTitle>
           </DialogHeader>

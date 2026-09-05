@@ -126,7 +126,7 @@ export default function AddUrlModal({ open, kbId, agentId, defaultFolderId, onCl
   const invalidCount = urlChips.length - validCount;
 
   const addUrl = (url: string, folderId: string | null) => {
-    if (agentId) knowledgeStore.add(agentId, { name: url, kind: "url", description: "" });
+    if (agentId) knowledgeStore.add(agentId, { name: url, kind: "url", title: url.replace(/^https?:\/\//, ""), description: "" });
     else knowledgeUrlStore.addUrl(kbId!, { url, source: "specified", folderId });
   };
 
