@@ -99,7 +99,7 @@ export default function SyncSettingsModal({ kbId, viewOnly, onClose, onSaved }: 
                           <div key={u.id} className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
                             <div className="min-w-0">
                               <p className="text-xs font-medium truncate">{u.title ?? u.name}</p>
-                              {u.scheduleOverride && <p className="text-[11px] text-muted-foreground">{shortCadence(u.scheduleOverride.schedule)}</p>}
+                              {u.scheduleOverride && <p className="text-xs text-muted-foreground">{shortCadence(u.scheduleOverride.schedule)}</p>}
                             </div>
                             {!viewOnly && (
                               <button

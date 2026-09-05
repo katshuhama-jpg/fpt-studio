@@ -26,7 +26,7 @@ export default function FaqSidePeek({ faq, onClose }: { faq: KnowledgeFaq | null
               <div>
                 <p className="text-xs font-medium text-muted-foreground mb-1.5">Danh mục</p>
                 <div className="flex flex-wrap gap-1">
-                  {faq.categories.map(c => <span key={c} className="chip chip-muted text-[11px] px-1.5 py-0.5">{c}</span>)}
+                  {faq.categories.map(c => <span key={c} className="chip chip-muted px-1.5 py-0.5">{c}</span>)}
                 </div>
               </div>
             )}

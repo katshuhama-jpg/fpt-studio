@@ -75,7 +75,7 @@ export default function CategoryChipsInput({ value, onChange, options, maxCount,
               key={o.name}
               type="button"
               onMouseDown={e => { e.preventDefault(); addCategory(o.name); }}
-              className="w-full flex items-center justify-between gap-2 text-left px-2.5 py-1.5 rounded-md text-sm hover:bg-surface-muted transition-base"
+              className="w-full flex items-center justify-between gap-2 text-left px-2.5 py-2 rounded-md text-sm hover:bg-surface-muted transition-base"
             >
               <span className="truncate">{o.name}</span>
               <span className="text-xs text-muted-foreground shrink-0">{o.count}</span>

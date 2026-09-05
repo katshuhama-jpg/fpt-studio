@@ -137,7 +137,7 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
             <p className="text-sm font-medium">Kéo thả tệp vào đây hoặc bấm để chọn</p>
             <div className="flex flex-wrap items-center justify-center gap-1.5 mt-3" onClick={e => e.stopPropagation()}>
               {ALLOWED_EXT.map(ext => (
-                <span key={ext} className="inline-flex items-center rounded-full border border-border bg-surface px-2 py-0.5 text-[11px] font-medium text-foreground">
+                <span key={ext} className="inline-flex items-center rounded-full border border-border bg-surface px-2 py-0.5 text-xs font-medium text-foreground">
                   {ext.toUpperCase()}
                 </span>
               ))}

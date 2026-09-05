@@ -62,12 +62,27 @@ function RowMenu({ kb, viewOnly, onOpen, onEdit, onShare, onDelete }: {
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
 
-  const items: { label: string; onClick: () => void; disabled?: boolean }[] = [
+  const safeItems: { label: string; onClick: () => void; disabled?: boolean }[] = [
     { label: "Mở", onClick: onOpen },
     { label: "Chỉnh sửa", onClick: onEdit, disabled: viewOnly },
     { label: "Chia sẻ", onClick: onShare, disabled: viewOnly },
-    { label: "Xóa", onClick: onDelete, disabled: viewOnly },
   ];
+
+  const renderItem = (item: { label: string; onClick: () => void; disabled?: boolean }, danger?: boolean) => (
+    <button
+      key={item.label}
+      type="button"
+      disabled={item.disabled}
+      title={item.disabled ? "Bạn chỉ có quyền xem kho tri thức này." : undefined}
+      onClick={() => { setOpen(false); item.onClick(); }}
+      className={`w-full text-left px-3 py-2 text-sm transition-base ${
+        item.disabled ? "text-muted-foreground/50 cursor-not-allowed" :
+        danger ? "text-destructive hover:bg-[hsl(var(--destructive-soft))]" : "hover:bg-surface-muted"
+      }`}
+    >
+      {item.label}
+    </button>
+  );
 
   return (
     <div ref={ref} className="relative shrink-0" onClick={e => e.stopPropagation()}>
@@ -80,22 +95,11 @@ function RowMenu({ kb, viewOnly, onOpen, onEdit, onShare, onDelete }: {
         <MoreVertical size={15} />
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-20 w-40 rounded-lg border border-border bg-white shadow-elev py-1">
-          {items.map(item => (
-            <button
-              key={item.label}
-              type="button"
-              disabled={item.disabled}
-              title={item.disabled ? "Bạn chỉ có quyền xem kho tri thức này." : undefined}
-              onClick={() => { setOpen(false); item.onClick(); }}
-              className={`w-full text-left px-3 py-1.5 text-xs transition-base ${
-                item.disabled ? "text-muted-foreground/50 cursor-not-allowed" :
-                item.label === "Xóa" ? "text-destructive hover:bg-[hsl(var(--destructive-soft))]" : "hover:bg-surface-muted"
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
+        <div className="absolute right-0 top-full mt-1 z-20 min-w-52 max-w-xs rounded-lg border border-border bg-white shadow-elev py-1">
+          {safeItems.map(item => renderItem(item))}
+          <div className="mt-1 pt-1 border-t border-border">
+            {renderItem({ label: "Xóa", onClick: onDelete, disabled: viewOnly }, true)}
+          </div>
         </div>
       )}
     </div>
@@ -127,13 +131,13 @@ function KbCard({ kb, onOpen, onEdit, onShare, onDelete }: {
         </div>
         <RowMenu kb={kb} viewOnly={viewOnly} onOpen={onOpen} onEdit={onEdit} onShare={onShare} onDelete={onDelete} />
       </div>
-      <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 mb-3 min-h-[32px]">
+      <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 mb-3 min-h-[32px]">
         {kb.description || <span className="italic">Chưa có mô tả</span>}
       </p>
       <div className="flex items-center gap-1.5 flex-wrap mb-3">
         <OwnershipChips kb={kb} />
       </div>
-      <div className="mt-auto pt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground gap-2 flex-wrap">
+      <div className="mt-auto pt-3 border-t border-border flex items-center justify-between text-sm text-muted-foreground gap-2 flex-wrap">
         <span>{kb.stats.docs} tài liệu · {kb.stats.urls} URL · {kb.stats.chunks} chunk</span>
       </div>
       <div className="text-xs text-muted-foreground mt-1.5">{relativeTime(kb.updatedAt)}</div>

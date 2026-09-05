@@ -29,7 +29,7 @@ export const KNOWLEDGE_STATUS_META: Record<KnowledgeFaqStatus, { label: string; 
 export function KnowledgeStatusPill({ status }: { status: KnowledgeFaqStatus }) {
   const meta = KNOWLEDGE_STATUS_META[status];
   return (
-    <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border whitespace-nowrap ${meta.badgeClass}`}>
+    <span className={`inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border whitespace-nowrap ${meta.badgeClass}`}>
       {status === "processing" ? (
         <Loader2 size={10} className="shrink-0 animate-spin" />
       ) : (

@@ -203,7 +203,7 @@ export default function ConnectExternalKnowledgeBaseModal({ open, onClose }: { o
             {testState === "failure" && (
               <div className="mt-2">
                 <p className="flex items-center gap-1.5 text-xs text-destructive"><AlertTriangle size={12} /> Chưa kết nối được. Kiểm tra lại API Endpoint và API Key.</p>
-                <p className="text-[11px] font-mono text-muted-foreground mt-1">HTTP 401 · Unauthorized</p>
+                <p className="text-xs font-mono text-muted-foreground mt-1">HTTP 401 · Unauthorized</p>
               </div>
             )}
           </div>

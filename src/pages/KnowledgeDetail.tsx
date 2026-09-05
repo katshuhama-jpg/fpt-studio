@@ -166,9 +166,9 @@ export default function KnowledgeDetail() {
           <button onClick={() => navigate("/knowledge")} className="h-8 w-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0">
             <ChevronLeft size={16} />
           </button>
-          <Link to="/knowledge" className="text-xs text-muted-foreground hover:text-foreground transition-base">Kho tri thức</Link>
-          <span className="text-xs text-muted-foreground/50">/</span>
-          <span className="text-xs text-foreground font-medium truncate">{kb.name}</span>
+          <Link to="/knowledge" className="text-sm text-muted-foreground hover:text-foreground transition-base">Kho tri thức</Link>
+          <span className="text-sm text-muted-foreground/50">/</span>
+          <span className="text-sm text-foreground font-medium truncate">{kb.name}</span>
         </div>
 
         <div className="flex items-start justify-between gap-4 flex-wrap pb-4">
@@ -211,39 +211,41 @@ export default function KnowledgeDetail() {
               {showMenu && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
-                  <div className="absolute right-0 top-full mt-1 z-20 w-40 rounded-lg border border-border bg-white shadow-elev py-1">
+                  <div className="absolute right-0 top-full mt-1 z-20 min-w-52 max-w-xs rounded-lg border border-border bg-white shadow-elev py-1">
                     <button
                       disabled={viewOnly}
                       title={viewOnly ? "Bạn chỉ có quyền xem kho tri thức này." : undefined}
                       onClick={() => { setShowEdit(true); setShowMenu(false); }}
-                      className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted disabled:text-muted-foreground/50 disabled:cursor-not-allowed transition-base"
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted disabled:text-muted-foreground/50 disabled:cursor-not-allowed transition-base"
                     >
                       Chỉnh sửa
                     </button>
                     {isOwner && (
                       <button
                         onClick={() => { setShowShare(true); setShowMenu(false); }}
-                        className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base"
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base"
                       >
                         Chia sẻ
                       </button>
                     )}
-                    <button
-                      disabled={viewOnly}
-                      title={viewOnly ? "Bạn chỉ có quyền xem kho tri thức này." : undefined}
-                      onClick={() => { setShowClearContent(true); setShowMenu(false); }}
-                      className="w-full text-left px-3 py-1.5 text-xs text-destructive hover:bg-[hsl(var(--destructive-soft))] disabled:text-muted-foreground/50 disabled:cursor-not-allowed transition-base"
-                    >
-                      Xóa toàn bộ nội dung
-                    </button>
-                    {isOwner && (
+                    <div className="mt-1 pt-1 border-t border-border">
                       <button
-                        onClick={() => { setShowDelete(true); setShowMenu(false); }}
-                        className="w-full text-left px-3 py-1.5 text-xs text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base"
+                        disabled={viewOnly}
+                        title={viewOnly ? "Bạn chỉ có quyền xem kho tri thức này." : undefined}
+                        onClick={() => { setShowClearContent(true); setShowMenu(false); }}
+                        className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] disabled:text-muted-foreground/50 disabled:cursor-not-allowed transition-base"
                       >
-                        Xóa
+                        Xóa toàn bộ nội dung
                       </button>
-                    )}
+                      {isOwner && (
+                        <button
+                          onClick={() => { setShowDelete(true); setShowMenu(false); }}
+                          className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base"
+                        >
+                          Xóa
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </>
               )}
@@ -268,7 +270,7 @@ export default function KnowledgeDetail() {
               <TooltipTrigger asChild>
                 <span tabIndex={0} className="px-3 h-9 rounded-t-lg text-sm font-medium flex items-center gap-1.5 border-b-2 border-transparent text-muted-foreground/50 cursor-not-allowed outline-none">
                   <Database size={15} /> SharePoint
-                  <span className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-surface-muted border border-border text-muted-foreground">Sắp ra mắt</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-surface-muted border border-border text-muted-foreground">Sắp ra mắt</span>
                 </span>
               </TooltipTrigger>
               <TooltipContent side="bottom">Tính năng này sẽ sớm ra mắt.</TooltipContent>

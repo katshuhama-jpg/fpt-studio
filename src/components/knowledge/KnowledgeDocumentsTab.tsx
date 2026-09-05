@@ -109,7 +109,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
               <ChevronDown size={12} className={`transition-base ${statusFilter !== "all" ? "text-primary" : "text-muted-foreground"} ${statusOpen ? "rotate-180" : ""}`} />
             </button>
             {statusOpen && (
-              <div className="absolute left-0 top-[calc(100%+4px)] w-48 bg-white rounded-lg ring-1 ring-border shadow-elev z-20 p-1">
+              <div className="absolute left-0 top-[calc(100%+4px)] min-w-52 max-w-xs bg-white rounded-lg ring-1 ring-border shadow-elev z-20 p-1">
                 {STATUS_OPTIONS.map(o => (
                   <button key={o.value} onMouseDown={() => setStatusFilter(o.value)} className={`w-full text-left px-3 py-2 rounded-md text-sm transition-base hover:bg-surface-muted ${statusFilter === o.value ? "text-primary font-medium bg-primary-soft" : "text-foreground"}`}>
                     {o.label}
@@ -131,14 +131,14 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
               <Plus size={14} /> Tạo <ChevronDown size={12} className={`transition-base ${showCreateMenu ? "rotate-180" : ""}`} />
             </button>
             {showCreateMenu && (
-              <div className="absolute right-0 top-full mt-1 z-20 w-48 rounded-lg border border-border bg-white shadow-elev py-1">
+              <div className="absolute right-0 top-full mt-1 z-20 min-w-52 max-w-xs rounded-lg border border-border bg-white shadow-elev py-1">
                 <button
                   onClick={() => { setShowCreateMenu(false); setShowCreateFolder(true); }}
-                  className="w-full text-left px-3 py-1.5 text-sm hover:bg-surface-muted transition-base"
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base"
                 >
                   Thư mục mới
                 </button>
-                <button onClick={() => { setShowCreateMenu(false); setShowUpload(true); }} className="w-full text-left px-3 py-1.5 text-sm hover:bg-surface-muted transition-base">
+                <button onClick={() => { setShowCreateMenu(false); setShowUpload(true); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">
                   Tải tài liệu lên
                 </button>
               </div>
@@ -195,12 +195,12 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
             <thead>
               <tr className="border-b border-border bg-surface-muted">
                 {!viewOnly && <th className="w-10 px-4 py-2.5"><span className="sr-only">Chọn</span></th>}
-                <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Tên</th>
-                <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Trạng thái</th>
-                <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Kích thước</th>
-                <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Phiên bản</th>
-                <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Cập nhật</th>
-                <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Cập nhật bởi</th>
+                <th className="text-left px-2 py-2.5 kb-table-header">Tên</th>
+                <th className="text-left px-2 py-2.5 kb-table-header">Trạng thái</th>
+                <th className="text-left px-2 py-2.5 kb-table-header">Kích thước</th>
+                <th className="text-left px-2 py-2.5 kb-table-header">Phiên bản</th>
+                <th className="text-left px-2 py-2.5 kb-table-header">Cập nhật</th>
+                <th className="text-left px-2 py-2.5 kb-table-header">Cập nhật bởi</th>
                 {!viewOnly && <th className="px-4 py-2.5 w-12" />}
               </tr>
             </thead>
@@ -440,26 +440,30 @@ function RowMenu({ canOpen, onOpen, onLayout, onReprocess, onRename, onMove, onD
         <MoreVertical size={15} />
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-20 w-44 rounded-lg border border-border bg-white shadow-elev py-1">
-          {items.map(item => (
-            <Tooltip key={item.label} delayDuration={300}>
-              <TooltipTrigger asChild>
-                <span>
-                  <button
-                    disabled={item.disabled}
-                    onClick={() => { if (item.disabled) return; setOpen(false); item.onClick(); }}
-                    className={`w-full text-left px-3 py-1.5 text-xs transition-base ${
-                      item.disabled ? "text-muted-foreground/50 cursor-not-allowed" :
-                      item.danger ? "text-destructive hover:bg-[hsl(var(--destructive-soft))]" : "hover:bg-surface-muted"
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                </span>
-              </TooltipTrigger>
-              {item.disabled && item.disabledTooltip && <TooltipContent side="left">{item.disabledTooltip}</TooltipContent>}
-            </Tooltip>
-          ))}
+        <div className="absolute right-0 top-full mt-1 z-20 min-w-52 max-w-xs rounded-lg border border-border bg-white shadow-elev py-1">
+          {items.map((item, i) => {
+            const isFirstDanger = item.danger && !items[i - 1]?.danger;
+            const button = (
+              <button
+                disabled={item.disabled}
+                onClick={() => { if (item.disabled) return; setOpen(false); item.onClick(); }}
+                className={`w-full text-left px-3 py-2 text-sm transition-base ${
+                  item.disabled ? "text-muted-foreground/50 cursor-not-allowed" :
+                  item.danger ? "text-destructive hover:bg-[hsl(var(--destructive-soft))]" : "hover:bg-surface-muted"
+                }`}
+              >
+                {item.label}
+              </button>
+            );
+            return (
+              <div key={item.label} className={isFirstDanger ? "mt-1 pt-1 border-t border-border" : undefined}>
+                <Tooltip delayDuration={300}>
+                  <TooltipTrigger asChild><span>{button}</span></TooltipTrigger>
+                  {item.disabled && item.disabledTooltip && <TooltipContent side="left">{item.disabledTooltip}</TooltipContent>}
+                </Tooltip>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -491,15 +495,16 @@ function FolderRowMenu({ onOpen, onRename, onMove, onDelete }: {
         <MoreVertical size={15} />
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-20 w-44 rounded-lg border border-border bg-white shadow-elev py-1">
-          {items.map(item => (
-            <button
-              key={item.label}
-              onClick={() => { setOpen(false); item.onClick(); }}
-              className={`w-full text-left px-3 py-1.5 text-xs transition-base ${item.danger ? "text-destructive hover:bg-[hsl(var(--destructive-soft))]" : "hover:bg-surface-muted"}`}
-            >
-              {item.label}
-            </button>
+        <div className="absolute right-0 top-full mt-1 z-20 min-w-52 max-w-xs rounded-lg border border-border bg-white shadow-elev py-1">
+          {items.map((item, i) => (
+            <div key={item.label} className={item.danger && !items[i - 1]?.danger ? "mt-1 pt-1 border-t border-border" : undefined}>
+              <button
+                onClick={() => { setOpen(false); item.onClick(); }}
+                className={`w-full text-left px-3 py-2 text-sm transition-base ${item.danger ? "text-destructive hover:bg-[hsl(var(--destructive-soft))]" : "hover:bg-surface-muted"}`}
+              >
+                {item.label}
+              </button>
+            </div>
           ))}
         </div>
       )}

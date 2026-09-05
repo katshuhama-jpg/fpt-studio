@@ -6,8 +6,8 @@ interface Cell { text: string; colSpan: number }
 type TableState = Cell[][];
 
 const MAX_DIM = 15;
-const MENU_WIDTH = 192; // w-48
-const MENU_HEIGHT_ESTIMATE = 340; // "Thêm bảng" + 8 row/col ops + "Xóa bảng", for the flip-up decision
+const MENU_WIDTH = 208; // w-52
+const MENU_HEIGHT_ESTIMATE = 380; // "Thêm bảng" + 8 row/col ops + a divider + "Xóa bảng", for the flip-up decision
 const NEW_TABLE_WIDTH = 224; // w-56
 const NEW_TABLE_HEIGHT_ESTIMATE = 170;
 
@@ -181,14 +181,15 @@ export default function HtmlTableEditor({ html, onChange }: { html: string; onCh
         >
           {menu.view === "actions" ? (
             <div className="py-1">
-              {items.map(item => (
-                <button
-                  key={item.label}
-                  onClick={() => { item.onClick(); if (!item.keepOpen) setMenu(null); }}
-                  className={`w-full text-left px-3 py-1.5 text-xs transition-base ${item.danger ? "text-destructive hover:bg-[hsl(var(--destructive-soft))]" : "hover:bg-surface-muted"}`}
-                >
-                  {item.label}
-                </button>
+              {items.map((item, i) => (
+                <div key={item.label} className={item.danger && !items[i - 1]?.danger ? "mt-1 pt-1 border-t border-border" : undefined}>
+                  <button
+                    onClick={() => { item.onClick(); if (!item.keepOpen) setMenu(null); }}
+                    className={`w-full text-left px-3 py-2 text-sm transition-base ${item.danger ? "text-destructive hover:bg-[hsl(var(--destructive-soft))]" : "hover:bg-surface-muted"}`}
+                  >
+                    {item.label}
+                  </button>
+                </div>
               ))}
             </div>
           ) : (
@@ -206,7 +207,7 @@ export default function HtmlTableEditor({ html, onChange }: { html: string; onCh
                 <input type="number" min={1} max={15} value={dims.rows} onChange={e => setDims(d => ({ ...d, rows: Number(e.target.value) }))} className="w-16 h-8 px-2 rounded border border-border text-xs" />
                 <span className="text-xs text-muted-foreground">hàng</span>
               </div>
-              {dimError && <p className="text-[11px] text-destructive mb-2">{dimError}</p>}
+              {dimError && <p className="text-xs text-destructive mb-2">{dimError}</p>}
               <button onClick={createTable} className="btn-primary h-7 px-3 text-xs w-full justify-center">Thêm bảng</button>
             </div>
           )}

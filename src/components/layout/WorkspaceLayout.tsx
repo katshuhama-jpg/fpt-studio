@@ -295,7 +295,7 @@ export default function WorkspaceLayout() {
               <>
                 <div className="flex-1 min-w-0 text-left">
                   <div className="text-xs font-semibold text-foreground truncate">Tran Nam</div>
-                  <div className="text-[10px] text-muted-foreground truncate">Workspace Admin</div>
+                  <div className="text-xs text-muted-foreground truncate">Workspace Admin</div>
                 </div>
                 <ChevronDown size={13} className={`text-muted-foreground transition-base ${userMenu ? "rotate-180" : ""}`} />
               </>
@@ -420,7 +420,7 @@ function TenantSwitcher({ tenantId, onChange }: { tenantId: string; onChange: (i
         onClick={() => setOpen(v => !v)}
         className="flex items-center gap-1.5 h-7 px-1.5 rounded-lg hover:bg-surface-muted transition-base cursor-pointer text-sm font-medium text-foreground"
       >
-        <span className="w-4 h-4 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[9px] font-bold">
+        <span className="w-5 h-5 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-bold">
           {tenant.initial}
         </span>
         {tenant.name}

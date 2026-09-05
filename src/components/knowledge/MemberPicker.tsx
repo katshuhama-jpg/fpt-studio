@@ -30,19 +30,19 @@ function AccessDropdown({ value, onChange }: { value: SharingAccess; onChange: (
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg border border-border bg-surface text-xs font-medium hover:bg-surface-muted transition-base"
+        className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg border border-border bg-surface text-sm font-medium hover:bg-surface-muted transition-base"
       >
         {label}
         <ChevronDown size={11} className={`text-muted-foreground transition-base ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="absolute right-0 top-[calc(100%+4px)] w-44 bg-white rounded-lg ring-1 ring-border shadow-elev z-30 p-1">
+        <div className="absolute right-0 top-[calc(100%+4px)] min-w-52 max-w-xs bg-white rounded-lg ring-1 ring-border shadow-elev z-30 p-1">
           {ACCESS_OPTIONS.map(o => (
             <button
               key={o.value}
               type="button"
               onClick={() => { onChange(o.value); setOpen(false); }}
-              className={`w-full flex items-center justify-between gap-2 text-left px-2.5 py-1.5 rounded-md text-xs transition-base hover:bg-surface-muted ${value === o.value ? "text-primary font-medium bg-primary-soft" : "text-foreground"}`}
+              className={`w-full flex items-center justify-between gap-2 text-left px-2.5 py-2 rounded-md text-sm transition-base hover:bg-surface-muted ${value === o.value ? "text-primary font-medium bg-primary-soft" : "text-foreground"}`}
             >
               {o.label}
               {value === o.value && <Check size={12} className="text-primary shrink-0" />}
@@ -105,7 +105,7 @@ export default function MemberPicker({
                 key={m.id}
                 type="button"
                 onClick={() => addPerson(m)}
-                className="w-full flex items-center gap-2.5 text-left px-2 py-1.5 rounded-md hover:bg-surface-muted transition-base"
+                className="w-full flex items-center gap-2.5 text-left px-2 py-2 rounded-md hover:bg-surface-muted transition-base"
               >
                 <Avatar name={m.name} />
                 <div className="min-w-0">

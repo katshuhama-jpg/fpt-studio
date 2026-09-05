@@ -9,10 +9,10 @@ export function CategoryChips({ categories }: { categories: string[] }) {
   const rest = categories.slice(3);
   return (
     <div className="flex flex-wrap gap-1">
-      {shown.map(c => <span key={c} className="chip chip-muted text-[11px] px-1.5 py-0.5">{c}</span>)}
+      {shown.map(c => <span key={c} className="chip chip-muted px-1.5 py-0.5">{c}</span>)}
       {rest.length > 0 && (
         <Tooltip delayDuration={200}>
-          <TooltipTrigger asChild><span tabIndex={0} className="chip chip-muted text-[11px] px-1.5 py-0.5 outline-none cursor-default">+{rest.length}</span></TooltipTrigger>
+          <TooltipTrigger asChild><span tabIndex={0} className="chip chip-muted px-1.5 py-0.5 outline-none cursor-default">+{rest.length}</span></TooltipTrigger>
           <TooltipContent>{rest.join(", ")}</TooltipContent>
         </Tooltip>
       )}

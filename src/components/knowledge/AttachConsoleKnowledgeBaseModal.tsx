@@ -80,7 +80,7 @@ export default function AttachConsoleKnowledgeBaseModal({ agentId, onClose }: { 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
                           <span className="text-sm font-medium truncate">{kb.name}</span>
-                          <span className="chip chip-muted text-[10px] px-1.5 py-0.5 shrink-0">{isMine ? "Của tôi" : "Được chia sẻ"}</span>
+                          <span className="chip chip-muted px-1.5 py-0.5 shrink-0">{isMine ? "Của tôi" : "Được chia sẻ"}</span>
                         </div>
                         <div className="text-xs text-muted-foreground truncate">{kb.ownerName} · {kb.stats.docs} tài liệu · {kb.stats.urls} URL · {kb.stats.chunks} chunk</div>
                       </div>

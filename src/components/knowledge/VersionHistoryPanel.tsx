@@ -108,8 +108,8 @@ export default function VersionHistoryPanel({ source: doc, onClose, viewOnly }: 
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-xs font-mono text-muted-foreground">#{c.index}</span>
-                    {mark === "added" && <span className="text-[10px] font-semibold uppercase tracking-wider text-success">Mới</span>}
-                    {mark === "changed" && <span className="text-[10px] font-semibold uppercase tracking-wider text-warning">Thay đổi</span>}
+                    {mark === "added" && <span className="text-xs font-semibold uppercase tracking-wider text-success">Mới</span>}
+                    {mark === "changed" && <span className="text-xs font-semibold uppercase tracking-wider text-warning">Thay đổi</span>}
                   </div>
                   <p className="text-sm font-medium mb-0.5">{c.title}</p>
                   <p className="text-xs text-muted-foreground line-clamp-2">{c.content}</p>
@@ -141,7 +141,7 @@ export default function VersionHistoryPanel({ source: doc, onClose, viewOnly }: 
                   <div className={`rounded-lg border px-3.5 py-3 ${v.isCurrent ? "border-primary/30 bg-primary-soft/30" : "border-border"}`}>
                     <div className="flex items-center gap-2 mb-1">
                       <span className="chip chip-muted">v{v.version}</span>
-                      {v.isCurrent && <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">Hiện tại</span>}
+                      {v.isCurrent && <span className="text-xs font-semibold uppercase tracking-wider text-primary">Hiện tại</span>}
                     </div>
                     <p className="text-sm font-medium">{CAUSE_LABEL[v.cause]}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">{new Date(v.at).toLocaleString("vi-VN")} · {v.actor}</p>

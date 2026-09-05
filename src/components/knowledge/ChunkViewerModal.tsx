@@ -316,7 +316,7 @@ export default function ChunkViewerModal({
                       {c.manuallyEdited && (
                         <button
                           onClick={e => { e.stopPropagation(); setRevealUpdateFor(prev => { const n = new Set(prev); n.has(c.id) ? n.delete(c.id) : n.add(c.id); return n; }); }}
-                          className="chip chip-warning !text-[9px] !px-1.5 !py-0 ml-1"
+                          className="chip chip-warning !text-xs !px-1.5 !py-0 ml-1"
                         >
                           Đã chỉnh sửa thủ công
                         </button>
@@ -337,7 +337,7 @@ export default function ChunkViewerModal({
                         <div className="flex items-center justify-end">
                           <div className="flex items-center gap-1 bg-surface-muted rounded-lg p-0.5">
                             {(["text", "html"] as ChunkContentType[]).map(t => (
-                              <button key={t} onClick={() => requestTypeSwitch(t)} className={`px-2.5 h-6 rounded-md text-[11px] font-medium transition-base ${draftType === t ? "bg-white shadow-soft text-foreground" : "text-muted-foreground"}`}>
+                              <button key={t} onClick={() => requestTypeSwitch(t)} className={`px-2.5 h-6 rounded-md text-xs font-medium transition-base ${draftType === t ? "bg-white shadow-soft text-foreground" : "text-muted-foreground"}`}>
                                 {t === "text" ? "Văn bản" : "HTML"}
                               </button>
                             ))}
@@ -355,7 +355,7 @@ export default function ChunkViewerModal({
                             <div>
                               <div className="flex items-center gap-1 bg-surface-muted rounded-lg p-0.5 mb-2 w-fit">
                                 {(["preview", "raw"] as const).map(m => (
-                                  <button key={m} onClick={() => setHtmlMode(m)} className={`px-2.5 h-6 rounded-md text-[11px] font-medium transition-base ${htmlMode === m ? "bg-white shadow-soft text-foreground" : "text-muted-foreground"}`}>
+                                  <button key={m} onClick={() => setHtmlMode(m)} className={`px-2.5 h-6 rounded-md text-xs font-medium transition-base ${htmlMode === m ? "bg-white shadow-soft text-foreground" : "text-muted-foreground"}`}>
                                     {m === "preview" ? "Xem trước" : "Dạng thô"}
                                   </button>
                                 ))}

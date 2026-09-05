@@ -375,7 +375,7 @@ export default function AgentBuilder() {
                     </div>
                     <div className="space-y-1">
                       {checklist.map(item => (
-                        <div key={item.label} className="flex items-center gap-1.5 text-xs">
+                        <div key={item.label} className="flex items-center gap-1.5 text-sm">
                           {item.done
                             ? <HugeiconsIcon icon={CheckmarkCircle01Icon} size={11} className="text-primary shrink-0" />
                             : <span className="w-3 h-3 rounded-full border-2 border-muted-foreground shrink-0 inline-block" />}
@@ -1084,7 +1084,7 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, openLabel = "M
       className="group flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <HugeiconsIcon icon={icon} size={13} className="text-muted-foreground shrink-0" />
-      <span className="text-[13px] font-medium flex-1 truncate" title={name}>{name}</span>
+      <span className="text-sm font-medium flex-1 truncate" title={name}>{name}</span>
       <span className="shrink-0">{chip}</span>
       <div className="flex items-center shrink-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
         <Tooltip delayDuration={300}>
@@ -1186,7 +1186,7 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
                 icon={ConnectIcon}
                 name={kb.name}
                 chip={
-                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-primary-soft text-primary shrink-0 whitespace-nowrap">
+                  <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-primary-soft text-primary shrink-0 whitespace-nowrap">
                     {kb.sharing.mode === "all" ? "Dùng chung" : kb.sharing.mode === "specific" ? "Chia sẻ" : "Của tôi"}
                   </span>
                 }
@@ -1264,7 +1264,7 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
           </div>
         ) : (
           <div className="rounded-lg overflow-hidden border border-border overflow-x-auto scroll-shadow-x">
-            <div className="grid grid-cols-[24px,1fr,80px,80px,70px,132px,120px,70px] gap-3 px-4 py-2.5 bg-surface-muted section-eyebrow min-w-[800px]">
+            <div className="grid grid-cols-[24px,1fr,80px,80px,70px,132px,120px,70px] gap-3 px-4 py-2.5 bg-surface-muted kb-table-header min-w-[800px]">
               <div></div><div>Nguồn</div><div>Loại</div><div>Kích thước</div><div>Phiên bản</div><div>Trạng thái</div><div>Quyền</div><div></div>
             </div>
             {filteredItems.map(item => (
@@ -1426,17 +1426,17 @@ function KnowledgeItemRowMenu({ onOpen, onShare, onPromote, onReprocess, onDelet
         <HugeiconsIcon icon={MoreHorizontalIcon} size={15} />
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-20 w-56 rounded-lg border border-border bg-white shadow-elev py-1">
-          <button onClick={() => { setOpen(false); onOpen(); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">Mở</button>
-          <button onClick={() => { setOpen(false); onShare(); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">Chia sẻ</button>
-          <button onClick={() => { setOpen(false); onPromote(); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">Chuyển thành kho tri thức chung</button>
+        <div className="absolute right-0 top-full mt-1 z-20 min-w-52 max-w-xs rounded-lg border border-border bg-white shadow-elev py-1">
+          <button onClick={() => { setOpen(false); onOpen(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Mở</button>
+          <button onClick={() => { setOpen(false); onShare(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Chia sẻ</button>
+          <button onClick={() => { setOpen(false); onPromote(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Chuyển thành kho tri thức chung</button>
           <Tooltip delayDuration={200}>
             <TooltipTrigger asChild>
               <span>
                 <button
                   disabled={reprocessDisabled}
                   onClick={() => { if (reprocessDisabled) return; setOpen(false); onReprocess(); }}
-                  className={`w-full text-left px-3 py-1.5 text-xs transition-base ${reprocessDisabled ? "text-muted-foreground/50 cursor-not-allowed" : "hover:bg-surface-muted"}`}
+                  className={`w-full text-left px-3 py-2 text-sm transition-base ${reprocessDisabled ? "text-muted-foreground/50 cursor-not-allowed" : "hover:bg-surface-muted"}`}
                 >
                   Xử lý lại
                 </button>
@@ -1444,7 +1444,9 @@ function KnowledgeItemRowMenu({ onOpen, onShare, onPromote, onReprocess, onDelet
             </TooltipTrigger>
             {reprocessTooltip && <TooltipContent side="left" className="max-w-[240px]">{reprocessTooltip}</TooltipContent>}
           </Tooltip>
-          <button onClick={() => { setOpen(false); onDelete(); }} className="w-full text-left px-3 py-1.5 text-xs text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">Xóa</button>
+          <div className="mt-1 pt-1 border-t border-border">
+            <button onClick={() => { setOpen(false); onDelete(); }} className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">Xóa</button>
+          </div>
         </div>
       )}
     </div>
@@ -4454,7 +4456,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
       icon: ConnectIcon,
       open: () => navigate(`/knowledge/${kb.id}`),
       remove: () => setDetachTarget({ id: kb.id, name: kb.name }),
-      chip: <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-primary-soft text-primary shrink-0 whitespace-nowrap">
+      chip: <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-primary-soft text-primary shrink-0 whitespace-nowrap">
         {kb.sharing.mode === "all" ? "Dùng chung" : kb.sharing.mode === "specific" ? "Chia sẻ" : "Của tôi"}
       </span>,
     })),
@@ -4466,7 +4468,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
       remove: () => setDeleteTarget({ id: item.id, name: item.name }),
       chip: (item.status ?? "done") !== "done"
         ? <KnowledgeStatusPill status={item.status ?? "done"} />
-        : <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-surface-muted text-muted-foreground shrink-0 whitespace-nowrap">Của tôi</span>,
+        : <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-surface-muted text-muted-foreground shrink-0 whitespace-nowrap">Của tôi</span>,
     })),
   ];
   const shown = rows.slice(0, 4);

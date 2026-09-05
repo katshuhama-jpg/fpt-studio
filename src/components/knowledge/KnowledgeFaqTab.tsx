@@ -238,9 +238,9 @@ export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; view
             <div className="relative" ref={createMenuRef}>
               <button onClick={() => setShowCreateMenu(v => !v)} className="btn-primary h-9"><Plus size={14} /> Tạo <ChevronDown size={12} className={`transition-base ${showCreateMenu ? "rotate-180" : ""}`} /></button>
               {showCreateMenu && (
-                <div className="absolute right-0 top-full mt-1 z-20 w-44 rounded-lg border border-border bg-white shadow-elev py-1">
-                  <button onClick={() => { setShowCreateMenu(false); setShowAdd(true); }} className="w-full text-left px-3 py-1.5 text-sm hover:bg-surface-muted transition-base">Tạo FAQ</button>
-                  <button onClick={() => { setShowCreateMenu(false); setShowImport(true); }} className="w-full text-left px-3 py-1.5 text-sm hover:bg-surface-muted transition-base">Nhập từ tệp</button>
+                <div className="absolute right-0 top-full mt-1 z-20 min-w-52 max-w-xs rounded-lg border border-border bg-white shadow-elev py-1">
+                  <button onClick={() => { setShowCreateMenu(false); setShowAdd(true); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Tạo FAQ</button>
+                  <button onClick={() => { setShowCreateMenu(false); setShowImport(true); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Nhập từ tệp</button>
                 </div>
               )}
             </div>
@@ -299,12 +299,12 @@ export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; view
                       <input ref={headerCheckboxRef} type="checkbox" checked={allOnPageSelected} onChange={toggleSelectPage} className="w-4 h-4 accent-primary" aria-label="Chọn tất cả trên trang này" />
                     </th>
                   )}
-                  <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Câu hỏi</th>
-                  <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Câu trả lời</th>
-                  <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Danh mục</th>
-                  <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Trạng thái</th>
-                  <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Cập nhật lần cuối</th>
-                  <th className="text-left px-2 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Cập nhật bởi</th>
+                  <th className="text-left px-2 py-2.5 kb-table-header">Câu hỏi</th>
+                  <th className="text-left px-2 py-2.5 kb-table-header">Câu trả lời</th>
+                  <th className="text-left px-2 py-2.5 kb-table-header">Danh mục</th>
+                  <th className="text-left px-2 py-2.5 kb-table-header">Trạng thái</th>
+                  <th className="text-left px-2 py-2.5 kb-table-header">Cập nhật lần cuối</th>
+                  <th className="text-left px-2 py-2.5 kb-table-header">Cập nhật bởi</th>
                   {!viewOnly && <th className="px-4 py-2.5 w-12" />}
                 </tr>
               </thead>
@@ -503,15 +503,15 @@ function RowMenu({ status, onEdit, onReprocess, onDelete }: {
         <MoreVertical size={15} />
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-20 w-44 rounded-lg border border-border bg-white shadow-elev py-1">
-          <button onClick={() => { setOpen(false); onEdit(); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">Sửa</button>
+        <div className="absolute right-0 top-full mt-1 z-20 min-w-52 max-w-xs rounded-lg border border-border bg-white shadow-elev py-1">
+          <button onClick={() => { setOpen(false); onEdit(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Sửa</button>
           <Tooltip delayDuration={200}>
             <TooltipTrigger asChild>
               <span>
                 <button
                   disabled={reprocessDisabled}
                   onClick={() => { if (reprocessDisabled) return; setOpen(false); onReprocess(); }}
-                  className={`w-full text-left px-3 py-1.5 text-xs transition-base ${reprocessDisabled ? "text-muted-foreground/50 cursor-not-allowed" : "hover:bg-surface-muted"}`}
+                  className={`w-full text-left px-3 py-2 text-sm transition-base ${reprocessDisabled ? "text-muted-foreground/50 cursor-not-allowed" : "hover:bg-surface-muted"}`}
                 >
                   Xử lý lại
                 </button>
@@ -519,7 +519,9 @@ function RowMenu({ status, onEdit, onReprocess, onDelete }: {
             </TooltipTrigger>
             {reprocessTooltip && <TooltipContent side="left" className="max-w-[240px]">{reprocessTooltip}</TooltipContent>}
           </Tooltip>
-          <button onClick={() => { setOpen(false); onDelete(); }} className="w-full text-left px-3 py-1.5 text-xs text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">Xóa</button>
+          <div className="mt-1 pt-1 border-t border-border">
+            <button onClick={() => { setOpen(false); onDelete(); }} className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">Xóa</button>
+          </div>
         </div>
       )}
     </div>

@@ -401,11 +401,11 @@ export default function ImportFaqModal({ open, kbId, onClose, onRefresh, onViewI
                   <table className="w-full text-xs">
                     <thead className="sticky top-0 bg-surface-muted">
                       <tr>
-                        <th className="text-left px-2.5 py-2 font-semibold uppercase tracking-wider text-[10px] text-muted-foreground">STT dòng</th>
-                        <th className="text-left px-2.5 py-2 font-semibold uppercase tracking-wider text-[10px] text-muted-foreground">Câu hỏi</th>
-                        <th className="text-left px-2.5 py-2 font-semibold uppercase tracking-wider text-[10px] text-muted-foreground">Câu trả lời</th>
-                        <th className="text-left px-2.5 py-2 font-semibold uppercase tracking-wider text-[10px] text-muted-foreground">Danh mục</th>
-                        <th className="text-left px-2.5 py-2 font-semibold uppercase tracking-wider text-[10px] text-muted-foreground">Kết quả</th>
+                        <th className="text-left px-2.5 py-2 kb-table-header">STT dòng</th>
+                        <th className="text-left px-2.5 py-2 kb-table-header">Câu hỏi</th>
+                        <th className="text-left px-2.5 py-2 kb-table-header">Câu trả lời</th>
+                        <th className="text-left px-2.5 py-2 kb-table-header">Danh mục</th>
+                        <th className="text-left px-2.5 py-2 kb-table-header">Kết quả</th>
                       </tr>
                     </thead>
                     <tbody>

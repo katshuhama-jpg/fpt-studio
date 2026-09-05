@@ -7,6 +7,12 @@ export default {
   theme: {
     container: { center: true, padding: "2rem", screens: { "2xl": "1400px" } },
     extend: {
+      // Type scale below the 14px body size: DEFAULT (`text-sm`, 14/20) and SECONDARY
+      // (`text-xs`, 12/16) are Tailwind's own built-in sizes, already exactly on-scale — this
+      // adds the one size Tailwind doesn't ship, OVERLINE, for uppercase grouping labels only.
+      fontSize: {
+        overline: ["11px", { lineHeight: "14px" }],
+      },
       fontFamily: {
         sans: ["Inter", "ui-sans-serif", "system-ui"],
         display: ["Inter Tight", "Inter", "sans-serif"],
