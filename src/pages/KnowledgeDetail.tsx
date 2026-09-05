@@ -9,8 +9,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
-  knowledgeBaseStore, isViewOnly, CURRENT_USER, type KnowledgeBase,
+  knowledgeBaseStore, isViewOnly, isAccessibleTo, CURRENT_USER, type KnowledgeBase,
 } from "@/components/knowledge/knowledgeBaseStore";
+import { useGroupAccess } from "@/pages/organization/scopeAccess";
 import { knowledgeDocumentStore } from "@/components/knowledge/knowledgeDocumentStore";
 import { knowledgeUrlStore } from "@/components/knowledge/knowledgeUrlStore";
 import { knowledgeFaqStore } from "@/components/knowledge/knowledgeFaqStore";
@@ -66,6 +67,7 @@ function OwnershipChips({ kb }: { kb: KnowledgeBase }) {
 export default function KnowledgeDetail() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
+  const access = useGroupAccess("knowledge");
   const [params, setParams] = useSearchParams();
   const rawTab = params.get("tab");
   const tab: Tab = VALID_TABS.includes(rawTab as Tab) ? (rawTab as Tab) : "documents";
@@ -140,10 +142,30 @@ export default function KnowledgeDetail() {
     );
   }
 
-  const viewOnly = isViewOnly(kb);
+  // A role whose Knowledge View Scope is "Own & Shared" (or that has no View permission at
+  // all) can't reach a KB it doesn't own and wasn't shared with just by typing its URL —
+  // mirrors the not-found state above rather than silently rendering the KB's real content.
+  if (!access.canSeeAll && !isAccessibleTo(kb, access.userId)) {
+    return (
+      <div className="flex flex-col h-full bg-background items-center justify-center text-center px-6">
+        <Database size={22} className="text-muted-foreground/60 mb-3" />
+        <p className="text-sm text-muted-foreground max-w-md mb-4">Bạn không có quyền truy cập kho tri thức này. Liên hệ {kb.ownerName} nếu cần được chia sẻ quyền truy cập.</p>
+        <Link to="/knowledge" className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base flex items-center">
+          Về Kho tri thức
+        </Link>
+      </div>
+    );
+  }
+
+  const viewOnly = isViewOnly(kb, access.userId);
   // Sharing, deleting, and the inline click-to-rename title are reserved for the owner — an
   // editor (or anyone on a "Dùng chung" KB) can edit content but not the KB's own access/lifecycle.
   const isOwner = kb.ownerId === CURRENT_USER.id;
+  const accessible = isAccessibleTo(kb, access.userId);
+  const canEdit = access.canAct("manage", accessible) && !viewOnly;
+  const canShare = isOwner && access.canAct("publish", accessible);
+  const canClearContent = access.canAct("manage", accessible) && !viewOnly;
+  const canDeleteKb = isOwner && access.canAct("delete", accessible);
   const indexedPct = kb.stats.chunks === 0 ? 100 : Math.round((kb.stats.chunks / Math.max(kb.stats.chunks, 1)) * 98);
 
   const commitName = () => {
@@ -187,9 +209,9 @@ export default function KnowledgeDetail() {
                 />
               ) : (
                 <h1
-                  className={`font-display text-2xl font-semibold tracking-tight ${isOwner ? "cursor-pointer hover:opacity-70" : ""}`}
-                  onClick={() => { if (!isOwner) return; setNameDraft(kb.name); setEditingName(true); }}
-                  title={isOwner ? "Bấm để đổi tên" : undefined}
+                  className={`font-display text-2xl font-semibold tracking-tight ${canEdit ? "cursor-pointer hover:opacity-70" : ""}`}
+                  onClick={() => { if (!canEdit) return; setNameDraft(kb.name); setEditingName(true); }}
+                  title={canEdit ? "Bấm để đổi tên" : undefined}
                 >
                   {kb.name}
                 </h1>
@@ -213,8 +235,8 @@ export default function KnowledgeDetail() {
                   <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
                   <div className="absolute right-0 top-full mt-1 z-20 min-w-52 max-w-xs rounded-lg border border-border bg-white shadow-elev py-1">
                     <button
-                      disabled={viewOnly}
-                      title={viewOnly ? "Bạn chỉ có quyền xem kho tri thức này." : undefined}
+                      disabled={!canEdit}
+                      title={!canEdit ? (viewOnly ? "Bạn chỉ có quyền xem kho tri thức này." : "Bạn không có quyền chỉnh sửa kho tri thức này.") : undefined}
                       onClick={() => { setShowEdit(true); setShowMenu(false); }}
                       className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted disabled:text-muted-foreground/50 disabled:cursor-not-allowed transition-base"
                     >
@@ -222,16 +244,18 @@ export default function KnowledgeDetail() {
                     </button>
                     {isOwner && (
                       <button
+                        disabled={!canShare}
+                        title={!canShare ? "Bạn không có quyền chia sẻ kho tri thức này." : undefined}
                         onClick={() => { setShowShare(true); setShowMenu(false); }}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base"
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted disabled:text-muted-foreground/50 disabled:cursor-not-allowed transition-base"
                       >
                         Chia sẻ
                       </button>
                     )}
                     <div className="mt-1 pt-1 border-t border-border">
                       <button
-                        disabled={viewOnly}
-                        title={viewOnly ? "Bạn chỉ có quyền xem kho tri thức này." : undefined}
+                        disabled={!canClearContent}
+                        title={!canClearContent ? (viewOnly ? "Bạn chỉ có quyền xem kho tri thức này." : "Bạn không có quyền xóa nội dung kho tri thức này.") : undefined}
                         onClick={() => { setShowClearContent(true); setShowMenu(false); }}
                         className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] disabled:text-muted-foreground/50 disabled:cursor-not-allowed transition-base"
                       >
@@ -239,8 +263,10 @@ export default function KnowledgeDetail() {
                       </button>
                       {isOwner && (
                         <button
+                          disabled={!canDeleteKb}
+                          title={!canDeleteKb ? "Bạn không có quyền xóa kho tri thức này." : undefined}
                           onClick={() => { setShowDelete(true); setShowMenu(false); }}
-                          className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base"
+                          className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] disabled:text-muted-foreground/50 disabled:cursor-not-allowed transition-base"
                         >
                           Xóa
                         </button>

@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { Puzzle, BookOpen, Plus, Search, LayoutGrid, List, ChevronDown, X, ChevronRight, Copy, Trash2, Eye, Code2, Bold, Italic, Strikethrough, Heading1, Heading2, List as ListIcon, ListOrdered } from "lucide-react";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
+import { useGroupAccess, isOwnedOrShared } from "@/pages/organization/scopeAccess";
 
 interface Skill {
   id: string;
@@ -10,6 +11,10 @@ interface Skill {
   description: string;
   owner: string;
   body: string;
+  /** Org-member id of whoever created this skill, and who else it's been explicitly shared
+   * with — read by the "Own & Shared" Scope enforcement in scopeAccess.ts. */
+  ownerId?: string;
+  sharedWith?: string[];
 }
 
 const SKILLS: Skill[] = [
@@ -19,7 +24,7 @@ const SKILLS: Skill[] = [
     iconBg: "hsl(231 90% 93%)",
     name: "account-briefing",
     description: `Use when the user has an upcoming meeting and needs preparation, says "brief me on," "who am I meeting with," "prep me for my call with," "what do I need to know about this account," or wants talking points, agenda suggestions, or contact on meeting attendees. Also use before any external meeting where account context would help.`,
-    owner: "You",
+    owner: "You", ownerId: "m-fsoft-ceo",
     body: `# Account Briefing
 
 You are a sales intelligence analyst. Before important meetings, you prepare a comprehensive account brief that combines internal context (calendar, email) with external research (web, LinkedIn). Your goal is a 1-page brief the user can scan in 5 minutes before walking into the meeting.
@@ -122,7 +127,7 @@ This skill works best with Calendar + Email + Slack all connected, but adapts:
     iconBg: "hsl(152 55% 92%)",
     name: "competitive-intel",
     description: `Use when the user asks "what is [competitor] doing," requests market analysis, or needs a competitive landscape summary for a specific company or product.`,
-    owner: "You",
+    owner: "Linh Phan", ownerId: "m-fsoft-coo", sharedWith: ["m-fsoft-ceo"],
     body: `# Competitive Intel
 
 You are a market research analyst. Gather, synthesize, and deliver a competitive snapshot for any company or product the user names.
@@ -155,7 +160,7 @@ Summarize positioning, recent moves, and watch-outs in a structured brief.`,
     iconBg: "hsl(358 75% 94%)",
     name: "email-drafter",
     description: `Drafts professional emails based on context. Say "draft an email to..." with any details and it will compose a context-aware draft and save it for review.`,
-    owner: "You",
+    owner: "Duy Nguyen", ownerId: "m-fsoft-vn-1",
     body: `# Email Drafter
 
 You draft professional, context-aware emails. Read prior thread history, match the user's tone, and save as a draft for review.
@@ -185,7 +190,7 @@ Write the email and save as a draft — never send without user confirmation.`,
     iconBg: "hsl(38 92% 93%)",
     name: "weekly-digest",
     description: `Runs every Monday. Pulls activity across calendar, Slack, and email and emails the team a summary of last week's performance and highlights.`,
-    owner: "You",
+    owner: "You", ownerId: "m-fsoft-ceo",
     body: `# Weekly Digest
 
 Runs automatically each Monday. Aggregates activity across calendar, Slack, and email into a concise summary for the team.
@@ -256,6 +261,7 @@ function inlineRender(text: string): React.ReactNode {
 
 export default function Skills() {
   const { can } = useMyPermissions();
+  const access = useGroupAccess("skills");
   const canCreateSkill = can("skills.create");
   const [view, setView] = useState<"grid"|"list">("grid");
   const [filter, setFilter] = useState("All Skills");
@@ -306,9 +312,17 @@ export default function Skills() {
 
   const filters = ["All Skills", "My Skills", "From Library"];
 
-  const visible = SKILLS.filter(s =>
+  // A role whose Skills View Scope is "Own & Shared" (or with no View permission at all) only
+  // ever sees skills it created or that were shared with it.
+  const scopedSkills = access.canSeeAll ? SKILLS : SKILLS.filter(s => isOwnedOrShared(s, access.userId));
+  const filterFiltered = filter === "My Skills" ? scopedSkills.filter(s => s.ownerId === access.userId) : scopedSkills;
+  const visible = filterFiltered.filter(s =>
     search === "" || s.name.includes(search.toLowerCase()) || s.description.toLowerCase().includes(search.toLowerCase())
   );
+
+  const selectedAccessible = selected ? isOwnedOrShared(selected, access.userId) : false;
+  const canManageSelected = access.canAct("manage", selectedAccessible);
+  const canDeleteSelected = access.canAct("delete", selectedAccessible);
 
 
 
@@ -442,11 +456,16 @@ export default function Skills() {
               <ChevronRight size={13} className="text-muted-foreground rotate-180" />
               <div className="flex-1" />
               <button className="icon-btn" title="Copy"><Copy size={14} /></button>
-              <button className="icon-btn text-muted-foreground hover:text-destructive" title="Delete"><Trash2 size={14} /></button>
+              <button
+                disabled={!canDeleteSelected}
+                title={canDeleteSelected ? "Delete" : "You don't have permission to delete this skill."}
+                className="icon-btn text-muted-foreground hover:text-destructive disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-muted-foreground"
+              ><Trash2 size={14} /></button>
               <button
                 onClick={handleSave}
-                disabled={!isDirty}
-                className={`h-7 px-3 rounded-lg text-xs font-medium transition-base ${isDirty ? "bg-primary text-primary-foreground hover:opacity-90" : "bg-primary/30 text-primary-foreground/50 cursor-not-allowed"}`}
+                disabled={!isDirty || !canManageSelected}
+                title={!canManageSelected ? "You don't have permission to edit this skill." : undefined}
+                className={`h-7 px-3 rounded-lg text-xs font-medium transition-base ${isDirty && canManageSelected ? "bg-primary text-primary-foreground hover:opacity-90" : "bg-primary/30 text-primary-foreground/50 cursor-not-allowed"}`}
               >
                 Save Changes
               </button>

@@ -56,10 +56,17 @@ export interface KnowledgeBase {
 /** What's actually persisted — everything on KnowledgeBase except the derived `stats`. */
 type StoredKnowledgeBase = Omit<KnowledgeBase, "stats">;
 
-export const CURRENT_USER = { id: "tran-nam", name: "Tran Nam", email: "tran.nam@fpt.com" };
+// id matches the org member `useMyPermissions()` resolves the signed-in demo persona to
+// (src/pages/organization/orgData.ts's "m-fsoft-ceo") — scope enforcement compares a KB's
+// ownerId/sharing against that same id, so the two must never drift apart.
+export const CURRENT_USER = { id: "m-fsoft-ceo", name: "Tran Nam", email: "tran.nam@fpt.com" };
 
-const STORE_KEY = "knowledge_base_store_v1";
-const SEEDED_KEY = "knowledge_base_store_seeded_v1";
+// v3 — CURRENT_USER.id changed from the disconnected "tran-nam" to the real org-member id
+// ("m-fsoft-ceo"), and a KB genuinely inaccessible to the current user (kb-7) was added — a
+// stale v1/v2 session would carry ownerId/sharing values keyed to the old id, or be missing
+// kb-7 if a dev-server HMR reseed raced the two edits.
+const STORE_KEY = "knowledge_base_store_v3";
+const SEEDED_KEY = "knowledge_base_store_seeded_v3";
 const store = loadMap<string, StoredKnowledgeBase>(STORE_KEY);
 const persist = () => saveMap(STORE_KEY, store);
 
@@ -162,6 +169,18 @@ function seed() {
     createdAt: now - 7 * DAY, updatedAt: now - 7 * DAY,
   });
 
+  // Owned by someone else, private, never shared to current user — genuinely out of reach
+  // when Scope is "Own & Shared" for Knowledge, unlike kb-4/kb-5 above (which the current user
+  // was explicitly given access to). Proves the restriction actually hides something.
+  put({
+    id: "kb-7", name: "Lộ trình sản phẩm nội bộ",
+    description: "Kế hoạch phát triển sản phẩm quý tới — chỉ dành cho đội ngũ vận hành nền tảng.",
+    type: "internal", ownerId: "m-fsoft-vn-1", ownerName: "Duy Nguyen",
+    sharing: { mode: "private", people: [] },
+    attachedByAgentIds: [],
+    createdAt: now - 10 * DAY, updatedAt: now - 4 * DAY,
+  });
+
   persist();
 }
 
@@ -233,4 +252,14 @@ export function isViewOnly(kb: KnowledgeBase, userId: string = CURRENT_USER.id):
   if (kb.sharing.mode === "all") return false;
   const person = kb.sharing.people.find(p => p.userId === userId);
   return !person || person.access === "view";
+}
+
+/** True when `userId` created this KB, it's shared with every Console user, or they're one of
+ * its explicitly-shared people — i.e. it's their own resource in the "Own & Shared" Scope
+ * sense. Used both to pre-filter list views and to gate direct navigation to a KB's detail
+ * page when the signed-in role's Scope for Knowledge is "Own & Shared" (see scopeAccess.ts). */
+export function isAccessibleTo(kb: KnowledgeBase, userId: string): boolean {
+  if (kb.ownerId === userId) return true;
+  if (kb.sharing.mode === "all") return true;
+  return kb.sharing.people.some(p => p.userId === userId);
 }

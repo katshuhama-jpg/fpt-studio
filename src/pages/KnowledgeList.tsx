@@ -5,13 +5,14 @@ import {
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  knowledgeBaseStore, CURRENT_USER, isViewOnly, type KnowledgeBase,
+  knowledgeBaseStore, CURRENT_USER, isViewOnly, isAccessibleTo, type KnowledgeBase,
 } from "@/components/knowledge/knowledgeBaseStore";
 import KnowledgeTypeIcon from "@/components/knowledge/KnowledgeTypeIcon";
 import CreateKnowledgeBaseModal from "@/components/knowledge/CreateKnowledgeBaseModal";
 import ConnectExternalKnowledgeBaseModal from "@/components/knowledge/ConnectExternalKnowledgeBaseModal";
 import ShareKnowledgeBaseModal from "@/components/knowledge/ShareKnowledgeBaseModal";
 import DeleteKnowledgeBaseDialog from "@/components/knowledge/DeleteKnowledgeBaseDialog";
+import { useGroupAccess } from "@/pages/organization/scopeAccess";
 
 type MainTab = "all" | "mine" | "shared";
 type TypeFilter = "all" | "internal" | "external_api";
@@ -48,9 +49,12 @@ function OwnershipChips({ kb }: { kb: KnowledgeBase }) {
   );
 }
 
-function RowMenu({ kb, viewOnly, onOpen, onEdit, onShare, onDelete }: {
-  kb: KnowledgeBase; viewOnly: boolean;
+function RowMenu({ kb, onOpen, onEdit, onShare, onDelete, editBlocked, shareBlocked, deleteBlocked }: {
+  kb: KnowledgeBase;
   onOpen: () => void; onEdit: () => void; onShare: () => void; onDelete: () => void;
+  /** Set (with the reason to show as a tooltip) when the action is blocked — either by the
+   * per-person sharing access level, or by the signed-in role's Scope for this permission. */
+  editBlocked?: string; shareBlocked?: string; deleteBlocked?: string;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -62,21 +66,21 @@ function RowMenu({ kb, viewOnly, onOpen, onEdit, onShare, onDelete }: {
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
 
-  const safeItems: { label: string; onClick: () => void; disabled?: boolean }[] = [
+  const safeItems: { label: string; onClick: () => void; blocked?: string }[] = [
     { label: "Mở", onClick: onOpen },
-    { label: "Chỉnh sửa", onClick: onEdit, disabled: viewOnly },
-    { label: "Chia sẻ", onClick: onShare, disabled: viewOnly },
+    { label: "Chỉnh sửa", onClick: onEdit, blocked: editBlocked },
+    { label: "Chia sẻ", onClick: onShare, blocked: shareBlocked },
   ];
 
-  const renderItem = (item: { label: string; onClick: () => void; disabled?: boolean }, danger?: boolean) => (
+  const renderItem = (item: { label: string; onClick: () => void; blocked?: string }, danger?: boolean) => (
     <button
       key={item.label}
       type="button"
-      disabled={item.disabled}
-      title={item.disabled ? "Bạn chỉ có quyền xem kho tri thức này." : undefined}
+      disabled={!!item.blocked}
+      title={item.blocked}
       onClick={() => { setOpen(false); item.onClick(); }}
       className={`w-full text-left px-3 py-2 text-sm transition-base ${
-        item.disabled ? "text-muted-foreground/50 cursor-not-allowed" :
+        item.blocked ? "text-muted-foreground/50 cursor-not-allowed" :
         danger ? "text-destructive hover:bg-[hsl(var(--destructive-soft))]" : "hover:bg-surface-muted"
       }`}
     >
@@ -98,7 +102,7 @@ function RowMenu({ kb, viewOnly, onOpen, onEdit, onShare, onDelete }: {
         <div className="absolute right-0 top-full mt-1 z-20 min-w-52 max-w-xs rounded-lg border border-border bg-white shadow-elev py-1">
           {safeItems.map(item => renderItem(item))}
           <div className="mt-1 pt-1 border-t border-border">
-            {renderItem({ label: "Xóa", onClick: onDelete, disabled: viewOnly }, true)}
+            {renderItem({ label: "Xóa", onClick: onDelete, blocked: deleteBlocked }, true)}
           </div>
         </div>
       )}
@@ -106,10 +110,29 @@ function RowMenu({ kb, viewOnly, onOpen, onEdit, onShare, onDelete }: {
   );
 }
 
-function KbCard({ kb, onOpen, onEdit, onShare, onDelete }: {
-  kb: KnowledgeBase; onOpen: () => void; onEdit: () => void; onShare: () => void; onDelete: () => void;
+function KbCard({ kb, userId, access, onOpen, onEdit, onShare, onDelete }: {
+  kb: KnowledgeBase; userId: string; access: ReturnType<typeof useGroupAccess>;
+  onOpen: () => void; onEdit: () => void; onShare: () => void; onDelete: () => void;
 }) {
-  const viewOnly = isViewOnly(kb);
+  const viewOnly = isViewOnly(kb, userId);
+  const accessible = isAccessibleTo(kb, userId);
+  const isOwner = kb.ownerId === userId;
+  const NO_ROLE_PERMISSION = "Vai trò của bạn không có quyền thực hiện thao tác này.";
+  const NOT_OWNED_OR_SHARED = "Bạn chỉ có thể thao tác trên kho tri thức bạn tạo hoặc được chia sẻ.";
+  const VIEW_ONLY = "Bạn chỉ có quyền xem kho tri thức này.";
+  const editBlocked = !access.hasPermission("manage") ? NO_ROLE_PERMISSION
+    : !access.canAct("manage", accessible) ? NOT_OWNED_OR_SHARED
+    : viewOnly ? VIEW_ONLY : undefined;
+  // Sharing (like deleting the KB itself) is reserved for the owner — an editor can change
+  // content but not the KB's own access list, matching KnowledgeDetail.tsx's header menu.
+  const shareBlocked = !isOwner ? "Chỉ chủ sở hữu mới có thể chia sẻ kho tri thức này."
+    : !access.hasPermission("publish") ? NO_ROLE_PERMISSION
+    : !access.canAct("publish", accessible) ? NOT_OWNED_OR_SHARED
+    : undefined;
+  const deleteBlocked = !isOwner ? "Chỉ chủ sở hữu mới có thể xóa kho tri thức này."
+    : !access.hasPermission("delete") ? NO_ROLE_PERMISSION
+    : !access.canAct("delete", accessible) ? NOT_OWNED_OR_SHARED
+    : undefined;
   return (
     <div
       role="button"
@@ -129,7 +152,7 @@ function KbCard({ kb, onOpen, onEdit, onShare, onDelete }: {
             {kb.name}
           </Link>
         </div>
-        <RowMenu kb={kb} viewOnly={viewOnly} onOpen={onOpen} onEdit={onEdit} onShare={onShare} onDelete={onDelete} />
+        <RowMenu kb={kb} onOpen={onOpen} onEdit={onEdit} onShare={onShare} onDelete={onDelete} editBlocked={editBlocked} shareBlocked={shareBlocked} deleteBlocked={deleteBlocked} />
       </div>
       <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 mb-3 min-h-[32px]">
         {kb.description || <span className="italic">Chưa có mô tả</span>}
@@ -147,6 +170,8 @@ function KbCard({ kb, onOpen, onEdit, onShare, onDelete }: {
 
 export default function KnowledgeList() {
   const navigate = useNavigate();
+  const access = useGroupAccess("knowledge");
+  const userId = access.userId;
   const [params, setParams] = useSearchParams();
   const [loadState, setLoadState] = useState<"loading" | "error" | "ready">("loading");
   const [tick, setTick] = useState(0);
@@ -200,22 +225,33 @@ export default function KnowledgeList() {
     }
   };
 
-  const counts = useMemo(() => ({
-    all: kbs.length,
-    mine: kbs.filter(kb => kb.ownerId === CURRENT_USER.id).length,
-    shared: kbs.filter(kb => kb.ownerId !== CURRENT_USER.id).length,
-  }), [kbs]);
+  // A role whose Knowledge View Scope is "Own & Shared" (or that has no View permission at
+  // all — View is only ever needed to see other people's KBs) never even sees KBs outside
+  // what they own or were shared — not just on a filter tab, but in every count and list below.
+  const visibleKbs = useMemo(
+    () => access.canSeeAll ? kbs : kbs.filter(kb => isAccessibleTo(kb, userId)),
+    [kbs, access.canSeeAll, userId],
+  );
 
-  const tabFiltered = tab === "mine" ? kbs.filter(kb => kb.ownerId === CURRENT_USER.id)
-    : tab === "shared" ? kbs.filter(kb => kb.ownerId !== CURRENT_USER.id)
-    : kbs;
+  const isMine = (kb: KnowledgeBase) => kb.ownerId === userId;
+  const isSharedWithMe = (kb: KnowledgeBase) => !isMine(kb) && isAccessibleTo(kb, userId);
+
+  const counts = useMemo(() => ({
+    all: visibleKbs.length,
+    mine: visibleKbs.filter(isMine).length,
+    shared: visibleKbs.filter(isSharedWithMe).length,
+  }), [visibleKbs, userId]);
+
+  const tabFiltered = tab === "mine" ? visibleKbs.filter(isMine)
+    : tab === "shared" ? visibleKbs.filter(isSharedWithMe)
+    : visibleKbs;
   const typeFiltered = typeFilter === "all" ? tabFiltered : tabFiltered.filter(kb => kb.type === typeFilter);
   const q = search.trim().toLowerCase();
   const filtered = q
     ? typeFiltered.filter(kb => kb.name.toLowerCase().includes(q) || kb.description.toLowerCase().includes(q))
     : typeFiltered;
 
-  const hasAnyKb = kbs.length > 0;
+  const hasAnyKb = visibleKbs.length > 0;
   const hasActiveFilters = tab !== "all" || typeFilter !== "all" || search.trim().length > 0;
   const clearFilters = () => { setTab("all"); setTypeFilter("all"); setSearchInput(""); setSearch(""); };
 
@@ -370,6 +406,8 @@ export default function KnowledgeList() {
             <KbCard
               key={kb.id}
               kb={kb}
+              userId={userId}
+              access={access}
               onOpen={() => navigate(`/knowledge/${kb.id}`)}
               onEdit={() => setEditTarget(kb)}
               onShare={() => setShareTarget(kb)}

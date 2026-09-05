@@ -3,6 +3,7 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { Add01Icon, Cancel01Icon, Delete01Icon, MoreVerticalIcon, PencilEdit01Icon, Search01Icon } from "@hugeicons/core-free-icons";
 import { createPortal } from "react-dom";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
+import { useGroupAccess, isOwnedOrShared } from "@/pages/organization/scopeAccess";
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
 type ActionKind = "Autogenerate response" | "Custom response" | "Require approval" | "Block" | "Redact and warn" | "Politely decline";
@@ -17,6 +18,18 @@ interface Guardrail {
   agents: AgentChip[];
   allAgents?: boolean;
   enabled: boolean;
+  /** Org-member id of whoever created this guardrail, and who else it's been explicitly
+   * shared with — read by the "Own & Shared" Scope enforcement in scopeAccess.ts. Mandatory
+   * (compliance) and `allAgents` guardrails are always visible to everyone regardless, the
+   * same way a Knowledge base shared to "all" is — they aren't really "someone's own." */
+  ownerId?: string;
+  sharedWith?: string[];
+}
+
+/** True if `userId` can see this guardrail — always true for mandatory/all-agents compliance
+ * rules, otherwise only if they created it or it was explicitly shared with them. */
+function isGuardrailAccessible(g: Guardrail, userId: string): boolean {
+  return g.mandatory || !!g.allAgents || isOwnedOrShared(g, userId);
 }
 
 /* ─── Seed data ──────────────────────────────────────────────────────── */
@@ -24,10 +37,10 @@ const SEED: Guardrail[] = [
   { id: 1, name: "PII protection",            desc: "Never expose personal identifiers — CCID, passport, phone — in any response.",          action: "Autogenerate response",                   mandatory: true,  agents: [], enabled: true },
   { id: 2, name: "Prohibited content filter", desc: "Block violent, adult, or discriminatory content across all channels.",                    action: "Autogenerate response",                   mandatory: true,  agents: [], enabled: true },
   { id: 3, name: "Compliance disclaimer",     desc: "Append regulatory disclaimer to all financial and legal responses.",                      action: "Custom response",   mandatory: true,  agents: [], enabled: true },
-  { id: 4, name: "Commercial response policy",desc: "Prevent AI from making pricing commitments or answering restricted topics.",              action: "Autogenerate response",               mandatory: false, agents: [{ name: "Banking ABC", color: "#4338ca" }, { name: "IT Helpdesk", color: "#059669" }, { name: "Product FAQ", color: "#d97706" }, { name: "Sales Qualifier", color: "#db2777" }], enabled: true },
+  { id: 4, name: "Commercial response policy",desc: "Prevent AI from making pricing commitments or answering restricted topics.",              action: "Autogenerate response",               mandatory: false, agents: [{ name: "Banking ABC", color: "#4338ca" }, { name: "IT Helpdesk", color: "#059669" }, { name: "Product FAQ", color: "#d97706" }, { name: "Sales Qualifier", color: "#db2777" }], enabled: true, ownerId: "m-fsoft-ceo" },
   { id: 5, name: "Legal and medical advice",  desc: "Do not provide legal or medical advice — refer to a specialist.",                         action: "Custom response", mandatory: false, agents: [], allAgents: true, enabled: true },
-  { id: 6, name: "Escalate risky replies",    desc: "Human approval for any commitments about future roadmap.",                                action: "Require approval",                    mandatory: false, agents: [{ name: "Sales Qualifier", color: "#d97706" }], enabled: false },
-  { id: 7, name: "Competitor mention block",  desc: "Avoid naming or comparing direct competitors in any response.",                           action: "Autogenerate response",               mandatory: false, agents: [{ name: "Banking ABC", color: "#4338ca" }, { name: "HR Onboarding", color: "#7c3aed" }, { name: "IT Helpdesk", color: "#059669" }], enabled: true },
+  { id: 6, name: "Escalate risky replies",    desc: "Human approval for any commitments about future roadmap.",                                action: "Require approval",                    mandatory: false, agents: [{ name: "Sales Qualifier", color: "#d97706" }], enabled: false, ownerId: "m-fsoft-coo" },
+  { id: 7, name: "Competitor mention block",  desc: "Avoid naming or comparing direct competitors in any response.",                           action: "Autogenerate response",               mandatory: false, agents: [{ name: "Banking ABC", color: "#4338ca" }, { name: "HR Onboarding", color: "#7c3aed" }, { name: "IT Helpdesk", color: "#059669" }], enabled: true, ownerId: "m-fsoft-vn-1", sharedWith: ["m-fsoft-ceo"] },
 ];
 
 /* ─── Response types ─────────────────────────────────────────────────── */
@@ -216,6 +229,7 @@ function CreateModal({ onClose, onCreate, initialData }: {
 /* ─── Main page ──────────────────────────────────────────────────────── */
 export default function WorkspaceGuardrails() {
   const { can } = useMyPermissions();
+  const access = useGroupAccess("guardrails");
   const canCreateGuardrail = can("guardrails.create");
   const [items, setItems] = useState<Guardrail[]>(SEED);
   const [query, setQuery]         = useState("");
@@ -223,10 +237,15 @@ export default function WorkspaceGuardrails() {
   const [editItem, setEditItem] = useState<Guardrail | null>(null);
   let nextId = Math.max(...items.map(i => i.id)) + 1;
 
+  // A role whose Guardrails View Scope is "Own & Shared" (or with no View permission at all)
+  // only ever sees mandatory/all-agents compliance rules plus guardrails it created or that
+  // were shared with it.
+  const visibleGuardrails = access.canSeeAll ? items : items.filter(g => isGuardrailAccessible(g, access.userId));
+
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
-    return items.filter(g => !q || g.name.toLowerCase().includes(q) || g.desc.toLowerCase().includes(q));
-  }, [items, query]);
+    return visibleGuardrails.filter(g => !q || g.name.toLowerCase().includes(q) || g.desc.toLowerCase().includes(q));
+  }, [visibleGuardrails, query]);
 
   const [activeTab, setActiveTab] = useState<"optional" | "enforced">("optional");
 
@@ -284,7 +303,12 @@ export default function WorkspaceGuardrails() {
       {/* Table — all guardrails */}
       <Table>
         <THead cols="1fr 200px 1fr 72px 64px" cells={["Guardrail", "Response action", "Assigned agents", "Status", "Actions"]} lastRight />
-        {filtered.length === 0 ? <EmptyRow /> : filtered.map(g => (
+        {filtered.length === 0 ? <EmptyRow /> : filtered.map(g => {
+          const accessible = isGuardrailAccessible(g, access.userId);
+          const canPause = access.canAct("pause", accessible);
+          const canManage = access.canAct("manage", accessible);
+          const canDelete = access.canAct("delete", accessible);
+          return (
           <TRow key={g.id} cols="1fr 200px 1fr 72px 64px">
             <div>
               <div className="text-sm font-medium">{g.name}</div>
@@ -298,8 +322,10 @@ export default function WorkspaceGuardrails() {
             </div>
             <div className="flex items-center">
               <button
-                onClick={() => toggleEnabled(g.id)}
-                className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-colors ${
+                onClick={() => canPause && toggleEnabled(g.id)}
+                disabled={!canPause}
+                title={!canPause ? "Bạn không có quyền tạm dừng guardrail này." : undefined}
+                className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
                   g.enabled ? "bg-primary border-primary" : "bg-transparent border-border"
                 }`}
               >
@@ -311,10 +337,16 @@ export default function WorkspaceGuardrails() {
               </button>
             </div>
             <div className="flex items-center justify-end">
-              <RowMenu onEdit={() => setEditItem(g)} onDelete={() => handleDelete(g.id)} />
+              <RowMenu
+                onEdit={() => setEditItem(g)}
+                onDelete={() => handleDelete(g.id)}
+                canEdit={canManage}
+                canDelete={canDelete}
+              />
             </div>
           </TRow>
-        ))}
+          );
+        })}
       </Table>
     </div>
   );
@@ -380,7 +412,9 @@ function Toggle({ enabled, onChange }: { enabled: boolean; onChange: () => void 
   );
 }
 
-function RowMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
+function RowMenu({ onEdit, onDelete, canEdit = true, canDelete = true }: {
+  onEdit: () => void; onDelete: () => void; canEdit?: boolean; canDelete?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -404,14 +438,18 @@ function RowMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => voi
       {open && (
         <div className="absolute right-0 top-8 z-20 w-32 bg-white rounded-xl border border-border shadow-lg py-1 animate-fade-up">
           <button
+            disabled={!canEdit}
+            title={!canEdit ? "Bạn không có quyền chỉnh sửa guardrail này." : undefined}
             onClick={() => { setOpen(false); onEdit(); }}
-            className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface-muted transition-base"
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface-muted transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
           >
             <HugeiconsIcon icon={PencilEdit01Icon} size={13} className="text-muted-foreground" /> Edit
           </button>
           <button
+            disabled={!canDelete}
+            title={!canDelete ? "Bạn không có quyền xóa guardrail này." : undefined}
             onClick={() => { setOpen(false); onDelete(); }}
-            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/5 transition-base"
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/5 transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
           >
             <HugeiconsIcon icon={Delete01Icon} size={13} /> Delete
           </button>

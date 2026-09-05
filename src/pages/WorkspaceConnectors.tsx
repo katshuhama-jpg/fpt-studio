@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { Search, CheckCircle2, ChevronRight } from "lucide-react";
+import { useGroupAccess, isOwnedOrShared } from "@/pages/organization/scopeAccess";
 
 /* ─── Types ─────────────────────────────────────────── */
 type Tab = "all" | "connected" | "available";
@@ -13,6 +14,11 @@ interface Connector {
   soon: boolean;
   requestedBy?: string[];
   category: string;
+  /** Only meaningful once `connected` — who set up this workspace connection, and who else it
+   * was explicitly shared with. An unconnected catalog entry isn't anyone's resource yet, so
+   * it's never restricted by Scope; only established connections are. */
+  ownerId?: string;
+  sharedWith?: string[];
 }
 
 /* ─── Logo URLs ──────────────────────────────────────── */
@@ -46,8 +52,8 @@ const LOGO: Record<string, string> = {
 
 /* ─── Seed data ──────────────────────────────────────── */
 const CONNECTORS: Connector[] = [
-  { id:"outlook",    name:"Microsoft Outlook",   desc:"Search emails and calendar events, and send on your behalf.",                     logo:LOGO.outlook,    connected:true,  soon:false, requestedBy:["You Need A Hug","meo meo"], category:"requested" },
-  { id:"sharepoint", name:"Microsoft SharePoint",desc:"Read files, document libraries, and sites across your SharePoint.",              logo:LOGO.sharepoint, connected:true,  soon:false, requestedBy:["meo meo"],                 category:"requested" },
+  { id:"outlook",    name:"Microsoft Outlook",   desc:"Search emails and calendar events, and send on your behalf.",                     logo:LOGO.outlook,    connected:true,  soon:false, requestedBy:["You Need A Hug","meo meo"], category:"requested", ownerId: "m-fsoft-coo" },
+  { id:"sharepoint", name:"Microsoft SharePoint",desc:"Read files, document libraries, and sites across your SharePoint.",              logo:LOGO.sharepoint, connected:true,  soon:false, requestedBy:["meo meo"],                 category:"requested", ownerId: "m-fsoft-ceo" },
   { id:"gmail",      name:"Gmail",               desc:"Search, create, and manage your emails and calendar events.",                    logo:LOGO.gmail,      connected:false, soon:true,  category:"popular" },
   { id:"slack",      name:"Slack",               desc:"Read channels, send messages, and search conversations.",                        logo:LOGO.slack,      connected:false, soon:true,  category:"popular" },
   { id:"notion",     name:"Notion",              desc:"Read, create, and update pages and databases across your workspace.",            logo:LOGO.notion,     connected:false, soon:true,  category:"popular" },
@@ -83,21 +89,31 @@ const CATEGORIES = [
 
 /* ─── Main page ──────────────────────────────────────── */
 export default function WorkspaceConnectors() {
+  const access = useGroupAccess("connectors");
   const [tab, setTab]     = useState<Tab>("all");
   const [query, setQuery] = useState("");
 
-  const requested = CONNECTORS.filter(c => c.category === "requested");
+  // Only an established connection is really "someone's resource" — browsing the catalog of
+  // not-yet-connected services is never restricted. A role whose Connectors View Scope is
+  // "Own & Shared" (or with no View permission at all) only sees connections it set up or that
+  // were shared with it.
+  const isConnectorVisible = (c: Connector) =>
+    !c.connected || access.canSeeAll || isOwnedOrShared(c, access.userId);
+
+  const requested = CONNECTORS.filter(c => c.category === "requested" && isConnectorVisible(c));
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
     return CONNECTORS.filter(c => {
       if (c.category === "requested") return false;
+      if (!isConnectorVisible(c)) return false;
       if (tab === "connected" && !c.connected) return false;
       if (tab === "available" && c.connected) return false;
       if (q && !c.name.toLowerCase().includes(q) && !c.desc.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [tab, query]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, query, access.canSeeAll, access.userId]);
 
   return (
     <div className="px-8 py-8 max-w-[1200px] mx-auto animate-fade-up">

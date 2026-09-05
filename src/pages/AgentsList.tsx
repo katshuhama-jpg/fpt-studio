@@ -5,8 +5,9 @@ import {
   Add01Icon, Search01Icon, FilterIcon, MoreVerticalIcon, Chat01Icon, Activity01Icon,
   SparklesIcon, Cancel01Icon, BoltIcon, TimeScheduleIcon,
 } from "@hugeicons/core-free-icons";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
+import { useGroupAccess, isOwnedOrShared } from "@/pages/organization/scopeAccess";
 import { getAgentKind } from "@/components/configure/agentKindStore";
 import { agentPublishStore } from "@/components/configure/agentPublishStore";
 import { runsStore } from "@/components/configure/runsStore";
@@ -384,7 +385,21 @@ function GroupEmptyState({ message, onShowAll }: { message: string; onShowAll?: 
 export default function AgentsList() {
   const navigate = useNavigate();
   const { can } = useMyPermissions();
+  const access = useGroupAccess("agents");
   const canCreateAgent = can("agents.create");
+
+  // A role whose Agents View Scope is "Own & Shared" (or that has no View permission at all —
+  // View is only ever needed to see other people's agents) only ever sees agents it created or
+  // that were shared with it, in every tab and count below — not just a "Shared with me" filter.
+  const visibleAgents = useMemo(
+    () => access.canSeeAll ? agents : agents.filter(a => isOwnedOrShared(a, access.userId)),
+    [access.canSeeAll, access.userId],
+  );
+  const sharedWithMe = useMemo(
+    () => agents.filter(a => a.ownerId !== access.userId && isOwnedOrShared(a, access.userId)),
+    [access.userId],
+  );
+
   const [activeTab, setActiveTab] = useState<typeof tabs[number]>("All agents");
   const [kindFilter, setKindFilter] = useState<typeof kindFilters[number]>("All");
   const [search, setSearch] = useState("");
@@ -392,18 +407,18 @@ export default function AgentsList() {
   const [prompt, setPrompt] = useState("");
 
   const tabCounts: Record<typeof tabs[number], number> = {
-    "All agents": agents.length,
-    "Published": agents.filter(a => agentTabStatus(a) === "Published").length,
-    "Draft": agents.filter(a => agentTabStatus(a) === "Draft").length,
-    "Shared with me": 0,
+    "All agents": visibleAgents.length,
+    "Published": visibleAgents.filter(a => agentTabStatus(a) === "Published").length,
+    "Draft": visibleAgents.filter(a => agentTabStatus(a) === "Draft").length,
+    "Shared with me": sharedWithMe.length,
   };
 
   const tabFiltered =
     activeTab === "All agents"
-      ? agents
+      ? visibleAgents
       : activeTab === "Shared with me"
-        ? []
-        : agents.filter(a => agentTabStatus(a) === activeTab);
+        ? sharedWithMe
+        : visibleAgents.filter(a => agentTabStatus(a) === activeTab);
 
   const q = search.trim().toLowerCase();
   const searched = q
@@ -412,8 +427,8 @@ export default function AgentsList() {
 
   const conversationalAgents = searched.filter(a => getAgentKind(a.id) === "conversational");
   const automationAgents = searched.filter(a => getAgentKind(a.id) === "automation");
-  const allConversationalCount = agents.filter(a => getAgentKind(a.id) === "conversational").length;
-  const allAutomationCount = agents.filter(a => getAgentKind(a.id) === "automation").length;
+  const allConversationalCount = visibleAgents.filter(a => getAgentKind(a.id) === "conversational").length;
+  const allAutomationCount = visibleAgents.filter(a => getAgentKind(a.id) === "automation").length;
 
   const showConversational = kindFilter !== "Automation Agents";
   const showAutomation = kindFilter !== "Agents";

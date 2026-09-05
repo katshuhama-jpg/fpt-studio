@@ -26,7 +26,8 @@ import {
   CONNECTOR_BLOCKED_BY_TRIGGER_REASON,
 } from "@/components/configure/agentPublishStore";
 import { getAgentKind, type AgentKind } from "@/components/configure/agentKindStore";
-import { getAgent } from "@/components/configure/agentStore";
+import { AGENTS, getAgent } from "@/components/configure/agentStore";
+import { useGroupAccess, isOwnedOrShared } from "@/pages/organization/scopeAccess";
 import { CHANNEL_CATALOG, getChannelName, type ChannelCatalogEntry } from "@/components/configure/channelCatalog";
 import { connectedAccountStore } from "@/components/configure/connectedAccountStore";
 import ConnectionsTab, { CATALOG as CONNECTOR_CATALOG } from "@/components/configure/ConnectionsTab";
@@ -110,6 +111,7 @@ const monitorNav = [
 export default function AgentBuilder() {
   const { id = "new" } = useParams();
   const agent = getAgent(id);
+  const access = useGroupAccess("agents");
   const [params, setParams] = useSearchParams();
   const VALID_TABS: Tab[] = ["build", "test", "channels", "insights"];
   const rawTab = params.get("tab");
@@ -167,6 +169,33 @@ export default function AgentBuilder() {
   const nav = developNav.filter((it: any) => !it.hidden);
   const currentSectionLabel =
     developNav.find((i: any) => i.id === section)?.label ?? section;
+
+  // A role whose Agents View Scope is "Own & Shared" (or that has no View permission at all)
+  // can't reach an agent it doesn't own and wasn't shared with just by typing its URL — only
+  // applies to a real, existing agent; "/agents/new" is governed by "agents.create" instead,
+  // which has no Scope dimension.
+  const existingAgent = id !== "new" ? AGENTS.find(a => a.id === id) : undefined;
+  const canAccessAgent = !existingAgent || access.canSeeAll || isOwnedOrShared(existingAgent, access.userId);
+  const canPublishAgent = canAccessAgent && access.canAct("publish", existingAgent ? isOwnedOrShared(existingAgent, access.userId) : true);
+
+  if (existingAgent && !canAccessAgent) {
+    return (
+      <div className="flex flex-col h-full bg-background">
+        <div className="h-14 border-b border-border bg-surface flex items-center px-4 gap-3 shrink-0">
+          <button onClick={() => navigate("/agents")} className="h-8 w-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0">
+            <HugeiconsIcon icon={ChevronLeftIcon} size={16} />
+          </button>
+          <Link to="/agents" className="text-sm text-muted-foreground hover:text-foreground transition-base">Agents</Link>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
+          <p className="text-sm text-muted-foreground max-w-md mb-4">Bạn không có quyền truy cập agent này. Liên hệ chủ sở hữu nếu cần được chia sẻ quyền truy cập.</p>
+          <Link to="/agents" className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base flex items-center">
+            Về danh sách Agent
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -230,7 +259,12 @@ export default function AgentBuilder() {
               <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground" /> Draft
             </div>
           )}
-          <button onClick={() => setShowPublish(true)} className="btn-primary h-9">
+          <button
+            onClick={() => canPublishAgent && setShowPublish(true)}
+            disabled={!canPublishAgent}
+            title={!canPublishAgent ? "Bạn không có quyền publish agent này." : undefined}
+            className="btn-primary h-9 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
             <HugeiconsIcon icon={Rocket01Icon} size={13} /> Publish
           </button>
           <div className="relative">
@@ -245,7 +279,8 @@ export default function AgentBuilder() {
                 <div className="fixed inset-0 z-10" onClick={() => setShowAgentMenu(false)} />
                 <div className="absolute right-0 top-full mt-1 z-20 w-44 rounded-lg border border-border bg-white shadow-elev py-1">
                   <button
-                    disabled={!published}
+                    disabled={!published || !canPublishAgent}
+                    title={!canPublishAgent ? "Bạn không có quyền publish agent này." : undefined}
                     onClick={() => {
                       agentPublishStore.unpublish(id);
                       setPublishTick(t => t + 1);
@@ -2417,6 +2452,9 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
 }
 
 function DeployTab({ agentId, onViewTriggers }: { agentId: string; onViewTriggers?: () => void }) {
+  const access = useGroupAccess("agents");
+  const ownedAgent = AGENTS.find(a => a.id === agentId);
+  const canPublishAgent = access.canAct("publish", ownedAgent ? isOwnedOrShared(ownedAgent, access.userId) : true);
   const [tick, setTick] = useState(0);
   const refresh = () => setTick(t => t + 1);
   const [showPublish, setShowPublish] = useState(false);
@@ -2553,7 +2591,14 @@ function DeployTab({ agentId, onViewTriggers }: { agentId: string; onViewTrigger
               <p className="text-sm text-muted-foreground max-w-sm mb-5 leading-relaxed">
                 Publish to open this agent to a small group first, then expand.
               </p>
-              <button onClick={() => setShowPublish(true)} className="btn-primary">Publish</button>
+              <button
+                onClick={() => canPublishAgent && setShowPublish(true)}
+                disabled={!canPublishAgent}
+                title={!canPublishAgent ? "Bạn không có quyền publish agent này." : undefined}
+                className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Publish
+              </button>
             </div>
           ) : (
             <div className="rounded-xl border border-border overflow-hidden">
