@@ -12,26 +12,29 @@ import { DEFAULT_ROLE_ID } from "./Members";
 
 /* ─── Inline per-permission Scope control — editable on Create/Edit Role,
    the exact same visual (just non-interactive, via readOnly) on View Role. ─── */
-function ScopePill({ value, onChange, readOnly }: { value: ScopeValue; onChange?: (v: ScopeValue) => void; readOnly?: boolean }) {
+function ScopePill({ value, onChange, readOnly, granted = true }: { value: ScopeValue; onChange?: (v: ScopeValue) => void; readOnly?: boolean; granted?: boolean }) {
+  const interactive = !readOnly && granted;
   const optionClass = (active: boolean, variant: "all" | "own_shared") =>
     `px-3.5 py-[7px] rounded-full text-[13px] font-bold whitespace-nowrap transition-base ${
       active ? (variant === "all" ? "bg-primary-soft text-primary" : "sp-active-own") : "text-muted-foreground"
-    } ${readOnly ? "cursor-default" : active ? "" : "hover:text-foreground"}`;
+    } ${interactive ? (active ? "" : "hover:text-foreground") : "cursor-default"}`;
+  // When the permission itself isn't granted, Scope doesn't apply yet — show both
+  // options muted with neither highlighted, instead of a misleading default selection.
   return (
-    <div className="rp-pill inline-flex items-center gap-0.5 p-[3px] rounded-full bg-surface border border-border">
+    <div className={`rp-pill inline-flex items-center gap-0.5 p-[3px] rounded-full bg-surface border border-border ${granted ? "" : "opacity-40"}`}>
       <button
         type="button"
-        onClick={readOnly ? undefined : () => onChange?.("all")}
-        disabled={readOnly}
-        className={optionClass(value === "all", "all")}
+        onClick={interactive ? () => onChange?.("all") : undefined}
+        disabled={!interactive}
+        className={optionClass(granted && value === "all", "all")}
       >
         All in Console
       </button>
       <button
         type="button"
-        onClick={readOnly ? undefined : () => onChange?.("own_shared")}
-        disabled={readOnly}
-        className={optionClass(value === "own_shared", "own_shared")}
+        onClick={interactive ? () => onChange?.("own_shared") : undefined}
+        disabled={!interactive}
+        className={optionClass(granted && value === "own_shared", "own_shared")}
       >
         Own & Shared
       </button>
@@ -269,6 +272,7 @@ function RoleModal({
                                 value={scopeValue}
                                 onChange={v => setScope(s => ({ ...s, [p.id]: v }))}
                                 readOnly={readOnly}
+                                granted={effective.has(p.id)}
                               />
                             </div>
                           )}
