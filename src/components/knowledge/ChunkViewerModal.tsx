@@ -8,7 +8,7 @@ import { knowledgeChunkStore, type ChunkSourceType, type KnowledgeChunk, type Ch
 import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
 import { knowledgeUrlStore } from "./knowledgeUrlStore";
 import { knowledgeStore } from "./knowledgeStore";
-import { KnowledgeStatusPill, type KnowledgeProcessingStatus } from "./knowledgeStatus";
+import { KnowledgeStatusPill, type KnowledgeFaqStatus } from "./knowledgeStatus";
 import FileTypeIcon from "./FileTypeIcon";
 import DocumentPreviewPane, { MOCK_PAGES } from "./DocumentPreviewPane";
 import HtmlTableEditor from "./HtmlTableEditor";
@@ -85,7 +85,7 @@ export default function ChunkViewerModal({
   kbId, sourceType, sourceId, sourceName, sourceStatus, sourceChunkCount, sourceCreatedAt, onClose, viewOnly,
 }: {
   kbId: string; sourceType: ChunkSourceType; sourceId: string; sourceName: string;
-  sourceStatus: KnowledgeProcessingStatus;
+  sourceStatus: KnowledgeFaqStatus;
   /** Only needed for sourceType "agent-item" — knowledgeChunkStore can't look this up itself
    * without creating a circular import with knowledgeStore.ts, so the caller supplies it. */
   sourceChunkCount?: number;

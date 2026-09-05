@@ -8,7 +8,7 @@ import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
 import { knowledgeUrlStore } from "./knowledgeUrlStore";
 import { knowledgeFaqStore } from "./knowledgeFaqStore";
 import { knowledgeChunkStore, markChunksSeeded } from "./knowledgeChunkStore";
-import type { KnowledgeProcessingStatus } from "./knowledgeStatus";
+import type { KnowledgeFaqStatus } from "./knowledgeStatus";
 
 export type KnowledgeKind = "doc" | "url" | "faq";
 
@@ -21,7 +21,9 @@ export interface KnowledgeItem {
    * to pre-fill a human-readable name when promoting the item to a Console KB. */
   title?: string;
   description: string;
-  status?: KnowledgeProcessingStatus;
+  /** Widened to the FAQ superset (adds "invalid") since a kind:"faq" item can land there — doc
+   * and url items are only ever assigned the 5-value KnowledgeProcessingStatus subset. */
+  status?: KnowledgeFaqStatus;
   statusReason?: string;
   chunkCount?: number;
   sizeBytes?: number;
@@ -124,7 +126,7 @@ export const knowledgeStore = {
     store.set(k(agentId, id), { ...cur, version: (cur.version ?? 1) + 1, updatedAt: Date.now(), updatedBy: CURRENT_USER.name });
     persist();
   },
-  updateStatus(agentId: string, id: string, status: KnowledgeProcessingStatus, patch?: Partial<Pick<KnowledgeItem, "chunkCount">>) {
+  updateStatus(agentId: string, id: string, status: KnowledgeFaqStatus, patch?: Partial<Pick<KnowledgeItem, "chunkCount">>) {
     const cur = store.get(k(agentId, id));
     if (!cur) return;
     store.set(k(agentId, id), { ...cur, status, ...patch, updatedAt: Date.now() });

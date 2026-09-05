@@ -1303,6 +1303,13 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
                     onPromote={() => setPromoteTarget(item)}
                     onReprocess={() => setReprocessTarget(item)}
                     onDelete={() => setDeleteTarget(item)}
+                    reprocessDisabled={item.kind === "faq" && item.status !== "failed"}
+                    reprocessTooltip={
+                      item.kind !== "faq" ? undefined
+                        : item.status === "invalid" ? "Nội dung chưa hợp lệ. Hãy sửa câu hỏi hoặc câu trả lời trước khi xử lý lại."
+                        : item.status === "pending" || item.status === "processing" ? "Câu hỏi đang được xử lý."
+                        : undefined
+                    }
                   />
                 </div>
               </div>
@@ -1401,8 +1408,9 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
   );
 }
 
-function KnowledgeItemRowMenu({ onOpen, onShare, onPromote, onReprocess, onDelete }: {
+function KnowledgeItemRowMenu({ onOpen, onShare, onPromote, onReprocess, onDelete, reprocessDisabled, reprocessTooltip }: {
   onOpen: () => void; onShare: () => void; onPromote: () => void; onReprocess: () => void; onDelete: () => void;
+  reprocessDisabled?: boolean; reprocessTooltip?: string;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -1412,13 +1420,6 @@ function KnowledgeItemRowMenu({ onOpen, onShare, onPromote, onReprocess, onDelet
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
-  const items = [
-    { label: "Mở", onClick: onOpen },
-    { label: "Chia sẻ", onClick: onShare },
-    { label: "Chuyển thành kho tri thức chung", onClick: onPromote },
-    { label: "Xử lý lại", onClick: onReprocess },
-    { label: "Xóa", onClick: onDelete, danger: true },
-  ];
   return (
     <div ref={ref} className="relative" onClick={e => e.stopPropagation()}>
       <button onClick={() => setOpen(v => !v)} aria-label="Thao tác" className="w-9 h-9 min-w-[44px] min-h-[44px] -m-1.5 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -1426,15 +1427,24 @@ function KnowledgeItemRowMenu({ onOpen, onShare, onPromote, onReprocess, onDelet
       </button>
       {open && (
         <div className="absolute right-0 top-full mt-1 z-20 w-56 rounded-lg border border-border bg-white shadow-elev py-1">
-          {items.map(item => (
-            <button
-              key={item.label}
-              onClick={() => { setOpen(false); item.onClick(); }}
-              className={`w-full text-left px-3 py-1.5 text-xs transition-base ${item.danger ? "text-destructive hover:bg-[hsl(var(--destructive-soft))]" : "hover:bg-surface-muted"}`}
-            >
-              {item.label}
-            </button>
-          ))}
+          <button onClick={() => { setOpen(false); onOpen(); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">Mở</button>
+          <button onClick={() => { setOpen(false); onShare(); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">Chia sẻ</button>
+          <button onClick={() => { setOpen(false); onPromote(); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">Chuyển thành kho tri thức chung</button>
+          <Tooltip delayDuration={200}>
+            <TooltipTrigger asChild>
+              <span>
+                <button
+                  disabled={reprocessDisabled}
+                  onClick={() => { if (reprocessDisabled) return; setOpen(false); onReprocess(); }}
+                  className={`w-full text-left px-3 py-1.5 text-xs transition-base ${reprocessDisabled ? "text-muted-foreground/50 cursor-not-allowed" : "hover:bg-surface-muted"}`}
+                >
+                  Xử lý lại
+                </button>
+              </span>
+            </TooltipTrigger>
+            {reprocessTooltip && <TooltipContent side="left" className="max-w-[240px]">{reprocessTooltip}</TooltipContent>}
+          </Tooltip>
+          <button onClick={() => { setOpen(false); onDelete(); }} className="w-full text-left px-3 py-1.5 text-xs text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">Xóa</button>
         </div>
       )}
     </div>

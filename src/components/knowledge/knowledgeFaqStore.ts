@@ -1,6 +1,7 @@
 // sessionStorage-backed FAQ store for a Console Knowledge Base's "Câu hỏi thường gặp" tab.
 import { loadMap, saveMap } from "@/lib/sessionPersist";
-import type { KnowledgeProcessingStatus } from "./knowledgeStatus";
+import type { KnowledgeFaqStatus } from "./knowledgeStatus";
+import { normalizeForCompare, similarity } from "./textSimilarity";
 
 export interface KnowledgeFaq {
   id: string;
@@ -8,16 +9,37 @@ export interface KnowledgeFaq {
   question: string;
   answer: string;
   categories: string[];
-  status: KnowledgeProcessingStatus;
+  status: KnowledgeFaqStatus;
+  /** Reason shown in the row's info-icon tooltip — only meaningful for "failed" and "invalid". */
+  statusReason?: string;
   chunkCount: number;
   updatedAt: number;
   updatedBy: string;
 }
 
-const STORE_KEY = "knowledge_faq_store_v4";
-const SEEDED_KEY = "knowledge_faq_store_seeded_v4";
+export interface CategoryOption { name: string; count: number }
+
+export interface ImportRowInput {
+  question: string;
+  answer: string;
+  categories: string[];
+  /** Set when this row matched an existing FAQ during import validation — "overwrite" mode
+   * updates that FAQ in place instead of inserting a new row. */
+  duplicateOfId?: string;
+}
+
+const STORE_KEY = "knowledge_faq_store_v6";
+const SEEDED_KEY = "knowledge_faq_store_seeded_v6";
 const store = loadMap<string, KnowledgeFaq>(STORE_KEY);
 const persist = () => saveMap(STORE_KEY, store);
+
+const LONG_ANSWER_INTRO = "Quy trình khôi phục quyền truy cập tài khoản khi khách hàng vừa đổi số điện thoại đăng ký nhưng vẫn giữ nguyên CCCD và các giấy tờ định danh khác được thực hiện qua nhiều bước để đảm bảo an toàn thông tin. ";
+const LONG_ANSWER_STEP = "Bước tiếp theo, quý khách cần chuẩn bị đầy đủ giấy tờ tùy thân bản gốc còn hiệu lực, đến quầy giao dịch gần nhất hoặc thực hiện xác thực qua video call với tổng đài viên, cung cấp thông tin xác minh bổ sung nếu được yêu cầu, sau đó chờ hệ thống xử lý và gửi thông báo xác nhận qua kênh liên lạc đã đăng ký trước đó. ";
+function buildLongAnswer(): string {
+  let s = LONG_ANSWER_INTRO;
+  while (s.length < 4600) s += LONG_ANSWER_STEP;
+  return s;
+}
 
 function seedKb(kbId: string) {
   const flagKey = `${SEEDED_KEY}:${kbId}`;
@@ -32,7 +54,7 @@ function seedKb(kbId: string) {
     put({ id: "faq-2-2", kbId, question: "Thời gian xử lý yêu cầu mở thẻ tín dụng là bao lâu?", answer: "Thông thường từ 3-5 ngày làm việc kể từ khi hồ sơ đầy đủ và hợp lệ.", categories: ["Thẻ", "Xử lý"], status: "done", chunkCount: 1, updatedAt: now - 6 * DAY, updatedBy: "Tran Nam" });
     put({ id: "faq-2-3", kbId, question: "Tôi có thể thay đổi hạn mức thẻ tín dụng không?", answer: "Có, bạn có thể gửi yêu cầu điều chỉnh hạn mức qua ứng dụng hoặc tại quầy giao dịch, kèm theo chứng minh thu nhập nếu tăng hạn mức.", categories: ["Thẻ"], status: "processing", chunkCount: 0, updatedAt: now - 10 * 60_000, updatedBy: "Tran Nam" });
     put({ id: "faq-2-4", kbId, question: "Tôi quên mật khẩu đăng nhập ứng dụng, phải làm sao?", answer: "Chọn \"Quên mật khẩu\" ở màn hình đăng nhập, xác thực bằng OTP gửi về số điện thoại đã đăng ký, sau đó đặt lại mật khẩu mới theo hướng dẫn.", categories: ["Tài khoản", "Bảo mật"], status: "pending", chunkCount: 0, updatedAt: now - 5 * 60_000, updatedBy: "Tran Nam" });
-    put({ id: "faq-2-5", kbId, question: "Tại sao giao dịch chuyển khoản của tôi báo lỗi liên tục?", answer: "Lỗi thường gặp do sai thông tin tài khoản thụ hưởng, hạn mức chuyển khoản trong ngày đã đạt tối đa, hoặc hệ thống ngân hàng thụ hưởng đang bảo trì. Vui lòng kiểm tra lại thông tin hoặc thử lại sau ít phút.", categories: ["Chuyển khoản"], status: "failed", chunkCount: 0, updatedAt: now - 2 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-5", kbId, question: "Tại sao giao dịch chuyển khoản của tôi báo lỗi liên tục?", answer: "Lỗi thường gặp do sai thông tin tài khoản thụ hưởng, hạn mức chuyển khoản trong ngày đã đạt tối đa, hoặc hệ thống ngân hàng thụ hưởng đang bảo trì. Vui lòng kiểm tra lại thông tin hoặc thử lại sau ít phút.", categories: ["Chuyển khoản"], status: "failed", statusReason: "Không đọc được nội dung câu trả lời.", chunkCount: 0, updatedAt: now - 2 * DAY, updatedBy: "Tran Nam" });
     put({ id: "faq-2-6", kbId, question: "Tôi có thể mở tài khoản ký quỹ chứng khoán qua ứng dụng ABC Bank không?", answer: "Tính năng này đã ngừng cung cấp qua ứng dụng ABC Bank kể từ năm 2025; quý khách vui lòng liên hệ trực tiếp công ty chứng khoán đối tác để được hỗ trợ.", categories: ["Đầu tư"], status: "cancelled", chunkCount: 0, updatedAt: now - 20 * DAY, updatedBy: "Tran Nam" });
     put({ id: "faq-2-7", kbId, question: "Phí duy trì tài khoản thanh toán hàng tháng là bao nhiêu?", answer: "Phí duy trì tài khoản thanh toán là 11.000đ/tháng, được miễn nếu số dư bình quân trong tháng đạt từ 5.000.000đ trở lên.", categories: ["Phí dịch vụ", "Tài khoản"], status: "done", chunkCount: 1, updatedAt: now - 8 * DAY, updatedBy: "Tran Nam" });
     put({ id: "faq-2-8", kbId, question: "Làm thế nào để đăng ký nhận thông báo biến động số dư qua SMS?", answer: "Quý khách có thể đăng ký tại quầy giao dịch, qua tổng đài 1900 xxxx, hoặc trực tiếp trong ứng dụng tại mục Cài đặt > Thông báo > SMS Banking.", categories: ["Ứng dụng", "Tài khoản"], status: "done", chunkCount: 1, updatedAt: now - 12 * DAY, updatedBy: "Tran Nam" });
@@ -59,6 +81,41 @@ function seedKb(kbId: string) {
       categories: ["Khiếu nại", "Chuyển khoản"],
       status: "done", chunkCount: 2, updatedAt: now - 9 * DAY, updatedBy: "Tran Nam",
     });
+    put({ id: "faq-2-14", kbId, question: "Tôi có thể đóng tài khoản thanh toán trực tuyến không?", answer: "Hiện tại việc đóng tài khoản cần thực hiện tại quầy giao dịch để xác minh danh tính và tất toán các khoản liên kết.", categories: ["Tài khoản"], status: "done", chunkCount: 1, updatedAt: now - 11 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-15", kbId, question: "Hạn mức chuyển khoản trong ngày qua ứng dụng là bao nhiêu?", answer: "Hạn mức mặc định là 500 triệu đồng/ngày, có thể điều chỉnh tăng thêm tại quầy giao dịch với xác minh bổ sung.", categories: ["Chuyển khoản"], status: "done", chunkCount: 1, updatedAt: now - 13 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-16", kbId, question: "Làm sao để đăng ký Internet Banking lần đầu?", answer: "Tải ứng dụng ABC Bank, chọn Đăng ký, nhập số CCCD và số điện thoại đã đăng ký với ngân hàng, xác thực OTP rồi tạo mật khẩu đăng nhập.", categories: ["Ứng dụng", "Tài khoản"], status: "done", chunkCount: 1, updatedAt: now - DAY, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-17", kbId, question: "Thẻ ghi nợ và thẻ tín dụng khác nhau như thế nào?", answer: "Thẻ ghi nợ trừ tiền trực tiếp từ số dư tài khoản, còn thẻ tín dụng cho phép chi tiêu trước trong hạn mức và thanh toán lại vào kỳ sao kê.", categories: ["Thẻ"], status: "done", chunkCount: 1, updatedAt: now - 16 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-18", kbId, question: "Tôi có thể rút tiền mặt bằng thẻ tín dụng không?", answer: "Có, nhưng giao dịch rút tiền mặt bằng thẻ tín dụng chịu phí và lãi suất cao hơn giao dịch mua sắm thông thường.", categories: ["Thẻ", "Phí dịch vụ"], status: "done", chunkCount: 1, updatedAt: now - 17 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-19", kbId, question: "Làm sao để tra cứu lịch sử giao dịch quá 6 tháng?", answer: "Quý khách có thể yêu cầu sao kê chi tiết tại quầy giao dịch hoặc qua tổng đài, thời gian xử lý từ 1-3 ngày làm việc.", categories: ["Tài khoản"], status: "pending", chunkCount: 0, updatedAt: now - 20 * 60_000, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-20", kbId, question: "Ứng dụng ABC Bank có hỗ trợ đăng nhập bằng vân tay không?", answer: "Có, quý khách bật tính năng này tại Cài đặt > Bảo mật > Đăng nhập sinh trắc học trên thiết bị hỗ trợ.", categories: ["Ứng dụng", "Bảo mật"], status: "done", chunkCount: 1, updatedAt: now - 5 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-21", kbId, question: "Phí rút tiền tại cây ATM ngân hàng khác là bao nhiêu?", answer: "Phí rút tiền ngoài hệ thống ABC Bank là 3.300đ/giao dịch, áp dụng theo biểu phí hiện hành.", categories: ["Phí dịch vụ"], status: "done", chunkCount: 1, updatedAt: now - 6 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-22", kbId, question: "Tôi có thể vay thế chấp sổ tiết kiệm không?", answer: "Có, khách hàng có thể vay tối đa 90% giá trị sổ tiết kiệm với lãi suất ưu đãi hơn vay tín chấp thông thường.", categories: ["Vay", "Tiết kiệm"], status: "done", chunkCount: 1, updatedAt: now - 19 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-23", kbId, question: "Điều kiện tất toán sổ tiết kiệm trước hạn là gì?", answer: "Khách hàng có thể tất toán trước hạn bất kỳ lúc nào nhưng chỉ được hưởng lãi suất không kỳ hạn cho phần thời gian đã gửi.", categories: ["Tiết kiệm"], status: "done", chunkCount: 1, updatedAt: now - 22 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-24", kbId, question: "Làm sao để biết giao dịch của tôi có bị nghi ngờ gian lận không?", answer: "Hệ thống sẽ gửi thông báo xác thực bổ sung qua SMS hoặc ứng dụng khi phát hiện giao dịch bất thường, quý khách cần xác nhận trong vòng 5 phút.", categories: ["Bảo mật"], status: "processing", chunkCount: 0, updatedAt: now - 30 * 60_000, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-25", kbId, question: "Tôi có thể đổi loại thẻ từ Classic lên Gold không?", answer: "Có, quý khách gửi yêu cầu nâng hạng thẻ tại ứng dụng hoặc quầy giao dịch, ngân hàng sẽ thẩm định hồ sơ thu nhập trước khi phê duyệt.", categories: ["Thẻ"], status: "done", chunkCount: 1, updatedAt: now - 10 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-26", kbId, question: "Khiếu nại về phí dịch vụ không đúng biểu phí cần gửi ở đâu?", answer: "Quý khách gửi khiếu nại qua mục Hỗ trợ trong ứng dụng hoặc tổng đài 1900 xxxx kèm ảnh chụp giao dịch để bộ phận vận hành đối chiếu.", categories: ["Khiếu nại", "Phí dịch vụ"], status: "done", chunkCount: 1, updatedAt: now - 14 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-27", kbId, question: "Tôi có thể mở tài khoản cho con dưới 18 tuổi không?", answer: "Có, phụ huynh hoặc người giám hộ hợp pháp có thể mở tài khoản giám hộ tại quầy giao dịch với giấy khai sinh của trẻ.", categories: ["Tài khoản"], status: "done", chunkCount: 1, updatedAt: now - 25 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-28", kbId, question: "Vay mua ô tô cần thế chấp gì?", answer: "Khoản vay mua ô tô thường thế chấp bằng chính chiếc xe mua, ngân hàng giữ đăng ký xe bản gốc trong suốt thời gian vay.", categories: ["Vay"], status: "done", chunkCount: 1, updatedAt: now - 18 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-29", kbId, question: "Tại sao ứng dụng báo lỗi khi tôi cập nhật thông tin cá nhân?", answer: "", status: "invalid", statusReason: "Câu trả lời còn trống, chưa thể lập chỉ mục.", categories: ["Ứng dụng"], chunkCount: 0, updatedAt: now - 40 * 60_000, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-30", kbId, question: "Sao kê?", answer: "Sao kê là gì đó liên quan tới lịch sử giao dịch, thực ra chưa rõ khách cần hỏi gì cụ thể ở đây nên khó trả lời trọn vẹn được luôn.", categories: ["Tài khoản"], status: "invalid", statusReason: "Câu hỏi quá ngắn để lập chỉ mục.", chunkCount: 0, updatedAt: now - DAY, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-31", kbId, question: "Chuyển khoản nhầm tài khoản thì phải làm sao?", answer: "Quý khách liên hệ ngay tổng đài hoặc chi nhánh gần nhất để được hỗ trợ liên hệ ngân hàng thụ hưởng thu hồi giao dịch, thời gian xử lý tùy thuộc vào thiện chí của người nhận.", categories: ["Chuyển khoản", "Khiếu nại"], status: "failed", statusReason: "Không thể kết nối đến dịch vụ lập chỉ mục. Vui lòng thử lại sau.", chunkCount: 0, updatedAt: now - 3 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-32", kbId, question: "Làm sao để nhận biết tin nhắn giả mạo ngân hàng?", answer: "Ngân hàng không bao giờ yêu cầu cung cấp mật khẩu, mã OTP qua tin nhắn hoặc cuộc gọi; quý khách nên kiểm tra kỹ đầu số gửi và không bấm vào đường link lạ.", categories: ["Bảo mật"], status: "done", chunkCount: 1, updatedAt: now - 8 * 60_000, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-33", kbId, question: "Tôi muốn khôi phục quyền truy cập tài khoản sau khi đổi số điện thoại thì làm thế nào?", answer: buildLongAnswer(), categories: ["Tài khoản", "Bảo mật"], status: "done", chunkCount: 3, updatedAt: now - 2 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-34", kbId, question: "Phí thường niên thẻ tín dụng Gold là bao nhiêu?", answer: "Phí thường niên thẻ Gold là 300.000đ/năm, được miễn năm đầu tiên khi mở thẻ mới.", categories: ["Thẻ", "Phí dịch vụ"], status: "done", chunkCount: 1, updatedAt: now - 21 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-35", kbId, question: "Tôi có thể thanh toán hóa đơn điện nước qua ứng dụng không?", answer: "Có, chọn mục Thanh toán hóa đơn trên ứng dụng, chọn nhà cung cấp dịch vụ và nhập mã khách hàng để thanh toán.", categories: ["Ứng dụng"], status: "done", chunkCount: 1, updatedAt: now - 9 * 60_000, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-36", kbId, question: "Ngân hàng có chương trình hoàn tiền cho thẻ tín dụng không?", answer: "Có, thẻ Gold và Platinum được hoàn tiền 1-3% cho các giao dịch tại siêu thị, nhà hàng và mua sắm trực tuyến tùy chương trình từng thời điểm.", categories: ["Thẻ"], status: "done", chunkCount: 1, updatedAt: now - 23 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-37", kbId, question: "Tôi cần làm gì khi ứng dụng báo tài khoản bị khóa tạm thời?", answer: "Quý khách liên hệ tổng đài 1900 xxxx để xác minh danh tính và được hỗ trợ mở khóa lại tài khoản trong thời gian sớm nhất.", categories: ["Tài khoản", "Bảo mật"], status: "pending", chunkCount: 0, updatedAt: now - 15 * 60_000, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-38", kbId, question: "Lãi suất vay mua nhà cố định trong bao lâu?", answer: "Lãi suất ưu đãi cố định trong 12 hoặc 24 tháng đầu tùy gói vay, sau đó áp dụng lãi suất thả nổi theo quy định của ngân hàng.", categories: ["Vay"], status: "done", chunkCount: 1, updatedAt: now - 24 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-39", kbId, question: "Tôi có thể ủy quyền cho người khác giao dịch thay tại quầy không?", answer: "Có, cần có giấy ủy quyền công chứng và giấy tờ tùy thân của cả hai bên khi thực hiện giao dịch ủy quyền.", categories: ["Tài khoản"], status: "done", chunkCount: 1, updatedAt: now - 26 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-40", kbId, question: "Sản phẩm tiết kiệm online có lãi suất cao hơn tại quầy không?", answer: "Có, tiết kiệm online thường có lãi suất cao hơn 0.1-0.3%/năm so với gửi tại quầy do tiết kiệm chi phí vận hành.", categories: ["Tiết kiệm"], status: "done", chunkCount: 1, updatedAt: now - 27 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-41", kbId, question: "Tôi bị trừ phí SMS Banking dù không đăng ký, phải làm sao?", answer: "Quý khách gửi khiếu nại kèm ảnh chụp giao dịch qua ứng dụng hoặc tổng đài để bộ phận vận hành kiểm tra và hoàn phí nếu xác nhận lỗi hệ thống.", categories: ["Khiếu nại", "Phí dịch vụ"], status: "done", chunkCount: 1, updatedAt: now - 12 * 60_000, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-42", kbId, question: "Làm sao để hủy đăng ký SMS Banking?", answer: "Quý khách vào Cài đặt > Thông báo > SMS Banking trên ứng dụng và chọn hủy, hoặc yêu cầu tại quầy giao dịch.", categories: ["Ứng dụng"], status: "done", chunkCount: 1, updatedAt: now - 28 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-43", kbId, question: "Tôi muốn tăng hạn mức vay tín chấp thì cần chứng minh gì?", answer: "Cần bổ sung sao kê lương gần nhất, hợp đồng lao động còn hiệu lực và lịch sử tín dụng tốt trong 12 tháng gần nhất.", categories: ["Vay"], status: "done", chunkCount: 1, updatedAt: now - 29 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-44", kbId, question: "Tài khoản của tôi có bị tính phí nếu không giao dịch trong thời gian dài không?", answer: "Có, tài khoản không phát sinh giao dịch trong 12 tháng liên tục sẽ chuyển sang trạng thái không hoạt động và áp dụng phí duy trì riêng.", categories: ["Tài khoản", "Phí dịch vụ"], status: "done", chunkCount: 1, updatedAt: now - 30 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-45", kbId, question: "Tôi có thể xem lại hợp đồng vay điện tử ở đâu?", answer: "Hợp đồng vay điện tử được lưu tại mục Hồ sơ của tôi trên ứng dụng, quý khách có thể tải về hoặc yêu cầu bản in tại quầy.", categories: ["Vay", "Ứng dụng"], status: "done", chunkCount: 1, updatedAt: now - 31 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-46", kbId, question: "Chuyển tiền quốc tế qua ABC Bank mất phí bao nhiêu?", answer: "Phí chuyển tiền quốc tế dao động 0.2%-0.5% số tiền chuyển tùy loại hình chuyển khoản và ngân hàng trung gian.", categories: ["Chuyển khoản", "Phí dịch vụ"], status: "done", chunkCount: 1, updatedAt: now - 32 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-47", kbId, question: "Tôi có thể đăng ký vay online hoàn toàn không cần đến quầy không?", answer: "Một số gói vay tín chấp nhỏ hỗ trợ đăng ký và giải ngân hoàn toàn online, các khoản vay lớn hơn vẫn cần xác minh trực tiếp tại quầy.", categories: ["Vay", "Ứng dụng"], status: "processing", chunkCount: 0, updatedAt: now - 45 * 60_000, updatedBy: "Tran Nam" });
+    put({ id: "faq-2-48", kbId, question: "Có thể mở nhiều sổ tiết kiệm cùng lúc không?", answer: "Có, khách hàng có thể mở không giới hạn số lượng sổ tiết kiệm với các kỳ hạn khác nhau trên cùng một tài khoản.", categories: ["Tiết kiệm"], status: "done", chunkCount: 1, updatedAt: now - 33 * DAY, updatedBy: "Tran Nam" });
   }
 
   if (kbId === "kb-1") {
@@ -105,9 +162,31 @@ export const knowledgeFaqStore = {
     const set = new Set<string>(this.list(kbId).flatMap(f => f.categories));
     return [...set].sort();
   },
+  listCategoriesWithCounts(kbId: string): CategoryOption[] {
+    const counts = new Map<string, number>();
+    for (const f of this.list(kbId)) for (const c of f.categories) counts.set(c, (counts.get(c) ?? 0) + 1);
+    return [...counts.entries()]
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  },
   isDuplicateQuestion(kbId: string, question: string, excludeId?: string): boolean {
     const n = question.trim().toLowerCase();
     return this.list(kbId).some(f => f.id !== excludeId && f.question.trim().toLowerCase() === n);
+  },
+  /** Exact match (normalized) plus up to 3 near-matches (>=85% similarity), for the Create/Edit
+   * FAQ modal's live duplicate-detection warning. The FAQ being edited never matches itself. */
+  findMatches(kbId: string, question: string, excludeId?: string): { exact: KnowledgeFaq | null; similar: KnowledgeFaq[] } {
+    const candidates = this.list(kbId).filter(f => f.id !== excludeId);
+    const target = normalizeForCompare(question);
+    let exact: KnowledgeFaq | null = null;
+    const scored: { faq: KnowledgeFaq; score: number }[] = [];
+    for (const f of candidates) {
+      if (normalizeForCompare(f.question) === target) { exact = f; continue; }
+      const score = similarity(f.question, question);
+      if (score >= 0.85) scored.push({ faq: f, score });
+    }
+    scored.sort((a, b) => b.score - a.score);
+    return { exact, similar: scored.slice(0, 3).map(s => s.faq) };
   },
   create(kbId: string, data: { question: string; answer: string; categories: string[] }): KnowledgeFaq {
     const id = `faq-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`;
@@ -122,17 +201,102 @@ export const knowledgeFaqStore = {
   update(id: string, patch: Partial<Pick<KnowledgeFaq, "question" | "answer" | "categories">>) {
     const cur = store.get(id);
     if (!cur) return;
-    store.set(id, { ...cur, ...patch, status: "pending", chunkCount: 0, updatedAt: Date.now() });
+    store.set(id, { ...cur, ...patch, status: "pending", statusReason: undefined, chunkCount: 0, updatedAt: Date.now() });
     persist();
   },
-  updateStatus(id: string, status: KnowledgeProcessingStatus, patch?: Partial<Pick<KnowledgeFaq, "chunkCount">>) {
+  updateStatus(id: string, status: KnowledgeFaqStatus, patch?: Partial<Pick<KnowledgeFaq, "chunkCount" | "statusReason">>) {
     const cur = store.get(id);
     if (!cur) return;
     store.set(id, { ...cur, status, ...patch, updatedAt: Date.now() });
     persist();
   },
+  /** Re-queues a single "failed" row for processing. Returns false (no-op) for any other status,
+   * including "invalid" — those need an edit first, not a retry. */
+  reprocess(id: string): boolean {
+    const cur = store.get(id);
+    if (!cur || cur.status !== "failed") return false;
+    store.set(id, { ...cur, status: "pending", statusReason: undefined, updatedAt: Date.now() });
+    persist();
+    return true;
+  },
   removeMany(ids: string[]) {
     for (const id of ids) store.delete(id);
     persist();
+  },
+  /** Bulk "Gán danh mục". "add" (default) merges the given categories into what each selected
+   * FAQ already has (deduplicated case-insensitively, capped at 10). "replace" discards each
+   * FAQ's existing categories and sets exactly the given list instead. */
+  assignCategories(ids: string[], categories: string[], mode: "add" | "replace" = "add") {
+    for (const id of ids) {
+      const cur = store.get(id);
+      if (!cur) continue;
+      let merged: string[];
+      if (mode === "replace") {
+        merged = [...categories];
+      } else {
+        merged = [...cur.categories];
+        for (const c of categories) if (!merged.some(m => m.toLowerCase() === c.toLowerCase())) merged.push(c);
+      }
+      store.set(id, { ...cur, categories: merged.slice(0, 10), updatedAt: Date.now() });
+    }
+    persist();
+  },
+  /** Renames a category everywhere it's used within one Kho tri thức. */
+  renameCategory(kbId: string, oldName: string, newName: string) {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    for (const f of this.list(kbId)) {
+      if (!f.categories.some(c => c.toLowerCase() === oldName.toLowerCase())) continue;
+      const next = f.categories.map(c => (c.toLowerCase() === oldName.toLowerCase() ? trimmed : c));
+      store.set(f.id, { ...f, categories: [...new Set(next)], updatedAt: Date.now() });
+    }
+    persist();
+  },
+  /** Removes a category from every FAQ that carries it — the questions themselves are untouched. */
+  deleteCategory(kbId: string, name: string) {
+    for (const f of this.list(kbId)) {
+      if (!f.categories.some(c => c.toLowerCase() === name.toLowerCase())) continue;
+      store.set(f.id, { ...f, categories: f.categories.filter(c => c.toLowerCase() !== name.toLowerCase()), updatedAt: Date.now() });
+    }
+    persist();
+  },
+  /** Merges two or more categories into one — every FAQ using any of `names` switches to
+   * `keepName` instead (deduplicated if it already had the kept name too). */
+  mergeCategories(kbId: string, names: string[], keepName: string) {
+    const lowerNames = new Set(names.map(n => n.toLowerCase()));
+    for (const f of this.list(kbId)) {
+      if (!f.categories.some(c => lowerNames.has(c.toLowerCase()))) continue;
+      const next = f.categories.map(c => (lowerNames.has(c.toLowerCase()) ? keepName : c));
+      store.set(f.id, { ...f, categories: [...new Set(next)], updatedAt: Date.now() });
+    }
+    persist();
+  },
+  /** Inserts validated import rows. A row carrying `duplicateOfId` either updates that existing
+   * FAQ in place ("overwrite") or is skipped entirely ("skip"), per the batch-wide mode chosen
+   * in the import modal. Returns the ids that were inserted or updated, all left at "pending"
+   * so the caller can animate them through the same processing lifecycle as a manual save. */
+  importRows(kbId: string, rows: ImportRowInput[], duplicateMode: "skip" | "overwrite"): string[] {
+    const affectedIds: string[] = [];
+    for (const row of rows) {
+      if (row.duplicateOfId) {
+        if (duplicateMode === "skip") continue;
+        const cur = store.get(row.duplicateOfId);
+        if (!cur) continue;
+        store.set(row.duplicateOfId, {
+          ...cur, answer: row.answer, categories: row.categories,
+          status: "pending", statusReason: undefined, updatedAt: Date.now(),
+        });
+        affectedIds.push(row.duplicateOfId);
+        continue;
+      }
+      const id = `faq-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`;
+      store.set(id, {
+        id, kbId, question: row.question, answer: row.answer, categories: row.categories,
+        status: "pending", chunkCount: 0, updatedAt: Date.now(), updatedBy: "Tran Nam",
+      });
+      affectedIds.push(id);
+    }
+    persist();
+    return affectedIds;
   },
 };

@@ -1,7 +1,7 @@
 // sessionStorage-backed Chunk store — shared shape for a document's, URL's, or Agent
 // Knowledge item's chunks, opened from any of their "Mở" row actions via ChunkViewerModal.
 import { loadMap, saveMap } from "@/lib/sessionPersist";
-import type { KnowledgeProcessingStatus } from "./knowledgeStatus";
+import type { KnowledgeFaqStatus, KnowledgeProcessingStatus } from "./knowledgeStatus";
 import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
 import { knowledgeUrlStore } from "./knowledgeUrlStore";
 
@@ -49,7 +49,7 @@ function generateMockChunks(count: number): { title: string; content: string }[]
 
 function seedIfEmpty(
   kbId: string, sourceType: ChunkSourceType, sourceId: string,
-  agentItemHint?: { status?: KnowledgeProcessingStatus; chunkCount?: number },
+  agentItemHint?: { status?: KnowledgeFaqStatus; chunkCount?: number },
 ) {
   const flagKey = `knowledge_chunk_seeded_v1:${sourceKey(sourceType, sourceId)}`;
   if (sessionStorage.getItem(flagKey)) return;
@@ -57,7 +57,7 @@ function seedIfEmpty(
   const now = Date.now();
 
   let chunkCount = 0;
-  let status: KnowledgeProcessingStatus | undefined;
+  let status: KnowledgeFaqStatus | undefined;
   if (sourceType === "document") {
     const doc = knowledgeDocumentStore.get(kbId, sourceId);
     chunkCount = doc?.chunkCount ?? 0;
@@ -94,7 +94,7 @@ export function markChunksSeeded(sourceType: ChunkSourceType, sourceId: string) 
 export const knowledgeChunkStore = {
   list(
     kbId: string, sourceType: ChunkSourceType, sourceId: string,
-    agentItemHint?: { status?: KnowledgeProcessingStatus; chunkCount?: number },
+    agentItemHint?: { status?: KnowledgeFaqStatus; chunkCount?: number },
   ): KnowledgeChunk[] {
     seedIfEmpty(kbId, sourceType, sourceId, agentItemHint);
     return [...store.values()]
