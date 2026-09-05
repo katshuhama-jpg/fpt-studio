@@ -39,6 +39,70 @@ function ScopePill({ value, onChange, readOnly }: { value: ScopeValue; onChange?
   );
 }
 
+/* ─── Scope summary banner (View Role) — answers "where is this role limited to Own & Shared"
+   without reading every row. Only ever shown read-only, and only when at least one enabled
+   permission is scoped to Own & Shared. ─── */
+const SCOPE_VERB_ORDER = ["view", "publish", "manage", "pause", "delete"] as const;
+const SCOPE_VERB_LABELS: Record<(typeof SCOPE_VERB_ORDER)[number], string> = {
+  view: "View", publish: "Publish", manage: "Build", pause: "Pause", delete: "Delete",
+};
+
+function buildScopeSummary(effective: Set<string>, scope: ScopeMap): { ownShared: { verbs: string; groups: string }[]; noPermissionGroups: string[] } | null {
+  // Group id -> set of verbs enabled on it that are scoped Own & Shared.
+  const ownSharedVerbsByGroup = new Map<string, Set<(typeof SCOPE_VERB_ORDER)[number]>>();
+  for (const g of featureGroups) {
+    for (const p of g.permissions) {
+      if (!effective.has(p.id) || !isScopablePermission(p.id) || scope[p.id] !== "own_shared") continue;
+      const verb = p.id.split(".")[1] as (typeof SCOPE_VERB_ORDER)[number];
+      if (!ownSharedVerbsByGroup.has(g.id)) ownSharedVerbsByGroup.set(g.id, new Set());
+      ownSharedVerbsByGroup.get(g.id)!.add(verb);
+    }
+  }
+  // Collapse groups that share the exact same set of Own & Shared verbs into one row.
+  const rowsBySignature = new Map<string, { verbs: string[]; groupLabels: string[] }>();
+  for (const g of featureGroups) {
+    const verbSet = ownSharedVerbsByGroup.get(g.id);
+    if (!verbSet || verbSet.size === 0) continue;
+    const orderedVerbs = SCOPE_VERB_ORDER.filter(v => verbSet.has(v));
+    const signature = orderedVerbs.join(",");
+    if (!rowsBySignature.has(signature)) rowsBySignature.set(signature, { verbs: orderedVerbs, groupLabels: [] });
+    rowsBySignature.get(signature)!.groupLabels.push(g.label);
+  }
+  const ownShared = [...rowsBySignature.values()].map(row => ({
+    verbs: row.verbs.map(v => SCOPE_VERB_LABELS[v]).join(", "),
+    groups: row.groupLabels.join(", "),
+  }));
+  if (ownShared.length === 0) return null;
+
+  const noPermissionGroups = featureGroups
+    .filter(g => !g.permissions.some(p => effective.has(p.id)))
+    .map(g => g.label);
+
+  return { ownShared, noPermissionGroups };
+}
+
+function ScopeSummaryBanner({ summary }: { summary: NonNullable<ReturnType<typeof buildScopeSummary>> }) {
+  return (
+    <div className="p-3.5 rounded-xl bg-surface-muted border border-border-strong">
+      <div className="text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">Scope summary</div>
+      <div>
+        {summary.ownShared.map((row, i) => (
+          <div key={i} className="flex items-baseline gap-2.5 py-1.5 text-[13.5px] leading-snug border-t border-dashed border-border first:border-t-0 first:pt-0">
+            <span className="scope-summary-chip scope-summary-chip--shared">Own &amp; Shared</span>
+            <span className="text-muted-foreground">{row.verbs} — <b className="text-foreground font-semibold">{row.groups}</b></span>
+          </div>
+        ))}
+        {summary.noPermissionGroups.length > 0 && (
+          <div className="flex items-baseline gap-2.5 py-1.5 text-[13.5px] leading-snug border-t border-dashed border-border">
+            <span className="scope-summary-chip scope-summary-chip--none">No permissions</span>
+            <span className="text-muted-foreground"><b className="text-foreground font-semibold">{summary.noPermissionGroups.join(", ")}</b></span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* Permission ids currently granted "for free" because some enabled permission implies them,
    mapped to the name of the permission that implies each one. */
 function impliedOnMap(enabled: Set<string>): Map<string, string> {
@@ -105,6 +169,8 @@ function RoleModal({
     onClose();
   };
 
+  const scopeSummary = readOnly ? buildScopeSummary(effective, scope) : null;
+
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0 }}>
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
@@ -126,7 +192,9 @@ function RoleModal({
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+        <div className="flex-1 overflow-y-auto py-5 space-y-5">
+          {scopeSummary && <div className="px-6"><ScopeSummaryBanner summary={scopeSummary} /></div>}
+          <div className="px-6 space-y-5">
           <div>
             <label className="text-sm font-medium block mb-1.5">
               Role name <span className="text-destructive">*</span>
@@ -218,6 +286,7 @@ function RoleModal({
               );
             })}
           </div>
+          </div>
         </div>
 
         {/* Footer */}
@@ -251,6 +320,9 @@ function RoleModal({
           align-items: start;
         }
         .sp-active-own { background: hsl(var(--warning-soft)); color: hsl(var(--warning)); }
+        .scope-summary-chip { flex: 0 0 auto; font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+        .scope-summary-chip--shared { background: hsl(var(--warning-soft)); color: hsl(var(--warning)); }
+        .scope-summary-chip--none { background: hsl(var(--surface)); color: hsl(var(--muted-foreground)); border: 1px solid hsl(var(--border-strong)); }
         .rp-check { grid-column: 1; grid-row: 1 / -1; align-self: center; }
         .rp-title { grid-column: 2; grid-row: 1; align-self: center; min-height: 36px; display: flex; align-items: center; }
         .rp-desc { grid-column: 2; grid-row: 2; }

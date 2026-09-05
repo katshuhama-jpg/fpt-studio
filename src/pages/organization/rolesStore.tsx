@@ -39,13 +39,11 @@ const BUILDER_IDS = new Set([
   "agents.create", "agents.publish", "agents.manage",
   "knowledge.create", "knowledge.publish", "knowledge.manage",
   "skills.create", "skills.publish", "skills.manage",
+  "guardrails.create", "guardrails.publish", "guardrails.manage",
   "connectors.create", "connectors.publish", "connectors.manage",
-  "structure.view",
+  "members.view",
 ]);
 const VIEWER_IDS = new Set([
-  "structure.view",
-  "roles.view",
-  "members.view",
   "agents.view",
   "knowledge.view",
   "skills.view",
@@ -53,10 +51,32 @@ const VIEWER_IDS = new Set([
   "connectors.view",
 ]);
 
+/** Builder can publish/build only what its own member created or was shared with — never every
+ * resource in the Console — across all 5 publishable groups. Create has no Scope. */
+const BUILDER_SCOPE: ScopeMap = {
+  ...defaultScope(),
+  "agents.publish": "own_shared", "agents.manage": "own_shared",
+  "knowledge.publish": "own_shared", "knowledge.manage": "own_shared",
+  "skills.publish": "own_shared", "skills.manage": "own_shared",
+  "guardrails.publish": "own_shared", "guardrails.manage": "own_shared",
+  "connectors.publish": "own_shared", "connectors.manage": "own_shared",
+};
+
+/** Viewer can only see resources its own member created or was shared with, not every resource
+ * in the Console. */
+const VIEWER_SCOPE: ScopeMap = {
+  ...defaultScope(),
+  "agents.view": "own_shared",
+  "knowledge.view": "own_shared",
+  "skills.view": "own_shared",
+  "guardrails.view": "own_shared",
+  "connectors.view": "own_shared",
+};
+
 const SEED_ROLES: RoleDef[] = [
   { id: "admin", name: "Admin", isDefault: true, permissionIds: ADMIN_IDS, scope: defaultScope() },
-  { id: "builder", name: "Builder", isDefault: true, permissionIds: BUILDER_IDS, scope: defaultScope() },
-  { id: "viewer", name: "Viewer", isDefault: true, permissionIds: VIEWER_IDS, scope: defaultScope() },
+  { id: "builder", name: "Builder", isDefault: true, permissionIds: BUILDER_IDS, scope: BUILDER_SCOPE },
+  { id: "viewer", name: "Viewer", isDefault: true, permissionIds: VIEWER_IDS, scope: VIEWER_SCOPE },
 ];
 
 type RolesContextValue = {
