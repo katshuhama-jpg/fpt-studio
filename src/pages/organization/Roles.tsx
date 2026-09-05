@@ -14,11 +14,11 @@ import { DEFAULT_ROLE_ID } from "./Members";
    the exact same visual (just non-interactive, via readOnly) on View Role. ─── */
 function ScopePill({ value, onChange, readOnly }: { value: ScopeValue; onChange?: (v: ScopeValue) => void; readOnly?: boolean }) {
   const optionClass = (active: boolean, variant: "all" | "own_shared") =>
-    `h-6 px-2 rounded text-[10px] font-medium whitespace-nowrap transition-base ${
+    `px-3.5 py-[7px] rounded-full text-[13px] font-bold whitespace-nowrap transition-base ${
       active ? (variant === "all" ? "bg-primary-soft text-primary" : "sp-active-own") : "text-muted-foreground"
     } ${readOnly ? "cursor-default" : active ? "" : "hover:text-foreground"}`;
   return (
-    <div className="rp-pill inline-flex items-center gap-0.5 p-0.5 rounded-md bg-surface border border-border">
+    <div className="rp-pill inline-flex items-center gap-0.5 p-[3px] rounded-full bg-surface border border-border">
       <button
         type="button"
         onClick={readOnly ? undefined : () => onChange?.("all")}
@@ -252,7 +252,7 @@ function RoleModal({
         }
         .sp-active-own { background: hsl(var(--warning-soft)); color: hsl(var(--warning)); }
         .rp-check { grid-column: 1; grid-row: 1 / -1; align-self: center; }
-        .rp-title { grid-column: 2; grid-row: 1; align-self: center; }
+        .rp-title { grid-column: 2; grid-row: 1; align-self: center; min-height: 36px; display: flex; align-items: center; }
         .rp-desc { grid-column: 2; grid-row: 2; }
         .rp-pill-cell { grid-column: 3; grid-row: 1; align-self: center; justify-self: end; }
         .rp-row--with-pill { grid-template-columns: auto 1fr auto; grid-template-rows: auto auto; }
