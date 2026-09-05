@@ -53,7 +53,7 @@ const groups: Group[] = [
     items: [
       { to: "/guardrails", label: "Guardrails", icon: Shield },
       { to: "/roles", label: "Roles", icon: Shield },
-      { to: "/members", label: "Governance", icon: Users },
+      { to: "/members", label: "Members", icon: Users },
     ],
   },
 ];
