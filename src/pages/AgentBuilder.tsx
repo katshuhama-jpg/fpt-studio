@@ -57,7 +57,7 @@ import ChunkViewerModal from "@/components/knowledge/ChunkViewerModal";
 import VersionHistoryPanel from "@/components/knowledge/VersionHistoryPanel";
 import FileTypeIcon from "@/components/knowledge/FileTypeIcon";
 import { formatFileSize } from "@/components/knowledge/formatFileSize";
-import type { Sharing } from "@/components/knowledge/knowledgeBaseStore";
+import KnowledgeSharingChip from "@/components/knowledge/KnowledgeSharingChip";
 
 type Tab = "build" | "test" | "channels" | "insights";
 
@@ -1141,23 +1141,6 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, openLabel = "M
       </div>
     </div>
   );
-}
-
-function KnowledgeSharingChip({ sharing }: { sharing?: Sharing }) {
-  const mode = sharing?.mode ?? "private";
-  if (mode === "specific") {
-    const count = sharing?.people.length ?? 0;
-    return (
-      <Tooltip delayDuration={200}>
-        <TooltipTrigger asChild>
-          <span className="chip chip-muted text-xs whitespace-nowrap cursor-default">{`Chia sẻ · ${count}`}</span>
-        </TooltipTrigger>
-        <TooltipContent>{`Chia sẻ với ${count} người`}</TooltipContent>
-      </Tooltip>
-    );
-  }
-  const label = mode === "all" ? "Dùng chung" : "Chỉ mình tôi";
-  return <span className="chip chip-muted text-xs whitespace-nowrap">{label}</span>;
 }
 
 function KnowledgeTab({ agentId }: { agentId: string }) {

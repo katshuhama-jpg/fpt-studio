@@ -1,6 +1,7 @@
 // sessionStorage-backed Documents store for a Console Knowledge Base's "Tài liệu" tab.
 import { loadMap, saveMap } from "@/lib/sessionPersist";
 import type { KnowledgeProcessingStatus } from "./knowledgeStatus";
+import type { Sharing } from "./knowledgeBaseStore";
 
 export interface KnowledgeDocument {
   id: string;
@@ -13,6 +14,9 @@ export interface KnowledgeDocument {
   sizeBytes: number;
   chunkCount: number;
   version: number;
+  /** Per-document access level chosen at upload time (defaults to "Chỉ mình tôi" when unset —
+   * same convention as an Agent Knowledge item's sharing). Folders don't carry one. */
+  sharing?: Sharing;
   createdAt: number;
   updatedAt: number;
   updatedBy: string;
@@ -143,13 +147,13 @@ export const knowledgeDocumentStore = {
     persist();
     return rec;
   },
-  addDocument(kbId: string, data: { name: string; sizeBytes: number; folderId: string | null }): KnowledgeDocument {
+  addDocument(kbId: string, data: { name: string; sizeBytes: number; folderId: string | null; sharing?: Sharing }): KnowledgeDocument {
     const isNewVersion = this.isDuplicateName(kbId, data.name, data.folderId);
     const id = `doc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`;
     const now = Date.now();
     const rec: KnowledgeDocument = {
       id, kbId, name: data.name, isFolder: false, folderId: data.folderId, status: "pending",
-      sizeBytes: data.sizeBytes, chunkCount: 0, version: isNewVersion ? 2 : 1,
+      sizeBytes: data.sizeBytes, chunkCount: 0, version: isNewVersion ? 2 : 1, sharing: data.sharing,
       createdAt: now, updatedAt: now, updatedBy: "Tran Nam",
     };
     store.set(id, rec);

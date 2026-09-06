@@ -5,6 +5,8 @@ import { UploadCloud, X, AlertTriangle, Info } from "lucide-react";
 import { toast } from "sonner";
 import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
 import { knowledgeStore } from "./knowledgeStore";
+import { CURRENT_USER, type SharingMode, type SharedPerson } from "./knowledgeBaseStore";
+import MemberPicker from "./MemberPicker";
 import FileTypeIcon from "./FileTypeIcon";
 import { formatFileSize } from "./formatFileSize";
 
@@ -12,6 +14,12 @@ const ALLOWED_EXT = ["txt", "md", "pdf", "doc", "docx", "ppt", "pptx", "xls", "x
 const ACCEPT_ATTR = ALLOWED_EXT.map(ext => `.${ext}`).join(",");
 const MAX_FILES = 10;
 const MAX_SIZE = 30 * 1024 * 1024;
+
+const ACCESS_OPTIONS: { value: SharingMode; label: string; helper?: string }[] = [
+  { value: "private", label: "Chỉ mình tôi" },
+  { value: "all", label: "Tất cả người dùng Console", helper: "Mọi thành viên Console đều xem và dùng được kho này." },
+  { value: "specific", label: "Người dùng cụ thể" },
+];
 
 interface StagedFile {
   key: string;
@@ -38,8 +46,13 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
   const [folderId, setFolderId] = useState<string | null>(initialFolderId);
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [accessMode, setAccessMode] = useState<SharingMode>("private");
+  const [accessPeople, setAccessPeople] = useState<SharedPerson[]>([]);
 
   useEffect(() => { if (open) setFolderId(initialFolderId); }, [open, initialFolderId]);
+  useEffect(() => { if (open) { setAccessMode("private"); setAccessPeople([]); } }, [open]);
+
+  const accessInvalid = !agentId && accessMode === "specific" && accessPeople.length === 0;
 
   const folders = agentId ? [] : knowledgeDocumentStore.listFolders(kbId!);
 
@@ -78,6 +91,8 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
   const submit = () => {
     const valid = staged.filter(s => !s.error);
     if (valid.length === 0) return;
+    if (accessInvalid) return;
+    const sharing = accessMode === "private" ? undefined : { mode: accessMode, people: accessMode === "specific" ? accessPeople : [] };
     setUploading(true);
 
     // Simulate upload progress, then insert rows and animate them through the pipeline.
@@ -94,7 +109,7 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
           setTimeout(() => knowledgeStore.updateStatus(agentId, item.id, "processing"), 400);
           setTimeout(() => knowledgeStore.updateStatus(agentId, item.id, "done", { chunkCount }), 1600);
         } else {
-          const doc = knowledgeDocumentStore.addDocument(kbId!, { name: s.file.name, sizeBytes: s.file.size, folderId });
+          const doc = knowledgeDocumentStore.addDocument(kbId!, { name: s.file.name, sizeBytes: s.file.size, folderId, sharing });
           setTimeout(() => knowledgeDocumentStore.updateStatus(doc.id, "processing"), 400);
           setTimeout(() => {
             // Seed one deterministic failure so the failed state is reachable in the prototype.
@@ -174,6 +189,43 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
             </div>
           )}
 
+          {!agentId && (
+            <div>
+              <label className="text-sm font-medium mb-2 block">Ai có quyền truy cập</label>
+              <div className="space-y-2">
+                {ACCESS_OPTIONS.map(opt => {
+                  const selected = accessMode === opt.value;
+                  return (
+                    <div key={opt.value}>
+                      <div
+                        onClick={() => setAccessMode(opt.value)}
+                        className={`flex items-start gap-3 px-3.5 py-3 rounded-xl border cursor-pointer transition-base ${
+                          selected ? "border-primary bg-primary/5" : "border-border bg-white hover:bg-surface-muted"
+                        }`}
+                      >
+                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${selected ? "border-primary" : "border-border"}`}>
+                          {selected && <div className="w-2 h-2 rounded-full bg-primary" />}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium">{opt.label}</div>
+                          {opt.helper && <div className="text-xs text-muted-foreground mt-0.5">{opt.helper}</div>}
+                        </div>
+                      </div>
+                      {selected && opt.value === "specific" && (
+                        <div className="mt-2 pl-3.5">
+                          <MemberPicker value={accessPeople} onChange={setAccessPeople} ownerRow={{ name: CURRENT_USER.name, email: CURRENT_USER.email }} />
+                          {accessPeople.length === 0 && (
+                            <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người để chia sẻ.</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {overLimitMsg && (
             <p className="flex items-center gap-1.5 text-xs text-destructive"><AlertTriangle size={12} /> {overLimitMsg}</p>
           )}
@@ -213,7 +265,7 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
 
         <DialogFooter>
           <button onClick={() => { clearAll(); onClose(); }} disabled={uploading} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base disabled:opacity-40">Hủy</button>
-          <button onClick={submit} disabled={validCount === 0 || uploading} className="btn-primary h-9 disabled:opacity-40 disabled:pointer-events-none">
+          <button onClick={submit} disabled={validCount === 0 || uploading || accessInvalid} className="btn-primary h-9 disabled:opacity-40 disabled:pointer-events-none">
             Lưu & Xử lý
           </button>
         </DialogFooter>

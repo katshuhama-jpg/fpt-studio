@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import {
   Search, ChevronDown, Plus, MoreVertical, X,
@@ -12,6 +13,7 @@ import { toast } from "sonner";
 import { knowledgeDocumentStore, type KnowledgeDocument } from "./knowledgeDocumentStore";
 import { KnowledgeStatusPill, type KnowledgeProcessingStatus } from "./knowledgeStatus";
 import { formatFileSize } from "./formatFileSize";
+import KnowledgeSharingChip from "./KnowledgeSharingChip";
 import FileTypeIcon from "./FileTypeIcon";
 import UploadDocumentsModal from "./UploadDocumentsModal";
 import ChunkViewerModal from "./ChunkViewerModal";
@@ -201,6 +203,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                 <th className="text-left px-2 py-2.5 kb-table-header">Phiên bản</th>
                 <th className="text-left px-2 py-2.5 kb-table-header">Cập nhật</th>
                 <th className="text-left px-2 py-2.5 kb-table-header min-w-[120px]">Cập nhật bởi</th>
+                <th className="text-left px-2 py-2.5 kb-table-header min-w-[120px]">Quyền</th>
                 {!viewOnly && <th className="px-4 py-2.5 w-12" />}
               </tr>
             </thead>
@@ -255,6 +258,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                   </td>
                   <td className="px-2 py-3 text-xs text-muted-foreground whitespace-nowrap">{new Date(d.updatedAt).toLocaleDateString("vi-VN")}</td>
                   <td className="px-2 py-3 text-xs text-muted-foreground truncate">{d.updatedBy}</td>
+                  <td className="px-2 py-3">{!d.isFolder && <KnowledgeSharingChip sharing={d.sharing} />}</td>
                   {!viewOnly && (
                     <td className="px-4 py-3 text-right">
                       {d.isFolder ? (
@@ -413,14 +417,42 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
   );
 }
 
+// Worst-case rendered height (6 items, one danger separator, container padding) — used only to
+// decide whether the menu should flip upward; the actual box still sizes to its real content.
+const ROW_MENU_WIDTH = 224; // w-56
+const ROW_MENU_HEIGHT_ESTIMATE = 260;
+const FOLDER_ROW_MENU_HEIGHT_ESTIMATE = 190;
+
 function RowMenu({ canOpen, onOpen, onLayout, onReprocess, onRename, onMove, onDelete }: {
   canOpen: boolean; onOpen: () => void; onLayout: () => void; onReprocess: () => void; onRename: () => void; onMove: () => void; onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const openMenu = () => {
+    const r = btnRef.current?.getBoundingClientRect();
+    if (r) {
+      // The table lives inside its own overflow-x-auto wrapper, so an absolutely positioned
+      // dropdown would get clipped — render in a portal instead, positioned from the button's
+      // own screen rect, and flip upward whenever there isn't enough room below (this is the
+      // fix for the menu rendering off-screen on short tables).
+      const openUpward = window.innerHeight - r.bottom < ROW_MENU_HEIGHT_ESTIMATE && r.top > ROW_MENU_HEIGHT_ESTIMATE;
+      const left = Math.min(Math.max(r.right - ROW_MENU_WIDTH, 8), window.innerWidth - ROW_MENU_WIDTH - 8);
+      setPos(openUpward ? { bottom: window.innerHeight - r.top + 4, left } : { top: r.bottom + 4, left });
+    }
+    setOpen(true);
+  };
+
   useEffect(() => {
     if (!open) return;
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const h = (e: MouseEvent) => {
+      if (
+        menuRef.current && !menuRef.current.contains(e.target as Node) &&
+        btnRef.current && !btnRef.current.contains(e.target as Node)
+      ) setOpen(false);
+    };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
@@ -435,12 +467,17 @@ function RowMenu({ canOpen, onOpen, onLayout, onReprocess, onRename, onMove, onD
   ];
 
   return (
-    <div ref={ref} className="relative inline-block" onClick={e => e.stopPropagation()}>
-      <button onClick={() => setOpen(v => !v)} aria-label="Thao tác" className="w-9 h-9 min-w-[44px] min-h-[44px] -m-1.5 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+    <div className="relative inline-block" onClick={e => e.stopPropagation()}>
+      <button ref={btnRef} onClick={() => (open ? setOpen(false) : openMenu())} aria-label="Thao tác" className="w-9 h-9 min-w-[44px] min-h-[44px] -m-1.5 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <MoreVertical size={15} />
       </button>
-      {open && (
-        <div className="absolute right-0 top-full mt-1 z-20 min-w-52 max-w-xs rounded-lg border border-border bg-white shadow-elev py-1">
+      {open && createPortal(
+        <div
+          ref={menuRef}
+          className="fixed z-[9999] w-56 rounded-lg border border-border bg-white shadow-elev py-1"
+          style={{ top: pos.top, bottom: pos.bottom, left: pos.left }}
+          onMouseDown={e => e.stopPropagation()}
+        >
           {items.map((item, i) => {
             const isFirstDanger = item.danger && !items[i - 1]?.danger;
             const button = (
@@ -464,7 +501,8 @@ function RowMenu({ canOpen, onOpen, onLayout, onReprocess, onRename, onMove, onD
               </div>
             );
           })}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
@@ -474,10 +512,28 @@ function FolderRowMenu({ onOpen, onRename, onMove, onDelete }: {
   onOpen: () => void; onRename: () => void; onMove: () => void; onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const openMenu = () => {
+    const r = btnRef.current?.getBoundingClientRect();
+    if (r) {
+      const openUpward = window.innerHeight - r.bottom < FOLDER_ROW_MENU_HEIGHT_ESTIMATE && r.top > FOLDER_ROW_MENU_HEIGHT_ESTIMATE;
+      const left = Math.min(Math.max(r.right - ROW_MENU_WIDTH, 8), window.innerWidth - ROW_MENU_WIDTH - 8);
+      setPos(openUpward ? { bottom: window.innerHeight - r.top + 4, left } : { top: r.bottom + 4, left });
+    }
+    setOpen(true);
+  };
+
   useEffect(() => {
     if (!open) return;
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const h = (e: MouseEvent) => {
+      if (
+        menuRef.current && !menuRef.current.contains(e.target as Node) &&
+        btnRef.current && !btnRef.current.contains(e.target as Node)
+      ) setOpen(false);
+    };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
@@ -490,12 +546,17 @@ function FolderRowMenu({ onOpen, onRename, onMove, onDelete }: {
   ];
 
   return (
-    <div ref={ref} className="relative inline-block" onClick={e => e.stopPropagation()}>
-      <button onClick={() => setOpen(v => !v)} aria-label="Thao tác thư mục" className="w-9 h-9 min-w-[44px] min-h-[44px] -m-1.5 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+    <div className="relative inline-block" onClick={e => e.stopPropagation()}>
+      <button ref={btnRef} onClick={() => (open ? setOpen(false) : openMenu())} aria-label="Thao tác thư mục" className="w-9 h-9 min-w-[44px] min-h-[44px] -m-1.5 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <MoreVertical size={15} />
       </button>
-      {open && (
-        <div className="absolute right-0 top-full mt-1 z-20 min-w-52 max-w-xs rounded-lg border border-border bg-white shadow-elev py-1">
+      {open && createPortal(
+        <div
+          ref={menuRef}
+          className="fixed z-[9999] w-56 rounded-lg border border-border bg-white shadow-elev py-1"
+          style={{ top: pos.top, bottom: pos.bottom, left: pos.left }}
+          onMouseDown={e => e.stopPropagation()}
+        >
           {items.map((item, i) => (
             <div key={item.label} className={item.danger && !items[i - 1]?.danger ? "mt-1 pt-1 border-t border-border" : undefined}>
               <button
@@ -506,7 +567,8 @@ function FolderRowMenu({ onOpen, onRename, onMove, onDelete }: {
               </button>
             </div>
           ))}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
