@@ -1154,7 +1154,7 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, openLabel = "M
       <span className="text-sm font-medium flex-1 truncate" title={name}>{name}</span>
       <span className="shrink-0">{chip}</span>
       <div
-        className={`relative shrink-0 transition-opacity ${open ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"}`}
+        className="relative shrink-0"
         onClick={e => e.stopPropagation()}
       >
         <button
