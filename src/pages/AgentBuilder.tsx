@@ -1106,10 +1106,42 @@ function MoreLink({ count, onClick }: { count: number; onClick: () => void }) {
  * The chip stays visible at all times; the action icons live in their own reserved slot that's
  * always in the layout (only its opacity changes on hover/focus), so nothing shifts or vanishes
  * under the cursor. */
+const KNOWLEDGE_SOURCE_ROW_MENU_WIDTH = 176; // w-44
+const KNOWLEDGE_SOURCE_ROW_MENU_HEIGHT_ESTIMATE = 90; // 2 items + container padding
+
 function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, openLabel = "Mở nguồn tri thức", removeLabel = "Gỡ nguồn tri thức" }: {
   icon: any; name: string; chip: React.ReactNode; onOpen: () => void; onRemove: () => void;
   openLabel?: string; removeLabel?: string;
 }) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const openMenu = () => {
+    const r = btnRef.current?.getBoundingClientRect();
+    if (r) {
+      // Portal + flip-up, same convention as SubAgentRowMenu/KnowledgeItemRowMenu, so the menu
+      // is never clipped when this row sits near the bottom of the sidebar or page.
+      const openUpward = window.innerHeight - r.bottom < KNOWLEDGE_SOURCE_ROW_MENU_HEIGHT_ESTIMATE && r.top > KNOWLEDGE_SOURCE_ROW_MENU_HEIGHT_ESTIMATE;
+      const left = Math.min(Math.max(r.right - KNOWLEDGE_SOURCE_ROW_MENU_WIDTH, 8), window.innerWidth - KNOWLEDGE_SOURCE_ROW_MENU_WIDTH - 8);
+      setPos(openUpward ? { bottom: window.innerHeight - r.top + 4, left } : { top: r.bottom + 4, left });
+    }
+    setOpen(true);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => {
+      if (
+        menuRef.current && !menuRef.current.contains(e.target as Node) &&
+        btnRef.current && !btnRef.current.contains(e.target as Node)
+      ) setOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+
   return (
     <div
       role="button"
@@ -1121,23 +1153,31 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, openLabel = "M
       <HugeiconsIcon icon={icon} size={13} className="text-muted-foreground shrink-0" />
       <span className="text-sm font-medium flex-1 truncate" title={name}>{name}</span>
       <span className="shrink-0">{chip}</span>
-      <div className="flex items-center shrink-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
-        <Tooltip delayDuration={300}>
-          <TooltipTrigger asChild>
-            <button onClick={onOpen} aria-label={openLabel} className="w-7 h-7 -m-2 rounded-md flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              <HugeiconsIcon icon={ExternalLinkIcon} size={13} />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>{openLabel}</TooltipContent>
-        </Tooltip>
-        <Tooltip delayDuration={300}>
-          <TooltipTrigger asChild>
-            <button onClick={onRemove} aria-label={removeLabel} className="w-7 h-7 -m-2 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              <HugeiconsIcon icon={Delete01Icon} size={13} />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>{removeLabel}</TooltipContent>
-        </Tooltip>
+      <div
+        className={`relative shrink-0 transition-opacity ${open ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"}`}
+        onClick={e => e.stopPropagation()}
+      >
+        <button
+          ref={btnRef}
+          type="button"
+          onClick={() => (open ? setOpen(false) : openMenu())}
+          aria-label="Thao tác"
+          className="w-7 h-7 -m-2 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <HugeiconsIcon icon={MoreHorizontalIcon} size={14} />
+        </button>
+        {open && createPortal(
+          <div
+            ref={menuRef}
+            className="fixed z-[9999] w-44 rounded-lg border border-border bg-white shadow-elev py-1"
+            style={{ top: pos.top, bottom: pos.bottom, left: pos.left }}
+            onMouseDown={e => e.stopPropagation()}
+          >
+            <button onClick={() => { setOpen(false); onOpen(); }} className="w-full text-left px-3 py-1.5 text-sm hover:bg-surface-muted transition-base">{openLabel}</button>
+            <button onClick={() => { setOpen(false); onRemove(); }} className="w-full text-left px-3 py-1.5 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">{removeLabel}</button>
+          </div>,
+          document.body,
+        )}
       </div>
     </div>
   );
