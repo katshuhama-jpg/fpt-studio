@@ -1440,25 +1440,55 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
   );
 }
 
+const KNOWLEDGE_ITEM_ROW_MENU_WIDTH = 224; // w-56
+const KNOWLEDGE_ITEM_ROW_MENU_HEIGHT_ESTIMATE = 230; // 5 items + danger separator + padding
+
 function KnowledgeItemRowMenu({ onOpen, onShare, onPromote, onReprocess, onDelete, reprocessDisabled, reprocessTooltip }: {
   onOpen: () => void; onShare: () => void; onPromote: () => void; onReprocess: () => void; onDelete: () => void;
   reprocessDisabled?: boolean; reprocessTooltip?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const openMenu = () => {
+    const r = btnRef.current?.getBoundingClientRect();
+    if (r) {
+      // Render in a portal, positioned from the button's own screen rect, and flip upward
+      // whenever there isn't room below — this is the fix for the menu rendering off-screen
+      // on short tables (same fix as the Console Knowledge documents table).
+      const openUpward = window.innerHeight - r.bottom < KNOWLEDGE_ITEM_ROW_MENU_HEIGHT_ESTIMATE && r.top > KNOWLEDGE_ITEM_ROW_MENU_HEIGHT_ESTIMATE;
+      const left = Math.min(Math.max(r.right - KNOWLEDGE_ITEM_ROW_MENU_WIDTH, 8), window.innerWidth - KNOWLEDGE_ITEM_ROW_MENU_WIDTH - 8);
+      setPos(openUpward ? { bottom: window.innerHeight - r.top + 4, left } : { top: r.bottom + 4, left });
+    }
+    setOpen(true);
+  };
+
   useEffect(() => {
     if (!open) return;
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const h = (e: MouseEvent) => {
+      if (
+        menuRef.current && !menuRef.current.contains(e.target as Node) &&
+        btnRef.current && !btnRef.current.contains(e.target as Node)
+      ) setOpen(false);
+    };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
+
   return (
-    <div ref={ref} className="relative" onClick={e => e.stopPropagation()}>
-      <button onClick={() => setOpen(v => !v)} aria-label="Thao tác" className="w-9 h-9 min-w-[44px] min-h-[44px] -m-1.5 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+    <div className="relative" onClick={e => e.stopPropagation()}>
+      <button ref={btnRef} onClick={() => (open ? setOpen(false) : openMenu())} aria-label="Thao tác" className="w-9 h-9 min-w-[44px] min-h-[44px] -m-1.5 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <HugeiconsIcon icon={MoreHorizontalIcon} size={15} />
       </button>
-      {open && (
-        <div className="absolute right-0 top-full mt-1 z-20 min-w-52 max-w-xs rounded-lg border border-border bg-white shadow-elev py-1">
+      {open && createPortal(
+        <div
+          ref={menuRef}
+          className="fixed z-[9999] w-56 rounded-lg border border-border bg-white shadow-elev py-1"
+          style={{ top: pos.top, bottom: pos.bottom, left: pos.left }}
+          onMouseDown={e => e.stopPropagation()}
+        >
           <button onClick={() => { setOpen(false); onOpen(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Mở</button>
           <button onClick={() => { setOpen(false); onShare(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Chia sẻ</button>
           <button onClick={() => { setOpen(false); onPromote(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Chuyển thành kho tri thức chung</button>
@@ -1479,7 +1509,8 @@ function KnowledgeItemRowMenu({ onOpen, onShare, onPromote, onReprocess, onDelet
           <div className="mt-1 pt-1 border-t border-border">
             <button onClick={() => { setOpen(false); onDelete(); }} className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">Xóa</button>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

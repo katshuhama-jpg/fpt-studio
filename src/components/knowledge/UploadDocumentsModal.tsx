@@ -52,7 +52,7 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
   useEffect(() => { if (open) setFolderId(initialFolderId); }, [open, initialFolderId]);
   useEffect(() => { if (open) { setAccessMode("private"); setAccessPeople([]); } }, [open]);
 
-  const accessInvalid = !agentId && accessMode === "specific" && accessPeople.length === 0;
+  const accessInvalid = accessMode === "specific" && accessPeople.length === 0;
 
   const folders = agentId ? [] : knowledgeDocumentStore.listFolders(kbId!);
 
@@ -105,7 +105,7 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
         clearInterval(iv);
         const chunkCount = Math.max(1, Math.round(s.file.size / 6000));
         if (agentId) {
-          const item = knowledgeStore.add(agentId, { name: s.file.name, kind: "doc", description: "", sizeBytes: s.file.size });
+          const item = knowledgeStore.add(agentId, { name: s.file.name, kind: "doc", description: "", sizeBytes: s.file.size, sharing });
           setTimeout(() => knowledgeStore.updateStatus(agentId, item.id, "processing"), 400);
           setTimeout(() => knowledgeStore.updateStatus(agentId, item.id, "done", { chunkCount }), 1600);
         } else {
@@ -189,42 +189,40 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
             </div>
           )}
 
-          {!agentId && (
-            <div>
-              <label className="text-sm font-medium mb-2 block">Ai có quyền truy cập</label>
-              <div className="space-y-2">
-                {ACCESS_OPTIONS.map(opt => {
-                  const selected = accessMode === opt.value;
-                  return (
-                    <div key={opt.value}>
-                      <div
-                        onClick={() => setAccessMode(opt.value)}
-                        className={`flex items-start gap-3 px-3.5 py-3 rounded-xl border cursor-pointer transition-base ${
-                          selected ? "border-primary bg-primary/5" : "border-border bg-white hover:bg-surface-muted"
-                        }`}
-                      >
-                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${selected ? "border-primary" : "border-border"}`}>
-                          {selected && <div className="w-2 h-2 rounded-full bg-primary" />}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-sm font-medium">{opt.label}</div>
-                          {opt.helper && <div className="text-xs text-muted-foreground mt-0.5">{opt.helper}</div>}
-                        </div>
+          <div>
+            <label className="text-sm font-medium mb-2 block">Ai có quyền truy cập</label>
+            <div className="space-y-2">
+              {ACCESS_OPTIONS.map(opt => {
+                const selected = accessMode === opt.value;
+                return (
+                  <div key={opt.value}>
+                    <div
+                      onClick={() => setAccessMode(opt.value)}
+                      className={`flex items-start gap-3 px-3.5 py-3 rounded-xl border cursor-pointer transition-base ${
+                        selected ? "border-primary bg-primary/5" : "border-border bg-white hover:bg-surface-muted"
+                      }`}
+                    >
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${selected ? "border-primary" : "border-border"}`}>
+                        {selected && <div className="w-2 h-2 rounded-full bg-primary" />}
                       </div>
-                      {selected && opt.value === "specific" && (
-                        <div className="mt-2 pl-3.5">
-                          <MemberPicker value={accessPeople} onChange={setAccessPeople} ownerRow={{ name: CURRENT_USER.name, email: CURRENT_USER.email }} />
-                          {accessPeople.length === 0 && (
-                            <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người để chia sẻ.</p>
-                          )}
-                        </div>
-                      )}
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium">{opt.label}</div>
+                        {opt.helper && <div className="text-xs text-muted-foreground mt-0.5">{opt.helper}</div>}
+                      </div>
                     </div>
-                  );
-                })}
-              </div>
+                    {selected && opt.value === "specific" && (
+                      <div className="mt-2 pl-3.5">
+                        <MemberPicker value={accessPeople} onChange={setAccessPeople} ownerRow={{ name: CURRENT_USER.name, email: CURRENT_USER.email }} />
+                        {accessPeople.length === 0 && (
+                          <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người để chia sẻ.</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-          )}
+          </div>
 
           {overLimitMsg && (
             <p className="flex items-center gap-1.5 text-xs text-destructive"><AlertTriangle size={12} /> {overLimitMsg}</p>
