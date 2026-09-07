@@ -5770,12 +5770,12 @@ function StarterPromptDetailModal({ prompt, onClose, onEdit }: {
 
         <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-4">
           <div>
-            <p className="text-sm font-semibold mb-1.5">Title</p>
-            <p className="text-sm text-foreground rounded-lg border border-border bg-surface-muted/60 px-3 py-2">{prompt.title}</p>
+            <p className="text-sm font-semibold mb-1">Title</p>
+            <p className="text-sm text-foreground">{prompt.title}</p>
           </div>
           <div>
-            <p className="text-sm font-semibold mb-1.5">Prompt</p>
-            <p className="text-sm text-foreground rounded-lg border border-border bg-surface-muted/60 px-3 py-2 whitespace-pre-wrap leading-relaxed">{prompt.prompt}</p>
+            <p className="text-sm font-semibold mb-1">Prompt</p>
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">{prompt.prompt}</p>
           </div>
         </div>
 
