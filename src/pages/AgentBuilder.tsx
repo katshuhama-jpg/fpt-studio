@@ -5812,7 +5812,7 @@ function StarterPromptsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => voi
         </div>
 
         {prompts.length > 0 && (
-          <div className="space-y-1 px-3.5 pt-1">
+          <div className={`space-y-1 px-3.5 pt-1 ${atLimit ? "pb-3.5" : ""}`}>
             {prompts.map(p => (
               <div
                 key={p.id}
@@ -5833,16 +5833,16 @@ function StarterPromptsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => voi
           </div>
         )}
 
-        <div className="p-2.5">
-          <button
-            onClick={() => !atLimit && setEditTarget("new")}
-            disabled={atLimit}
-            title={atLimit ? `You can add up to ${MAX_STARTER_PROMPTS} starter prompts.` : undefined}
-            className="w-full h-9 rounded-lg border-2 border-dashed border-border flex items-center justify-center gap-1.5 text-sm font-medium text-primary hover:bg-surface-muted transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-          >
-            <HugeiconsIcon icon={Add01Icon} size={14} /> Add starter prompt
-          </button>
-        </div>
+        {!atLimit && (
+          <div className="p-2.5">
+            <button
+              onClick={() => setEditTarget("new")}
+              className="w-full h-9 rounded-lg border-2 border-dashed border-border flex items-center justify-center gap-1.5 text-sm font-medium text-primary hover:bg-surface-muted transition-base"
+            >
+              <HugeiconsIcon icon={Add01Icon} size={14} /> Add starter prompt
+            </button>
+          </div>
+        )}
       </div>
 
       {editTarget && (
