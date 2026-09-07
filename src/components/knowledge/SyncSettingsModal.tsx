@@ -170,7 +170,7 @@ export default function SyncSettingsModal({ kbId, viewOnly, onClose, onSaved }: 
           </div>
 
           {!viewOnly && (
-            <DialogFooter className="px-6 py-4 border-t border-border">
+            <DialogFooter className="px-6 py-4">
               <button onClick={attemptClose} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Hủy bỏ</button>
               <button onClick={saveAll} disabled={!dirty} className="btn-primary h-9 disabled:opacity-40 disabled:pointer-events-none">Lưu thay đổi</button>
             </DialogFooter>

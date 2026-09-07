@@ -143,7 +143,7 @@ function EditScopeModal({ agentId, connectorId, onClose, onSaved, onViewTriggers
             </span>
           </label>
         </div>
-        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
+        <div className="flex items-center justify-end gap-2 px-5 py-4">
           <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Huỷ</button>
           <button onClick={save} className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium transition-base">
             Lưu

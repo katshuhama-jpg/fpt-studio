@@ -2560,7 +2560,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-border shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 shrink-0">
           <button className="flex items-center gap-1.5 text-sm font-medium text-destructive hover:underline">
             <HugeiconsIcon icon={CircleArrowReload01Icon} size={15} /> Remove configuration
           </button>
@@ -3865,7 +3865,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-border shrink-0">
+        <div className="flex items-center justify-between gap-2 px-6 py-4 shrink-0">
           <span className="text-xs text-muted-foreground">{footerHelper}</span>
           <div className="flex items-center gap-2">
             <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Huỷ</button>
@@ -3979,7 +3979,7 @@ function GuardrailDetailModal({ item, editable, onClose, onSave }: {
           </div>
         </div>
 
-        <div className="flex items-center justify-between px-6 py-4 border-t border-border shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 shrink-0">
           <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">{editable ? "Cancel" : "Close"}</button>
           {editable && (
             <button onClick={() => { if (canSave) onSave({ name: topic, desc, action: responseType === "auto" ? "Autogenerate response" : "Custom response" }); }}
@@ -4112,7 +4112,7 @@ function GuardrailCreateModal({ onClose, onSave }: { onClose: () => void; onSave
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-border shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 shrink-0">
           <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">Cancel</button>
           <button
             onClick={() => { if (canSave) { onSave({ name: topic, desc, action: responseType === "auto" ? "Autogenerate response" : "Custom response", topic, description: desc, samples }); onClose(); } }}
@@ -4196,7 +4196,7 @@ function GuardrailEditSheet({ guardrail, onClose, onSave }: { guardrail: Guardra
           </div>
         </div>
 
-        <div className="flex items-center justify-between px-6 py-4 border-t border-border shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 shrink-0">
           <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">Cancel</button>
           <button onClick={() => { onSave({ ...guardrail, name: topic, desc, action: responseType === "auto" ? "Autogenerate response" : "Custom response", topic, description: desc, samples }); onClose(); }} className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-base">Save changes</button>
         </div>
@@ -4950,7 +4950,7 @@ function AddCustomMcpModal({ onClose }: { onClose: () => void }) {
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border shrink-0">
+        <div className="flex items-center justify-end gap-2 px-6 py-4 shrink-0">
           <button onClick={onClose} className="btn-secondary">Huỷ</button>
           <button
             disabled={!name.trim() || !url.trim()}
@@ -5106,7 +5106,7 @@ function ConnectorPickerModal({ connectors, added, onToggle, onClose, mode, onCh
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-border shrink-0">
+        <div className="flex items-center justify-between gap-2 px-6 py-4 shrink-0">
           <button
             type="button"
             onClick={() => setShowCustomMcp(true)}
@@ -5382,7 +5382,7 @@ function CreateSubAgentModal({ onClose, onSave, initial, existingNames }: {
             )}
 
             {/* Footer */}
-            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border shrink-0">
+            <div className="flex items-center justify-end gap-2 px-6 py-4 shrink-0">
               <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">Cancel</button>
               <button
                 disabled={!canSave}
@@ -5691,7 +5691,7 @@ function StarterPromptModal({ initial, onClose, onSave, onDelete }: {
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-border shrink-0">
+        <div className="flex items-center justify-between gap-2 px-6 py-4 shrink-0">
           {onDelete
             ? <button onClick={onDelete} className="text-sm font-medium text-destructive hover:underline">Delete</button>
             : <span />}
