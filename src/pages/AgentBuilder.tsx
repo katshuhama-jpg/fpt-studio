@@ -1266,8 +1266,16 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
   const [detachTarget, setDetachTarget] = useState<{ id: string; name: string } | null>(null);
   const [versionTarget, setVersionTarget] = useState<KnowledgeItem | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [editFaqTarget, setEditFaqTarget] = useState<KnowledgeItem | null>(null);
   const refresh = () => setTick(t => t + 1);
   void tick;
+
+  // FAQ items open the "Sửa FAQ" dialog (their real content lives in name/description, not
+  // chunks) — everything else still opens the document/chunk viewer via the itemId param.
+  const openItemOrEditFaq = (item: KnowledgeItem) => {
+    if (item.kind === "faq") setEditFaqTarget(item);
+    else setParams({ ...Object.fromEntries(params), itemId: item.id });
+  };
 
   const toggleRow = (id: string) => setSelected(prev => {
     const next = new Set(prev);
@@ -1414,7 +1422,7 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
             {filteredItems.map(item => (
               <div key={item.id} className="grid grid-cols-[24px,1fr,80px,110px,70px,132px,120px,70px] gap-3 px-4 h-14 border-t border-border items-center hover:bg-surface-muted/50 transition-base group min-w-[830px]">
                 <input type="checkbox" checked={selected.has(item.id)} onChange={() => toggleRow(item.id)} className="w-4 h-4 accent-primary" aria-label={`Chọn ${item.name}`} />
-                <button onClick={() => setParams({ ...Object.fromEntries(params), itemId: item.id })} className="flex items-center gap-2 min-w-0 text-sm font-medium truncate text-left hover:underline">
+                <button onClick={() => openItemOrEditFaq(item)} className="flex items-center gap-2 min-w-0 text-sm font-medium truncate text-left hover:underline">
                   <FileTypeIcon kind={item.kind === "url" ? "url" : item.kind === "faq" ? "faq" : undefined} name={item.kind === "doc" ? item.name : undefined} />
                   <span className="truncate">{item.name}</span>
                 </button>
@@ -1452,7 +1460,8 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
                 </button>
                 <div className="flex items-center justify-end">
                   <KnowledgeItemRowMenu
-                    onOpen={() => setParams({ ...Object.fromEntries(params), itemId: item.id })}
+                    onOpen={() => openItemOrEditFaq(item)}
+                    openLabel={item.kind === "faq" ? "Sửa" : "Mở"}
                     onShare={() => setShareTargets([item])}
                     onPromote={() => setPromoteTarget(item)}
                     onReprocess={() => setReprocessTarget(item)}
@@ -1480,6 +1489,9 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
       {showUpload && <UploadDocumentsModal open={showUpload} agentId={agentId} onClose={() => { setShowUpload(false); refresh(); }} />}
       {showAddUrl && <AddUrlModal open={showAddUrl} agentId={agentId} onClose={() => { setShowAddUrl(false); refresh(); }} />}
       {showAddFaq && <AddEditFaqModal open={showAddFaq} agentId={agentId} onClose={() => { setShowAddFaq(false); refresh(); }} />}
+      {editFaqTarget && (
+        <AddEditFaqModal open agentId={agentId} editingItem={editFaqTarget} onClose={() => { setEditFaqTarget(null); refresh(); }} />
+      )}
       {promoteTarget && <PromoteToConsoleDialog agentId={agentId} item={promoteTarget} onClose={() => { setPromoteTarget(null); refresh(); }} />}
       {openItem && (
         <ChunkViewerModal kbId={agentId} sourceType="agent-item" sourceId={openItem.id} sourceName={openItem.name} sourceStatus={openItem.status ?? "done"} sourceChunkCount={openItem.chunkCount} sourceCreatedAt={openItem.createdAt ?? openItem.updatedAt} onClose={closeChunkViewer} viewOnly={false} />
@@ -1570,8 +1582,8 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
 const KNOWLEDGE_ITEM_ROW_MENU_WIDTH = 224; // w-56
 const KNOWLEDGE_ITEM_ROW_MENU_HEIGHT_ESTIMATE = 230; // 5 items + danger separator + padding
 
-function KnowledgeItemRowMenu({ onOpen, onShare, onPromote, onReprocess, onDelete, reprocessDisabled, reprocessTooltip }: {
-  onOpen: () => void; onShare: () => void; onPromote: () => void; onReprocess: () => void; onDelete: () => void;
+function KnowledgeItemRowMenu({ onOpen, openLabel = "Mở", onShare, onPromote, onReprocess, onDelete, reprocessDisabled, reprocessTooltip }: {
+  onOpen: () => void; openLabel?: string; onShare: () => void; onPromote: () => void; onReprocess: () => void; onDelete: () => void;
   reprocessDisabled?: boolean; reprocessTooltip?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -1616,7 +1628,7 @@ function KnowledgeItemRowMenu({ onOpen, onShare, onPromote, onReprocess, onDelet
           style={{ top: pos.top, bottom: pos.bottom, left: pos.left }}
           onMouseDown={e => e.stopPropagation()}
         >
-          <button onClick={() => { setOpen(false); onOpen(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Mở</button>
+          <button onClick={() => { setOpen(false); onOpen(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">{openLabel}</button>
           <button onClick={() => { setOpen(false); onShare(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Chia sẻ</button>
           <button onClick={() => { setOpen(false); onPromote(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Chuyển thành kho tri thức chung</button>
           <Tooltip delayDuration={200}>
@@ -4614,6 +4626,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
   const [showAddFaq, setShowAddFaq] = useState(false);
   const [detachTarget, setDetachTarget] = useState<{ id: string; name: string } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [editFaqTarget, setEditFaqTarget] = useState<KnowledgeItem | null>(null);
   const refresh = () => setTick(t => t + 1);
   void tick;
 
@@ -4633,7 +4646,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
     .map(id => knowledgeBaseStore.get(id))
     .filter((kb): kb is NonNullable<typeof kb> => !!kb);
 
-  type Row = { key: string; name: string; icon: any; open: () => void; remove: () => void; chip: React.ReactNode; disabled?: boolean; disabledReason?: string; href?: string };
+  type Row = { key: string; name: string; icon: any; open: () => void; openLabel?: string; remove: () => void; chip: React.ReactNode; disabled?: boolean; disabledReason?: string; href?: string };
   const rows: Row[] = [
     ...attachedKbs.map(kb => ({
       key: `kb-${kb.id}`,
@@ -4656,7 +4669,10 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
         key: `item-${item.id}`,
         name: item.name,
         icon: NoteIcon,
-        open: () => setParams({ tab: "build", section: "knowledge", itemId: item.id }),
+        // FAQ content lives in name/description, not chunks — open the real editor instead of
+        // the document/chunk viewer.
+        open: () => item.kind === "faq" ? setEditFaqTarget(item) : setParams({ tab: "build", section: "knowledge", itemId: item.id }),
+        openLabel: item.kind === "faq" ? "Sửa FAQ" : undefined,
         remove: () => setDeleteTarget({ id: item.id, name: item.name }),
         // Processing status and ownership are independent — show both together instead of
         // hiding ownership whenever a status pill is present, so an in-progress item still
@@ -4697,7 +4713,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
       ) : (
         <div className="flex flex-col gap-1.5">
           {shown.map(row => (
-            <KnowledgeSourceRow key={row.key} icon={row.icon} name={row.name} chip={row.chip} onOpen={row.open} onRemove={row.remove} disabled={row.disabled} disabledReason={row.disabledReason} href={row.href} twoLine />
+            <KnowledgeSourceRow key={row.key} icon={row.icon} name={row.name} chip={row.chip} onOpen={row.open} openLabel={row.openLabel} onRemove={row.remove} disabled={row.disabled} disabledReason={row.disabledReason} href={row.href} twoLine />
           ))}
           {rows.length > 4 && (
             <button onClick={() => setParams({ tab: "build", section: "knowledge" })} className="text-xs text-primary hover:underline text-left mt-0.5">
@@ -4728,6 +4744,9 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
       {showUpload && <UploadDocumentsModal open={showUpload} agentId={agentId} onClose={() => { setShowUpload(false); refresh(); }} />}
       {showAddUrl && <AddUrlModal open={showAddUrl} agentId={agentId} onClose={() => { setShowAddUrl(false); refresh(); }} />}
       {showAddFaq && <AddEditFaqModal open={showAddFaq} agentId={agentId} onClose={() => { setShowAddFaq(false); refresh(); }} />}
+      {editFaqTarget && (
+        <AddEditFaqModal open agentId={agentId} editingItem={editFaqTarget} onClose={() => { setEditFaqTarget(null); refresh(); }} />
+      )}
 
       <AlertDialog open={!!detachTarget} onOpenChange={v => !v && setDetachTarget(null)}>
         <AlertDialogContent>

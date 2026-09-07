@@ -6,7 +6,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { knowledgeFaqStore, type KnowledgeFaq } from "./knowledgeFaqStore";
-import { knowledgeStore } from "./knowledgeStore";
+import { knowledgeStore, type KnowledgeItem } from "./knowledgeStore";
 import CategoryChipsInput from "./CategoryChipsInput";
 import FaqSidePeek from "./FaqSidePeek";
 
@@ -19,13 +19,19 @@ const DUPLICATE_CHECK_DEBOUNCE_MS = 500;
 
 /** Pass either kbId (Console FAQ tab) or agentId (Agent Knowledge "Câu hỏi thường gặp" tile).
  * Categories, duplicate detection, and the side peek only apply to Console FAQs — Agent
- * Knowledge items don't have a kbId-scoped catalog to compare against. */
-export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, onClose }: {
-  open: boolean; kbId?: string; agentId?: string; editingFaq?: KnowledgeFaq; onClose: () => void;
+ * Knowledge items don't have a kbId-scoped catalog to compare against.
+ * `editingFaq` edits a Console KB FAQ (kbId); `editingItem` edits an Agent-level FAQ
+ * KnowledgeItem (agentId) — its question/answer live in the generic name/description fields
+ * shared with doc/url items. Pass at most one of the two. */
+export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, editingItem, onClose }: {
+  open: boolean; kbId?: string; agentId?: string; editingFaq?: KnowledgeFaq; editingItem?: KnowledgeItem; onClose: () => void;
 }) {
-  const isEdit = !!editingFaq;
-  const [question, setQuestion] = useState(editingFaq?.question ?? "");
-  const [answer, setAnswer] = useState(editingFaq?.answer ?? "");
+  const isEdit = !!editingFaq || !!editingItem;
+  const initialQuestion = editingFaq?.question ?? editingItem?.name ?? "";
+  const initialAnswer = editingFaq?.answer ?? editingItem?.description ?? "";
+  const statusSource = editingFaq ?? editingItem;
+  const [question, setQuestion] = useState(initialQuestion);
+  const [answer, setAnswer] = useState(initialAnswer);
   const [categories, setCategories] = useState<string[]>(editingFaq?.categories ?? []);
   const [questionTouched, setQuestionTouched] = useState(false);
   const [answerTouched, setAnswerTouched] = useState(false);
@@ -57,8 +63,8 @@ export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, onClo
       : null;
   const canSubmit = question.trim().length > 0 && answer.trim().length > 0 && !categoryError;
 
-  const isDirty = question.trim() !== (editingFaq?.question ?? "").trim()
-    || answer.trim() !== (editingFaq?.answer ?? "").trim()
+  const isDirty = question.trim() !== initialQuestion.trim()
+    || answer.trim() !== initialAnswer.trim()
     || categories.length !== (editingFaq?.categories ?? []).length
     || categories.some(c => !(editingFaq?.categories ?? []).includes(c));
 
@@ -74,7 +80,11 @@ export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, onClo
     if (!canSubmit) return;
 
     if (agentId) {
-      if (!isEdit) {
+      if (editingItem) {
+        // Editing content isn't a reprocess — Trạng thái stays exactly as it was.
+        knowledgeStore.update(agentId, editingItem.id, { name: question.trim(), description: answer.trim() });
+        toast.success("Đã lưu câu hỏi.");
+      } else if (!isEdit) {
         const item = knowledgeStore.add(agentId, { name: question.trim(), kind: "faq", description: answer.trim() });
         toast.success("Đã lưu câu hỏi.");
         runLifecycle((status, chunkCount) => knowledgeStore.updateStatus(agentId, item.id, status, chunkCount !== undefined ? { chunkCount } : undefined));
@@ -105,12 +115,14 @@ export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, onClo
             <DialogTitle>{isEdit ? "Sửa FAQ" : "Tạo FAQ"}</DialogTitle>
             <p className="text-xs text-muted-foreground mt-0.5">Nhập câu hỏi và câu trả lời để Agent sử dụng khi phản hồi.</p>
           </DialogHeader>
-          {editingFaq && (editingFaq.status === "failed" || editingFaq.status === "invalid") && (
-            <div className={`rounded-lg px-3 py-2.5 text-xs leading-relaxed ${editingFaq.status === "failed" ? "bg-[hsl(var(--destructive-soft))] text-destructive" : "bg-[hsl(var(--warning-soft))] text-warning"}`}>
-              <p className="font-semibold">{editingFaq.status === "failed" ? "Xử lý thất bại" : "Nội dung chưa hợp lệ"}</p>
-              {editingFaq.statusReason && <p className="mt-0.5">{editingFaq.statusReason}</p>}
+          {statusSource && (statusSource.status === "failed" || statusSource.status === "invalid") && (
+            <div className={`rounded-lg px-3 py-2.5 text-xs leading-relaxed ${statusSource.status === "failed" ? "bg-[hsl(var(--destructive-soft))] text-destructive" : "bg-[hsl(var(--warning-soft))] text-warning"}`}>
+              <p className="font-semibold">{statusSource.status === "failed" ? "Xử lý thất bại" : "Nội dung chưa hợp lệ"}</p>
+              {statusSource.statusReason && <p className="mt-0.5">{statusSource.statusReason}</p>}
               <p className="mt-1 opacity-80">
-                {editingFaq.status === "failed" ? "Lưu lại để hệ thống tự động xử lý lại." : "Hãy chỉnh sửa nội dung phù hợp rồi lưu lại."}
+                {statusSource.status === "failed"
+                  ? (agentId ? "Lưu lại rồi dùng \"Xử lý lại\" nếu cần." : "Lưu lại để hệ thống tự động xử lý lại.")
+                  : "Hãy chỉnh sửa nội dung phù hợp rồi lưu lại."}
               </p>
             </div>
           )}

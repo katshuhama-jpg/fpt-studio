@@ -163,6 +163,15 @@ export const knowledgeStore = {
     store.set(k(agentId, id), { ...cur, sharing, updatedAt: Date.now() });
     persist();
   },
+  /** Edits an item's name/description in place — for a FAQ item this is question/answer.
+   * Deliberately does not touch status: editing content isn't a reprocess, so Trạng thái stays
+   * whatever it already was. */
+  update(agentId: string, id: string, patch: { name: string; description: string }) {
+    const cur = store.get(k(agentId, id));
+    if (!cur) return;
+    store.set(k(agentId, id), { ...cur, name: patch.name, description: patch.description, updatedAt: Date.now(), updatedBy: CURRENT_USER.name });
+    persist();
+  },
   reprocess(agentId: string, id: string) {
     const cur = store.get(k(agentId, id));
     if (!cur) return;
