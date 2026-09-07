@@ -5548,7 +5548,7 @@ function SubAgentsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => void) =>
   return (
     <>
       <div className="rounded-xl border border-border bg-surface overflow-hidden">
-        <div className="flex items-center gap-2 px-3.5 py-3 border-b border-border">
+        <div className="flex items-center gap-2 px-3.5 py-3">
           <HugeiconsIcon icon={UserMultipleIcon} size={16} className="text-foreground shrink-0" />
           <span className="text-sm font-semibold">Subagents</span>
           <span className="text-sm text-muted-foreground">{subAgents.length}</span>
@@ -5726,7 +5726,7 @@ function StarterPromptsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => voi
   return (
     <>
       <div className="rounded-xl border border-border bg-surface overflow-hidden">
-        <div className="flex items-center gap-2 px-3.5 py-3 border-b border-border">
+        <div className="flex items-center gap-2 px-3.5 py-3">
           <HugeiconsIcon icon={Chat01Icon} size={16} className="text-foreground shrink-0" />
           <span className="text-sm font-semibold">Starter Prompts</span>
           <span className="text-sm text-muted-foreground">{prompts.length}</span>
