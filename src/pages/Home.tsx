@@ -318,26 +318,26 @@ export default function Home() {
         {/* ── Get started ───────────────────────────────────────── */}
         <section>
           <h2 className="font-display text-lg font-semibold mb-4">Get started</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {getStarted.map(g => (
               <a
                 key={g.title}
                 href={g.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group flex items-center gap-4 rounded-xl border border-border bg-surface p-4 hover:border-primary/30 hover:shadow-soft transition-base"
+                className="group rounded-xl border border-border bg-surface overflow-hidden hover:border-primary/30 hover:shadow-soft transition-base"
               >
-                <div className={`w-12 h-12 rounded-lg flex items-center justify-center shrink-0 ${g.bg}`}>
+                <div className={`h-28 flex items-center justify-center relative ${g.bg}`}>
                   {g.kind === "video"
-                    ? <Play size={16} className="text-white ml-0.5" fill="currentColor" />
-                    : <BookOpen size={16} className="text-white" />
+                    ? <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center shadow"><Play size={16} className="text-red-500 ml-0.5" fill="currentColor" /></div>
+                    : <BookOpen size={26} className="text-white/85" />
                   }
+                  <ExternalLink size={12} className="absolute top-2.5 right-2.5 text-white/70" />
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="p-3">
                   <p className="text-xs text-muted-foreground mb-0.5">{g.label}</p>
-                  <p className="text-sm font-semibold leading-snug">{g.title}</p>
+                  <p className="text-xs font-semibold leading-snug">{g.title}</p>
                 </div>
-                <ExternalLink size={14} className="text-muted-foreground shrink-0" />
               </a>
             ))}
           </div>
