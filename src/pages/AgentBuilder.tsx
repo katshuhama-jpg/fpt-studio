@@ -5521,37 +5521,20 @@ function SubAgentsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => void) =>
 
   return (
     <>
-      <div className="rounded-xl border border-border bg-surface-muted overflow-hidden">
-        <div className="flex items-center gap-2 px-3.5 py-3 border-b border-border/70">
+      <div className="rounded-xl border border-border bg-surface overflow-hidden">
+        <div className="flex items-center gap-2 px-3.5 py-3 border-b border-border">
           <HugeiconsIcon icon={UserMultipleIcon} size={16} className="text-foreground shrink-0" />
           <span className="text-sm font-semibold">Subagents</span>
           <span className="text-sm text-muted-foreground">{subAgents.length}</span>
         </div>
 
         {subAgents.length > 0 && (
-          <div className="divide-y divide-border/70">
+          <div className="flex flex-wrap gap-2 px-3.5 pt-3">
             {subAgents.map(a => {
               const paused = a.status === "paused";
               return (
-                <div
-                  key={a.id}
-                  className={`flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-surface transition-base ${paused ? "opacity-60" : ""}`}
-                >
-                  <button onClick={() => setEditTarget(a)} className="flex items-center gap-2.5 flex-1 min-w-0 text-left">
-                    <div className="w-8 h-8 rounded-lg bg-white border border-border flex items-center justify-center shrink-0">
-                      <HugeiconsIcon icon={UserMultipleIcon} size={14} className="text-muted-foreground" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{a.name}</p>
-                      {a.description && <p className="text-xs text-muted-foreground truncate">{a.description}</p>}
-                    </div>
-                  </button>
-                  <span
-                    className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap"
-                    style={paused ? { background: "#FFF7ED", color: "#9A3412", border: "0.5px solid #FED7AA" } : { background: "#ECFDF5", color: "#065F46", border: "0.5px solid #A7F3D0" }}
-                  >
-                    {paused ? "Paused" : "Active"}
-                  </span>
+                <div key={a.id} className={`chip pr-1 gap-1 ${paused ? "opacity-60" : ""}`}>
+                  <button onClick={() => setEditTarget(a)} className="truncate max-w-[160px]">{a.name}</button>
                   <SubAgentRowMenu
                     paused={paused}
                     canManage={canManage}
@@ -5572,7 +5555,7 @@ function SubAgentsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => void) =>
             onClick={() => canManage && setShowCreate(true)}
             disabled={!canManage}
             title={!canManage ? "You don't have permission to add sub-agents." : undefined}
-            className="w-full h-9 rounded-lg border-2 border-dashed border-border flex items-center justify-center gap-1.5 text-sm font-medium text-primary hover:bg-surface transition-base disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-full h-9 rounded-lg border-2 border-dashed border-border flex items-center justify-center gap-1.5 text-sm font-medium text-primary hover:bg-surface-muted transition-base disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <HugeiconsIcon icon={Add01Icon} size={14} /> Add subagent
           </button>
@@ -5716,25 +5699,24 @@ function StarterPromptsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => voi
 
   return (
     <>
-      <div className="rounded-xl border border-border bg-surface-muted overflow-hidden">
-        <div className="flex items-center gap-2 px-3.5 py-3 border-b border-border/70">
+      <div className="rounded-xl border border-border bg-surface overflow-hidden">
+        <div className="flex items-center gap-2 px-3.5 py-3 border-b border-border">
           <HugeiconsIcon icon={Chat01Icon} size={16} className="text-foreground shrink-0" />
           <span className="text-sm font-semibold">Starter Prompts</span>
           <span className="text-sm text-muted-foreground">{prompts.length}</span>
         </div>
 
         {prompts.length > 0 && (
-          <div className="divide-y divide-border/70">
+          <div className="flex flex-wrap gap-2 px-3.5 pt-3">
             {prompts.map(p => (
               <button
                 key={p.id}
                 onClick={() => setEditTarget(p)}
-                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-surface transition-base text-left"
+                className="chip hover:bg-surface-muted transition-base cursor-pointer max-w-full"
+                title={p.title}
               >
-                <div className="w-8 h-8 rounded-lg bg-white border border-border flex items-center justify-center shrink-0">
-                  <HugeiconsIcon icon={Chat01Icon} size={14} className="text-muted-foreground" />
-                </div>
-                <p className="text-sm font-medium truncate flex-1 min-w-0">{p.title}</p>
+                <HugeiconsIcon icon={Chat01Icon} size={12} className="shrink-0" />
+                <span className="truncate">{p.title}</span>
               </button>
             ))}
           </div>
@@ -5743,7 +5725,7 @@ function StarterPromptsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => voi
         <div className="p-2.5">
           <button
             onClick={() => setEditTarget("new")}
-            className="w-full h-9 rounded-lg border-2 border-dashed border-border flex items-center justify-center gap-1.5 text-sm font-medium text-primary hover:bg-surface transition-base"
+            className="w-full h-9 rounded-lg border-2 border-dashed border-border flex items-center justify-center gap-1.5 text-sm font-medium text-primary hover:bg-surface-muted transition-base"
           >
             <HugeiconsIcon icon={Add01Icon} size={14} /> Add starter prompt
           </button>
