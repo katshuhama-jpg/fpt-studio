@@ -3230,7 +3230,9 @@ function NewConfigPanel({ agentId, model, onModelChange, onConnectionsChange }: 
         );
       })}
 
-      {/* Advanced settings — collapsible group */}
+      {/* Advanced settings — collapsible group. Each item below is a self-contained card
+          (own header + row list + dashed add button) rather than sharing the accordion
+          header/toggle chrome the top sections use. */}
       <div className="border-b border-border">
         <button
           onClick={() => setShowAdvanced(o => !o)}
@@ -3240,45 +3242,13 @@ function NewConfigPanel({ agentId, model, onModelChange, onConnectionsChange }: 
           <span className="text-sm font-medium flex-1 text-muted-foreground">Advanced settings</span>
           <HugeiconsIcon icon={ChevronDownIcon} size={14} className={`text-muted-foreground shrink-0 transition-transform ${showAdvanced ? "rotate-180" : ""}`} />
         </button>
-        {showAdvanced && advancedSections.map((s: any) => {
-          const isOpen = !s.comingSoon && open[s.id];
-          const toggle = () => { if (!s.comingSoon) setOpen(o => ({ ...o, [s.id]: !o[s.id] })); };
-          return (
-            <div key={s.id} className="border-t border-border">
-              <div className="w-full flex items-center gap-2.5 px-4 py-3">
-                <button
-                  onClick={toggle}
-                  disabled={!!s.comingSoon}
-                  className="group rounded-lg bg-primary-soft flex items-center justify-center shrink-0 text-primary transition-base relative"
-                  style={{ width: "28px", height: "28px", opacity: s.comingSoon ? 0.5 : 1 }}
-                >
-                  <HugeiconsIcon icon={s.icon} size={16} className="group-hover:opacity-0 transition-opacity" />
-                  <HugeiconsIcon icon={ChevronUpIcon} size={14} className="absolute opacity-0 group-hover:opacity-100 transition-opacity" />
-                </button>
-                <span className="text-sm font-medium flex-1 text-left">{s.label}</span>
-                {s.comingSoon
-                  ? <span className="text-xs px-2 py-0.5 rounded-full bg-surface-muted border border-border text-muted-foreground">Coming soon</span>
-                  : <button
-                    aria-disabled={!!s.disabled}
-                    className={`transition-base ${s.disabled ? "text-muted-foreground opacity-[0.45] cursor-not-allowed" : "text-muted-foreground hover:text-foreground"}`}
-                    onClick={(e) => {
-                      if (s.disabled) return;
-                      setOpen(o => ({ ...o, [s.id]: true }));
-                      if (s.onAdd) {
-                        const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                        s.onAdd({ top: r.bottom + 4, left: r.right });
-                      }
-                    }}
-                  ><HugeiconsIcon icon={Add01Icon} size={15} /></button>}
-              </div>
-              {isOpen && (
-                <div className="px-4 pb-3">
-                  {s.content}
-                </div>
-              )}
-            </div>
-          );
-        })}
+        {showAdvanced && (
+          <div className="border-t border-border px-4 py-3 space-y-3">
+            {advancedSections.map((s: any) => (
+              <div key={s.id}>{s.content}</div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -5551,51 +5521,63 @@ function SubAgentsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => void) =>
 
   return (
     <>
-      {subAgents.length === 0 ? (
-        <EmptyStateBox
-          icon={UserMultipleIcon}
-          description="Specialized agents this agent can delegate to."
-          addLabel="Add Sub-Agent"
-          onAdd={() => setShowCreate(true)}
-          disabled={!canManage}
-          disabledReason={!canManage ? "You don't have permission to add sub-agents." : undefined}
-        />
-      ) : (
-        <div className="flex flex-col gap-1.5">
-          {subAgents.map(a => {
-            const paused = a.status === "paused";
-            return (
-              <div
-                key={a.id}
-                className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base ${paused ? "opacity-60" : ""}`}
-              >
-                <div className="w-6 h-6 rounded-lg bg-surface-muted border border-border flex items-center justify-center shrink-0">
-                  <HugeiconsIcon icon={UserMultipleIcon} size={12} className="text-muted-foreground" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium truncate">{a.name}</p>
-                  {a.description && <p className="text-[11px] text-muted-foreground truncate">{a.description}</p>}
-                </div>
-                <span
-                  className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap"
-                  style={paused ? { background: "#FFF7ED", color: "#9A3412", border: "0.5px solid #FED7AA" } : { background: "#ECFDF5", color: "#065F46", border: "0.5px solid #A7F3D0" }}
-                >
-                  {paused ? "Paused" : "Active"}
-                </span>
-                <SubAgentRowMenu
-                  paused={paused}
-                  canManage={canManage}
-                  canPause={canPause}
-                  canDelete={canDelete}
-                  onEdit={() => setEditTarget(a)}
-                  onTogglePause={() => togglePause(a.id)}
-                  onDelete={() => setDeleteTarget(a)}
-                />
-              </div>
-            );
-          })}
+      <div className="rounded-xl border border-border bg-surface-muted overflow-hidden">
+        <div className="flex items-center gap-2 px-3.5 py-3 border-b border-border/70">
+          <HugeiconsIcon icon={UserMultipleIcon} size={16} className="text-foreground shrink-0" />
+          <span className="text-sm font-semibold">Subagents</span>
+          <span className="text-sm text-muted-foreground">{subAgents.length}</span>
         </div>
-      )}
+
+        {subAgents.length > 0 && (
+          <div className="divide-y divide-border/70">
+            {subAgents.map(a => {
+              const paused = a.status === "paused";
+              return (
+                <div
+                  key={a.id}
+                  className={`flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-surface transition-base ${paused ? "opacity-60" : ""}`}
+                >
+                  <button onClick={() => setEditTarget(a)} className="flex items-center gap-2.5 flex-1 min-w-0 text-left">
+                    <div className="w-8 h-8 rounded-lg bg-white border border-border flex items-center justify-center shrink-0">
+                      <HugeiconsIcon icon={UserMultipleIcon} size={14} className="text-muted-foreground" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{a.name}</p>
+                      {a.description && <p className="text-xs text-muted-foreground truncate">{a.description}</p>}
+                    </div>
+                  </button>
+                  <span
+                    className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap"
+                    style={paused ? { background: "#FFF7ED", color: "#9A3412", border: "0.5px solid #FED7AA" } : { background: "#ECFDF5", color: "#065F46", border: "0.5px solid #A7F3D0" }}
+                  >
+                    {paused ? "Paused" : "Active"}
+                  </span>
+                  <SubAgentRowMenu
+                    paused={paused}
+                    canManage={canManage}
+                    canPause={canPause}
+                    canDelete={canDelete}
+                    onEdit={() => setEditTarget(a)}
+                    onTogglePause={() => togglePause(a.id)}
+                    onDelete={() => setDeleteTarget(a)}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="p-2.5">
+          <button
+            onClick={() => canManage && setShowCreate(true)}
+            disabled={!canManage}
+            title={!canManage ? "You don't have permission to add sub-agents." : undefined}
+            className="w-full h-9 rounded-lg border-2 border-dashed border-border flex items-center justify-center gap-1.5 text-sm font-medium text-primary hover:bg-surface transition-base disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <HugeiconsIcon icon={Add01Icon} size={14} /> Add subagent
+          </button>
+        </div>
+      </div>
 
       {(showCreate || editTarget) && (
         <CreateSubAgentModal
@@ -5734,28 +5716,39 @@ function StarterPromptsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => voi
 
   return (
     <>
-      {prompts.length === 0 ? (
-        <EmptyStateBox
-          icon={Chat01Icon}
-          description="Suggested prompts to help people start a conversation with this agent."
-          addLabel="Add Starter Prompt"
-          onAdd={() => setEditTarget("new")}
-        />
-      ) : (
-        <div className="flex flex-wrap gap-2">
-          {prompts.map(p => (
-            <button
-              key={p.id}
-              onClick={() => setEditTarget(p)}
-              className="chip hover:bg-surface-muted transition-base cursor-pointer max-w-full"
-              title={p.title}
-            >
-              <HugeiconsIcon icon={Chat01Icon} size={12} className="shrink-0" />
-              <span className="truncate">{p.title}</span>
-            </button>
-          ))}
+      <div className="rounded-xl border border-border bg-surface-muted overflow-hidden">
+        <div className="flex items-center gap-2 px-3.5 py-3 border-b border-border/70">
+          <HugeiconsIcon icon={Chat01Icon} size={16} className="text-foreground shrink-0" />
+          <span className="text-sm font-semibold">Starter Prompts</span>
+          <span className="text-sm text-muted-foreground">{prompts.length}</span>
         </div>
-      )}
+
+        {prompts.length > 0 && (
+          <div className="divide-y divide-border/70">
+            {prompts.map(p => (
+              <button
+                key={p.id}
+                onClick={() => setEditTarget(p)}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-surface transition-base text-left"
+              >
+                <div className="w-8 h-8 rounded-lg bg-white border border-border flex items-center justify-center shrink-0">
+                  <HugeiconsIcon icon={Chat01Icon} size={14} className="text-muted-foreground" />
+                </div>
+                <p className="text-sm font-medium truncate flex-1 min-w-0">{p.title}</p>
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="p-2.5">
+          <button
+            onClick={() => setEditTarget("new")}
+            className="w-full h-9 rounded-lg border-2 border-dashed border-border flex items-center justify-center gap-1.5 text-sm font-medium text-primary hover:bg-surface transition-base"
+          >
+            <HugeiconsIcon icon={Add01Icon} size={14} /> Add starter prompt
+          </button>
+        </div>
+      </div>
 
       {editTarget && (
         <StarterPromptModal
