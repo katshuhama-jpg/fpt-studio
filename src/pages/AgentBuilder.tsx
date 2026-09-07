@@ -2,7 +2,7 @@ import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { createPortal } from "react-dom";
 
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, BookOpen01Icon, Cancel01Icon, BoltIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, UserMultipleIcon, TextBoldIcon, TextItalicIcon, TextStrikethroughIcon, Heading01Icon, Heading02Icon, LeftToRightListBulletIcon, LeftToRightListNumberIcon, CodeIcon, Copy01Icon, SourceCodeIcon, GridViewIcon, Share08Icon, ApiIcon, TelegramIcon, WhatsappIcon, MessengerIcon, Building02Icon, UserIcon, QrCode01Icon, ExternalLinkIcon, InformationCircleIcon, MinusSignIcon, CircleArrowReload01Icon, Wrench01Icon, UserGroupIcon } from "@hugeicons/core-free-icons";
+import { Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, BookOpen01Icon, Cancel01Icon, BoltIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, UserMultipleIcon, TextBoldIcon, TextItalicIcon, TextStrikethroughIcon, Heading01Icon, Heading02Icon, LeftToRightListBulletIcon, LeftToRightListNumberIcon, CodeIcon, Copy01Icon, SourceCodeIcon, GridViewIcon, Share08Icon, ApiIcon, TelegramIcon, WhatsappIcon, MessengerIcon, Building02Icon, UserIcon, QrCode01Icon, ExternalLinkIcon, InformationCircleIcon, MinusSignIcon, CircleArrowReload01Icon, Wrench01Icon, UserGroupIcon, ArrowLeftDoubleIcon } from "@hugeicons/core-free-icons";
 import { useEffect, useRef, useState } from "react";
 import AgentToolsTab from "@/components/tool-builder/AgentToolsTab";
 import TasksGrid from "@/components/tasks/TasksGrid";
@@ -146,6 +146,7 @@ export default function AgentBuilder() {
   const [showWelcome, setShowWelcome] = useState(welcome);
   const [showPublish, setShowPublish] = useState(false);
   const [previewView, setPreviewView] = useState<"config" | "chat">("config");
+  const [previewCollapsed, setPreviewCollapsed] = useState(false);
   const [publishTick, setPublishTick] = useState(0);
   const [showAgentMenu, setShowAgentMenu] = useState(false);
   const [triggerTick, setTriggerTick] = useState(0);
@@ -466,7 +467,7 @@ export default function AgentBuilder() {
           <div className="flex-1 flex flex-col overflow-hidden">
 
             <div className="flex-1 overflow-y-auto bg-background">
-              {tab === "build" && section === "instructions" && <GeneralTab key={id ?? "new"} agentId={id ?? "new"} onRefineWithAI={() => setBuildMode("ai")} onChatToTest={() => { setBuildMode("manual"); setPreviewView("chat"); }} />}
+              {tab === "build" && section === "instructions" && <GeneralTab key={id ?? "new"} agentId={id ?? "new"} onRefineWithAI={() => setBuildMode("ai")} onChatToTest={() => { setBuildMode("manual"); setPreviewView("chat"); }} previewCollapsed={previewCollapsed} onReopenPreview={() => setPreviewCollapsed(false)} />}
               {tab === "build" && section === "knowledge" && <KnowledgeTab agentId={id ?? "new"} />}
               {tab === "build" && section === "guardrails" && <GuardrailsTab agentId={id ?? "new"} />}
               {tab === "build" && section === "triggers" && (
@@ -486,7 +487,7 @@ export default function AgentBuilder() {
             </div>
           </div>
 
-          {tab === "build" && section === "instructions" && <PreviewPanel agentId={id ?? "new"} view={previewView} onViewChange={setPreviewView} onConnectionsChange={() => setConnectionTick(t => t + 1)} />}
+          {tab === "build" && section === "instructions" && !previewCollapsed && <PreviewPanel agentId={id ?? "new"} view={previewView} onViewChange={setPreviewView} onConnectionsChange={() => setConnectionTick(t => t + 1)} onClose={() => setPreviewCollapsed(true)} />}
           {tab === "insights" && section === "history" && kind === "conversational" && <HistoryChatPanel agentId={id ?? "new"} />}
         </div>
       </div>
@@ -890,8 +891,9 @@ function inlineFormat(text: string): React.ReactNode {
 }
 
 
-function GeneralTab({ agentId, onRefineWithAI, onChatToTest }: {
+function GeneralTab({ agentId, onRefineWithAI, onChatToTest, previewCollapsed, onReopenPreview }: {
   agentId: string; onRefineWithAI?: () => void; onChatToTest?: () => void;
+  previewCollapsed?: boolean; onReopenPreview?: () => void;
 }) {
   const [params] = useSearchParams();
   const agent = getAgent(agentId);
@@ -959,6 +961,21 @@ function GeneralTab({ agentId, onRefineWithAI, onChatToTest }: {
           <button className="w-8 h-8 rounded-lg border border-border bg-surface flex items-center justify-center text-muted-foreground hover:bg-surface-muted transition-base shrink-0">
             <HugeiconsIcon icon={MoreHorizontalIcon} size={15} />
           </button>
+
+          {previewCollapsed && (
+            <Tooltip delayDuration={300}>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => onReopenPreview?.()}
+                  aria-label="Open configuration panel"
+                  className="w-8 h-8 rounded-lg border border-border bg-surface flex items-center justify-center text-muted-foreground hover:bg-surface-muted transition-base shrink-0"
+                >
+                  <HugeiconsIcon icon={ArrowLeftDoubleIcon} size={15} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" sideOffset={8}>Open configuration panel</TooltipContent>
+            </Tooltip>
+          )}
         </div>
 
         {/* View action buttons */}
@@ -3274,7 +3291,7 @@ function NewConfigPanel({ agentId, model, onModelChange, onConnectionsChange }: 
   );
 }
 
-function PreviewPanel({ agentId, view, onViewChange, onConnectionsChange }: { agentId: string; view: "config" | "chat"; onViewChange: (v: "config" | "chat") => void; onConnectionsChange?: () => void }) {
+function PreviewPanel({ agentId, view, onViewChange, onConnectionsChange, onClose }: { agentId: string; view: "config" | "chat"; onViewChange: (v: "config" | "chat") => void; onConnectionsChange?: () => void; onClose?: () => void }) {
   const setView = onViewChange;
   const [selectedModel, setSelectedModel] = useState("deepseek-v4-flash");
   const [messages, setMessages] = useState<{ role: "user" | "agent"; text: string }[]>([
@@ -3298,19 +3315,27 @@ function PreviewPanel({ agentId, view, onViewChange, onConnectionsChange }: { ag
       <div className="h-11 px-3 border-b border-border flex items-center gap-1 shrink-0">
         <button
           onClick={() => setView("config")}
-          className={`flex-1 h-7 rounded-md text-xs font-medium flex items-center justify-center gap-1.5 transition-base ${
-            view === "config" ? "bg-surface-muted text-foreground" : "text-muted-foreground hover:text-foreground"
+          className={`h-7 px-3 rounded-lg text-sm font-medium transition-base ${
+            view === "config" ? "bg-primary-soft text-primary" : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <HugeiconsIcon icon={SlidersHorizontalIcon} size={12} /> Configuration
+          Configuration
         </button>
         <button
           onClick={() => setView("chat")}
-          className={`flex-1 h-7 rounded-md text-xs font-medium flex items-center justify-center gap-1.5 transition-base ${
-            view === "chat" ? "bg-surface-muted text-foreground" : "text-muted-foreground hover:text-foreground"
+          className={`h-7 px-3 rounded-lg text-sm font-medium transition-base ${
+            view === "chat" ? "bg-primary-soft text-primary" : "text-muted-foreground hover:text-foreground"
           }`}
         >
-          <HugeiconsIcon icon={PlayCircleIcon} size={12} /> Test run
+          Test run
+        </button>
+        <div className="flex-1" />
+        <button
+          onClick={onClose}
+          className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base"
+          aria-label="Close configuration panel"
+        >
+          <HugeiconsIcon icon={Cancel01Icon} size={16} />
         </button>
       </div>
 
@@ -5712,14 +5737,17 @@ function StarterPromptModal({ initial, onClose, onSave, onDelete }: {
   );
 }
 
+const MAX_STARTER_PROMPTS = 3;
+
 function StarterPromptsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => void) => void } = {}) {
   const [params] = useSearchParams();
   const [prompts, setPrompts] = useState<StarterPrompt[]>(() => generateStarterPrompts(params.get("agentPrompt") || ""));
   const [editTarget, setEditTarget] = useState<StarterPrompt | "new" | null>(null);
+  const atLimit = prompts.length >= MAX_STARTER_PROMPTS;
 
   useEffect(() => {
-    onRegisterAdd?.(() => setEditTarget("new"));
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    onRegisterAdd?.(() => { if (!atLimit) setEditTarget("new"); });
+  }, [atLimit]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const closeModal = () => setEditTarget(null);
 
@@ -5729,29 +5757,37 @@ function StarterPromptsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => voi
         <div className="flex items-center gap-2 px-3.5 py-3">
           <HugeiconsIcon icon={Chat01Icon} size={16} className="text-foreground shrink-0" />
           <span className="text-sm font-semibold">Starter Prompts</span>
-          <span className="text-sm text-muted-foreground">{prompts.length}</span>
+          <span className="text-sm text-muted-foreground">{prompts.length}/{MAX_STARTER_PROMPTS}</span>
         </div>
 
         {prompts.length > 0 && (
-          <div className="flex flex-wrap gap-2 px-3.5 pt-3">
+          <div className="space-y-1 px-3.5 pt-1">
             {prompts.map(p => (
-              <button
+              <div
                 key={p.id}
                 onClick={() => setEditTarget(p)}
-                className="chip hover:bg-surface-muted transition-base cursor-pointer max-w-full"
-                title={p.title}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface cursor-pointer hover:bg-surface-muted transition-base"
               >
-                <HugeiconsIcon icon={Chat01Icon} size={12} className="shrink-0" />
-                <span className="truncate">{p.title}</span>
-              </button>
+                <HugeiconsIcon icon={Chat01Icon} size={13} className="text-muted-foreground shrink-0" />
+                <span className="text-[13px] font-medium flex-1 truncate min-w-0">{p.title}</span>
+                <button
+                  onClick={e => { e.stopPropagation(); setPrompts(prev => prev.filter(x => x.id !== p.id)); }}
+                  className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-surface-muted transition-base shrink-0"
+                  title="Remove"
+                >
+                  <HugeiconsIcon icon={Delete01Icon} size={12} />
+                </button>
+              </div>
             ))}
           </div>
         )}
 
         <div className="p-2.5">
           <button
-            onClick={() => setEditTarget("new")}
-            className="w-full h-9 rounded-lg border-2 border-dashed border-border flex items-center justify-center gap-1.5 text-sm font-medium text-primary hover:bg-surface-muted transition-base"
+            onClick={() => !atLimit && setEditTarget("new")}
+            disabled={atLimit}
+            title={atLimit ? `You can add up to ${MAX_STARTER_PROMPTS} starter prompts.` : undefined}
+            className="w-full h-9 rounded-lg border-2 border-dashed border-border flex items-center justify-center gap-1.5 text-sm font-medium text-primary hover:bg-surface-muted transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
           >
             <HugeiconsIcon icon={Add01Icon} size={14} /> Add starter prompt
           </button>
@@ -5767,7 +5803,7 @@ function StarterPromptsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => voi
               const id = editTarget.id;
               setPrompts(prev => prev.map(x => x.id === id ? { ...x, ...data } : x));
             } else {
-              setPrompts(prev => [...prev, { ...data, id: Date.now() }]);
+              setPrompts(prev => prev.length >= MAX_STARTER_PROMPTS ? prev : [...prev, { ...data, id: Date.now() }]);
             }
             closeModal();
           }}
