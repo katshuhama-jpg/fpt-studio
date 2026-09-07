@@ -5752,10 +5752,48 @@ function StarterPromptModal({ initial, onClose, onSave, onDelete }: {
 
 const MAX_STARTER_PROMPTS = 3;
 
+function StarterPromptDetailModal({ prompt, onClose, onEdit }: {
+  prompt: StarterPrompt;
+  onClose: () => void;
+  onEdit: () => void;
+}) {
+  return createPortal(
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-md bg-white rounded-2xl shadow-lg border border-border flex flex-col max-h-[88vh] animate-fade-up">
+        <div className="flex items-start justify-between px-6 pt-6 pb-2 shrink-0">
+          <h2 className="text-lg font-semibold">Starter prompt detail</h2>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 mt-0.5">
+            <HugeiconsIcon icon={Cancel01Icon} size={16} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-4">
+          <div>
+            <p className="text-sm font-semibold mb-1.5">Title</p>
+            <p className="text-sm text-foreground rounded-lg border border-border bg-surface-muted/60 px-3 py-2">{prompt.title}</p>
+          </div>
+          <div>
+            <p className="text-sm font-semibold mb-1.5">Prompt</p>
+            <p className="text-sm text-foreground rounded-lg border border-border bg-surface-muted/60 px-3 py-2 whitespace-pre-wrap leading-relaxed">{prompt.prompt}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 px-6 py-4">
+          <button onClick={onClose} className="btn-secondary">Close</button>
+          <button onClick={onEdit} className="btn-primary">Edit</button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 function StarterPromptsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => void) => void } = {}) {
   const [params] = useSearchParams();
   const [prompts, setPrompts] = useState<StarterPrompt[]>(() => generateStarterPrompts(params.get("agentPrompt") || ""));
   const [editTarget, setEditTarget] = useState<StarterPrompt | "new" | null>(null);
+  const [viewTarget, setViewTarget] = useState<StarterPrompt | null>(null);
   const atLimit = prompts.length >= MAX_STARTER_PROMPTS;
 
   useEffect(() => {
@@ -5778,7 +5816,7 @@ function StarterPromptsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => voi
             {prompts.map(p => (
               <div
                 key={p.id}
-                onClick={() => setEditTarget(p)}
+                onClick={() => setViewTarget(p)}
                 className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface cursor-pointer hover:bg-surface-muted transition-base"
               >
                 <HugeiconsIcon icon={Chat01Icon} size={13} className="text-muted-foreground shrink-0" />
@@ -5825,6 +5863,14 @@ function StarterPromptsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => voi
             setPrompts(prev => prev.filter(x => x.id !== id));
             closeModal();
           } : undefined}
+        />
+      )}
+
+      {viewTarget && (
+        <StarterPromptDetailModal
+          prompt={viewTarget}
+          onClose={() => setViewTarget(null)}
+          onEdit={() => { setEditTarget(viewTarget); setViewTarget(null); }}
         />
       )}
     </>
