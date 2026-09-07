@@ -1229,14 +1229,21 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
   const [showUpload, setShowUpload] = useState(false);
   const [showAddUrl, setShowAddUrl] = useState(false);
   const [showAddFaq, setShowAddFaq] = useState(false);
-  const [shareTarget, setShareTarget] = useState<KnowledgeItem | null>(null);
+  const [shareTargets, setShareTargets] = useState<KnowledgeItem[] | null>(null);
   const [promoteTarget, setPromoteTarget] = useState<KnowledgeItem | null>(null);
   const [reprocessTarget, setReprocessTarget] = useState<KnowledgeItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<KnowledgeItem | null>(null);
   const [detachTarget, setDetachTarget] = useState<{ id: string; name: string } | null>(null);
   const [versionTarget, setVersionTarget] = useState<KnowledgeItem | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const refresh = () => setTick(t => t + 1);
   void tick;
+
+  const toggleRow = (id: string) => setSelected(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
 
   const items = knowledgeStore.list(agentId);
   const attachedKbs = knowledgeStore.listAttachedConsoleKbIds(agentId)
@@ -1348,6 +1355,18 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
           </Tooltip>
         </div>
 
+        {selected.size > 0 && (
+          <div className="flex items-center gap-3 mb-3 px-3 h-10 rounded-lg bg-primary-soft border border-primary/15">
+            <span className="text-sm font-medium text-primary">Đã chọn {selected.size} mục</span>
+            <button onClick={() => setShareTargets(items.filter(i => selected.has(i.id)))} className="text-xs font-semibold text-primary hover:underline">
+              Chia sẻ
+            </button>
+            <button onClick={() => setSelected(new Set())} className="text-xs font-semibold text-muted-foreground hover:underline ml-auto">
+              Bỏ chọn
+            </button>
+          </div>
+        )}
+
         {items.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border p-8 text-center">
             <p className="text-sm font-medium mb-1">Agent chưa có tri thức riêng</p>
@@ -1364,7 +1383,7 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
             </div>
             {filteredItems.map(item => (
               <div key={item.id} className="grid grid-cols-[24px,1fr,80px,110px,70px,132px,120px,70px] gap-3 px-4 h-14 border-t border-border items-center hover:bg-surface-muted/50 transition-base group min-w-[830px]">
-                <input type="checkbox" className="w-4 h-4 accent-primary" aria-label={`Chọn ${item.name}`} />
+                <input type="checkbox" checked={selected.has(item.id)} onChange={() => toggleRow(item.id)} className="w-4 h-4 accent-primary" aria-label={`Chọn ${item.name}`} />
                 <button onClick={() => setParams({ ...Object.fromEntries(params), itemId: item.id })} className="flex items-center gap-2 min-w-0 text-sm font-medium truncate text-left hover:underline">
                   <FileTypeIcon kind={item.kind === "url" ? "url" : item.kind === "faq" ? "faq" : undefined} name={item.kind === "doc" ? item.name : undefined} />
                   <span className="truncate">{item.name}</span>
@@ -1398,13 +1417,13 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
                     </Tooltip>
                   )}
                 </div>
-                <button onClick={() => setShareTarget(item)} className="text-left">
+                <button onClick={() => setShareTargets([item])} className="text-left">
                   <KnowledgeSharingChip sharing={item.sharing} />
                 </button>
                 <div className="flex items-center justify-end">
                   <KnowledgeItemRowMenu
                     onOpen={() => setParams({ ...Object.fromEntries(params), itemId: item.id })}
-                    onShare={() => setShareTarget(item)}
+                    onShare={() => setShareTargets([item])}
                     onPromote={() => setPromoteTarget(item)}
                     onReprocess={() => setReprocessTarget(item)}
                     onDelete={() => setDeleteTarget(item)}
@@ -1441,14 +1460,15 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
           onClose={() => { setVersionTarget(null); refresh(); }}
         />
       )}
-      {shareTarget && (
+      {shareTargets && shareTargets.length > 0 && (
         <ShareKnowledgeBaseModal
-          open={!!shareTarget}
-          name={shareTarget.name}
+          open
+          title={shareTargets.length === 1 ? "Chia sẻ tài liệu" : `Chia sẻ ${shareTargets.length} tài liệu`}
+          name={shareTargets.length === 1 ? shareTargets[0].name : undefined}
           ownerName="Tran Nam"
-          sharing={shareTarget.sharing ?? { mode: "private", people: [] }}
-          onSave={sharing => knowledgeStore.updateSharing(agentId, shareTarget.id, sharing)}
-          onClose={() => { setShareTarget(null); refresh(); }}
+          sharing={shareTargets.length === 1 ? (shareTargets[0].sharing ?? { mode: "private", people: [] }) : { mode: "private", people: [] }}
+          onSave={sharing => { for (const t of shareTargets) knowledgeStore.updateSharing(agentId, t.id, sharing); setSelected(new Set()); }}
+          onClose={() => { setShareTargets(null); refresh(); }}
         />
       )}
 
@@ -4600,9 +4620,15 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
         icon: NoteIcon,
         open: () => setParams({ tab: "build", section: "knowledge", itemId: item.id }),
         remove: () => setDeleteTarget({ id: item.id, name: item.name }),
-        chip: itemStatus !== "done"
-          ? <KnowledgeStatusPill status={itemStatus} />
-          : <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-surface-muted text-muted-foreground shrink-0 whitespace-nowrap">Của tôi</span>,
+        // Processing status and ownership are independent — show both together instead of
+        // hiding ownership whenever a status pill is present, so an in-progress item still
+        // says who it belongs to.
+        chip: (
+          <div className="flex items-center gap-1 shrink-0">
+            {itemStatus !== "done" && <KnowledgeStatusPill status={itemStatus} />}
+            <KnowledgeSharingChip sharing={item.sharing} />
+          </div>
+        ),
         disabled: stillProcessing,
         disabledReason: "Nguồn tri thức đang được xử lý.",
       };

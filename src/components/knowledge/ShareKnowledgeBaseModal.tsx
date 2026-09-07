@@ -24,7 +24,8 @@ export default function ShareKnowledgeBaseModal({
 }: {
   open: boolean;
   onClose: () => void;
-  name: string;
+  /** Subtitle under the title — omit for a bulk share (the title's count already says enough). */
+  name?: string;
   ownerName: string;
   sharing: Sharing;
   onSave: (sharing: Sharing) => void;
@@ -76,7 +77,7 @@ export default function ShareKnowledgeBaseModal({
         <DialogContent className="sm:max-w-[520px]" onOpenAutoFocus={e => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
-            <DialogDescription>{name}</DialogDescription>
+            {name && <DialogDescription>{name}</DialogDescription>}
           </DialogHeader>
 
           <div className="space-y-5 py-1">

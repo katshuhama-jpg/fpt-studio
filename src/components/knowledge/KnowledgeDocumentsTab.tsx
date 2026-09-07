@@ -46,7 +46,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
   const [renaming, setRenaming] = useState<KnowledgeDocument | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [reprocessTarget, setReprocessTarget] = useState<KnowledgeDocument | null>(null);
-  const [shareTarget, setShareTarget] = useState<KnowledgeDocument | null>(null);
+  const [shareTargets, setShareTargets] = useState<KnowledgeDocument[] | null>(null);
   const [deleteTargets, setDeleteTargets] = useState<KnowledgeDocument[] | null>(null);
   const [layoutTarget, setLayoutTarget] = useState<KnowledgeDocument | null>(null);
   const [versionTarget, setVersionTarget] = useState<KnowledgeDocument | null>(null);
@@ -166,6 +166,9 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
           <span className="text-sm font-medium text-primary">Đã chọn {selected.size} mục</span>
           <button onClick={() => setMoveTargets(all.filter(d => selected.has(d.id)))} className="text-xs font-semibold text-primary hover:underline">
             Di chuyển
+          </button>
+          <button onClick={() => setShareTargets(all.filter(d => selected.has(d.id)))} className="text-xs font-semibold text-primary hover:underline">
+            Chia sẻ
           </button>
           <button onClick={() => setDeleteTargets(all.filter(d => selected.has(d.id)))} className="text-xs font-semibold text-destructive hover:underline">
             Xóa
@@ -287,7 +290,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                           canOpen={openable}
                           onOpen={() => openDocument(d.id)}
                           onLayout={() => setLayoutTarget(d)}
-                          onShare={() => setShareTarget(d)}
+                          onShare={() => setShareTargets([d])}
                           onReprocess={() => setReprocessTarget(d)}
                           onRename={() => { setRenaming(d); setRenameValue(d.name); }}
                           onMove={() => setMoveTargets([d])}
@@ -316,15 +319,15 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
         />
       )}
 
-      {shareTarget && (
+      {shareTargets && shareTargets.length > 0 && (
         <ShareKnowledgeBaseModal
-          open={!!shareTarget}
-          title="Chia sẻ tài liệu"
-          name={shareTarget.name}
+          open
+          title={shareTargets.length === 1 ? "Chia sẻ tài liệu" : `Chia sẻ ${shareTargets.length} tài liệu`}
+          name={shareTargets.length === 1 ? shareTargets[0].name : undefined}
           ownerName="Tran Nam"
-          sharing={shareTarget.sharing ?? { mode: "private", people: [] }}
-          onSave={sharing => knowledgeDocumentStore.updateSharing(shareTarget.id, sharing)}
-          onClose={() => { setShareTarget(null); refresh(); }}
+          sharing={shareTargets.length === 1 ? (shareTargets[0].sharing ?? { mode: "private", people: [] }) : { mode: "private", people: [] }}
+          onSave={sharing => { for (const t of shareTargets) knowledgeDocumentStore.updateSharing(t.id, sharing); setSelected(new Set()); }}
+          onClose={() => { setShareTargets(null); refresh(); }}
         />
       )}
 
