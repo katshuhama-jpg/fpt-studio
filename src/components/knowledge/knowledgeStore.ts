@@ -131,6 +131,26 @@ export const knowledgeStore = {
     store.set(k(agentId, id), { ...cur, version: (cur.version ?? 1) + 1, updatedAt: Date.now(), updatedBy: CURRENT_USER.name });
     persist();
   },
+  /** "Ghi đè" on a name-conflicting upload — replaces the content of an existing item in place
+   * (same id/row) and bumps its version, restarting the processing pipeline. Sharing is left
+   * untouched: overwriting a document's content shouldn't silently change who can access it. */
+  overwrite(agentId: string, id: string, data: { sizeBytes: number }): KnowledgeItem | undefined {
+    const cur = store.get(k(agentId, id));
+    if (!cur) return undefined;
+    const rec: KnowledgeItem = {
+      ...cur,
+      sizeBytes: data.sizeBytes,
+      status: "pending",
+      statusReason: undefined,
+      chunkCount: 0,
+      version: (cur.version ?? 1) + 1,
+      updatedAt: Date.now(),
+      updatedBy: CURRENT_USER.name,
+    };
+    store.set(k(agentId, id), rec);
+    persist();
+    return rec;
+  },
   updateStatus(agentId: string, id: string, status: KnowledgeFaqStatus, patch?: Partial<Pick<KnowledgeItem, "chunkCount">>) {
     const cur = store.get(k(agentId, id));
     if (!cur) return;

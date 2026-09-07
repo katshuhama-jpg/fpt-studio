@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { UploadCloud, X, AlertTriangle, Info } from "lucide-react";
+import { UploadCloud, X, AlertTriangle, Info, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
 import { knowledgeStore } from "./knowledgeStore";
@@ -14,6 +18,8 @@ const ALLOWED_EXT = ["txt", "md", "pdf", "doc", "docx", "ppt", "pptx", "xls", "x
 const ACCEPT_ATTR = ALLOWED_EXT.map(ext => `.${ext}`).join(",");
 const MAX_FILES = 10;
 const MAX_SIZE = 30 * 1024 * 1024;
+const MAX_FILES_MSG = "Chỉ có thể tải tối đa 10 tệp mỗi lần. Vui lòng bỏ bớt tệp hoặc chia thành nhiều lần tải.";
+const MAX_SIZE_MSG = "Tệp vượt quá 30MB. Vui lòng nén hoặc chia nhỏ tệp trước khi tải lên.";
 
 const ACCESS_OPTIONS: { value: SharingMode; label: string; helper?: string }[] = [
   { value: "private", label: "Chỉ mình tôi" },
@@ -24,13 +30,23 @@ const ACCESS_OPTIONS: { value: SharingMode; label: string; helper?: string }[] =
 interface StagedFile {
   key: string;
   file: File;
+  /** Final name the document will be saved as — differs from file.name only when the user
+   * chose "Tạo tài liệu mới" on a name conflict, which auto-renames to stay unique. */
+  displayName: string;
   error: string | null;
-  warning: string | null;
   progress: number;
+  /** Set when the user chose "Ghi đè" on a name conflict — the id of the existing document/item
+   * this upload will overwrite in place (bumping its version) instead of creating a new row. */
+  overwriteId?: string;
 }
 
 function extOf(name: string): string {
   return name.split(".").pop()?.toLowerCase() ?? "";
+}
+
+function splitName(name: string): { base: string; ext: string } {
+  const dot = name.lastIndexOf(".");
+  return dot > 0 ? { base: name.slice(0, dot), ext: name.slice(dot) } : { base: name, ext: "" };
 }
 
 /** Pass either kbId (Console Documents tab, S7) or agentId (Agent Knowledge "Tải tài liệu"
@@ -48,9 +64,12 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
   const [dragOver, setDragOver] = useState(false);
   const [accessMode, setAccessMode] = useState<SharingMode>("private");
   const [accessPeople, setAccessPeople] = useState<SharedPerson[]>([]);
+  // Name conflicts are resolved one at a time via a choice dialog before the file is staged —
+  // this queue holds the ones still waiting on a choice.
+  const [duplicateQueue, setDuplicateQueue] = useState<File[]>([]);
 
   useEffect(() => { if (open) setFolderId(initialFolderId); }, [open, initialFolderId]);
-  useEffect(() => { if (open) { setAccessMode("private"); setAccessPeople([]); } }, [open]);
+  useEffect(() => { if (open) { setAccessMode("private"); setAccessPeople([]); setDuplicateQueue([]); } }, [open]);
 
   const accessInvalid = accessMode === "specific" && accessPeople.length === 0;
 
@@ -58,35 +77,72 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
 
   const validCount = staged.filter(s => !s.error).length;
 
+  const findExisting = (name: string): { id: string } | undefined => {
+    const norm = name.trim().toLowerCase();
+    return agentId
+      ? knowledgeStore.list(agentId).find(i => i.name.trim().toLowerCase() === norm)
+      : knowledgeDocumentStore.list(kbId!).find(d => !d.isFolder && d.folderId === folderId && d.name.trim().toLowerCase() === norm);
+  };
+
+  const isNameTaken = (name: string): boolean => {
+    const norm = name.trim().toLowerCase();
+    return !!findExisting(name) || staged.some(s => s.displayName.trim().toLowerCase() === norm);
+  };
+
+  const uniqueRenamedName = (name: string): string => {
+    const { base, ext } = splitName(name);
+    let n = 1;
+    let candidate = `${base} (${n})${ext}`;
+    while (isNameTaken(candidate)) { n++; candidate = `${base} (${n})${ext}`; }
+    return candidate;
+  };
+
+  const stageFile = (file: File, patch: Partial<StagedFile> = {}) => {
+    setStaged(prev => [...prev, { key: `${file.name}-${file.size}-${Math.random()}`, file, displayName: file.name, error: null, progress: 0, ...patch }]);
+  };
+
   const addFiles = (files: FileList | File[]) => {
     const incoming = Array.from(files);
     setOverLimitMsg(null);
-    setStaged(prev => {
-      const room = MAX_FILES - prev.length;
-      if (room <= 0) {
-        setOverLimitMsg("Chỉ chọn được tối đa 10 tệp mỗi lần. Bỏ bớt tệp để tiếp tục.");
-        return prev;
+    const room = MAX_FILES - staged.length - duplicateQueue.length;
+    if (room <= 0) {
+      setOverLimitMsg(MAX_FILES_MSG);
+      return;
+    }
+    const toAdd = incoming.slice(0, room);
+    if (incoming.length > room) setOverLimitMsg(MAX_FILES_MSG);
+
+    const newDuplicates: File[] = [];
+    for (const file of toAdd) {
+      const ext = extOf(file.name);
+      if (!ALLOWED_EXT.includes(ext)) {
+        stageFile(file, { error: `Định dạng .${ext} chưa được hỗ trợ.` });
+      } else if (file.size > MAX_SIZE) {
+        stageFile(file, { error: MAX_SIZE_MSG });
+      } else if (findExisting(file.name)) {
+        newDuplicates.push(file);
+      } else {
+        stageFile(file);
       }
-      const toAdd = incoming.slice(0, room);
-      if (incoming.length > room) setOverLimitMsg("Chỉ chọn được tối đa 10 tệp mỗi lần. Bỏ bớt tệp để tiếp tục.");
-      const next: StagedFile[] = toAdd.map(file => {
-        const ext = extOf(file.name);
-        let error: string | null = null;
-        let warning: string | null = null;
-        if (!ALLOWED_EXT.includes(ext)) error = `Định dạng .${ext} chưa được hỗ trợ.`;
-        else if (file.size > MAX_SIZE) error = "Tệp vượt quá 30MB. Vui lòng nén hoặc tách nhỏ tệp.";
-        else if (agentId
-          ? knowledgeStore.list(agentId).some(i => i.name.trim().toLowerCase() === file.name.trim().toLowerCase())
-          : knowledgeDocumentStore.isDuplicateName(kbId!, file.name, folderId)
-        ) warning = "Tệp trùng tên đã có trong kho. Tải lên sẽ tạo phiên bản mới.";
-        return { key: `${file.name}-${file.size}-${Math.random()}`, file, error, warning, progress: 0 };
-      });
-      return [...prev, ...next];
-    });
+    }
+    if (newDuplicates.length) setDuplicateQueue(prev => [...prev, ...newDuplicates]);
+  };
+
+  const activeDuplicate = duplicateQueue[0] ?? null;
+  const resolveDuplicate = (choice: "overwrite" | "new") => {
+    const file = activeDuplicate;
+    if (!file) return;
+    setDuplicateQueue(prev => prev.slice(1));
+    if (choice === "overwrite") {
+      const existing = findExisting(file.name);
+      stageFile(file, { overwriteId: existing?.id });
+    } else {
+      stageFile(file, { displayName: uniqueRenamedName(file.name) });
+    }
   };
 
   const removeFile = (key: string) => setStaged(prev => prev.filter(s => s.key !== key));
-  const clearAll = () => { setStaged([]); setOverLimitMsg(null); };
+  const clearAll = () => { setStaged([]); setOverLimitMsg(null); setDuplicateQueue([]); };
 
   const submit = () => {
     const valid = staged.filter(s => !s.error);
@@ -105,11 +161,20 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
         clearInterval(iv);
         const chunkCount = Math.max(1, Math.round(s.file.size / 6000));
         if (agentId) {
-          const item = knowledgeStore.add(agentId, { name: s.file.name, kind: "doc", description: "", sizeBytes: s.file.size, sharing });
-          setTimeout(() => knowledgeStore.updateStatus(agentId, item.id, "processing"), 400);
-          setTimeout(() => knowledgeStore.updateStatus(agentId, item.id, "done", { chunkCount }), 1600);
+          if (s.overwriteId) {
+            const id = s.overwriteId;
+            knowledgeStore.overwrite(agentId, id, { sizeBytes: s.file.size });
+            setTimeout(() => knowledgeStore.updateStatus(agentId, id, "processing"), 400);
+            setTimeout(() => knowledgeStore.updateStatus(agentId, id, "done", { chunkCount }), 1600);
+          } else {
+            const item = knowledgeStore.add(agentId, { name: s.displayName, kind: "doc", description: "", sizeBytes: s.file.size, sharing });
+            setTimeout(() => knowledgeStore.updateStatus(agentId, item.id, "processing"), 400);
+            setTimeout(() => knowledgeStore.updateStatus(agentId, item.id, "done", { chunkCount }), 1600);
+          }
         } else {
-          const doc = knowledgeDocumentStore.addDocument(kbId!, { name: s.file.name, sizeBytes: s.file.size, folderId, sharing });
+          const doc = s.overwriteId
+            ? knowledgeDocumentStore.overwriteDocument(s.overwriteId, { sizeBytes: s.file.size })!
+            : knowledgeDocumentStore.addDocument(kbId!, { name: s.displayName, sizeBytes: s.file.size, folderId, sharing });
           setTimeout(() => knowledgeDocumentStore.updateStatus(doc.id, "processing"), 400);
           setTimeout(() => {
             // Seed one deterministic failure so the failed state is reachable in the prototype.
@@ -132,6 +197,7 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={v => { if (!v && !uploading) { clearAll(); onClose(); } }}>
       <DialogContent className="sm:max-w-[560px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
@@ -237,19 +303,26 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
               {staged.map(s => (
                 <div key={s.key} className="rounded-lg border border-border px-3 py-2.5">
                   <div className="flex items-center gap-2.5">
-                    <FileTypeIcon name={s.file.name} />
+                    <FileTypeIcon name={s.displayName} />
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium truncate">{s.file.name}</div>
+                      <div className="text-sm font-medium truncate">{s.displayName}</div>
                       <div className="text-xs text-muted-foreground">{formatFileSize(s.file.size)}</div>
                     </div>
                     {!uploading && (
-                      <button onClick={() => removeFile(s.key)} aria-label={`Bỏ ${s.file.name}`} className="w-7 h-7 shrink-0 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base">
+                      <button onClick={() => removeFile(s.key)} aria-label={`Bỏ ${s.displayName}`} className="w-7 h-7 shrink-0 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base">
                         <X size={14} />
                       </button>
                     )}
                   </div>
                   {s.error && <p className="text-xs text-destructive mt-1.5">{s.error}</p>}
-                  {!s.error && s.warning && <p className="text-xs text-warning mt-1.5">{s.warning}</p>}
+                  {!s.error && s.overwriteId && (
+                    <p className="flex items-center gap-1.5 text-xs text-warning mt-1.5">
+                      <RefreshCw size={11} /> Sẽ ghi đè tài liệu hiện có và tạo phiên bản mới.
+                    </p>
+                  )}
+                  {!s.error && !s.overwriteId && s.displayName !== s.file.name && (
+                    <p className="text-xs text-muted-foreground mt-1.5">Đã đổi tên để tránh trùng với tài liệu hiện có.</p>
+                  )}
                   {uploading && !s.error && (
                     <div className="h-1.5 rounded-full bg-border overflow-hidden mt-2">
                       <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${s.progress}%` }} />
@@ -269,5 +342,21 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={!!activeDuplicate} onOpenChange={() => {}}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Tài liệu "{activeDuplicate?.name}" đã tồn tại</AlertDialogTitle>
+          <AlertDialogDescription>
+            Đã có một tài liệu cùng tên trong {agentId ? "kho tri thức" : "thư mục"} này. Chọn cách xử lý tệp bạn vừa chọn.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => resolveDuplicate("new")}>Tạo tài liệu mới</AlertDialogCancel>
+          <AlertDialogAction onClick={() => resolveDuplicate("overwrite")}>Ghi đè (tạo phiên bản mới)</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

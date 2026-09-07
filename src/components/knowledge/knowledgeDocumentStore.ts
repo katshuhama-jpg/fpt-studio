@@ -163,6 +163,27 @@ export const knowledgeDocumentStore = {
     persist();
     return rec;
   },
+  /** "Ghi đè" on a name-conflicting upload — replaces the content of an existing document in
+   * place (same id/row) and bumps its version, restarting the processing pipeline. Sharing is
+   * left untouched: overwriting a document's content shouldn't silently change who can access
+   * it (that's a separate "Chia sẻ" concern). */
+  overwriteDocument(id: string, data: { sizeBytes: number }): KnowledgeDocument | undefined {
+    const cur = store.get(id);
+    if (!cur) return undefined;
+    const rec: KnowledgeDocument = {
+      ...cur,
+      sizeBytes: data.sizeBytes,
+      status: "pending",
+      statusReason: undefined,
+      chunkCount: 0,
+      version: cur.version + 1,
+      updatedAt: Date.now(),
+      updatedBy: "Tran Nam",
+    };
+    store.set(id, rec);
+    persist();
+    return rec;
+  },
   updateStatus(id: string, status: KnowledgeProcessingStatus, patch?: Partial<Pick<KnowledgeDocument, "chunkCount" | "statusReason">>) {
     const cur = store.get(id);
     if (!cur) return;
