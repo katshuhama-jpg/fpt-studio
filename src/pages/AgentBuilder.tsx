@@ -3263,7 +3263,7 @@ function NewConfigPanel({ agentId, model, onModelChange, onConnectionsChange }: 
           <HugeiconsIcon icon={ChevronDownIcon} size={14} className={`text-muted-foreground shrink-0 transition-transform ${showAdvanced ? "rotate-180" : ""}`} />
         </button>
         {showAdvanced && (
-          <div className="border-t border-border px-4 py-3 space-y-3">
+          <div className="px-4 py-3 space-y-3">
             {advancedSections.map((s: any) => (
               <div key={s.id}>{s.content}</div>
             ))}
