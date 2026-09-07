@@ -5742,20 +5742,16 @@ function StarterPromptsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => voi
           onAdd={() => setEditTarget("new")}
         />
       ) : (
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-wrap gap-2">
           {prompts.map(p => (
             <button
               key={p.id}
               onClick={() => setEditTarget(p)}
-              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base text-left"
+              className="chip hover:bg-surface-muted transition-base cursor-pointer max-w-full"
+              title={p.title}
             >
-              <div className="w-6 h-6 rounded-lg bg-surface-muted border border-border flex items-center justify-center shrink-0">
-                <HugeiconsIcon icon={Chat01Icon} size={12} className="text-muted-foreground" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium truncate">{p.title}</p>
-                <p className="text-[11px] text-muted-foreground truncate">{p.prompt}</p>
-              </div>
+              <HugeiconsIcon icon={Chat01Icon} size={12} className="shrink-0" />
+              <span className="truncate">{p.title}</span>
             </button>
           ))}
         </div>
