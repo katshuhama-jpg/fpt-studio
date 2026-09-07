@@ -12,29 +12,42 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 /* ─── Template data ─────────────────────────────────────────────────── */
 const categories = ["All", "Customer support", "Sales", "HR & Internal", "Operations", "Finance"] as const;
 
+const CONNECTOR_LABELS: Record<string, string> = {
+  gmail: "Gmail", slack: "Slack", zendesk: "Zendesk", notion: "Notion", drive: "Google Drive",
+  hubspot: "HubSpot", calendar: "Calendar", jira: "Jira", zoom: "Zoom", sheets: "Sheets",
+};
+
 const templates = [
   { id: 1, emoji: "💬", bg: "bg-blue-50",  name: "Customer care bot",    cat: "Customer support",
+    connectors: ["gmail","slack","zendesk"],
     desc: "Multilingual 24/7 support with escalation and live-agent handoff",
     systemPrompt: `# Customer Care Agent\n\nYou are a friendly, multilingual customer support specialist available 24/7.\n\n## Tone & Style\n- Warm, empathetic and professional\n- Respond in the customer's language automatically\n- Keep answers concise and actionable\n\n## Capabilities\n- Answer product and service questions\n- Handle complaints and escalate when needed\n- Guide users through common troubleshooting steps\n- Transfer to a human agent for complex issues\n\n## Limits\n- Never make promises about refunds or compensation without supervisor approval\n- Do not share internal processes or pricing structures not publicly available` },
   { id: 2, emoji: "📦", bg: "bg-green-50", name: "Product FAQ assistant", cat: "Customer support",
+    connectors: ["notion","drive","slack"],
     desc: "Answers from manuals, docs, and warranty info",
     systemPrompt: `# Product FAQ Assistant\n\nYou help customers find answers from product manuals, troubleshooting guides, and warranty documentation.\n\n## Tone & Style\n- Clear, precise, and helpful\n- Use numbered steps for instructions\n- Always cite the relevant section of the manual when possible\n\n## Capabilities\n- Answer questions about product features and specifications\n- Guide users through setup and troubleshooting steps\n- Explain warranty coverage and claim procedures\n- Suggest related articles or videos\n\n## Limits\n- Only answer based on official documentation\n- Do not diagnose hardware faults that require professional service` },
   { id: 3, emoji: "🎯", bg: "bg-amber-50", name: "Sales lead qualifier",  cat: "Sales",
+    connectors: ["hubspot","gmail","calendar"],
     desc: "BANT scoring, objection handling, and CRM handoff",
     systemPrompt: `# Sales Lead Qualifier Agent\n\nYou qualify inbound leads using the BANT framework (Budget, Authority, Need, Timeline) and hand off hot leads to the sales team.\n\n## Tone & Style\n- Consultative and curious — ask one question at a time\n- Friendly but efficient; respect the prospect's time\n\n## Qualification Flow\n1. Greet and understand the prospect's role and company\n2. Identify the core business need or pain point\n3. Explore budget range and decision-making authority\n4. Confirm purchase timeline\n5. Score the lead (Hot / Warm / Cold) and route accordingly\n\n## Limits\n- Do not quote specific pricing — route to sales rep\n- Do not make commitments on behalf of the sales team` },
   { id: 4, emoji: "🤝", bg: "bg-pink-50",  name: "HR onboarding bot",     cat: "HR & Internal",
+    connectors: ["calendar","slack","drive"],
     desc: "New-joiner flows, policy lookup, meeting scheduling",
     systemPrompt: `# HR Onboarding Assistant\n\nYou guide new employees through their first 30/60/90 days, answer HR policy questions, and help schedule onboarding meetings.\n\n## Tone & Style\n- Warm, encouraging, and clear\n- Use checklists and structured steps\n- Celebrate milestones (Day 1, first week, etc.)\n\n## Capabilities\n- Walk new joiners through onboarding checklists\n- Answer questions about leave policies, benefits, and payroll\n- Help schedule meetings with managers and teammates\n- Point employees to the right HR contacts or systems\n\n## Limits\n- Do not make decisions about policy exceptions\n- Salary and compensation queries → direct to HR Business Partner` },
   { id: 5, emoji: "🔧", bg: "bg-blue-50",  name: "IT helpdesk",           cat: "Operations",
+    connectors: ["jira","slack","zoom"],
     desc: "Password reset, VPN setup, and L1 ticket triage",
     systemPrompt: `# IT Helpdesk Agent\n\nYou are an L1 IT support agent that handles common technical issues, resets credentials, and triages tickets to the right team.\n\n## Tone & Style\n- Patient, methodical, and reassuring\n- Use numbered steps for technical instructions\n- Confirm resolution before closing a ticket\n\n## Capabilities\n- Guide users through password and MFA resets\n- Troubleshoot VPN, Wi-Fi, and email connectivity\n- Assist with software installation and access requests\n- Create and triage support tickets\n\n## Limits\n- Do not access or modify production systems\n- Escalate to L2/L3 for infrastructure, security incidents, or data loss` },
   { id: 6, emoji: "💰", bg: "bg-green-50", name: "Finance Q&A",           cat: "Finance",
+    connectors: ["sheets","gmail","notion"],
     desc: "Invoice queries, payment status, and budget lookups",
     systemPrompt: `# Finance Q&A Agent\n\nYou help employees and vendors with invoice queries, payment status checks, and budget information lookups.\n\n## Tone & Style\n- Professional, accurate, and concise\n- Always confirm amounts and dates before sharing\n\n## Capabilities\n- Check invoice status and expected payment dates\n- Explain expense reimbursement processes\n- Provide budget utilisation summaries by department\n- Guide users through purchase order submission\n\n## Limits\n- Do not approve payments or modify financial records\n- Confidential financial data → only share with authorised requestors` },
   { id: 7, emoji: "📋", bg: "bg-amber-50", name: "Operations assistant",  cat: "Operations",
+    connectors: ["notion","jira","slack"],
     desc: "Process guides, SOP lookup, and task routing",
     systemPrompt: `# Operations Assistant\n\nYou help operations teams find standard operating procedures, track task progress, and route work to the right department.\n\n## Tone & Style\n- Efficient, structured, and direct\n- Use bullet points and tables for process steps\n\n## Capabilities\n- Retrieve and summarise SOPs on demand\n- Log and route operational tasks and incidents\n- Provide status updates on ongoing processes\n- Identify bottlenecks and suggest escalation paths\n\n## Limits\n- Do not modify or approve SOPs without authorisation\n- Do not share restricted operational data outside approved teams` },
   { id: 8, emoji: "📣", bg: "bg-pink-50",  name: "Marketing assistant",   cat: "Sales",
+    connectors: ["hubspot","gmail","calendar"],
     desc: "Campaign Q&A, content suggestions, and lead capture",
     systemPrompt: `# Marketing Assistant Agent\n\nYou support marketing campaigns by answering visitor questions, suggesting relevant content, and capturing qualified leads.\n\n## Tone & Style\n- Enthusiastic, creative, and on-brand\n- Personalise responses based on the visitor's interest\n\n## Capabilities\n- Answer questions about products, events, and promotions\n- Recommend blog posts, case studies, or demo videos\n- Capture lead information (name, email, company, interest)\n- Route hot leads to the sales team\n\n## Limits\n- Do not offer discounts or special pricing without approval\n- Do not collect sensitive personal data beyond standard lead fields` },
 ];
@@ -165,6 +178,104 @@ function RecentAgentCard({ a }: { a: typeof recent[number] }) {
   );
 }
 
+/** Turns a template's markdown-ish systemPrompt into plain title+text sections (## headers ->
+ * subheading, "- " lines -> bullet list, everything else -> paragraph) instead of dumping the
+ * raw markdown into a boxed/mono block. */
+function renderPromptSections(text: string) {
+  const lines = text.split("\n");
+  const blocks: React.ReactNode[] = [];
+  let listBuffer: string[] = [];
+
+  const flushList = () => {
+    if (listBuffer.length === 0) return;
+    blocks.push(
+      <ul key={`list-${blocks.length}`} className="list-disc pl-5 space-y-1">
+        {listBuffer.map((item, i) => (
+          <li key={i} className="text-sm text-muted-foreground leading-relaxed">{item}</li>
+        ))}
+      </ul>
+    );
+    listBuffer = [];
+  };
+
+  lines.forEach((raw, i) => {
+    const line = raw.trim();
+    if (!line) { flushList(); return; }
+    if (line.startsWith("## ")) {
+      flushList();
+      blocks.push(<p key={`h-${i}`} className="text-sm font-semibold mt-1">{line.slice(3)}</p>);
+    } else if (line.startsWith("# ")) {
+      flushList();
+    } else if (line.startsWith("- ")) {
+      listBuffer.push(line.slice(2));
+    } else {
+      flushList();
+      blocks.push(<p key={`p-${i}`} className="text-sm text-muted-foreground leading-relaxed">{line}</p>);
+    }
+  });
+  flushList();
+
+  return blocks;
+}
+
+function TemplateDetailModal({ template, onClose, onUse }: {
+  template: typeof templates[number];
+  onClose: () => void;
+  onUse: () => void;
+}) {
+  return createPortal(
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-lg bg-white rounded-2xl shadow-lg border border-border flex flex-col max-h-[85vh] animate-fade-up">
+        <div className="flex items-start gap-3 px-6 pt-6 pb-4 shrink-0 border-b border-border">
+          <div className={`w-11 h-11 rounded-xl ${template.bg} flex items-center justify-center text-2xl shrink-0`}>{template.emoji}</div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-lg font-semibold leading-snug">{template.name}</h2>
+            <span className="chip chip-primary mt-1.5 w-fit">{template.cat}</span>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-5">
+          <div>
+            <p className="text-sm font-semibold mb-1">Description</p>
+            <p className="text-sm text-muted-foreground leading-relaxed">{template.desc}</p>
+          </div>
+
+          <div>
+            <p className="text-sm font-semibold mb-1.5">Instructions</p>
+            <div className="flex flex-col gap-2">
+              {renderPromptSections(template.systemPrompt)}
+            </div>
+          </div>
+
+          {template.connectors && template.connectors.length > 0 && (
+            <div>
+              <p className="text-sm font-semibold mb-1.5">Connectors</p>
+              <div className="flex flex-wrap gap-1.5">
+                {template.connectors.map(c => (
+                  <span key={c} className="chip">{CONNECTOR_LABELS[c] ?? c}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Skills and Sub-agents show here too, if this template defines any — none of the
+              current templates do, so those sections are simply omitted for now. */}
+        </div>
+
+        <div className="flex items-center justify-end gap-2 px-6 py-4">
+          <button onClick={onClose} className="btn-secondary">Close</button>
+          <button onClick={onUse} className="btn-primary">Use this template</button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 function CreateAgentModal({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
   const { can } = useMyPermissions();
@@ -240,6 +351,7 @@ export default function Home() {
   const canCreateAgent = can("agents.create");
   const [showCreate, setShowCreate]       = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [detailTemplate, setDetailTemplate] = useState<typeof templates[number] | null>(null);
 
   const useTemplate = (t: typeof templates[number]) => {
     if (!canCreateAgent) return;
@@ -369,26 +481,35 @@ export default function Home() {
             <button
               onClick={() => canCreateAgent && setShowTemplates(true)}
               disabled={!canCreateAgent}
-              className="text-xs text-primary flex items-center gap-1 hover:text-primary-glow transition-base disabled:opacity-40 disabled:cursor-not-allowed"
+              className="text-xs text-muted-foreground flex items-center gap-1 hover:text-foreground transition-base disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              Browse all <ArrowRight size={12} />
+              More <ArrowRight size={12} />
             </button>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="rounded-xl border border-border bg-surface divide-y divide-border overflow-hidden">
             {templates.slice(0, 4).map(t => (
-              <button
-                key={t.id}
-                onClick={() => useTemplate(t)}
-                disabled={!canCreateAgent}
-                className="text-left rounded-xl border border-border bg-surface p-4 hover:border-primary/30 hover:shadow-soft transition-base disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <div className={`w-10 h-10 rounded-xl ${t.bg} flex items-center justify-center text-xl mb-3`}>{t.emoji}</div>
-                <p className="text-sm font-semibold mb-1">{t.name}</p>
-                <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{t.desc}</p>
-              </button>
+              <div key={t.id} className="flex items-center gap-3 px-4 py-3.5 hover:bg-surface-muted/50 transition-base">
+                <div className={`w-10 h-10 rounded-xl ${t.bg} flex items-center justify-center text-xl shrink-0`}>{t.emoji}</div>
+                <p className="text-sm font-medium flex-1 min-w-0 truncate">{t.name}</p>
+                <span className="text-xs text-muted-foreground shrink-0">{t.cat}</span>
+                <button
+                  onClick={() => setDetailTemplate(t)}
+                  className="shrink-0 h-8 px-4 rounded-lg border border-border text-xs font-medium hover:bg-surface-muted transition-base"
+                >
+                  View
+                </button>
+              </div>
             ))}
           </div>
         </section>
+
+        {detailTemplate && (
+          <TemplateDetailModal
+            template={detailTemplate}
+            onClose={() => setDetailTemplate(null)}
+            onUse={() => { useTemplate(detailTemplate); setDetailTemplate(null); }}
+          />
+        )}
 
       </div>
     </div>
