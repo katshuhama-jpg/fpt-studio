@@ -1109,9 +1109,13 @@ function MoreLink({ count, onClick }: { count: number; onClick: () => void }) {
 const KNOWLEDGE_SOURCE_ROW_MENU_WIDTH = 176; // w-44
 const KNOWLEDGE_SOURCE_ROW_MENU_HEIGHT_ESTIMATE = 90; // 2 items + container padding
 
-function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, openLabel = "Mở nguồn tri thức", removeLabel = "Gỡ nguồn tri thức" }: {
+function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, openLabel = "Mở nguồn tri thức", removeLabel = "Gỡ nguồn tri thức", disabled = false, disabledReason = "Nguồn tri thức đang được xử lý.", href }: {
   icon: any; name: string; chip: React.ReactNode; onOpen: () => void; onRemove: () => void;
-  openLabel?: string; removeLabel?: string;
+  openLabel?: string; removeLabel?: string; disabled?: boolean; disabledReason?: string;
+  /** When set, opens in a new tab via a real anchor instead of calling onOpen in-place — used
+   * for a linked Console knowledge group so it never navigates the Agent Builder away from
+   * unsaved Instructions edits. */
+  href?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
@@ -1142,44 +1146,77 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, openLabel = "M
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
 
-  return (
+  const rowClassName = `group flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+    disabled ? "cursor-default" : "hover:bg-surface-muted cursor-pointer"
+  }`;
+
+  const menuBody = (
     <div
-      role="button"
-      tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={e => { if (e.key === "Enter") onOpen(); }}
-      className="group flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      ref={menuRef}
+      className="fixed z-[9999] w-44 rounded-lg border border-border bg-white shadow-elev py-1"
+      style={{ top: pos.top, bottom: pos.bottom, left: pos.left }}
+      onMouseDown={e => e.stopPropagation()}
     >
-      <HugeiconsIcon icon={icon} size={13} className="text-muted-foreground shrink-0" />
-      <span className="text-sm font-medium flex-1 truncate" title={name}>{name}</span>
-      <span className="shrink-0">{chip}</span>
-      <div
-        className="relative shrink-0"
-        onClick={e => e.stopPropagation()}
-      >
-        <button
-          ref={btnRef}
-          type="button"
-          onClick={() => (open ? setOpen(false) : openMenu())}
-          aria-label="Thao tác"
-          className="w-7 h-7 -m-2 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <HugeiconsIcon icon={MoreHorizontalIcon} size={14} />
-        </button>
-        {open && createPortal(
-          <div
-            ref={menuRef}
-            className="fixed z-[9999] w-44 rounded-lg border border-border bg-white shadow-elev py-1"
-            style={{ top: pos.top, bottom: pos.bottom, left: pos.left }}
-            onMouseDown={e => e.stopPropagation()}
-          >
-            <button onClick={() => { setOpen(false); onOpen(); }} className="w-full text-left px-3 py-1.5 text-sm hover:bg-surface-muted transition-base">{openLabel}</button>
-            <button onClick={() => { setOpen(false); onRemove(); }} className="w-full text-left px-3 py-1.5 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">{removeLabel}</button>
-          </div>,
-          document.body,
-        )}
-      </div>
+      {disabled ? (
+        <Tooltip delayDuration={200}>
+          <TooltipTrigger asChild>
+            <span tabIndex={0} className="block w-full text-left px-3 py-1.5 text-sm text-muted-foreground/60 cursor-not-allowed outline-none">{openLabel}</span>
+          </TooltipTrigger>
+          <TooltipContent side="left">{disabledReason}</TooltipContent>
+        </Tooltip>
+      ) : href ? (
+        <a href={href} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-surface-muted transition-base">{openLabel}</a>
+      ) : (
+        <button onClick={() => { setOpen(false); onOpen(); }} className="w-full text-left px-3 py-1.5 text-sm hover:bg-surface-muted transition-base">{openLabel}</button>
+      )}
+      <button onClick={() => { setOpen(false); onRemove(); }} className="w-full text-left px-3 py-1.5 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">{removeLabel}</button>
     </div>
+  );
+
+  const actionsMenu = (
+    <div className="relative shrink-0" onClick={e => e.stopPropagation()}>
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={() => (open ? setOpen(false) : openMenu())}
+        aria-label="Thao tác"
+        className="w-7 h-7 -m-2 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <HugeiconsIcon icon={MoreHorizontalIcon} size={14} />
+      </button>
+      {open && createPortal(menuBody, document.body)}
+    </div>
+  );
+
+  const rowInner = (
+    <>
+      <HugeiconsIcon icon={icon} size={13} className="text-muted-foreground shrink-0" />
+      <span className={`text-sm font-medium flex-1 truncate ${disabled ? "text-muted-foreground" : ""}`} title={name}>{name}</span>
+      <span className="shrink-0">{chip}</span>
+      {actionsMenu}
+    </>
+  );
+
+  const row = href && !disabled ? (
+    <a href={href} target="_blank" rel="noopener noreferrer" className={rowClassName}>{rowInner}</a>
+  ) : (
+    <div
+      role={disabled ? undefined : "button"}
+      tabIndex={disabled ? undefined : 0}
+      onClick={disabled ? undefined : onOpen}
+      onKeyDown={disabled ? undefined : (e => { if (e.key === "Enter") onOpen(); })}
+      className={rowClassName}
+    >
+      {rowInner}
+    </div>
+  );
+
+  if (!disabled) return row;
+  return (
+    <Tooltip delayDuration={300}>
+      <TooltipTrigger asChild>{row}</TooltipTrigger>
+      <TooltipContent>{disabledReason}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -4531,7 +4568,6 @@ function SkillsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:number;
 
 /* ============ Knowledge sidebar summary (S15) ============ */
 function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAdd?: (fn: (pos:{top:number;left:number}) => void) => void }) {
-  const navigate = useNavigate();
   const [, setParams] = useSearchParams();
   const [tick, setTick] = useState(0);
   const [showMenu, setShowMenu] = useState(false);
@@ -4561,28 +4597,38 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
     .map(id => knowledgeBaseStore.get(id))
     .filter((kb): kb is NonNullable<typeof kb> => !!kb);
 
-  type Row = { key: string; name: string; icon: any; open: () => void; remove: () => void; chip: React.ReactNode };
+  type Row = { key: string; name: string; icon: any; open: () => void; remove: () => void; chip: React.ReactNode; disabled?: boolean; disabledReason?: string; href?: string };
   const rows: Row[] = [
     ...attachedKbs.map(kb => ({
       key: `kb-${kb.id}`,
       name: kb.name,
       icon: ConnectIcon,
-      open: () => navigate(`/knowledge/${kb.id}`),
+      // Opens via a real anchor (href, below) in a new tab instead of navigating this one away
+      // from the Agent Builder, so unsaved Instructions edits are never at risk of being
+      // silently discarded.
+      open: () => {},
+      href: `/knowledge/${kb.id}`,
       remove: () => setDetachTarget({ id: kb.id, name: kb.name }),
       chip: <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-primary-soft text-primary shrink-0 whitespace-nowrap">
         {kb.sharing.mode === "all" ? "Dùng chung" : kb.sharing.mode === "specific" ? "Chia sẻ" : "Của tôi"}
       </span>,
     })),
-    ...items.map(item => ({
-      key: `item-${item.id}`,
-      name: item.name,
-      icon: NoteIcon,
-      open: () => setParams({ tab: "build", section: "knowledge", itemId: item.id }),
-      remove: () => setDeleteTarget({ id: item.id, name: item.name }),
-      chip: (item.status ?? "done") !== "done"
-        ? <KnowledgeStatusPill status={item.status ?? "done"} />
-        : <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-surface-muted text-muted-foreground shrink-0 whitespace-nowrap">Của tôi</span>,
-    })),
+    ...items.map(item => {
+      const itemStatus = item.status ?? "done";
+      const stillProcessing = itemStatus === "pending" || itemStatus === "processing";
+      return {
+        key: `item-${item.id}`,
+        name: item.name,
+        icon: NoteIcon,
+        open: () => setParams({ tab: "build", section: "knowledge", itemId: item.id }),
+        remove: () => setDeleteTarget({ id: item.id, name: item.name }),
+        chip: itemStatus !== "done"
+          ? <KnowledgeStatusPill status={itemStatus} />
+          : <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-surface-muted text-muted-foreground shrink-0 whitespace-nowrap">Của tôi</span>,
+        disabled: stillProcessing,
+        disabledReason: "Nguồn tri thức đang được xử lý.",
+      };
+    }),
   ];
   const shown = rows.slice(0, 4);
 
@@ -4609,7 +4655,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
       ) : (
         <div className="flex flex-col gap-1.5">
           {shown.map(row => (
-            <KnowledgeSourceRow key={row.key} icon={row.icon} name={row.name} chip={row.chip} onOpen={row.open} onRemove={row.remove} />
+            <KnowledgeSourceRow key={row.key} icon={row.icon} name={row.name} chip={row.chip} onOpen={row.open} onRemove={row.remove} disabled={row.disabled} disabledReason={row.disabledReason} href={row.href} />
           ))}
           {rows.length > 4 && (
             <button onClick={() => setParams({ tab: "build", section: "knowledge" })} className="text-xs text-primary hover:underline text-left mt-0.5">

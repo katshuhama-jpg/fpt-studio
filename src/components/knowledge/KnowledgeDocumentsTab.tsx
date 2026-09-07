@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import {
-  Search, ChevronDown, Plus, MoreVertical, X,
+  Search, ChevronDown, Plus, MoreVertical, X, Info,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -16,6 +16,7 @@ import { formatFileSize } from "./formatFileSize";
 import KnowledgeSharingChip from "./KnowledgeSharingChip";
 import FileTypeIcon from "./FileTypeIcon";
 import UploadDocumentsModal from "./UploadDocumentsModal";
+import ShareKnowledgeBaseModal from "./ShareKnowledgeBaseModal";
 import ChunkViewerModal from "./ChunkViewerModal";
 import VersionHistoryPanel from "./VersionHistoryPanel";
 import DocumentLayoutViewer from "./DocumentLayoutViewer";
@@ -45,6 +46,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
   const [renaming, setRenaming] = useState<KnowledgeDocument | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [reprocessTarget, setReprocessTarget] = useState<KnowledgeDocument | null>(null);
+  const [shareTarget, setShareTarget] = useState<KnowledgeDocument | null>(null);
   const [deleteTargets, setDeleteTargets] = useState<KnowledgeDocument[] | null>(null);
   const [layoutTarget, setLayoutTarget] = useState<KnowledgeDocument | null>(null);
   const [versionTarget, setVersionTarget] = useState<KnowledgeDocument | null>(null);
@@ -234,9 +236,21 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                   </td>
                   <td className="px-2 py-3">
                     {!d.isFolder && (
-                      <span title={d.status === "failed" ? d.statusReason : undefined}>
+                      <div className="flex items-center gap-1.5">
                         <KnowledgeStatusPill status={d.status} />
-                      </span>
+                        {d.status === "failed" && (
+                          <Tooltip delayDuration={200}>
+                            <TooltipTrigger asChild>
+                              <span tabIndex={0} className="text-muted-foreground outline-none cursor-default">
+                                <Info size={12} />
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-[260px]">
+                              {d.statusReason || "Không thể xử lý — tệp có thể bị hỏng hoặc vượt quá 30MB. Vui lòng kiểm tra và tải lại."}
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </div>
                     )}
                   </td>
                   <td className="px-2 py-3 text-xs text-muted-foreground whitespace-nowrap">{d.isFolder ? "—" : formatFileSize(d.sizeBytes)}</td>
@@ -273,6 +287,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                           canOpen={openable}
                           onOpen={() => openDocument(d.id)}
                           onLayout={() => setLayoutTarget(d)}
+                          onShare={() => setShareTarget(d)}
                           onReprocess={() => setReprocessTarget(d)}
                           onRename={() => { setRenaming(d); setRenameValue(d.name); }}
                           onMove={() => setMoveTargets([d])}
@@ -298,6 +313,18 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
           source={{ id: versionTarget.id, kbId: versionTarget.kbId, name: versionTarget.name, sourceType: "document", version: versionTarget.version, updatedAt: versionTarget.updatedAt, updatedBy: versionTarget.updatedBy }}
           onClose={() => setVersionTarget(null)}
           viewOnly={viewOnly}
+        />
+      )}
+
+      {shareTarget && (
+        <ShareKnowledgeBaseModal
+          open={!!shareTarget}
+          title="Chia sẻ tài liệu"
+          name={shareTarget.name}
+          ownerName="Tran Nam"
+          sharing={shareTarget.sharing ?? { mode: "private", people: [] }}
+          onSave={sharing => knowledgeDocumentStore.updateSharing(shareTarget.id, sharing)}
+          onClose={() => { setShareTarget(null); refresh(); }}
         />
       )}
 
@@ -417,14 +444,14 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
   );
 }
 
-// Worst-case rendered height (6 items, one danger separator, container padding) — used only to
+// Worst-case rendered height (7 items, one danger separator, container padding) — used only to
 // decide whether the menu should flip upward; the actual box still sizes to its real content.
 const ROW_MENU_WIDTH = 224; // w-56
-const ROW_MENU_HEIGHT_ESTIMATE = 260;
+const ROW_MENU_HEIGHT_ESTIMATE = 296;
 const FOLDER_ROW_MENU_HEIGHT_ESTIMATE = 190;
 
-function RowMenu({ canOpen, onOpen, onLayout, onReprocess, onRename, onMove, onDelete }: {
-  canOpen: boolean; onOpen: () => void; onLayout: () => void; onReprocess: () => void; onRename: () => void; onMove: () => void; onDelete: () => void;
+function RowMenu({ canOpen, onOpen, onLayout, onShare, onReprocess, onRename, onMove, onDelete }: {
+  canOpen: boolean; onOpen: () => void; onLayout: () => void; onShare: () => void; onReprocess: () => void; onRename: () => void; onMove: () => void; onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
@@ -460,6 +487,7 @@ function RowMenu({ canOpen, onOpen, onLayout, onReprocess, onRename, onMove, onD
   const items: { label: string; onClick: () => void; danger?: boolean; disabled?: boolean; disabledTooltip?: string }[] = [
     { label: "Mở", onClick: onOpen, disabled: !canOpen, disabledTooltip: "Tài liệu chưa xử lý xong nên chưa xem được nội dung." },
     { label: "Xem bố cục tài liệu", onClick: onLayout },
+    { label: "Chia sẻ", onClick: onShare },
     { label: "Xử lý lại", onClick: onReprocess },
     { label: "Đổi tên", onClick: onRename },
     { label: "Di chuyển", onClick: onMove },

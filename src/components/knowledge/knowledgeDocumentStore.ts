@@ -172,6 +172,12 @@ export const knowledgeDocumentStore = {
     store.set(id, { ...cur, name: name.trim(), updatedAt: Date.now() });
     persist();
   },
+  updateSharing(id: string, sharing: Sharing) {
+    const cur = store.get(id);
+    if (!cur) return;
+    store.set(id, { ...cur, sharing, updatedAt: Date.now() });
+    persist();
+  },
   /** Restoring an older version creates a new version on top (standard versioning behavior —
    * history is never rewritten). */
   restoreVersion(id: string) {

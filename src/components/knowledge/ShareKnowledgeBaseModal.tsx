@@ -20,7 +20,7 @@ const SHARING_OPTIONS: { value: SharingMode; label: string; helper?: string }[] 
  * Knowledge item's "Quyền" (S14), so both share the exact same sharing UI and copy instead of
  * drifting into two pickers. The caller owns persistence via onSave. */
 export default function ShareKnowledgeBaseModal({
-  open, onClose, name, ownerName, sharing: initialSharing, onSave,
+  open, onClose, name, ownerName, sharing: initialSharing, onSave, title = "Chia sẻ kho tri thức",
 }: {
   open: boolean;
   onClose: () => void;
@@ -28,6 +28,7 @@ export default function ShareKnowledgeBaseModal({
   ownerName: string;
   sharing: Sharing;
   onSave: (sharing: Sharing) => void;
+  title?: string;
 }) {
   const [mode, setMode] = useState<SharingMode>(initialSharing.mode);
   const [people, setPeople] = useState(initialSharing.people);
@@ -74,7 +75,7 @@ export default function ShareKnowledgeBaseModal({
       <Dialog open={open} onOpenChange={v => !v && onClose()}>
         <DialogContent className="sm:max-w-[520px]" onOpenAutoFocus={e => e.preventDefault()}>
           <DialogHeader>
-            <DialogTitle>Chia sẻ kho tri thức</DialogTitle>
+            <DialogTitle>{title}</DialogTitle>
             <DialogDescription>{name}</DialogDescription>
           </DialogHeader>
 
