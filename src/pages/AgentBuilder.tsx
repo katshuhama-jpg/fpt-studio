@@ -5771,10 +5771,75 @@ function StarterPromptModal({ initial, onClose, onSave, onDelete }: {
 
 const MAX_STARTER_PROMPTS = 3;
 
+function StarterPromptDetailModal({ prompt, onClose, onEdit }: {
+  prompt: StarterPrompt;
+  onClose: () => void;
+  onEdit: () => void;
+}) {
+  return createPortal(
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-md bg-white rounded-2xl shadow-lg border border-border flex flex-col max-h-[88vh] animate-fade-up">
+        <div className="flex items-start justify-between px-6 pt-6 pb-2 shrink-0">
+          <h2 className="text-lg font-semibold">Starter prompt detail</h2>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 mt-0.5">
+            <HugeiconsIcon icon={Cancel01Icon} size={16} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-4">
+          <div>
+            <p className="text-sm font-semibold mb-1">Title</p>
+            <p className="text-sm text-foreground">{prompt.title}</p>
+          </div>
+          <div>
+            <p className="text-sm font-semibold mb-1">Prompt</p>
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">{prompt.prompt}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 px-6 py-4">
+          <button onClick={onClose} className="btn-secondary">Close</button>
+          <button onClick={onEdit} className="btn-primary">Edit</button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function DeleteStarterPromptDialog({ title, open, onOpenChange, onConfirm }: {
+  title: string; open: boolean; onOpenChange: (open: boolean) => void; onConfirm: () => void;
+}) {
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete starter prompt?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This will permanently delete "{title}". This can't be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={onConfirm}
+          >
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 function StarterPromptsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => void) => void } = {}) {
   const [params] = useSearchParams();
   const [prompts, setPrompts] = useState<StarterPrompt[]>(() => generateStarterPrompts(params.get("agentPrompt") || ""));
   const [editTarget, setEditTarget] = useState<StarterPrompt | "new" | null>(null);
+  const [viewTarget, setViewTarget] = useState<StarterPrompt | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<StarterPrompt | null>(null);
   const atLimit = prompts.length >= MAX_STARTER_PROMPTS;
 
   useEffect(() => {
@@ -5793,17 +5858,17 @@ function StarterPromptsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => voi
         </div>
 
         {prompts.length > 0 && (
-          <div className="space-y-1 px-3.5 pt-1">
+          <div className={`space-y-1 px-3.5 pt-1 ${atLimit ? "pb-3.5" : ""}`}>
             {prompts.map(p => (
               <div
                 key={p.id}
-                onClick={() => setEditTarget(p)}
+                onClick={() => setViewTarget(p)}
                 className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface cursor-pointer hover:bg-surface-muted transition-base"
               >
                 <HugeiconsIcon icon={Chat01Icon} size={13} className="text-muted-foreground shrink-0" />
                 <span className="text-[13px] font-medium flex-1 truncate min-w-0">{p.title}</span>
                 <button
-                  onClick={e => { e.stopPropagation(); setPrompts(prev => prev.filter(x => x.id !== p.id)); }}
+                  onClick={e => { e.stopPropagation(); setDeleteTarget(p); }}
                   className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-surface-muted transition-base shrink-0"
                   title="Remove"
                 >
@@ -5814,16 +5879,16 @@ function StarterPromptsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => voi
           </div>
         )}
 
-        <div className="p-2.5">
-          <button
-            onClick={() => !atLimit && setEditTarget("new")}
-            disabled={atLimit}
-            title={atLimit ? `You can add up to ${MAX_STARTER_PROMPTS} starter prompts.` : undefined}
-            className="w-full h-9 rounded-lg border-2 border-dashed border-border flex items-center justify-center gap-1.5 text-sm font-medium text-primary hover:bg-surface-muted transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-          >
-            <HugeiconsIcon icon={Add01Icon} size={14} /> Add starter prompt
-          </button>
-        </div>
+        {!atLimit && (
+          <div className="p-2.5">
+            <button
+              onClick={() => setEditTarget("new")}
+              className="w-full h-9 rounded-lg border-2 border-dashed border-border flex items-center justify-center gap-1.5 text-sm font-medium text-primary hover:bg-surface-muted transition-base"
+            >
+              <HugeiconsIcon icon={Add01Icon} size={14} /> Add starter prompt
+            </button>
+          </div>
+        )}
       </div>
 
       {editTarget && (
@@ -5840,12 +5905,29 @@ function StarterPromptsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => voi
             closeModal();
           }}
           onDelete={editTarget !== "new" ? () => {
-            const id = editTarget.id;
-            setPrompts(prev => prev.filter(x => x.id !== id));
+            setDeleteTarget(editTarget);
             closeModal();
           } : undefined}
         />
       )}
+
+      {viewTarget && (
+        <StarterPromptDetailModal
+          prompt={viewTarget}
+          onClose={() => setViewTarget(null)}
+          onEdit={() => { setEditTarget(viewTarget); setViewTarget(null); }}
+        />
+      )}
+
+      <DeleteStarterPromptDialog
+        title={deleteTarget?.title ?? ""}
+        open={!!deleteTarget}
+        onOpenChange={v => { if (!v) setDeleteTarget(null); }}
+        onConfirm={() => {
+          if (deleteTarget) setPrompts(prev => prev.filter(x => x.id !== deleteTarget.id));
+          setDeleteTarget(null);
+        }}
+      />
     </>
   );
 }

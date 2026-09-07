@@ -121,16 +121,20 @@ function RecentAgentCard({ a }: { a: typeof recent[number] }) {
   }, [showMenu]);
 
   return (
-    <Link to={`/agents/${a.id}`} className="group relative rounded-xl border border-border bg-surface p-4 hover:border-primary/30 hover:shadow-soft transition-base flex flex-col">
-      <div className={`w-10 h-10 rounded-xl ${a.bg} flex items-center justify-center text-xl mb-3`}>{a.emoji}</div>
-      <div className="font-semibold text-sm mb-1">{a.name}</div>
-      <span className={`chip ${a.status === "Active" ? "chip-success" : ""} mb-2 w-fit`}>
-        <span className="w-1.5 h-1.5 rounded-full bg-current" /> {a.status}
-      </span>
-      <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 flex-1 mb-3">{a.desc}</p>
+    <Link to={`/agents/${a.id}`} className="group relative rounded-2xl border border-border bg-surface p-5 hover:border-primary/30 hover:shadow-soft transition-base flex flex-col">
+      <div className="flex items-start gap-3 mb-4">
+        <div className={`w-14 h-14 rounded-2xl ${a.bg} flex items-center justify-center text-3xl shrink-0`}>{a.emoji}</div>
+        <div className="flex-1 min-w-0 pt-0.5">
+          <p className="font-semibold text-base leading-snug truncate mb-1.5">{a.name}</p>
+          <span className={`chip ${a.status === "Active" ? "chip-success" : ""} w-fit`}>
+            <span className="w-1.5 h-1.5 rounded-full bg-current" /> {a.status === "Active" ? "Live" : a.status}
+          </span>
+        </div>
+      </div>
+      <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 flex-1 mb-4">{a.desc}</p>
       <div className="flex items-center justify-between">
-        <div className="text-xs text-muted-foreground">
-          Updated {a.edited}
+        <div className="text-sm text-muted-foreground">
+          {a.edited}
         </div>
         <div ref={menuRef} className="relative shrink-0">
           <button
@@ -318,26 +322,26 @@ export default function Home() {
         {/* ── Get started ───────────────────────────────────────── */}
         <section>
           <h2 className="font-display text-lg font-semibold mb-4">Get started</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {getStarted.map(g => (
               <a
                 key={g.title}
                 href={g.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group flex items-center gap-4 rounded-xl border border-border bg-surface p-4 hover:border-primary/30 hover:shadow-soft transition-base"
+                className="group rounded-xl border border-border bg-surface overflow-hidden hover:border-primary/30 hover:shadow-soft transition-base"
               >
-                <div className={`w-12 h-12 rounded-lg flex items-center justify-center shrink-0 ${g.bg}`}>
+                <div className={`h-28 flex items-center justify-center relative ${g.bg}`}>
                   {g.kind === "video"
-                    ? <Play size={16} className="text-white ml-0.5" fill="currentColor" />
-                    : <BookOpen size={16} className="text-white" />
+                    ? <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center shadow"><Play size={16} className="text-red-500 ml-0.5" fill="currentColor" /></div>
+                    : <BookOpen size={26} className="text-white/85" />
                   }
+                  <ExternalLink size={12} className="absolute top-2.5 right-2.5 text-white/70" />
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="p-3">
                   <p className="text-xs text-muted-foreground mb-0.5">{g.label}</p>
-                  <p className="text-sm font-semibold leading-snug">{g.title}</p>
+                  <p className="text-xs font-semibold leading-snug">{g.title}</p>
                 </div>
-                <ExternalLink size={14} className="text-muted-foreground shrink-0" />
               </a>
             ))}
           </div>
@@ -351,7 +355,7 @@ export default function Home() {
               All Agents <ArrowRight size={12} />
             </Link>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {recent.map(a => (
               <RecentAgentCard key={a.id} a={a} />
             ))}
