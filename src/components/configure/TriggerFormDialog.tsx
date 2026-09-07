@@ -1210,7 +1210,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
 
         </div>
 
-        <DialogFooter className="mt-0 px-6 pb-6 pt-4 border-t border-border shrink-0">
+        <DialogFooter className="mt-0 px-6 pb-6 pt-4 shrink-0">
           <button
             type="button"
             onClick={step === "main" ? requestClose : stepBack}

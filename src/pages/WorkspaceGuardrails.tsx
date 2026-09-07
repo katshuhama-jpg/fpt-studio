@@ -212,7 +212,7 @@ function CreateModal({ onClose, onCreate, initialData }: {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-border shrink-0 bg-white">
+        <div className="flex items-center justify-between px-6 py-4 shrink-0 bg-white">
           <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Cancel</button>
           <button onClick={submit} disabled={!topic.trim()} className="h-9 px-6 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium transition-base disabled:opacity-40 disabled:cursor-not-allowed">
             {isEdit ? "Save changes" : "Create guardrail"}

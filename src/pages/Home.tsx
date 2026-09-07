@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowRight, Sparkles, Paperclip, AtSign,
   ExternalLink, X, Search, Edit, Copy,
-  MoreVertical, Trash2
+  MoreVertical, Trash2, Play, BookOpen
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
@@ -43,6 +43,13 @@ const recent = [
   { id: "hr",    name: "HR Agent",          emoji: "🤝", bg: "bg-blue-50",   status: "Active",  desc: "Answers employee questions about policies, benefits, and leave on Slack &…", editor: "Nguyen Minh", edited: "12 minutes ago" },
   { id: "ba",    name: "BA Agent",          emoji: "📋", bg: "bg-purple-50", status: "Active",  desc: "Helps Business Analysts draft user stories, BRDs, and analyze requirements from…", editor: "Pham Thu Ha", edited: "5 minutes ago" },
   { id: "onboarding", name: "Onboarding Agent", emoji: "🎓", bg: "bg-green-50", status: "Draft", desc: "Guides new employees through a 30/60/90-day roadmap with documents…", editor: "Tran Van Khoa", edited: "45 minutes ago" },
+];
+
+const getStarted = [
+  { label: "Video guide", title: "Build your first Agent in 5 minutes",      kind: "video", bg: "bg-blue-500",   href: "https://www.youtube.com/results?search_query=fpt+ai+agent+studio+tutorial" },
+  { label: "Video guide", title: "Connect a Connector and go live",         kind: "video", bg: "bg-indigo-500", href: "https://www.youtube.com/results?search_query=fpt+ai+agent+studio+connectors" },
+  { label: "Web guide",   title: "Agent Studio documentation",              kind: "doc",   bg: "bg-amber-500",  href: "https://docs.fpt.ai" },
+  { label: "Web guide",   title: "Best practices for writing instructions", kind: "doc",   bg: "bg-emerald-500", href: "https://docs.fpt.ai/guides/instructions" },
 ];
 
 /* ─── Modals ─────────────────────────────────────────────────────────── */
@@ -230,6 +237,16 @@ export default function Home() {
   const [showCreate, setShowCreate]       = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
 
+  const useTemplate = (t: typeof templates[number]) => {
+    if (!canCreateAgent) return;
+    const params = new URLSearchParams();
+    params.set("tab", "build");
+    params.set("section", "instructions");
+    params.set("agentName", t.name);
+    params.set("agentPrompt", t.systemPrompt);
+    navigate(`/agents/new?${params.toString()}`);
+  };
+
   return (
     <div className="animate-fade-up">
       {showCreate    && <CreateAgentModal onClose={() => setShowCreate(false)} />}
@@ -296,7 +313,35 @@ export default function Home() {
         </div>
       </section>
 
-      <div className="px-6 pb-8">
+      <div className="px-6 pb-8 space-y-8">
+
+        {/* ── Get started ───────────────────────────────────────── */}
+        <section>
+          <h2 className="font-display text-lg font-semibold mb-4">Get started</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {getStarted.map(g => (
+              <a
+                key={g.title}
+                href={g.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex items-center gap-4 rounded-xl border border-border bg-surface p-4 hover:border-primary/30 hover:shadow-soft transition-base"
+              >
+                <div className={`w-12 h-12 rounded-lg flex items-center justify-center shrink-0 ${g.bg}`}>
+                  {g.kind === "video"
+                    ? <Play size={16} className="text-white ml-0.5" fill="currentColor" />
+                    : <BookOpen size={16} className="text-white" />
+                  }
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-muted-foreground mb-0.5">{g.label}</p>
+                  <p className="text-sm font-semibold leading-snug">{g.title}</p>
+                </div>
+                <ExternalLink size={14} className="text-muted-foreground shrink-0" />
+              </a>
+            ))}
+          </div>
+        </section>
 
         {/* ── Recent ────────────────────────────────────────────── */}
         <section>
@@ -309,6 +354,34 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {recent.map(a => (
               <RecentAgentCard key={a.id} a={a} />
+            ))}
+          </div>
+        </section>
+
+        {/* ── Templates ─────────────────────────────────────────── */}
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-display text-lg font-semibold">Templates</h2>
+            <button
+              onClick={() => canCreateAgent && setShowTemplates(true)}
+              disabled={!canCreateAgent}
+              className="text-xs text-primary flex items-center gap-1 hover:text-primary-glow transition-base disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Browse all <ArrowRight size={12} />
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {templates.slice(0, 4).map(t => (
+              <button
+                key={t.id}
+                onClick={() => useTemplate(t)}
+                disabled={!canCreateAgent}
+                className="text-left rounded-xl border border-border bg-surface p-4 hover:border-primary/30 hover:shadow-soft transition-base disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <div className={`w-10 h-10 rounded-xl ${t.bg} flex items-center justify-center text-xl mb-3`}>{t.emoji}</div>
+                <p className="text-sm font-semibold mb-1">{t.name}</p>
+                <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{t.desc}</p>
+              </button>
             ))}
           </div>
         </section>
