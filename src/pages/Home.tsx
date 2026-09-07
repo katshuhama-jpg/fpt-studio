@@ -178,6 +178,46 @@ function RecentAgentCard({ a }: { a: typeof recent[number] }) {
   );
 }
 
+/** Turns a template's markdown-ish systemPrompt into plain title+text sections (## headers ->
+ * subheading, "- " lines -> bullet list, everything else -> paragraph) instead of dumping the
+ * raw markdown into a boxed/mono block. */
+function renderPromptSections(text: string) {
+  const lines = text.split("\n");
+  const blocks: React.ReactNode[] = [];
+  let listBuffer: string[] = [];
+
+  const flushList = () => {
+    if (listBuffer.length === 0) return;
+    blocks.push(
+      <ul key={`list-${blocks.length}`} className="list-disc pl-5 space-y-1">
+        {listBuffer.map((item, i) => (
+          <li key={i} className="text-sm text-muted-foreground leading-relaxed">{item}</li>
+        ))}
+      </ul>
+    );
+    listBuffer = [];
+  };
+
+  lines.forEach((raw, i) => {
+    const line = raw.trim();
+    if (!line) { flushList(); return; }
+    if (line.startsWith("## ")) {
+      flushList();
+      blocks.push(<p key={`h-${i}`} className="text-sm font-semibold mt-1">{line.slice(3)}</p>);
+    } else if (line.startsWith("# ")) {
+      flushList();
+    } else if (line.startsWith("- ")) {
+      listBuffer.push(line.slice(2));
+    } else {
+      flushList();
+      blocks.push(<p key={`p-${i}`} className="text-sm text-muted-foreground leading-relaxed">{line}</p>);
+    }
+  });
+  flushList();
+
+  return blocks;
+}
+
 function TemplateDetailModal({ template, onClose, onUse }: {
   template: typeof templates[number];
   onClose: () => void;
@@ -206,8 +246,8 @@ function TemplateDetailModal({ template, onClose, onUse }: {
 
           <div>
             <p className="text-sm font-semibold mb-1.5">Instructions</p>
-            <div className="text-xs text-muted-foreground bg-surface-muted/60 rounded-lg border border-border p-3 max-h-40 overflow-y-auto whitespace-pre-wrap font-mono leading-relaxed">
-              {template.systemPrompt}
+            <div className="flex flex-col gap-2">
+              {renderPromptSections(template.systemPrompt)}
             </div>
           </div>
 
