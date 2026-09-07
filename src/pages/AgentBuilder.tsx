@@ -5789,11 +5789,38 @@ function StarterPromptDetailModal({ prompt, onClose, onEdit }: {
   );
 }
 
+function DeleteStarterPromptDialog({ title, open, onOpenChange, onConfirm }: {
+  title: string; open: boolean; onOpenChange: (open: boolean) => void; onConfirm: () => void;
+}) {
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete starter prompt?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This will permanently delete "{title}". This can't be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={onConfirm}
+          >
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 function StarterPromptsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => void) => void } = {}) {
   const [params] = useSearchParams();
   const [prompts, setPrompts] = useState<StarterPrompt[]>(() => generateStarterPrompts(params.get("agentPrompt") || ""));
   const [editTarget, setEditTarget] = useState<StarterPrompt | "new" | null>(null);
   const [viewTarget, setViewTarget] = useState<StarterPrompt | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<StarterPrompt | null>(null);
   const atLimit = prompts.length >= MAX_STARTER_PROMPTS;
 
   useEffect(() => {
@@ -5822,7 +5849,7 @@ function StarterPromptsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => voi
                 <HugeiconsIcon icon={Chat01Icon} size={13} className="text-muted-foreground shrink-0" />
                 <span className="text-[13px] font-medium flex-1 truncate min-w-0">{p.title}</span>
                 <button
-                  onClick={e => { e.stopPropagation(); setPrompts(prev => prev.filter(x => x.id !== p.id)); }}
+                  onClick={e => { e.stopPropagation(); setDeleteTarget(p); }}
                   className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-surface-muted transition-base shrink-0"
                   title="Remove"
                 >
@@ -5859,8 +5886,7 @@ function StarterPromptsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => voi
             closeModal();
           }}
           onDelete={editTarget !== "new" ? () => {
-            const id = editTarget.id;
-            setPrompts(prev => prev.filter(x => x.id !== id));
+            setDeleteTarget(editTarget);
             closeModal();
           } : undefined}
         />
@@ -5873,6 +5899,16 @@ function StarterPromptsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => voi
           onEdit={() => { setEditTarget(viewTarget); setViewTarget(null); }}
         />
       )}
+
+      <DeleteStarterPromptDialog
+        title={deleteTarget?.title ?? ""}
+        open={!!deleteTarget}
+        onOpenChange={v => { if (!v) setDeleteTarget(null); }}
+        onConfirm={() => {
+          if (deleteTarget) setPrompts(prev => prev.filter(x => x.id !== deleteTarget.id));
+          setDeleteTarget(null);
+        }}
+      />
     </>
   );
 }
