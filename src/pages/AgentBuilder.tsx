@@ -1109,13 +1109,17 @@ function MoreLink({ count, onClick }: { count: number; onClick: () => void }) {
 const KNOWLEDGE_SOURCE_ROW_MENU_WIDTH = 176; // w-44
 const KNOWLEDGE_SOURCE_ROW_MENU_HEIGHT_ESTIMATE = 90; // 2 items + container padding
 
-function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, openLabel = "Mở nguồn tri thức", removeLabel = "Gỡ nguồn tri thức", disabled = false, disabledReason = "Nguồn tri thức đang được xử lý.", href }: {
+function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, openLabel = "Mở nguồn tri thức", removeLabel = "Gỡ nguồn tri thức", disabled = false, disabledReason = "Nguồn tri thức đang được xử lý.", href, twoLine = false }: {
   icon: any; name: string; chip: React.ReactNode; onOpen: () => void; onRemove: () => void;
   openLabel?: string; removeLabel?: string; disabled?: boolean; disabledReason?: string;
   /** When set, opens in a new tab via a real anchor instead of calling onOpen in-place — used
    * for a linked Console knowledge group so it never navigates the Agent Builder away from
    * unsaved Instructions edits. */
   href?: string;
+  /** Stacks the badges under the title instead of packing them onto the same line — used only
+   * by the Instructions sidebar "Tri thức" widget, where up to two badges left too little room
+   * for the title. The full Knowledge tab's own list keeps the single-line layout. */
+  twoLine?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
@@ -1146,7 +1150,7 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, openLabel = "M
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
 
-  const rowClassName = `group flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+  const rowClassName = `group flex ${twoLine ? "items-start" : "items-center"} gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
     disabled ? "cursor-default" : "hover:bg-surface-muted cursor-pointer"
   }`;
 
@@ -1174,7 +1178,7 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, openLabel = "M
   );
 
   const actionsMenu = (
-    <div className="relative shrink-0" onClick={e => e.stopPropagation()}>
+    <div className={`relative shrink-0 ${twoLine ? "self-center" : ""}`} onClick={e => e.stopPropagation()}>
       <button
         ref={btnRef}
         type="button"
@@ -1188,7 +1192,16 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, openLabel = "M
     </div>
   );
 
-  const rowInner = (
+  const rowInner = twoLine ? (
+    <>
+      <HugeiconsIcon icon={icon} size={13} className="text-muted-foreground shrink-0 mt-0.5" />
+      <div className="min-w-0 flex-1">
+        <div className={`text-sm font-medium truncate ${disabled ? "text-muted-foreground" : ""}`} title={name}>{name}</div>
+        <div className="flex items-center gap-1 mt-1">{chip}</div>
+      </div>
+      {actionsMenu}
+    </>
+  ) : (
     <>
       <HugeiconsIcon icon={icon} size={13} className="text-muted-foreground shrink-0" />
       <span className={`text-sm font-medium flex-1 truncate ${disabled ? "text-muted-foreground" : ""}`} title={name}>{name}</span>
@@ -4625,8 +4638,8 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
         // says who it belongs to.
         chip: (
           <div className="flex items-center gap-1 shrink-0">
-            {itemStatus !== "done" && <KnowledgeStatusPill status={itemStatus} />}
-            <KnowledgeSharingChip sharing={item.sharing} />
+            {itemStatus !== "done" && <KnowledgeStatusPill status={itemStatus} compact />}
+            <KnowledgeSharingChip sharing={item.sharing} shortLabel />
           </div>
         ),
         disabled: stillProcessing,
@@ -4659,7 +4672,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
       ) : (
         <div className="flex flex-col gap-1.5">
           {shown.map(row => (
-            <KnowledgeSourceRow key={row.key} icon={row.icon} name={row.name} chip={row.chip} onOpen={row.open} onRemove={row.remove} disabled={row.disabled} disabledReason={row.disabledReason} href={row.href} />
+            <KnowledgeSourceRow key={row.key} icon={row.icon} name={row.name} chip={row.chip} onOpen={row.open} onRemove={row.remove} disabled={row.disabled} disabledReason={row.disabledReason} href={row.href} twoLine />
           ))}
           {rows.length > 4 && (
             <button onClick={() => setParams({ tab: "build", section: "knowledge" })} className="text-xs text-primary hover:underline text-left mt-0.5">
