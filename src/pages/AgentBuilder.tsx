@@ -5623,12 +5623,12 @@ function SubAgentsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => void) =>
         </div>
 
         {subAgents.length > 0 && (
-          <div className="flex flex-wrap gap-2 px-3.5 pt-3">
+          <div className="space-y-1.5 px-3.5 pt-3">
             {subAgents.map(a => {
               const paused = a.status === "paused";
               return (
-                <div key={a.id} className={`chip pr-1 gap-1 ${paused ? "opacity-60" : ""}`}>
-                  <button onClick={() => setEditTarget(a)} className="truncate max-w-[160px]">{a.name}</button>
+                <div key={a.id} className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface ${paused ? "opacity-60" : ""}`}>
+                  <button onClick={() => setEditTarget(a)} className="text-[13px] font-medium flex-1 truncate min-w-0 text-left">{a.name}</button>
                   <span
                     className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap"
                     style={paused ? { background: "#FFF7ED", color: "#9A3412", border: "0.5px solid #FED7AA" } : { background: "#ECFDF5", color: "#065F46", border: "0.5px solid #A7F3D0" }}
