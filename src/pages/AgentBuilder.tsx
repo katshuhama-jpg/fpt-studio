@@ -5464,8 +5464,8 @@ function CreateSubAgentModal({ onClose, onSave, initial, existingNames }: {
 }
 
 /** Delete confirmation for a sub-agent — mirrors DeleteExternalAgentDialog's AlertDialog
- * skeleton. Offers "Pause it instead" as a reversible alternative when pausing is available
- * and the sub-agent isn't already paused. */
+ * skeleton. Offers "Deactivate it instead" as a reversible alternative when deactivating is
+ * available and the sub-agent isn't already inactive. */
 function DeleteSubAgentDialog({ name, open, onOpenChange, onConfirm, onPauseInstead }: {
   name: string; open: boolean; onOpenChange: (open: boolean) => void; onConfirm: () => void;
   onPauseInstead?: () => void;
@@ -5481,7 +5481,7 @@ function DeleteSubAgentDialog({ name, open, onOpenChange, onConfirm, onPauseInst
         </AlertDialogHeader>
         {onPauseInstead && (
           <button type="button" onClick={onPauseInstead} className="-mt-2 text-left text-xs font-semibold text-primary hover:underline">
-            Pause it instead
+            Deactivate it instead
           </button>
         )}
         <AlertDialogFooter>
@@ -5499,7 +5499,7 @@ function DeleteSubAgentDialog({ name, open, onOpenChange, onConfirm, onPauseInst
 }
 
 const SUB_AGENT_ROW_MENU_WIDTH = 144; // w-36
-const SUB_AGENT_ROW_MENU_HEIGHT_ESTIMATE = 130; // Edit + Pause/Resume + divider + Delete
+const SUB_AGENT_ROW_MENU_HEIGHT_ESTIMATE = 130; // Edit + Activate/Deactivate + divider + Delete
 
 /** Kebab row-action menu for a sub-agent — same createPortal/flip-up/outside-click skeleton as
  * TriggerRowMenu above, with Viewer-role items disabled behind the same Tooltip explanation
@@ -5574,7 +5574,7 @@ function SubAgentRowMenu({ paused, canManage, canPause, canDelete, onEdit, onTog
           onMouseDown={e => e.stopPropagation()}
         >
           {item("Edit", onEdit, canManage, "You don't have permission to edit sub-agents.")}
-          {item(paused ? "Resume" : "Pause", onTogglePause, canPause, `You don't have permission to ${paused ? "resume" : "pause"} sub-agents.`)}
+          {item(paused ? "Activate" : "Deactivate", onTogglePause, canPause, `You don't have permission to ${paused ? "activate" : "deactivate"} sub-agents.`)}
           <div className="h-px bg-border my-1" />
           {item("Delete", onDelete, canDelete, "You don't have permission to delete sub-agents.", true)}
         </div>,
@@ -5603,7 +5603,12 @@ function SubAgentsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => void) =>
   // which sub-agent to delegate to at runtime. That routing lookup lives in the orchestration
   // layer, not this Configuration UI — flagging here since it's outside this task's scope.
   const togglePause = (id: number) => {
-    setSubAgents(prev => prev.map(x => x.id === id ? { ...x, status: x.status === "paused" ? "active" : "paused" } : x));
+    setSubAgents(prev => prev.map(x => {
+      if (x.id !== id) return x;
+      const next = x.status === "paused" ? "active" : "paused";
+      toast.success(next === "paused" ? "Sub-agent deactivated" : "Sub-agent activated");
+      return { ...x, status: next };
+    }));
   };
 
   const closeModal = () => { setShowCreate(false); setEditTarget(null); };
@@ -5624,6 +5629,12 @@ function SubAgentsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => void) =>
               return (
                 <div key={a.id} className={`chip pr-1 gap-1 ${paused ? "opacity-60" : ""}`}>
                   <button onClick={() => setEditTarget(a)} className="truncate max-w-[160px]">{a.name}</button>
+                  <span
+                    className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap"
+                    style={paused ? { background: "#FFF7ED", color: "#9A3412", border: "0.5px solid #FED7AA" } : { background: "#ECFDF5", color: "#065F46", border: "0.5px solid #A7F3D0" }}
+                  >
+                    {paused ? "Inactive" : "Active"}
+                  </span>
                   <SubAgentRowMenu
                     paused={paused}
                     canManage={canManage}
