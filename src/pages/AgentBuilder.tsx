@@ -3110,12 +3110,13 @@ function EmptyStateBox({ icon, description, addLabel, onAdd, disabled, disabledR
 function NewConfigPanel({ agentId, model, onModelChange, onConnectionsChange }: { agentId: string; model: string; onModelChange: (id: string) => void; onConnectionsChange?: () => void }) {
   const { can } = useMyPermissions();
   const canManageSubAgents = can("agents.manage");
-  const [open, setOpen] = useState<Record<string, boolean>>({ connectors: true, skills: true, knowledge: true, guardrails: true, triggers: true, "sub-agents": true });
+  const [open, setOpen] = useState<Record<string, boolean>>({ connectors: true, skills: true, knowledge: true, guardrails: true, triggers: true, "sub-agents": true, "starter-prompts": true });
   const [showAdvanced, setShowAdvanced] = useState(false);
   const guardrailsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
   const skillsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
   const knowledgeAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
   const subAgentsAddRef = useRef<(() => void) | null>(null);
+  const starterPromptsAddRef = useRef<(() => void) | null>(null);
   const connectorsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
   const triggersAddRef = useRef<(() => void) | null>(null);
 
@@ -3165,6 +3166,13 @@ function NewConfigPanel({ agentId, model, onModelChange, onConnectionsChange }: 
       disabled: !canManageSubAgents,
       content: (
         <SubAgentsInner onRegisterAdd={(fn) => { subAgentsAddRef.current = fn; }} />
+      ),
+    },
+    {
+      id: "starter-prompts", icon: Chat01Icon, label: "Starter Prompts",
+      onAdd: () => starterPromptsAddRef.current?.(),
+      content: (
+        <StarterPromptsInner onRegisterAdd={(fn) => { starterPromptsAddRef.current = fn; }} />
       ),
     },
   ];
@@ -5616,6 +5624,160 @@ function SubAgentsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => void) =>
           onPauseInstead={canPause && deleteTarget.status !== "paused" ? () => {
             togglePause(deleteTarget.id);
             setDeleteTarget(null);
+          } : undefined}
+        />
+      )}
+    </>
+  );
+}
+
+/* ============ Starter Prompts ============ */
+interface StarterPrompt {
+  id: number;
+  title: string;
+  prompt: string;
+}
+
+/** Lightweight mock generator: when an agent is created from the "describe your agent" prompt
+ * box (Home / My agents), seed a few plausible starter prompts from that same description so the
+ * Advanced settings panel isn't empty on first load. There's no real model call behind this in
+ * the mockup — it's just template text derived from the source prompt. */
+function generateStarterPrompts(sourcePrompt: string): StarterPrompt[] {
+  const trimmed = sourcePrompt.trim();
+  if (!trimmed) return [];
+  const brief = trimmed.length > 80 ? trimmed.slice(0, 77).trimEnd() + "…" : trimmed;
+  return [
+    { id: 1, title: "What can you help with?", prompt: `Hi! Can you introduce yourself and list what you can help me with?` },
+    { id: 2, title: "Walk me through an example", prompt: `Can you walk me through a typical example of how you'd help with: ${brief}?` },
+    { id: 3, title: "Get started", prompt: `I'd like to get started — based on what you do, what's the first thing you need from me?` },
+  ];
+}
+
+function StarterPromptModal({ initial, onClose, onSave, onDelete }: {
+  initial?: StarterPrompt;
+  onClose: () => void;
+  onSave: (data: { title: string; prompt: string }) => void;
+  onDelete?: () => void;
+}) {
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [prompt, setPrompt] = useState(initial?.prompt ?? "");
+  const canSave = title.trim().length > 0 && prompt.trim().length > 0;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-md bg-white rounded-2xl shadow-lg border border-border flex flex-col max-h-[88vh] animate-fade-up">
+        <div className="flex items-start justify-between px-6 pt-6 pb-2 shrink-0">
+          <div>
+            <h2 className="text-lg font-semibold">{initial ? "Edit Starter Prompt" : "Add Starter Prompt"}</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">Shown to help people start a conversation with this agent.</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 mt-0.5">
+            <HugeiconsIcon icon={Cancel01Icon} size={16} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-4">
+          <div>
+            <p className="text-sm font-semibold mb-1.5">Title</p>
+            <input
+              autoFocus
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="e.g. Check my order status"
+              className="ds-input w-full"
+            />
+          </div>
+          <div>
+            <p className="text-sm font-semibold mb-1.5">Prompt</p>
+            <textarea
+              value={prompt}
+              onChange={e => setPrompt(e.target.value)}
+              placeholder="The message that gets sent when someone taps this starter…"
+              rows={4}
+              className="ds-textarea w-full resize-none"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-border shrink-0">
+          {onDelete
+            ? <button onClick={onDelete} className="text-sm font-medium text-destructive hover:underline">Delete</button>
+            : <span />}
+          <div className="flex items-center gap-2">
+            <button onClick={onClose} className="btn-secondary">Cancel</button>
+            <button
+              disabled={!canSave}
+              onClick={() => onSave({ title: title.trim(), prompt: prompt.trim() })}
+              className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function StarterPromptsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => void) => void } = {}) {
+  const [params] = useSearchParams();
+  const [prompts, setPrompts] = useState<StarterPrompt[]>(() => generateStarterPrompts(params.get("agentPrompt") || ""));
+  const [editTarget, setEditTarget] = useState<StarterPrompt | "new" | null>(null);
+
+  useEffect(() => {
+    onRegisterAdd?.(() => setEditTarget("new"));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const closeModal = () => setEditTarget(null);
+
+  return (
+    <>
+      {prompts.length === 0 ? (
+        <EmptyStateBox
+          icon={Chat01Icon}
+          description="Suggested prompts to help people start a conversation with this agent."
+          addLabel="Add Starter Prompt"
+          onAdd={() => setEditTarget("new")}
+        />
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          {prompts.map(p => (
+            <button
+              key={p.id}
+              onClick={() => setEditTarget(p)}
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base text-left"
+            >
+              <div className="w-6 h-6 rounded-lg bg-surface-muted border border-border flex items-center justify-center shrink-0">
+                <HugeiconsIcon icon={Chat01Icon} size={12} className="text-muted-foreground" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium truncate">{p.title}</p>
+                <p className="text-[11px] text-muted-foreground truncate">{p.prompt}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {editTarget && (
+        <StarterPromptModal
+          initial={editTarget === "new" ? undefined : editTarget}
+          onClose={closeModal}
+          onSave={data => {
+            if (editTarget !== "new") {
+              const id = editTarget.id;
+              setPrompts(prev => prev.map(x => x.id === id ? { ...x, ...data } : x));
+            } else {
+              setPrompts(prev => [...prev, { ...data, id: Date.now() }]);
+            }
+            closeModal();
+          }}
+          onDelete={editTarget !== "new" ? () => {
+            const id = editTarget.id;
+            setPrompts(prev => prev.filter(x => x.id !== id));
+            closeModal();
           } : undefined}
         />
       )}
