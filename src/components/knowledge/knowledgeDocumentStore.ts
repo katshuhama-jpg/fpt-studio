@@ -22,8 +22,11 @@ export interface KnowledgeDocument {
   updatedBy: string;
 }
 
-const STORE_KEY = "knowledge_document_store_v4";
-const SEEDED_KEY = "knowledge_document_store_seeded_v4";
+// v5 — CSV is no longer a supported upload format, so the seeded "Câu hỏi khiếu nại thường
+// gặp" doc changed extension from .csv to .xlsx (a stale v4 session would still show a .csv
+// row, contradicting the new rule).
+const STORE_KEY = "knowledge_document_store_v5";
+const SEEDED_KEY = "knowledge_document_store_seeded_v5";
 const store = loadMap<string, KnowledgeDocument>(STORE_KEY);
 const persist = () => saveMap(STORE_KEY, store);
 
@@ -41,7 +44,7 @@ function seedKb(kbId: string) {
     put({ id: "doc-1-2", kbId, name: "Chính sách khiếu nại.docx", isFolder: false, folderId: null, status: "done", sizeBytes: 340_000, chunkCount: 18, version: 1, createdAt: now - 5 * DAY, updatedAt: now - 5 * DAY, updatedBy: "Tran Nam" });
     put({ id: "doc-1-3", kbId, name: "Quy trình mở thẻ tín dụng.pdf", isFolder: false, folderId: null, status: "processing", sizeBytes: 2_100_000, chunkCount: 0, version: 1, createdAt: now - 5 * 60_000, updatedAt: now - 5 * 60_000, updatedBy: "Tran Nam" });
     put({ id: "doc-1-4", kbId, name: "Sổ tay sản phẩm vay.pptx", isFolder: false, folderId: null, status: "failed", statusReason: "Không đọc được nội dung tệp. Thử tải lại hoặc dùng bản PDF.", sizeBytes: 8_400_000, chunkCount: 0, version: 1, createdAt: now - DAY, updatedAt: now - DAY, updatedBy: "Tran Nam" });
-    put({ id: "doc-1-5", kbId, name: "Câu hỏi khiếu nại thường gặp.csv", isFolder: false, folderId: null, status: "pending", sizeBytes: 90_000, chunkCount: 0, version: 1, createdAt: now - 60_000, updatedAt: now - 60_000, updatedBy: "Tran Nam" });
+    put({ id: "doc-1-5", kbId, name: "Câu hỏi khiếu nại thường gặp.xlsx", isFolder: false, folderId: null, status: "pending", sizeBytes: 90_000, chunkCount: 0, version: 1, createdAt: now - 60_000, updatedAt: now - 60_000, updatedBy: "Tran Nam" });
   }
 
   if (kbId === "kb-2") {

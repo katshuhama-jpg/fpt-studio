@@ -32,7 +32,7 @@ const STATUS_OPTIONS: { value: KnowledgeProcessingStatus | "all"; label: string 
   { value: "cancelled", label: "Đã hủy" },
 ];
 
-const SUPPORTED_FORMATS_LINE = "Hỗ trợ TXT, MD, PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, CSV · Tối đa 10 tệp mỗi lần · 30MB mỗi tệp";
+const SUPPORTED_FORMATS_LINE = "Hỗ trợ TXT, MD, PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX · Tối đa 10 tệp mỗi lần · 30MB mỗi tệp";
 
 export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string; viewOnly: boolean }) {
   const [params, setParams] = useSearchParams();

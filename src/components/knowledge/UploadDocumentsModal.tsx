@@ -10,7 +10,7 @@ import MemberPicker from "./MemberPicker";
 import FileTypeIcon from "./FileTypeIcon";
 import { formatFileSize } from "./formatFileSize";
 
-const ALLOWED_EXT = ["txt", "md", "pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "csv"];
+const ALLOWED_EXT = ["txt", "md", "pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx"];
 const ACCEPT_ATTR = ALLOWED_EXT.map(ext => `.${ext}`).join(",");
 const MAX_FILES = 10;
 const MAX_SIZE = 30 * 1024 * 1024;
