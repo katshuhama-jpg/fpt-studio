@@ -58,6 +58,7 @@ import VersionHistoryPanel from "@/components/knowledge/VersionHistoryPanel";
 import FileTypeIcon from "@/components/knowledge/FileTypeIcon";
 import { formatFileSize } from "@/components/knowledge/formatFileSize";
 import KnowledgeSharingChip from "@/components/knowledge/KnowledgeSharingChip";
+import { CategoryChips } from "@/components/knowledge/FaqCellDisplays";
 
 type Tab = "build" | "test" | "channels" | "insights";
 
@@ -1416,11 +1417,11 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
           </div>
         ) : (
           <div className="rounded-lg overflow-hidden border border-border overflow-x-auto scroll-shadow-x">
-            <div className="grid grid-cols-[24px,1fr,80px,110px,70px,132px,120px,70px] gap-3 px-4 py-2.5 bg-surface-muted kb-table-header min-w-[830px]">
-              <div></div><div>Nguồn</div><div>Loại</div><div>Kích thước</div><div>Phiên bản</div><div>Trạng thái</div><div>Quyền</div><div></div>
+            <div className="grid grid-cols-[24px,1fr,80px,110px,70px,132px,140px,120px,70px] gap-3 px-4 py-2.5 bg-surface-muted kb-table-header min-w-[980px]">
+              <div></div><div>Nguồn</div><div>Loại</div><div>Kích thước</div><div>Phiên bản</div><div>Trạng thái</div><div>Danh mục</div><div>Quyền</div><div></div>
             </div>
             {filteredItems.map(item => (
-              <div key={item.id} className="grid grid-cols-[24px,1fr,80px,110px,70px,132px,120px,70px] gap-3 px-4 h-14 border-t border-border items-center hover:bg-surface-muted/50 transition-base group min-w-[830px]">
+              <div key={item.id} className="grid grid-cols-[24px,1fr,80px,110px,70px,132px,140px,120px,70px] gap-3 px-4 h-14 border-t border-border items-center hover:bg-surface-muted/50 transition-base group min-w-[980px]">
                 <input type="checkbox" checked={selected.has(item.id)} onChange={() => toggleRow(item.id)} className="w-4 h-4 accent-primary" aria-label={`Chọn ${item.name}`} />
                 <button onClick={() => openItemOrEditFaq(item)} className="flex items-center gap-2 min-w-0 text-sm font-medium truncate text-left hover:underline">
                   <FileTypeIcon kind={item.kind === "url" ? "url" : item.kind === "faq" ? "faq" : undefined} name={item.kind === "doc" ? item.name : undefined} />
@@ -1454,6 +1455,11 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
                       <TooltipContent className="max-w-[260px]">{item.statusReason}</TooltipContent>
                     </Tooltip>
                   )}
+                </div>
+                <div className="min-w-0">
+                  {item.kind === "faq"
+                    ? <CategoryChips categories={item.categories ?? []} />
+                    : <span className="text-xs text-muted-foreground">—</span>}
                 </div>
                 <button onClick={() => setShareTargets([item])} className="text-left">
                   <KnowledgeSharingChip sharing={item.sharing} />

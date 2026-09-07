@@ -6,7 +6,7 @@ import { loadMap, saveMap, loadSet, saveSet } from "@/lib/sessionPersist";
 import { knowledgeBaseStore, CURRENT_USER, type Sharing, type KnowledgeBaseType } from "./knowledgeBaseStore";
 import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
 import { knowledgeUrlStore } from "./knowledgeUrlStore";
-import { knowledgeFaqStore } from "./knowledgeFaqStore";
+import { knowledgeFaqStore, type CategoryOption } from "./knowledgeFaqStore";
 import { knowledgeChunkStore, markChunksSeeded } from "./knowledgeChunkStore";
 import type { KnowledgeFaqStatus } from "./knowledgeStatus";
 
@@ -32,6 +32,9 @@ export interface KnowledgeItem {
    * distinct from "linking" a Console KB to an Agent (that's attachConsoleKb below). Absent
    * means private ("Chỉ mình tôi"). */
   sharing?: Sharing;
+  /** kind:"faq" items only — same free-text category tags as a Console KB's FAQ, shown in the
+   * Knowledge tab's Danh mục column. doc/url items never set this. */
+  categories?: string[];
   createdAt?: number;
   updatedAt: number;
   updatedBy: string;
@@ -166,11 +169,37 @@ export const knowledgeStore = {
   /** Edits an item's name/description in place — for a FAQ item this is question/answer.
    * Deliberately does not touch status: editing content isn't a reprocess, so Trạng thái stays
    * whatever it already was. */
-  update(agentId: string, id: string, patch: { name: string; description: string }) {
+  update(agentId: string, id: string, patch: { name: string; description: string; categories?: string[] }) {
     const cur = store.get(k(agentId, id));
     if (!cur) return;
-    store.set(k(agentId, id), { ...cur, name: patch.name, description: patch.description, updatedAt: Date.now(), updatedBy: CURRENT_USER.name });
+    store.set(k(agentId, id), { ...cur, name: patch.name, description: patch.description, categories: patch.categories, updatedAt: Date.now(), updatedBy: CURRENT_USER.name });
     persist();
+  },
+  /** Category typeahead options for this Agent's "Tạo/Sửa FAQ" dialog — aggregates the Agent's
+   * own FAQ items with every category already used across its linked Console KBs, since those
+   * are the same pool a user browsing this Agent's tri thức would recognize. */
+  listFaqCategoriesWithCounts(agentId: string): CategoryOption[] {
+    const counts = new Map<string, number>();
+    const bump = (name: string, by: number) => counts.set(name, (counts.get(name) ?? 0) + by);
+    for (const item of this.list(agentId)) {
+      if (item.kind !== "faq") continue;
+      for (const c of item.categories ?? []) bump(c, 1);
+    }
+    for (const kbId of this.listAttachedConsoleKbIds(agentId)) {
+      for (const opt of knowledgeFaqStore.listCategoriesWithCounts(kbId)) bump(opt.name, opt.count);
+    }
+    return [...counts.entries()]
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  },
+  /** Exact-match (case-insensitive, trimmed) duplicate check for a FAQ's Câu hỏi, across this
+   * Agent's own FAQ items and every FAQ inside a Console KB currently linked to it. */
+  findFaqDuplicate(agentId: string, question: string, excludeId?: string): boolean {
+    const norm = question.trim().toLowerCase();
+    if (!norm) return false;
+    const ownMatch = this.list(agentId).some(i => i.kind === "faq" && i.id !== excludeId && i.name.trim().toLowerCase() === norm);
+    if (ownMatch) return true;
+    return this.listAttachedConsoleKbIds(agentId).some(kbId => knowledgeFaqStore.isDuplicateQuestion(kbId, question));
   },
   reprocess(agentId: string, id: string) {
     const cur = store.get(k(agentId, id));

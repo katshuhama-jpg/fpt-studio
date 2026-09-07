@@ -29,10 +29,11 @@ export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, editi
   const isEdit = !!editingFaq || !!editingItem;
   const initialQuestion = editingFaq?.question ?? editingItem?.name ?? "";
   const initialAnswer = editingFaq?.answer ?? editingItem?.description ?? "";
+  const initialCategories = editingFaq?.categories ?? editingItem?.categories ?? [];
   const statusSource = editingFaq ?? editingItem;
   const [question, setQuestion] = useState(initialQuestion);
   const [answer, setAnswer] = useState(initialAnswer);
-  const [categories, setCategories] = useState<string[]>(editingFaq?.categories ?? []);
+  const [categories, setCategories] = useState<string[]>(initialCategories);
   const [questionTouched, setQuestionTouched] = useState(false);
   const [answerTouched, setAnswerTouched] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
@@ -40,7 +41,14 @@ export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, editi
   const [maxCategoriesMsg, setMaxCategoriesMsg] = useState(false);
   const [peekFaq, setPeekFaq] = useState<KnowledgeFaq | null>(null);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Agent-level duplicate check is a plain exact-match lookup (no fuzzy scoring needed), so it
+  // runs synchronously on every render instead of the debounced effect the Console path uses.
+  const agentDuplicate = agentId && question.trim().length > 0
+    ? knowledgeStore.findFaqDuplicate(agentId, question, editingItem?.id)
+    : false;
 
   useEffect(() => {
     if (agentId || !kbId) return;
@@ -65,8 +73,8 @@ export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, editi
 
   const isDirty = question.trim() !== initialQuestion.trim()
     || answer.trim() !== initialAnswer.trim()
-    || categories.length !== (editingFaq?.categories ?? []).length
-    || categories.some(c => !(editingFaq?.categories ?? []).includes(c));
+    || categories.length !== initialCategories.length
+    || categories.some(c => !initialCategories.includes(c));
 
   const requestClose = () => { if (isDirty) setShowDiscardConfirm(true); else onClose(); };
 
@@ -78,14 +86,17 @@ export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, editi
   const submit = () => {
     setSubmitAttempted(true);
     if (!canSubmit) return;
+    // Agent-level duplicates block the save behind an explicit confirm — unlike the Console
+    // path below, which only ever shows a non-blocking inline warning.
+    if (agentId && agentDuplicate && !showDuplicateConfirm) { setShowDuplicateConfirm(true); return; }
 
     if (agentId) {
       if (editingItem) {
         // Editing content isn't a reprocess — Trạng thái stays exactly as it was.
-        knowledgeStore.update(agentId, editingItem.id, { name: question.trim(), description: answer.trim() });
+        knowledgeStore.update(agentId, editingItem.id, { name: question.trim(), description: answer.trim(), categories });
         toast.success("Đã lưu câu hỏi.");
       } else if (!isEdit) {
-        const item = knowledgeStore.add(agentId, { name: question.trim(), kind: "faq", description: answer.trim() });
+        const item = knowledgeStore.add(agentId, { name: question.trim(), kind: "faq", description: answer.trim(), categories });
         toast.success("Đã lưu câu hỏi.");
         runLifecycle((status, chunkCount) => knowledgeStore.updateStatus(agentId, item.id, status, chunkCount !== undefined ? { chunkCount } : undefined));
       }
@@ -105,7 +116,7 @@ export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, editi
     onClose();
   };
 
-  const categoryOptions = kbId ? knowledgeFaqStore.listCategoriesWithCounts(kbId) : [];
+  const categoryOptions = kbId ? knowledgeFaqStore.listCategoriesWithCounts(kbId) : agentId ? knowledgeStore.listFaqCategoriesWithCounts(agentId) : [];
 
   return (
     <>
@@ -166,6 +177,13 @@ export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, editi
                   </div>
                 </div>
               )}
+              {agentId && agentDuplicate && (
+                <div className="mt-1.5 rounded-lg bg-[hsl(var(--warning-soft))] px-3 py-2">
+                  <p className="text-xs text-warning leading-relaxed">
+                    Câu hỏi này đã tồn tại trong tri thức của Agent.
+                  </p>
+                </div>
+              )}
             </div>
             <div>
               <div className="flex items-center justify-between mb-1.5">
@@ -183,20 +201,18 @@ export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, editi
               />
               {answerError && <p className="text-xs text-destructive mt-1">{answerError}</p>}
             </div>
-            {!agentId && (
-              <div>
-                <label className="text-sm font-medium mb-1.5 block">Danh mục</label>
-                <CategoryChipsInput
-                  value={categories}
-                  onChange={next => { setCategories(next); setMaxCategoriesMsg(false); }}
-                  options={categoryOptions}
-                  maxCount={MAX_CATEGORIES}
-                  onMaxAttempt={() => setMaxCategoriesMsg(true)}
-                />
-                {maxCategoriesMsg && <p className="text-xs text-warning mt-1">Chỉ gắn được tối đa {MAX_CATEGORIES} danh mục cho một câu hỏi.</p>}
-                {categoryError && <p className="text-xs text-destructive mt-1">{categoryError}</p>}
-              </div>
-            )}
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">Danh mục</label>
+              <CategoryChipsInput
+                value={categories}
+                onChange={next => { setCategories(next); setMaxCategoriesMsg(false); }}
+                options={categoryOptions}
+                maxCount={MAX_CATEGORIES}
+                onMaxAttempt={() => setMaxCategoriesMsg(true)}
+              />
+              {maxCategoriesMsg && <p className="text-xs text-warning mt-1">Chỉ gắn được tối đa {MAX_CATEGORIES} danh mục cho một câu hỏi.</p>}
+              {categoryError && <p className="text-xs text-destructive mt-1">{categoryError}</p>}
+            </div>
           </div>
           <DialogFooter>
             <button onClick={requestClose} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Hủy bỏ</button>
@@ -216,6 +232,21 @@ export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, editi
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Tiếp tục chỉnh sửa</AlertDialogCancel>
             <AlertDialogAction onClick={() => { setShowDiscardConfirm(false); onClose(); }} className="bg-surface text-foreground border border-border hover:bg-surface-muted">Bỏ thay đổi</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showDuplicateConfirm} onOpenChange={setShowDuplicateConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Câu hỏi này đã tồn tại</AlertDialogTitle>
+            <AlertDialogDescription>
+              Một câu hỏi khác trong tri thức của Agent đã có nội dung giống hệt. Bạn vẫn muốn {isEdit ? "lưu thay đổi" : "tạo thêm"}?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy bỏ</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setShowDuplicateConfirm(false); submit(); }}>{isEdit ? "Vẫn lưu" : "Tạo thêm"}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
