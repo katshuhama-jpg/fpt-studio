@@ -1,8 +1,14 @@
-import { BaseEdge, EdgeLabelRenderer, getBezierPath, type EdgeProps } from "reactflow";
+import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath, type EdgeProps } from "reactflow";
 import { X } from "lucide-react";
 import { useWorkforceNodeActions } from "../nodes/nodeActionsContext";
 
+const CORNER_RADIUS = 6;
+
 /** Both halves of a route (source→Condition, Condition→destination) use this edge type.
+ * Routing is strict orthogonal (step) with small rounded corners — never a bezier/S-curve —
+ * matching the reference canvas: a straight horizontal line when both ends share a row, or a
+ * horizontal→vertical→horizontal path when they don't. Small dots mark the exact points where
+ * the line meets each node's edge, and an arrowhead marks the entry into the destination.
  * Selecting either half surfaces a small "Xóa kết nối" button at its midpoint — deleting
  * either half removes the whole route (both edge halves plus the Condition node between
  * them), per the delete rules for connections. */
@@ -10,7 +16,10 @@ export default function DeletableEdge({
   id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, style, markerEnd, selected,
 }: EdgeProps) {
   const { onDeleteEdge } = useWorkforceNodeActions();
-  const [edgePath, labelX, labelY] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
+  const [edgePath, labelX, labelY] = getSmoothStepPath({
+    sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, borderRadius: CORNER_RADIUS,
+  });
+  const strokeColor = selected ? "hsl(var(--primary))" : "hsl(var(--border-strong))";
 
   return (
     <>
@@ -18,8 +27,10 @@ export default function DeletableEdge({
         id={id}
         path={edgePath}
         markerEnd={markerEnd}
-        style={{ ...style, strokeWidth: selected ? 2.5 : 2, stroke: selected ? "hsl(var(--primary))" : "hsl(var(--border-strong))" }}
+        style={{ ...style, strokeWidth: selected ? 2.5 : 2, stroke: strokeColor }}
       />
+      <circle cx={sourceX} cy={sourceY} r={3.5} fill={strokeColor} />
+      <circle cx={targetX} cy={targetY} r={3.5} fill={strokeColor} />
       {selected && (
         <EdgeLabelRenderer>
           <button

@@ -1,4 +1,4 @@
-import type { XYPosition } from "reactflow";
+import { MarkerType, type XYPosition } from "reactflow";
 import type { WorkforceNode, WorkforceEdge } from "./types";
 
 let counter = 0;
@@ -6,6 +6,10 @@ export function uid(prefix: string): string {
   counter += 1;
   return `${prefix}-${Date.now()}-${counter}`;
 }
+
+/** Small arrowhead marking the entry point into the destination — shared by every edge the
+ * canvas creates (both the seed data and routes drawn at runtime). */
+export const ROUTE_ARROW = { type: MarkerType.ArrowClosed, width: 16, height: 16, color: "hsl(var(--border-strong))" };
 
 export function createAgentNode(agentId: string, position: XYPosition, keepContext = true): WorkforceNode {
   return { id: uid("agent"), type: "agent", position, data: { kind: "agent", agentId, keepContext } };
@@ -34,8 +38,8 @@ export function createRoute(sourceId: string, destPosition: XYPosition, sourcePo
   const mid: XYPosition = { x: (sourcePosition.x + destPosition.x) / 2, y: (sourcePosition.y + destPosition.y) / 2 };
   const condition = createConditionNode(mid);
   const edges: WorkforceEdge[] = [
-    { id: uid("edge"), source: sourceId, target: condition.id, type: "deletable" },
-    { id: uid("edge"), source: condition.id, target: destId, type: "deletable" },
+    { id: uid("edge"), source: sourceId, target: condition.id, type: "deletable", markerEnd: ROUTE_ARROW },
+    { id: uid("edge"), source: condition.id, target: destId, type: "deletable", markerEnd: ROUTE_ARROW },
   ];
   return { condition, edges };
 }

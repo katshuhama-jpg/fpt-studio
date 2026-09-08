@@ -1,9 +1,10 @@
 import type { Workforce, WorkforceNode, WorkforceEdge } from "./types";
+import { ROUTE_ARROW } from "./graphOps";
 
 const HOUR = 3_600_000;
 
 function edge(id: string, source: string, target: string): WorkforceEdge {
-  return { id, source, target, type: "deletable" };
+  return { id, source, target, type: "deletable", markerEnd: ROUTE_ARROW };
 }
 
 function seedWorkforces(): Workforce[] {
