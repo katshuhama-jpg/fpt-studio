@@ -17,10 +17,21 @@ import PersonPickerPopover from "./PersonPickerPopover";
 import DestinationTypePopup from "./DestinationTypePopup";
 import { WorkforceNodeActionsContext, type WorkforceNodeActions } from "./nodes/nodeActionsContext";
 import { createAgentNode, createOmniNode, createPersonNode, createNoteNode, createRoute } from "./graphOps";
-import type { WorkforceNode, WorkforceEdge } from "./types";
+import type { WorkforceNode, WorkforceEdge, WorkforceNodeData } from "./types";
 
 const nodeTypes = { agent: AgentNode, omni: OmniNode, person: PersonNode, condition: ConditionNode, note: NoteNode };
 const edgeTypes = { deletable: DeletableEdge };
+
+// Reactflow's MiniMap defaults every node to the same flat gray block, which — stacked the way
+// this canvas's nodes are — reads as a stuck loading skeleton rather than an actual map. Color
+// each block to match its node type's own accent so it's unmistakably a real minimap.
+const MINIMAP_NODE_COLOR: Record<WorkforceNodeData["kind"], string> = {
+  agent: "hsl(var(--primary))",
+  omni: "hsl(var(--accent))",
+  person: "hsl(var(--primary))",
+  condition: "hsl(var(--primary) / 0.5)",
+  note: "hsl(var(--warning))",
+};
 
 interface CanvasProps {
   nodes: WorkforceNode[];
@@ -215,7 +226,15 @@ export default function Canvas({
         >
           <Background variant={BackgroundVariant.Dots} gap={18} size={1} className="!bg-gradient-soft" />
           <Controls className="!shadow-soft !border !border-border !rounded-lg overflow-hidden" position="bottom-right" />
-          <MiniMap pannable zoomable position="top-right" className="!border !border-border !rounded-lg" />
+          <MiniMap
+            pannable
+            zoomable
+            position="top-right"
+            className="!border !border-border !rounded-lg"
+            maskColor="hsl(var(--foreground) / 0.06)"
+            nodeColor={n => MINIMAP_NODE_COLOR[(n.data as WorkforceNode["data"] | undefined)?.kind ?? "note"]}
+            nodeStrokeWidth={0}
+          />
         </ReactFlow>
       </WorkforceNodeActionsContext.Provider>
 

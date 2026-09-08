@@ -9,6 +9,7 @@ import { collectMembers } from "@/pages/organization/orgData";
 import { useOrg } from "@/pages/organization/orgStore";
 import Canvas from "@/components/workforce/Canvas";
 import PersonPickerPopover from "@/components/workforce/PersonPickerPopover";
+import PersonConfigDrawer from "@/components/workforce/PersonConfigDrawer";
 import OmniConfigDrawer from "@/components/workforce/OmniConfigDrawer";
 import AgentConfigDrawer from "@/components/workforce/AgentConfigDrawer";
 import ConditionDrawer from "@/components/workforce/ConditionDrawer";
@@ -43,7 +44,10 @@ export default function WorkforceCanvasPage() {
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(wfRecord?.updatedAt ?? null);
 
   const [configuringId, setConfiguringId] = useState<string | null>(null);
-  const [personEditTarget, setPersonEditTarget] = useState<string | null>(null);
+  // Set only from inside the Person node's own drawer ("Đổi người nhận") — clicking the node
+  // itself opens that drawer via `configuringId` like every other node type, never this picker
+  // directly.
+  const [personPickerNodeId, setPersonPickerNodeId] = useState<string | null>(null);
   const [deleteNodeId, setDeleteNodeId] = useState<string | null>(null);
 
   // Undo/redo history — snapshots are pushed right before a mutating action (add/delete a
@@ -130,8 +134,8 @@ export default function WorkforceCanvasPage() {
       const tag = (e.target as HTMLElement)?.tagName;
       const isTyping = tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable;
       if (e.key === "Escape") {
-        if (configuringId) setConfiguringId(null);
-        else if (personEditTarget) setPersonEditTarget(null);
+        if (personPickerNodeId) setPersonPickerNodeId(null);
+        else if (configuringId) setConfiguringId(null);
         return;
       }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
@@ -155,12 +159,11 @@ export default function WorkforceCanvasPage() {
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodes, edges, configuringId, personEditTarget, name]);
+  }, [nodes, edges, configuringId, personPickerNodeId, name]);
 
   const onConfigureNode = (nodeId: string) => {
     const node = nodes.find(n => n.id === nodeId);
     if (!node) return;
-    if (node.data.kind === "person") { snapshot(); setPersonEditTarget(nodeId); return; }
     if (node.data.kind === "note") return;
     snapshot();
     setConfiguringId(nodeId);
@@ -283,17 +286,32 @@ export default function WorkforceCanvasPage() {
         </div>
       </div>
 
-      {personEditTarget && (
+      {personPickerNodeId && (
         <PersonPickerPopover
           open
-          onClose={() => setPersonEditTarget(null)}
+          onClose={() => setPersonPickerNodeId(null)}
           onSelect={memberId => {
-            setNodes(ns => ns.map(n => (n.id === personEditTarget ? { ...n, data: { ...n.data, memberId } } : n)));
-            setPersonEditTarget(null);
+            setNodes(ns => ns.map(n => (n.id === personPickerNodeId ? { ...n, data: { ...n.data, memberId } } : n)));
+            setPersonPickerNodeId(null);
             toast.success("Đã thêm người nhận vào Workforce");
           }}
         />
       )}
+
+      {configuringNode?.data.kind === "person" && (() => {
+        const member = members.find(m => m.id === configuringNode.data.memberId);
+        return (
+          <PersonConfigDrawer
+            key={configuringNode.id}
+            name={member?.name ?? "Chưa chọn người nhận"}
+            email={member?.email ?? "—"}
+            initials={member?.initials ?? "?"}
+            onChangePerson={() => setPersonPickerNodeId(configuringNode.id)}
+            onClose={() => setConfiguringId(null)}
+            onDelete={() => setDeleteNodeId(configuringNode.id)}
+          />
+        );
+      })()}
 
       {configuringNode?.data.kind === "omni" && (
         <OmniConfigDrawer
