@@ -99,3 +99,56 @@ export function removeRouteByEdgeId(edgeId: string, nodes: WorkforceNode[], edge
     edges: edges.filter(e => !routeEdgeIds.has(e.id)),
   };
 }
+
+const ARRANGE_LAYER_X = 320;
+const ARRANGE_ROW_Y = 160;
+const ARRANGE_ORIGIN: XYPosition = { x: 60, y: 60 };
+
+/** "Tidy layout" — a lightweight left-to-right layered arrangement (longest-path layering,
+ * one column per hop from a source node) rather than a full force-directed layout, which is
+ * plenty for the shallow source→Condition→destination graphs this canvas produces. Notes have
+ * no connections, so they're pulled out and laid out in their own row underneath. */
+export function autoArrange(nodes: WorkforceNode[], edges: WorkforceEdge[]): WorkforceNode[] {
+  const incoming = new Map<string, string[]>();
+  for (const n of nodes) incoming.set(n.id, []);
+  for (const e of edges) incoming.get(e.target)?.push(e.source);
+
+  const connectedIds = new Set(nodes.filter(n => edges.some(e => e.source === n.id || e.target === n.id)).map(n => n.id));
+  const connected = nodes.filter(n => connectedIds.has(n.id));
+  const isolated = nodes.filter(n => !connectedIds.has(n.id));
+
+  const layer = new Map<string, number>();
+  for (const n of connected) layer.set(n.id, 0);
+  for (let pass = 0; pass < connected.length + 1; pass++) {
+    let changed = false;
+    for (const n of connected) {
+      const preds = (incoming.get(n.id) ?? []).filter(id => connectedIds.has(id));
+      if (preds.length === 0) continue;
+      const desired = Math.max(...preds.map(p => layer.get(p) ?? 0)) + 1;
+      if (desired !== layer.get(n.id)) { layer.set(n.id, desired); changed = true; }
+    }
+    if (!changed) break;
+  }
+
+  const byLayer = new Map<number, WorkforceNode[]>();
+  for (const n of connected) {
+    const l = layer.get(n.id) ?? 0;
+    if (!byLayer.has(l)) byLayer.set(l, []);
+    byLayer.get(l)!.push(n);
+  }
+
+  const positioned = new Map<string, XYPosition>();
+  for (const [l, rowNodes] of byLayer) {
+    const sorted = rowNodes.slice().sort((a, b) => a.position.y - b.position.y);
+    sorted.forEach((n, i) => {
+      positioned.set(n.id, { x: ARRANGE_ORIGIN.x + l * ARRANGE_LAYER_X, y: ARRANGE_ORIGIN.y + i * ARRANGE_ROW_Y });
+    });
+  }
+
+  const maxRows = byLayer.size > 0 ? Math.max(...[...byLayer.values()].map(r => r.length)) : 0;
+  isolated.forEach((n, i) => {
+    positioned.set(n.id, { x: ARRANGE_ORIGIN.x + i * 260, y: ARRANGE_ORIGIN.y + (maxRows + 1) * ARRANGE_ROW_Y });
+  });
+
+  return nodes.map(n => ({ ...n, position: positioned.get(n.id) ?? n.position }));
+}

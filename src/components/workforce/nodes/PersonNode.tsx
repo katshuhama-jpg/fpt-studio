@@ -1,11 +1,13 @@
 import { Handle, Position, type NodeProps } from "reactflow";
 import { useMemo } from "react";
+import { User } from "lucide-react";
 import { collectMembers } from "@/pages/organization/orgData";
 import { useOrg } from "@/pages/organization/orgStore";
 import type { PersonNodeData } from "../types";
 import { useWorkforceNodeActions } from "./nodeActionsContext";
 import { HANDLE_CLASS } from "./handleStyle";
 import NodeToolbarMenu from "./NodeToolbarMenu";
+import NodeTypeTab from "./NodeTypeTab";
 
 export default function PersonNode({ id, data, selected }: NodeProps<PersonNodeData>) {
   const { onConfigure, onDelete } = useWorkforceNodeActions();
@@ -15,10 +17,11 @@ export default function PersonNode({ id, data, selected }: NodeProps<PersonNodeD
 
   return (
     <div
-      className={`min-w-[220px] max-w-[220px] rounded-xl border bg-surface shadow-soft transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+      className={`relative min-w-[220px] max-w-[220px] rounded-xl border bg-surface shadow-soft transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
         selected ? "border-primary ring-2 ring-primary/20" : "border-border"
       }`}
     >
+      <NodeTypeTab icon={<User size={10} />} label="Người trong Org" />
       <NodeToolbarMenu
         visible={!!selected}
         onConfigure={() => onConfigure(id)}

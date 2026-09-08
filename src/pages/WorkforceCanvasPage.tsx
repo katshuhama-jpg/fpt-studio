@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Undo2, Redo2, LayoutGrid } from "lucide-react";
 import { toast } from "sonner";
 import { ReactFlowProvider, useNodesState, useEdgesState, type ReactFlowInstance } from "reactflow";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { AGENTS } from "@/components/configure/agentStore";
 import { collectMembers } from "@/pages/organization/orgData";
 import { useOrg } from "@/pages/organization/orgStore";
@@ -11,11 +12,14 @@ import PersonPickerPopover from "@/components/workforce/PersonPickerPopover";
 import OmniConfigDrawer from "@/components/workforce/OmniConfigDrawer";
 import AgentConfigDrawer from "@/components/workforce/AgentConfigDrawer";
 import ConditionDrawer from "@/components/workforce/ConditionDrawer";
+import GettingStartedChecklist from "@/components/workforce/GettingStartedChecklist";
 import { DeleteNodeDialog, DeleteEdgeDialog } from "@/components/workforce/WorkforceDeleteDialogs";
 import { workforceStore } from "@/components/workforce/workforceStore";
-import { isConditionInvalid, type ConditionNodeData, type WorkforceNodeData, type WorkforceStatus } from "@/components/workforce/types";
-import { removeNodeCascade, removeRouteByEdgeId, getRouteEndpoints, isDestinationNode } from "@/components/workforce/graphOps";
+import { isConditionInvalid, type ConditionNodeData, type WorkforceNode, type WorkforceEdge, type WorkforceNodeData, type WorkforceStatus } from "@/components/workforce/types";
+import { removeNodeCascade, removeRouteByEdgeId, getRouteEndpoints, isDestinationNode, autoArrange } from "@/components/workforce/graphOps";
 import type { WorkforceNodeActions } from "@/components/workforce/nodes/nodeActionsContext";
+
+const MAX_HISTORY = 50;
 
 export default function WorkforceCanvasPage() {
   const { id = "" } = useParams();
@@ -42,6 +46,48 @@ export default function WorkforceCanvasPage() {
   const [personEditTarget, setPersonEditTarget] = useState<string | null>(null);
   const [deleteNodeId, setDeleteNodeId] = useState<string | null>(null);
   const [deleteEdgeId, setDeleteEdgeId] = useState<string | null>(null);
+
+  // Undo/redo history — snapshots are pushed right before a mutating action (add/delete a
+  // node or route, drag a node, open a config drawer, save a Condition) rather than on every
+  // reactflow change event, so one Ctrl+Z reverts one meaningful edit, not one pixel of drag.
+  const historyRef = useRef<{ nodes: WorkforceNode[]; edges: WorkforceEdge[] }[]>([]);
+  const futureRef = useRef<{ nodes: WorkforceNode[]; edges: WorkforceEdge[] }[]>([]);
+  const [historyTick, setHistoryTick] = useState(0);
+  const nodesRef = useRef(nodes);
+  const edgesRef = useRef(edges);
+  nodesRef.current = nodes;
+  edgesRef.current = edges;
+
+  const snapshot = () => {
+    historyRef.current.push({ nodes: nodesRef.current, edges: edgesRef.current });
+    if (historyRef.current.length > MAX_HISTORY) historyRef.current.shift();
+    futureRef.current = [];
+    setHistoryTick(t => t + 1);
+  };
+
+  const undo = () => {
+    const prev = historyRef.current.pop();
+    if (!prev) return;
+    futureRef.current.push({ nodes: nodesRef.current, edges: edgesRef.current });
+    setNodes(prev.nodes as any);
+    setEdges(prev.edges);
+    setHistoryTick(t => t + 1);
+  };
+
+  const redo = () => {
+    const next = futureRef.current.pop();
+    if (!next) return;
+    historyRef.current.push({ nodes: nodesRef.current, edges: edgesRef.current });
+    setNodes(next.nodes as any);
+    setEdges(next.edges);
+    setHistoryTick(t => t + 1);
+  };
+
+  const handleAutoArrange = () => {
+    snapshot();
+    setNodes(ns => autoArrange(ns as any, edges) as any);
+    toast.success("Đã sắp xếp lại canvas");
+  };
 
   const firstRun = useRef(true);
   useEffect(() => {
@@ -95,6 +141,11 @@ export default function WorkforceCanvasPage() {
         return;
       }
       if (isTyping) return;
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        if (e.shiftKey) redo(); else undo();
+        return;
+      }
       if (e.key === "Delete" || e.key === "Backspace") {
         const selNode = nodes.find(n => n.selected);
         const selEdge = edges.find(ed => ed.selected);
@@ -110,8 +161,9 @@ export default function WorkforceCanvasPage() {
   const onConfigureNode = (nodeId: string) => {
     const node = nodes.find(n => n.id === nodeId);
     if (!node) return;
-    if (node.data.kind === "person") { setPersonEditTarget(nodeId); return; }
+    if (node.data.kind === "person") { snapshot(); setPersonEditTarget(nodeId); return; }
     if (node.data.kind === "note") return;
+    snapshot();
     setConfiguringId(nodeId);
   };
 
@@ -175,8 +227,63 @@ export default function WorkforceCanvasPage() {
             nodeActions={nodeActions}
             onConfigureNode={onConfigureNode}
             toast={(msg: string) => toast.success(msg)}
+            onBeforeMutate={snapshot}
           />
         </ReactFlowProvider>
+
+        <GettingStartedChecklist nodes={nodes as any} edges={edges} name={name} status={status} />
+
+        <div className="absolute bottom-6 left-4 z-10 flex flex-col gap-1 bg-white rounded-xl border border-border shadow-elev p-1">
+          <Tooltip delayDuration={300}>
+            <TooltipTrigger asChild>
+              <span>
+                <button
+                  type="button"
+                  aria-label="Hoàn tác"
+                  disabled={historyRef.current.length === 0}
+                  onClick={undo}
+                  className="w-9 h-9 min-w-[44px] min-h-[44px] -m-[3.5px] rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base disabled:opacity-30 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Undo2 size={16} />
+                </button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="left">Hoàn tác (Ctrl+Z)</TooltipContent>
+          </Tooltip>
+          <Tooltip delayDuration={300}>
+            <TooltipTrigger asChild>
+              <span>
+                <button
+                  type="button"
+                  aria-label="Làm lại"
+                  disabled={futureRef.current.length === 0}
+                  onClick={redo}
+                  className="w-9 h-9 min-w-[44px] min-h-[44px] -m-[3.5px] rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base disabled:opacity-30 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Redo2 size={16} />
+                </button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="left">Làm lại (Ctrl+Shift+Z)</TooltipContent>
+          </Tooltip>
+          <div className="h-px bg-border mx-1" />
+          <Tooltip delayDuration={300}>
+            <TooltipTrigger asChild>
+              <span>
+                <button
+                  type="button"
+                  aria-label="Sắp xếp lại canvas"
+                  disabled={nodes.length === 0}
+                  onClick={handleAutoArrange}
+                  className="w-9 h-9 min-w-[44px] min-h-[44px] -m-[3.5px] rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base disabled:opacity-30 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <LayoutGrid size={16} />
+                </button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="left">Sắp xếp lại canvas</TooltipContent>
+          </Tooltip>
+        </div>
       </div>
 
       {personEditTarget && (
@@ -246,6 +353,7 @@ export default function WorkforceCanvasPage() {
         onOpenChange={v => !v && setDeleteNodeId(null)}
         onConfirm={() => {
           if (!deleteNodeId) return;
+          snapshot();
           const { nodes: n2, edges: e2 } = removeNodeCascade(deleteNodeId, nodes as any, edges);
           setNodes(n2 as any);
           setEdges(e2);
@@ -260,6 +368,7 @@ export default function WorkforceCanvasPage() {
         onOpenChange={v => !v && setDeleteEdgeId(null)}
         onConfirm={() => {
           if (!deleteEdgeId) return;
+          snapshot();
           const { nodes: n2, edges: e2 } = removeRouteByEdgeId(deleteEdgeId, nodes as any, edges);
           setNodes(n2 as any);
           setEdges(e2);

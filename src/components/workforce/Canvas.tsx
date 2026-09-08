@@ -34,10 +34,11 @@ interface CanvasProps {
   nodeActions: WorkforceNodeActions;
   onConfigureNode: (id: string) => void;
   toast: (message: string) => void;
+  onBeforeMutate: () => void;
 }
 
 export default function Canvas({
-  nodes, edges, setNodes, onNodesChange, setEdges, onEdgesChange, rfInstance, setRfInstance, nodeActions, onConfigureNode, toast,
+  nodes, edges, setNodes, onNodesChange, setEdges, onEdgesChange, rfInstance, setRfInstance, nodeActions, onConfigureNode, toast, onBeforeMutate,
 }: CanvasProps) {
   const [agentPicker, setAgentPicker] = useState<{ position: XYPosition; connectFrom?: string } | null>(null);
   const [personPicker, setPersonPicker] = useState<{ position: XYPosition; connectFrom?: string } | null>(null);
@@ -65,11 +66,12 @@ export default function Canvas({
     const source = findNode(connection.source);
     const target = findNode(connection.target);
     if (!source || !target) return;
+    onBeforeMutate();
     const { condition, edges: newEdges } = createRoute(source.id, target.position, source.position, target.id);
     setNodes(ns => ns.concat(condition));
     setEdges(es => es.concat(newEdges));
     toast("Đã thêm Agent đích vào Workforce");
-  }, [nodes, setNodes, setEdges, toast]);
+  }, [nodes, setNodes, setEdges, toast, onBeforeMutate]);
 
   const onConnectStart = useCallback((_: any, params: OnConnectStartParams) => {
     connectionMadeRef.current = false;
@@ -106,18 +108,21 @@ export default function Canvas({
     if (type === "agent") {
       setAgentPicker({ position });
     } else if (type === "omni") {
+      onBeforeMutate();
       const node = createOmniNode(position);
       setNodes(ns => ns.concat(node));
       toast("Đã thêm Omni Supports vào Workforce");
     } else if (type === "person") {
       setPersonPicker({ position });
     } else if (type === "note") {
+      onBeforeMutate();
       setNodes(ns => ns.concat(createNoteNode(position)));
     }
-  }, [rfInstance, setNodes, toast]);
+  }, [rfInstance, setNodes, toast, onBeforeMutate]);
 
   const finishAgentPick = (agentId: string) => {
     if (!agentPicker) return;
+    onBeforeMutate();
     if (agentPicker.connectFrom) {
       const source = findNode(agentPicker.connectFrom);
       const destPos: XYPosition = { x: agentPicker.position.x + 260, y: agentPicker.position.y };
@@ -135,6 +140,7 @@ export default function Canvas({
 
   const finishPersonPick = (memberId: string) => {
     if (!personPicker) return;
+    onBeforeMutate();
     if (personPicker.connectFrom) {
       const source = findNode(personPicker.connectFrom);
       const destPos: XYPosition = { x: personPicker.position.x + 260, y: personPicker.position.y };
@@ -158,6 +164,7 @@ export default function Canvas({
     } else if (type === "person") {
       setPersonPicker({ position: flow, connectFrom: sourceId });
     } else {
+      onBeforeMutate();
       const source = findNode(sourceId);
       const destNode = createOmniNode(flow);
       const { condition, edges: newEdges } = createRoute(sourceId, flow, source?.position ?? flow, destNode.id);
@@ -184,6 +191,7 @@ export default function Canvas({
           onConnectEnd={onConnectEnd}
           isValidConnection={isValidConnection}
           onNodeDoubleClick={(_, node) => onConfigureNode(node.id)}
+          onNodeDragStart={onBeforeMutate}
           onInit={setRfInstance}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
@@ -200,7 +208,7 @@ export default function Canvas({
       </WorkforceNodeActionsContext.Provider>
 
       {nodes.length === 0 && (
-        <div className="absolute bottom-24 z-10 flex flex-col items-center pointer-events-none animate-fade-up" style={{ left: "50%", transform: "translateX(-129px)" }}>
+        <div className="absolute bottom-36 z-10 flex flex-col items-center pointer-events-none animate-fade-up" style={{ left: "50%", marginLeft: -265 }}>
           <div className="bg-white rounded-xl border border-border shadow-elev px-3 py-2 text-xs font-medium text-foreground max-w-[200px] text-center -translate-x-1/2">
             Kéo một Agent từ bên dưới vào canvas để bắt đầu.
           </div>

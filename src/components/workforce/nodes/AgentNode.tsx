@@ -1,10 +1,11 @@
 import { Handle, Position, type NodeProps } from "reactflow";
-import { ExternalLink } from "lucide-react";
+import { Bot, ExternalLink } from "lucide-react";
 import { AGENTS } from "@/components/configure/agentStore";
 import type { AgentNodeData } from "../types";
 import { useWorkforceNodeActions } from "./nodeActionsContext";
 import { HANDLE_CLASS } from "./handleStyle";
 import NodeToolbarMenu from "./NodeToolbarMenu";
+import NodeTypeTab from "./NodeTypeTab";
 
 export default function AgentNode({ id, data, selected }: NodeProps<AgentNodeData>) {
   const { onConfigure, onDelete } = useWorkforceNodeActions();
@@ -17,10 +18,11 @@ export default function AgentNode({ id, data, selected }: NodeProps<AgentNodeDat
 
   return (
     <div
-      className={`min-w-[240px] max-w-[240px] rounded-xl border bg-surface shadow-soft transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+      className={`relative min-w-[240px] max-w-[240px] rounded-xl border bg-surface shadow-soft transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
         selected ? "border-primary ring-2 ring-primary/20" : "border-border"
       }`}
     >
+      <NodeTypeTab icon={<Bot size={10} />} label="Agent" />
       <NodeToolbarMenu visible={!!selected} onConfigure={() => onConfigure(id)} onDelete={() => onDelete(id)} />
       <Handle type="target" position={Position.Left} className={HANDLE_CLASS} />
       <div className="flex items-center gap-2.5 px-3 py-2.5">

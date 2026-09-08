@@ -4,16 +4,18 @@ import type { OmniNodeData } from "../types";
 import { useWorkforceNodeActions } from "./nodeActionsContext";
 import { HANDLE_CLASS } from "./handleStyle";
 import NodeToolbarMenu from "./NodeToolbarMenu";
+import NodeTypeTab from "./NodeTypeTab";
 
 export default function OmniNode({ id, selected }: NodeProps<OmniNodeData>) {
   const { onConfigure, onDelete } = useWorkforceNodeActions();
 
   return (
     <div
-      className={`min-w-[220px] max-w-[220px] rounded-xl border bg-surface shadow-soft transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+      className={`relative min-w-[220px] max-w-[220px] rounded-xl border bg-surface shadow-soft transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
         selected ? "border-primary ring-2 ring-primary/20" : "border-border"
       }`}
     >
+      <NodeTypeTab icon={<Headset size={10} />} label="Omni Supports" variant="accent" />
       <NodeToolbarMenu visible={!!selected} onConfigure={() => onConfigure(id)} onDelete={() => onDelete(id)} />
       <Handle type="target" position={Position.Left} className={HANDLE_CLASS} />
       <div className="flex items-start gap-2.5 px-3 py-2.5">

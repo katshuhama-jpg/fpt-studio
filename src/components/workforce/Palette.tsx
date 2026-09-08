@@ -1,4 +1,4 @@
-import { Bot, Headset, User, StickyNote } from "lucide-react";
+import { Bot, GripVertical, Headset, StickyNote, User } from "lucide-react";
 
 export type PaletteItemType = "agent" | "omni" | "person" | "note";
 
@@ -13,23 +13,31 @@ export const WORKFORCE_DRAG_MIME = "application/x-workforce-node";
 
 export default function Palette() {
   return (
-    <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-10 flex items-center bg-white rounded-2xl border border-border shadow-elev p-2" style={{ gap: 30 }}>
+    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-end" style={{ gap: 30 }}>
       {ITEMS.map(item => (
-        <div
-          key={item.type}
-          draggable
-          onDragStart={e => {
-            e.dataTransfer.setData(WORKFORCE_DRAG_MIME, item.type);
-            e.dataTransfer.effectAllowed = "move";
-          }}
-          role="button"
-          tabIndex={0}
-          aria-label={`Kéo ${item.label} vào canvas`}
-          className="flex flex-col items-center gap-2 rounded-xl cursor-grab active:cursor-grabbing hover:bg-surface-muted transition-base select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          style={{ paddingTop: 18, paddingBottom: 18, paddingLeft: 26, paddingRight: 26 }}
-        >
-          <item.icon size={26} className="text-primary" />
-          <span className="text-[15px] font-semibold text-foreground text-center leading-tight whitespace-nowrap">{item.label}</span>
+        <div key={item.type} className="relative group">
+          {/* Stacked-card shadow behind the item — signals "there's a card here to drag". */}
+          <div className="absolute inset-0 rounded-xl bg-surface-muted border border-border translate-x-2 translate-y-2 transition-base group-hover:translate-x-2.5 group-hover:translate-y-2.5" />
+          <div className="absolute inset-0 rounded-xl bg-white border border-border translate-x-1 translate-y-1 transition-base group-hover:translate-x-1.5 group-hover:translate-y-1.5" />
+
+          <div
+            draggable
+            onDragStart={e => {
+              e.dataTransfer.setData(WORKFORCE_DRAG_MIME, item.type);
+              e.dataTransfer.effectAllowed = "move";
+            }}
+            role="button"
+            tabIndex={0}
+            aria-label={`Kéo ${item.label} vào canvas`}
+            className="relative flex flex-col items-center gap-2 rounded-xl bg-white border border-border shadow-elev cursor-grab active:cursor-grabbing hover:border-primary/30 hover:-translate-y-0.5 transition-base select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            style={{ paddingTop: 18, paddingBottom: 18, paddingLeft: 26, paddingRight: 26 }}
+          >
+            <item.icon size={26} className="text-primary" />
+            <span className="text-[15px] font-semibold text-foreground text-center leading-tight whitespace-nowrap">{item.label}</span>
+            <div className="max-h-0 opacity-0 group-hover:max-h-5 group-hover:opacity-100 group-hover:mt-0.5 overflow-hidden transition-all duration-200 flex items-center gap-1 text-[11px] font-medium text-primary">
+              <GripVertical size={11} /> Kéo để thêm
+            </div>
+          </div>
         </div>
       ))}
     </div>
