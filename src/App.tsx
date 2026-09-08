@@ -26,6 +26,8 @@ import { ConflictsProvider } from "./pages/organization/conflictsStore";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import KnowledgeList from "./pages/KnowledgeList";
 import KnowledgeDetail from "./pages/KnowledgeDetail";
+import WorkforceList from "./pages/WorkforceList";
+import WorkforceCanvasPage from "./pages/WorkforceCanvasPage";
 import Skills from "./pages/Skills";
 import WorkspaceGuardrails from "./pages/WorkspaceGuardrails";
 import WorkspaceConnectors from "./pages/WorkspaceConnectors";
@@ -81,6 +83,8 @@ const App = () => (
             <Route element={<RequireAuth><WorkspaceLayout /></RequireAuth>}>
               <Route path="/knowledge" element={<KnowledgeList />} />
               <Route path="/knowledge/:id" element={<KnowledgeDetail />} />
+              <Route path="/workforce" element={<WorkforceList />} />
+              <Route path="/workforce/:id" element={<WorkforceCanvasPage />} />
               <Route path="/members" element={<OrgMembers />} />
               <Route path="/roles" element={<OrgRoles />} />
               <Route path="/organization" element={<OrgGeneral />} />
