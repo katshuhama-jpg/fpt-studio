@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import ReactFlow, {
-  Background, BackgroundVariant, Controls, MiniMap,
+  Background, BackgroundVariant,
   useNodesState, useEdgesState,
   type Connection, type Edge, type ReactFlowInstance, type OnConnectStartParams, type XYPosition,
 } from "reactflow";
@@ -17,21 +17,10 @@ import PersonPickerPopover from "./PersonPickerPopover";
 import DestinationTypePopup from "./DestinationTypePopup";
 import { WorkforceNodeActionsContext, type WorkforceNodeActions } from "./nodes/nodeActionsContext";
 import { createAgentNode, createOmniNode, createPersonNode, createNoteNode, createRoute } from "./graphOps";
-import type { WorkforceNode, WorkforceEdge, WorkforceNodeData } from "./types";
+import type { WorkforceNode, WorkforceEdge } from "./types";
 
 const nodeTypes = { agent: AgentNode, omni: OmniNode, person: PersonNode, condition: ConditionNode, note: NoteNode };
 const edgeTypes = { deletable: DeletableEdge };
-
-// Reactflow's MiniMap defaults every node to the same flat gray block, which — stacked the way
-// this canvas's nodes are — reads as a stuck loading skeleton rather than an actual map. Color
-// each block to match its node type's own accent so it's unmistakably a real minimap.
-const MINIMAP_NODE_COLOR: Record<WorkforceNodeData["kind"], string> = {
-  agent: "hsl(var(--primary))",
-  omni: "hsl(var(--accent))",
-  person: "hsl(var(--primary))",
-  condition: "hsl(var(--primary) / 0.5)",
-  note: "hsl(var(--warning))",
-};
 
 interface CanvasProps {
   nodes: WorkforceNode[];
@@ -46,10 +35,11 @@ interface CanvasProps {
   onConfigureNode: (id: string) => void;
   toast: (message: string) => void;
   onBeforeMutate: () => void;
+  locked: boolean;
 }
 
 export default function Canvas({
-  nodes, edges, setNodes, onNodesChange, setEdges, onEdgesChange, rfInstance, setRfInstance, nodeActions, onConfigureNode, toast, onBeforeMutate,
+  nodes, edges, setNodes, onNodesChange, setEdges, onEdgesChange, rfInstance, setRfInstance, nodeActions, onConfigureNode, toast, onBeforeMutate, locked,
 }: CanvasProps) {
   const [agentPicker, setAgentPicker] = useState<{ position: XYPosition; connectFrom?: string } | null>(null);
   const [personPicker, setPersonPicker] = useState<{ position: XYPosition; connectFrom?: string } | null>(null);
@@ -57,6 +47,23 @@ export default function Canvas({
 
   const connectStartRef = useRef<{ nodeId: string | null }>({ nodeId: null });
   const connectionMadeRef = useRef(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const lastAddedPositionRef = useRef<XYPosition | null>(null);
+
+  // Shared by both drag-drop and click-to-add: viewport center when the canvas is empty (or a
+  // click has no prior node to offset from), otherwise a small down-right offset from the last
+  // node added, so repeated clicks fan out instead of stacking exactly on top of each other.
+  const CLICK_ADD_OFFSET = 48;
+  const getClickAddPosition = useCallback((): XYPosition => {
+    if (lastAddedPositionRef.current && nodes.length > 0) {
+      return { x: lastAddedPositionRef.current.x + CLICK_ADD_OFFSET, y: lastAddedPositionRef.current.y + CLICK_ADD_OFFSET };
+    }
+    if (rfInstance && wrapperRef.current) {
+      const rect = wrapperRef.current.getBoundingClientRect();
+      return rfInstance.screenToFlowPosition({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+    }
+    return { x: 200, y: 200 };
+  }, [rfInstance, nodes.length]);
 
   const findNode = (id: string) => nodes.find(n => n.id === id);
 
@@ -109,27 +116,39 @@ export default function Canvas({
     e.dataTransfer.dropEffect = "move";
   }, []);
 
-  const onDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    if (!rfInstance) return;
-    const type = e.dataTransfer.getData(WORKFORCE_DRAG_MIME) as PaletteItemType;
-    if (!type) return;
-    const position = rfInstance.screenToFlowPosition({ x: e.clientX, y: e.clientY });
-
+  // The one place that actually places a fresh, unconnected node from the palette — shared by
+  // drag-drop (position = drop point) and click-to-add (position = computed default), so both
+  // entry points are fully equivalent rather than click being a second, parallel flow.
+  const addFromPalette = useCallback((type: PaletteItemType, position: XYPosition) => {
     if (type === "agent") {
       setAgentPicker({ position });
     } else if (type === "omni") {
       onBeforeMutate();
       const node = createOmniNode(position);
       setNodes(ns => ns.concat(node));
+      lastAddedPositionRef.current = position;
       toast("Đã thêm Omni Supports vào Workforce");
     } else if (type === "person") {
       setPersonPicker({ position });
     } else if (type === "note") {
       onBeforeMutate();
       setNodes(ns => ns.concat(createNoteNode(position)));
+      lastAddedPositionRef.current = position;
     }
-  }, [rfInstance, setNodes, toast, onBeforeMutate]);
+  }, [setNodes, toast, onBeforeMutate]);
+
+  const onDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    if (!rfInstance) return;
+    const type = e.dataTransfer.getData(WORKFORCE_DRAG_MIME) as PaletteItemType;
+    if (!type) return;
+    const position = rfInstance.screenToFlowPosition({ x: e.clientX, y: e.clientY });
+    addFromPalette(type, position);
+  }, [rfInstance, addFromPalette]);
+
+  const onPaletteItemClick = useCallback((type: PaletteItemType) => {
+    addFromPalette(type, getClickAddPosition());
+  }, [addFromPalette, getClickAddPosition]);
 
   const finishAgentPick = (agentId: string) => {
     if (!agentPicker) return;
@@ -141,9 +160,11 @@ export default function Canvas({
       const { condition, edges: newEdges } = createRoute(agentPicker.connectFrom, destPos, source?.position ?? agentPicker.position, destNode.id);
       setNodes(ns => ns.concat(condition, destNode));
       setEdges(es => es.concat(newEdges));
+      lastAddedPositionRef.current = destPos;
       toast("Đã thêm Agent đích vào Workforce");
     } else {
       setNodes(ns => ns.concat(createAgentNode(agentId, agentPicker.position, true)));
+      lastAddedPositionRef.current = agentPicker.position;
       toast("Đã thêm Agent vào Workforce");
     }
     setAgentPicker(null);
@@ -159,8 +180,10 @@ export default function Canvas({
       const { condition, edges: newEdges } = createRoute(personPicker.connectFrom, destPos, source?.position ?? personPicker.position, destNode.id);
       setNodes(ns => ns.concat(condition, destNode));
       setEdges(es => es.concat(newEdges));
+      lastAddedPositionRef.current = destPos;
     } else {
       setNodes(ns => ns.concat(createPersonNode(memberId, personPicker.position)));
+      lastAddedPositionRef.current = personPicker.position;
     }
     toast("Đã thêm người nhận vào Workforce");
     setPersonPicker(null);
@@ -181,6 +204,7 @@ export default function Canvas({
       const { condition, edges: newEdges } = createRoute(sourceId, flow, source?.position ?? flow, destNode.id);
       setNodes(ns => ns.concat(condition, destNode));
       setEdges(es => es.concat(newEdges));
+      lastAddedPositionRef.current = flow;
       toast("Đã thêm Omni Supports vào Workforce");
     }
   };
@@ -201,7 +225,7 @@ export default function Canvas({
   }, [onConfigureNode]);
 
   return (
-    <div className="flex-1 h-full relative" onDrop={onDrop} onDragOver={onDragOver}>
+    <div ref={wrapperRef} className="flex-1 h-full relative" onDrop={onDrop} onDragOver={onDragOver}>
       <WorkforceNodeActionsContext.Provider value={nodeActions}>
         <ReactFlow
           nodes={nodes}
@@ -219,26 +243,19 @@ export default function Canvas({
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           deleteKeyCode={null}
+          nodesDraggable={!locked}
+          nodesConnectable={!locked}
+          elementsSelectable={!locked}
           fitView
           minZoom={0.2}
           maxZoom={1.5}
           proOptions={{ hideAttribution: true }}
         >
           <Background variant={BackgroundVariant.Dots} gap={18} size={1} className="!bg-gradient-soft" />
-          <Controls className="!shadow-soft !border !border-border !rounded-lg overflow-hidden" position="bottom-right" />
-          <MiniMap
-            pannable
-            zoomable
-            position="top-right"
-            className="!border !border-border !rounded-lg"
-            maskColor="hsl(var(--foreground) / 0.06)"
-            nodeColor={n => MINIMAP_NODE_COLOR[(n.data as WorkforceNode["data"] | undefined)?.kind ?? "note"]}
-            nodeStrokeWidth={0}
-          />
         </ReactFlow>
       </WorkforceNodeActionsContext.Provider>
 
-      <Palette />
+      <Palette onItemClick={onPaletteItemClick} />
 
       <AgentPickerPopover
         open={!!agentPicker}

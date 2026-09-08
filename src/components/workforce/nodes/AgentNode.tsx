@@ -22,20 +22,20 @@ export default function AgentNode({ id, data, selected }: NodeProps<AgentNodeDat
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className={`relative min-w-[240px] max-w-[240px] rounded-xl border bg-surface shadow-soft cursor-pointer transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+      className={`relative min-w-[268px] max-w-[268px] rounded-2xl border bg-surface shadow-soft cursor-pointer transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
         selected ? "border-primary ring-2 ring-primary/20" : "border-border"
       }`}
     >
       <NodeTypeTab icon={<Bot size={10} />} label="Agent" />
       <NodeToolbarMenu visible={!!selected || hovered} onDelete={() => onDelete(id)} />
       <Handle type="target" position={Position.Left} className={HANDLE_CLASS} />
-      <div className="flex items-center gap-2.5 px-3 py-2.5">
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0 ${agent?.bg ?? "bg-surface-muted"}`}>
+      <div className="flex items-center gap-3 px-4 py-3.5">
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0 ${agent?.bg ?? "bg-surface-muted"}`}>
           {agent?.emoji ?? "🤖"}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-[12px] font-semibold leading-tight truncate">{agent?.name ?? "Agent không tồn tại"}</div>
-          <div className="text-[10px] text-muted-foreground truncate">{agent?.desc}</div>
+          <div className="text-[13px] font-semibold leading-snug truncate">{agent?.name ?? "Agent không tồn tại"}</div>
+          <div className="text-[11.5px] text-muted-foreground leading-snug truncate mt-0.5">{agent?.desc}</div>
         </div>
         <button
           type="button"

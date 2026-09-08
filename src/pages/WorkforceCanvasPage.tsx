@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, Undo2, Redo2, LayoutGrid } from "lucide-react";
+import { ChevronLeft, Undo2, Redo2, LayoutGrid, Plus, Minus, Maximize, Lock, LockOpen } from "lucide-react";
 import { toast } from "sonner";
 import { ReactFlowProvider, useNodesState, useEdgesState, type ReactFlowInstance } from "reactflow";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -39,6 +39,7 @@ export default function WorkforceCanvasPage() {
   const [nodes, setNodes, onNodesChange] = useNodesState<WorkforceNodeData>(wfRecord?.nodes ?? []);
   const [edges, setEdges, onEdgesChange] = useEdgesState(wfRecord?.edges ?? []);
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
+  const [locked, setLocked] = useState(false);
 
   const [saveState, setSaveState] = useState<"saved" | "saving" | "dirty">("saved");
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(wfRecord?.updatedAt ?? null);
@@ -228,61 +229,29 @@ export default function WorkforceCanvasPage() {
             onConfigureNode={onConfigureNode}
             toast={(msg: string) => toast.success(msg)}
             onBeforeMutate={snapshot}
+            locked={locked}
           />
         </ReactFlowProvider>
 
         <GettingStartedChecklist nodes={nodes as any} edges={edges} name={name} status={status} />
 
-        <div className="absolute bottom-6 left-4 z-10 flex flex-col gap-1 bg-white rounded-xl border border-border shadow-elev p-1">
-          <Tooltip delayDuration={300}>
-            <TooltipTrigger asChild>
-              <span>
-                <button
-                  type="button"
-                  aria-label="Hoàn tác"
-                  disabled={historyRef.current.length === 0}
-                  onClick={undo}
-                  className="w-9 h-9 min-w-[44px] min-h-[44px] -m-[3.5px] rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base disabled:opacity-30 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <Undo2 size={16} />
-                </button>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="left">Hoàn tác (Ctrl+Z)</TooltipContent>
-          </Tooltip>
-          <Tooltip delayDuration={300}>
-            <TooltipTrigger asChild>
-              <span>
-                <button
-                  type="button"
-                  aria-label="Làm lại"
-                  disabled={futureRef.current.length === 0}
-                  onClick={redo}
-                  className="w-9 h-9 min-w-[44px] min-h-[44px] -m-[3.5px] rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base disabled:opacity-30 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <Redo2 size={16} />
-                </button>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="left">Làm lại (Ctrl+Shift+Z)</TooltipContent>
-          </Tooltip>
-          <div className="h-px bg-border mx-1" />
-          <Tooltip delayDuration={300}>
-            <TooltipTrigger asChild>
-              <span>
-                <button
-                  type="button"
-                  aria-label="Sắp xếp lại canvas"
-                  disabled={nodes.length === 0}
-                  onClick={handleAutoArrange}
-                  className="w-9 h-9 min-w-[44px] min-h-[44px] -m-[3.5px] rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base disabled:opacity-30 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <LayoutGrid size={16} />
-                </button>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="left">Sắp xếp lại canvas</TooltipContent>
-          </Tooltip>
+        {/* One unified control rail — zoom, fit, lock, undo/redo, tidy layout — instead of
+            scattering these across separate floating widgets in different corners. */}
+        <div className="absolute bottom-6 left-4 z-10 flex flex-col gap-0.5 bg-white rounded-xl border border-border shadow-elev p-1">
+          <RailButton label="Phóng to" shortcut={undefined} icon={<Plus size={16} />} onClick={() => rfInstance?.zoomIn({ duration: 150 })} />
+          <RailButton label="Thu nhỏ" icon={<Minus size={16} />} onClick={() => rfInstance?.zoomOut({ duration: 150 })} />
+          <RailButton label="Vừa khung hình" icon={<Maximize size={15} />} onClick={() => rfInstance?.fitView({ duration: 200, padding: 0.2 })} />
+          <RailButton
+            label={locked ? "Mở khóa canvas" : "Khóa canvas"}
+            icon={locked ? <Lock size={15} /> : <LockOpen size={15} />}
+            onClick={() => setLocked(v => !v)}
+            active={locked}
+          />
+          <div className="h-px bg-border mx-1 my-0.5" />
+          <RailButton label="Hoàn tác" shortcut="Ctrl+Z" icon={<Undo2 size={16} />} onClick={undo} disabled={historyRef.current.length === 0} />
+          <RailButton label="Làm lại" shortcut="Ctrl+Shift+Z" icon={<Redo2 size={16} />} onClick={redo} disabled={futureRef.current.length === 0} />
+          <div className="h-px bg-border mx-1 my-0.5" />
+          <RailButton label="Sắp xếp lại canvas" icon={<LayoutGrid size={16} />} onClick={handleAutoArrange} disabled={nodes.length === 0} />
         </div>
       </div>
 
@@ -387,5 +356,35 @@ export default function WorkforceCanvasPage() {
         }}
       />
     </div>
+  );
+}
+
+function RailButton({ label, shortcut, icon, onClick, disabled, active }: {
+  label: string;
+  shortcut?: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  active?: boolean;
+}) {
+  return (
+    <Tooltip delayDuration={300}>
+      <TooltipTrigger asChild>
+        <span>
+          <button
+            type="button"
+            aria-label={label}
+            disabled={disabled}
+            onClick={onClick}
+            className={`w-9 h-9 min-w-[44px] min-h-[44px] -m-[3.5px] rounded-lg flex items-center justify-center transition-base disabled:opacity-30 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+              active ? "bg-primary-soft text-primary" : "text-muted-foreground hover:text-foreground hover:bg-surface-muted"
+            }`}
+          >
+            {icon}
+          </button>
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="left">{shortcut ? `${label} (${shortcut})` : label}</TooltipContent>
+    </Tooltip>
   );
 }
