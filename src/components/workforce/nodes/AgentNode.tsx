@@ -22,13 +22,13 @@ export default function AgentNode({ id, data, selected }: NodeProps<AgentNodeDat
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className={`relative min-w-[268px] max-w-[268px] rounded-2xl border bg-surface shadow-soft cursor-pointer transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+      className={`relative flex flex-col overflow-hidden min-w-[268px] max-w-[268px] rounded-xl border bg-surface shadow-soft cursor-pointer transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
         selected ? "border-primary ring-2 ring-primary/20" : "border-border"
       }`}
     >
-      <NodeTypeTab icon={<Bot size={10} />} label="Agent" />
       <NodeToolbarMenu visible={!!selected || hovered} onDelete={() => onDelete(id)} />
       <Handle type="target" position={Position.Left} className={HANDLE_CLASS} />
+      <NodeTypeTab icon={<Bot size={10} />} label="Agent" />
       <div className="flex items-center gap-3 px-4 py-3.5">
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0 ${agent?.bg ?? "bg-surface-muted"}`}>
           {agent?.emoji ?? "🤖"}

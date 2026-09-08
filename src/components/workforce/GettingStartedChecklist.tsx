@@ -37,7 +37,7 @@ export default function GettingStartedChecklist({ nodes, edges, name, status }: 
   const progressPct = Math.round((doneCount / steps.length) * 100);
 
   return (
-    <div className="absolute top-4 left-4 z-10 w-[320px] bg-white rounded-2xl border border-border shadow-elev overflow-hidden animate-fade-up">
+    <div className="absolute top-4 left-4 z-10 w-[320px] bg-white rounded-xl border border-border shadow-elev overflow-hidden animate-fade-up">
       <button
         type="button"
         onClick={() => setCollapsed(v => !v)}
@@ -57,20 +57,17 @@ export default function GettingStartedChecklist({ nodes, edges, name, status }: 
           {steps.map((step, i) => {
             const isCurrent = i === currentIndex;
             const content = (
-              <div className="flex items-start gap-3 py-1.5">
-                <div className="relative flex flex-col items-center shrink-0">
-                  <div
-                    className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0 ${
-                      step.done ? "bg-success text-white" :
-                      isCurrent ? "border-2 border-primary text-primary bg-primary-soft" :
-                      "border border-border text-muted-foreground"
-                    }`}
-                  >
-                    {step.done ? <Check size={12} /> : i + 1}
-                  </div>
-                  {i < steps.length - 1 && <div className="w-px flex-1 min-h-[14px] bg-border mt-1" />}
+              <div className="flex items-center gap-2.5 py-1.5">
+                <div
+                  className={`w-[18px] h-[18px] rounded-[5px] border flex items-center justify-center shrink-0 ${
+                    step.done ? "bg-success border-success text-white" :
+                    isCurrent ? "border-primary bg-primary-soft" :
+                    "border-border"
+                  }`}
+                >
+                  {step.done && <Check size={11} strokeWidth={3} />}
                 </div>
-                <span className={`text-sm leading-6 ${isCurrent ? "font-semibold text-foreground" : step.done ? "text-foreground" : "text-muted-foreground"}`}>
+                <span className={`text-sm leading-5 ${isCurrent ? "font-semibold text-foreground" : step.done ? "text-foreground" : "text-muted-foreground"}`}>
                   {step.label}
                 </span>
               </div>

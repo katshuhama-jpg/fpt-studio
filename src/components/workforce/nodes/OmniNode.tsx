@@ -15,13 +15,13 @@ export default function OmniNode({ id, selected }: NodeProps<OmniNodeData>) {
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className={`relative min-w-[252px] max-w-[252px] rounded-2xl border bg-surface shadow-soft cursor-pointer transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+      className={`relative flex flex-col overflow-hidden min-w-[252px] max-w-[252px] rounded-xl border bg-surface shadow-soft cursor-pointer transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
         selected ? "border-primary ring-2 ring-primary/20" : "border-border"
       }`}
     >
-      <NodeTypeTab icon={<Headset size={10} />} label="Omni Supports" variant="accent" />
       <NodeToolbarMenu visible={!!selected || hovered} onDelete={() => onDelete(id)} />
       <Handle type="target" position={Position.Left} className={HANDLE_CLASS} />
+      <NodeTypeTab icon={<Headset size={10} />} label="Omni Supports" variant="accent" />
       <div className="flex items-start gap-3 px-4 py-3.5">
         <div className="w-10 h-10 rounded-xl bg-accent-soft text-accent flex items-center justify-center shrink-0">
           <Headset size={17} />
