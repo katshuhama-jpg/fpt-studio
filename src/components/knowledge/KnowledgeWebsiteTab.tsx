@@ -102,6 +102,9 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
   const openViewer = (id: string) => { const next = new URLSearchParams(params); next.set("urlId", id); setParams(next); };
   const closeViewer = () => { const next = new URLSearchParams(params); next.delete("urlId"); setParams(next, { replace: true }); };
   const toggleRow = (id: string) => setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const allFilteredSelected = filtered.length > 0 && filtered.every(u => selected.has(u.id));
+  const someFilteredSelected = filtered.some(u => selected.has(u.id));
+  const toggleSelectAll = () => setSelected(allFilteredSelected ? new Set() : new Set(filtered.map(u => u.id)));
 
   const syncNow = (ids: string[]) => {
     for (const id of ids) {
@@ -244,7 +247,18 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-surface-muted">
-                {!viewOnly && <th className="w-10 px-4 py-2.5" />}
+                {!viewOnly && (
+                  <th className="w-10 px-4 py-2.5">
+                    <input
+                      type="checkbox"
+                      checked={allFilteredSelected}
+                      ref={el => { if (el) el.indeterminate = someFilteredSelected && !allFilteredSelected; }}
+                      onChange={toggleSelectAll}
+                      className="w-4 h-4 accent-primary"
+                      aria-label="Chọn tất cả"
+                    />
+                  </th>
+                )}
                 <th className="text-left px-2 py-2.5 kb-table-header">Tên</th>
                 <th className="text-left px-2 py-2.5 kb-table-header">Nguồn</th>
                 <th className="text-left px-2 py-2.5 kb-table-header">Trạng thái</th>
