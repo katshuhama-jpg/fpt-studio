@@ -1196,7 +1196,7 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, openLabel = "M
   );
 
   const actionsMenu = (
-    <div className={`relative shrink-0 ${twoLine ? "self-center" : ""}`} onClick={e => e.stopPropagation()}>
+    <div className={`relative shrink-0 ${twoLine ? "self-center" : ""}`} onClick={e => { e.preventDefault(); e.stopPropagation(); }}>
       <button
         ref={btnRef}
         type="button"
