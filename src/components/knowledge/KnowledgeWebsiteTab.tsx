@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Search, ChevronDown, Plus, MoreVertical, Clock, Settings2, X } from "lucide-react";
+import { Search, ChevronDown, Plus, MoreVertical, Clock, Settings2, Map, X } from "lucide-react";
 import FileTypeIcon from "./FileTypeIcon";
 import CreateFolderModal from "./CreateFolderModal";
 import MoveToFolderModal from "./MoveToFolderModal";
@@ -18,6 +18,8 @@ import AddUrlModal from "./AddUrlModal";
 import UrlScheduleOverrideModal from "./UrlScheduleOverrideModal";
 import VersionHistoryPanel from "./VersionHistoryPanel";
 import SyncSettingsModal from "./SyncSettingsModal";
+import ManageSitemapsModal from "./ManageSitemapsModal";
+import { knowledgeSitemapStore } from "./knowledgeSitemapStore";
 
 const STATUS_OPTIONS: { value: KnowledgeProcessingStatus | "all"; label: string }[] = [
   { value: "all", label: "Tất cả" },
@@ -61,6 +63,7 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
   const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [showAddUrl, setShowAddUrl] = useState(false);
   const [showSyncSettings, setShowSyncSettings] = useState(false);
+  const [showManageSitemaps, setShowManageSitemaps] = useState(false);
   const [scheduleTarget, setScheduleTarget] = useState<KnowledgeUrl | null>(null);
   const [versionTarget, setVersionTarget] = useState<KnowledgeUrl | null>(null);
   const [deleteTargets, setDeleteTargets] = useState<KnowledgeUrl[] | null>(null);
@@ -84,6 +87,7 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
 
   const all = knowledgeUrlStore.list(kbId);
   const settings = knowledgeSettingsStore.get(kbId);
+  const sitemapCount = knowledgeSitemapStore.list(kbId).length;
   void tick;
   const refresh = () => setTick(t => t + 1);
   const q = query.trim().toLowerCase();
@@ -95,7 +99,7 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
     (folderFilter === null || u.folderId === folderFilter),
   );
 
-  const openViewer = (id: string) => setParams({ urlId: id });
+  const openViewer = (id: string) => { const next = new URLSearchParams(params); next.set("urlId", id); setParams(next); };
   const closeViewer = () => { const next = new URLSearchParams(params); next.delete("urlId"); setParams(next, { replace: true }); };
   const toggleRow = (id: string) => setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
@@ -167,6 +171,17 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
             </TooltipTrigger>
             {all.length === 0 && <TooltipContent>Thêm URL trước khi cài đặt lịch đồng bộ.</TooltipContent>}
           </Tooltip>
+
+          {!viewOnly && (
+            <button
+              onClick={() => setShowManageSitemaps(true)}
+              className="h-9 px-3 flex items-center gap-1.5 rounded-lg border border-border bg-surface text-sm hover:bg-surface-muted transition-base"
+            >
+              <Map size={14} />
+              Quản lý sitemap
+              {sitemapCount > 0 && <span className="chip chip-muted ml-0.5">{sitemapCount}</span>}
+            </button>
+          )}
 
           {!viewOnly && (
             <div className="relative" ref={createMenuRef}>
@@ -320,7 +335,20 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
 
       <AddUrlModal open={showAddUrl} kbId={kbId} onClose={() => { setShowAddUrl(false); refresh(); }} />
       {showSyncSettings && <SyncSettingsModal kbId={kbId} viewOnly={viewOnly} onClose={() => setShowSyncSettings(false)} onSaved={refresh} />}
-      {openUrl && <ChunkViewerModal kbId={kbId} sourceType="url" sourceId={openUrl.id} sourceName={openUrl.title ?? openUrl.name} sourceStatus={openUrl.status} sourceCreatedAt={openUrl.createdAt} onClose={closeViewer} viewOnly={viewOnly} />}
+      {showManageSitemaps && <ManageSitemapsModal open={showManageSitemaps} kbId={kbId} onClose={() => { setShowManageSitemaps(false); refresh(); }} />}
+      {openUrl && (
+        <ChunkViewerModal
+          kbId={kbId}
+          sourceType="url"
+          sourceId={openUrl.id}
+          sourceName={openUrl.title ?? openUrl.name}
+          sourceStatus={openUrl.status}
+          sourceCreatedAt={openUrl.createdAt}
+          urlMeta={{ url: openUrl.url ?? "", source: openUrl.source ?? "specified", version: openUrl.version, lastSyncAt: openUrl.lastSyncAt }}
+          onClose={closeViewer}
+          viewOnly={viewOnly}
+        />
+      )}
 
       <CreateFolderModal
         open={showCreateFolder}

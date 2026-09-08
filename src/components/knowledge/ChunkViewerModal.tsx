@@ -6,7 +6,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { knowledgeChunkStore, type ChunkSourceType, type KnowledgeChunk, type ChunkContentType } from "./knowledgeChunkStore";
 import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
-import { knowledgeUrlStore } from "./knowledgeUrlStore";
+import { knowledgeUrlStore, type UrlSource } from "./knowledgeUrlStore";
 import { knowledgeStore } from "./knowledgeStore";
 import { KnowledgeStatusPill, type KnowledgeFaqStatus } from "./knowledgeStatus";
 import FileTypeIcon from "./FileTypeIcon";
@@ -66,6 +66,17 @@ function formatDate(ts: number): string {
   return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+const URL_SOURCE_LABEL: Record<UrlSource, string> = { specified: "URL chỉ định", crawled_child: "Trang con", sitemap: "Sitemap" };
+
+function relativeTime(ts: number): string {
+  const mins = Math.floor((Date.now() - ts) / 60_000);
+  if (mins < 1) return "Vừa xong";
+  if (mins < 60) return `${mins} phút trước`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} giờ trước`;
+  return `${Math.floor(hours / 24)} ngày trước`;
+}
+
 /** Deterministic page assignment for a chunk (this prototype has no real per-chunk page
  * coordinates) — used to drive the two-way link between a chunk card and its preview page. */
 function pageForChunk(index: number): number {
@@ -82,14 +93,18 @@ function markParentDone(kbId: string, sourceType: ChunkSourceType, sourceId: str
 }
 
 export default function ChunkViewerModal({
-  kbId, sourceType, sourceId, sourceName, sourceStatus, sourceChunkCount, sourceCreatedAt, onClose, viewOnly,
+  kbId, sourceType, sourceId, sourceName, sourceStatus, sourceChunkCount, sourceCreatedAt, urlMeta, onClose, viewOnly,
 }: {
   kbId: string; sourceType: ChunkSourceType; sourceId: string; sourceName: string;
   sourceStatus: KnowledgeFaqStatus;
   /** Only needed for sourceType "agent-item" — knowledgeChunkStore can't look this up itself
    * without creating a circular import with knowledgeStore.ts, so the caller supplies it. */
   sourceChunkCount?: number;
-  sourceCreatedAt: number; onClose: () => void; viewOnly: boolean;
+  sourceCreatedAt: number;
+  /** Only passed for sourceType "url" — the crawled-URL-specific metadata that doesn't apply
+   * to documents or FAQ items, shown as a secondary header row. */
+  urlMeta?: { url: string; source: UrlSource; version: number; lastSyncAt: number | null };
+  onClose: () => void; viewOnly: boolean;
 }) {
   const [tick, setTick] = useState(0);
   const [query, setQuery] = useState("");
@@ -233,6 +248,15 @@ export default function ChunkViewerModal({
           </button>
         </div>
       </div>
+
+      {urlMeta && (
+        <div className="flex items-center gap-3 px-4 py-2 border-b border-border bg-surface-muted/40 text-xs text-muted-foreground shrink-0 flex-wrap">
+          <span className="font-mono truncate max-w-[420px]" title={urlMeta.url}>{urlMeta.url}</span>
+          <span className="chip chip-muted">{URL_SOURCE_LABEL[urlMeta.source]}</span>
+          <span className="chip chip-muted">v{urlMeta.version}</span>
+          <span>{urlMeta.lastSyncAt ? `Đồng bộ lần cuối: ${relativeTime(urlMeta.lastSyncAt)}` : "Chưa đồng bộ"}</span>
+        </div>
+      )}
 
       <div ref={containerRef} className="flex-1 flex overflow-hidden">
         <div className="border-r border-border overflow-hidden" style={{ width: `${splitPct}%` }}>

@@ -11,6 +11,7 @@ import ChipsInput, { type Chip } from "./ChipsInput";
 import AdvancedConfigSection, { defaultAdvancedConfig, type AdvancedConfig } from "./AdvancedConfigSection";
 import { knowledgeUrlStore } from "./knowledgeUrlStore";
 import { knowledgeStore } from "./knowledgeStore";
+import { knowledgeSitemapStore } from "./knowledgeSitemapStore";
 
 type ModalTab = "specified" | "children" | "sitemap";
 
@@ -214,6 +215,7 @@ export default function AddUrlModal({ open, kbId, agentId, defaultFolderId, onCl
     for (let i = 0; i < n; i++) {
       addUrl(`${sitemapUrl.replace(/\/sitemap\.xml$/i, "")}/trang-${i + 1}`, folder3 || null);
     }
+    if (kbId) knowledgeSitemapStore.add(kbId, sitemapUrl.trim(), n);
     toast.success(`Đã thêm ${n} URL từ sitemap. Đang xử lý.`);
     resetAll();
     onClose();
