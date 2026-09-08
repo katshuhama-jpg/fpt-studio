@@ -325,7 +325,7 @@ export default function WorkforceCanvasPage() {
         const destinationLabel = !destination ? "—" :
           destination.data.kind === "agent" ? AGENTS.find(a => a.id === destination.data.agentId)?.name ?? "Agent" :
           destination.data.kind === "omni" ? "Omni Supports" :
-          destination.data.kind === "person" ? members.find(m => m.id === destination.data.memberId)?.name ?? "Người trong Org" : "—";
+          destination.data.kind === "person" ? members.find(m => m.id === destination.data.memberId)?.name ?? "Người trong tổ chức" : "—";
         const destAgentKeepContext = destination?.data.kind === "agent" ? destination.data.keepContext : undefined;
 
         return (

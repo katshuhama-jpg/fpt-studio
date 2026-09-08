@@ -31,7 +31,7 @@ export default function DestinationTypePopup({
           <Headset size={14} className="text-accent" /> Omni Supports
         </button>
         <button onClick={() => onPick("person")} className="w-full flex items-center gap-2 text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">
-          <User size={14} className="text-primary" /> Người trong Org
+          <User size={14} className="text-primary" /> Người trong tổ chức
         </button>
       </div>
     </>,

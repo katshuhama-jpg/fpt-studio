@@ -207,15 +207,6 @@ export default function Canvas({
         </ReactFlow>
       </WorkforceNodeActionsContext.Provider>
 
-      {nodes.length === 0 && (
-        <div className="absolute bottom-36 z-10 flex flex-col items-center pointer-events-none animate-fade-up" style={{ left: "50%", marginLeft: -265 }}>
-          <div className="bg-white rounded-xl border border-border shadow-elev px-3 py-2 text-xs font-medium text-foreground max-w-[200px] text-center -translate-x-1/2">
-            Kéo một Agent từ bên dưới vào canvas để bắt đầu.
-          </div>
-          <div className="text-primary mt-1 -translate-x-1/2 text-lg leading-none">↓</div>
-        </div>
-      )}
-
       <Palette />
 
       <AgentPickerPopover

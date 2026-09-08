@@ -21,7 +21,7 @@ export default function PersonNode({ id, data, selected }: NodeProps<PersonNodeD
         selected ? "border-primary ring-2 ring-primary/20" : "border-border"
       }`}
     >
-      <NodeTypeTab icon={<User size={10} />} label="Người trong Org" />
+      <NodeTypeTab icon={<User size={10} />} label="Người trong tổ chức" />
       <NodeToolbarMenu
         visible={!!selected}
         onConfigure={() => onConfigure(id)}

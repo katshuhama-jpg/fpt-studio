@@ -5,7 +5,7 @@ export type PaletteItemType = "agent" | "omni" | "person" | "note";
 const ITEMS: { type: PaletteItemType; label: string; icon: typeof Bot }[] = [
   { type: "agent", label: "Agent", icon: Bot },
   { type: "omni", label: "Omni Supports", icon: Headset },
-  { type: "person", label: "Người trong Org", icon: User },
+  { type: "person", label: "Người trong tổ chức", icon: User },
   { type: "note", label: "Ghi chú", icon: StickyNote },
 ];
 
@@ -33,7 +33,7 @@ export default function Palette() {
             style={{ paddingTop: 18, paddingBottom: 18, paddingLeft: 26, paddingRight: 26 }}
           >
             <item.icon size={26} className="text-primary" />
-            <span className="text-[15px] font-semibold text-foreground text-center leading-tight whitespace-nowrap">{item.label}</span>
+            <span className="text-[15px] font-medium text-foreground text-center leading-tight whitespace-nowrap">{item.label}</span>
             <div className="max-h-0 opacity-0 group-hover:max-h-5 group-hover:opacity-100 group-hover:mt-0.5 overflow-hidden transition-all duration-200 flex items-center gap-1 text-[11px] font-medium text-primary">
               <GripVertical size={11} /> Kéo để thêm
             </div>

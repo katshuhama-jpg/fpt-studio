@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 /** Small pill tab floating above a node card announcing its type at a glance (Agent / Omni
- * Supports / Người trong Org) — purely a label, not interactive. */
+ * Supports / Người trong tổ chức) — purely a label, not interactive. */
 export default function NodeTypeTab({ icon, label, variant = "primary" }: {
   icon: ReactNode;
   label: string;
