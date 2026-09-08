@@ -30,13 +30,10 @@ export default function Palette({ onItemClick }: { onItemClick: (type: PaletteIt
           }}
           onClick={() => onItemClick(item.type)}
           aria-label={`Thêm ${item.label} vào canvas`}
-          className="group relative flex flex-col items-center gap-1.5 px-5 py-3 rounded-xl cursor-grab active:cursor-grabbing hover:bg-surface-muted transition-base select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="flex flex-col items-center gap-1.5 px-5 py-3 rounded-xl cursor-grab active:cursor-grabbing hover:bg-surface-muted transition-base select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <item.icon size={21} className="text-primary" />
           <span className="text-[12.5px] font-medium text-foreground text-center leading-tight whitespace-nowrap">{item.label}</span>
-          <div className="max-h-0 opacity-0 group-hover:max-h-4 group-hover:opacity-100 group-hover:mt-0.5 overflow-hidden transition-all duration-200 text-[10px] font-medium text-primary whitespace-nowrap">
-            Bấm hoặc kéo
-          </div>
         </button>
       ))}
     </div>
