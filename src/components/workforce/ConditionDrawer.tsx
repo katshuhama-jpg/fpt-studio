@@ -22,7 +22,7 @@ function variableType(key: string): "text" | "number" {
 }
 
 export default function ConditionDrawer({
-  sourceLabel, destinationLabel, destinationKind, data, onSave, onClose, keepContext, onChangeKeepContext,
+  sourceLabel, destinationLabel, destinationKind, data, onSave, onClose, onDelete, keepContext, onChangeKeepContext,
 }: {
   sourceLabel: string;
   destinationLabel: string;
@@ -30,6 +30,7 @@ export default function ConditionDrawer({
   data: ConditionNodeData;
   onSave: (data: ConditionNodeData) => void;
   onClose: () => void;
+  onDelete: () => void;
   keepContext?: boolean;
   onChangeKeepContext?: (value: boolean) => void;
 }) {
@@ -59,9 +60,14 @@ export default function ConditionDrawer({
       <div className="px-4 py-3 border-b border-border shrink-0">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold">Điều kiện chuyển giao</h3>
-          <button onClick={onClose} aria-label="Đóng" className="w-8 h-8 min-w-[44px] min-h-[44px] -m-2 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base">
-            <X size={14} />
-          </button>
+          <div className="flex items-center gap-1 -mr-2">
+            <button onClick={onDelete} aria-label="Xóa route" className="w-8 h-8 min-w-[44px] min-h-[44px] rounded-lg flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">
+              <Trash2 size={14} />
+            </button>
+            <button onClick={onClose} aria-label="Đóng" className="w-8 h-8 min-w-[44px] min-h-[44px] rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base">
+              <X size={14} />
+            </button>
+          </div>
         </div>
         <p className="text-xs text-muted-foreground mt-0.5 truncate">{sourceLabel} → {destinationLabel}</p>
       </div>

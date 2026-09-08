@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import ReactFlow, {
   Background, BackgroundVariant, Controls, MiniMap,
   useNodesState, useEdgesState,
-  type Connection, type ReactFlowInstance, type OnConnectStartParams, type XYPosition,
+  type Connection, type Edge, type ReactFlowInstance, type OnConnectStartParams, type XYPosition,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import AgentNode from "./nodes/AgentNode";
@@ -178,6 +178,17 @@ export default function Canvas({
     ? (findNode(agentPicker.connectFrom)?.data as any)?.agentId
     : undefined;
 
+  // Single click on a node — or on the connection line itself — opens that item's config
+  // drawer immediately (matching the reference canvas: no double-click, no menu step first).
+  const onNodeClick = useCallback((_: React.MouseEvent, node: WorkforceNode) => {
+    onConfigureNode(node.id);
+  }, [onConfigureNode]);
+
+  const onEdgeClick = useCallback((_: React.MouseEvent, edge: Edge) => {
+    const conditionId = edge.data?.conditionId;
+    if (conditionId) onConfigureNode(conditionId);
+  }, [onConfigureNode]);
+
   return (
     <div className="flex-1 h-full relative" onDrop={onDrop} onDragOver={onDragOver}>
       <WorkforceNodeActionsContext.Provider value={nodeActions}>
@@ -190,7 +201,8 @@ export default function Canvas({
           onConnectStart={onConnectStart}
           onConnectEnd={onConnectEnd}
           isValidConnection={isValidConnection}
-          onNodeDoubleClick={(_, node) => onConfigureNode(node.id)}
+          onNodeClick={onNodeClick}
+          onEdgeClick={onEdgeClick}
           onNodeDragStart={onBeforeMutate}
           onInit={setRfInstance}
           nodeTypes={nodeTypes}

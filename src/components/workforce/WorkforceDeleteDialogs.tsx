@@ -24,27 +24,6 @@ export function DeleteNodeDialog({ open, onOpenChange, onConfirm }: {
   );
 }
 
-export function DeleteEdgeDialog({ open, onOpenChange, onConfirm }: {
-  open: boolean; onOpenChange: (v: boolean) => void; onConfirm: () => void;
-}) {
-  return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Xóa kết nối này?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Route và Condition đi kèm sẽ bị xóa khỏi Workforce này. Agent hoặc dữ liệu gốc không bị ảnh hưởng.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
-          <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={onConfirm}>Xóa</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
-}
-
 export function DeleteWorkforceDialog({ open, name, onOpenChange, onConfirm }: {
   open: boolean; name: string; onOpenChange: (v: boolean) => void; onConfirm: () => void;
 }) {

@@ -13,10 +13,10 @@ import OmniConfigDrawer from "@/components/workforce/OmniConfigDrawer";
 import AgentConfigDrawer from "@/components/workforce/AgentConfigDrawer";
 import ConditionDrawer from "@/components/workforce/ConditionDrawer";
 import GettingStartedChecklist from "@/components/workforce/GettingStartedChecklist";
-import { DeleteNodeDialog, DeleteEdgeDialog } from "@/components/workforce/WorkforceDeleteDialogs";
+import { DeleteNodeDialog } from "@/components/workforce/WorkforceDeleteDialogs";
 import { workforceStore } from "@/components/workforce/workforceStore";
 import { isConditionInvalid, type ConditionNodeData, type WorkforceNode, type WorkforceEdge, type WorkforceNodeData, type WorkforceStatus } from "@/components/workforce/types";
-import { removeNodeCascade, removeRouteByEdgeId, getRouteEndpoints, isDestinationNode, autoArrange } from "@/components/workforce/graphOps";
+import { removeNodeCascade, removeRouteByConditionId, getRouteEndpoints, isDestinationNode, autoArrange } from "@/components/workforce/graphOps";
 import type { WorkforceNodeActions } from "@/components/workforce/nodes/nodeActionsContext";
 
 const MAX_HISTORY = 50;
@@ -45,7 +45,6 @@ export default function WorkforceCanvasPage() {
   const [configuringId, setConfiguringId] = useState<string | null>(null);
   const [personEditTarget, setPersonEditTarget] = useState<string | null>(null);
   const [deleteNodeId, setDeleteNodeId] = useState<string | null>(null);
-  const [deleteEdgeId, setDeleteEdgeId] = useState<string | null>(null);
 
   // Undo/redo history — snapshots are pushed right before a mutating action (add/delete a
   // node or route, drag a node, open a config drawer, save a Condition) rather than on every
@@ -149,8 +148,8 @@ export default function WorkforceCanvasPage() {
       if (e.key === "Delete" || e.key === "Backspace") {
         const selNode = nodes.find(n => n.selected);
         const selEdge = edges.find(ed => ed.selected);
-        if (selNode && selNode.data.kind !== "condition") { e.preventDefault(); setDeleteNodeId(selNode.id); }
-        else if (selEdge) { e.preventDefault(); setDeleteEdgeId(selEdge.id); }
+        if (selNode) { e.preventDefault(); setDeleteNodeId(selNode.id); }
+        else if (selEdge?.data?.conditionId) { e.preventDefault(); setDeleteNodeId(selEdge.data.conditionId); }
       }
     };
     window.addEventListener("keydown", h);
@@ -168,9 +167,7 @@ export default function WorkforceCanvasPage() {
   };
 
   const nodeActions: WorkforceNodeActions = {
-    onConfigure: onConfigureNode,
     onDelete: id2 => setDeleteNodeId(id2),
-    onDeleteEdge: id2 => setDeleteEdgeId(id2),
     onNoteTextChange: (id2, text) => setNodes(ns => ns.map(n => (n.id === id2 ? { ...n, data: { ...n.data, text } } : n))),
   };
 
@@ -300,19 +297,23 @@ export default function WorkforceCanvasPage() {
 
       {configuringNode?.data.kind === "omni" && (
         <OmniConfigDrawer
+          key={configuringNode.id}
           reasonDefault={configuringNode.data.reasonDefault}
           onChange={value => setNodes(ns => ns.map(n => (n.id === configuringNode.id ? { ...n, data: { ...n.data, reasonDefault: value } } : n)))}
           onClose={() => setConfiguringId(null)}
+          onDelete={() => setDeleteNodeId(configuringNode.id)}
         />
       )}
 
       {configuringNode?.data.kind === "agent" && (
         <AgentConfigDrawer
+          key={configuringNode.id}
           agentId={configuringNode.data.agentId}
           isDestination={isDestinationNode(configuringNode.id, edges)}
           keepContext={configuringNode.data.keepContext}
           onChangeKeepContext={value => setNodes(ns => ns.map(n => (n.id === configuringNode.id ? { ...n, data: { ...n.data, keepContext: value } } : n)))}
           onClose={() => setConfiguringId(null)}
+          onDelete={() => setDeleteNodeId(configuringNode.id)}
         />
       )}
 
@@ -330,6 +331,7 @@ export default function WorkforceCanvasPage() {
 
         return (
           <ConditionDrawer
+            key={configuringNode.id}
             sourceLabel={sourceLabel}
             destinationLabel={destinationLabel}
             destinationKind={destinationKind}
@@ -340,6 +342,7 @@ export default function WorkforceCanvasPage() {
               toast.success("Đã lưu route");
             }}
             onClose={() => setConfiguringId(null)}
+            onDelete={() => setDeleteNodeId(configuringNode.id)}
             keepContext={destAgentKeepContext}
             onChangeKeepContext={destination?.data.kind === "agent"
               ? (value => setNodes(ns => ns.map(n => (n.id === destination.id ? { ...n, data: { ...n.data, keepContext: value } } : n))))
@@ -354,25 +357,14 @@ export default function WorkforceCanvasPage() {
         onConfirm={() => {
           if (!deleteNodeId) return;
           snapshot();
-          const { nodes: n2, edges: e2 } = removeNodeCascade(deleteNodeId, nodes as any, edges);
+          const target = nodes.find(n => n.id === deleteNodeId);
+          const { nodes: n2, edges: e2 } = target?.data.kind === "condition"
+            ? removeRouteByConditionId(deleteNodeId, nodes as any, edges)
+            : removeNodeCascade(deleteNodeId, nodes as any, edges);
           setNodes(n2 as any);
           setEdges(e2);
           if (configuringId === deleteNodeId) setConfiguringId(null);
           setDeleteNodeId(null);
-          toast.success("Đã xóa");
-        }}
-      />
-
-      <DeleteEdgeDialog
-        open={!!deleteEdgeId}
-        onOpenChange={v => !v && setDeleteEdgeId(null)}
-        onConfirm={() => {
-          if (!deleteEdgeId) return;
-          snapshot();
-          const { nodes: n2, edges: e2 } = removeRouteByEdgeId(deleteEdgeId, nodes as any, edges);
-          setNodes(n2 as any);
-          setEdges(e2);
-          setDeleteEdgeId(null);
           toast.success("Đã xóa");
         }}
       />

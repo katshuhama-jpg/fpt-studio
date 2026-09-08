@@ -1,14 +1,15 @@
-import { X, Headset } from "lucide-react";
+import { X, Headset, Trash2 } from "lucide-react";
 import { useReturnFocusOnUnmount } from "./useReturnFocus";
 
 const MAX = 300;
 
 export default function OmniConfigDrawer({
-  reasonDefault, onChange, onClose,
+  reasonDefault, onChange, onClose, onDelete,
 }: {
   reasonDefault: string;
   onChange: (value: string) => void;
   onClose: () => void;
+  onDelete: () => void;
 }) {
   useReturnFocusOnUnmount();
   return (
@@ -20,6 +21,9 @@ export default function OmniConfigDrawer({
         <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold leading-tight truncate">Omni Supports</div>
         </div>
+        <button onClick={onDelete} aria-label="Xóa node" className="w-8 h-8 min-w-[44px] min-h-[44px] -m-2 rounded-lg flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">
+          <Trash2 size={14} />
+        </button>
         <button onClick={onClose} aria-label="Đóng" className="w-8 h-8 min-w-[44px] min-h-[44px] -m-2 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base">
           <X size={14} />
         </button>

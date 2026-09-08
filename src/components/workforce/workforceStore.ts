@@ -3,8 +3,8 @@ import { ROUTE_ARROW } from "./graphOps";
 
 const HOUR = 3_600_000;
 
-function edge(id: string, source: string, target: string): WorkforceEdge {
-  return { id, source, target, type: "deletable", markerEnd: ROUTE_ARROW };
+function edge(id: string, source: string, target: string, conditionId: string): WorkforceEdge {
+  return { id, source, target, type: "deletable", markerEnd: ROUTE_ARROW, data: { conditionId } };
 }
 
 function seedWorkforces(): Workforce[] {
@@ -38,12 +38,12 @@ function seedWorkforces(): Workforce[] {
       { id: "dest-person-1", type: "person", position: { x: 660, y: 260 }, data: { kind: "person", memberId: "m-fsoft-coo" } },
     ],
     edges: [
-      edge("e-src-cskh-cond-1", "src-cskh", "cond-1"),
-      edge("e-cond-1-omni-1", "cond-1", "dest-omni-1"),
-      edge("e-src-cskh-cond-3", "src-cskh", "cond-3"),
-      edge("e-cond-3-person-1", "cond-3", "dest-person-1"),
-      edge("e-src-sales-cond-2", "src-sales", "cond-2"),
-      edge("e-cond-2-hr", "cond-2", "dest-hr"),
+      edge("e-src-cskh-cond-1", "src-cskh", "cond-1", "cond-1"),
+      edge("e-cond-1-omni-1", "cond-1", "dest-omni-1", "cond-1"),
+      edge("e-src-cskh-cond-3", "src-cskh", "cond-3", "cond-3"),
+      edge("e-cond-3-person-1", "cond-3", "dest-person-1", "cond-3"),
+      edge("e-src-sales-cond-2", "src-sales", "cond-2", "cond-2"),
+      edge("e-cond-2-hr", "cond-2", "dest-hr", "cond-2"),
     ],
   };
 
@@ -63,8 +63,8 @@ function seedWorkforces(): Workforce[] {
       { id: "dest-omni-faq", type: "omni", position: { x: 660, y: 80 }, data: { kind: "omni", reasonDefault: "" } },
     ],
     edges: [
-      edge("e-src-faq-cond", "src-faq", "cond-faq-1"),
-      edge("e-cond-faq-omni", "cond-faq-1", "dest-omni-faq"),
+      edge("e-src-faq-cond", "src-faq", "cond-faq-1", "cond-faq-1"),
+      edge("e-cond-faq-omni", "cond-faq-1", "dest-omni-faq", "cond-faq-1"),
     ],
   };
 

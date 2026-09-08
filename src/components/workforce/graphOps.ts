@@ -38,8 +38,8 @@ export function createRoute(sourceId: string, destPosition: XYPosition, sourcePo
   const mid: XYPosition = { x: (sourcePosition.x + destPosition.x) / 2, y: (sourcePosition.y + destPosition.y) / 2 };
   const condition = createConditionNode(mid);
   const edges: WorkforceEdge[] = [
-    { id: uid("edge"), source: sourceId, target: condition.id, type: "deletable", markerEnd: ROUTE_ARROW },
-    { id: uid("edge"), source: condition.id, target: destId, type: "deletable", markerEnd: ROUTE_ARROW },
+    { id: uid("edge"), source: sourceId, target: condition.id, type: "deletable", markerEnd: ROUTE_ARROW, data: { conditionId: condition.id } },
+    { id: uid("edge"), source: condition.id, target: destId, type: "deletable", markerEnd: ROUTE_ARROW, data: { conditionId: condition.id } },
   ];
   return { condition, edges };
 }
@@ -86,13 +86,10 @@ export function isDestinationNode(nodeId: string, edges: WorkforceEdge[]): boole
   return edges.some(e => e.target === nodeId);
 }
 
-/** Deleting either half of a route (by edge id) removes the whole route: both edge halves
- * plus the Condition node sitting between them. */
-export function removeRouteByEdgeId(edgeId: string, nodes: WorkforceNode[], edges: WorkforceEdge[]): { nodes: WorkforceNode[]; edges: WorkforceEdge[] } {
-  const target = edges.find(e => e.id === edgeId);
-  if (!target) return { nodes, edges };
-  const conditionId = [target.source, target.target].find(id => nodes.find(n => n.id === id)?.data.kind === "condition");
-  if (!conditionId) return { nodes, edges: edges.filter(e => e.id !== edgeId) };
+/** Deleting a route (by its Condition node id) removes that Condition node plus both edge
+ * halves touching it — used whether the delete was triggered from the Condition drawer's own
+ * trash icon or from the Condition node's on-canvas hover affordance. */
+export function removeRouteByConditionId(conditionId: string, nodes: WorkforceNode[], edges: WorkforceEdge[]): { nodes: WorkforceNode[]; edges: WorkforceEdge[] } {
   const routeEdgeIds = new Set(edges.filter(e => e.source === conditionId || e.target === conditionId).map(e => e.id));
   return {
     nodes: nodes.filter(n => n.id !== conditionId),
