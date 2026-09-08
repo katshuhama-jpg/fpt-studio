@@ -17,7 +17,10 @@ export default function DeletableEdge({
   const [edgePath] = getSmoothStepPath({
     sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, borderRadius: CORNER_RADIUS,
   });
-  const strokeColor = selected ? "hsl(var(--primary))" : "hsl(var(--border-strong))";
+  // A muted gray line read as too low-contrast against the canvas — use the brand primary
+  // (indigo) at reduced strength by default, full-strength when selected, so routes are easy
+  // to trace at a glance without losing the selected/unselected distinction.
+  const strokeColor = selected ? "hsl(var(--primary))" : "hsl(var(--primary) / 0.55)";
 
   return (
     <>
