@@ -554,6 +554,90 @@ export default function ExternalAgentDetail() {
                   <PanelLeftOpen size={15} />
                 </button>
               )}
+              <div className="rounded-xl border border-border p-4">
+                {openConnFields.size > 0 && (
+                  <div className="flex items-center justify-end gap-2 mb-3">
+                    <button type="button" onClick={discardConnectionDraft} className="h-7 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-xs font-medium transition-base">
+                      Discard
+                    </button>
+                    <button type="button" onClick={saveConnectionDraft} className="btn-primary h-7 px-3 text-xs">
+                      Save changes
+                    </button>
+                  </div>
+                )}
+                {/* Avatar + Name + Description — same visual pattern as the internal Agent
+                    Builder's header (GeneralTab in AgentBuilder.tsx): 48px avatar with a
+                    bottom-right pencil badge opening a 12-emoji picker, name/description as
+                    plain-looking inputs that reveal a border on hover/focus. Typing stages the
+                    change into connDraft/openConnFields, same batch Save changes / Discard bar
+                    as the rows below. */}
+                <div className="flex items-center gap-3">
+                  <div className="relative shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setShowAvatarPicker(v => !v)}
+                      aria-label="Change avatar"
+                      className={`w-12 h-12 rounded-xl ${AVATAR_BG} border border-border hover:border-primary/40 flex items-center justify-center text-2xl transition-base`}
+                    >
+                      {connEmoji}
+                    </button>
+                    <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-md bg-surface border border-border flex items-center justify-center pointer-events-none">
+                      <Pencil size={9} className="text-muted-foreground" />
+                    </span>
+                    {showAvatarPicker && (
+                      <>
+                        <div className="fixed inset-0 z-10" onClick={() => setShowAvatarPicker(false)} />
+                        <div className="absolute top-full left-0 mt-2 z-20 bg-surface border border-border rounded-xl shadow-lg p-2.5 grid grid-cols-6 gap-1 w-[180px]">
+                          {AVATAR_EMOJI_OPTIONS.map(e => (
+                            <button
+                              key={e}
+                              type="button"
+                              onClick={() => {
+                                setConnDraft(d => ({ ...d, emoji: e, bg: AVATAR_BG }));
+                                setOpenConnFields(prev => new Set(prev).add("avatar"));
+                                setShowAvatarPicker(false);
+                              }}
+                              className={`w-8 h-8 rounded-lg text-xl flex items-center justify-center hover:bg-primary-soft transition-base ${connEmoji === e ? "bg-primary-soft ring-1 ring-primary" : ""}`}
+                            >
+                              {e}
+                            </button>
+                          ))}
+                          <label className="col-span-6 mt-1 flex items-center justify-center gap-1.5 text-xs text-primary cursor-pointer hover:underline">
+                            <Pencil size={10} /> Upload image
+                            <input type="file" className="hidden" accept="image/*" />
+                          </label>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="flex-1 flex flex-col gap-1 min-w-0">
+                    <input
+                      value={connName}
+                      onChange={e => {
+                        setConnDraft(d => ({ ...d, name: e.target.value }));
+                        setOpenConnFields(prev => new Set(prev).add("name"));
+                        setConnErrors(er => ({ ...er, name: undefined }));
+                      }}
+                      placeholder="Agent name…"
+                      className="w-full text-base font-semibold bg-transparent border border-transparent rounded-md px-2 py-0.5 -mx-2 outline-none hover:border-border hover:bg-surface focus:border-ring focus:bg-surface transition-base"
+                    />
+                    {connErrors.name && <p className="text-[11px] text-destructive px-2 -mx-2">{connErrors.name}</p>}
+                    <input
+                      value={connDescription}
+                      onChange={e => {
+                        setConnDraft(d => ({ ...d, description: e.target.value }));
+                        setOpenConnFields(prev => new Set(prev).add("description"));
+                      }}
+                      placeholder="Short description…"
+                      className="w-full text-sm text-muted-foreground bg-transparent border border-transparent rounded-md px-2 py-0.5 -mx-2 outline-none hover:border-border hover:bg-surface focus:border-ring focus:bg-surface transition-base truncate"
+                      style={{ textOverflow: "ellipsis" }}
+                    />
+                  </div>
+                </div>
+
+              </div>
+
               <Link
                 to="/external-agents/guides/integration"
                 className="flex items-center gap-3 rounded-xl border border-border px-4 py-3 hover:bg-surface-muted transition-base"
@@ -638,77 +722,6 @@ export default function ExternalAgentDetail() {
                     </div>
                   )}
                 </div>
-                {/* Avatar + Name + Description — same visual pattern as the internal Agent
-                    Builder's header (GeneralTab in AgentBuilder.tsx): 48px avatar with a
-                    bottom-right pencil badge opening a 12-emoji picker, name/description as
-                    plain-looking inputs that reveal a border on hover/focus. Typing stages the
-                    change into connDraft/openConnFields, same batch Save changes / Discard bar
-                    as the rows below. */}
-                <div className="flex items-center gap-3 pb-4 mb-1 border-b border-border">
-                  <div className="relative shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => setShowAvatarPicker(v => !v)}
-                      aria-label="Change avatar"
-                      className={`w-12 h-12 rounded-xl ${AVATAR_BG} border border-border hover:border-primary/40 flex items-center justify-center text-2xl transition-base`}
-                    >
-                      {connEmoji}
-                    </button>
-                    <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-md bg-surface border border-border flex items-center justify-center pointer-events-none">
-                      <Pencil size={9} className="text-muted-foreground" />
-                    </span>
-                    {showAvatarPicker && (
-                      <>
-                        <div className="fixed inset-0 z-10" onClick={() => setShowAvatarPicker(false)} />
-                        <div className="absolute top-full left-0 mt-2 z-20 bg-surface border border-border rounded-xl shadow-lg p-2.5 grid grid-cols-6 gap-1 w-[180px]">
-                          {AVATAR_EMOJI_OPTIONS.map(e => (
-                            <button
-                              key={e}
-                              type="button"
-                              onClick={() => {
-                                setConnDraft(d => ({ ...d, emoji: e, bg: AVATAR_BG }));
-                                setOpenConnFields(prev => new Set(prev).add("avatar"));
-                                setShowAvatarPicker(false);
-                              }}
-                              className={`w-8 h-8 rounded-lg text-xl flex items-center justify-center hover:bg-primary-soft transition-base ${connEmoji === e ? "bg-primary-soft ring-1 ring-primary" : ""}`}
-                            >
-                              {e}
-                            </button>
-                          ))}
-                          <label className="col-span-6 mt-1 flex items-center justify-center gap-1.5 text-xs text-primary cursor-pointer hover:underline">
-                            <Pencil size={10} /> Upload image
-                            <input type="file" className="hidden" accept="image/*" />
-                          </label>
-                        </div>
-                      </>
-                    )}
-                  </div>
-
-                  <div className="flex-1 flex flex-col gap-1 min-w-0">
-                    <input
-                      value={connName}
-                      onChange={e => {
-                        setConnDraft(d => ({ ...d, name: e.target.value }));
-                        setOpenConnFields(prev => new Set(prev).add("name"));
-                        setConnErrors(er => ({ ...er, name: undefined }));
-                      }}
-                      placeholder="Agent name…"
-                      className="w-full text-base font-semibold bg-transparent border border-transparent rounded-md px-2 py-0.5 -mx-2 outline-none hover:border-border hover:bg-surface focus:border-ring focus:bg-surface transition-base"
-                    />
-                    {connErrors.name && <p className="text-[11px] text-destructive px-2 -mx-2">{connErrors.name}</p>}
-                    <input
-                      value={connDescription}
-                      onChange={e => {
-                        setConnDraft(d => ({ ...d, description: e.target.value }));
-                        setOpenConnFields(prev => new Set(prev).add("description"));
-                      }}
-                      placeholder="Short description…"
-                      className="w-full text-sm text-muted-foreground bg-transparent border border-transparent rounded-md px-2 py-0.5 -mx-2 outline-none hover:border-border hover:bg-surface focus:border-ring focus:bg-surface transition-base truncate"
-                      style={{ textOverflow: "ellipsis" }}
-                    />
-                  </div>
-                </div>
-
                 <InfoRow label="Status">
                   <div className="space-y-1">
                     <StatusBadge status={agent.status} />
