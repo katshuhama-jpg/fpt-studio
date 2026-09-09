@@ -19,8 +19,12 @@ export default function ConditionNode({ id, data, selected }: NodeProps<Conditio
       ? data.llmText
       : `${data.rules.length} điều kiện`;
 
-  const stateColor = invalid ? "hsl(var(--destructive))" : unconfigured ? "var(--wf-warn)" : "var(--wf-text)";
-  const borderColor = invalid ? "hsl(var(--destructive))" : unconfigured ? "var(--wf-warn)" : "var(--wf-cond-border)";
+  // Empty vs. configured is the one thing worth spotting at a glance while scanning a big
+  // Workforce — orange for "still needs setup", green once a route actually has conditions on
+  // it — with the post-publish "invalid" state (still empty when Publish was clicked) taking
+  // over both as the strongest, most alarming color of the three.
+  const stateColor = invalid ? "hsl(var(--destructive))" : unconfigured ? "var(--wf-warn)" : "var(--wf-ok)";
+  const borderColor = stateColor;
 
   return (
     <div

@@ -268,7 +268,8 @@
     --wf-agent: #4650D6;   --wf-agent-bg: #EEF0FE;
     --wf-omni: #0E8F6E;    --wf-omni-bg: #E7F7F1;
     --wf-person: #6E4FD6;  --wf-person-bg: #F1ECFD;
-    --wf-warn: #B0700A;    --wf-cond-border: #D8DBE2;
+    --wf-warn: #D97706;    --wf-cond-border: #D8DBE2;
+    --wf-ok: #0E8F52; /* Condition chip once it has data — same green family as the Published pill */
 
     --wf-accent: #4650D6;  --wf-accent-ink: #FFFFFF;
     --wf-pub-bg: #E6F8EF;  --wf-pub-ink: #0E8F52;
