@@ -8,9 +8,23 @@ export function uid(prefix: string): string {
   return `${prefix}-${Date.now()}-${counter}`;
 }
 
-/** Small arrowhead marking the entry point into the destination — shared by every edge the
- * canvas creates (both the seed data and routes drawn at runtime). */
-export const ROUTE_ARROW = { type: MarkerType.ArrowClosed, width: 16, height: 16, color: WF_DOTMARK_COLOR };
+/** Open-chevron marker for the entry point into a route's final destination — applied only to
+ * a route's Condition→destination edge half, never its source→Condition half (see
+ * workforceStore.ts's `edge()` helper and `createRoute` below). `MarkerType.Arrow` (not
+ * `ArrowClosed`) renders as two open strokes, not a filled triangle. `markerUnits:
+ * "userSpaceOnUse"` makes width/height literal pixels instead of multiples of the referencing
+ * edge's strokeWidth — otherwise the arrow would visibly grow when a route is selected (which
+ * bumps that stroke width in DeletableEdge.tsx). width/height are tuned against reactflow's
+ * fixed internal -10..10 marker viewBox to land on a ~8px horizontal reach / ~12px vertical
+ * spread, matching the reference file's arrow exactly. */
+export const ROUTE_ARROW = {
+  type: MarkerType.Arrow,
+  color: WF_DOTMARK_COLOR,
+  width: 32,
+  height: 30,
+  markerUnits: "userSpaceOnUse",
+  strokeWidth: 1.6,
+};
 
 export function createAgentNode(agentId: string, position: XYPosition, keepContext = true): WorkforceNode {
   return { id: uid("agent"), type: "agent", position, data: { kind: "agent", agentId, keepContext } };
@@ -39,7 +53,7 @@ export function createRoute(sourceId: string, destPosition: XYPosition, sourcePo
   const mid: XYPosition = { x: (sourcePosition.x + destPosition.x) / 2, y: (sourcePosition.y + destPosition.y) / 2 };
   const condition = createConditionNode(mid);
   const edges: WorkforceEdge[] = [
-    { id: uid("edge"), source: sourceId, target: condition.id, type: "deletable", markerEnd: ROUTE_ARROW, data: { conditionId: condition.id } },
+    { id: uid("edge"), source: sourceId, target: condition.id, type: "deletable", data: { conditionId: condition.id } },
     { id: uid("edge"), source: condition.id, target: destId, type: "deletable", markerEnd: ROUTE_ARROW, data: { conditionId: condition.id } },
   ];
   return { condition, edges };

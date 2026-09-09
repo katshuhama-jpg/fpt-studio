@@ -4,7 +4,10 @@ import { ROUTE_ARROW } from "./graphOps";
 const HOUR = 3_600_000;
 
 function edge(id: string, source: string, target: string, conditionId: string): WorkforceEdge {
-  return { id, source, target, type: "deletable", markerEnd: ROUTE_ARROW, data: { conditionId } };
+  // Only the Condition's own exit edge (Condition -> destination) gets the arrow marker — its
+  // entry edge (source -> Condition) is a plain line, dots at both ends, no arrow at all.
+  const isConditionExit = source === conditionId;
+  return { id, source, target, type: "deletable", markerEnd: isConditionExit ? ROUTE_ARROW : undefined, data: { conditionId } };
 }
 
 function seedWorkforces(): Workforce[] {

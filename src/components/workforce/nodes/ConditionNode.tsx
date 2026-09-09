@@ -19,12 +19,13 @@ export default function ConditionNode({ id, data, selected }: NodeProps<Conditio
       ? data.llmText
       : `${data.rules.length} điều kiện`;
 
-  // Empty vs. configured is the one thing worth spotting at a glance while scanning a big
-  // Workforce — orange for "still needs setup", green once a route actually has conditions on
-  // it — with the post-publish "invalid" state (still empty when Publish was clicked) taking
-  // over both as the strongest, most alarming color of the three.
-  const stateColor = invalid ? "hsl(var(--destructive))" : unconfigured ? "var(--wf-warn)" : "var(--wf-ok)";
-  const borderColor = stateColor;
+  // Exactly two visual states: warn (empty/unconfigured — including the post-publish "invalid"
+  // flag, which only ever gets set on a condition that's still unconfigured) and the neutral
+  // default otherwise. The warn color lives on the border + icon only — body text always stays
+  // the same neutral color in both states.
+  const isWarn = unconfigured || invalid;
+  const accentColor = isWarn ? "var(--wf-warn)" : "var(--wf-cond-border)";
+  const iconColor = isWarn ? "var(--wf-warn)" : "var(--wf-muted)";
 
   return (
     <div
@@ -35,15 +36,17 @@ export default function ConditionNode({ id, data, selected }: NodeProps<Conditio
         gap: 7,
         padding: "8px 12px",
         background: "var(--wf-surface)",
-        border: `1px dashed ${borderColor}`,
+        border: `1px dashed ${accentColor}`,
         borderRadius: "var(--wf-radius-sm)",
         boxShadow: selected ? "0 0 0 2px var(--wf-agent-bg)" : "none",
-        color: stateColor,
+        color: "var(--wf-text)",
       }}
     >
       <NodeToolbarMenu visible={!!selected || hovered} onDelete={() => onDelete(id)} deleteLabel="Xóa route" />
       <Handle type="target" position={Position.Left} className={HANDLE_CLASS} />
-      {unconfigured ? <AlertTriangle size={13} className="shrink-0" /> : <GitBranch size={13} className="shrink-0" />}
+      {unconfigured
+        ? <AlertTriangle size={13} className="shrink-0" style={{ color: iconColor }} />
+        : <GitBranch size={13} className="shrink-0" style={{ color: iconColor }} />}
       <span className="text-[12px] truncate flex-1" style={{ fontFamily: "var(--wf-font-body)" }}>{statusText}</span>
       <Handle type="source" position={Position.Right} className={HANDLE_CLASS} />
     </div>
