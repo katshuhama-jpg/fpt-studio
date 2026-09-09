@@ -241,7 +241,6 @@ export default function WorkspaceGuardrails() {
             </div>
             <div className="flex items-center justify-end">
               <RowMenu
-                viewOnly={viewOnly}
                 onOpen={() => setViewItem(g)}
                 onEdit={() => setEditItem(g)}
                 onShare={hasOwner ? () => setShareItem(g) : undefined}
@@ -293,12 +292,12 @@ function ActionPill({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Row "..." menu — enforces the same permission matrix as Knowledge's RowMenu: an item the
- * viewer only has view access to (via sharing, not role Scope) shows just a read-only "Mở";
- * everyone else sees all four actions, individually disabled+tooltipped by whichever gate
- * (ownership, role permission, or role Scope) actually blocks it. */
-function RowMenu({ viewOnly, onOpen, onEdit, onShare, onDelete, editBlocked, shareBlocked, deleteBlocked }: {
-  viewOnly?: boolean;
+/** Row "..." menu — enforces the same permission matrix as Knowledge's RowMenu: "Mở" is always
+ * available, and "Chỉnh sửa"/"Chia sẻ"/"Xóa" are always rendered but individually
+ * disabled+tooltipped by whichever gate (ownership, sharing access level, role permission, or
+ * role Scope) actually blocks it — never hidden outright, so an owner sees the full action set,
+ * an edit-shared viewer sees Mở/Chỉnh sửa enabled, and a view-only viewer sees only Mở enabled. */
+function RowMenu({ onOpen, onEdit, onShare, onDelete, editBlocked, shareBlocked, deleteBlocked }: {
   onOpen: () => void; onEdit: () => void; onShare?: () => void; onDelete: () => void;
   editBlocked?: string; shareBlocked?: string; deleteBlocked?: string;
 }) {
@@ -324,43 +323,38 @@ function RowMenu({ viewOnly, onOpen, onEdit, onShare, onDelete, editBlocked, sha
       </button>
       {open && (
         <div className="absolute right-0 top-8 z-20 w-40 bg-white rounded-xl border border-border shadow-lg py-1 animate-fade-up">
-          {viewOnly ? (
+          <button
+            onClick={() => { setOpen(false); onOpen(); }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface-muted transition-base"
+          >
+            <HugeiconsIcon icon={EyeIcon} size={13} className="text-muted-foreground" /> Mở
+          </button>
+          <button
+            disabled={!!editBlocked}
+            title={editBlocked}
+            onClick={() => { setOpen(false); onEdit(); }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface-muted transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+          >
+            <HugeiconsIcon icon={PencilEdit01Icon} size={13} className="text-muted-foreground" /> Chỉnh sửa
+          </button>
+          {onShare && (
             <button
-              onClick={() => { setOpen(false); onOpen(); }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface-muted transition-base"
+              disabled={!!shareBlocked}
+              title={shareBlocked}
+              onClick={() => { setOpen(false); onShare(); }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface-muted transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
             >
-              <HugeiconsIcon icon={EyeIcon} size={13} className="text-muted-foreground" /> Mở
+              <HugeiconsIcon icon={Share08Icon} size={13} className="text-muted-foreground" /> Chia sẻ
             </button>
-          ) : (
-            <>
-              <button
-                disabled={!!editBlocked}
-                title={editBlocked}
-                onClick={() => { setOpen(false); onEdit(); }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface-muted transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-              >
-                <HugeiconsIcon icon={PencilEdit01Icon} size={13} className="text-muted-foreground" /> Edit
-              </button>
-              {onShare && (
-                <button
-                  disabled={!!shareBlocked}
-                  title={shareBlocked}
-                  onClick={() => { setOpen(false); onShare(); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface-muted transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                >
-                  <HugeiconsIcon icon={Share08Icon} size={13} className="text-muted-foreground" /> Share
-                </button>
-              )}
-              <button
-                disabled={!!deleteBlocked}
-                title={deleteBlocked}
-                onClick={() => { setOpen(false); onDelete(); }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/5 transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-              >
-                <HugeiconsIcon icon={Delete01Icon} size={13} /> Delete
-              </button>
-            </>
           )}
+          <button
+            disabled={!!deleteBlocked}
+            title={deleteBlocked}
+            onClick={() => { setOpen(false); onDelete(); }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/5 transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+          >
+            <HugeiconsIcon icon={Delete01Icon} size={13} /> Xóa
+          </button>
         </div>
       )}
     </div>

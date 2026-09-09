@@ -14,11 +14,5 @@ export default function SkillOwnershipTag({ skill, userId }: { skill: Skill; use
       </>
     );
   }
-  const me = skill.sharing.people.find(p => p.userId === userId);
-  return (
-    <>
-      <span className="chip chip-muted">Được chia sẻ · {skill.ownerName}</span>
-      {me && <span className="chip chip-info">{me.access === "edit" ? "Có thể chỉnh sửa" : "Có thể xem"}</span>}
-    </>
-  );
+  return <span className="chip chip-muted">Được chia sẻ · {skill.ownerName}</span>;
 }

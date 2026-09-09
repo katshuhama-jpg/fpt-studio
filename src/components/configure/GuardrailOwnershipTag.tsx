@@ -15,11 +15,5 @@ export default function GuardrailOwnershipTag({ g, userId }: { g: Guardrail; use
       </>
     );
   }
-  const me = g.sharing.people.find(p => p.userId === userId);
-  return (
-    <>
-      <span className="chip chip-muted">Được chia sẻ · {g.ownerName ?? "—"}</span>
-      {me && <span className="chip chip-info">{me.access === "edit" ? "Có thể chỉnh sửa" : "Có thể xem"}</span>}
-    </>
-  );
+  return <span className="chip chip-muted">Được chia sẻ · {g.ownerName ?? "—"}</span>;
 }
