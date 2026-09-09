@@ -212,42 +212,39 @@ export default function Skills() {
           </div>
         </div>
 
-        {/* Ownership tabs */}
+        {/* Ownership tabs + search + view toggle */}
         <div className="border-b border-border bg-background shrink-0">
-          <div className="max-w-[1200px] mx-auto px-8 py-3 flex items-center gap-1 flex-wrap">
-            {TABS.map(t => (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                className={`px-3 h-8 rounded-lg text-sm font-medium transition-base flex items-center gap-1.5 ${
-                  tab === t.key ? "bg-primary-soft text-primary" : "text-muted-foreground hover:bg-surface-muted"
-                }`}
-              >
-                {t.label}
-                <span className={`text-xs px-1.5 py-0.5 rounded-full ${tab === t.key ? "bg-primary/10 text-primary" : "bg-surface-sunken text-muted-foreground"}`}>
-                  {counts[t.key]}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Toolbar */}
-        <div className="border-b border-border bg-background shrink-0">
-          <div className="max-w-[1200px] mx-auto px-8 py-3 flex items-center gap-3">
-            <div className="relative flex-1 max-w-xs">
-              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search…"
-                className="h-8 w-full pl-9 pr-3 rounded-lg bg-surface border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring"
-              />
+          <div className="max-w-[1200px] mx-auto px-8 py-3 flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-1 flex-wrap">
+              {TABS.map(t => (
+                <button
+                  key={t.key}
+                  onClick={() => setTab(t.key)}
+                  className={`px-3 h-8 rounded-lg text-sm font-medium transition-base flex items-center gap-1.5 ${
+                    tab === t.key ? "bg-primary-soft text-primary" : "text-muted-foreground hover:bg-surface-muted"
+                  }`}
+                >
+                  {t.label}
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${tab === t.key ? "bg-primary/10 text-primary" : "bg-surface-sunken text-muted-foreground"}`}>
+                    {counts[t.key]}
+                  </span>
+                </button>
+              ))}
             </div>
-            <div className="flex-1" />
-            <div className="flex items-center gap-0.5 p-1 rounded-lg bg-surface border border-border">
-              <button onClick={() => setView("grid")} className={`p-1.5 rounded-md transition-base ${view === "grid" ? "bg-surface-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`} aria-label="Grid view"><LayoutGrid size={14} /></button>
-              <button onClick={() => setView("list")} className={`p-1.5 rounded-md transition-base ${view === "list" ? "bg-surface-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`} aria-label="List view"><List size={14} /></button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative">
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search…"
+                  className="h-8 w-56 pl-9 pr-3 rounded-lg bg-surface border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring"
+                />
+              </div>
+              <div className="flex items-center gap-0.5 p-1 rounded-lg bg-surface border border-border">
+                <button onClick={() => setView("grid")} className={`p-1.5 rounded-md transition-base ${view === "grid" ? "bg-surface-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`} aria-label="Grid view"><LayoutGrid size={14} /></button>
+                <button onClick={() => setView("list")} className={`p-1.5 rounded-md transition-base ${view === "list" ? "bg-surface-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`} aria-label="List view"><List size={14} /></button>
+              </div>
             </div>
           </div>
         </div>
