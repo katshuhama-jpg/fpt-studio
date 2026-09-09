@@ -33,14 +33,11 @@ const TOP_TABS: { id: Tab; label: string; Icon: any }[] = [
   { id: "insights", label: "Insights", Icon: Analytics01Icon },
 ];
 
-// Curated avatar options for the Connection card — same emoji+bg pairing convention as the
-// seed data in externalAgentStore.ts, plus a few extra combinations for variety.
-const AVATAR_OPTIONS: { emoji: string; bg: string }[] = [
-  { emoji: "🤖", bg: "bg-slate-50" }, { emoji: "✈️", bg: "bg-blue-50" }, { emoji: "🤝", bg: "bg-pink-50" },
-  { emoji: "📊", bg: "bg-green-50" }, { emoji: "⚖️", bg: "bg-amber-50" }, { emoji: "📦", bg: "bg-indigo-50" },
-  { emoji: "📣", bg: "bg-purple-50" }, { emoji: "🛡️", bg: "bg-rose-50" }, { emoji: "🔌", bg: "bg-primary-soft" },
-  { emoji: "💬", bg: "bg-cyan-50" }, { emoji: "🎧", bg: "bg-teal-50" }, { emoji: "📚", bg: "bg-orange-50" },
-];
+// Same 12-emoji set + fixed bg-primary-soft swatch as the internal Agent Builder's avatar
+// picker (GeneralTab in AgentBuilder.tsx) — kept identical so both agent types' detail pages
+// present the same avatar-editing experience.
+const AVATAR_EMOJI_OPTIONS = ["🏦", "🤖", "💼", "🧠", "🎯", "🛡️", "⚡", "🌐", "📊", "🔧", "💡", "🚀"];
+const AVATAR_BG = "bg-primary-soft";
 
 const ENDPOINTS: { method: string; path: string; purpose: string; required: boolean }[] = [
   { method: "GET", path: "/health", purpose: "Status and protocol version.", required: true },
@@ -641,92 +638,74 @@ export default function ExternalAgentDetail() {
                     </div>
                   )}
                 </div>
-                {/* Avatar + Name + Description — identity header for the Connection card. Avatar
-                    opens a picker on click; Name/Description turn into inline inputs on click,
-                    all staged into the same batch connDraft as the rows below. */}
-                <div className="flex items-start gap-3 pb-4 mb-1 border-b border-border">
+                {/* Avatar + Name + Description — same visual pattern as the internal Agent
+                    Builder's header (GeneralTab in AgentBuilder.tsx): 48px avatar with a
+                    bottom-right pencil badge opening a 12-emoji picker, name/description as
+                    plain-looking inputs that reveal a border on hover/focus. Typing stages the
+                    change into connDraft/openConnFields, same batch Save changes / Discard bar
+                    as the rows below. */}
+                <div className="flex items-center gap-3 pb-4 mb-1 border-b border-border">
                   <div className="relative shrink-0">
                     <button
                       type="button"
                       onClick={() => setShowAvatarPicker(v => !v)}
                       aria-label="Change avatar"
-                      className={`w-14 h-14 rounded-2xl ${connBg} flex items-center justify-center text-3xl transition-base hover:opacity-80`}
+                      className={`w-12 h-12 rounded-xl ${AVATAR_BG} border border-border hover:border-primary/40 flex items-center justify-center text-2xl transition-base`}
                     >
                       {connEmoji}
                     </button>
-                    <span className="absolute -top-1.5 -left-1.5 w-6 h-6 rounded-full bg-white border border-border shadow-sm flex items-center justify-center text-muted-foreground pointer-events-none">
-                      <Pencil size={11} />
+                    <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-md bg-surface border border-border flex items-center justify-center pointer-events-none">
+                      <Pencil size={9} className="text-muted-foreground" />
                     </span>
                     {showAvatarPicker && (
                       <>
                         <div className="fixed inset-0 z-10" onClick={() => setShowAvatarPicker(false)} />
-                        <div className="absolute left-0 top-full mt-2 z-20 w-56 rounded-lg border border-border bg-white shadow-elev p-2">
-                          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-1 pb-1.5">Choose an avatar</p>
-                          <div className="grid grid-cols-6 gap-1.5">
-                            {AVATAR_OPTIONS.map(opt => (
-                              <button
-                                key={opt.emoji}
-                                type="button"
-                                onClick={() => {
-                                  setConnDraft(d => ({ ...d, emoji: opt.emoji, bg: opt.bg }));
-                                  setOpenConnFields(prev => new Set(prev).add("avatar"));
-                                  setShowAvatarPicker(false);
-                                }}
-                                className={`w-8 h-8 rounded-lg ${opt.bg} flex items-center justify-center text-base transition-base ${
-                                  connEmoji === opt.emoji && connBg === opt.bg ? "ring-2 ring-primary" : "hover:opacity-80"
-                                }`}
-                              >
-                                {opt.emoji}
-                              </button>
-                            ))}
-                          </div>
+                        <div className="absolute top-full left-0 mt-2 z-20 bg-surface border border-border rounded-xl shadow-lg p-2.5 grid grid-cols-6 gap-1 w-[180px]">
+                          {AVATAR_EMOJI_OPTIONS.map(e => (
+                            <button
+                              key={e}
+                              type="button"
+                              onClick={() => {
+                                setConnDraft(d => ({ ...d, emoji: e, bg: AVATAR_BG }));
+                                setOpenConnFields(prev => new Set(prev).add("avatar"));
+                                setShowAvatarPicker(false);
+                              }}
+                              className={`w-8 h-8 rounded-lg text-xl flex items-center justify-center hover:bg-primary-soft transition-base ${connEmoji === e ? "bg-primary-soft ring-1 ring-primary" : ""}`}
+                            >
+                              {e}
+                            </button>
+                          ))}
+                          <label className="col-span-6 mt-1 flex items-center justify-center gap-1.5 text-xs text-primary cursor-pointer hover:underline">
+                            <Pencil size={10} /> Upload image
+                            <input type="file" className="hidden" accept="image/*" />
+                          </label>
                         </div>
                       </>
                     )}
                   </div>
 
-                  <div className="min-w-0 flex-1 pt-0.5">
-                    {openConnFields.has("name") ? (
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <input
-                            autoFocus
-                            value={connName}
-                            onChange={e => { setConnDraft(d => ({ ...d, name: e.target.value })); setConnErrors(er => ({ ...er, name: undefined })); }}
-                            className={`w-full max-w-xs h-8 px-2.5 rounded-lg border bg-surface text-sm font-semibold outline-none transition-base ${connErrors.name ? "border-destructive" : "border-border focus:border-primary"}`}
-                          />
-                          <button type="button" onClick={() => toggleConnField("name")} aria-label="Cancel editing Name" className="text-muted-foreground hover:text-foreground transition-base shrink-0">
-                            <X size={14} />
-                          </button>
-                        </div>
-                        {connErrors.name && <p className="mt-1 text-[11px] text-destructive">{connErrors.name}</p>}
-                      </div>
-                    ) : (
-                      <button type="button" onClick={() => toggleConnField("name")} className="group flex items-center gap-1.5 max-w-full">
-                        <span className="text-sm font-semibold text-foreground truncate">{agent.name}</span>
-                        <Pencil size={12} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-base shrink-0" />
-                      </button>
-                    )}
-
-                    {openConnFields.has("description") ? (
-                      <div className="mt-1.5 flex items-start gap-2">
-                        <textarea
-                          autoFocus
-                          rows={2}
-                          value={connDescription}
-                          onChange={e => setConnDraft(d => ({ ...d, description: e.target.value }))}
-                          className="w-full max-w-sm px-2.5 py-1.5 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base resize-none"
-                        />
-                        <button type="button" onClick={() => toggleConnField("description")} aria-label="Cancel editing Description" className="text-muted-foreground hover:text-foreground transition-base shrink-0 mt-1.5">
-                          <X size={14} />
-                        </button>
-                      </div>
-                    ) : (
-                      <button type="button" onClick={() => toggleConnField("description")} className="group flex items-start gap-1.5 mt-1 text-left w-full max-w-full">
-                        <span className="text-xs text-muted-foreground line-clamp-1 flex-1 min-w-0">{agent.description || "Add a description"}</span>
-                        <Pencil size={11} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-base shrink-0 mt-0.5" />
-                      </button>
-                    )}
+                  <div className="flex-1 flex flex-col gap-1 min-w-0">
+                    <input
+                      value={connName}
+                      onChange={e => {
+                        setConnDraft(d => ({ ...d, name: e.target.value }));
+                        setOpenConnFields(prev => new Set(prev).add("name"));
+                        setConnErrors(er => ({ ...er, name: undefined }));
+                      }}
+                      placeholder="Agent name…"
+                      className="w-full text-base font-semibold bg-transparent border border-transparent rounded-md px-2 py-0.5 -mx-2 outline-none hover:border-border hover:bg-surface focus:border-ring focus:bg-surface transition-base"
+                    />
+                    {connErrors.name && <p className="text-[11px] text-destructive px-2 -mx-2">{connErrors.name}</p>}
+                    <input
+                      value={connDescription}
+                      onChange={e => {
+                        setConnDraft(d => ({ ...d, description: e.target.value }));
+                        setOpenConnFields(prev => new Set(prev).add("description"));
+                      }}
+                      placeholder="Short description…"
+                      className="w-full text-sm text-muted-foreground bg-transparent border border-transparent rounded-md px-2 py-0.5 -mx-2 outline-none hover:border-border hover:bg-surface focus:border-ring focus:bg-surface transition-base truncate"
+                      style={{ textOverflow: "ellipsis" }}
+                    />
                   </div>
                 </div>
 
