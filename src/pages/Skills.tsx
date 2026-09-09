@@ -192,60 +192,66 @@ export default function Skills() {
       {/* Main */}
       <div className="flex flex-col flex-1 min-w-0 transition-all duration-300">
         {/* Header */}
-        <div className="flex items-center justify-between px-8 py-5 border-b border-border bg-surface shrink-0">
-          <div>
-            <h1 className="text-xl font-semibold font-display flex items-center gap-2">
-              <Puzzle size={20} className="text-primary" />
-              Skills
-            </h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Skills shared across all agents in this workspace</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button className="btn-secondary flex items-center gap-1.5"><BookOpen size={14} /> Browse Library</button>
-            <button
-              onClick={() => canCreateSkill && setShowCreate(true)}
-              disabled={!canCreateSkill}
-              title={!canCreateSkill ? "You don't have permission to create skills." : undefined}
-              className="btn-primary flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <Plus size={14} /> Create Skill
-            </button>
+        <div className="border-b border-border bg-surface shrink-0">
+          <div className="max-w-[1200px] mx-auto px-8 py-5 flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-semibold font-display flex items-center gap-2">
+                <Puzzle size={20} className="text-primary" />
+                Skills
+              </h1>
+              <p className="text-sm text-muted-foreground mt-0.5">Skills shared across all agents in this workspace</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button className="btn-secondary flex items-center gap-1.5"><BookOpen size={14} /> Browse Library</button>
+              <button
+                onClick={() => canCreateSkill && setShowCreate(true)}
+                disabled={!canCreateSkill}
+                title={!canCreateSkill ? "You don't have permission to create skills." : undefined}
+                className="btn-primary flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Plus size={14} /> Create Skill
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Ownership tabs */}
-        <div className="flex items-center gap-1 flex-wrap px-8 py-3 border-b border-border bg-background shrink-0">
-          {TABS.map(t => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`px-3 h-8 rounded-lg text-sm font-medium transition-base flex items-center gap-1.5 ${
-                tab === t.key ? "bg-primary-soft text-primary" : "text-muted-foreground hover:bg-surface-muted"
-              }`}
-            >
-              {t.label}
-              <span className={`text-xs px-1.5 py-0.5 rounded-full ${tab === t.key ? "bg-primary/10 text-primary" : "bg-surface-sunken text-muted-foreground"}`}>
-                {counts[t.key]}
-              </span>
-            </button>
-          ))}
+        <div className="border-b border-border bg-background shrink-0">
+          <div className="max-w-[1200px] mx-auto px-8 py-3 flex items-center gap-1 flex-wrap">
+            {TABS.map(t => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={`px-3 h-8 rounded-lg text-sm font-medium transition-base flex items-center gap-1.5 ${
+                  tab === t.key ? "bg-primary-soft text-primary" : "text-muted-foreground hover:bg-surface-muted"
+                }`}
+              >
+                {t.label}
+                <span className={`text-xs px-1.5 py-0.5 rounded-full ${tab === t.key ? "bg-primary/10 text-primary" : "bg-surface-sunken text-muted-foreground"}`}>
+                  {counts[t.key]}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Toolbar */}
-        <div className="flex items-center gap-3 px-8 py-3 border-b border-border bg-background shrink-0">
-          <div className="relative flex-1 max-w-xs">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search…"
-              className="h-8 w-full pl-9 pr-3 rounded-lg bg-surface border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring"
-            />
-          </div>
-          <div className="flex-1" />
-          <div className="flex items-center gap-0.5 p-1 rounded-lg bg-surface border border-border">
-            <button onClick={() => setView("grid")} className={`p-1.5 rounded-md transition-base ${view === "grid" ? "bg-surface-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`} aria-label="Grid view"><LayoutGrid size={14} /></button>
-            <button onClick={() => setView("list")} className={`p-1.5 rounded-md transition-base ${view === "list" ? "bg-surface-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`} aria-label="List view"><List size={14} /></button>
+        <div className="border-b border-border bg-background shrink-0">
+          <div className="max-w-[1200px] mx-auto px-8 py-3 flex items-center gap-3">
+            <div className="relative flex-1 max-w-xs">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search…"
+                className="h-8 w-full pl-9 pr-3 rounded-lg bg-surface border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring"
+              />
+            </div>
+            <div className="flex-1" />
+            <div className="flex items-center gap-0.5 p-1 rounded-lg bg-surface border border-border">
+              <button onClick={() => setView("grid")} className={`p-1.5 rounded-md transition-base ${view === "grid" ? "bg-surface-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`} aria-label="Grid view"><LayoutGrid size={14} /></button>
+              <button onClick={() => setView("list")} className={`p-1.5 rounded-md transition-base ${view === "list" ? "bg-surface-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`} aria-label="List view"><List size={14} /></button>
+            </div>
           </div>
         </div>
 
@@ -270,41 +276,45 @@ export default function Skills() {
             </div>
           </div>
         ) : view === "grid" ? (
-          <div className="flex-1 overflow-y-auto p-6">
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3">
-              {visible.map(s => (
-                <div key={s.id}
-                  onClick={() => openSkill(s)}
-                  className={`rounded-xl border p-4 cursor-pointer transition-base ${selected?.id === s.id ? "border-primary bg-primary-soft" : "border-border bg-surface hover:border-border-strong hover:bg-surface-muted"}`}
-                >
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base mb-3" style={{ background: s.iconBg }}>{s.icon}</div>
-                  <div className="text-xs font-semibold mb-1.5 truncate">{s.name}</div>
-                  <div className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{s.description}</div>
-                  <div className="flex items-center gap-1 flex-wrap mt-3">
-                    <SkillOwnershipTag skill={s} userId={access.userId} />
+          <div className="flex-1 overflow-y-auto">
+            <div className="max-w-[1200px] mx-auto px-8 py-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {visible.map(s => (
+                  <div key={s.id}
+                    onClick={() => openSkill(s)}
+                    className={`rounded-xl border p-4 cursor-pointer transition-base ${selected?.id === s.id ? "border-primary bg-primary-soft" : "border-border bg-surface hover:border-border-strong hover:bg-surface-muted"}`}
+                  >
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base mb-3" style={{ background: s.iconBg }}>{s.icon}</div>
+                    <div className="text-xs font-semibold mb-1.5 truncate">{s.name}</div>
+                    <div className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{s.description}</div>
+                    <div className="flex items-center gap-1 flex-wrap mt-3">
+                      <SkillOwnershipTag skill={s} userId={access.userId} />
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto">
-            {visible.map(s => (
-              <div key={s.id}
-                onClick={() => openSkill(s)}
-                className={`flex items-center gap-3 px-8 py-3 border-b border-border cursor-pointer transition-base ${selected?.id === s.id ? "bg-primary-soft" : "hover:bg-surface-muted"}`}
-              >
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center text-sm shrink-0" style={{ background: s.iconBg }}>{s.icon}</div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">{s.name}</div>
-                  <div className="text-xs text-muted-foreground truncate">{s.description}</div>
+            <div className="max-w-[1200px] mx-auto px-8">
+              {visible.map(s => (
+                <div key={s.id}
+                  onClick={() => openSkill(s)}
+                  className={`flex items-center gap-3 py-3 border-b border-border cursor-pointer transition-base ${selected?.id === s.id ? "bg-primary-soft" : "hover:bg-surface-muted"}`}
+                >
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center text-sm shrink-0" style={{ background: s.iconBg }}>{s.icon}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{s.name}</div>
+                    <div className="text-xs text-muted-foreground truncate">{s.description}</div>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <SkillOwnershipTag skill={s} userId={access.userId} />
+                  </div>
+                  <ChevronRight size={14} className="text-muted-foreground shrink-0" />
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <SkillOwnershipTag skill={s} userId={access.userId} />
-                </div>
-                <ChevronRight size={14} className="text-muted-foreground shrink-0" />
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
       </div>
