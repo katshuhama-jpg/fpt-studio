@@ -28,11 +28,14 @@ function relativeTime(ts: number): string {
   return `Cập nhật ${days} ngày trước`;
 }
 
-function OwnershipChips({ kb }: { kb: KnowledgeBase }) {
+// The active tab already tells the viewer which ownership category they're looking at, so the
+// ownership tag itself is trimmed (or dropped) per tab to avoid repeating that context on every
+// card — the share-status tag ("Dùng chung" / "Chia sẻ với N người") is unaffected in every tab.
+function OwnershipChips({ kb, tab }: { kb: KnowledgeBase; tab: MainTab }) {
   if (kb.ownerId === CURRENT_USER.id) {
     return (
       <>
-        <span className="chip chip-muted">Của tôi</span>
+        {tab !== "mine" && <span className="chip chip-muted">Của tôi</span>}
         {kb.sharing.mode === "all" && <span className="chip chip-info">Dùng chung</span>}
         {kb.sharing.mode === "specific" && kb.sharing.people.length > 0 && (
           <span className="chip chip-info">Chia sẻ với {kb.sharing.people.length} người</span>
@@ -40,7 +43,7 @@ function OwnershipChips({ kb }: { kb: KnowledgeBase }) {
       </>
     );
   }
-  return <span className="chip chip-muted">Được chia sẻ · {kb.ownerName}</span>;
+  return <span className="chip chip-muted">{tab === "shared" ? `· ${kb.ownerName}` : `Được chia sẻ · ${kb.ownerName}`}</span>;
 }
 
 function RowMenu({ kb, onOpen, onEdit, onShare, onDelete, editBlocked, shareBlocked, deleteBlocked }: {
@@ -104,8 +107,8 @@ function RowMenu({ kb, onOpen, onEdit, onShare, onDelete, editBlocked, shareBloc
   );
 }
 
-function KbCard({ kb, userId, access, onOpen, onEdit, onShare, onDelete }: {
-  kb: KnowledgeBase; userId: string; access: ReturnType<typeof useGroupAccess>;
+function KbCard({ kb, userId, access, tab, onOpen, onEdit, onShare, onDelete }: {
+  kb: KnowledgeBase; userId: string; access: ReturnType<typeof useGroupAccess>; tab: MainTab;
   onOpen: () => void; onEdit: () => void; onShare: () => void; onDelete: () => void;
 }) {
   const viewOnly = isViewOnly(kb, userId);
@@ -152,7 +155,7 @@ function KbCard({ kb, userId, access, onOpen, onEdit, onShare, onDelete }: {
         {kb.description || <span className="italic">Chưa có mô tả</span>}
       </p>
       <div className="flex items-center gap-1.5 flex-wrap mb-3">
-        <OwnershipChips kb={kb} />
+        <OwnershipChips kb={kb} tab={tab} />
       </div>
       <div className="mt-auto pt-3 border-t border-border flex items-center justify-between text-sm text-muted-foreground gap-2 flex-wrap">
         <span>{kb.stats.docs} tài liệu · {kb.stats.urls} URL · {kb.stats.chunks} chunk</span>
@@ -402,6 +405,7 @@ export default function KnowledgeList() {
               kb={kb}
               userId={userId}
               access={access}
+              tab={tab}
               onOpen={() => navigate(`/knowledge/${kb.id}`)}
               onEdit={() => setEditTarget(kb)}
               onShare={() => setShareTarget(kb)}
