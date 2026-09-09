@@ -40,13 +40,7 @@ function OwnershipChips({ kb }: { kb: KnowledgeBase }) {
       </>
     );
   }
-  const me = kb.sharing.people.find(p => p.userId === CURRENT_USER.id);
-  return (
-    <>
-      <span className="chip chip-muted">Được chia sẻ · {kb.ownerName}</span>
-      {me && <span className="chip chip-info">{me.access === "edit" ? "Có thể chỉnh sửa" : "Có thể xem"}</span>}
-    </>
-  );
+  return <span className="chip chip-muted">Được chia sẻ · {kb.ownerName}</span>;
 }
 
 function RowMenu({ kb, onOpen, onEdit, onShare, onDelete, editBlocked, shareBlocked, deleteBlocked }: {
