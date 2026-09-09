@@ -459,19 +459,19 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
                 <div>
                   <label className="text-xs font-medium mb-1.5 block" htmlFor="ext-hosts">Allowed hosts for authorizeUrl <span className="text-destructive">*</span></label>
                   {allowedHosts.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mb-1.5">
+                    <div className="space-y-1.5 mb-1.5">
                       {allowedHosts.map(host => (
-                        <span key={host} className="inline-flex items-center gap-1 h-6 pl-2 pr-1 rounded-md bg-surface-muted border border-border text-xs font-mono">
-                          {host}
+                        <div key={host} className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface">
+                          <span className="text-xs font-mono truncate">{host}</span>
                           <button
                             type="button"
                             onClick={() => removeHost(host)}
                             aria-label={`Remove ${host}`}
-                            className="text-muted-foreground hover:text-foreground transition-base"
+                            className="shrink-0 text-muted-foreground hover:text-foreground transition-base"
                           >
-                            <X size={11} />
+                            <X size={13} />
                           </button>
-                        </span>
+                        </div>
                       ))}
                     </div>
                   )}
