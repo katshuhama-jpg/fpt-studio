@@ -279,7 +279,7 @@ export default function Skills() {
                     className={`rounded-xl border p-4 cursor-pointer transition-base ${selected?.id === s.id ? "border-primary bg-primary-soft" : "border-border bg-surface hover:border-border-strong hover:bg-surface-muted"}`}
                   >
                     <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base mb-3" style={{ background: s.iconBg }}>{s.icon}</div>
-                    <div className="text-xs font-semibold mb-1.5 truncate">{s.name}</div>
+                    <div className="font-semibold text-sm leading-snug mb-1.5 truncate">{s.name}</div>
                     <div className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{s.description}</div>
                     <div className="flex items-center gap-1 flex-wrap mt-3">
                       <SkillOwnershipTag skill={s} userId={access.userId} tab={tab} />
