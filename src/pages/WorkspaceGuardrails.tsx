@@ -213,7 +213,7 @@ export default function WorkspaceGuardrails() {
               <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{g.desc}</div>
               {hasOwner && (
                 <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
-                  <GuardrailOwnershipTag g={g} userId={access.userId} />
+                  <GuardrailOwnershipTag g={g} userId={access.userId} tab={tab} />
                 </div>
               )}
             </div>

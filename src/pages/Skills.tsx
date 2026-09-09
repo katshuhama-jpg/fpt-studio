@@ -282,7 +282,7 @@ export default function Skills() {
                     <div className="text-xs font-semibold mb-1.5 truncate">{s.name}</div>
                     <div className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{s.description}</div>
                     <div className="flex items-center gap-1 flex-wrap mt-3">
-                      <SkillOwnershipTag skill={s} userId={access.userId} />
+                      <SkillOwnershipTag skill={s} userId={access.userId} tab={tab} />
                     </div>
                   </div>
                 ))}
@@ -303,7 +303,7 @@ export default function Skills() {
                     <div className="text-xs text-muted-foreground truncate">{s.description}</div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
-                    <SkillOwnershipTag skill={s} userId={access.userId} />
+                    <SkillOwnershipTag skill={s} userId={access.userId} tab={tab} />
                   </div>
                   <ChevronRight size={14} className="text-muted-foreground shrink-0" />
                 </div>
