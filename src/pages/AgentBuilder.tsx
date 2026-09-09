@@ -43,6 +43,13 @@ import { isViewOnly as isGuardrailViewOnly, isAccessibleTo as isGuardrailAccessi
 import GuardrailMemberPicker from "@/components/configure/GuardrailMemberPicker";
 import AttachConsoleGuardrailModal from "@/components/configure/AttachConsoleGuardrailModal";
 import PromoteGuardrailToConsoleDialog from "@/components/configure/PromoteGuardrailToConsoleDialog";
+import { skillStore, type Skill } from "@/components/configure/skillStore";
+import { agentSkillStore } from "@/components/configure/agentSkillStore";
+import CreateSkillModal, { type SkillFormData } from "@/components/configure/CreateSkillModal";
+import SkillOwnershipTag from "@/components/configure/SkillOwnershipTag";
+import SkillShareModal from "@/components/configure/SkillShareModal";
+import AttachConsoleSkillModal from "@/components/configure/AttachConsoleSkillModal";
+import PromoteSkillToConsoleDialog from "@/components/configure/PromoteSkillToConsoleDialog";
 import { chatOptimizationStore } from "@/components/configure/chatOptimizationStore";
 import { updateUser } from "@/lib/onboarding";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
@@ -3209,7 +3216,7 @@ function NewConfigPanel({ agentId, model, onModelChange, onConnectionsChange }: 
       id: "skills", icon: PuzzleIcon, label: "Skills",
       onAdd: (pos: {top:number;left:number}) => skillsAddRef.current?.(pos),
       content: (
-        <SkillsInner onRegisterAdd={(fn) => { skillsAddRef.current = fn; }} />
+        <SkillsInner agentId={agentId} onRegisterAdd={(fn) => { skillsAddRef.current = fn; }} />
       ),
     },
     {
@@ -3955,98 +3962,10 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
 // both /guardrails and GuardrailsAgentTab/GuardrailsInner below.
 
 /* ============ Skills Inner ============ */
-const WS_SKILLS = [
-  { id: 1, name: "/canvas-design",      author: "Anthropic", installs: "1.8M", desc: "Create beautiful visual art in .png and .pdf documents using design philosophy. You should use this skill when t…" },
-  { id: 2, name: "/web-artifacts-builder", author: "Anthropic", installs: "1.1M", desc: "Suite of tools for creating elaborate, multi-component claude.ai HTML artifacts using modern frontend web…" },
-  { id: 3, name: "/mcp-builder",        author: "Anthropic", installs: "944.1K", desc: "Guide for creating high-quality MCP (Model Context Protocol) servers that enable LLMs to interact with…" },
-  { id: 4, name: "/theme-factory",      author: "Anthropic", installs: "905K",   desc: "Toolkit for styling artifacts with a theme. These artifacts can be slides, docs, reportings, HTML landing pages, etc.…" },
-  { id: 5, name: "/learn",              author: "Anthropic", installs: "858K",   desc: "Use this skill when the user wants intellectual understanding — learning how or why something works,…" },
-  { id: 6, name: "/brand-guidelines",   author: "Anthropic", installs: "816.1K", desc: "Applies Anthropic's official brand colors and typography to any sort of artifact that may benefit from having…" },
-  { id: 7, name: "/doc-coauthoring",    author: "Anthropic", installs: "794.7K", desc: "Guide users through a structured workflow for co-authoring documentation. Use when user wants to write…" },
-  { id: 8, name: "/internal-comms",     author: "Anthropic", installs: "615K",   desc: "A set of resources to help me write all kinds of internal communications, using the formats that my company lik…" },
-];
-
-function ConnectWorkspaceSkillModal({ onClose, onAdd, added }: {
-  onClose: () => void;
-  onAdd: (skill: typeof WS_SKILLS[number]) => void;
-  added: Set<number>;
-}) {
-  const [search, setSearch] = useState("");
-  const filtered = WS_SKILLS.filter(s =>
-    !search || s.name.toLowerCase().includes(search.toLowerCase()) || s.desc.toLowerCase().includes(search.toLowerCase())
-  );
-
-  return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-2xl bg-white rounded-2xl shadow-lg border border-border flex flex-col max-h-[80vh] animate-fade-up">
-        {/* Header */}
-        <div className="flex items-start justify-between px-6 pt-6 pb-2 shrink-0">
-          <div>
-            <h2 className="text-lg font-semibold">Connect workspace skill</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">Skills shared across all agents in this workspace.</p>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 mt-0.5">
-            <HugeiconsIcon icon={Cancel01Icon} size={16} />
-          </button>
-        </div>
-
-        {/* Search */}
-        <div className="px-6 pb-4 pt-3 shrink-0">
-          <div className="relative">
-            <HugeiconsIcon icon={Search01Icon} size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
-              autoFocus
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search..."
-              className="w-full h-9 pl-9 pr-3 rounded-lg border border-primary/50 bg-white text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-base"
-            />
-          </div>
-        </div>
-
-        {/* Grid */}
-        <div className="flex-1 overflow-y-auto px-6 pb-6">
-          {filtered.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-12">No skills in this workspace yet.</p>
-          ) : (
-            <div className="grid grid-cols-2 gap-3">
-              {filtered.map(s => {
-                const isAdded = added.has(s.id);
-                return (
-                  <div key={s.id} className="relative flex flex-col p-4 rounded-xl border border-border bg-white hover:border-primary/30 transition-base">
-                    <div className="flex items-start justify-between mb-1.5">
-                      <span className="text-sm font-semibold text-foreground leading-tight">{s.name}</span>
-                      <button
-                        onClick={() => { if (!isAdded) onAdd(s); }}
-                        className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ml-2 transition-base ${
-                          isAdded
-                            ? "bg-primary-soft text-primary cursor-default"
-                            : "hover:bg-surface-muted text-muted-foreground hover:text-foreground"
-                        }`}
-                        title={isAdded ? "Added" : "Add"}
-                      >
-                        {isAdded
-                          ? <HugeiconsIcon icon={CheckmarkCircle01Icon} size={15} />
-                          : <HugeiconsIcon icon={Add01Icon} size={15} />
-                        }
-                      </button>
-                    </div>
-                    <p className="text-xs text-muted-foreground mb-2 leading-relaxed">
-                      {s.author} • <HugeiconsIcon icon={Download01Icon} size={10} className="inline mb-0.5" />{s.installs}
-                    </p>
-                    <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{s.desc}</p>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>,
-    document.body
-  );
-}
+// WS_SKILLS / ConnectWorkspaceSkillModal (a hardcoded catalog of Anthropic-style skills,
+// disconnected from the real Console skill store) has been retired — "Connect workspace
+// skill" now uses AttachConsoleSkillModal, backed by skillStore.ts (the same skills shown on
+// /tools), filtered to what the current user can access.
 
 function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string; onRegisterAdd?: (fn: (pos:{top:number;left:number}) => void) => void; onChange?: () => void }) {
   const [showMenu, setShowMenu] = useState(false);
@@ -4203,41 +4122,104 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
   );
 }
 
-function SkillsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:number;left:number}) => void) => void } = {}) {
-  const [showMenu, setShowMenu]     = useState(false);
-  const [showWsModal, setShowWsModal] = useState(false);
-  const [menuPos, setMenuPos]       = useState<{top:number;left:number}>({top:0,left:0});
-  const [skills, setSkills]         = useState<{id:number;name:string;type:"workspace"|"agent"}[]>([]);
-  const [wsAdded, setWsAdded]       = useState<Set<number>>(new Set());
+function SkillAgentItemRowMenu({ onEdit, onShare, onPromote, onDelete }: {
+  onEdit: () => void; onShare: () => void; onPromote: () => void; onDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const MENU_WIDTH = 208;
+  const MENU_HEIGHT_ESTIMATE = 190;
+
+  const openMenu = () => {
+    const r = btnRef.current?.getBoundingClientRect();
+    if (r) {
+      const openUpward = window.innerHeight - r.bottom < MENU_HEIGHT_ESTIMATE && r.top > MENU_HEIGHT_ESTIMATE;
+      const left = Math.min(Math.max(r.right - MENU_WIDTH, 8), window.innerWidth - MENU_WIDTH - 8);
+      setPos(openUpward ? { bottom: window.innerHeight - r.top + 4, left } : { top: r.bottom + 4, left });
+    }
+    setOpen(true);
+  };
 
   useEffect(() => {
-    onRegisterAdd?.((pos: {top:number;left:number}) => {
-      setMenuPos(pos);
-      setShowMenu(true);
-    });
+    if (!open) return;
+    const h = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node) && btnRef.current && !btnRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+
+  return (
+    <div className="relative shrink-0" onClick={e => e.stopPropagation()}>
+      <button ref={btnRef} onClick={() => (open ? setOpen(false) : openMenu())} aria-label="Thao tác" className="w-7 h-7 -m-2 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <HugeiconsIcon icon={MoreHorizontalIcon} size={14} />
+      </button>
+      {open && createPortal(
+        <div ref={menuRef} className="fixed z-[9999] w-52 rounded-lg border border-border bg-white shadow-elev py-1" style={{ top: pos.top, bottom: pos.bottom, left: pos.left }} onMouseDown={e => e.stopPropagation()}>
+          <button onClick={() => { setOpen(false); onEdit(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Sửa</button>
+          <button onClick={() => { setOpen(false); onShare(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Chia sẻ</button>
+          <button onClick={() => { setOpen(false); onPromote(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Chuyển thành skill chung</button>
+          <div className="mt-1 pt-1 border-t border-border">
+            <button onClick={() => { setOpen(false); onDelete(); }} className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">Xóa</button>
+          </div>
+        </div>,
+        document.body,
+      )}
+    </div>
+  );
+}
+
+function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAdd?: (fn: (pos:{top:number;left:number}) => void) => void }) {
+  const [showMenu, setShowMenu] = useState(false);
+  const [menuPos, setMenuPos] = useState<{top:number;left:number}>({top:0,left:0});
+  const [showAttach, setShowAttach] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [editTarget, setEditTarget] = useState<Skill | null>(null);
+  const [shareTarget, setShareTarget] = useState<Skill | null>(null);
+  const [promoteTarget, setPromoteTarget] = useState<Skill | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [detachTarget, setDetachTarget] = useState<{ id: string; name: string } | null>(null);
+  const [tick, setTick] = useState(0);
+  const refresh = () => setTick(t => t + 1);
+  void tick;
+
+  const { tree } = useOrg();
+  const members = useMemo(() => collectMembers(tree), [tree]);
+  const accessUserId = useGroupAccess("skills").userId;
+  const currentUser = useMemo(() => {
+    const me = members.find(m => m.id === accessUserId);
+    return { id: accessUserId, name: me?.name ?? "Tran Nam", email: me?.email ?? "tran.nam@fpt.com" };
+  }, [members, accessUserId]);
+
+  useEffect(() => {
+    onRegisterAdd?.((pos: {top:number;left:number}) => { setMenuPos(pos); setShowMenu(true); });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!showMenu) return;
-    const h = (e: MouseEvent) => { setShowMenu(false); };
+    const h = () => setShowMenu(false);
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, [showMenu]);
 
+  const items = agentSkillStore.list(agentId);
+  const attachedSkills = agentSkillStore.listAttachedConsoleSkillIds(agentId)
+    .map(id => skillStore.get(id))
+    .filter((s): s is Skill => !!s);
+
   const menuItems = [
-    { icon: LayerAddIcon, label: "Connect workspace skill" },
-    { icon: Add01Icon,    label: "Create new skill" },
-    { icon: Upload01Icon, label: "Upload a skill" },
+    { icon: LayerAddIcon, label: "Connect workspace skill", onClick: () => setShowAttach(true) },
+    { icon: Add01Icon,    label: "Create new skill", onClick: () => setShowCreate(true) },
+    { icon: Upload01Icon, label: "Upload a skill", onClick: undefined },
   ];
 
-  const handleAddWs = (s: typeof WS_SKILLS[number]) => {
-    setWsAdded(prev => new Set([...prev, s.id]));
-    setSkills(prev => [...prev, { id: s.id, name: s.name, type: "workspace" }]);
-  };
+  const total = attachedSkills.length + items.length;
 
   return (
     <>
-      {skills.length === 0 ? (
+      {total === 0 ? (
         <EmptyStateBox
           icon={PuzzleIcon}
           description="Reusable abilities you've taught it."
@@ -4249,24 +4231,51 @@ function SkillsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:number;
           }}
         />
       ) : (
-        <div className="flex flex-col gap-1.5">
-          {skills.map(s => (
-            <div key={s.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base">
-              <HugeiconsIcon icon={PuzzleIcon} size={13} className="text-muted-foreground shrink-0" />
-              <span className="text-[13px] font-medium flex-1 truncate">{s.name}</span>
-              {s.type === "workspace" && (
-                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap" style={{background:"#EFF6FF",color:"#1D4ED8",border:"0.5px solid #BFDBFE"}}>Workspace</span>
-              )}
-              <button
-                onClick={() => {
-                  setSkills(prev => prev.filter(x => x.id !== s.id));
-                  if (s.type === "workspace") setWsAdded(prev => { const n = new Set(prev); n.delete(s.id); return n; });
-                }}
-                className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-surface-muted transition-base shrink-0">
-                <HugeiconsIcon icon={Delete01Icon} size={12} />
-              </button>
+        <div className="space-y-3">
+          {attachedSkills.length > 0 && (
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Skills đã liên kết</div>
+              <div className="flex flex-col gap-1.5">
+                {attachedSkills.map(s => (
+                  <KnowledgeSourceRow
+                    key={s.id}
+                    icon={PuzzleIcon}
+                    name={s.name}
+                    chip={<div className="flex items-center gap-1 shrink-0"><SkillOwnershipTag skill={s} userId={currentUser.id} /></div>}
+                    onOpen={() => {}}
+                    href={`/tools?open=${s.id}`}
+                    onRemove={() => setDetachTarget({ id: s.id, name: s.name })}
+                    openLabel="Mở skill"
+                    removeLabel="Gỡ liên kết"
+                    twoLine
+                  />
+                ))}
+              </div>
             </div>
-          ))}
+          )}
+
+          {items.length > 0 && (
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Skills riêng của Agent</div>
+              <div className="flex flex-col gap-1.5">
+                {items.map(s => (
+                  <div key={s.id} className="flex items-start gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base">
+                    <HugeiconsIcon icon={PuzzleIcon} size={13} className="text-muted-foreground shrink-0 mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[13px] font-medium truncate">{s.name}</div>
+                      <div className="flex items-center gap-1 mt-1"><SkillOwnershipTag skill={s} userId={currentUser.id} /></div>
+                    </div>
+                    <SkillAgentItemRowMenu
+                      onEdit={() => setEditTarget(s)}
+                      onShare={() => setShareTarget(s)}
+                      onPromote={() => setPromoteTarget(s)}
+                      onDelete={() => setDeleteTarget({ id: s.id, name: s.name })}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -4282,13 +4291,7 @@ function SkillsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:number;
               <button
                 key={i}
                 className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-foreground hover:bg-surface-muted transition-base text-left"
-                onClick={() => {
-                  setShowMenu(false);
-                  if (item.label === "Connect workspace skill") { setShowWsModal(true); }
-                  else if (item.label === "Create new skill") {
-                    setSkills(prev => [...prev, { id: Date.now(), name: "New skill", type: "agent" }]);
-                  }
-                }}
+                onClick={() => { setShowMenu(false); item.onClick?.(); }}
               >
                 <HugeiconsIcon icon={item.icon} size={15} className="text-muted-foreground shrink-0" />
                 {item.label}
@@ -4299,14 +4302,78 @@ function SkillsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:number;
         document.body
       )}
 
-      {/* Connect workspace skill modal */}
-      {showWsModal && (
-        <ConnectWorkspaceSkillModal
-          onClose={() => setShowWsModal(false)}
-          onAdd={handleAddWs}
-          added={wsAdded}
+      {showAttach && <AttachConsoleSkillModal agentId={agentId} userId={currentUser.id} onClose={() => { setShowAttach(false); refresh(); }} />}
+      {showCreate && (
+        <CreateSkillModal
+          onClose={() => setShowCreate(false)}
+          onSubmit={(data: SkillFormData) => { agentSkillStore.create(agentId, { ...data, ownerId: currentUser.id, ownerName: currentUser.name }); refresh(); }}
+          currentUser={currentUser}
+          isDuplicateName={name => agentSkillStore.list(agentId).some(s => s.name.trim().toLowerCase() === name.trim().toLowerCase())}
         />
       )}
+      {editTarget && (
+        <CreateSkillModal
+          onClose={() => setEditTarget(null)}
+          onSubmit={(data: SkillFormData) => { agentSkillStore.update(agentId, editTarget.id, data); setEditTarget(null); refresh(); }}
+          initialData={editTarget}
+          currentUser={currentUser}
+          isDuplicateName={name => agentSkillStore.list(agentId).some(s => s.id !== editTarget.id && s.name.trim().toLowerCase() === name.trim().toLowerCase())}
+        />
+      )}
+      {shareTarget && (
+        <SkillShareModal
+          open
+          name={shareTarget.name}
+          ownerName={shareTarget.ownerName}
+          sharing={shareTarget.sharing}
+          onSave={sharing => { agentSkillStore.updateSharing(agentId, shareTarget.id, sharing); refresh(); }}
+          onClose={() => setShareTarget(null)}
+        />
+      )}
+      {promoteTarget && (
+        <PromoteSkillToConsoleDialog
+          agentId={agentId}
+          item={promoteTarget}
+          currentUser={currentUser}
+          onClose={() => { setPromoteTarget(null); refresh(); }}
+        />
+      )}
+
+      <AlertDialog open={!!detachTarget} onOpenChange={v => !v && setDetachTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Gỡ liên kết skill?</AlertDialogTitle>
+            <AlertDialogDescription>Agent sẽ không còn dùng được skill này. Skill vẫn được giữ nguyên trên Console.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { if (detachTarget) agentSkillStore.detachConsoleSkill(agentId, detachTarget.id); setDetachTarget(null); refresh(); }}
+            >
+              Gỡ liên kết
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xóa skill này?</AlertDialogTitle>
+            <AlertDialogDescription>Skill sẽ bị xóa vĩnh viễn khỏi Agent. Hành động này không thể hoàn tác.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { if (deleteTarget) agentSkillStore.remove(agentId, deleteTarget.id); setDeleteTarget(null); refresh(); }}
+            >
+              Xóa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

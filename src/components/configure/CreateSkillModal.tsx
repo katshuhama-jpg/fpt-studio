@@ -6,7 +6,6 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { skillStore } from "./skillStore";
 import { type SharingMode, type SharedPerson } from "./skillSharing";
 import SkillMemberPicker from "./SkillMemberPicker";
 
@@ -18,16 +17,28 @@ const SHARING_OPTIONS: { value: SharingMode; label: string; helper?: string }[] 
   { value: "specific", label: "Người dùng cụ thể" },
 ];
 
-/** THE working "Create Skill" flow — Name / Description / Source (same fields as the detail
- * drawer), ending with the same "Quyền truy cập" step as Knowledge/Guardrails. */
-export default function CreateSkillModal({ onClose, onCreated, currentUser }: {
+export interface SkillFormData {
+  name: string; description: string; body: string;
+  sharing: { mode: SharingMode; people: SharedPerson[] };
+}
+
+/** THE working "Create/edit Skill" flow — Name / Description / Source (same fields as the
+ * Console detail drawer), ending with the same "Quyền truy cập" step as Knowledge/Guardrails.
+ * Used for creating a Console skill, creating an Agent-private skill, and editing an
+ * Agent-private one (Quyền truy cập is create-only, matching CreateKnowledgeBaseModal.tsx's own
+ * convention — an existing item's sharing is changed via its own "Chia sẻ" action instead). */
+export default function CreateSkillModal({ onClose, onSubmit, initialData, currentUser, isDuplicateName, title = "Create Skill" }: {
   onClose: () => void;
-  onCreated?: (skillId: string) => void;
+  onSubmit: (data: SkillFormData) => void;
+  initialData?: { name: string; description: string; body: string };
   currentUser: { id: string; name: string; email: string };
+  isDuplicateName?: (name: string, excludeName?: string) => boolean;
+  title?: string;
 }) {
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [body, setBody] = useState("");
+  const isEdit = !!initialData;
+  const [name, setName] = useState(initialData?.name ?? "");
+  const [description, setDescription] = useState(initialData?.description ?? "");
+  const [body, setBody] = useState(initialData?.body ?? "");
   const [sharingMode, setSharingMode] = useState<SharingMode>("private");
   const [people, setPeople] = useState<SharedPerson[]>([]);
   const [nameTouched, setNameTouched] = useState(false);
@@ -35,18 +46,21 @@ export default function CreateSkillModal({ onClose, onCreated, currentUser }: {
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
   const trimmedName = name.trim();
+  const isDuplicate = isDuplicateName ? isDuplicateName(trimmedName, initialData?.name) : false;
   const showNameError = nameTouched || submitAttempted;
   const nameError = showNameError
     ? trimmedName.length === 0
       ? "Vui lòng nhập tên skill."
-      : skillStore.isDuplicateName(trimmedName)
+      : isDuplicate
         ? "Tên skill đã tồn tại. Vui lòng chọn tên khác."
         : null
     : null;
-  const peopleError = sharingMode === "specific" && people.length === 0;
+  const peopleError = !isEdit && sharingMode === "specific" && people.length === 0;
 
-  const isDirty = trimmedName.length > 0 || description.trim().length > 0 || body.trim().length > 0;
-  const canSubmit = trimmedName.length > 0 && trimmedName.length <= NAME_MAX && !skillStore.isDuplicateName(trimmedName) && (sharingMode !== "specific" || people.length > 0);
+  const isDirty = isEdit
+    ? trimmedName !== initialData!.name || description !== initialData!.description || body !== initialData!.body
+    : trimmedName.length > 0 || description.trim().length > 0 || body.trim().length > 0;
+  const canSubmit = trimmedName.length > 0 && trimmedName.length <= NAME_MAX && !isDuplicate && (isEdit || sharingMode !== "specific" || people.length > 0);
 
   const requestClose = () => {
     if (isDirty) setShowDiscardConfirm(true);
@@ -57,12 +71,10 @@ export default function CreateSkillModal({ onClose, onCreated, currentUser }: {
     setSubmitAttempted(true);
     setNameTouched(true);
     if (!canSubmit) return;
-    const sharing = { mode: sharingMode, people: sharingMode === "specific" ? people : [] };
-    const skill = skillStore.create({
+    onSubmit({
       name: trimmedName, description: description.trim(), body,
-      ownerId: currentUser.id, ownerName: currentUser.name, sharing,
+      sharing: { mode: sharingMode, people: sharingMode === "specific" ? people : [] },
     });
-    onCreated?.(skill.id);
     onClose();
   };
 
@@ -71,7 +83,7 @@ export default function CreateSkillModal({ onClose, onCreated, currentUser }: {
       <Dialog open onOpenChange={v => { if (!v) requestClose(); }}>
         <DialogContent className="sm:max-w-[560px] max-h-[88vh] overflow-y-auto" onOpenAutoFocus={e => e.preventDefault()}>
           <DialogHeader>
-            <DialogTitle>Create Skill</DialogTitle>
+            <DialogTitle>{isEdit ? "Sửa Skill" : title}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-5 py-1">
@@ -121,45 +133,47 @@ export default function CreateSkillModal({ onClose, onCreated, currentUser }: {
               />
             </div>
 
-            <div>
-              <label className="text-sm font-medium mb-2 block">Quyền truy cập</label>
-              <div className="space-y-2">
-                {SHARING_OPTIONS.map(opt => {
-                  const selected = sharingMode === opt.value;
-                  return (
-                    <div key={opt.value}>
-                      <div
-                        onClick={() => setSharingMode(opt.value)}
-                        className={`flex items-start gap-3 px-3.5 py-3 rounded-xl border cursor-pointer transition-base ${
-                          selected ? "border-primary bg-primary/5" : "border-border bg-white hover:bg-surface-muted"
-                        }`}
-                      >
-                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${selected ? "border-primary" : "border-border"}`}>
-                          {selected && <div className="w-2 h-2 rounded-full bg-primary" />}
+            {!isEdit && (
+              <div>
+                <label className="text-sm font-medium mb-2 block">Quyền truy cập</label>
+                <div className="space-y-2">
+                  {SHARING_OPTIONS.map(opt => {
+                    const selected = sharingMode === opt.value;
+                    return (
+                      <div key={opt.value}>
+                        <div
+                          onClick={() => setSharingMode(opt.value)}
+                          className={`flex items-start gap-3 px-3.5 py-3 rounded-xl border cursor-pointer transition-base ${
+                            selected ? "border-primary bg-primary/5" : "border-border bg-white hover:bg-surface-muted"
+                          }`}
+                        >
+                          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${selected ? "border-primary" : "border-border"}`}>
+                            {selected && <div className="w-2 h-2 rounded-full bg-primary" />}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium">{opt.label}</div>
+                            {opt.helper && <div className="text-xs text-muted-foreground mt-0.5">{opt.helper}</div>}
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <div className="text-sm font-medium">{opt.label}</div>
-                          {opt.helper && <div className="text-xs text-muted-foreground mt-0.5">{opt.helper}</div>}
-                        </div>
+                        {selected && opt.value === "specific" && (
+                          <div className="mt-2 pl-3.5">
+                            <SkillMemberPicker value={people} onChange={setPeople} ownerRow={{ name: currentUser.name, email: currentUser.email }} />
+                            {peopleError && submitAttempted && (
+                              <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người để chia sẻ.</p>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      {selected && opt.value === "specific" && (
-                        <div className="mt-2 pl-3.5">
-                          <SkillMemberPicker value={people} onChange={setPeople} ownerRow={{ name: currentUser.name, email: currentUser.email }} />
-                          {peopleError && submitAttempted && (
-                            <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người để chia sẻ.</p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           <DialogFooter>
             <button onClick={requestClose} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Hủy bỏ</button>
-            <button onClick={submit} disabled={!canSubmit} className="btn-primary h-9 disabled:opacity-40 disabled:pointer-events-none">Tạo</button>
+            <button onClick={submit} disabled={!canSubmit} className="btn-primary h-9 disabled:opacity-40 disabled:pointer-events-none">{isEdit ? "Lưu" : "Tạo"}</button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

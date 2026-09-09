@@ -1,4 +1,5 @@
-import { useState, useRef, useMemo } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Puzzle, BookOpen, Plus, Search, LayoutGrid, List, ChevronRight, Copy, Trash2, Eye, Code2, Bold, Italic, Strikethrough, Heading1, Heading2, List as ListIcon, ListOrdered, Share2 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -68,6 +69,7 @@ export default function Skills() {
     return { id: access.userId, name: me?.name ?? "Tran Nam", email: me?.email ?? "tran.nam@fpt.com" };
   }, [members, access.userId]);
   const canCreateSkill = can("skills.create");
+  const [params, setParams] = useSearchParams();
 
   const [tick, setTick] = useState(0);
   const refresh = () => setTick(t => t + 1);
@@ -98,6 +100,19 @@ export default function Skills() {
     setIsDirty(false);
     setViewMode("preview");
   }
+
+  // A skill linked to from elsewhere (e.g. an Agent's "Mở skill" row action) via ?open=<id>
+  // auto-opens here, instead of requiring a dedicated /tools/:id detail route.
+  useEffect(() => {
+    const openId = params.get("open");
+    if (!openId) return;
+    const next = new URLSearchParams(params);
+    next.delete("open");
+    setParams(next, { replace: true });
+    const s = skillStore.get(openId);
+    if (s) openSkill(s);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handleFieldChange() {
     setIsDirty(true);
@@ -430,8 +445,13 @@ export default function Skills() {
       {showCreate && (
         <CreateSkillModal
           onClose={() => setShowCreate(false)}
-          onCreated={id => { refresh(); const s = skillStore.get(id); if (s) openSkill(s); }}
+          onSubmit={data => {
+            const skill = skillStore.create({ ...data, ownerId: currentUser.id, ownerName: currentUser.name });
+            refresh();
+            openSkill(skill);
+          }}
           currentUser={currentUser}
+          isDuplicateName={name => skillStore.isDuplicateName(name)}
         />
       )}
 
