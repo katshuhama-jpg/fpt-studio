@@ -297,6 +297,9 @@ export const externalAgentStore = {
     name?: string; description?: string; baseUrl?: string; authMethod?: AuthMethod;
     tokenReplaced?: boolean; validation?: ValidationResult;
     allowedAuthorizeHosts?: string[]; historyDelivery?: { mode: HistoryDeliveryMode; lastN?: number };
+    /** Cosmetic identity — same unpublish-on-edit rule as every other field here (see comment
+     * above), even though changing the icon alone doesn't affect the live connection. */
+    emoji?: string; bg?: string;
   }): { unpublished: boolean } {
     const cur = store.get(id);
     if (!cur) return { unpublished: false };
@@ -313,6 +316,9 @@ export const externalAgentStore = {
     if (patch.historyDelivery !== undefined && (patch.historyDelivery.mode !== cur.historyDelivery.mode || patch.historyDelivery.lastN !== cur.historyDelivery.lastN)) {
       details.push("History delivery mode updated");
     }
+    if ((patch.emoji !== undefined && patch.emoji !== cur.emoji) || (patch.bg !== undefined && patch.bg !== cur.bg)) {
+      details.push("Avatar updated");
+    }
     const wasPublished = cur.status === "published";
     const next: ExternalAgent = {
       ...cur,
@@ -324,6 +330,8 @@ export const externalAgentStore = {
       allowedAuthorizeHosts: patch.allowedAuthorizeHosts ?? cur.allowedAuthorizeHosts,
       historyDelivery: patch.historyDelivery ?? cur.historyDelivery,
       lastValidation: patch.validation ?? cur.lastValidation,
+      emoji: patch.emoji ?? cur.emoji,
+      bg: patch.bg ?? cur.bg,
       status: wasPublished ? "draft" : cur.status,
       updatedAt: Date.now(),
     };

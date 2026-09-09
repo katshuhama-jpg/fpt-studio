@@ -33,6 +33,15 @@ const TOP_TABS: { id: Tab; label: string; Icon: any }[] = [
   { id: "insights", label: "Insights", Icon: Analytics01Icon },
 ];
 
+// Curated avatar options for the Connection card — same emoji+bg pairing convention as the
+// seed data in externalAgentStore.ts, plus a few extra combinations for variety.
+const AVATAR_OPTIONS: { emoji: string; bg: string }[] = [
+  { emoji: "🤖", bg: "bg-slate-50" }, { emoji: "✈️", bg: "bg-blue-50" }, { emoji: "🤝", bg: "bg-pink-50" },
+  { emoji: "📊", bg: "bg-green-50" }, { emoji: "⚖️", bg: "bg-amber-50" }, { emoji: "📦", bg: "bg-indigo-50" },
+  { emoji: "📣", bg: "bg-purple-50" }, { emoji: "🛡️", bg: "bg-rose-50" }, { emoji: "🔌", bg: "bg-primary-soft" },
+  { emoji: "💬", bg: "bg-cyan-50" }, { emoji: "🎧", bg: "bg-teal-50" }, { emoji: "📚", bg: "bg-orange-50" },
+];
+
 const ENDPOINTS: { method: string; path: string; purpose: string; required: boolean }[] = [
   { method: "GET", path: "/health", purpose: "Status and protocol version.", required: true },
   { method: "POST", path: "/runs", purpose: "Calls the agent to run.", required: true },
@@ -143,13 +152,15 @@ export default function ExternalAgentDetail() {
   // changes" button for the whole card, or "Discard" to drop everything and collapse back to
   // read-only. Bearer Token keeps its own separate "Replace token" flow below (unchanged) since
   // it already validates live and doesn't fit the plain-draft model.
-  type ConnField = "name" | "description" | "baseUrl" | "authMethod" | "allowedAuthorizeHosts";
+  type ConnField = "avatar" | "name" | "description" | "baseUrl" | "authMethod" | "allowedAuthorizeHosts";
   const [connDraft, setConnDraft] = useState<Partial<{
     name: string; description: string; baseUrl: string; authMethod: AuthMethod; allowedAuthorizeHosts: string[];
+    emoji: string; bg: string;
   }>>({});
   const [openConnFields, setOpenConnFields] = useState<Set<ConnField>>(new Set());
   const [connHostInput, setConnHostInput] = useState("");
   const [connErrors, setConnErrors] = useState<{ name?: string; baseUrl?: string; hosts?: string }>({});
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
 
   const [replacingToken, setReplacingToken] = useState(false);
   const [showReplaceConfirm, setShowReplaceConfirm] = useState(false);
@@ -239,6 +250,8 @@ export default function ExternalAgentDetail() {
   const connBaseUrl = connDraft.baseUrl ?? agent.baseUrl;
   const connAuthMethod = connDraft.authMethod ?? agent.authMethod;
   const connHosts = connDraft.allowedAuthorizeHosts ?? agent.allowedAuthorizeHosts;
+  const connEmoji = connDraft.emoji ?? agent.emoji;
+  const connBg = connDraft.bg ?? agent.bg;
 
   const toggleConnField = (field: ConnField) => {
     setOpenConnFields(prev => {
@@ -288,6 +301,7 @@ export default function ExternalAgentDetail() {
       return;
     }
     const patch: Parameters<typeof externalAgentStore.update>[1] = {};
+    if (openConnFields.has("avatar")) { patch.emoji = connEmoji; patch.bg = connBg; }
     if (openConnFields.has("name")) patch.name = connName.trim();
     if (openConnFields.has("description")) patch.description = connDescription.trim();
     if (openConnFields.has("baseUrl")) patch.baseUrl = connBaseUrl.trim();
@@ -627,40 +641,95 @@ export default function ExternalAgentDetail() {
                     </div>
                   )}
                 </div>
-                <InfoRow label="Name" onEdit={openConnFields.has("name") ? undefined : () => toggleConnField("name")}>
-                  {openConnFields.has("name") ? (
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <input
+                {/* Avatar + Name + Description — identity header for the Connection card. Avatar
+                    opens a picker on click; Name/Description turn into inline inputs on click,
+                    all staged into the same batch connDraft as the rows below. */}
+                <div className="flex items-start gap-3 pb-4 mb-1 border-b border-border">
+                  <div className="relative shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setShowAvatarPicker(v => !v)}
+                      aria-label="Change avatar"
+                      className={`w-14 h-14 rounded-2xl ${connBg} flex items-center justify-center text-3xl transition-base hover:opacity-80`}
+                    >
+                      {connEmoji}
+                    </button>
+                    <span className="absolute -top-1.5 -left-1.5 w-6 h-6 rounded-full bg-white border border-border shadow-sm flex items-center justify-center text-muted-foreground pointer-events-none">
+                      <Pencil size={11} />
+                    </span>
+                    {showAvatarPicker && (
+                      <>
+                        <div className="fixed inset-0 z-10" onClick={() => setShowAvatarPicker(false)} />
+                        <div className="absolute left-0 top-full mt-2 z-20 w-56 rounded-lg border border-border bg-white shadow-elev p-2">
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-1 pb-1.5">Choose an avatar</p>
+                          <div className="grid grid-cols-6 gap-1.5">
+                            {AVATAR_OPTIONS.map(opt => (
+                              <button
+                                key={opt.emoji}
+                                type="button"
+                                onClick={() => {
+                                  setConnDraft(d => ({ ...d, emoji: opt.emoji, bg: opt.bg }));
+                                  setOpenConnFields(prev => new Set(prev).add("avatar"));
+                                  setShowAvatarPicker(false);
+                                }}
+                                className={`w-8 h-8 rounded-lg ${opt.bg} flex items-center justify-center text-base transition-base ${
+                                  connEmoji === opt.emoji && connBg === opt.bg ? "ring-2 ring-primary" : "hover:opacity-80"
+                                }`}
+                              >
+                                {opt.emoji}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="min-w-0 flex-1 pt-0.5">
+                    {openConnFields.has("name") ? (
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            autoFocus
+                            value={connName}
+                            onChange={e => { setConnDraft(d => ({ ...d, name: e.target.value })); setConnErrors(er => ({ ...er, name: undefined })); }}
+                            className={`w-full max-w-xs h-8 px-2.5 rounded-lg border bg-surface text-sm font-semibold outline-none transition-base ${connErrors.name ? "border-destructive" : "border-border focus:border-primary"}`}
+                          />
+                          <button type="button" onClick={() => toggleConnField("name")} aria-label="Cancel editing Name" className="text-muted-foreground hover:text-foreground transition-base shrink-0">
+                            <X size={14} />
+                          </button>
+                        </div>
+                        {connErrors.name && <p className="mt-1 text-[11px] text-destructive">{connErrors.name}</p>}
+                      </div>
+                    ) : (
+                      <button type="button" onClick={() => toggleConnField("name")} className="group flex items-center gap-1.5 max-w-full">
+                        <span className="text-sm font-semibold text-foreground truncate">{agent.name}</span>
+                        <Pencil size={12} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-base shrink-0" />
+                      </button>
+                    )}
+
+                    {openConnFields.has("description") ? (
+                      <div className="mt-1.5 flex items-start gap-2">
+                        <textarea
                           autoFocus
-                          value={connName}
-                          onChange={e => { setConnDraft(d => ({ ...d, name: e.target.value })); setConnErrors(er => ({ ...er, name: undefined })); }}
-                          className={`w-full max-w-sm h-8 px-2.5 rounded-lg border bg-surface text-sm outline-none transition-base ${connErrors.name ? "border-destructive" : "border-border focus:border-primary"}`}
+                          rows={2}
+                          value={connDescription}
+                          onChange={e => setConnDraft(d => ({ ...d, description: e.target.value }))}
+                          className="w-full max-w-sm px-2.5 py-1.5 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base resize-none"
                         />
-                        <button type="button" onClick={() => toggleConnField("name")} aria-label="Cancel editing Name" className="text-muted-foreground hover:text-foreground transition-base shrink-0">
+                        <button type="button" onClick={() => toggleConnField("description")} aria-label="Cancel editing Description" className="text-muted-foreground hover:text-foreground transition-base shrink-0 mt-1.5">
                           <X size={14} />
                         </button>
                       </div>
-                      {connErrors.name && <p className="mt-1 text-[11px] text-destructive">{connErrors.name}</p>}
-                    </div>
-                  ) : agent.name}
-                </InfoRow>
-                <InfoRow label="Description" onEdit={openConnFields.has("description") ? undefined : () => toggleConnField("description")}>
-                  {openConnFields.has("description") ? (
-                    <div className="flex items-start gap-2">
-                      <textarea
-                        autoFocus
-                        rows={2}
-                        value={connDescription}
-                        onChange={e => setConnDraft(d => ({ ...d, description: e.target.value }))}
-                        className="w-full max-w-sm px-2.5 py-1.5 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base resize-none"
-                      />
-                      <button type="button" onClick={() => toggleConnField("description")} aria-label="Cancel editing Description" className="text-muted-foreground hover:text-foreground transition-base shrink-0 mt-1.5">
-                        <X size={14} />
+                    ) : (
+                      <button type="button" onClick={() => toggleConnField("description")} className="group flex items-start gap-1.5 mt-1 text-left w-full max-w-full">
+                        <span className="text-xs text-muted-foreground line-clamp-1 flex-1 min-w-0">{agent.description || "Add a description"}</span>
+                        <Pencil size={11} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-base shrink-0 mt-0.5" />
                       </button>
-                    </div>
-                  ) : (agent.description || "—")}
-                </InfoRow>
+                    )}
+                  </div>
+                </div>
+
                 <InfoRow label="Status">
                   <div className="space-y-1">
                     <StatusBadge status={agent.status} />
@@ -825,7 +894,7 @@ export default function ExternalAgentDetail() {
                       {connErrors.hosts && <p className="mt-1 text-[11px] text-destructive">{connErrors.hosts}</p>}
                     </div>
                   ) : agent.allowedAuthorizeHosts.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-col items-start gap-1.5">
                       {agent.allowedAuthorizeHosts.map(host => (
                         <span key={host} className="inline-flex items-center h-6 px-2 rounded-md bg-surface-muted border border-border text-xs font-mono">
                           {host}
