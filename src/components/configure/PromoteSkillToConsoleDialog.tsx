@@ -34,7 +34,7 @@ export default function PromoteSkillToConsoleDialog({ agentId, item, currentUser
     const result = agentSkillStore.promoteToConsole(agentId, item.id, sharing);
     if (result) {
       toast.success(`Đã chuyển thành skill chung "${name.trim()}".`, {
-        action: { label: "Mở skill", onClick: () => { window.location.href = `/tools?open=${result.skillId}`; } },
+        action: { label: "Mở skill", onClick: () => { window.location.href = `/tools/${result.skillId}`; } },
       });
       onPromoted?.(result.skillId);
     }

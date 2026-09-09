@@ -29,6 +29,7 @@ import KnowledgeDetail from "./pages/KnowledgeDetail";
 import WorkforceList from "./pages/WorkforceList";
 import WorkforceCanvasPage from "./pages/WorkforceCanvasPage";
 import Skills from "./pages/Skills";
+import SkillDetail from "./pages/SkillDetail";
 import WorkspaceGuardrails from "./pages/WorkspaceGuardrails";
 import WorkspaceConnectors from "./pages/WorkspaceConnectors";
 import NotFound from "./pages/NotFound.tsx";
@@ -91,6 +92,7 @@ const App = () => (
               <Route path="/organization/structure" element={<OrgStructure />} />
               <Route path="/connectors" element={<WorkspaceConnectors />} />
               <Route path="/tools" element={<Skills />} />
+              <Route path="/tools/:id" element={<SkillDetail />} />
               <Route path="/guardrails" element={<WorkspaceGuardrails />} />
               <Route path="/models" element={<PlaceholderPage title="Models" />} />
               <Route path="/api-keys" element={<PlaceholderPage title="API Keys" />} />

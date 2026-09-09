@@ -4243,7 +4243,7 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
                     name={s.name}
                     chip={<div className="flex items-center gap-1 shrink-0"><SkillOwnershipTag skill={s} userId={currentUser.id} /></div>}
                     onOpen={() => {}}
-                    href={`/tools?open=${s.id}`}
+                    href={`/tools/${s.id}`}
                     onRemove={() => setDetachTarget({ id: s.id, name: s.name })}
                     openLabel="Mở skill"
                     removeLabel="Gỡ liên kết"
