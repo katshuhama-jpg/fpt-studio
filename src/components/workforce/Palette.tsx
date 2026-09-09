@@ -15,11 +15,14 @@ export const WORKFORCE_DRAG_MIME = "application/x-workforce-node";
  * activation (added at a computed default position, see `getClickAddPosition` in Canvas.tsx) —
  * two fully equivalent ways in, not click as an afterthought. Real `<button>` elements so
  * Enter/Space activation and focus styling come for free; `draggable` still layers on top.
- * A slim single-row toolbar (icon inline with label, not stacked) rather than a bank of big
- * app-icon-style tiles — sized like a real dock, not an empty state's call-to-action. */
+ * Docked as a full-width bottom bar (hairline top border, no shadow/rounding) mirroring the top
+ * bar, rather than a floating pill — per the "Slate Enterprise" reference. */
 export default function Palette({ onItemClick }: { onItemClick: (type: PaletteItemType) => void }) {
   return (
-    <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-10 flex items-center divide-x divide-border/70 bg-white rounded-xl border border-border shadow-elev p-1">
+    <div
+      className="absolute bottom-0 left-0 right-0 z-10 flex items-center justify-center"
+      style={{ gap: 26, padding: "14px 20px", background: "var(--wf-surface)", borderTop: "1px solid var(--wf-border)" }}
+    >
       {ITEMS.map(item => (
         <button
           key={item.type}
@@ -31,10 +34,16 @@ export default function Palette({ onItemClick }: { onItemClick: (type: PaletteIt
           }}
           onClick={() => onItemClick(item.type)}
           aria-label={`Thêm ${item.label} vào canvas`}
-          className="flex items-center gap-1.5 h-9 min-h-[44px] min-w-[44px] -m-[3.5px] px-3 rounded-lg cursor-grab active:cursor-grabbing hover:bg-surface-muted transition-base select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="flex items-center min-h-[44px] -my-[7px] px-1.5 cursor-grab active:cursor-grabbing select-none transition-base hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md"
+          style={{ gap: 7 }}
         >
-          <item.icon size={15} className="text-primary shrink-0" />
-          <span className="text-[12px] font-medium text-foreground leading-none whitespace-nowrap">{item.label}</span>
+          <item.icon size={15} style={{ color: item.type === "agent" ? "var(--wf-agent)" : "var(--wf-muted)" }} />
+          <span
+            className="text-[13px] font-semibold whitespace-nowrap [font-family:var(--wf-font-display)]"
+            style={{ color: "var(--wf-text)" }}
+          >
+            {item.label}
+          </span>
         </button>
       ))}
     </div>

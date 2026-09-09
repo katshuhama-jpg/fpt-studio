@@ -17,6 +17,7 @@ import PersonPickerPopover from "./PersonPickerPopover";
 import DestinationTypePopup from "./DestinationTypePopup";
 import { WorkforceNodeActionsContext, type WorkforceNodeActions } from "./nodes/nodeActionsContext";
 import { createAgentNode, createOmniNode, createPersonNode, createNoteNode, createRoute } from "./graphOps";
+import { WF_DOT_COLOR } from "./slateTheme";
 import type { WorkforceNode, WorkforceEdge } from "./types";
 
 const nodeTypes = { agent: AgentNode, omni: OmniNode, person: PersonNode, condition: ConditionNode, note: NoteNode };
@@ -251,7 +252,7 @@ export default function Canvas({
           maxZoom={1.5}
           proOptions={{ hideAttribution: true }}
         >
-          <Background variant={BackgroundVariant.Dots} gap={18} size={1} className="!bg-gradient-soft" />
+          <Background variant={BackgroundVariant.Dots} gap={20} size={1} color={WF_DOT_COLOR} className="![background-color:var(--wf-bg)]" />
         </ReactFlow>
       </WorkforceNodeActionsContext.Provider>
 

@@ -184,33 +184,38 @@ export default function WorkforceCanvasPage() {
   const configuringNode = configuringId ? nodes.find(n => n.id === configuringId) ?? null : null;
 
   return (
-    <div className="flex flex-col h-full bg-background">
-      <div className="h-14 border-b border-border bg-surface flex items-center px-5 gap-3 shrink-0">
+    <div className="wf-slate flex flex-col h-full">
+      <div
+        className="flex items-center py-[13px] px-[22px] gap-2.5 shrink-0 [font-family:var(--wf-font-display)]"
+        style={{ background: "var(--wf-surface)", borderBottom: "1px solid var(--wf-border)" }}
+      >
         <button
           onClick={() => navigate("/workforce")}
-          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-base"
+          className="flex items-center gap-1.5 text-[13.5px] shrink-0 transition-base hover:opacity-80"
+          style={{ color: "var(--wf-muted)" }}
         >
           <ChevronLeft size={15} /> Back
         </button>
-        <div className="w-px h-5 bg-border" />
-        <nav className="flex items-center gap-1.5 text-sm min-w-0 flex-1">
-          <Link to="/workforce" className="text-muted-foreground hover:text-foreground">Workforce</Link>
-          <span className="text-muted-foreground">/</span>
+        <nav className="flex items-center gap-1.5 text-[13.5px] min-w-0 flex-1" style={{ color: "var(--wf-muted)" }}>
+          <span>/</span>
+          <Link to="/workforce" className="hover:opacity-80" style={{ color: "var(--wf-muted)" }}>Workforce</Link>
+          <span>/</span>
           <input
             value={name}
             onChange={e => setName(e.target.value)}
             onBlur={() => workforceStore.rename(id, name.trim() || "Untitled workforce")}
-            className="bg-transparent outline-none font-medium text-foreground min-w-0 px-1.5 py-0.5 rounded hover:bg-surface-muted focus:bg-surface-muted transition-base"
+            className="bg-transparent outline-none font-bold min-w-0 px-1.5 py-0.5 rounded transition-base"
+            style={{ color: "var(--wf-text)" }}
           />
-          <span className={`chip ${status === "published" ? "chip-success" : "chip-muted"}`}>
+          <span className={`wf-pill ${status === "published" ? "" : "muted"}`}>
             {status === "published" ? "Published" : "Draft"}
           </span>
-          <span className="text-xs text-muted-foreground">{saveStateText}</span>
+          <span className="text-[12.5px]" style={{ color: "var(--wf-muted)" }}>{saveStateText}</span>
         </nav>
 
-        <div className="flex items-center gap-2 shrink-0">
-          <button onClick={handleSave} className="btn-secondary h-9">Save</button>
-          <button onClick={handlePublish} className="btn-primary h-9">Publish</button>
+        <div className="flex items-center gap-2.5 shrink-0">
+          <button onClick={handleSave} className="wf-btn-sec">Save</button>
+          <button onClick={handlePublish} className="wf-btn-pri">Publish</button>
         </div>
       </div>
 
@@ -236,8 +241,10 @@ export default function WorkforceCanvasPage() {
         <GettingStartedChecklist nodes={nodes as any} edges={edges} name={name} status={status} />
 
         {/* One unified control rail — zoom, fit, lock, undo/redo, tidy layout — instead of
-            scattering these across separate floating widgets in different corners. */}
-        <div className="absolute bottom-6 left-4 z-10 flex flex-col gap-0.5 bg-white rounded-xl border border-border shadow-elev p-1">
+            scattering these across separate floating widgets in different corners. Sits above
+            the bottom palette bar (now a full-width dock, not a floating pill) so the two never
+            overlap. */}
+        <div className="absolute bottom-[58px] left-4 z-10 flex flex-col gap-0.5 bg-white rounded-xl border border-border shadow-elev p-1">
           <RailButton label="Phóng to" shortcut={undefined} icon={<Plus size={16} />} onClick={() => rfInstance?.zoomIn({ duration: 150 })} />
           <RailButton label="Thu nhỏ" icon={<Minus size={16} />} onClick={() => rfInstance?.zoomOut({ duration: 150 })} />
           <RailButton label="Vừa khung hình" icon={<Maximize size={15} />} onClick={() => rfInstance?.fitView({ duration: 200, padding: 0.2 })} />

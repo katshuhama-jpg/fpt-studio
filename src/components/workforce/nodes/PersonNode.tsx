@@ -20,22 +20,34 @@ export default function PersonNode({ id, data, selected }: NodeProps<PersonNodeD
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className={`relative flex flex-col overflow-hidden min-w-[252px] max-w-[252px] rounded-xl border bg-surface shadow-soft cursor-pointer transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-        selected ? "border-primary ring-2 ring-primary/20" : "border-border"
-      }`}
+      className="relative flex flex-col overflow-hidden w-[230px] cursor-pointer transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      style={{
+        borderRadius: "var(--wf-radius)",
+        background: "var(--wf-surface)",
+        border: `1px solid ${selected ? "var(--wf-person)" : "var(--wf-border)"}`,
+        boxShadow: selected ? "0 0 0 2px var(--wf-person-bg)" : "var(--wf-node-shadow)",
+      }}
     >
       <NodeToolbarMenu visible={!!selected || hovered} onDelete={() => onDelete(id)} />
       <Handle type="target" position={Position.Left} className={HANDLE_CLASS} />
-      <NodeTypeTab icon={<User size={10} />} label="Người trong tổ chức" />
-      <div className="flex items-center gap-3 px-4 py-3.5">
-        <div className="w-10 h-10 rounded-full bg-primary-soft text-primary flex items-center justify-center text-xs font-semibold shrink-0">
+      <NodeTypeTab icon={<User size={12} />} label="Người trong tổ chức" kind="person" />
+      <div className="flex items-start gap-[11px]" style={{ padding: "12px 14px 14px" }}>
+        <div
+          className="w-[34px] h-[34px] rounded-[9px] flex items-center justify-center shrink-0 text-[12px] font-bold [font-family:var(--wf-font-display)]"
+          style={{ background: "var(--wf-person-bg)", color: "var(--wf-person)" }}
+        >
           {member?.initials ?? "?"}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-semibold leading-snug truncate">{member?.name ?? "Chưa chọn người nhận"}</div>
-          <div className="text-[11.5px] text-muted-foreground leading-snug truncate mt-0.5">{member?.email ?? "—"}</div>
+          <p className="text-[13.5px] font-bold leading-snug truncate m-0 [font-family:var(--wf-font-display)]" style={{ color: "var(--wf-text)" }}>
+            {member?.name ?? "Chưa chọn người nhận"}
+          </p>
+          <p className="text-[12px] leading-[1.45] truncate mt-[3px] mb-0" style={{ color: "var(--wf-muted)", fontFamily: "var(--wf-font-body)" }}>
+            {member?.email ?? "—"}
+          </p>
         </div>
       </div>
+      <Handle type="source" position={Position.Right} className={HANDLE_CLASS} />
     </div>
   );
 }

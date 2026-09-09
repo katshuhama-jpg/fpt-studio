@@ -1,4 +1,5 @@
 import { MarkerType, type XYPosition } from "reactflow";
+import { WF_DOTMARK_COLOR } from "./slateTheme";
 import type { WorkforceNode, WorkforceEdge } from "./types";
 
 let counter = 0;
@@ -9,7 +10,7 @@ export function uid(prefix: string): string {
 
 /** Small arrowhead marking the entry point into the destination — shared by every edge the
  * canvas creates (both the seed data and routes drawn at runtime). */
-export const ROUTE_ARROW = { type: MarkerType.ArrowClosed, width: 16, height: 16, color: "hsl(var(--primary) / 0.55)" };
+export const ROUTE_ARROW = { type: MarkerType.ArrowClosed, width: 16, height: 16, color: WF_DOTMARK_COLOR };
 
 export function createAgentNode(agentId: string, position: XYPosition, keepContext = true): WorkforceNode {
   return { id: uid("agent"), type: "agent", position, data: { kind: "agent", agentId, keepContext } };
