@@ -192,7 +192,7 @@ export default function Skills() {
       {/* Main */}
       <div className="flex flex-col flex-1 min-w-0 transition-all duration-300">
         {/* Header */}
-        <div className="border-b border-border bg-surface shrink-0">
+        <div className="bg-surface shrink-0">
           <div className="max-w-[1200px] mx-auto px-8 py-5 flex items-center justify-between">
             <div>
               <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">Skills</h1>
@@ -233,12 +233,12 @@ export default function Skills() {
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <div className="relative">
-                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <input
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   placeholder="Search…"
-                  className="h-8 w-56 pl-9 pr-3 rounded-lg bg-surface border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring"
+                  className="h-9 w-56 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
                 />
               </div>
               <div className="flex items-center gap-0.5 p-1 rounded-lg bg-surface border border-border">
