@@ -667,7 +667,6 @@ export default function ExternalAgentDetail() {
                     <thead>
                       <tr className="bg-surface-muted">
                         <th className="text-left px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">Endpoint</th>
-                        <th className="text-left px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">URL</th>
                         <th className="text-left px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Purpose</th>
                         <th className="text-left px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">Status</th>
                         <th className="px-3 py-2 w-9" />
@@ -688,7 +687,6 @@ export default function ExternalAgentDetail() {
                                 )}
                               </div>
                             </td>
-                            <td className={`px-3 py-2 font-mono text-xs break-all ${!e.required ? "text-muted-foreground/70" : "text-muted-foreground"}`}>{full}</td>
                             <td className={`px-3 py-2 text-xs ${!e.required ? "text-muted-foreground" : "text-foreground"}`}>{e.purpose}</td>
                             <td className="px-3 py-2 whitespace-nowrap"><EndpointStatusBadge status={endpointStatus(agent, e.path)} /></td>
                             <td className="px-3 py-2 text-right"><CopyButton value={full} /></td>
