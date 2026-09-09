@@ -50,7 +50,7 @@ function buildCheckRows(v: ValidationResult, authMethod: AuthMethod): CheckRow[]
   return rows;
 }
 
-function validateBaseUrl(raw: string): string | undefined {
+export function validateBaseUrl(raw: string): string | undefined {
   const v = raw.trim();
   if (!v) return "Base URL is required.";
   let url: URL;
@@ -72,7 +72,7 @@ function maskSecret(secret: string): string {
 
 const HOSTNAME_PATTERN = /^(?!-)[a-zA-Z0-9-]{1,63}(?<!-)(\.(?!-)[a-zA-Z0-9-]{1,63}(?<!-))*$/;
 
-function validateHost(raw: string): string | undefined {
+export function validateHost(raw: string): string | undefined {
   const v = raw.trim();
   if (!v) return "Enter a host.";
   if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(v)) return "Enter a hostname only, without a scheme like https://.";

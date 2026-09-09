@@ -2,18 +2,19 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ChevronLeft, ChevronRight, MoreHorizontal, Copy, Check, RefreshCw, AlertTriangle, Globe,
-  FileEdit, BookOpen, Eye, EyeOff, PanelLeftOpen, PanelLeftClose, Pencil,
+  FileEdit, BookOpen, Eye, EyeOff, PanelLeftOpen, PanelLeftClose, Pencil, X,
 } from "lucide-react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { PencilEdit01Icon, FlaskConicalIcon, GridViewIcon, Analytics01Icon } from "@hugeicons/core-free-icons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import {
-  externalAgentStore, runValidation, type ExternalAgent, type ValidationResult,
+  externalAgentStore, runValidation, type AuthMethod, type ExternalAgent, type ValidationResult,
 } from "@/components/external-agents/externalAgentStore";
 import { StatusBadge, relativeTime } from "@/components/external-agents/statusMeta";
-import ConnectExternalAgentModal from "@/components/external-agents/ConnectExternalAgentModal";
+import ConnectExternalAgentModal, { validateBaseUrl, validateHost } from "@/components/external-agents/ConnectExternalAgentModal";
 import {
   DeleteExternalAgentDialog, PauseExternalAgentDialog, ReplaceTokenConfirmDialog, RejectExternalAgentDialog,
 } from "@/components/external-agents/ExternalAgentDialogs";
@@ -136,6 +137,20 @@ export default function ExternalAgentDetail() {
   const [signingSecretCopied, setSigningSecretCopied] = useState(false);
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Connection section — batch inline editing. Each pencil opens that one field in place (no
+  // per-field Save); edits accumulate in connDraft until the person hits the single "Save
+  // changes" button for the whole card, or "Discard" to drop everything and collapse back to
+  // read-only. Bearer Token keeps its own separate "Replace token" flow below (unchanged) since
+  // it already validates live and doesn't fit the plain-draft model.
+  type ConnField = "name" | "description" | "baseUrl" | "authMethod" | "allowedAuthorizeHosts";
+  const [connDraft, setConnDraft] = useState<Partial<{
+    name: string; description: string; baseUrl: string; authMethod: AuthMethod; allowedAuthorizeHosts: string[];
+  }>>({});
+  const [openConnFields, setOpenConnFields] = useState<Set<ConnField>>(new Set());
+  const [connHostInput, setConnHostInput] = useState("");
+  const [connErrors, setConnErrors] = useState<{ name?: string; baseUrl?: string; hosts?: string }>({});
+
   const [replacingToken, setReplacingToken] = useState(false);
   const [showReplaceConfirm, setShowReplaceConfirm] = useState(false);
   const [newToken, setNewToken] = useState("");
@@ -216,6 +231,85 @@ export default function ExternalAgentDetail() {
     { label: "Guardrails configured", done: !!agent.guardrail },
     { label: "Tried the agent", done: true },
   ];
+
+  // Current values for the Connection card — draft value when that field is open for editing,
+  // the saved agent's value otherwise.
+  const connName = connDraft.name ?? agent.name;
+  const connDescription = connDraft.description ?? agent.description;
+  const connBaseUrl = connDraft.baseUrl ?? agent.baseUrl;
+  const connAuthMethod = connDraft.authMethod ?? agent.authMethod;
+  const connHosts = connDraft.allowedAuthorizeHosts ?? agent.allowedAuthorizeHosts;
+
+  const toggleConnField = (field: ConnField) => {
+    setOpenConnFields(prev => {
+      const next = new Set(prev);
+      if (next.has(field)) {
+        next.delete(field);
+        setConnDraft(d => { const rest = { ...d }; delete rest[field]; return rest; });
+        if (field === "name") setConnErrors(er => ({ ...er, name: undefined }));
+        if (field === "baseUrl") setConnErrors(er => ({ ...er, baseUrl: undefined }));
+        if (field === "allowedAuthorizeHosts") { setConnErrors(er => ({ ...er, hosts: undefined })); setConnHostInput(""); }
+      } else {
+        next.add(field);
+      }
+      return next;
+    });
+  };
+
+  const addConnHost = (raw: string) => {
+    const v = raw.trim();
+    setConnHostInput("");
+    if (!v) return;
+    const hostErr = validateHost(v);
+    if (hostErr) { setConnErrors(er => ({ ...er, hosts: hostErr })); return; }
+    if (connHosts.some(h => h.toLowerCase() === v.toLowerCase())) {
+      setConnErrors(er => ({ ...er, hosts: "This host is already in the list." }));
+      return;
+    }
+    setConnDraft(d => ({ ...d, allowedAuthorizeHosts: [...connHosts, v] }));
+    setConnErrors(er => ({ ...er, hosts: undefined }));
+  };
+  const removeConnHost = (host: string) => {
+    setConnDraft(d => ({ ...d, allowedAuthorizeHosts: connHosts.filter(h => h !== host) }));
+  };
+
+  const saveConnectionDraft = () => {
+    const nameErr = openConnFields.has("name")
+      ? (!connName.trim() ? "Agent name is required."
+        : connName.trim().length < 3 || connName.trim().length > 60 ? "Agent name must be between 3 and 60 characters."
+        : externalAgentStore.isDuplicateName(connName.trim(), agent.id) ? "An external agent with this name already exists."
+        : undefined)
+      : undefined;
+    const baseUrlErr = openConnFields.has("baseUrl") ? validateBaseUrl(connBaseUrl) : undefined;
+    const hostsErr = openConnFields.has("allowedAuthorizeHosts") && connHosts.length === 0
+      ? "At least one allowed host is required." : undefined;
+    if (nameErr || baseUrlErr || hostsErr) {
+      setConnErrors({ name: nameErr, baseUrl: baseUrlErr, hosts: hostsErr });
+      return;
+    }
+    const patch: Parameters<typeof externalAgentStore.update>[1] = {};
+    if (openConnFields.has("name")) patch.name = connName.trim();
+    if (openConnFields.has("description")) patch.description = connDescription.trim();
+    if (openConnFields.has("baseUrl")) patch.baseUrl = connBaseUrl.trim();
+    if (openConnFields.has("authMethod")) patch.authMethod = connAuthMethod;
+    if (openConnFields.has("allowedAuthorizeHosts")) patch.allowedAuthorizeHosts = connHosts;
+    const { unpublished } = externalAgentStore.update(agent.id, patch);
+    toast.success(unpublished
+      ? "Connection saved. This agent was unpublished — submit it for approval again to make it live."
+      : "Connection updated.");
+    if (unpublished) setJustUnpublished(true);
+    setConnDraft({});
+    setOpenConnFields(new Set());
+    setConnErrors({});
+    refresh();
+  };
+
+  const discardConnectionDraft = () => {
+    setConnDraft({});
+    setOpenConnFields(new Set());
+    setConnErrors({});
+    setConnHostInput("");
+  };
 
   const submitReplaceToken = () => {
     if (!newToken.trim()) return;
@@ -520,9 +614,53 @@ export default function ExternalAgentDetail() {
               )}
 
               <div className="rounded-xl border border-border p-4">
-                <h3 className="text-sm font-semibold mb-2">Connection</h3>
-                <InfoRow label="Name" onEdit={() => setShowEdit(true)}>{agent.name}</InfoRow>
-                <InfoRow label="Description" onEdit={() => setShowEdit(true)}>{agent.description || "—"}</InfoRow>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold">Connection</h3>
+                  {openConnFields.size > 0 && (
+                    <div className="flex items-center gap-2">
+                      <button type="button" onClick={discardConnectionDraft} className="h-7 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-xs font-medium transition-base">
+                        Discard
+                      </button>
+                      <button type="button" onClick={saveConnectionDraft} className="btn-primary h-7 px-3 text-xs">
+                        Save changes
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <InfoRow label="Name" onEdit={openConnFields.has("name") ? undefined : () => toggleConnField("name")}>
+                  {openConnFields.has("name") ? (
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          autoFocus
+                          value={connName}
+                          onChange={e => { setConnDraft(d => ({ ...d, name: e.target.value })); setConnErrors(er => ({ ...er, name: undefined })); }}
+                          className={`w-full max-w-sm h-8 px-2.5 rounded-lg border bg-surface text-sm outline-none transition-base ${connErrors.name ? "border-destructive" : "border-border focus:border-primary"}`}
+                        />
+                        <button type="button" onClick={() => toggleConnField("name")} aria-label="Cancel editing Name" className="text-muted-foreground hover:text-foreground transition-base shrink-0">
+                          <X size={14} />
+                        </button>
+                      </div>
+                      {connErrors.name && <p className="mt-1 text-[11px] text-destructive">{connErrors.name}</p>}
+                    </div>
+                  ) : agent.name}
+                </InfoRow>
+                <InfoRow label="Description" onEdit={openConnFields.has("description") ? undefined : () => toggleConnField("description")}>
+                  {openConnFields.has("description") ? (
+                    <div className="flex items-start gap-2">
+                      <textarea
+                        autoFocus
+                        rows={2}
+                        value={connDescription}
+                        onChange={e => setConnDraft(d => ({ ...d, description: e.target.value }))}
+                        className="w-full max-w-sm px-2.5 py-1.5 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base resize-none"
+                      />
+                      <button type="button" onClick={() => toggleConnField("description")} aria-label="Cancel editing Description" className="text-muted-foreground hover:text-foreground transition-base shrink-0 mt-1.5">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (agent.description || "—")}
+                </InfoRow>
                 <InfoRow label="Status">
                   <div className="space-y-1">
                     <StatusBadge status={agent.status} />
@@ -563,8 +701,42 @@ export default function ExternalAgentDetail() {
                     </button>
                   </div>
                 </InfoRow>
-                <InfoRow label="Base URL" onEdit={() => setShowEdit(true)}><span className="font-mono text-xs break-all">{agent.baseUrl}</span></InfoRow>
-                <InfoRow label="Authentication" onEdit={() => setShowEdit(true)}>{agent.authMethod === "bearer" ? "Bearer Token" : "None"}</InfoRow>
+                <InfoRow label="Base URL" onEdit={openConnFields.has("baseUrl") ? undefined : () => toggleConnField("baseUrl")}>
+                  {openConnFields.has("baseUrl") ? (
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          autoFocus
+                          value={connBaseUrl}
+                          onChange={e => { setConnDraft(d => ({ ...d, baseUrl: e.target.value })); setConnErrors(er => ({ ...er, baseUrl: undefined })); }}
+                          className={`w-full max-w-sm h-8 px-2.5 rounded-lg border bg-surface text-xs font-mono outline-none transition-base ${connErrors.baseUrl ? "border-destructive" : "border-border focus:border-primary"}`}
+                        />
+                        <button type="button" onClick={() => toggleConnField("baseUrl")} aria-label="Cancel editing Base URL" className="text-muted-foreground hover:text-foreground transition-base shrink-0">
+                          <X size={14} />
+                        </button>
+                      </div>
+                      {connErrors.baseUrl
+                        ? <p className="mt-1 text-[11px] text-destructive">{connErrors.baseUrl}</p>
+                        : <p className="mt-1 text-[11px] text-muted-foreground">After saving, use "Run check now" above to confirm the new URL is reachable.</p>}
+                    </div>
+                  ) : <span className="font-mono text-xs break-all">{agent.baseUrl}</span>}
+                </InfoRow>
+                <InfoRow label="Authentication" onEdit={openConnFields.has("authMethod") ? undefined : () => toggleConnField("authMethod")}>
+                  {openConnFields.has("authMethod") ? (
+                    <div className="flex items-center gap-2">
+                      <Select value={connAuthMethod} onValueChange={v => setConnDraft(d => ({ ...d, authMethod: v as AuthMethod }))}>
+                        <SelectTrigger className="h-8 w-40 text-sm"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="bearer">Bearer Token</SelectItem>
+                          <SelectItem value="none">None</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <button type="button" onClick={() => toggleConnField("authMethod")} aria-label="Cancel editing Authentication" className="text-muted-foreground hover:text-foreground transition-base shrink-0">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (agent.authMethod === "bearer" ? "Bearer Token" : "None")}
+                </InfoRow>
                 {agent.authMethod === "bearer" && (
                   <InfoRow label="Bearer Token">
                     {replacingToken ? (
@@ -644,8 +816,45 @@ export default function ExternalAgentDetail() {
                     </button>
                   </div>
                 </InfoRow>
-                <InfoRow label="Allowed hosts for authorizeUrl" onEdit={() => setShowEdit(true)}>
-                  {agent.allowedAuthorizeHosts.length > 0 ? (
+                <InfoRow label="Allowed hosts for authorizeUrl" onEdit={openConnFields.has("allowedAuthorizeHosts") ? undefined : () => toggleConnField("allowedAuthorizeHosts")}>
+                  {openConnFields.has("allowedAuthorizeHosts") ? (
+                    <div>
+                      {connHosts.length > 0 && (
+                        <div className="space-y-1.5 mb-1.5">
+                          {connHosts.map(host => (
+                            <div key={host} className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface">
+                              <span className="text-xs font-mono truncate">{host}</span>
+                              <button
+                                type="button"
+                                onClick={() => removeConnHost(host)}
+                                aria-label={`Remove ${host}`}
+                                className="shrink-0 text-muted-foreground hover:text-foreground transition-base"
+                              >
+                                <X size={13} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2">
+                        <input
+                          autoFocus
+                          value={connHostInput}
+                          onChange={e => { setConnHostInput(e.target.value); setConnErrors(er => ({ ...er, hosts: undefined })); }}
+                          onKeyDown={e => {
+                            if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addConnHost(connHostInput); }
+                          }}
+                          onBlur={() => { if (connHostInput.trim()) addConnHost(connHostInput); }}
+                          placeholder="auth.partner.com"
+                          className={`flex-1 h-8 px-2.5 rounded-lg border bg-surface text-xs font-mono outline-none transition-base ${connErrors.hosts ? "border-destructive" : "border-border focus:border-primary"}`}
+                        />
+                        <button type="button" onClick={() => toggleConnField("allowedAuthorizeHosts")} aria-label="Cancel editing Allowed hosts" className="text-muted-foreground hover:text-foreground transition-base shrink-0">
+                          <X size={14} />
+                        </button>
+                      </div>
+                      {connErrors.hosts && <p className="mt-1 text-[11px] text-destructive">{connErrors.hosts}</p>}
+                    </div>
+                  ) : agent.allowedAuthorizeHosts.length > 0 ? (
                     <div className="flex flex-wrap gap-1.5">
                       {agent.allowedAuthorizeHosts.map(host => (
                         <span key={host} className="inline-flex items-center h-6 px-2 rounded-md bg-surface-muted border border-border text-xs font-mono">
