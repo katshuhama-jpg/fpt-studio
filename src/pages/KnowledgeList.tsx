@@ -28,22 +28,18 @@ function relativeTime(ts: number): string {
   return `Cập nhật ${days} ngày trước`;
 }
 
-// The active tab already tells the viewer which ownership category they're looking at, so the
-// ownership tag itself is trimmed (or dropped) per tab to avoid repeating that context on every
-// card — the share-status tag ("Dùng chung" / "Chia sẻ với N người") is unaffected in every tab.
-function OwnershipChips({ kb, tab }: { kb: KnowledgeBase; tab: MainTab }) {
-  if (kb.ownerId === CURRENT_USER.id) {
-    return (
-      <>
-        {tab !== "mine" && <span className="chip chip-muted">Của tôi</span>}
-        {kb.sharing.mode === "all" && <span className="chip chip-info">Dùng chung</span>}
-        {kb.sharing.mode === "specific" && kb.sharing.people.length > 0 && (
-          <span className="chip chip-info">Chia sẻ với {kb.sharing.people.length} người</span>
-        )}
-      </>
-    );
+// A dedicated ownership pill ("Của tôi" / "Được chia sẻ · <tên>") is redundant on every card —
+// the active tab (Tất cả/Của tôi/Được chia sẻ) already tells the viewer which ownership category
+// they're looking at. Only the share-status pill on an owned item ("Dùng chung" / "Chia sẻ với N
+// người") carries information the tab doesn't, so that's the only pill left; the sharer's name on
+// a shared-to-me item is shown as plain text near the card's metadata line instead (see KbCard).
+function ShareStatusChip({ kb }: { kb: KnowledgeBase }) {
+  if (kb.ownerId !== CURRENT_USER.id) return null;
+  if (kb.sharing.mode === "all") return <span className="chip chip-info">Dùng chung</span>;
+  if (kb.sharing.mode === "specific" && kb.sharing.people.length > 0) {
+    return <span className="chip chip-info">Chia sẻ với {kb.sharing.people.length} người</span>;
   }
-  return <span className="chip chip-muted">{tab === "shared" ? `· ${kb.ownerName}` : `Được chia sẻ · ${kb.ownerName}`}</span>;
+  return null;
 }
 
 function RowMenu({ kb, onOpen, onEdit, onShare, onDelete, editBlocked, shareBlocked, deleteBlocked }: {
@@ -107,8 +103,8 @@ function RowMenu({ kb, onOpen, onEdit, onShare, onDelete, editBlocked, shareBloc
   );
 }
 
-function KbCard({ kb, userId, access, tab, onOpen, onEdit, onShare, onDelete }: {
-  kb: KnowledgeBase; userId: string; access: ReturnType<typeof useGroupAccess>; tab: MainTab;
+function KbCard({ kb, userId, access, onOpen, onEdit, onShare, onDelete }: {
+  kb: KnowledgeBase; userId: string; access: ReturnType<typeof useGroupAccess>;
   onOpen: () => void; onEdit: () => void; onShare: () => void; onDelete: () => void;
 }) {
   const viewOnly = isViewOnly(kb, userId);
@@ -154,13 +150,17 @@ function KbCard({ kb, userId, access, tab, onOpen, onEdit, onShare, onDelete }: 
       <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 mb-3 min-h-[32px]">
         {kb.description || <span className="italic">Chưa có mô tả</span>}
       </p>
-      <div className="flex items-center gap-1.5 flex-wrap mb-3">
-        <OwnershipChips kb={kb} tab={tab} />
-      </div>
+      {isOwner && (kb.sharing.mode === "all" || (kb.sharing.mode === "specific" && kb.sharing.people.length > 0)) && (
+        <div className="flex items-center gap-1.5 flex-wrap mb-3">
+          <ShareStatusChip kb={kb} />
+        </div>
+      )}
       <div className="mt-auto pt-3 border-t border-border flex items-center justify-between text-sm text-muted-foreground gap-2 flex-wrap">
         <span>{kb.stats.docs} tài liệu · {kb.stats.urls} URL · {kb.stats.chunks} chunk</span>
       </div>
-      <div className="text-xs text-muted-foreground mt-1.5">{relativeTime(kb.updatedAt)}</div>
+      <div className="text-xs text-muted-foreground mt-1.5">
+        {!isOwner && `Chia sẻ bởi ${kb.ownerName} · `}{relativeTime(kb.updatedAt)}
+      </div>
     </div>
   );
 }
@@ -405,7 +405,6 @@ export default function KnowledgeList() {
               kb={kb}
               userId={userId}
               access={access}
-              tab={tab}
               onOpen={() => navigate(`/knowledge/${kb.id}`)}
               onEdit={() => setEditTarget(kb)}
               onShare={() => setShareTarget(kb)}
