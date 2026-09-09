@@ -11,11 +11,23 @@ import { useOrg } from "@/pages/organization/orgStore";
 import { collectMembers } from "@/pages/organization/orgData";
 import { skillStore, type Skill } from "@/components/configure/skillStore";
 import { isAccessibleTo, isViewOnly, type Sharing } from "@/components/configure/skillSharing";
-import SkillOwnershipTag from "@/components/configure/SkillOwnershipTag";
 import CreateSkillModal, { type SkillFormData } from "@/components/configure/CreateSkillModal";
 import SkillShareModal from "@/components/configure/SkillShareModal";
 
 type MainTab = "all" | "mine" | "shared";
+
+// A dedicated ownership pill ("Của tôi" / "Được chia sẻ · <tên>") is redundant on every card —
+// the active tab (Tất cả/Của tôi/Được chia sẻ) already tells the viewer which ownership category
+// they're looking at. Only the share-status pill on an owned skill ("Dùng chung" / "Chia sẻ với N
+// người") carries information the tab doesn't, so that's the only pill left; the sharer's name on
+// a shared-to-me skill is shown as plain text instead (see the card/row rendering below).
+function ShareStatusChip({ skill }: { skill: Skill }) {
+  if (skill.sharing.mode === "all") return <span className="chip chip-info">Dùng chung</span>;
+  if (skill.sharing.mode === "specific" && skill.sharing.people.length > 0) {
+    return <span className="chip chip-info">Chia sẻ với {skill.sharing.people.length} người</span>;
+  }
+  return null;
+}
 
 /** Card/row "..." menu — same permission matrix and structure as Knowledge's RowMenu: "Mở" is
  * always available, "Sửa"/"Chia sẻ"/"Xóa" are always rendered but individually
@@ -254,7 +266,9 @@ export default function Skills() {
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-[1200px] mx-auto px-8 py-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {visible.map(s => (
+              {visible.map(s => {
+                const isOwner = s.ownerId === access.userId;
+                return (
                 <div key={s.id}
                   role="button"
                   tabIndex={0}
@@ -268,18 +282,27 @@ export default function Skills() {
                   </div>
                   <div className="font-semibold text-sm leading-snug mb-1.5 truncate">{s.name}</div>
                   <div className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{s.description}</div>
-                  <div className="flex items-center gap-1 flex-wrap mt-3">
-                    <SkillOwnershipTag skill={s} userId={access.userId} tab={tab} />
-                  </div>
+                  {isOwner ? (
+                    (s.sharing.mode === "all" || (s.sharing.mode === "specific" && s.sharing.people.length > 0)) && (
+                      <div className="flex items-center gap-1 flex-wrap mt-3">
+                        <ShareStatusChip skill={s} />
+                      </div>
+                    )
+                  ) : (
+                    <div className="text-xs text-muted-foreground mt-3">Chia sẻ bởi {s.ownerName}</div>
+                  )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-[1200px] mx-auto px-8">
-            {visible.map(s => (
+            {visible.map(s => {
+              const isOwner = s.ownerId === access.userId;
+              return (
               <div key={s.id}
                 role="button"
                 tabIndex={0}
@@ -290,14 +313,20 @@ export default function Skills() {
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center text-sm shrink-0" style={{ background: s.iconBg }}>{s.icon}</div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium truncate">{s.name}</div>
-                  <div className="text-xs text-muted-foreground truncate">{s.description}</div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    {s.description}
+                    {!isOwner && ` · Chia sẻ bởi ${s.ownerName}`}
+                  </div>
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <SkillOwnershipTag skill={s} userId={access.userId} tab={tab} />
-                </div>
+                {isOwner && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <ShareStatusChip skill={s} />
+                  </div>
+                )}
                 {menuFor(s)}
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

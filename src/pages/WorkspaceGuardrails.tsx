@@ -9,7 +9,6 @@ import { collectMembers } from "@/pages/organization/orgData";
 import { isAccessibleTo, isViewOnly, type Sharing } from "@/components/configure/guardrailSharing";
 import { guardrailConsoleStore, type Guardrail } from "@/components/configure/guardrailConsoleStore";
 import CreateGuardrailModal, { type CreateGuardrailData } from "@/components/configure/CreateGuardrailModal";
-import GuardrailOwnershipTag from "@/components/configure/GuardrailOwnershipTag";
 import GuardrailShareModal from "@/components/configure/GuardrailShareModal";
 
 /** True if `userId` can see this guardrail — always true for mandatory/all-agents compliance
@@ -19,6 +18,20 @@ function isGuardrailAccessible(g: Guardrail, userId: string): boolean {
   if (g.mandatory || g.allAgents) return true;
   if (!g.ownerId || !g.sharing) return false;
   return isAccessibleTo(g.sharing, g.ownerId, userId);
+}
+
+// A dedicated ownership pill ("Của tôi" / "Được chia sẻ · <tên>") is redundant on every row —
+// the active tab (Tất cả/Của tôi/Được chia sẻ) already tells the viewer which ownership category
+// they're looking at. Only the share-status pill on an owned guardrail ("Dùng chung" / "Chia sẻ
+// với N người") carries information the tab doesn't, so that's the only pill left; the sharer's
+// name on a shared-to-me guardrail is shown as plain text instead (see the row rendering below).
+function ShareStatusChip({ g }: { g: Guardrail }) {
+  if (!g.sharing) return null;
+  if (g.sharing.mode === "all") return <span className="chip chip-info">Dùng chung</span>;
+  if (g.sharing.mode === "specific" && g.sharing.people.length > 0) {
+    return <span className="chip chip-info">Chia sẻ với {g.sharing.people.length} người</span>;
+  }
+  return null;
 }
 
 /* ─── Main page ──────────────────────────────────────────────────────── */
@@ -210,10 +223,13 @@ export default function WorkspaceGuardrails() {
           <TRow key={g.id} cols="1fr 200px 1fr 72px 64px">
             <div>
               <div className="text-sm font-medium">{g.name}</div>
-              <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{g.desc}</div>
-              {hasOwner && (
+              <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                {g.desc}
+                {hasOwner && !isOwner && ` · Chia sẻ bởi ${g.ownerName ?? "—"}`}
+              </div>
+              {hasOwner && isOwner && (g.sharing!.mode === "all" || (g.sharing!.mode === "specific" && g.sharing!.people.length > 0)) && (
                 <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
-                  <GuardrailOwnershipTag g={g} userId={access.userId} tab={tab} />
+                  <ShareStatusChip g={g} />
                 </div>
               )}
             </div>
