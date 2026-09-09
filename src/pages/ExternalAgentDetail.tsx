@@ -36,7 +36,7 @@ const TOP_TABS: { id: Tab; label: string; Icon: any }[] = [
 const ENDPOINTS: { method: string; path: string; purpose: string; required: boolean }[] = [
   { method: "GET", path: "/health", purpose: "Status and protocol version.", required: true },
   { method: "POST", path: "/runs", purpose: "Calls the agent to run.", required: true },
-  { method: "GET", path: "/tools", purpose: "Lists the tools this agent declares.", required: true },
+  { method: "GET", path: "/tools", purpose: "Lists the tools this agent declares.", required: false },
   { method: "POST", path: "/credentials", purpose: "Registers a per-user credential (optional, off this phase).", required: false },
   { method: "POST", path: "/credentials/revoke", purpose: "Revokes a per-user credential (optional, off this phase).", required: false },
 ];
@@ -671,36 +671,6 @@ export default function ExternalAgentDetail() {
                     )}
                   </div>
                 </InfoRow>
-                <InfoRow label="Last health check">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {agent.lastHealthCheckAt == null ? (
-                      <span className="text-muted-foreground">Never checked</span>
-                    ) : (
-                      <>
-                        <span className="text-muted-foreground">{relativeTime(agent.lastHealthCheckAt)}</span>
-                        <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border ${agent.lastHealthCheckOk ? "chip-success" : "chip-danger"}`}>
-                          {agent.lastHealthCheckOk ? "Healthy" : "Unreachable"}
-                        </span>
-                      </>
-                    )}
-                    <button
-                      type="button"
-                      disabled={checkingHealth}
-                      onClick={() => {
-                        setCheckingHealth(true);
-                        setTimeout(() => {
-                          externalAgentStore.runHealthCheck(agent.id);
-                          setCheckingHealth(false);
-                          refresh();
-                        }, 700);
-                      }}
-                      className="text-xs font-semibold text-primary hover:underline disabled:opacity-50 flex items-center gap-1"
-                    >
-                      {checkingHealth && <RefreshCw size={11} className="animate-spin" />}
-                      Run check now
-                    </button>
-                  </div>
-                </InfoRow>
                 <InfoRow label="Base URL" onEdit={openConnFields.has("baseUrl") ? undefined : () => toggleConnField("baseUrl")}>
                   {openConnFields.has("baseUrl") ? (
                     <div>
@@ -717,7 +687,7 @@ export default function ExternalAgentDetail() {
                       </div>
                       {connErrors.baseUrl
                         ? <p className="mt-1 text-[11px] text-destructive">{connErrors.baseUrl}</p>
-                        : <p className="mt-1 text-[11px] text-muted-foreground">After saving, use "Run check now" above to confirm the new URL is reachable.</p>}
+                        : <p className="mt-1 text-[11px] text-muted-foreground">After saving, use "Run check now" in Endpoints below to confirm the new URL is reachable.</p>}
                     </div>
                   ) : <span className="font-mono text-xs break-all">{agent.baseUrl}</span>}
                 </InfoRow>
@@ -869,7 +839,25 @@ export default function ExternalAgentDetail() {
               </div>
 
               <div className="rounded-xl border border-border p-4">
-                <h3 className="text-sm font-semibold mb-1">Endpoints</h3>
+                <div className="flex items-start justify-between gap-3 mb-1">
+                  <h3 className="text-sm font-semibold">Endpoints</h3>
+                  <button
+                    type="button"
+                    disabled={checkingHealth}
+                    onClick={() => {
+                      setCheckingHealth(true);
+                      setTimeout(() => {
+                        externalAgentStore.runHealthCheck(agent.id);
+                        setCheckingHealth(false);
+                        refresh();
+                      }, 700);
+                    }}
+                    className="h-7 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-xs font-medium transition-base disabled:opacity-50 flex items-center gap-1.5 shrink-0"
+                  >
+                    {checkingHealth && <RefreshCw size={11} className="animate-spin" />}
+                    Run check now
+                  </button>
+                </div>
                 <p className="text-xs text-muted-foreground mb-3">These are the addresses the platform calls on your agent.</p>
                 <div className="rounded-lg border border-border overflow-x-auto">
                   <table className="w-full text-sm">
