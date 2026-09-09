@@ -252,7 +252,7 @@
      =========================================================== */
   .wf-slate {
     --wf-bg: #F7F8FA;
-    --wf-dot: #E4E7EC;
+    --wf-dot: #D8DBE2; /* darker than the reference's literal value — see slateTheme.ts WF_DOT_COLOR */
     --wf-surface: #FFFFFF;
     --wf-border: #E2E5EA;
     --wf-text: #12151C;
