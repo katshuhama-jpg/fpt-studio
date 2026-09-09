@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { Globe, Search, MoreVertical, Plus, AlertTriangle, BookOpen, TriangleAlert } from "lucide-react";
+import { Globe, Search, MoreVertical, Plus, AlertTriangle, BookOpen } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import {
   externalAgentStore, type ExternalAgent, type ExternalAgentStatus,
@@ -215,18 +216,19 @@ export default function ExternalAgentsList() {
       </div>
 
       {loadState === "loading" && (
-        <div className="rounded-xl border border-border overflow-hidden">
-          <div className="h-9 bg-surface-muted" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-4 px-4 py-3 border-t border-border">
-              <div className="flex-1 space-y-1.5">
-                <Skeleton className="h-4 w-40" />
-                <Skeleton className="h-3 w-64" />
+            <div key={i} className="rounded-2xl border border-border p-4 space-y-3">
+              <div className="flex items-center gap-2.5">
+                <Skeleton className="w-9 h-9 rounded-lg shrink-0" />
+                <div className="flex-1 space-y-1.5 min-w-0">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
               </div>
-              <Skeleton className="h-5 w-20 rounded" />
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-4 w-20" />
-              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-3/4" />
+              <Skeleton className="h-3 w-20" />
             </div>
           ))}
         </div>
@@ -267,22 +269,16 @@ export default function ExternalAgentsList() {
       {loadState === "ready" && hasAnyAgents && (
         <>
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4 border-b border-border pb-3">
-            <div className="flex items-center gap-1 flex-wrap">
-              {TABS.map(t => (
-                <button
-                  key={t.key}
-                  onClick={() => setTab(t.key)}
-                  className={`px-3 h-8 rounded-lg text-sm font-medium transition-base flex items-center gap-1.5 ${
-                    tab === t.key ? "bg-primary-soft text-primary" : "text-muted-foreground hover:bg-surface-muted"
-                  }`}
-                >
-                  {t.label}
-                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${tab === t.key ? "bg-primary/10 text-primary" : "bg-surface-sunken text-muted-foreground"}`}>
-                    {counts[t.key]}
-                  </span>
-                </button>
-              ))}
-            </div>
+            <Select value={tab} onValueChange={v => setTab(v as ExternalAgentStatus | "all")}>
+              <SelectTrigger className="h-9 w-[200px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {TABS.map(t => (
+                  <SelectItem key={t.key} value={t.key}>
+                    {t.label} ({counts[t.key]})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <div className="relative shrink-0">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input
@@ -309,89 +305,47 @@ export default function ExternalAgentsList() {
               )}
             </div>
           ) : (
-            <div className="rounded-xl border border-border overflow-x-auto scroll-shadow-x">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-surface-muted">
-                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Agent</th>
-                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Status</th>
-                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Workspace</th>
-                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Base URL</th>
-                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Health</th>
-                    <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Updated</th>
-                    <th className="px-4 py-2.5 w-12" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map(a => {
-                    const unreachablePublished = a.status === "published" && a.lastHealthCheckOk === false;
-                    return (
-                    <tr
-                      key={a.id}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => navigate(`/external-agents/${a.id}`)}
-                      onKeyDown={e => { if (e.key === "Enter") navigate(`/external-agents/${a.id}`); }}
-                      className="border-b border-border last:border-0 hover:bg-surface-muted/50 transition-base cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-                    >
-                      <td className="px-4 py-3 max-w-[280px]">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-base shrink-0 ${a.bg}`}>
-                            {a.emoji}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="font-medium text-foreground truncate">{a.name}</div>
-                            <div className="text-xs text-muted-foreground truncate mt-0.5">{a.description || "—"}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 max-w-[200px]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {filtered.map(a => (
+                <div
+                  key={a.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => navigate(`/external-agents/${a.id}`)}
+                  onKeyDown={e => { if (e.key === "Enter") navigate(`/external-agents/${a.id}`); }}
+                  className="rounded-2xl border border-border bg-surface p-4 hover:border-primary/30 hover:shadow-soft transition-base cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring flex flex-col"
+                >
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-base shrink-0 ${a.bg}`}>
+                        {a.emoji}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-medium text-sm text-foreground truncate">{a.name}</div>
                         <StatusBadge status={a.status} />
-                      </td>
-                      <td className="px-4 py-3 text-xs truncate max-w-[160px]">
-                        {a.status === "published" ? <span className="text-success font-medium">Live</span> : <span className="text-muted-foreground">—</span>}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground font-mono truncate max-w-[220px]" title={a.baseUrl}>{a.baseUrl}</td>
-                      <td className="px-4 py-3 text-xs whitespace-nowrap">
-                        {a.lastHealthCheckAt == null ? (
-                          <span className="text-muted-foreground">Never checked</span>
-                        ) : unreachablePublished ? (
-                          <span
-                            className="inline-flex items-center gap-1 text-destructive font-medium"
-                            title="This agent is published but not responding. Users may see errors."
-                          >
-                            <TriangleAlert size={12} /> Unreachable · {relativeTime(a.lastHealthCheckAt)}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">
-                            {a.lastHealthCheckOk ? "Healthy" : "Unreachable"} · {relativeTime(a.lastHealthCheckAt)}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{relativeTime(a.updatedAt)}</td>
-                      <td className="px-4 py-3 text-right">
-                        <RowMenu
-                          agent={a}
-                          isAdmin={isAdmin}
-                          onOpen={() => navigate(`/external-agents/${a.id}`)}
-                          onEdit={() => setEditTarget(a)}
-                          onSubmit={() => {
-                            externalAgentStore.submitForApproval(a.id);
-                            toast.success(`"${a.name}" was submitted for approval.`);
-                            refresh();
-                          }}
-                          onPauseResume={() => {
-                            if (a.status === "published") setPauseTarget(a);
-                            else { externalAgentStore.resume(a.id); toast.success(`"${a.name}" is published again.`); refresh(); }
-                          }}
-                          onDelete={() => setDeleteTarget(a)}
-                        />
-                      </td>
-                    </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                      </div>
+                    </div>
+                    <RowMenu
+                      agent={a}
+                      isAdmin={isAdmin}
+                      onOpen={() => navigate(`/external-agents/${a.id}`)}
+                      onEdit={() => setEditTarget(a)}
+                      onSubmit={() => {
+                        externalAgentStore.submitForApproval(a.id);
+                        toast.success(`"${a.name}" was submitted for approval.`);
+                        refresh();
+                      }}
+                      onPauseResume={() => {
+                        if (a.status === "published") setPauseTarget(a);
+                        else { externalAgentStore.resume(a.id); toast.success(`"${a.name}" is published again.`); refresh(); }
+                      }}
+                      onDelete={() => setDeleteTarget(a)}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 flex-1 mb-3">{a.description || "No description"}</p>
+                  <div className="text-xs text-muted-foreground">Updated {relativeTime(a.updatedAt)}</div>
+                </div>
+              ))}
             </div>
           )}
         </>
