@@ -5,7 +5,7 @@ import {
   Puzzle, ChevronsLeft, ChevronsRight, Search, Bell, Plus,
   ChevronRight, LifeBuoy, KeyRound, LogOut, User, ChevronDown, ChevronsUpDown,
   Check, Building2, PlusCircle, Sparkles, Shield, FileText, Rocket,
-  Network, Users, Cpu,
+  Network, Users, Cpu, UsersRound,
 } from "lucide-react";
 
 const APP_VERSION = "0.58.5";
@@ -35,6 +35,7 @@ const groups: Group[] = [
     items: [
       { to: "/agents", label: "Agents", icon: Bot },
       { to: "/external-agents", label: "External Agents", icon: Globe },
+      { to: "/workforce", label: "Workforce", icon: UsersRound },
     ],
   },
   {
@@ -92,7 +93,8 @@ export default function WorkspaceLayout() {
   const navigate = useNavigate();
   const orgItems: Item[] = orgItemsBase;
   const inExternalAgentDetail = /^\/external-agents\/(?!guides(?:\/|$))[^/]+\/?$/.test(loc.pathname);
-  const inAgentBuilder = loc.pathname.startsWith("/agents/") || inExternalAgentDetail;
+  const inWorkforceCanvas = /^\/workforce\/[^/]+\/?$/.test(loc.pathname);
+  const inAgentBuilder = loc.pathname.startsWith("/agents/") || inExternalAgentDetail || inWorkforceCanvas;
   const inOrganization = loc.pathname.startsWith("/organization");
   const handleSignOut = () => {
     clearUser();

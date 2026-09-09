@@ -1,279 +1,170 @@
 import { useState, useMemo, useRef, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Add01Icon, Cancel01Icon, Delete01Icon, MoreVerticalIcon, PencilEdit01Icon, Search01Icon } from "@hugeicons/core-free-icons";
-import { createPortal } from "react-dom";
+import { Add01Icon, Delete01Icon, MoreVerticalIcon, PencilEdit01Icon, Search01Icon, Share08Icon, EyeIcon } from "@hugeicons/core-free-icons";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
-import { useGroupAccess, isOwnedOrShared } from "@/pages/organization/scopeAccess";
-
-/* ─── Types ──────────────────────────────────────────────────────────── */
-type ActionKind = "Autogenerate response" | "Custom response" | "Require approval" | "Block" | "Redact and warn" | "Politely decline";
-
-interface AgentChip { name: string; color: string }
-interface Guardrail {
-  id: number;
-  name: string;
-  desc: string;
-  action: ActionKind;
-  mandatory: boolean;
-  agents: AgentChip[];
-  allAgents?: boolean;
-  enabled: boolean;
-  /** Org-member id of whoever created this guardrail, and who else it's been explicitly
-   * shared with — read by the "Own & Shared" Scope enforcement in scopeAccess.ts. Mandatory
-   * (compliance) and `allAgents` guardrails are always visible to everyone regardless, the
-   * same way a Knowledge base shared to "all" is — they aren't really "someone's own." */
-  ownerId?: string;
-  sharedWith?: string[];
-}
+import { useGroupAccess } from "@/pages/organization/scopeAccess";
+import { useOrg } from "@/pages/organization/orgStore";
+import { collectMembers } from "@/pages/organization/orgData";
+import { isAccessibleTo, isViewOnly, type Sharing } from "@/components/configure/guardrailSharing";
+import { guardrailConsoleStore, type Guardrail } from "@/components/configure/guardrailConsoleStore";
+import CreateGuardrailModal, { type CreateGuardrailData } from "@/components/configure/CreateGuardrailModal";
+import GuardrailShareModal from "@/components/configure/GuardrailShareModal";
 
 /** True if `userId` can see this guardrail — always true for mandatory/all-agents compliance
- * rules, otherwise only if they created it or it was explicitly shared with them. */
+ * rules, otherwise only if they created it, it's shared with every Console user, or it was
+ * explicitly shared with them. */
 function isGuardrailAccessible(g: Guardrail, userId: string): boolean {
-  return g.mandatory || !!g.allAgents || isOwnedOrShared(g, userId);
+  if (g.mandatory || g.allAgents) return true;
+  if (!g.ownerId || !g.sharing) return false;
+  return isAccessibleTo(g.sharing, g.ownerId, userId);
 }
 
-/* ─── Seed data ──────────────────────────────────────────────────────── */
-const SEED: Guardrail[] = [
-  { id: 1, name: "PII protection",            desc: "Never expose personal identifiers — CCID, passport, phone — in any response.",          action: "Autogenerate response",                   mandatory: true,  agents: [], enabled: true },
-  { id: 2, name: "Prohibited content filter", desc: "Block violent, adult, or discriminatory content across all channels.",                    action: "Autogenerate response",                   mandatory: true,  agents: [], enabled: true },
-  { id: 3, name: "Compliance disclaimer",     desc: "Append regulatory disclaimer to all financial and legal responses.",                      action: "Custom response",   mandatory: true,  agents: [], enabled: true },
-  { id: 4, name: "Commercial response policy",desc: "Prevent AI from making pricing commitments or answering restricted topics.",              action: "Autogenerate response",               mandatory: false, agents: [{ name: "Banking ABC", color: "#4338ca" }, { name: "IT Helpdesk", color: "#059669" }, { name: "Product FAQ", color: "#d97706" }, { name: "Sales Qualifier", color: "#db2777" }], enabled: true, ownerId: "m-fsoft-ceo" },
-  { id: 5, name: "Legal and medical advice",  desc: "Do not provide legal or medical advice — refer to a specialist.",                         action: "Custom response", mandatory: false, agents: [], allAgents: true, enabled: true },
-  { id: 6, name: "Escalate risky replies",    desc: "Human approval for any commitments about future roadmap.",                                action: "Require approval",                    mandatory: false, agents: [{ name: "Sales Qualifier", color: "#d97706" }], enabled: false, ownerId: "m-fsoft-coo" },
-  { id: 7, name: "Competitor mention block",  desc: "Avoid naming or comparing direct competitors in any response.",                           action: "Autogenerate response",               mandatory: false, agents: [{ name: "Banking ABC", color: "#4338ca" }, { name: "HR Onboarding", color: "#7c3aed" }, { name: "IT Helpdesk", color: "#059669" }], enabled: true, ownerId: "m-fsoft-vn-1", sharedWith: ["m-fsoft-ceo"] },
-];
-
-/* ─── Response types ─────────────────────────────────────────────────── */
-type ResponseKind = "auto" | "fixed" | null;
-
-/* ─── Create side sheet ──────────────────────────────────────────────── */
-function CreateModal({ onClose, onCreate, initialData }: {
-  onClose: () => void;
-  onCreate: (g: Omit<Guardrail, "id" | "agents">) => void;
-  initialData?: Guardrail;
-}) {
-  const isEdit = !!initialData;
-  const actionToResponse = (a?: ActionKind): ResponseKind => {
-    if (a === "Autogenerate response") return "auto";
-    if (a === "Custom response") return "fixed";
-    return null;
-  };
-  const [topic, setTopic]       = useState(initialData?.name ?? "");
-  const [desc, setDesc]         = useState(initialData?.desc ?? "");
-  const [samples, setSamples]   = useState("");
-  const [response, setResponse] = useState<ResponseKind>(actionToResponse(initialData?.action));
-  const [fixedText, setFixedText] = useState("");
-  const [allAgents, setAllAgents] = useState(initialData?.allAgents ?? false);
-
-  const actionFromResponse = (): ActionKind => {
-    if (response === "auto")  return "Autogenerate response";
-    if (response === "fixed") return "Custom response";
-    return "Autogenerate response";
-  };
-
-  const submit = () => {
-    if (!topic.trim()) return;
-    onCreate({ name: topic.trim(), desc: desc.trim(), action: actionFromResponse(), mandatory: false, allAgents, enabled: true });
-    onClose();
-  };
-
-  const responseOptions: { key: ResponseKind; title: string; desc: string }[] = [
-    { key: "auto",  title: "Autogenerate response",                 desc: "Agent automatically rewrites responses based on your instructions." },
-    { key: "fixed", title: "Custom response", desc: "Agent replies using the exact text you provide." },
-  ];
-
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
-      {/* backdrop */}
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-
-      {/* popup */}
-      <div className="relative w-full max-w-[520px] bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh]" style={{animation:"fadeScaleIn 0.18s ease"}}>
-        {/* Header */}
-        <div className="flex items-start justify-between px-6 py-5 border-b border-border shrink-0">
-          <div>
-            <h2 className="font-display text-lg font-semibold">Create Guardrail</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">Define the rule and choose how the agent responds.</p>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base mt-0.5"><HugeiconsIcon icon={Cancel01Icon} size={15} /></button>
-        </div>
-
-        {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
-
-          {/* ── Define the rule ── */}
-          <div>
-            <h3 className="text-sm font-semibold mb-4">Define the rule</h3>
-            <div className="space-y-4">
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-sm font-medium">Topic <span className="text-destructive">*</span></label>
-                  <span className="text-xs text-muted-foreground">{topic.length}/100</span>
-                </div>
-                <input
-                  autoFocus
-                  maxLength={100}
-                  className="w-full h-10 px-3 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base"
-                  value={topic}
-                  onChange={e => setTopic(e.target.value)}
-                />
-              </div>
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-sm font-medium">Description <span className="text-destructive">*</span></label>
-                  <span className="text-xs text-muted-foreground">{desc.length}/800</span>
-                </div>
-                <textarea
-                  maxLength={800}
-                  rows={3}
-                  className="w-full px-3 py-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none"
-                  value={desc}
-                  onChange={e => setDesc(e.target.value)}
-                />
-              </div>
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-sm font-medium">Samples</label>
-                  <span className="text-xs text-muted-foreground">{samples.length}/2000</span>
-                </div>
-                <p className="text-xs text-primary mb-1.5 italic">Tip: Each sample must be separated by a line break.</p>
-                <textarea
-                  maxLength={2000}
-                  rows={4}
-                  className="w-full px-3 py-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none"
-                  value={samples}
-                  onChange={e => setSamples(e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* ── Response ── */}
-          <div>
-            <h3 className="text-sm font-semibold mb-1">Response</h3>
-            <p className="text-xs text-muted-foreground mb-4">Choose what the agent does when this rule triggers.</p>
-            <div className="space-y-3">
-              {responseOptions.map(opt => {
-                const selected = response === opt.key;
-                return (
-                  <div
-                    key={opt.key}
-                    onClick={() => setResponse(opt.key)}
-                    className={`flex items-start gap-3 px-4 py-3.5 rounded-xl border cursor-pointer transition-base ${
-                      selected ? "border-primary bg-primary/5" : "border-border bg-white hover:bg-surface-muted"
-                    }`}
-                  >
-                    {/* Radio */}
-                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-base ${
-                      selected ? "border-primary" : "border-border"
-                    }`}>
-                      {selected && <div className="w-2 h-2 rounded-full bg-primary" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold">{opt.title}</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">{opt.desc}</div>
-                      {selected && opt.key === "fixed" && (
-                        <div className="mt-3">
-                          <label className="block text-xs font-semibold mb-1.5">Fixed paragraph <span className="text-destructive">*</span></label>
-                          <div className="relative">
-                            <textarea
-                              rows={4}
-                              maxLength={300}
-                              placeholder="Write the exact reply the agent should send."
-                              className="w-full px-3 py-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none"
-                              value={fixedText}
-                              onChange={e => { e.stopPropagation(); setFixedText(e.target.value); }}
-                              onClick={e => e.stopPropagation()}
-                            />
-                            <span className="absolute bottom-2 right-3 text-[10px] text-muted-foreground">{fixedText.length}/300</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Apply for all agents */}
-            <label className="mt-3 flex items-center gap-2.5 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={allAgents}
-                onChange={e => setAllAgents(e.target.checked)}
-                className="w-4 h-4 accent-primary shrink-0"
-              />
-              <div>
-                <span className="text-sm font-medium">Apply for all agents</span>
-                <p className="text-xs text-muted-foreground">This guardrail will be assigned to every agent in the workspace.</p>
-              </div>
-            </label>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 shrink-0 bg-white">
-          <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Cancel</button>
-          <button onClick={submit} disabled={!topic.trim()} className="h-9 px-6 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium transition-base disabled:opacity-40 disabled:cursor-not-allowed">
-            {isEdit ? "Save changes" : "Create guardrail"}
-          </button>
-        </div>
-      </div>
-
-      <style>{`@keyframes fadeScaleIn { from { opacity:0; transform:scale(0.96); } to { opacity:1; transform:scale(1); } }`}</style>
-    </div>,
-    document.body
-  );
+// A dedicated ownership pill ("Của tôi" / "Được chia sẻ · <tên>") is redundant on every row —
+// the active tab (Tất cả/Của tôi/Được chia sẻ) already tells the viewer which ownership category
+// they're looking at. Only the share-status pill on an owned guardrail ("Dùng chung" / "Chia sẻ
+// với N người") carries information the tab doesn't, so that's the only pill left; the sharer's
+// name on a shared-to-me guardrail is shown as plain text instead (see the row rendering below).
+function ShareStatusChip({ g }: { g: Guardrail }) {
+  if (!g.sharing) return null;
+  if (g.sharing.mode === "all") return <span className="chip chip-info">Dùng chung</span>;
+  if (g.sharing.mode === "specific" && g.sharing.people.length > 0) {
+    return <span className="chip chip-info">Chia sẻ với {g.sharing.people.length} người</span>;
+  }
+  return null;
 }
 
 /* ─── Main page ──────────────────────────────────────────────────────── */
+type MainTab = "all" | "mine" | "shared";
+
 export default function WorkspaceGuardrails() {
   const { can } = useMyPermissions();
   const access = useGroupAccess("guardrails");
+  const { tree } = useOrg();
+  const members = useMemo(() => collectMembers(tree), [tree]);
+  const currentUser = useMemo(() => {
+    const me = members.find(m => m.id === access.userId);
+    return { id: access.userId, name: me?.name ?? "Tran Nam", email: me?.email ?? "tran.nam@fpt.com" };
+  }, [members, access.userId]);
   const canCreateGuardrail = can("guardrails.create");
-  const [items, setItems] = useState<Guardrail[]>(SEED);
+  const [params, setParams] = useSearchParams();
+  const [tick, setTick] = useState(0);
+  const refresh = () => setTick(t => t + 1);
+  void tick;
+  const items = guardrailConsoleStore.list();
   const [query, setQuery]         = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [editItem, setEditItem] = useState<Guardrail | null>(null);
-  let nextId = Math.max(...items.map(i => i.id)) + 1;
+  const [viewItem, setViewItem] = useState<Guardrail | null>(null);
+  const [shareItem, setShareItem] = useState<Guardrail | null>(null);
+  const [tab, setTab] = useState<MainTab>("all");
+
+  // A guardrail linked to from elsewhere (e.g. an Agent's "Mở guardrail" row action) via
+  // ?open=<id> auto-opens here — editable if the signed-in user can manage it, read-only
+  // otherwise — instead of requiring a dedicated /guardrails/:id detail route.
+  useEffect(() => {
+    const openId = params.get("open");
+    if (!openId) return;
+    const g = guardrailConsoleStore.get(openId);
+    const next = new URLSearchParams(params);
+    next.delete("open");
+    setParams(next, { replace: true });
+    if (!g) return;
+    const accessible = isGuardrailAccessible(g, access.userId);
+    const hasOwner = !g.mandatory && !!g.ownerId && !!g.sharing;
+    const viewOnly = hasOwner && g.ownerId !== access.userId && isViewOnly(g.sharing!, g.ownerId!, access.userId);
+    const canEdit = access.hasPermission("manage") && access.canAct("manage", accessible) && !viewOnly;
+    if (canEdit) setEditItem(g); else setViewItem(g);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // A role whose Guardrails View Scope is "Own & Shared" (or with no View permission at all)
   // only ever sees mandatory/all-agents compliance rules plus guardrails it created or that
-  // were shared with it.
+  // were shared with it — not just on a filter tab, but in every count and list below.
   const visibleGuardrails = access.canSeeAll ? items : items.filter(g => isGuardrailAccessible(g, access.userId));
+
+  const isMine = (g: Guardrail) => !!g.ownerId && g.ownerId === access.userId;
+  const isSharedWithMe = (g: Guardrail) => !isMine(g) && !!g.ownerId && !!g.sharing && isAccessibleTo(g.sharing, g.ownerId, access.userId);
+
+  const counts = useMemo(() => ({
+    all: visibleGuardrails.length,
+    mine: visibleGuardrails.filter(isMine).length,
+    shared: visibleGuardrails.filter(isSharedWithMe).length,
+  }), [visibleGuardrails, access.userId]);
+
+  const tabFiltered = tab === "mine" ? visibleGuardrails.filter(isMine)
+    : tab === "shared" ? visibleGuardrails.filter(isSharedWithMe)
+    : visibleGuardrails;
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
-    return visibleGuardrails.filter(g => !q || g.name.toLowerCase().includes(q) || g.desc.toLowerCase().includes(q));
-  }, [visibleGuardrails, query]);
+    return tabFiltered.filter(g => !q || g.name.toLowerCase().includes(q) || g.desc.toLowerCase().includes(q));
+  }, [tabFiltered, query]);
 
-  const [activeTab, setActiveTab] = useState<"optional" | "enforced">("optional");
+  const TABS: { key: MainTab; label: string }[] = [
+    { key: "all", label: "Tất cả" },
+    { key: "mine", label: "Của tôi" },
+    { key: "shared", label: "Được chia sẻ" },
+  ];
 
-  const optional  = filtered.filter(g => !g.mandatory);
-  const enforced = filtered.filter(g => g.mandatory);
-  const visibleItems = activeTab === "enforced" ? enforced : optional;
-
-  const handleCreate = (g: Omit<Guardrail, "id" | "agents">) => {
-    setItems(prev => [...prev, { ...g, id: nextId++, agents: [], enabled: true }]);
+  const handleCreate = (g: CreateGuardrailData) => {
+    guardrailConsoleStore.create(g);
+    refresh();
   };
-  const handleEdit = (id: number, g: Omit<Guardrail, "id" | "agents">) => {
-    setItems(prev => prev.map(item => item.id === id ? { ...item, ...g } : item));
+  const handleEdit = (id: string, g: CreateGuardrailData) => {
+    guardrailConsoleStore.update(id, g);
+    refresh();
   };
-  const handleDelete = (id: number) => {
-    setItems(prev => prev.filter(item => item.id !== id));
+  const handleDelete = (id: string) => {
+    guardrailConsoleStore.remove(id);
+    refresh();
   };
-  const toggleEnabled = (id: number) => {
-    setItems(prev => prev.map(item => item.id === id ? { ...item, enabled: !item.enabled } : item));
+  const toggleEnabled = (id: string) => {
+    guardrailConsoleStore.toggleEnabled(id);
+    refresh();
+  };
+  const handleShare = (id: string, sharing: Sharing) => {
+    guardrailConsoleStore.updateSharing(id, sharing);
+    refresh();
   };
 
   return (
     <div className="px-8 py-8 max-w-[1200px] mx-auto animate-fade-up">
-      {showCreate && <CreateModal onClose={() => setShowCreate(false)} onCreate={handleCreate} />}
-      {editItem && <CreateModal onClose={() => setEditItem(null)} onCreate={g => { handleEdit(editItem.id, g); setEditItem(null); }} initialData={editItem} />}
+      {showCreate && <CreateGuardrailModal onClose={() => setShowCreate(false)} onSubmit={handleCreate} currentUser={currentUser} />}
+      {editItem && <CreateGuardrailModal onClose={() => setEditItem(null)} onSubmit={g => { handleEdit(editItem.id, g); setEditItem(null); }} initialData={editItem} currentUser={currentUser} />}
+      {viewItem && <CreateGuardrailModal onClose={() => setViewItem(null)} onSubmit={() => {}} initialData={viewItem} currentUser={currentUser} readOnly />}
+      {shareItem && (
+        <GuardrailShareModal
+          open
+          name={shareItem.name}
+          ownerName={shareItem.ownerName ?? currentUser.name}
+          sharing={shareItem.sharing ?? { mode: "private", people: [] }}
+          onSave={sharing => handleShare(shareItem.id, sharing)}
+          onClose={() => setShareItem(null)}
+        />
+      )}
 
       <div className="mb-6">
         <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">Guardrails</h1>
         <p className="text-sm text-muted-foreground truncate">Shared safety policies you can apply to any agent — content restrictions, data protection, approval flows, and custom rules.</p>
+      </div>
+
+      {/* Ownership tabs */}
+      <div className="flex items-center gap-1 flex-wrap mb-4">
+        {TABS.map(t => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`px-3 h-8 rounded-lg text-sm font-medium transition-base flex items-center gap-1.5 ${
+              tab === t.key ? "bg-primary-soft text-primary" : "text-muted-foreground hover:bg-surface-muted"
+            }`}
+          >
+            {t.label}
+            <span className={`text-xs px-1.5 py-0.5 rounded-full ${tab === t.key ? "bg-primary/10 text-primary" : "bg-surface-sunken text-muted-foreground"}`}>
+              {counts[t.key]}
+            </span>
+          </button>
+        ))}
       </div>
 
       {/* Toolbar */}
@@ -293,7 +184,7 @@ export default function WorkspaceGuardrails() {
             onClick={() => canCreateGuardrail && setShowCreate(true)}
             disabled={!canCreateGuardrail}
             title={!canCreateGuardrail ? "You don't have permission to create guardrails." : undefined}
-            className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-primary"
+            className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 transition-base disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <HugeiconsIcon icon={Add01Icon} size={14} /> Create guardrail
           </button>
@@ -304,15 +195,43 @@ export default function WorkspaceGuardrails() {
       <Table>
         <THead cols="1fr 200px 1fr 72px 64px" cells={["Guardrail", "Response action", "Assigned agents", "Status", "Actions"]} lastRight />
         {filtered.length === 0 ? <EmptyRow /> : filtered.map(g => {
+          const hasOwner = !g.mandatory && !!g.ownerId && !!g.sharing;
+          const isOwner = hasOwner && g.ownerId === access.userId;
           const accessible = isGuardrailAccessible(g, access.userId);
+          const viewOnly = hasOwner && !isOwner && isViewOnly(g.sharing!, g.ownerId!, access.userId);
           const canPause = access.canAct("pause", accessible);
-          const canManage = access.canAct("manage", accessible);
-          const canDelete = access.canAct("delete", accessible);
+
+          const NO_ROLE_PERMISSION = "Bạn không có quyền thực hiện thao tác này.";
+          const NOT_OWNED_OR_SHARED = "Bạn chỉ có thể thao tác trên guardrail bạn tạo hoặc được chia sẻ.";
+          const VIEW_ONLY = "Bạn chỉ có quyền xem guardrail này.";
+
+          const editBlocked = viewOnly ? VIEW_ONLY
+            : !access.hasPermission("manage") ? NO_ROLE_PERMISSION
+            : !access.canAct("manage", accessible) ? NOT_OWNED_OR_SHARED
+            : undefined;
+          const shareBlocked = !hasOwner ? undefined
+            : !isOwner ? "Chỉ chủ sở hữu mới có thể chia sẻ guardrail này."
+            : !access.hasPermission("publish") ? NO_ROLE_PERMISSION
+            : !access.canAct("publish", accessible) ? NOT_OWNED_OR_SHARED
+            : undefined;
+          const deleteBlocked = hasOwner && !isOwner ? "Chỉ chủ sở hữu mới có thể xóa guardrail này."
+            : !access.hasPermission("delete") ? NO_ROLE_PERMISSION
+            : !access.canAct("delete", accessible) ? NOT_OWNED_OR_SHARED
+            : undefined;
+
           return (
           <TRow key={g.id} cols="1fr 200px 1fr 72px 64px">
             <div>
               <div className="text-sm font-medium">{g.name}</div>
-              <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{g.desc}</div>
+              <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                {g.desc}
+                {hasOwner && !isOwner && ` · Chia sẻ bởi ${g.ownerName ?? "—"}`}
+              </div>
+              {hasOwner && isOwner && (g.sharing!.mode === "all" || (g.sharing!.mode === "specific" && g.sharing!.people.length > 0)) && (
+                <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
+                  <ShareStatusChip g={g} />
+                </div>
+              )}
             </div>
             <div><ActionPill>{g.action}</ActionPill></div>
             <div className="flex items-center">
@@ -338,10 +257,13 @@ export default function WorkspaceGuardrails() {
             </div>
             <div className="flex items-center justify-end">
               <RowMenu
+                onOpen={() => setViewItem(g)}
                 onEdit={() => setEditItem(g)}
+                onShare={hasOwner ? () => setShareItem(g) : undefined}
                 onDelete={() => handleDelete(g.id)}
-                canEdit={canManage}
-                canDelete={canDelete}
+                editBlocked={editBlocked}
+                shareBlocked={shareBlocked}
+                deleteBlocked={deleteBlocked}
               />
             </div>
           </TRow>
@@ -378,15 +300,6 @@ function EmptyRow() {
   return <div className="px-5 py-6 text-sm text-muted-foreground text-center">No guardrails found.</div>;
 }
 
-function Pill({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border bg-surface-muted text-xs text-muted-foreground">
-      <span className="w-1.5 h-1.5 rounded-full bg-primary/60 shrink-0" />
-      {children}
-    </span>
-  );
-}
-
 function ActionPill({ children }: { children: React.ReactNode }) {
   return (
     <span className="inline-flex max-w-[180px] px-2.5 py-1 rounded-full border border-border bg-surface-muted text-xs text-muted-foreground truncate">
@@ -395,25 +308,14 @@ function ActionPill({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Toggle({ enabled, onChange }: { enabled: boolean; onChange: () => void }) {
-  return (
-    <button
-      onClick={onChange}
-      className={`relative inline-flex h-5 w-9 items-center rounded-full border transition-colors duration-200 focus:outline-none ${
-        enabled ? "bg-primary border-primary" : "bg-surface-muted border-border"
-      }`}
-      role="switch"
-      aria-checked={enabled}
-    >
-      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform duration-200 ${
-        enabled ? "translate-x-4" : "translate-x-0.5"
-      }`} />
-    </button>
-  );
-}
-
-function RowMenu({ onEdit, onDelete, canEdit = true, canDelete = true }: {
-  onEdit: () => void; onDelete: () => void; canEdit?: boolean; canDelete?: boolean;
+/** Row "..." menu — enforces the same permission matrix as Knowledge's RowMenu: "Mở" is always
+ * available, and "Chỉnh sửa"/"Chia sẻ"/"Xóa" are always rendered but individually
+ * disabled+tooltipped by whichever gate (ownership, sharing access level, role permission, or
+ * role Scope) actually blocks it — never hidden outright, so an owner sees the full action set,
+ * an edit-shared viewer sees Mở/Chỉnh sửa enabled, and a view-only viewer sees only Mở enabled. */
+function RowMenu({ onOpen, onEdit, onShare, onDelete, editBlocked, shareBlocked, deleteBlocked }: {
+  onOpen: () => void; onEdit: () => void; onShare?: () => void; onDelete: () => void;
+  editBlocked?: string; shareBlocked?: string; deleteBlocked?: string;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -436,36 +338,41 @@ function RowMenu({ onEdit, onDelete, canEdit = true, canDelete = true }: {
         <HugeiconsIcon icon={MoreVerticalIcon} size={13} />
       </button>
       {open && (
-        <div className="absolute right-0 top-8 z-20 w-32 bg-white rounded-xl border border-border shadow-lg py-1 animate-fade-up">
+        <div className="absolute right-0 top-8 z-20 w-40 bg-white rounded-xl border border-border shadow-lg py-1 animate-fade-up">
           <button
-            disabled={!canEdit}
-            title={!canEdit ? "Bạn không có quyền chỉnh sửa guardrail này." : undefined}
+            onClick={() => { setOpen(false); onOpen(); }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface-muted transition-base"
+          >
+            <HugeiconsIcon icon={EyeIcon} size={13} className="text-muted-foreground" /> Mở
+          </button>
+          <button
+            disabled={!!editBlocked}
+            title={editBlocked}
             onClick={() => { setOpen(false); onEdit(); }}
             className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface-muted transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
           >
-            <HugeiconsIcon icon={PencilEdit01Icon} size={13} className="text-muted-foreground" /> Edit
+            <HugeiconsIcon icon={PencilEdit01Icon} size={13} className="text-muted-foreground" /> Chỉnh sửa
           </button>
+          {onShare && (
+            <button
+              disabled={!!shareBlocked}
+              title={shareBlocked}
+              onClick={() => { setOpen(false); onShare(); }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface-muted transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+            >
+              <HugeiconsIcon icon={Share08Icon} size={13} className="text-muted-foreground" /> Chia sẻ
+            </button>
+          )}
           <button
-            disabled={!canDelete}
-            title={!canDelete ? "Bạn không có quyền xóa guardrail này." : undefined}
+            disabled={!!deleteBlocked}
+            title={deleteBlocked}
             onClick={() => { setOpen(false); onDelete(); }}
             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/5 transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
           >
-            <HugeiconsIcon icon={Delete01Icon} size={13} /> Delete
+            <HugeiconsIcon icon={Delete01Icon} size={13} /> Xóa
           </button>
         </div>
       )}
     </div>
-  );
-}
-
-function IconBtn({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  return (
-    <button
-      {...props}
-      className="w-7 h-7 rounded-lg border border-border bg-surface hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base"
-    >
-      {children}
-    </button>
   );
 }

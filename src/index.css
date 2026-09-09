@@ -241,6 +241,74 @@
   .divider-label::before, .divider-label::after {
     content: ''; flex: 1; height: 1px; background: hsl(var(--border));
   }
+
+  /* ===========================================================
+     Workforce Canvas — "Slate Enterprise" visual theme
+     Scoped under .wf-slate (the WorkforceCanvasPage root) so it never
+     leaks into the rest of the app's tokens/typography. Everything the
+     canvas renders as HTML/SVG-via-CSS reads these; the handful of
+     values reactflow needs as raw JS (dot grid, connector line/markers)
+     live in src/components/workforce/slateTheme.ts, kept in sync by hand.
+     =========================================================== */
+  .wf-slate {
+    --wf-bg: #F7F8FA;
+    --wf-dot: #D8DBE2; /* darker than the reference's literal value — see slateTheme.ts WF_DOT_COLOR */
+    --wf-surface: #FFFFFF;
+    --wf-border: #E2E5EA;
+    --wf-text: #12151C;
+    --wf-muted: #5B6472;
+
+    --wf-font-display: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+    --wf-font-body: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+
+    --wf-radius: 12px;
+    --wf-radius-sm: 8px;
+    --wf-node-shadow: 0 1px 2px rgba(20, 22, 30, 0.05);
+
+    --wf-agent: #4650D6;   --wf-agent-bg: #EEF0FE;
+    --wf-omni: #0E8F6E;    --wf-omni-bg: #E7F7F1;
+    --wf-person: #6E4FD6;  --wf-person-bg: #F1ECFD;
+    /* Condition chip has exactly two states — warn (unconfigured) and this default one, which
+       doubles as "configured": no third color for "has data". */
+    --wf-warn: #D97706;    --wf-cond-border: #8891A6;
+
+    --wf-accent: #4650D6;  --wf-accent-ink: #FFFFFF;
+    --wf-pub-bg: #E6F8EF;  --wf-pub-ink: #0E8F52;
+
+    /* Same values as slateTheme.ts's WF_CONNECTOR_COLOR/WF_DOTMARK_COLOR — those exist because
+       reactflow needs them as raw JS (SVG marker defs, Background dot color), these exist so
+       any HTML-rendered element (e.g. the node connector Handles) can read the same colors. */
+    --wf-connector: #8891A6;
+    --wf-dotmark: #4650D6;
+
+    background: var(--wf-bg);
+    font-family: var(--wf-font-body);
+  }
+
+  .wf-btn-pri {
+    font-family: var(--wf-font-display);
+    font-weight: 700; font-size: 13px; color: var(--wf-accent-ink);
+    background: var(--wf-accent); border: none; border-radius: var(--wf-radius-sm);
+    padding: 7px 16px; transition: var(--transition);
+  }
+  .wf-btn-pri:hover { filter: brightness(1.08); }
+
+  .wf-btn-sec {
+    font-family: var(--wf-font-display);
+    font-weight: 600; font-size: 13px; color: var(--wf-text);
+    background: transparent; border: 1px solid var(--wf-border); border-radius: var(--wf-radius-sm);
+    padding: 7px 14px; transition: var(--transition);
+  }
+  .wf-btn-sec:hover { background: var(--wf-bg); }
+
+  .wf-pill {
+    display: inline-block;
+    font-family: var(--wf-font-display);
+    font-size: 11px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;
+    padding: 3px 9px; border-radius: 999px;
+    background: var(--wf-pub-bg); color: var(--wf-pub-ink);
+  }
+  .wf-pill.muted { background: #EEF0F3; color: var(--wf-muted); }
 }
 
 @layer utilities {

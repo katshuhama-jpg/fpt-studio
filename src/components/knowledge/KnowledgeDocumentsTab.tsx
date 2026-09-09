@@ -86,6 +86,9 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
     next.has(id) ? next.delete(id) : next.add(id);
     return next;
   });
+  const allFilteredSelected = filtered.length > 0 && filtered.every(d => selected.has(d.id));
+  const someFilteredSelected = filtered.some(d => selected.has(d.id));
+  const toggleSelectAll = () => setSelected(allFilteredSelected ? new Set() : new Set(filtered.map(d => d.id)));
 
   return (
     <div className="h-full overflow-y-auto">
@@ -201,7 +204,18 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-surface-muted">
-                {!viewOnly && <th className="w-10 px-4 py-2.5"><span className="sr-only">Chọn</span></th>}
+                {!viewOnly && (
+                  <th className="w-10 px-4 py-2.5">
+                    <input
+                      type="checkbox"
+                      checked={allFilteredSelected}
+                      ref={el => { if (el) el.indeterminate = someFilteredSelected && !allFilteredSelected; }}
+                      onChange={toggleSelectAll}
+                      className="w-4 h-4 accent-primary"
+                      aria-label="Chọn tất cả"
+                    />
+                  </th>
+                )}
                 <th className="text-left px-2 py-2.5 kb-table-header">Tên</th>
                 <th className="text-left px-2 py-2.5 kb-table-header">Trạng thái</th>
                 <th className="text-left px-2 py-2.5 kb-table-header min-w-[110px]">Kích thước</th>

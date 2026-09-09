@@ -21,25 +21,25 @@ export const KNOWLEDGE_STATUS_META: Record<KnowledgeFaqStatus, { label: string; 
   cancelled: { label: "Đã hủy", badgeClass: "chip-outline", dotClass: "bg-muted-foreground" },
 };
 
-// Shortened, sentence-case labels for space-constrained spots (currently only the Instructions
-// tab's right-sidebar "Tri thức" widget) — every other screen keeps the full uppercase label.
+// Shortened labels for space-constrained spots (currently only the Instructions tab's
+// right-sidebar "Tri thức" widget) — every other screen keeps the full label.
 const COMPACT_LABEL: Partial<Record<KnowledgeFaqStatus, string>> = {
   pending: "Chờ xử lý",
   failed: "Thất bại",
 };
 
 /** Colored pill for the processing-status enum — same shape as external-agents/statusMeta.tsx's
- * StatusBadge (span + dot, 10px uppercase tracking-wide, rounded not rounded-full, bordered),
- * with a spinner swapped in for the dot on "processing" instead of a static dot. Accepts the
- * wider FAQ enum so Documents/Website (which only ever hold the 5-value subset) and FAQ (which
- * can also hold "invalid") share the exact same component.
- * `compact` swaps in a shorter sentence-case label instead of the full uppercase one — same
- * colors/icon, just less text, for rows too narrow to fit the full label. */
+ * StatusBadge (span + dot, rounded not rounded-full, bordered), with a spinner swapped in for
+ * the dot on "processing" instead of a static dot. Accepts the wider FAQ enum so Documents/Website
+ * (which only ever hold the 5-value subset) and FAQ (which can also hold "invalid") share the
+ * exact same component. Labels render sentence case as authored (e.g. "Đang xử lý"), not uppercase.
+ * `compact` swaps in a shorter label instead of the full one — same colors/icon, just less text,
+ * for rows too narrow to fit the full label. */
 export function KnowledgeStatusPill({ status, compact = false }: { status: KnowledgeFaqStatus; compact?: boolean }) {
   const meta = KNOWLEDGE_STATUS_META[status];
   const label = compact ? (COMPACT_LABEL[status] ?? meta.label) : meta.label;
   return (
-    <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-1.5 py-0.5 rounded border whitespace-nowrap ${meta.badgeClass} ${compact ? "" : "uppercase tracking-wider"}`}>
+    <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-1.5 py-0.5 rounded border whitespace-nowrap ${meta.badgeClass}`}>
       {status === "processing" ? (
         <Loader2 size={10} className="shrink-0 animate-spin" />
       ) : (

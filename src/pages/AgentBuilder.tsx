@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, BookOpen01Icon, Cancel01Icon, BoltIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, UserMultipleIcon, TextBoldIcon, TextItalicIcon, TextStrikethroughIcon, Heading01Icon, Heading02Icon, LeftToRightListBulletIcon, LeftToRightListNumberIcon, CodeIcon, Copy01Icon, SourceCodeIcon, GridViewIcon, Share08Icon, ApiIcon, TelegramIcon, WhatsappIcon, MessengerIcon, Building02Icon, UserIcon, QrCode01Icon, ExternalLinkIcon, InformationCircleIcon, MinusSignIcon, CircleArrowReload01Icon, Wrench01Icon, UserGroupIcon, ArrowLeftDoubleIcon } from "@hugeicons/core-free-icons";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import AgentToolsTab from "@/components/tool-builder/AgentToolsTab";
 import TasksGrid from "@/components/tasks/TasksGrid";
 import BusinessProcessesGrid from "@/components/business-processes/BusinessProcessesGrid";
@@ -11,7 +11,6 @@ import TriggersTab from "@/components/configure/TriggersTab";
 import TriggerFormDialog from "@/components/configure/TriggerFormDialog";
 import TriggerBlockedByConnectorNotice from "@/components/configure/TriggerBlockedByConnectorNotice";
 import DeleteTriggerDialog from "@/components/configure/DeleteTriggerDialog";
-import GuardrailsTab from "@/components/configure/GuardrailsTab";
 import HistoryTab from "@/components/history/HistoryTab";
 import HistoryChatPanel from "@/components/history/HistoryChatPanel";
 import TriggerRunsTab from "@/components/configure/TriggerRunsTab";
@@ -28,12 +27,29 @@ import {
 import { getAgentKind, type AgentKind } from "@/components/configure/agentKindStore";
 import { AGENTS, getAgent } from "@/components/configure/agentStore";
 import { useGroupAccess, isOwnedOrShared } from "@/pages/organization/scopeAccess";
+import { useOrg } from "@/pages/organization/orgStore";
+import { collectMembers } from "@/pages/organization/orgData";
 import { CHANNEL_CATALOG, getChannelName, type ChannelCatalogEntry } from "@/components/configure/channelCatalog";
 import { connectedAccountStore } from "@/components/configure/connectedAccountStore";
 import ConnectionsTab, { CATALOG as CONNECTOR_CATALOG } from "@/components/configure/ConnectionsTab";
 import AppLogo from "@/components/configure/AppLogo";
 import { TYPE_META, summarizeConfig } from "@/components/configure/TriggersTab";
-import { guardrailStore } from "@/components/configure/guardrailStore";
+import { guardrailConsoleStore, type Guardrail } from "@/components/configure/guardrailConsoleStore";
+import { agentGuardrailStore } from "@/components/configure/agentGuardrailStore";
+import CreateGuardrailModal, { type CreateGuardrailData } from "@/components/configure/CreateGuardrailModal";
+import GuardrailOwnershipTag from "@/components/configure/GuardrailOwnershipTag";
+import GuardrailShareModal from "@/components/configure/GuardrailShareModal";
+import { isViewOnly as isGuardrailViewOnly, isAccessibleTo as isGuardrailAccessibleTo, type Sharing as GuardrailSharing, type SharingMode as GuardrailSharingMode } from "@/components/configure/guardrailSharing";
+import GuardrailMemberPicker from "@/components/configure/GuardrailMemberPicker";
+import AttachConsoleGuardrailModal from "@/components/configure/AttachConsoleGuardrailModal";
+import PromoteGuardrailToConsoleDialog from "@/components/configure/PromoteGuardrailToConsoleDialog";
+import { skillStore, type Skill } from "@/components/configure/skillStore";
+import { agentSkillStore } from "@/components/configure/agentSkillStore";
+import CreateSkillModal, { type SkillFormData } from "@/components/configure/CreateSkillModal";
+import SkillOwnershipTag from "@/components/configure/SkillOwnershipTag";
+import SkillShareModal from "@/components/configure/SkillShareModal";
+import AttachConsoleSkillModal from "@/components/configure/AttachConsoleSkillModal";
+import PromoteSkillToConsoleDialog from "@/components/configure/PromoteSkillToConsoleDialog";
 import { chatOptimizationStore } from "@/components/configure/chatOptimizationStore";
 import { updateUser } from "@/lib/onboarding";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
@@ -70,7 +86,7 @@ const developNav = [
   { id: "instructions", label: "Instructions", icon: FileEditIcon },
   { id: "model",        label: "Model",         icon: CpuIcon,          hidden: true },
   { id: "skills",       label: "Skills",         icon: PuzzleIcon,      hidden: true },
-  { id: "guardrails",   label: "Guardrails",     icon: Shield01Icon,    hidden: true },
+  { id: "guardrails",   label: "Guardrails",     icon: Shield01Icon },
   { id: "knowledge",    label: "Knowledge",      icon: NoteIcon },
   { id: "connectors",   label: "Connections",    icon: ConnectIcon },
   { id: "triggers",     label: "Triggers",       icon: TimeScheduleIcon },
@@ -392,7 +408,7 @@ export default function AgentBuilder() {
                 const checklist = [
                   { label: "Đã viết Instructions",     done: true,  section: "instructions" },
                   { label: "Đã chọn Model",             done: true,  section: "model" },
-                  { label: "Đã cấu hình Guardrails",    done: false, section: "guardrails" },
+                  { label: "Đã cấu hình Guardrails",    done: agentGuardrailStore.list(id ?? "new").length > 0 || agentGuardrailStore.listAttachedConsoleGuardrailIds(id ?? "new").length > 0, section: "guardrails" },
                   { label: "Đã cấu hình Kết nối",       done: agentConnectorStore.list(id ?? "new").length > 0, section: "connectors" },
                   { label: "Đã thêm Tri thức",          done: knowledgeStore.list(id ?? "new").length > 0 || knowledgeStore.listAttachedConsoleKbIds(id ?? "new").length > 0, section: "knowledge" },
                   ...(agentTriggers.length > 0
@@ -470,7 +486,7 @@ export default function AgentBuilder() {
             <div className="flex-1 overflow-y-auto bg-background">
               {tab === "build" && section === "instructions" && <GeneralTab key={id ?? "new"} agentId={id ?? "new"} onRefineWithAI={() => setBuildMode("ai")} onChatToTest={() => { setBuildMode("manual"); setPreviewView("chat"); }} previewCollapsed={previewCollapsed} onReopenPreview={() => setPreviewCollapsed(false)} />}
               {tab === "build" && section === "knowledge" && <KnowledgeTab agentId={id ?? "new"} />}
-              {tab === "build" && section === "guardrails" && <GuardrailsTab agentId={id ?? "new"} />}
+              {tab === "build" && section === "guardrails" && <GuardrailsAgentTab agentId={id ?? "new"} />}
               {tab === "build" && section === "triggers" && (
                 <TriggersTab agentId={id ?? "new"} onChange={() => setTriggerTick(t => t + 1)} />
               )}
@@ -3200,7 +3216,7 @@ function NewConfigPanel({ agentId, model, onModelChange, onConnectionsChange }: 
       id: "skills", icon: PuzzleIcon, label: "Skills",
       onAdd: (pos: {top:number;left:number}) => skillsAddRef.current?.(pos),
       content: (
-        <SkillsInner onRegisterAdd={(fn) => { skillsAddRef.current = fn; }} />
+        <SkillsInner agentId={agentId} onRegisterAdd={(fn) => { skillsAddRef.current = fn; }} />
       ),
     },
     {
@@ -3222,7 +3238,7 @@ function NewConfigPanel({ agentId, model, onModelChange, onConnectionsChange }: 
       id: "guardrails", icon: Shield01Icon, label: "Guardrails",
       onAdd: (pos: {top:number;left:number}) => guardrailsAddRef.current?.(pos),
       content: (
-        <GuardrailsInner onRegisterAdd={(fn) => { guardrailsAddRef.current = fn; }} />
+        <GuardrailsInner agentId={agentId} onRegisterAdd={(fn) => { guardrailsAddRef.current = fn; }} />
       ),
     },
   ];
@@ -3939,423 +3955,17 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
   );
 }
 
-
-const WS_GUARDRAILS = [
-  { id: 1, name: "PII protection",             desc: "Never expose personal identifiers in any response.",                    action: "Autogenerate response",                 enabled: true  },
-  { id: 2, name: "Prohibited content filter",  desc: "Block violent, adult, or discriminatory content across all channels.", action: "Autogenerate response",                 enabled: true  },
-  { id: 3, name: "Compliance disclaimer",      desc: "Append regulatory disclaimer to all financial and legal responses.",   action: "Custom response", enabled: true  },
-  { id: 4, name: "Commercial response policy", desc: "Prevent AI from making pricing commitments or answering topics.",      action: "Autogenerate response",                 enabled: true  },
-  { id: 7, name: "Competitor mention block",   desc: "Avoid naming or comparing direct competitors in any response.",        action: "Autogenerate response",                 enabled: true  },
-];
-
-/* ============ Guardrails config section (right panel) ============ */
-
-interface Guardrail { id: number; name: string; desc: string; action: string; topic: string; description: string; samples: string; }
-
-const EMPTY_GUARDRAIL = (): Omit<Guardrail,"id"> => ({ name:"", desc:"", action:"", topic:"", description:"", samples:"" });
-
-/* ── Guardrail detail / edit modal ───────────────────────────────────── */
-function GuardrailDetailModal({ item, editable, onClose, onSave }: {
-  item: { name: string; desc: string; action: string };
-  editable: boolean;
-  onClose: () => void;
-  onSave: (g: { name: string; desc: string; action: string }) => void;
-}) {
-  const initResponse = item.action.includes("fixed") ? "fixed" : item.action ? "auto" : null;
-  const [topic, setTopic]     = useState(item.name);
-  const [desc, setDesc]       = useState(item.desc);
-  const [samples, setSamples] = useState("");
-  const [responseType, setResponseType] = useState<string | null>(initResponse);
-  const canSave = editable && topic.trim().length > 0 && desc.trim().length > 0 && responseType !== null;
-
-  const opts = [
-    { key: "auto",  label: "Autogenerate response",                 sub: "Agent automatically rewrites responses based on your instructions." },
-    { key: "fixed", label: "Custom response", sub: "Agent replies using the exact text you provide." },
-  ];
-
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full max-w-[480px] bg-background rounded-2xl shadow-2xl flex flex-col max-h-[90vh]" style={{animation:"fadeScaleIn 0.18s ease"}}>
-        <div className="flex items-start justify-between px-6 pt-6 pb-4 shrink-0">
-          <div>
-            <h2 className="text-base font-semibold">{editable ? "Edit guardrail" : item.name}</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">{editable ? "Update the rule and response behaviour." : "Workspace guardrail — read only"}</p>
-          </div>
-          <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground ml-4 shrink-0"><HugeiconsIcon icon={Cancel01Icon} size={14} /></button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-6 pb-4 space-y-5">
-          <div>
-            <p className="text-sm font-semibold mb-3">Define the rule</p>
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-sm font-medium">Topic {editable && <span className="text-destructive">*</span>}</label>
-                {editable && <span className="text-xs text-muted-foreground">{topic.length}/100</span>}
-              </div>
-              <input value={topic} onChange={e => editable && setTopic(e.target.value.slice(0,100))} readOnly={!editable}
-                className={`w-full h-10 px-3 rounded-xl border border-border text-sm outline-none transition-base ${editable ? "bg-surface focus:border-ring" : "bg-surface-muted text-muted-foreground cursor-default"}`} />
-            </div>
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-sm font-medium">Description {editable && <span className="text-destructive">*</span>}</label>
-                {editable && <span className="text-xs text-muted-foreground">{desc.length}/800</span>}
-              </div>
-              <textarea value={desc} onChange={e => editable && setDesc(e.target.value.slice(0,800))} readOnly={!editable} rows={4}
-                className={`w-full px-3 py-2.5 rounded-xl border border-border text-sm outline-none transition-base resize-none leading-relaxed ${editable ? "bg-surface focus:border-ring" : "bg-surface-muted text-muted-foreground cursor-default"}`} />
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-sm font-medium">Samples</label>
-                {editable && <span className="text-xs text-muted-foreground">{samples.length}/2000</span>}
-              </div>
-              {editable && <p className="text-xs text-primary mb-1.5 italic">Tip: Each sample must be separated by a line break.</p>}
-              <textarea value={samples} onChange={e => editable && setSamples(e.target.value.slice(0,2000))} readOnly={!editable} rows={3}
-                className={`w-full px-3 py-2.5 rounded-xl border border-border text-sm outline-none transition-base resize-none leading-relaxed ${editable ? "bg-surface focus:border-ring" : "bg-surface-muted text-muted-foreground cursor-default"}`} />
-            </div>
-          </div>
-
-          <div>
-            <p className="text-sm font-semibold mb-0.5">Response</p>
-            <p className="text-xs text-muted-foreground mb-3">Choose what the agent does when this rule triggers.</p>
-            <div className="space-y-2">
-              {opts.map(opt => {
-                const sel = responseType === opt.key;
-                return (
-                  <div key={opt.key} onClick={() => editable && setResponseType(opt.key)}
-                    className={`flex items-start gap-3 px-4 py-3.5 rounded-xl border transition-base ${sel ? "border-primary bg-primary-soft" : "border-border bg-surface"} ${editable ? "cursor-pointer hover:bg-surface-muted" : "cursor-default"}`}>
-                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-base ${sel ? "border-primary" : "border-border"}`}>
-                      {sel && <div className="w-2 h-2 rounded-full bg-primary" />}
-                    </div>
-                    <div><p className="text-sm font-medium">{opt.label}</p><p className="text-xs text-muted-foreground mt-0.5">{opt.sub}</p></div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between px-6 py-4 shrink-0">
-          <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">{editable ? "Cancel" : "Close"}</button>
-          {editable && (
-            <button onClick={() => { if (canSave) onSave({ name: topic, desc, action: responseType === "auto" ? "Autogenerate response" : "Custom response" }); }}
-              disabled={!canSave}
-              className={`h-9 px-4 rounded-xl text-sm font-medium transition-base ${canSave ? "bg-primary text-primary-foreground hover:opacity-90" : "bg-primary/30 text-primary-foreground/50 cursor-not-allowed"}`}>
-              Save changes
-            </button>
-          )}
-        </div>
-      </div>
-      <style>{`@keyframes fadeScaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}`}</style>
-    </div>
-  );
-}
-
-function GuardrailCreateModal({ onClose, onSave }: { onClose: () => void; onSave: (g: Omit<Guardrail,"id">) => void }) {
-  const [topic, setTopic] = useState("");
-  const [desc, setDesc] = useState("");
-  const [samples, setSamples] = useState("");
-  const [responseType, setResponseType] = useState<string | null>(null);
-  const [fixedText, setFixedText] = useState("");
-  const canSave = topic.trim().length > 0 && desc.trim().length > 0 && responseType !== null && (responseType !== "fixed" || fixedText.trim().length > 0);
-
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-      <div className="relative w-full max-w-[480px] bg-background rounded-2xl shadow-2xl flex flex-col max-h-[90vh]" style={{animation:"fadeScaleIn 0.18s ease"}}>
-        {/* Header */}
-        <div className="flex items-start justify-between px-6 pt-6 pb-4 shrink-0">
-          <div>
-            <h2 className="text-base font-semibold">Create Guardrail</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Define the rule and choose how the agent responds.</p>
-          </div>
-          <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground ml-4 shrink-0"><HugeiconsIcon icon={Cancel01Icon} size={14} /></button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-6 pb-4 space-y-5">
-          {/* Define the rule */}
-          <div>
-            <p className="text-sm font-semibold mb-3">Define the rule</p>
-
-            {/* Topic */}
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-sm font-medium">Topic <span className="text-destructive">*</span></label>
-                <span className="text-xs text-muted-foreground">{topic.length}/100</span>
-              </div>
-              <input
-                value={topic}
-                onChange={e => setTopic(e.target.value.slice(0,100))}
-                className="w-full h-10 px-3 rounded-xl border border-border bg-surface text-sm outline-none focus:border-ring transition-base"
-                placeholder=""
-              />
-            </div>
-
-            {/* Description */}
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-sm font-medium">Description <span className="text-destructive">*</span></label>
-                <span className="text-xs text-muted-foreground">{desc.length}/800</span>
-              </div>
-              <textarea
-                value={desc}
-                onChange={e => setDesc(e.target.value.slice(0,800))}
-                rows={4}
-                className="w-full px-3 py-2.5 rounded-xl border border-border bg-surface text-sm outline-none focus:border-ring transition-base resize-none leading-relaxed"
-              />
-            </div>
-
-            {/* Samples */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-sm font-medium">Samples</label>
-                <span className="text-xs text-muted-foreground">{samples.length}/2000</span>
-              </div>
-              <p className="text-xs text-primary mb-1.5 italic">Tip: Each sample must be separated by a line break.</p>
-              <textarea
-                value={samples}
-                onChange={e => setSamples(e.target.value.slice(0,2000))}
-                rows={4}
-                className="w-full px-3 py-2.5 rounded-xl border border-border bg-surface text-sm outline-none focus:border-ring transition-base resize-none leading-relaxed"
-              />
-            </div>
-          </div>
-
-          {/* Response */}
-          <div>
-            <p className="text-sm font-semibold mb-0.5">Response</p>
-            <p className="text-xs text-muted-foreground mb-3">Choose what the agent does when this rule triggers.</p>
-            <div className="space-y-2">
-              {[
-                { key: "auto", label: "Autogenerate response", sub: "Agent automatically rewrites responses based on your instructions." },
-                { key: "fixed", label: "Custom response", sub: "Agent replies using the exact text you provide." },
-              ].map(opt => {
-                const sel = responseType === opt.key;
-                return (
-                  <div
-                    key={opt.key}
-                    onClick={() => setResponseType(opt.key)}
-                    className={`flex items-start gap-3 px-4 py-3.5 rounded-xl border cursor-pointer transition-base ${sel ? "border-primary bg-primary-soft" : "border-border bg-surface hover:bg-surface-muted"}`}
-                  >
-                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-base ${sel ? "border-primary" : "border-border"}`}>
-                      {sel && <div className="w-2 h-2 rounded-full bg-primary" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{opt.label}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{opt.sub}</p>
-                      {sel && opt.key === "fixed" && (
-                        <div className="mt-3" onClick={e => e.stopPropagation()}>
-                          <label className="block text-xs font-semibold mb-1.5">Fixed paragraph <span className="text-destructive">*</span></label>
-                          <div className="relative">
-                            <textarea
-                              rows={4}
-                              maxLength={300}
-                              placeholder="Write the exact reply the agent should send."
-                              className="w-full px-3 py-2.5 rounded-lg border border-border bg-surface text-sm outline-none focus:border-ring transition-base resize-none"
-                              value={fixedText}
-                              onChange={e => setFixedText(e.target.value)}
-                            />
-                            <span className="absolute bottom-2 right-3 text-[10px] text-muted-foreground">{fixedText.length}/300</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 shrink-0">
-          <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">Cancel</button>
-          <button
-            onClick={() => { if (canSave) { onSave({ name: topic, desc, action: responseType === "auto" ? "Autogenerate response" : "Custom response", topic, description: desc, samples }); onClose(); } }}
-            disabled={!canSave}
-            className={`h-9 px-4 rounded-xl text-sm font-medium transition-base ${canSave ? "bg-primary text-primary-foreground hover:opacity-90" : "bg-primary/30 text-primary-foreground/50 cursor-not-allowed"}`}
-          >
-            Create guardrail
-          </button>
-        </div>
-      </div>
-      <style>{`@keyframes fadeScaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}`}</style>
-    </div>,
-    document.body
-  );
-}
-
-function GuardrailEditSheet({ guardrail, onClose, onSave }: { guardrail: Guardrail; onClose: () => void; onSave: (g: Guardrail) => void }) {
-  const [topic, setTopic] = useState(guardrail.topic || guardrail.name);
-  const [desc, setDesc] = useState(guardrail.description || guardrail.desc);
-  const [samples, setSamples] = useState(guardrail.samples || "");
-  const [responseType, setResponseType] = useState(guardrail.action.includes("fixed") ? "fixed" : "auto");
-
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex justify-end" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
-      <div className="relative w-full max-w-[480px] bg-background flex flex-col shadow-2xl h-full" style={{animation:"slideInRight 0.22s ease"}}>
-        <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-border shrink-0">
-          <div>
-            <h2 className="text-base font-semibold">Edit Guardrail</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Update the rule and response behaviour.</p>
-          </div>
-          <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground ml-4 shrink-0"><HugeiconsIcon icon={Cancel01Icon} size={14} /></button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-          <div>
-            <p className="text-sm font-semibold mb-3">Define the rule</p>
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-sm font-medium">Topic <span className="text-destructive">*</span></label>
-                <span className="text-xs text-muted-foreground">{topic.length}/100</span>
-              </div>
-              <input value={topic} onChange={e => setTopic(e.target.value.slice(0,100))} className="w-full h-10 px-3 rounded-xl border border-border bg-surface text-sm outline-none focus:border-ring transition-base" />
-            </div>
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-sm font-medium">Description <span className="text-destructive">*</span></label>
-                <span className="text-xs text-muted-foreground">{desc.length}/800</span>
-              </div>
-              <textarea value={desc} onChange={e => setDesc(e.target.value.slice(0,800))} rows={4} className="w-full px-3 py-2.5 rounded-xl border border-border bg-surface text-sm outline-none focus:border-ring transition-base resize-none leading-relaxed" />
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-sm font-medium">Samples</label>
-                <span className="text-xs text-muted-foreground">{samples.length}/2000</span>
-              </div>
-              <p className="text-xs text-primary mb-1.5 italic">Tip: Each sample must be separated by a line break.</p>
-              <textarea value={samples} onChange={e => setSamples(e.target.value.slice(0,2000))} rows={4} className="w-full px-3 py-2.5 rounded-xl border border-border bg-surface text-sm outline-none focus:border-ring transition-base resize-none leading-relaxed" />
-            </div>
-          </div>
-          <div>
-            <p className="text-sm font-semibold mb-0.5">Response</p>
-            <p className="text-xs text-muted-foreground mb-3">Choose what the agent does when this rule triggers.</p>
-            <div className="space-y-2">
-              {[
-                { key: "auto", label: "Autogenerate response", sub: "Agent automatically rewrites responses based on your instructions." },
-                { key: "fixed", label: "Custom response", sub: "Agent replies using the exact text you provide." },
-              ].map(opt => {
-                const sel = responseType === opt.key;
-                return (
-                  <div key={opt.key} onClick={() => setResponseType(opt.key)}
-                    className={`flex items-start gap-3 px-4 py-3.5 rounded-xl border cursor-pointer transition-base ${sel ? "border-primary bg-primary-soft" : "border-border bg-surface hover:bg-surface-muted"}`}>
-                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-base ${sel ? "border-primary" : "border-border"}`}>
-                      {sel && <div className="w-2 h-2 rounded-full bg-primary" />}
-                    </div>
-                    <div><p className="text-sm font-medium">{opt.label}</p><p className="text-xs text-muted-foreground mt-0.5">{opt.sub}</p></div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between px-6 py-4 shrink-0">
-          <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">Cancel</button>
-          <button onClick={() => { onSave({ ...guardrail, name: topic, desc, action: responseType === "auto" ? "Autogenerate response" : "Custom response", topic, description: desc, samples }); onClose(); }} className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-base">Save changes</button>
-        </div>
-      </div>
-      <style>{`@keyframes slideInRight{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
-    </div>,
-    document.body
-  );
-}
+// The agent-scoped Guardrails config (WS_GUARDRAILS, GuardrailDetailModal, GuardrailCreateModal,
+// GuardrailEditSheet, and the old local Name/Rule/Kind/Scope/Example Guardrail type) has been
+// retired — there is now exactly one guardrail data model and one creation form product-wide
+// (see guardrailConsoleStore.ts / agentGuardrailStore.ts / CreateGuardrailModal.tsx), used by
+// both /guardrails and GuardrailsAgentTab/GuardrailsInner below.
 
 /* ============ Skills Inner ============ */
-const WS_SKILLS = [
-  { id: 1, name: "/canvas-design",      author: "Anthropic", installs: "1.8M", desc: "Create beautiful visual art in .png and .pdf documents using design philosophy. You should use this skill when t…" },
-  { id: 2, name: "/web-artifacts-builder", author: "Anthropic", installs: "1.1M", desc: "Suite of tools for creating elaborate, multi-component claude.ai HTML artifacts using modern frontend web…" },
-  { id: 3, name: "/mcp-builder",        author: "Anthropic", installs: "944.1K", desc: "Guide for creating high-quality MCP (Model Context Protocol) servers that enable LLMs to interact with…" },
-  { id: 4, name: "/theme-factory",      author: "Anthropic", installs: "905K",   desc: "Toolkit for styling artifacts with a theme. These artifacts can be slides, docs, reportings, HTML landing pages, etc.…" },
-  { id: 5, name: "/learn",              author: "Anthropic", installs: "858K",   desc: "Use this skill when the user wants intellectual understanding — learning how or why something works,…" },
-  { id: 6, name: "/brand-guidelines",   author: "Anthropic", installs: "816.1K", desc: "Applies Anthropic's official brand colors and typography to any sort of artifact that may benefit from having…" },
-  { id: 7, name: "/doc-coauthoring",    author: "Anthropic", installs: "794.7K", desc: "Guide users through a structured workflow for co-authoring documentation. Use when user wants to write…" },
-  { id: 8, name: "/internal-comms",     author: "Anthropic", installs: "615K",   desc: "A set of resources to help me write all kinds of internal communications, using the formats that my company lik…" },
-];
-
-function ConnectWorkspaceSkillModal({ onClose, onAdd, added }: {
-  onClose: () => void;
-  onAdd: (skill: typeof WS_SKILLS[number]) => void;
-  added: Set<number>;
-}) {
-  const [search, setSearch] = useState("");
-  const filtered = WS_SKILLS.filter(s =>
-    !search || s.name.toLowerCase().includes(search.toLowerCase()) || s.desc.toLowerCase().includes(search.toLowerCase())
-  );
-
-  return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-2xl bg-white rounded-2xl shadow-lg border border-border flex flex-col max-h-[80vh] animate-fade-up">
-        {/* Header */}
-        <div className="flex items-start justify-between px-6 pt-6 pb-2 shrink-0">
-          <div>
-            <h2 className="text-lg font-semibold">Connect workspace skill</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">Skills shared across all agents in this workspace.</p>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 mt-0.5">
-            <HugeiconsIcon icon={Cancel01Icon} size={16} />
-          </button>
-        </div>
-
-        {/* Search */}
-        <div className="px-6 pb-4 pt-3 shrink-0">
-          <div className="relative">
-            <HugeiconsIcon icon={Search01Icon} size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
-              autoFocus
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search..."
-              className="w-full h-9 pl-9 pr-3 rounded-lg border border-primary/50 bg-white text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-base"
-            />
-          </div>
-        </div>
-
-        {/* Grid */}
-        <div className="flex-1 overflow-y-auto px-6 pb-6">
-          {filtered.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-12">No skills in this workspace yet.</p>
-          ) : (
-            <div className="grid grid-cols-2 gap-3">
-              {filtered.map(s => {
-                const isAdded = added.has(s.id);
-                return (
-                  <div key={s.id} className="relative flex flex-col p-4 rounded-xl border border-border bg-white hover:border-primary/30 transition-base">
-                    <div className="flex items-start justify-between mb-1.5">
-                      <span className="text-sm font-semibold text-foreground leading-tight">{s.name}</span>
-                      <button
-                        onClick={() => { if (!isAdded) onAdd(s); }}
-                        className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ml-2 transition-base ${
-                          isAdded
-                            ? "bg-primary-soft text-primary cursor-default"
-                            : "hover:bg-surface-muted text-muted-foreground hover:text-foreground"
-                        }`}
-                        title={isAdded ? "Added" : "Add"}
-                      >
-                        {isAdded
-                          ? <HugeiconsIcon icon={CheckmarkCircle01Icon} size={15} />
-                          : <HugeiconsIcon icon={Add01Icon} size={15} />
-                        }
-                      </button>
-                    </div>
-                    <p className="text-xs text-muted-foreground mb-2 leading-relaxed">
-                      {s.author} • <HugeiconsIcon icon={Download01Icon} size={10} className="inline mb-0.5" />{s.installs}
-                    </p>
-                    <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{s.desc}</p>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>,
-    document.body
-  );
-}
+// WS_SKILLS / ConnectWorkspaceSkillModal (a hardcoded catalog of Anthropic-style skills,
+// disconnected from the real Console skill store) has been retired — "Connect workspace
+// skill" now uses AttachConsoleSkillModal, backed by skillStore.ts (the same skills shown on
+// /tools), filtered to what the current user can access.
 
 function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string; onRegisterAdd?: (fn: (pos:{top:number;left:number}) => void) => void; onChange?: () => void }) {
   const [showMenu, setShowMenu] = useState(false);
@@ -4512,41 +4122,104 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
   );
 }
 
-function SkillsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:number;left:number}) => void) => void } = {}) {
-  const [showMenu, setShowMenu]     = useState(false);
-  const [showWsModal, setShowWsModal] = useState(false);
-  const [menuPos, setMenuPos]       = useState<{top:number;left:number}>({top:0,left:0});
-  const [skills, setSkills]         = useState<{id:number;name:string;type:"workspace"|"agent"}[]>([]);
-  const [wsAdded, setWsAdded]       = useState<Set<number>>(new Set());
+function SkillAgentItemRowMenu({ onEdit, onShare, onPromote, onDelete }: {
+  onEdit: () => void; onShare: () => void; onPromote: () => void; onDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const MENU_WIDTH = 208;
+  const MENU_HEIGHT_ESTIMATE = 190;
+
+  const openMenu = () => {
+    const r = btnRef.current?.getBoundingClientRect();
+    if (r) {
+      const openUpward = window.innerHeight - r.bottom < MENU_HEIGHT_ESTIMATE && r.top > MENU_HEIGHT_ESTIMATE;
+      const left = Math.min(Math.max(r.right - MENU_WIDTH, 8), window.innerWidth - MENU_WIDTH - 8);
+      setPos(openUpward ? { bottom: window.innerHeight - r.top + 4, left } : { top: r.bottom + 4, left });
+    }
+    setOpen(true);
+  };
 
   useEffect(() => {
-    onRegisterAdd?.((pos: {top:number;left:number}) => {
-      setMenuPos(pos);
-      setShowMenu(true);
-    });
+    if (!open) return;
+    const h = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node) && btnRef.current && !btnRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+
+  return (
+    <div className="relative shrink-0" onClick={e => e.stopPropagation()}>
+      <button ref={btnRef} onClick={() => (open ? setOpen(false) : openMenu())} aria-label="Thao tác" className="w-7 h-7 -m-2 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <HugeiconsIcon icon={MoreHorizontalIcon} size={14} />
+      </button>
+      {open && createPortal(
+        <div ref={menuRef} className="fixed z-[9999] w-52 rounded-lg border border-border bg-white shadow-elev py-1" style={{ top: pos.top, bottom: pos.bottom, left: pos.left }} onMouseDown={e => e.stopPropagation()}>
+          <button onClick={() => { setOpen(false); onEdit(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Sửa</button>
+          <button onClick={() => { setOpen(false); onShare(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Chia sẻ</button>
+          <button onClick={() => { setOpen(false); onPromote(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Chuyển thành skill chung</button>
+          <div className="mt-1 pt-1 border-t border-border">
+            <button onClick={() => { setOpen(false); onDelete(); }} className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">Xóa</button>
+          </div>
+        </div>,
+        document.body,
+      )}
+    </div>
+  );
+}
+
+function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAdd?: (fn: (pos:{top:number;left:number}) => void) => void }) {
+  const [showMenu, setShowMenu] = useState(false);
+  const [menuPos, setMenuPos] = useState<{top:number;left:number}>({top:0,left:0});
+  const [showAttach, setShowAttach] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [editTarget, setEditTarget] = useState<Skill | null>(null);
+  const [shareTarget, setShareTarget] = useState<Skill | null>(null);
+  const [promoteTarget, setPromoteTarget] = useState<Skill | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [detachTarget, setDetachTarget] = useState<{ id: string; name: string } | null>(null);
+  const [tick, setTick] = useState(0);
+  const refresh = () => setTick(t => t + 1);
+  void tick;
+
+  const { tree } = useOrg();
+  const members = useMemo(() => collectMembers(tree), [tree]);
+  const accessUserId = useGroupAccess("skills").userId;
+  const currentUser = useMemo(() => {
+    const me = members.find(m => m.id === accessUserId);
+    return { id: accessUserId, name: me?.name ?? "Tran Nam", email: me?.email ?? "tran.nam@fpt.com" };
+  }, [members, accessUserId]);
+
+  useEffect(() => {
+    onRegisterAdd?.((pos: {top:number;left:number}) => { setMenuPos(pos); setShowMenu(true); });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!showMenu) return;
-    const h = (e: MouseEvent) => { setShowMenu(false); };
+    const h = () => setShowMenu(false);
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, [showMenu]);
 
+  const items = agentSkillStore.list(agentId);
+  const attachedSkills = agentSkillStore.listAttachedConsoleSkillIds(agentId)
+    .map(id => skillStore.get(id))
+    .filter((s): s is Skill => !!s);
+
   const menuItems = [
-    { icon: LayerAddIcon, label: "Connect workspace skill" },
-    { icon: Add01Icon,    label: "Create new skill" },
-    { icon: Upload01Icon, label: "Upload a skill" },
+    { icon: LayerAddIcon, label: "Connect workspace skill", onClick: () => setShowAttach(true) },
+    { icon: Add01Icon,    label: "Create new skill", onClick: () => setShowCreate(true) },
+    { icon: Upload01Icon, label: "Upload a skill", onClick: undefined },
   ];
 
-  const handleAddWs = (s: typeof WS_SKILLS[number]) => {
-    setWsAdded(prev => new Set([...prev, s.id]));
-    setSkills(prev => [...prev, { id: s.id, name: s.name, type: "workspace" }]);
-  };
+  const total = attachedSkills.length + items.length;
 
   return (
     <>
-      {skills.length === 0 ? (
+      {total === 0 ? (
         <EmptyStateBox
           icon={PuzzleIcon}
           description="Reusable abilities you've taught it."
@@ -4558,24 +4231,51 @@ function SkillsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:number;
           }}
         />
       ) : (
-        <div className="flex flex-col gap-1.5">
-          {skills.map(s => (
-            <div key={s.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base">
-              <HugeiconsIcon icon={PuzzleIcon} size={13} className="text-muted-foreground shrink-0" />
-              <span className="text-[13px] font-medium flex-1 truncate">{s.name}</span>
-              {s.type === "workspace" && (
-                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap" style={{background:"#EFF6FF",color:"#1D4ED8",border:"0.5px solid #BFDBFE"}}>Workspace</span>
-              )}
-              <button
-                onClick={() => {
-                  setSkills(prev => prev.filter(x => x.id !== s.id));
-                  if (s.type === "workspace") setWsAdded(prev => { const n = new Set(prev); n.delete(s.id); return n; });
-                }}
-                className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-surface-muted transition-base shrink-0">
-                <HugeiconsIcon icon={Delete01Icon} size={12} />
-              </button>
+        <div className="space-y-3">
+          {attachedSkills.length > 0 && (
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Skills đã liên kết</div>
+              <div className="flex flex-col gap-1.5">
+                {attachedSkills.map(s => (
+                  <KnowledgeSourceRow
+                    key={s.id}
+                    icon={PuzzleIcon}
+                    name={s.name}
+                    chip={<div className="flex items-center gap-1 shrink-0"><SkillOwnershipTag skill={s} userId={currentUser.id} /></div>}
+                    onOpen={() => {}}
+                    href={`/tools/${s.id}`}
+                    onRemove={() => setDetachTarget({ id: s.id, name: s.name })}
+                    openLabel="Mở skill"
+                    removeLabel="Gỡ liên kết"
+                    twoLine
+                  />
+                ))}
+              </div>
             </div>
-          ))}
+          )}
+
+          {items.length > 0 && (
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Skills riêng của Agent</div>
+              <div className="flex flex-col gap-1.5">
+                {items.map(s => (
+                  <div key={s.id} className="flex items-start gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base">
+                    <HugeiconsIcon icon={PuzzleIcon} size={13} className="text-muted-foreground shrink-0 mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[13px] font-medium truncate">{s.name}</div>
+                      <div className="flex items-center gap-1 mt-1"><SkillOwnershipTag skill={s} userId={currentUser.id} /></div>
+                    </div>
+                    <SkillAgentItemRowMenu
+                      onEdit={() => setEditTarget(s)}
+                      onShare={() => setShareTarget(s)}
+                      onPromote={() => setPromoteTarget(s)}
+                      onDelete={() => setDeleteTarget({ id: s.id, name: s.name })}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -4591,13 +4291,7 @@ function SkillsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:number;
               <button
                 key={i}
                 className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-foreground hover:bg-surface-muted transition-base text-left"
-                onClick={() => {
-                  setShowMenu(false);
-                  if (item.label === "Connect workspace skill") { setShowWsModal(true); }
-                  else if (item.label === "Create new skill") {
-                    setSkills(prev => [...prev, { id: Date.now(), name: "New skill", type: "agent" }]);
-                  }
-                }}
+                onClick={() => { setShowMenu(false); item.onClick?.(); }}
               >
                 <HugeiconsIcon icon={item.icon} size={15} className="text-muted-foreground shrink-0" />
                 {item.label}
@@ -4608,14 +4302,78 @@ function SkillsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:number;
         document.body
       )}
 
-      {/* Connect workspace skill modal */}
-      {showWsModal && (
-        <ConnectWorkspaceSkillModal
-          onClose={() => setShowWsModal(false)}
-          onAdd={handleAddWs}
-          added={wsAdded}
+      {showAttach && <AttachConsoleSkillModal agentId={agentId} userId={currentUser.id} onClose={() => { setShowAttach(false); refresh(); }} />}
+      {showCreate && (
+        <CreateSkillModal
+          onClose={() => setShowCreate(false)}
+          onSubmit={(data: SkillFormData) => { agentSkillStore.create(agentId, { ...data, ownerId: currentUser.id, ownerName: currentUser.name }); refresh(); }}
+          currentUser={currentUser}
+          isDuplicateName={name => agentSkillStore.list(agentId).some(s => s.name.trim().toLowerCase() === name.trim().toLowerCase())}
         />
       )}
+      {editTarget && (
+        <CreateSkillModal
+          onClose={() => setEditTarget(null)}
+          onSubmit={(data: SkillFormData) => { agentSkillStore.update(agentId, editTarget.id, data); setEditTarget(null); refresh(); }}
+          initialData={editTarget}
+          currentUser={currentUser}
+          isDuplicateName={name => agentSkillStore.list(agentId).some(s => s.id !== editTarget.id && s.name.trim().toLowerCase() === name.trim().toLowerCase())}
+        />
+      )}
+      {shareTarget && (
+        <SkillShareModal
+          open
+          name={shareTarget.name}
+          ownerName={shareTarget.ownerName}
+          sharing={shareTarget.sharing}
+          onSave={sharing => { agentSkillStore.updateSharing(agentId, shareTarget.id, sharing); refresh(); }}
+          onClose={() => setShareTarget(null)}
+        />
+      )}
+      {promoteTarget && (
+        <PromoteSkillToConsoleDialog
+          agentId={agentId}
+          item={promoteTarget}
+          currentUser={currentUser}
+          onClose={() => { setPromoteTarget(null); refresh(); }}
+        />
+      )}
+
+      <AlertDialog open={!!detachTarget} onOpenChange={v => !v && setDetachTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Gỡ liên kết skill?</AlertDialogTitle>
+            <AlertDialogDescription>Agent sẽ không còn dùng được skill này. Skill vẫn được giữ nguyên trên Console.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { if (detachTarget) agentSkillStore.detachConsoleSkill(agentId, detachTarget.id); setDetachTarget(null); refresh(); }}
+            >
+              Gỡ liên kết
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xóa skill này?</AlertDialogTitle>
+            <AlertDialogDescription>Skill sẽ bị xóa vĩnh viễn khỏi Agent. Hành động này không thể hoàn tác.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { if (deleteTarget) agentSkillStore.remove(agentId, deleteTarget.id); setDeleteTarget(null); refresh(); }}
+            >
+              Xóa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
@@ -5949,208 +5707,393 @@ function StarterPromptsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => voi
   );
 }
 
-function GuardrailsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: (pos:{top:number;left:number}) => void) => void } = {}) {
-  const [showMenu, setShowMenu]               = useState(false);
-  const [openCreate, setOpenCreate]           = useState(false);
-  const [openWsSheet, setOpenWsSheet]         = useState(false);
-  const [wsAdded, setWsAdded]                 = useState<Set<number>>(new Set([1, 2]));
-  const [agentGuardrails, setAgentGuardrails] = useState<Guardrail[]>([]);
-  const [editTarget, setEditTarget]           = useState<Guardrail | null>(null);
-  const [menuPos, setMenuPos]                 = useState<{top:number;left:number}>({top:0,left:0});
-  const addBtnRef = useRef<HTMLButtonElement>(null);
+function GuardrailAgentItemRowMenu({ onEdit, onShare, onPromote, onDelete }: {
+  onEdit: () => void; onShare: () => void; onPromote: () => void; onDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const MENU_WIDTH = 224;
+  const MENU_HEIGHT_ESTIMATE = 190;
+
+  const openMenu = () => {
+    const r = btnRef.current?.getBoundingClientRect();
+    if (r) {
+      const openUpward = window.innerHeight - r.bottom < MENU_HEIGHT_ESTIMATE && r.top > MENU_HEIGHT_ESTIMATE;
+      const left = Math.min(Math.max(r.right - MENU_WIDTH, 8), window.innerWidth - MENU_WIDTH - 8);
+      setPos(openUpward ? { bottom: window.innerHeight - r.top + 4, left } : { top: r.bottom + 4, left });
+    }
+    setOpen(true);
+  };
+
   useEffect(() => {
-    onRegisterAdd?.((pos: {top:number;left:number}) => {
-      setMenuPos(pos);
-      setShowMenu(true);
-    });
+    if (!open) return;
+    const h = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node) && btnRef.current && !btnRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+
+  return (
+    <div className="relative shrink-0" onClick={e => e.stopPropagation()}>
+      <button ref={btnRef} onClick={() => (open ? setOpen(false) : openMenu())} aria-label="Thao tác" className="w-9 h-9 min-w-[44px] min-h-[44px] -m-1.5 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <HugeiconsIcon icon={MoreHorizontalIcon} size={15} />
+      </button>
+      {open && createPortal(
+        <div ref={menuRef} className="fixed z-[9999] w-56 rounded-lg border border-border bg-white shadow-elev py-1" style={{ top: pos.top, bottom: pos.bottom, left: pos.left }} onMouseDown={e => e.stopPropagation()}>
+          <button onClick={() => { setOpen(false); onEdit(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Sửa</button>
+          <button onClick={() => { setOpen(false); onShare(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Chia sẻ</button>
+          <button onClick={() => { setOpen(false); onPromote(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Chuyển thành guardrail chung</button>
+          <div className="mt-1 pt-1 border-t border-border">
+            <button onClick={() => { setOpen(false); onDelete(); }} className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">Xóa</button>
+          </div>
+        </div>,
+        document.body,
+      )}
+    </div>
+  );
+}
+
+function GuardrailsAgentTab({ agentId }: { agentId: string }) {
+  const { tree } = useOrg();
+  const members = useMemo(() => collectMembers(tree), [tree]);
+  const accessUserId = useGroupAccess("guardrails").userId;
+  const currentUser = useMemo(() => {
+    const me = members.find(m => m.id === accessUserId);
+    return { id: accessUserId, name: me?.name ?? "Tran Nam", email: me?.email ?? "tran.nam@fpt.com" };
+  }, [members, accessUserId]);
+
+  const [tick, setTick] = useState(0);
+  const refresh = () => setTick(t => t + 1);
+  void tick;
+  const [query, setQuery] = useState("");
+  const [showAttach, setShowAttach] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [editTarget, setEditTarget] = useState<Guardrail | null>(null);
+  const [shareTarget, setShareTarget] = useState<Guardrail | null>(null);
+  const [promoteTarget, setPromoteTarget] = useState<Guardrail | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [detachTarget, setDetachTarget] = useState<{ id: string; name: string } | null>(null);
+
+  const items = agentGuardrailStore.list(agentId);
+  const attachedGuardrails = agentGuardrailStore.listAttachedConsoleGuardrailIds(agentId)
+    .map(id => guardrailConsoleStore.get(id))
+    .filter((g): g is Guardrail => !!g);
+
+  const q = query.trim().toLowerCase();
+  const filteredItems = q ? items.filter(i => i.name.toLowerCase().includes(q)) : items;
+  const filteredLinked = q ? attachedGuardrails.filter(g => g.name.toLowerCase().includes(q)) : attachedGuardrails;
+
+  return (
+    <div className="p-8 w-full space-y-6 animate-fade-up">
+      <div>
+        <h2 className="font-display text-xl font-semibold">Guardrails của Agent</h2>
+        <p className="text-xs text-muted-foreground mt-0.5">Quy tắc an toàn Agent này tuân theo khi phản hồi.</p>
+      </div>
+
+      <div className="relative w-72">
+        <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm guardrail..." className="ds-input pl-8 h-9" />
+      </div>
+
+      {/* Section A — Guardrails đã liên kết */}
+      <Section icon={ConnectIcon} title="Guardrails đã liên kết" desc="Guardrail Console đang được Agent này áp dụng.">
+        {filteredLinked.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground mb-4">
+            {attachedGuardrails.length === 0 ? "Chưa liên kết guardrail nào. Liên kết để dùng lại guardrail đã có trong workspace." : "Không có guardrail phù hợp với tìm kiếm."}
+          </div>
+        ) : (
+          <div className="space-y-2 mb-4">
+            {filteredLinked.map(g => (
+              <KnowledgeSourceRow
+                key={g.id}
+                icon={Shield01Icon}
+                name={g.name}
+                chip={<div className="flex items-center gap-1 shrink-0"><GuardrailOwnershipTag g={g} userId={currentUser.id} /></div>}
+                onOpen={() => {}}
+                href={`/guardrails?open=${g.id}`}
+                onRemove={() => setDetachTarget({ id: g.id, name: g.name })}
+                openLabel="Mở guardrail"
+                removeLabel="Gỡ liên kết"
+              />
+            ))}
+          </div>
+        )}
+        <button onClick={() => setShowAttach(true)} className="h-9 px-4 rounded-lg border border-dashed border-border hover:border-primary/40 hover:bg-primary-soft/30 text-sm font-medium transition-base">
+          + Liên kết guardrail
+        </button>
+      </Section>
+
+      {/* Section B — Guardrails riêng của Agent */}
+      <Section
+        icon={Shield01Icon}
+        title="Guardrails riêng của Agent"
+        desc="Guardrail bạn tạo tại đây chỉ thuộc về Agent này. Nếu muốn dùng cho nhiều Agent, hãy chuyển thành guardrail chung."
+        action={
+          <button onClick={() => setShowCreate(true)} className="h-9 px-4 rounded-lg border border-dashed border-border hover:border-primary/40 hover:bg-primary-soft/30 text-sm font-medium transition-base shrink-0">
+            + Tạo mới
+          </button>
+        }
+      >
+        {items.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border p-8 text-center">
+            <p className="text-sm font-medium mb-1">Agent chưa có guardrail riêng</p>
+            <p className="text-xs text-muted-foreground">Tạo guardrail để giới hạn nội dung Agent được phép trả lời.</p>
+          </div>
+        ) : filteredItems.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+            Không có guardrail phù hợp với tìm kiếm.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {filteredItems.map(g => (
+              <div key={g.id} className="flex items-start gap-3 px-3.5 py-3 rounded-lg border border-border bg-surface">
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium">{g.name}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed line-clamp-2">{g.desc}</div>
+                  <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
+                    <span className="chip chip-muted">{g.action}</span>
+                    <GuardrailOwnershipTag g={g} userId={currentUser.id} />
+                  </div>
+                </div>
+                <GuardrailAgentItemRowMenu
+                  onEdit={() => setEditTarget(g)}
+                  onShare={() => setShareTarget(g)}
+                  onPromote={() => setPromoteTarget(g)}
+                  onDelete={() => setDeleteTarget({ id: g.id, name: g.name })}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
+
+      {showAttach && <AttachConsoleGuardrailModal agentId={agentId} userId={currentUser.id} onClose={() => { setShowAttach(false); refresh(); }} />}
+      {showCreate && (
+        <CreateGuardrailModal
+          onClose={() => setShowCreate(false)}
+          onSubmit={g => { agentGuardrailStore.create(agentId, g); refresh(); }}
+          currentUser={currentUser}
+        />
+      )}
+      {editTarget && (
+        <CreateGuardrailModal
+          onClose={() => setEditTarget(null)}
+          onSubmit={g => { agentGuardrailStore.update(agentId, editTarget.id, g); setEditTarget(null); refresh(); }}
+          initialData={editTarget}
+          currentUser={currentUser}
+        />
+      )}
+      {shareTarget && (
+        <GuardrailShareModal
+          open
+          name={shareTarget.name}
+          ownerName={shareTarget.ownerName ?? currentUser.name}
+          sharing={shareTarget.sharing ?? { mode: "private", people: [] }}
+          onSave={sharing => { agentGuardrailStore.updateSharing(agentId, shareTarget.id, sharing); refresh(); }}
+          onClose={() => setShareTarget(null)}
+        />
+      )}
+      {promoteTarget && (
+        <PromoteGuardrailToConsoleDialog
+          agentId={agentId}
+          item={promoteTarget}
+          currentUser={currentUser}
+          onClose={() => { setPromoteTarget(null); refresh(); }}
+        />
+      )}
+
+      <AlertDialog open={!!detachTarget} onOpenChange={v => !v && setDetachTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Gỡ liên kết guardrail?</AlertDialogTitle>
+            <AlertDialogDescription>Agent sẽ không còn áp dụng guardrail này. Guardrail vẫn được giữ nguyên trên Console.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { if (detachTarget) agentGuardrailStore.detachConsoleGuardrail(agentId, detachTarget.id); setDetachTarget(null); refresh(); }}
+            >
+              Gỡ liên kết
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xóa guardrail này?</AlertDialogTitle>
+            <AlertDialogDescription>Guardrail sẽ bị xóa vĩnh viễn khỏi Agent. Hành động này không thể hoàn tác.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { if (deleteTarget) agentGuardrailStore.remove(agentId, deleteTarget.id); setDeleteTarget(null); refresh(); }}
+            >
+              Xóa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+function GuardrailsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAdd?: (fn: (pos:{top:number;left:number}) => void) => void }) {
+  const [, setParams] = useSearchParams();
+  const [tick, setTick] = useState(0);
+  const [showMenu, setShowMenu] = useState(false);
+  const [menuPos, setMenuPos] = useState<{top:number;left:number}>({top:0,left:0});
+  const [showAttach, setShowAttach] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [detachTarget, setDetachTarget] = useState<{ id: string; name: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const refresh = () => setTick(t => t + 1);
+  void tick;
+
+  const { tree } = useOrg();
+  const members = useMemo(() => collectMembers(tree), [tree]);
+  const accessUserId = useGroupAccess("guardrails").userId;
+  const currentUser = useMemo(() => {
+    const me = members.find(m => m.id === accessUserId);
+    return { id: accessUserId, name: me?.name ?? "Tran Nam", email: me?.email ?? "tran.nam@fpt.com" };
+  }, [members, accessUserId]);
+
+  useEffect(() => {
+    onRegisterAdd?.((pos: {top:number;left:number}) => { setMenuPos(pos); setShowMenu(true); });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!showMenu) return;
-    const h = (e: MouseEvent) => { setShowMenu(false); };
+    const h = () => setShowMenu(false);
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, [showMenu]);
 
-  const wsAddedList = WS_GUARDRAILS.filter(g => wsAdded.has(g.id));
-  const wsAvailable = WS_GUARDRAILS.filter(g => !wsAdded.has(g.id));
-  const totalActive = wsAddedList.length + agentGuardrails.length;
+  const items = agentGuardrailStore.list(agentId);
+  const attachedGuardrails = agentGuardrailStore.listAttachedConsoleGuardrailIds(agentId)
+    .map(id => guardrailConsoleStore.get(id))
+    .filter((g): g is Guardrail => !!g);
 
-  // Detail popup state
-  const [detailItem, setDetailItem] = useState<{name:string;desc:string;action:string} | null>(null);
-  const [detailEditable, setDetailEditable] = useState(false);
+  type Row = { key: string; name: string; icon: any; open: () => void; remove: () => void; chip: React.ReactNode; href?: string };
+  const rows: Row[] = [
+    ...attachedGuardrails.map(g => ({
+      key: `g-${g.id}`,
+      name: g.name,
+      icon: Shield01Icon,
+      open: () => {},
+      href: `/guardrails?open=${g.id}`,
+      remove: () => setDetachTarget({ id: g.id, name: g.name }),
+      chip: <GuardrailOwnershipTag g={g} userId={currentUser.id} />,
+    })),
+    ...items.map(item => ({
+      key: `item-${item.id}`,
+      name: item.name,
+      icon: Shield01Icon,
+      open: () => setParams({ tab: "build", section: "guardrails" }),
+      remove: () => setDeleteTarget({ id: item.id, name: item.name }),
+      chip: <GuardrailOwnershipTag g={item} userId={currentUser.id} />,
+    })),
+  ];
+  const shown = rows.slice(0, 4);
 
-  // Chip: clickable to open detail
-  const Chip = ({ label, desc, action, onRemove, editable, onEdit, type }: {
-    label: string; desc?: string; action?: string;
-    onRemove: () => void; editable?: boolean; onEdit?: () => void;
-    type?: "workspace" | "agent";
-  }) => (
-    <div
-      className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface cursor-pointer hover:bg-surface-muted transition-base"
-      onClick={() => { setDetailItem({ name: label, desc: desc ?? "", action: action ?? "" }); setDetailEditable(!!editable); }}
-    >
-      <span className="text-[13px] font-medium flex-1 truncate min-w-0">{label}</span>
-      {type === "workspace" && (
-        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap" style={{background:"#EFF6FF",color:"#1D4ED8",border:"0.5px solid #BFDBFE"}}>Workspace</span>
-      )}
-      {type === "agent" && (
-        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap" style={{background:"#ECFDF5",color:"#065F46",border:"0.5px solid #A7F3D0"}}>Agent</span>
-      )}
-      <button
-        onClick={e => { e.stopPropagation(); onRemove(); }}
-        className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-surface-muted transition-base shrink-0"
-        title="Remove"
-      >
-        <HugeiconsIcon icon={Delete01Icon} size={12} />
-      </button>
-    </div>
-  );
+  const menuItems = [
+    { label: "Liên kết guardrail", onClick: () => setShowAttach(true) },
+    { label: "Tạo mới", onClick: () => setShowCreate(true) },
+  ];
 
   return (
     <>
-      <div>
-        {totalActive === 0 ? (
-          <EmptyStateBox
-            icon={Shield01Icon}
-            description="Boundaries that keep your agent acting safely."
-            addLabel="Add Guardrails"
-            onAdd={e => {
-              const r = e.currentTarget.getBoundingClientRect();
-              setMenuPos({ top: r.bottom + 4, left: r.right });
-              setShowMenu(true);
-            }}
-          />
-        ) : (
-          <p className="text-xs text-muted-foreground mb-3 leading-relaxed">Boundaries that keep your agent acting safely.</p>
-        )}
-
-        {(wsAddedList.length > 0 || agentGuardrails.length > 0) && (
-          <div className="space-y-1 mb-3">
-            {wsAddedList.map(g => (
-              <Chip key={g.id} label={g.name} desc={g.desc} action={g.action}
-                type="workspace"
-                onRemove={() => setWsAdded(prev => { const s = new Set(prev); s.delete(g.id); return s; })}
-                editable={false}
-              />
-            ))}
-            {agentGuardrails.map(g => (
-              <Chip key={g.id} label={g.name} desc={g.desc} action={g.action}
-                type="agent"
-                onRemove={() => setAgentGuardrails(prev => prev.filter(x => x.id !== g.id))}
-                editable={true}
-                onEdit={() => setEditTarget(g)}
-              />
-            ))}
-          </div>
-        )}
-
-
-        {showMenu && createPortal(
-          <div
-            className="fixed z-[9999] w-44 bg-white rounded-xl border border-border shadow-lg py-1"
-            style={{ top: menuPos.top, right: window.innerWidth - menuPos.left }}
-            onMouseDown={e => e.stopPropagation()}
-          >
-            <button
-              onClick={() => { setShowMenu(false); setOpenCreate(true); }}
-              className="w-full text-left px-3 py-2 text-xs hover:bg-surface-muted transition-base"
-            >
-              Create new
-            </button>
-            <button
-              onClick={() => { setShowMenu(false); setOpenWsSheet(true); }}
-              className="w-full text-left px-3 py-2 text-xs hover:bg-surface-muted transition-base"
-            >
-              Add from workspace
-            </button>
-          </div>,
-          document.body
-        )}
-      </div>
-
-      {/* Add from workspace popup */}
-      {openWsSheet && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
-          <div className="absolute inset-0 bg-black/40" onClick={() => setOpenWsSheet(false)} />
-          <div className="relative w-full max-w-[640px] bg-white rounded-2xl shadow-2xl flex flex-col max-h-[80vh]" style={{animation:"fadeScaleIn 0.18s ease"}}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-              <h2 className="font-semibold text-base">Add from workspace</h2>
-              <button onClick={() => setOpenWsSheet(false)} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground"><HugeiconsIcon icon={Cancel01Icon} size={15} /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              {wsAvailable.length === 0 ? (
-                <p className="px-5 py-6 text-sm text-muted-foreground text-center">All guardrails have been added.</p>
-              ) : (
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="bg-surface-muted border-b border-border">
-                      <th className="text-left px-5 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-[40%]">Guardrail</th>
-                      <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Response action</th>
-                      <th className="px-4 py-2.5 w-14" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {wsAvailable.map(g => (
-                      <tr key={g.id} className="border-b border-border last:border-0 hover:bg-surface-muted/50 transition-base">
-                        <td className="px-5 py-3 align-top">
-                          <p className="text-sm font-medium leading-snug">{g.name}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{g.desc}</p>
-                        </td>
-                        <td className="px-4 py-3 align-middle">
-                          <span className="text-xs text-foreground">{g.action}</span>
-                        </td>
-                        <td className="px-4 py-3 align-middle text-right">
-                          <button
-                            onClick={() => setWsAdded(prev => new Set([...prev, g.id]))}
-                            className="text-xs text-primary hover:underline font-medium"
-                          >Add</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-            <div className="px-5 py-4 border-t border-border shrink-0 flex justify-end">
-              <button onClick={() => setOpenWsSheet(false)} className="h-9 px-4 rounded-lg border border-border text-sm font-medium hover:bg-surface-muted transition-base">Close</button>
-            </div>
-          </div>
-          <style>{`@keyframes fadeScaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}`}</style>
-        </div>,
-        document.body
-      )}
-
-      {/* Create agent guardrail popup */}
-      {openCreate && <GuardrailCreateModal
-        onClose={() => setOpenCreate(false)}
-        onSave={data => { setAgentGuardrails(prev => [...prev, { ...data, id: Date.now() }]); setOpenCreate(false); }}
-      />}
-
-      {/* Edit agent guardrail */}
-      {editTarget && <GuardrailEditSheet
-        guardrail={editTarget}
-        onClose={() => setEditTarget(null)}
-        onSave={updated => { setAgentGuardrails(prev => prev.map(g => g.id === updated.id ? updated : g)); setEditTarget(null); }}
-      />}
-
-      {/* Guardrail detail/edit popup */}
-      {detailItem && createPortal(
-        <GuardrailDetailModal
-          item={detailItem}
-          editable={detailEditable}
-          onClose={() => setDetailItem(null)}
-          onSave={updated => {
-            setAgentGuardrails(prev => prev.map(g =>
-              g.name === detailItem.name
-                ? { ...g, name: updated.name, desc: updated.desc, action: updated.action, topic: updated.name, description: updated.desc }
-                : g
-            ));
-            setDetailItem(null);
+      {rows.length === 0 ? (
+        <EmptyStateBox
+          icon={Shield01Icon}
+          description="Boundaries that keep your agent acting safely."
+          addLabel="Add Guardrails"
+          onAdd={e => {
+            const r = e.currentTarget.getBoundingClientRect();
+            setMenuPos({ top: r.bottom + 4, left: r.right });
+            setShowMenu(true);
           }}
-        />,
-        document.body
+        />
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          {shown.map(row => (
+            <KnowledgeSourceRow key={row.key} icon={row.icon} name={row.name} chip={row.chip} onOpen={row.open} onRemove={row.remove} href={row.href} twoLine />
+          ))}
+          {rows.length > 4 && (
+            <button onClick={() => setParams({ tab: "build", section: "guardrails" })} className="text-xs text-primary hover:underline text-left mt-0.5">
+              Xem tất cả ({rows.length})
+            </button>
+          )}
+        </div>
       )}
+
+      {showMenu && createPortal(
+        <div className="fixed z-[9999]" style={{ top: menuPos.top, right: window.innerWidth - menuPos.left }} onMouseDown={e => e.stopPropagation()}>
+          <div className="bg-white rounded-xl border border-border shadow-elev py-1 min-w-[200px] animate-fade-up">
+            {menuItems.map(item => (
+              <button
+                key={item.label}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-foreground hover:bg-surface-muted transition-base text-left"
+                onClick={() => { setShowMenu(false); item.onClick(); }}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>,
+        document.body,
+      )}
+
+      {showAttach && <AttachConsoleGuardrailModal agentId={agentId} userId={currentUser.id} onClose={() => { setShowAttach(false); refresh(); }} />}
+      {showCreate && (
+        <CreateGuardrailModal
+          onClose={() => setShowCreate(false)}
+          onSubmit={g => { agentGuardrailStore.create(agentId, g); refresh(); }}
+          currentUser={currentUser}
+        />
+      )}
+
+      <AlertDialog open={!!detachTarget} onOpenChange={v => !v && setDetachTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Gỡ liên kết guardrail?</AlertDialogTitle>
+            <AlertDialogDescription>Agent sẽ không còn áp dụng guardrail này. Guardrail vẫn được giữ nguyên trên Console.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { if (detachTarget) agentGuardrailStore.detachConsoleGuardrail(agentId, detachTarget.id); setDetachTarget(null); refresh(); }}
+            >
+              Gỡ liên kết
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xóa guardrail này?</AlertDialogTitle>
+            <AlertDialogDescription>Guardrail sẽ bị xóa vĩnh viễn khỏi Agent. Hành động này không thể hoàn tác.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { if (deleteTarget) agentGuardrailStore.remove(agentId, deleteTarget.id); setDeleteTarget(null); refresh(); }}
+            >
+              Xóa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
