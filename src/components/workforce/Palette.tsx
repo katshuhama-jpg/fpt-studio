@@ -15,10 +15,11 @@ export const WORKFORCE_DRAG_MIME = "application/x-workforce-node";
  * activation (added at a computed default position, see `getClickAddPosition` in Canvas.tsx) —
  * two fully equivalent ways in, not click as an afterthought. Real `<button>` elements so
  * Enter/Space activation and focus styling come for free; `draggable` still layers on top.
- * Rendered as one segmented dock rather than a stack of individual draggable cards. */
+ * A slim single-row toolbar (icon inline with label, not stacked) rather than a bank of big
+ * app-icon-style tiles — sized like a real dock, not an empty state's call-to-action. */
 export default function Palette({ onItemClick }: { onItemClick: (type: PaletteItemType) => void }) {
   return (
-    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-stretch divide-x divide-border bg-white rounded-2xl border border-border shadow-elev p-1.5">
+    <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-10 flex items-center divide-x divide-border/70 bg-white rounded-xl border border-border shadow-elev p-1">
       {ITEMS.map(item => (
         <button
           key={item.type}
@@ -30,10 +31,10 @@ export default function Palette({ onItemClick }: { onItemClick: (type: PaletteIt
           }}
           onClick={() => onItemClick(item.type)}
           aria-label={`Thêm ${item.label} vào canvas`}
-          className="flex flex-col items-center gap-1.5 px-5 py-3 rounded-xl cursor-grab active:cursor-grabbing hover:bg-surface-muted transition-base select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="flex items-center gap-1.5 h-9 min-h-[44px] min-w-[44px] -m-[3.5px] px-3 rounded-lg cursor-grab active:cursor-grabbing hover:bg-surface-muted transition-base select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
-          <item.icon size={21} className="text-primary" />
-          <span className="text-[12.5px] font-medium text-foreground text-center leading-tight whitespace-nowrap">{item.label}</span>
+          <item.icon size={15} className="text-primary shrink-0" />
+          <span className="text-[12px] font-medium text-foreground leading-none whitespace-nowrap">{item.label}</span>
         </button>
       ))}
     </div>
