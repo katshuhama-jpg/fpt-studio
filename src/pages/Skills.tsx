@@ -195,11 +195,8 @@ export default function Skills() {
         <div className="border-b border-border bg-surface shrink-0">
           <div className="max-w-[1200px] mx-auto px-8 py-5 flex items-center justify-between">
             <div>
-              <h1 className="text-xl font-semibold font-display flex items-center gap-2">
-                <Puzzle size={20} className="text-primary" />
-                Skills
-              </h1>
-              <p className="text-sm text-muted-foreground mt-0.5">Skills shared across all agents in this workspace</p>
+              <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">Skills</h1>
+              <p className="text-sm text-muted-foreground">Skills shared across all agents in this workspace</p>
             </div>
             <div className="flex items-center gap-2">
               <button className="btn-secondary flex items-center gap-1.5"><BookOpen size={14} /> Browse Library</button>
