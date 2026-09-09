@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ChevronLeft, ChevronRight, MoreHorizontal, Copy, Check, RefreshCw, AlertTriangle, Globe,
-  FileEdit, BookOpen, Eye, EyeOff,
+  FileEdit, BookOpen, Eye, EyeOff, PanelLeftOpen, PanelLeftClose, Pencil,
 } from "lucide-react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { PencilEdit01Icon, FlaskConicalIcon, GridViewIcon, Analytics01Icon } from "@hugeicons/core-free-icons";
@@ -13,7 +13,7 @@ import {
   externalAgentStore, runValidation, type ExternalAgent, type ValidationResult,
 } from "@/components/external-agents/externalAgentStore";
 import { StatusBadge, relativeTime } from "@/components/external-agents/statusMeta";
-import ConnectExternalAgentModal, { historyDeliveryLabel } from "@/components/external-agents/ConnectExternalAgentModal";
+import ConnectExternalAgentModal from "@/components/external-agents/ConnectExternalAgentModal";
 import {
   DeleteExternalAgentDialog, PauseExternalAgentDialog, ReplaceTokenConfirmDialog, RejectExternalAgentDialog,
 } from "@/components/external-agents/ExternalAgentDialogs";
@@ -74,13 +74,41 @@ function maskSecret(secret: string): string {
   return "•".repeat(Math.min(secret.length, 32));
 }
 
-function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
+function InfoRow({ label, children, onEdit }: { label: string; children: React.ReactNode; onEdit?: () => void }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-[160px,1fr] items-start gap-1 sm:gap-2 py-2.5 border-b border-border last:border-0">
       <span className="text-xs text-muted-foreground pt-0.5">{label}</span>
-      <div className="text-sm text-foreground min-w-0">{children}</div>
+      <div className="flex items-start justify-between gap-2 min-w-0">
+        <div className="text-sm text-foreground min-w-0 flex-1">{children}</div>
+        {onEdit && (
+          <button
+            type="button"
+            onClick={onEdit}
+            aria-label={`Edit ${label}`}
+            className="shrink-0 mt-0.5 w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base"
+          >
+            <Pencil size={12} />
+          </button>
+        )}
+      </div>
     </div>
   );
+}
+
+/** GET/POST endpoints only ever surface Active or Error — there's nothing "not yet configured"
+ * about a required call the platform itself makes. The two optional per-user-credential
+ * endpoints are off this phase (see ENDPOINTS purpose text below), so they always read Empty
+ * until that capability ships instead of ever claiming to be Active or Error. */
+type EndpointStatus = "Active" | "Error" | "Empty";
+function endpointStatus(agent: ExternalAgent, path: string): EndpointStatus {
+  if (path === "/health") return agent.lastHealthCheckOk === false ? "Error" : "Active";
+  if (path === "/runs") return agent.lastValidation && !agent.lastValidation.runsAvailable ? "Error" : "Active";
+  if (path === "/tools") return agent.lastValidation && !agent.lastValidation.passed ? "Error" : "Active";
+  return "Empty";
+}
+function EndpointStatusBadge({ status }: { status: EndpointStatus }) {
+  const cls = status === "Active" ? "chip-success" : status === "Error" ? "chip-danger" : "chip-muted";
+  return <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border ${cls}`}>{status}</span>;
 }
 
 export default function ExternalAgentDetail() {
@@ -107,6 +135,7 @@ export default function ExternalAgentDetail() {
   const [showSigningSecret, setShowSigningSecret] = useState(false);
   const [signingSecretCopied, setSigningSecretCopied] = useState(false);
 
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [replacingToken, setReplacingToken] = useState(false);
   const [showReplaceConfirm, setShowReplaceConfirm] = useState(false);
   const [newToken, setNewToken] = useState("");
@@ -174,13 +203,19 @@ export default function ExternalAgentDetail() {
   const latestStatusChange = activityEntries[0];
   const validationPassed = !!agent.lastValidation?.passed;
 
-  const readyChecklist = [
-    { label: "Connection validated", done: validationPassed },
-    { label: "Description added", done: agent.description.trim().length > 0 },
-    { label: "Published", done: agent.status === "published" },
+  // Sidebar "Setup checklist" — purely informational (doesn't gate Submit/Publish, no %/progress
+  // bar). Model/Tools/Skills have no dedicated settings on an External Agent (the external
+  // service owns its own model and declares its own tools/skills), so those three always read
+  // done; "Tried the agent" mirrors the same always-done convention used on the internal Agent
+  // Builder's checklist since there's no real "has this been tested" flag to check.
+  const setupChecklist = [
+    { label: "Instructions written", done: agent.description.trim().length > 0 },
+    { label: "Model chosen", done: true },
+    { label: "Tools attached", done: endpointStatus(agent, "/tools") === "Active" },
+    { label: "Skills attached", done: true },
+    { label: "Guardrails configured", done: !!agent.guardrail },
+    { label: "Tried the agent", done: true },
   ];
-  const readyDoneCount = readyChecklist.filter(i => i.done).length;
-  const showReadyCard = agent.status !== "published" && agent.status !== "paused";
 
   const submitReplaceToken = () => {
     if (!newToken.trim()) return;
@@ -358,7 +393,13 @@ export default function ExternalAgentDetail() {
                 Triggers concept. Leaves room to add more items later without restructuring. */}
             <aside
               className="border-r border-border overflow-hidden shrink-0 flex flex-col h-full"
-              style={{ background: "#ffffff", width: "240px" }}
+              style={{
+                background: "#ffffff",
+                width: sidebarCollapsed ? "0px" : "240px",
+                opacity: sidebarCollapsed ? 0 : 1,
+                transition: "width 320ms cubic-bezier(0.4,0,0.2,1), opacity 280ms ease",
+                minWidth: 0,
+              }}
             >
               <nav className="shrink-0 px-2 pt-2 pb-1 flex flex-col" style={{ gap: "4px" }}>
                 <button
@@ -369,29 +410,17 @@ export default function ExternalAgentDetail() {
                   <span className="flex-1 text-left truncate ml-2.5">Instructions</span>
                 </button>
               </nav>
-            </aside>
-          <div className="flex-1 overflow-y-auto p-4 sm:p-8">
-            <div className="space-y-4">
-              <Link
-                to="/external-agents/guides/integration"
-                className="flex items-center gap-3 rounded-xl border border-border px-4 py-3 hover:bg-surface-muted transition-base"
-              >
-                <BookOpen size={16} className="text-primary shrink-0" />
-                <span className="text-sm font-medium flex-1">New to external agents? Read the integration guide</span>
-                <ChevronRight size={14} className="text-muted-foreground shrink-0" />
-              </Link>
 
-              {showReadyCard && (
-                <div className="rounded-lg border border-border bg-surface-muted/50 p-3">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs font-semibold text-foreground">Ready to publish</span>
-                    <span className="text-xs text-muted-foreground">{readyDoneCount}/{readyChecklist.length}</span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-border overflow-hidden mb-2">
-                    <div className="h-full rounded-full bg-primary" style={{ width: `${(readyDoneCount / readyChecklist.length) * 100}%` }} />
-                  </div>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1">
-                    {readyChecklist.map(item => (
+              <div className="flex-1" />
+
+              {/* Setup checklist — pinned directly above Collapse sidebar, not part of the
+                  scrolling nav above. Plain ✓/○ list, no progress bar or %: it's a reference
+                  for the person configuring the agent, not a gate on Submit/Publish. */}
+              <div className="shrink-0 px-3 pb-3 space-y-2">
+                <div className="rounded-lg border border-border bg-surface-muted/50 p-2.5">
+                  <span className="text-xs font-semibold text-foreground block mb-1.5">Setup checklist</span>
+                  <div className="space-y-1">
+                    {setupChecklist.map(item => (
                       <div key={item.label} className="flex items-center gap-1.5 text-xs">
                         {item.done
                           ? <Check size={11} className="text-primary shrink-0" />
@@ -401,7 +430,33 @@ export default function ExternalAgentDetail() {
                     ))}
                   </div>
                 </div>
+                <button
+                  onClick={() => setSidebarCollapsed(true)}
+                  className="w-full h-8 rounded-lg border border-border bg-surface text-muted-foreground hover:bg-surface-muted text-xs font-medium flex items-center justify-center gap-1.5 transition-base"
+                >
+                  <PanelLeftClose size={13} /> Collapse sidebar
+                </button>
+              </div>
+            </aside>
+          <div className="flex-1 overflow-y-auto p-4 sm:p-8">
+            <div className="space-y-4">
+              {sidebarCollapsed && (
+                <button
+                  onClick={() => setSidebarCollapsed(false)}
+                  aria-label="Open sidebar"
+                  className="w-8 h-8 rounded-lg border border-border bg-surface flex items-center justify-center text-muted-foreground hover:bg-surface-muted transition-base"
+                >
+                  <PanelLeftOpen size={15} />
+                </button>
               )}
+              <Link
+                to="/external-agents/guides/integration"
+                className="flex items-center gap-3 rounded-xl border border-border px-4 py-3 hover:bg-surface-muted transition-base"
+              >
+                <BookOpen size={16} className="text-primary shrink-0" />
+                <span className="text-sm font-medium flex-1">New to external agents? Read the integration guide</span>
+                <ChevronRight size={14} className="text-muted-foreground shrink-0" />
+              </Link>
 
               {justUnpublished && (
                 <div className="flex items-start gap-2.5 rounded-lg border border-warning/25 bg-[hsl(var(--warning-soft))] px-3.5 py-3">
@@ -466,6 +521,8 @@ export default function ExternalAgentDetail() {
 
               <div className="rounded-xl border border-border p-4">
                 <h3 className="text-sm font-semibold mb-2">Connection</h3>
+                <InfoRow label="Name" onEdit={() => setShowEdit(true)}>{agent.name}</InfoRow>
+                <InfoRow label="Description" onEdit={() => setShowEdit(true)}>{agent.description || "—"}</InfoRow>
                 <InfoRow label="Status">
                   <div className="space-y-1">
                     <StatusBadge status={agent.status} />
@@ -476,9 +533,38 @@ export default function ExternalAgentDetail() {
                     )}
                   </div>
                 </InfoRow>
-                <InfoRow label="Description">{agent.description || "—"}</InfoRow>
-                <InfoRow label="Base URL"><span className="font-mono text-xs break-all">{agent.baseUrl}</span></InfoRow>
-                <InfoRow label="Authentication">{agent.authMethod === "bearer" ? "Bearer Token" : "None"}</InfoRow>
+                <InfoRow label="Last health check">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {agent.lastHealthCheckAt == null ? (
+                      <span className="text-muted-foreground">Never checked</span>
+                    ) : (
+                      <>
+                        <span className="text-muted-foreground">{relativeTime(agent.lastHealthCheckAt)}</span>
+                        <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border ${agent.lastHealthCheckOk ? "chip-success" : "chip-danger"}`}>
+                          {agent.lastHealthCheckOk ? "Healthy" : "Unreachable"}
+                        </span>
+                      </>
+                    )}
+                    <button
+                      type="button"
+                      disabled={checkingHealth}
+                      onClick={() => {
+                        setCheckingHealth(true);
+                        setTimeout(() => {
+                          externalAgentStore.runHealthCheck(agent.id);
+                          setCheckingHealth(false);
+                          refresh();
+                        }, 700);
+                      }}
+                      className="text-xs font-semibold text-primary hover:underline disabled:opacity-50 flex items-center gap-1"
+                    >
+                      {checkingHealth && <RefreshCw size={11} className="animate-spin" />}
+                      Run check now
+                    </button>
+                  </div>
+                </InfoRow>
+                <InfoRow label="Base URL" onEdit={() => setShowEdit(true)}><span className="font-mono text-xs break-all">{agent.baseUrl}</span></InfoRow>
+                <InfoRow label="Authentication" onEdit={() => setShowEdit(true)}>{agent.authMethod === "bearer" ? "Bearer Token" : "None"}</InfoRow>
                 {agent.authMethod === "bearer" && (
                   <InfoRow label="Bearer Token">
                     {replacingToken ? (
@@ -558,7 +644,7 @@ export default function ExternalAgentDetail() {
                     </button>
                   </div>
                 </InfoRow>
-                <InfoRow label="Allowed hosts for authorizeUrl">
+                <InfoRow label="Allowed hosts for authorizeUrl" onEdit={() => setShowEdit(true)}>
                   {agent.allowedAuthorizeHosts.length > 0 ? (
                     <div className="flex flex-wrap gap-1.5">
                       {agent.allowedAuthorizeHosts.map(host => (
@@ -570,49 +656,6 @@ export default function ExternalAgentDetail() {
                   ) : (
                     <span className="text-muted-foreground">—</span>
                   )}
-                </InfoRow>
-                <InfoRow label="History delivery">
-                  {historyDeliveryLabel(agent.historyDelivery.mode, agent.historyDelivery.lastN)}
-                </InfoRow>
-                <InfoRow label="Guardrails">
-                  {agent.guardrail ? (
-                    <span>{agent.guardrail}</span>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground">Not configured</span>
-                      <Link to="/guardrails" className="text-xs font-semibold text-primary hover:underline">Configure</Link>
-                    </div>
-                  )}
-                </InfoRow>
-                <InfoRow label="Last health check">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {agent.lastHealthCheckAt == null ? (
-                      <span className="text-muted-foreground">Never checked</span>
-                    ) : (
-                      <>
-                        <span className="text-muted-foreground">{relativeTime(agent.lastHealthCheckAt)}</span>
-                        <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border ${agent.lastHealthCheckOk ? "chip-success" : "chip-danger"}`}>
-                          {agent.lastHealthCheckOk ? "Healthy" : "Unreachable"}
-                        </span>
-                      </>
-                    )}
-                    <button
-                      type="button"
-                      disabled={checkingHealth}
-                      onClick={() => {
-                        setCheckingHealth(true);
-                        setTimeout(() => {
-                          externalAgentStore.runHealthCheck(agent.id);
-                          setCheckingHealth(false);
-                          refresh();
-                        }, 700);
-                      }}
-                      className="text-xs font-semibold text-primary hover:underline disabled:opacity-50 flex items-center gap-1"
-                    >
-                      {checkingHealth && <RefreshCw size={11} className="animate-spin" />}
-                      Run check now
-                    </button>
-                  </div>
                 </InfoRow>
               </div>
 
@@ -626,6 +669,7 @@ export default function ExternalAgentDetail() {
                         <th className="text-left px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">Endpoint</th>
                         <th className="text-left px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">URL</th>
                         <th className="text-left px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Purpose</th>
+                        <th className="text-left px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">Status</th>
                         <th className="px-3 py-2 w-9" />
                       </tr>
                     </thead>
@@ -646,6 +690,7 @@ export default function ExternalAgentDetail() {
                             </td>
                             <td className={`px-3 py-2 font-mono text-xs break-all ${!e.required ? "text-muted-foreground/70" : "text-muted-foreground"}`}>{full}</td>
                             <td className={`px-3 py-2 text-xs ${!e.required ? "text-muted-foreground" : "text-foreground"}`}>{e.purpose}</td>
+                            <td className="px-3 py-2 whitespace-nowrap"><EndpointStatusBadge status={endpointStatus(agent, e.path)} /></td>
                             <td className="px-3 py-2 text-right"><CopyButton value={full} /></td>
                           </tr>
                         );
@@ -653,38 +698,6 @@ export default function ExternalAgentDetail() {
                     </tbody>
                   </table>
                 </div>
-              </div>
-
-              <div className="rounded-xl border border-border p-4">
-                <h3 className="text-sm font-semibold mb-1">Authentication</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                  {agent.authMethod === "bearer" ? (
-                    <>
-                      Every call the platform makes to your agent includes an <code className="font-mono bg-surface-muted px-1 py-0.5 rounded">Authorization: Bearer &lt;token&gt;</code> header,
-                      so your agent can verify the request really came from the platform. The token is stored encrypted and is never shown again after saving.
-                    </>
-                  ) : (
-                    <>No bearer token is used for this agent. Every request is still signed with the HMAC signing secret — your agent must verify the X-FPT-Signature header.</>
-                  )}
-                </p>
-                <CopyBlock code={agent.authMethod === "bearer"
-                  ? `POST ${agent.baseUrl}/runs HTTP/1.1\nAuthorization: Bearer <token>\nX-FPT-Signature: t=<epoch seconds>,v1=<hex hmac-sha256>\nContent-Type: application/json`
-                  : `POST ${agent.baseUrl}/runs HTTP/1.1\nX-FPT-Signature: t=<epoch seconds>,v1=<hex hmac-sha256>\nContent-Type: application/json`}
-                />
-              </div>
-
-              <div className="rounded-xl border border-border p-4">
-                <h3 className="text-sm font-semibold mb-1">Expected response</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                  This is what the platform expects your agent's <code className="font-mono bg-surface-muted px-1 py-0.5 rounded">/health</code> endpoint to return.
-                </p>
-                <CopyBlock
-                  code={JSON.stringify(
-                    { status: "ok", protocolVersions: ["1"], name: agent.name, version: "2.3.1" },
-                    null,
-                    2,
-                  )}
-                />
               </div>
             </div>
           </div>
