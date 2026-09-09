@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Plus, Trash2 } from "lucide-react";
+import { X, Plus, Trash2, ChevronDown } from "lucide-react";
 import type { ConditionNodeData, ConditionRule, ConditionType, RuleMatch } from "./types";
 import { newConditionRule } from "./types";
 import Toggle from "./Toggle";
@@ -132,43 +132,73 @@ export default function ConditionDrawer({
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="flex flex-col gap-3">
               {rules.map(r => {
                 const vt = variableType(r.variable);
                 const ops = vt === "number" ? NUM_OPS : TEXT_OPS;
                 return (
-                  <div key={r.id} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-1.5 items-center">
-                    <select
-                      value={r.variable}
-                      onChange={e => updateRule(r.id, { variable: e.target.value, operator: ops[0] })}
-                      className="h-9 px-1.5 rounded-lg border border-border bg-surface text-xs outline-none focus:border-primary"
-                    >
-                      <option value="">Biến</option>
-                      {VARIABLES.map(v => <option key={v.key} value={v.key}>{v.label}</option>)}
-                    </select>
-                    <select
-                      value={r.operator}
-                      onChange={e => updateRule(r.id, { operator: e.target.value })}
-                      className="h-9 px-1.5 rounded-lg border border-border bg-surface text-xs outline-none focus:border-primary"
-                    >
-                      {ops.map(o => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                    <input
-                      type={vt === "number" ? "number" : "text"}
-                      value={r.value}
-                      onChange={e => updateRule(r.id, { value: e.target.value })}
-                      placeholder="Giá trị"
-                      className="h-9 px-2 rounded-lg border border-border bg-surface text-xs outline-none focus:border-primary min-w-0"
-                    />
+                  <div key={r.id} className="relative rounded-[10px] p-3.5" style={{ border: "1px solid var(--wf-border, hsl(var(--border)))" }}>
                     <button
                       type="button"
                       aria-label="Xóa điều kiện"
                       disabled={rules.length === 1}
                       onClick={() => removeRule(r.id)}
-                      className="w-8 h-8 min-w-[44px] min-h-[44px] -m-2 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-surface-muted transition-base disabled:opacity-30 disabled:pointer-events-none"
+                      className="absolute top-3 right-3 w-8 h-8 min-w-[44px] min-h-[44px] -m-2 rounded-md flex items-center justify-center hover:bg-surface-muted transition-base disabled:opacity-30 disabled:pointer-events-none"
+                      style={{ color: "var(--wf-cond-border, #8891A6)" }}
                     >
-                      <Trash2 size={13} />
+                      <Trash2 size={16} />
                     </button>
+
+                    <div className="flex flex-col gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold mb-1.5 [font-family:var(--wf-font-display,inherit)]" style={{ color: "var(--wf-muted, #5B6472)" }}>
+                          Biến
+                        </label>
+                        <div className="relative">
+                          <select
+                            value={r.variable}
+                            onChange={e => updateRule(r.id, { variable: e.target.value, operator: ops[0] })}
+                            className="w-full h-[38px] px-3 rounded-[8px] border bg-white text-[13.5px] outline-none focus:border-primary appearance-none [font-family:var(--wf-font-body,inherit)]"
+                            style={{ borderColor: "var(--wf-border, hsl(var(--border)))", color: "var(--wf-text, #12151C)" }}
+                          >
+                            <option value="">Chọn biến…</option>
+                            {VARIABLES.map(v => <option key={v.key} value={v.key}>{v.label}</option>)}
+                          </select>
+                          <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--wf-cond-border, #8891A6)" }} />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold mb-1.5 [font-family:var(--wf-font-display,inherit)]" style={{ color: "var(--wf-muted, #5B6472)" }}>
+                          Toán tử
+                        </label>
+                        <div className="relative">
+                          <select
+                            value={r.operator}
+                            onChange={e => updateRule(r.id, { operator: e.target.value })}
+                            className="w-full h-[38px] px-3 rounded-[8px] border bg-white text-[13.5px] outline-none focus:border-primary appearance-none [font-family:var(--wf-font-body,inherit)]"
+                            style={{ borderColor: "var(--wf-border, hsl(var(--border)))", color: "var(--wf-text, #12151C)" }}
+                          >
+                            {ops.map(o => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                          <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--wf-cond-border, #8891A6)" }} />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold mb-1.5 [font-family:var(--wf-font-display,inherit)]" style={{ color: "var(--wf-muted, #5B6472)" }}>
+                          Giá trị
+                        </label>
+                        <input
+                          type={vt === "number" ? "number" : "text"}
+                          value={r.value}
+                          onChange={e => updateRule(r.id, { value: e.target.value })}
+                          placeholder="Nhập giá trị…"
+                          className="w-full h-[38px] px-3 rounded-[8px] border bg-white text-[13.5px] outline-none focus:border-primary min-w-0 [font-family:var(--wf-font-body,inherit)]"
+                          style={{ borderColor: "var(--wf-border, hsl(var(--border)))", color: "var(--wf-text, #12151C)" }}
+                        />
+                      </div>
+                    </div>
                   </div>
                 );
               })}
@@ -176,9 +206,10 @@ export default function ConditionDrawer({
             <button
               type="button"
               onClick={() => setRules(rs => [...rs, newConditionRule()])}
-              className="mt-2 flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+              className="mt-3.5 flex items-center gap-1.5 text-[13px] font-semibold hover:underline [font-family:var(--wf-font-display,inherit)]"
+              style={{ color: "var(--wf-accent, #4650D6)" }}
             >
-              <Plus size={12} /> Thêm điều kiện
+              <Plus size={14} /> Thêm điều kiện
             </button>
             {ruleError && (
               <p className="text-xs text-destructive mt-2">Vui lòng chọn đầy đủ biến và giá trị cho điều kiện.</p>
