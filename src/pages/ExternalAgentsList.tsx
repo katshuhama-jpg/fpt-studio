@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { Globe, Search, MoreVertical, Plus, AlertTriangle, BookOpen } from "lucide-react";
+import { Globe, Search, MoreHorizontal, Plus, AlertTriangle, BookOpen } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,12 +9,23 @@ import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import {
   externalAgentStore, type ExternalAgent, type ExternalAgentStatus,
 } from "@/components/external-agents/externalAgentStore";
-import { StatusBadge, relativeTime } from "@/components/external-agents/statusMeta";
+import { relativeTime } from "@/components/external-agents/statusMeta";
 import ConnectExternalAgentModal from "@/components/external-agents/ConnectExternalAgentModal";
 import {
   DeleteExternalAgentDialog, PauseExternalAgentDialog,
 } from "@/components/external-agents/ExternalAgentDialogs";
 import { toast } from "sonner";
+
+// Friendlier pill-style status for the card grid — same .chip pattern as the internal Agent's
+// RecentAgentCard (Home.tsx), distinct from the small formal StatusBadge used elsewhere (detail
+// page, "Edit connection" menu). "published" reads as "Live" to match that same convention.
+const STATUS_CHIP: Record<ExternalAgentStatus, { label: string; chipClass: string }> = {
+  draft: { label: "Draft", chipClass: "chip-muted" },
+  pending_approval: { label: "Pending approval", chipClass: "chip-warning" },
+  rejected: { label: "Rejected", chipClass: "chip-danger" },
+  published: { label: "Live", chipClass: "chip-success" },
+  paused: { label: "Paused", chipClass: "chip-muted" },
+};
 
 const TABS: { key: ExternalAgentStatus | "all"; label: string }[] = [
   { key: "all", label: "All" },
@@ -102,7 +113,7 @@ function RowMenu({ agent, isAdmin, onOpen, onEdit, onSubmit, onPauseResume, onDe
         aria-label="External agent actions"
         className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base"
       >
-        <MoreVertical size={15} />
+        <MoreHorizontal size={15} />
       </button>
       {open && createPortal(
         <div
@@ -268,9 +279,9 @@ export default function ExternalAgentsList() {
 
       {loadState === "ready" && hasAnyAgents && (
         <>
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4 border-b border-border pb-3">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-end gap-2 mb-4 border-b border-border pb-3">
             <Select value={tab} onValueChange={v => setTab(v as ExternalAgentStatus | "all")}>
-              <SelectTrigger className="h-9 w-[200px]"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 w-[200px] shrink-0"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {TABS.map(t => (
                   <SelectItem key={t.key} value={t.key}>
@@ -313,18 +324,22 @@ export default function ExternalAgentsList() {
                   tabIndex={0}
                   onClick={() => navigate(`/external-agents/${a.id}`)}
                   onKeyDown={e => { if (e.key === "Enter") navigate(`/external-agents/${a.id}`); }}
-                  className="rounded-2xl border border-border bg-surface p-4 hover:border-primary/30 hover:shadow-soft transition-base cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring flex flex-col"
+                  className="rounded-2xl border border-border bg-surface p-5 hover:border-primary/30 hover:shadow-soft transition-base cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring flex flex-col"
                 >
-                  <div className="flex items-start justify-between gap-2 mb-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-base shrink-0 ${a.bg}`}>
-                        {a.emoji}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="font-medium text-sm text-foreground truncate">{a.name}</div>
-                        <StatusBadge status={a.status} />
-                      </div>
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className={`w-14 h-14 rounded-2xl ${a.bg} flex items-center justify-center text-3xl shrink-0`}>
+                      {a.emoji}
                     </div>
+                    <div className="flex-1 min-w-0 pt-0.5">
+                      <p className="font-semibold text-base leading-snug truncate mb-1.5">{a.name}</p>
+                      <span className={`chip ${STATUS_CHIP[a.status].chipClass} w-fit`}>
+                        <span className="w-1.5 h-1.5 rounded-full bg-current" /> {STATUS_CHIP[a.status].label}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 flex-1 mb-4">{a.description || "No description"}</p>
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-muted-foreground">{relativeTime(a.updatedAt)}</div>
                     <RowMenu
                       agent={a}
                       isAdmin={isAdmin}
@@ -342,8 +357,6 @@ export default function ExternalAgentsList() {
                       onDelete={() => setDeleteTarget(a)}
                     />
                   </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 flex-1 mb-3">{a.description || "No description"}</p>
-                  <div className="text-xs text-muted-foreground">Updated {relativeTime(a.updatedAt)}</div>
                 </div>
               ))}
             </div>
