@@ -279,7 +279,16 @@ export default function ExternalAgentsList() {
 
       {loadState === "ready" && hasAnyAgents && (
         <>
-          <div className="flex flex-col md:flex-row md:items-center md:justify-end gap-2 mb-4 border-b border-border pb-3">
+          <div className="flex flex-col md:flex-row md:items-center gap-2 mb-4 border-b border-border pb-3">
+            <div className="relative shrink-0">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                placeholder="Search external agents..."
+                className="h-9 w-64 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+              />
+            </div>
             <Select value={tab} onValueChange={v => setTab(v as ExternalAgentStatus | "all")}>
               <SelectTrigger className="h-9 w-[200px] shrink-0"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -290,15 +299,6 @@ export default function ExternalAgentsList() {
                 ))}
               </SelectContent>
             </Select>
-            <div className="relative shrink-0">
-              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input
-                value={searchInput}
-                onChange={e => setSearchInput(e.target.value)}
-                placeholder="Search external agents..."
-                className="h-9 w-64 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-              />
-            </div>
           </div>
 
           {filtered.length === 0 ? (
