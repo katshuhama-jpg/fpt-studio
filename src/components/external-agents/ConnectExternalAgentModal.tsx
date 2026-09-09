@@ -6,7 +6,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Check, X, Eye, EyeOff, Loader2, AlertTriangle, Copy } from "lucide-react";
+import { Check, X, Eye, EyeOff, Loader2, AlertTriangle, Copy, Pencil } from "lucide-react";
 import {
   externalAgentStore, runValidation, type AuthMethod, type ExternalAgent, type ValidationResult,
   type HistoryDeliveryMode,
@@ -18,6 +18,12 @@ const NAME_MAX = 60;
 const DESC_MAX = 200;
 const TOKEN_MIN = 10;
 const EXISTING_TOKEN_SENTINEL = "__existing_token__";
+
+// Same 12-emoji set + fixed bg-primary-soft swatch as the avatar picker on the External Agent
+// detail page's Connection card (ExternalAgentDetail.tsx) and the internal Agent Builder's
+// GeneralTab — keep all three in sync if this list ever changes.
+const AVATAR_EMOJI_OPTIONS = ["🏦", "🤖", "💼", "🧠", "🎯", "🛡️", "⚡", "🌐", "📊", "🔧", "💡", "🚀"];
+const AVATAR_BG = "bg-primary-soft";
 
 type Step = "connection" | "validate";
 
@@ -101,6 +107,9 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
 }) {
   const editing = !!existing;
   const [step, setStep] = useState<Step>("connection");
+  const [avatarEmoji, setAvatarEmoji] = useState(existing?.emoji ?? "🔌");
+  const [avatarBg, setAvatarBg] = useState(existing?.bg ?? "bg-primary-soft");
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [name, setName] = useState(existing?.name ?? "");
   const [description, setDescription] = useState(existing?.description ?? "");
   const [baseUrl, setBaseUrl] = useState(existing?.baseUrl ?? "");
@@ -131,6 +140,9 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
   useEffect(() => {
     if (!open) return;
     setStep("connection");
+    setAvatarEmoji(existing?.emoji ?? "🔌");
+    setAvatarBg(existing?.bg ?? "bg-primary-soft");
+    setShowAvatarPicker(false);
     setName(existing?.name ?? "");
     setDescription(existing?.description ?? "");
     setBaseUrl(existing?.baseUrl ?? "");
@@ -157,7 +169,9 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
       || allowedHosts.join(",") !== (existing!.allowedAuthorizeHosts ?? []).join(",")
       || historyMode !== (existing!.historyDelivery?.mode ?? "full")
       || (historyMode === "last_n" && historyN !== (existing!.historyDelivery?.lastN ?? HISTORY_N_DEFAULT))
-    : name.trim() !== "" || description.trim() !== "" || baseUrl.trim() !== "" || token.trim() !== "" || allowedHosts.length > 0 || hostInput.trim() !== "";
+      || avatarEmoji !== (existing!.emoji ?? "🔌") || avatarBg !== (existing!.bg ?? "bg-primary-soft")
+    : name.trim() !== "" || description.trim() !== "" || baseUrl.trim() !== "" || token.trim() !== "" || allowedHosts.length > 0 || hostInput.trim() !== ""
+      || avatarEmoji !== "🔌";
 
   const requestClose = () => {
     if (isDirty) setConfirmCloseOpen(true);
@@ -259,6 +273,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
         validation: result,
         allowedAuthorizeHosts: allowedHosts,
         historyDelivery,
+        emoji: avatarEmoji, bg: avatarBg,
       });
       onSaved(externalAgentStore.get(existing!.id)!, false, unpublished);
     } else {
@@ -266,6 +281,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
         name, description, baseUrl, authMethod, validation: result,
         allowedAuthorizeHosts: allowedHosts,
         historyDelivery,
+        emoji: avatarEmoji, bg: avatarBg,
       });
       onSaved(agent, true);
     }
@@ -308,6 +324,40 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
           <div className="flex-1 overflow-y-auto px-6 py-4">
             {step === "connection" ? (
               <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-medium mb-1.5 block">Avatar</label>
+                  <div className="relative inline-block">
+                    <button
+                      type="button"
+                      onClick={() => setShowAvatarPicker(v => !v)}
+                      aria-label="Change avatar"
+                      className={`w-12 h-12 rounded-xl ${avatarBg} border border-border hover:border-primary/40 flex items-center justify-center text-2xl transition-base`}
+                    >
+                      {avatarEmoji}
+                    </button>
+                    <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-md bg-surface border border-border flex items-center justify-center pointer-events-none">
+                      <Pencil size={9} className="text-muted-foreground" />
+                    </span>
+                    {showAvatarPicker && (
+                      <>
+                        <div className="fixed inset-0 z-10" onClick={() => setShowAvatarPicker(false)} />
+                        <div className="absolute top-full left-0 mt-2 z-20 bg-surface border border-border rounded-xl shadow-lg p-2.5 grid grid-cols-6 gap-1 w-[180px]">
+                          {AVATAR_EMOJI_OPTIONS.map(e => (
+                            <button
+                              key={e}
+                              type="button"
+                              onClick={() => { setAvatarEmoji(e); setAvatarBg(AVATAR_BG); setShowAvatarPicker(false); }}
+                              className={`w-8 h-8 rounded-lg text-xl flex items-center justify-center hover:bg-primary-soft transition-base ${avatarEmoji === e ? "bg-primary-soft ring-1 ring-primary" : ""}`}
+                            >
+                              {e}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-xs font-medium" htmlFor="ext-name">Agent name <span className="text-destructive">*</span></label>

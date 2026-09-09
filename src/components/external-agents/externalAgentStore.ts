@@ -260,6 +260,7 @@ export const externalAgentStore = {
   create(data: {
     name: string; description: string; baseUrl: string; authMethod: AuthMethod; validation: ValidationResult;
     allowedAuthorizeHosts: string[]; historyDelivery: { mode: HistoryDeliveryMode; lastN?: number };
+    emoji?: string; bg?: string;
   }): ExternalAgent {
     const id = `ext-${Date.now().toString(36)}`;
     const now = Date.now();
@@ -267,7 +268,7 @@ export const externalAgentStore = {
       id,
       name: data.name.trim(),
       description: data.description.trim(),
-      emoji: "🔌", bg: "bg-primary-soft",
+      emoji: data.emoji ?? "🔌", bg: data.bg ?? "bg-primary-soft",
       baseUrl: data.baseUrl.trim(),
       authMethod: data.authMethod,
       hasToken: data.authMethod === "bearer",
