@@ -910,22 +910,31 @@ export default function ExternalAgentDetail() {
               <div className="rounded-xl border border-border p-4">
                 <div className="flex items-start justify-between gap-3 mb-1">
                   <h3 className="text-sm font-semibold">Endpoints</h3>
-                  <button
-                    type="button"
-                    disabled={checkingHealth}
-                    onClick={() => {
-                      setCheckingHealth(true);
-                      setTimeout(() => {
-                        externalAgentStore.runHealthCheck(agent.id);
-                        setCheckingHealth(false);
-                        refresh();
-                      }, 700);
-                    }}
-                    className="h-7 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-xs font-medium transition-base disabled:opacity-50 flex items-center gap-1.5 shrink-0"
-                  >
-                    {checkingHealth && <RefreshCw size={11} className="animate-spin" />}
-                    Run check now
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {agent.lastHealthCheckAt != null && (
+                      <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                        Checked {relativeTime(agent.lastHealthCheckAt)}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      disabled={checkingHealth}
+                      onClick={() => {
+                        setCheckingHealth(true);
+                        setTimeout(() => {
+                          const ok = externalAgentStore.runHealthCheck(agent.id);
+                          setCheckingHealth(false);
+                          refresh();
+                          if (ok) toast.success("Health check passed — required endpoints are reachable.");
+                          else toast.error("Health check failed — the agent didn't respond. See Status below.");
+                        }, 700);
+                      }}
+                      className="h-7 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-xs font-medium transition-base disabled:opacity-50 flex items-center gap-1.5"
+                    >
+                      {checkingHealth && <RefreshCw size={11} className="animate-spin" />}
+                      Run check now
+                    </button>
+                  </div>
                 </div>
                 <p className="text-xs text-muted-foreground mb-3">These are the addresses the platform calls on your agent.</p>
                 <div className="rounded-lg border border-border overflow-x-auto">
