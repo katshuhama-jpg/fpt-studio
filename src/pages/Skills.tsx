@@ -1,221 +1,18 @@
-import { useState, useRef, useCallback } from "react";
-import { Puzzle, BookOpen, Plus, Search, LayoutGrid, List, ChevronDown, X, ChevronRight, Copy, Trash2, Eye, Code2, Bold, Italic, Strikethrough, Heading1, Heading2, List as ListIcon, ListOrdered } from "lucide-react";
+import { useState, useRef, useMemo } from "react";
+import { Puzzle, BookOpen, Plus, Search, LayoutGrid, List, ChevronRight, Copy, Trash2, Eye, Code2, Bold, Italic, Strikethrough, Heading1, Heading2, List as ListIcon, ListOrdered, Share2 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
-import { useGroupAccess, isOwnedOrShared } from "@/pages/organization/scopeAccess";
-
-interface Skill {
-  id: string;
-  icon: string;
-  iconBg: string;
-  name: string;
-  description: string;
-  owner: string;
-  body: string;
-  /** Org-member id of whoever created this skill, and who else it's been explicitly shared
-   * with — read by the "Own & Shared" Scope enforcement in scopeAccess.ts. */
-  ownerId?: string;
-  sharedWith?: string[];
-}
-
-const SKILLS: Skill[] = [
-  {
-    id: "account-briefing",
-    icon: "🗂️",
-    iconBg: "hsl(231 90% 93%)",
-    name: "account-briefing",
-    description: `Use when the user has an upcoming meeting and needs preparation, says "brief me on," "who am I meeting with," "prep me for my call with," "what do I need to know about this account," or wants talking points, agenda suggestions, or contact on meeting attendees. Also use before any external meeting where account context would help.`,
-    owner: "You", ownerId: "m-fsoft-ceo",
-    body: `# Account Briefing
-
-You are a sales intelligence analyst. Before important meetings, you prepare a comprehensive account brief that combines internal context (calendar, email) with external research (web, LinkedIn). Your goal is a 1-page brief the user can scan in 5 minutes before walking into the meeting.
-
-## Tools You Use
-
-**Calendar** (pick based on what's connected):
-
-- \`google_calendar_list_events_for_date\` or \`outlook_calendar_list_events_for_date\`
-- \`google_calendar_get_event\` or \`outlook_calendar_get_event\`
-
-**Email** (pick based on what's connected):
-
-- \`gmail_read_emails\` or \`outlook_read_emails\`
-
-**Research:**
-
-- \`exa_web_search\` — Company and industry research
-- \`exa_linkedin_search\` — Attendee background
-- \`read_url_content\` — Deep-read specific pages
-
-**Delivery:**
-
-- \`slack_send_channel_message\` or \`slack_write_private_message\` — Deliver the brief
-
-## Workflow
-
-## Step 1: Identify the Meeting
-
-Use \`google_calendar_list_events_for_date\` (or Outlook equivalent) for today or tomorrow.
-
-Filter to external meetings:
-
-- Look for attendees with email domains different from the user's company
-- If multiple external meetings exist, ask the user which to brief (or brief all)
-
-## Step 2: Resolve Attendees
-
-For each external attendee:
-
-- Extract their name and email domain
-- Use \`exa_linkedin_search\` to find: title, company, tenure, recent activity
-- Determine who is the decision-maker, who is technical, who is new to the relationship
-
-## Step 3: Research the Account (Last 90 Days)
-
-Run parallel searches:
-
-- \`exa_web_search\` : "[company] news funding product launch partnership"
-- \`exa_web_search\` : "[company] [industry] challenges strategy"
-- \`read_url_content\` on the top 3 results
-
-## Step 4: Review Email History
-
-Use \`gmail_read_emails\` (or \`outlook_read_emails\`) with a query for the attendee's domain.
-
-## Step 5: Produce the Brief
-
-\`\`\`
-## Meeting: [title] — [date] [time]
-
-## Attendees
-- [Name] — [Title] at [Company]
-  Key context: [relevant LinkedIn insight]
-
-## Account Snapshot
-- Company: [1-paragraph overview]
-- Recent News:
-  - [date]: [event]
-
-## Email History Summary
-- Last contact: [date]
-- Key threads: [topics]
-- Open items: [commitments or asks still pending]
-
-## Talking Points
-1. [Anchored to recent news or open item]
-2. [Anchored to attendee's role or interest]
-3. [Anchored to your product's value for their situation]
-
-## Risks & Watch-outs
-- [Competitor presence, budget freeze, champion leaving, etc.]
-\`\`\`
-
-## Step 6: Deliver
-
-If Slack is connected, send the brief via \`slack_write_private_message\` to the meeting owner.
-
-## Graceful Degradation
-
-This skill works best with Calendar + Email + Slack all connected, but adapts:
-
-- **No calendar:** Ask the user for meeting details (who, when, which company)
-- **No email:** Skip the email history section, focus on web research
-- **No Slack:** Present the brief directly in the conversation`,
-  },
-  {
-    id: "competitive-intel",
-    icon: "🏆",
-    iconBg: "hsl(152 55% 92%)",
-    name: "competitive-intel",
-    description: `Use when the user asks "what is [competitor] doing," requests market analysis, or needs a competitive landscape summary for a specific company or product.`,
-    owner: "Linh Phan", ownerId: "m-fsoft-coo", sharedWith: ["m-fsoft-ceo"],
-    body: `# Competitive Intel
-
-You are a market research analyst. Gather, synthesize, and deliver a competitive snapshot for any company or product the user names.
-
-## Tools You Use
-
-- \`exa_web_search\` — Company and industry research
-- \`exa_linkedin_search\` — Leadership and hiring signals
-- \`read_url_content\` — Deep-read product and pricing pages
-
-## Workflow
-
-## Step 1: Identify Competitors
-
-Clarify which company or product to research. If multiple, prioritize by user intent.
-
-## Step 2: Pull Recent Activity
-
-- News from last 90 days
-- Job postings for strategic signals
-- Product or pricing page changes
-
-## Step 3: Synthesize and Deliver
-
-Summarize positioning, recent moves, and watch-outs in a structured brief.`,
-  },
-  {
-    id: "email-drafter",
-    icon: "📧",
-    iconBg: "hsl(358 75% 94%)",
-    name: "email-drafter",
-    description: `Drafts professional emails based on context. Say "draft an email to..." with any details and it will compose a context-aware draft and save it for review.`,
-    owner: "Duy Nguyen", ownerId: "m-fsoft-vn-1",
-    body: `# Email Drafter
-
-You draft professional, context-aware emails. Read prior thread history, match the user's tone, and save as a draft for review.
-
-## Tools You Use
-
-- \`gmail_read_emails\` or \`outlook_read_emails\`
-- \`gmail_create_draft\` or \`outlook_create_draft\`
-
-## Workflow
-
-## Step 1: Understand Intent
-
-Identify recipient, purpose, and any constraints (tone, length, deadline).
-
-## Step 2: Read Thread Context
-
-Fetch last 3 messages in the thread if available.
-
-## Step 3: Draft and Save
-
-Write the email and save as a draft — never send without user confirmation.`,
-  },
-  {
-    id: "weekly-digest",
-    icon: "📊",
-    iconBg: "hsl(38 92% 93%)",
-    name: "weekly-digest",
-    description: `Runs every Monday. Pulls activity across calendar, Slack, and email and emails the team a summary of last week's performance and highlights.`,
-    owner: "You", ownerId: "m-fsoft-ceo",
-    body: `# Weekly Digest
-
-Runs automatically each Monday. Aggregates activity across calendar, Slack, and email into a concise summary for the team.
-
-## Tools You Use
-
-- \`google_calendar_list_events\`
-- \`slack_read_channel\`
-- \`gmail_read_emails\`
-
-## Workflow
-
-## Step 1: Collect Data
-
-Pull events, messages, and emails from the previous 7 days.
-
-## Step 2: Identify Key Outcomes
-
-Summarize decisions made, blockers raised, and next steps committed to.
-
-## Step 3: Deliver
-
-Format digest and send via Slack or email to the configured channel.`,
-  },
-];
+import { useGroupAccess } from "@/pages/organization/scopeAccess";
+import { useOrg } from "@/pages/organization/orgStore";
+import { collectMembers } from "@/pages/organization/orgData";
+import { skillStore, type Skill } from "@/components/configure/skillStore";
+import { isAccessibleTo, isViewOnly, type Sharing } from "@/components/configure/skillSharing";
+import SkillOwnershipTag from "@/components/configure/SkillOwnershipTag";
+import CreateSkillModal from "@/components/configure/CreateSkillModal";
+import SkillShareModal from "@/components/configure/SkillShareModal";
 
 function renderBody(md: string) {
   const lines = md.split("\n");
@@ -259,34 +56,63 @@ function inlineRender(text: string): React.ReactNode {
   });
 }
 
+type MainTab = "all" | "mine" | "shared";
+
 export default function Skills() {
   const { can } = useMyPermissions();
   const access = useGroupAccess("skills");
+  const { tree } = useOrg();
+  const members = useMemo(() => collectMembers(tree), [tree]);
+  const currentUser = useMemo(() => {
+    const me = members.find(m => m.id === access.userId);
+    return { id: access.userId, name: me?.name ?? "Tran Nam", email: me?.email ?? "tran.nam@fpt.com" };
+  }, [members, access.userId]);
   const canCreateSkill = can("skills.create");
+
+  const [tick, setTick] = useState(0);
+  const refresh = () => setTick(t => t + 1);
+  void tick;
+  const skills = skillStore.list();
+
   const [view, setView] = useState<"grid"|"list">("grid");
-  const [filter, setFilter] = useState("All Skills");
-  const [filterOpen, setFilterOpen] = useState(false);
+  const [tab, setTab] = useState<MainTab>("all");
   const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState<Skill | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [viewMode, setViewMode] = useState<"preview"|"source">("preview");
+  const [editedName, setEditedName] = useState("");
+  const [editedDesc, setEditedDesc] = useState("");
   const [editedBody, setEditedBody] = useState<string>("");
+  const [showCreate, setShowCreate] = useState(false);
+  const [shareTarget, setShareTarget] = useState<Skill | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Skill | null>(null);
   const editorRef = useRef<HTMLTextAreaElement>(null);
 
+  const selected = selectedId ? skills.find(s => s.id === selectedId) ?? null : null;
+
   function openSkill(s: Skill) {
-    setSelected(prev => prev?.id === s.id ? null : s);
+    setSelectedId(prev => prev === s.id ? null : s.id);
+    setEditedName(s.name);
+    setEditedDesc(s.description);
     setEditedBody(s.body);
     setIsDirty(false);
     setViewMode("preview");
   }
 
+  function handleFieldChange() {
+    setIsDirty(true);
+  }
+
   function handleBodyChange(val: string) {
     setEditedBody(val);
-    setIsDirty(val !== selected?.body);
+    setIsDirty(true);
   }
 
   function handleSave() {
+    if (!selected) return;
+    skillStore.update(selected.id, { name: editedName.trim() || selected.name, description: editedDesc, body: editedBody });
     setIsDirty(false);
+    refresh();
   }
 
   function wrapSelection(before: string, after: string = before) {
@@ -310,21 +136,41 @@ export default function Skills() {
     setTimeout(() => { ta.selectionStart = ta.selectionEnd = selectionStart + prefix.length; ta.focus(); }, 0);
   }
 
-  const filters = ["All Skills", "My Skills", "From Library"];
-
   // A role whose Skills View Scope is "Own & Shared" (or with no View permission at all) only
-  // ever sees skills it created or that were shared with it.
-  const scopedSkills = access.canSeeAll ? SKILLS : SKILLS.filter(s => isOwnedOrShared(s, access.userId));
-  const filterFiltered = filter === "My Skills" ? scopedSkills.filter(s => s.ownerId === access.userId) : scopedSkills;
-  const visible = filterFiltered.filter(s =>
-    search === "" || s.name.includes(search.toLowerCase()) || s.description.toLowerCase().includes(search.toLowerCase())
-  );
+  // ever sees skills it created or that were shared with it — not just on a filter tab, but in
+  // every count and list below.
+  const visibleSkills = access.canSeeAll ? skills : skills.filter(s => isAccessibleTo(s.sharing, s.ownerId, access.userId));
 
-  const selectedAccessible = selected ? isOwnedOrShared(selected, access.userId) : false;
-  const canManageSelected = access.canAct("manage", selectedAccessible);
-  const canDeleteSelected = access.canAct("delete", selectedAccessible);
+  const isMine = (s: Skill) => s.ownerId === access.userId;
+  const isSharedWithMe = (s: Skill) => !isMine(s) && isAccessibleTo(s.sharing, s.ownerId, access.userId);
 
+  const counts = {
+    all: visibleSkills.length,
+    mine: visibleSkills.filter(isMine).length,
+    shared: visibleSkills.filter(isSharedWithMe).length,
+  };
 
+  const tabFiltered = tab === "mine" ? visibleSkills.filter(isMine)
+    : tab === "shared" ? visibleSkills.filter(isSharedWithMe)
+    : visibleSkills;
+
+  const q = search.trim().toLowerCase();
+  const visible = q
+    ? tabFiltered.filter(s => s.name.toLowerCase().includes(q) || s.description.toLowerCase().includes(q))
+    : tabFiltered;
+
+  const TABS: { key: MainTab; label: string }[] = [
+    { key: "all", label: "Tất cả" },
+    { key: "mine", label: "Của tôi" },
+    { key: "shared", label: "Được chia sẻ" },
+  ];
+
+  const isOwner = selected ? selected.ownerId === access.userId : false;
+  const selectedAccessible = selected ? isAccessibleTo(selected.sharing, selected.ownerId, access.userId) : false;
+  const selectedViewOnly = selected && !isOwner ? isViewOnly(selected.sharing, selected.ownerId, access.userId) : false;
+  const canManageSelected = access.canAct("manage", selectedAccessible) && !selectedViewOnly;
+  const canDeleteSelected = isOwner && access.canAct("delete", selectedAccessible);
+  const canShareSelected = isOwner && access.canAct("publish", selectedAccessible);
 
   return (
     <div className="flex h-full overflow-hidden">
@@ -342,13 +188,32 @@ export default function Skills() {
           <div className="flex items-center gap-2">
             <button className="btn-secondary flex items-center gap-1.5"><BookOpen size={14} /> Browse Library</button>
             <button
+              onClick={() => canCreateSkill && setShowCreate(true)}
               disabled={!canCreateSkill}
               title={!canCreateSkill ? "You don't have permission to create skills." : undefined}
               className="btn-primary flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <Plus size={14} /> Create Skill <ChevronDown size={13} className="opacity-70" />
+              <Plus size={14} /> Create Skill
             </button>
           </div>
+        </div>
+
+        {/* Ownership tabs */}
+        <div className="flex items-center gap-1 flex-wrap px-8 py-3 border-b border-border bg-background shrink-0">
+          {TABS.map(t => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`px-3 h-8 rounded-lg text-sm font-medium transition-base flex items-center gap-1.5 ${
+                tab === t.key ? "bg-primary-soft text-primary" : "text-muted-foreground hover:bg-surface-muted"
+              }`}
+            >
+              {t.label}
+              <span className={`text-xs px-1.5 py-0.5 rounded-full ${tab === t.key ? "bg-primary/10 text-primary" : "bg-surface-sunken text-muted-foreground"}`}>
+                {counts[t.key]}
+              </span>
+            </button>
+          ))}
         </div>
 
         {/* Toolbar */}
@@ -361,27 +226,6 @@ export default function Skills() {
               placeholder="Search…"
               className="h-8 w-full pl-9 pr-3 rounded-lg bg-surface border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring"
             />
-          </div>
-          <div className="relative">
-            <button
-              onClick={() => setFilterOpen(v => !v)}
-              onBlur={() => setTimeout(() => setFilterOpen(false), 150)}
-              className="h-8 flex items-center gap-2 px-3 rounded-lg border border-border bg-surface text-sm hover:bg-surface-muted transition-base"
-            >
-              <span className="text-muted-foreground text-xs">≡</span>
-              {filter}
-              <ChevronDown size={12} className={`text-muted-foreground transition-base ${filterOpen ? "rotate-180" : ""}`} />
-            </button>
-            {filterOpen && (
-              <div className="absolute left-0 top-[calc(100%+4px)] w-44 bg-surface rounded-xl ring-1 ring-border shadow-xl z-50 p-1">
-                {filters.map(f => (
-                  <button key={f} onClick={() => { setFilter(f); setFilterOpen(false); }}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-base hover:bg-surface-muted ${filter === f ? "text-primary font-medium" : "text-foreground"}`}>
-                    {f}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
           <div className="flex-1" />
           <div className="flex items-center gap-0.5 p-1 rounded-lg bg-surface border border-border">
@@ -401,6 +245,7 @@ export default function Skills() {
             <div className="flex items-center gap-3">
               <button className="btn-secondary flex items-center gap-1.5"><BookOpen size={14} /> Browse Library</button>
               <button
+                onClick={() => canCreateSkill && setShowCreate(true)}
                 disabled={!canCreateSkill}
                 title={!canCreateSkill ? "You don't have permission to create skills." : undefined}
                 className="btn-primary flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
@@ -420,9 +265,8 @@ export default function Skills() {
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base mb-3" style={{ background: s.iconBg }}>{s.icon}</div>
                   <div className="text-xs font-semibold mb-1.5 truncate">{s.name}</div>
                   <div className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{s.description}</div>
-                  <div className="flex items-center gap-1.5 mt-3 text-xs text-muted-foreground">
-                    <div className="w-4 h-4 rounded-full bg-primary-soft flex items-center justify-center text-primary font-semibold" style={{ fontSize: 9 }}>Y</div>
-                    {s.owner}
+                  <div className="flex items-center gap-1 flex-wrap mt-3">
+                    <SkillOwnershipTag skill={s} userId={access.userId} />
                   </div>
                 </div>
               ))}
@@ -440,6 +284,9 @@ export default function Skills() {
                   <div className="text-sm font-medium truncate">{s.name}</div>
                   <div className="text-xs text-muted-foreground truncate">{s.description}</div>
                 </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <SkillOwnershipTag skill={s} userId={access.userId} />
+                </div>
                 <ChevronRight size={14} className="text-muted-foreground shrink-0" />
               </div>
             ))}
@@ -455,44 +302,66 @@ export default function Skills() {
             <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-surface-muted shrink-0">
               <ChevronRight size={13} className="text-muted-foreground rotate-180" />
               <div className="flex-1" />
-              <button className="icon-btn" title="Copy"><Copy size={14} /></button>
-              <button
-                disabled={!canDeleteSelected}
-                title={canDeleteSelected ? "Delete" : "You don't have permission to delete this skill."}
-                className="icon-btn text-muted-foreground hover:text-destructive disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-muted-foreground"
-              ><Trash2 size={14} /></button>
-              <button
-                onClick={handleSave}
-                disabled={!isDirty || !canManageSelected}
-                title={!canManageSelected ? "You don't have permission to edit this skill." : undefined}
-                className={`h-7 px-3 rounded-lg text-xs font-medium transition-base ${isDirty && canManageSelected ? "bg-primary text-primary-foreground hover:opacity-90" : "bg-primary/30 text-primary-foreground/50 cursor-not-allowed"}`}
-              >
-                Save Changes
-              </button>
+              {isOwner && (
+                <button
+                  onClick={() => setShareTarget(selected)}
+                  disabled={!canShareSelected}
+                  title={!canShareSelected ? "Bạn không có quyền chia sẻ skill này." : "Share"}
+                  className="icon-btn disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Share2 size={14} />
+                </button>
+              )}
+              {isOwner && (
+                <button
+                  onClick={() => { const s = skillStore.duplicate(selected.id, currentUser.id, currentUser.name); if (s) { refresh(); openSkill(s); } }}
+                  className="icon-btn" title="Copy"
+                ><Copy size={14} /></button>
+              )}
+              {isOwner && (
+                <button
+                  onClick={() => setDeleteTarget(selected)}
+                  disabled={!canDeleteSelected}
+                  title={canDeleteSelected ? "Delete" : "You don't have permission to delete this skill."}
+                  className="icon-btn text-muted-foreground hover:text-destructive disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-muted-foreground"
+                ><Trash2 size={14} /></button>
+              )}
+              {!selectedViewOnly && (
+                <button
+                  onClick={handleSave}
+                  disabled={!isDirty || !canManageSelected}
+                  title={!canManageSelected ? "You don't have permission to edit this skill." : undefined}
+                  className={`h-7 px-3 rounded-lg text-xs font-medium transition-base ${isDirty && canManageSelected ? "bg-primary text-primary-foreground hover:opacity-90" : "bg-primary/30 text-primary-foreground/50 cursor-not-allowed"}`}
+                >
+                  Save Changes
+                </button>
+              )}
               <div className="w-px h-4 bg-border mx-1" />
-              <button onClick={() => setSelected(null)} className="icon-btn flex items-center gap-1 text-xs"><X size={12} /> Done</button>
+              <button onClick={() => setSelectedId(null)} className="icon-btn flex items-center gap-1 text-xs"><ChevronRight size={12} className="rotate-180" /> Done</button>
             </div>
 
-            {/* View toggle */}
-            <div className="flex items-center gap-1 px-3 py-1.5 border-b border-border bg-surface-muted shrink-0">
-              <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-surface border border-border">
-                <button
-                  onClick={() => setViewMode("preview")}
-                  className={`flex items-center gap-1.5 h-6 px-2.5 rounded-md text-xs font-medium transition-base ${viewMode === "preview" ? "bg-surface-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-                >
-                  <Eye size={12} /> Preview
-                </button>
-                <button
-                  onClick={() => setViewMode("source")}
-                  className={`flex items-center gap-1.5 h-6 px-2.5 rounded-md text-xs font-medium transition-base ${viewMode === "source" ? "bg-surface-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-                >
-                  <Code2 size={12} /> Source
-                </button>
+            {/* View toggle — hidden for a view-only viewer, who only ever sees the rendered Preview */}
+            {!selectedViewOnly && (
+              <div className="flex items-center gap-1 px-3 py-1.5 border-b border-border bg-surface-muted shrink-0">
+                <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-surface border border-border">
+                  <button
+                    onClick={() => setViewMode("preview")}
+                    className={`flex items-center gap-1.5 h-6 px-2.5 rounded-md text-xs font-medium transition-base ${viewMode === "preview" ? "bg-surface-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    <Eye size={12} /> Preview
+                  </button>
+                  <button
+                    onClick={() => setViewMode("source")}
+                    className={`flex items-center gap-1.5 h-6 px-2.5 rounded-md text-xs font-medium transition-base ${viewMode === "source" ? "bg-surface-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    <Code2 size={12} /> Source
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Formatting toolbar — only in source mode */}
-            {viewMode === "source" && (
+            {/* Formatting toolbar — only in source mode, and only when editable */}
+            {!selectedViewOnly && viewMode === "source" && (
               <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-border shrink-0">
                 <button onClick={() => wrapSelection("**")} className="icon-btn" title="Bold"><Bold size={13} /></button>
                 <button onClick={() => wrapSelection("*")} className="icon-btn italic" title="Italic"><Italic size={13} /></button>
@@ -511,40 +380,96 @@ export default function Skills() {
 
             {/* All content — unified scroll area, no dividers */}
             <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-1">
-              {/* Name */}
-              <div className="section-eyebrow mb-0.5">Name</div>
-              <input
-                value={selected.name}
-                onChange={e => setIsDirty(true)}
-                className="w-full text-base font-semibold bg-transparent border border-transparent rounded-lg px-2 py-1 -mx-2 outline-none hover:border-border hover:bg-surface-muted focus:border-ring focus:bg-surface-muted transition-base mb-3"
-              />
-
-              {/* Description */}
-              <div className="section-eyebrow mb-0.5">Description</div>
-              <textarea
-                defaultValue={selected.description}
-                onChange={e => { setIsDirty(true); const t = e.currentTarget; t.style.height = "auto"; t.style.height = t.scrollHeight + "px"; }}
-                ref={el => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
-                rows={1}
-                className="w-full text-sm text-muted-foreground bg-transparent border border-transparent rounded-lg px-2 py-1 -mx-2 outline-none resize-none overflow-hidden hover:border-border hover:bg-surface-muted focus:border-ring focus:bg-surface-muted transition-base leading-relaxed mb-4"
-              />
-
-              {/* Body */}
-              {viewMode === "preview" ? (
-                <div>{renderBody(editedBody || selected.body)}</div>
+              {selectedViewOnly ? (
+                <>
+                  <div className="section-eyebrow mb-0.5">Name</div>
+                  <p className="text-base font-semibold px-2 py-1 -mx-2 mb-3">{selected.name}</p>
+                  <div className="section-eyebrow mb-0.5">Description</div>
+                  <p className="text-sm text-muted-foreground px-2 py-1 -mx-2 mb-4 leading-relaxed">{selected.description}</p>
+                  <div>{renderBody(selected.body)}</div>
+                </>
               ) : (
-                <textarea
-                  ref={editorRef}
-                  value={editedBody}
-                  onChange={e => handleBodyChange(e.target.value)}
-                  className="w-full min-h-[400px] resize-none bg-transparent border border-transparent rounded-lg px-2 py-1 -mx-2 outline-none text-sm font-mono leading-relaxed text-foreground hover:border-border focus:border-ring focus:bg-surface-muted transition-base"
-                  spellCheck={false}
-                />
+                <>
+                  {/* Name */}
+                  <div className="section-eyebrow mb-0.5">Name</div>
+                  <input
+                    value={editedName}
+                    onChange={e => { setEditedName(e.target.value); handleFieldChange(); }}
+                    className="w-full text-base font-semibold bg-transparent border border-transparent rounded-lg px-2 py-1 -mx-2 outline-none hover:border-border hover:bg-surface-muted focus:border-ring focus:bg-surface-muted transition-base mb-3"
+                  />
+
+                  {/* Description */}
+                  <div className="section-eyebrow mb-0.5">Description</div>
+                  <textarea
+                    value={editedDesc}
+                    onChange={e => { setEditedDesc(e.target.value); handleFieldChange(); const t = e.currentTarget; t.style.height = "auto"; t.style.height = t.scrollHeight + "px"; }}
+                    ref={el => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
+                    rows={1}
+                    className="w-full text-sm text-muted-foreground bg-transparent border border-transparent rounded-lg px-2 py-1 -mx-2 outline-none resize-none overflow-hidden hover:border-border hover:bg-surface-muted focus:border-ring focus:bg-surface-muted transition-base leading-relaxed mb-4"
+                  />
+
+                  {/* Body */}
+                  {viewMode === "preview" ? (
+                    <div>{renderBody(editedBody || selected.body)}</div>
+                  ) : (
+                    <textarea
+                      ref={editorRef}
+                      value={editedBody}
+                      onChange={e => handleBodyChange(e.target.value)}
+                      className="w-full min-h-[400px] resize-none bg-transparent border border-transparent rounded-lg px-2 py-1 -mx-2 outline-none text-sm font-mono leading-relaxed text-foreground hover:border-border focus:border-ring focus:bg-surface-muted transition-base"
+                      spellCheck={false}
+                    />
+                  )}
+                </>
               )}
             </div>
           </>
         )}
       </div>
+
+      {showCreate && (
+        <CreateSkillModal
+          onClose={() => setShowCreate(false)}
+          onCreated={id => { refresh(); const s = skillStore.get(id); if (s) openSkill(s); }}
+          currentUser={currentUser}
+        />
+      )}
+
+      {shareTarget && (
+        <SkillShareModal
+          open
+          name={shareTarget.name}
+          ownerName={shareTarget.ownerName}
+          sharing={shareTarget.sharing}
+          onSave={(sharing: Sharing) => { skillStore.updateSharing(shareTarget.id, sharing); refresh(); }}
+          onClose={() => setShareTarget(null)}
+        />
+      )}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xóa skill "{deleteTarget?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>Skill sẽ bị xóa vĩnh viễn khỏi workspace. Hành động này không thể hoàn tác.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteTarget) {
+                  skillStore.remove(deleteTarget.id);
+                  if (selectedId === deleteTarget.id) setSelectedId(null);
+                }
+                setDeleteTarget(null);
+                refresh();
+              }}
+            >
+              Xóa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
