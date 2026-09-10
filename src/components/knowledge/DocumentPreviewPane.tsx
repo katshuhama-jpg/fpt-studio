@@ -19,42 +19,30 @@ const TOOLS: { id: ToolId; label: string; Icon: typeof Hand }[] = [
   { id: "text", label: "Chèn văn bản", Icon: Type },
 ];
 
-/** 8 resize handles around a selected chunk box — visually small (a 10px dot) but each sits
- * inside a 44x44px hit area, per the minimum touch-target requirement. */
-const HANDLES: { id: string; left: string; top: string; cursor: string }[] = [
-  { id: "nw", left: "0%", top: "0%", cursor: "nwse-resize" },
-  { id: "n", left: "50%", top: "0%", cursor: "ns-resize" },
-  { id: "ne", left: "100%", top: "0%", cursor: "nesw-resize" },
-  { id: "e", left: "100%", top: "50%", cursor: "ew-resize" },
-  { id: "se", left: "100%", top: "100%", cursor: "nwse-resize" },
-  { id: "s", left: "50%", top: "100%", cursor: "ns-resize" },
-  { id: "sw", left: "0%", top: "100%", cursor: "nesw-resize" },
-  { id: "w", left: "0%", top: "50%", cursor: "ew-resize" },
+/** Left/right edge resize handles on a selected chunk box — fully invisible (only an ew-resize
+ * cursor on hover, matching the reference design), each a full-height 44px-wide strip centered
+ * on its edge so the whole edge is grabbable, not just a single point. */
+const HANDLES: { id: "w" | "e"; left: string; label: string }[] = [
+  { id: "w", left: "0%", label: "trái" },
+  { id: "e", left: "100%", label: "phải" },
 ];
 
 const MIN_DIM = 0.03;
 
-function resizeBox(start: ChunkBox, handle: string, cur: { x: number; y: number }, startPointer: { x: number; y: number }): ChunkBox {
+/** Resizes the box from its left or right edge only — fully bidirectional: dragging the right
+ * edge past its start grows the box, dragging it back past the original left/right position
+ * shrinks it, in either direction, clamped to the page bounds and a minimum width. */
+function resizeBox(start: ChunkBox, handle: "w" | "e", cur: { x: number; y: number }, startPointer: { x: number; y: number }): ChunkBox {
   const dx = cur.x - startPointer.x;
-  const dy = cur.y - startPointer.y;
-  let { x, y, width, height } = start;
-  if (handle.includes("w")) {
+  let { x, width } = start;
+  if (handle === "w") {
     const nx = Math.max(0, Math.min(x + width - MIN_DIM, x + dx));
     width = x + width - nx;
     x = nx;
-  }
-  if (handle.includes("e")) {
+  } else {
     width = Math.max(MIN_DIM, Math.min(1 - x, width + dx));
   }
-  if (handle.includes("n")) {
-    const ny = Math.max(0, Math.min(y + height - MIN_DIM, y + dy));
-    height = y + height - ny;
-    y = ny;
-  }
-  if (handle.includes("s")) {
-    height = Math.max(MIN_DIM, Math.min(1 - y, height + dy));
-  }
-  return { page: start.page, x, y, width, height };
+  return { page: start.page, x, y: start.y, width, height: start.height };
 }
 
 function prefersReducedMotion(): boolean {
@@ -62,7 +50,7 @@ function prefersReducedMotion(): boolean {
 }
 
 type DragState =
-  | { kind: "resize"; chunkId: string; handle: string; startBox: ChunkBox; startPointer: { x: number; y: number } }
+  | { kind: "resize"; chunkId: string; handle: "w" | "e"; startBox: ChunkBox; startPointer: { x: number; y: number } }
   | { kind: "draw"; startPointer: { x: number; y: number } }
   | { kind: "freehand"; points: { x: number; y: number }[] };
 
@@ -74,13 +62,16 @@ type AnnotationDraft = { kind: Exclude<AnnotationKind, "freehand">; x: number; y
  * and highlights its page), resizable by dragging its edges/corners, and a right-click toolbar
  * for comment/draw/freehand/text annotations on top of the page. */
 export default function DocumentPreviewPane({
-  page, onPageChange, chunks, selectedChunkId, onSelectChunk, onResizeChunk, onReprocessChunk, onConfirmChunk,
+  page, onPageChange, chunks, selectedChunkId, onSelectChunk, onApplyResize, onReprocessResize, onReprocessChunk, onConfirmChunk,
   onDrawNewChunk, annotations, onAddAnnotation, onUpdateAnnotationText, onRemoveAnnotation,
   selected, onRegionClick, onSelectText, onReprocess, onProcess, canReprocess, viewOnly,
 }: {
   page: number; onPageChange: (page: number) => void;
   chunks: KnowledgeChunk[]; selectedChunkId: string | null; onSelectChunk: (c: KnowledgeChunk) => void;
-  onResizeChunk: (id: string, box: ChunkBox) => void;
+  /** Dragging a chunk's left/right edge only ever previews the new box locally — neither of
+   * these is called until the user explicitly applies or reprocesses the pending resize. */
+  onApplyResize: (id: string, box: ChunkBox) => void;
+  onReprocessResize: (id: string, box: ChunkBox) => void;
   onReprocessChunk: (id: string) => void; onConfirmChunk: (id: string) => void;
   onDrawNewChunk: (box: ChunkBox) => void;
   annotations: DocumentAnnotation[];
@@ -134,6 +125,13 @@ export default function DocumentPreviewPane({
     return () => document.removeEventListener("keydown", onKey);
   }, [menuAt]);
 
+  // Moving focus away from the chunk with a pending resize discards it — an unconfirmed
+  // boundary change is never carried along silently once the user picks something else.
+  useEffect(() => {
+    if (liveResize && liveResize.chunkId !== selectedChunkId) setLiveResize(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedChunkId]);
+
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       const drag = dragRef.current;
@@ -158,8 +156,9 @@ export default function DocumentPreviewPane({
       suppressNextClickRef.current = true;
       const cur = clientToFraction(e.clientX, e.clientY);
       if (drag.kind === "resize") {
-        onResizeChunk(drag.chunkId, resizeBox(drag.startBox, drag.handle, cur, drag.startPointer));
-        setLiveResize(null);
+        // Leave the resized box as a pending preview — resolved via the floating label's
+        // "Xử lý lại" / "Xử lý kết quả" once the user decides, never auto-persisted here.
+        setLiveResize({ chunkId: drag.chunkId, box: resizeBox(drag.startBox, drag.handle, cur, drag.startPointer) });
       } else if (drag.kind === "draw") {
         const x = Math.min(drag.startPointer.x, cur.x);
         const y = Math.min(drag.startPointer.y, cur.y);
@@ -300,7 +299,8 @@ export default function DocumentPreviewPane({
 
           {boxesOnPage.map(c => {
             const isSelected = c.id === selectedChunkId;
-            const box = liveResize && liveResize.chunkId === c.id ? liveResize.box : c.box;
+            const pending = liveResize && liveResize.chunkId === c.id ? liveResize.box : null;
+            const box = pending ?? c.box;
             return (
               <div
                 key={c.id}
@@ -311,18 +311,28 @@ export default function DocumentPreviewPane({
                   onSelectChunk(c);
                 }}
                 style={{ left: `${box.x * 100}%`, top: `${box.y * 100}%`, width: `${box.width * 100}%`, height: `${box.height * 100}%`, zIndex: isSelected ? 30 : 10 }}
-                className={`absolute border-2 rounded-sm motion-safe:transition-colors motion-safe:duration-200 ${
-                  isSelected ? "border-primary bg-primary/10" : "border-border/60 bg-foreground/[0.03] hover:border-primary/40"
+                className={`absolute rounded-sm motion-safe:transition-colors motion-safe:duration-200 ${
+                  pending ? "border-2 border-dashed border-warning bg-warning/10"
+                    : isSelected ? "border-2 border-primary bg-primary/10"
+                    : "border-2 border-border/60 bg-foreground/[0.03] hover:border-primary/40"
                 } ${activeTool === "pan" ? "cursor-pointer" : "pointer-events-none"}`}
               >
                 {isSelected && (
                   <div className="absolute -top-8 left-0 flex items-center gap-1 bg-white border border-primary/30 rounded-lg pl-2 pr-1 py-1 shadow-elev whitespace-nowrap z-40">
                     <span className="text-xs font-semibold text-primary">Chunk {c.index}</span>
                     {!viewOnly && (
-                      <>
-                        <button onClick={e => { e.stopPropagation(); onReprocessChunk(c.id); }} aria-label="Xử lý lại chunk này" title="Xử lý lại chunk này" className="w-6 h-6 min-w-[44px] min-h-[44px] -m-1.5 flex items-center justify-center rounded text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base"><RefreshCw size={11} /></button>
-                        <button onClick={e => { e.stopPropagation(); onConfirmChunk(c.id); }} aria-label="Xác nhận chunk này" title="Xác nhận chunk này" className="w-6 h-6 min-w-[44px] min-h-[44px] -m-1.5 flex items-center justify-center rounded text-success hover:bg-success/10 transition-base"><Check size={12} /></button>
-                      </>
+                      pending ? (
+                        <>
+                          <button onClick={e => { e.stopPropagation(); setLiveResize(null); }} aria-label="Hủy thay đổi kích thước" title="Hủy" className="w-6 h-6 min-w-[44px] min-h-[44px] -m-1.5 flex items-center justify-center rounded text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base"><X size={12} /></button>
+                          <button onClick={e => { e.stopPropagation(); onReprocessResize(c.id, pending); setLiveResize(null); }} aria-label="Xử lý lại với vùng đã đổi kích thước" title="Xử lý lại" className="w-6 h-6 min-w-[44px] min-h-[44px] -m-1.5 flex items-center justify-center rounded text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base"><RefreshCw size={11} /></button>
+                          <button onClick={e => { e.stopPropagation(); onApplyResize(c.id, pending); setLiveResize(null); }} aria-label="Xử lý kết quả với vùng đã đổi kích thước" title="Xử lý kết quả" className="w-6 h-6 min-w-[44px] min-h-[44px] -m-1.5 flex items-center justify-center rounded text-success hover:bg-success/10 transition-base"><Check size={12} /></button>
+                        </>
+                      ) : (
+                        <>
+                          <button onClick={e => { e.stopPropagation(); onReprocessChunk(c.id); }} aria-label="Xử lý lại chunk này" title="Xử lý lại chunk này" className="w-6 h-6 min-w-[44px] min-h-[44px] -m-1.5 flex items-center justify-center rounded text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base"><RefreshCw size={11} /></button>
+                          <button onClick={e => { e.stopPropagation(); onConfirmChunk(c.id); }} aria-label="Xác nhận chunk này" title="Xác nhận chunk này" className="w-6 h-6 min-w-[44px] min-h-[44px] -m-1.5 flex items-center justify-center rounded text-success hover:bg-success/10 transition-base"><Check size={12} /></button>
+                        </>
+                      )
                     )}
                   </div>
                 )}
@@ -330,17 +340,15 @@ export default function DocumentPreviewPane({
                   <button
                     key={h.id}
                     type="button"
-                    aria-label={`Đổi kích thước chunk ${c.index} (${h.id})`}
+                    aria-label={`Đổi kích thước chunk ${c.index} (cạnh ${h.label})`}
                     onMouseDown={e => {
                       e.stopPropagation();
                       e.preventDefault();
                       dragRef.current = { kind: "resize", chunkId: c.id, handle: h.id, startBox: box, startPointer: clientToFraction(e.clientX, e.clientY) };
                     }}
-                    style={{ left: h.left, top: h.top, cursor: h.cursor }}
-                    className="absolute w-11 h-11 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center bg-transparent rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <span className="w-2.5 h-2.5 rounded-full bg-primary border-2 border-white shadow pointer-events-none" />
-                  </button>
+                    style={{ left: h.left, top: "50%", height: "max(100%, 44px)", cursor: "ew-resize" }}
+                    className="absolute w-11 -translate-x-1/2 -translate-y-1/2 bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  />
                 ))}
               </div>
             );

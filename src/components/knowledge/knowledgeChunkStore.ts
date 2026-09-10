@@ -218,14 +218,25 @@ export const knowledgeChunkStore = {
     store.set(id, { ...cur, ...patch, manuallyEdited: true, status: "processing", updatedAt: Date.now() });
     persist();
   },
-  /** Dragging a chunk's bounding-box edges/corners on the page — re-derives the chunk's content
-   * from whatever page region the resized box now covers, so the boundary and the linked
-   * content stay in sync. */
-  updateBox(id: string, box: ChunkBox) {
+  /** "Xử lý kết quả" on a dragged box — commits it as a manual boundary override: re-derives
+   * the chunk's content from whatever page region the box now covers, and locks it in as
+   * manually edited (kept as-is by future bulk "Xử lý lại" runs), same as any other manual
+   * edit. The drag itself only previews the new box; nothing is persisted until this is called. */
+  applyBoxResize(id: string, box: ChunkBox) {
     const cur = store.get(id);
     if (!cur) return;
     const content = extractContentForBox(box, cur.content);
     store.set(id, { ...cur, box, content, manuallyEdited: true, status: "processing", updatedAt: Date.now() });
+    persist();
+  },
+  /** "Xử lý lại" on a dragged box — re-runs extraction against the new boundary instead of
+   * locking it in as a manual edit, so it stays eligible for a later bulk "Xử lý lại" like any
+   * other system-generated chunk. */
+  reprocessBoxResize(id: string, box: ChunkBox) {
+    const cur = store.get(id);
+    if (!cur) return;
+    const content = extractContentForBox(box, cur.content);
+    store.set(id, { ...cur, box, content, manuallyEdited: false, status: "processing", updatedAt: Date.now() });
     persist();
   },
   updateStatus(id: string, status: KnowledgeProcessingStatus) {

@@ -241,11 +241,16 @@ export default function ChunkViewerModal({
     startEdit(chunk);
   };
 
-  /** Dragging a chunk's bounding-box edges/corners on the page — re-derives its linked content
-   * from the new region, then simulates the same brief processing round-trip as every other
-   * edit in this modal. */
-  const resizeChunk = (id: string, box: ChunkBox) => {
-    knowledgeChunkStore.updateBox(id, box);
+  // Dragging a chunk's left/right edge only ever previews the new box — nothing is persisted
+  // until the user explicitly picks one of these two, mirroring the document-level "Xử lý lại"
+  // / "Xử lý kết quả" pair so a resize never silently auto-saves.
+  const applyResize = (id: string, box: ChunkBox) => {
+    knowledgeChunkStore.applyBoxResize(id, box);
+    refresh();
+    setTimeout(() => { knowledgeChunkStore.updateStatus(id, "done"); refresh(); }, 900);
+  };
+  const reprocessResize = (id: string, box: ChunkBox) => {
+    knowledgeChunkStore.reprocessBoxResize(id, box);
     refresh();
     setTimeout(() => { knowledgeChunkStore.updateStatus(id, "done"); refresh(); }, 900);
   };
@@ -311,7 +316,8 @@ export default function ChunkViewerModal({
             chunks={chunks}
             selectedChunkId={selectedChunkId}
             onSelectChunk={selectChunk}
-            onResizeChunk={resizeChunk}
+            onApplyResize={applyResize}
+            onReprocessResize={reprocessResize}
             onReprocessChunk={reprocessOneChunk}
             onConfirmChunk={confirmChunk}
             onDrawNewChunk={drawNewChunk}

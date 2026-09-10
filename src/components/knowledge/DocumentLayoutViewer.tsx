@@ -29,7 +29,8 @@ export default function DocumentLayoutViewer({ document: doc, onClose }: { docum
           chunks={chunks}
           selectedChunkId={selectedChunkId}
           onSelectChunk={c => setSelectedChunkId(c.id)}
-          onResizeChunk={() => {}}
+          onApplyResize={() => {}}
+          onReprocessResize={() => {}}
           onReprocessChunk={() => {}}
           onConfirmChunk={() => {}}
           onDrawNewChunk={() => {}}
