@@ -591,30 +591,62 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
               </div>
             ) : (
               <div>
-                {checking && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-                    <HugeiconsIcon icon={Loading01Icon} size={14} className="animate-spin" /> Checking connection...
+                <div className="space-y-3">
+                  {rows.map((row, i) => {
+                    const isDone = i < revealCount;
+                    const isActive = i === revealCount && checking;
+
+                    // Pending — chưa tới lượt check
+                    if (!isDone && !isActive) {
+                      return (
+                        <div key={row.key} className="flex items-start gap-2.5">
+                          <span className="mt-0.5 w-4 h-4 rounded-full flex items-center justify-center shrink-0 bg-surface-muted text-muted-foreground">
+                            <span className="w-1 h-1 rounded-full bg-current" />
+                          </span>
+                          <p className="text-sm text-muted-foreground">{row.label}</p>
+                        </div>
+                      );
+                    }
+
+                    // Active — đang check dòng này
+                    if (isActive) {
+                      return (
+                        <div key={row.key} className="flex items-start gap-2.5 animate-fade-in-up">
+                          <span className="mt-0.5 w-4 h-4 rounded-full flex items-center justify-center shrink-0 bg-primary-soft text-primary">
+                            <HugeiconsIcon icon={Loading01Icon} size={10} className="animate-spin" />
+                          </span>
+                          <p className="text-sm font-medium text-foreground">{row.label}</p>
+                        </div>
+                      );
+                    }
+
+                    // Done — pass / warn / fail (giữ nguyên style cũ)
+                    return (
+                      <div key={row.key} className="flex items-start gap-2.5 animate-fade-in-up">
+                        <span className={`mt-0.5 w-4 h-4 rounded-full flex items-center justify-center shrink-0 ${
+                          !row.pass ? "bg-destructive/15 text-destructive" : row.warn ? "bg-warning/15 text-warning" : "bg-success/15 text-success"
+                        }`}>
+                          {!row.pass ? <HugeiconsIcon icon={Cancel01Icon} size={11} /> : row.warn ? <HugeiconsIcon icon={Alert01Icon} size={10} /> : <HugeiconsIcon icon={Tick02Icon} size={11} />}
+                        </span>
+                        <div className="min-w-0">
+                          <p className={`text-sm font-medium ${!row.pass ? "text-destructive" : row.warn ? "text-warning" : "text-foreground"}`}>
+                            {row.label}
+                          </p>
+                          <p className={`text-xs leading-relaxed mt-0.5 ${!row.pass ? "text-destructive/90" : "text-muted-foreground"}`}>
+                            {row.message}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {doneChecking && !failedRow && (
+                  <div className="flex items-start gap-2.5 rounded-xl border border-success/30 bg-success/10 px-3.5 py-3 mt-4">
+                    <HugeiconsIcon icon={Tick02Icon} size={15} className="text-success shrink-0 mt-0.5" />
+                    <div className="text-sm text-foreground">Connection validated. This agent is ready to save.</div>
                   </div>
                 )}
-                <div className="space-y-3">
-                  {visibleRows.map(row => (
-                    <div key={row.key} className="flex items-start gap-2.5 animate-fade-in-up">
-                      <span className={`mt-0.5 w-4 h-4 rounded-full flex items-center justify-center shrink-0 ${
-                        !row.pass ? "bg-destructive/15 text-destructive" : row.warn ? "bg-warning/15 text-warning" : "bg-success/15 text-success"
-                      }`}>
-                        {!row.pass ? <HugeiconsIcon icon={Cancel01Icon} size={11} /> : row.warn ? <HugeiconsIcon icon={Alert01Icon} size={10} /> : <HugeiconsIcon icon={Tick02Icon} size={11} />}
-                      </span>
-                      <div className="min-w-0">
-                        <p className={`text-sm font-medium ${!row.pass ? "text-destructive" : row.warn ? "text-warning" : "text-foreground"}`}>
-                          {row.label}
-                        </p>
-                        <p className={`text-xs leading-relaxed mt-0.5 ${!row.pass ? "text-destructive/90" : "text-muted-foreground"}`}>
-                          {row.message}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
               </div>
             )}
           </div>
