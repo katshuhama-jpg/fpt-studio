@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import DocumentPreviewPane from "./DocumentPreviewPane";
 import { knowledgeChunkStore } from "./knowledgeChunkStore";
 import { documentAnnotationStore } from "./documentAnnotationStore";
+import { getPagesForSource } from "./mockDocumentPages";
 import type { KnowledgeDocument } from "./knowledgeDocumentStore";
 
 /** Design gap (not spec'd in detail) — kept minimal: reuses the Chunk Viewer's left-pane
@@ -24,6 +25,7 @@ export default function DocumentLayoutViewer({ document: doc, onClose }: { docum
       </div>
       <div className="flex-1 overflow-hidden">
         <DocumentPreviewPane
+          pages={getPagesForSource(doc.id)}
           page={page}
           onPageChange={setPage}
           chunks={chunks}

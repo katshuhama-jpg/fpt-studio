@@ -3,11 +3,8 @@ import {
   ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Plus, RefreshCw, Check, X, Trash2,
   Hand, MessageSquare, Square, PenTool, Type,
 } from "lucide-react";
-import { MOCK_PAGES } from "./mockDocumentPages";
 import type { KnowledgeChunk, ChunkBox } from "./knowledgeChunkStore";
 import type { AnnotationKind, DocumentAnnotation } from "./documentAnnotationStore";
-
-export { MOCK_PAGES };
 
 type ToolId = "pan" | "comment" | "draw" | "freehand" | "text";
 
@@ -89,10 +86,14 @@ type AnnotationDraft = { kind: Exclude<AnnotationKind, "freehand">; x: number; y
  * and highlights its page), resizable by dragging its edges/corners, and a right-click toolbar
  * for comment/draw/freehand/text annotations on top of the page. */
 export default function DocumentPreviewPane({
-  page, onPageChange, chunks, selectedChunkId, onSelectChunk, onApplyResize, onReprocessResize, onReprocessChunk, onConfirmChunk,
+  pages, page, onPageChange, chunks, selectedChunkId, onSelectChunk, onApplyResize, onReprocessResize, onReprocessChunk, onConfirmChunk,
   onDrawNewChunk, annotations, onAddAnnotation, onUpdateAnnotationText, onRemoveAnnotation,
   selected, onRegionClick, onSelectText, onReprocess, onProcess, canReprocess, viewOnly,
 }: {
+  /** The document's rendered page text — no real file storage/PDF rendering in this prototype,
+   * so the caller resolves this per-source (see mockDocumentPages.getPagesForSource) and passes
+   * it down rather than this component reaching for a single shared mock. */
+  pages: string[];
   page: number; onPageChange: (page: number) => void;
   chunks: KnowledgeChunk[]; selectedChunkId: string | null; onSelectChunk: (c: KnowledgeChunk) => void;
   /** Dragging a chunk's left/right edge only ever previews the new box locally — neither of
@@ -134,8 +135,8 @@ export default function DocumentPreviewPane({
   // pan-mode "select whichever chunk is on this page" logic right after a resize/draw/freehand
   // drag, clobbering the selection the drag itself just made.
   const suppressNextClickRef = useRef(false);
-  const totalPages = MOCK_PAGES.length;
-  const text = MOCK_PAGES[page];
+  const totalPages = pages.length;
+  const text = pages[page];
   const boxesOnPage = chunks.filter(c => c.box.page === page);
 
   const clientToFraction = (clientX: number, clientY: number): { x: number; y: number } => {
@@ -419,7 +420,7 @@ export default function DocumentPreviewPane({
           className={`relative bg-white shadow-elev rounded-sm text-sm leading-relaxed text-foreground/90 select-text transition-base ${cursorClass} ${selected ? "ring-2 ring-primary/60" : ""}`}
           style={{ width: fitWidth * zoom, minHeight: fitHeight * zoom, fontSize: 13 * fitScale * zoom, padding: 32 * fitScale }}
         >
-          <p ref={paragraphRef} className="relative z-0 pointer-events-none">{text}</p>
+          <p ref={paragraphRef} className="relative z-0 pointer-events-none whitespace-pre-line">{text}</p>
 
           {boxesOnPage.map(c => {
             const isSelected = c.id === selectedChunkId;

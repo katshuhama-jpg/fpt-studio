@@ -13,6 +13,7 @@ import { KnowledgeStatusPill, type KnowledgeFaqStatus } from "./knowledgeStatus"
 import FileTypeIcon from "./FileTypeIcon";
 import DocumentPreviewPane from "./DocumentPreviewPane";
 import HtmlTableEditor from "./HtmlTableEditor";
+import { getPagesForSource } from "./mockDocumentPages";
 
 const MOCK_CHUNK_SEED = [
   { title: "Phạm vi áp dụng", content: "Chính sách này áp dụng cho toàn bộ khiếu nại liên quan đến sản phẩm, dịch vụ của ngân hàng ABC." },
@@ -126,6 +127,7 @@ export default function ChunkViewerModal({
   const dragging = useRef(false);
 
   const chunks = knowledgeChunkStore.list(kbId, sourceType, sourceId, { status: sourceStatus, chunkCount: sourceChunkCount });
+  const pages = getPagesForSource(sourceId);
   void tick;
   const refresh = () => setTick(t => t + 1);
 
@@ -235,7 +237,7 @@ export default function ChunkViewerModal({
   /** "Draw a selection box" tool — marks a brand-new manual chunk region from scratch, with its
    * content derived from whatever page text falls under the drawn box. */
   const drawNewChunk = (box: ChunkBox) => {
-    const chunk = knowledgeChunkStore.add(kbId, sourceType, sourceId, { title: `Chunk mới`, content: extractContentForBox(box), box });
+    const chunk = knowledgeChunkStore.add(kbId, sourceType, sourceId, { title: `Chunk mới`, content: extractContentForBox(box, pages), box });
     refresh();
     setTimeout(() => { knowledgeChunkStore.updateStatus(chunk.id, "done"); refresh(); }, 900);
     startEdit(chunk);
@@ -311,6 +313,7 @@ export default function ChunkViewerModal({
       <div ref={containerRef} className="flex-1 flex overflow-hidden">
         <div className="border-r border-border overflow-hidden" style={{ width: `${splitPct}%` }}>
           <DocumentPreviewPane
+            pages={pages}
             page={page}
             onPageChange={gotoPage}
             chunks={chunks}

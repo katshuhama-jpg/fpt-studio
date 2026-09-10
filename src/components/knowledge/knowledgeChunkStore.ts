@@ -4,7 +4,7 @@ import { loadMap, saveMap } from "@/lib/sessionPersist";
 import type { KnowledgeFaqStatus, KnowledgeProcessingStatus } from "./knowledgeStatus";
 import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
 import { knowledgeUrlStore } from "./knowledgeUrlStore";
-import { MOCK_PAGES } from "./mockDocumentPages";
+import { getPagesForSource } from "./mockDocumentPages";
 
 export type ChunkSourceType = "document" | "url" | "agent-item";
 export type ChunkContentType = "text" | "html";
@@ -60,11 +60,11 @@ function seededRand(seed: number): number {
   return x - Math.floor(x);
 }
 
-/** Lays out `count` chunk boxes across MOCK_PAGES round-robin, stacking multiple chunks on the
- * same page in vertical bands with a small deterministic jitter — bands are allowed to overlap
+/** Lays out `count` chunk boxes across `pages` round-robin, stacking multiple chunks on the same
+ * page in vertical bands with a small deterministic jitter — bands are allowed to overlap
  * slightly (by design, matching real paragraph spacing), never forced into a hard grid. */
-function assignBoxes(count: number): ChunkBox[] {
-  const totalPages = MOCK_PAGES.length;
+function assignBoxes(count: number, pages: string[]): ChunkBox[] {
+  const totalPages = pages.length;
   const byPage: number[][] = Array.from({ length: totalPages }, () => []);
   for (let i = 0; i < count; i++) byPage[i % totalPages].push(i);
 
@@ -89,8 +89,8 @@ function assignBoxes(count: number): ChunkBox[] {
  * extraction would return for that region) — used both when seeding chunks and whenever a box
  * is resized, so the linked content visibly follows the region the user drags. Falls back to
  * `fallback` if the region maps to an unreasonably short slice. */
-export function extractContentForBox(box: ChunkBox, fallback?: string): string {
-  const text = MOCK_PAGES[box.page] ?? MOCK_PAGES[0];
+export function extractContentForBox(box: ChunkBox, pages: string[], fallback?: string): string {
+  const text = pages[box.page] ?? pages[0];
   const start = Math.max(0, Math.min(text.length, Math.round(box.y * text.length)));
   const end = Math.max(start, Math.min(text.length, Math.round((box.y + box.height) * text.length)));
   const slice = text.slice(start, end).trim();
@@ -98,35 +98,49 @@ export function extractContentForBox(box: ChunkBox, fallback?: string): string {
   return fallback && fallback.trim().length >= 20 ? fallback : text;
 }
 
-/** Splits each page's text evenly among however many chunks land on that page, so every one of
- * them gets its own distinct, real, non-degenerate substring — unlike deriving content from
- * `assignBoxes`' page-*height* bands (a chunk's box is a fraction of the page's fixed pixel
- * height, which has no relationship to the page's *text length*; on a page with many chunks
- * and/or short text, most bands mapped past the end of the actual rendered text, producing
- * empty slices — see DocumentPreviewPane's real per-chunk measurement, which this now feeds
- * real substrings into instead of relying on a page-height-derived guess). */
-function assignContentSlices(count: number): string[] {
-  const totalPages = MOCK_PAGES.length;
+/** Splits `text` into ordered fragments that exactly reconstruct it when concatenated, each
+ * ending at a sentence boundary (`.`/`!`/`?` followed by whitespace, or the end of the string).
+ * Used so a page's chunks can be sliced along real sentence boundaries instead of raw character
+ * offsets, which would otherwise cut a chunk's content off mid-sentence. */
+function splitIntoSentenceTokens(text: string): string[] {
+  const tokens = text.match(/[\s\S]*?[.!?](?:\s+|$)/g) ?? [];
+  const consumed = tokens.join("").length;
+  if (consumed < text.length) tokens.push(text.slice(consumed));
+  return tokens.length > 0 ? tokens : [text];
+}
+
+/** Splits each page's text among however many chunks land on that page, along real sentence
+ * boundaries (see `splitIntoSentenceTokens`) so every one of them gets its own distinct, real,
+ * non-degenerate, non-mid-sentence substring — unlike deriving content from `assignBoxes`'
+ * page-*height* bands (a chunk's box is a fraction of the page's fixed pixel height, which has no
+ * relationship to the page's *text length*; on a page with many chunks and/or short text, most
+ * bands mapped past the end of the actual rendered text, producing empty slices — see
+ * DocumentPreviewPane's real per-chunk measurement, which this now feeds real substrings into
+ * instead of relying on a page-height-derived guess). */
+function assignContentSlices(count: number, pages: string[]): string[] {
+  const totalPages = pages.length;
   const byPage: number[][] = Array.from({ length: totalPages }, () => []);
   for (let i = 0; i < count; i++) byPage[i % totalPages].push(i);
 
   const contents: string[] = new Array(count);
   for (let page = 0; page < totalPages; page++) {
     const idxs = byPage[page];
-    const text = MOCK_PAGES[page];
+    const text = pages[page];
+    const tokens = splitIntoSentenceTokens(text);
     const n = idxs.length;
+    const total = tokens.length;
     idxs.forEach((globalIdx, slot) => {
-      const start = Math.floor((slot / n) * text.length);
-      const end = slot === n - 1 ? text.length : Math.floor(((slot + 1) / n) * text.length);
-      contents[globalIdx] = text.slice(start, end).trim() || text;
+      const start = Math.min(total - 1, Math.floor((slot / n) * total));
+      const end = slot === n - 1 ? total : Math.max(start + 1, Math.floor(((slot + 1) / n) * total));
+      contents[globalIdx] = tokens.slice(start, end).join("").trim() || text;
     });
   }
   return contents;
 }
 
-function generateMockChunks(count: number): { title: string; content: string; box: ChunkBox }[] {
-  const boxes = assignBoxes(count);
-  const contents = assignContentSlices(count);
+function generateMockChunks(count: number, pages: string[]): { title: string; content: string; box: ChunkBox }[] {
+  const boxes = assignBoxes(count, pages);
+  const contents = assignContentSlices(count, pages);
   return Array.from({ length: count }, (_, i) => {
     const base = MOCK_TITLES[i % MOCK_TITLES.length];
     const round = Math.floor(i / MOCK_TITLES.length);
@@ -138,7 +152,7 @@ function generateMockChunks(count: number): { title: string; content: string; bo
  * existed, in an already-open sessionStorage session) — self-heals in place. */
 function backfillBox(c: KnowledgeChunk): KnowledgeChunk {
   if (c.box) return c;
-  const page = (c.index - 1) % MOCK_PAGES.length;
+  const page = (c.index - 1) % getPagesForSource(c.sourceId).length;
   const healed: KnowledgeChunk = { ...c, box: { ...DEFAULT_BOX, page } };
   store.set(c.id, healed);
   return healed;
@@ -171,7 +185,8 @@ function seedIfEmpty(
   }
 
   if (status === "done" && chunkCount > 0) {
-    generateMockChunks(chunkCount).forEach((t, i) => {
+    const pages = getPagesForSource(sourceId);
+    generateMockChunks(chunkCount, pages).forEach((t, i) => {
       const id = `chunk-${sourceId}-${i}`;
       store.set(id, {
         id, kbId, sourceType, sourceId, index: i + 1, title: t.title, content: t.content,
@@ -205,9 +220,10 @@ export const knowledgeChunkStore = {
    * excerpts, not stacked sub-regions). */
   populate(kbId: string, sourceType: ChunkSourceType, sourceId: string, chunks: { title: string; content: string }[]) {
     const now = Date.now();
+    const pages = getPagesForSource(sourceId);
     chunks.forEach((c, i) => {
       const id = `chunk-${sourceId}-${i}`;
-      const page = i % MOCK_PAGES.length;
+      const page = i % pages.length;
       store.set(id, {
         id, kbId, sourceType, sourceId, index: i + 1, title: c.title, content: c.content,
         contentType: "text", manuallyEdited: false, status: "done", updatedAt: now,
@@ -249,7 +265,7 @@ export const knowledgeChunkStore = {
   applyBoxResize(id: string, box: ChunkBox) {
     const cur = store.get(id);
     if (!cur) return;
-    const content = extractContentForBox(box, cur.content);
+    const content = extractContentForBox(box, getPagesForSource(cur.sourceId), cur.content);
     store.set(id, { ...cur, box, content, manuallyEdited: true, status: "processing", updatedAt: Date.now() });
     persist();
   },
@@ -259,7 +275,7 @@ export const knowledgeChunkStore = {
   reprocessBoxResize(id: string, box: ChunkBox) {
     const cur = store.get(id);
     if (!cur) return;
-    const content = extractContentForBox(box, cur.content);
+    const content = extractContentForBox(box, getPagesForSource(cur.sourceId), cur.content);
     store.set(id, { ...cur, box, content, manuallyEdited: false, status: "processing", updatedAt: Date.now() });
     persist();
   },
