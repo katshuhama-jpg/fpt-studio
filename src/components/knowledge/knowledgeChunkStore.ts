@@ -4,9 +4,21 @@ import { loadMap, saveMap } from "@/lib/sessionPersist";
 import type { KnowledgeFaqStatus, KnowledgeProcessingStatus } from "./knowledgeStatus";
 import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
 import { knowledgeUrlStore } from "./knowledgeUrlStore";
+import { MOCK_PAGES } from "./mockDocumentPages";
 
 export type ChunkSourceType = "document" | "url" | "agent-item";
 export type ChunkContentType = "text" | "html";
+
+/** Where on the rendered page a chunk's content was extracted from — every field is a 0-1
+ * fraction of the page's own width/height, so it stays correct across zoom levels and doesn't
+ * depend on the page's actual pixel size at render time. */
+export interface ChunkBox {
+  page: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
 export interface KnowledgeChunk {
   id: string;
@@ -20,9 +32,10 @@ export interface KnowledgeChunk {
   manuallyEdited: boolean;
   status: KnowledgeProcessingStatus;
   updatedAt: number;
+  box: ChunkBox;
 }
 
-const STORE_KEY = "knowledge_chunk_store_v1";
+const STORE_KEY = "knowledge_chunk_store_v2";
 const store = loadMap<string, KnowledgeChunk>(STORE_KEY);
 const persist = () => saveMap(STORE_KEY, store);
 const sourceKey = (sourceType: ChunkSourceType, sourceId: string) => `${sourceType}:${sourceId}`;
@@ -39,12 +52,72 @@ const MOCK_TITLES = [
 ];
 const MOCK_BODY = "Nội dung chi tiết được trích xuất tự động từ tài liệu gốc, mô tả các quy định và hướng dẫn liên quan đến mục này.";
 
-function generateMockChunks(count: number): { title: string; content: string }[] {
+const DEFAULT_BOX: ChunkBox = { page: 0, x: 0.08, y: 0.06, width: 0.84, height: 0.35 };
+
+/** Cheap deterministic pseudo-random in [0, 1) — no real randomness needed (or wanted, for
+ * reproducible seed data across reloads), just enough spread that stacked boxes on the same
+ * page don't all line up in a perfectly uniform grid. */
+function seededRand(seed: number): number {
+  const x = Math.sin(seed * 12.9898) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+/** Lays out `count` chunk boxes across MOCK_PAGES round-robin, stacking multiple chunks on the
+ * same page in vertical bands with a small deterministic jitter — bands are allowed to overlap
+ * slightly (by design, matching real paragraph spacing), never forced into a hard grid. */
+function assignBoxes(count: number): ChunkBox[] {
+  const totalPages = MOCK_PAGES.length;
+  const byPage: number[][] = Array.from({ length: totalPages }, () => []);
+  for (let i = 0; i < count; i++) byPage[i % totalPages].push(i);
+
+  const boxes: ChunkBox[] = new Array(count);
+  for (let page = 0; page < totalPages; page++) {
+    const idxs = byPage[page];
+    const n = idxs.length;
+    idxs.forEach((globalIdx, slot) => {
+      const bandHeight = 1 / Math.max(n, 1);
+      const jitter = (seededRand(globalIdx + 1) - 0.5) * 0.03;
+      const y = Math.max(0.03, Math.min(0.9, slot * bandHeight + bandHeight * 0.12 + jitter));
+      const height = Math.max(0.12, bandHeight * 0.78);
+      const x = 0.06 + seededRand(globalIdx + 7) * 0.05;
+      const width = Math.min(0.9, 0.82 + seededRand(globalIdx + 13) * 0.06);
+      boxes[globalIdx] = { page, x, y, width: Math.min(width, 0.94 - x), height: Math.min(height, 1 - y - 0.02) };
+    });
+  }
+  return boxes;
+}
+
+/** Derives a chunk's content from the page text underneath its box (approximating what real
+ * extraction would return for that region) — used both when seeding chunks and whenever a box
+ * is resized, so the linked content visibly follows the region the user drags. Falls back to
+ * `fallback` if the region maps to an unreasonably short slice. */
+export function extractContentForBox(box: ChunkBox, fallback?: string): string {
+  const text = MOCK_PAGES[box.page] ?? MOCK_PAGES[0];
+  const start = Math.max(0, Math.min(text.length, Math.round(box.y * text.length)));
+  const end = Math.max(start, Math.min(text.length, Math.round((box.y + box.height) * text.length)));
+  const slice = text.slice(start, end).trim();
+  if (slice.length >= 20) return slice;
+  return fallback && fallback.trim().length >= 20 ? fallback : text;
+}
+
+function generateMockChunks(count: number): { title: string; content: string; box: ChunkBox }[] {
+  const boxes = assignBoxes(count);
   return Array.from({ length: count }, (_, i) => {
     const base = MOCK_TITLES[i % MOCK_TITLES.length];
     const round = Math.floor(i / MOCK_TITLES.length);
-    return { title: round === 0 ? base : `${base} (${round + 1})`, content: MOCK_BODY };
+    const box = boxes[i];
+    return { title: round === 0 ? base : `${base} (${round + 1})`, content: extractContentForBox(box) || MOCK_BODY, box };
   });
+}
+
+/** Fills in a plausible default box for any chunk missing one (e.g. seeded before this field
+ * existed, in an already-open sessionStorage session) — self-heals in place. */
+function backfillBox(c: KnowledgeChunk): KnowledgeChunk {
+  if (c.box) return c;
+  const page = (c.index - 1) % MOCK_PAGES.length;
+  const healed: KnowledgeChunk = { ...c, box: { ...DEFAULT_BOX, page } };
+  store.set(c.id, healed);
+  return healed;
 }
 
 function seedIfEmpty(
@@ -78,7 +151,7 @@ function seedIfEmpty(
       const id = `chunk-${sourceId}-${i}`;
       store.set(id, {
         id, kbId, sourceType, sourceId, index: i + 1, title: t.title, content: t.content,
-        contentType: "text", manuallyEdited: false, status: "done", updatedAt: now,
+        contentType: "text", manuallyEdited: false, status: "done", updatedAt: now, box: t.box,
       });
     });
     persist();
@@ -97,18 +170,24 @@ export const knowledgeChunkStore = {
     agentItemHint?: { status?: KnowledgeFaqStatus; chunkCount?: number },
   ): KnowledgeChunk[] {
     seedIfEmpty(kbId, sourceType, sourceId, agentItemHint);
-    return [...store.values()]
+    const result = [...store.values()]
       .filter(c => c.sourceType === sourceType && c.sourceId === sourceId)
+      .map(backfillBox)
       .sort((a, b) => a.index - b.index);
+    return result;
   },
-  /** Simulates "Xử lý kết quả" populating chunks for a source that has none yet. */
+  /** Simulates "Xử lý kết quả" populating chunks for a source that has none yet — each of the
+   * curated seed paragraphs is shown covering most of its own page (they're near-full-page
+   * excerpts, not stacked sub-regions). */
   populate(kbId: string, sourceType: ChunkSourceType, sourceId: string, chunks: { title: string; content: string }[]) {
     const now = Date.now();
     chunks.forEach((c, i) => {
       const id = `chunk-${sourceId}-${i}`;
+      const page = i % MOCK_PAGES.length;
       store.set(id, {
         id, kbId, sourceType, sourceId, index: i + 1, title: c.title, content: c.content,
         contentType: "text", manuallyEdited: false, status: "done", updatedAt: now,
+        box: { page, x: 0.08, y: 0.08, width: 0.84, height: 0.7 },
       });
     });
     persist();
@@ -125,10 +204,28 @@ export const knowledgeChunkStore = {
     persist();
     return { keptCount: kept.length };
   },
+  /** Reprocesses a single chunk (the quick action on its highlighted box) — a no-op if it's
+   * manually edited, matching "Xử lý lại"'s own rule of never discarding manual edits. */
+  reprocessOne(id: string) {
+    const cur = store.get(id);
+    if (!cur || cur.manuallyEdited) return;
+    store.set(id, { ...cur, status: "processing", updatedAt: Date.now() });
+    persist();
+  },
   update(id: string, patch: Partial<Pick<KnowledgeChunk, "title" | "content" | "contentType">>) {
     const cur = store.get(id);
     if (!cur) return;
     store.set(id, { ...cur, ...patch, manuallyEdited: true, status: "processing", updatedAt: Date.now() });
+    persist();
+  },
+  /** Dragging a chunk's bounding-box edges/corners on the page — re-derives the chunk's content
+   * from whatever page region the resized box now covers, so the boundary and the linked
+   * content stay in sync. */
+  updateBox(id: string, box: ChunkBox) {
+    const cur = store.get(id);
+    if (!cur) return;
+    const content = extractContentForBox(box, cur.content);
+    store.set(id, { ...cur, box, content, manuallyEdited: true, status: "processing", updatedAt: Date.now() });
     persist();
   },
   updateStatus(id: string, status: KnowledgeProcessingStatus) {
@@ -144,13 +241,14 @@ export const knowledgeChunkStore = {
     store.set(id, { ...cur, content, manuallyEdited: false, status: "done", updatedAt: Date.now() });
     persist();
   },
-  add(kbId: string, sourceType: ChunkSourceType, sourceId: string, data: { title: string; content: string }): KnowledgeChunk {
+  add(kbId: string, sourceType: ChunkSourceType, sourceId: string, data: { title: string; content: string; box?: ChunkBox }): KnowledgeChunk {
     const existing = this.list(kbId, sourceType, sourceId);
     const id = `chunk-${sourceId}-${Date.now().toString(36)}`;
     const rec: KnowledgeChunk = {
       id, kbId, sourceType, sourceId, index: existing.length + 1,
       title: data.title, content: data.content, contentType: "text",
       manuallyEdited: true, status: "processing", updatedAt: Date.now(),
+      box: data.box ?? DEFAULT_BOX,
     };
     store.set(id, rec);
     persist();

@@ -1,40 +1,244 @@
-import { useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Plus, RefreshCw } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Plus, RefreshCw, Check, X, Trash2,
+  Hand, MessageSquare, Square, PenTool, Type,
+} from "lucide-react";
+import { MOCK_PAGES } from "./mockDocumentPages";
+import type { KnowledgeChunk, ChunkBox } from "./knowledgeChunkStore";
+import type { AnnotationKind, DocumentAnnotation } from "./documentAnnotationStore";
 
-export const MOCK_PAGES = [
-  "Chính sách này áp dụng cho toàn bộ khiếu nại liên quan đến sản phẩm, dịch vụ của ngân hàng ABC. Mọi khách hàng đều có quyền gửi khiếu nại qua các kênh chính thức của ngân hàng.",
-  "Khiếu nại được tiếp nhận trong vòng 24 giờ qua tổng đài, ứng dụng hoặc tại quầy giao dịch. Nhân viên tiếp nhận có trách nhiệm ghi nhận đầy đủ thông tin và mã số theo dõi.",
-  "Ngân hàng cam kết phản hồi kết quả xử lý khiếu nại trong tối đa 15 ngày làm việc. Trường hợp phức tạp có thể kéo dài nhưng không quá 30 ngày, khách hàng sẽ được thông báo.",
-  "Khách hàng không đồng ý với kết quả xử lý có quyền khiếu nại lần hai lên bộ phận giám sát chất lượng, hoặc phản ánh tới Ngân hàng Nhà nước theo quy định hiện hành.",
+export { MOCK_PAGES };
+
+type ToolId = "pan" | "comment" | "draw" | "freehand" | "text";
+
+const TOOLS: { id: ToolId; label: string; Icon: typeof Hand }[] = [
+  { id: "pan", label: "Di chuyển (mặc định)", Icon: Hand },
+  { id: "comment", label: "Bình luận", Icon: MessageSquare },
+  { id: "draw", label: "Vẽ vùng chọn (tạo chunk mới)", Icon: Square },
+  { id: "freehand", label: "Vẽ tự do", Icon: PenTool },
+  { id: "text", label: "Chèn văn bản", Icon: Type },
 ];
 
-/** Read-only original-document preview inside ChunkViewerModal's left pane — page navigation,
- * zoom, and (per FIX 3) a single floating toolbar plus the currently-displayed page, driven by
- * the parent so clicking a chunk card can flip to and highlight its page (two-way link with the
- * chunk list). No real PDF rendering in this prototype; renders representative page text. */
+/** 8 resize handles around a selected chunk box — visually small (a 10px dot) but each sits
+ * inside a 44x44px hit area, per the minimum touch-target requirement. */
+const HANDLES: { id: string; left: string; top: string; cursor: string }[] = [
+  { id: "nw", left: "0%", top: "0%", cursor: "nwse-resize" },
+  { id: "n", left: "50%", top: "0%", cursor: "ns-resize" },
+  { id: "ne", left: "100%", top: "0%", cursor: "nesw-resize" },
+  { id: "e", left: "100%", top: "50%", cursor: "ew-resize" },
+  { id: "se", left: "100%", top: "100%", cursor: "nwse-resize" },
+  { id: "s", left: "50%", top: "100%", cursor: "ns-resize" },
+  { id: "sw", left: "0%", top: "100%", cursor: "nesw-resize" },
+  { id: "w", left: "0%", top: "50%", cursor: "ew-resize" },
+];
+
+const MIN_DIM = 0.03;
+
+function resizeBox(start: ChunkBox, handle: string, cur: { x: number; y: number }, startPointer: { x: number; y: number }): ChunkBox {
+  const dx = cur.x - startPointer.x;
+  const dy = cur.y - startPointer.y;
+  let { x, y, width, height } = start;
+  if (handle.includes("w")) {
+    const nx = Math.max(0, Math.min(x + width - MIN_DIM, x + dx));
+    width = x + width - nx;
+    x = nx;
+  }
+  if (handle.includes("e")) {
+    width = Math.max(MIN_DIM, Math.min(1 - x, width + dx));
+  }
+  if (handle.includes("n")) {
+    const ny = Math.max(0, Math.min(y + height - MIN_DIM, y + dy));
+    height = y + height - ny;
+    y = ny;
+  }
+  if (handle.includes("s")) {
+    height = Math.max(MIN_DIM, Math.min(1 - y, height + dy));
+  }
+  return { page: start.page, x, y, width, height };
+}
+
+function prefersReducedMotion(): boolean {
+  return typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+}
+
+type DragState =
+  | { kind: "resize"; chunkId: string; handle: string; startBox: ChunkBox; startPointer: { x: number; y: number } }
+  | { kind: "draw"; startPointer: { x: number; y: number } }
+  | { kind: "freehand"; points: { x: number; y: number }[] };
+
+type AnnotationDraft = { kind: Exclude<AnnotationKind, "freehand">; x: number; y: number; text: string };
+
+/** Original-document preview inside ChunkViewerModal's left pane. No real PDF/image rendering
+ * in this prototype — renders representative page text — but every chunk gets a real bounding
+ * box overlaid on its page, kept in sync with the chunk list (select/edit a chunk here flips to
+ * and highlights its page), resizable by dragging its edges/corners, and a right-click toolbar
+ * for comment/draw/freehand/text annotations on top of the page. */
 export default function DocumentPreviewPane({
-  page, onPageChange, selected, onRegionClick, onSelectText, onReprocess, onProcess, canReprocess, viewOnly,
+  page, onPageChange, chunks, selectedChunkId, onSelectChunk, onResizeChunk, onReprocessChunk, onConfirmChunk,
+  onDrawNewChunk, annotations, onAddAnnotation, onUpdateAnnotationText, onRemoveAnnotation,
+  selected, onRegionClick, onSelectText, onReprocess, onProcess, canReprocess, viewOnly,
 }: {
-  page: number; onPageChange: (page: number) => void; selected: boolean; onRegionClick: () => void;
-  onSelectText?: (text: string) => void; onReprocess: () => void; onProcess: () => void; canReprocess: boolean; viewOnly: boolean;
+  page: number; onPageChange: (page: number) => void;
+  chunks: KnowledgeChunk[]; selectedChunkId: string | null; onSelectChunk: (c: KnowledgeChunk) => void;
+  onResizeChunk: (id: string, box: ChunkBox) => void;
+  onReprocessChunk: (id: string) => void; onConfirmChunk: (id: string) => void;
+  onDrawNewChunk: (box: ChunkBox) => void;
+  annotations: DocumentAnnotation[];
+  onAddAnnotation: (a: { page: number; kind: AnnotationKind; x: number; y: number; text?: string; path?: { x: number; y: number }[] }) => void;
+  onUpdateAnnotationText: (id: string, text: string) => void; onRemoveAnnotation: (id: string) => void;
+  selected: boolean; onRegionClick: () => void;
+  onSelectText?: (text: string, box: ChunkBox) => void;
+  onReprocess: () => void; onProcess: () => void; canReprocess: boolean; viewOnly: boolean;
 }) {
   const [zoom, setZoom] = useState(1);
-  const [selectionBtn, setSelectionBtn] = useState<{ x: number; y: number; text: string } | null>(null);
+  const [selectionBtn, setSelectionBtn] = useState<{ x: number; y: number; text: string; box: ChunkBox } | null>(null);
+  const [activeTool, setActiveTool] = useState<ToolId>("pan");
+  const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
+  const [liveResize, setLiveResize] = useState<{ chunkId: string; box: ChunkBox } | null>(null);
+  const [drawLive, setDrawLive] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const [freehandLive, setFreehandLive] = useState<{ x: number; y: number }[] | null>(null);
+  const [newAnnotationDraft, setNewAnnotationDraft] = useState<AnnotationDraft | null>(null);
+  const [openAnnotationId, setOpenAnnotationId] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const pageRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<DragState | null>(null);
+  // A mousedown+mousemove+mouseup sequence still fires a trailing native "click" on whatever's
+  // under the pointer at mouseup — without this, that stray click re-runs handlePageClick's
+  // pan-mode "select whichever chunk is on this page" logic right after a resize/draw/freehand
+  // drag, clobbering the selection the drag itself just made.
+  const suppressNextClickRef = useRef(false);
   const totalPages = MOCK_PAGES.length;
   const text = MOCK_PAGES[page];
+  const boxesOnPage = chunks.filter(c => c.box.page === page);
+
+  const clientToFraction = (clientX: number, clientY: number): { x: number; y: number } => {
+    const rect = pageRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 0, y: 0 };
+    return {
+      x: Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)),
+      y: Math.max(0, Math.min(1, (clientY - rect.top) / rect.height)),
+    };
+  };
+
+  // Scroll the preview back to the top of the page whenever the selected chunk flips it to a
+  // different page — the "navigate to the page containing that chunk" half of the list-to-canvas
+  // sync. Respects prefers-reduced-motion for the scroll transition.
+  useEffect(() => {
+    containerRef.current?.scrollTo({ top: 0, behavior: prefersReducedMotion() ? "auto" : "smooth" });
+  }, [page]);
+
+  useEffect(() => {
+    if (!menuAt) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMenuAt(null); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [menuAt]);
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      const drag = dragRef.current;
+      if (!drag) return;
+      const cur = clientToFraction(e.clientX, e.clientY);
+      if (drag.kind === "resize") {
+        setLiveResize({ chunkId: drag.chunkId, box: resizeBox(drag.startBox, drag.handle, cur, drag.startPointer) });
+      } else if (drag.kind === "draw") {
+        setDrawLive({
+          x: Math.min(drag.startPointer.x, cur.x), y: Math.min(drag.startPointer.y, cur.y),
+          width: Math.abs(cur.x - drag.startPointer.x), height: Math.abs(cur.y - drag.startPointer.y),
+        });
+      } else if (drag.kind === "freehand") {
+        drag.points.push(cur);
+        setFreehandLive([...drag.points]);
+      }
+    };
+    const onUp = (e: MouseEvent) => {
+      const drag = dragRef.current;
+      dragRef.current = null;
+      if (!drag) return;
+      suppressNextClickRef.current = true;
+      const cur = clientToFraction(e.clientX, e.clientY);
+      if (drag.kind === "resize") {
+        onResizeChunk(drag.chunkId, resizeBox(drag.startBox, drag.handle, cur, drag.startPointer));
+        setLiveResize(null);
+      } else if (drag.kind === "draw") {
+        const x = Math.min(drag.startPointer.x, cur.x);
+        const y = Math.min(drag.startPointer.y, cur.y);
+        const width = Math.abs(cur.x - drag.startPointer.x);
+        const height = Math.abs(cur.y - drag.startPointer.y);
+        if (width > 0.02 && height > 0.02) onDrawNewChunk({ page, x, y, width, height });
+        setDrawLive(null);
+        setActiveTool("pan");
+      } else if (drag.kind === "freehand") {
+        if (drag.points.length > 1) onAddAnnotation({ page, kind: "freehand", x: drag.points[0].x, y: drag.points[0].y, path: drag.points });
+        setFreehandLive(null);
+        setActiveTool("pan");
+      }
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    return () => { document.removeEventListener("mousemove", onMove); document.removeEventListener("mouseup", onUp); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
 
   const handleMouseUp = () => {
-    if (!onSelectText) return;
+    if (activeTool !== "pan" || !onSelectText) { if (!dragRef.current) setSelectionBtn(null); return; }
     const sel = window.getSelection();
     const selectedText = sel?.toString().trim();
     if (!sel || !selectedText || sel.rangeCount === 0) { setSelectionBtn(null); return; }
     const range = sel.getRangeAt(0);
     const rect = range.getBoundingClientRect();
     const containerRect = containerRef.current?.getBoundingClientRect();
-    if (!containerRect) return;
-    setSelectionBtn({ x: rect.left - containerRect.left + rect.width / 2, y: rect.top - containerRect.top, text: selectedText });
+    const pageRect = pageRef.current?.getBoundingClientRect();
+    if (!containerRect || !pageRect) return;
+    setSelectionBtn({
+      x: rect.left - containerRect.left + rect.width / 2,
+      y: rect.top - containerRect.top,
+      text: selectedText,
+      box: {
+        page,
+        x: Math.max(0, (rect.left - pageRect.left) / pageRect.width),
+        y: Math.max(0, (rect.top - pageRect.top) / pageRect.height),
+        width: Math.min(1, rect.width / pageRect.width),
+        height: Math.min(1, rect.height / pageRect.height),
+      },
+    });
   };
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    if (viewOnly) return;
+    e.preventDefault();
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setMenuAt({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  };
+
+  const handlePageMouseDown = (e: React.MouseEvent) => {
+    if (viewOnly) return;
+    if (activeTool !== "draw" && activeTool !== "freehand") return;
+    e.stopPropagation();
+    const frac = clientToFraction(e.clientX, e.clientY);
+    if (activeTool === "draw") {
+      dragRef.current = { kind: "draw", startPointer: frac };
+      setDrawLive({ x: frac.x, y: frac.y, width: 0, height: 0 });
+    } else {
+      dragRef.current = { kind: "freehand", points: [frac] };
+      setFreehandLive([frac]);
+    }
+  };
+
+  const handlePageClick = (e: React.MouseEvent) => {
+    if (dragRef.current) return;
+    if (suppressNextClickRef.current) { suppressNextClickRef.current = false; return; }
+    if (activeTool === "pan") { onRegionClick(); return; }
+    if (activeTool === "comment" || activeTool === "text") {
+      const frac = clientToFraction(e.clientX, e.clientY);
+      setNewAnnotationDraft({ kind: activeTool, x: frac.x, y: frac.y, text: "" });
+    }
+  };
+
+  const cursorClass = activeTool === "draw" || activeTool === "freehand" ? "cursor-crosshair" : activeTool === "comment" || activeTool === "text" ? "cursor-copy" : "cursor-pointer";
+  const pageAnnotations = annotations.filter(a => a.page === page);
+  const closePopovers = () => { setOpenAnnotationId(null); setNewAnnotationDraft(null); };
 
   return (
     <div className="relative flex flex-col h-full bg-surface-muted/40">
@@ -70,24 +274,214 @@ export default function DocumentPreviewPane({
         )}
       </div>
 
-      <div ref={containerRef} className="relative flex-1 overflow-auto pt-20 pb-8 px-6 flex items-start justify-center" onMouseUp={handleMouseUp}>
+      {activeTool !== "pan" && (
+        <div className="absolute top-4 left-4 z-10 flex items-center gap-1.5 bg-primary text-primary-foreground rounded-lg px-2.5 h-8 text-xs font-medium shadow-elev">
+          {TOOLS.find(t => t.id === activeTool)?.label}
+          <button onClick={() => setActiveTool("pan")} aria-label="Thoát công cụ" className="w-5 h-5 min-w-[44px] min-h-[44px] -m-2 flex items-center justify-center rounded hover:bg-white/20"><X size={11} /></button>
+        </div>
+      )}
+
+      <div
+        ref={containerRef}
+        className="relative flex-1 overflow-auto pt-20 pb-8 px-6 flex items-start justify-center"
+        onMouseUp={handleMouseUp}
+        onContextMenu={handleContextMenu}
+      >
         <div
-          onClick={onRegionClick}
+          ref={pageRef}
+          onClick={handlePageClick}
+          onMouseDown={handlePageMouseDown}
           role="button"
           tabIndex={0}
-          className={`bg-white shadow-elev rounded-sm p-8 text-sm leading-relaxed text-foreground/90 select-text cursor-pointer transition-base ${selected ? "ring-2 ring-primary/60" : ""}`}
+          className={`relative bg-white shadow-elev rounded-sm p-8 text-sm leading-relaxed text-foreground/90 select-text transition-base ${cursorClass} ${selected ? "ring-2 ring-primary/60" : ""}`}
           style={{ width: 420 * zoom, minHeight: 560 * zoom, fontSize: 13 * zoom }}
         >
-          <p>{text}</p>
+          <p className="relative z-0 pointer-events-none">{text}</p>
+
+          {boxesOnPage.map(c => {
+            const isSelected = c.id === selectedChunkId;
+            const box = liveResize && liveResize.chunkId === c.id ? liveResize.box : c.box;
+            return (
+              <div
+                key={c.id}
+                onClick={e => {
+                  if (activeTool !== "pan") return;
+                  e.stopPropagation();
+                  if (suppressNextClickRef.current) { suppressNextClickRef.current = false; return; }
+                  onSelectChunk(c);
+                }}
+                style={{ left: `${box.x * 100}%`, top: `${box.y * 100}%`, width: `${box.width * 100}%`, height: `${box.height * 100}%`, zIndex: isSelected ? 30 : 10 }}
+                className={`absolute border-2 rounded-sm motion-safe:transition-colors motion-safe:duration-200 ${
+                  isSelected ? "border-primary bg-primary/10" : "border-border/60 bg-foreground/[0.03] hover:border-primary/40"
+                } ${activeTool === "pan" ? "cursor-pointer" : "pointer-events-none"}`}
+              >
+                {isSelected && (
+                  <div className="absolute -top-8 left-0 flex items-center gap-1 bg-white border border-primary/30 rounded-lg pl-2 pr-1 py-1 shadow-elev whitespace-nowrap z-40">
+                    <span className="text-xs font-semibold text-primary">Chunk {c.index}</span>
+                    {!viewOnly && (
+                      <>
+                        <button onClick={e => { e.stopPropagation(); onReprocessChunk(c.id); }} aria-label="Xử lý lại chunk này" title="Xử lý lại chunk này" className="w-6 h-6 min-w-[44px] min-h-[44px] -m-1.5 flex items-center justify-center rounded text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base"><RefreshCw size={11} /></button>
+                        <button onClick={e => { e.stopPropagation(); onConfirmChunk(c.id); }} aria-label="Xác nhận chunk này" title="Xác nhận chunk này" className="w-6 h-6 min-w-[44px] min-h-[44px] -m-1.5 flex items-center justify-center rounded text-success hover:bg-success/10 transition-base"><Check size={12} /></button>
+                      </>
+                    )}
+                  </div>
+                )}
+                {isSelected && !viewOnly && HANDLES.map(h => (
+                  <button
+                    key={h.id}
+                    type="button"
+                    aria-label={`Đổi kích thước chunk ${c.index} (${h.id})`}
+                    onMouseDown={e => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      dragRef.current = { kind: "resize", chunkId: c.id, handle: h.id, startBox: box, startPointer: clientToFraction(e.clientX, e.clientY) };
+                    }}
+                    style={{ left: h.left, top: h.top, cursor: h.cursor }}
+                    className="absolute w-11 h-11 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center bg-transparent rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full bg-primary border-2 border-white shadow pointer-events-none" />
+                  </button>
+                ))}
+              </div>
+            );
+          })}
+
+          {drawLive && (
+            <div
+              style={{ left: `${drawLive.x * 100}%`, top: `${drawLive.y * 100}%`, width: `${drawLive.width * 100}%`, height: `${drawLive.height * 100}%` }}
+              className="absolute border-2 border-dashed border-primary bg-primary/10 pointer-events-none z-30"
+            />
+          )}
+          {freehandLive && freehandLive.length > 1 && (
+            <svg className="absolute inset-0 pointer-events-none z-30" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <polyline points={freehandLive.map(p => `${p.x * 100},${p.y * 100}`).join(" ")} fill="none" stroke="hsl(var(--primary))" strokeWidth="0.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          )}
+
+          {pageAnnotations.filter(a => a.kind === "freehand").map(a => (
+            <svg key={a.id} className="absolute inset-0 pointer-events-none z-20" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <polyline points={(a.path ?? []).map(p => `${p.x * 100},${p.y * 100}`).join(" ")} fill="none" stroke="hsl(var(--primary))" strokeWidth="0.6" strokeLinecap="round" strokeLinejoin="round" opacity={0.7} />
+            </svg>
+          ))}
+          {pageAnnotations.filter(a => a.kind === "comment").map(a => (
+            <button
+              key={a.id}
+              type="button"
+              aria-label={`Bình luận: ${a.text?.slice(0, 40) || "(trống)"}`}
+              style={{ left: `${a.x * 100}%`, top: `${a.y * 100}%` }}
+              onClick={e => { e.stopPropagation(); setOpenAnnotationId(id => (id === a.id ? null : a.id)); }}
+              className="absolute -translate-x-1/2 -translate-y-1/2 w-7 h-7 min-w-[44px] min-h-[44px] -m-2 flex items-center justify-center rounded-full bg-warning text-white shadow-elev z-20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <MessageSquare size={13} />
+            </button>
+          ))}
+          {pageAnnotations.filter(a => a.kind === "text").map(a => (
+            <button
+              key={a.id}
+              type="button"
+              aria-label={`Văn bản: ${a.text?.slice(0, 40) || "(trống)"}`}
+              style={{ left: `${a.x * 100}%`, top: `${a.y * 100}%` }}
+              onClick={e => { e.stopPropagation(); setOpenAnnotationId(id => (id === a.id ? null : a.id)); }}
+              className="absolute -translate-x-1/2 -translate-y-1/2 max-w-[160px] truncate px-2 py-1 min-h-[44px] flex items-center rounded-md bg-white border border-border shadow-sm text-xs z-20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {a.text || "(trống)"}
+            </button>
+          ))}
         </div>
+
         {selectionBtn && onSelectText && (
           <button
             style={{ left: selectionBtn.x, top: Math.max(0, selectionBtn.y - 36) }}
             className="absolute -translate-x-1/2 flex items-center gap-1 h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-medium shadow-elev z-10"
-            onClick={e => { e.stopPropagation(); onSelectText(selectionBtn.text); setSelectionBtn(null); window.getSelection()?.removeAllRanges(); }}
+            onClick={e => { e.stopPropagation(); onSelectText(selectionBtn.text, selectionBtn.box); setSelectionBtn(null); window.getSelection()?.removeAllRanges(); }}
           >
             <Plus size={12} /> Thêm chunk
           </button>
+        )}
+
+        {(openAnnotationId || newAnnotationDraft) && (
+          <div className="fixed inset-0 z-40" onMouseDown={closePopovers} />
+        )}
+        {openAnnotationId && (() => {
+          const a = annotations.find(x => x.id === openAnnotationId);
+          const rect = pageRef.current?.getBoundingClientRect();
+          const containerRect = containerRef.current?.getBoundingClientRect();
+          if (!a || !rect || !containerRect) return null;
+          const left = rect.left - containerRect.left + a.x * rect.width;
+          const top = rect.top - containerRect.top + a.y * rect.height;
+          return (
+            <div style={{ left, top: top + 24 }} className="absolute z-50 -translate-x-1/2 w-56 bg-white rounded-lg border border-border shadow-elev p-2" onMouseDown={e => e.stopPropagation()}>
+              <textarea
+                autoFocus
+                defaultValue={a.text}
+                onBlur={e => onUpdateAnnotationText(a.id, e.target.value)}
+                rows={2}
+                className="w-full text-xs p-1.5 rounded border border-border outline-none focus:border-primary resize-none"
+              />
+              <div className="flex justify-end mt-1">
+                <button onClick={() => { onRemoveAnnotation(a.id); setOpenAnnotationId(null); }} aria-label="Xóa chú thích" className="w-7 h-7 min-w-[44px] min-h-[44px] -m-1.5 flex items-center justify-center rounded text-muted-foreground hover:bg-[hsl(var(--destructive-soft))] hover:text-destructive transition-base"><Trash2 size={12} /></button>
+              </div>
+            </div>
+          );
+        })()}
+        {newAnnotationDraft && (() => {
+          const rect = pageRef.current?.getBoundingClientRect();
+          const containerRect = containerRef.current?.getBoundingClientRect();
+          if (!rect || !containerRect) return null;
+          const left = rect.left - containerRect.left + newAnnotationDraft.x * rect.width;
+          const top = rect.top - containerRect.top + newAnnotationDraft.y * rect.height;
+          return (
+            <div style={{ left, top: top + 8 }} className="absolute z-50 -translate-x-1/2 w-56 bg-white rounded-lg border border-primary/40 shadow-elev p-2" onMouseDown={e => e.stopPropagation()}>
+              <textarea
+                autoFocus
+                value={newAnnotationDraft.text}
+                onChange={e => setNewAnnotationDraft(d => d && { ...d, text: e.target.value })}
+                placeholder={newAnnotationDraft.kind === "comment" ? "Nhập bình luận..." : "Nhập văn bản..."}
+                rows={2}
+                className="w-full text-xs p-1.5 rounded border border-border outline-none focus:border-primary resize-none"
+              />
+              <div className="flex justify-end gap-1 mt-1">
+                <button onClick={() => { setNewAnnotationDraft(null); setActiveTool("pan"); }} aria-label="Hủy chú thích" className="w-7 h-7 min-w-[44px] min-h-[44px] -m-1.5 flex items-center justify-center rounded text-muted-foreground hover:bg-surface-muted transition-base"><X size={13} /></button>
+                <button
+                  onClick={() => {
+                    if (newAnnotationDraft.text.trim()) onAddAnnotation({ page, kind: newAnnotationDraft.kind, x: newAnnotationDraft.x, y: newAnnotationDraft.y, text: newAnnotationDraft.text.trim() });
+                    setNewAnnotationDraft(null);
+                    setActiveTool("pan");
+                  }}
+                  aria-label="Lưu chú thích"
+                  className="w-7 h-7 min-w-[44px] min-h-[44px] -m-1.5 flex items-center justify-center rounded text-success hover:bg-success/10 transition-base"
+                ><Check size={13} /></button>
+              </div>
+            </div>
+          );
+        })()}
+
+        {menuAt && !viewOnly && (
+          <>
+            <div className="fixed inset-0 z-40" onMouseDown={() => setMenuAt(null)} />
+            <div
+              role="toolbar"
+              aria-label="Công cụ chú thích tài liệu"
+              style={{ left: menuAt.x, top: menuAt.y }}
+              className="absolute z-50 flex items-center gap-0.5 bg-white rounded-xl shadow-elev border border-border p-1"
+            >
+              {TOOLS.map(t => (
+                <button
+                  key={t.id}
+                  type="button"
+                  aria-label={t.label}
+                  title={t.label}
+                  aria-pressed={activeTool === t.id}
+                  onClick={() => { setActiveTool(t.id); setMenuAt(null); }}
+                  className={`w-9 h-9 min-w-[44px] min-h-[44px] -m-1.5 flex items-center justify-center rounded-lg cursor-pointer transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    activeTool === t.id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-surface-muted hover:text-foreground"
+                  }`}
+                >
+                  <t.Icon size={15} />
+                </button>
+              ))}
+            </div>
+          </>
         )}
       </div>
     </div>

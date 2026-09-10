@@ -4,13 +4,14 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { knowledgeChunkStore, type ChunkSourceType, type KnowledgeChunk, type ChunkContentType } from "./knowledgeChunkStore";
+import { knowledgeChunkStore, extractContentForBox, type ChunkSourceType, type KnowledgeChunk, type ChunkContentType, type ChunkBox } from "./knowledgeChunkStore";
 import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
 import { knowledgeUrlStore, type UrlSource } from "./knowledgeUrlStore";
 import { knowledgeStore } from "./knowledgeStore";
+import { documentAnnotationStore, type AnnotationKind } from "./documentAnnotationStore";
 import { KnowledgeStatusPill, type KnowledgeFaqStatus } from "./knowledgeStatus";
 import FileTypeIcon from "./FileTypeIcon";
-import DocumentPreviewPane, { MOCK_PAGES } from "./DocumentPreviewPane";
+import DocumentPreviewPane from "./DocumentPreviewPane";
 import HtmlTableEditor from "./HtmlTableEditor";
 
 const MOCK_CHUNK_SEED = [
@@ -77,10 +78,8 @@ function relativeTime(ts: number): string {
   return `${Math.floor(hours / 24)} ngày trước`;
 }
 
-/** Deterministic page assignment for a chunk (this prototype has no real per-chunk page
- * coordinates) — used to drive the two-way link between a chunk card and its preview page. */
-function pageForChunk(index: number): number {
-  return (index - 1) % MOCK_PAGES.length;
+function prefersReducedMotion(): boolean {
+  return typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 }
 
 /** kbId doubles as agentId when sourceType is "agent-item" — the chunk store never filters by
@@ -151,20 +150,25 @@ export default function ChunkViewerModal({
 
   const selectChunk = (c: KnowledgeChunk) => {
     setSelectedChunkId(c.id);
-    setPage(pageForChunk(c.index));
+    setPage(c.box.page);
   };
   const selectPage = (p: number) => {
     setPage(p);
-    const onPage = filteredChunks.find(c => pageForChunk(c.index) === p);
+    const onPage = filteredChunks.find(c => c.box.page === p);
     if (onPage) {
       setSelectedChunkId(onPage.id);
-      chunkRefs.current[onPage.id]?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      chunkRefs.current[onPage.id]?.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "nearest" });
     }
   };
   const gotoPage = (p: number) => { setPage(p); setSelectedChunkId(null); };
 
+  // Entering edit mode is one of the two ways (alongside clicking the card) that selecting a
+  // chunk must sync the left pane to its page and highlight — the Pencil button stops the
+  // card's own onClick from firing, so this has to do that syncing itself.
   const startEdit = (c: KnowledgeChunk) => {
     setEditingId(c.id);
+    setSelectedChunkId(c.id);
+    setPage(c.box.page);
     setDraftTitle(c.title);
     setDraftContent(c.content);
     setDraftType(c.contentType);
@@ -220,13 +224,54 @@ export default function ChunkViewerModal({
     setReprocessConfirm(false);
   };
 
-  const addChunkFromSelection = (text: string) => {
+  const addChunkFromSelection = (text: string, box: ChunkBox) => {
     const firstLine = text.split("\n")[0].slice(0, 60);
-    const chunk = knowledgeChunkStore.add(kbId, sourceType, sourceId, { title: firstLine, content: text });
+    const chunk = knowledgeChunkStore.add(kbId, sourceType, sourceId, { title: firstLine, content: text, box });
     refresh();
     setTimeout(() => { knowledgeChunkStore.updateStatus(chunk.id, "done"); refresh(); }, 900);
     startEdit({ ...chunk });
   };
+
+  /** "Draw a selection box" tool — marks a brand-new manual chunk region from scratch, with its
+   * content derived from whatever page text falls under the drawn box. */
+  const drawNewChunk = (box: ChunkBox) => {
+    const chunk = knowledgeChunkStore.add(kbId, sourceType, sourceId, { title: `Chunk mới`, content: extractContentForBox(box), box });
+    refresh();
+    setTimeout(() => { knowledgeChunkStore.updateStatus(chunk.id, "done"); refresh(); }, 900);
+    startEdit(chunk);
+  };
+
+  /** Dragging a chunk's bounding-box edges/corners on the page — re-derives its linked content
+   * from the new region, then simulates the same brief processing round-trip as every other
+   * edit in this modal. */
+  const resizeChunk = (id: string, box: ChunkBox) => {
+    knowledgeChunkStore.updateBox(id, box);
+    refresh();
+    setTimeout(() => { knowledgeChunkStore.updateStatus(id, "done"); refresh(); }, 900);
+  };
+
+  /** The floating label's "reprocess this chunk" quick action — same rule as "Xử lý lại": a
+   * no-op on a manually-edited chunk. */
+  const reprocessOneChunk = (id: string) => {
+    knowledgeChunkStore.reprocessOne(id);
+    refresh();
+    setTimeout(() => { knowledgeChunkStore.updateStatus(id, "done"); refresh(); }, 900);
+  };
+
+  /** The floating label's "confirm/save" quick action — marks the chunk done without opening
+   * the full editor, e.g. right after a resize or reprocess the user is happy with. */
+  const confirmChunk = (id: string) => {
+    knowledgeChunkStore.updateStatus(id, "done");
+    refresh();
+  };
+
+  const annotations = documentAnnotationStore.list(kbId, sourceType, sourceId);
+  const addAnnotation = (a: { page: number; kind: AnnotationKind; x: number; y: number; text?: string; path?: { x: number; y: number }[] }) => {
+    documentAnnotationStore.add({ kbId, sourceType, sourceId, ...a });
+    refresh();
+  };
+  const updateAnnotationText = (id: string, text: string) => { documentAnnotationStore.update(id, { text }); refresh(); };
+  const removeAnnotation = (id: string) => { documentAnnotationStore.remove(id); refresh(); };
 
   const isLoading = sourceStatus === "processing" && chunks.length === 0;
 
@@ -263,6 +308,17 @@ export default function ChunkViewerModal({
           <DocumentPreviewPane
             page={page}
             onPageChange={gotoPage}
+            chunks={chunks}
+            selectedChunkId={selectedChunkId}
+            onSelectChunk={selectChunk}
+            onResizeChunk={resizeChunk}
+            onReprocessChunk={reprocessOneChunk}
+            onConfirmChunk={confirmChunk}
+            onDrawNewChunk={drawNewChunk}
+            annotations={annotations}
+            onAddAnnotation={addAnnotation}
+            onUpdateAnnotationText={updateAnnotationText}
+            onRemoveAnnotation={removeAnnotation}
             selected={selectedChunkId !== null}
             onRegionClick={() => selectPage(page)}
             onSelectText={!viewOnly ? addChunkFromSelection : undefined}
@@ -339,7 +395,7 @@ export default function ChunkViewerModal({
                       <span className="text-xs font-semibold whitespace-nowrap">Chunk {c.index}</span>
                       {c.manuallyEdited && (
                         <button
-                          onClick={e => { e.stopPropagation(); setRevealUpdateFor(prev => { const n = new Set(prev); n.has(c.id) ? n.delete(c.id) : n.add(c.id); return n; }); }}
+                          onClick={e => { e.stopPropagation(); setRevealUpdateFor(prev => { const n = new Set(prev); if (n.has(c.id)) n.delete(c.id); else n.add(c.id); return n; }); }}
                           className="chip chip-warning !text-xs !px-1.5 !py-0 ml-1"
                         >
                           Đã chỉnh sửa thủ công
