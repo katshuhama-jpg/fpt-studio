@@ -438,16 +438,32 @@ export default function ExternalAgentDetail() {
                   <PanelLeftOpen size={15} />
                 </button>
               )}
-              <div className="rounded-xl border border-border p-4">
-                <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded-xl ${agent.bg} border border-border flex items-center justify-center text-2xl shrink-0`}>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowEdit(true)}
+                  aria-label="Edit agent avatar"
+                  className="relative shrink-0"
+                >
+                  <span className={`w-12 h-12 rounded-xl ${agent.bg} border border-border flex items-center justify-center text-2xl transition-base`}>
                     {agent.emoji}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-base font-semibold truncate">{agent.name}</p>
-                    <p className="text-sm text-muted-foreground truncate">{agent.description || "No description"}</p>
-                  </div>
+                  </span>
+                  <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-md bg-surface border border-border flex items-center justify-center pointer-events-none">
+                    <HugeiconsIcon icon={PencilEdit01Icon} size={9} className="text-muted-foreground" />
+                  </span>
+                </button>
+                <div className="flex-1 min-w-0">
+                  <p className="text-base font-semibold truncate">{agent.name}</p>
+                  <p className="text-sm text-muted-foreground truncate">{agent.description || "No description"}</p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setShowEdit(true)}
+                  aria-label="Edit connection"
+                  className="w-8 h-8 rounded-lg border border-border bg-surface flex items-center justify-center text-muted-foreground hover:bg-surface-muted transition-base shrink-0"
+                >
+                  <HugeiconsIcon icon={PencilEdit01Icon} size={14} />
+                </button>
               </div>
 
 
