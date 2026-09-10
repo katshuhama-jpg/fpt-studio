@@ -71,7 +71,6 @@ function resizeBox(start: ChunkBox, handle: HandleId, cur: { x: number; y: numbe
 
 const PAGE_BASE_WIDTH = 420;
 const PAGE_BASE_HEIGHT = 560;
-const PAGE_ASPECT = PAGE_BASE_WIDTH / PAGE_BASE_HEIGHT;
 
 function prefersReducedMotion(): boolean {
   return typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -124,7 +123,7 @@ export default function DocumentPreviewPane({
   // no box at all, instead of an empty placeholder.
   const [measuredBoxes, setMeasuredBoxes] = useState<Record<string, ChunkBox>>({});
   // The pane's own available drawing area (its size minus the fixed padding/toolbar clearance
-  // below), used to fit the page to it — see the layout effect below.
+  // below), used to fill the page to it — see the layout effect below.
   const [availSize, setAvailSize] = useState({ width: PAGE_BASE_WIDTH, height: PAGE_BASE_HEIGHT });
   const containerRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
@@ -148,16 +147,17 @@ export default function DocumentPreviewPane({
     };
   };
 
-  // Fits the page to the pane's available space (contain-fit: fills whichever of width/height is
-  // the tighter constraint, preserving the page's own aspect ratio) instead of floating as a
-  // small fixed-size rectangle inside a much larger container. Re-measures on any resize of the
-  // pane itself — window resize, or dragging ChunkViewerModal's own left/right pane splitter.
+  // Stretches the page to fill the pane's available space edge-to-edge on both axes (minus a
+  // small, consistent margin), instead of floating as a small fixed-size rectangle — or a
+  // fixed-aspect-ratio box leaving blank margins on one axis — inside a much larger container.
+  // Re-measures on any resize of the pane itself — window resize, or dragging ChunkViewerModal's
+  // own left/right pane splitter.
   useLayoutEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const PAD_X = 48; // px-6 on both sides of the scroll container below
+    const PAD_X = 32; // px-4 on both sides of the scroll container below
     const PAD_TOP = 80; // pt-20, clears the floating page-nav/zoom toolbar
-    const PAD_BOTTOM = 32; // pb-8
+    const PAD_BOTTOM = 16; // pb-4
     const update = () => {
       setAvailSize({
         width: Math.max(120, el.clientWidth - PAD_X),
@@ -170,13 +170,9 @@ export default function DocumentPreviewPane({
     return () => ro.disconnect();
   }, []);
 
-  const fitWidth = (() => {
-    const w = availSize.width;
-    const h = w / PAGE_ASPECT;
-    return h > availSize.height ? availSize.height * PAGE_ASPECT : w;
-  })();
-  const fitHeight = fitWidth / PAGE_ASPECT;
-  // How much bigger/smaller the fitted page is than its nominal 420x560 baseline — text and
+  const fitWidth = availSize.width;
+  const fitHeight = availSize.height;
+  // How much bigger/smaller the filled page is than its nominal 420-wide baseline — text and
   // padding scale with it so a page that now fills a much larger pane doesn't end up as a big
   // blank sheet with the same small fixed-size text floating in a corner.
   const fitScale = fitWidth / PAGE_BASE_WIDTH;
@@ -410,7 +406,7 @@ export default function DocumentPreviewPane({
 
       <div
         ref={containerRef}
-        className="relative flex-1 overflow-auto pt-20 pb-8 px-6 flex items-start justify-center"
+        className="relative flex-1 overflow-auto pt-20 pb-4 px-4 flex items-start justify-center"
         onMouseUp={handleMouseUp}
         onContextMenu={handleContextMenu}
       >
