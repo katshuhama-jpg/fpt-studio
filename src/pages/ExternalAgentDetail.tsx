@@ -551,7 +551,7 @@ export default function ExternalAgentDetail() {
                   </div>
                 </InfoRow>
                 <InfoRow label="Base URL">
-                  <span className="font-mono text-sm break-all">{agent.baseUrl}</span>
+                  <span className="text-sm break-all">{agent.baseUrl}</span>
                 </InfoRow>
                 <InfoRow label="Authentication">
                   {agent.authMethod === "bearer" ? "Bearer Token" : agent.authMethod === "headers" ? "Headers (optional)" : "None"}
@@ -639,7 +639,7 @@ export default function ExternalAgentDetail() {
                   {agent.allowedAuthorizeHosts.length > 0 ? (
                     <div className="flex flex-col items-start gap-1.5">
                       {agent.allowedAuthorizeHosts.map(host => (
-                        <span key={host} className="inline-flex items-center h-6 px-2 rounded-md bg-surface-muted border border-border text-sm font-mono">
+                        <span key={host} className="inline-flex items-center h-6 px-2 rounded-md bg-surface-muted border border-border text-sm">
                           {host}
                         </span>
                       ))}
@@ -698,7 +698,7 @@ export default function ExternalAgentDetail() {
                           <tr key={e.path} className={`border-t border-border ${!e.required ? "bg-surface-muted/50" : ""}`}>
                             <td className="px-3 py-2 whitespace-nowrap">
                               <div className="flex items-center gap-1.5">
-                                <span className={`font-mono text-sm ${!e.required ? "text-muted-foreground" : ""}`}>{e.method} {e.path}</span>
+                                <span className={`text-sm ${!e.required ? "text-muted-foreground" : ""}`}>{e.method} {e.path}</span>
                                 {e.required ? (
                                   <span className="inline-flex items-center text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border chip-success">Required</span>
                                 ) : (

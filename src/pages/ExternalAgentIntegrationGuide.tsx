@@ -240,11 +240,11 @@ export default function ExternalAgentIntegrationGuide() {
             <Table
               head={["Method", "Path", "Response", "Purpose", "Required"]}
               rows={[
-                ["POST", <span className="font-mono">{"{base}/runs"}</span>, "text/event-stream", "Runs one turn of the conversation.", "Required"],
-                ["GET", <span className="font-mono">{"{base}/health"}</span>, "application/json", "Liveness and supported protocol versions.", "Required"],
-                ["GET", <span className="font-mono">{"{base}/tools"}</span>, "application/json", "Declares tools and any per-user credential each one needs.", "Optional"],
-                ["POST", <span className="font-mono">{"{base}/credentials"}</span>, "application/json", "Receives a credential the user just entered.", "Optional"],
-                ["POST", <span className="font-mono">{"{base}/credentials/revoke"}</span>, "application/json", "Deletes a previously stored credential.", "Optional"],
+                ["POST", <span>{"{base}/runs"}</span>, "text/event-stream", "Runs one turn of the conversation.", "Required"],
+                ["GET", <span>{"{base}/health"}</span>, "application/json", "Liveness and supported protocol versions.", "Required"],
+                ["GET", <span>{"{base}/tools"}</span>, "application/json", "Declares tools and any per-user credential each one needs.", "Optional"],
+                ["POST", <span>{"{base}/credentials"}</span>, "application/json", "Receives a credential the user just entered.", "Optional"],
+                ["POST", <span>{"{base}/credentials/revoke"}</span>, "application/json", "Deletes a previously stored credential.", "Optional"],
               ]}
             />
             <p className="text-sm text-muted-foreground leading-relaxed">

@@ -88,7 +88,7 @@ export default function ExternalAgentTestTab({ agent }: { agent: ExternalAgent }
       <div className="px-8 pt-8 pb-4 shrink-0 border-b border-border">
         <h2 className="font-display text-xl font-semibold">Test</h2>
         <p className="text-sm text-muted-foreground mt-0.5">
-          Send a real turn to <span className="font-mono">{agent.baseUrl}/runs</span> and see how it responds before publishing.
+          Send a real turn to <span>{agent.baseUrl}/runs</span> and see how it responds before publishing.
         </p>
       </div>
 

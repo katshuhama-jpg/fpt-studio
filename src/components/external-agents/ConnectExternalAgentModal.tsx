@@ -409,7 +409,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
                     onChange={e => { setBaseUrl(e.target.value); clearError("baseUrl"); }}
                     onBlur={() => setErrors(er => ({ ...er, baseUrl: validateField("baseUrl") }))}
                     placeholder="https://agent.example.com"
-                    className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm font-mono outline-none transition-base ${
+                    className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm outline-none transition-base ${
                       errors.baseUrl ? "border-destructive" : "border-border focus:border-primary"
                     }`}
                   />
@@ -544,7 +544,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
                     <div className="space-y-1.5 mb-1.5">
                       {allowedHosts.map(host => (
                         <div key={host} className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface">
-                          <span className="text-sm font-mono truncate">{host}</span>
+                          <span className="text-sm truncate">{host}</span>
                           <button
                             type="button"
                             onClick={() => removeHost(host)}
@@ -570,7 +570,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
                     }}
                     onBlur={() => { if (hostInput.trim()) addHost(hostInput); else setErrors(er => ({ ...er, hosts: validateField("hosts") })); }}
                     placeholder="auth.partner.com"
-                    className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm font-mono outline-none transition-base ${
+                    className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm outline-none transition-base ${
                       errors.hosts ? "border-destructive" : "border-border focus:border-primary"
                     }`}
                   />
