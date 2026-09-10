@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { Search, Zap, CheckCircle2, ThumbsDown } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Search01Icon, BoltIcon, CheckmarkCircle01Icon, ThumbsDownIcon } from "@hugeicons/core-free-icons";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { externalAgentStore, type HistoryEntry } from "./externalAgentStore";
 
@@ -12,9 +13,9 @@ function formatTimestamp(ts: number): string {
 }
 
 function EntryIcon({ summary }: { summary: string }) {
-  if (summary.startsWith("Rejected by")) return <ThumbsDown size={15} className="text-destructive shrink-0" />;
-  if (summary === "Published" || summary.startsWith("Approved by")) return <CheckCircle2 size={15} className="text-success shrink-0" />;
-  return <Zap size={15} className="text-primary shrink-0" />;
+  if (summary.startsWith("Rejected by")) return <HugeiconsIcon icon={ThumbsDownIcon} size={15} className="text-destructive shrink-0" />;
+  if (summary === "Published" || summary.startsWith("Approved by")) return <HugeiconsIcon icon={CheckmarkCircle01Icon} size={15} className="text-success shrink-0" />;
+  return <HugeiconsIcon icon={BoltIcon} size={15} className="text-primary shrink-0" />;
 }
 
 export default function ExternalAgentActivityTab({ agentId }: { agentId: string }) {
@@ -47,7 +48,7 @@ export default function ExternalAgentActivityTab({ agentId }: { agentId: string 
       </div>
 
       <div className="relative mb-2.5">
-        <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
         <input
           value={query}
           onChange={e => { setQuery(e.target.value); setVisibleCount(PAGE_SIZE); }}

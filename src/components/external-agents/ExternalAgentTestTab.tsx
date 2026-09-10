@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
-import { Send, Loader2, CheckCircle2, XCircle, CircleHelp } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { SentIcon, Loading01Icon, CheckmarkCircle01Icon, CancelCircleIcon, HelpCircleIcon } from "@hugeicons/core-free-icons";
 import type { ExternalAgent } from "./externalAgentStore";
 
 type Outcome = "success" | "error" | "interrupt";
@@ -42,14 +43,13 @@ function hashString(s: string): number {
 
 function OutcomeBadge({ outcome, durationMs, runId }: { outcome: Outcome; durationMs: number; runId: string }) {
   const meta = outcome === "success"
-    ? { icon: CheckCircle2, cls: "text-success", label: "Success" }
+    ? { icon: CheckmarkCircle01Icon, cls: "text-success", label: "Success" }
     : outcome === "error"
-    ? { icon: XCircle, cls: "text-destructive", label: "Error" }
-    : { icon: CircleHelp, cls: "text-warning", label: "Interrupt" };
-  const Icon = meta.icon;
+    ? { icon: CancelCircleIcon, cls: "text-destructive", label: "Error" }
+    : { icon: HelpCircleIcon, cls: "text-warning", label: "Interrupt" };
   return (
     <div className={`flex items-center gap-1.5 mt-1.5 text-[11px] ${meta.cls}`}>
-      <Icon size={11} />
+      <HugeiconsIcon icon={meta.icon} size={11} />
       <span className="font-mono">{runId}</span>
       <span>·</span>
       <span>{(durationMs / 1000).toFixed(1)}s</span>
@@ -122,7 +122,7 @@ export default function ExternalAgentTestTab({ agent }: { agent: ExternalAgent }
         {running && (
           <div className="flex justify-start">
             <div className="flex items-center gap-2 text-xs text-muted-foreground bg-surface-muted border border-border rounded-2xl rounded-bl-sm px-3.5 py-2.5">
-              <Loader2 size={12} className="animate-spin" /> Waiting for a response...
+              <HugeiconsIcon icon={Loading01Icon} size={12} className="animate-spin" /> Waiting for a response...
             </div>
           </div>
         )}
@@ -144,7 +144,7 @@ export default function ExternalAgentTestTab({ agent }: { agent: ExternalAgent }
             className="h-10 w-10 rounded-lg bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-40 disabled:pointer-events-none transition-base shrink-0"
             aria-label="Send"
           >
-            <Send size={15} />
+            <HugeiconsIcon icon={SentIcon} size={15} />
           </button>
         </div>
       </div>

@@ -6,7 +6,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Check, X, Eye, EyeOff, Loader2, AlertTriangle, Pencil, Trash2, Plus } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import {
+  Tick02Icon, Cancel01Icon, EyeIcon, EyeOffIcon, Loading01Icon, Alert01Icon,
+  PencilEdit01Icon, Delete01Icon, Add01Icon,
+} from "@hugeicons/core-free-icons";
 import {
   externalAgentStore, runValidation, type AuthMethod, type ExternalAgent, type ValidationResult,
   type HistoryDeliveryMode,
@@ -302,7 +306,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
                 <span className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-semibold shrink-0 transition-base ${
                   step === "validate" ? "bg-primary-soft text-primary" : "bg-primary text-primary-foreground"
                 }`}>
-                  {step === "validate" ? <Check size={11} /> : "1"}
+                  {step === "validate" ? <HugeiconsIcon icon={Tick02Icon} size={11} /> : "1"}
                 </span>
                 <span className={`text-xs font-medium transition-base ${step === "connection" ? "text-foreground" : "text-muted-foreground"}`}>
                   Connection
@@ -338,7 +342,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
                       {avatarEmoji}
                     </button>
                     <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-md bg-surface border border-border flex items-center justify-center pointer-events-none">
-                      <Pencil size={9} className="text-muted-foreground" />
+                      <HugeiconsIcon icon={PencilEdit01Icon} size={9} className="text-muted-foreground" />
                     </span>
                     {showAvatarPicker && (
                       <>
@@ -466,7 +470,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
                           onClick={() => setShowToken(v => !v)}
                           className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-base"
                         >
-                          {showToken ? <EyeOff size={12} /> : <Eye size={12} />} {showToken ? "Hide" : "Show"}
+                          {showToken ? <HugeiconsIcon icon={EyeOffIcon} size={12} /> : <HugeiconsIcon icon={EyeIcon} size={12} />} {showToken ? "Hide" : "Show"}
                         </button>
                       </div>
                     )}
@@ -504,7 +508,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
                               aria-label={visibleHeaderIdx.has(i) ? "Hide value" : "Show value"}
                               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-base"
                             >
-                              {visibleHeaderIdx.has(i) ? <EyeOff size={13} /> : <Eye size={13} />}
+                              {visibleHeaderIdx.has(i) ? <HugeiconsIcon icon={EyeOffIcon} size={13} /> : <HugeiconsIcon icon={EyeIcon} size={13} />}
                             </button>
                           </div>
                           <button
@@ -516,7 +520,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
                             aria-label="Remove header"
                             className="shrink-0 w-9 h-9 rounded-lg border border-border bg-surface hover:bg-surface-muted flex items-center justify-center text-muted-foreground hover:text-destructive transition-base"
                           >
-                            <Trash2 size={14} />
+                            <HugeiconsIcon icon={Delete01Icon} size={14} />
                           </button>
                         </div>
                       ))}
@@ -525,7 +529,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
                         onClick={() => setHeaders(hs => [...hs, { key: "", value: "" }])}
                         className="w-full h-9 rounded-lg border border-dashed border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:border-primary/40 transition-base flex items-center justify-center gap-1.5"
                       >
-                        <Plus size={13} /> Add header
+                        <HugeiconsIcon icon={Add01Icon} size={13} /> Add header
                       </button>
                     </div>
                     <p className="mt-1.5 text-[11px] text-muted-foreground leading-relaxed">
@@ -547,7 +551,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
                             aria-label={`Remove ${host}`}
                             className="shrink-0 text-muted-foreground hover:text-foreground transition-base"
                           >
-                            <X size={13} />
+                            <HugeiconsIcon icon={Cancel01Icon} size={13} />
                           </button>
                         </div>
                       ))}
@@ -589,7 +593,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
               <div>
                 {checking && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-                    <Loader2 size={14} className="animate-spin" /> Checking connection...
+                    <HugeiconsIcon icon={Loading01Icon} size={14} className="animate-spin" /> Checking connection...
                   </div>
                 )}
                 <div className="space-y-3">
@@ -598,7 +602,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
                       <span className={`mt-0.5 w-4 h-4 rounded-full flex items-center justify-center shrink-0 ${
                         !row.pass ? "bg-destructive/15 text-destructive" : row.warn ? "bg-warning/15 text-warning" : "bg-success/15 text-success"
                       }`}>
-                        {!row.pass ? <X size={11} /> : row.warn ? <AlertTriangle size={10} /> : <Check size={11} />}
+                        {!row.pass ? <HugeiconsIcon icon={Cancel01Icon} size={11} /> : row.warn ? <HugeiconsIcon icon={Alert01Icon} size={10} /> : <HugeiconsIcon icon={Tick02Icon} size={11} />}
                       </span>
                       <div className="min-w-0">
                         <p className={`text-sm font-medium ${!row.pass ? "text-destructive" : row.warn ? "text-warning" : "text-foreground"}`}>

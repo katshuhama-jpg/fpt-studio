@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Search, X, Copy, Check } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Search01Icon, Cancel01Icon, Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { startOfDay, endOfDay } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import { TimeRangeFilter, type TimeFilter } from "@/components/history/TimeRangeFilter";
@@ -63,7 +64,7 @@ function TranscriptPanel({ conversation, hidden, onClose }: { conversation: Exte
                 aria-label="Close"
                 className="h-7 w-7 shrink-0 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base"
               >
-                <X size={16} />
+                <HugeiconsIcon icon={Cancel01Icon} size={16} />
               </button>
             </div>
             <div className="flex items-center gap-1 mt-2 min-w-0">
@@ -75,7 +76,7 @@ function TranscriptPanel({ conversation, hidden, onClose }: { conversation: Exte
                 title="Copy conversation ID"
                 className="h-5 w-5 shrink-0 flex items-center justify-center rounded text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base"
               >
-                {copied ? <Check size={11} className="text-success" /> : <Copy size={11} />}
+                {copied ? <HugeiconsIcon icon={Tick02Icon} size={11} className="text-success" /> : <HugeiconsIcon icon={Copy01Icon} size={11} />}
               </button>
             </div>
           </div>
@@ -180,7 +181,7 @@ export default function ExternalAgentHistoryTab({ agentId }: { agentId: string }
           <p className="text-xs text-muted-foreground mt-0.5">See past conversations between this agent and its users.</p>
 
           <div className="relative mt-4">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               value={query}
               onChange={e => setQuery(e.target.value)}

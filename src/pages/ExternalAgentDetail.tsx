@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import {
-  ChevronLeft, ChevronRight, MoreHorizontal, Copy, Check, RefreshCw, AlertTriangle, Globe,
-  FileEdit, BookOpen, Eye, EyeOff, PanelLeftOpen, PanelLeftClose,
-} from "lucide-react";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { PencilEdit01Icon, FlaskConicalIcon, GridViewIcon, Analytics01Icon } from "@hugeicons/core-free-icons";
+import {
+  PencilEdit01Icon, FlaskConicalIcon, GridViewIcon, Analytics01Icon,
+  ChevronLeftIcon, ChevronRightIcon, MoreHorizontalIcon, Copy01Icon, Tick02Icon, Loading01Icon,
+  Alert01Icon, Globe02Icon, FileEditIcon, BookOpen01Icon, EyeIcon, EyeOffIcon,
+  PanelLeftOpenIcon, PanelLeftCloseIcon,
+} from "@hugeicons/core-free-icons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
@@ -49,7 +50,7 @@ function CopyButton({ value }: { value: string }) {
       aria-label="Copy"
       className="text-muted-foreground hover:text-foreground transition-base shrink-0"
     >
-      {copied ? <Check size={13} className="text-success" /> : <Copy size={13} />}
+      {copied ? <HugeiconsIcon icon={Tick02Icon} size={13} className="text-success" /> : <HugeiconsIcon icon={Copy01Icon} size={13} />}
     </button>
   );
 }
@@ -63,7 +64,7 @@ function CopyBlock({ code }: { code: string }) {
         onClick={() => { navigator.clipboard?.writeText(code).catch(() => {}); setCopied(true); setTimeout(() => setCopied(false), 1200); }}
         className="absolute top-2 right-2 flex items-center gap-1 h-7 px-2 rounded-md bg-white border border-border text-[11px] font-medium text-muted-foreground hover:text-foreground transition-base"
       >
-        {copied ? <Check size={11} className="text-success" /> : <Copy size={11} />} {copied ? "Copied" : "Copy"}
+        {copied ? <HugeiconsIcon icon={Tick02Icon} size={11} className="text-success" /> : <HugeiconsIcon icon={Copy01Icon} size={11} />} {copied ? "Copied" : "Copy"}
       </button>
       <pre className="text-[11px] font-mono p-3 pr-16 overflow-x-auto whitespace-pre-wrap break-all">{code}</pre>
     </div>
@@ -169,7 +170,7 @@ export default function ExternalAgentDetail() {
   if (loadState === "error") {
     return (
       <div className="flex flex-col h-full bg-background items-center justify-center text-center px-6">
-        <AlertTriangle size={22} className="text-muted-foreground/60 mb-3" />
+        <HugeiconsIcon icon={Alert01Icon} size={22} className="text-muted-foreground/60 mb-3" />
         <p className="text-sm text-muted-foreground max-w-md mb-4">We couldn't load your external agents. Please try again.</p>
         <button onClick={hardRefresh} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Retry</button>
       </div>
@@ -179,7 +180,7 @@ export default function ExternalAgentDetail() {
   if (!agent) {
     return (
       <div className="flex flex-col h-full bg-background items-center justify-center text-center px-6">
-        <Globe size={22} className="text-muted-foreground/60 mb-3" />
+        <HugeiconsIcon icon={Globe02Icon} size={22} className="text-muted-foreground/60 mb-3" />
         <p className="text-sm text-muted-foreground max-w-md mb-4">This external agent doesn't exist or was deleted.</p>
         <Link to="/external-agents" className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base flex items-center">
           Back to External Agents
@@ -228,7 +229,7 @@ export default function ExternalAgentDetail() {
       <div className="min-h-14 border-b border-border bg-surface flex flex-wrap items-center gap-3 px-4 py-2.5 shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <button onClick={() => navigate("/external-agents")} className="h-8 w-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0">
-            <ChevronLeft size={16} />
+            <HugeiconsIcon icon={ChevronLeftIcon} size={16} />
           </button>
           <Link to="/external-agents" className="text-xs text-muted-foreground hover:text-foreground transition-base shrink-0 hidden sm:inline">External Agents</Link>
           <span className="text-xs text-muted-foreground/50 shrink-0 hidden sm:inline">/</span>
@@ -341,7 +342,7 @@ export default function ExternalAgentDetail() {
               aria-label="External agent actions"
               className="h-9 w-9 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base"
             >
-              <MoreHorizontal size={16} />
+              <HugeiconsIcon icon={MoreHorizontalIcon} size={16} />
             </button>
             {showMenu && (
               <>
@@ -395,7 +396,7 @@ export default function ExternalAgentDetail() {
                   style={{ height: "36px", fontSize: "14px" }}
                   className="w-full flex items-center rounded-lg px-2.5 transition-base shrink-0 bg-primary-soft text-primary font-medium"
                 >
-                  <FileEdit size={18} className="shrink-0" />
+                  <HugeiconsIcon icon={FileEditIcon} size={18} className="shrink-0" />
                   <span className="flex-1 text-left truncate ml-2.5">Instructions</span>
                 </button>
               </nav>
@@ -412,7 +413,7 @@ export default function ExternalAgentDetail() {
                     {setupChecklist.map(item => (
                       <div key={item.label} className="flex items-center gap-1.5 text-xs">
                         {item.done
-                          ? <Check size={11} className="text-primary shrink-0" />
+                          ? <HugeiconsIcon icon={Tick02Icon} size={11} className="text-primary shrink-0" />
                           : <span className="w-3 h-3 rounded-full border-2 border-muted-foreground shrink-0 inline-block" />}
                         <span className={item.done ? "text-primary" : "text-muted-foreground"}>{item.label}</span>
                       </div>
@@ -423,7 +424,7 @@ export default function ExternalAgentDetail() {
                   onClick={() => setSidebarCollapsed(true)}
                   className="w-full h-8 rounded-lg border border-border bg-surface text-muted-foreground hover:bg-surface-muted text-xs font-medium flex items-center justify-center gap-1.5 transition-base"
                 >
-                  <PanelLeftClose size={13} /> Collapse sidebar
+                  <HugeiconsIcon icon={PanelLeftCloseIcon} size={13} /> Collapse sidebar
                 </button>
               </div>
             </aside>
@@ -435,7 +436,7 @@ export default function ExternalAgentDetail() {
                   aria-label="Open sidebar"
                   className="w-8 h-8 rounded-lg border border-border bg-surface flex items-center justify-center text-muted-foreground hover:bg-surface-muted transition-base"
                 >
-                  <PanelLeftOpen size={15} />
+                  <HugeiconsIcon icon={PanelLeftOpenIcon} size={15} />
                 </button>
               )}
               <div className="flex items-center gap-3">
@@ -471,14 +472,14 @@ export default function ExternalAgentDetail() {
                 to="/external-agents/guides/integration"
                 className="flex items-center gap-3 rounded-xl border border-border px-4 py-3 hover:bg-surface-muted transition-base"
               >
-                <BookOpen size={16} className="text-primary shrink-0" />
+                <HugeiconsIcon icon={BookOpen01Icon} size={16} className="text-primary shrink-0" />
                 <span className="text-sm font-medium flex-1">New to external agents? Read the integration guide</span>
-                <ChevronRight size={14} className="text-muted-foreground shrink-0" />
+                <HugeiconsIcon icon={ChevronRightIcon} size={14} className="text-muted-foreground shrink-0" />
               </Link>
 
               {justUnpublished && (
                 <div className="flex items-start gap-2.5 rounded-lg border border-warning/25 bg-[hsl(var(--warning-soft))] px-3.5 py-3">
-                  <AlertTriangle size={14} className="shrink-0 mt-0.5 text-warning" />
+                  <HugeiconsIcon icon={Alert01Icon} size={14} className="shrink-0 mt-0.5 text-warning" />
                   <div className="min-w-0 flex-1">
                     <p className="text-xs text-warning leading-relaxed">
                       This agent was unpublished because its connection was edited. Submit it for approval again to make it live.
@@ -501,7 +502,7 @@ export default function ExternalAgentDetail() {
 
               {agent.status === "rejected" && agent.rejection && (
                 <div className="flex items-start gap-2.5 rounded-lg border border-destructive/25 bg-[hsl(var(--destructive-soft))] px-3.5 py-3">
-                  <AlertTriangle size={14} className="shrink-0 mt-0.5 text-destructive" />
+                  <HugeiconsIcon icon={Alert01Icon} size={14} className="shrink-0 mt-0.5 text-destructive" />
                   <p className="text-xs text-destructive leading-relaxed min-w-0 flex-1">
                     Rejected: {agent.rejection.reason}
                   </p>
@@ -510,7 +511,7 @@ export default function ExternalAgentDetail() {
 
               {agent.lastHealthCheckOk === false && (
                 <div className="flex items-start gap-2.5 rounded-lg border border-destructive/25 bg-[hsl(var(--destructive-soft))] px-3.5 py-3">
-                  <AlertTriangle size={14} className="shrink-0 mt-0.5 text-destructive" />
+                  <HugeiconsIcon icon={Alert01Icon} size={14} className="shrink-0 mt-0.5 text-destructive" />
                   <div className="min-w-0 flex-1">
                     <p className="text-xs text-destructive leading-relaxed">
                       This agent has been unreachable since{" "}
@@ -530,7 +531,7 @@ export default function ExternalAgentDetail() {
                       }}
                       className="mt-1.5 text-xs font-semibold text-destructive hover:underline disabled:opacity-50 flex items-center gap-1"
                     >
-                      {checkingHealth && <RefreshCw size={11} className="animate-spin" />}
+                      {checkingHealth && <HugeiconsIcon icon={Loading01Icon} size={11} className="animate-spin" />}
                       Run check now
                     </button>
                   </div>
@@ -572,7 +573,7 @@ export default function ExternalAgentDetail() {
                             onClick={() => setShowNewToken(v => !v)}
                             className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-base"
                           >
-                            {showNewToken ? <EyeOff size={12} /> : <Eye size={12} />} {showNewToken ? "Hide" : "Show"}
+                            {showNewToken ? <HugeiconsIcon icon={EyeOffIcon} size={12} /> : <HugeiconsIcon icon={EyeIcon} size={12} />} {showNewToken ? "Hide" : "Show"}
                           </button>
                         </div>
                         <div className="flex items-center gap-2">
@@ -582,7 +583,7 @@ export default function ExternalAgentDetail() {
                             onClick={submitReplaceToken}
                             className="btn-primary h-8 px-3 text-xs disabled:opacity-40 disabled:pointer-events-none flex items-center gap-1.5"
                           >
-                            {replaceChecking && <RefreshCw size={11} className="animate-spin" />} Save token
+                            {replaceChecking && <HugeiconsIcon icon={Loading01Icon} size={11} className="animate-spin" />} Save token
                           </button>
                           <button
                             type="button"
@@ -603,7 +604,7 @@ export default function ExternalAgentDetail() {
                         </div>
                         {replaceResult && (
                           <p className={`text-xs flex items-center gap-1 ${replaceResult.passed ? "text-success" : "text-destructive"}`}>
-                            {replaceResult.passed ? <Check size={11} /> : <AlertTriangle size={11} />}
+                            {replaceResult.passed ? <HugeiconsIcon icon={Tick02Icon} size={11} /> : <HugeiconsIcon icon={Alert01Icon} size={11} />}
                             {replaceResult.passed ? "New token validated successfully." : "The new token failed validation — this agent may stop responding."}
                           </p>
                         )}
@@ -674,7 +675,7 @@ export default function ExternalAgentDetail() {
                       }}
                       className="h-7 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-xs font-medium transition-base disabled:opacity-50 flex items-center gap-1.5"
                     >
-                      {checkingHealth && <RefreshCw size={11} className="animate-spin" />}
+                      {checkingHealth && <HugeiconsIcon icon={Loading01Icon} size={11} className="animate-spin" />}
                       Recheck now
                     </button>
                   </div>

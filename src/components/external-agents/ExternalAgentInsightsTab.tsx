@@ -1,13 +1,14 @@
 import { useSearchParams } from "react-router-dom";
-import { BarChart3, History, Activity as ActivityIcon } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { BarChartIcon, HistoryIcon, Activity01Icon } from "@hugeicons/core-free-icons";
 import { externalAgentConversationStore } from "./externalAgentConversationStore";
 import ExternalAgentHistoryTab from "./ExternalAgentHistoryTab";
 import ExternalAgentActivityTab from "./ExternalAgentActivityTab";
 
 const SUBTABS = [
-  { id: "performance", label: "Performance", Icon: BarChart3 },
-  { id: "history", label: "History", Icon: History },
-  { id: "activity", label: "Activity", Icon: ActivityIcon },
+  { id: "performance", label: "Performance", Icon: BarChartIcon },
+  { id: "history", label: "History", Icon: HistoryIcon },
+  { id: "activity", label: "Activity", Icon: Activity01Icon },
 ];
 
 /** Performance — same stat-card + bar-chart layout as the internal Agent's Insights, but every
@@ -103,7 +104,7 @@ export default function ExternalAgentInsightsTab({ agentId }: { agentId: string 
                 sub === s.id ? "bg-primary-soft text-primary font-medium" : "text-foreground hover:bg-surface-muted"
               }`}
             >
-              <s.Icon size={18} className="shrink-0" />
+              <HugeiconsIcon icon={s.Icon} size={18} className="shrink-0" />
               <span className="flex-1 text-left truncate ml-2.5">{s.label}</span>
             </button>
           ))}
