@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Plus, RefreshCw, Check, X, Trash2,
   Hand, MessageSquare, Square, PenTool, Type,
@@ -90,8 +90,14 @@ export default function DocumentPreviewPane({
   const [freehandLive, setFreehandLive] = useState<{ x: number; y: number }[] | null>(null);
   const [newAnnotationDraft, setNewAnnotationDraft] = useState<AnnotationDraft | null>(null);
   const [openAnnotationId, setOpenAnnotationId] = useState<string | null>(null);
+  // The box actually drawn for each chunk — measured from where its real content sits in the
+  // rendered page text (see the layout effect below), never from box.x/y/width/height directly.
+  // A chunk absent from this map genuinely has no matching text on the current page and renders
+  // no box at all, instead of an empty placeholder.
+  const [measuredBoxes, setMeasuredBoxes] = useState<Record<string, ChunkBox>>({});
   const containerRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
+  const paragraphRef = useRef<HTMLParagraphElement>(null);
   const dragRef = useRef<DragState | null>(null);
   // A mousedown+mousemove+mouseup sequence still fires a trailing native "click" on whatever's
   // under the pointer at mouseup — without this, that stray click re-runs handlePageClick's
@@ -117,6 +123,64 @@ export default function DocumentPreviewPane({
   useEffect(() => {
     containerRef.current?.scrollTo({ top: 0, behavior: prefersReducedMotion() ? "auto" : "smooth" });
   }, [page]);
+
+  // Measures each on-page chunk's REAL box from where its content actually sits in the rendered
+  // page text, instead of trusting box.x/y/width/height (which — especially once several chunks
+  // share a page — has no guaranteed relationship to where the text they were extracted from
+  // ends up on screen). A chunk whose content can't be found verbatim on this page, or whose
+  // measured region collapses to zero size, is left out of the map entirely — see the render
+  // loop below, which renders nothing for a chunk that isn't in `measuredBoxes` rather than an
+  // empty placeholder. Re-measures on page/zoom/content changes and on any layout-affecting
+  // resize of the page element itself (e.g. dragging the pane's own splitter).
+  useLayoutEffect(() => {
+    const pageEl = pageRef.current;
+    const pEl = paragraphRef.current;
+    if (!pageEl || !pEl) { setMeasuredBoxes({}); return; }
+
+    const measure = () => {
+      const textNode = pEl.firstChild;
+      const pageRect = pageEl.getBoundingClientRect();
+      if (!textNode || pageRect.width === 0 || pageRect.height === 0) { setMeasuredBoxes({}); return; }
+      const next: Record<string, ChunkBox> = {};
+      for (const c of boxesOnPage) {
+        const idx = text.indexOf(c.content);
+        if (idx === -1 || c.content.trim().length === 0) {
+          if (import.meta.env.DEV) {
+            console.warn(`[DocumentPreviewPane] Chunk ${c.index} (${c.id}) content not found on page ${page + 1} of the rendered document — its box is suppressed instead of shown empty.`);
+          }
+          continue;
+        }
+        const range = document.createRange();
+        try {
+          range.setStart(textNode, idx);
+          range.setEnd(textNode, idx + c.content.length);
+        } catch {
+          continue;
+        }
+        const rect = range.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) {
+          if (import.meta.env.DEV) {
+            console.warn(`[DocumentPreviewPane] Chunk ${c.index} (${c.id}) measured a zero-size box on page ${page + 1} — suppressed instead of shown empty.`);
+          }
+          continue;
+        }
+        next[c.id] = {
+          page,
+          x: (rect.left - pageRect.left) / pageRect.width,
+          y: (rect.top - pageRect.top) / pageRect.height,
+          width: rect.width / pageRect.width,
+          height: rect.height / pageRect.height,
+        };
+      }
+      setMeasuredBoxes(next);
+    };
+
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(pageEl);
+    return () => ro.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, zoom, text, boxesOnPage.map(c => `${c.id}:${c.content}`).join("|")]);
 
   useEffect(() => {
     if (!menuAt) return;
@@ -295,12 +359,17 @@ export default function DocumentPreviewPane({
           className={`relative bg-white shadow-elev rounded-sm p-8 text-sm leading-relaxed text-foreground/90 select-text transition-base ${cursorClass} ${selected ? "ring-2 ring-primary/60" : ""}`}
           style={{ width: 420 * zoom, minHeight: 560 * zoom, fontSize: 13 * zoom }}
         >
-          <p className="relative z-0 pointer-events-none">{text}</p>
+          <p ref={paragraphRef} className="relative z-0 pointer-events-none">{text}</p>
 
           {boxesOnPage.map(c => {
             const isSelected = c.id === selectedChunkId;
             const pending = liveResize && liveResize.chunkId === c.id ? liveResize.box : null;
-            const box = pending ?? c.box;
+            const measured = measuredBoxes[c.id];
+            // No real box was found for this chunk on this page (its content isn't a substring
+            // of the rendered text, or it measured to nothing) — never render an empty
+            // placeholder; the layout effect above already logged why in dev.
+            if (!pending && !measured) return null;
+            const box = pending ?? measured;
             return (
               <div
                 key={c.id}

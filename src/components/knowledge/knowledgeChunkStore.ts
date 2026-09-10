@@ -50,8 +50,6 @@ const MOCK_TITLES = [
   "Quy trình thực hiện", "Trách nhiệm các bên", "Mức phí và lệ phí", "Kênh tiếp nhận yêu cầu",
   "Hồ sơ cần chuẩn bị", "Thời hạn hiệu lực", "Ngoại lệ và trường hợp đặc biệt", "Liên hệ hỗ trợ",
 ];
-const MOCK_BODY = "Nội dung chi tiết được trích xuất tự động từ tài liệu gốc, mô tả các quy định và hướng dẫn liên quan đến mục này.";
-
 const DEFAULT_BOX: ChunkBox = { page: 0, x: 0.08, y: 0.06, width: 0.84, height: 0.35 };
 
 /** Cheap deterministic pseudo-random in [0, 1) — no real randomness needed (or wanted, for
@@ -100,13 +98,39 @@ export function extractContentForBox(box: ChunkBox, fallback?: string): string {
   return fallback && fallback.trim().length >= 20 ? fallback : text;
 }
 
+/** Splits each page's text evenly among however many chunks land on that page, so every one of
+ * them gets its own distinct, real, non-degenerate substring — unlike deriving content from
+ * `assignBoxes`' page-*height* bands (a chunk's box is a fraction of the page's fixed pixel
+ * height, which has no relationship to the page's *text length*; on a page with many chunks
+ * and/or short text, most bands mapped past the end of the actual rendered text, producing
+ * empty slices — see DocumentPreviewPane's real per-chunk measurement, which this now feeds
+ * real substrings into instead of relying on a page-height-derived guess). */
+function assignContentSlices(count: number): string[] {
+  const totalPages = MOCK_PAGES.length;
+  const byPage: number[][] = Array.from({ length: totalPages }, () => []);
+  for (let i = 0; i < count; i++) byPage[i % totalPages].push(i);
+
+  const contents: string[] = new Array(count);
+  for (let page = 0; page < totalPages; page++) {
+    const idxs = byPage[page];
+    const text = MOCK_PAGES[page];
+    const n = idxs.length;
+    idxs.forEach((globalIdx, slot) => {
+      const start = Math.floor((slot / n) * text.length);
+      const end = slot === n - 1 ? text.length : Math.floor(((slot + 1) / n) * text.length);
+      contents[globalIdx] = text.slice(start, end).trim() || text;
+    });
+  }
+  return contents;
+}
+
 function generateMockChunks(count: number): { title: string; content: string; box: ChunkBox }[] {
   const boxes = assignBoxes(count);
+  const contents = assignContentSlices(count);
   return Array.from({ length: count }, (_, i) => {
     const base = MOCK_TITLES[i % MOCK_TITLES.length];
     const round = Math.floor(i / MOCK_TITLES.length);
-    const box = boxes[i];
-    return { title: round === 0 ? base : `${base} (${round + 1})`, content: extractContentForBox(box) || MOCK_BODY, box };
+    return { title: round === 0 ? base : `${base} (${round + 1})`, content: contents[i], box: boxes[i] };
   });
 }
 
