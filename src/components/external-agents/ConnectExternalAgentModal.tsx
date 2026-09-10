@@ -6,12 +6,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Check, X, Eye, EyeOff, Loader2, AlertTriangle, Copy, Pencil, Trash2, Plus } from "lucide-react";
+import { Check, X, Eye, EyeOff, Loader2, AlertTriangle, Pencil, Trash2, Plus } from "lucide-react";
 import {
   externalAgentStore, runValidation, type AuthMethod, type ExternalAgent, type ValidationResult,
   type HistoryDeliveryMode,
 } from "./externalAgentStore";
-import { RotateSigningSecretDialog } from "./ExternalAgentDialogs";
 
 const NAME_MIN = 3;
 const NAME_MAX = 60;
@@ -81,10 +80,6 @@ export function validateBaseUrl(raw: string): string | undefined {
   return undefined;
 }
 
-function maskSecret(secret: string): string {
-  return "•".repeat(Math.min(secret.length, 32));
-}
-
 const HOSTNAME_PATTERN = /^(?!-)[a-zA-Z0-9-]{1,63}(?<!-)(\.(?!-)[a-zA-Z0-9-]{1,63}(?<!-))*$/;
 
 export function validateHost(raw: string): string | undefined {
@@ -124,10 +119,6 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
   const [replacingToken, setReplacingToken] = useState(!editing);
   const [token, setToken] = useState("");
   const [showToken, setShowToken] = useState(false);
-  const [showSecret, setShowSecret] = useState(false);
-  const [secretCopied, setSecretCopied] = useState(false);
-  const [showRotateConfirm, setShowRotateConfirm] = useState(false);
-  const [signingSecret, setSigningSecret] = useState(existing?.signingSecret ?? "");
   const [allowedHosts, setAllowedHosts] = useState<string[]>(existing?.allowedAuthorizeHosts ?? []);
   const [hostInput, setHostInput] = useState("");
   const [headers, setHeaders] = useState<{ key: string; value: string }[]>(existing?.customHeaders ?? []);
@@ -157,8 +148,6 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
     setReplacingToken(!editing);
     setToken("");
     setShowToken(false);
-    setShowSecret(false);
-    setSigningSecret(existing?.signingSecret ?? "");
     setAllowedHosts(existing?.allowedAuthorizeHosts ?? []);
     setHostInput("");
     setHeaders(existing?.customHeaders ?? []);
@@ -302,20 +291,6 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
   const visibleRows = rows.slice(0, revealCount);
   const doneChecking = !checking && revealCount >= rows.length;
   const failedRow = doneChecking ? visibleRows.find(r => !r.pass) : undefined;
-
-  const copySecret = () => {
-    navigator.clipboard?.writeText(signingSecret).catch(() => {});
-    setSecretCopied(true);
-    setTimeout(() => setSecretCopied(false), 1200);
-  };
-
-  const confirmRotate = () => {
-    if (!existing) return;
-    externalAgentStore.rotateSigningSecret(existing.id);
-    const updated = externalAgentStore.get(existing.id);
-    if (updated) setSigningSecret(updated.signingSecret);
-    setShowRotateConfirm(false);
-  };
 
   return (
     <>
@@ -543,41 +518,6 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
                   </div>
                 )}
 
-                <div className="rounded-lg border border-border bg-surface p-3">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs font-medium">Request signing</span>
-                    {editing && (
-                      <button type="button" onClick={() => setShowRotateConfirm(true)} className="text-[11px] font-semibold text-primary hover:underline">
-                        Rotate secret
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      disabled
-                      value={showSecret ? signingSecret : maskSecret(signingSecret)}
-                      className="flex-1 h-8 px-2.5 rounded-md border border-border bg-surface-muted text-xs font-mono text-foreground truncate"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowSecret(v => !v)}
-                      className="h-8 px-2 rounded-md border border-border bg-white hover:bg-surface-muted text-[11px] font-medium text-muted-foreground hover:text-foreground transition-base shrink-0 flex items-center gap-1"
-                    >
-                      {showSecret ? <EyeOff size={11} /> : <Eye size={11} />} {showSecret ? "Hide" : "Show"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={copySecret}
-                      className="h-8 px-2 rounded-md border border-border bg-white hover:bg-surface-muted text-[11px] font-medium text-muted-foreground hover:text-foreground transition-base shrink-0 flex items-center gap-1"
-                    >
-                      {secretCopied ? <Check size={11} className="text-success" /> : <Copy size={11} />} {secretCopied ? "Copied" : "Copy"}
-                    </button>
-                  </div>
-                  <p className="mt-1.5 text-[11px] text-muted-foreground leading-relaxed">
-                    Every request the platform sends is signed with this secret. Your agent must verify the X-FPT-Signature header on /runs, /tools and /credentials.
-                  </p>
-                </div>
-
                 <div>
                   <label className="text-xs font-medium mb-1.5 block" htmlFor="ext-hosts">Allowed hosts for authorizeUrl <span className="text-destructive">*</span></label>
                   {allowedHosts.length > 0 && (
@@ -701,12 +641,6 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <RotateSigningSecretDialog
-        open={showRotateConfirm}
-        onOpenChange={setShowRotateConfirm}
-        onConfirm={confirmRotate}
-      />
     </>
   );
 }
