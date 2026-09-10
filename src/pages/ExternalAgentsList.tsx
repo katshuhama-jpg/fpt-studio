@@ -4,7 +4,6 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Globe, Search, MoreHorizontal, Plus, AlertTriangle, BookOpen } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import {
   externalAgentStore, type ExternalAgent, type ExternalAgentStatus,
@@ -279,7 +278,28 @@ export default function ExternalAgentsList() {
 
       {loadState === "ready" && hasAnyAgents && (
         <>
-          <div className="flex flex-col md:flex-row md:items-center gap-2 mb-4 border-b border-border pb-3">
+          {/* View tabs — navigation-level (which slice of the list you're looking at), so they
+              get their own row above the search/filter toolbar rather than sharing it. Since
+              the tabs already segment by status, there's no separate Status filter alongside
+              search below — that would just duplicate what the tabs already do. */}
+          <div className="flex items-center gap-1 flex-wrap mb-3">
+            {TABS.map(t => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={`px-3 h-8 rounded-full text-sm font-medium transition-base flex items-center gap-1.5 ${
+                  tab === t.key ? "bg-primary-soft text-primary" : "text-muted-foreground hover:bg-surface-muted"
+                }`}
+              >
+                {t.label}
+                <span className={`text-xs px-1.5 py-0.5 rounded-full ${tab === t.key ? "bg-primary/10 text-primary" : "bg-surface-sunken text-muted-foreground"}`}>
+                  {counts[t.key]}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2 mb-4 border-b border-border pb-3">
             <div className="relative shrink-0">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input
@@ -289,16 +309,6 @@ export default function ExternalAgentsList() {
                 className="h-9 w-64 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
               />
             </div>
-            <Select value={tab} onValueChange={v => setTab(v as ExternalAgentStatus | "all")}>
-              <SelectTrigger className="h-9 w-[200px] shrink-0"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {TABS.map(t => (
-                  <SelectItem key={t.key} value={t.key}>
-                    {t.label} ({counts[t.key]})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
 
           {filtered.length === 0 ? (
