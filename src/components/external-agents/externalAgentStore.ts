@@ -8,7 +8,7 @@ import { loadMap, saveMap, loadSet, saveSet } from "@/lib/sessionPersist";
 // approval), and Published <-> Paused. This is a BA/UX-review prototype — approve/reject are
 // simulated as if the current user were an FPT admin, with no real role check.
 export type ExternalAgentStatus = "draft" | "pending_approval" | "rejected" | "published" | "paused";
-export type AuthMethod = "bearer" | "none";
+export type AuthMethod = "bearer" | "none" | "headers";
 /** Controls how much prior conversation the platform includes in each call to this agent's
  * /runs endpoint. "last_n" carries the turn count in `lastN`. */
 export type HistoryDeliveryMode = "full" | "last_n" | "none";
@@ -35,6 +35,9 @@ export interface ExternalAgent {
   // Never store/display the real secret — a prototype stand-in that only proves "a token
   // was saved" without ever letting a saved token round-trip back into the UI.
   hasToken: boolean;
+  /** Only populated when authMethod is "headers" — extra static headers sent on every request,
+   * alongside the signing secret. Optional so the existing seed data doesn't need updating. */
+  customHeaders?: { key: string; value: string }[];
   /** HMAC signing secret used for X-FPT-Signature — shown masked, rotatable. Every request the
    * platform sends is signed with this regardless of authMethod. */
   signingSecret: string;
@@ -260,7 +263,7 @@ export const externalAgentStore = {
   create(data: {
     name: string; description: string; baseUrl: string; authMethod: AuthMethod; validation: ValidationResult;
     allowedAuthorizeHosts: string[]; historyDelivery: { mode: HistoryDeliveryMode; lastN?: number };
-    emoji?: string; bg?: string;
+    emoji?: string; bg?: string; customHeaders?: { key: string; value: string }[];
   }): ExternalAgent {
     const id = `ext-${Date.now().toString(36)}`;
     const now = Date.now();
@@ -272,6 +275,7 @@ export const externalAgentStore = {
       baseUrl: data.baseUrl.trim(),
       authMethod: data.authMethod,
       hasToken: data.authMethod === "bearer",
+      customHeaders: data.authMethod === "headers" ? data.customHeaders ?? [] : [],
       signingSecret: generateSigningSecret(),
       allowedAuthorizeHosts: data.allowedAuthorizeHosts,
       historyDelivery: data.historyDelivery,
@@ -301,6 +305,7 @@ export const externalAgentStore = {
     /** Cosmetic identity — same unpublish-on-edit rule as every other field here (see comment
      * above), even though changing the icon alone doesn't affect the live connection. */
     emoji?: string; bg?: string;
+    customHeaders?: { key: string; value: string }[];
   }): { unpublished: boolean } {
     const cur = store.get(id);
     if (!cur) return { unpublished: false };
@@ -320,6 +325,9 @@ export const externalAgentStore = {
     if ((patch.emoji !== undefined && patch.emoji !== cur.emoji) || (patch.bg !== undefined && patch.bg !== cur.bg)) {
       details.push("Avatar updated");
     }
+    if (patch.customHeaders !== undefined && JSON.stringify(patch.customHeaders) !== JSON.stringify(cur.customHeaders ?? [])) {
+      details.push("Headers updated");
+    }
     const wasPublished = cur.status === "published";
     const next: ExternalAgent = {
       ...cur,
@@ -333,6 +341,7 @@ export const externalAgentStore = {
       lastValidation: patch.validation ?? cur.lastValidation,
       emoji: patch.emoji ?? cur.emoji,
       bg: patch.bg ?? cur.bg,
+      customHeaders: patch.customHeaders ?? cur.customHeaders,
       status: wasPublished ? "draft" : cur.status,
       updatedAt: Date.now(),
     };

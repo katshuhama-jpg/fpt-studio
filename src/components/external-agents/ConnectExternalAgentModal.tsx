@@ -6,7 +6,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Check, X, Eye, EyeOff, Loader2, AlertTriangle, Copy, Pencil } from "lucide-react";
+import { Check, X, Eye, EyeOff, Loader2, AlertTriangle, Copy, Pencil, Trash2, Plus } from "lucide-react";
 import {
   externalAgentStore, runValidation, type AuthMethod, type ExternalAgent, type ValidationResult,
   type HistoryDeliveryMode,
@@ -42,13 +42,22 @@ function buildCheckRows(v: ValidationResult, authMethod: AuthMethod): CheckRow[]
     message: v.endpointReachable ? "The agent responded to a health check." : "We couldn't reach the URL. Check the address and that the agent is running.",
   });
   if (!v.endpointReachable) return rows;
+  const authLabel = authMethod === "none" ? "Request signature verified" : authMethod === "headers" ? "Headers accepted" : "Authentication verified";
+  const authPassMessage = authMethod === "none"
+    ? "The request signature (HMAC) was verified."
+    : authMethod === "headers"
+    ? "The custom headers were accepted."
+    : "The bearer token was accepted.";
+  const authFailMessage = authMethod === "none"
+    ? "The request signature wasn't verified. Make sure your agent checks X-FPT-Signature."
+    : authMethod === "headers"
+    ? "The custom headers weren't accepted. Check the header names and values and try again."
+    : "The bearer token wasn't accepted. Check the token and try again.";
   rows.push({
     key: "auth",
-    label: authMethod === "none" ? "Request signature verified" : "Authentication verified",
+    label: authLabel,
     pass: v.authVerified,
-    message: v.authVerified
-      ? (authMethod === "none" ? "The request signature (HMAC) was verified." : "The bearer token was accepted.")
-      : (authMethod === "none" ? "The request signature wasn't verified. Make sure your agent checks X-FPT-Signature." : "The bearer token wasn't accepted. Check the token and try again."),
+    message: v.authVerified ? authPassMessage : authFailMessage,
   });
   if (!v.authVerified) return rows;
   rows.push({ key: "protocol", label: "Protocol version supported", pass: true, message: "Compatible with this platform's agent protocol." });
@@ -87,8 +96,6 @@ export function validateHost(raw: string): string | undefined {
   return undefined;
 }
 
-const HISTORY_N_MIN = 1;
-const HISTORY_N_MAX = 100;
 const HISTORY_N_DEFAULT = 10;
 
 export function historyDeliveryLabel(mode: HistoryDeliveryMode, lastN?: number): string {
@@ -123,8 +130,8 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
   const [signingSecret, setSigningSecret] = useState(existing?.signingSecret ?? "");
   const [allowedHosts, setAllowedHosts] = useState<string[]>(existing?.allowedAuthorizeHosts ?? []);
   const [hostInput, setHostInput] = useState("");
-  const [historyMode, setHistoryMode] = useState<HistoryDeliveryMode>(existing?.historyDelivery?.mode ?? "full");
-  const [historyN, setHistoryN] = useState(existing?.historyDelivery?.lastN ?? HISTORY_N_DEFAULT);
+  const [headers, setHeaders] = useState<{ key: string; value: string }[]>(existing?.customHeaders ?? []);
+  const [visibleHeaderIdx, setVisibleHeaderIdx] = useState<Set<number>>(new Set());
   const [errors, setErrors] = useState<{ name?: string; baseUrl?: string; token?: string; hosts?: string }>({});
   const [confirmCloseOpen, setConfirmCloseOpen] = useState(false);
 
@@ -154,8 +161,8 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
     setSigningSecret(existing?.signingSecret ?? "");
     setAllowedHosts(existing?.allowedAuthorizeHosts ?? []);
     setHostInput("");
-    setHistoryMode(existing?.historyDelivery?.mode ?? "full");
-    setHistoryN(existing?.historyDelivery?.lastN ?? HISTORY_N_DEFAULT);
+    setHeaders(existing?.customHeaders ?? []);
+    setVisibleHeaderIdx(new Set());
     setErrors({});
     setChecking(false);
     setRevealCount(0);
@@ -167,11 +174,10 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
     ? name.trim() !== existing!.name || description.trim() !== existing!.description || baseUrl.trim() !== existing!.baseUrl
       || authMethod !== existing!.authMethod || (replacingToken && token.trim() !== "")
       || allowedHosts.join(",") !== (existing!.allowedAuthorizeHosts ?? []).join(",")
-      || historyMode !== (existing!.historyDelivery?.mode ?? "full")
-      || (historyMode === "last_n" && historyN !== (existing!.historyDelivery?.lastN ?? HISTORY_N_DEFAULT))
+      || JSON.stringify(headers) !== JSON.stringify(existing!.customHeaders ?? [])
       || avatarEmoji !== (existing!.emoji ?? "🔌") || avatarBg !== (existing!.bg ?? "bg-primary-soft")
     : name.trim() !== "" || description.trim() !== "" || baseUrl.trim() !== "" || token.trim() !== "" || allowedHosts.length > 0 || hostInput.trim() !== ""
-      || avatarEmoji !== "🔌";
+      || headers.length > 0 || avatarEmoji !== "🔌";
 
   const requestClose = () => {
     if (isDirty) setConfirmCloseOpen(true);
@@ -188,7 +194,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
     }
     if (field === "baseUrl") return validateBaseUrl(baseUrl);
     if (field === "token") {
-      if (authMethod === "none") return undefined;
+      if (authMethod !== "bearer") return undefined;
       if (!replacingToken) return undefined;
       const v = token.trim();
       if (!v) return "Bearer Token is required.";
@@ -249,7 +255,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
     if (e.token) { tokenRef.current?.focus(); tokenRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
     if (e.hosts) { hostInputRef.current?.focus(); hostInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
 
-    const effectiveToken = authMethod === "none" ? "" : replacingToken ? token.trim() : EXISTING_TOKEN_SENTINEL;
+    const effectiveToken = authMethod !== "bearer" ? "" : replacingToken ? token.trim() : EXISTING_TOKEN_SENTINEL;
     const v = runValidation(baseUrl.trim(), effectiveToken);
     setResult(v);
     setStep("validate");
@@ -257,7 +263,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
   };
 
   const retryCheck = () => {
-    const effectiveToken = authMethod === "none" ? "" : replacingToken ? token.trim() : EXISTING_TOKEN_SENTINEL;
+    const effectiveToken = authMethod !== "bearer" ? "" : replacingToken ? token.trim() : EXISTING_TOKEN_SENTINEL;
     const v = runValidation(baseUrl.trim(), effectiveToken);
     setResult(v);
     runChecking(v);
@@ -265,7 +271,10 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
 
   const save = () => {
     if (!result?.passed) return;
-    const historyDelivery = { mode: historyMode, lastN: historyMode === "last_n" ? historyN : undefined };
+    // History delivery is no longer user-configurable from this modal — always send full
+    // conversation history, same default the field used to start on.
+    const historyDelivery = { mode: "full" as HistoryDeliveryMode };
+    const cleanHeaders = headers.filter(h => h.key.trim() !== "");
     if (editing) {
       const { unpublished } = externalAgentStore.update(existing!.id, {
         name, description, baseUrl, authMethod,
@@ -274,6 +283,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
         allowedAuthorizeHosts: allowedHosts,
         historyDelivery,
         emoji: avatarEmoji, bg: avatarBg,
+        customHeaders: cleanHeaders,
       });
       onSaved(externalAgentStore.get(existing!.id)!, false, unpublished);
     } else {
@@ -282,6 +292,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
         allowedAuthorizeHosts: allowedHosts,
         historyDelivery,
         emoji: avatarEmoji, bg: avatarBg,
+        customHeaders: cleanHeaders,
       });
       onSaved(agent, true);
     }
@@ -420,6 +431,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
                     <SelectTrigger id="ext-auth-method" className="h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="bearer">Bearer Token</SelectItem>
+                      <SelectItem value="headers">Headers (optional)</SelectItem>
                       <SelectItem value="none">None</SelectItem>
                     </SelectContent>
                   </Select>
@@ -468,6 +480,66 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
                       </div>
                     )}
                     {errors.token && <p className="mt-1 text-[11px] text-destructive">{errors.token}</p>}
+                  </div>
+                )}
+
+                {authMethod === "headers" && (
+                  <div>
+                    <label className="text-xs font-medium mb-1.5 block">Headers (optional)</label>
+                    <div className="space-y-2">
+                      {headers.map((h, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <input
+                            value={h.key}
+                            onChange={e => setHeaders(hs => hs.map((row, idx) => idx === i ? { ...row, key: e.target.value } : row))}
+                            placeholder="Header name"
+                            className="flex-1 h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base"
+                          />
+                          <div className="relative flex-1">
+                            <input
+                              type={visibleHeaderIdx.has(i) ? "text" : "password"}
+                              value={h.value}
+                              onChange={e => setHeaders(hs => hs.map((row, idx) => idx === i ? { ...row, value: e.target.value } : row))}
+                              placeholder="Bearer ..."
+                              className="w-full h-9 pl-3 pr-9 rounded-lg border border-border bg-surface text-sm font-mono outline-none focus:border-primary transition-base"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setVisibleHeaderIdx(s => {
+                                const next = new Set(s);
+                                if (next.has(i)) next.delete(i); else next.add(i);
+                                return next;
+                              })}
+                              aria-label={visibleHeaderIdx.has(i) ? "Hide value" : "Show value"}
+                              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-base"
+                            >
+                              {visibleHeaderIdx.has(i) ? <EyeOff size={13} /> : <Eye size={13} />}
+                            </button>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setHeaders(hs => hs.filter((_, idx) => idx !== i));
+                              setVisibleHeaderIdx(s => { const next = new Set(s); next.delete(i); return next; });
+                            }}
+                            aria-label="Remove header"
+                            className="shrink-0 w-9 h-9 rounded-lg border border-border bg-surface hover:bg-surface-muted flex items-center justify-center text-muted-foreground hover:text-destructive transition-base"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setHeaders(hs => [...hs, { key: "", value: "" }])}
+                        className="w-full h-9 rounded-lg border border-dashed border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:border-primary/40 transition-base flex items-center justify-center gap-1.5"
+                      >
+                        <Plus size={13} /> Add header
+                      </button>
+                    </div>
+                    <p className="mt-1.5 text-[11px] text-muted-foreground leading-relaxed">
+                      Header values are secrets — stored securely and never shared with the agent.
+                    </p>
                   </div>
                 )}
 
@@ -549,38 +621,11 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
                   )}
                 </div>
 
-                <div>
-                  <label className="text-xs font-medium mb-1.5 block" htmlFor="ext-history-mode">History delivery mode</label>
-                  <Select value={historyMode} onValueChange={v => setHistoryMode(v as HistoryDeliveryMode)}>
-                    <SelectTrigger id="ext-history-mode" className="h-9"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="full">Full history every turn</SelectItem>
-                      <SelectItem value="last_n">Last N turns</SelectItem>
-                      <SelectItem value="none">No history (stateless)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {historyMode === "last_n" && (
-                    <div className="mt-2">
-                      <label className="text-xs font-medium mb-1.5 block" htmlFor="ext-history-n">N</label>
-                      <input
-                        id="ext-history-n"
-                        type="number"
-                        min={HISTORY_N_MIN}
-                        max={HISTORY_N_MAX}
-                        value={historyN}
-                        onChange={e => setHistoryN(Math.min(HISTORY_N_MAX, Math.max(HISTORY_N_MIN, Number(e.target.value) || HISTORY_N_MIN)))}
-                        className="w-24 h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base"
-                      />
-                    </div>
-                  )}
-                  <p className="mt-1.5 text-[11px] text-muted-foreground leading-relaxed">
-                    Controls how much prior conversation the platform sends to this agent on each call to /runs.
-                  </p>
-                </div>
-
                 <p className="text-[11px] text-muted-foreground leading-relaxed border-t border-border pt-3">
                   {authMethod === "bearer"
                     ? "The bearer token is used to authenticate requests to your agent. It is stored encrypted and never shown again after saving."
+                    : authMethod === "headers"
+                    ? "Custom headers are sent with every request to your agent. Values are stored encrypted and never shown again after saving."
                     : "No bearer token is used for this agent — every request is authenticated with the signing secret above."}
                 </p>
               </div>

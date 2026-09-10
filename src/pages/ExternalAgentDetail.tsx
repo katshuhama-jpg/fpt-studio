@@ -759,6 +759,7 @@ export default function ExternalAgentDetail() {
                         <SelectTrigger className="h-8 w-40 text-sm"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="bearer">Bearer Token</SelectItem>
+                          <SelectItem value="headers">Headers (optional)</SelectItem>
                           <SelectItem value="none">None</SelectItem>
                         </SelectContent>
                       </Select>
@@ -766,7 +767,7 @@ export default function ExternalAgentDetail() {
                         <X size={14} />
                       </button>
                     </div>
-                  ) : (agent.authMethod === "bearer" ? "Bearer Token" : "None")}
+                  ) : (agent.authMethod === "bearer" ? "Bearer Token" : agent.authMethod === "headers" ? "Headers (optional)" : "None")}
                 </InfoRow>
                 {agent.authMethod === "bearer" && (
                   <InfoRow label="Bearer Token">
