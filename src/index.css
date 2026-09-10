@@ -62,7 +62,7 @@
     --input: 40 10% 88%;
     --ring: 231 75% 49%;
 
-    --radius: 0.875rem;                 /* Large — FPTAI DS preset b37sR6ujw */
+    --radius: 0.625rem;                 /* Medium — FPTAI DS preset b37sR6ujw */
 
     /* ----- Sidebar: bright/light mode ----- */
     --sidebar-background: 210 40% 98%;
