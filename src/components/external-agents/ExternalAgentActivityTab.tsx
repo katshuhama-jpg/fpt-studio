@@ -44,7 +44,7 @@ export default function ExternalAgentActivityTab({ agentId }: { agentId: string 
     <div className="flex-1 overflow-y-auto p-8">
       <div className="mb-4">
         <h2 className="font-display text-xl font-semibold">Activity</h2>
-        <p className="text-xs text-muted-foreground mt-0.5">Every connection lifecycle event — created, updated, submitted, approved, rejected, published, unpublished, paused, resumed.</p>
+        <p className="text-sm text-muted-foreground mt-0.5">Every connection lifecycle event — created, updated, submitted, approved, rejected, published, unpublished, paused, resumed.</p>
       </div>
 
       <div className="relative mb-2.5">
@@ -86,15 +86,15 @@ export default function ExternalAgentActivityTab({ agentId }: { agentId: string 
             <tbody>
               {visible.map((e: HistoryEntry) => (
                 <tr key={e.id} className="border-b border-border last:border-0">
-                  <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">{formatTimestamp(e.at)}</td>
+                  <td className="px-4 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{formatTimestamp(e.at)}</td>
                   <td className="px-4 py-2.5">
                     <div className="flex items-center gap-2">
                       <EntryIcon summary={e.summary} />
                       <span className="font-medium">{e.summary}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">{e.actor}</td>
-                  <td className="px-4 py-2.5 text-xs text-muted-foreground truncate max-w-[320px]" title={e.detail}>{e.detail ?? "—"}</td>
+                  <td className="px-4 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{e.actor}</td>
+                  <td className="px-4 py-2.5 text-sm text-muted-foreground truncate max-w-[320px]" title={e.detail}>{e.detail ?? "—"}</td>
                 </tr>
               ))}
             </tbody>

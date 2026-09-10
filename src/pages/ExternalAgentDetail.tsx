@@ -78,7 +78,7 @@ function maskSecret(secret: string): string {
 function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-[160px,1fr] items-start gap-1 sm:gap-2 py-2.5 border-b border-border last:border-0">
-      <span className="text-xs text-muted-foreground pt-0.5">{label}</span>
+      <span className="text-sm text-muted-foreground pt-0.5">{label}</span>
       <div className="text-sm text-foreground min-w-0">{children}</div>
     </div>
   );
@@ -231,8 +231,8 @@ export default function ExternalAgentDetail() {
           <button onClick={() => navigate("/external-agents")} className="h-8 w-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0">
             <HugeiconsIcon icon={ChevronLeftIcon} size={16} />
           </button>
-          <Link to="/external-agents" className="text-xs text-muted-foreground hover:text-foreground transition-base shrink-0 hidden sm:inline">External Agents</Link>
-          <span className="text-xs text-muted-foreground/50 shrink-0 hidden sm:inline">/</span>
+          <Link to="/external-agents" className="text-sm text-muted-foreground hover:text-foreground transition-base shrink-0 hidden sm:inline">External Agents</Link>
+          <span className="text-sm text-muted-foreground/50 shrink-0 hidden sm:inline">/</span>
           <div className="flex items-center gap-2 min-w-0">
             <div className={`w-7 h-7 rounded-md flex items-center justify-center text-base shrink-0 ${agent.bg}`}>
               {agent.emoji}
@@ -267,7 +267,7 @@ export default function ExternalAgentDetail() {
           {agent.status === "draft" && (
             <div className="flex items-center gap-2 flex-wrap">
               {!validationPassed && (
-                <span className="text-xs text-muted-foreground max-w-[200px] text-right leading-tight">
+                <span className="text-sm text-muted-foreground max-w-[200px] text-right leading-tight">
                   Validate your connection first.
                 </span>
               )}
@@ -348,7 +348,7 @@ export default function ExternalAgentDetail() {
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
                 <div className="absolute right-0 top-full mt-1 z-20 w-44 rounded-lg border border-border bg-white shadow-elev py-1">
-                  <button onClick={() => { setShowEdit(true); setShowMenu(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">
+                  <button onClick={() => { setShowEdit(true); setShowMenu(false); }} className="w-full text-left px-3 py-1.5 text-sm hover:bg-surface-muted transition-base">
                     Edit connection
                   </button>
                   <Tooltip delayDuration={300}>
@@ -357,7 +357,7 @@ export default function ExternalAgentDetail() {
                         <button
                           disabled={agent.status === "published"}
                           onClick={() => { setShowDelete(true); setShowMenu(false); }}
-                          className={`w-full text-left px-3 py-1.5 text-xs transition-base ${
+                          className={`w-full text-left px-3 py-1.5 text-sm transition-base ${
                             agent.status === "published" ? "text-muted-foreground/50 cursor-not-allowed" : "text-destructive hover:bg-[hsl(var(--destructive-soft))]"
                           }`}
                         >
@@ -408,10 +408,10 @@ export default function ExternalAgentDetail() {
                   for the person configuring the agent, not a gate on Submit/Publish. */}
               <div className="shrink-0 px-3 pb-3 space-y-2">
                 <div className="rounded-lg border border-border bg-surface-muted/50 p-2.5">
-                  <span className="text-xs font-semibold text-foreground block mb-1.5">Setup checklist</span>
+                  <span className="text-sm font-semibold text-foreground block mb-1.5">Setup checklist</span>
                   <div className="space-y-1">
                     {setupChecklist.map(item => (
-                      <div key={item.label} className="flex items-center gap-1.5 text-xs">
+                      <div key={item.label} className="flex items-center gap-1.5 text-sm">
                         {item.done
                           ? <HugeiconsIcon icon={Tick02Icon} size={11} className="text-primary shrink-0" />
                           : <span className="w-3 h-3 rounded-full border-2 border-muted-foreground shrink-0 inline-block" />}
@@ -422,7 +422,7 @@ export default function ExternalAgentDetail() {
                 </div>
                 <button
                   onClick={() => setSidebarCollapsed(true)}
-                  className="w-full h-8 rounded-lg border border-border bg-surface text-muted-foreground hover:bg-surface-muted text-xs font-medium flex items-center justify-center gap-1.5 transition-base"
+                  className="w-full h-8 rounded-lg border border-border bg-surface text-muted-foreground hover:bg-surface-muted text-sm font-medium flex items-center justify-center gap-1.5 transition-base"
                 >
                   <HugeiconsIcon icon={PanelLeftCloseIcon} size={13} /> Collapse sidebar
                 </button>
@@ -481,7 +481,7 @@ export default function ExternalAgentDetail() {
                 <div className="flex items-start gap-2.5 rounded-lg border border-warning/25 bg-[hsl(var(--warning-soft))] px-3.5 py-3">
                   <HugeiconsIcon icon={Alert01Icon} size={14} className="shrink-0 mt-0.5 text-warning" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs text-warning leading-relaxed">
+                    <p className="text-sm text-warning leading-relaxed">
                       This agent was unpublished because its connection was edited. Submit it for approval again to make it live.
                     </p>
                     <button
@@ -492,7 +492,7 @@ export default function ExternalAgentDetail() {
                         setJustUnpublished(false);
                         refresh();
                       }}
-                      className="mt-1.5 text-xs font-semibold text-warning hover:underline"
+                      className="mt-1.5 text-sm font-semibold text-warning hover:underline"
                     >
                       Submit for approval
                     </button>
@@ -503,7 +503,7 @@ export default function ExternalAgentDetail() {
               {agent.status === "rejected" && agent.rejection && (
                 <div className="flex items-start gap-2.5 rounded-lg border border-destructive/25 bg-[hsl(var(--destructive-soft))] px-3.5 py-3">
                   <HugeiconsIcon icon={Alert01Icon} size={14} className="shrink-0 mt-0.5 text-destructive" />
-                  <p className="text-xs text-destructive leading-relaxed min-w-0 flex-1">
+                  <p className="text-sm text-destructive leading-relaxed min-w-0 flex-1">
                     Rejected: {agent.rejection.reason}
                   </p>
                 </div>
@@ -513,7 +513,7 @@ export default function ExternalAgentDetail() {
                 <div className="flex items-start gap-2.5 rounded-lg border border-destructive/25 bg-[hsl(var(--destructive-soft))] px-3.5 py-3">
                   <HugeiconsIcon icon={Alert01Icon} size={14} className="shrink-0 mt-0.5 text-destructive" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs text-destructive leading-relaxed">
+                    <p className="text-sm text-destructive leading-relaxed">
                       This agent has been unreachable since{" "}
                       {agent.lastHealthyAt ? new Date(agent.lastHealthyAt).toLocaleDateString() : "it was first connected"}.
                       Conversations on its published channels may be failing.
@@ -529,7 +529,7 @@ export default function ExternalAgentDetail() {
                           refresh();
                         }, 700);
                       }}
-                      className="mt-1.5 text-xs font-semibold text-destructive hover:underline disabled:opacity-50 flex items-center gap-1"
+                      className="mt-1.5 text-sm font-semibold text-destructive hover:underline disabled:opacity-50 flex items-center gap-1"
                     >
                       {checkingHealth && <HugeiconsIcon icon={Loading01Icon} size={11} className="animate-spin" />}
                       Run check now
@@ -539,19 +539,19 @@ export default function ExternalAgentDetail() {
               )}
 
               <div className="rounded-xl border border-border p-4">
-                <h3 className="text-sm font-semibold mb-2">Connection</h3>
+                <h3 className="text-lg font-semibold mb-2">Connection</h3>
                 <InfoRow label="Status">
                   <div className="space-y-1">
                     <StatusBadge status={agent.status} />
                     {latestStatusChange && (
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-sm text-muted-foreground">
                         Changed by {latestStatusChange.actor} · {relativeTime(latestStatusChange.at)}
                       </p>
                     )}
                   </div>
                 </InfoRow>
                 <InfoRow label="Base URL">
-                  <span className="font-mono text-xs break-all">{agent.baseUrl}</span>
+                  <span className="font-mono text-sm break-all">{agent.baseUrl}</span>
                 </InfoRow>
                 <InfoRow label="Authentication">
                   {agent.authMethod === "bearer" ? "Bearer Token" : agent.authMethod === "headers" ? "Headers (optional)" : "None"}
@@ -581,14 +581,14 @@ export default function ExternalAgentDetail() {
                             type="button"
                             disabled={!newToken.trim() || replaceChecking}
                             onClick={submitReplaceToken}
-                            className="btn-primary h-8 px-3 text-xs disabled:opacity-40 disabled:pointer-events-none flex items-center gap-1.5"
+                            className="btn-primary h-8 px-3 text-sm disabled:opacity-40 disabled:pointer-events-none flex items-center gap-1.5"
                           >
                             {replaceChecking && <HugeiconsIcon icon={Loading01Icon} size={11} className="animate-spin" />} Save token
                           </button>
                           <button
                             type="button"
                             onClick={() => { setReplacingToken(false); setNewToken(""); }}
-                            className="h-8 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-xs font-medium transition-base"
+                            className="h-8 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base"
                           >
                             Cancel
                           </button>
@@ -597,13 +597,13 @@ export default function ExternalAgentDetail() {
                     ) : (
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs">••••••••</span>
-                          <button type="button" onClick={() => setShowReplaceConfirm(true)} className="text-xs font-semibold text-primary hover:underline">
+                          <span className="font-mono text-sm">••••••••</span>
+                          <button type="button" onClick={() => setShowReplaceConfirm(true)} className="text-sm font-semibold text-primary hover:underline">
                             Replace token
                           </button>
                         </div>
                         {replaceResult && (
-                          <p className={`text-xs flex items-center gap-1 ${replaceResult.passed ? "text-success" : "text-destructive"}`}>
+                          <p className={`text-sm flex items-center gap-1 ${replaceResult.passed ? "text-success" : "text-destructive"}`}>
                             {replaceResult.passed ? <HugeiconsIcon icon={Tick02Icon} size={11} /> : <HugeiconsIcon icon={Alert01Icon} size={11} />}
                             {replaceResult.passed ? "New token validated successfully." : "The new token failed validation — this agent may stop responding."}
                           </p>
@@ -614,11 +614,11 @@ export default function ExternalAgentDetail() {
                 )}
                 <InfoRow label="Signing secret">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs truncate">{showSigningSecret ? agent.signingSecret : maskSecret(agent.signingSecret)}</span>
+                    <span className="font-mono text-sm truncate">{showSigningSecret ? agent.signingSecret : maskSecret(agent.signingSecret)}</span>
                     <button
                       type="button"
                       onClick={() => setShowSigningSecret(v => !v)}
-                      className="text-xs font-semibold text-primary hover:underline shrink-0"
+                      className="text-sm font-semibold text-primary hover:underline shrink-0"
                     >
                       {showSigningSecret ? "Hide" : "Show"}
                     </button>
@@ -629,7 +629,7 @@ export default function ExternalAgentDetail() {
                         setSigningSecretCopied(true);
                         setTimeout(() => setSigningSecretCopied(false), 1200);
                       }}
-                      className="text-xs font-semibold text-primary hover:underline shrink-0"
+                      className="text-sm font-semibold text-primary hover:underline shrink-0"
                     >
                       {signingSecretCopied ? "Copied" : "Copy"}
                     </button>
@@ -639,7 +639,7 @@ export default function ExternalAgentDetail() {
                   {agent.allowedAuthorizeHosts.length > 0 ? (
                     <div className="flex flex-col items-start gap-1.5">
                       {agent.allowedAuthorizeHosts.map(host => (
-                        <span key={host} className="inline-flex items-center h-6 px-2 rounded-md bg-surface-muted border border-border text-xs font-mono">
+                        <span key={host} className="inline-flex items-center h-6 px-2 rounded-md bg-surface-muted border border-border text-sm font-mono">
                           {host}
                         </span>
                       ))}
@@ -653,7 +653,7 @@ export default function ExternalAgentDetail() {
 
               <div className="rounded-xl border border-border p-4">
                 <div className="flex items-start justify-between gap-3 mb-1">
-                  <h3 className="text-sm font-semibold">Endpoints</h3>
+                  <h3 className="text-lg font-semibold">Endpoints</h3>
                   <div className="flex items-center gap-2 shrink-0">
                     {agent.lastHealthCheckAt != null && (
                       <span className="text-[11px] text-muted-foreground whitespace-nowrap">
@@ -673,14 +673,14 @@ export default function ExternalAgentDetail() {
                           else toast.error("Health check failed — the agent didn't respond. See Status below.");
                         }, 700);
                       }}
-                      className="h-7 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-xs font-medium transition-base disabled:opacity-50 flex items-center gap-1.5"
+                      className="h-7 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base disabled:opacity-50 flex items-center gap-1.5"
                     >
                       {checkingHealth && <HugeiconsIcon icon={Loading01Icon} size={11} className="animate-spin" />}
                       Recheck now
                     </button>
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground mb-3">These are the addresses the platform calls on your agent.</p>
+                <p className="text-sm text-muted-foreground mb-3">These are the addresses the platform calls on your agent.</p>
                 <div className="rounded-lg border border-border overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
@@ -698,7 +698,7 @@ export default function ExternalAgentDetail() {
                           <tr key={e.path} className={`border-t border-border ${!e.required ? "bg-surface-muted/50" : ""}`}>
                             <td className="px-3 py-2 whitespace-nowrap">
                               <div className="flex items-center gap-1.5">
-                                <span className={`font-mono text-xs ${!e.required ? "text-muted-foreground" : ""}`}>{e.method} {e.path}</span>
+                                <span className={`font-mono text-sm ${!e.required ? "text-muted-foreground" : ""}`}>{e.method} {e.path}</span>
                                 {e.required ? (
                                   <span className="inline-flex items-center text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border chip-success">Required</span>
                                 ) : (
@@ -706,7 +706,7 @@ export default function ExternalAgentDetail() {
                                 )}
                               </div>
                             </td>
-                            <td className={`px-3 py-2 text-xs ${!e.required ? "text-muted-foreground" : "text-foreground"}`}>{e.purpose}</td>
+                            <td className={`px-3 py-2 text-sm ${!e.required ? "text-muted-foreground" : "text-foreground"}`}>{e.purpose}</td>
                             <td className="px-3 py-2 whitespace-nowrap"><EndpointStatusBadge status={endpointStatus(agent, e.path)} /></td>
                             <td className="px-3 py-2 text-right"><CopyButton value={full} /></td>
                           </tr>

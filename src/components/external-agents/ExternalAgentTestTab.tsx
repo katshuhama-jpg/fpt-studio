@@ -87,7 +87,7 @@ export default function ExternalAgentTestTab({ agent }: { agent: ExternalAgent }
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="px-8 pt-8 pb-4 shrink-0 border-b border-border">
         <h2 className="font-display text-xl font-semibold">Test</h2>
-        <p className="text-xs text-muted-foreground mt-0.5">
+        <p className="text-sm text-muted-foreground mt-0.5">
           Send a real turn to <span className="font-mono">{agent.baseUrl}/runs</span> and see how it responds before publishing.
         </p>
       </div>
@@ -121,7 +121,7 @@ export default function ExternalAgentTestTab({ agent }: { agent: ExternalAgent }
         )}
         {running && (
           <div className="flex justify-start">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground bg-surface-muted border border-border rounded-2xl rounded-bl-sm px-3.5 py-2.5">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-surface-muted border border-border rounded-2xl rounded-bl-sm px-3.5 py-2.5">
               <HugeiconsIcon icon={Loading01Icon} size={12} className="animate-spin" /> Waiting for a response...
             </div>
           </div>

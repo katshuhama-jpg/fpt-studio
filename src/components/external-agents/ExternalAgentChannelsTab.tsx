@@ -25,20 +25,20 @@ export default function ExternalAgentChannelsTab({ agent }: { agent: ExternalAge
 
         <div className="rounded-xl border border-border bg-surface flex items-center justify-between px-5 py-4 mb-8">
           <div>
-            <p className="text-xs text-muted-foreground mb-1">Status</p>
+            <p className="text-sm text-muted-foreground mb-1">Status</p>
             <StatusBadge status={agent.status} />
           </div>
         </div>
 
         <div>
-          <h2 className="text-sm font-semibold mb-3">Channels</h2>
+          <h2 className="text-lg font-semibold mb-3">Channels</h2>
           <div className="flex items-center gap-3 px-4 py-3.5 rounded-xl border border-border bg-surface max-w-sm">
             <div className="w-8 h-8 rounded-lg bg-surface border border-border flex items-center justify-center shrink-0">
               <HugeiconsIcon icon={Building02Icon} size={16} className="text-muted-foreground" />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium truncate">Workspace</p>
-              <p className={`text-xs truncate ${isLive ? "text-success" : "text-muted-foreground"}`}>{isLive ? "Live" : "Not live"}</p>
+              <p className={`text-sm truncate ${isLive ? "text-success" : "text-muted-foreground"}`}>{isLive ? "Live" : "Not live"}</p>
             </div>
           </div>
         </div>

@@ -51,7 +51,7 @@ function TranscriptPanel({ conversation, hidden, onClose }: { conversation: Exte
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <div className="text-sm font-semibold leading-tight text-foreground truncate">{conversation.username}</div>
-                <div className="flex items-center gap-1.5 mt-1.5 text-xs">
+                <div className="flex items-center gap-1.5 mt-1.5 text-sm">
                   <ChannelLogo channel={conversation.channel} size={16} />
                   <span className="font-medium text-foreground/80">{CHANNEL_META[conversation.channel].label}</span>
                   <span className="text-muted-foreground">·</span>
@@ -91,7 +91,7 @@ function TranscriptPanel({ conversation, hidden, onClose }: { conversation: Exte
                 )}
                 <div className="max-w-[82%]">
                   <div
-                    className={`text-xs leading-relaxed rounded-2xl px-3 py-2 ${
+                    className={`text-sm leading-relaxed rounded-2xl px-3 py-2 ${
                       m.role === "user"
                         ? "bg-primary text-primary-foreground rounded-br-sm"
                         : "bg-surface-muted border border-border rounded-bl-sm"
@@ -178,7 +178,7 @@ export default function ExternalAgentHistoryTab({ agentId }: { agentId: string }
       <div className="flex-1 min-w-0 overflow-y-auto p-8">
         <div className="mb-5">
           <h2 className="font-display text-xl font-semibold">History</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">See past conversations between this agent and its users.</p>
+          <p className="text-sm text-muted-foreground mt-0.5">See past conversations between this agent and its users.</p>
 
           <div className="relative mt-4">
             <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -231,15 +231,15 @@ export default function ExternalAgentHistoryTab({ agentId }: { agentId: string }
                     c.id === selectedId ? "bg-primary-soft" : "hover:bg-surface-muted/50"
                   }`}
                 >
-                  <div className="text-xs text-muted-foreground whitespace-nowrap">{formatDateTime(c.endedAt)}</div>
-                  <div className="text-xs font-mono truncate">{c.id}</div>
+                  <div className="text-sm text-muted-foreground whitespace-nowrap">{formatDateTime(c.endedAt)}</div>
+                  <div className="text-sm font-mono truncate">{c.id}</div>
                   <div className="flex items-center gap-2 min-w-0">
                     <ChannelLogo channel={c.channel} size={22} />
-                    <span className="text-xs truncate">{CHANNEL_META[c.channel].label}</span>
+                    <span className="text-sm truncate">{CHANNEL_META[c.channel].label}</span>
                   </div>
                   <div className="min-w-0">
                     <div className="text-sm truncate">{c.username}</div>
-                    <div className="text-xs text-muted-foreground truncate">{c.email ?? "—"}</div>
+                    <div className="text-sm text-muted-foreground truncate">{c.email ?? "—"}</div>
                   </div>
                   <div className="text-sm text-muted-foreground text-right">{c.messages.length}</div>
                 </button>

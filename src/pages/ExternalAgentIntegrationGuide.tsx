@@ -38,7 +38,7 @@ function Callout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex items-start gap-2.5 rounded-lg border border-warning/25 bg-[hsl(var(--warning-soft))] px-3.5 py-3">
       <AlertTriangle size={14} className="shrink-0 mt-0.5 text-warning" />
-      <div className="text-xs text-warning leading-relaxed">{children}</div>
+      <div className="text-sm text-warning leading-relaxed">{children}</div>
     </div>
   );
 }
@@ -57,7 +57,7 @@ function Table({ head, rows }: { head: string[]; rows: (string | React.ReactNode
         <tbody>
           {rows.map((r, i) => (
             <tr key={i} className={i > 0 ? "border-t border-border" : undefined}>
-              {r.map((c, j) => <td key={j} className="px-3 py-2 text-xs align-top">{c}</td>)}
+              {r.map((c, j) => <td key={j} className="px-3 py-2 text-sm align-top">{c}</td>)}
             </tr>
           ))}
         </tbody>
@@ -181,7 +181,7 @@ export default function ExternalAgentIntegrationGuide() {
 
   return (
     <div className="px-8 py-8 max-w-[1180px] mx-auto animate-fade-up">
-      <Link to="/external-agents" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-base mb-4">
+      <Link to="/external-agents" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-base mb-4">
         <ChevronLeft size={12} /> External Agents
       </Link>
 
@@ -199,7 +199,7 @@ export default function ExternalAgentIntegrationGuide() {
               <a
                 key={s.id}
                 href={`#${s.id}`}
-                className={`block px-2.5 py-1.5 rounded-lg text-xs transition-base leading-snug ${
+                className={`block px-2.5 py-1.5 rounded-lg text-sm transition-base leading-snug ${
                   activeId === s.id ? "bg-primary-soft text-primary font-medium" : "text-muted-foreground hover:text-foreground hover:bg-surface-muted"
                 }`}
               >
@@ -247,7 +247,7 @@ export default function ExternalAgentIntegrationGuide() {
                 ["POST", <span className="font-mono">{"{base}/credentials/revoke"}</span>, "application/json", "Deletes a previously stored credential.", "Optional"],
               ]}
             />
-            <p className="text-xs text-muted-foreground leading-relaxed">
+            <p className="text-sm text-muted-foreground leading-relaxed">
               Returning <Code>404</Code> or <Code>501</Code> from <Code>GET /tools</Code> tells the platform your agent has no
               per-user credential needs — it will never call the other two endpoints or ask a user to connect anything.
             </p>
@@ -265,7 +265,7 @@ export default function ExternalAgentIntegrationGuide() {
               ]}
             />
             <div>
-              <p className="text-xs font-medium text-muted-foreground mb-1.5">Signature format</p>
+              <p className="text-sm font-medium text-muted-foreground mb-1.5">Signature format</p>
               <CopyBlock code={`X-FPT-Signature: t=<epoch second>,v1=<lowercase hex hmac-sha256>\n\nv1 = hmac_sha256(signing_secret, t + "." + sha256_hex(raw_body))`} />
             </div>
             <ul className="space-y-1.5 list-disc pl-4">
@@ -278,11 +278,11 @@ export default function ExternalAgentIntegrationGuide() {
             </ul>
             <div className="grid md:grid-cols-2 gap-3">
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1.5">Node.js verification</p>
+                <p className="text-sm font-medium text-muted-foreground mb-1.5">Node.js verification</p>
                 <CopyBlock code={`const crypto = require("crypto");\n\nfunction verify(header, rawBody, secret) {\n  const [tPart, vPart] = header.split(",");\n  const t = Number(tPart.split("=")[1]);\n  const sig = vPart.split("=")[1];\n  if (Math.abs(Date.now() / 1000 - t) > 300) return false;\n  const bodyHash = crypto.createHash("sha256").update(rawBody).digest("hex");\n  const expected = crypto.createHmac("sha256", secret)\n    .update(\`\${t}.\${bodyHash}\`).digest("hex");\n  return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));\n}`} />
               </div>
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1.5">Python verification</p>
+                <p className="text-sm font-medium text-muted-foreground mb-1.5">Python verification</p>
                 <CopyBlock code={`import hmac, hashlib, time\n\ndef verify(header, raw_body, secret):\n    parts = dict(p.split("=") for p in header.split(","))\n    t, sig = int(parts["t"]), parts["v1"]\n    if abs(time.time() - t) > 300:\n        return False\n    body_hash = hashlib.sha256(raw_body).hexdigest()\n    msg = f"{t}.{body_hash}".encode()\n    expected = hmac.new(secret.encode(), msg, hashlib.sha256).hexdigest()\n    return hmac.compare_digest(sig, expected)`} />
               </div>
             </div>
@@ -345,7 +345,7 @@ export default function ExternalAgentIntegrationGuide() {
               ]}
             />
             <div>
-              <p className="text-xs font-medium text-muted-foreground mb-1.5">A normal turn</p>
+              <p className="text-sm font-medium text-muted-foreground mb-1.5">A normal turn</p>
               <CopyBlock code={JSON.stringify({
                 protocolVersion: "1", runId: "run_9f2a", threadId: "th_1042", agentId: "agent_flight_assist",
                 workspaceId: "ws_abc", userId: "user_881",
@@ -354,7 +354,7 @@ export default function ExternalAgentIntegrationGuide() {
               }, null, 2)} />
             </div>
             <div>
-              <p className="text-xs font-medium text-muted-foreground mb-1.5">A turn answering an interrupt</p>
+              <p className="text-sm font-medium text-muted-foreground mb-1.5">A turn answering an interrupt</p>
               <CopyBlock code={JSON.stringify({
                 protocolVersion: "1", runId: "run_9f2b", threadId: "th_1042", agentId: "agent_flight_assist",
                 workspaceId: "ws_abc", userId: "user_881",
@@ -362,7 +362,7 @@ export default function ExternalAgentIntegrationGuide() {
                 history: [{ role: "assistant", content: "Cancel this booking and issue a refund?" }],
               }, null, 2)} />
             </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
+            <p className="text-sm text-muted-foreground leading-relaxed">
               <Code>runId</Code> is your idempotency key: if a <Code>runId</Code> has already completed, return the earlier
               result instead of running it again — the platform retries at the transport level, not at the business level.
             </p>
@@ -379,15 +379,15 @@ export default function ExternalAgentIntegrationGuide() {
                 ["messageId / threadId", "Present on frames scoped to a specific message or thread."],
               ]}
             />
-            <p className="text-xs text-muted-foreground leading-relaxed">
+            <p className="text-sm text-muted-foreground leading-relaxed">
               Envelope fields are <strong>snake_case</strong>; type-specific fields are <strong>camelCase</strong>. Never send{" "}
               <Code>RUN_STARTED</Code> — the platform already emits it the moment it opens the connection to your agent.
             </p>
             <div>
-              <p className="text-xs font-medium text-muted-foreground mb-1.5">Minimal working stream</p>
+              <p className="text-sm font-medium text-muted-foreground mb-1.5">Minimal working stream</p>
               <CopyBlock code={`data: {"event_id":"e1","type":"TEXT_MESSAGE_START","run_id":"r1","timestamp":1735689600,"messageId":"m1","role":"assistant"}\n\ndata: {"event_id":"e2","type":"TEXT_MESSAGE_CONTENT","run_id":"r1","timestamp":1735689601,"messageId":"m1","delta":"Hi, how can I help?"}\n\ndata: {"event_id":"e3","type":"TEXT_MESSAGE_END","run_id":"r1","timestamp":1735689602,"messageId":"m1"}\n\ndata: {"event_id":"e4","type":"RUN_FINISHED","run_id":"r1","timestamp":1735689603,"outcome":{"type":"success"}}`} />
             </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
+            <p className="text-sm text-muted-foreground leading-relaxed">
               See the <a href="#frames" className="font-semibold text-primary hover:underline">Frame reference</a> below for MUST / SHOULD / MAY levels and required fields per frame.
             </p>
           </Section>
@@ -397,10 +397,10 @@ export default function ExternalAgentIntegrationGuide() {
               {FRAMES.map(f => (
                 <div key={f.name} className="rounded-xl border border-border p-4">
                   <p className="font-mono text-sm font-semibold text-foreground mb-1">{f.name}</p>
-                  {f.note && <p className="text-xs text-warning leading-relaxed mb-2">{f.note}</p>}
+                  {f.note && <p className="text-sm text-warning leading-relaxed mb-2">{f.note}</p>}
                   <div className="space-y-1 mb-3">
                     {f.fields.map(fld => (
-                      <div key={fld.name} className="flex items-start gap-2 text-xs">
+                      <div key={fld.name} className="flex items-start gap-2 text-sm">
                         <span className={`shrink-0 px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase ${LEVEL_CLASS[fld.level]}`}>{fld.level}</span>
                         <span className="font-mono text-foreground shrink-0">{fld.name}</span>
                         <span className="text-muted-foreground">{fld.desc}</span>
@@ -431,7 +431,7 @@ export default function ExternalAgentIntegrationGuide() {
             <div className="space-y-3">
               {INTERRUPT_KINDS.map(k => (
                 <div key={k.kind}>
-                  <p className="text-xs font-medium text-muted-foreground mb-1.5 font-mono">{k.kind}</p>
+                  <p className="text-sm font-medium text-muted-foreground mb-1.5 font-mono">{k.kind}</p>
                   <CopyBlock code={JSON.stringify(k.example, null, 2)} />
                 </div>
               ))}
@@ -441,7 +441,7 @@ export default function ExternalAgentIntegrationGuide() {
               is mandatory, must be <strong>https</strong>, must not embed credentials, its host must not be a bare IP, and its
               host must be on the allowlist declared at onboarding. Violating any of these fails the turn.
             </Callout>
-            <p className="text-xs text-muted-foreground leading-relaxed">
+            <p className="text-sm text-muted-foreground leading-relaxed">
               For a <Code>review</Code> interrupt, the edit form is derived from the <strong>types</strong> of the values in{" "}
               <Code>args</Code> — a string renders a text field, a number a numeric field, a boolean a toggle — so the shape of{" "}
               <Code>args</Code> determines the shape of the form your user sees.
@@ -459,7 +459,7 @@ export default function ExternalAgentIntegrationGuide() {
               ]}
             />
             <CopyBlock code={JSON.stringify({ status: "ok", protocolVersions: ["1"], name: "Flight Assistant", version: "2.3.1" }, null, 2)} />
-            <p className="text-xs text-muted-foreground leading-relaxed">
+            <p className="text-sm text-muted-foreground leading-relaxed">
               Not HMAC-signed, and polled every 30 seconds — keep it cheap: no model call, no database query, just a liveness check.
             </p>
           </Section>

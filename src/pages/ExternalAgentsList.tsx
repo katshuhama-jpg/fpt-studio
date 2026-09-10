@@ -128,7 +128,7 @@ function RowMenu({ agent, isAdmin, onOpen, onEdit, onSubmit, onPauseResume, onDe
                   <button
                     disabled={item.disabled}
                     onClick={() => { if (item.disabled) return; item.onClick(); setOpen(false); }}
-                    className={`w-full text-left px-3 py-1.5 text-xs transition-base ${
+                    className={`w-full text-left px-3 py-1.5 text-sm transition-base ${
                       item.disabled ? "text-muted-foreground/50 cursor-not-allowed" :
                       item.danger ? "text-destructive hover:bg-[hsl(var(--destructive-soft))]" : "hover:bg-surface-muted"
                     }`}

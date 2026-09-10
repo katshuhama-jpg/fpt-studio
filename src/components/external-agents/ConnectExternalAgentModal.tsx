@@ -308,7 +308,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
                 }`}>
                   {step === "validate" ? <HugeiconsIcon icon={Tick02Icon} size={11} /> : "1"}
                 </span>
-                <span className={`text-xs font-medium transition-base ${step === "connection" ? "text-foreground" : "text-muted-foreground"}`}>
+                <span className={`text-sm font-medium transition-base ${step === "connection" ? "text-foreground" : "text-muted-foreground"}`}>
                   Connection
                 </span>
               </div>
@@ -319,7 +319,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
                 }`}>
                   2
                 </span>
-                <span className={`text-xs font-medium transition-base ${step === "validate" ? "text-foreground" : "text-muted-foreground"}`}>
+                <span className={`text-sm font-medium transition-base ${step === "validate" ? "text-foreground" : "text-muted-foreground"}`}>
                   Validate
                 </span>
               </div>
@@ -331,7 +331,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
             {step === "connection" ? (
               <div className="space-y-4">
                 <div>
-                  <label className="text-xs font-medium mb-1.5 block">Avatar</label>
+                  <label className="text-sm font-medium mb-1.5 block">Avatar</label>
                   <div className="relative inline-block">
                     <button
                       type="button"
@@ -366,7 +366,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
 
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-xs font-medium" htmlFor="ext-name">Agent name <span className="text-destructive">*</span></label>
+                    <label className="text-sm font-medium" htmlFor="ext-name">Agent name <span className="text-destructive">*</span></label>
                     <span className="text-[10px] text-muted-foreground">{name.length}/{NAME_MAX}</span>
                   </div>
                   <input
@@ -386,7 +386,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
 
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-xs font-medium" htmlFor="ext-desc">Description</label>
+                    <label className="text-sm font-medium" htmlFor="ext-desc">Description</label>
                     <span className="text-[10px] text-muted-foreground">{description.length}/{DESC_MAX}</span>
                   </div>
                   <Textarea
@@ -401,7 +401,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium mb-1.5 block" htmlFor="ext-url">Base URL <span className="text-destructive">*</span></label>
+                  <label className="text-sm font-medium mb-1.5 block" htmlFor="ext-url">Base URL <span className="text-destructive">*</span></label>
                   <input
                     id="ext-url"
                     ref={baseUrlRef}
@@ -421,7 +421,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
                 </div>
 
                 <div>
-                  <label className="text-xs font-medium mb-1.5 block" htmlFor="ext-auth-method">Authentication</label>
+                  <label className="text-sm font-medium mb-1.5 block" htmlFor="ext-auth-method">Authentication</label>
                   <Select value={authMethod} onValueChange={v => setAuthMethod(v as AuthMethod)}>
                     <SelectTrigger id="ext-auth-method" className="h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -439,14 +439,14 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
 
                 {authMethod === "bearer" && (
                   <div>
-                    <label className="text-xs font-medium mb-1.5 block" htmlFor="ext-token">Bearer Token <span className="text-destructive">*</span></label>
+                    <label className="text-sm font-medium mb-1.5 block" htmlFor="ext-token">Bearer Token <span className="text-destructive">*</span></label>
                     {editing && !replacingToken ? (
                       <div className="flex items-center gap-2">
                         <input disabled value="••••••••" className="flex-1 h-9 px-3 rounded-lg border border-border bg-surface-muted text-sm text-muted-foreground font-mono" />
                         <button
                           type="button"
                           onClick={() => { setReplacingToken(true); setErrors(er => ({ ...er, token: undefined })); }}
-                          className="h-9 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-xs font-medium transition-base shrink-0"
+                          className="h-9 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base shrink-0"
                         >
                           Replace token
                         </button>
@@ -480,7 +480,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
 
                 {authMethod === "headers" && (
                   <div>
-                    <label className="text-xs font-medium mb-1.5 block">Headers (optional)</label>
+                    <label className="text-sm font-medium mb-1.5 block">Headers (optional)</label>
                     <div className="space-y-2">
                       {headers.map((h, i) => (
                         <div key={i} className="flex items-center gap-2">
@@ -539,12 +539,12 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
                 )}
 
                 <div>
-                  <label className="text-xs font-medium mb-1.5 block" htmlFor="ext-hosts">Allowed hosts for authorizeUrl <span className="text-destructive">*</span></label>
+                  <label className="text-sm font-medium mb-1.5 block" htmlFor="ext-hosts">Allowed hosts for authorizeUrl <span className="text-destructive">*</span></label>
                   {allowedHosts.length > 0 && (
                     <div className="space-y-1.5 mb-1.5">
                       {allowedHosts.map(host => (
                         <div key={host} className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface">
-                          <span className="text-xs font-mono truncate">{host}</span>
+                          <span className="text-sm font-mono truncate">{host}</span>
                           <button
                             type="button"
                             onClick={() => removeHost(host)}
@@ -632,7 +632,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
                           <p className={`text-sm font-medium ${!row.pass ? "text-destructive" : row.warn ? "text-warning" : "text-foreground"}`}>
                             {row.label}
                           </p>
-                          <p className={`text-xs leading-relaxed mt-0.5 ${!row.pass ? "text-destructive/90" : "text-muted-foreground"}`}>
+                          <p className={`text-sm leading-relaxed mt-0.5 ${!row.pass ? "text-destructive/90" : "text-muted-foreground"}`}>
                             {row.message}
                           </p>
                         </div>

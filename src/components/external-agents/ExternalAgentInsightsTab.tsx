@@ -27,7 +27,7 @@ function PerformanceSubTab({ agentId }: { agentId: string }) {
         <h2 className="font-display text-xl font-semibold">Performance</h2>
         <div className="flex items-center gap-1 bg-surface border border-border rounded-lg p-1">
           {["7d", "30d", "Custom"].map((t, i) => (
-            <button key={t} className={`px-3 h-7 rounded text-xs font-medium transition-base ${i === 0 ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+            <button key={t} className={`px-3 h-7 rounded text-sm font-medium transition-base ${i === 0 ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
               {t}
             </button>
           ))}
@@ -36,11 +36,11 @@ function PerformanceSubTab({ agentId }: { agentId: string }) {
 
       <div className="grid grid-cols-2 gap-3 max-w-md">
         <div className="surface-card p-4">
-          <div className="text-xs text-muted-foreground mb-1">Total conversations</div>
+          <div className="text-sm text-muted-foreground mb-1">Total conversations</div>
           <div className="font-display text-2xl font-semibold tracking-tight">{stats.total}</div>
         </div>
         <div className="surface-card p-4">
-          <div className="text-xs text-muted-foreground mb-1">Avg. response time</div>
+          <div className="text-sm text-muted-foreground mb-1">Avg. response time</div>
           <div className="font-display text-2xl font-semibold tracking-tight">
             {stats.avgResponseMs != null ? `${(stats.avgResponseMs / 1000).toFixed(1)}s` : "—"}
           </div>
@@ -49,8 +49,8 @@ function PerformanceSubTab({ agentId }: { agentId: string }) {
 
       <div className="surface-card p-5">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-display text-sm font-semibold">Conversations by day</h3>
-          <span className="text-xs text-muted-foreground">Last 7 days</span>
+          <h3 className="font-display text-lg font-semibold">Conversations by day</h3>
+          <span className="text-sm text-muted-foreground">Last 7 days</span>
         </div>
         <div className="flex items-end gap-2 h-40 mb-2">
           {stats.byDay.map((d, i) => (
@@ -64,7 +64,7 @@ function PerformanceSubTab({ agentId }: { agentId: string }) {
         </div>
         <div className="flex gap-2">
           {stats.byDay.map((d, i) => (
-            <div key={i} className="flex-1 text-center text-xs text-muted-foreground">{d.label}</div>
+            <div key={i} className="flex-1 text-center text-sm text-muted-foreground">{d.label}</div>
           ))}
         </div>
       </div>
