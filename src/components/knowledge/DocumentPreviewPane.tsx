@@ -19,38 +19,66 @@ const TOOLS: { id: ToolId; label: string; Icon: typeof Hand }[] = [
   { id: "text", label: "Chèn văn bản", Icon: Type },
 ];
 
-/** Left/right edge resize handles on a selected chunk box — fully invisible (only an ew-resize
- * cursor on hover, matching the reference design), each a full-height 44px-wide strip centered
- * on its edge so the whole edge is grabbable, not just a single point. */
-const HANDLES: { id: "w" | "e"; left: string; label: string }[] = [
-  { id: "w", left: "0%", label: "trái" },
-  { id: "e", left: "100%", label: "phải" },
+type HandleId = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
+
+/** Edge resize handles on a selected chunk box — fully invisible (only an ew-/ns-resize cursor
+ * on hover, matching the reference design), each a full-length 44px-thick strip centered on its
+ * edge so the whole edge is grabbable, not just a single point. */
+const EDGE_HANDLES: { id: "n" | "s" | "e" | "w"; axis: "x" | "y"; pos: string; cursor: string; label: string }[] = [
+  { id: "w", axis: "x", pos: "0%", cursor: "ew-resize", label: "trái" },
+  { id: "e", axis: "x", pos: "100%", cursor: "ew-resize", label: "phải" },
+  { id: "n", axis: "y", pos: "0%", cursor: "ns-resize", label: "trên" },
+  { id: "s", axis: "y", pos: "100%", cursor: "ns-resize", label: "dưới" },
+];
+
+/** Corner resize handles — same invisible 44x44px hit area, resize both dimensions at once, and
+ * take priority over the edge strips they overlap (rendered after them in the DOM). */
+const CORNER_HANDLES: { id: "nw" | "ne" | "sw" | "se"; left: string; top: string; cursor: string; label: string }[] = [
+  { id: "nw", left: "0%", top: "0%", cursor: "nwse-resize", label: "trên-trái" },
+  { id: "ne", left: "100%", top: "0%", cursor: "nesw-resize", label: "trên-phải" },
+  { id: "sw", left: "0%", top: "100%", cursor: "nesw-resize", label: "dưới-trái" },
+  { id: "se", left: "100%", top: "100%", cursor: "nwse-resize", label: "dưới-phải" },
 ];
 
 const MIN_DIM = 0.03;
 
-/** Resizes the box from its left or right edge only — fully bidirectional: dragging the right
- * edge past its start grows the box, dragging it back past the original left/right position
- * shrinks it, in either direction, clamped to the page bounds and a minimum width. */
-function resizeBox(start: ChunkBox, handle: "w" | "e", cur: { x: number; y: number }, startPointer: { x: number; y: number }): ChunkBox {
+/** Resizes the box from any of its 4 edges or 4 corners — fully bidirectional on both axes:
+ * dragging past the start grows that side, dragging back past the original position shrinks it,
+ * clamped to the page bounds and a minimum width/height. A corner id (e.g. "se") touches both
+ * its horizontal and vertical component via the two `includes` checks below. */
+function resizeBox(start: ChunkBox, handle: HandleId, cur: { x: number; y: number }, startPointer: { x: number; y: number }): ChunkBox {
   const dx = cur.x - startPointer.x;
-  let { x, width } = start;
-  if (handle === "w") {
+  const dy = cur.y - startPointer.y;
+  let { x, y, width, height } = start;
+  if (handle.includes("w")) {
     const nx = Math.max(0, Math.min(x + width - MIN_DIM, x + dx));
     width = x + width - nx;
     x = nx;
-  } else {
+  }
+  if (handle.includes("e")) {
     width = Math.max(MIN_DIM, Math.min(1 - x, width + dx));
   }
-  return { page: start.page, x, y: start.y, width, height: start.height };
+  if (handle.includes("n")) {
+    const ny = Math.max(0, Math.min(y + height - MIN_DIM, y + dy));
+    height = y + height - ny;
+    y = ny;
+  }
+  if (handle.includes("s")) {
+    height = Math.max(MIN_DIM, Math.min(1 - y, height + dy));
+  }
+  return { page: start.page, x, y, width, height };
 }
+
+const PAGE_BASE_WIDTH = 420;
+const PAGE_BASE_HEIGHT = 560;
+const PAGE_ASPECT = PAGE_BASE_WIDTH / PAGE_BASE_HEIGHT;
 
 function prefersReducedMotion(): boolean {
   return typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 }
 
 type DragState =
-  | { kind: "resize"; chunkId: string; handle: "w" | "e"; startBox: ChunkBox; startPointer: { x: number; y: number } }
+  | { kind: "resize"; chunkId: string; handle: HandleId; startBox: ChunkBox; startPointer: { x: number; y: number } }
   | { kind: "draw"; startPointer: { x: number; y: number } }
   | { kind: "freehand"; points: { x: number; y: number }[] };
 
@@ -95,6 +123,9 @@ export default function DocumentPreviewPane({
   // A chunk absent from this map genuinely has no matching text on the current page and renders
   // no box at all, instead of an empty placeholder.
   const [measuredBoxes, setMeasuredBoxes] = useState<Record<string, ChunkBox>>({});
+  // The pane's own available drawing area (its size minus the fixed padding/toolbar clearance
+  // below), used to fit the page to it — see the layout effect below.
+  const [availSize, setAvailSize] = useState({ width: PAGE_BASE_WIDTH, height: PAGE_BASE_HEIGHT });
   const containerRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
   const paragraphRef = useRef<HTMLParagraphElement>(null);
@@ -116,6 +147,39 @@ export default function DocumentPreviewPane({
       y: Math.max(0, Math.min(1, (clientY - rect.top) / rect.height)),
     };
   };
+
+  // Fits the page to the pane's available space (contain-fit: fills whichever of width/height is
+  // the tighter constraint, preserving the page's own aspect ratio) instead of floating as a
+  // small fixed-size rectangle inside a much larger container. Re-measures on any resize of the
+  // pane itself — window resize, or dragging ChunkViewerModal's own left/right pane splitter.
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const PAD_X = 48; // px-6 on both sides of the scroll container below
+    const PAD_TOP = 80; // pt-20, clears the floating page-nav/zoom toolbar
+    const PAD_BOTTOM = 32; // pb-8
+    const update = () => {
+      setAvailSize({
+        width: Math.max(120, el.clientWidth - PAD_X),
+        height: Math.max(160, el.clientHeight - PAD_TOP - PAD_BOTTOM),
+      });
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const fitWidth = (() => {
+    const w = availSize.width;
+    const h = w / PAGE_ASPECT;
+    return h > availSize.height ? availSize.height * PAGE_ASPECT : w;
+  })();
+  const fitHeight = fitWidth / PAGE_ASPECT;
+  // How much bigger/smaller the fitted page is than its nominal 420x560 baseline — text and
+  // padding scale with it so a page that now fills a much larger pane doesn't end up as a big
+  // blank sheet with the same small fixed-size text floating in a corner.
+  const fitScale = fitWidth / PAGE_BASE_WIDTH;
 
   // Scroll the preview back to the top of the page whenever the selected chunk flips it to a
   // different page — the "navigate to the page containing that chunk" half of the list-to-canvas
@@ -356,8 +420,8 @@ export default function DocumentPreviewPane({
           onMouseDown={handlePageMouseDown}
           role="button"
           tabIndex={0}
-          className={`relative bg-white shadow-elev rounded-sm p-8 text-sm leading-relaxed text-foreground/90 select-text transition-base ${cursorClass} ${selected ? "ring-2 ring-primary/60" : ""}`}
-          style={{ width: 420 * zoom, minHeight: 560 * zoom, fontSize: 13 * zoom }}
+          className={`relative bg-white shadow-elev rounded-sm text-sm leading-relaxed text-foreground/90 select-text transition-base ${cursorClass} ${selected ? "ring-2 ring-primary/60" : ""}`}
+          style={{ width: fitWidth * zoom, minHeight: fitHeight * zoom, fontSize: 13 * fitScale * zoom, padding: 32 * fitScale }}
         >
           <p ref={paragraphRef} className="relative z-0 pointer-events-none">{text}</p>
 
@@ -405,7 +469,7 @@ export default function DocumentPreviewPane({
                     )}
                   </div>
                 )}
-                {isSelected && !viewOnly && HANDLES.map(h => (
+                {isSelected && !viewOnly && EDGE_HANDLES.map(h => (
                   <button
                     key={h.id}
                     type="button"
@@ -415,8 +479,26 @@ export default function DocumentPreviewPane({
                       e.preventDefault();
                       dragRef.current = { kind: "resize", chunkId: c.id, handle: h.id, startBox: box, startPointer: clientToFraction(e.clientX, e.clientY) };
                     }}
-                    style={{ left: h.left, top: "50%", height: "max(100%, 44px)", cursor: "ew-resize" }}
-                    className="absolute w-11 -translate-x-1/2 -translate-y-1/2 bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    style={
+                      h.axis === "x"
+                        ? { left: h.pos, top: "50%", height: "max(100%, 44px)", cursor: h.cursor }
+                        : { top: h.pos, left: "50%", width: "max(100%, 44px)", cursor: h.cursor }
+                    }
+                    className={`absolute -translate-x-1/2 -translate-y-1/2 bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${h.axis === "x" ? "w-11" : "h-11"}`}
+                  />
+                ))}
+                {isSelected && !viewOnly && CORNER_HANDLES.map(h => (
+                  <button
+                    key={h.id}
+                    type="button"
+                    aria-label={`Đổi kích thước chunk ${c.index} (góc ${h.label})`}
+                    onMouseDown={e => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      dragRef.current = { kind: "resize", chunkId: c.id, handle: h.id, startBox: box, startPointer: clientToFraction(e.clientX, e.clientY) };
+                    }}
+                    style={{ left: h.left, top: h.top, cursor: h.cursor }}
+                    className="absolute w-11 h-11 -translate-x-1/2 -translate-y-1/2 bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   />
                 ))}
               </div>
