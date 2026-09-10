@@ -295,14 +295,30 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
   return (
     <>
       <Dialog open={open} onOpenChange={v => { if (!v) requestClose(); }}>
-        <DialogContent className="sm:max-w-[560px] max-h-[88vh] p-0 gap-0 flex flex-col overflow-hidden">
+        <DialogContent className="sm:max-w-[560px] h-[640px] max-h-[88vh] p-0 gap-0 flex flex-col overflow-hidden">
           <DialogHeader className="px-6 pt-6 pb-0 shrink-0">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[11px] font-medium text-muted-foreground">
-                <span className={step === "connection" ? "text-primary font-semibold" : ""}>1 Connection</span>
-                <span className="mx-1.5">→</span>
-                <span className={step === "validate" ? "text-primary font-semibold" : ""}>2 Validate</span>
-              </span>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center gap-1.5">
+                <span className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-semibold shrink-0 transition-base ${
+                  step === "validate" ? "bg-primary-soft text-primary" : "bg-primary text-primary-foreground"
+                }`}>
+                  {step === "validate" ? <Check size={11} /> : "1"}
+                </span>
+                <span className={`text-xs font-medium transition-base ${step === "connection" ? "text-foreground" : "text-muted-foreground"}`}>
+                  Connection
+                </span>
+              </div>
+              <div className={`h-px w-6 shrink-0 transition-base ${step === "validate" ? "bg-primary" : "bg-border"}`} />
+              <div className="flex items-center gap-1.5">
+                <span className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-semibold shrink-0 transition-base ${
+                  step === "validate" ? "bg-primary text-primary-foreground" : "bg-surface-muted text-muted-foreground"
+                }`}>
+                  2
+                </span>
+                <span className={`text-xs font-medium transition-base ${step === "validate" ? "text-foreground" : "text-muted-foreground"}`}>
+                  Validate
+                </span>
+              </div>
             </div>
             <DialogTitle className="font-display">{editing ? "Edit connection" : "Connect External Agent"}</DialogTitle>
           </DialogHeader>
