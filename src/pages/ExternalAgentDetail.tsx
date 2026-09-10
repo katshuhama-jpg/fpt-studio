@@ -659,7 +659,7 @@ export default function ExternalAgentDetail() {
                       className="h-7 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-xs font-medium transition-base disabled:opacity-50 flex items-center gap-1.5"
                     >
                       {checkingHealth && <RefreshCw size={11} className="animate-spin" />}
-                      Run check now
+                      Recheck now
                     </button>
                   </div>
                 </div>
