@@ -66,8 +66,15 @@ function resizeBox(start: ChunkBox, handle: HandleId, cur: { x: number; y: numbe
   return { page: start.page, x, y, width, height };
 }
 
-const PAGE_BASE_WIDTH = 420;
-const PAGE_BASE_HEIGHT = 560;
+// The page's virtual, unscaled design canvas — sized (with PAGE_BASE_FONT_SIZE/PAGE_BASE_PADDING
+// below) to hold a full real page's worth of dense body text without overflowing, at a normal
+// reading font-to-width ratio, so the fitScale computed from it always represents genuine
+// "shrink/grow this whole real page" proportions rather than an arbitrary small mock rectangle.
+const PAGE_BASE_WIDTH = 780;
+const PAGE_BASE_HEIGHT = 1050;
+const PAGE_ASPECT = PAGE_BASE_WIDTH / PAGE_BASE_HEIGHT;
+const PAGE_BASE_FONT_SIZE = 15;
+const PAGE_BASE_PADDING = 56;
 
 function prefersReducedMotion(): boolean {
   return typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -148,11 +155,9 @@ export default function DocumentPreviewPane({
     };
   };
 
-  // Stretches the page to fill the pane's available space edge-to-edge on both axes (minus a
-  // small, consistent margin), instead of floating as a small fixed-size rectangle — or a
-  // fixed-aspect-ratio box leaving blank margins on one axis — inside a much larger container.
-  // Re-measures on any resize of the pane itself — window resize, or dragging ChunkViewerModal's
-  // own left/right pane splitter.
+  // Tracks the pane's own available drawing area (minus a small, consistent margin) so the page
+  // can be fit to it below — see the fitHeight/fitWidth computation. Re-measures on any resize of
+  // the pane itself — window resize, or dragging ChunkViewerModal's own left/right pane splitter.
   useLayoutEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -171,12 +176,19 @@ export default function DocumentPreviewPane({
     return () => ro.disconnect();
   }, []);
 
-  const fitWidth = availSize.width;
-  const fitHeight = availSize.height;
-  // How much bigger/smaller the filled page is than its nominal 420-wide baseline — text and
-  // padding scale with it so a page that now fills a much larger pane doesn't end up as a big
-  // blank sheet with the same small fixed-size text floating in a corner.
-  const fitScale = fitWidth / PAGE_BASE_WIDTH;
+  // Fits the whole page inside the pane primarily by height (the usual binding constraint for
+  // this pane's proportions), falling back to width only when a height-fit page would be wider
+  // than the pane — never cropped, never scrolled for a single page. Width and height are scaled
+  // by the SAME factor (the page's fixed aspect ratio is preserved), and that factor also scales
+  // font size and padding below, so the page reads at a normal, real-document proportion instead
+  // of "zoomed" — a page that's twice as tall also gets text twice as big, never disproportionately.
+  const fitHeight = (() => {
+    const h = availSize.height;
+    const w = h * PAGE_ASPECT;
+    return w > availSize.width ? availSize.width / PAGE_ASPECT : h;
+  })();
+  const fitWidth = fitHeight * PAGE_ASPECT;
+  const fitScale = fitHeight / PAGE_BASE_HEIGHT;
 
   // Scroll the preview back to the top of the page whenever the selected chunk flips it to a
   // different page — the "navigate to the page containing that chunk" half of the list-to-canvas
@@ -418,7 +430,7 @@ export default function DocumentPreviewPane({
           role="button"
           tabIndex={0}
           className={`relative bg-white shadow-elev rounded-sm text-sm leading-relaxed text-foreground/90 select-text transition-base ${cursorClass} ${selected ? "ring-2 ring-primary/60" : ""}`}
-          style={{ width: fitWidth * zoom, minHeight: fitHeight * zoom, fontSize: 13 * fitScale * zoom, padding: 32 * fitScale }}
+          style={{ width: fitWidth * zoom, minHeight: fitHeight * zoom, fontSize: PAGE_BASE_FONT_SIZE * fitScale * zoom, padding: PAGE_BASE_PADDING * fitScale }}
         >
           <p ref={paragraphRef} className="relative z-0 pointer-events-none whitespace-pre-line">{text}</p>
 
