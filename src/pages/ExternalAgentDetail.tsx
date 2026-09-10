@@ -384,7 +384,7 @@ export default function ExternalAgentDetail() {
             <aside
               className="border-r border-border overflow-hidden shrink-0 flex flex-col h-full"
               style={{
-                background: "#ffffff",
+                background: "hsl(var(--card))",
                 width: sidebarCollapsed ? "0px" : "240px",
                 opacity: sidebarCollapsed ? 0 : 1,
                 transition: "width 320ms cubic-bezier(0.4,0,0.2,1), opacity 280ms ease",

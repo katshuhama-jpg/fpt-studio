@@ -92,7 +92,7 @@ export default function ExternalAgentInsightsTab({ agentId }: { agentId: string 
           matches instead of the old horizontal tab row. */}
       <aside
         className="border-r border-border overflow-hidden shrink-0 flex flex-col h-full"
-        style={{ background: "#ffffff", width: "240px" }}
+        style={{ background: "hsl(var(--card))", width: "240px" }}
       >
         <nav className="shrink-0 px-2 pt-2 pb-1 flex flex-col" style={{ gap: "4px" }}>
           {SUBTABS.map(s => (
