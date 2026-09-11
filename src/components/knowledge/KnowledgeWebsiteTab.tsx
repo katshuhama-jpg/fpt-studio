@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Search, ChevronDown, Plus, MoreVertical, Clock, Settings2, Map, X } from "lucide-react";
+import { Search, ChevronDown, Plus, Clock, Settings2, Map, X } from "lucide-react";
 import FileTypeIcon from "./FileTypeIcon";
 import CreateFolderModal from "./CreateFolderModal";
 import MoveToFolderModal from "./MoveToFolderModal";
+import RowActionMenu from "./RowActionMenu";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -323,19 +324,24 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
                   {!viewOnly && (
                     <td className="px-4 py-3 text-right">
                       {u.isFolder ? (
-                        <FolderRowMenu
-                          onOpen={() => setFolderFilter(u.id)}
-                          onRename={() => { setRenaming(u); setRenameValue(u.name); }}
-                          onMove={() => setMoveTargets([u])}
-                          onDelete={() => setDeleteTargets([u])}
+                        <RowActionMenu
+                          ariaLabel="Thao tác thư mục"
+                          items={[
+                            { label: "Mở", onClick: () => setFolderFilter(u.id) },
+                            { label: "Đổi tên", onClick: () => { setRenaming(u); setRenameValue(u.name); } },
+                            { label: "Di chuyển", onClick: () => setMoveTargets([u]) },
+                            { label: "Xóa", onClick: () => setDeleteTargets([u]), danger: true },
+                          ]}
                         />
                       ) : (
-                        <RowMenu
-                          onOpen={() => openViewer(u.id)}
-                          onSync={() => syncNow([u.id])}
-                          onSchedule={() => setScheduleTarget(u)}
-                          onMove={() => setMoveTargets([u])}
-                          onDelete={() => setDeleteTargets([u])}
+                        <RowActionMenu
+                          items={[
+                            { label: "Mở", onClick: () => openViewer(u.id) },
+                            { label: "Đồng bộ ngay", onClick: () => syncNow([u.id]) },
+                            { label: "Cài đặt lịch riêng", onClick: () => setScheduleTarget(u) },
+                            { label: "Di chuyển", onClick: () => setMoveTargets([u]) },
+                            { label: "Xóa", onClick: () => setDeleteTargets([u]), danger: true },
+                          ]}
                         />
                       )}
                     </td>
@@ -463,43 +469,6 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
   );
 }
 
-function FolderRowMenu({ onOpen, onRename, onMove, onDelete }: {
-  onOpen: () => void; onRename: () => void; onMove: () => void; onDelete: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, [open]);
-  const items: { label: string; onClick: () => void; danger?: boolean }[] = [
-    { label: "Mở", onClick: onOpen },
-    { label: "Đổi tên", onClick: onRename },
-    { label: "Di chuyển", onClick: onMove },
-    { label: "Xóa", onClick: onDelete, danger: true },
-  ];
-  return (
-    <div ref={ref} className="relative inline-block" onClick={e => e.stopPropagation()}>
-      <button onClick={() => setOpen(v => !v)} aria-label="Thao tác thư mục" className="w-9 h-9 min-w-[44px] min-h-[44px] -m-1.5 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-        <MoreVertical size={15} />
-      </button>
-      {open && (
-        <div className="absolute right-0 top-full mt-1 z-20 min-w-52 max-w-xs rounded-lg border border-border bg-white shadow-elev py-1">
-          {items.map((item, i) => (
-            <div key={item.label} className={item.danger && !items[i - 1]?.danger ? "mt-1 pt-1 border-t border-border" : undefined}>
-              <button onClick={() => { setOpen(false); item.onClick(); }} className={`w-full text-left px-3 py-2 text-sm transition-base ${item.danger ? "text-destructive hover:bg-[hsl(var(--destructive-soft))]" : "hover:bg-surface-muted"}`}>
-                {item.label}
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function RenameFolderDialog({ value, onChange, onCancel, onConfirm, isDuplicate }: {
   value: string; onChange: (v: string) => void; onCancel: () => void; onConfirm: () => void; isDuplicate: (name: string) => boolean;
 }) {
@@ -542,40 +511,3 @@ function RenameFolderDialog({ value, onChange, onCancel, onConfirm, isDuplicate 
   );
 }
 
-function RowMenu({ onOpen, onSync, onSchedule, onMove, onDelete }: {
-  onOpen: () => void; onSync: () => void; onSchedule: () => void; onMove: () => void; onDelete: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, [open]);
-  const items: { label: string; onClick: () => void; danger?: boolean }[] = [
-    { label: "Mở", onClick: onOpen },
-    { label: "Đồng bộ ngay", onClick: onSync },
-    { label: "Cài đặt lịch riêng", onClick: onSchedule },
-    { label: "Di chuyển", onClick: onMove },
-    { label: "Xóa", onClick: onDelete, danger: true },
-  ];
-  return (
-    <div ref={ref} className="relative inline-block" onClick={e => e.stopPropagation()}>
-      <button onClick={() => setOpen(v => !v)} aria-label="Thao tác" className="w-9 h-9 min-w-[44px] min-h-[44px] -m-1.5 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-        <MoreVertical size={15} />
-      </button>
-      {open && (
-        <div className="absolute right-0 top-full mt-1 z-20 min-w-52 max-w-xs rounded-lg border border-border bg-white shadow-elev py-1">
-          {items.map((item, i) => (
-            <div key={item.label} className={item.danger && !items[i - 1]?.danger ? "mt-1 pt-1 border-t border-border" : undefined}>
-              <button onClick={() => { setOpen(false); item.onClick(); }} className={`w-full text-left px-3 py-2 text-sm transition-base ${item.danger ? "text-destructive hover:bg-[hsl(var(--destructive-soft))]" : "hover:bg-surface-muted"}`}>
-                {item.label}
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}

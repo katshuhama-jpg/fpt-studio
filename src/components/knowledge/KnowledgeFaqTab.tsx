@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Search, ChevronDown, Plus, MoreVertical, Info, ChevronLeft, ChevronsLeft, ChevronRight, ChevronsRight, Download, Settings2 } from "lucide-react";
+import { Search, ChevronDown, Plus, Info, ChevronLeft, ChevronsLeft, ChevronRight, ChevronsRight, Download, Settings2 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import RowActionMenu from "./RowActionMenu";
 import { toast } from "sonner";
 import { knowledgeFaqStore, type KnowledgeFaq } from "./knowledgeFaqStore";
 import { knowledgeBaseStore } from "./knowledgeBaseStore";
@@ -338,11 +339,19 @@ export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; view
                     <td className="px-2 py-3 text-xs text-muted-foreground truncate">{f.updatedBy}</td>
                     {!viewOnly && (
                       <td className="px-4 py-3 text-right">
-                        <RowMenu
-                          status={f.status}
-                          onEdit={() => setEditTarget(f)}
-                          onReprocess={() => reprocessOne(f)}
-                          onDelete={() => setDeleteTargets([f])}
+                        <RowActionMenu
+                          items={[
+                            { label: "Sửa", onClick: () => setEditTarget(f) },
+                            {
+                              label: "Xử lý lại", onClick: () => reprocessOne(f), disabled: f.status !== "failed",
+                              disabledTooltip: f.status === "invalid"
+                                ? "Nội dung chưa hợp lệ. Hãy sửa câu hỏi hoặc câu trả lời trước khi xử lý lại."
+                                : f.status === "pending" || f.status === "processing"
+                                  ? "Câu hỏi đang được xử lý."
+                                  : undefined,
+                            },
+                            { label: "Xóa", onClick: () => setDeleteTargets([f]), danger: true },
+                          ]}
                         />
                       </td>
                     )}
@@ -478,52 +487,3 @@ export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; view
   );
 }
 
-function RowMenu({ status, onEdit, onReprocess, onDelete }: {
-  status: KnowledgeFaqStatus; onEdit: () => void; onReprocess: () => void; onDelete: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, [open]);
-
-  const reprocessDisabled = status !== "failed";
-  const reprocessTooltip = status === "invalid"
-    ? "Nội dung chưa hợp lệ. Hãy sửa câu hỏi hoặc câu trả lời trước khi xử lý lại."
-    : status === "pending" || status === "processing"
-      ? "Câu hỏi đang được xử lý."
-      : undefined;
-
-  return (
-    <div ref={ref} className="relative inline-block" onClick={e => e.stopPropagation()}>
-      <button onClick={() => setOpen(v => !v)} aria-label="Thao tác" className="w-9 h-9 min-w-[44px] min-h-[44px] -m-1.5 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-        <MoreVertical size={15} />
-      </button>
-      {open && (
-        <div className="absolute right-0 top-full mt-1 z-20 min-w-52 max-w-xs rounded-lg border border-border bg-white shadow-elev py-1">
-          <button onClick={() => { setOpen(false); onEdit(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Sửa</button>
-          <Tooltip delayDuration={200}>
-            <TooltipTrigger asChild>
-              <span>
-                <button
-                  disabled={reprocessDisabled}
-                  onClick={() => { if (reprocessDisabled) return; setOpen(false); onReprocess(); }}
-                  className={`w-full text-left px-3 py-2 text-sm transition-base ${reprocessDisabled ? "text-muted-foreground/50 cursor-not-allowed" : "hover:bg-surface-muted"}`}
-                >
-                  Xử lý lại
-                </button>
-              </span>
-            </TooltipTrigger>
-            {reprocessTooltip && <TooltipContent side="left" className="max-w-[240px]">{reprocessTooltip}</TooltipContent>}
-          </Tooltip>
-          <div className="mt-1 pt-1 border-t border-border">
-            <button onClick={() => { setOpen(false); onDelete(); }} className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">Xóa</button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}

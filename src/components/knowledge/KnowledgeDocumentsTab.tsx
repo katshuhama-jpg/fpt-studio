@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import {
-  Search, ChevronDown, Plus, MoreVertical, X, Info,
+  Search, ChevronDown, Plus, X, Info,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import RowActionMenu from "./RowActionMenu";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -293,22 +293,26 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                   {!viewOnly && (
                     <td className="px-4 py-3 text-right">
                       {d.isFolder ? (
-                        <FolderRowMenu
-                          onOpen={() => setFolderFilter(d.id)}
-                          onRename={() => { setRenaming(d); setRenameValue(d.name); }}
-                          onMove={() => setMoveTargets([d])}
-                          onDelete={() => setDeleteTargets([d])}
+                        <RowActionMenu
+                          ariaLabel="Thao tác thư mục"
+                          items={[
+                            { label: "Mở", onClick: () => setFolderFilter(d.id) },
+                            { label: "Đổi tên", onClick: () => { setRenaming(d); setRenameValue(d.name); } },
+                            { label: "Di chuyển", onClick: () => setMoveTargets([d]) },
+                            { label: "Xóa", onClick: () => setDeleteTargets([d]), danger: true },
+                          ]}
                         />
                       ) : (
-                        <RowMenu
-                          canOpen={openable}
-                          onOpen={() => openDocument(d.id)}
-                          onLayout={() => setLayoutTarget(d)}
-                          onShare={() => setShareTargets([d])}
-                          onReprocess={() => setReprocessTarget(d)}
-                          onRename={() => { setRenaming(d); setRenameValue(d.name); }}
-                          onMove={() => setMoveTargets([d])}
-                          onDelete={() => setDeleteTargets([d])}
+                        <RowActionMenu
+                          items={[
+                            { label: "Mở", onClick: () => openDocument(d.id), disabled: !openable, disabledTooltip: "Tài liệu chưa xử lý xong nên chưa xem được nội dung." },
+                            { label: "Xem bố cục tài liệu", onClick: () => setLayoutTarget(d) },
+                            { label: "Chia sẻ", onClick: () => setShareTargets([d]) },
+                            { label: "Xử lý lại", onClick: () => setReprocessTarget(d) },
+                            { label: "Đổi tên", onClick: () => { setRenaming(d); setRenameValue(d.name); } },
+                            { label: "Di chuyển", onClick: () => setMoveTargets([d]) },
+                            { label: "Xóa", onClick: () => setDeleteTargets([d]), danger: true },
+                          ]}
                         />
                       )}
                     </td>
@@ -457,164 +461,6 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
         </AlertDialogContent>
       </AlertDialog>
     </div>
-    </div>
-  );
-}
-
-// Worst-case rendered height (7 items, one danger separator, container padding) — used only to
-// decide whether the menu should flip upward; the actual box still sizes to its real content.
-const ROW_MENU_WIDTH = 224; // w-56
-const ROW_MENU_HEIGHT_ESTIMATE = 296;
-const FOLDER_ROW_MENU_HEIGHT_ESTIMATE = 190;
-
-function RowMenu({ canOpen, onOpen, onLayout, onShare, onReprocess, onRename, onMove, onDelete }: {
-  canOpen: boolean; onOpen: () => void; onLayout: () => void; onShare: () => void; onReprocess: () => void; onRename: () => void; onMove: () => void; onDelete: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  const openMenu = () => {
-    const r = btnRef.current?.getBoundingClientRect();
-    if (r) {
-      // The table lives inside its own overflow-x-auto wrapper, so an absolutely positioned
-      // dropdown would get clipped — render in a portal instead, positioned from the button's
-      // own screen rect, and flip upward whenever there isn't enough room below (this is the
-      // fix for the menu rendering off-screen on short tables).
-      const openUpward = window.innerHeight - r.bottom < ROW_MENU_HEIGHT_ESTIMATE && r.top > ROW_MENU_HEIGHT_ESTIMATE;
-      const left = Math.min(Math.max(r.right - ROW_MENU_WIDTH, 8), window.innerWidth - ROW_MENU_WIDTH - 8);
-      setPos(openUpward ? { bottom: window.innerHeight - r.top + 4, left } : { top: r.bottom + 4, left });
-    }
-    setOpen(true);
-  };
-
-  useEffect(() => {
-    if (!open) return;
-    const h = (e: MouseEvent) => {
-      if (
-        menuRef.current && !menuRef.current.contains(e.target as Node) &&
-        btnRef.current && !btnRef.current.contains(e.target as Node)
-      ) setOpen(false);
-    };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, [open]);
-
-  const items: { label: string; onClick: () => void; danger?: boolean; disabled?: boolean; disabledTooltip?: string }[] = [
-    { label: "Mở", onClick: onOpen, disabled: !canOpen, disabledTooltip: "Tài liệu chưa xử lý xong nên chưa xem được nội dung." },
-    { label: "Xem bố cục tài liệu", onClick: onLayout },
-    { label: "Chia sẻ", onClick: onShare },
-    { label: "Xử lý lại", onClick: onReprocess },
-    { label: "Đổi tên", onClick: onRename },
-    { label: "Di chuyển", onClick: onMove },
-    { label: "Xóa", onClick: onDelete, danger: true },
-  ];
-
-  return (
-    <div className="relative inline-block" onClick={e => e.stopPropagation()}>
-      <button ref={btnRef} onClick={() => (open ? setOpen(false) : openMenu())} aria-label="Thao tác" className="w-9 h-9 min-w-[44px] min-h-[44px] -m-1.5 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-        <MoreVertical size={15} />
-      </button>
-      {open && createPortal(
-        <div
-          ref={menuRef}
-          className="fixed z-[9999] w-56 rounded-lg border border-border bg-white shadow-elev py-1"
-          style={{ top: pos.top, bottom: pos.bottom, left: pos.left }}
-          onMouseDown={e => e.stopPropagation()}
-        >
-          {items.map((item, i) => {
-            const isFirstDanger = item.danger && !items[i - 1]?.danger;
-            const button = (
-              <button
-                disabled={item.disabled}
-                onClick={() => { if (item.disabled) return; setOpen(false); item.onClick(); }}
-                className={`w-full text-left px-3 py-2 text-sm transition-base ${
-                  item.disabled ? "text-muted-foreground/50 cursor-not-allowed" :
-                  item.danger ? "text-destructive hover:bg-[hsl(var(--destructive-soft))]" : "hover:bg-surface-muted"
-                }`}
-              >
-                {item.label}
-              </button>
-            );
-            return (
-              <div key={item.label} className={isFirstDanger ? "mt-1 pt-1 border-t border-border" : undefined}>
-                <Tooltip delayDuration={300}>
-                  <TooltipTrigger asChild><span>{button}</span></TooltipTrigger>
-                  {item.disabled && item.disabledTooltip && <TooltipContent side="left">{item.disabledTooltip}</TooltipContent>}
-                </Tooltip>
-              </div>
-            );
-          })}
-        </div>,
-        document.body,
-      )}
-    </div>
-  );
-}
-
-function FolderRowMenu({ onOpen, onRename, onMove, onDelete }: {
-  onOpen: () => void; onRename: () => void; onMove: () => void; onDelete: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  const openMenu = () => {
-    const r = btnRef.current?.getBoundingClientRect();
-    if (r) {
-      const openUpward = window.innerHeight - r.bottom < FOLDER_ROW_MENU_HEIGHT_ESTIMATE && r.top > FOLDER_ROW_MENU_HEIGHT_ESTIMATE;
-      const left = Math.min(Math.max(r.right - ROW_MENU_WIDTH, 8), window.innerWidth - ROW_MENU_WIDTH - 8);
-      setPos(openUpward ? { bottom: window.innerHeight - r.top + 4, left } : { top: r.bottom + 4, left });
-    }
-    setOpen(true);
-  };
-
-  useEffect(() => {
-    if (!open) return;
-    const h = (e: MouseEvent) => {
-      if (
-        menuRef.current && !menuRef.current.contains(e.target as Node) &&
-        btnRef.current && !btnRef.current.contains(e.target as Node)
-      ) setOpen(false);
-    };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, [open]);
-
-  const items: { label: string; onClick: () => void; danger?: boolean }[] = [
-    { label: "Mở", onClick: onOpen },
-    { label: "Đổi tên", onClick: onRename },
-    { label: "Di chuyển", onClick: onMove },
-    { label: "Xóa", onClick: onDelete, danger: true },
-  ];
-
-  return (
-    <div className="relative inline-block" onClick={e => e.stopPropagation()}>
-      <button ref={btnRef} onClick={() => (open ? setOpen(false) : openMenu())} aria-label="Thao tác thư mục" className="w-9 h-9 min-w-[44px] min-h-[44px] -m-1.5 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-        <MoreVertical size={15} />
-      </button>
-      {open && createPortal(
-        <div
-          ref={menuRef}
-          className="fixed z-[9999] w-56 rounded-lg border border-border bg-white shadow-elev py-1"
-          style={{ top: pos.top, bottom: pos.bottom, left: pos.left }}
-          onMouseDown={e => e.stopPropagation()}
-        >
-          {items.map((item, i) => (
-            <div key={item.label} className={item.danger && !items[i - 1]?.danger ? "mt-1 pt-1 border-t border-border" : undefined}>
-              <button
-                onClick={() => { setOpen(false); item.onClick(); }}
-                className={`w-full text-left px-3 py-2 text-sm transition-base ${item.danger ? "text-destructive hover:bg-[hsl(var(--destructive-soft))]" : "hover:bg-surface-muted"}`}
-              >
-                {item.label}
-              </button>
-            </div>
-          ))}
-        </div>,
-        document.body,
-      )}
     </div>
   );
 }
