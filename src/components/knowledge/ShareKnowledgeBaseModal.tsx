@@ -121,7 +121,7 @@ export default function ShareKnowledgeBaseModal({
 
           <DialogFooter>
             <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Hủy bỏ</button>
-            <button onClick={save} disabled={!canSubmit} className="btn-primary h-9 disabled:opacity-40 disabled:pointer-events-none">Lưu</button>
+            <button onClick={save} className="btn-primary h-9">Lưu</button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

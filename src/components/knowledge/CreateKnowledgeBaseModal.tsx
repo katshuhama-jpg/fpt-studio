@@ -182,7 +182,7 @@ export default function CreateKnowledgeBaseModal({
             <button onClick={requestClose} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Hủy bỏ</button>
             <button
               onClick={submit}
-              disabled={!canSubmit || submitting}
+              disabled={submitting}
               className="btn-primary h-9 disabled:opacity-40 disabled:pointer-events-none"
             >
               {submitting && <Loader2 size={13} className="animate-spin" />}
