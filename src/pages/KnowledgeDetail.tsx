@@ -294,14 +294,16 @@ export default function KnowledgeDetail() {
             ))}
           </div>
 
-          <Tooltip delayDuration={300}>
-            <TooltipTrigger asChild>
-              <span tabIndex={0} className="flex items-center gap-1.5 text-xs text-muted-foreground pb-2 outline-none">
-                <BarChart3 size={13} /> {kb.stats.chunks} chunk · {indexedPct}% đã lập chỉ mục
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="left">Số đoạn tri thức đã xử lý và tỷ lệ sẵn sàng cho tra cứu.</TooltipContent>
-          </Tooltip>
+          {tab !== "documents" && (
+            <Tooltip delayDuration={300}>
+              <TooltipTrigger asChild>
+                <span tabIndex={0} className="flex items-center gap-1.5 text-xs text-muted-foreground pb-2 outline-none">
+                  <BarChart3 size={13} /> {kb.stats.chunks} chunk · {indexedPct}% đã lập chỉ mục
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="left">Số đoạn tri thức đã xử lý và tỷ lệ sẵn sàng cho tra cứu.</TooltipContent>
+            </Tooltip>
+          )}
         </div>
       </div>
 

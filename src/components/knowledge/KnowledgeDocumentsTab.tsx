@@ -13,18 +13,12 @@ import { toast } from "sonner";
 import { knowledgeDocumentStore, type KnowledgeDocument } from "./knowledgeDocumentStore";
 import { CURRENT_USER } from "./knowledgeBaseStore";
 import { KnowledgeStatusPill, type KnowledgeProcessingStatus } from "./knowledgeStatus";
-import { formatVersion } from "./semver";
-import { formatFileSize } from "./formatFileSize";
-import KnowledgeSharingChip from "./KnowledgeSharingChip";
-import QueryScopeChip from "./QueryScopeChip";
 import FileTypeIcon from "./FileTypeIcon";
 import UploadDocumentsModal from "./UploadDocumentsModal";
 import ShareKnowledgeBaseModal from "./ShareKnowledgeBaseModal";
 import ChunkViewerModal from "./ChunkViewerModal";
-import VersionHistoryPanel from "./VersionHistoryPanel";
 import DocumentFolderModal from "./DocumentFolderModal";
 import MoveToFolderModal from "./MoveToFolderModal";
-import { FORMAT_HELPER_TEXT } from "./knowledgeFormats";
 
 const STATUS_OPTIONS: { value: KnowledgeProcessingStatus | "all"; label: string }[] = [
   { value: "all", label: "Tất cả" },
@@ -69,7 +63,6 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
   const [reprocessTarget, setReprocessTarget] = useState<KnowledgeDocument | null>(null);
   const [shareTargets, setShareTargets] = useState<KnowledgeDocument[] | null>(null);
   const [deleteTargets, setDeleteTargets] = useState<KnowledgeDocument[] | null>(null);
-  const [versionTarget, setVersionTarget] = useState<KnowledgeDocument | null>(null);
   const [showCreateFolder, setShowCreateFolder] = useState(false);
   const [editingFolder, setEditingFolder] = useState<KnowledgeDocument | null>(null);
   const [moveTargets, setMoveTargets] = useState<KnowledgeDocument[] | null>(null);
@@ -205,8 +198,6 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
         </div>
       )}
 
-      {!viewOnly && <p className="text-xs text-muted-foreground mb-3 lg:whitespace-nowrap">{FORMAT_HELPER_TEXT}</p>}
-
       {selected.size > 0 && !viewOnly && (
         <div className="flex items-center gap-3 mb-3 px-3 h-10 rounded-lg bg-primary-soft border border-primary/15">
           <span className="text-sm font-medium text-primary">Đã chọn {selected.size} mục</span>
@@ -232,8 +223,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
             <p className="text-sm text-muted-foreground max-w-md mx-auto">Chủ sở hữu chưa thêm tài liệu vào kho tri thức này.</p>
           ) : (
             <>
-              <p className="text-sm text-muted-foreground max-w-md mx-auto mb-2">Tải tài liệu lên để Agent có thể tra cứu nội dung.</p>
-              <p className="text-xs text-muted-foreground max-w-md mx-auto mb-4">{FORMAT_HELPER_TEXT}</p>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">Tải tài liệu lên để Agent có thể tra cứu nội dung.</p>
               <button onClick={() => setShowUpload(true)} className="btn-primary h-9 mx-auto">Tải tài liệu lên</button>
             </>
           )}
@@ -246,7 +236,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
         <div className="rounded-xl border border-border overflow-x-auto scroll-shadow-x">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border bg-surface-muted">
+              <tr className="border-b-2 border-border bg-surface-muted">
                 {!viewOnly && (
                   <th className="w-10 px-4 py-2.5">
                     <input
@@ -259,13 +249,9 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                     />
                   </th>
                 )}
-                <th className="text-left px-2 py-2.5 kb-table-header">Tên</th>
-                <th className="text-left px-2 py-2.5 kb-table-header">Trạng thái</th>
-                <th className="text-left px-2 py-2.5 kb-table-header min-w-[110px]">Kích thước</th>
-                <th className="text-left px-2 py-2.5 kb-table-header">Phiên bản</th>
-                <th className="text-left px-2 py-2.5 kb-table-header">Cập nhật</th>
-                <th className="text-left px-2 py-2.5 kb-table-header min-w-[120px]">Cập nhật bởi</th>
-                <th className="text-left px-2 py-2.5 kb-table-header min-w-[140px]">Quyền</th>
+                <th className="text-left px-2 py-2.5 text-xs font-bold uppercase tracking-[0.04em] text-foreground whitespace-nowrap">Tên</th>
+                <th className="text-left px-2 py-2.5 text-xs font-bold uppercase tracking-[0.04em] text-foreground whitespace-nowrap">Trạng thái</th>
+                <th className="text-left px-2 py-2.5 text-xs font-bold uppercase tracking-[0.04em] text-foreground whitespace-nowrap">Cập nhật</th>
                 {!viewOnly && <th className="px-4 py-2.5 w-12" />}
               </tr>
             </thead>
@@ -288,7 +274,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                           disabled={!d.isFolder && !openable}
                         >
                           <FileTypeIcon kind={d.isFolder ? "folder" : undefined} name={d.isFolder ? undefined : d.name} />
-                          <span className={`text-sm font-medium truncate block min-w-0 ${!d.isFolder && !openable ? "text-muted-foreground" : ""}`}>{d.name}</span>
+                          <span className={`text-sm font-semibold truncate block min-w-0 ${!d.isFolder && !openable ? "text-muted-foreground" : ""}`}>{d.name}</span>
                         </button>
                       </TooltipTrigger>
                       {!d.isFolder && !openable && <TooltipContent>Tài liệu chưa xử lý xong nên chưa xem được nội dung.</TooltipContent>}
@@ -313,31 +299,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                       </div>
                     )}
                   </td>
-                  <td className="px-2 py-3 text-xs text-muted-foreground whitespace-nowrap">{d.isFolder ? "—" : formatFileSize(d.sizeBytes)}</td>
-                  <td className="px-2 py-3">
-                    {!d.isFolder && (
-                      <Tooltip delayDuration={200}>
-                        <TooltipTrigger asChild>
-                          <button
-                            onClick={() => setVersionTarget(d)}
-                            aria-label="Xem lịch sử phiên bản"
-                            className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] -m-2.5 rounded-lg text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-base"
-                          >
-                            <span className="chip chip-muted pointer-events-none">{formatVersion(d.version)}</span>
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>Xem lịch sử phiên bản</TooltipContent>
-                      </Tooltip>
-                    )}
-                  </td>
                   <td className="px-2 py-3 text-xs text-muted-foreground whitespace-nowrap">{new Date(d.updatedAt).toLocaleDateString("vi-VN")}</td>
-                  <td className="px-2 py-3 text-xs text-muted-foreground truncate">{d.updatedBy}</td>
-                  <td className="px-2 py-3">
-                    <div className="flex flex-col items-start gap-1">
-                      <KnowledgeSharingChip sharing={d.sharing} />
-                      <QueryScopeChip querySharing={d.querySharing} />
-                    </div>
-                  </td>
                   {!viewOnly && (
                     <td className="px-4 py-3 text-right">
                       {d.isFolder ? (
@@ -375,13 +337,6 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
       <UploadDocumentsModal open={showUpload} kbId={kbId} onClose={() => { setShowUpload(false); refresh(); }} />
 
       {openDoc && <ChunkViewerModal kbId={kbId} sourceType="document" sourceId={openDoc.id} sourceName={openDoc.name} sourceStatus={openDoc.status} sourceCreatedAt={openDoc.createdAt} onClose={closeViewer} viewOnly={viewOnly} />}
-      {versionTarget && (
-        <VersionHistoryPanel
-          source={{ id: versionTarget.id, kbId: versionTarget.kbId, name: versionTarget.name, sourceType: "document", version: versionTarget.version, updatedAt: versionTarget.updatedAt, updatedBy: versionTarget.updatedBy }}
-          onClose={() => setVersionTarget(null)}
-          viewOnly={viewOnly}
-        />
-      )}
 
       {shareTargets && shareTargets.length > 0 && (
         <ShareKnowledgeBaseModal
