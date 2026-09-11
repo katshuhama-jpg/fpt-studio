@@ -9,10 +9,18 @@ import { loadMap, saveMap, loadSet, saveSet } from "@/lib/sessionPersist";
 
 export type Placement = "workspace" | "automation" | null;
 
+/** Who can see/use a Workspace-placement agent. Chosen in the Publish modal's "Publish to"
+ * section (Only me / Company / department / FPT AI Agent community) — independent of
+ * Placement, which stays "workspace" for all three since they're all still chat-based
+ * publishing, just at different visibility scopes. Undefined on older/seeded state defaults
+ * to "me" wherever it's read. */
+export type PublishAudience = "me" | "org" | "community";
+
 export const BASELINE_VERSION = "v1.0.1";
 
 export interface AgentPublishState {
   placement: Placement;
+  audience?: PublishAudience;
   channels: string[];
   /** The version currently live. Stays at BASELINE_VERSION until the agent is actually
    * published; unpublishing doesn't reset it, so a later republish keeps counting up. */
@@ -46,14 +54,15 @@ export const agentPublishStore = {
   get(agentId: string): AgentPublishState {
     seedAgent(agentId);
     const s = store.get(agentId);
-    if (!s) return { placement: null, channels: [], version: BASELINE_VERSION };
+    if (!s) return { placement: null, audience: undefined, channels: [], version: BASELINE_VERSION };
     // Defend against sessionStorage from an earlier build that predates a field — e.g. `version`
     // added after some sessions had already persisted state without it.
-    return { placement: s.placement, channels: s.channels ?? [], version: s.version ?? BASELINE_VERSION };
+    return { placement: s.placement, audience: s.audience, channels: s.channels ?? [], version: s.version ?? BASELINE_VERSION };
   },
-  publish(agentId: string, placement: Placement, channels: string[], version: string) {
+  publish(agentId: string, placement: Placement, channels: string[], version: string, audience?: PublishAudience) {
     seedAgent(agentId);
-    store.set(agentId, { placement, channels, version });
+    const cur = store.get(agentId);
+    store.set(agentId, { placement, audience: audience ?? cur?.audience, channels, version });
     persist();
   },
   /** Toggles a channel's live/not-connected state on the currently-serving version,

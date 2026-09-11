@@ -23,6 +23,7 @@ import { hasTriggers, perUserConnector } from "@/components/configure/agentAutom
 import {
   agentPublishStore,
   CONNECTOR_BLOCKED_BY_TRIGGER_REASON,
+  type PublishAudience,
 } from "@/components/configure/agentPublishStore";
 import { getAgentKind, type AgentKind } from "@/components/configure/agentKindStore";
 import { AGENTS, getAgent } from "@/components/configure/agentStore";
@@ -265,7 +266,9 @@ export default function AgentBuilder() {
               {kind === "automation"
                 ? "Automation"
                 : publishState.placement === "workspace"
-                  ? "Live on Workspace"
+                  ? (publishState.audience === "org" ? "Live · Company / department"
+                    : publishState.audience === "community" ? "Live · FPT AI Agent community"
+                    : "Live · Only me")
                   : publishState.channels.length === 1
                     ? `Live on ${getChannelName(publishState.channels[0])}`
                     : publishState.channels.length > 1
@@ -2724,8 +2727,10 @@ function DeployTab({ agentId, onViewTriggers }: { agentId: string; onViewTrigger
         </button>
       </div>
 
-      {/* Agent Workspace (conversational) / Automation (has triggers) — mutually exclusive,
-          mirroring the Publish modal's "Publish to" destination sub-section exactly. */}
+      {/* Agent Workspace (conversational) / Automation (has triggers) — mutually exclusive.
+          Independent of the Publish modal's "Publish to" section, which only picks audience
+          (Only me / Company-department / FPT AI Agent community) now, not Workspace vs
+          Automation — Automation is driven purely by whether the agent has any Trigger. */}
       {isAutomation ? (
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-3">
@@ -3541,7 +3546,14 @@ const bars = [50, 62, 45, 75, 68, 95, 80];
 
 /* ============ PublishModal ============ */
 
-interface PublishChange { id: string; label: string; marker: "~" | "+" | "-"; before: number; after: number; }
+interface PublishChange {
+  id: string; label: string; marker: "~" | "+" | "-";
+  /** "value" (e.g. Model) shows beforeLabel → afterLabel as plain text, no line-count delta
+   * chip. "diff" (Instructions/Skills/Guardrails) keeps the numeric before/after line count. */
+  kind: "diff" | "value";
+  before: number; after: number;
+  beforeLabel?: string; afterLabel?: string;
+}
 
 const PUBLISH_CHANGE_CANDIDATES: { id: string; label: string }[] = [
   { id: "instructions", label: "Instructions" },
@@ -3568,12 +3580,21 @@ function mockPublishChanges(agentId: string): PublishChange[] {
     const c = PUBLISH_CHANGE_CANDIDATES[(h >>> (i * 3)) % PUBLISH_CHANGE_CANDIDATES.length];
     if (out.some(o => o.id === c.id)) continue;
     const seed = hashString(agentId + c.id);
+    if (c.id === "model") {
+      const fromIdx = seed % MODELS.length;
+      const toIdx = (fromIdx + 1 + (seed % (MODELS.length - 1))) % MODELS.length;
+      out.push({
+        id: c.id, label: c.label, marker: "~", kind: "value", before: 0, after: 0,
+        beforeLabel: MODELS[fromIdx].id, afterLabel: MODELS[toIdx].id,
+      });
+      continue;
+    }
     const marker: PublishChange["marker"] = seed % 5 === 0 ? "+" : seed % 7 === 0 ? "-" : "~";
     const base = 30 + (seed % 90);
     const delta = marker === "~" ? (seed % 13) - 6 : marker === "+" ? 5 + (seed % 20) : -(5 + (seed % 15));
     const before = marker === "+" ? 0 : base;
     const after = marker === "-" ? 0 : Math.max(0, base + delta);
-    out.push({ id: c.id, label: c.label, marker, before, after });
+    out.push({ id: c.id, label: c.label, marker, kind: "diff", before, after });
   }
   return out;
 }
@@ -3586,9 +3607,26 @@ function LiveDotChip({ label }: { label: string }) {
   );
 }
 
-function AudienceRadioRow({ icon, title, description, selected, liveNow, disabled, onClick, children }: {
+const AUDIENCE_LABEL: Record<PublishAudience, string> = {
+  me: "Only me",
+  org: "Company / department",
+  community: "FPT AI Agent community",
+};
+
+/** The muted pill next to the "Publish to" checkbox — reflects the currently live audience
+ * (not the in-progress radio selection below), so it still reads correctly even while the
+ * checkbox is unchecked and the picker is collapsed. */
+function AudiencePill({ audience }: { audience: PublishAudience }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-surface-muted border border-border rounded-full px-2.5 py-1 whitespace-nowrap">
+      <span className="w-1.5 h-1.5 rounded-full bg-success shrink-0" /> {AUDIENCE_LABEL[audience]}
+    </span>
+  );
+}
+
+function AudienceRadioRow({ icon, title, description, selected, liveNow, liveLabel = "Live now", disabled, onClick, children }: {
   icon: any; title: string; description: string;
-  selected: boolean; liveNow?: boolean; disabled?: boolean; onClick: () => void;
+  selected: boolean; liveNow?: boolean; liveLabel?: string; disabled?: boolean; onClick: () => void;
   children?: React.ReactNode;
 }) {
   return (
@@ -3620,7 +3658,7 @@ function AudienceRadioRow({ icon, title, description, selected, liveNow, disable
         <span className="flex-1 min-w-0 pt-px">
           <span className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-semibold text-foreground">{title}</span>
-            {liveNow && <LiveDotChip label="Live now" />}
+            {liveNow && <LiveDotChip label={liveLabel} />}
           </span>
           <span className="block text-xs text-muted-foreground leading-relaxed mt-0.5">{description}</span>
         </span>
@@ -3630,27 +3668,20 @@ function AudienceRadioRow({ icon, title, description, selected, liveNow, disable
   );
 }
 
-function PublishChannelRow({ ch, checked, onToggle }: { ch: ChannelCatalogEntry; checked: boolean; onToggle: () => void }) {
-  const disabled = ch.available === false;
+/** Read-only — external channels are no longer picked from inside the Publish modal, they're
+ * all managed from the Deploy tab's own "External channels" grid (DeployTab in this file).
+ * This row is purely informational signposting: Zalo already has its own toggle on that tab,
+ * everything else isn't wired up yet. */
+function PublishChannelStatusRow({ ch }: { ch: ChannelCatalogEntry }) {
+  const status = ch.id === "zalo" ? "Managed on the Deploy tab" : "Coming soon";
   return (
-    <label className={`flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2.5 rounded-lg border transition-base ${
-      disabled ? "border-border bg-surface-muted/40 cursor-not-allowed" : "border-border bg-surface hover:bg-surface-muted cursor-pointer"
-    }`}>
-      <input
-        type="checkbox"
-        checked={checked && !disabled}
-        disabled={disabled}
-        onChange={onToggle}
-        className="w-4 h-4 rounded accent-primary shrink-0 disabled:cursor-not-allowed"
-      />
-      <span className="w-5 h-5 flex items-center justify-center shrink-0"><ChannelIcon ch={ch} size={16} /></span>
-      {/* No truncate/flex-1 here — the name must never clip. If the "Coming soon" badge doesn't
-          fit on this line, flex-wrap drops it to a second line instead. */}
-      <span className={`text-sm font-medium whitespace-nowrap ${disabled ? "text-muted-foreground" : "text-foreground"}`}>{ch.name}</span>
-      {disabled && (
-        <span className="text-[9px] font-semibold px-1 py-0.5 rounded-full bg-surface-muted text-muted-foreground shrink-0 whitespace-nowrap ml-auto">Coming soon</span>
-      )}
-    </label>
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2.5 rounded-lg border border-border bg-surface-muted/40">
+      <span className="w-5 h-5 flex items-center justify-center shrink-0 opacity-70"><ChannelIcon ch={ch} size={16} /></span>
+      {/* No truncate/flex-1 here — the name must never clip. If the status text doesn't fit on
+          this line, flex-wrap drops it to a second line instead. */}
+      <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">{ch.name}</span>
+      <span className="text-[11px] font-medium text-muted-foreground shrink-0 whitespace-nowrap ml-auto">{status}</span>
+    </div>
   );
 }
 
@@ -3681,50 +3712,31 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
   const [changesOpen, setChangesOpen] = useState(true);
   const totalChangeRows = changes.length + (agentConnectors.length > 0 ? 1 : 0) + (triggerCount > 0 ? 1 : 0);
 
+  const NOTE_MAX = 2000;
   const [note, setNote] = useState("");
-  const [noteTouched, setNoteTouched] = useState(false);
-  const [attemptedSubmit, setAttemptedSubmit] = useState(false);
-  const noteRef = useRef<HTMLTextAreaElement>(null);
 
-  const [destination, setDestination] = useState<"workspace" | "automation" | null>(hasTrigger ? "automation" : "workspace");
-
-  const [selectedChannels, setSelectedChannels] = useState<Set<string>>(new Set(current.channels));
-
-  const toggleChannel = (id: string) => setSelectedChannels(prev => {
-    const s = new Set(prev);
-    s.has(id) ? s.delete(id) : s.add(id);
-    return s;
-  });
+  // "Publish to" — off by default once the agent already has a live audience (this release
+  // just bumps the version, keeping distribution as-is); on by default for a first-ever
+  // publish, since there's nothing to "keep unchanged" yet.
+  const [publishToOpen, setPublishToOpen] = useState(current.placement === null);
+  const [audience, setAudience] = useState<PublishAudience>(current.audience ?? "me");
+  const currentAudience: PublishAudience = current.audience ?? "me";
 
   const draftNoteFromChanges = () => {
     if (changes.length === 0) return;
-    setNote(changes.map(c => `- ${c.label}: ${c.before} → ${c.after} dòng`).join("\n"));
-    setNoteTouched(true);
+    setNote(changes.map(c => c.kind === "value"
+      ? `- ${c.label}: ${c.beforeLabel} → ${c.afterLabel}`
+      : `- ${c.label}: ${c.before} → ${c.after} lines`
+    ).join("\n"));
   };
 
-  const NOTE_MAX = 500;
-  const noteEmpty = note.trim().length === 0;
-  const showNoteError = (noteTouched || attemptedSubmit) && noteEmpty;
-  const selectedCount = (destination ? 1 : 0) + selectedChannels.size;
-  const hasPublishTarget = selectedCount > 0;
-  const canPublish = !noteEmpty && hasPublishTarget;
-  const footerHelper = noteEmpty
-    ? "Hãy mô tả ngắn gọn phiên bản này thay đổi gì."
-    : !hasPublishTarget
-      ? "Chưa chọn kênh triển khai"
-      : null;
-
   const doPublish = () => {
-    if (!canPublish) {
-      setAttemptedSubmit(true);
-      if (noteEmpty) {
-        noteRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-        noteRef.current?.focus();
-      }
-      return;
+    if (publishToOpen) {
+      agentPublishStore.publish(agentId, "workspace", current.channels, versionName, audience);
+    } else {
+      agentPublishStore.publish(agentId, current.placement, current.channels, versionName, current.audience);
     }
-    agentPublishStore.publish(agentId, destination, [...selectedChannels], versionName);
-    toast.success(`Đã publish ${versionName}.`);
+    toast.success(`Published ${versionName}.`);
     onPublished?.();
     onClose();
   };
@@ -3736,8 +3748,12 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
         {/* Header */}
         <div className="flex items-start justify-between px-6 py-5 border-b border-border shrink-0">
           <div>
-            <h2 className="font-display text-lg font-semibold">Lưu phiên bản</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">Tạo {versionName} — chọn nơi triển khai.</p>
+            <h2 className="font-display text-lg font-semibold">Publish "{agentName}"</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {current.placement === null
+                ? `Publish creates ${versionName}.`
+                : `Publish creates ${versionName} and replaces the live one.`}
+            </p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base mt-0.5">
             <HugeiconsIcon icon={Cancel01Icon} size={15} />
@@ -3745,39 +3761,42 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-          {/* Section 1 — Nội dung sẽ được lưu */}
+          {/* Section 1 — Changes */}
           {totalChangeRows > 0 && (
             <div>
               <button type="button" onClick={() => setChangesOpen(o => !o)} className="w-full flex items-center justify-between mb-2">
-                <span className="flex items-center gap-2 text-sm font-medium">
-                  NỘI DUNG SẼ ĐƯỢC LƯU
-                  <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-surface-muted text-muted-foreground">{totalChangeRows}</span>
+                <span className="flex items-center gap-2">
+                  <span className="text-sm font-semibold">Changes</span>
+                  <span className="text-sm text-muted-foreground">{totalChangeRows}</span>
                 </span>
                 <HugeiconsIcon icon={changesOpen ? ChevronUpIcon : ChevronDownIcon} size={16} className="text-muted-foreground" />
               </button>
               {changesOpen && (
                 <div className="space-y-1.5">
-                  {changes.map(c => {
-                    const delta = c.after - c.before;
-                    return (
-                      <div key={c.id} className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg bg-surface-muted/60">
-                        <span className={`w-4 text-center text-sm font-semibold shrink-0 ${
-                          c.marker === "+" ? "text-success" : c.marker === "-" ? "text-destructive" : "text-muted-foreground"
-                        }`}>{c.marker}</span>
-                        <span className="text-sm font-medium shrink-0">{c.label}</span>
-                        <span className="flex-1 text-xs text-muted-foreground text-right">{c.before} → {c.after} dòng</span>
-                        <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${
-                          delta > 0 ? "bg-success/10 text-success" : delta < 0 ? "bg-destructive/10 text-destructive" : "bg-surface-muted text-muted-foreground"
-                        }`}>{delta > 0 ? `+${delta}` : delta}</span>
-                      </div>
-                    );
-                  })}
+                  {changes.map(c => (
+                    <div key={c.id} className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg bg-surface-muted/60">
+                      <span className={`w-4 text-center text-sm font-semibold shrink-0 ${
+                        c.marker === "+" ? "text-success" : c.marker === "-" ? "text-destructive" : "text-muted-foreground"
+                      }`}>{c.marker}</span>
+                      <span className="text-sm font-medium shrink-0">{c.label}</span>
+                      {c.kind === "value" ? (
+                        <span className="flex-1 text-sm text-muted-foreground text-right">{c.beforeLabel} → {c.afterLabel}</span>
+                      ) : (
+                        <>
+                          <span className="flex-1 text-sm text-muted-foreground text-right">{c.before} → {c.after} lines</span>
+                          <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${
+                            c.after - c.before > 0 ? "bg-success/10 text-success" : c.after - c.before < 0 ? "bg-destructive/10 text-destructive" : "bg-surface-muted text-muted-foreground"
+                          }`}>{c.after - c.before > 0 ? `+${c.after - c.before}` : c.after - c.before}</span>
+                        </>
+                      )}
+                    </div>
+                  ))}
                   {agentConnectors.length > 0 && (
                     <div className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg bg-surface-muted/60">
                       <span className="w-4 text-center text-sm font-semibold shrink-0 text-muted-foreground">~</span>
                       <span className="text-sm font-medium shrink-0">Connectors</span>
-                      <span className="flex-1 text-xs text-muted-foreground text-right">
-                        {agentConnectors.length} connector · {hasPersonalConnector ? "Riêng cá nhân" : "Dùng chung"}
+                      <span className="flex-1 text-sm text-muted-foreground text-right">
+                        {agentConnectors.length} connector · {hasPersonalConnector ? "Personal" : "Shared"}
                       </span>
                     </div>
                   )}
@@ -3785,8 +3804,8 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
                     <div className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg bg-surface-muted/60">
                       <span className="w-4 text-center text-sm font-semibold shrink-0 text-muted-foreground">~</span>
                       <span className="text-sm font-medium shrink-0">Triggers</span>
-                      <span className="flex-1 text-xs text-muted-foreground text-right">
-                        {triggerCount} trigger · {activeTriggerCount} đang hoạt động
+                      <span className="flex-1 text-sm text-muted-foreground text-right">
+                        {triggerCount} trigger{triggerCount > 1 ? "s" : ""} · {activeTriggerCount} active
                       </span>
                     </div>
                   )}
@@ -3795,12 +3814,12 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
             </div>
           )}
 
-          {/* Section 2 — Loại phiên bản */}
+          {/* Section 2 — Version type */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium">Loại phiên bản</p>
+              <p className="text-sm font-medium">Version type</p>
               <div className="text-right">
-                <p className="text-xs text-muted-foreground">Phiên bản mới</p>
+                <p className="text-xs text-muted-foreground">New version</p>
                 <p className="text-xl font-bold tracking-tight text-foreground font-display">
                   v<span className={versionType === "major" ? "text-primary underline underline-offset-4 decoration-2" : ""}>{newVersion[0]}</span>
                   .
@@ -3812,9 +3831,9 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
             </div>
             <div className="flex gap-2 mb-2">
               {([
-                { key: "patch", label: "Patch" },
-                { key: "minor", label: "Minor" },
                 { key: "major", label: "Major" },
+                { key: "minor", label: "Minor" },
+                { key: "patch", label: "Patch" },
               ] as const).map(opt => (
                 <button
                   key={opt.key}
@@ -3830,121 +3849,119 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
                 </button>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground">
-              {versionType === "patch" && "Sửa lỗi nhỏ, vá lỗ hổng, giữ nguyên tính năng cũ."}
-              {versionType === "minor" && "Thêm tính năng mới, vẫn tương thích với bản cũ."}
-              {versionType === "major" && "Thay đổi lớn, có thể không tương thích với bản cũ."}
+            <p className="text-sm text-muted-foreground">
+              {versionType === "patch" && "Small fixes and patches; existing features stay the same."}
+              {versionType === "minor" && "New features that don't break existing behavior."}
+              {versionType === "major" && "Big changes that may not be backwards compatible."}
             </p>
           </div>
 
-          {/* Section 3 — Ghi chú phiên bản */}
+          {/* Section 3 — Release notes */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-sm font-medium">Ghi chú phiên bản <span className="text-destructive">*</span></label>
-              <button type="button" onClick={draftNoteFromChanges} className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
-                <HugeiconsIcon icon={SparklesIcon} size={12} /> Soạn từ thay đổi
+              <label className="text-sm font-medium">Release notes</label>
+              <button type="button" onClick={draftNoteFromChanges} className="flex items-center gap-1 text-sm font-semibold text-primary hover:underline">
+                <HugeiconsIcon icon={SparklesIcon} size={12} /> Write from changes
               </button>
             </div>
             <textarea
-              ref={noteRef}
               rows={3}
               maxLength={NOTE_MAX}
-              placeholder="Phiên bản này có gì mới? Người dùng agent sẽ đọc nội dung này."
-              className={`w-full px-3 py-2.5 rounded-lg border bg-white text-sm outline-none focus:ring-2 transition-base resize-none ${
-                showNoteError ? "border-destructive focus:border-destructive focus:ring-destructive/20" : "border-border focus:border-primary focus:ring-primary/20"
-              }`}
+              placeholder="What's new in this version? The people using the agent will read this."
+              className="w-full px-3 py-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none"
               value={note}
               onChange={e => setNote(e.target.value)}
-              onBlur={() => setNoteTouched(true)}
             />
-            <div className="flex items-center justify-between mt-1">
-              {showNoteError ? <span className="text-xs text-destructive">Hãy mô tả ngắn gọn phiên bản này thay đổi gì.</span> : <span />}
-              <span className="text-xs text-muted-foreground shrink-0">{note.length}/{NOTE_MAX}</span>
+            <div className="flex items-center justify-end mt-1">
+              <span className="text-sm text-muted-foreground shrink-0">{note.length}/{NOTE_MAX}</span>
             </div>
           </div>
 
-          {/* Publish tới kênh */}
+          {/* Publish to */}
           <div className="rounded-xl border border-border p-4">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <div>
-                <p className="text-sm font-semibold">Publish tới kênh</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Triển khai phiên bản này tới các kênh cụ thể</p>
-              </div>
-              {selectedCount > 0
-                ? <LiveDotChip label={`Đã chọn ${selectedCount} kênh`} />
-                : <span className="text-[11px] font-semibold text-muted-foreground whitespace-nowrap">Chưa chọn kênh triển khai</span>}
-            </div>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={publishToOpen}
+                onChange={e => setPublishToOpen(e.target.checked)}
+                className="w-5 h-5 rounded-md accent-primary shrink-0"
+              />
+              <span className="text-sm font-semibold">Publish to</span>
+              <AudiencePill audience={currentAudience} />
+            </label>
 
-            <div className="mt-3.5 space-y-4">
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground mb-2">WORKSPACE NỘI BỘ</p>
-                <div className="space-y-2">
-                  <AudienceRadioRow
-                    icon={UserGroupIcon}
-                    title="Workspace"
-                    description="Người dùng Install agent rồi chat thủ công"
-                    selected={destination === "workspace"}
-                    disabled={hasTrigger}
-                    liveNow={current.placement === "workspace"}
-                    onClick={() => setDestination(d => d === "workspace" ? null : "workspace")}
-                  />
-                  <AudienceRadioRow
-                    icon={BoltIcon}
-                    title="Automation"
-                    description="Agent tự chạy theo Trigger, người dùng không cần Install"
-                    selected={destination === "automation"}
-                    disabled={!hasTrigger}
-                    liveNow={current.placement === "automation"}
-                    onClick={() => setDestination(d => d === "automation" ? null : "automation")}
-                  >
-                    {hasTrigger && needsSetupCount > 0 && (
-                      <p className="text-xs text-warning mt-2 ml-1">
-                        {needsSetupCount} trigger chưa hoàn tất và sẽ không chạy sau khi publish.{" "}
-                        {onManageTriggers && (
-                          <button type="button" onClick={onManageTriggers} className="font-semibold hover:underline">
-                            Hoàn tất setup
-                          </button>
-                        )}
-                      </p>
-                    )}
-                  </AudienceRadioRow>
+            {publishToOpen && (
+              <div className="mt-4 pt-4 border-t border-border space-y-4">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Agent Workspace</p>
+                  {hasTrigger && needsSetupCount > 0 && (
+                    <p className="text-xs text-warning mb-2">
+                      {needsSetupCount} trigger{needsSetupCount > 1 ? "s" : ""} still need setup and won't run after publishing.{" "}
+                      {onManageTriggers && (
+                        <button type="button" onClick={onManageTriggers} className="font-semibold hover:underline">
+                          Finish setup
+                        </button>
+                      )}
+                    </p>
+                  )}
+                  <div className="space-y-2">
+                    <AudienceRadioRow
+                      icon={UserIcon}
+                      title="Only me"
+                      description="Only you can use the agent. It is added straight to My agents in Workspace."
+                      selected={audience === "me"}
+                      liveNow={current.placement !== null && currentAudience === "me"}
+                      liveLabel="Published"
+                      onClick={() => setAudience("me")}
+                    />
+                    <AudienceRadioRow
+                      icon={Building02Icon}
+                      title="Company / department"
+                      description="Share the agent with a whole company, one department, or selected employees."
+                      selected={audience === "org"}
+                      liveNow={current.placement !== null && currentAudience === "org"}
+                      liveLabel="Published"
+                      onClick={() => setAudience("org")}
+                    />
+                    <AudienceRadioRow
+                      icon={Globe02Icon}
+                      title="FPT AI Agent community"
+                      description="Publish the agent to every FPT AI Agent user, including people outside your company."
+                      selected={audience === "community"}
+                      liveNow={current.placement !== null && currentAudience === "community"}
+                      liveLabel="Published"
+                      onClick={() => setAudience("community")}
+                    />
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-                  {hasTrigger
-                    ? "Agent có Trigger sẽ chạy tự động, người dùng không cần cài đặt agent. Hãy chọn kênh Automation hoặc các kênh external."
-                    : "Agent chưa có Trigger nên chưa chạy tự động được. Thêm Trigger để publish vào Automation."}
-                </p>
-              </div>
 
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground mb-2">KÊNH EXTERNAL</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {CHANNEL_CATALOG.map(ch => (
-                    <PublishChannelRow key={ch.id} ch={ch} checked={selectedChannels.has(ch.id)} onToggle={() => toggleChannel(ch.id)} />
-                  ))}
-                </div>
-                <div className="text-right mt-2">
-                  <button type="button" onClick={onManageChannels} className="text-xs font-semibold text-primary hover:underline">
-                    Quản lý ›
-                  </button>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">External channels</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {CHANNEL_CATALOG.map(ch => (
+                      <PublishChannelStatusRow key={ch.id} ch={ch} />
+                    ))}
+                  </div>
+                  <div className="text-right mt-2">
+                    <button type="button" onClick={onManageChannels} className="text-sm font-semibold text-primary hover:underline flex items-center gap-0.5 ml-auto">
+                      Manage <HugeiconsIcon icon={ChevronRightIcon} size={12} />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-2 px-6 py-4 shrink-0">
-          <span className="text-xs text-muted-foreground">{footerHelper}</span>
-          <div className="flex items-center gap-2">
-            <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Huỷ</button>
-            <button
-              className="h-9 px-5 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-2 transition-base"
-              onClick={doPublish}
-            >
-              <HugeiconsIcon icon={Rocket01Icon} size={14} /> Publish {versionName}
-            </button>
-          </div>
+        <div className="flex items-center justify-end gap-2 px-6 py-4 shrink-0">
+          <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Cancel</button>
+          <button
+            className="h-9 px-5 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-2 transition-base"
+            onClick={doPublish}
+          >
+            <HugeiconsIcon icon={Rocket01Icon} size={14} /> Publish {versionName}
+          </button>
         </div>
       </div>
     </div>,
