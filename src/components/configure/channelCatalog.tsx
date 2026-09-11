@@ -1,6 +1,7 @@
 // Shared channel catalogue — backs both the Publish modal's channel picker and the
 // Channels tab (and any other place a channel needs a name/icon), so the two screens can
 // never list different channels.
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Globe02Icon, ApiIcon, MessengerIcon, WhatsappIcon, TelegramIcon,
 } from "@hugeicons/core-free-icons";
@@ -26,4 +27,15 @@ export const CHANNEL_CATALOG: ChannelCatalogEntry[] = [
 
 export function getChannelName(id: string): string {
   return CHANNEL_CATALOG.find(c => c.id === id)?.name ?? id;
+}
+
+/** Renders a catalog entry's icon — a HugeIcon, an external logo image, or (for entries with
+ * neither, like Zalo) a small text fallback. Shared by the internal Agent's Publish modal /
+ * Deploy tab and the External Agent's equivalents, so every channel row looks the same
+ * wherever it's used. */
+export function ChannelIcon({ ch, size = 16 }: { ch: ChannelCatalogEntry; size?: number }) {
+  if (ch.icon) return <HugeiconsIcon icon={ch.icon} size={size} className={ch.color} />;
+  if (ch.logoUrl) return <img src={ch.logoUrl} alt={ch.name} className="object-contain" style={{ width: size, height: size }} />;
+  if (ch.id === "zalo") return <span className="text-[11px] font-bold" style={{ color: "#0068FF" }}>Zalo</span>;
+  return <span className="text-[10px] font-bold text-muted-foreground">{ch.name[0]}</span>;
 }

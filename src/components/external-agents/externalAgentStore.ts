@@ -65,6 +65,15 @@ export interface ExternalAgent {
    * later audit-export surface needs them. Never true for a Published agent — Delete requires
    * Pause first. */
   archived: boolean;
+  /** Semver-ish release tag, same "vMAJOR.MINOR.PATCH" convention as the internal Agent's
+   * agentPublishStore. Starts at v1.0.0 on create and only advances via publishVersion() —
+   * i.e. every submission (draft/rejected -> pending_approval), same as the internal Agent's
+   * Publish modal advances its version on every publish. */
+  version: string;
+  /** External channels chosen the last time this agent was submitted (see publishVersion()).
+   * Only actually "live" once status is "published" — the Channels tab greys them out
+   * otherwise, same gating the internal Agent's Deploy tab uses. */
+  channels: string[];
 }
 
 export interface HistoryEntry {
@@ -81,9 +90,9 @@ export interface HistoryEntry {
 // signingSecret/guardrail existed) would load stale objects missing the new fields, and the
 // page would crash on render with no error boundary — a blank white screen for anyone who had
 // the External Agents page open across a deploy that changed the data shape.
-const STORE_KEY = "external_agent_store_v7";
-const HISTORY_KEY = "external_agent_history_v7";
-const SEEDED_KEY = "external_agent_store_seeded_v7";
+const STORE_KEY = "external_agent_store_v8";
+const HISTORY_KEY = "external_agent_history_v8";
+const SEEDED_KEY = "external_agent_store_seeded_v8";
 const store = loadMap<string, ExternalAgent>(STORE_KEY);
 const history = loadMap<string, HistoryEntry[]>(HISTORY_KEY);
 const persistStore = () => saveMap(STORE_KEY, store);
@@ -126,6 +135,7 @@ function seedDefaultAgents() {
     createdAt: now - 20 * DAY, updatedAt: now - 2 * HOUR,
     lastHealthCheckAt: now - 2 * MIN, lastHealthCheckOk: true, lastHealthyAt: now - 2 * MIN,
     lastValidation: PASSED_VALIDATION,
+    version: "v1.0.2", channels: ["web", "api"],
   });
   addHistory("ext-seed-1", { at: now - 20 * DAY, actor: CURRENT_USER, summary: "Connection created" });
   addHistory("ext-seed-1", { at: now - 19 * DAY, actor: CURRENT_USER, summary: "Submitted for approval" });
@@ -141,6 +151,7 @@ function seedDefaultAgents() {
     createdAt: now - 15 * DAY, updatedAt: now - 1 * DAY,
     lastHealthCheckAt: now - 1 * MIN, lastHealthCheckOk: true, lastHealthyAt: now - 1 * MIN,
     lastValidation: PASSED_VALIDATION,
+    version: "v1.1.0", channels: ["web"],
   });
   addHistory("ext-seed-2", { at: now - 15 * DAY, actor: CURRENT_USER, summary: "Connection created" });
   addHistory("ext-seed-2", { at: now - 14 * DAY, actor: CURRENT_USER, summary: "Submitted for approval" });
@@ -156,6 +167,7 @@ function seedDefaultAgents() {
     createdAt: now - 5 * DAY, updatedAt: now - 3 * HOUR,
     lastHealthCheckAt: now - 5 * MIN, lastHealthCheckOk: true, lastHealthyAt: now - 5 * MIN,
     lastValidation: PASSED_VALIDATION,
+    version: "v1.0.0", channels: [],
   });
   addHistory("ext-seed-3", { at: now - 5 * DAY, actor: CURRENT_USER, summary: "Connection created" });
 
@@ -169,6 +181,7 @@ function seedDefaultAgents() {
     createdAt: now - 1 * DAY, updatedAt: now - 30 * MIN,
     lastHealthCheckAt: now - 30 * MIN, lastHealthCheckOk: true, lastHealthyAt: now - 30 * MIN,
     lastValidation: PASSED_VALIDATION,
+    version: "v1.0.1", channels: ["api"],
   });
   addHistory("ext-seed-4", { at: now - 1 * DAY, actor: CURRENT_USER, summary: "Connection created" });
   addHistory("ext-seed-4", { at: now - 30 * MIN, actor: CURRENT_USER, summary: "Submitted for approval" });
@@ -185,6 +198,7 @@ function seedDefaultAgents() {
     createdAt: now - 3 * DAY, updatedAt: now - 1 * DAY,
     lastHealthCheckAt: now - 1 * DAY, lastHealthCheckOk: true, lastHealthyAt: now - 1 * DAY,
     lastValidation: PASSED_VALIDATION,
+    version: "v1.0.1", channels: ["api"],
   });
   addHistory("ext-seed-5", { at: now - 3 * DAY, actor: CURRENT_USER, summary: "Connection created" });
   addHistory("ext-seed-5", { at: now - 2 * DAY, actor: CURRENT_USER, summary: "Submitted for approval" });
@@ -200,6 +214,7 @@ function seedDefaultAgents() {
     createdAt: now - 10 * DAY, updatedAt: now - 4 * DAY,
     lastHealthCheckAt: now - 4 * DAY, lastHealthCheckOk: false, lastHealthyAt: now - 5 * DAY,
     lastValidation: PASSED_VALIDATION,
+    version: "v1.0.3", channels: ["web", "slack"],
   });
   addHistory("ext-seed-6", { at: now - 10 * DAY, actor: CURRENT_USER, summary: "Connection created" });
   addHistory("ext-seed-6", { at: now - 9 * DAY, actor: CURRENT_USER, summary: "Submitted for approval" });
@@ -216,6 +231,7 @@ function seedDefaultAgents() {
     createdAt: now, updatedAt: now,
     lastHealthCheckAt: now, lastHealthCheckOk: true, lastHealthyAt: now,
     lastValidation: PASSED_VALIDATION,
+    version: "v1.0.0", channels: [],
   });
 
   persistStore();
@@ -289,6 +305,8 @@ export const externalAgentStore = {
       lastHealthCheckOk: null,
       lastHealthyAt: null,
       lastValidation: data.validation,
+      version: "v1.0.0",
+      channels: [],
     };
     store.set(id, agent);
     persistStore();
@@ -375,6 +393,35 @@ export const externalAgentStore = {
     store.set(id, { ...cur, status: "pending_approval", rejection: null, updatedAt: now });
     persistStore();
     addHistory(id, { at: now, actor: CURRENT_USER, summary: "Submitted for approval" });
+  },
+  /** Same Draft/Rejected -> Pending approval transition as submitForApproval, but from the
+   * "Lưu phiên bản" modal: also bumps the version tag and records which external channels this
+   * submission targets, mirroring how the internal Agent's Publish modal advances its version
+   * on every publish. Approval still gates going live — approve()/reject() are unchanged. */
+  publishVersion(id: string, opts: { version: string; channels: string[]; note: string }) {
+    const cur = store.get(id);
+    if (!cur || (cur.status !== "draft" && cur.status !== "rejected")) return;
+    const now = Date.now();
+    store.set(id, {
+      ...cur, status: "pending_approval", rejection: null,
+      version: opts.version, channels: opts.channels, updatedAt: now,
+    });
+    persistStore();
+    addHistory(id, {
+      at: now, actor: CURRENT_USER,
+      summary: `Submitted for approval (${opts.version})`,
+      detail: opts.note.trim() || undefined,
+    });
+  },
+  /** Toggles a channel's live/not-connected state on the currently-serving version, without
+   * treating it as a new submission — same as the internal Agent's agentPublishStore.setChannels.
+   * Only meaningful once the agent is actually published; the Channels tab keeps the grid
+   * disabled otherwise. */
+  setChannels(id: string, channels: string[]) {
+    const cur = store.get(id);
+    if (!cur || cur.status !== "published") return;
+    store.set(id, { ...cur, channels, updatedAt: Date.now() });
+    persistStore();
   },
   /** Simulates the current user acting as an FPT admin — this prototype has no real
    * role-based access control, per the BA/UX review scope. */

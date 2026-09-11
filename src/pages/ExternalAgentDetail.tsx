@@ -4,19 +4,20 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import {
   PencilEdit01Icon, FlaskConicalIcon, GridViewIcon, Analytics01Icon,
   ChevronLeftIcon, ChevronRightIcon, MoreHorizontalIcon, Copy01Icon, Tick02Icon, Loading01Icon,
-  Alert01Icon, Globe02Icon, FileEditIcon, BookOpen01Icon, EyeIcon, EyeOffIcon,
+  Alert01Icon, Globe02Icon, FileEditIcon, BookOpen01Icon,
   PanelLeftOpenIcon, PanelLeftCloseIcon,
 } from "@hugeicons/core-free-icons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import {
-  externalAgentStore, runValidation, type ExternalAgent, type ValidationResult,
+  externalAgentStore, type ExternalAgent,
 } from "@/components/external-agents/externalAgentStore";
 import { StatusBadge, relativeTime } from "@/components/external-agents/statusMeta";
 import ConnectExternalAgentModal from "@/components/external-agents/ConnectExternalAgentModal";
+import ExternalAgentPublishModal from "@/components/external-agents/ExternalAgentPublishModal";
 import {
-  DeleteExternalAgentDialog, PauseExternalAgentDialog, ReplaceTokenConfirmDialog, RejectExternalAgentDialog,
+  DeleteExternalAgentDialog, PauseExternalAgentDialog, RejectExternalAgentDialog,
 } from "@/components/external-agents/ExternalAgentDialogs";
 import ExternalAgentChannelsTab from "@/components/external-agents/ExternalAgentChannelsTab";
 import ExternalAgentInsightsTab from "@/components/external-agents/ExternalAgentInsightsTab";
@@ -116,6 +117,7 @@ export default function ExternalAgentDetail() {
   const [agent, setAgent] = useState<ExternalAgent | undefined>(undefined);
   const [showMenu, setShowMenu] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  const [showPublishModal, setShowPublishModal] = useState(false);
   const [showPause, setShowPause] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [showReject, setShowReject] = useState(false);
@@ -125,13 +127,6 @@ export default function ExternalAgentDetail() {
   const [signingSecretCopied, setSigningSecretCopied] = useState(false);
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-
-  const [replacingToken, setReplacingToken] = useState(false);
-  const [showReplaceConfirm, setShowReplaceConfirm] = useState(false);
-  const [newToken, setNewToken] = useState("");
-  const [showNewToken, setShowNewToken] = useState(false);
-  const [replaceChecking, setReplaceChecking] = useState(false);
-  const [replaceResult, setReplaceResult] = useState<ValidationResult | null>(null);
 
   useEffect(() => {
     setLoadState("loading");
@@ -151,6 +146,19 @@ export default function ExternalAgentDetail() {
   // error-state Retry button, which genuinely needs to re-run the fetch attempt.
   const refresh = () => setAgent(externalAgentStore.get(id));
   const hardRefresh = () => setTick(t => t + 1);
+
+  // Lets other pages (e.g. the list view, after creating/editing an agent) hand off into
+  // opening the Publish modal here via a one-shot ?openPublish=1 query param.
+  useEffect(() => {
+    if (params.get("openPublish") === "1") {
+      setShowPublishModal(true);
+      setParams(prev => {
+        const next = new URLSearchParams(prev);
+        next.delete("openPublish");
+        return next;
+      }, { replace: true });
+    }
+  }, [params, setParams]);
 
   if (loadState === "loading") {
     return (
@@ -207,20 +215,6 @@ export default function ExternalAgentDetail() {
     { label: "Tried the agent", done: true },
   ];
 
-  const submitReplaceToken = () => {
-    if (!newToken.trim()) return;
-    setReplaceChecking(true);
-    setTimeout(() => {
-      const v = runValidation(agent.baseUrl, newToken.trim());
-      externalAgentStore.update(agent.id, { tokenReplaced: true, validation: v });
-      setReplaceResult(v);
-      setReplaceChecking(false);
-      setReplacingToken(false);
-      setNewToken("");
-      refresh();
-    }, 600);
-  };
-
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Top bar — same 3-part layout as the internal Agent's: left (back/breadcrumb/name),
@@ -261,7 +255,7 @@ export default function ExternalAgentDetail() {
         <div className="flex items-center gap-2 flex-wrap">
           <StatusBadge status={agent.status} />
           {agent.status === "published" && (
-            <span className="px-1.5 py-0.5 rounded bg-surface-muted text-xs text-muted-foreground whitespace-nowrap">Workspace</span>
+            <span className="px-1.5 py-0.5 rounded bg-surface-muted text-xs text-muted-foreground whitespace-nowrap">Workspace · {agent.version}</span>
           )}
 
           {agent.status === "draft" && (
@@ -273,11 +267,7 @@ export default function ExternalAgentDetail() {
               )}
               <button
                 disabled={!validationPassed}
-                onClick={() => {
-                  externalAgentStore.submitForApproval(agent.id);
-                  toast.success(`"${agent.name}" was submitted for approval.`);
-                  refresh();
-                }}
+                onClick={() => setShowPublishModal(true)}
                 className="btn-primary h-9 whitespace-nowrap disabled:opacity-40 disabled:pointer-events-none"
               >
                 Submit for approval
@@ -308,11 +298,7 @@ export default function ExternalAgentDetail() {
 
           {agent.status === "rejected" && (
             <button
-              onClick={() => {
-                externalAgentStore.submitForApproval(agent.id);
-                toast.success(`"${agent.name}" was submitted for approval.`);
-                refresh();
-              }}
+              onClick={() => setShowPublishModal(true)}
               className="btn-primary h-9 whitespace-nowrap"
             >
               Submit again
@@ -486,12 +472,7 @@ export default function ExternalAgentDetail() {
                     </p>
                     <button
                       type="button"
-                      onClick={() => {
-                        externalAgentStore.submitForApproval(agent.id);
-                        toast.success(`"${agent.name}" was submitted for approval.`);
-                        setJustUnpublished(false);
-                        refresh();
-                      }}
+                      onClick={() => setShowPublishModal(true)}
                       className="mt-1.5 text-sm font-semibold text-warning hover:underline"
                     >
                       Submit for approval
@@ -558,58 +539,7 @@ export default function ExternalAgentDetail() {
                 </InfoRow>
                 {agent.authMethod === "bearer" && (
                   <InfoRow label="Bearer Token">
-                    {replacingToken ? (
-                      <div className="space-y-2">
-                        <div className="relative max-w-sm">
-                          <input
-                            type={showNewToken ? "text" : "password"}
-                            value={newToken}
-                            onChange={e => setNewToken(e.target.value)}
-                            placeholder="Paste the new bearer token"
-                            className="w-full h-9 pl-3 pr-16 rounded-lg border border-border bg-surface text-sm font-mono outline-none focus:border-primary transition-base"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowNewToken(v => !v)}
-                            className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-base"
-                          >
-                            {showNewToken ? <HugeiconsIcon icon={EyeOffIcon} size={12} /> : <HugeiconsIcon icon={EyeIcon} size={12} />} {showNewToken ? "Hide" : "Show"}
-                          </button>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            disabled={!newToken.trim() || replaceChecking}
-                            onClick={submitReplaceToken}
-                            className="btn-primary h-8 px-3 text-sm disabled:opacity-40 disabled:pointer-events-none flex items-center gap-1.5"
-                          >
-                            {replaceChecking && <HugeiconsIcon icon={Loading01Icon} size={11} className="animate-spin" />} Save token
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => { setReplacingToken(false); setNewToken(""); }}
-                            className="h-8 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-sm">••••••••</span>
-                          <button type="button" onClick={() => setShowReplaceConfirm(true)} className="text-sm font-semibold text-primary hover:underline">
-                            Replace token
-                          </button>
-                        </div>
-                        {replaceResult && (
-                          <p className={`text-sm flex items-center gap-1 ${replaceResult.passed ? "text-success" : "text-destructive"}`}>
-                            {replaceResult.passed ? <HugeiconsIcon icon={Tick02Icon} size={11} /> : <HugeiconsIcon icon={Alert01Icon} size={11} />}
-                            {replaceResult.passed ? "New token validated successfully." : "The new token failed validation — this agent may stop responding."}
-                          </p>
-                        )}
-                      </div>
-                    )}
+                    <span className="font-mono text-sm">••••••••</span>
                   </InfoRow>
                 )}
                 <InfoRow label="Signing secret">
@@ -722,7 +652,7 @@ export default function ExternalAgentDetail() {
         )}
 
         {tab === "test" && <ExternalAgentTestTab agent={agent} />}
-        {tab === "channels" && <ExternalAgentChannelsTab agent={agent} />}
+        {tab === "channels" && <ExternalAgentChannelsTab agent={agent} onRefresh={refresh} />}
         {tab === "insights" && <ExternalAgentInsightsTab agentId={agent.id} />}
       </div>
 
@@ -730,9 +660,20 @@ export default function ExternalAgentDetail() {
         open={showEdit}
         existing={agent}
         onClose={() => setShowEdit(false)}
-        onSaved={(_, __, unpublished) => {
+        onSaved={(_, __, unpublished, openPublish) => {
           setShowEdit(false);
           if (unpublished) setJustUnpublished(true);
+          refresh();
+          if (openPublish) setShowPublishModal(true);
+        }}
+      />
+
+      <ExternalAgentPublishModal
+        agent={agent}
+        open={showPublishModal}
+        onClose={() => setShowPublishModal(false)}
+        onPublished={() => {
+          setJustUnpublished(false);
           refresh();
         }}
       />
@@ -759,12 +700,6 @@ export default function ExternalAgentDetail() {
           setShowReject(false);
           refresh();
         }}
-      />
-
-      <ReplaceTokenConfirmDialog
-        open={showReplaceConfirm}
-        onOpenChange={setShowReplaceConfirm}
-        onConfirm={() => { setShowReplaceConfirm(false); setReplaceResult(null); setReplacingToken(true); }}
       />
 
       <DeleteExternalAgentDialog

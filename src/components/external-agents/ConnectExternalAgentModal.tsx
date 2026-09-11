@@ -109,7 +109,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
   existing?: ExternalAgent;
   /** unpublished is true when saving this edit just knocked a Published agent back to Draft
    * (see externalAgentStore.update) — irrelevant for a brand-new connection. */
-  onSaved: (agent: ExternalAgent, isNew: boolean, unpublished?: boolean) => void;
+  onSaved: (agent: ExternalAgent, isNew: boolean, unpublished: boolean | undefined, openPublish: boolean) => void;
 }) {
   const editing = !!existing;
   const [step, setStep] = useState<Step>("connection");
@@ -278,7 +278,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
         emoji: avatarEmoji, bg: avatarBg,
         customHeaders: cleanHeaders,
       });
-      onSaved(externalAgentStore.get(existing!.id)!, false, unpublished);
+      onSaved(externalAgentStore.get(existing!.id)!, false, unpublished, true);
     } else {
       const agent = externalAgentStore.create({
         name, description, baseUrl, authMethod, validation: result,
@@ -287,7 +287,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
         emoji: avatarEmoji, bg: avatarBg,
         customHeaders: cleanHeaders,
       });
-      onSaved(agent, true);
+      onSaved(agent, true, undefined, true);
     }
   };
 
@@ -669,7 +669,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
               </button>
             ) : (
               <button type="button" onClick={save} disabled={checking || !doneChecking} className="btn-primary h-9 px-4 disabled:opacity-40 disabled:pointer-events-none">
-                Save as Draft
+                Publish
               </button>
             )}
           </DialogFooter>

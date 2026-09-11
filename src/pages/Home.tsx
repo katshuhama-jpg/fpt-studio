@@ -451,8 +451,8 @@ export default function Home() {
                   <ExternalLink size={12} className="absolute top-2.5 right-2.5 text-white/70" />
                 </div>
                 <div className="p-3">
-                  <p className="text-xs text-muted-foreground mb-0.5">{g.label}</p>
-                  <p className="text-xs font-semibold leading-snug">{g.title}</p>
+                  <p className="text-sm text-muted-foreground mb-0.5">{g.label}</p>
+                  <p className="text-sm font-semibold leading-snug">{g.title}</p>
                 </div>
               </a>
             ))}
