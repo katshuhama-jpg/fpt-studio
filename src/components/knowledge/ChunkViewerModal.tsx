@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ArrowLeft, X, Check, Pencil, Trash2, Info, Search } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -230,7 +231,11 @@ export default function ChunkViewerModal({
 
   const isLoading = sourceStatus === "processing" && chunks.length === 0;
 
-  return (
+  // Rendered through a portal to document.body: this is a full-screen (fixed inset-0) overlay,
+  // and some callers (e.g. the Agent Builder's Knowledge tab) mount it under an ancestor with a
+  // CSS transform/animation, which would otherwise turn that ancestor into the containing block
+  // for `position: fixed` and trap the overlay inside that panel instead of the whole viewport.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
       <div className="h-14 border-b border-border bg-surface flex items-center justify-between px-4 shrink-0 gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -486,6 +491,7 @@ export default function ChunkViewerModal({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </div>,
+    document.body,
   );
 }
