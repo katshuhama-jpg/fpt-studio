@@ -29,7 +29,7 @@ import { AGENTS, getAgent } from "@/components/configure/agentStore";
 import { useGroupAccess, isOwnedOrShared } from "@/pages/organization/scopeAccess";
 import { useOrg } from "@/pages/organization/orgStore";
 import { collectMembers } from "@/pages/organization/orgData";
-import { CHANNEL_CATALOG, getChannelName, type ChannelCatalogEntry } from "@/components/configure/channelCatalog";
+import { CHANNEL_CATALOG, getChannelName, ChannelIcon, type ChannelCatalogEntry } from "@/components/configure/channelCatalog";
 import { connectedAccountStore } from "@/components/configure/connectedAccountStore";
 import ConnectionsTab, { CATALOG as CONNECTOR_CATALOG } from "@/components/configure/ConnectionsTab";
 import AppLogo from "@/components/configure/AppLogo";
@@ -1834,13 +1834,6 @@ function PerformanceTab() {
 }
 
 /* TOOLS — moved to src/components/tool-builder/AgentToolsTab.tsx */
-
-function ChannelIcon({ ch, size = 16 }: { ch: ChannelCatalogEntry; size?: number }) {
-  if (ch.icon) return <HugeiconsIcon icon={ch.icon} size={size} className={ch.color} />;
-  if (ch.logoUrl) return <img src={ch.logoUrl} alt={ch.name} className="object-contain" style={{ width: size, height: size }} />;
-  if (ch.id === "zalo") return <span className="text-[11px] font-bold" style={{ color: "#0068FF" }}>Zalo</span>;
-  return <span className="text-[10px] font-bold text-muted-foreground">{ch.name[0]}</span>;
-}
 
 function PublishAgentModal({ onClose, onPublish }: {
   onClose: () => void;
