@@ -46,11 +46,22 @@ export interface KnowledgeItem {
 const STORE_KEY = "agent_knowledge_store_v4";
 const ATTACHED_KEY = "agent_knowledge_attached_v4";
 const SEEDED_KEY = "agent_knowledge_store_seeded_v4";
+// v1 — per-Agent "Kích hoạt" toggle on a Knowledge Base card in section=knowledge (Round 6
+// Prompt K). Keyed by `${agentId}:${kbId}`, where kbId is a real attached Console KB id or the
+// sentinel OWN_KB_ID for the Agent's own personal bucket. Absent means active (default ON) —
+// this only controls whether the Agent uses that KB's content to answer, never its Console
+// listing, its attachment, or (for the personal bucket) the items themselves.
+const ACTIVE_KEY = "agent_knowledge_kb_active_v1";
+/** Sentinel id for the Agent's own upload/website/FAQ bucket, shown as a "Cá nhân" card in the
+ * section=knowledge grid alongside real attached Console KBs (see Round 6 Prompt K). */
+export const OWN_KB_ID = "__own__";
 const store = loadMap<string, KnowledgeItem>(STORE_KEY);
 const attached = loadMap<string, string[]>(ATTACHED_KEY);
+const activeMap = loadMap<string, boolean>(ACTIVE_KEY);
 const k = (a: string, id: string) => `${a}:${id}`;
 const persist = () => saveMap(STORE_KEY, store);
 const persistAttached = () => saveMap(ATTACHED_KEY, attached);
+const persistActive = () => saveMap(ACTIVE_KEY, activeMap);
 const normalize = (i: KnowledgeItem): KnowledgeItem => (i.createdAt && i.updatedBy ? i : { ...i, createdAt: i.createdAt ?? i.updatedAt, updatedBy: i.updatedBy ?? CURRENT_USER.name });
 
 const DAY = 86_400_000;
@@ -228,6 +239,16 @@ export const knowledgeStore = {
     attached.set(agentId, cur);
     persistAttached();
     knowledgeBaseStore.removeAttachingAgent(kbId, agentId);
+  },
+
+  // --- Per-Agent "Kích hoạt" toggle (Round 6 Prompt K) ---
+  /** Default ON — a card only reads as deactivated once explicitly turned off. */
+  isKbActive(agentId: string, kbId: string): boolean {
+    return activeMap.get(k(agentId, kbId)) ?? true;
+  },
+  setKbActive(agentId: string, kbId: string, active: boolean) {
+    activeMap.set(k(agentId, kbId), active);
+    persistActive();
   },
 
   /** Creates a new Console KB seeded from this Agent item, then converts the item into a
