@@ -65,8 +65,8 @@ import { knowledgeStore, OWN_KB_ID, type KnowledgeItem } from "@/components/know
 import { knowledgeBaseStore, CURRENT_USER as KB_CURRENT_USER, isViewOnly as isKbViewOnly, isAccessibleTo as isKbAccessibleTo, type KnowledgeBase } from "@/components/knowledge/knowledgeBaseStore";
 import { KnowledgeStatusPill } from "@/components/knowledge/knowledgeStatus";
 import AttachConsoleKnowledgeBaseModal from "@/components/knowledge/AttachConsoleKnowledgeBaseModal";
-import PromoteToConsoleDialog from "@/components/knowledge/PromoteToConsoleDialog";
 import ShareKnowledgeBaseModal from "@/components/knowledge/ShareKnowledgeBaseModal";
+import ShareAgentItemModal from "@/components/knowledge/ShareAgentItemModal";
 import CreateKnowledgeBaseModal from "@/components/knowledge/CreateKnowledgeBaseModal";
 import DeleteKnowledgeBaseDialog from "@/components/knowledge/DeleteKnowledgeBaseDialog";
 import KnowledgeTypeIcon from "@/components/knowledge/KnowledgeTypeIcon";
@@ -1631,7 +1631,6 @@ function AgentOwnKnowledgeView({ agentId, onBack }: { agentId: string; onBack: (
     return () => document.removeEventListener("mousedown", h);
   }, [showAddMenu]);
   const [shareTargets, setShareTargets] = useState<KnowledgeItem[] | null>(null);
-  const [promoteTarget, setPromoteTarget] = useState<KnowledgeItem | null>(null);
   const [reprocessTarget, setReprocessTarget] = useState<KnowledgeItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<KnowledgeItem | null>(null);
   const [versionTarget, setVersionTarget] = useState<KnowledgeItem | null>(null);
@@ -1790,7 +1789,6 @@ function AgentOwnKnowledgeView({ agentId, onBack }: { agentId: string; onBack: (
                   onOpen={() => openItemOrEditFaq(item)}
                   openLabel={item.kind === "faq" ? "Sửa" : "Mở"}
                   onShare={() => setShareTargets([item])}
-                  onPromote={() => setPromoteTarget(item)}
                   onReprocess={() => setReprocessTarget(item)}
                   onDelete={() => setDeleteTarget(item)}
                   reprocessDisabled={(item.kind === "faq" || item.kind === "doc") && item.status !== "failed"}
@@ -1817,7 +1815,6 @@ function AgentOwnKnowledgeView({ agentId, onBack }: { agentId: string; onBack: (
       {editFaqTarget && (
         <AddEditFaqModal open agentId={agentId} editingItem={editFaqTarget} onClose={() => { setEditFaqTarget(null); refresh(); }} />
       )}
-      {promoteTarget && <PromoteToConsoleDialog agentId={agentId} item={promoteTarget} onClose={() => { setPromoteTarget(null); refresh(); }} />}
       {openItem && (
         <ChunkViewerModal kbId={agentId} sourceType="agent-item" sourceId={openItem.id} sourceName={openItem.name} sourceStatus={openItem.status ?? "done"} sourceChunkCount={openItem.chunkCount} sourceCreatedAt={openItem.createdAt ?? openItem.updatedAt} onClose={closeChunkViewer} viewOnly={false} />
       )}
@@ -1828,14 +1825,10 @@ function AgentOwnKnowledgeView({ agentId, onBack }: { agentId: string; onBack: (
         />
       )}
       {shareTargets && shareTargets.length > 0 && (
-        <ShareKnowledgeBaseModal
-          open
-          title={shareTargets.length === 1 ? "Chia sẻ tài liệu" : `Chia sẻ ${shareTargets.length} tài liệu`}
-          name={shareTargets.length === 1 ? shareTargets[0].name : undefined}
-          ownerName="Tran Nam"
-          sharing={shareTargets.length === 1 ? (shareTargets[0].sharing ?? { mode: "private", people: [] }) : { mode: "private", people: [] }}
-          onSave={sharing => { for (const t of shareTargets) knowledgeStore.updateSharing(agentId, t.id, sharing); setSelected(new Set()); }}
-          onClose={() => { setShareTargets(null); refresh(); }}
+        <ShareAgentItemModal
+          agentId={agentId}
+          items={shareTargets}
+          onClose={() => { setShareTargets(null); setSelected(new Set()); refresh(); }}
         />
       )}
 
@@ -1887,10 +1880,10 @@ function AgentOwnKnowledgeView({ agentId, onBack }: { agentId: string; onBack: (
 }
 
 const KNOWLEDGE_ITEM_ROW_MENU_WIDTH = 224; // w-56
-const KNOWLEDGE_ITEM_ROW_MENU_HEIGHT_ESTIMATE = 230; // 5 items + danger separator + padding
+const KNOWLEDGE_ITEM_ROW_MENU_HEIGHT_ESTIMATE = 190; // 4 items + danger separator + padding
 
-function KnowledgeItemRowMenu({ onOpen, openLabel = "Mở", onShare, onPromote, onReprocess, onDelete, reprocessDisabled, reprocessTooltip }: {
-  onOpen: () => void; openLabel?: string; onShare: () => void; onPromote: () => void; onReprocess: () => void; onDelete: () => void;
+function KnowledgeItemRowMenu({ onOpen, openLabel = "Mở", onShare, onReprocess, onDelete, reprocessDisabled, reprocessTooltip }: {
+  onOpen: () => void; openLabel?: string; onShare: () => void; onReprocess: () => void; onDelete: () => void;
   reprocessDisabled?: boolean; reprocessTooltip?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -1936,8 +1929,7 @@ function KnowledgeItemRowMenu({ onOpen, openLabel = "Mở", onShare, onPromote, 
           onMouseDown={e => e.stopPropagation()}
         >
           <button onClick={() => { setOpen(false); onOpen(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">{openLabel}</button>
-          <button onClick={() => { setOpen(false); onShare(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Chia sẻ</button>
-          <button onClick={() => { setOpen(false); onPromote(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Chuyển thành kho tri thức chung</button>
+          <button onClick={() => { setOpen(false); onShare(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Chia sẻ & quyền truy cập</button>
           <Tooltip delayDuration={200}>
             <TooltipTrigger asChild>
               <span>

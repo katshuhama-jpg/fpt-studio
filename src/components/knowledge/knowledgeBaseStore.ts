@@ -25,6 +25,28 @@ export interface Sharing {
   people: SharedPerson[];
 }
 
+/** Who an Agent is allowed to use this content to answer, once the Agent is published and
+ * talking to real end users — an entirely separate axis from `Sharing`/`SharingMode` above.
+ * `Sharing` governs whether OTHER BUILDERS can see/reuse this content in Console when building
+ * their own Agents; `QuerySharing` governs which END USERS an already-built Agent may draw on
+ * this specific content for when answering. A private (`sharing.mode: "private"`) item can still
+ * carry any `QuerySharing` value, since the two questions are independent: "who can reuse this
+ * while building" vs. "who can this be used to answer, at chat time". */
+export type QueryScopeMode = "private" | "all_org" | "department" | "specific";
+
+export interface QuerySharing {
+  mode: QueryScopeMode;
+  /** department mode only — org unit ids from organization/orgData.ts's OrgUnit tree. */
+  departmentIds: string[];
+  /** specific mode only — reuses the same person shape as Sharing, but scoped to the whole
+   * organization rather than only Console users (an end user chatting with a published Agent
+   * need not be a Console member). `access` is unused here (always "view") but kept so this can
+   * share MemberPicker with Sharing's own "specific" picker without a second component. */
+  people: SharedPerson[];
+}
+
+export const DEFAULT_QUERY_SHARING: QuerySharing = { mode: "private", departmentIds: [], people: [] };
+
 export interface KnowledgeBaseStats {
   docs: number;
   urls: number;

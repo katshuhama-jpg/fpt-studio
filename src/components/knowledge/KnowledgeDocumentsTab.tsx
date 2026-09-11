@@ -19,7 +19,6 @@ import UploadDocumentsModal from "./UploadDocumentsModal";
 import ShareKnowledgeBaseModal from "./ShareKnowledgeBaseModal";
 import ChunkViewerModal from "./ChunkViewerModal";
 import VersionHistoryPanel from "./VersionHistoryPanel";
-import DocumentLayoutViewer from "./DocumentLayoutViewer";
 import CreateFolderModal from "./CreateFolderModal";
 import MoveToFolderModal from "./MoveToFolderModal";
 
@@ -48,7 +47,6 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
   const [reprocessTarget, setReprocessTarget] = useState<KnowledgeDocument | null>(null);
   const [shareTargets, setShareTargets] = useState<KnowledgeDocument[] | null>(null);
   const [deleteTargets, setDeleteTargets] = useState<KnowledgeDocument[] | null>(null);
-  const [layoutTarget, setLayoutTarget] = useState<KnowledgeDocument | null>(null);
   const [versionTarget, setVersionTarget] = useState<KnowledgeDocument | null>(null);
   const [showCreateFolder, setShowCreateFolder] = useState(false);
   const [moveTargets, setMoveTargets] = useState<KnowledgeDocument[] | null>(null);
@@ -303,7 +301,6 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                         <RowMenu
                           canOpen={openable}
                           onOpen={() => openDocument(d.id)}
-                          onLayout={() => setLayoutTarget(d)}
                           onShare={() => setShareTargets([d])}
                           onReprocess={() => setReprocessTarget(d)}
                           onRename={() => { setRenaming(d); setRenameValue(d.name); }}
@@ -324,7 +321,6 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
       <UploadDocumentsModal open={showUpload} kbId={kbId} onClose={() => { setShowUpload(false); refresh(); }} />
 
       {openDoc && <ChunkViewerModal kbId={kbId} sourceType="document" sourceId={openDoc.id} sourceName={openDoc.name} sourceStatus={openDoc.status} sourceCreatedAt={openDoc.createdAt} onClose={closeViewer} viewOnly={viewOnly} />}
-      {layoutTarget && <DocumentLayoutViewer document={layoutTarget} onClose={() => setLayoutTarget(null)} />}
       {versionTarget && (
         <VersionHistoryPanel
           source={{ id: versionTarget.id, kbId: versionTarget.kbId, name: versionTarget.name, sourceType: "document", version: versionTarget.version, updatedAt: versionTarget.updatedAt, updatedBy: versionTarget.updatedBy }}
@@ -467,8 +463,8 @@ const ROW_MENU_WIDTH = 224; // w-56
 const ROW_MENU_HEIGHT_ESTIMATE = 296;
 const FOLDER_ROW_MENU_HEIGHT_ESTIMATE = 190;
 
-function RowMenu({ canOpen, onOpen, onLayout, onShare, onReprocess, onRename, onMove, onDelete }: {
-  canOpen: boolean; onOpen: () => void; onLayout: () => void; onShare: () => void; onReprocess: () => void; onRename: () => void; onMove: () => void; onDelete: () => void;
+function RowMenu({ canOpen, onOpen, onShare, onReprocess, onRename, onMove, onDelete }: {
+  canOpen: boolean; onOpen: () => void; onShare: () => void; onReprocess: () => void; onRename: () => void; onMove: () => void; onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
@@ -503,7 +499,6 @@ function RowMenu({ canOpen, onOpen, onLayout, onShare, onReprocess, onRename, on
 
   const items: { label: string; onClick: () => void; danger?: boolean; disabled?: boolean; disabledTooltip?: string }[] = [
     { label: "Mở", onClick: onOpen, disabled: !canOpen, disabledTooltip: "Tài liệu chưa xử lý xong nên chưa xem được nội dung." },
-    { label: "Xem bố cục tài liệu", onClick: onLayout },
     { label: "Chia sẻ", onClick: onShare },
     { label: "Xử lý lại", onClick: onReprocess },
     { label: "Đổi tên", onClick: onRename },

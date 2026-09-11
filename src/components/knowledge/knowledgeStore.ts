@@ -3,7 +3,7 @@
 // to seed a knowledge inventory when an agent is scaffolded, and by AgentBuilder.tsx's
 // KnowledgeTab for the Agent's own upload/website/FAQ items plus its linked Console KBs.
 import { loadMap, saveMap, loadSet, saveSet } from "@/lib/sessionPersist";
-import { knowledgeBaseStore, CURRENT_USER, type Sharing, type KnowledgeBaseType } from "./knowledgeBaseStore";
+import { knowledgeBaseStore, CURRENT_USER, type Sharing, type QuerySharing, type KnowledgeBaseType } from "./knowledgeBaseStore";
 import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
 import { knowledgeUrlStore } from "./knowledgeUrlStore";
 import { knowledgeFaqStore, type CategoryOption } from "./knowledgeFaqStore";
@@ -32,6 +32,11 @@ export interface KnowledgeItem {
    * distinct from "linking" a Console KB to an Agent (that's attachConsoleKb below). Absent
    * means private ("Chỉ mình tôi"). */
   sharing?: Sharing;
+  /** Who a published Agent may use this item to answer for, once the Agent is talking to real
+   * end users — independent of `sharing` above (which only governs whether other Console
+   * builders can see/reuse this item). Absent means private ("Chỉ mình tôi" — only the
+   * uploader's own test chats). Set together with `sharing` from the same "Chia sẻ" dialog. */
+  querySharing?: QuerySharing;
   /** kind:"faq" items only — same free-text category tags as a Console KB's FAQ, shown in the
    * Knowledge tab's Danh mục column. doc/url items never set this. */
   categories?: string[];
@@ -175,6 +180,12 @@ export const knowledgeStore = {
     const cur = store.get(k(agentId, id));
     if (!cur) return;
     store.set(k(agentId, id), { ...cur, sharing, updatedAt: Date.now() });
+    persist();
+  },
+  updateQuerySharing(agentId: string, id: string, querySharing: QuerySharing) {
+    const cur = store.get(k(agentId, id));
+    if (!cur) return;
+    store.set(k(agentId, id), { ...cur, querySharing, updatedAt: Date.now() });
     persist();
   },
   /** Edits an item's name/description in place — for a FAQ item this is question/answer.
