@@ -62,7 +62,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { knowledgeStore, type KnowledgeItem } from "@/components/knowledge/knowledgeStore";
 import { knowledgeBaseStore } from "@/components/knowledge/knowledgeBaseStore";
-import { KnowledgeStatusPill } from "@/components/knowledge/knowledgeStatus";
+import { KnowledgeStatusPill, type KnowledgeFaqStatus } from "@/components/knowledge/knowledgeStatus";
+import { INITIAL_VERSION, formatVersion } from "@/components/knowledge/semver";
 import AttachConsoleKnowledgeBaseModal from "@/components/knowledge/AttachConsoleKnowledgeBaseModal";
 import PromoteToConsoleDialog from "@/components/knowledge/PromoteToConsoleDialog";
 import ShareKnowledgeBaseModal from "@/components/knowledge/ShareKnowledgeBaseModal";
@@ -1457,7 +1458,7 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
                         aria-label="Xem lịch sử phiên bản"
                         className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] -m-2.5 rounded-lg text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-base"
                       >
-                        <span className="chip chip-muted pointer-events-none text-xs">v{item.version ?? 1}</span>
+                        <span className="chip chip-muted pointer-events-none text-xs">{formatVersion(item.version ?? INITIAL_VERSION)}</span>
                       </button>
                     </TooltipTrigger>
                     <TooltipContent>Xem lịch sử phiên bản</TooltipContent>
@@ -1526,7 +1527,7 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
       )}
       {versionTarget && (
         <VersionHistoryPanel
-          source={{ id: versionTarget.id, kbId: agentId, name: versionTarget.name, sourceType: "agent-item", version: versionTarget.version ?? 1, updatedAt: versionTarget.updatedAt, updatedBy: versionTarget.updatedBy }}
+          source={{ id: versionTarget.id, kbId: agentId, name: versionTarget.name, sourceType: "agent-item", version: versionTarget.version ?? INITIAL_VERSION, updatedAt: versionTarget.updatedAt, updatedBy: versionTarget.updatedBy }}
           onClose={() => { setVersionTarget(null); refresh(); }}
         />
       )}
@@ -4428,6 +4429,22 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
 }
 
 /* ============ Knowledge sidebar summary (S15) ============ */
+/** Group header for the Instructions sidebar's Knowledge mini-panel — separates "Kho liên kết"
+ * rows from "Tài liệu riêng" rows. Mirrors the icon-circle + title styling of the full "Tri thức
+ * của Agent" page's own Section headings (see Section() above) rather than inventing a new
+ * heading treatment, with a bottom border added so it still reads as a distinct group divider
+ * inside the tighter sidebar list. */
+function KnowledgeGroupHeader({ icon, label }: { icon: any; label: string }) {
+  return (
+    <div className="flex items-center gap-2 pb-2 mb-1.5 border-b-[1.5px] border-border">
+      <div className="w-6 h-6 rounded-full bg-primary-soft text-primary flex items-center justify-center shrink-0">
+        <HugeiconsIcon icon={icon} size={12} />
+      </div>
+      <span className="font-display font-semibold text-[13px] text-foreground">{label}</span>
+    </div>
+  );
+}
+
 function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAdd?: (fn: (pos:{top:number;left:number}) => void) => void }) {
   const [, setParams] = useSearchParams();
   const [tick, setTick] = useState(0);
@@ -4480,7 +4497,12 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
         {kb.sharing.mode === "all" ? "Dùng chung" : kb.sharing.mode === "specific" ? "Chia sẻ" : "Của tôi"}
       </span>,
     })),
-    ...items.map(item => {
+    // Urgency-first: an item still pending/processing surfaces above already-done ones, so the
+    // few rows visible before "Xem tất cả" are the ones most likely to need attention.
+    ...[...items].sort((a, b) => {
+      const rank = (s: KnowledgeFaqStatus | undefined) => (s === "pending" || s === "processing") ? 0 : 1;
+      return rank(a.status) - rank(b.status);
+    }).map(item => {
       const itemStatus = item.status ?? "done";
       const stillProcessing = itemStatus === "pending" || itemStatus === "processing";
       return {
@@ -4509,6 +4531,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
     }),
   ];
   const shown = rows.slice(0, 4);
+  const shownAttachedCount = shown.filter(r => r.key.startsWith("kb-")).length;
 
   const menuItems = [
     { label: "Liên kết kho tri thức", onClick: () => setShowAttach(true) },
@@ -4532,8 +4555,14 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
         />
       ) : (
         <div className="flex flex-col gap-1.5">
-          {shown.map(row => (
-            <KnowledgeSourceRow key={row.key} icon={row.icon} name={row.name} chip={row.chip} onOpen={row.open} openLabel={row.openLabel} onRemove={row.remove} removeLabel={row.removeLabel} secondaryActions={row.secondaryActions} disabled={row.disabled} disabledReason={row.disabledReason} href={row.href} twoLine />
+          {shown.map((row, i) => (
+            <div key={row.key}>
+              {i === 0 && shownAttachedCount > 0 && <KnowledgeGroupHeader icon={ConnectIcon} label="Kho liên kết" />}
+              {i === shownAttachedCount && shown.length > shownAttachedCount && (
+                <KnowledgeGroupHeader icon={BookOpen01Icon} label="Tài liệu riêng" />
+              )}
+              <KnowledgeSourceRow icon={row.icon} name={row.name} chip={row.chip} onOpen={row.open} openLabel={row.openLabel} onRemove={row.remove} removeLabel={row.removeLabel} secondaryActions={row.secondaryActions} disabled={row.disabled} disabledReason={row.disabledReason} href={row.href} twoLine />
+            </div>
           ))}
           {rows.length > 4 && (
             <button onClick={() => setParams({ tab: "build", section: "knowledge" })} className="text-xs text-primary hover:underline text-left mt-0.5">
