@@ -1422,7 +1422,6 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
 }
 
 function AgentKnowledgeGrid({ agentId, onOpenOwn }: { agentId: string; onOpenOwn: (quickAdd?: boolean) => void }) {
-  const navigate = useNavigate();
   const [tick, setTick] = useState(0);
   const refresh = () => setTick(t => t + 1);
   void tick;
@@ -1536,7 +1535,10 @@ function AgentKnowledgeGrid({ agentId, onOpenOwn }: { agentId: string; onOpenOwn
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map(c => {
             const isOwner = c.isOwn || c.kb?.ownerId === KB_CURRENT_USER.id;
-            const onOpen = () => { if (c.isOwn) onOpenOwn(); else navigate(`/knowledge/${c.id}`); };
+            // Real Console KBs open in a new tab instead of navigating this one away from the
+            // Agent Builder — matching the sidebar's own pattern — so switching to a shared KB's
+            // Console detail never silently discards unsaved Instructions edits.
+            const onOpen = () => { if (c.isOwn) onOpenOwn(); else window.open(`/knowledge/${c.id}`, "_blank", "noopener,noreferrer"); };
             const editBlocked = !c.isOwn && !isOwner ? "Chỉ chủ sở hữu mới có thể đổi tên kho tri thức này." : undefined;
             const shareBlocked = !c.isOwn && !isOwner ? "Chỉ chủ sở hữu mới có thể chia sẻ kho tri thức này." : undefined;
             const deleteBlocked = !c.isOwn && !isOwner ? "Chỉ chủ sở hữu mới có thể xóa kho tri thức này." : undefined;
