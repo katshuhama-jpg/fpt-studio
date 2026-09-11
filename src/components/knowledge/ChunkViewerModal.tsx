@@ -5,6 +5,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { knowledgeChunkStore, type ChunkSourceType, type KnowledgeChunk, type ChunkContentType, type ChunkBBox } from "./knowledgeChunkStore";
 import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
 import { knowledgeUrlStore, type UrlSource } from "./knowledgeUrlStore";
@@ -292,6 +293,16 @@ export default function ChunkViewerModal({
           <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border shrink-0">
             <h2 className="text-sm font-semibold flex items-center gap-1.5">
               Chunk <span className="chip chip-muted">{chunks.length}</span>
+              <Tooltip delayDuration={200}>
+                <TooltipTrigger asChild>
+                  <button type="button" aria-label="Chunk là gì?" className="text-muted-foreground hover:text-foreground transition-base">
+                    <Info size={13} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-64 text-xs leading-relaxed">
+                  Hệ thống tự động chia tài liệu thành các đoạn nhỏ (chunk) để AI tra cứu chính xác hơn khi trả lời. Bạn có thể sửa nội dung hoặc vùng chọn nếu thấy AI chia chưa đúng.
+                </TooltipContent>
+              </Tooltip>
             </h2>
             <div className="relative">
               <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />

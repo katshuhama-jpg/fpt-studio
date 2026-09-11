@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Plus, RefreshCw,
-  MousePointer2, MessageSquare, Square, PenLine, Type, Check, X,
+  MousePointer2, MessageSquare, Square, PenLine, Type, Check, X, Wrench,
 } from "lucide-react";
 
 // Each page is a few real paragraphs (not one short line) so the document reads like an actual
@@ -189,6 +189,19 @@ export default function DocumentPreviewPane({
           <>
             <div className="w-px h-5 bg-border mx-1 shrink-0" />
             <button
+              onClick={e => {
+                const r = e.currentTarget.getBoundingClientRect();
+                setDrawMode(false);
+                setContextMenu({ x: r.left, y: r.bottom + 6 });
+              }}
+              title="Công cụ chú thích: di chuyển, bình luận, vẽ vùng chọn, vẽ tự do, chèn văn bản"
+              aria-label="Công cụ chú thích"
+              className="h-8 px-3 shrink-0 rounded-lg border border-border bg-surface hover:bg-surface-muted text-xs font-medium transition-base flex items-center gap-1.5 whitespace-nowrap"
+            >
+              <Wrench size={12} className="shrink-0" /> <span className="whitespace-nowrap">Công cụ</span>
+            </button>
+            <div className="w-px h-5 bg-border mx-1 shrink-0" />
+            <button
               onClick={onReprocess}
               disabled={!canReprocess}
               title="Xử lý lại"
@@ -233,9 +246,12 @@ export default function DocumentPreviewPane({
                   }`}
                   style={{ left: `${box.x}%`, top: `${box.y}%`, width: `${box.w}%`, height: `${box.h}%` }}
                 >
+                  {/* Kept fully inside the box's own top-left corner (never floating above it) so a
+                      densely-packed page never has a label bleed into a neighboring row's text —
+                      the box's own background already gives it enough contrast to read clearly. */}
                   <span
-                    className={`absolute -top-2.5 left-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded whitespace-nowrap ${
-                      isSelected ? "bg-primary text-primary-foreground" : "bg-white border border-border text-muted-foreground"
+                    className={`absolute top-0.5 left-1 max-w-[calc(100%-8px)] truncate text-[9px] leading-none font-semibold px-1 py-0.5 rounded whitespace-nowrap ${
+                      isSelected ? "bg-primary text-primary-foreground" : "bg-white/95 border border-border text-muted-foreground"
                     }`}
                   >
                     Chunk {c.index}{c.manuallyEdited ? " •" : ""}

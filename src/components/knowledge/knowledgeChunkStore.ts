@@ -29,20 +29,32 @@ export interface KnowledgeChunk {
 
 /** Deterministic, intentionally-overlapping bounding box for a chunk — this prototype has no
  * real per-chunk layout coordinates, so boxes are scattered by index instead of computed from
- * actual document geometry. Every 3rd chunk on a page is nudged to overlap the one before it, so
- * the chunk-editor demo always shows at least one overlapping pair (resize/z-order still work on
- * either box). */
+ * actual document geometry. Every 3rd chunk in a page's first few rows is nudged to overlap the
+ * one before it, so the chunk-editor demo always shows at least one overlapping pair (resize/
+ * z-order still work on either box).
+ *
+ * ROWS_PER_PAGE is deliberately generous (18, up from an earlier 4) — with only 4 distinct rows,
+ * any document with more than ~4 chunks on a page reused the same row positions over and over,
+ * piling multiple chunk labels on top of each other and obscuring the real document text beneath
+ * them (confirmed on a 42-chunk/4-page document: several words became fully unreadable). 18 rows
+ * covers realistic per-page chunk counts in this prototype without collisions; the chunk label
+ * itself is also kept fully inside its own box (see DocumentPreviewPane) so even the rare
+ * same-row collision never bleeds into a neighboring row's text. */
 function defaultBBoxFor(index: number): ChunkBBox {
+  const ROWS_PER_PAGE = 18;
+  const ROW_HEIGHT = 5; // percent of page height per row (90% usable height / 18 rows)
   const page = (index - 1) % MOCK_PAGES.length;
   const slot = Math.floor((index - 1) / MOCK_PAGES.length);
-  const row = slot % 4;
-  const overlap = slot % 3 === 2;
+  const row = slot % ROWS_PER_PAGE;
+  // Keep the deliberate-overlap demo pair confined to the first few rows so it never stacks
+  // extra crowding on top of an already-dense page.
+  const overlap = slot % 3 === 2 && row < 3;
   return {
     page,
     x: 8 + (slot % 2) * 6,
-    y: Math.max(2, 6 + row * 21 - (overlap ? 10 : 0)),
+    y: Math.max(2, 4 + row * ROW_HEIGHT - (overlap ? 3.5 : 0)),
     w: 76 - (slot % 2) * 4,
-    h: 17,
+    h: 8,
   };
 }
 

@@ -1620,6 +1620,16 @@ function AgentOwnKnowledgeView({ agentId, onBack }: { agentId: string; onBack: (
   const [showAddUrl, setShowAddUrl] = useState(false);
   const [showAddFaq, setShowAddFaq] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(params.get("quickAdd") === "1");
+  const addMenuRef = useRef<HTMLDivElement>(null);
+  // The "..." row-action menu elsewhere on this page already closes correctly on any outside
+  // click via this same document-mousedown/ref pattern — this "Thêm" menu previously only closed
+  // on onMouseLeave, so clicking outside it (rather than moving the mouse away) left it stuck open.
+  useEffect(() => {
+    if (!showAddMenu) return;
+    const h = (e: MouseEvent) => { if (addMenuRef.current && !addMenuRef.current.contains(e.target as Node)) setShowAddMenu(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [showAddMenu]);
   const [shareTargets, setShareTargets] = useState<KnowledgeItem[] | null>(null);
   const [promoteTarget, setPromoteTarget] = useState<KnowledgeItem | null>(null);
   const [reprocessTarget, setReprocessTarget] = useState<KnowledgeItem | null>(null);
@@ -1666,12 +1676,6 @@ function AgentOwnKnowledgeView({ agentId, onBack }: { agentId: string; onBack: (
   const openItem = openItemId ? knowledgeStore.get(agentId, openItemId) : undefined;
   const closeChunkViewer = () => { const next = new URLSearchParams(params); next.delete("itemId"); setParams(next, { replace: true }); };
 
-  const addAction = () => {
-    if (kind === "doc") setShowUpload(true);
-    else if (kind === "url") setShowAddUrl(true);
-    else setShowAddFaq(true);
-  };
-
   return (
     <div className="p-8 w-full space-y-5 animate-fade-up">
       <div>
@@ -1700,8 +1704,8 @@ function AgentOwnKnowledgeView({ agentId, onBack }: { agentId: string; onBack: (
             <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm nguồn tri thức..." className="ds-input pl-8 h-9 w-full" />
           </div>
-          <div className="relative" onMouseLeave={() => setShowAddMenu(false)}>
-            <button onClick={() => (showAddMenu ? addAction() : setShowAddMenu(true))} className="btn-primary h-9 whitespace-nowrap">
+          <div className="relative" ref={addMenuRef}>
+            <button onClick={() => setShowAddMenu(v => !v)} className="btn-primary h-9 whitespace-nowrap">
               <HugeiconsIcon icon={Add01Icon} size={14} /> Thêm
             </button>
             {showAddMenu && (
@@ -4736,8 +4740,16 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
   ];
 
   const menuItems = [
-    { label: "Liên kết kho tri thức có sẵn", onClick: () => setShowAttach(true) },
-    { label: "Tạo mới", onClick: goCreateNew },
+    {
+      label: "Liên kết kho tri thức có sẵn",
+      description: "Dùng chung một kho tri thức đã có với Agent khác",
+      onClick: () => setShowAttach(true),
+    },
+    {
+      label: "Tạo mới",
+      description: "Tài liệu, website hoặc FAQ riêng cho Agent này",
+      onClick: goCreateNew,
+    },
   ];
 
   return (
@@ -4778,14 +4790,15 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
 
       {showMenu && createPortal(
         <div className="fixed z-[9999]" style={{ top: menuPos.top, right: window.innerWidth - menuPos.left }} onMouseDown={e => e.stopPropagation()}>
-          <div className="bg-white rounded-xl border border-border shadow-elev py-1 min-w-[200px] animate-fade-up">
+          <div className="bg-white rounded-xl border border-border shadow-elev py-1 min-w-[240px] animate-fade-up">
             {menuItems.map(item => (
               <button
                 key={item.label}
-                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-foreground hover:bg-surface-muted transition-base text-left"
+                className="w-full flex flex-col items-start gap-0.5 px-3.5 py-2.5 text-sm text-foreground hover:bg-surface-muted transition-base text-left"
                 onClick={() => { setShowMenu(false); item.onClick(); }}
               >
-                {item.label}
+                <span className="font-medium">{item.label}</span>
+                <span className="text-xs text-muted-foreground">{item.description}</span>
               </button>
             ))}
           </div>
