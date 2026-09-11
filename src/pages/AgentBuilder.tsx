@@ -64,14 +64,13 @@ import { knowledgeStore, CURRENT_USER, type AgentKnowledgeRow, type KnowledgeKin
 import { knowledgeBaseStore } from "@/components/knowledge/knowledgeBaseStore";
 import { knowledgeDocumentStore } from "@/components/knowledge/knowledgeDocumentStore";
 import { knowledgeUrlStore } from "@/components/knowledge/knowledgeUrlStore";
-import { knowledgeFaqStore, type KnowledgeFaq } from "@/components/knowledge/knowledgeFaqStore";
+import { knowledgeFaqStore } from "@/components/knowledge/knowledgeFaqStore";
 import { KnowledgeStatusPill } from "@/components/knowledge/knowledgeStatus";
 import AttachConsoleKnowledgeBaseModal from "@/components/knowledge/AttachConsoleKnowledgeBaseModal";
 import ShareKnowledgeBaseModal from "@/components/knowledge/ShareKnowledgeBaseModal";
 import UploadDocumentsModal from "@/components/knowledge/UploadDocumentsModal";
 import AddUrlModal from "@/components/knowledge/AddUrlModal";
 import AddEditFaqModal from "@/components/knowledge/AddEditFaqModal";
-import ChunkViewerModal from "@/components/knowledge/ChunkViewerModal";
 import FileTypeIcon from "@/components/knowledge/FileTypeIcon";
 import { formatFileSize } from "@/components/knowledge/formatFileSize";
 
@@ -1143,7 +1142,11 @@ const KNOWLEDGE_SOURCE_ROW_MENU_WIDTH = 176; // w-44
 const KNOWLEDGE_SOURCE_ROW_MENU_HEIGHT_ESTIMATE = 90; // 2 items + container padding
 
 function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, openLabel = "Mở nguồn tri thức", removeLabel = "Gỡ nguồn tri thức", secondaryActions, disabled = false, disabledReason = "Nguồn tri thức đang được xử lý.", href, twoLine = false }: {
-  icon: any; name: string; chip: React.ReactNode; onOpen: () => void;
+  icon: any; name: string; chip: React.ReactNode;
+  /** Omit entirely when this row has no detail view to open — the row stops being clickable and
+   * the "open" menu entry disappears (used by the Instructions sidebar's Knowledge widget, which
+   * only offers "Xóa"/"Gỡ khỏi Agent"; other callers still pass this and keep click-to-open). */
+  onOpen?: () => void;
   /** Always-last, red/destructive action — omitted entirely (not merely disabled) when the
    * caller passes nothing, e.g. an item the current user has no edit rights to delete. */
   onRemove?: () => void;
@@ -1190,8 +1193,9 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, openLabel = "M
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
 
+  const interactive = !disabled && (!!onOpen || !!href);
   const rowClassName = `group flex ${twoLine ? "items-start" : "items-center"} gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-    disabled ? "cursor-default" : "hover:bg-surface-muted cursor-pointer"
+    interactive ? "hover:bg-surface-muted cursor-pointer" : "cursor-default"
   }`;
 
   const menuBody = (
@@ -1210,9 +1214,9 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, openLabel = "M
         </Tooltip>
       ) : href ? (
         <a href={href} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-surface-muted transition-base">{openLabel}</a>
-      ) : (
+      ) : onOpen ? (
         <button onClick={() => { setOpen(false); onOpen(); }} className="w-full text-left px-3 py-1.5 text-sm hover:bg-surface-muted transition-base">{openLabel}</button>
-      )}
+      ) : null}
       {secondaryActions?.map(a => (
         <button key={a.label} onClick={() => { setOpen(false); a.onClick(); }} className="w-full text-left px-3 py-1.5 text-sm hover:bg-surface-muted transition-base">{a.label}</button>
       ))}
@@ -1259,10 +1263,10 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, openLabel = "M
     <a href={href} target="_blank" rel="noopener noreferrer" className={rowClassName}>{rowInner}</a>
   ) : (
     <div
-      role={disabled ? undefined : "button"}
-      tabIndex={disabled ? undefined : 0}
-      onClick={disabled ? undefined : onOpen}
-      onKeyDown={disabled ? undefined : (e => { if (e.key === "Enter") onOpen(); })}
+      role={interactive && onOpen ? "button" : undefined}
+      tabIndex={interactive && onOpen ? 0 : undefined}
+      onClick={interactive ? onOpen : undefined}
+      onKeyDown={interactive && onOpen ? (e => { if (e.key === "Enter") onOpen(); }) : undefined}
       className={rowClassName}
     >
       {rowInner}
@@ -1322,8 +1326,6 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
   const [showUpload, setShowUpload] = useState(false);
   const [showAddUrl, setShowAddUrl] = useState(false);
   const [showAddFaq, setShowAddFaq] = useState(false);
-  const [openRow, setOpenRow] = useState<AgentKnowledgeRow | null>(null);
-  const [editFaqTarget, setEditFaqTarget] = useState<KnowledgeFaq | null>(null);
   const [shareTargets, setShareTargets] = useState<AgentKnowledgeRow[] | null>(null);
   const [reprocessTarget, setReprocessTarget] = useState<AgentKnowledgeRow | null>(null);
   const [detachTarget, setDetachTarget] = useState<AgentKnowledgeRow | null>(null);
@@ -1331,11 +1333,6 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const refresh = () => setTick(t => t + 1);
   void tick;
-
-  const openRowOrEditFaq = (row: AgentKnowledgeRow) => {
-    if (row.kind === "faq") setEditFaqTarget(knowledgeFaqStore.get(row.kbId, row.id) ?? null);
-    else setOpenRow(row);
-  };
 
   const toggleRow = (key: string) => setSelected(prev => {
     const next = new Set(prev);
@@ -1386,54 +1383,54 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
         </div>
       ) : (
         <div className="rounded-lg overflow-hidden border border-border overflow-x-auto scroll-shadow-x">
-          <div className="grid grid-cols-[24px,1fr,150px,170px,44px] gap-3 px-4 py-2.5 bg-surface-muted kb-table-header min-w-[760px]">
+          <div className="grid grid-cols-[24px,1fr,150px,170px,44px] gap-3 px-4 py-2.5 bg-surface-muted border-b-2 border-border text-xs font-bold uppercase tracking-[0.04em] text-foreground whitespace-nowrap min-w-[760px]">
             <div></div><div>Nguồn</div><div>Trạng thái</div><div>Sở hữu</div><div></div>
           </div>
-          {filteredRows.map(row => {
-            const key = knowledgeRowKey(row);
-            const canEdit = hasKnowledgeEditRights(row);
-            return (
-              <div key={key} className="grid grid-cols-[24px,1fr,150px,170px,44px] gap-3 px-4 py-2.5 min-h-16 border-t border-border items-center hover:bg-surface-muted/50 transition-base group min-w-[760px]">
-                <input type="checkbox" checked={selected.has(key)} onChange={() => toggleRow(key)} className="w-4 h-4 accent-primary" aria-label={`Chọn ${row.name}`} />
-                <button onClick={() => openRowOrEditFaq(row)} className="flex flex-col items-start min-w-0 text-left">
-                  <span className="flex items-center gap-2 min-w-0 max-w-full">
-                    <FileTypeIcon kind={row.kind === "url" ? "url" : row.kind === "faq" ? "faq" : undefined} name={row.kind === "doc" ? row.name : undefined} />
-                    <span className="text-sm font-medium truncate hover:underline">{row.name}</span>
-                  </span>
-                  <span className="text-xs text-muted-foreground mt-0.5 truncate">
-                    {row.kbIsDefault ? "Cá nhân" : `Kho liên kết · ${row.kbName}`}
-                  </span>
-                </button>
-                <div className="flex items-center gap-1.5">
-                  <KnowledgeStatusPill status={row.status} />
-                  {(row.status === "failed" || row.status === "invalid") && row.statusReason && (
-                    <Tooltip delayDuration={200}>
-                      <TooltipTrigger asChild>
-                        <span tabIndex={0} className="text-muted-foreground outline-none">
-                          <HugeiconsIcon icon={InformationCircleIcon} size={12} />
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-[260px]">{row.statusReason}</TooltipContent>
-                    </Tooltip>
-                  )}
+          <div className="divide-y divide-border">
+            {filteredRows.map(row => {
+              const key = knowledgeRowKey(row);
+              const canEdit = hasKnowledgeEditRights(row);
+              return (
+                <div key={key} className="grid grid-cols-[24px,1fr,150px,170px,44px] gap-3 px-4 py-2.5 min-h-16 items-center hover:bg-surface-muted/50 transition-base group min-w-[760px]">
+                  <input type="checkbox" checked={selected.has(key)} onChange={() => toggleRow(key)} className="w-4 h-4 accent-primary" aria-label={`Chọn ${row.name}`} />
+                  <div className="flex flex-col items-start min-w-0">
+                    <span className="flex items-center gap-2 min-w-0 max-w-full">
+                      <FileTypeIcon kind={row.kind === "url" ? "url" : row.kind === "faq" ? "faq" : undefined} name={row.kind === "doc" ? row.name : undefined} />
+                      <span className="text-sm font-semibold truncate">{row.name}</span>
+                    </span>
+                    <span className="text-xs text-muted-foreground mt-0.5 truncate">
+                      {row.kbIsDefault ? "Cá nhân" : `Kho liên kết · ${row.kbName}`}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <KnowledgeStatusPill status={row.status} />
+                    {(row.status === "failed" || row.status === "invalid") && row.statusReason && (
+                      <Tooltip delayDuration={200}>
+                        <TooltipTrigger asChild>
+                          <span tabIndex={0} className="text-muted-foreground outline-none">
+                            <HugeiconsIcon icon={InformationCircleIcon} size={12} />
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-[260px]">{row.statusReason}</TooltipContent>
+                      </Tooltip>
+                    )}
+                  </div>
+                  <KnowledgeOwnerLabel row={row} />
+                  <div className="flex items-center justify-end">
+                    <KnowledgeRowMenu
+                      onShare={() => setShareTargets([row])}
+                      shareDisabled={!canEdit}
+                      onReprocess={() => setReprocessTarget(row)}
+                      reprocessDisabled={knowledgeReprocessDisabled(row)}
+                      reprocessTooltip={knowledgeReprocessTooltip(row)}
+                      onDetach={() => setDetachTarget(row)}
+                      onDelete={canEdit ? () => setDeleteTarget(row) : undefined}
+                    />
+                  </div>
                 </div>
-                <KnowledgeOwnerLabel row={row} />
-                <div className="flex items-center justify-end">
-                  <KnowledgeRowMenu
-                    onOpen={() => openRowOrEditFaq(row)}
-                    openLabel={row.kind === "faq" ? "Sửa" : "Mở"}
-                    onShare={() => setShareTargets([row])}
-                    shareDisabled={!canEdit}
-                    onReprocess={() => setReprocessTarget(row)}
-                    reprocessDisabled={knowledgeReprocessDisabled(row)}
-                    reprocessTooltip={knowledgeReprocessTooltip(row)}
-                    onDetach={() => setDetachTarget(row)}
-                    onDelete={canEdit ? () => setDeleteTarget(row) : undefined}
-                  />
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -1441,25 +1438,6 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
       {showUpload && <UploadDocumentsModal open={showUpload} agentId={agentId} onClose={() => { setShowUpload(false); refresh(); }} />}
       {showAddUrl && <AddUrlModal open={showAddUrl} agentId={agentId} onClose={() => { setShowAddUrl(false); refresh(); }} />}
       {showAddFaq && <AddEditFaqModal open={showAddFaq} agentId={agentId} onClose={() => { setShowAddFaq(false); refresh(); }} />}
-      {editFaqTarget && (
-        <AddEditFaqModal open kbId={editFaqTarget.kbId} editingFaq={editFaqTarget} onClose={() => { setEditFaqTarget(null); refresh(); }} />
-      )}
-      {openRow && (
-        <ChunkViewerModal
-          kbId={openRow.kbId}
-          sourceType={openRow.kind === "url" ? "url" : "document"}
-          sourceId={openRow.id}
-          sourceName={openRow.name}
-          sourceStatus={openRow.status}
-          sourceCreatedAt={openRow.createdAt}
-          urlMeta={openRow.kind === "url" ? (() => {
-            const u = knowledgeUrlStore.get(openRow.kbId, openRow.id);
-            return u ? { url: u.url ?? "", source: u.source ?? "specified", version: u.version, lastSyncAt: u.lastSyncAt } : undefined;
-          })() : undefined}
-          onClose={() => { setOpenRow(null); refresh(); }}
-          viewOnly={false}
-        />
-      )}
       {shareTargets && shareTargets.length > 0 && (
         <ShareKnowledgeBaseModal
           open
@@ -1603,13 +1581,13 @@ function KnowledgeAddMenu({ onAttach, onUpload, onAddUrl, onAddFaq, inline = fal
 }
 
 const KNOWLEDGE_ROW_MENU_WIDTH = 224; // w-56
-const KNOWLEDGE_ROW_MENU_HEIGHT_ESTIMATE = 220; // 4 items + danger separator + padding
+const KNOWLEDGE_ROW_MENU_HEIGHT_ESTIMATE = 200; // up to 4 items + padding
 
-/** Row "..." menu shared by the merged "Tri thức" table and the sidebar mini-panel. "Xóa hẳn"
- * (onDelete) is omitted entirely — not merely disabled — when the current user has no edit
- * rights on the item, per its "Quyền quản lý tài liệu" sharing. */
-function KnowledgeRowMenu({ onOpen, openLabel = "Mở", onShare, shareDisabled, onReprocess, reprocessDisabled, reprocessTooltip, onDetach, onDelete }: {
-  onOpen: () => void; openLabel?: string;
+/** Row "..." menu shared by the merged "Tri thức" table and the sidebar mini-panel. There is no
+ * "Mở" — viewing/editing a document's content happens in Console, not from within an Agent, so
+ * rows aren't clickable either. "Xóa" (onDelete) is omitted entirely — not merely disabled —
+ * when the current user has no edit rights on the item, per its "Quyền quản lý tài liệu" sharing. */
+function KnowledgeRowMenu({ onShare, shareDisabled, onReprocess, reprocessDisabled, reprocessTooltip, onDetach, onDelete }: {
   onShare: () => void; shareDisabled?: boolean;
   onReprocess: () => void; reprocessDisabled?: boolean; reprocessTooltip?: string;
   onDetach: () => void; onDelete?: () => void;
@@ -1656,7 +1634,6 @@ function KnowledgeRowMenu({ onOpen, openLabel = "Mở", onShare, shareDisabled, 
           style={{ top: pos.top, bottom: pos.bottom, left: pos.left }}
           onMouseDown={e => e.stopPropagation()}
         >
-          <button onClick={() => { setOpen(false); onOpen(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">{openLabel}</button>
           <button
             disabled={shareDisabled}
             onClick={() => { if (shareDisabled) return; setOpen(false); onShare(); }}
@@ -1678,12 +1655,10 @@ function KnowledgeRowMenu({ onOpen, openLabel = "Mở", onShare, shareDisabled, 
             </TooltipTrigger>
             {reprocessTooltip && <TooltipContent side="left" className="max-w-[240px]">{reprocessTooltip}</TooltipContent>}
           </Tooltip>
-          <button onClick={() => { setOpen(false); onDetach(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Gỡ khỏi Agent</button>
           {onDelete && (
-            <div className="mt-1 pt-1 border-t border-border">
-              <button onClick={() => { setOpen(false); onDelete(); }} className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">Xóa hẳn</button>
-            </div>
+            <button onClick={() => { setOpen(false); onDelete(); }} className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">Xóa</button>
           )}
+          <button onClick={() => { setOpen(false); onDetach(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Gỡ khỏi Agent</button>
         </div>,
         document.body,
       )}
@@ -4394,7 +4369,6 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
 
 /* ============ Knowledge sidebar summary (S15) ============ */
 function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAdd?: (fn: (pos:{top:number;left:number}) => void) => void }) {
-  const [, setParams] = useSearchParams();
   const [tick, setTick] = useState(0);
   const [showMenu, setShowMenu] = useState(false);
   const [menuPos, setMenuPos] = useState<{top:number;left:number}>({top:0,left:0});
@@ -4404,7 +4378,6 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
   const [showAddFaq, setShowAddFaq] = useState(false);
   const [detachTarget, setDetachTarget] = useState<AgentKnowledgeRow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AgentKnowledgeRow | null>(null);
-  const [editFaqTarget, setEditFaqTarget] = useState<KnowledgeFaq | null>(null);
   const refresh = () => setTick(t => t + 1);
   void tick;
 
@@ -4419,20 +4392,14 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
     return () => document.removeEventListener("mousedown", h);
   }, [showMenu]);
 
-  // Urgency-first: an item still pending/processing surfaces above already-done ones, so the
-  // few rows visible before "Xem tất cả" are the ones most likely to need attention. No group
+  // Urgency-first: an item still pending/processing surfaces above already-done ones. No group
   // headers — one flat list, matching the merged "Tri thức" table (there's no structural
-  // distinction left to group by).
+  // distinction left to group by). Every connected item shows (no cap/"Xem tất cả" truncation) —
+  // the list below scrolls internally instead.
   const rows = [...knowledgeStore.listForAgent(agentId)].sort((a, b) => {
     const rank = (s: string) => (s === "pending" || s === "processing") ? 0 : 1;
     return rank(a.status) - rank(b.status);
   });
-  const shown = rows.slice(0, 4);
-
-  const openRowOrEditFaq = (row: AgentKnowledgeRow) => {
-    if (row.kind === "faq") setEditFaqTarget(knowledgeFaqStore.get(row.kbId, row.id) ?? null);
-    else setParams({ tab: "build", section: "knowledge" });
-  };
 
   const menuItems = [
     { label: "Liên kết kho tri thức có sẵn", onClick: () => setShowAttach(true) },
@@ -4455,17 +4422,15 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
           }}
         />
       ) : (
-        <div className="flex flex-col gap-1.5">
-          {shown.map(row => (
+        <div className="flex flex-col gap-1.5 max-h-[360px] overflow-y-auto pr-0.5 -mr-0.5">
+          {rows.map(row => (
             <KnowledgeSourceRow
               key={knowledgeRowKey(row)}
               icon={row.kind === "url" ? Globe02Icon : row.kind === "faq" ? FileQuestionMarkIcon : NoteIcon}
               name={row.name}
-              openLabel={row.kind === "faq" ? "Sửa FAQ" : undefined}
-              onOpen={() => openRowOrEditFaq(row)}
               secondaryActions={[{ label: "Gỡ khỏi Agent", onClick: () => setDetachTarget(row) }]}
               onRemove={hasKnowledgeEditRights(row) ? () => setDeleteTarget(row) : undefined}
-              removeLabel="Xóa hẳn"
+              removeLabel="Xóa"
               chip={
                 <div className="flex items-center gap-1.5 shrink-0">
                   {row.status !== "done" && <KnowledgeStatusPill status={row.status} compact />}
@@ -4475,11 +4440,6 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
               twoLine
             />
           ))}
-          {rows.length > 4 && (
-            <button onClick={() => setParams({ tab: "build", section: "knowledge" })} className="text-xs text-primary hover:underline text-left mt-0.5">
-              Xem tất cả ({rows.length})
-            </button>
-          )}
         </div>
       )}
 
@@ -4504,9 +4464,6 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
       {showUpload && <UploadDocumentsModal open={showUpload} agentId={agentId} onClose={() => { setShowUpload(false); refresh(); }} />}
       {showAddUrl && <AddUrlModal open={showAddUrl} agentId={agentId} onClose={() => { setShowAddUrl(false); refresh(); }} />}
       {showAddFaq && <AddEditFaqModal open={showAddFaq} agentId={agentId} onClose={() => { setShowAddFaq(false); refresh(); }} />}
-      {editFaqTarget && (
-        <AddEditFaqModal open kbId={editFaqTarget.kbId} editingFaq={editFaqTarget} onClose={() => { setEditFaqTarget(null); refresh(); }} />
-      )}
 
       <AlertDialog open={!!detachTarget} onOpenChange={v => !v && setDetachTarget(null)}>
         <AlertDialogContent>
