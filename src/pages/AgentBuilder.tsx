@@ -2714,11 +2714,11 @@ function DeployTab({ agentId, onViewTriggers }: { agentId: string; onViewTrigger
       <div className="rounded-xl border border-border bg-surface flex items-center justify-between px-5 py-4 mb-8">
         <div className="flex items-center gap-10">
           <div>
-            <p className="text-xs text-muted-foreground mb-1">Serving version</p>
+            <p className="text-sm text-muted-foreground mb-1">Serving version</p>
             <p className="text-base font-semibold font-mono">{servingVersion}</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground mb-1">Live channels</p>
+            <p className="text-sm text-muted-foreground mb-1">Live channels</p>
             <p className="text-base font-semibold">{liveDestinationCount}</p>
           </div>
         </div>
@@ -2732,8 +2732,8 @@ function DeployTab({ agentId, onViewTriggers }: { agentId: string; onViewTrigger
       {isAutomation ? (
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-3">
-            <h2 className="text-sm font-semibold">Automation</h2>
-            <span className="text-xs text-muted-foreground">Running on {agentTriggers.length} trigger{agentTriggers.length === 1 ? "" : "s"}</span>
+            <h2 className="text-lg font-semibold">Automation</h2>
+            <span className="text-sm text-muted-foreground">Running on {agentTriggers.length} trigger{agentTriggers.length === 1 ? "" : "s"}</span>
           </div>
           <div className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-6">
             <div className="flex items-start gap-3">
@@ -2747,7 +2747,7 @@ function DeployTab({ agentId, onViewTriggers }: { agentId: string; onViewTrigger
                   up in Console, for the whole organization. Nobody installs it to Workspace and nobody chats with it directly.
                 </p>
                 {onViewTriggers && (
-                  <button type="button" onClick={onViewTriggers} className="text-xs font-semibold text-primary hover:underline mt-2">
+                  <button type="button" onClick={onViewTriggers} className="text-sm font-semibold text-primary hover:underline mt-2">
                     View triggers
                   </button>
                 )}
@@ -2758,16 +2758,16 @@ function DeployTab({ agentId, onViewTriggers }: { agentId: string; onViewTrigger
       ) : (
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-3">
-            <h2 className="text-sm font-semibold">Agent Workspace</h2>
+            <h2 className="text-lg font-semibold">Agent Workspace</h2>
             {recipients.length > 0 ? (
               <>
-                <span className="text-xs text-muted-foreground">{recipients.length} recipient{recipients.length > 1 ? "s" : ""}</span>
-                <a href="#" className="text-xs font-medium text-primary hover:underline flex items-center gap-0.5 ml-auto">
+                <span className="text-sm text-muted-foreground">{recipients.length} recipient{recipients.length > 1 ? "s" : ""}</span>
+                <a href="#" className="text-sm font-medium text-primary hover:underline flex items-center gap-0.5 ml-auto">
                   Open in workspace <HugeiconsIcon icon={ChevronRightIcon} size={12} />
                 </a>
               </>
             ) : (
-              <span className="text-xs text-muted-foreground">Not open to anyone yet</span>
+              <span className="text-sm text-muted-foreground">Not open to anyone yet</span>
             )}
           </div>
 
@@ -2798,7 +2798,7 @@ function DeployTab({ agentId, onViewTriggers }: { agentId: string; onViewTrigger
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold truncate">{r.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{r.sub}</p>
+                    <p className="text-sm text-muted-foreground truncate">{r.sub}</p>
                   </div>
                   <button
                     onClick={() => setRecipients(prev => prev.filter(x => x.id !== r.id))}
@@ -2817,7 +2817,7 @@ function DeployTab({ agentId, onViewTriggers }: { agentId: string; onViewTrigger
       {/* External channels — one shared list with the Publish modal, in CHANNEL_CATALOG's order. */}
       <div>
         <div className="flex items-baseline gap-2 mb-3">
-          <h2 className="text-sm font-semibold">External channels</h2>
+          <h2 className="text-lg font-semibold">External channels</h2>
         </div>
         <div className="grid grid-cols-3 gap-3">
           {CHANNEL_CATALOG.map(c => {
@@ -2843,7 +2843,7 @@ function DeployTab({ agentId, onViewTriggers }: { agentId: string; onViewTrigger
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium truncate">{c.name}</p>
-                  <p className={`text-xs truncate ${live ? "text-success" : "text-muted-foreground"}`}>
+                  <p className={`text-sm truncate ${live ? "text-success" : "text-muted-foreground"}`}>
                     {c.available === false ? "Coming soon" : !published ? "Publish the agent to enable this channel" : live ? `Live · ${servingVersion}` : "Not connected"}
                   </p>
                 </div>
