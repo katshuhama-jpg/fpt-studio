@@ -68,9 +68,6 @@ import AttachConsoleKnowledgeBaseModal from "@/components/knowledge/AttachConsol
 import KnowledgeDocumentsTab from "@/components/knowledge/KnowledgeDocumentsTab";
 import KnowledgeWebsiteTab from "@/components/knowledge/KnowledgeWebsiteTab";
 import KnowledgeFaqTab from "@/components/knowledge/KnowledgeFaqTab";
-import UploadDocumentsModal from "@/components/knowledge/UploadDocumentsModal";
-import AddUrlModal from "@/components/knowledge/AddUrlModal";
-import AddEditFaqModal from "@/components/knowledge/AddEditFaqModal";
 
 type Tab = "build" | "test" | "channels" | "insights";
 
@@ -4059,13 +4056,11 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
 
 /* ============ Knowledge sidebar summary (S15) ============ */
 function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAdd?: (fn: (pos:{top:number;left:number}) => void) => void }) {
+  const [, setParams] = useSearchParams();
   const [tick, setTick] = useState(0);
   const [showMenu, setShowMenu] = useState(false);
   const [menuPos, setMenuPos] = useState<{top:number;left:number}>({top:0,left:0});
   const [showAttach, setShowAttach] = useState(false);
-  const [showUpload, setShowUpload] = useState(false);
-  const [showAddUrl, setShowAddUrl] = useState(false);
-  const [showAddFaq, setShowAddFaq] = useState(false);
   const [detachTarget, setDetachTarget] = useState<AgentKnowledgeRow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AgentKnowledgeRow | null>(null);
   const refresh = () => setTick(t => t + 1);
@@ -4093,9 +4088,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
 
   const menuItems = [
     { label: "Liên kết kho tri thức có sẵn", onClick: () => setShowAttach(true) },
-    { label: "Tải tài liệu", onClick: () => setShowUpload(true) },
-    { label: "Thêm website", onClick: () => setShowAddUrl(true) },
-    { label: "Tạo FAQ", onClick: () => setShowAddFaq(true) },
+    { label: "Tạo mới", onClick: () => setParams({ tab: "build", section: "knowledge" }) },
   ];
 
   return (
@@ -4151,9 +4144,6 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
       )}
 
       {showAttach && <AttachConsoleKnowledgeBaseModal agentId={agentId} onClose={() => { setShowAttach(false); refresh(); }} />}
-      {showUpload && <UploadDocumentsModal open={showUpload} agentId={agentId} onClose={() => { setShowUpload(false); refresh(); }} />}
-      {showAddUrl && <AddUrlModal open={showAddUrl} agentId={agentId} onClose={() => { setShowAddUrl(false); refresh(); }} />}
-      {showAddFaq && <AddEditFaqModal open={showAddFaq} agentId={agentId} onClose={() => { setShowAddFaq(false); refresh(); }} />}
 
       <AlertDialog open={!!detachTarget} onOpenChange={v => !v && setDetachTarget(null)}>
         <AlertDialogContent>
