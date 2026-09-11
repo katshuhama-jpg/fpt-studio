@@ -10,16 +10,17 @@ import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
 import { knowledgeUrlStore } from "./knowledgeUrlStore";
 import { knowledgeStore } from "./knowledgeStore";
 import { knowledgeChunkStore, type ChunkSourceType } from "./knowledgeChunkStore";
+import { type SemVer, formatVersion, synthesizeVersionSequence } from "./semver";
 
 /** Common shape for a KnowledgeDocument, a KnowledgeUrl, or an Agent-owned KnowledgeItem — the
- * version-history drawer opens from any of their "v3" badges, so it doesn't need the full
+ * version-history drawer opens from any of their "1.0.0" badges, so it doesn't need the full
  * source-specific type. For "agent-item", `kbId` doubles as the agentId. */
 export interface VersionedSource {
   id: string;
   kbId: string;
   name: string;
   sourceType: "document" | "url" | "agent-item";
-  version: number;
+  version: SemVer;
   updatedAt: number;
   updatedBy: string;
 }
@@ -34,7 +35,7 @@ const CAUSE_LABEL: Record<Cause, string> = {
 };
 
 interface VersionEntry {
-  version: number;
+  version: SemVer;
   isCurrent: boolean;
   cause: Cause;
   at: number;
@@ -46,34 +47,40 @@ interface VersionEntry {
 
 /** No historical chunk-content store exists in this prototype (only the latest content is
  * kept), so the timeline metadata (cause/actor/diff counts) is synthesized deterministically
- * from the document's own version number — consistent with how the rest of this app's demo
- * data is seeded. "Xem nội dung" shows the document's real, current chunk list (the only
- * content this prototype actually has) rather than fabricating historical text. */
+ * from the document's own version — consistent with how the rest of this app's demo data is
+ * seeded. A patch bump (chunk_edit) and a minor bump (everything else) are told apart by
+ * comparing each synthesized step to the one before it. "Xem nội dung" shows the document's
+ * real, current chunk list (the only content this prototype actually has) rather than
+ * fabricating historical text. */
 function buildTimeline(doc: VersionedSource): VersionEntry[] {
-  const causes: Cause[] = ["auto_sync", "manual_reprocess", "new_upload", "chunk_edit"];
-  return Array.from({ length: doc.version }, (_, i) => {
-    const version = doc.version - i;
-    const isCurrent = version === doc.version;
+  const causes: Cause[] = ["auto_sync", "manual_reprocess", "new_upload"];
+  const seq = synthesizeVersionSequence(doc.version);
+  return [...seq].reverse().map((version, i) => {
+    const isCurrent = i === 0;
+    const stepIndex = seq.length - 1 - i;
+    const prev = seq[stepIndex - 1];
+    const isPatchStep = stepIndex > 0 && prev.minor === version.minor && prev.major === version.major;
+    const n = version.major * 1000 + version.minor * 10 + version.patch;
     return {
       version,
       isCurrent,
-      cause: isCurrent ? "manual_reprocess" : causes[version % causes.length],
+      cause: stepIndex === 0 ? "new_upload" : isPatchStep ? "chunk_edit" : (isCurrent ? "manual_reprocess" : causes[n % causes.length]),
       at: isCurrent ? doc.updatedAt : doc.updatedAt - (i + 1) * DAY,
-      actor: isCurrent ? doc.updatedBy : (version % 2 === 0 ? "Hệ thống" : doc.updatedBy),
-      added: 2 + (version % 10),
-      removed: version % 4,
-      changed: 1 + (version % 6),
+      actor: isCurrent ? doc.updatedBy : (n % 2 === 0 ? "Hệ thống" : doc.updatedBy),
+      added: 2 + (n % 10),
+      removed: n % 4,
+      changed: 1 + (n % 6),
     };
   });
 }
 
 export default function VersionHistoryPanel({ source: doc, onClose, viewOnly }: { source: VersionedSource; onClose: () => void; viewOnly?: boolean }) {
-  const [restoreVersion, setRestoreVersion] = useState<number | null>(null);
-  const [viewingVersion, setViewingVersion] = useState<number | null>(null);
+  const [restoreVersion, setRestoreVersion] = useState<string | null>(null);
+  const [viewingVersion, setViewingVersion] = useState<string | null>(null);
   const [compareMode, setCompareMode] = useState(false);
 
   const timeline = buildTimeline(doc);
-  const viewing = timeline.find(v => v.version === viewingVersion) ?? null;
+  const viewing = timeline.find(v => formatVersion(v.version) === viewingVersion) ?? null;
   const chunks = knowledgeChunkStore.list(doc.kbId, doc.sourceType as ChunkSourceType, doc.id);
 
   if (viewing) {
@@ -81,7 +88,7 @@ export default function VersionHistoryPanel({ source: doc, onClose, viewOnly }: 
       <Sheet open onOpenChange={v => !v && onClose()}>
         <SheetContent className="w-full sm:max-w-[480px] flex flex-col">
           <SheetHeader>
-            <SheetTitle>Nội dung phiên bản v{viewing.version}</SheetTitle>
+            <SheetTitle>Nội dung phiên bản {formatVersion(viewing.version)}</SheetTitle>
           </SheetHeader>
           <button onClick={() => setViewingVersion(null)} className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline mb-3 w-fit">
             <ChevronLeft size={12} /> Quay lại lịch sử
@@ -99,7 +106,7 @@ export default function VersionHistoryPanel({ source: doc, onClose, viewOnly }: 
               <p className="text-sm text-muted-foreground text-center py-8">Tài liệu chưa có chunk nào.</p>
             ) : chunks.map((c, i) => {
               // Deterministic mock highlight (no real historical diff exists) — a stand-in for
-              // which chunks changed between v{viewing.version} and the current version.
+              // which chunks changed between this version and the current version.
               const mark = compareMode && !viewing.isCurrent ? (i % 5 === 0 ? "added" : i % 7 === 0 ? "changed" : null) : null;
               return (
                 <div
@@ -135,26 +142,29 @@ export default function VersionHistoryPanel({ source: doc, onClose, viewOnly }: 
             <p className="text-sm text-muted-foreground text-center py-8">Chưa có phiên bản cũ. Lịch sử sẽ xuất hiện sau lần đồng bộ hoặc chỉnh sửa tiếp theo.</p>
           ) : (
             <div className="relative space-y-4 pl-4 border-l-2 border-border">
-              {timeline.map(v => (
-                <div key={v.version} className="relative">
-                  <span className={`absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full ${v.isCurrent ? "bg-primary" : "bg-border"}`} />
-                  <div className={`rounded-lg border px-3.5 py-3 ${v.isCurrent ? "border-primary/30 bg-primary-soft/30" : "border-border"}`}>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="chip chip-muted">v{v.version}</span>
-                      {v.isCurrent && <span className="text-xs font-semibold uppercase tracking-wider text-primary">Hiện tại</span>}
-                    </div>
-                    <p className="text-sm font-medium">{CAUSE_LABEL[v.cause]}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{new Date(v.at).toLocaleString("vi-VN")} · {v.actor}</p>
-                    <p className="text-xs text-muted-foreground mt-1">+{v.added} chunk · −{v.removed} chunk · {v.changed} chunk thay đổi</p>
-                    <div className="flex items-center gap-3 mt-2">
-                      <button onClick={() => setViewingVersion(v.version)} className="text-xs font-semibold text-primary hover:underline">Xem nội dung</button>
-                      {!v.isCurrent && !viewOnly && (
-                        <button onClick={() => setRestoreVersion(v.version)} className="text-xs font-semibold text-primary hover:underline">Khôi phục</button>
-                      )}
+              {timeline.map(v => {
+                const label = formatVersion(v.version);
+                return (
+                  <div key={label} className="relative">
+                    <span className={`absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full ${v.isCurrent ? "bg-primary" : "bg-border"}`} />
+                    <div className={`rounded-lg border px-3.5 py-3 ${v.isCurrent ? "border-primary/30 bg-primary-soft/30" : "border-border"}`}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="chip chip-muted">{label}</span>
+                        {v.isCurrent && <span className="text-xs font-semibold uppercase tracking-wider text-primary">Hiện tại</span>}
+                      </div>
+                      <p className="text-sm font-medium">{CAUSE_LABEL[v.cause]}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{new Date(v.at).toLocaleString("vi-VN")} · {v.actor}</p>
+                      <p className="text-xs text-muted-foreground mt-1">+{v.added} chunk · −{v.removed} chunk · {v.changed} chunk thay đổi</p>
+                      <div className="flex items-center gap-3 mt-2">
+                        <button onClick={() => setViewingVersion(label)} className="text-xs font-semibold text-primary hover:underline">Xem nội dung</button>
+                        {!v.isCurrent && !viewOnly && (
+                          <button onClick={() => setRestoreVersion(label)} className="text-xs font-semibold text-primary hover:underline">Khôi phục</button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </SheetContent>
@@ -163,7 +173,7 @@ export default function VersionHistoryPanel({ source: doc, onClose, viewOnly }: 
       <AlertDialog open={restoreVersion !== null} onOpenChange={v => !v && setRestoreVersion(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Khôi phục về phiên bản v{restoreVersion}?</AlertDialogTitle>
+            <AlertDialogTitle>Khôi phục về phiên bản {restoreVersion}?</AlertDialogTitle>
             <AlertDialogDescription>Nội dung hiện tại sẽ được lưu thành một phiên bản mới trước khi khôi phục, nên bạn luôn quay lại được.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -174,7 +184,7 @@ export default function VersionHistoryPanel({ source: doc, onClose, viewOnly }: 
                 if (doc.sourceType === "document") knowledgeDocumentStore.restoreVersion(doc.id);
                 else if (doc.sourceType === "url") knowledgeUrlStore.restoreVersion(doc.id);
                 else knowledgeStore.restoreVersion(doc.kbId, doc.id);
-                toast.success(`Đã khôi phục về phiên bản v${restoreVersion}.`);
+                toast.success(`Đã khôi phục về phiên bản ${restoreVersion}.`);
                 setRestoreVersion(null);
                 onClose();
               }}

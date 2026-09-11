@@ -11,7 +11,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { knowledgeDocumentStore, type KnowledgeDocument } from "./knowledgeDocumentStore";
+import { CURRENT_USER } from "./knowledgeBaseStore";
 import { KnowledgeStatusPill, type KnowledgeProcessingStatus } from "./knowledgeStatus";
+import { formatVersion } from "./semver";
 import { formatFileSize } from "./formatFileSize";
 import KnowledgeSharingChip from "./KnowledgeSharingChip";
 import QueryScopeChip from "./QueryScopeChip";
@@ -20,7 +22,6 @@ import UploadDocumentsModal from "./UploadDocumentsModal";
 import ShareKnowledgeBaseModal from "./ShareKnowledgeBaseModal";
 import ChunkViewerModal from "./ChunkViewerModal";
 import VersionHistoryPanel from "./VersionHistoryPanel";
-import DocumentLayoutViewer from "./DocumentLayoutViewer";
 import DocumentFolderModal from "./DocumentFolderModal";
 import MoveToFolderModal from "./MoveToFolderModal";
 import { FORMAT_HELPER_TEXT } from "./knowledgeFormats";
@@ -34,10 +35,30 @@ const STATUS_OPTIONS: { value: KnowledgeProcessingStatus | "all"; label: string 
   { value: "cancelled", label: "Đã hủy" },
 ];
 
+type OwnerTab = "all" | "mine" | "shared";
+const OWNER_TABS: { key: OwnerTab; label: string }[] = [
+  { key: "all", label: "Tất cả" },
+  { key: "mine", label: "Của tôi" },
+  { key: "shared", label: "Được chia sẻ với tôi" },
+];
+/** A document/folder counts as "mine" when the signed-in user is the one who created/last
+ * touched it — this prototype has no separate uploader field, so `updatedBy` is the closest
+ * available ownership signal (every creation in this app sets it to CURRENT_USER.name, matching
+ * the same convention knowledgeBaseStore's ownerId follows for a whole KB). */
+const isMine = (d: KnowledgeDocument) => d.updatedBy === CURRENT_USER.name;
+const isSharedWithMe = (d: KnowledgeDocument) => {
+  if (isMine(d)) return false;
+  const sharing = d.sharing ?? { mode: "private" as const, people: [] };
+  if (sharing.mode === "all") return true;
+  if (sharing.mode === "specific") return sharing.people.some(p => p.userId === CURRENT_USER.id);
+  return false;
+};
+
 export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string; viewOnly: boolean }) {
   const [params, setParams] = useSearchParams();
   const [tick, setTick] = useState(0);
   const [query, setQuery] = useState("");
+  const [ownerTab, setOwnerTab] = useState<OwnerTab>("all");
   const [statusFilter, setStatusFilter] = useState<KnowledgeProcessingStatus | "all">("all");
   const [statusOpen, setStatusOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -48,7 +69,6 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
   const [reprocessTarget, setReprocessTarget] = useState<KnowledgeDocument | null>(null);
   const [shareTargets, setShareTargets] = useState<KnowledgeDocument[] | null>(null);
   const [deleteTargets, setDeleteTargets] = useState<KnowledgeDocument[] | null>(null);
-  const [layoutTarget, setLayoutTarget] = useState<KnowledgeDocument | null>(null);
   const [versionTarget, setVersionTarget] = useState<KnowledgeDocument | null>(null);
   const [showCreateFolder, setShowCreateFolder] = useState(false);
   const [editingFolder, setEditingFolder] = useState<KnowledgeDocument | null>(null);
@@ -72,10 +92,16 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
   void tick;
   const q = query.trim().toLowerCase();
   const openFolder = folderFilter ? all.find(d => d.id === folderFilter) : undefined;
+  const ownerCounts = {
+    all: all.length,
+    mine: all.filter(isMine).length,
+    shared: all.filter(isSharedWithMe).length,
+  };
   const filtered = all.filter(d =>
     (!q || d.name.toLowerCase().includes(q)) &&
     (statusFilter === "all" || d.status === statusFilter) &&
-    (folderFilter === null || d.folderId === folderFilter),
+    (folderFilter === null || d.folderId === folderFilter) &&
+    (ownerTab === "all" || (ownerTab === "mine" ? isMine(d) : isSharedWithMe(d))),
   );
 
   const refresh = () => setTick(t => t + 1);
@@ -96,6 +122,22 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
     <div className="p-4 sm:p-8 max-w-[1280px] mx-auto">
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1 flex-wrap">
+            {OWNER_TABS.map(t => (
+              <button
+                key={t.key}
+                onClick={() => setOwnerTab(t.key)}
+                className={`px-3 h-8 rounded-lg text-sm font-medium transition-base flex items-center gap-1.5 ${
+                  ownerTab === t.key ? "bg-primary-soft text-primary" : "text-muted-foreground hover:bg-surface-muted"
+                }`}
+              >
+                {t.label}
+                <span className={`text-xs px-1.5 py-0.5 rounded-full ${ownerTab === t.key ? "bg-primary/10 text-primary" : "bg-surface-sunken text-muted-foreground"}`}>
+                  {ownerCounts[t.key]}
+                </span>
+              </button>
+            ))}
+          </div>
           <div className="relative">
             <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -281,7 +323,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                             aria-label="Xem lịch sử phiên bản"
                             className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] -m-2.5 rounded-lg text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-base"
                           >
-                            <span className="chip chip-muted pointer-events-none">v{d.version}</span>
+                            <span className="chip chip-muted pointer-events-none">{formatVersion(d.version)}</span>
                           </button>
                         </TooltipTrigger>
                         <TooltipContent>Xem lịch sử phiên bản</TooltipContent>
@@ -312,7 +354,6 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                         <RowActionMenu
                           items={[
                             { label: "Mở", onClick: () => openDocument(d.id), disabled: !openable, disabledTooltip: "Tài liệu chưa xử lý xong nên chưa xem được nội dung." },
-                            { label: "Xem bố cục tài liệu", onClick: () => setLayoutTarget(d) },
                             { label: "Chia sẻ", onClick: () => setShareTargets([d]) },
                             { label: "Xử lý lại", onClick: () => setReprocessTarget(d) },
                             { label: "Đổi tên", onClick: () => { setRenaming(d); setRenameValue(d.name); } },
@@ -334,7 +375,6 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
       <UploadDocumentsModal open={showUpload} kbId={kbId} onClose={() => { setShowUpload(false); refresh(); }} />
 
       {openDoc && <ChunkViewerModal kbId={kbId} sourceType="document" sourceId={openDoc.id} sourceName={openDoc.name} sourceStatus={openDoc.status} sourceCreatedAt={openDoc.createdAt} onClose={closeViewer} viewOnly={viewOnly} />}
-      {layoutTarget && <DocumentLayoutViewer document={layoutTarget} onClose={() => setLayoutTarget(null)} />}
       {versionTarget && (
         <VersionHistoryPanel
           source={{ id: versionTarget.id, kbId: versionTarget.kbId, name: versionTarget.name, sourceType: "document", version: versionTarget.version, updatedAt: versionTarget.updatedAt, updatedBy: versionTarget.updatedBy }}

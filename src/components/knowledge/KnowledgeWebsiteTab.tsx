@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { knowledgeUrlStore, type KnowledgeUrl, type UrlSource } from "./knowledgeUrlStore";
 import { knowledgeSettingsStore, shortCadence } from "./knowledgeSettingsStore";
 import { KnowledgeStatusPill, type KnowledgeProcessingStatus } from "./knowledgeStatus";
+import { formatVersion } from "./semver";
 import ChunkViewerModal from "./ChunkViewerModal";
 import AddUrlModal from "./AddUrlModal";
 import UrlScheduleOverrideModal from "./UrlScheduleOverrideModal";
@@ -295,7 +296,7 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
                             aria-label="Xem lịch sử phiên bản"
                             className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] -m-2.5 rounded-lg text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-base"
                           >
-                            <span className="chip chip-muted pointer-events-none">v{u.version}</span>
+                            <span className="chip chip-muted pointer-events-none">{formatVersion(u.version)}</span>
                           </button>
                         </TooltipTrigger>
                         <TooltipContent>Xem lịch sử phiên bản</TooltipContent>

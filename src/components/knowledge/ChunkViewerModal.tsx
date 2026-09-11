@@ -10,6 +10,7 @@ import { knowledgeUrlStore, type UrlSource } from "./knowledgeUrlStore";
 import { knowledgeStore } from "./knowledgeStore";
 import { documentAnnotationStore, type AnnotationKind } from "./documentAnnotationStore";
 import { KnowledgeStatusPill, type KnowledgeFaqStatus } from "./knowledgeStatus";
+import { formatVersion } from "./semver";
 import FileTypeIcon from "./FileTypeIcon";
 import DocumentPreviewPane from "./DocumentPreviewPane";
 import HtmlTableEditor from "./HtmlTableEditor";
@@ -90,6 +91,14 @@ function markParentDone(kbId: string, sourceType: ChunkSourceType, sourceId: str
   if (sourceType === "document") knowledgeDocumentStore.updateStatus(sourceId, "done", { chunkCount });
   else if (sourceType === "url") knowledgeUrlStore.updateStatus(sourceId, "done", { chunkCount, lastSyncAt: Date.now(), lastSyncOk: true });
   else knowledgeStore.updateStatus(kbId, sourceId, "done", { chunkCount });
+}
+
+/** A manual chunk edit/resize/add doesn't reprocess the whole document, so it only bumps the
+ * parent's patch version (not minor) — see semver.ts's bump rule. */
+function bumpParentPatchVersion(kbId: string, sourceType: ChunkSourceType, sourceId: string) {
+  if (sourceType === "document") knowledgeDocumentStore.bumpPatchVersion(sourceId);
+  else if (sourceType === "url") knowledgeUrlStore.bumpPatchVersion(sourceId);
+  else knowledgeStore.bumpPatchVersion(kbId, sourceId);
 }
 
 export default function ChunkViewerModal({
@@ -202,6 +211,7 @@ export default function ChunkViewerModal({
 
   const saveEdit = (c: KnowledgeChunk) => {
     knowledgeChunkStore.update(c.id, { title: draftTitle, content: draftContent, contentType: draftType });
+    bumpParentPatchVersion(kbId, sourceType, sourceId);
     setEditingId(null);
     refresh();
     setTimeout(() => { knowledgeChunkStore.updateStatus(c.id, "done"); refresh(); }, 900);
@@ -229,6 +239,7 @@ export default function ChunkViewerModal({
   const addChunkFromSelection = (text: string, box: ChunkBox) => {
     const firstLine = text.split("\n")[0].slice(0, 60);
     const chunk = knowledgeChunkStore.add(kbId, sourceType, sourceId, { title: firstLine, content: text, box });
+    bumpParentPatchVersion(kbId, sourceType, sourceId);
     refresh();
     setTimeout(() => { knowledgeChunkStore.updateStatus(chunk.id, "done"); refresh(); }, 900);
     startEdit({ ...chunk });
@@ -238,6 +249,7 @@ export default function ChunkViewerModal({
    * content derived from whatever page text falls under the drawn box. */
   const drawNewChunk = (box: ChunkBox) => {
     const chunk = knowledgeChunkStore.add(kbId, sourceType, sourceId, { title: `Chunk mới`, content: extractContentForBox(box, pages), box });
+    bumpParentPatchVersion(kbId, sourceType, sourceId);
     refresh();
     setTimeout(() => { knowledgeChunkStore.updateStatus(chunk.id, "done"); refresh(); }, 900);
     startEdit(chunk);
@@ -248,6 +260,7 @@ export default function ChunkViewerModal({
   // / "Xử lý kết quả" pair so a resize never silently auto-saves.
   const applyResize = (id: string, box: ChunkBox) => {
     knowledgeChunkStore.applyBoxResize(id, box);
+    bumpParentPatchVersion(kbId, sourceType, sourceId);
     refresh();
     setTimeout(() => { knowledgeChunkStore.updateStatus(id, "done"); refresh(); }, 900);
   };
@@ -305,7 +318,7 @@ export default function ChunkViewerModal({
         <div className="flex items-center gap-3 px-4 py-2 border-b border-border bg-surface-muted/40 text-xs text-muted-foreground shrink-0 flex-wrap">
           <span className="font-mono truncate max-w-[420px]" title={urlMeta.url}>{urlMeta.url}</span>
           <span className="chip chip-muted">{URL_SOURCE_LABEL[urlMeta.source]}</span>
-          <span className="chip chip-muted">v{urlMeta.version}</span>
+          <span className="chip chip-muted">{formatVersion(urlMeta.version)}</span>
           <span>{urlMeta.lastSyncAt ? `Đồng bộ lần cuối: ${relativeTime(urlMeta.lastSyncAt)}` : "Chưa đồng bộ"}</span>
         </div>
       )}

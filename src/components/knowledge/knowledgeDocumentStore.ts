@@ -2,6 +2,7 @@
 import { loadMap, saveMap } from "@/lib/sessionPersist";
 import type { KnowledgeProcessingStatus } from "./knowledgeStatus";
 import type { Sharing } from "./knowledgeBaseStore";
+import { INITIAL_VERSION, bumpMinor, bumpPatch, type SemVer } from "./semver";
 
 export interface KnowledgeDocument {
   id: string;
@@ -13,7 +14,7 @@ export interface KnowledgeDocument {
   statusReason?: string;
   sizeBytes: number;
   chunkCount: number;
-  version: number;
+  version: SemVer;
   /** Console-management access chosen at upload time — who can see/edit/delete this document in
    * Console (defaults to "Chỉ mình tôi" when unset). A folder carries one too, applied by default
    * to documents uploaded into it (see CreateFolderModal / knowledgeDocumentStore.createFolder). */
@@ -28,8 +29,8 @@ export interface KnowledgeDocument {
   updatedBy: string;
 }
 
-const STORE_KEY = "knowledge_document_store_v5";
-const SEEDED_KEY = "knowledge_document_store_seeded_v5";
+const STORE_KEY = "knowledge_document_store_v6";
+const SEEDED_KEY = "knowledge_document_store_seeded_v6";
 const store = loadMap<string, KnowledgeDocument>(STORE_KEY);
 const persist = () => saveMap(STORE_KEY, store);
 
@@ -42,44 +43,48 @@ function seedKb(kbId: string) {
   const put = (d: KnowledgeDocument) => store.set(d.id, d);
 
   if (kbId === "kb-1") {
-    put({ id: "doc-1-f1", kbId, name: "Biểu phí & lãi suất", isFolder: true, folderId: null, status: "done", sizeBytes: 0, chunkCount: 0, version: 1, createdAt: now - 3 * DAY, updatedAt: now - 3 * DAY, updatedBy: "Tran Nam" });
-    put({ id: "doc-1-1", kbId, name: "Biểu lãi suất tiết kiệm 2026.pdf", isFolder: false, folderId: "doc-1-f1", status: "done", sizeBytes: 1_240_000, chunkCount: 42, version: 2, createdAt: now - 6 * DAY, updatedAt: now - 2 * DAY, updatedBy: "Tran Nam" });
-    put({ id: "doc-1-2", kbId, name: "Chính sách khiếu nại.docx", isFolder: false, folderId: null, status: "done", sizeBytes: 340_000, chunkCount: 18, version: 1, createdAt: now - 5 * DAY, updatedAt: now - 5 * DAY, updatedBy: "Tran Nam" });
-    put({ id: "doc-1-3", kbId, name: "Quy trình mở thẻ tín dụng.pdf", isFolder: false, folderId: null, status: "processing", sizeBytes: 2_100_000, chunkCount: 0, version: 1, createdAt: now - 5 * 60_000, updatedAt: now - 5 * 60_000, updatedBy: "Tran Nam" });
-    put({ id: "doc-1-4", kbId, name: "Sổ tay sản phẩm vay.pptx", isFolder: false, folderId: null, status: "failed", statusReason: "Không đọc được nội dung tệp. Thử tải lại hoặc dùng bản PDF.", sizeBytes: 8_400_000, chunkCount: 0, version: 1, createdAt: now - DAY, updatedAt: now - DAY, updatedBy: "Tran Nam" });
-    put({ id: "doc-1-5", kbId, name: "Câu hỏi khiếu nại thường gặp.xlsx", isFolder: false, folderId: null, status: "pending", sizeBytes: 90_000, chunkCount: 0, version: 1, createdAt: now - 60_000, updatedAt: now - 60_000, updatedBy: "Tran Nam" });
+    put({ id: "doc-1-f1", kbId, name: "Biểu phí & lãi suất", isFolder: true, folderId: null, status: "done", sizeBytes: 0, chunkCount: 0, version: INITIAL_VERSION, createdAt: now - 3 * DAY, updatedAt: now - 3 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "doc-1-1", kbId, name: "Biểu lãi suất tiết kiệm 2026.pdf", isFolder: false, folderId: "doc-1-f1", status: "done", sizeBytes: 1_240_000, chunkCount: 42, version: { major: 1, minor: 1, patch: 0 }, createdAt: now - 6 * DAY, updatedAt: now - 2 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "doc-1-2", kbId, name: "Chính sách khiếu nại.docx", isFolder: false, folderId: null, status: "done", sizeBytes: 340_000, chunkCount: 18, version: INITIAL_VERSION, createdAt: now - 5 * DAY, updatedAt: now - 5 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "doc-1-3", kbId, name: "Quy trình mở thẻ tín dụng.pdf", isFolder: false, folderId: null, status: "processing", sizeBytes: 2_100_000, chunkCount: 0, version: INITIAL_VERSION, createdAt: now - 5 * 60_000, updatedAt: now - 5 * 60_000, updatedBy: "Tran Nam" });
+    put({ id: "doc-1-4", kbId, name: "Sổ tay sản phẩm vay.pptx", isFolder: false, folderId: null, status: "failed", statusReason: "Không đọc được nội dung tệp. Thử tải lại hoặc dùng bản PDF.", sizeBytes: 8_400_000, chunkCount: 0, version: INITIAL_VERSION, createdAt: now - DAY, updatedAt: now - DAY, updatedBy: "Tran Nam" });
+    put({ id: "doc-1-5", kbId, name: "Câu hỏi khiếu nại thường gặp.xlsx", isFolder: false, folderId: null, status: "pending", sizeBytes: 90_000, chunkCount: 0, version: INITIAL_VERSION, createdAt: now - 60_000, updatedAt: now - 60_000, updatedBy: "Tran Nam" });
+    // Uploaded by a teammate and shared to the whole Console — demonstrates the "Được chia sẻ
+    // với tôi" ownership tab, which would otherwise be permanently empty since every other
+    // seeded document in this prototype is uploaded by CURRENT_USER.
+    put({ id: "doc-1-6", kbId, name: "Hướng dẫn xác minh danh tính KYC.pdf", isFolder: false, folderId: null, status: "done", sizeBytes: 620_000, chunkCount: 15, version: INITIAL_VERSION, sharing: { mode: "all", people: [] }, createdAt: now - 9 * DAY, updatedAt: now - 9 * DAY, updatedBy: "Linh Phan" });
   }
 
   if (kbId === "kb-2") {
-    put({ id: "doc-2-1", kbId, name: "Kịch bản trả lời khiếu nại qua tổng đài.docx", isFolder: false, folderId: null, status: "done", sizeBytes: 210_000, chunkCount: 14, version: 1, createdAt: now - 5 * DAY, updatedAt: now - 2 * DAY, updatedBy: "Tran Nam" });
-    put({ id: "doc-2-2", kbId, name: "Mẫu email xin lỗi khách hàng.docx", isFolder: false, folderId: null, status: "done", sizeBytes: 85_000, chunkCount: 6, version: 1, createdAt: now - 9 * DAY, updatedAt: now - 9 * DAY, updatedBy: "Tran Nam" });
-    put({ id: "doc-2-3", kbId, name: "Quy trình chăm sóc khách hàng VIP.pdf", isFolder: false, folderId: null, status: "processing", sizeBytes: 640_000, chunkCount: 0, version: 1, createdAt: now - 10 * 60_000, updatedAt: now - 10 * 60_000, updatedBy: "Tran Nam" });
-    put({ id: "doc-2-4", kbId, name: "Bộ câu hỏi khảo sát hài lòng khách hàng.xlsx", isFolder: false, folderId: null, status: "done", sizeBytes: 55_000, chunkCount: 3, version: 1, createdAt: now - 14 * DAY, updatedAt: now - 14 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "doc-2-1", kbId, name: "Kịch bản trả lời khiếu nại qua tổng đài.docx", isFolder: false, folderId: null, status: "done", sizeBytes: 210_000, chunkCount: 14, version: INITIAL_VERSION, createdAt: now - 5 * DAY, updatedAt: now - 2 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "doc-2-2", kbId, name: "Mẫu email xin lỗi khách hàng.docx", isFolder: false, folderId: null, status: "done", sizeBytes: 85_000, chunkCount: 6, version: INITIAL_VERSION, createdAt: now - 9 * DAY, updatedAt: now - 9 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "doc-2-3", kbId, name: "Quy trình chăm sóc khách hàng VIP.pdf", isFolder: false, folderId: null, status: "processing", sizeBytes: 640_000, chunkCount: 0, version: INITIAL_VERSION, createdAt: now - 10 * 60_000, updatedAt: now - 10 * 60_000, updatedBy: "Tran Nam" });
+    put({ id: "doc-2-4", kbId, name: "Bộ câu hỏi khảo sát hài lòng khách hàng.xlsx", isFolder: false, folderId: null, status: "done", sizeBytes: 55_000, chunkCount: 3, version: INITIAL_VERSION, createdAt: now - 14 * DAY, updatedAt: now - 14 * DAY, updatedBy: "Tran Nam" });
   }
 
   if (kbId === "kb-3") {
-    put({ id: "doc-3-1", kbId, name: "Quy trình xử lý sự cố hạ tầng.pdf", isFolder: false, folderId: null, status: "done", sizeBytes: 980_000, chunkCount: 55, version: 3, createdAt: now - 9 * DAY, updatedAt: now - 4 * DAY, updatedBy: "Linh Phan" });
-    put({ id: "doc-3-2", kbId, name: "Mẫu email thông báo bảo trì.docx", isFolder: false, folderId: null, status: "done", sizeBytes: 60_000, chunkCount: 6, version: 1, createdAt: now - 10 * DAY, updatedAt: now - 10 * DAY, updatedBy: "Tran Nam" });
-    put({ id: "doc-3-3", kbId, name: "Runbook triển khai phiên bản mới.md", isFolder: false, folderId: null, status: "done", sizeBytes: 120_000, chunkCount: 31, version: 5, createdAt: now - 15 * DAY, updatedAt: now - DAY, updatedBy: "Duy Nguyen" });
+    put({ id: "doc-3-1", kbId, name: "Quy trình xử lý sự cố hạ tầng.pdf", isFolder: false, folderId: null, status: "done", sizeBytes: 980_000, chunkCount: 55, version: { major: 1, minor: 2, patch: 0 }, createdAt: now - 9 * DAY, updatedAt: now - 4 * DAY, updatedBy: "Linh Phan" });
+    put({ id: "doc-3-2", kbId, name: "Mẫu email thông báo bảo trì.docx", isFolder: false, folderId: null, status: "done", sizeBytes: 60_000, chunkCount: 6, version: INITIAL_VERSION, createdAt: now - 10 * DAY, updatedAt: now - 10 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "doc-3-3", kbId, name: "Runbook triển khai phiên bản mới.md", isFolder: false, folderId: null, status: "done", sizeBytes: 120_000, chunkCount: 31, version: { major: 1, minor: 4, patch: 0 }, createdAt: now - 15 * DAY, updatedAt: now - DAY, updatedBy: "Duy Nguyen" });
   }
 
   // kb-4 "Chính sách nhân sự" — shared to Tran Nam by Linh Phan with "Có thể xem" (view-only)
   // access, used to verify the read-only Documents table state.
   if (kbId === "kb-4") {
-    put({ id: "doc-4-1", kbId, name: "Chính sách nghỉ phép 2026.pdf", isFolder: false, folderId: null, status: "done", sizeBytes: 410_000, chunkCount: 28, version: 2, createdAt: now - 20 * DAY, updatedAt: now - 3 * DAY, updatedBy: "Linh Phan" });
-    put({ id: "doc-4-2", kbId, name: "Bảng lương và phúc lợi.xlsx", isFolder: false, folderId: null, status: "done", sizeBytes: 95_000, chunkCount: 11, version: 1, createdAt: now - 18 * DAY, updatedAt: now - 18 * DAY, updatedBy: "Linh Phan" });
-    put({ id: "doc-4-3", kbId, name: "Quy trình onboarding nhân viên mới.docx", isFolder: false, folderId: null, status: "processing", sizeBytes: 260_000, chunkCount: 0, version: 1, createdAt: now - 15 * 60_000, updatedAt: now - 15 * 60_000, updatedBy: "Linh Phan" });
-    put({ id: "doc-4-4", kbId, name: "Hướng dẫn đăng ký bảo hiểm y tế.pdf", isFolder: false, folderId: null, status: "pending", sizeBytes: 180_000, chunkCount: 0, version: 1, createdAt: now - 5 * 60_000, updatedAt: now - 5 * 60_000, updatedBy: "Linh Phan" });
-    put({ id: "doc-4-5", kbId, name: "Mẫu đơn xin nghỉ phép.docx", isFolder: false, folderId: null, status: "failed", statusReason: "Không đọc được nội dung tệp. Thử tải lại hoặc dùng bản PDF.", sizeBytes: 45_000, chunkCount: 0, version: 1, createdAt: now - 2 * DAY, updatedAt: now - 2 * DAY, updatedBy: "Linh Phan" });
+    put({ id: "doc-4-1", kbId, name: "Chính sách nghỉ phép 2026.pdf", isFolder: false, folderId: null, status: "done", sizeBytes: 410_000, chunkCount: 28, version: { major: 1, minor: 1, patch: 0 }, createdAt: now - 20 * DAY, updatedAt: now - 3 * DAY, updatedBy: "Linh Phan" });
+    put({ id: "doc-4-2", kbId, name: "Bảng lương và phúc lợi.xlsx", isFolder: false, folderId: null, status: "done", sizeBytes: 95_000, chunkCount: 11, version: INITIAL_VERSION, createdAt: now - 18 * DAY, updatedAt: now - 18 * DAY, updatedBy: "Linh Phan" });
+    put({ id: "doc-4-3", kbId, name: "Quy trình onboarding nhân viên mới.docx", isFolder: false, folderId: null, status: "processing", sizeBytes: 260_000, chunkCount: 0, version: INITIAL_VERSION, createdAt: now - 15 * 60_000, updatedAt: now - 15 * 60_000, updatedBy: "Linh Phan" });
+    put({ id: "doc-4-4", kbId, name: "Hướng dẫn đăng ký bảo hiểm y tế.pdf", isFolder: false, folderId: null, status: "pending", sizeBytes: 180_000, chunkCount: 0, version: INITIAL_VERSION, createdAt: now - 5 * 60_000, updatedAt: now - 5 * 60_000, updatedBy: "Linh Phan" });
+    put({ id: "doc-4-5", kbId, name: "Mẫu đơn xin nghỉ phép.docx", isFolder: false, folderId: null, status: "failed", statusReason: "Không đọc được nội dung tệp. Thử tải lại hoặc dùng bản PDF.", sizeBytes: 45_000, chunkCount: 0, version: INITIAL_VERSION, createdAt: now - 2 * DAY, updatedAt: now - 2 * DAY, updatedBy: "Linh Phan" });
   }
 
   // kb-5 "Kịch bản bán hàng" — shared to Tran Nam by Mai Hoang with "Có thể chỉnh sửa" (edit)
   // access, used to verify the shared-edit Documents table state.
   if (kbId === "kb-5") {
-    put({ id: "doc-5-1", kbId, name: "Kịch bản tư vấn khách hàng mới.docx", isFolder: false, folderId: null, status: "done", sizeBytes: 130_000, chunkCount: 16, version: 1, createdAt: now - 10 * DAY, updatedAt: now - 4 * DAY, updatedBy: "Mai Hoang" });
-    put({ id: "doc-5-2", kbId, name: "Kịch bản xử lý từ chối giá.pdf", isFolder: false, folderId: null, status: "done", sizeBytes: 175_000, chunkCount: 12, version: 1, createdAt: now - 8 * DAY, updatedAt: now - 8 * DAY, updatedBy: "Mai Hoang" });
-    put({ id: "doc-5-3", kbId, name: "Bộ câu hỏi khảo sát nhu cầu khách hàng.xlsx", isFolder: false, folderId: null, status: "processing", sizeBytes: 62_000, chunkCount: 0, version: 1, createdAt: now - 20 * 60_000, updatedAt: now - 20 * 60_000, updatedBy: "Mai Hoang" });
-    put({ id: "doc-5-4", kbId, name: "Quy trình chốt đơn qua điện thoại.docx", isFolder: false, folderId: null, status: "pending", sizeBytes: 88_000, chunkCount: 0, version: 1, createdAt: now - 8 * 60_000, updatedAt: now - 8 * 60_000, updatedBy: "Mai Hoang" });
+    put({ id: "doc-5-1", kbId, name: "Kịch bản tư vấn khách hàng mới.docx", isFolder: false, folderId: null, status: "done", sizeBytes: 130_000, chunkCount: 16, version: INITIAL_VERSION, createdAt: now - 10 * DAY, updatedAt: now - 4 * DAY, updatedBy: "Mai Hoang" });
+    put({ id: "doc-5-2", kbId, name: "Kịch bản xử lý từ chối giá.pdf", isFolder: false, folderId: null, status: "done", sizeBytes: 175_000, chunkCount: 12, version: INITIAL_VERSION, createdAt: now - 8 * DAY, updatedAt: now - 8 * DAY, updatedBy: "Mai Hoang" });
+    put({ id: "doc-5-3", kbId, name: "Bộ câu hỏi khảo sát nhu cầu khách hàng.xlsx", isFolder: false, folderId: null, status: "processing", sizeBytes: 62_000, chunkCount: 0, version: INITIAL_VERSION, createdAt: now - 20 * 60_000, updatedAt: now - 20 * 60_000, updatedBy: "Mai Hoang" });
+    put({ id: "doc-5-4", kbId, name: "Quy trình chốt đơn qua điện thoại.docx", isFolder: false, folderId: null, status: "pending", sizeBytes: 88_000, chunkCount: 0, version: INITIAL_VERSION, createdAt: now - 8 * 60_000, updatedAt: now - 8 * 60_000, updatedBy: "Mai Hoang" });
   }
 
   persist();
@@ -147,7 +152,7 @@ export const knowledgeDocumentStore = {
     const now = Date.now();
     const rec: KnowledgeDocument = {
       id, kbId, name: name.trim(), isFolder: true, folderId, status: "done",
-      sizeBytes: 0, chunkCount: 0, version: 1, sharing, querySharing,
+      sizeBytes: 0, chunkCount: 0, version: INITIAL_VERSION, sharing, querySharing,
       createdAt: now, updatedAt: now, updatedBy: "Tran Nam",
     };
     store.set(id, rec);
@@ -175,12 +180,11 @@ export const knowledgeDocumentStore = {
     persist();
   },
   addDocument(kbId: string, data: { name: string; sizeBytes: number; folderId: string | null; sharing?: Sharing; querySharing?: Sharing }): KnowledgeDocument {
-    const isNewVersion = this.isDuplicateName(kbId, data.name, data.folderId);
     const id = `doc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`;
     const now = Date.now();
     const rec: KnowledgeDocument = {
       id, kbId, name: data.name, isFolder: false, folderId: data.folderId, status: "pending",
-      sizeBytes: data.sizeBytes, chunkCount: 0, version: isNewVersion ? 2 : 1,
+      sizeBytes: data.sizeBytes, chunkCount: 0, version: INITIAL_VERSION,
       sharing: data.sharing, querySharing: data.querySharing,
       createdAt: now, updatedAt: now, updatedBy: "Tran Nam",
     };
@@ -191,7 +195,8 @@ export const knowledgeDocumentStore = {
   /** "Ghi đè" on a name-conflicting upload — replaces the content of an existing document in
    * place (same id/row) and bumps its version, restarting the processing pipeline. Sharing is
    * left untouched: overwriting a document's content shouldn't silently change who can access
-   * it (that's a separate "Chia sẻ" concern). */
+   * it (that's a separate "Chia sẻ" concern). A full content replace is a minor bump (resets
+   * patch), same as any other reprocess. */
   overwriteDocument(id: string, data: { sizeBytes: number }): KnowledgeDocument | undefined {
     const cur = store.get(id);
     if (!cur) return undefined;
@@ -201,7 +206,7 @@ export const knowledgeDocumentStore = {
       status: "pending",
       statusReason: undefined,
       chunkCount: 0,
-      version: cur.version + 1,
+      version: bumpMinor(cur.version),
       updatedAt: Date.now(),
       updatedBy: "Tran Nam",
     };
@@ -233,18 +238,29 @@ export const knowledgeDocumentStore = {
     store.set(id, { ...cur, querySharing, updatedAt: Date.now() });
     persist();
   },
+  /** A manual chunk edit/resize doesn't reprocess the whole document, so it only bumps patch
+   * (not minor) — see ChunkViewerModal's saveEdit/applyResize, which call this after persisting
+   * the chunk-level change. */
+  bumpPatchVersion(id: string) {
+    const cur = store.get(id);
+    if (!cur) return;
+    store.set(id, { ...cur, version: bumpPatch(cur.version), updatedAt: Date.now() });
+    persist();
+  },
   /** Restoring an older version creates a new version on top (standard versioning behavior —
-   * history is never rewritten). */
+   * history is never rewritten) — a minor bump, same as any other content-changing event. */
   restoreVersion(id: string) {
     const cur = store.get(id);
     if (!cur) return;
-    store.set(id, { ...cur, version: cur.version + 1, updatedAt: Date.now(), updatedBy: "Tran Nam" });
+    store.set(id, { ...cur, version: bumpMinor(cur.version), updatedAt: Date.now(), updatedBy: "Tran Nam" });
     persist();
   },
+  /** "Xử lý lại" — a full reprocess changes the extracted content, so it's a minor bump (resets
+   * patch), same as "Ghi đè"/"Khôi phục". */
   reprocess(id: string) {
     const cur = store.get(id);
     if (!cur) return;
-    store.set(id, { ...cur, status: "pending", statusReason: undefined, updatedAt: Date.now() });
+    store.set(id, { ...cur, status: "pending", statusReason: undefined, version: bumpMinor(cur.version), updatedAt: Date.now() });
     persist();
   },
   moveMany(ids: string[], folderId: string | null) {
