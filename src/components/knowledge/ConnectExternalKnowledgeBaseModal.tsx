@@ -4,8 +4,12 @@ import {
 } from "@/components/ui/dialog";
 import { Loader2, Eye, EyeOff, Check, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
-import { knowledgeBaseStore, CURRENT_USER, type Sharing, type SharingMode } from "./knowledgeBaseStore";
+import {
+  knowledgeBaseStore, CURRENT_USER, DEFAULT_QUERY_SHARING,
+  type Sharing, type SharingMode, type QuerySharing,
+} from "./knowledgeBaseStore";
 import MemberPicker from "./MemberPicker";
+import QueryScopeSection, { RadioCard, isQueryScopeValid } from "./QueryScopeSection";
 
 const NAME_MAX = 50;
 const DESC_MAX = 256;
@@ -35,6 +39,7 @@ export default function ConnectExternalKnowledgeBaseModal({ open, onClose }: { o
   const [showKey, setShowKey] = useState(false);
   const [sharingMode, setSharingMode] = useState<SharingMode>("private");
   const [people, setPeople] = useState<Sharing["people"]>([]);
+  const [querySharing, setQuerySharing] = useState<QuerySharing>(DEFAULT_QUERY_SHARING);
   const [endpointTouched, setEndpointTouched] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [testState, setTestState] = useState<TestState>("idle");
@@ -52,7 +57,8 @@ export default function ConnectExternalKnowledgeBaseModal({ open, onClose }: { o
 
   const canTest = endpointValid && apiKey.trim().length > 0;
   const canSubmit = trimmedName.length > 0 && trimmedName.length <= NAME_MAX && endpointValid && apiKey.trim().length > 0
-    && (sharingMode !== "specific" || people.length > 0);
+    && (sharingMode !== "specific" || people.length > 0)
+    && isQueryScopeValid(querySharing);
 
   const runTest = (): Promise<boolean> =>
     new Promise(resolve => {
@@ -78,7 +84,7 @@ export default function ConnectExternalKnowledgeBaseModal({ open, onClose }: { o
       const sharing: Sharing = { mode: sharingMode, people: sharingMode === "specific" ? people : [] };
       knowledgeBaseStore.create({
         name: trimmedName, description: description.trim(), type: "external_api",
-        sharing, apiEndpoint: endpoint.trim(), hasApiKey: true,
+        sharing, querySharing, apiEndpoint: endpoint.trim(), hasApiKey: true,
       });
       toast.success(`Đã kết nối kho tri thức "${trimmedName}".`);
       setSubmitting(false);
@@ -153,36 +159,28 @@ export default function ConnectExternalKnowledgeBaseModal({ open, onClose }: { o
           <div>
             <label className="text-sm font-medium mb-2 block">Quyền truy cập</label>
             <div className="space-y-2">
-              {SHARING_OPTIONS.map(opt => {
-                const selected = sharingMode === opt.value;
-                return (
-                  <div key={opt.value}>
-                    <div
-                      onClick={() => setSharingMode(opt.value)}
-                      className={`flex items-start gap-3 px-3.5 py-3 rounded-xl border cursor-pointer transition-base ${
-                        selected ? "border-primary bg-primary/5" : "border-border bg-white hover:bg-surface-muted"
-                      }`}
-                    >
-                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${selected ? "border-primary" : "border-border"}`}>
-                        {selected && <div className="w-2 h-2 rounded-full bg-primary" />}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium">{opt.label}</div>
-                        {opt.helper && <div className="text-xs text-muted-foreground mt-0.5">{opt.helper}</div>}
-                      </div>
-                    </div>
-                    {selected && opt.value === "specific" && (
-                      <div className="mt-2 pl-3.5">
-                        <MemberPicker value={people} onChange={setPeople} ownerRow={{ name: CURRENT_USER.name, email: CURRENT_USER.email }} />
-                        {submitAttempted && sharingMode === "specific" && people.length === 0 && (
-                          <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người để chia sẻ.</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+              {SHARING_OPTIONS.map(opt => (
+                <RadioCard key={opt.value} selected={sharingMode === opt.value} onSelect={() => setSharingMode(opt.value)} label={opt.label} helper={opt.helper}>
+                  {opt.value === "specific" && (
+                    <>
+                      <MemberPicker value={people} onChange={setPeople} ownerRow={{ name: CURRENT_USER.name, email: CURRENT_USER.email }} />
+                      {submitAttempted && sharingMode === "specific" && people.length === 0 && (
+                        <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người để chia sẻ.</p>
+                      )}
+                    </>
+                  )}
+                </RadioCard>
+              ))}
             </div>
+          </div>
+
+          <div className="border-t border-border pt-5">
+            <QueryScopeSection
+              value={querySharing}
+              onChange={setQuerySharing}
+              submitAttempted={submitAttempted}
+              ownerRow={{ name: CURRENT_USER.name, email: CURRENT_USER.email }}
+            />
           </div>
 
           <div>

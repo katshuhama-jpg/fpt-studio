@@ -62,6 +62,10 @@ export interface KnowledgeBase {
   ownerId: string;
   ownerName: string;
   sharing: Sharing;
+  /** Which end users a published Agent may use this KB's content to answer for — see the
+   * `QuerySharing` doc comment above. Set at creation time (both "Tạo kho tri thức" and "Kết nối
+   * kho tri thức ngoài" collect it); not yet editable after the fact from this store's UI. */
+  querySharing: QuerySharing;
   /** external_api only */
   apiEndpoint?: string;
   hasApiKey?: boolean;
@@ -123,6 +127,7 @@ function seed() {
     description: "Chính sách sản phẩm, lãi suất và quy trình xử lý khiếu nại của ngân hàng ABC.",
     type: "internal", ownerId: CURRENT_USER.id, ownerName: CURRENT_USER.name,
     sharing: { mode: "private", people: [] },
+    querySharing: DEFAULT_QUERY_SHARING,
     attachedByAgentIds: ["cskh"],
     createdAt: now - 30 * DAY, updatedAt: now - 2 * 3_600_000,
   });
@@ -133,6 +138,7 @@ function seed() {
     description: "Câu hỏi thường gặp dùng chung cho các Agent chăm sóc khách hàng.",
     type: "internal", ownerId: CURRENT_USER.id, ownerName: CURRENT_USER.name,
     sharing: { mode: "all", people: [] },
+    querySharing: { mode: "all_org", departmentIds: [], people: [] },
     attachedByAgentIds: ["cskh", "ops"],
     createdAt: now - 21 * DAY, updatedAt: now - DAY,
   });
@@ -150,6 +156,7 @@ function seed() {
         { userId: "m-fsoft-vn-1", name: "Duy Nguyen", email: "duy.nguyen@fpt.com", access: "view" },
       ],
     },
+    querySharing: DEFAULT_QUERY_SHARING,
     attachedByAgentIds: [],
     createdAt: now - 45 * DAY, updatedAt: now - 6 * 3_600_000,
   });
@@ -163,6 +170,7 @@ function seed() {
       mode: "specific",
       people: [{ userId: CURRENT_USER.id, name: CURRENT_USER.name, email: CURRENT_USER.email, access: "view" }],
     },
+    querySharing: DEFAULT_QUERY_SHARING,
     attachedByAgentIds: [],
     createdAt: now - 60 * DAY, updatedAt: now - 5 * DAY,
   });
@@ -176,6 +184,7 @@ function seed() {
       mode: "specific",
       people: [{ userId: CURRENT_USER.id, name: CURRENT_USER.name, email: CURRENT_USER.email, access: "edit" }],
     },
+    querySharing: DEFAULT_QUERY_SHARING,
     attachedByAgentIds: ["sales"],
     createdAt: now - 12 * DAY, updatedAt: now - 3 * 3_600_000,
   });
@@ -186,6 +195,7 @@ function seed() {
     description: "Kết nối tới hệ thống tra cứu văn bản pháp lý của tập đoàn qua API.",
     type: "external_api", ownerId: CURRENT_USER.id, ownerName: CURRENT_USER.name,
     sharing: { mode: "private", people: [] },
+    querySharing: DEFAULT_QUERY_SHARING,
     apiEndpoint: "https://legal-kb.abc-corp.vn/api/v1/retrieve", hasApiKey: true,
     attachedByAgentIds: [],
     createdAt: now - 7 * DAY, updatedAt: now - 7 * DAY,
@@ -199,6 +209,7 @@ function seed() {
     description: "Kế hoạch phát triển sản phẩm quý tới — chỉ dành cho đội ngũ vận hành nền tảng.",
     type: "internal", ownerId: "m-fsoft-vn-1", ownerName: "Duy Nguyen",
     sharing: { mode: "private", people: [] },
+    querySharing: DEFAULT_QUERY_SHARING,
     attachedByAgentIds: [],
     createdAt: now - 10 * DAY, updatedAt: now - 4 * DAY,
   });
@@ -222,6 +233,9 @@ export const knowledgeBaseStore = {
   },
   create(data: {
     name: string; description: string; type: KnowledgeBaseType; sharing: Sharing;
+    /** Defaults to private (only me) — the two creation modals always pass this explicitly,
+     * this default only covers older/internal call sites that predate this field. */
+    querySharing?: QuerySharing;
     apiEndpoint?: string; hasApiKey?: boolean;
   }): KnowledgeBase {
     const id = `kb-${Date.now().toString(36)}`;
@@ -229,6 +243,7 @@ export const knowledgeBaseStore = {
     const kb: StoredKnowledgeBase = {
       id, name: data.name.trim(), description: data.description.trim(), type: data.type,
       ownerId: CURRENT_USER.id, ownerName: CURRENT_USER.name, sharing: data.sharing,
+      querySharing: data.querySharing ?? DEFAULT_QUERY_SHARING,
       apiEndpoint: data.apiEndpoint, hasApiKey: data.hasApiKey,
       attachedByAgentIds: [], createdAt: now, updatedAt: now,
     };
@@ -246,6 +261,12 @@ export const knowledgeBaseStore = {
     const cur = store.get(id);
     if (!cur) return;
     store.set(id, { ...cur, sharing, updatedAt: Date.now() });
+    persist();
+  },
+  updateQuerySharing(id: string, querySharing: QuerySharing) {
+    const cur = store.get(id);
+    if (!cur) return;
+    store.set(id, { ...cur, querySharing, updatedAt: Date.now() });
     persist();
   },
   remove(id: string) {

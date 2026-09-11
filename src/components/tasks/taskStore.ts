@@ -25,6 +25,17 @@ export interface TaskRecord {
 const store = new Map<string, TaskRecord>();
 const k = (a: string, t: string) => `${a}:${t}`;
 
+/** Bumps the patch number of the most recently active version id (must be x.x.x, all numeric —
+ * the format PublishDialog's "Version" field enforces). Falls back to 1.0.0 for a task with no
+ * history yet, or a legacy id that predates this format. */
+export function nextVersion(history: { id: string; active: boolean }[]): string {
+  const latest = history.find(h => h.active) ?? history[0];
+  const m = latest?.id.match(/^(\d+)\.(\d+)\.(\d+)$/);
+  if (!m) return "1.0.0";
+  const [, maj, min, patch] = m;
+  return `${maj}.${min}.${Number(patch) + 1}`;
+}
+
 export const SYSTEM_TASK_IDS = ["sys-knowledge-retrieval", "sys-generate-knowledge-response"] as const;
 
 function seedAgent(agentId: string) {
@@ -39,7 +50,7 @@ function seedAgent(agentId: string) {
       updatedAt: now - 86_400_000 * 7,
       publishedAt: now - 86_400_000 * 7,
       status: "Published",
-      history: [{ id: "v1", commit: "Initial system task", at: now - 86_400_000 * 7, active: true }],
+      history: [{ id: "1.0.0", commit: "Initial system task", at: now - 86_400_000 * 7, active: true }],
     },
     {
       id: "sys-generate-knowledge-response",
@@ -49,7 +60,7 @@ function seedAgent(agentId: string) {
       updatedAt: now - 86_400_000 * 7,
       publishedAt: now - 86_400_000 * 7,
       status: "Published",
-      history: [{ id: "v1", commit: "Initial system task", at: now - 86_400_000 * 7, active: true }],
+      history: [{ id: "1.0.0", commit: "Initial system task", at: now - 86_400_000 * 7, active: true }],
     },
     {
       id: "lock-card",
@@ -60,9 +71,9 @@ function seedAgent(agentId: string) {
       publishedAt: now - 7_200_000,
       status: "Published",
       history: [
-        { id: "v3", commit: "Add escalation branch", at: now - 7_200_000, active: true },
-        { id: "v2", commit: "Hook lock_card_api", at: now - 86_400_000, active: false },
-        { id: "v1", commit: "Initial draft", at: now - 86_400_000 * 3, active: false },
+        { id: "1.2.0", commit: "Add escalation branch", at: now - 7_200_000, active: true },
+        { id: "1.1.0", commit: "Hook lock_card_api", at: now - 86_400_000, active: false },
+        { id: "1.0.0", commit: "Initial draft", at: now - 86_400_000 * 3, active: false },
       ],
     },
     {
@@ -73,7 +84,7 @@ function seedAgent(agentId: string) {
       updatedAt: now - 86_400_000 * 3,
       publishedAt: now - 86_400_000 * 3,
       status: "Published",
-      history: [{ id: "v2", commit: "Wire calendar API", at: now - 86_400_000 * 3, active: true }],
+      history: [{ id: "1.0.0", commit: "Wire calendar API", at: now - 86_400_000 * 3, active: true }],
     },
   ];
   for (const s of seed) store.set(k(agentId, s.id), { ...s, agentId });
@@ -110,7 +121,7 @@ export const taskStore = {
       updatedAt: now,
       publishedAt: now,
       status: "Published",
-      history: [{ id: "v1", commit: "Created task", at: now, active: true }],
+      history: [{ id: "1.0.0", commit: "Created task", at: now, active: true }],
     };
     store.set(k(agentId, id), rec);
     return rec;
@@ -124,9 +135,8 @@ export const taskStore = {
     const cur = store.get(k(agentId, taskId));
     if (!cur) return;
     const now = Date.now();
-    const nextNum = cur.history.length + 1;
     const newHist: TaskVersion[] = [
-      { id: `v${nextNum}`, commit, at: now, active: true },
+      { id: nextVersion(cur.history), commit, at: now, active: true },
       ...cur.history.map(h => ({ ...h, active: false })),
     ];
     store.set(k(agentId, taskId), {

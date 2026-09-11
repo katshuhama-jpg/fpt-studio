@@ -9,7 +9,7 @@ import {
 
 import Canvas from "@/components/tool-builder/Canvas";
 import type { NodeData, ToolNode, ToolEdge } from "@/components/tool-builder/types";
-import { taskStore, type TaskRecord } from "@/components/tasks/taskStore";
+import { taskStore, nextVersion, type TaskRecord } from "@/components/tasks/taskStore";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -72,7 +72,7 @@ export default function TaskEditor() {
 
   const [name, setName] = useState<string>(hydrated?.name ?? taskRecord?.name ?? "Untitled task");
   const [description, setDescription] = useState<string>(hydrated?.description ?? taskRecord?.purpose ?? "");
-  const [history, setHistory] = useState(hydrated?.history ?? taskRecord?.history ?? [{ id: "v1", commit: "Initial", at: Date.now(), active: true }]);
+  const [history, setHistory] = useState(hydrated?.history ?? taskRecord?.history ?? [{ id: "1.0.0", commit: "Initial", at: Date.now(), active: true }]);
 
   const initial = useMemo(() => {
     if (hydrated?.nodes && hydrated?.edges) return { nodes: hydrated.nodes, edges: hydrated.edges };
@@ -228,7 +228,7 @@ export default function TaskEditor() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="h-9 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5">
-                <History size={13} /> {history.find((h: any) => h.active)?.id ?? "v1"} <ChevronDown size={11} />
+                <History size={13} /> {history.find((h: any) => h.active)?.id ?? "1.0.0"} <ChevronDown size={11} />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-80 p-1">
@@ -357,7 +357,7 @@ export default function TaskEditor() {
         taskId={taskId}
         taskName={name}
         existingNames={history.map((h: any) => h.id)}
-        defaultVersionName={`Version ${history.length + 1}`}
+        defaultVersionName={nextVersion(history)}
         onPublish={doPublish}
       />
 

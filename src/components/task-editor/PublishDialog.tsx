@@ -19,6 +19,8 @@ interface Props {
   onPublish: (name: string, note: string) => void;
 }
 
+const VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
+
 export default function PublishDialog({ open, onClose, agentId, taskId, taskName, existingNames, defaultVersionName, onPublish }: Props) {
   const [vname, setVname] = useState(defaultVersionName);
   const [note, setNote] = useState("");
@@ -27,7 +29,8 @@ export default function PublishDialog({ open, onClose, agentId, taskId, taskName
   useEffect(() => { if (open) { setVname(defaultVersionName); setNote(""); } }, [open, defaultVersionName]);
 
   const dupName = existingNames.some(n => n.toLowerCase() === vname.trim().toLowerCase());
-  const nameOk = vname.trim().length > 0 && vname.length <= 50 && !dupName;
+  const formatOk = VERSION_PATTERN.test(vname.trim());
+  const nameOk = vname.trim().length > 0 && formatOk && !dupName;
   const noteOk = note.length <= 1000;
 
   // Mock cross-references
@@ -59,14 +62,19 @@ export default function PublishDialog({ open, onClose, agentId, taskId, taskName
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <label className="text-xs font-medium mb-1 block">Version name <span className="text-destructive">*</span></label>
+            <label className="text-xs font-medium mb-1 block">Version <span className="text-destructive">*</span></label>
             <input
-              autoFocus value={vname} maxLength={50}
+              autoFocus value={vname} maxLength={20}
+              placeholder="1.0.0"
               onChange={e => setVname(e.target.value)}
-              className="w-full h-9 px-2 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary"
+              className={`w-full h-9 px-2 rounded-lg border bg-surface text-sm font-mono outline-none ${
+                vname.trim().length > 0 && !formatOk ? "border-destructive focus:border-destructive" : "border-border focus:border-primary"
+              }`}
             />
-            {dupName && <p className="text-[11px] text-destructive mt-1">Version name already exists.</p>}
-            <p className="text-[10px] text-muted-foreground mt-1">{vname.length}/50</p>
+            {vname.trim().length > 0 && !formatOk && (
+              <p className="text-[11px] text-destructive mt-1">Format must be x.x.x, numbers only (e.g. 1.0.2).</p>
+            )}
+            {formatOk && dupName && <p className="text-[11px] text-destructive mt-1">This version already exists.</p>}
           </div>
           <div>
             <label className="text-xs font-medium mb-1 block">Release note (optional)</label>

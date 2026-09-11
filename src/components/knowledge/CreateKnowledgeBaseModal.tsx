@@ -9,9 +9,11 @@ import {
 import { Loader2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import {
-  knowledgeBaseStore, CURRENT_USER, type KnowledgeBase, type Sharing, type SharingMode,
+  knowledgeBaseStore, CURRENT_USER, DEFAULT_QUERY_SHARING,
+  type KnowledgeBase, type Sharing, type SharingMode, type QuerySharing,
 } from "./knowledgeBaseStore";
 import MemberPicker from "./MemberPicker";
+import QueryScopeSection, { RadioCard, isQueryScopeValid } from "./QueryScopeSection";
 
 const NAME_MAX = 50;
 const DESC_MAX = 256;
@@ -35,6 +37,7 @@ export default function CreateKnowledgeBaseModal({
   const [description, setDescription] = useState(editingKb?.description ?? "");
   const [sharingMode, setSharingMode] = useState<SharingMode>(editingKb?.sharing.mode ?? "private");
   const [people, setPeople] = useState(editingKb?.sharing.people ?? []);
+  const [querySharing, setQuerySharing] = useState<QuerySharing>(editingKb?.querySharing ?? DEFAULT_QUERY_SHARING);
   const [nameTouched, setNameTouched] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -54,7 +57,9 @@ export default function CreateKnowledgeBaseModal({
   const peopleError = sharingMode === "specific" && people.length === 0;
 
   const isDirty = trimmedName !== (editingKb?.name ?? "") || description.trim() !== (editingKb?.description ?? "") || sharingMode !== (editingKb?.sharing.mode ?? "private");
-  const canSubmit = trimmedName.length > 0 && trimmedName.length <= NAME_MAX && (sharingMode !== "specific" || people.length > 0);
+  const canSubmit = trimmedName.length > 0 && trimmedName.length <= NAME_MAX
+    && (sharingMode !== "specific" || people.length > 0)
+    && (isEdit || isQueryScopeValid(querySharing));
 
   const requestClose = () => {
     if (isDirty) setShowDiscardConfirm(true);
@@ -79,7 +84,7 @@ export default function CreateKnowledgeBaseModal({
           toast.success(`Đã lưu kho tri thức "${trimmedName}".`);
           onCreated?.(knowledgeBaseStore.get(editingKb.id)!);
         } else {
-          const kb = knowledgeBaseStore.create({ name: trimmedName, description: description.trim(), type: "internal", sharing });
+          const kb = knowledgeBaseStore.create({ name: trimmedName, description: description.trim(), type: "internal", sharing, querySharing });
           toast.success(`Đã tạo kho tri thức "${trimmedName}".`);
           onCreated?.(kb);
         }
@@ -95,7 +100,7 @@ export default function CreateKnowledgeBaseModal({
   return (
     <>
       <Dialog open={open} onOpenChange={v => { if (!v) requestClose(); }}>
-        <DialogContent className="sm:max-w-[520px]" onOpenAutoFocus={e => e.preventDefault()}>
+        <DialogContent className="sm:max-w-[520px] max-h-[85vh] overflow-y-auto" onOpenAutoFocus={e => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>{isEdit ? "Chỉnh sửa kho tri thức" : "Tạo kho tri thức"}</DialogTitle>
           </DialogHeader>
@@ -142,40 +147,34 @@ export default function CreateKnowledgeBaseModal({
             </div>
 
             {!isEdit && (
-              <div>
-                <label className="text-sm font-medium mb-2 block">Quyền truy cập</label>
-                <div className="space-y-2">
-                  {SHARING_OPTIONS.map(opt => {
-                    const selected = sharingMode === opt.value;
-                    return (
-                      <div key={opt.value}>
-                        <div
-                          onClick={() => setSharingMode(opt.value)}
-                          className={`flex items-start gap-3 px-3.5 py-3 rounded-xl border cursor-pointer transition-base ${
-                            selected ? "border-primary bg-primary/5" : "border-border bg-white hover:bg-surface-muted"
-                          }`}
-                        >
-                          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${selected ? "border-primary" : "border-border"}`}>
-                            {selected && <div className="w-2 h-2 rounded-full bg-primary" />}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="text-sm font-medium">{opt.label}</div>
-                            {opt.helper && <div className="text-xs text-muted-foreground mt-0.5">{opt.helper}</div>}
-                          </div>
-                        </div>
-                        {selected && opt.value === "specific" && (
-                          <div className="mt-2 pl-3.5">
+              <>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Quyền truy cập</label>
+                  <div className="space-y-2">
+                    {SHARING_OPTIONS.map(opt => (
+                      <RadioCard key={opt.value} selected={sharingMode === opt.value} onSelect={() => setSharingMode(opt.value)} label={opt.label} helper={opt.helper}>
+                        {opt.value === "specific" && (
+                          <>
                             <MemberPicker value={people} onChange={setPeople} ownerRow={{ name: CURRENT_USER.name, email: CURRENT_USER.email }} />
                             {peopleError && submitAttempted && (
                               <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người để chia sẻ.</p>
                             )}
-                          </div>
+                          </>
                         )}
-                      </div>
-                    );
-                  })}
+                      </RadioCard>
+                    ))}
+                  </div>
                 </div>
-              </div>
+
+                <div className="border-t border-border pt-5">
+                  <QueryScopeSection
+                    value={querySharing}
+                    onChange={setQuerySharing}
+                    submitAttempted={submitAttempted}
+                    ownerRow={{ name: CURRENT_USER.name, email: CURRENT_USER.email }}
+                  />
+                </div>
+              </>
             )}
           </div>
 
