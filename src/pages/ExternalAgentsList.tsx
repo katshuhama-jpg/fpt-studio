@@ -378,9 +378,13 @@ export default function ExternalAgentsList() {
         open={showConnect || !!editTarget}
         existing={editTarget ?? undefined}
         onClose={() => { setShowConnect(false); setEditTarget(null); }}
-        onSaved={(agent, isNew) => {
+        onSaved={(agent, isNew, _unpublished, openPublish) => {
           setShowConnect(false);
           setEditTarget(null);
+          if (openPublish) {
+            navigate(`/external-agents/${agent.id}?openPublish=1`);
+            return;
+          }
           if (isNew) {
             toast.success(`"${agent.name}" saved as draft. Submit it for approval when you're ready.`);
             navigate(`/external-agents/${agent.id}`);

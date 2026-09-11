@@ -147,6 +147,19 @@ export default function ExternalAgentDetail() {
   const refresh = () => setAgent(externalAgentStore.get(id));
   const hardRefresh = () => setTick(t => t + 1);
 
+  // Lets other pages (e.g. the list view, after creating/editing an agent) hand off into
+  // opening the Publish modal here via a one-shot ?openPublish=1 query param.
+  useEffect(() => {
+    if (params.get("openPublish") === "1") {
+      setShowPublishModal(true);
+      setParams(prev => {
+        const next = new URLSearchParams(prev);
+        next.delete("openPublish");
+        return next;
+      }, { replace: true });
+    }
+  }, [params, setParams]);
+
   if (loadState === "loading") {
     return (
       <div className="flex flex-col h-full bg-background">
@@ -647,10 +660,11 @@ export default function ExternalAgentDetail() {
         open={showEdit}
         existing={agent}
         onClose={() => setShowEdit(false)}
-        onSaved={(_, __, unpublished) => {
+        onSaved={(_, __, unpublished, openPublish) => {
           setShowEdit(false);
           if (unpublished) setJustUnpublished(true);
           refresh();
+          if (openPublish) setShowPublishModal(true);
         }}
       />
 
