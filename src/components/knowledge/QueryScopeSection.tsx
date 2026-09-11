@@ -1,7 +1,7 @@
 import { useMemo, type ReactNode } from "react";
 import { Check } from "lucide-react";
 import { useOrg } from "@/pages/organization/orgStore";
-import { collectUnitsWithDepth } from "@/pages/organization/orgData";
+import { collectUnitsWithDepth, collectUnits } from "@/pages/organization/orgData";
 import MemberPicker from "./MemberPicker";
 import { type QuerySharing, type QueryScopeMode, type SharedPerson } from "./knowledgeBaseStore";
 
@@ -34,16 +34,37 @@ export function RadioCard({ selected, onSelect, label, helper, children }: {
 
 /** "Chọn phòng ban" picker for QuerySharing's department mode — a simple checklist over the org
  * tree's units (flattened, indented by depth), since this prototype has no separate
- * department/team entity distinct from OrgUnit. */
+ * department/team entity distinct from OrgUnit.
+ *
+ * Checking a parent unit also checks every unit nested under it (and unchecking it clears them
+ * too) — picking "Vietnam Delivery" should cover "Platform Engineering", "AI/ML", etc. without
+ * making the person hunt down and tick each child individually. A child can still be
+ * checked/unchecked on its own; that never changes its parent's own checked state. Parents with
+ * only some of their children checked show a dash instead of a checkmark, so partial coverage is
+ * visible at a glance rather than looking identical to "nothing selected here". */
 function DepartmentPicker({ value, onChange }: { value: string[]; onChange: (next: string[]) => void }) {
   const { tree } = useOrg();
   const units = useMemo(() => collectUnitsWithDepth(tree), [tree]);
-  const toggle = (id: string) => onChange(value.includes(id) ? value.filter(v => v !== id) : [...value, id]);
+  const unitsById = useMemo(() => new Map(units.map(({ unit }) => [unit.id, unit])), [units]);
+  const selected = useMemo(() => new Set(value), [value]);
+
+  const toggle = (id: string) => {
+    const unit = unitsById.get(id);
+    const descendantIds = unit ? collectUnits(unit).map(u => u.id) : [];
+    const affected = [id, ...descendantIds];
+    if (selected.has(id)) {
+      onChange(value.filter(v => !affected.includes(v)));
+    } else {
+      onChange(Array.from(new Set([...value, ...affected])));
+    }
+  };
 
   return (
     <div className="max-h-56 overflow-y-auto rounded-lg border border-border bg-white divide-y divide-border">
       {units.map(({ unit, depth }) => {
-        const checked = value.includes(unit.id);
+        const checked = selected.has(unit.id);
+        const descendantIds = collectUnits(unit).map(u => u.id);
+        const partiallyChecked = !checked && descendantIds.length > 0 && descendantIds.some(id => selected.has(id));
         return (
           <button
             key={unit.id}
@@ -52,8 +73,9 @@ function DepartmentPicker({ value, onChange }: { value: string[]; onChange: (nex
             style={{ paddingLeft: `${12 + (depth - 1) * 16}px` }}
             className="w-full flex items-center gap-2.5 pr-3 py-2 text-left hover:bg-surface-muted transition-base"
           >
-            <div className={`w-4 h-4 rounded shrink-0 border-2 flex items-center justify-center ${checked ? "bg-primary border-primary" : "border-border"}`}>
+            <div className={`w-4 h-4 rounded shrink-0 border-2 flex items-center justify-center ${checked || partiallyChecked ? "bg-primary border-primary" : "border-border"}`}>
               {checked && <Check size={11} className="text-primary-foreground" />}
+              {partiallyChecked && <div className="w-2 h-0.5 rounded-full bg-primary-foreground" />}
             </div>
             <span className="text-sm truncate">{unit.name}</span>
           </button>
