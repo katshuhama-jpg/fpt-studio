@@ -14,16 +14,29 @@ import MemberPicker from "./MemberPicker";
 import FileTypeIcon from "./FileTypeIcon";
 import { formatFileSize } from "./formatFileSize";
 
-const ALLOWED_EXT = ["txt", "md", "pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx"];
+const ALLOWED_EXT = ["txt", "md", "pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "html", "json"];
 const ACCEPT_ATTR = ALLOWED_EXT.map(ext => `.${ext}`).join(",");
 const MAX_FILES = 10;
 const MAX_SIZE = 30 * 1024 * 1024;
 const MAX_FILES_MSG = "Chỉ có thể tải tối đa 10 tệp mỗi lần. Vui lòng bỏ bớt tệp hoặc chia thành nhiều lần tải.";
 const MAX_SIZE_MSG = "Tệp vượt quá 30MB. Vui lòng nén hoặc chia nhỏ tệp trước khi tải lên.";
+const FORMAT_HELPER_TEXT = `Hỗ trợ ${ALLOWED_EXT.map(ext => ext.toUpperCase()).join(", ")} · Tối đa ${MAX_FILES} tệp mỗi lần · ${MAX_SIZE / (1024 * 1024)}MB mỗi tệp`;
 
 const ACCESS_OPTIONS: { value: SharingMode; label: string; helper?: string }[] = [
   { value: "private", label: "Chỉ mình tôi" },
   { value: "all", label: "Tất cả người dùng Console", helper: "Mọi thành viên Console đều xem và dùng được kho này." },
+  { value: "specific", label: "Người dùng cụ thể" },
+];
+
+/** Runtime query-scope options — a distinct concept from ACCESS_OPTIONS above: that field
+ * controls who can see/manage this document in Console, while this one controls which chat
+ * end-users the Agent is allowed to draw on this document's content for when answering. Reuses
+ * the same 3-value SharingMode shape (private/all/specific) since the option set happens to
+ * match, but the two fields are otherwise independent — this one isn't yet persisted to any
+ * store field. */
+const QUERY_SCOPE_OPTIONS: { value: SharingMode; label: string }[] = [
+  { value: "private", label: "Chỉ mình tôi" },
+  { value: "all", label: "Tất cả người dùng Console" },
   { value: "specific", label: "Người dùng cụ thể" },
 ];
 
@@ -64,12 +77,13 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
   const [dragOver, setDragOver] = useState(false);
   const [accessMode, setAccessMode] = useState<SharingMode>("private");
   const [accessPeople, setAccessPeople] = useState<SharedPerson[]>([]);
+  const [queryScopeMode, setQueryScopeMode] = useState<SharingMode>("private");
   // Name conflicts are resolved one at a time via a choice dialog before the file is staged —
   // this queue holds the ones still waiting on a choice.
   const [duplicateQueue, setDuplicateQueue] = useState<File[]>([]);
 
   useEffect(() => { if (open) setFolderId(initialFolderId); }, [open, initialFolderId]);
-  useEffect(() => { if (open) { setAccessMode("private"); setAccessPeople([]); setDuplicateQueue([]); } }, [open]);
+  useEffect(() => { if (open) { setAccessMode("private"); setAccessPeople([]); setQueryScopeMode("private"); setDuplicateQueue([]); } }, [open]);
 
   const accessInvalid = accessMode === "specific" && accessPeople.length === 0;
 
@@ -236,10 +250,7 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
               onChange={e => { if (e.target.files) addFiles(e.target.files); e.target.value = ""; }}
             />
           </div>
-          <div className="space-y-1">
-            <p className="text-xs text-foreground">Tối đa 10 tệp mỗi lần tải.</p>
-            <p className="text-xs text-foreground">Dung lượng tối đa 30MB mỗi tệp.</p>
-          </div>
+          <p className="text-xs text-foreground">{FORMAT_HELPER_TEXT}</p>
 
           {!agentId && (
             <div>
@@ -284,6 +295,34 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
                         )}
                       </div>
                     )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium mb-1 block">Phạm vi truy vấn tài liệu</label>
+            <p className="text-xs text-muted-foreground mb-2">
+              Quyết định Agent có được dùng nội dung tài liệu này để trả lời một người dùng cụ thể hay không, kể cả khi Agent đã được publish cho người đó.
+            </p>
+            <div className="space-y-2">
+              {QUERY_SCOPE_OPTIONS.map(opt => {
+                const selected = queryScopeMode === opt.value;
+                return (
+                  <div
+                    key={opt.value}
+                    onClick={() => setQueryScopeMode(opt.value)}
+                    className={`flex items-start gap-3 px-3.5 py-3 rounded-xl border cursor-pointer transition-base ${
+                      selected ? "border-primary bg-primary/5" : "border-border bg-white hover:bg-surface-muted"
+                    }`}
+                  >
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${selected ? "border-primary" : "border-border"}`}>
+                      {selected && <div className="w-2 h-2 rounded-full bg-primary" />}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium">{opt.label}</div>
+                    </div>
                   </div>
                 );
               })}
