@@ -39,6 +39,13 @@ export interface KnowledgeItem {
   /** kind:"faq" items only — same free-text category tags as a Console KB's FAQ, shown in the
    * Knowledge tab's Danh mục column. doc/url items never set this. */
   categories?: string[];
+  /** Other Agent ids also currently relying on this exact item's content — informational only
+   * (mirrors knowledgeBaseStore's attachedByAgentIds for a whole KB, at the individual-item
+   * level), surfaced in "Xóa hẳn"'s confirmation so a permanent delete can warn about every
+   * Agent that would lose this source, not just this one. There is no UI to add to this list yet
+   * (no "share this item to another Agent" flow exists) — it exists so that warning is genuinely
+   * computed rather than hardcoded, ready for such a flow to populate it later. */
+  attachedAgentIds?: string[];
   createdAt?: number;
   updatedAt: number;
   updatedBy: string;
@@ -73,7 +80,7 @@ function seedAgent(agentId: string) {
 
   if (agentId === "cskh") {
     put({ id: "kn-cskh-1", agentId, kind: "doc", name: "Kịch bản trả lời khiếu nại.pdf", description: "Kịch bản chuẩn cho tổng đài viên khi tiếp nhận khiếu nại.", status: "done", chunkCount: 12, sizeBytes: 480_000, version: 1, createdAt: now - 10 * DAY, updatedAt: now - 2 * DAY, updatedBy: "Tran Nam" });
-    put({ id: "kn-cskh-2", agentId, kind: "doc", name: "Mẫu email chăm sóc khách hàng.docx", description: "Các mẫu email phản hồi khách hàng theo từng tình huống.", status: "done", chunkCount: 8, sizeBytes: 210_000, version: 1, sharing: { mode: "all", people: [] }, createdAt: now - 8 * DAY, updatedAt: now - 6 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "kn-cskh-2", agentId, kind: "doc", name: "Mẫu email chăm sóc khách hàng.docx", description: "Các mẫu email phản hồi khách hàng theo từng tình huống.", status: "done", chunkCount: 8, sizeBytes: 210_000, version: 1, sharing: { mode: "all", people: [] }, attachedAgentIds: ["hr"], createdAt: now - 8 * DAY, updatedAt: now - 6 * DAY, updatedBy: "Tran Nam" });
     put({ id: "kn-cskh-3", agentId, kind: "url", name: "https://abcbank.com/cskh/lien-he", title: "Liên hệ chăm sóc khách hàng", description: "", status: "processing", chunkCount: 0, version: 1, sharing: sharedWith([
       { userId: "m-linh", name: "Linh Phan", email: "linh.phan@fpt.com", access: "view" },
       { userId: "m-mai", name: "Mai Hoang", email: "mai.hoang@fpt.com", access: "edit" },

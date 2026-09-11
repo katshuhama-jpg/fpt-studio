@@ -1144,9 +1144,14 @@ function MoreLink({ count, onClick }: { count: number; onClick: () => void }) {
 const KNOWLEDGE_SOURCE_ROW_MENU_WIDTH = 176; // w-44
 const KNOWLEDGE_SOURCE_ROW_MENU_HEIGHT_ESTIMATE = 90; // 2 items + container padding
 
-function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, openLabel = "Mở nguồn tri thức", removeLabel = "Gỡ nguồn tri thức", disabled = false, disabledReason = "Nguồn tri thức đang được xử lý.", href, twoLine = false }: {
+function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, openLabel = "Mở nguồn tri thức", removeLabel = "Gỡ nguồn tri thức", secondaryActions, disabled = false, disabledReason = "Nguồn tri thức đang được xử lý.", href, twoLine = false }: {
   icon: any; name: string; chip: React.ReactNode; onOpen: () => void; onRemove: () => void;
   openLabel?: string; removeLabel?: string; disabled?: boolean; disabledReason?: string;
+  /** Extra actions rendered between "open" and the always-last, red "remove" action — used only
+   * by an Agent's own uploaded item ("Gỡ khỏi Agent", non-destructive) so it can offer that
+   * alongside the fully-destructive removeLabel ("Xóa hẳn") without changing what a linked
+   * Console KB row's single "Gỡ liên kết" action does. */
+  secondaryActions?: { label: string; onClick: () => void }[];
   /** When set, opens in a new tab via a real anchor instead of calling onOpen in-place — used
    * for a linked Console knowledge group so it never navigates the Agent Builder away from
    * unsaved Instructions edits. */
@@ -1208,6 +1213,9 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, openLabel = "M
       ) : (
         <button onClick={() => { setOpen(false); onOpen(); }} className="w-full text-left px-3 py-1.5 text-sm hover:bg-surface-muted transition-base">{openLabel}</button>
       )}
+      {secondaryActions?.map(a => (
+        <button key={a.label} onClick={() => { setOpen(false); a.onClick(); }} className="w-full text-left px-3 py-1.5 text-sm hover:bg-surface-muted transition-base">{a.label}</button>
+      ))}
       <button onClick={() => { setOpen(false); onRemove(); }} className="w-full text-left px-3 py-1.5 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">{removeLabel}</button>
     </div>
   );
@@ -1588,16 +1596,21 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
       <AlertDialog open={!!detachItemTarget} onOpenChange={v => !v && setDetachItemTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Gỡ "{detachItemTarget?.name}" khỏi Agent này?</AlertDialogTitle>
-            <AlertDialogDescription>Tài liệu vẫn được giữ trong kho tri thức của bạn và có thể gán lại cho Agent khác. Agent này sẽ không còn dùng tài liệu này để trả lời.</AlertDialogDescription>
+            <AlertDialogTitle>Gỡ tài liệu khỏi Agent?</AlertDialogTitle>
+            <AlertDialogDescription>Agent sẽ không còn tra cứu được nội dung này. Tài liệu vẫn được giữ nguyên trong Kho tri thức của bạn.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
             <AlertDialogAction
               className="bg-surface text-foreground border border-border hover:bg-surface-muted"
-              onClick={() => { if (detachItemTarget) knowledgeStore.detachFromAgent(agentId, detachItemTarget.id); setDetachItemTarget(null); refresh(); }}
+              onClick={() => {
+                if (detachItemTarget) knowledgeStore.detachFromAgent(agentId, detachItemTarget.id);
+                setDetachItemTarget(null);
+                refresh();
+                toast.success("Đã gỡ khỏi Agent.");
+              }}
             >
-              Gỡ
+              Gỡ khỏi Agent
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1606,8 +1619,20 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
       <AlertDialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Xóa nguồn tri thức này?</AlertDialogTitle>
-            <AlertDialogDescription>Nội dung và toàn bộ chunk sẽ bị xóa vĩnh viễn khỏi Agent. Hành động này không thể hoàn tác.</AlertDialogDescription>
+            <AlertDialogTitle>Xóa hẳn tài liệu này?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>Tài liệu sẽ bị xóa vĩnh viễn khỏi toàn bộ hệ thống, kể cả các Agent khác đang dùng chung tài liệu này. Hành động này không thể hoàn tác.</p>
+                {!!deleteTarget?.attachedAgentIds?.length && (
+                  <div className="flex items-start gap-2.5 rounded-lg border border-destructive/25 bg-[hsl(var(--destructive-soft))] px-3.5 py-3">
+                    <HugeiconsIcon icon={Alert01Icon} size={14} className="shrink-0 mt-0.5 text-destructive" />
+                    <p className="text-xs text-destructive leading-relaxed">
+                      {deleteTarget.attachedAgentIds.length} Agent khác đang dùng chung tài liệu này và sẽ mất nguồn tra cứu: {deleteTarget.attachedAgentIds.map(id => getAgent(id).name).join(", ")}.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
@@ -1615,7 +1640,7 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => { if (deleteTarget) knowledgeStore.remove(agentId, deleteTarget.id); setDeleteTarget(null); refresh(); }}
             >
-              Xóa
+              Xóa hẳn
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1692,7 +1717,7 @@ function KnowledgeItemRowMenu({ onOpen, openLabel = "Mở", onShare, onPromote, 
           </Tooltip>
           <button onClick={() => { setOpen(false); onDetach(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Gỡ khỏi Agent</button>
           <div className="mt-1 pt-1 border-t border-border">
-            <button onClick={() => { setOpen(false); onDelete(); }} className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">Xóa</button>
+            <button onClick={() => { setOpen(false); onDelete(); }} className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">Xóa hẳn</button>
           </div>
         </div>,
         document.body,
@@ -4413,7 +4438,8 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
   const [showAddUrl, setShowAddUrl] = useState(false);
   const [showAddFaq, setShowAddFaq] = useState(false);
   const [detachTarget, setDetachTarget] = useState<{ id: string; name: string } | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [detachItemTarget, setDetachItemTarget] = useState<{ id: string; name: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string; attachedAgentIds?: string[] } | null>(null);
   const [editFaqTarget, setEditFaqTarget] = useState<KnowledgeItem | null>(null);
   const refresh = () => setTick(t => t + 1);
   void tick;
@@ -4434,7 +4460,11 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
     .map(id => knowledgeBaseStore.get(id))
     .filter((kb): kb is NonNullable<typeof kb> => !!kb);
 
-  type Row = { key: string; name: string; icon: any; open: () => void; openLabel?: string; remove: () => void; chip: React.ReactNode; disabled?: boolean; disabledReason?: string; href?: string };
+  type Row = {
+    key: string; name: string; icon: any; open: () => void; openLabel?: string; remove: () => void; removeLabel?: string;
+    secondaryActions?: { label: string; onClick: () => void }[];
+    chip: React.ReactNode; disabled?: boolean; disabledReason?: string; href?: string;
+  };
   const rows: Row[] = [
     ...attachedKbs.map(kb => ({
       key: `kb-${kb.id}`,
@@ -4461,7 +4491,9 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
         // the document/chunk viewer.
         open: () => item.kind === "faq" ? setEditFaqTarget(item) : setParams({ tab: "build", section: "knowledge", itemId: item.id }),
         openLabel: item.kind === "faq" ? "Sửa FAQ" : undefined,
-        remove: () => setDeleteTarget({ id: item.id, name: item.name }),
+        remove: () => setDeleteTarget({ id: item.id, name: item.name, attachedAgentIds: item.attachedAgentIds }),
+        removeLabel: "Xóa hẳn",
+        secondaryActions: [{ label: "Gỡ khỏi Agent", onClick: () => setDetachItemTarget({ id: item.id, name: item.name }) }],
         // Processing status and ownership are independent — show both together instead of
         // hiding ownership whenever a status pill is present, so an in-progress item still
         // says who it belongs to.
@@ -4501,7 +4533,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
       ) : (
         <div className="flex flex-col gap-1.5">
           {shown.map(row => (
-            <KnowledgeSourceRow key={row.key} icon={row.icon} name={row.name} chip={row.chip} onOpen={row.open} openLabel={row.openLabel} onRemove={row.remove} disabled={row.disabled} disabledReason={row.disabledReason} href={row.href} twoLine />
+            <KnowledgeSourceRow key={row.key} icon={row.icon} name={row.name} chip={row.chip} onOpen={row.open} openLabel={row.openLabel} onRemove={row.remove} removeLabel={row.removeLabel} secondaryActions={row.secondaryActions} disabled={row.disabled} disabledReason={row.disabledReason} href={row.href} twoLine />
           ))}
           {rows.length > 4 && (
             <button onClick={() => setParams({ tab: "build", section: "knowledge" })} className="text-xs text-primary hover:underline text-left mt-0.5">
@@ -4554,11 +4586,46 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
         </AlertDialogContent>
       </AlertDialog>
 
+      <AlertDialog open={!!detachItemTarget} onOpenChange={v => !v && setDetachItemTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Gỡ tài liệu khỏi Agent?</AlertDialogTitle>
+            <AlertDialogDescription>Agent sẽ không còn tra cứu được nội dung này. Tài liệu vẫn được giữ nguyên trong Kho tri thức của bạn.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-surface text-foreground border border-border hover:bg-surface-muted"
+              onClick={() => {
+                if (detachItemTarget) knowledgeStore.detachFromAgent(agentId, detachItemTarget.id);
+                setDetachItemTarget(null);
+                refresh();
+                toast.success("Đã gỡ khỏi Agent.");
+              }}
+            >
+              Gỡ khỏi Agent
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Xóa nguồn tri thức này?</AlertDialogTitle>
-            <AlertDialogDescription>Nội dung và toàn bộ chunk sẽ bị xóa vĩnh viễn khỏi Agent. Hành động này không thể hoàn tác.</AlertDialogDescription>
+            <AlertDialogTitle>Xóa hẳn tài liệu này?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>Tài liệu sẽ bị xóa vĩnh viễn khỏi toàn bộ hệ thống, kể cả các Agent khác đang dùng chung tài liệu này. Hành động này không thể hoàn tác.</p>
+                {!!deleteTarget?.attachedAgentIds?.length && (
+                  <div className="flex items-start gap-2.5 rounded-lg border border-destructive/25 bg-[hsl(var(--destructive-soft))] px-3.5 py-3">
+                    <HugeiconsIcon icon={Alert01Icon} size={14} className="shrink-0 mt-0.5 text-destructive" />
+                    <p className="text-xs text-destructive leading-relaxed">
+                      {deleteTarget.attachedAgentIds.length} Agent khác đang dùng chung tài liệu này và sẽ mất nguồn tra cứu: {deleteTarget.attachedAgentIds.map(id => getAgent(id).name).join(", ")}.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
@@ -4566,7 +4633,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => { if (deleteTarget) knowledgeStore.remove(agentId, deleteTarget.id); setDeleteTarget(null); refresh(); }}
             >
-              Xóa
+              Xóa hẳn
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
