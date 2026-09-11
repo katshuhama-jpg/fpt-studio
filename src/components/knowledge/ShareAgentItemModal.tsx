@@ -19,15 +19,15 @@ import { knowledgeStore, type KnowledgeItem } from "./knowledgeStore";
 
 const BUILD_ACCESS_OPTIONS: { value: SharingMode; label: string; helper?: string }[] = [
   { value: "private", label: "Chỉ mình tôi" },
-  { value: "all", label: "Tất cả người dùng Console", helper: "Mọi builder trong Console đều thấy và dùng được nội dung này khi xây Agent." },
-  { value: "specific", label: "Người dùng cụ thể", helper: "Chỉ những người bạn chọn trong Console mới dùng được." },
+  { value: "all", label: "Cả Console", helper: "Mọi builder đều dùng được." },
+  { value: "specific", label: "Người cụ thể", helper: "Chỉ người bạn chọn." },
 ];
 
 const QUERY_SCOPE_OPTIONS: { value: QueryScopeMode; label: string; helper?: string }[] = [
-  { value: "private", label: "Chỉ mình tôi", helper: "Agent chỉ dùng nội dung này khi chính bạn trò chuyện thử." },
-  { value: "all_org", label: "Tất cả tổ chức", helper: "Agent có thể dùng nội dung này để trả lời bất kỳ ai trong tổ chức." },
-  { value: "department", label: "Theo phòng ban", helper: "Agent chỉ dùng nội dung này khi trả lời người thuộc (các) phòng ban đã chọn." },
-  { value: "specific", label: "Người dùng cụ thể", helper: "Agent chỉ dùng nội dung này khi trả lời đúng những người bạn chọn." },
+  { value: "private", label: "Chỉ mình tôi", helper: "Chỉ khi bạn tự chat thử." },
+  { value: "all_org", label: "Cả tổ chức", helper: "Trả lời mọi người trong tổ chức." },
+  { value: "department", label: "Theo phòng ban", helper: "Chỉ người trong phòng ban đã chọn." },
+  { value: "specific", label: "Người cụ thể", helper: "Chỉ đúng người bạn chọn." },
 ];
 
 function RadioCard({ selected, onSelect, label, helper, children }: {
@@ -89,9 +89,9 @@ function DepartmentPicker({ value, onChange }: { value: string[]; onChange: (nex
  * bucket) — replaces what used to be two separate row actions ("Chia sẻ" and "Chuyển thành kho
  * tri thức chung") with a single popup covering two independent permission questions:
  *
- * 1. `Sharing`/`SharingMode` ("Quyền dùng để xây Agent khác") — same model a Console KB uses:
+ * 1. `Sharing`/`SharingMode` ("Quyền xây Agent") — same model a Console KB uses:
  *    which OTHER BUILDERS can see/reuse this item in Console when building their own Agents.
- * 2. `QuerySharing`/`QueryScopeMode` ("Ai được đọc / Agent dùng để trả lời") — a new, independent
+ * 2. `QuerySharing`/`QueryScopeMode` ("Phạm vi trả lời") — a new, independent
  *    axis controlling which END USERS an already-published Agent may draw on this item for when
  *    answering a live chat. A "Chỉ mình tôi" item can still be answered broadly, and a
  *    "Tất cả người dùng Console" item can still be answer-restricted — the two questions don't
@@ -158,7 +158,8 @@ export default function ShareAgentItemModal({ agentId, items, onClose }: {
 
           <div className="space-y-6 py-1">
             <div>
-              <label className="text-sm font-medium mb-2 block">Quyền dùng để xây Agent khác</label>
+              <label className="text-sm font-medium block">Quyền xây Agent</label>
+              <p className="text-xs text-muted-foreground mt-0.5 mb-2.5">Ai được dùng tài liệu này để xây Agent trong Console.</p>
               <div className="space-y-2">
                 {BUILD_ACCESS_OPTIONS.map(opt => (
                   <RadioCard key={opt.value} selected={buildMode === opt.value} onSelect={() => setBuildMode(opt.value)} label={opt.label} helper={opt.helper}>
@@ -171,13 +172,11 @@ export default function ShareAgentItemModal({ agentId, items, onClose }: {
                   </RadioCard>
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground leading-relaxed mt-2">
-                Áp dụng cho việc quản lý và tái sử dụng nội dung trong Console — không ảnh hưởng đến việc Agent trả lời ai khi trò chuyện.
-              </p>
             </div>
 
             <div className="border-t border-border pt-5">
-              <label className="text-sm font-medium mb-2 block">Ai được đọc / Agent dùng để trả lời</label>
+              <label className="text-sm font-medium block">Phạm vi trả lời</label>
+              <p className="text-xs text-muted-foreground mt-0.5 mb-2.5">Agent đã publish dùng tài liệu này để trả lời ai.</p>
               <div className="space-y-2">
                 {QUERY_SCOPE_OPTIONS.map(opt => (
                   <RadioCard key={opt.value} selected={queryMode === opt.value} onSelect={() => setQueryMode(opt.value)} label={opt.label} helper={opt.helper}>
@@ -196,9 +195,6 @@ export default function ShareAgentItemModal({ agentId, items, onClose }: {
                   </RadioCard>
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground leading-relaxed mt-2">
-                Kiểm soát Agent (sau khi publish) được phép dùng nội dung này để trả lời ai — độc lập với việc Agent được publish cho ai.
-              </p>
             </div>
           </div>
 
