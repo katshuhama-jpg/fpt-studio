@@ -5,13 +5,13 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { knowledgeChunkStore, type ChunkSourceType, type KnowledgeChunk, type ChunkContentType } from "./knowledgeChunkStore";
+import { knowledgeChunkStore, type ChunkSourceType, type KnowledgeChunk, type ChunkContentType, type ChunkBBox } from "./knowledgeChunkStore";
 import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
 import { knowledgeUrlStore, type UrlSource } from "./knowledgeUrlStore";
 import { knowledgeStore } from "./knowledgeStore";
 import { KnowledgeStatusPill, type KnowledgeFaqStatus } from "./knowledgeStatus";
 import FileTypeIcon from "./FileTypeIcon";
-import DocumentPreviewPane, { MOCK_PAGES } from "./DocumentPreviewPane";
+import DocumentPreviewPane from "./DocumentPreviewPane";
 import HtmlTableEditor from "./HtmlTableEditor";
 
 const MOCK_CHUNK_SEED = [
@@ -76,12 +76,6 @@ function relativeTime(ts: number): string {
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `${hours} giờ trước`;
   return `${Math.floor(hours / 24)} ngày trước`;
-}
-
-/** Deterministic page assignment for a chunk (this prototype has no real per-chunk page
- * coordinates) — used to drive the two-way link between a chunk card and its preview page. */
-function pageForChunk(index: number): number {
-  return (index - 1) % MOCK_PAGES.length;
 }
 
 /** kbId doubles as agentId when sourceType is "agent-item" — the chunk store never filters by
@@ -152,17 +146,19 @@ export default function ChunkViewerModal({
 
   const selectChunk = (c: KnowledgeChunk) => {
     setSelectedChunkId(c.id);
-    setPage(pageForChunk(c.index));
-  };
-  const selectPage = (p: number) => {
-    setPage(p);
-    const onPage = filteredChunks.find(c => pageForChunk(c.index) === p);
-    if (onPage) {
-      setSelectedChunkId(onPage.id);
-      chunkRefs.current[onPage.id]?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }
+    setPage(c.bbox.page);
   };
   const gotoPage = (p: number) => { setPage(p); setSelectedChunkId(null); };
+
+  const onResizeChunk = (id: string, bbox: ChunkBBox) => {
+    knowledgeChunkStore.updateBBox(id, bbox);
+    refresh();
+  };
+  const onCreateChunkFromBox = (bbox: ChunkBBox) => {
+    const chunk = knowledgeChunkStore.add(kbId, sourceType, sourceId, { title: "Chunk mới", content: "", bbox });
+    refresh();
+    startEdit({ ...chunk });
+  };
 
   const startEdit = (c: KnowledgeChunk) => {
     setEditingId(c.id);
@@ -223,7 +219,9 @@ export default function ChunkViewerModal({
 
   const addChunkFromSelection = (text: string) => {
     const firstLine = text.split("\n")[0].slice(0, 60);
-    const chunk = knowledgeChunkStore.add(kbId, sourceType, sourceId, { title: firstLine, content: text });
+    const onThisPage = chunks.filter(c => c.bbox.page === page).length;
+    const bbox: ChunkBBox = { page, x: 8, y: Math.max(2, 6 + (onThisPage % 4) * 21), w: 76, h: 17 };
+    const chunk = knowledgeChunkStore.add(kbId, sourceType, sourceId, { title: firstLine, content: text, bbox });
     refresh();
     setTimeout(() => { knowledgeChunkStore.updateStatus(chunk.id, "done"); refresh(); }, 900);
     startEdit({ ...chunk });
@@ -268,8 +266,15 @@ export default function ChunkViewerModal({
           <DocumentPreviewPane
             page={page}
             onPageChange={gotoPage}
-            selected={selectedChunkId !== null}
-            onRegionClick={() => selectPage(page)}
+            chunksOnPage={filteredChunks.filter(c => c.bbox.page === page)}
+            selectedChunkId={selectedChunkId}
+            onSelectChunk={id => {
+              if (!id) { setSelectedChunkId(null); return; }
+              const c = chunks.find(x => x.id === id);
+              if (c) selectChunk(c);
+            }}
+            onResizeChunk={!viewOnly ? onResizeChunk : undefined}
+            onCreateChunkFromBox={!viewOnly ? onCreateChunkFromBox : undefined}
             onSelectText={!viewOnly ? addChunkFromSelection : undefined}
             onReprocess={() => setReprocessConfirm(true)}
             onProcess={populate}

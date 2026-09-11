@@ -1,13 +1,15 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import DocumentPreviewPane from "./DocumentPreviewPane";
 import type { KnowledgeDocument } from "./knowledgeDocumentStore";
 
 /** Design gap (not spec'd in detail) — kept minimal: reuses the Chunk Viewer's left-pane
- * document preview alone, read-only, opened from the row menu's "Xem bố cục tài liệu". */
+ * document preview alone, read-only, opened from the row menu's "Xem bố cục tài liệu". No
+ * chunk boxes here (this view is about page layout, not chunks), so chunksOnPage is empty. */
 export default function DocumentLayoutViewer({ document: doc, onClose }: { document: KnowledgeDocument; onClose: () => void }) {
   const [page, setPage] = useState(0);
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
       <div className="h-14 border-b border-border bg-surface flex items-center justify-between px-4 shrink-0">
         <span className="text-sm font-semibold truncate">Bố cục tài liệu — {doc.name}</span>
@@ -19,14 +21,16 @@ export default function DocumentLayoutViewer({ document: doc, onClose }: { docum
         <DocumentPreviewPane
           page={page}
           onPageChange={setPage}
-          selected={false}
-          onRegionClick={() => {}}
+          chunksOnPage={[]}
+          selectedChunkId={null}
+          onSelectChunk={() => {}}
           onReprocess={() => {}}
           onProcess={() => {}}
           canReprocess={false}
           viewOnly
         />
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

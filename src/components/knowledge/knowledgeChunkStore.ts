@@ -4,7 +4,9 @@ import { loadMap, saveMap } from "@/lib/sessionPersist";
 import type { KnowledgeFaqStatus, KnowledgeProcessingStatus } from "./knowledgeStatus";
 import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
 import { knowledgeUrlStore } from "./knowledgeUrlStore";
+import { MOCK_PAGES, type ChunkBBox } from "./DocumentPreviewPane";
 
+export type { ChunkBBox };
 export type ChunkSourceType = "document" | "url" | "agent-item";
 export type ChunkContentType = "text" | "html";
 
@@ -20,6 +22,28 @@ export interface KnowledgeChunk {
   manuallyEdited: boolean;
   status: KnowledgeProcessingStatus;
   updatedAt: number;
+  /** Schematic position on its page (see DocumentPreviewPane's ChunkBBox doc) — this prototype
+   * has no real per-chunk layout coordinates, so this is deterministically assigned. */
+  bbox: ChunkBBox;
+}
+
+/** Deterministic, intentionally-overlapping bounding box for a chunk — this prototype has no
+ * real per-chunk layout coordinates, so boxes are scattered by index instead of computed from
+ * actual document geometry. Every 3rd chunk on a page is nudged to overlap the one before it, so
+ * the chunk-editor demo always shows at least one overlapping pair (resize/z-order still work on
+ * either box). */
+function defaultBBoxFor(index: number): ChunkBBox {
+  const page = (index - 1) % MOCK_PAGES.length;
+  const slot = Math.floor((index - 1) / MOCK_PAGES.length);
+  const row = slot % 4;
+  const overlap = slot % 3 === 2;
+  return {
+    page,
+    x: 8 + (slot % 2) * 6,
+    y: Math.max(2, 6 + row * 21 - (overlap ? 10 : 0)),
+    w: 76 - (slot % 2) * 4,
+    h: 17,
+  };
 }
 
 const STORE_KEY = "knowledge_chunk_store_v1";
@@ -79,6 +103,7 @@ function seedIfEmpty(
       store.set(id, {
         id, kbId, sourceType, sourceId, index: i + 1, title: t.title, content: t.content,
         contentType: "text", manuallyEdited: false, status: "done", updatedAt: now,
+        bbox: defaultBBoxFor(i + 1),
       });
     });
     persist();
@@ -97,9 +122,21 @@ export const knowledgeChunkStore = {
     agentItemHint?: { status?: KnowledgeFaqStatus; chunkCount?: number },
   ): KnowledgeChunk[] {
     seedIfEmpty(kbId, sourceType, sourceId, agentItemHint);
-    return [...store.values()]
+    const rows = [...store.values()]
       .filter(c => c.sourceType === sourceType && c.sourceId === sourceId)
       .sort((a, b) => a.index - b.index);
+    // Self-heal chunks persisted in a browser's sessionStorage before `bbox` existed — backfills
+    // a default box in place rather than wiping the session's existing chunks/edits.
+    let migrated = false;
+    const healed = rows.map(c => {
+      if (c.bbox && typeof c.bbox.page === "number") return c;
+      migrated = true;
+      const withBBox = { ...c, bbox: defaultBBoxFor(c.index) };
+      store.set(c.id, withBBox);
+      return withBBox;
+    });
+    if (migrated) persist();
+    return healed;
   },
   /** Simulates "Xử lý kết quả" populating chunks for a source that has none yet. */
   populate(kbId: string, sourceType: ChunkSourceType, sourceId: string, chunks: { title: string; content: string }[]) {
@@ -109,6 +146,7 @@ export const knowledgeChunkStore = {
       store.set(id, {
         id, kbId, sourceType, sourceId, index: i + 1, title: c.title, content: c.content,
         contentType: "text", manuallyEdited: false, status: "done", updatedAt: now,
+        bbox: defaultBBoxFor(i + 1),
       });
     });
     persist();
@@ -144,13 +182,22 @@ export const knowledgeChunkStore = {
     store.set(id, { ...cur, content, manuallyEdited: false, status: "done", updatedAt: Date.now() });
     persist();
   },
-  add(kbId: string, sourceType: ChunkSourceType, sourceId: string, data: { title: string; content: string }): KnowledgeChunk {
+  /** Commits a resized/repositioned bounding box (dragging the handles on the document preview
+   * only stages the change locally — this is the explicit save step, never automatic). */
+  updateBBox(id: string, bbox: ChunkBBox) {
+    const cur = store.get(id);
+    if (!cur) return;
+    store.set(id, { ...cur, bbox, manuallyEdited: true, updatedAt: Date.now() });
+    persist();
+  },
+  add(kbId: string, sourceType: ChunkSourceType, sourceId: string, data: { title: string; content: string; bbox?: ChunkBBox }): KnowledgeChunk {
     const existing = this.list(kbId, sourceType, sourceId);
     const id = `chunk-${sourceId}-${Date.now().toString(36)}`;
     const rec: KnowledgeChunk = {
       id, kbId, sourceType, sourceId, index: existing.length + 1,
       title: data.title, content: data.content, contentType: "text",
       manuallyEdited: true, status: "processing", updatedAt: Date.now(),
+      bbox: data.bbox ?? defaultBBoxFor(existing.length + 1),
     };
     store.set(id, rec);
     persist();
