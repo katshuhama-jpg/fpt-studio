@@ -80,6 +80,10 @@ import { formatFileSize } from "@/components/knowledge/formatFileSize";
 import KnowledgeSharingChip from "@/components/knowledge/KnowledgeSharingChip";
 import { CategoryChips } from "@/components/knowledge/FaqCellDisplays";
 import { Switch } from "@/components/ui/switch";
+import SyncSettingsModal from "@/components/knowledge/SyncSettingsModal";
+import ManageSitemapsModal from "@/components/knowledge/ManageSitemapsModal";
+import { knowledgeSettingsStore, shortCadenceMulti } from "@/components/knowledge/knowledgeSettingsStore";
+import { knowledgeSitemapStore } from "@/components/knowledge/knowledgeSitemapStore";
 
 type Tab = "build" | "test" | "channels" | "insights";
 
@@ -1636,8 +1640,18 @@ function AgentOwnKnowledgeView({ agentId, onBack }: { agentId: string; onBack: (
   const [versionTarget, setVersionTarget] = useState<KnowledgeItem | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [editFaqTarget, setEditFaqTarget] = useState<KnowledgeItem | null>(null);
+  const [showSyncSettings, setShowSyncSettings] = useState(false);
+  const [showManageSitemaps, setShowManageSitemaps] = useState(false);
   const refresh = () => setTick(t => t + 1);
   void tick;
+
+  // Website (Cài đặt đồng bộ / Quản lý sitemap) settings and sitemaps live in the same generic,
+  // kbId-agnostic stores the Console's Website tab uses (KnowledgeWebsiteTab.tsx) — reused here via
+  // a synthetic per-agent scope key rather than duplicating the modal logic. OWN_KB_ID ("__own__")
+  // is shared by every agent's "Cá nhân" bucket, so it can't be used alone as this key.
+  const ownScopeId = `own:${agentId}`;
+  const ownSettings = knowledgeSettingsStore.get(ownScopeId);
+  const ownSitemapCount = knowledgeSitemapStore.list(ownScopeId).length;
 
   const rawKind = params.get("kind");
   const kind: KnowledgeItem["kind"] = rawKind === "url" || rawKind === "faq" ? rawKind : "doc";
@@ -1703,6 +1717,34 @@ function AgentOwnKnowledgeView({ agentId, onBack }: { agentId: string; onBack: (
             <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm nguồn tri thức..." className="ds-input pl-8 h-9 w-full" />
           </div>
+          {kind === "url" && (
+            <>
+              <Tooltip delayDuration={300}>
+                <TooltipTrigger asChild>
+                  <span tabIndex={0} className="outline-none">
+                    <button
+                      onClick={() => setShowSyncSettings(true)}
+                      disabled={byKind.length === 0}
+                      className="h-9 px-3 flex items-center gap-1.5 rounded-lg border border-border bg-surface text-sm hover:bg-surface-muted transition-base disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed"
+                    >
+                      <HugeiconsIcon icon={SlidersHorizontalIcon} size={14} />
+                      Cài đặt đồng bộ
+                      {ownSettings.scheduleEnabled && <span className="chip chip-muted ml-0.5">{shortCadenceMulti(ownSettings.schedules)}</span>}
+                    </button>
+                  </span>
+                </TooltipTrigger>
+                {byKind.length === 0 && <TooltipContent>Thêm URL trước khi cài đặt lịch đồng bộ.</TooltipContent>}
+              </Tooltip>
+              <button
+                onClick={() => setShowManageSitemaps(true)}
+                className="h-9 px-3 flex items-center gap-1.5 rounded-lg border border-border bg-surface text-sm hover:bg-surface-muted transition-base"
+              >
+                <HugeiconsIcon icon={GridViewIcon} size={14} />
+                Quản lý sitemap
+                {ownSitemapCount > 0 && <span className="chip chip-muted ml-0.5">{ownSitemapCount}</span>}
+              </button>
+            </>
+          )}
           <div className="relative" ref={addMenuRef}>
             <button onClick={() => setShowAddMenu(v => !v)} className="btn-primary h-9 whitespace-nowrap">
               <HugeiconsIcon icon={Add01Icon} size={14} /> Thêm
@@ -1830,6 +1872,12 @@ function AgentOwnKnowledgeView({ agentId, onBack }: { agentId: string; onBack: (
           items={shareTargets}
           onClose={() => { setShareTargets(null); setSelected(new Set()); refresh(); }}
         />
+      )}
+      {showSyncSettings && (
+        <SyncSettingsModal kbId={ownScopeId} viewOnly={false} onClose={() => setShowSyncSettings(false)} onSaved={refresh} />
+      )}
+      {showManageSitemaps && (
+        <ManageSitemapsModal open={showManageSitemaps} kbId={ownScopeId} onClose={() => { setShowManageSitemaps(false); refresh(); }} />
       )}
 
       <AlertDialog open={!!reprocessTarget} onOpenChange={v => !v && setReprocessTarget(null)}>

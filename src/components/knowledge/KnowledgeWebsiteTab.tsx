@@ -11,7 +11,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { knowledgeUrlStore, type KnowledgeUrl, type UrlSource } from "./knowledgeUrlStore";
-import { knowledgeSettingsStore, shortCadence } from "./knowledgeSettingsStore";
+import { knowledgeSettingsStore, shortCadenceMulti } from "./knowledgeSettingsStore";
 import { KnowledgeStatusPill, type KnowledgeProcessingStatus } from "./knowledgeStatus";
 import ChunkViewerModal from "./ChunkViewerModal";
 import AddUrlModal from "./AddUrlModal";
@@ -168,7 +168,7 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
                 >
                   <Settings2 size={14} />
                   Cài đặt đồng bộ
-                  {settings.scheduleEnabled && <span className="chip chip-muted ml-0.5">{shortCadence(settings.schedule)}</span>}
+                  {settings.scheduleEnabled && <span className="chip chip-muted ml-0.5">{shortCadenceMulti(settings.schedules)}</span>}
                 </button>
               </span>
             </TooltipTrigger>

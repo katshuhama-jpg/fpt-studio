@@ -14,7 +14,11 @@ export interface ScheduleConfig {
 export interface KnowledgeSettings {
   kbId: string;
   scheduleEnabled: boolean;
-  schedule: ScheduleConfig;
+  /** Up to MAX_SCHEDULES independent schedules — e.g. a daily catch-up sync plus a heavier
+   * weekend re-crawl. Kept as an array (rather than one ScheduleConfig) so a KB can run more
+   * than one cadence at once; schedulesConflict()/findScheduleConflicts() below stop the user
+   * from saving two schedules that would fire at the same moment. */
+  schedules: ScheduleConfig[];
   syncExistingUrls: boolean;
   autoAddFromSitemap: boolean;
   autoDownloadAttachments: boolean;
@@ -26,11 +30,13 @@ const STORE_KEY = "knowledge_settings_store_v1";
 const store = loadMap<string, KnowledgeSettings>(STORE_KEY);
 const persist = () => saveMap(STORE_KEY, store);
 
+export const MAX_SCHEDULES = 3;
+
 const DEFAULT_SCHEDULE: ScheduleConfig = { frequency: "daily", time: "02:00" };
 
 function defaults(kbId: string): KnowledgeSettings {
   return {
-    kbId, scheduleEnabled: false, schedule: DEFAULT_SCHEDULE,
+    kbId, scheduleEnabled: false, schedules: [DEFAULT_SCHEDULE],
     syncExistingUrls: true, autoAddFromSitemap: false,
     autoDownloadAttachments: false, attachmentFolderId: null,
     createVersionOnSync: true,
@@ -65,6 +71,49 @@ export function describeSchedule(s: ScheduleConfig): string {
 export function shortCadence(s: ScheduleConfig): string {
   const freqLabel = s.frequency === "daily" ? "Hàng ngày" : s.frequency === "weekly" ? "Hàng tuần" : "Hàng tháng";
   return `${freqLabel} ${s.time}`;
+}
+
+/** True if two schedules could fire at the same moment. Same time-of-day is required for any
+ * conflict; beyond that: daily conflicts with anything at that time, weekly conflicts with another
+ * weekly sharing a day, monthly conflicts with another monthly sharing a day-of-month. Weekly vs
+ * monthly at the same time is not flagged — whether they actually collide depends on the calendar
+ * for that month, so it can't be determined generically. */
+export function schedulesConflict(a: ScheduleConfig, b: ScheduleConfig): boolean {
+  if (a.time !== b.time) return false;
+  if (a.frequency === "daily" || b.frequency === "daily") return true;
+  if (a.frequency === "weekly" && b.frequency === "weekly") {
+    const da = new Set(a.daysOfWeek ?? [1]);
+    return (b.daysOfWeek ?? [1]).some(d => da.has(d));
+  }
+  if (a.frequency === "monthly" && b.frequency === "monthly") {
+    return (a.dayOfMonth ?? 1) === (b.dayOfMonth ?? 1);
+  }
+  return false;
+}
+
+/** All conflicting index pairs within a schedule list, for the "Lịch đồng bộ" conflict banner. */
+export function findScheduleConflicts(schedules: ScheduleConfig[]): [number, number][] {
+  const pairs: [number, number][] = [];
+  for (let i = 0; i < schedules.length; i++) {
+    for (let j = i + 1; j < schedules.length; j++) {
+      if (schedulesConflict(schedules[i], schedules[j])) pairs.push([i, j]);
+    }
+  }
+  return pairs;
+}
+
+/** Plain-language summary of every schedule in the list, one per line — used where a KB-level
+ * "Theo lịch chung của kho" summary needs to show all active schedules, not just one. */
+export function describeSchedules(list: ScheduleConfig[]): string {
+  return list.map(describeSchedule).join("\n");
+}
+
+/** Short cadence label summarizing a whole schedule list for the toolbar chip, e.g.
+ * "Hàng ngày 02:00" for one schedule, or "Hàng ngày 02:00 +1 lịch" when there are more. */
+export function shortCadenceMulti(list: ScheduleConfig[]): string {
+  if (list.length === 0) return "";
+  const first = shortCadence(list[0]);
+  return list.length > 1 ? `${first} +${list.length - 1} lịch` : first;
 }
 
 const DAY_MS = 86_400_000;

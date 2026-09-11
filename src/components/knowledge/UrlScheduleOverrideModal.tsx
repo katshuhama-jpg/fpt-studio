@@ -2,13 +2,15 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { knowledgeUrlStore, type KnowledgeUrl } from "./knowledgeUrlStore";
-import { knowledgeSettingsStore, describeSchedule, type ScheduleConfig } from "./knowledgeSettingsStore";
+import { knowledgeSettingsStore, describeSchedules, type ScheduleConfig } from "./knowledgeSettingsStore";
 import ScheduleBuilder from "./ScheduleBuilder";
 
+const FALLBACK_SCHEDULE: ScheduleConfig = { frequency: "daily", time: "02:00" };
+
 export default function UrlScheduleOverrideModal({ kbId, url, onClose }: { kbId: string; url: KnowledgeUrl; onClose: () => void }) {
-  const kbSchedule = knowledgeSettingsStore.get(kbId).schedule;
+  const kbSchedules = knowledgeSettingsStore.get(kbId).schedules;
   const [useOverride, setUseOverride] = useState(!!url.scheduleOverride?.enabled);
-  const [schedule, setSchedule] = useState<ScheduleConfig>(url.scheduleOverride?.schedule ?? kbSchedule);
+  const [schedule, setSchedule] = useState<ScheduleConfig>(url.scheduleOverride?.schedule ?? kbSchedules[0] ?? FALLBACK_SCHEDULE);
 
   const save = () => {
     knowledgeUrlStore.setScheduleOverride(url.id, useOverride ? { enabled: true, schedule } : undefined);
@@ -34,7 +36,15 @@ export default function UrlScheduleOverrideModal({ kbId, url, onClose }: { kbId:
             </div>
             <div className="min-w-0">
               <div className="text-sm font-medium">Theo lịch chung của kho</div>
-              <div className="text-xs text-muted-foreground mt-0.5">{describeSchedule(kbSchedule)}</div>
+              {kbSchedules.length === 0 ? (
+                <div className="text-xs text-muted-foreground mt-0.5">Kho tri thức chưa bật lịch đồng bộ.</div>
+              ) : (
+                <div className="mt-0.5 space-y-0.5">
+                  {describeSchedules(kbSchedules).split("\n").map((line, i) => (
+                    <div key={i} className="text-xs text-muted-foreground">{line}</div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 

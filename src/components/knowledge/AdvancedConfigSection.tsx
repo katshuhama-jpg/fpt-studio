@@ -39,7 +39,7 @@ export default function AdvancedConfigSection({ value, onChange }: { value: Adva
         <AccordionTrigger className="text-sm font-medium hover:no-underline py-2.5">Cấu hình nâng cao</AccordionTrigger>
         <AccordionContent className="space-y-4 pb-4">
           <div>
-            <FieldLabel label="Vùng chứa tiêu đề (xpath)" tooltip="Chỉ lấy phần tiêu đề trong vùng bạn chỉ định thay vì đoán tự động. Để trống nếu bạn không chắc." />
+            <FieldLabel label="Vùng chứa tiêu đề (xpath)" tooltip="XPath là cách chỉ ra một vị trí cụ thể trên trang web, giống như một địa chỉ. Dùng để chỉ lấy phần tiêu đề trong vùng bạn chỉ định thay vì đoán tự động. Để trống nếu bạn không chắc — hệ thống sẽ tự nhận diện." />
             <input
               value={value.titleXpath}
               onChange={e => onChange({ ...value, titleXpath: e.target.value })}
@@ -48,7 +48,7 @@ export default function AdvancedConfigSection({ value, onChange }: { value: Adva
             />
           </div>
           <div>
-            <FieldLabel label="Vùng chứa nội dung chính (xpath)" tooltip="Chỉ lấy nội dung trong vùng bạn chỉ định, bỏ qua menu và quảng cáo. Để trống nếu bạn không chắc." />
+            <FieldLabel label="Vùng chứa nội dung chính (xpath)" tooltip="XPath là cách chỉ ra một vị trí cụ thể trên trang web, giống như một địa chỉ. Dùng để chỉ lấy nội dung trong vùng bạn chỉ định, bỏ qua menu và quảng cáo. Để trống nếu bạn không chắc — hệ thống sẽ tự nhận diện." />
             <ChipsInput chips={value.contentXpaths} onChange={c => onChange({ ...value, contentXpaths: c })} placeholder="//article" />
           </div>
           <div>

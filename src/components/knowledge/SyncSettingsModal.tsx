@@ -4,9 +4,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Plus, X, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
-import { knowledgeSettingsStore, shortCadence, type ScheduleConfig } from "./knowledgeSettingsStore";
+import { knowledgeSettingsStore, shortCadence, findScheduleConflicts, MAX_SCHEDULES, type ScheduleConfig } from "./knowledgeSettingsStore";
 import { knowledgeUrlStore } from "./knowledgeUrlStore";
 import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
 import ScheduleBuilder from "./ScheduleBuilder";
@@ -44,6 +44,8 @@ export default function SyncSettingsModal({ kbId, viewOnly, onClose, onSaved }: 
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
   const folders = knowledgeDocumentStore.listFolders(kbId);
   const urlsWithOverride = knowledgeUrlStore.list(kbId).filter(u => u.scheduleOverride?.enabled);
+  const conflicts = findScheduleConflicts(draft.schedules);
+  const conflictingIdxs = new Set(conflicts.flat());
 
   const attemptClose = () => {
     if (dirty && !viewOnly) { setShowDiscardConfirm(true); return; }
@@ -79,8 +81,53 @@ export default function SyncSettingsModal({ kbId, viewOnly, onClose, onSaved }: 
               )}
               <div className={`grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none motion-reduce:duration-0 ${draft.scheduleEnabled ? "grid-rows-[1fr] mt-3" : "grid-rows-[0fr] mt-0"}`}>
                 <div className="overflow-hidden">
-                  <div className="pt-2 border-t border-border">
-                    <ScheduleBuilder value={draft.schedule} onChange={(schedule: ScheduleConfig) => setDraft(d => ({ ...d, schedule }))} />
+                  <div className="pt-2 border-t border-border space-y-4">
+                    {draft.schedules.map((schedule, i) => {
+                      const hasConflict = conflictingIdxs.has(i);
+                      return (
+                        <div
+                          key={i}
+                          className={`rounded-lg ${draft.schedules.length > 1 ? "border p-3" : ""} ${hasConflict ? "border-warning" : draft.schedules.length > 1 ? "border-border" : ""}`}
+                        >
+                          {draft.schedules.length > 1 && (
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs font-medium text-muted-foreground">Lịch {i + 1}</span>
+                              {!viewOnly && (
+                                <button
+                                  type="button"
+                                  onClick={() => setDraft(d => ({ ...d, schedules: d.schedules.filter((_, idx) => idx !== i) }))}
+                                  className="text-muted-foreground hover:text-foreground transition-base"
+                                  aria-label={`Xóa lịch ${i + 1}`}
+                                >
+                                  <X size={14} />
+                                </button>
+                              )}
+                            </div>
+                          )}
+                          <ScheduleBuilder
+                            value={schedule}
+                            onChange={(next: ScheduleConfig) => setDraft(d => ({ ...d, schedules: d.schedules.map((s, idx) => (idx === i ? next : s)) }))}
+                          />
+                        </div>
+                      );
+                    })}
+
+                    {conflicts.length > 0 && (
+                      <div className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2.5">
+                        <AlertTriangle size={14} className="text-warning shrink-0 mt-0.5" />
+                        <p className="text-xs text-warning">Có các lịch trùng thời điểm chạy. Vui lòng chỉnh lại thời gian hoặc tần suất trước khi lưu.</p>
+                      </div>
+                    )}
+
+                    {!viewOnly && draft.schedules.length < MAX_SCHEDULES && (
+                      <button
+                        type="button"
+                        onClick={() => setDraft(d => ({ ...d, schedules: [...d.schedules, { frequency: "daily", time: "02:00" }] }))}
+                        className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+                      >
+                        <Plus size={12} /> Thêm lịch ({draft.schedules.length}/{MAX_SCHEDULES})
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -172,7 +219,7 @@ export default function SyncSettingsModal({ kbId, viewOnly, onClose, onSaved }: 
           {!viewOnly && (
             <DialogFooter className="px-6 py-4">
               <button onClick={attemptClose} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Hủy bỏ</button>
-              <button onClick={saveAll} disabled={!dirty} className="btn-primary h-9 disabled:opacity-40 disabled:pointer-events-none">Lưu thay đổi</button>
+              <button onClick={saveAll} disabled={!dirty || conflicts.length > 0} className="btn-primary h-9 disabled:opacity-40 disabled:pointer-events-none">Lưu thay đổi</button>
             </DialogFooter>
           )}
         </DialogContent>
