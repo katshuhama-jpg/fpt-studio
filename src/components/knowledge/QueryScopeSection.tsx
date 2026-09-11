@@ -39,22 +39,28 @@ export function RadioCard({ selected, onSelect, label, helper, children }: {
  * Checking a parent unit also checks every unit nested under it (and unchecking it clears them
  * too) — picking "Vietnam Delivery" should cover "Platform Engineering", "AI/ML", etc. without
  * making the person hunt down and tick each child individually. A child can still be
- * checked/unchecked on its own; that never changes its parent's own checked state. Parents with
- * only some of their children checked show a dash instead of a checkmark, so partial coverage is
- * visible at a glance rather than looking identical to "nothing selected here". */
+ * checked/unchecked on its own afterwards; a row's own checkmark reflects whether it AND every
+ * unit under it are selected — unticking just one descendant turns its ancestors' checkmarks into
+ * a dash rather than leaving them looking fully (and misleadingly) checked. */
 function DepartmentPicker({ value, onChange }: { value: string[]; onChange: (next: string[]) => void }) {
   const { tree } = useOrg();
   const units = useMemo(() => collectUnitsWithDepth(tree), [tree]);
   const unitsById = useMemo(() => new Map(units.map(({ unit }) => [unit.id, unit])), [units]);
   const selected = useMemo(() => new Set(value), [value]);
+  const coverage = (id: string) => {
+    const unit = unitsById.get(id);
+    return unit ? [id, ...collectUnits(unit).map(u => u.id)] : [id];
+  };
 
   const toggle = (id: string) => {
-    const unit = unitsById.get(id);
-    const descendantIds = unit ? collectUnits(unit).map(u => u.id) : [];
-    const affected = [id, ...descendantIds];
-    if (selected.has(id)) {
+    const affected = coverage(id);
+    const isFullyChecked = affected.every(v => selected.has(v));
+    if (isFullyChecked) {
       onChange(value.filter(v => !affected.includes(v)));
     } else {
+      // Unchecked or only partially checked — clicking always completes the selection
+      // (fills in every missing descendant) rather than clearing it, so a dash never
+      // toggles the "wrong" direction from what its checkmark-in-waiting implies.
       onChange(Array.from(new Set([...value, ...affected])));
     }
   };
@@ -62,9 +68,9 @@ function DepartmentPicker({ value, onChange }: { value: string[]; onChange: (nex
   return (
     <div className="max-h-56 overflow-y-auto rounded-lg border border-border bg-white divide-y divide-border">
       {units.map(({ unit, depth }) => {
-        const checked = selected.has(unit.id);
-        const descendantIds = collectUnits(unit).map(u => u.id);
-        const partiallyChecked = !checked && descendantIds.length > 0 && descendantIds.some(id => selected.has(id));
+        const coverageIds = coverage(unit.id);
+        const checked = coverageIds.every(id => selected.has(id));
+        const partiallyChecked = !checked && coverageIds.some(id => selected.has(id));
         return (
           <button
             key={unit.id}
