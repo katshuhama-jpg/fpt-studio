@@ -361,8 +361,10 @@ export default function AgentBuilder() {
             minWidth: 0,
           }}
         >
-          {/* Nav items — fixed height, always renders in full; the panel below scrolls instead */}
-          <nav className="shrink-0 px-2 pt-2 pb-1 flex flex-col" style={{ gap: "4px" }}>
+          {/* Nav items — this region scrolls if it doesn't fit, so "Ready to publish" below
+              stays fully visible and pinned to the bottom, same layout as the External Agent
+              detail sidebar's Setup checklist. */}
+          <nav className="flex-1 min-h-0 overflow-y-auto px-2 pt-2 pb-1 flex flex-col" style={{ gap: "4px" }}>
             {tab === "build" && nav.map((it: any) => (
               <button
                 key={it.id}
@@ -399,9 +401,11 @@ export default function AgentBuilder() {
             ))}
           </nav>
 
-          {/* Ready to publish + Collapse — Build-tab only, flexible region, scrolls/shrinks instead of clipping the nav above */}
+          {/* Ready to publish + Collapse — Build-tab only, pinned directly above Collapse
+              sidebar at the bottom, same position as the External Agent detail sidebar's
+              Setup checklist. Fixed height; the nav above scrolls instead of this clipping. */}
           {tab === "build" && (
-          <div className="px-3 py-3 border-t border-border flex-1 min-h-0 overflow-y-auto space-y-2">
+          <div className="shrink-0 px-3 py-3 border-t border-border space-y-2">
             <div className="rounded-lg border border-border bg-surface-muted/50 p-2.5">
               {(() => {
                 const agentTriggers = triggerStore.list(id ?? "new");
