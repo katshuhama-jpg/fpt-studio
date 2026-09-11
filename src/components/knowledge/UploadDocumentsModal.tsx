@@ -9,8 +9,8 @@ import { UploadCloud, X, AlertTriangle, Info, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
 import { knowledgeStore } from "./knowledgeStore";
-import { CURRENT_USER, type SharingMode, type SharedPerson } from "./knowledgeBaseStore";
-import MemberPicker from "./MemberPicker";
+import type { Sharing } from "./knowledgeBaseStore";
+import PermissionFields, { DEFAULT_SHARING, isPermissionInvalid } from "./PermissionFields";
 import FileTypeIcon from "./FileTypeIcon";
 import { formatFileSize } from "./formatFileSize";
 import { ALLOWED_EXT, MAX_FILES, MAX_SIZE, FORMAT_HELPER_TEXT, FORMAT_NOTES } from "./knowledgeFormats";
@@ -18,23 +18,6 @@ import { ALLOWED_EXT, MAX_FILES, MAX_SIZE, FORMAT_HELPER_TEXT, FORMAT_NOTES } fr
 const ACCEPT_ATTR = ALLOWED_EXT.map(ext => `.${ext}`).join(",");
 const MAX_FILES_MSG = "Chỉ có thể tải tối đa 10 tệp mỗi lần. Vui lòng bỏ bớt tệp hoặc chia thành nhiều lần tải.";
 const MAX_SIZE_MSG = "Tệp vượt quá 30MB. Vui lòng nén hoặc chia nhỏ tệp trước khi tải lên.";
-
-const ACCESS_OPTIONS: { value: SharingMode; label: string; helper?: string }[] = [
-  { value: "private", label: "Chỉ mình tôi" },
-  { value: "all", label: "Tất cả người dùng Console", helper: "Mọi thành viên Console đều xem và dùng được kho này." },
-  { value: "specific", label: "Người dùng cụ thể" },
-];
-
-/** Query-scope options — a distinct concept from ACCESS_OPTIONS above: that field controls who
- * can see/manage this document in Console, while this one controls which chat end-users the
- * Agent is allowed to draw on this document's content for when answering, independent of who the
- * Agent itself is published to. Reuses the same 3-value SharingMode shape (private/all/specific)
- * since the option set happens to match, but the two fields are otherwise independent. */
-const QUERY_SCOPE_OPTIONS: { value: SharingMode; label: string }[] = [
-  { value: "private", label: "Chỉ trả lời cho tôi" },
-  { value: "all", label: "Trả lời cho mọi người" },
-  { value: "specific", label: "Chỉ trả lời cho người cụ thể" },
-];
 
 interface StagedFile {
   key: string;
@@ -71,10 +54,12 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
   const [folderId, setFolderId] = useState<string | null>(initialFolderId);
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
-  const [accessMode, setAccessMode] = useState<SharingMode>("private");
-  const [accessPeople, setAccessPeople] = useState<SharedPerson[]>([]);
-  const [queryScopeMode, setQueryScopeMode] = useState<SharingMode>("private");
-  const [queryScopePeople, setQueryScopePeople] = useState<SharedPerson[]>([]);
+  const [sharing, setSharing] = useState<Sharing>(DEFAULT_SHARING);
+  const [querySharing, setQuerySharing] = useState<Sharing>(DEFAULT_SHARING);
+  // Tracks whether the user has touched either permission field by hand since the modal opened —
+  // once they have, switching "Thư mục đích" stops silently overwriting their choice with the
+  // newly-picked folder's defaults (see the folderId effect below).
+  const permissionsTouched = useRef(false);
   // Name conflicts are resolved one at a time via a choice dialog before the file is staged —
   // this queue holds the ones still waiting on a choice.
   const [duplicateQueue, setDuplicateQueue] = useState<File[]>([]);
@@ -82,13 +67,23 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
   useEffect(() => { if (open) setFolderId(initialFolderId); }, [open, initialFolderId]);
   useEffect(() => {
     if (!open) return;
-    setAccessMode("private"); setAccessPeople([]);
-    setQueryScopeMode("private"); setQueryScopePeople([]);
+    setSharing(DEFAULT_SHARING);
+    setQuerySharing(DEFAULT_SHARING);
+    permissionsTouched.current = false;
     setDuplicateQueue([]);
   }, [open]);
+  // A document uploaded into a folder defaults to that folder's own permission settings — but
+  // only until the user manually edits either field, and only while nothing has been staged yet
+  // (once files are staged, silently changing already-visible permissions would be surprising).
+  useEffect(() => {
+    if (!open || permissionsTouched.current || agentId || staged.length > 0) return;
+    const folder = folderId ? knowledgeDocumentStore.get(kbId!, folderId) : undefined;
+    setSharing(folder?.sharing ?? DEFAULT_SHARING);
+    setQuerySharing(folder?.querySharing ?? DEFAULT_SHARING);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, folderId, agentId, kbId]);
 
-  const accessInvalid = accessMode === "specific" && accessPeople.length === 0;
-  const queryScopeInvalid = queryScopeMode === "specific" && queryScopePeople.length === 0;
+  const accessInvalid = isPermissionInvalid(sharing, querySharing);
 
   const folders = agentId ? [] : knowledgeDocumentStore.listFolders(kbId!);
 
@@ -164,9 +159,7 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
   const submit = () => {
     const valid = staged.filter(s => !s.error);
     if (valid.length === 0) return;
-    if (accessInvalid || queryScopeInvalid) return;
-    const sharing = accessMode === "private" ? undefined : { mode: accessMode, people: accessMode === "specific" ? accessPeople : [] };
-    const querySharing = queryScopeMode === "private" ? undefined : { mode: queryScopeMode, people: queryScopeMode === "specific" ? queryScopePeople : [] };
+    if (accessInvalid) return;
     setUploading(true);
 
     // Simulate upload progress, then insert rows and animate them through the pipeline.
@@ -282,78 +275,12 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
             </div>
           )}
 
-          <div>
-            <label className="text-sm font-medium mb-1 block">Quyền quản lý tài liệu</label>
-            <p className="text-xs text-muted-foreground mb-2">Kiểm soát ai được xem, chỉnh sửa và xóa tài liệu này trong Console.</p>
-            <div className="space-y-2">
-              {ACCESS_OPTIONS.map(opt => {
-                const selected = accessMode === opt.value;
-                return (
-                  <div key={opt.value}>
-                    <div
-                      onClick={() => setAccessMode(opt.value)}
-                      className={`flex items-start gap-3 px-3.5 py-3 rounded-xl border cursor-pointer transition-base ${
-                        selected ? "border-primary bg-primary/5" : "border-border bg-white hover:bg-surface-muted"
-                      }`}
-                    >
-                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${selected ? "border-primary" : "border-border"}`}>
-                        {selected && <div className="w-2 h-2 rounded-full bg-primary" />}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium">{opt.label}</div>
-                        {opt.helper && <div className="text-xs text-muted-foreground mt-0.5">{opt.helper}</div>}
-                      </div>
-                    </div>
-                    {selected && opt.value === "specific" && (
-                      <div className="mt-2 pl-3.5">
-                        <MemberPicker value={accessPeople} onChange={setAccessPeople} ownerRow={{ name: CURRENT_USER.name, email: CURRENT_USER.email }} />
-                        {accessPeople.length === 0 && (
-                          <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người để chia sẻ.</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div>
-            <label className="text-sm font-medium mb-1 block">Phạm vi trả lời của Agent (Query scope)</label>
-            <p className="text-xs text-muted-foreground mb-2">
-              Kiểm soát Agent được dùng nội dung tài liệu này để trả lời ai khi trò chuyện — không phụ thuộc vào việc Agent được publish cho ai.
-            </p>
-            <div className="space-y-2">
-              {QUERY_SCOPE_OPTIONS.map(opt => {
-                const selected = queryScopeMode === opt.value;
-                return (
-                  <div key={opt.value}>
-                    <div
-                      onClick={() => setQueryScopeMode(opt.value)}
-                      className={`flex items-start gap-3 px-3.5 py-3 rounded-xl border cursor-pointer transition-base ${
-                        selected ? "border-primary bg-primary/5" : "border-border bg-white hover:bg-surface-muted"
-                      }`}
-                    >
-                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${selected ? "border-primary" : "border-border"}`}>
-                        {selected && <div className="w-2 h-2 rounded-full bg-primary" />}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium">{opt.label}</div>
-                      </div>
-                    </div>
-                    {selected && opt.value === "specific" && (
-                      <div className="mt-2 pl-3.5">
-                        <MemberPicker value={queryScopePeople} onChange={setQueryScopePeople} ownerRow={{ name: CURRENT_USER.name, email: CURRENT_USER.email }} />
-                        {queryScopePeople.length === 0 && (
-                          <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người để giới hạn phạm vi trả lời.</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <PermissionFields
+            sharing={sharing}
+            onSharingChange={s => { permissionsTouched.current = true; setSharing(s); }}
+            querySharing={querySharing}
+            onQuerySharingChange={s => { permissionsTouched.current = true; setQuerySharing(s); }}
+          />
 
           {overLimitMsg && (
             <p className="flex items-center gap-1.5 text-xs text-destructive"><AlertTriangle size={12} /> {overLimitMsg}</p>
@@ -401,7 +328,7 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
 
         <DialogFooter>
           <button onClick={() => { clearAll(); onClose(); }} disabled={uploading} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base disabled:opacity-40">Hủy</button>
-          <button onClick={submit} disabled={validCount === 0 || uploading || accessInvalid || queryScopeInvalid} className="btn-primary h-9 disabled:opacity-40 disabled:pointer-events-none">
+          <button onClick={submit} disabled={validCount === 0 || uploading || accessInvalid} className="btn-primary h-9 disabled:opacity-40 disabled:pointer-events-none">
             Lưu & Xử lý
           </button>
         </DialogFooter>

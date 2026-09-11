@@ -21,7 +21,7 @@ import ShareKnowledgeBaseModal from "./ShareKnowledgeBaseModal";
 import ChunkViewerModal from "./ChunkViewerModal";
 import VersionHistoryPanel from "./VersionHistoryPanel";
 import DocumentLayoutViewer from "./DocumentLayoutViewer";
-import CreateFolderModal from "./CreateFolderModal";
+import DocumentFolderModal from "./DocumentFolderModal";
 import MoveToFolderModal from "./MoveToFolderModal";
 import { FORMAT_HELPER_TEXT } from "./knowledgeFormats";
 
@@ -51,6 +51,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
   const [layoutTarget, setLayoutTarget] = useState<KnowledgeDocument | null>(null);
   const [versionTarget, setVersionTarget] = useState<KnowledgeDocument | null>(null);
   const [showCreateFolder, setShowCreateFolder] = useState(false);
+  const [editingFolder, setEditingFolder] = useState<KnowledgeDocument | null>(null);
   const [moveTargets, setMoveTargets] = useState<KnowledgeDocument[] | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [folderFilter, setFolderFilter] = useState<string | null>(null);
@@ -290,12 +291,10 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                   <td className="px-2 py-3 text-xs text-muted-foreground whitespace-nowrap">{new Date(d.updatedAt).toLocaleDateString("vi-VN")}</td>
                   <td className="px-2 py-3 text-xs text-muted-foreground truncate">{d.updatedBy}</td>
                   <td className="px-2 py-3">
-                    {!d.isFolder && (
-                      <div className="flex flex-col items-start gap-1">
-                        <KnowledgeSharingChip sharing={d.sharing} />
-                        <QueryScopeChip querySharing={d.querySharing} />
-                      </div>
-                    )}
+                    <div className="flex flex-col items-start gap-1">
+                      <KnowledgeSharingChip sharing={d.sharing} />
+                      <QueryScopeChip querySharing={d.querySharing} />
+                    </div>
                   </td>
                   {!viewOnly && (
                     <td className="px-4 py-3 text-right">
@@ -304,7 +303,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                           ariaLabel="Thao tác thư mục"
                           items={[
                             { label: "Mở", onClick: () => setFolderFilter(d.id) },
-                            { label: "Đổi tên", onClick: () => { setRenaming(d); setRenameValue(d.name); } },
+                            { label: "Đổi tên", onClick: () => setEditingFolder(d) },
                             { label: "Di chuyển", onClick: () => setMoveTargets([d]) },
                             { label: "Xóa", onClick: () => setDeleteTargets([d]), danger: true },
                           ]}
@@ -365,28 +364,36 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
 
       {renaming && (
         <RenameDialog
-          label={renaming.isFolder ? "Tên thư mục" : "Tên tài liệu"}
-          maxLength={renaming.isFolder ? 50 : RENAME_MAX}
           value={renameValue}
           onChange={setRenameValue}
           onCancel={() => setRenaming(null)}
-          isDuplicate={renaming.isFolder ? name => knowledgeDocumentStore.isDuplicateFolderName(kbId, name, renaming.folderId, renaming.id) : undefined}
           onConfirm={() => { knowledgeDocumentStore.rename(renaming.id, renameValue); setRenaming(null); refresh(); }}
         />
       )}
 
-      <CreateFolderModal
-        open={showCreateFolder}
-        existingNames={knowledgeDocumentStore.listFolders(kbId).map(f => f.name)}
-        onClose={() => setShowCreateFolder(false)}
-        onCreate={name => {
-          const folder = knowledgeDocumentStore.createFolder(kbId, name);
-          toast.success(`Đã tạo thư mục "${name}".`);
-          setHighlightId(folder.id);
-          setTimeout(() => setHighlightId(null), 2000);
-          refresh();
-        }}
-      />
+      {(showCreateFolder || editingFolder) && (
+        <DocumentFolderModal
+          open
+          editingFolder={editingFolder ?? undefined}
+          existingDocCount={editingFolder ? knowledgeDocumentStore.countDocumentsInFolder(kbId, editingFolder.id) : 0}
+          isDuplicate={name => knowledgeDocumentStore.isDuplicateFolderName(kbId, name, editingFolder?.folderId ?? null, editingFolder?.id)}
+          onClose={() => { setShowCreateFolder(false); setEditingFolder(null); }}
+          onCreate={(name, sharing, querySharing) => {
+            const folder = knowledgeDocumentStore.createFolder(kbId, name, null, sharing, querySharing);
+            toast.success(`Đã tạo thư mục "${name}".`);
+            setHighlightId(folder.id);
+            setTimeout(() => setHighlightId(null), 2000);
+            refresh();
+          }}
+          onSaveEdit={(name, sharing, querySharing, applyToExisting) => {
+            if (!editingFolder) return;
+            knowledgeDocumentStore.rename(editingFolder.id, name);
+            knowledgeDocumentStore.updateFolderPermissions(editingFolder.id, sharing, querySharing, applyToExisting);
+            toast.success(`Đã cập nhật thư mục "${name}".`);
+            refresh();
+          }}
+        />
+      )}
 
       {moveTargets && (
         <MoveToFolderModal

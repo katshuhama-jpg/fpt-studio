@@ -142,16 +142,37 @@ export const knowledgeDocumentStore = {
     const ids = this.list(kbId).filter(d => d.id === folderId || (d.folderId !== null && descendantFolders.has(d.folderId))).map(d => d.id);
     this.removeMany(ids);
   },
-  createFolder(kbId: string, name: string, folderId: string | null = null): KnowledgeDocument {
+  createFolder(kbId: string, name: string, folderId: string | null = null, sharing?: Sharing, querySharing?: Sharing): KnowledgeDocument {
     const id = `doc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`;
     const now = Date.now();
     const rec: KnowledgeDocument = {
       id, kbId, name: name.trim(), isFolder: true, folderId, status: "done",
-      sizeBytes: 0, chunkCount: 0, version: 1, createdAt: now, updatedAt: now, updatedBy: "Tran Nam",
+      sizeBytes: 0, chunkCount: 0, version: 1, sharing, querySharing,
+      createdAt: now, updatedAt: now, updatedBy: "Tran Nam",
     };
     store.set(id, rec);
     persist();
     return rec;
+  },
+  /** Updates a folder's own default permission fields — by itself this ONLY changes what future
+   * uploads into it will default to (see UploadDocumentsModal, which reads the destination
+   * folder's sharing/querySharing to pre-fill its own fields). Pass `applyToExisting: true` to
+   * also cascade the new values onto every document already inside the folder (and its
+   * subfolders) — an explicit opt-in the caller gets via a confirmation dialog, never silent. */
+  updateFolderPermissions(id: string, sharing: Sharing, querySharing: Sharing, applyToExisting: boolean) {
+    const cur = store.get(id);
+    if (!cur) return;
+    store.set(id, { ...cur, sharing, querySharing, updatedAt: Date.now() });
+    if (applyToExisting) {
+      const descendantFolders = this.getDescendantFolderIds(cur.kbId, id);
+      descendantFolders.add(id);
+      for (const d of this.list(cur.kbId)) {
+        if (!d.isFolder && d.folderId !== null && descendantFolders.has(d.folderId)) {
+          store.set(d.id, { ...d, sharing, querySharing, updatedAt: Date.now() });
+        }
+      }
+    }
+    persist();
   },
   addDocument(kbId: string, data: { name: string; sizeBytes: number; folderId: string | null; sharing?: Sharing; querySharing?: Sharing }): KnowledgeDocument {
     const isNewVersion = this.isDuplicateName(kbId, data.name, data.folderId);

@@ -7,24 +7,8 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { type Sharing, type SharingMode } from "./knowledgeBaseStore";
-import MemberPicker from "./MemberPicker";
-
-const SHARING_OPTIONS: { value: SharingMode; label: string; helper?: string }[] = [
-  { value: "private", label: "Chỉ mình tôi" },
-  { value: "all", label: "Tất cả người dùng Console", helper: "Mọi thành viên Console đều xem và dùng được kho này." },
-  { value: "specific", label: "Người dùng cụ thể" },
-];
-
-/** Query-scope options — see UploadDocumentsModal's QUERY_SCOPE_OPTIONS for the full rationale.
- * Only rendered when the caller passes `querySharing` (a document/Agent-item share) — a whole
- * Console KB (S4) has no query-scope concept of its own, each document inside it carries its
- * own. */
-const QUERY_SCOPE_OPTIONS: { value: SharingMode; label: string }[] = [
-  { value: "private", label: "Chỉ trả lời cho tôi" },
-  { value: "all", label: "Trả lời cho mọi người" },
-  { value: "specific", label: "Chỉ trả lời cho người cụ thể" },
-];
+import { type Sharing } from "./knowledgeBaseStore";
+import PermissionFields, { isPermissionInvalid } from "./PermissionFields";
 
 /** Generic "Chia sẻ" modal — reused for a Console KB (S4) and for an individual document/Agent
  * Knowledge item's "Quyền" (S14), so both share the exact same sharing UI and copy instead of
@@ -45,36 +29,30 @@ export default function ShareKnowledgeBaseModal({
   onSave: (sharing: Sharing, querySharing?: Sharing) => void;
   title?: string;
 }) {
-  const [mode, setMode] = useState<SharingMode>(initialSharing.mode);
-  const [people, setPeople] = useState(initialSharing.people);
-  const [queryScopeMode, setQueryScopeMode] = useState<SharingMode>(initialQuerySharing?.mode ?? "private");
-  const [queryScopePeople, setQueryScopePeople] = useState(initialQuerySharing?.people ?? []);
+  const [sharing, setSharing] = useState<Sharing>(initialSharing);
+  const [querySharing, setQuerySharing] = useState<Sharing>(initialQuerySharing ?? { mode: "private", people: [] });
   const [showRevokeConfirm, setShowRevokeConfirm] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
 
-  const canSubmit = (mode !== "specific" || people.length > 0) && (queryScopeMode !== "specific" || queryScopePeople.length > 0);
+  const canSubmit = !isPermissionInvalid(sharing, initialQuerySharing ? querySharing : undefined);
 
   const revokedCount = (() => {
-    if (initialSharing.mode === "all" && mode !== "all") {
+    if (initialSharing.mode === "all" && sharing.mode !== "all") {
       // Downgrading from "all" — every previously-shared person loses access.
-      return mode === "specific" ? Math.max(0, initialSharing.people.length) : 1;
+      return sharing.mode === "specific" ? Math.max(0, initialSharing.people.length) : 1;
     }
     const before = new Map(initialSharing.people.map(p => [p.userId, p.access]));
     let count = 0;
     for (const [userId, access] of before) {
       if (access !== "edit") continue;
-      const now = people.find(p => p.userId === userId);
+      const now = sharing.people.find(p => p.userId === userId);
       if (!now || now.access !== "edit") count++;
     }
     return count;
   })();
 
   const applySave = () => {
-    const sharing: Sharing = { mode, people: mode === "specific" ? people : [] };
-    const querySharing: Sharing | undefined = initialQuerySharing
-      ? { mode: queryScopeMode, people: queryScopeMode === "specific" ? queryScopePeople : [] }
-      : undefined;
-    onSave(sharing, querySharing);
+    onSave(sharing, initialQuerySharing ? querySharing : undefined);
     toast.success("Đã cập nhật quyền truy cập.");
     onClose();
   };
@@ -82,7 +60,7 @@ export default function ShareKnowledgeBaseModal({
   const save = () => {
     setSubmitAttempted(true);
     if (!canSubmit) return;
-    const downgrading = initialSharing.mode === "all" && mode !== "all";
+    const downgrading = initialSharing.mode === "all" && sharing.mode !== "all";
     if (downgrading || revokedCount > 0) {
       setShowRevokeConfirm(true);
       return;
@@ -100,76 +78,14 @@ export default function ShareKnowledgeBaseModal({
           </DialogHeader>
 
           <div className="space-y-5 py-1">
-            <div>
-              <label className="text-sm font-medium mb-1 block">Quyền quản lý tài liệu</label>
-              <p className="text-xs text-muted-foreground mb-2">Kiểm soát ai được xem, chỉnh sửa và xóa tài liệu này trong Console.</p>
-              <div className="space-y-2">
-                {SHARING_OPTIONS.map(opt => {
-                  const selected = mode === opt.value;
-                  return (
-                    <div key={opt.value}>
-                      <div
-                        onClick={() => setMode(opt.value)}
-                        className={`flex items-start gap-3 px-3.5 py-3 rounded-xl border cursor-pointer transition-base ${
-                          selected ? "border-primary bg-primary/5" : "border-border bg-white hover:bg-surface-muted"
-                        }`}
-                      >
-                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${selected ? "border-primary" : "border-border"}`}>
-                          {selected && <div className="w-2 h-2 rounded-full bg-primary" />}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-sm font-medium">{opt.label}</div>
-                          {opt.helper && <div className="text-xs text-muted-foreground mt-0.5">{opt.helper}</div>}
-                        </div>
-                      </div>
-                      {selected && opt.value === "specific" && (
-                        <div className="mt-2 pl-3.5">
-                          <MemberPicker value={people} onChange={setPeople} ownerRow={{ name: ownerName, email: "" }} />
-                          {submitAttempted && people.length === 0 && <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người để chia sẻ.</p>}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {initialQuerySharing && (
-              <div>
-                <label className="text-sm font-medium mb-1 block">Phạm vi trả lời của Agent (Query scope)</label>
-                <p className="text-xs text-muted-foreground mb-2">
-                  Kiểm soát Agent được dùng nội dung tài liệu này để trả lời ai khi trò chuyện — không phụ thuộc vào việc Agent được publish cho ai.
-                </p>
-                <div className="space-y-2">
-                  {QUERY_SCOPE_OPTIONS.map(opt => {
-                    const selected = queryScopeMode === opt.value;
-                    return (
-                      <div key={opt.value}>
-                        <div
-                          onClick={() => setQueryScopeMode(opt.value)}
-                          className={`flex items-start gap-3 px-3.5 py-3 rounded-xl border cursor-pointer transition-base ${
-                            selected ? "border-primary bg-primary/5" : "border-border bg-white hover:bg-surface-muted"
-                          }`}
-                        >
-                          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${selected ? "border-primary" : "border-border"}`}>
-                            {selected && <div className="w-2 h-2 rounded-full bg-primary" />}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="text-sm font-medium">{opt.label}</div>
-                          </div>
-                        </div>
-                        {selected && opt.value === "specific" && (
-                          <div className="mt-2 pl-3.5">
-                            <MemberPicker value={queryScopePeople} onChange={setQueryScopePeople} ownerRow={{ name: ownerName, email: "" }} />
-                            {submitAttempted && queryScopePeople.length === 0 && <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người để giới hạn phạm vi trả lời.</p>}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+            <PermissionFields
+              sharing={sharing}
+              onSharingChange={setSharing}
+              querySharing={initialQuerySharing ? querySharing : undefined}
+              onQuerySharingChange={initialQuerySharing ? setQuerySharing : undefined}
+              showErrors={submitAttempted}
+              ownerRow={{ name: ownerName, email: "" }}
+            />
           </div>
 
           <DialogFooter>
