@@ -1357,8 +1357,8 @@ function AgentKbCardMenu({ onOpen, onEdit, onShare, onDelete, editBlocked, share
 
 /** One Knowledge Base card in section=knowledge's grid — visually identical to a Console
  * /knowledge card, plus the "Kích hoạt" toggle Round 6 Prompt K adds. */
-function AgentKbCard({ icon, name, statLine, ownerLabel, active, onToggleActive, onOpen, menu }: {
-  icon: any; name: string; statLine: string; ownerLabel: React.ReactNode;
+function AgentKbCard({ icon, name, description, active, onToggleActive, onOpen, menu }: {
+  icon: any; name: string; description?: string;
   active: boolean; onToggleActive: (v: boolean) => void; onOpen: () => void; menu: React.ReactNode;
 }) {
   return (
@@ -1369,18 +1369,17 @@ function AgentKbCard({ icon, name, statLine, ownerLabel, active, onToggleActive,
       onKeyDown={e => { if (e.key === "Enter") onOpen(); }}
       className={`group rounded-xl border border-border bg-surface hover:border-primary/30 hover:shadow-elev transition-base cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring p-5 flex flex-col ${active ? "" : "opacity-55"}`}
     >
-      <div className="flex items-start justify-between gap-2 mb-3">
+      <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex items-center gap-2.5 min-w-0">
           <HugeiconsIcon icon={icon} size={16} className="text-muted-foreground shrink-0" />
           <span className="font-semibold text-sm leading-snug line-clamp-2 min-w-0">{name}</span>
         </div>
         {menu}
       </div>
-      <div className="mt-auto pt-3 border-t border-border flex items-center justify-between gap-2 text-sm text-muted-foreground flex-wrap">
-        <span className="text-xs">{statLine}</span>
-      </div>
-      <div className="flex items-center justify-between gap-2 mt-2.5">
-        {ownerLabel}
+      <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 mb-3 min-h-[32px]">
+        {description || <span className="italic">Chưa có mô tả</span>}
+      </p>
+      <div className="mt-auto pt-3 border-t border-border flex items-center justify-end">
         <label
           className="flex items-center gap-1.5 shrink-0 cursor-pointer"
           onClick={e => e.stopPropagation()}
@@ -1443,25 +1442,19 @@ function AgentKnowledgeGrid({ agentId, onOpenOwn }: { agentId: string; onOpenOwn
     return () => document.removeEventListener("mousedown", h);
   }, [showAddMenu]);
 
-  const items = knowledgeStore.list(agentId);
   const attachedKbs = knowledgeStore.listAttachedConsoleKbIds(agentId)
     .map(kid => knowledgeBaseStore.get(kid))
     .filter((kb): kb is KnowledgeBase => !!kb);
 
-  const ownDocs = items.filter(i => i.kind === "doc").length;
-  const ownUrls = items.filter(i => i.kind === "url").length;
-  const ownChunks = items.reduce((sum, i) => sum + (i.chunkCount ?? 0), 0);
-
-  type CardData = { id: string; isOwn: boolean; name: string; statLine: string; isMine: boolean; ownerName?: string; kb?: KnowledgeBase; active: boolean };
+  type CardData = { id: string; isOwn: boolean; name: string; description?: string; isMine: boolean; ownerName?: string; kb?: KnowledgeBase; active: boolean };
   const cards: CardData[] = [
     {
       id: OWN_KB_ID, isOwn: true, name: "Cá nhân",
-      statLine: `${ownDocs} tài liệu · ${ownUrls} URL · ${ownChunks} chunk`,
+      description: "Tài liệu, website và câu hỏi thường gặp do bạn thêm riêng cho Agent này.",
       isMine: true, active: knowledgeStore.isKbActive(agentId, OWN_KB_ID),
     },
     ...attachedKbs.map(kb => ({
-      id: kb.id, isOwn: false, name: kb.name,
-      statLine: `${kb.stats.docs} tài liệu · ${kb.stats.urls} URL · ${kb.stats.chunks} chunk`,
+      id: kb.id, isOwn: false, name: kb.name, description: kb.description,
       isMine: kb.ownerId === KB_CURRENT_USER.id, ownerName: kb.ownerName, kb,
       active: knowledgeStore.isKbActive(agentId, kb.id),
     })),
@@ -1547,15 +1540,10 @@ function AgentKnowledgeGrid({ agentId, onOpenOwn }: { agentId: string; onOpenOwn
                 key={c.id}
                 icon={c.isOwn ? BookOpen01Icon : ConnectIcon}
                 name={c.name}
-                statLine={c.statLine}
+                description={c.description}
                 active={c.active}
                 onToggleActive={v => { knowledgeStore.setKbActive(agentId, c.id, v); refresh(); }}
                 onOpen={onOpen}
-                ownerLabel={
-                  c.isMine
-                    ? <span className="text-xs text-muted-foreground">Của tôi</span>
-                    : <span className="text-xs font-medium text-primary">Được chia sẻ{c.ownerName ? ` · ${c.ownerName}` : ""}</span>
-                }
                 menu={
                   <AgentKbCardMenu
                     openOnly={c.isOwn}
