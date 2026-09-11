@@ -32,6 +32,10 @@ export interface KnowledgeItem {
    * distinct from "linking" a Console KB to an Agent (that's attachConsoleKb below). Absent
    * means private ("Chỉ mình tôi"). */
   sharing?: Sharing;
+  /** Chat-time query scope — which end-users THIS Agent may draw on this item's content for when
+   * answering, independent of `sharing` above (Console visibility) and independent of who the
+   * Agent itself is published to. Absent means private ("Chỉ trả lời cho tôi"). */
+  querySharing?: Sharing;
   /** kind:"faq" items only — same free-text category tags as a Console KB's FAQ, shown in the
    * Knowledge tab's Danh mục column. doc/url items never set this. */
   categories?: string[];
@@ -166,6 +170,12 @@ export const knowledgeStore = {
     store.set(k(agentId, id), { ...cur, sharing, updatedAt: Date.now() });
     persist();
   },
+  updateQueryScope(agentId: string, id: string, querySharing: Sharing) {
+    const cur = store.get(k(agentId, id));
+    if (!cur) return;
+    store.set(k(agentId, id), { ...cur, querySharing, updatedAt: Date.now() });
+    persist();
+  },
   /** Edits an item's name/description in place — for a FAQ item this is question/answer.
    * Deliberately does not touch status: editing content isn't a reprocess, so Trạng thái stays
    * whatever it already was. */
@@ -246,7 +256,7 @@ export const knowledgeStore = {
       const faq = knowledgeFaqStore.create(kb.id, { question: item.name, answer: item.description, categories: [] });
       if (isDone) knowledgeFaqStore.updateStatus(faq.id, "done", { chunkCount: item.chunkCount ?? 1 });
     } else if (item.kind === "doc") {
-      const doc = knowledgeDocumentStore.addDocument(kb.id, { name: item.name, sizeBytes: item.sizeBytes ?? 0, folderId: null });
+      const doc = knowledgeDocumentStore.addDocument(kb.id, { name: item.name, sizeBytes: item.sizeBytes ?? 0, folderId: null, querySharing: item.querySharing });
       if (isDone) knowledgeDocumentStore.updateStatus(doc.id, "done", { chunkCount: item.chunkCount ?? 0 });
     } else if (item.kind === "url") {
       const url = knowledgeUrlStore.addUrl(kb.id, { url: item.name, source: "specified", folderId: null });
@@ -271,7 +281,7 @@ export const knowledgeStore = {
       const faq = knowledgeFaqStore.create(kb.id, { question: item.name, answer: item.description, categories: [] });
       if (isDone) knowledgeFaqStore.updateStatus(faq.id, "done", { chunkCount: item.chunkCount ?? 1 });
     } else if (item.kind === "doc") {
-      const doc = knowledgeDocumentStore.addDocument(kb.id, { name: item.name, sizeBytes: item.sizeBytes ?? 0, folderId: null });
+      const doc = knowledgeDocumentStore.addDocument(kb.id, { name: item.name, sizeBytes: item.sizeBytes ?? 0, folderId: null, querySharing: item.querySharing });
       if (isDone) knowledgeDocumentStore.updateStatus(doc.id, "done", { chunkCount: item.chunkCount ?? 0 });
     } else if (item.kind === "url") {
       const url = knowledgeUrlStore.addUrl(kb.id, { url: item.name, source: "specified", folderId: null });

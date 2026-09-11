@@ -292,15 +292,6 @@ export default function KnowledgeDetail() {
                 <Icon size={15} /> {label}
               </button>
             ))}
-            <Tooltip delayDuration={300}>
-              <TooltipTrigger asChild>
-                <span tabIndex={0} className="px-3 h-9 rounded-t-lg text-sm font-medium flex items-center gap-1.5 border-b-2 border-transparent text-muted-foreground/50 cursor-not-allowed outline-none">
-                  <Database size={15} /> SharePoint
-                  <span className="text-xs font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-surface-muted border border-border text-muted-foreground">Sắp ra mắt</span>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Tính năng này sẽ sớm ra mắt.</TooltipContent>
-            </Tooltip>
           </div>
 
           <Tooltip delayDuration={300}>

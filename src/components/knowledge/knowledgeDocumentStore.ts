@@ -14,17 +14,20 @@ export interface KnowledgeDocument {
   sizeBytes: number;
   chunkCount: number;
   version: number;
-  /** Per-document access level chosen at upload time (defaults to "Chỉ mình tôi" when unset —
-   * same convention as an Agent Knowledge item's sharing). Folders don't carry one. */
+  /** Console-management access chosen at upload time — who can see/edit/delete this document in
+   * Console (defaults to "Chỉ mình tôi" when unset). A folder carries one too, applied by default
+   * to documents uploaded into it (see CreateFolderModal / knowledgeDocumentStore.createFolder). */
   sharing?: Sharing;
+  /** Chat-time query scope — which end-users an Agent may draw on this document's content for
+   * when answering, independent of `sharing` above (which only governs Console visibility) and
+   * independent of who the Agent itself is published to. Defaults to "Chỉ trả lời cho tôi" when
+   * unset. A folder carries one too, applied by default to documents uploaded into it. */
+  querySharing?: Sharing;
   createdAt: number;
   updatedAt: number;
   updatedBy: string;
 }
 
-// v5 — CSV is no longer a supported upload format, so the seeded "Câu hỏi khiếu nại thường
-// gặp" doc changed extension from .csv to .xlsx (a stale v4 session would still show a .csv
-// row, contradicting the new rule).
 const STORE_KEY = "knowledge_document_store_v5";
 const SEEDED_KEY = "knowledge_document_store_seeded_v5";
 const store = loadMap<string, KnowledgeDocument>(STORE_KEY);
@@ -150,13 +153,14 @@ export const knowledgeDocumentStore = {
     persist();
     return rec;
   },
-  addDocument(kbId: string, data: { name: string; sizeBytes: number; folderId: string | null; sharing?: Sharing }): KnowledgeDocument {
+  addDocument(kbId: string, data: { name: string; sizeBytes: number; folderId: string | null; sharing?: Sharing; querySharing?: Sharing }): KnowledgeDocument {
     const isNewVersion = this.isDuplicateName(kbId, data.name, data.folderId);
     const id = `doc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`;
     const now = Date.now();
     const rec: KnowledgeDocument = {
       id, kbId, name: data.name, isFolder: false, folderId: data.folderId, status: "pending",
-      sizeBytes: data.sizeBytes, chunkCount: 0, version: isNewVersion ? 2 : 1, sharing: data.sharing,
+      sizeBytes: data.sizeBytes, chunkCount: 0, version: isNewVersion ? 2 : 1,
+      sharing: data.sharing, querySharing: data.querySharing,
       createdAt: now, updatedAt: now, updatedBy: "Tran Nam",
     };
     store.set(id, rec);
@@ -200,6 +204,12 @@ export const knowledgeDocumentStore = {
     const cur = store.get(id);
     if (!cur) return;
     store.set(id, { ...cur, sharing, updatedAt: Date.now() });
+    persist();
+  },
+  updateQueryScope(id: string, querySharing: Sharing) {
+    const cur = store.get(id);
+    if (!cur) return;
+    store.set(id, { ...cur, querySharing, updatedAt: Date.now() });
     persist();
   },
   /** Restoring an older version creates a new version on top (standard versioning behavior —

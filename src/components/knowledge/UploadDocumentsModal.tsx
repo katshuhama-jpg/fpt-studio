@@ -4,7 +4,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { UploadCloud, X, AlertTriangle, Info, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
@@ -13,14 +13,11 @@ import { CURRENT_USER, type SharingMode, type SharedPerson } from "./knowledgeBa
 import MemberPicker from "./MemberPicker";
 import FileTypeIcon from "./FileTypeIcon";
 import { formatFileSize } from "./formatFileSize";
+import { ALLOWED_EXT, MAX_FILES, MAX_SIZE, FORMAT_HELPER_TEXT, FORMAT_NOTES } from "./knowledgeFormats";
 
-const ALLOWED_EXT = ["txt", "md", "pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "html", "json"];
 const ACCEPT_ATTR = ALLOWED_EXT.map(ext => `.${ext}`).join(",");
-const MAX_FILES = 10;
-const MAX_SIZE = 30 * 1024 * 1024;
 const MAX_FILES_MSG = "Chỉ có thể tải tối đa 10 tệp mỗi lần. Vui lòng bỏ bớt tệp hoặc chia thành nhiều lần tải.";
 const MAX_SIZE_MSG = "Tệp vượt quá 30MB. Vui lòng nén hoặc chia nhỏ tệp trước khi tải lên.";
-const FORMAT_HELPER_TEXT = `Hỗ trợ ${ALLOWED_EXT.map(ext => ext.toUpperCase()).join(", ")} · Tối đa ${MAX_FILES} tệp mỗi lần · ${MAX_SIZE / (1024 * 1024)}MB mỗi tệp`;
 
 const ACCESS_OPTIONS: { value: SharingMode; label: string; helper?: string }[] = [
   { value: "private", label: "Chỉ mình tôi" },
@@ -28,16 +25,15 @@ const ACCESS_OPTIONS: { value: SharingMode; label: string; helper?: string }[] =
   { value: "specific", label: "Người dùng cụ thể" },
 ];
 
-/** Runtime query-scope options — a distinct concept from ACCESS_OPTIONS above: that field
- * controls who can see/manage this document in Console, while this one controls which chat
- * end-users the Agent is allowed to draw on this document's content for when answering. Reuses
- * the same 3-value SharingMode shape (private/all/specific) since the option set happens to
- * match, but the two fields are otherwise independent — this one isn't yet persisted to any
- * store field. */
+/** Query-scope options — a distinct concept from ACCESS_OPTIONS above: that field controls who
+ * can see/manage this document in Console, while this one controls which chat end-users the
+ * Agent is allowed to draw on this document's content for when answering, independent of who the
+ * Agent itself is published to. Reuses the same 3-value SharingMode shape (private/all/specific)
+ * since the option set happens to match, but the two fields are otherwise independent. */
 const QUERY_SCOPE_OPTIONS: { value: SharingMode; label: string }[] = [
-  { value: "private", label: "Chỉ mình tôi" },
-  { value: "all", label: "Tất cả người dùng Console" },
-  { value: "specific", label: "Người dùng cụ thể" },
+  { value: "private", label: "Chỉ trả lời cho tôi" },
+  { value: "all", label: "Trả lời cho mọi người" },
+  { value: "specific", label: "Chỉ trả lời cho người cụ thể" },
 ];
 
 interface StagedFile {
@@ -78,14 +74,21 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
   const [accessMode, setAccessMode] = useState<SharingMode>("private");
   const [accessPeople, setAccessPeople] = useState<SharedPerson[]>([]);
   const [queryScopeMode, setQueryScopeMode] = useState<SharingMode>("private");
+  const [queryScopePeople, setQueryScopePeople] = useState<SharedPerson[]>([]);
   // Name conflicts are resolved one at a time via a choice dialog before the file is staged —
   // this queue holds the ones still waiting on a choice.
   const [duplicateQueue, setDuplicateQueue] = useState<File[]>([]);
 
   useEffect(() => { if (open) setFolderId(initialFolderId); }, [open, initialFolderId]);
-  useEffect(() => { if (open) { setAccessMode("private"); setAccessPeople([]); setQueryScopeMode("private"); setDuplicateQueue([]); } }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    setAccessMode("private"); setAccessPeople([]);
+    setQueryScopeMode("private"); setQueryScopePeople([]);
+    setDuplicateQueue([]);
+  }, [open]);
 
   const accessInvalid = accessMode === "specific" && accessPeople.length === 0;
+  const queryScopeInvalid = queryScopeMode === "specific" && queryScopePeople.length === 0;
 
   const folders = agentId ? [] : knowledgeDocumentStore.listFolders(kbId!);
 
@@ -161,8 +164,9 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
   const submit = () => {
     const valid = staged.filter(s => !s.error);
     if (valid.length === 0) return;
-    if (accessInvalid) return;
+    if (accessInvalid || queryScopeInvalid) return;
     const sharing = accessMode === "private" ? undefined : { mode: accessMode, people: accessMode === "specific" ? accessPeople : [] };
+    const querySharing = queryScopeMode === "private" ? undefined : { mode: queryScopeMode, people: queryScopeMode === "specific" ? queryScopePeople : [] };
     setUploading(true);
 
     // Simulate upload progress, then insert rows and animate them through the pipeline.
@@ -181,14 +185,14 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
             setTimeout(() => knowledgeStore.updateStatus(agentId, id, "processing"), 400);
             setTimeout(() => knowledgeStore.updateStatus(agentId, id, "done", { chunkCount }), 1600);
           } else {
-            const item = knowledgeStore.add(agentId, { name: s.displayName, kind: "doc", description: "", sizeBytes: s.file.size, sharing });
+            const item = knowledgeStore.add(agentId, { name: s.displayName, kind: "doc", description: "", sizeBytes: s.file.size, sharing, querySharing });
             setTimeout(() => knowledgeStore.updateStatus(agentId, item.id, "processing"), 400);
             setTimeout(() => knowledgeStore.updateStatus(agentId, item.id, "done", { chunkCount }), 1600);
           }
         } else {
           const doc = s.overwriteId
             ? knowledgeDocumentStore.overwriteDocument(s.overwriteId, { sizeBytes: s.file.size })!
-            : knowledgeDocumentStore.addDocument(kbId!, { name: s.displayName, sizeBytes: s.file.size, folderId, sharing });
+            : knowledgeDocumentStore.addDocument(kbId!, { name: s.displayName, sizeBytes: s.file.size, folderId, sharing, querySharing });
           setTimeout(() => knowledgeDocumentStore.updateStatus(doc.id, "processing"), 400);
           setTimeout(() => {
             // Seed one deterministic failure so the failed state is reachable in the prototype.
@@ -236,14 +240,26 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
                   {ext.toUpperCase()}
                 </span>
               ))}
-              <Tooltip delayDuration={200}>
-                <TooltipTrigger asChild>
-                  <span tabIndex={0} className="text-muted-foreground outline-none cursor-default">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button type="button" onClick={e => e.stopPropagation()} className="text-muted-foreground hover:text-foreground outline-none transition-base">
                     <Info size={12} />
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-[260px]">Các tệp Office được tự động chuyển sang PDF trước khi xử lý để trích xuất nội dung chính xác hơn.</TooltipContent>
-              </Tooltip>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="center" className="w-80 p-0 overflow-hidden" onClick={e => e.stopPropagation()}>
+                  <div className="px-3.5 py-2.5 border-b border-border">
+                    <p className="text-xs font-semibold">Cách từng định dạng được xử lý</p>
+                  </div>
+                  <div className="max-h-72 overflow-y-auto">
+                    {ALLOWED_EXT.map(ext => (
+                      <div key={ext} className="flex items-start gap-3 px-3.5 py-2 border-b border-border last:border-b-0">
+                        <span className="shrink-0 mt-0.5 inline-flex items-center rounded-full border border-border bg-surface px-2 py-0.5 text-xs font-medium">{ext.toUpperCase()}</span>
+                        <span className="text-xs text-muted-foreground">{FORMAT_NOTES[ext]}</span>
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
             <input
               ref={inputRef} type="file" multiple accept={ACCEPT_ATTR} className="hidden"
@@ -267,7 +283,8 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
           )}
 
           <div>
-            <label className="text-sm font-medium mb-2 block">Ai có quyền truy cập</label>
+            <label className="text-sm font-medium mb-1 block">Quyền quản lý tài liệu</label>
+            <p className="text-xs text-muted-foreground mb-2">Kiểm soát ai được xem, chỉnh sửa và xóa tài liệu này trong Console.</p>
             <div className="space-y-2">
               {ACCESS_OPTIONS.map(opt => {
                 const selected = accessMode === opt.value;
@@ -302,27 +319,36 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
           </div>
 
           <div>
-            <label className="text-sm font-medium mb-1 block">Phạm vi truy vấn tài liệu</label>
+            <label className="text-sm font-medium mb-1 block">Phạm vi trả lời của Agent (Query scope)</label>
             <p className="text-xs text-muted-foreground mb-2">
-              Quyết định Agent có được dùng nội dung tài liệu này để trả lời một người dùng cụ thể hay không, kể cả khi Agent đã được publish cho người đó.
+              Kiểm soát Agent được dùng nội dung tài liệu này để trả lời ai khi trò chuyện — không phụ thuộc vào việc Agent được publish cho ai.
             </p>
             <div className="space-y-2">
               {QUERY_SCOPE_OPTIONS.map(opt => {
                 const selected = queryScopeMode === opt.value;
                 return (
-                  <div
-                    key={opt.value}
-                    onClick={() => setQueryScopeMode(opt.value)}
-                    className={`flex items-start gap-3 px-3.5 py-3 rounded-xl border cursor-pointer transition-base ${
-                      selected ? "border-primary bg-primary/5" : "border-border bg-white hover:bg-surface-muted"
-                    }`}
-                  >
-                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${selected ? "border-primary" : "border-border"}`}>
-                      {selected && <div className="w-2 h-2 rounded-full bg-primary" />}
+                  <div key={opt.value}>
+                    <div
+                      onClick={() => setQueryScopeMode(opt.value)}
+                      className={`flex items-start gap-3 px-3.5 py-3 rounded-xl border cursor-pointer transition-base ${
+                        selected ? "border-primary bg-primary/5" : "border-border bg-white hover:bg-surface-muted"
+                      }`}
+                    >
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${selected ? "border-primary" : "border-border"}`}>
+                        {selected && <div className="w-2 h-2 rounded-full bg-primary" />}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium">{opt.label}</div>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium">{opt.label}</div>
-                    </div>
+                    {selected && opt.value === "specific" && (
+                      <div className="mt-2 pl-3.5">
+                        <MemberPicker value={queryScopePeople} onChange={setQueryScopePeople} ownerRow={{ name: CURRENT_USER.name, email: CURRENT_USER.email }} />
+                        {queryScopePeople.length === 0 && (
+                          <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người để giới hạn phạm vi trả lời.</p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -375,7 +401,7 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
 
         <DialogFooter>
           <button onClick={() => { clearAll(); onClose(); }} disabled={uploading} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base disabled:opacity-40">Hủy</button>
-          <button onClick={submit} disabled={validCount === 0 || uploading || accessInvalid} className="btn-primary h-9 disabled:opacity-40 disabled:pointer-events-none">
+          <button onClick={submit} disabled={validCount === 0 || uploading || accessInvalid || queryScopeInvalid} className="btn-primary h-9 disabled:opacity-40 disabled:pointer-events-none">
             Lưu & Xử lý
           </button>
         </DialogFooter>

@@ -14,6 +14,7 @@ import { knowledgeDocumentStore, type KnowledgeDocument } from "./knowledgeDocum
 import { KnowledgeStatusPill, type KnowledgeProcessingStatus } from "./knowledgeStatus";
 import { formatFileSize } from "./formatFileSize";
 import KnowledgeSharingChip from "./KnowledgeSharingChip";
+import QueryScopeChip from "./QueryScopeChip";
 import FileTypeIcon from "./FileTypeIcon";
 import UploadDocumentsModal from "./UploadDocumentsModal";
 import ShareKnowledgeBaseModal from "./ShareKnowledgeBaseModal";
@@ -22,6 +23,7 @@ import VersionHistoryPanel from "./VersionHistoryPanel";
 import DocumentLayoutViewer from "./DocumentLayoutViewer";
 import CreateFolderModal from "./CreateFolderModal";
 import MoveToFolderModal from "./MoveToFolderModal";
+import { FORMAT_HELPER_TEXT } from "./knowledgeFormats";
 
 const STATUS_OPTIONS: { value: KnowledgeProcessingStatus | "all"; label: string }[] = [
   { value: "all", label: "Tất cả" },
@@ -31,8 +33,6 @@ const STATUS_OPTIONS: { value: KnowledgeProcessingStatus | "all"; label: string 
   { value: "failed", label: "Xử lý thất bại" },
   { value: "cancelled", label: "Đã hủy" },
 ];
-
-const SUPPORTED_FORMATS_LINE = "Hỗ trợ TXT, MD, PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX · Tối đa 10 tệp mỗi lần · 30MB mỗi tệp";
 
 export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string; viewOnly: boolean }) {
   const [params, setParams] = useSearchParams();
@@ -162,7 +162,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
         </div>
       )}
 
-      {!viewOnly && <p className="text-xs text-muted-foreground mb-3 lg:whitespace-nowrap">{SUPPORTED_FORMATS_LINE}</p>}
+      {!viewOnly && <p className="text-xs text-muted-foreground mb-3 lg:whitespace-nowrap">{FORMAT_HELPER_TEXT}</p>}
 
       {selected.size > 0 && !viewOnly && (
         <div className="flex items-center gap-3 mb-3 px-3 h-10 rounded-lg bg-primary-soft border border-primary/15">
@@ -190,7 +190,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
           ) : (
             <>
               <p className="text-sm text-muted-foreground max-w-md mx-auto mb-2">Tải tài liệu lên để Agent có thể tra cứu nội dung.</p>
-              <p className="text-xs text-muted-foreground max-w-md mx-auto mb-4">{SUPPORTED_FORMATS_LINE}</p>
+              <p className="text-xs text-muted-foreground max-w-md mx-auto mb-4">{FORMAT_HELPER_TEXT}</p>
               <button onClick={() => setShowUpload(true)} className="btn-primary h-9 mx-auto">Tải tài liệu lên</button>
             </>
           )}
@@ -222,7 +222,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                 <th className="text-left px-2 py-2.5 kb-table-header">Phiên bản</th>
                 <th className="text-left px-2 py-2.5 kb-table-header">Cập nhật</th>
                 <th className="text-left px-2 py-2.5 kb-table-header min-w-[120px]">Cập nhật bởi</th>
-                <th className="text-left px-2 py-2.5 kb-table-header min-w-[120px]">Quyền</th>
+                <th className="text-left px-2 py-2.5 kb-table-header min-w-[140px]">Quyền</th>
                 {!viewOnly && <th className="px-4 py-2.5 w-12" />}
               </tr>
             </thead>
@@ -289,7 +289,14 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                   </td>
                   <td className="px-2 py-3 text-xs text-muted-foreground whitespace-nowrap">{new Date(d.updatedAt).toLocaleDateString("vi-VN")}</td>
                   <td className="px-2 py-3 text-xs text-muted-foreground truncate">{d.updatedBy}</td>
-                  <td className="px-2 py-3">{!d.isFolder && <KnowledgeSharingChip sharing={d.sharing} />}</td>
+                  <td className="px-2 py-3">
+                    {!d.isFolder && (
+                      <div className="flex flex-col items-start gap-1">
+                        <KnowledgeSharingChip sharing={d.sharing} />
+                        <QueryScopeChip querySharing={d.querySharing} />
+                      </div>
+                    )}
+                  </td>
                   {!viewOnly && (
                     <td className="px-4 py-3 text-right">
                       {d.isFolder ? (
@@ -344,7 +351,14 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
           name={shareTargets.length === 1 ? shareTargets[0].name : undefined}
           ownerName="Tran Nam"
           sharing={shareTargets.length === 1 ? (shareTargets[0].sharing ?? { mode: "private", people: [] }) : { mode: "private", people: [] }}
-          onSave={sharing => { for (const t of shareTargets) knowledgeDocumentStore.updateSharing(t.id, sharing); setSelected(new Set()); }}
+          querySharing={shareTargets.length === 1 ? (shareTargets[0].querySharing ?? { mode: "private", people: [] }) : { mode: "private", people: [] }}
+          onSave={(sharing, querySharing) => {
+            for (const t of shareTargets) {
+              knowledgeDocumentStore.updateSharing(t.id, sharing);
+              if (querySharing) knowledgeDocumentStore.updateQueryScope(t.id, querySharing);
+            }
+            setSelected(new Set());
+          }}
           onClose={() => { setShareTargets(null); refresh(); }}
         />
       )}

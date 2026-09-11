@@ -74,6 +74,7 @@ import VersionHistoryPanel from "@/components/knowledge/VersionHistoryPanel";
 import FileTypeIcon from "@/components/knowledge/FileTypeIcon";
 import { formatFileSize } from "@/components/knowledge/formatFileSize";
 import KnowledgeSharingChip from "@/components/knowledge/KnowledgeSharingChip";
+import QueryScopeChip from "@/components/knowledge/QueryScopeChip";
 import { CategoryChips } from "@/components/knowledge/FaqCellDisplays";
 
 type Tab = "build" | "test" | "channels" | "insights";
@@ -1370,7 +1371,7 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
         title="Tri thức riêng của Agent"
         desc="Nội dung bạn tải lên tại đây chỉ thuộc về Agent này. Nếu muốn dùng cho nhiều Agent, hãy chuyển thành kho tri thức chung."
       >
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
           <button
             onClick={() => setShowUpload(true)}
             className="flex flex-col items-center gap-1.5 py-3 px-2 rounded-lg border border-dashed border-border hover:border-primary/40 hover:bg-primary-soft/30 text-xs font-medium transition-base"
@@ -1392,15 +1393,6 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
             <HugeiconsIcon icon={FileQuestionMarkIcon} size={16} className="text-primary" />
             Câu hỏi thường gặp
           </button>
-          <Tooltip delayDuration={300}>
-            <TooltipTrigger asChild>
-              <span tabIndex={0} className="flex flex-col items-center gap-1.5 py-3 px-2 rounded-lg border border-dashed border-border text-xs font-medium text-muted-foreground/60 cursor-not-allowed outline-none">
-                <HugeiconsIcon icon={Database01Icon} size={16} />
-                SharePoint
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>Sắp ra mắt</TooltipContent>
-          </Tooltip>
         </div>
 
         <div className="flex items-center justify-end mb-3">
@@ -1437,11 +1429,11 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
           </div>
         ) : (
           <div className="rounded-lg overflow-hidden border border-border overflow-x-auto scroll-shadow-x">
-            <div className="grid grid-cols-[24px,1fr,80px,110px,70px,132px,140px,120px,70px] gap-3 px-4 py-2.5 bg-surface-muted kb-table-header min-w-[980px]">
+            <div className="grid grid-cols-[24px,1fr,80px,110px,70px,132px,140px,150px,70px] gap-3 px-4 py-2.5 bg-surface-muted kb-table-header min-w-[980px]">
               <div></div><div>Nguồn</div><div>Loại</div><div>Kích thước</div><div>Phiên bản</div><div>Trạng thái</div><div>Danh mục</div><div>Quyền</div><div></div>
             </div>
             {filteredItems.map(item => (
-              <div key={item.id} className="grid grid-cols-[24px,1fr,80px,110px,70px,132px,140px,120px,70px] gap-3 px-4 h-14 border-t border-border items-center hover:bg-surface-muted/50 transition-base group min-w-[980px]">
+              <div key={item.id} className="grid grid-cols-[24px,1fr,80px,110px,70px,132px,140px,150px,70px] gap-3 px-4 py-2 min-h-14 border-t border-border items-center hover:bg-surface-muted/50 transition-base group min-w-[980px]">
                 <input type="checkbox" checked={selected.has(item.id)} onChange={() => toggleRow(item.id)} className="w-4 h-4 accent-primary" aria-label={`Chọn ${item.name}`} />
                 <button onClick={() => openItemOrEditFaq(item)} className="flex items-center gap-2 min-w-0 text-sm font-medium truncate text-left hover:underline">
                   <FileTypeIcon kind={item.kind === "url" ? "url" : item.kind === "faq" ? "faq" : undefined} name={item.kind === "doc" ? item.name : undefined} />
@@ -1481,8 +1473,9 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
                     ? <CategoryChips categories={item.categories ?? []} />
                     : <span className="text-xs text-muted-foreground">—</span>}
                 </div>
-                <button onClick={() => setShareTargets([item])} className="text-left">
+                <button onClick={() => setShareTargets([item])} className="text-left flex flex-col items-start gap-1">
                   <KnowledgeSharingChip sharing={item.sharing} />
+                  <QueryScopeChip querySharing={item.querySharing} />
                 </button>
                 <div className="flex items-center justify-end">
                   <KnowledgeItemRowMenu
@@ -1536,7 +1529,14 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
           name={shareTargets.length === 1 ? shareTargets[0].name : undefined}
           ownerName="Tran Nam"
           sharing={shareTargets.length === 1 ? (shareTargets[0].sharing ?? { mode: "private", people: [] }) : { mode: "private", people: [] }}
-          onSave={sharing => { for (const t of shareTargets) knowledgeStore.updateSharing(agentId, t.id, sharing); setSelected(new Set()); }}
+          querySharing={shareTargets.length === 1 ? (shareTargets[0].querySharing ?? { mode: "private", people: [] }) : { mode: "private", people: [] }}
+          onSave={(sharing, querySharing) => {
+            for (const t of shareTargets) {
+              knowledgeStore.updateSharing(agentId, t.id, sharing);
+              if (querySharing) knowledgeStore.updateQueryScope(agentId, t.id, querySharing);
+            }
+            setSelected(new Set());
+          }}
           onClose={() => { setShareTargets(null); refresh(); }}
         />
       )}

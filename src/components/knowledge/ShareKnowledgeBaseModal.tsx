@@ -16,11 +16,21 @@ const SHARING_OPTIONS: { value: SharingMode; label: string; helper?: string }[] 
   { value: "specific", label: "Người dùng cụ thể" },
 ];
 
-/** Generic "Chia sẻ" modal — reused for a Console KB (S4) and for an individual Agent
+/** Query-scope options — see UploadDocumentsModal's QUERY_SCOPE_OPTIONS for the full rationale.
+ * Only rendered when the caller passes `querySharing` (a document/Agent-item share) — a whole
+ * Console KB (S4) has no query-scope concept of its own, each document inside it carries its
+ * own. */
+const QUERY_SCOPE_OPTIONS: { value: SharingMode; label: string }[] = [
+  { value: "private", label: "Chỉ trả lời cho tôi" },
+  { value: "all", label: "Trả lời cho mọi người" },
+  { value: "specific", label: "Chỉ trả lời cho người cụ thể" },
+];
+
+/** Generic "Chia sẻ" modal — reused for a Console KB (S4) and for an individual document/Agent
  * Knowledge item's "Quyền" (S14), so both share the exact same sharing UI and copy instead of
  * drifting into two pickers. The caller owns persistence via onSave. */
 export default function ShareKnowledgeBaseModal({
-  open, onClose, name, ownerName, sharing: initialSharing, onSave, title = "Chia sẻ kho tri thức",
+  open, onClose, name, ownerName, sharing: initialSharing, querySharing: initialQuerySharing, onSave, title = "Chia sẻ kho tri thức",
 }: {
   open: boolean;
   onClose: () => void;
@@ -28,15 +38,21 @@ export default function ShareKnowledgeBaseModal({
   name?: string;
   ownerName: string;
   sharing: Sharing;
-  onSave: (sharing: Sharing) => void;
+  /** Omit for a whole Console KB share (no query-scope concept there); pass the document/item's
+   * current query scope (defaulting to `{ mode: "private", people: [] }` when unset) to also
+   * show and edit the "Phạm vi trả lời của Agent" section below. */
+  querySharing?: Sharing;
+  onSave: (sharing: Sharing, querySharing?: Sharing) => void;
   title?: string;
 }) {
   const [mode, setMode] = useState<SharingMode>(initialSharing.mode);
   const [people, setPeople] = useState(initialSharing.people);
+  const [queryScopeMode, setQueryScopeMode] = useState<SharingMode>(initialQuerySharing?.mode ?? "private");
+  const [queryScopePeople, setQueryScopePeople] = useState(initialQuerySharing?.people ?? []);
   const [showRevokeConfirm, setShowRevokeConfirm] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
 
-  const canSubmit = mode !== "specific" || people.length > 0;
+  const canSubmit = (mode !== "specific" || people.length > 0) && (queryScopeMode !== "specific" || queryScopePeople.length > 0);
 
   const revokedCount = (() => {
     if (initialSharing.mode === "all" && mode !== "all") {
@@ -55,7 +71,10 @@ export default function ShareKnowledgeBaseModal({
 
   const applySave = () => {
     const sharing: Sharing = { mode, people: mode === "specific" ? people : [] };
-    onSave(sharing);
+    const querySharing: Sharing | undefined = initialQuerySharing
+      ? { mode: queryScopeMode, people: queryScopeMode === "specific" ? queryScopePeople : [] }
+      : undefined;
+    onSave(sharing, querySharing);
     toast.success("Đã cập nhật quyền truy cập.");
     onClose();
   };
@@ -82,7 +101,8 @@ export default function ShareKnowledgeBaseModal({
 
           <div className="space-y-5 py-1">
             <div>
-              <label className="text-sm font-medium mb-2 block">Ai có quyền truy cập</label>
+              <label className="text-sm font-medium mb-1 block">Quyền quản lý tài liệu</label>
+              <p className="text-xs text-muted-foreground mb-2">Kiểm soát ai được xem, chỉnh sửa và xóa tài liệu này trong Console.</p>
               <div className="space-y-2">
                 {SHARING_OPTIONS.map(opt => {
                   const selected = mode === opt.value;
@@ -114,9 +134,42 @@ export default function ShareKnowledgeBaseModal({
               </div>
             </div>
 
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Quyền này áp dụng cho việc quản lý kho tri thức trong Console. Nó không thay đổi phạm vi tri thức mà người dùng cuối truy vấn được khi trò chuyện với Agent.
-            </p>
+            {initialQuerySharing && (
+              <div>
+                <label className="text-sm font-medium mb-1 block">Phạm vi trả lời của Agent (Query scope)</label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Kiểm soát Agent được dùng nội dung tài liệu này để trả lời ai khi trò chuyện — không phụ thuộc vào việc Agent được publish cho ai.
+                </p>
+                <div className="space-y-2">
+                  {QUERY_SCOPE_OPTIONS.map(opt => {
+                    const selected = queryScopeMode === opt.value;
+                    return (
+                      <div key={opt.value}>
+                        <div
+                          onClick={() => setQueryScopeMode(opt.value)}
+                          className={`flex items-start gap-3 px-3.5 py-3 rounded-xl border cursor-pointer transition-base ${
+                            selected ? "border-primary bg-primary/5" : "border-border bg-white hover:bg-surface-muted"
+                          }`}
+                        >
+                          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${selected ? "border-primary" : "border-border"}`}>
+                            {selected && <div className="w-2 h-2 rounded-full bg-primary" />}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium">{opt.label}</div>
+                          </div>
+                        </div>
+                        {selected && opt.value === "specific" && (
+                          <div className="mt-2 pl-3.5">
+                            <MemberPicker value={queryScopePeople} onChange={setQueryScopePeople} ownerRow={{ name: ownerName, email: "" }} />
+                            {submitAttempted && queryScopePeople.length === 0 && <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người để giới hạn phạm vi trả lời.</p>}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
