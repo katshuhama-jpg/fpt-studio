@@ -3864,16 +3864,16 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
                 <HugeiconsIcon icon={SparklesIcon} size={12} /> Write from changes
               </button>
             </div>
-            <textarea
-              rows={3}
-              maxLength={NOTE_MAX}
-              placeholder="What's new in this version? The people using the agent will read this."
-              className="w-full px-3 py-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none"
-              value={note}
-              onChange={e => setNote(e.target.value)}
-            />
-            <div className="flex items-center justify-end mt-1">
-              <span className="text-sm text-muted-foreground shrink-0">{note.length}/{NOTE_MAX}</span>
+            <div className="relative">
+              <textarea
+                rows={3}
+                maxLength={NOTE_MAX}
+                placeholder="What's new in this version? The people using the agent will read this."
+                className="w-full px-3 pt-2.5 pb-7 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none"
+                value={note}
+                onChange={e => setNote(e.target.value)}
+              />
+              <span className="absolute right-3 bottom-2 text-sm text-muted-foreground pointer-events-none">{note.length}/{NOTE_MAX}</span>
             </div>
           </div>
 
