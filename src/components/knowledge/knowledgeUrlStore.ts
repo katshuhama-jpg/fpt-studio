@@ -3,6 +3,7 @@ import { loadMap, saveMap } from "@/lib/sessionPersist";
 import type { KnowledgeProcessingStatus } from "./knowledgeStatus";
 import type { ScheduleConfig } from "./knowledgeSettingsStore";
 import { INITIAL_VERSION, bumpMinor, bumpPatch, type SemVer } from "./semver";
+import type { Sharing } from "./knowledgeBaseStore";
 
 export type UrlSource = "specified" | "crawled_child" | "sitemap";
 
@@ -27,13 +28,19 @@ export interface KnowledgeUrl {
   lastSyncOk: boolean | null;
   lastSyncError?: string;
   scheduleOverride?: UrlScheduleOverride;
+  /** Console-management access — same model/meaning as a Document's own `sharing` field. */
+  sharing?: Sharing;
+  /** Chat-time query scope — same model/meaning as a Document's own `querySharing` field. */
+  querySharing?: Sharing;
+  /** Agent ids currently relying on this URL — same meaning as KnowledgeDocument's field. */
+  attachedAgentIds?: string[];
   createdAt: number;
   updatedAt: number;
   updatedBy: string;
 }
 
-const STORE_KEY = "knowledge_url_store_v4";
-const SEEDED_KEY = "knowledge_url_store_seeded_v4";
+const STORE_KEY = "knowledge_url_store_v5";
+const SEEDED_KEY = "knowledge_url_store_seeded_v5";
 const store = loadMap<string, KnowledgeUrl>(STORE_KEY);
 const persist = () => saveMap(STORE_KEY, store);
 
@@ -133,13 +140,14 @@ export const knowledgeUrlStore = {
     persist();
     return rec;
   },
-  addUrl(kbId: string, data: { url: string; source: UrlSource; folderId?: string | null }): KnowledgeUrl {
+  addUrl(kbId: string, data: { url: string; source: UrlSource; folderId?: string | null; sharing?: Sharing; querySharing?: Sharing; attachedAgentIds?: string[] }): KnowledgeUrl {
     const id = `url-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`;
     const now = Date.now();
     const rec: KnowledgeUrl = {
       id, kbId, name: data.url, isFolder: false, folderId: data.folderId ?? null,
       url: data.url, title: data.url.replace(/^https?:\/\//, ""), source: data.source,
       status: "pending", chunkCount: 0, version: INITIAL_VERSION,
+      sharing: data.sharing, querySharing: data.querySharing, attachedAgentIds: data.attachedAgentIds,
       lastSyncAt: null, lastSyncOk: null, createdAt: now, updatedAt: now, updatedBy: "Tran Nam",
     };
     store.set(id, rec);
@@ -190,6 +198,32 @@ export const knowledgeUrlStore = {
   },
   removeMany(ids: string[]) {
     for (const id of ids) store.delete(id);
+    persist();
+  },
+  updateSharing(id: string, sharing: Sharing) {
+    const cur = store.get(id);
+    if (!cur) return;
+    store.set(id, { ...cur, sharing, updatedAt: Date.now() });
+    persist();
+  },
+  updateQueryScope(id: string, querySharing: Sharing) {
+    const cur = store.get(id);
+    if (!cur) return;
+    store.set(id, { ...cur, querySharing, updatedAt: Date.now() });
+    persist();
+  },
+  /** Links this URL to an Agent without moving or copying it — see attachedAgentIds. */
+  attachToAgent(id: string, agentId: string) {
+    const cur = store.get(id);
+    if (!cur || cur.attachedAgentIds?.includes(agentId)) return;
+    store.set(id, { ...cur, attachedAgentIds: [...(cur.attachedAgentIds ?? []), agentId] });
+    persist();
+  },
+  /** "Gỡ khỏi Agent" — the URL stays exactly where it is, only this Agent stops using it. */
+  detachFromAgent(id: string, agentId: string) {
+    const cur = store.get(id);
+    if (!cur) return;
+    store.set(id, { ...cur, attachedAgentIds: (cur.attachedAgentIds ?? []).filter(a => a !== agentId) });
     persist();
   },
 };

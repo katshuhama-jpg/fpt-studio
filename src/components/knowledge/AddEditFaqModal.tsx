@@ -6,7 +6,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { knowledgeFaqStore, type KnowledgeFaq } from "./knowledgeFaqStore";
-import { knowledgeStore, type KnowledgeItem } from "./knowledgeStore";
+import { knowledgeStore } from "./knowledgeStore";
 import CategoryChipsInput from "./CategoryChipsInput";
 import FaqSidePeek from "./FaqSidePeek";
 
@@ -17,20 +17,21 @@ const CATEGORY_MAX = 30;
 const DUPLICATE_CHECK_MIN_CHARS = 8;
 const DUPLICATE_CHECK_DEBOUNCE_MS = 500;
 
-/** Pass either kbId (Console FAQ tab) or agentId (Agent Knowledge "Câu hỏi thường gặp" tile).
- * Categories, duplicate detection, and the side peek only apply to Console FAQs — Agent
- * Knowledge items don't have a kbId-scoped catalog to compare against.
- * `editingFaq` edits a Console KB FAQ (kbId); `editingItem` edits an Agent-level FAQ
- * KnowledgeItem (agentId) — its question/answer live in the generic name/description fields
- * shared with doc/url items. Pass at most one of the two. */
-export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, editingItem, onClose }: {
-  open: boolean; kbId?: string; agentId?: string; editingFaq?: KnowledgeFaq; editingItem?: KnowledgeItem; onClose: () => void;
+/** `editingFaq` edits an existing FAQ (in Console or already attached to an Agent) — pass its
+ * own `kbId` alongside it so duplicate-checking still compares against the rest of that KB.
+ * `agentId` with no `editingFaq` creates a brand-new FAQ filed into the creator's personal "Cá
+ * nhân" KB and attached to that Agent in the same step (see knowledgeStore.createFaq).
+ * Categories and the fuzzy-match side peek only apply when a `kbId` is known (Console FAQs, or
+ * editing an already-attached one) — a brand-new Agent-created FAQ has no KB-scoped catalog to
+ * compare against yet, so it only gets the lighter exact-match duplicate check. */
+export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, onClose }: {
+  open: boolean; kbId?: string; agentId?: string; editingFaq?: KnowledgeFaq; onClose: () => void;
 }) {
-  const isEdit = !!editingFaq || !!editingItem;
-  const initialQuestion = editingFaq?.question ?? editingItem?.name ?? "";
-  const initialAnswer = editingFaq?.answer ?? editingItem?.description ?? "";
-  const initialCategories = editingFaq?.categories ?? editingItem?.categories ?? [];
-  const statusSource = editingFaq ?? editingItem;
+  const isEdit = !!editingFaq;
+  const initialQuestion = editingFaq?.question ?? "";
+  const initialAnswer = editingFaq?.answer ?? "";
+  const initialCategories = editingFaq?.categories ?? [];
+  const statusSource = editingFaq;
   const [question, setQuestion] = useState(initialQuestion);
   const [answer, setAnswer] = useState(initialAnswer);
   const [categories, setCategories] = useState<string[]>(initialCategories);
@@ -44,14 +45,16 @@ export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, editi
   const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Agent-level duplicate check is a plain exact-match lookup (no fuzzy scoring needed), so it
-  // runs synchronously on every render instead of the debounced effect the Console path uses.
-  const agentDuplicate = agentId && question.trim().length > 0
-    ? knowledgeStore.findFaqDuplicate(agentId, question, editingItem?.id)
+  // Agent-level duplicate check (only relevant while creating a brand-new FAQ from an Agent's
+  // Knowledge screen, which has no KB-scoped catalog yet) is a plain exact-match lookup (no
+  // fuzzy scoring needed), so it runs synchronously on every render instead of the debounced
+  // effect the kbId path below uses.
+  const agentDuplicate = agentId && !isEdit && question.trim().length > 0
+    ? knowledgeStore.findFaqDuplicate(agentId, question)
     : false;
 
   useEffect(() => {
-    if (agentId || !kbId) return;
+    if (!kbId) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const q = question.trim();
     if (q.length < DUPLICATE_CHECK_MIN_CHARS) { setMatches({ exact: null, similar: [] }); return; }
@@ -59,8 +62,7 @@ export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, editi
       setMatches(knowledgeFaqStore.findMatches(kbId, q, editingFaq?.id));
     }, DUPLICATE_CHECK_DEBOUNCE_MS);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [question, kbId, agentId, editingFaq?.id]);
+  }, [question, kbId, editingFaq?.id]);
 
   const questionError = (questionTouched || submitAttempted) && question.trim().length === 0 ? "Vui lòng nhập câu hỏi." : null;
   const answerError = (answerTouched || submitAttempted) && answer.trim().length === 0 ? "Vui lòng nhập câu trả lời." : null;
@@ -86,28 +88,18 @@ export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, editi
   const submit = () => {
     setSubmitAttempted(true);
     if (!canSubmit) return;
-    // Agent-level duplicates block the save behind an explicit confirm — unlike the Console
-    // path below, which only ever shows a non-blocking inline warning.
-    if (agentId && agentDuplicate && !showDuplicateConfirm) { setShowDuplicateConfirm(true); return; }
-
-    if (agentId) {
-      if (editingItem) {
-        // Editing content isn't a reprocess — Trạng thái stays exactly as it was.
-        knowledgeStore.update(agentId, editingItem.id, { name: question.trim(), description: answer.trim(), categories });
-        toast.success("Đã lưu câu hỏi.");
-      } else if (!isEdit) {
-        const item = knowledgeStore.add(agentId, { name: question.trim(), kind: "faq", description: answer.trim(), categories });
-        toast.success("Đã lưu câu hỏi.");
-        runLifecycle((status, chunkCount) => knowledgeStore.updateStatus(agentId, item.id, status, chunkCount !== undefined ? { chunkCount } : undefined));
-      }
-      onClose();
-      return;
-    }
+    // Agent-level duplicates block the save behind an explicit confirm — unlike the kbId path
+    // below, which only ever shows a non-blocking inline warning.
+    if (agentDuplicate && !showDuplicateConfirm) { setShowDuplicateConfirm(true); return; }
 
     if (isEdit) {
       knowledgeFaqStore.update(editingFaq.id, { question: question.trim(), answer: answer.trim(), categories });
       toast.success("Đã lưu câu hỏi.");
       runLifecycle((status, chunkCount) => knowledgeFaqStore.updateStatus(editingFaq.id, status, chunkCount !== undefined ? { chunkCount } : undefined));
+    } else if (agentId) {
+      const faq = knowledgeStore.createFaq(agentId, { question: question.trim(), answer: answer.trim(), categories });
+      toast.success("Đã lưu câu hỏi.");
+      runLifecycle((status, chunkCount) => knowledgeFaqStore.updateStatus(faq.id, status, chunkCount !== undefined ? { chunkCount } : undefined));
     } else {
       const faq = knowledgeFaqStore.create(kbId!, { question: question.trim(), answer: answer.trim(), categories });
       toast.success("Đã lưu câu hỏi.");

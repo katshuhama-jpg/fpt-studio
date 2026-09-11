@@ -113,16 +113,20 @@ function KbCard({ kb, userId, access, onOpen, onEdit, onShare, onDelete }: {
   const NO_ROLE_PERMISSION = "Vai trò của bạn không có quyền thực hiện thao tác này.";
   const NOT_OWNED_OR_SHARED = "Bạn chỉ có thể thao tác trên kho tri thức bạn tạo hoặc được chia sẻ.";
   const VIEW_ONLY = "Bạn chỉ có quyền xem kho tri thức này.";
-  const editBlocked = !access.hasPermission("manage") ? NO_ROLE_PERMISSION
+  const DEFAULT_KB = "Đây là kho tri thức mặc định của bạn — không thể đổi tên, chia sẻ cả kho hoặc xóa. Từng tài liệu bên trong vẫn chia sẻ được riêng.";
+  const editBlocked = kb.isDefault ? DEFAULT_KB
+    : !access.hasPermission("manage") ? NO_ROLE_PERMISSION
     : !access.canAct("manage", accessible) ? NOT_OWNED_OR_SHARED
     : viewOnly ? VIEW_ONLY : undefined;
   // Sharing (like deleting the KB itself) is reserved for the owner — an editor can change
   // content but not the KB's own access list, matching KnowledgeDetail.tsx's header menu.
-  const shareBlocked = !isOwner ? "Chỉ chủ sở hữu mới có thể chia sẻ kho tri thức này."
+  const shareBlocked = kb.isDefault ? DEFAULT_KB
+    : !isOwner ? "Chỉ chủ sở hữu mới có thể chia sẻ kho tri thức này."
     : !access.hasPermission("publish") ? NO_ROLE_PERMISSION
     : !access.canAct("publish", accessible) ? NOT_OWNED_OR_SHARED
     : undefined;
-  const deleteBlocked = !isOwner ? "Chỉ chủ sở hữu mới có thể xóa kho tri thức này."
+  const deleteBlocked = kb.isDefault ? DEFAULT_KB
+    : !isOwner ? "Chỉ chủ sở hữu mới có thể xóa kho tri thức này."
     : !access.hasPermission("delete") ? NO_ROLE_PERMISSION
     : !access.canAct("delete", accessible) ? NOT_OWNED_OR_SHARED
     : undefined;
@@ -144,6 +148,7 @@ function KbCard({ kb, userId, access, onOpen, onEdit, onShare, onDelete }: {
           >
             {kb.name}
           </Link>
+          {kb.isDefault && <span className="chip chip-muted shrink-0">Mặc định</span>}
         </div>
         <RowMenu kb={kb} onOpen={onOpen} onEdit={onEdit} onShare={onShare} onDelete={onDelete} editBlocked={editBlocked} shareBlocked={shareBlocked} deleteBlocked={deleteBlocked} />
       </div>

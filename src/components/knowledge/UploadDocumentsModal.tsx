@@ -92,7 +92,7 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
   const findExisting = (name: string): { id: string } | undefined => {
     const norm = name.trim().toLowerCase();
     return agentId
-      ? knowledgeStore.list(agentId).find(i => i.name.trim().toLowerCase() === norm)
+      ? knowledgeStore.listForAgent(agentId).find(r => r.kind === "doc" && r.name.trim().toLowerCase() === norm)
       : knowledgeDocumentStore.list(kbId!).find(d => !d.isFolder && d.folderId === folderId && d.name.trim().toLowerCase() === norm);
   };
 
@@ -174,13 +174,13 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
         if (agentId) {
           if (s.overwriteId) {
             const id = s.overwriteId;
-            knowledgeStore.overwrite(agentId, id, { sizeBytes: s.file.size });
-            setTimeout(() => knowledgeStore.updateStatus(agentId, id, "processing"), 400);
-            setTimeout(() => knowledgeStore.updateStatus(agentId, id, "done", { chunkCount }), 1600);
+            knowledgeDocumentStore.overwriteDocument(id, { sizeBytes: s.file.size });
+            setTimeout(() => knowledgeDocumentStore.updateStatus(id, "processing"), 400);
+            setTimeout(() => knowledgeDocumentStore.updateStatus(id, "done", { chunkCount }), 1600);
           } else {
-            const item = knowledgeStore.add(agentId, { name: s.displayName, kind: "doc", description: "", sizeBytes: s.file.size, sharing, querySharing });
-            setTimeout(() => knowledgeStore.updateStatus(agentId, item.id, "processing"), 400);
-            setTimeout(() => knowledgeStore.updateStatus(agentId, item.id, "done", { chunkCount }), 1600);
+            const doc = knowledgeStore.createDocument(agentId, { name: s.displayName, sizeBytes: s.file.size, sharing, querySharing });
+            setTimeout(() => knowledgeDocumentStore.updateStatus(doc.id, "processing"), 400);
+            setTimeout(() => knowledgeDocumentStore.updateStatus(doc.id, "done", { chunkCount }), 1600);
           }
         } else {
           const doc = s.overwriteId

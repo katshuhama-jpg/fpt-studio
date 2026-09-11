@@ -1,12 +1,12 @@
-// sessionStorage-backed Chunk store — shared shape for a document's, URL's, or Agent
-// Knowledge item's chunks, opened from any of their "Mở" row actions via ChunkViewerModal.
+// sessionStorage-backed Chunk store — shared shape for any document's or URL's chunks, opened
+// from either one's "Mở" row action via ChunkViewerModal.
 import { loadMap, saveMap } from "@/lib/sessionPersist";
 import type { KnowledgeFaqStatus, KnowledgeProcessingStatus } from "./knowledgeStatus";
 import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
 import { knowledgeUrlStore } from "./knowledgeUrlStore";
 import { getPagesForSource } from "./mockDocumentPages";
 
-export type ChunkSourceType = "document" | "url" | "agent-item";
+export type ChunkSourceType = "document" | "url";
 export type ChunkContentType = "text" | "html";
 
 /** Where on the rendered page a chunk's content was extracted from — every field is a 0-1
@@ -158,10 +158,7 @@ function backfillBox(c: KnowledgeChunk): KnowledgeChunk {
   return healed;
 }
 
-function seedIfEmpty(
-  kbId: string, sourceType: ChunkSourceType, sourceId: string,
-  agentItemHint?: { status?: KnowledgeFaqStatus; chunkCount?: number },
-) {
+function seedIfEmpty(kbId: string, sourceType: ChunkSourceType, sourceId: string) {
   const flagKey = `knowledge_chunk_seeded_v1:${sourceKey(sourceType, sourceId)}`;
   if (sessionStorage.getItem(flagKey)) return;
   sessionStorage.setItem(flagKey, "1");
@@ -177,11 +174,6 @@ function seedIfEmpty(
     const url = knowledgeUrlStore.get(kbId, sourceId);
     chunkCount = url?.chunkCount ?? 0;
     status = url?.status;
-  } else if (sourceType === "agent-item") {
-    // knowledgeStore.ts (agent items) can't be imported here without creating a circular
-    // dependency — the caller (ChunkViewerModal) passes the item's status/chunkCount instead.
-    chunkCount = agentItemHint?.chunkCount ?? 0;
-    status = agentItemHint?.status;
   }
 
   if (status === "done" && chunkCount > 0) {
@@ -204,11 +196,8 @@ export function markChunksSeeded(sourceType: ChunkSourceType, sourceId: string) 
 }
 
 export const knowledgeChunkStore = {
-  list(
-    kbId: string, sourceType: ChunkSourceType, sourceId: string,
-    agentItemHint?: { status?: KnowledgeFaqStatus; chunkCount?: number },
-  ): KnowledgeChunk[] {
-    seedIfEmpty(kbId, sourceType, sourceId, agentItemHint);
+  list(kbId: string, sourceType: ChunkSourceType, sourceId: string): KnowledgeChunk[] {
+    seedIfEmpty(kbId, sourceType, sourceId);
     const result = [...store.values()]
       .filter(c => c.sourceType === sourceType && c.sourceId === sourceId)
       .map(backfillBox)

@@ -1,9 +1,9 @@
 // sessionStorage-backed Console Knowledge store — mutations survive a page reload and
-// client-side navigation within the same browser session. This is the CONSOLE-level store
-// (lives at /knowledge, shareable across many Agents) — kept deliberately separate from
-// src/components/knowledge/knowledgeStore.ts (the per-Agent Knowledge store) per the
-// two-store architecture: an Agent can attach a Console KB by reference, or promote one of
-// its own items into a new Console KB, but the two stores are never merged.
+// client-side navigation within the same browser session. This is the single source of truth
+// for every document/URL/FAQ in the product — there is no separate "Agent-only" content store.
+// Every builder automatically has one personal KB (isDefault, see getOrCreatePersonalKb) that
+// any content created without an explicit KB context lands in; src/components/knowledge/
+// knowledgeStore.ts is purely a per-Agent attachment/query layer over this store's content.
 import { loadMap, saveMap } from "@/lib/sessionPersist";
 import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
 import { knowledgeUrlStore } from "./knowledgeUrlStore";
@@ -49,6 +49,10 @@ export interface KnowledgeBase {
   /** Agent ids currently attaching this KB by reference — drives the Delete-KB warning
    * ("N Agent đang dùng kho tri thức này..."). */
   attachedByAgentIds: string[];
+  /** True only for the one personal "Cá nhân" KB every builder automatically has (see
+   * getOrCreatePersonalKb) — it can't be renamed or deleted, and has no whole-KB "Chia sẻ"
+   * action, though its individual documents/URLs/FAQs can still be shared like any other item. */
+  isDefault?: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -65,8 +69,8 @@ export const CURRENT_USER = { id: "m-fsoft-ceo", name: "Tran Nam", email: "tran.
 // ("m-fsoft-ceo"), and a KB genuinely inaccessible to the current user (kb-7) was added — a
 // stale v1/v2 session would carry ownerId/sharing values keyed to the old id, or be missing
 // kb-7 if a dev-server HMR reseed raced the two edits.
-const STORE_KEY = "knowledge_base_store_v3";
-const SEEDED_KEY = "knowledge_base_store_seeded_v3";
+const STORE_KEY = "knowledge_base_store_v4";
+const SEEDED_KEY = "knowledge_base_store_seeded_v4";
 const store = loadMap<string, StoredKnowledgeBase>(STORE_KEY);
 const persist = () => saveMap(STORE_KEY, store);
 // Stable id (not timestamp-generated like create()'s ids) so getOrCreatePersonalKb() below can
@@ -190,7 +194,12 @@ function seed() {
 export const knowledgeBaseStore = {
   list(): KnowledgeBase[] {
     seed();
-    return [...store.values()].sort((a, b) => b.updatedAt - a.updatedAt).map(withStats);
+    // Every builder has exactly one personal KB — ensure it exists before listing, so a fresh
+    // account sees it in /knowledge before creating anything else, then pin it first.
+    this.getOrCreatePersonalKb();
+    return [...store.values()]
+      .sort((a, b) => (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0) || b.updatedAt - a.updatedAt)
+      .map(withStats);
   },
   get(id: string): KnowledgeBase | undefined {
     seed();
@@ -220,16 +229,21 @@ export const knowledgeBaseStore = {
   update(id: string, patch: Partial<Pick<KnowledgeBase, "name" | "description" | "apiEndpoint" | "hasApiKey">>) {
     const cur = store.get(id);
     if (!cur) return;
-    store.set(id, { ...cur, ...patch, updatedAt: Date.now() });
+    // The personal KB's name is fixed ("Cá nhân") — silently drop a rename attempt rather than
+    // erroring, since the UI itself never offers this action for it.
+    const safePatch = cur.isDefault ? { ...patch, name: cur.name } : patch;
+    store.set(id, { ...cur, ...safePatch, updatedAt: Date.now() });
     persist();
   },
   updateSharing(id: string, sharing: Sharing) {
     const cur = store.get(id);
-    if (!cur) return;
+    if (!cur || cur.isDefault) return;
     store.set(id, { ...cur, sharing, updatedAt: Date.now() });
     persist();
   },
   remove(id: string) {
+    const cur = store.get(id);
+    if (!cur || cur.isDefault) return;
     store.delete(id);
     persist();
   },
@@ -245,21 +259,21 @@ export const knowledgeBaseStore = {
     store.set(id, { ...cur, attachedByAgentIds: cur.attachedByAgentIds.filter(a => a !== agentId) });
     persist();
   },
-  /** Finds (or lazily creates, once) a single private Console KB that acts as the landing spot
-   * for documents/URLs/FAQs detached from an Agent via "Gỡ khỏi Agent" (see
-   * knowledgeStore.detachFromAgent) — so the underlying item keeps existing somewhere the
-   * current user can find and re-attach to a different Agent later, instead of inventing a
-   * brand-new named KB every time (that's what "Chuyển thành kho tri thức chung" is for). */
+  /** Finds (or lazily creates, once) the one personal Console KB every builder automatically
+   * has — the default landing spot for any document/URL/FAQ created without an explicit KB
+   * context (a Console tab with no KB, or directly from an Agent's Knowledge screen). Behaves
+   * like a normal KB except it can't be renamed or deleted and has no whole-KB "Chia sẻ" action
+   * (see isDefault above and the guards on update/updateSharing/remove). */
   getOrCreatePersonalKb(): KnowledgeBase {
     seed();
     const existing = store.get(PERSONAL_KB_ID);
     if (existing) return withStats(existing);
     const now = Date.now();
     const kb: StoredKnowledgeBase = {
-      id: PERSONAL_KB_ID, name: "Tài liệu cá nhân",
-      description: "Tài liệu đã gỡ khỏi Agent — được giữ lại để gán cho Agent khác khi cần.",
+      id: PERSONAL_KB_ID, name: "Cá nhân",
+      description: "Kho tri thức cá nhân của bạn — nơi tài liệu, website và FAQ được lưu khi không gắn với một kho tri thức cụ thể nào.",
       type: "internal", ownerId: CURRENT_USER.id, ownerName: CURRENT_USER.name,
-      sharing: { mode: "private", people: [] },
+      sharing: { mode: "private", people: [] }, isDefault: true,
       attachedByAgentIds: [], createdAt: now, updatedAt: now,
     };
     store.set(PERSONAL_KB_ID, kb);

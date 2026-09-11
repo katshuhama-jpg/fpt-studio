@@ -49,10 +49,12 @@ function commitDraftToAgent(agentId: string, draft: { bps: { name: string; descr
       toolIds,
     });
   }
-  const existingK = knowledgeStore.list(agentId);
+  const existingK = knowledgeStore.listForAgent(agentId);
   for (const k of draft.knowledge) {
     if (existingK.some(e => e.name.toLowerCase() === k.name.toLowerCase())) continue;
-    knowledgeStore.add(agentId, { name: k.name, kind: k.type, description: k.description });
+    if (k.type === "doc") knowledgeStore.createDocument(agentId, { name: k.name, sizeBytes: 120_000 });
+    else if (k.type === "url") knowledgeStore.createUrl(agentId, { url: k.name, source: "specified" });
+    else knowledgeStore.createFaq(agentId, { question: k.name, answer: k.description, categories: [] });
   }
 }
 

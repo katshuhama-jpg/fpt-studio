@@ -2,6 +2,7 @@
 import { loadMap, saveMap } from "@/lib/sessionPersist";
 import type { KnowledgeFaqStatus } from "./knowledgeStatus";
 import { normalizeForCompare, similarity } from "./textSimilarity";
+import type { Sharing } from "./knowledgeBaseStore";
 
 export interface KnowledgeFaq {
   id: string;
@@ -13,6 +14,12 @@ export interface KnowledgeFaq {
   /** Reason shown in the row's info-icon tooltip — only meaningful for "failed" and "invalid". */
   statusReason?: string;
   chunkCount: number;
+  /** Console-management access — same model/meaning as a Document's own `sharing` field. */
+  sharing?: Sharing;
+  /** Chat-time query scope — same model/meaning as a Document's own `querySharing` field. */
+  querySharing?: Sharing;
+  /** Agent ids currently relying on this FAQ — same meaning as KnowledgeDocument's field. */
+  attachedAgentIds?: string[];
   updatedAt: number;
   updatedBy: string;
 }
@@ -28,8 +35,8 @@ export interface ImportRowInput {
   duplicateOfId?: string;
 }
 
-const STORE_KEY = "knowledge_faq_store_v6";
-const SEEDED_KEY = "knowledge_faq_store_seeded_v6";
+const STORE_KEY = "knowledge_faq_store_v7";
+const SEEDED_KEY = "knowledge_faq_store_seeded_v7";
 const store = loadMap<string, KnowledgeFaq>(STORE_KEY);
 const persist = () => saveMap(STORE_KEY, store);
 
@@ -188,11 +195,12 @@ export const knowledgeFaqStore = {
     scored.sort((a, b) => b.score - a.score);
     return { exact, similar: scored.slice(0, 3).map(s => s.faq) };
   },
-  create(kbId: string, data: { question: string; answer: string; categories: string[] }): KnowledgeFaq {
+  create(kbId: string, data: { question: string; answer: string; categories: string[]; sharing?: Sharing; querySharing?: Sharing; attachedAgentIds?: string[] }): KnowledgeFaq {
     const id = `faq-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`;
     const rec: KnowledgeFaq = {
       id, kbId, question: data.question.trim(), answer: data.answer.trim(), categories: data.categories,
-      status: "pending", chunkCount: 0, updatedAt: Date.now(), updatedBy: "Tran Nam",
+      status: "pending", chunkCount: 0, sharing: data.sharing, querySharing: data.querySharing,
+      attachedAgentIds: data.attachedAgentIds, updatedAt: Date.now(), updatedBy: "Tran Nam",
     };
     store.set(id, rec);
     persist();
@@ -221,6 +229,32 @@ export const knowledgeFaqStore = {
   },
   removeMany(ids: string[]) {
     for (const id of ids) store.delete(id);
+    persist();
+  },
+  updateSharing(id: string, sharing: Sharing) {
+    const cur = store.get(id);
+    if (!cur) return;
+    store.set(id, { ...cur, sharing, updatedAt: Date.now() });
+    persist();
+  },
+  updateQueryScope(id: string, querySharing: Sharing) {
+    const cur = store.get(id);
+    if (!cur) return;
+    store.set(id, { ...cur, querySharing, updatedAt: Date.now() });
+    persist();
+  },
+  /** Links this FAQ to an Agent without moving or copying it — see attachedAgentIds. */
+  attachToAgent(id: string, agentId: string) {
+    const cur = store.get(id);
+    if (!cur || cur.attachedAgentIds?.includes(agentId)) return;
+    store.set(id, { ...cur, attachedAgentIds: [...(cur.attachedAgentIds ?? []), agentId] });
+    persist();
+  },
+  /** "Gỡ khỏi Agent" — the FAQ stays exactly where it is, only this Agent stops using it. */
+  detachFromAgent(id: string, agentId: string) {
+    const cur = store.get(id);
+    if (!cur) return;
+    store.set(id, { ...cur, attachedAgentIds: (cur.attachedAgentIds ?? []).filter(a => a !== agentId) });
     persist();
   },
   /** Bulk "Gán danh mục". "add" (default) merges the given categories into what each selected

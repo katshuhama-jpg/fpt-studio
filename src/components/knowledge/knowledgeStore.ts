@@ -1,309 +1,224 @@
-// sessionStorage-backed AGENT-level knowledge store — private to one Agent, kept deliberately
-// separate from knowledgeBaseStore.ts (the shareable Console-level store). Used by Inventor.tsx
-// to seed a knowledge inventory when an agent is scaffolded, and by AgentBuilder.tsx's
-// KnowledgeTab for the Agent's own upload/website/FAQ items plus its linked Console KBs.
+// Per-AGENT knowledge ATTACHMENT layer — this file stores no document/URL/FAQ content of its
+// own. Every document, URL, and FAQ lives in exactly one Console Knowledge Base (see
+// knowledgeBaseStore.ts / knowledgeDocumentStore.ts / knowledgeUrlStore.ts / knowledgeFaqStore.ts)
+// — someone's personal "Cá nhân" KB, or a named one they created. An Agent "has" a piece of
+// knowledge purely by that item's `attachedAgentIds` including this Agent's id, whether that
+// attachment came from linking a whole KB (attachConsoleKb explodes every item in it) or from
+// creating something directly on this Agent's Knowledge screen (which files it into the
+// creator's Cá nhân KB and attaches it here in the same step — see createDocument/createUrl/
+// createFaq below). "Gỡ khỏi Agent" only ever removes this Agent's id from that list; the
+// underlying item is untouched and keeps living in its KB.
 import { loadMap, saveMap, loadSet, saveSet } from "@/lib/sessionPersist";
-import { knowledgeBaseStore, CURRENT_USER, type Sharing, type KnowledgeBaseType } from "./knowledgeBaseStore";
-import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
-import { knowledgeUrlStore } from "./knowledgeUrlStore";
-import { knowledgeFaqStore, type CategoryOption } from "./knowledgeFaqStore";
-import { knowledgeChunkStore, markChunksSeeded } from "./knowledgeChunkStore";
+import { knowledgeBaseStore, CURRENT_USER, type Sharing, type KnowledgeBase } from "./knowledgeBaseStore";
+import { knowledgeDocumentStore, type KnowledgeDocument } from "./knowledgeDocumentStore";
+import { knowledgeUrlStore, type KnowledgeUrl } from "./knowledgeUrlStore";
+import { knowledgeFaqStore, type KnowledgeFaq, type CategoryOption } from "./knowledgeFaqStore";
 import type { KnowledgeFaqStatus } from "./knowledgeStatus";
-import { INITIAL_VERSION, bumpMinor, bumpPatch, type SemVer } from "./semver";
+import { type SemVer } from "./semver";
 
 export type KnowledgeKind = "doc" | "url" | "faq";
 
-export interface KnowledgeItem {
-  id: string;
-  agentId: string;
-  name: string;
+/** Normalized shape the Knowledge screens render, regardless of which of the 3 content stores
+ * a row actually lives in. */
+export interface AgentKnowledgeRow {
   kind: KnowledgeKind;
-  /** url items only — the page's title, distinct from `name` (which holds the raw URL). Used
-   * to pre-fill a human-readable name when promoting the item to a Console KB. */
-  title?: string;
+  id: string;
+  kbId: string;
+  kbName: string;
+  kbIsDefault: boolean;
+  name: string;
   description: string;
-  /** Widened to the FAQ superset (adds "invalid") since a kind:"faq" item can land there — doc
-   * and url items are only ever assigned the 5-value KnowledgeProcessingStatus subset. */
-  status?: KnowledgeFaqStatus;
+  status: KnowledgeFaqStatus;
   statusReason?: string;
-  chunkCount?: number;
+  chunkCount: number;
   sizeBytes?: number;
   version?: SemVer;
-  /** Management-access sharing for this specific item, same model as a Console KB's sharing —
-   * distinct from "linking" a Console KB to an Agent (that's attachConsoleKb below). Absent
-   * means private ("Chỉ mình tôi"). */
   sharing?: Sharing;
-  /** Chat-time query scope — which end-users THIS Agent may draw on this item's content for when
-   * answering, independent of `sharing` above (Console visibility) and independent of who the
-   * Agent itself is published to. Absent means private ("Chỉ trả lời cho tôi"). */
   querySharing?: Sharing;
-  /** kind:"faq" items only — same free-text category tags as a Console KB's FAQ, shown in the
-   * Knowledge tab's Danh mục column. doc/url items never set this. */
   categories?: string[];
-  /** Other Agent ids also currently relying on this exact item's content — informational only
-   * (mirrors knowledgeBaseStore's attachedByAgentIds for a whole KB, at the individual-item
-   * level), surfaced in "Xóa hẳn"'s confirmation so a permanent delete can warn about every
-   * Agent that would lose this source, not just this one. There is no UI to add to this list yet
-   * (no "share this item to another Agent" flow exists) — it exists so that warning is genuinely
-   * computed rather than hardcoded, ready for such a flow to populate it later. */
-  attachedAgentIds?: string[];
-  createdAt?: number;
+  /** Every Agent id currently attached to this item (including the one being queried for). */
+  attachedAgentIds: string[];
+  createdAt: number;
   updatedAt: number;
   updatedBy: string;
 }
 
-// v4 — added an invalid-status FAQ row and an invalid-status document row so the Agent
-// knowledge table can demonstrate the full 6-value status enum (a stale v3 session would be
-// missing them).
-const STORE_KEY = "agent_knowledge_store_v5";
-const ATTACHED_KEY = "agent_knowledge_attached_v4";
-const SEEDED_KEY = "agent_knowledge_store_seeded_v5";
-const store = loadMap<string, KnowledgeItem>(STORE_KEY);
-const attached = loadMap<string, string[]>(ATTACHED_KEY);
-const k = (a: string, id: string) => `${a}:${id}`;
-const persist = () => saveMap(STORE_KEY, store);
-const persistAttached = () => saveMap(ATTACHED_KEY, attached);
-const normalize = (i: KnowledgeItem): KnowledgeItem => (i.createdAt && i.updatedBy ? i : { ...i, createdAt: i.createdAt ?? i.updatedAt, updatedBy: i.updatedBy ?? CURRENT_USER.name });
+/** Bookkeeping-only: which whole Console KBs an Agent has bulk-linked via "Liên kết kho tri thức
+ * có sẵn" — used solely so that modal can grey out/hide KBs already linked. It does NOT drive
+ * what shows in the Agent's knowledge table (that's `attachedAgentIds` on each real item,
+ * populated in bulk by attachConsoleKb below); a document added to a KB after it was linked
+ * won't retroactively appear for the Agent unless linked again. */
+const LINKED_KEY = "agent_knowledge_linked_kbs_v1";
+const linkedKbs = loadMap<string, string[]>(LINKED_KEY);
+const persistLinked = () => saveMap(LINKED_KEY, linkedKbs);
 
-const DAY = 86_400_000;
+function toDocRow(d: KnowledgeDocument, kb: KnowledgeBase): AgentKnowledgeRow {
+  return {
+    kind: "doc", id: d.id, kbId: kb.id, kbName: kb.name, kbIsDefault: !!kb.isDefault,
+    name: d.name, description: "", status: d.status, statusReason: d.statusReason,
+    chunkCount: d.chunkCount, sizeBytes: d.sizeBytes, version: d.version,
+    sharing: d.sharing, querySharing: d.querySharing,
+    attachedAgentIds: d.attachedAgentIds ?? [], createdAt: d.createdAt, updatedAt: d.updatedAt, updatedBy: d.updatedBy,
+  };
+}
+function toUrlRow(u: KnowledgeUrl, kb: KnowledgeBase): AgentKnowledgeRow {
+  return {
+    kind: "url", id: u.id, kbId: kb.id, kbName: kb.name, kbIsDefault: !!kb.isDefault,
+    name: u.name, description: "", status: u.status, statusReason: u.lastSyncError,
+    chunkCount: u.chunkCount, version: u.version,
+    sharing: u.sharing, querySharing: u.querySharing,
+    attachedAgentIds: u.attachedAgentIds ?? [], createdAt: u.createdAt, updatedAt: u.updatedAt, updatedBy: u.updatedBy,
+  };
+}
+function toFaqRow(f: KnowledgeFaq, kb: KnowledgeBase): AgentKnowledgeRow {
+  return {
+    kind: "faq", id: f.id, kbId: kb.id, kbName: kb.name, kbIsDefault: !!kb.isDefault,
+    name: f.question, description: f.answer, status: f.status, statusReason: f.statusReason,
+    chunkCount: f.chunkCount, categories: f.categories,
+    sharing: f.sharing, querySharing: f.querySharing,
+    attachedAgentIds: f.attachedAgentIds ?? [], createdAt: f.updatedAt, updatedAt: f.updatedAt, updatedBy: f.updatedBy,
+  };
+}
 
-/** Demo data so opening an Agent's Knowledge screen shows real rows across every status,
- * sharing state and source type instead of a permanent empty state — seeded once per agent. */
-function seedAgent(agentId: string) {
-  const seededFlag = loadSet<string>(SEEDED_KEY);
-  if (seededFlag.has(agentId)) return;
-  seededFlag.add(agentId);
-  saveSet(SEEDED_KEY, seededFlag);
-  const now = Date.now();
+const DEMO_SEEDED_KEY = "agent_knowledge_demo_seeded_v1";
 
-  const put = (item: KnowledgeItem) => store.set(k(item.agentId, item.id), item);
-  const sharedWith = (people: { userId: string; name: string; email: string; access: "view" | "edit" }[]): Sharing => ({ mode: "specific", people });
+/** Demo data so a fresh visit to a known seeded Agent's Knowledge screen shows real rows across
+ * every status and both attachment mechanisms — a whole linked KB and directly-created content
+ * filed into the creator's personal KB — instead of a permanent empty state. Runs once per
+ * agentId. */
+function seedAgentDemo(agentId: string) {
+  const seeded = loadSet<string>(DEMO_SEEDED_KEY);
+  if (seeded.has(agentId)) return;
+  seeded.add(agentId);
+  saveSet(DEMO_SEEDED_KEY, seeded);
 
   if (agentId === "cskh") {
-    put({ id: "kn-cskh-1", agentId, kind: "doc", name: "Kịch bản trả lời khiếu nại.pdf", description: "Kịch bản chuẩn cho tổng đài viên khi tiếp nhận khiếu nại.", status: "done", chunkCount: 12, sizeBytes: 480_000, version: INITIAL_VERSION, createdAt: now - 10 * DAY, updatedAt: now - 2 * DAY, updatedBy: "Tran Nam" });
-    put({ id: "kn-cskh-2", agentId, kind: "doc", name: "Mẫu email chăm sóc khách hàng.docx", description: "Các mẫu email phản hồi khách hàng theo từng tình huống.", status: "done", chunkCount: 8, sizeBytes: 210_000, version: INITIAL_VERSION, sharing: { mode: "all", people: [] }, attachedAgentIds: ["hr"], createdAt: now - 8 * DAY, updatedAt: now - 6 * DAY, updatedBy: "Tran Nam" });
-    put({ id: "kn-cskh-3", agentId, kind: "url", name: "https://abcbank.com/cskh/lien-he", title: "Liên hệ chăm sóc khách hàng", description: "", status: "processing", chunkCount: 0, version: INITIAL_VERSION, sharing: sharedWith([
-      { userId: "m-linh", name: "Linh Phan", email: "linh.phan@fpt.com", access: "view" },
-      { userId: "m-mai", name: "Mai Hoang", email: "mai.hoang@fpt.com", access: "edit" },
-    ]), createdAt: now - 3 * DAY, updatedAt: now - 20 * 60_000, updatedBy: "Tran Nam" });
-    put({ id: "kn-cskh-4", agentId, kind: "faq", name: "Thời gian phản hồi khiếu nại tối đa là bao lâu?", description: "Ngân hàng cam kết phản hồi trong vòng 48 giờ làm việc kể từ khi tiếp nhận khiếu nại.", status: "pending", chunkCount: 0, version: INITIAL_VERSION, createdAt: now - 60_000, updatedAt: now - 60_000, updatedBy: "Tran Nam" });
-    put({ id: "kn-cskh-5", agentId, kind: "doc", name: "Quy trình xử lý phàn nàn qua tổng đài.xlsx", description: "Bảng phân loại mức độ phàn nàn và thời hạn xử lý tương ứng.", status: "failed", statusReason: "Không đọc được nội dung tệp. Thử tải lại hoặc dùng bản PDF.", chunkCount: 0, sizeBytes: 3_200_000, version: INITIAL_VERSION, createdAt: now - 4 * DAY, updatedAt: now - 4 * DAY, updatedBy: "Tran Nam" });
-    put({ id: "kn-cskh-6", agentId, kind: "url", name: "https://abcbank.com/cskh/danh-gia-dich-vu", title: "Đánh giá dịch vụ", description: "", status: "cancelled", chunkCount: 0, version: INITIAL_VERSION, createdAt: now - 15 * DAY, updatedAt: now - 12 * DAY, updatedBy: "Tran Nam" });
-    put({ id: "kn-cskh-7", agentId, kind: "doc", name: "Sổ tay xử lý tình huống khó.pptx", description: "Hướng dẫn xử lý các tình huống khách hàng khó tính, leo thang.", status: "done", chunkCount: 20, sizeBytes: 5_100_000, version: { major: 1, minor: 2, patch: 0 }, sharing: { mode: "all", people: [] }, createdAt: now - 25 * DAY, updatedAt: now - DAY, updatedBy: "Tran Nam" });
-    put({ id: "kn-cskh-8", agentId, kind: "faq", name: "Khách hàng có thể đổi trả dịch vụ đã đăng ký không?", description: "Có, trong vòng 7 ngày kể từ ngày đăng ký nếu chưa sử dụng dịch vụ, không áp dụng với các gói đã kích hoạt.", status: "done", chunkCount: 1, version: INITIAL_VERSION, createdAt: now - 6 * DAY, updatedAt: now - 5 * DAY, updatedBy: "Tran Nam" });
-    put({ id: "kn-cskh-9", agentId, kind: "faq", name: "Sao kê?", description: "Sao kê là gì đó liên quan tới lịch sử giao dịch, thực ra chưa rõ khách cần hỏi gì cụ thể ở đây.", status: "invalid", statusReason: "Câu hỏi quá ngắn để lập chỉ mục.", chunkCount: 0, version: INITIAL_VERSION, createdAt: now - DAY, updatedAt: now - DAY, updatedBy: "Tran Nam" });
-    put({ id: "kn-cskh-10", agentId, kind: "doc", name: "Ảnh chụp màn hình quy trình.png", description: "Tệp ảnh không có lớp văn bản để trích xuất nội dung.", status: "invalid", statusReason: "Tệp không chứa nội dung văn bản đọc được.", chunkCount: 0, sizeBytes: 1_800_000, version: INITIAL_VERSION, createdAt: now - 2 * DAY, updatedAt: now - 2 * DAY, updatedBy: "Tran Nam" });
-
-    // kn-cskh-8 gets one manually-edited chunk so its "Đã chỉnh sửa thủ công" chip is visible
-    // when opened — populate directly (bypassing the lazy auto-seed) so the edit sticks.
-    knowledgeChunkStore.populate(agentId, "agent-item", "kn-cskh-8", [{ title: "Điều kiện đổi trả", content: MOCK_BODY }]);
-    markChunksSeeded("agent-item", "kn-cskh-8");
-    const seededChunk = knowledgeChunkStore.list(agentId, "agent-item", "kn-cskh-8")[0];
-    if (seededChunk) {
-      knowledgeChunkStore.update(seededChunk.id, { content: "Có, trong vòng 7 ngày kể từ ngày đăng ký nếu chưa sử dụng dịch vụ — đã làm rõ thêm điều kiện áp dụng theo phản hồi của đội vận hành." });
-      knowledgeChunkStore.updateStatus(seededChunk.id, "done");
-    }
-
-    // A KB already linked so "Kho tri thức đã liên kết" isn't empty by default.
     knowledgeStore.attachConsoleKb(agentId, "kb-1");
     knowledgeStore.attachConsoleKb(agentId, "kb-2");
+
+    const d1 = knowledgeStore.createDocument(agentId, { name: "Kịch bản trả lời khiếu nại.pdf", sizeBytes: 480_000 });
+    knowledgeDocumentStore.updateStatus(d1.id, "done", { chunkCount: 12 });
+    const d2 = knowledgeStore.createDocument(agentId, { name: "Quy trình xử lý phàn nàn qua tổng đài.xlsx", sizeBytes: 3_200_000 });
+    knowledgeDocumentStore.updateStatus(d2.id, "failed", { statusReason: "Không đọc được nội dung tệp. Thử tải lại hoặc dùng bản PDF." });
+    const u1 = knowledgeStore.createUrl(agentId, { url: "https://abcbank.com/cskh/lien-he", source: "specified" });
+    knowledgeUrlStore.updateStatus(u1.id, "processing");
+    knowledgeStore.createFaq(agentId, { question: "Thời gian phản hồi khiếu nại tối đa là bao lâu?", answer: "Ngân hàng cam kết phản hồi trong vòng 48 giờ làm việc kể từ khi tiếp nhận khiếu nại.", categories: [] });
   }
 
   if (agentId === "hr") {
-    put({ id: "kn-hr-1", agentId, kind: "doc", name: "Checklist ngày đầu tiên.pdf", description: "Danh sách việc cần làm cho nhân viên mới trong ngày đầu tiên.", status: "done", chunkCount: 6, sizeBytes: 150_000, version: INITIAL_VERSION, createdAt: now - 12 * DAY, updatedAt: now - 9 * DAY, updatedBy: "Tran Nam" });
-    put({ id: "kn-hr-2", agentId, kind: "url", name: "https://intranet.abc.com/hr/quy-dinh-nghi-phep", title: "Quy định nghỉ phép", description: "", status: "done", chunkCount: 4, version: INITIAL_VERSION, sharing: { mode: "all", people: [] }, createdAt: now - 7 * DAY, updatedAt: now - 3 * DAY, updatedBy: "Tran Nam" });
-    put({ id: "kn-hr-3", agentId, kind: "faq", name: "Bảo hiểm y tế cho nhân viên mới bắt đầu từ khi nào?", description: "Bảo hiểm y tế được kích hoạt từ ngày ký hợp đồng chính thức, sau thời gian thử việc.", status: "pending", chunkCount: 0, version: INITIAL_VERSION, createdAt: now - 30 * 60_000, updatedAt: now - 30 * 60_000, updatedBy: "Tran Nam" });
+    const d1 = knowledgeStore.createDocument(agentId, { name: "Checklist ngày đầu tiên.pdf", sizeBytes: 150_000 });
+    knowledgeDocumentStore.updateStatus(d1.id, "done", { chunkCount: 6 });
+    const u1 = knowledgeStore.createUrl(agentId, { url: "https://intranet.abc.com/hr/quy-dinh-nghi-phep", source: "specified" });
+    knowledgeUrlStore.updateStatus(u1.id, "done", { chunkCount: 4 });
+    knowledgeStore.createFaq(agentId, { question: "Bảo hiểm y tế cho nhân viên mới bắt đầu từ khi nào?", answer: "Bảo hiểm y tế được kích hoạt từ ngày ký hợp đồng chính thức, sau thời gian thử việc.", categories: [] });
   }
-
-  persist();
 }
 
-const MOCK_BODY = "Nội dung chi tiết được trích xuất tự động từ tài liệu gốc, mô tả các quy định và hướng dẫn liên quan đến mục này.";
-
 export const knowledgeStore = {
-  list(agentId: string): KnowledgeItem[] {
-    seedAgent(agentId);
-    return [...store.values()]
-      .filter(i => i.agentId === agentId)
-      .sort((a, b) => b.updatedAt - a.updatedAt)
-      .map(normalize);
+  /** Every document/URL/FAQ currently attached to this Agent, across every KB — the single read
+   * model behind both the full "Tri thức của Agent" table and the Instructions sidebar panel. */
+  listForAgent(agentId: string): AgentKnowledgeRow[] {
+    seedAgentDemo(agentId);
+    const rows: AgentKnowledgeRow[] = [];
+    for (const kb of knowledgeBaseStore.list()) {
+      for (const d of knowledgeDocumentStore.list(kb.id)) {
+        if (!d.isFolder && d.attachedAgentIds?.includes(agentId)) rows.push(toDocRow(d, kb));
+      }
+      for (const u of knowledgeUrlStore.list(kb.id)) {
+        if (!u.isFolder && u.attachedAgentIds?.includes(agentId)) rows.push(toUrlRow(u, kb));
+      }
+      for (const f of knowledgeFaqStore.list(kb.id)) {
+        if (f.attachedAgentIds?.includes(agentId)) rows.push(toFaqRow(f, kb));
+      }
+    }
+    return rows.sort((a, b) => b.updatedAt - a.updatedAt);
   },
-  get(agentId: string, id: string): KnowledgeItem | undefined {
-    const item = store.get(k(agentId, id));
-    return item ? normalize(item) : undefined;
+  get(agentId: string, kind: KnowledgeKind, id: string): AgentKnowledgeRow | undefined {
+    return this.listForAgent(agentId).find(r => r.kind === kind && r.id === id);
   },
-  add(agentId: string, item: Omit<KnowledgeItem, "id" | "agentId" | "updatedAt" | "updatedBy">) {
-    const id = `kn-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-    const now = Date.now();
-    const rec: KnowledgeItem = { status: "pending", version: INITIAL_VERSION, ...item, id, agentId, createdAt: now, updatedAt: now, updatedBy: CURRENT_USER.name };
-    store.set(k(agentId, id), rec);
-    persist();
-    return rec;
+
+  /** Creates a new document filed into the creator's personal "Cá nhân" KB and attaches it to
+   * this Agent in the same step. */
+  createDocument(agentId: string, data: { name: string; sizeBytes: number; sharing?: Sharing; querySharing?: Sharing }): KnowledgeDocument {
+    const kb = knowledgeBaseStore.getOrCreatePersonalKb();
+    return knowledgeDocumentStore.addDocument(kb.id, { ...data, folderId: null, attachedAgentIds: [agentId] });
   },
-  restoreVersion(agentId: string, id: string) {
-    const cur = store.get(k(agentId, id));
-    if (!cur) return;
-    store.set(k(agentId, id), { ...cur, version: bumpMinor(cur.version ?? INITIAL_VERSION), updatedAt: Date.now(), updatedBy: CURRENT_USER.name });
-    persist();
+  createUrl(agentId: string, data: { url: string; source: "specified" | "crawled_child" | "sitemap" }): KnowledgeUrl {
+    const kb = knowledgeBaseStore.getOrCreatePersonalKb();
+    return knowledgeUrlStore.addUrl(kb.id, { ...data, attachedAgentIds: [agentId] });
   },
-  /** "Ghi đè" on a name-conflicting upload — replaces the content of an existing item in place
-   * (same id/row) and bumps its version, restarting the processing pipeline. Sharing is left
-   * untouched: overwriting a document's content shouldn't silently change who can access it. */
-  overwrite(agentId: string, id: string, data: { sizeBytes: number }): KnowledgeItem | undefined {
-    const cur = store.get(k(agentId, id));
-    if (!cur) return undefined;
-    const rec: KnowledgeItem = {
-      ...cur,
-      sizeBytes: data.sizeBytes,
-      status: "pending",
-      statusReason: undefined,
-      chunkCount: 0,
-      version: bumpMinor(cur.version ?? INITIAL_VERSION),
-      updatedAt: Date.now(),
-      updatedBy: CURRENT_USER.name,
-    };
-    store.set(k(agentId, id), rec);
-    persist();
-    return rec;
+  createFaq(agentId: string, data: { question: string; answer: string; categories: string[] }): KnowledgeFaq {
+    const kb = knowledgeBaseStore.getOrCreatePersonalKb();
+    return knowledgeFaqStore.create(kb.id, { ...data, attachedAgentIds: [agentId] });
   },
-  updateStatus(agentId: string, id: string, status: KnowledgeFaqStatus, patch?: Partial<Pick<KnowledgeItem, "chunkCount">>) {
-    const cur = store.get(k(agentId, id));
-    if (!cur) return;
-    store.set(k(agentId, id), { ...cur, status, ...patch, updatedAt: Date.now() });
-    persist();
+
+  updateSharing(kind: KnowledgeKind, id: string, sharing: Sharing) {
+    if (kind === "doc") knowledgeDocumentStore.updateSharing(id, sharing);
+    else if (kind === "url") knowledgeUrlStore.updateSharing(id, sharing);
+    else knowledgeFaqStore.updateSharing(id, sharing);
   },
-  updateSharing(agentId: string, id: string, sharing: Sharing) {
-    const cur = store.get(k(agentId, id));
-    if (!cur) return;
-    store.set(k(agentId, id), { ...cur, sharing, updatedAt: Date.now() });
-    persist();
+  updateQueryScope(kind: KnowledgeKind, id: string, querySharing: Sharing) {
+    if (kind === "doc") knowledgeDocumentStore.updateQueryScope(id, querySharing);
+    else if (kind === "url") knowledgeUrlStore.updateQueryScope(id, querySharing);
+    else knowledgeFaqStore.updateQueryScope(id, querySharing);
   },
-  updateQueryScope(agentId: string, id: string, querySharing: Sharing) {
-    const cur = store.get(k(agentId, id));
-    if (!cur) return;
-    store.set(k(agentId, id), { ...cur, querySharing, updatedAt: Date.now() });
-    persist();
+  /** "Gỡ khỏi Agent" — removes only this Agent's attachment; the item stays in its KB untouched. */
+  detachFromAgent(agentId: string, kind: KnowledgeKind, id: string) {
+    if (kind === "doc") knowledgeDocumentStore.detachFromAgent(id, agentId);
+    else if (kind === "url") knowledgeUrlStore.detachFromAgent(id, agentId);
+    else knowledgeFaqStore.detachFromAgent(id, agentId);
   },
-  /** Edits an item's name/description in place — for a FAQ item this is question/answer.
-   * Deliberately does not touch status: editing content isn't a reprocess, so Trạng thái stays
-   * whatever it already was. */
-  update(agentId: string, id: string, patch: { name: string; description: string; categories?: string[] }) {
-    const cur = store.get(k(agentId, id));
-    if (!cur) return;
-    store.set(k(agentId, id), { ...cur, name: patch.name, description: patch.description, categories: patch.categories, updatedAt: Date.now(), updatedBy: CURRENT_USER.name });
-    persist();
+  /** "Xóa hẳn" — permanently deletes the item everywhere (every Agent and KB referencing it). */
+  deleteEverywhere(kind: KnowledgeKind, id: string) {
+    if (kind === "doc") knowledgeDocumentStore.removeMany([id]);
+    else if (kind === "url") knowledgeUrlStore.removeMany([id]);
+    else knowledgeFaqStore.removeMany([id]);
   },
-  /** Category typeahead options for this Agent's "Tạo/Sửa FAQ" dialog — aggregates the Agent's
-   * own FAQ items with every category already used across its linked Console KBs, since those
-   * are the same pool a user browsing this Agent's tri thức would recognize. */
+  /** "Xử lý lại" — dispatches to each store's own reprocess semantics: a document/URL always
+   * accepts a reprocess; a FAQ only re-queues when it's currently "failed" (see
+   * knowledgeFaqStore.reprocess's own rule — "invalid" content needs an edit first). */
+  reprocess(kind: KnowledgeKind, id: string) {
+    if (kind === "doc") knowledgeDocumentStore.reprocess(id);
+    else if (kind === "url") knowledgeUrlStore.updateStatus(id, "pending");
+    else knowledgeFaqStore.reprocess(id);
+  },
+
+  /** Category typeahead options for this Agent's "Tạo FAQ" dialog — every category already used
+   * across the Agent's attached FAQs. */
   listFaqCategoriesWithCounts(agentId: string): CategoryOption[] {
     const counts = new Map<string, number>();
-    const bump = (name: string, by: number) => counts.set(name, (counts.get(name) ?? 0) + by);
-    for (const item of this.list(agentId)) {
-      if (item.kind !== "faq") continue;
-      for (const c of item.categories ?? []) bump(c, 1);
-    }
-    for (const kbId of this.listAttachedConsoleKbIds(agentId)) {
-      for (const opt of knowledgeFaqStore.listCategoriesWithCounts(kbId)) bump(opt.name, opt.count);
+    for (const row of this.listForAgent(agentId)) {
+      if (row.kind !== "faq") continue;
+      for (const c of row.categories ?? []) counts.set(c, (counts.get(c) ?? 0) + 1);
     }
     return [...counts.entries()]
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
   },
-  /** Exact-match (case-insensitive, trimmed) duplicate check for a FAQ's Câu hỏi, across this
-   * Agent's own FAQ items and every FAQ inside a Console KB currently linked to it. */
-  findFaqDuplicate(agentId: string, question: string, excludeId?: string): boolean {
+  /** Exact-match (case-insensitive, trimmed) duplicate check across every FAQ already attached
+   * to this Agent — used only while creating a brand-new one from the Agent's Knowledge screen. */
+  findFaqDuplicate(agentId: string, question: string): boolean {
     const norm = question.trim().toLowerCase();
     if (!norm) return false;
-    const ownMatch = this.list(agentId).some(i => i.kind === "faq" && i.id !== excludeId && i.name.trim().toLowerCase() === norm);
-    if (ownMatch) return true;
-    return this.listAttachedConsoleKbIds(agentId).some(kbId => knowledgeFaqStore.isDuplicateQuestion(kbId, question));
-  },
-  reprocess(agentId: string, id: string) {
-    const cur = store.get(k(agentId, id));
-    if (!cur) return;
-    store.set(k(agentId, id), { ...cur, status: "pending", version: bumpMinor(cur.version ?? INITIAL_VERSION), updatedAt: Date.now() });
-    persist();
-  },
-  /** A manual chunk edit doesn't reprocess the whole item, so it only bumps patch (not minor). */
-  bumpPatchVersion(agentId: string, id: string) {
-    const cur = store.get(k(agentId, id));
-    if (!cur) return;
-    store.set(k(agentId, id), { ...cur, version: bumpPatch(cur.version ?? INITIAL_VERSION), updatedAt: Date.now() });
-    persist();
-  },
-  remove(agentId: string, id: string) {
-    store.delete(k(agentId, id));
-    persist();
+    return this.listForAgent(agentId).some(r => r.kind === "faq" && r.name.trim().toLowerCase() === norm);
   },
 
-  // --- Linked Console Knowledge Bases (read-only reference, never copies data) ---
+  // --- Linked Console Knowledge Bases (bookkeeping only, see LINKED_KEY above) ---
   listAttachedConsoleKbIds(agentId: string): string[] {
-    return attached.get(agentId) ?? [];
+    return linkedKbs.get(agentId) ?? [];
   },
+  /** "Liên kết kho tri thức có sẵn" — attaches every document/URL/FAQ currently in this KB to
+   * the Agent in one shot (a one-time explosion, not a live subscription: content added to the
+   * KB afterwards needs linking again to reach this Agent). */
   attachConsoleKb(agentId: string, kbId: string) {
-    const cur = new Set(attached.get(agentId) ?? []);
+    const cur = new Set(linkedKbs.get(agentId) ?? []);
     cur.add(kbId);
-    attached.set(agentId, [...cur]);
-    persistAttached();
+    linkedKbs.set(agentId, [...cur]);
+    persistLinked();
     knowledgeBaseStore.addAttachingAgent(kbId, agentId);
-  },
-  detachConsoleKb(agentId: string, kbId: string) {
-    const cur = (attached.get(agentId) ?? []).filter(id => id !== kbId);
-    attached.set(agentId, cur);
-    persistAttached();
-    knowledgeBaseStore.removeAttachingAgent(kbId, agentId);
-  },
-
-  /** Creates a new Console KB seeded from this Agent item, then converts the item into a
-   * linked reference to that KB — the Agent keeps access, the item stops being agent-only. */
-  promoteToConsole(agentId: string, itemId: string, kbName: string, sharing: Sharing, type: KnowledgeBaseType = "internal"): { kbId: string } | null {
-    const item = store.get(k(agentId, itemId));
-    if (!item) return null;
-    const kb = knowledgeBaseStore.create({
-      name: kbName.trim(),
-      description: item.kind === "faq" ? "" : item.description,
-      type,
-      sharing,
-    });
-    const isDone = item.status === "done";
-    if (item.kind === "faq") {
-      const faq = knowledgeFaqStore.create(kb.id, { question: item.name, answer: item.description, categories: [] });
-      if (isDone) knowledgeFaqStore.updateStatus(faq.id, "done", { chunkCount: item.chunkCount ?? 1 });
-    } else if (item.kind === "doc") {
-      const doc = knowledgeDocumentStore.addDocument(kb.id, { name: item.name, sizeBytes: item.sizeBytes ?? 0, folderId: null, querySharing: item.querySharing });
-      if (isDone) knowledgeDocumentStore.updateStatus(doc.id, "done", { chunkCount: item.chunkCount ?? 0 });
-    } else if (item.kind === "url") {
-      const url = knowledgeUrlStore.addUrl(kb.id, { url: item.name, source: "specified", folderId: null });
-      if (isDone) knowledgeUrlStore.updateStatus(url.id, "done", { chunkCount: item.chunkCount ?? 0 });
-    }
-    this.remove(agentId, itemId);
-    this.attachConsoleKb(agentId, kb.id);
-    return { kbId: kb.id };
-  },
-
-  /** "Gỡ khỏi Agent" — moves the item into the current user's personal Console KB (created
-   * lazily on first use, see knowledgeBaseStore.getOrCreatePersonalKb) and removes it from this
-   * Agent. Unlike promoteToConsole above, this deliberately does NOT re-attach the Agent to that
-   * KB: the whole point is that this Agent stops using the item, while the underlying document
-   * survives for the builder to find and attach to a different Agent later. */
-  detachFromAgent(agentId: string, itemId: string): { kbId: string } | null {
-    const item = store.get(k(agentId, itemId));
-    if (!item) return null;
-    const kb = knowledgeBaseStore.getOrCreatePersonalKb();
-    const isDone = item.status === "done";
-    if (item.kind === "faq") {
-      const faq = knowledgeFaqStore.create(kb.id, { question: item.name, answer: item.description, categories: [] });
-      if (isDone) knowledgeFaqStore.updateStatus(faq.id, "done", { chunkCount: item.chunkCount ?? 1 });
-    } else if (item.kind === "doc") {
-      const doc = knowledgeDocumentStore.addDocument(kb.id, { name: item.name, sizeBytes: item.sizeBytes ?? 0, folderId: null, querySharing: item.querySharing });
-      if (isDone) knowledgeDocumentStore.updateStatus(doc.id, "done", { chunkCount: item.chunkCount ?? 0 });
-    } else if (item.kind === "url") {
-      const url = knowledgeUrlStore.addUrl(kb.id, { url: item.name, source: "specified", folderId: null });
-      if (isDone) knowledgeUrlStore.updateStatus(url.id, "done", { chunkCount: item.chunkCount ?? 0 });
-    }
-    this.remove(agentId, itemId);
-    return { kbId: kb.id };
+    for (const d of knowledgeDocumentStore.list(kbId)) if (!d.isFolder) knowledgeDocumentStore.attachToAgent(d.id, agentId);
+    for (const u of knowledgeUrlStore.list(kbId)) if (!u.isFolder) knowledgeUrlStore.attachToAgent(u.id, agentId);
+    for (const f of knowledgeFaqStore.list(kbId)) knowledgeFaqStore.attachToAgent(f.id, agentId);
   },
 };
 

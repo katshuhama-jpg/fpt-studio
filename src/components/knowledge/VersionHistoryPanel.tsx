@@ -8,18 +8,16 @@ import { ChevronLeft, ToggleLeft, ToggleRight } from "lucide-react";
 import { toast } from "sonner";
 import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
 import { knowledgeUrlStore } from "./knowledgeUrlStore";
-import { knowledgeStore } from "./knowledgeStore";
 import { knowledgeChunkStore, type ChunkSourceType } from "./knowledgeChunkStore";
 import { type SemVer, formatVersion, synthesizeVersionSequence } from "./semver";
 
-/** Common shape for a KnowledgeDocument, a KnowledgeUrl, or an Agent-owned KnowledgeItem — the
- * version-history drawer opens from any of their "1.0.0" badges, so it doesn't need the full
- * source-specific type. For "agent-item", `kbId` doubles as the agentId. */
+/** Common shape for a KnowledgeDocument or a KnowledgeUrl — the version-history drawer opens
+ * from either one's "1.0.0" badge, so it doesn't need the full source-specific type. */
 export interface VersionedSource {
   id: string;
   kbId: string;
   name: string;
-  sourceType: "document" | "url" | "agent-item";
+  sourceType: "document" | "url";
   version: SemVer;
   updatedAt: number;
   updatedBy: string;
@@ -182,8 +180,7 @@ export default function VersionHistoryPanel({ source: doc, onClose, viewOnly }: 
               className="bg-surface text-foreground border border-border hover:bg-surface-muted"
               onClick={() => {
                 if (doc.sourceType === "document") knowledgeDocumentStore.restoreVersion(doc.id);
-                else if (doc.sourceType === "url") knowledgeUrlStore.restoreVersion(doc.id);
-                else knowledgeStore.restoreVersion(doc.kbId, doc.id);
+                else knowledgeUrlStore.restoreVersion(doc.id);
                 toast.success(`Đã khôi phục về phiên bản ${restoreVersion}.`);
                 setRestoreVersion(null);
                 onClose();

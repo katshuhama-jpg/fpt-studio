@@ -7,10 +7,9 @@ import {
 import { knowledgeChunkStore, extractContentForBox, type ChunkSourceType, type KnowledgeChunk, type ChunkContentType, type ChunkBox } from "./knowledgeChunkStore";
 import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
 import { knowledgeUrlStore, type UrlSource } from "./knowledgeUrlStore";
-import { knowledgeStore } from "./knowledgeStore";
 import { documentAnnotationStore, type AnnotationKind } from "./documentAnnotationStore";
 import { KnowledgeStatusPill, type KnowledgeFaqStatus } from "./knowledgeStatus";
-import { formatVersion } from "./semver";
+import { formatVersion, type SemVer } from "./semver";
 import FileTypeIcon from "./FileTypeIcon";
 import DocumentPreviewPane from "./DocumentPreviewPane";
 import HtmlTableEditor from "./HtmlTableEditor";
@@ -84,35 +83,27 @@ function prefersReducedMotion(): boolean {
   return typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 }
 
-/** kbId doubles as agentId when sourceType is "agent-item" — the chunk store never filters by
- * it, it's purely denormalized, so this stays a single positional parameter across all three
- * source types instead of a separate agentId prop threaded through the whole component. */
-function markParentDone(kbId: string, sourceType: ChunkSourceType, sourceId: string, chunkCount: number) {
+function markParentDone(sourceType: ChunkSourceType, sourceId: string, chunkCount: number) {
   if (sourceType === "document") knowledgeDocumentStore.updateStatus(sourceId, "done", { chunkCount });
-  else if (sourceType === "url") knowledgeUrlStore.updateStatus(sourceId, "done", { chunkCount, lastSyncAt: Date.now(), lastSyncOk: true });
-  else knowledgeStore.updateStatus(kbId, sourceId, "done", { chunkCount });
+  else knowledgeUrlStore.updateStatus(sourceId, "done", { chunkCount, lastSyncAt: Date.now(), lastSyncOk: true });
 }
 
 /** A manual chunk edit/resize/add doesn't reprocess the whole document, so it only bumps the
  * parent's patch version (not minor) — see semver.ts's bump rule. */
-function bumpParentPatchVersion(kbId: string, sourceType: ChunkSourceType, sourceId: string) {
+function bumpParentPatchVersion(sourceType: ChunkSourceType, sourceId: string) {
   if (sourceType === "document") knowledgeDocumentStore.bumpPatchVersion(sourceId);
-  else if (sourceType === "url") knowledgeUrlStore.bumpPatchVersion(sourceId);
-  else knowledgeStore.bumpPatchVersion(kbId, sourceId);
+  else knowledgeUrlStore.bumpPatchVersion(sourceId);
 }
 
 export default function ChunkViewerModal({
-  kbId, sourceType, sourceId, sourceName, sourceStatus, sourceChunkCount, sourceCreatedAt, urlMeta, onClose, viewOnly,
+  kbId, sourceType, sourceId, sourceName, sourceStatus, sourceCreatedAt, urlMeta, onClose, viewOnly,
 }: {
   kbId: string; sourceType: ChunkSourceType; sourceId: string; sourceName: string;
   sourceStatus: KnowledgeFaqStatus;
-  /** Only needed for sourceType "agent-item" — knowledgeChunkStore can't look this up itself
-   * without creating a circular import with knowledgeStore.ts, so the caller supplies it. */
-  sourceChunkCount?: number;
   sourceCreatedAt: number;
   /** Only passed for sourceType "url" — the crawled-URL-specific metadata that doesn't apply
-   * to documents or FAQ items, shown as a secondary header row. */
-  urlMeta?: { url: string; source: UrlSource; version: number; lastSyncAt: number | null };
+   * to documents, shown as a secondary header row. */
+  urlMeta?: { url: string; source: UrlSource; version: SemVer; lastSyncAt: number | null };
   onClose: () => void; viewOnly: boolean;
 }) {
   const [tick, setTick] = useState(0);
@@ -135,7 +126,7 @@ export default function ChunkViewerModal({
   const chunkRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const dragging = useRef(false);
 
-  const chunks = knowledgeChunkStore.list(kbId, sourceType, sourceId, { status: sourceStatus, chunkCount: sourceChunkCount });
+  const chunks = knowledgeChunkStore.list(kbId, sourceType, sourceId);
   const pages = getPagesForSource(sourceId);
   void tick;
   const refresh = () => setTick(t => t + 1);
@@ -211,7 +202,7 @@ export default function ChunkViewerModal({
 
   const saveEdit = (c: KnowledgeChunk) => {
     knowledgeChunkStore.update(c.id, { title: draftTitle, content: draftContent, contentType: draftType });
-    bumpParentPatchVersion(kbId, sourceType, sourceId);
+    bumpParentPatchVersion(sourceType, sourceId);
     setEditingId(null);
     refresh();
     setTimeout(() => { knowledgeChunkStore.updateStatus(c.id, "done"); refresh(); }, 900);
@@ -219,7 +210,7 @@ export default function ChunkViewerModal({
 
   const populate = () => {
     knowledgeChunkStore.populate(kbId, sourceType, sourceId, MOCK_CHUNK_SEED);
-    markParentDone(kbId, sourceType, sourceId, MOCK_CHUNK_SEED.length);
+    markParentDone(sourceType, sourceId, MOCK_CHUNK_SEED.length);
     refresh();
   };
 
@@ -239,7 +230,7 @@ export default function ChunkViewerModal({
   const addChunkFromSelection = (text: string, box: ChunkBox) => {
     const firstLine = text.split("\n")[0].slice(0, 60);
     const chunk = knowledgeChunkStore.add(kbId, sourceType, sourceId, { title: firstLine, content: text, box });
-    bumpParentPatchVersion(kbId, sourceType, sourceId);
+    bumpParentPatchVersion(sourceType, sourceId);
     refresh();
     setTimeout(() => { knowledgeChunkStore.updateStatus(chunk.id, "done"); refresh(); }, 900);
     startEdit({ ...chunk });
@@ -249,7 +240,7 @@ export default function ChunkViewerModal({
    * content derived from whatever page text falls under the drawn box. */
   const drawNewChunk = (box: ChunkBox) => {
     const chunk = knowledgeChunkStore.add(kbId, sourceType, sourceId, { title: `Chunk mới`, content: extractContentForBox(box, pages), box });
-    bumpParentPatchVersion(kbId, sourceType, sourceId);
+    bumpParentPatchVersion(sourceType, sourceId);
     refresh();
     setTimeout(() => { knowledgeChunkStore.updateStatus(chunk.id, "done"); refresh(); }, 900);
     startEdit(chunk);
@@ -260,7 +251,7 @@ export default function ChunkViewerModal({
   // / "Xử lý kết quả" pair so a resize never silently auto-saves.
   const applyResize = (id: string, box: ChunkBox) => {
     knowledgeChunkStore.applyBoxResize(id, box);
-    bumpParentPatchVersion(kbId, sourceType, sourceId);
+    bumpParentPatchVersion(sourceType, sourceId);
     refresh();
     setTimeout(() => { knowledgeChunkStore.updateStatus(id, "done"); refresh(); }, 900);
   };

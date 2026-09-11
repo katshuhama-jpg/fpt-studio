@@ -24,13 +24,18 @@ export interface KnowledgeDocument {
    * independent of who the Agent itself is published to. Defaults to "Chỉ trả lời cho tôi" when
    * unset. A folder carries one too, applied by default to documents uploaded into it. */
   querySharing?: Sharing;
+  /** Agent ids currently relying on this document — populated either by bulk-linking its whole
+   * KB to an Agent (knowledgeStore.attachConsoleKb explodes every item in the KB) or by creating
+   * the document directly from an Agent's Knowledge screen (which attaches it in the same step).
+   * Absent/empty means no Agent currently uses it, even though it still lives in its KB. */
+  attachedAgentIds?: string[];
   createdAt: number;
   updatedAt: number;
   updatedBy: string;
 }
 
-const STORE_KEY = "knowledge_document_store_v6";
-const SEEDED_KEY = "knowledge_document_store_seeded_v6";
+const STORE_KEY = "knowledge_document_store_v7";
+const SEEDED_KEY = "knowledge_document_store_seeded_v7";
 const store = loadMap<string, KnowledgeDocument>(STORE_KEY);
 const persist = () => saveMap(STORE_KEY, store);
 
@@ -179,13 +184,13 @@ export const knowledgeDocumentStore = {
     }
     persist();
   },
-  addDocument(kbId: string, data: { name: string; sizeBytes: number; folderId: string | null; sharing?: Sharing; querySharing?: Sharing }): KnowledgeDocument {
+  addDocument(kbId: string, data: { name: string; sizeBytes: number; folderId: string | null; sharing?: Sharing; querySharing?: Sharing; attachedAgentIds?: string[] }): KnowledgeDocument {
     const id = `doc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`;
     const now = Date.now();
     const rec: KnowledgeDocument = {
       id, kbId, name: data.name, isFolder: false, folderId: data.folderId, status: "pending",
       sizeBytes: data.sizeBytes, chunkCount: 0, version: INITIAL_VERSION,
-      sharing: data.sharing, querySharing: data.querySharing,
+      sharing: data.sharing, querySharing: data.querySharing, attachedAgentIds: data.attachedAgentIds,
       createdAt: now, updatedAt: now, updatedBy: "Tran Nam",
     };
     store.set(id, rec);
@@ -272,6 +277,20 @@ export const knowledgeDocumentStore = {
   },
   removeMany(ids: string[]) {
     for (const id of ids) store.delete(id);
+    persist();
+  },
+  /** Links this document to an Agent without moving or copying it — see attachedAgentIds. */
+  attachToAgent(id: string, agentId: string) {
+    const cur = store.get(id);
+    if (!cur || cur.attachedAgentIds?.includes(agentId)) return;
+    store.set(id, { ...cur, attachedAgentIds: [...(cur.attachedAgentIds ?? []), agentId] });
+    persist();
+  },
+  /** "Gỡ khỏi Agent" — the document stays exactly where it is, only this Agent stops using it. */
+  detachFromAgent(id: string, agentId: string) {
+    const cur = store.get(id);
+    if (!cur) return;
+    store.set(id, { ...cur, attachedAgentIds: (cur.attachedAgentIds ?? []).filter(a => a !== agentId) });
     persist();
   },
 };

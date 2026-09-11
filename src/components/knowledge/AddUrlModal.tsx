@@ -22,7 +22,7 @@ function isValidUrl(v: string): boolean {
 function isDuplicateUrl(scope: { kbId?: string; agentId?: string }, value: string): boolean {
   if (scope.agentId) {
     const n = value.trim().toLowerCase();
-    return knowledgeStore.list(scope.agentId).some(i => i.kind === "url" && i.name.trim().toLowerCase() === n);
+    return knowledgeStore.listForAgent(scope.agentId).some(r => r.kind === "url" && r.name.trim().toLowerCase() === n);
   }
   return knowledgeUrlStore.isDuplicate(scope.kbId!, value);
 }
@@ -127,7 +127,7 @@ export default function AddUrlModal({ open, kbId, agentId, defaultFolderId, onCl
   const invalidCount = urlChips.length - validCount;
 
   const addUrl = (url: string, folderId: string | null) => {
-    if (agentId) knowledgeStore.add(agentId, { name: url, kind: "url", title: url.replace(/^https?:\/\//, ""), description: "" });
+    if (agentId) knowledgeStore.createUrl(agentId, { url, source: "specified" });
     else knowledgeUrlStore.addUrl(kbId!, { url, source: "specified", folderId });
   };
 
