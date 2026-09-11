@@ -69,6 +69,9 @@ const STORE_KEY = "knowledge_base_store_v3";
 const SEEDED_KEY = "knowledge_base_store_seeded_v3";
 const store = loadMap<string, StoredKnowledgeBase>(STORE_KEY);
 const persist = () => saveMap(STORE_KEY, store);
+// Stable id (not timestamp-generated like create()'s ids) so getOrCreatePersonalKb() below can
+// find the same KB across calls instead of creating a new one each time.
+const PERSONAL_KB_ID = "kb-personal";
 
 /** Sums a KB's real Documents/Website/FAQ contents so the "N tài liệu · M URL · K chunk"
  * readout shown on its card and detail header can never drift from what's actually inside. */
@@ -241,6 +244,27 @@ export const knowledgeBaseStore = {
     if (!cur) return;
     store.set(id, { ...cur, attachedByAgentIds: cur.attachedByAgentIds.filter(a => a !== agentId) });
     persist();
+  },
+  /** Finds (or lazily creates, once) a single private Console KB that acts as the landing spot
+   * for documents/URLs/FAQs detached from an Agent via "Gỡ khỏi Agent" (see
+   * knowledgeStore.detachFromAgent) — so the underlying item keeps existing somewhere the
+   * current user can find and re-attach to a different Agent later, instead of inventing a
+   * brand-new named KB every time (that's what "Chuyển thành kho tri thức chung" is for). */
+  getOrCreatePersonalKb(): KnowledgeBase {
+    seed();
+    const existing = store.get(PERSONAL_KB_ID);
+    if (existing) return withStats(existing);
+    const now = Date.now();
+    const kb: StoredKnowledgeBase = {
+      id: PERSONAL_KB_ID, name: "Tài liệu cá nhân",
+      description: "Tài liệu đã gỡ khỏi Agent — được giữ lại để gán cho Agent khác khi cần.",
+      type: "internal", ownerId: CURRENT_USER.id, ownerName: CURRENT_USER.name,
+      sharing: { mode: "private", people: [] },
+      attachedByAgentIds: [], createdAt: now, updatedAt: now,
+    };
+    store.set(PERSONAL_KB_ID, kb);
+    persist();
+    return withStats(kb);
   },
 };
 

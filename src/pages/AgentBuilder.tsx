@@ -1281,6 +1281,10 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
   const [reprocessTarget, setReprocessTarget] = useState<KnowledgeItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<KnowledgeItem | null>(null);
   const [detachTarget, setDetachTarget] = useState<{ id: string; name: string } | null>(null);
+  // Distinct from detachTarget above (that one is for un-linking a whole attached Console KB in
+  // Section A) — this is "Gỡ khỏi Agent" on one of the Agent's own items in Section B, which
+  // moves the item into the current user's personal Console KB instead of deleting it.
+  const [detachItemTarget, setDetachItemTarget] = useState<KnowledgeItem | null>(null);
   const [versionTarget, setVersionTarget] = useState<KnowledgeItem | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [editFaqTarget, setEditFaqTarget] = useState<KnowledgeItem | null>(null);
@@ -1487,6 +1491,7 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
                     onShare={() => setShareTargets([item])}
                     onPromote={() => setPromoteTarget(item)}
                     onReprocess={() => setReprocessTarget(item)}
+                    onDetach={() => setDetachItemTarget(item)}
                     onDelete={() => setDeleteTarget(item)}
                     reprocessDisabled={(item.kind === "faq" || item.kind === "doc") && item.status !== "failed"}
                     reprocessTooltip={
@@ -1580,6 +1585,24 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
         </AlertDialogContent>
       </AlertDialog>
 
+      <AlertDialog open={!!detachItemTarget} onOpenChange={v => !v && setDetachItemTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Gỡ "{detachItemTarget?.name}" khỏi Agent này?</AlertDialogTitle>
+            <AlertDialogDescription>Tài liệu vẫn được giữ trong kho tri thức của bạn và có thể gán lại cho Agent khác. Agent này sẽ không còn dùng tài liệu này để trả lời.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-surface text-foreground border border-border hover:bg-surface-muted"
+              onClick={() => { if (detachItemTarget) knowledgeStore.detachFromAgent(agentId, detachItemTarget.id); setDetachItemTarget(null); refresh(); }}
+            >
+              Gỡ
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -1602,10 +1625,10 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
 }
 
 const KNOWLEDGE_ITEM_ROW_MENU_WIDTH = 224; // w-56
-const KNOWLEDGE_ITEM_ROW_MENU_HEIGHT_ESTIMATE = 230; // 5 items + danger separator + padding
+const KNOWLEDGE_ITEM_ROW_MENU_HEIGHT_ESTIMATE = 270; // 6 items + danger separator + padding
 
-function KnowledgeItemRowMenu({ onOpen, openLabel = "Mở", onShare, onPromote, onReprocess, onDelete, reprocessDisabled, reprocessTooltip }: {
-  onOpen: () => void; openLabel?: string; onShare: () => void; onPromote: () => void; onReprocess: () => void; onDelete: () => void;
+function KnowledgeItemRowMenu({ onOpen, openLabel = "Mở", onShare, onPromote, onReprocess, onDetach, onDelete, reprocessDisabled, reprocessTooltip }: {
+  onOpen: () => void; openLabel?: string; onShare: () => void; onPromote: () => void; onReprocess: () => void; onDetach: () => void; onDelete: () => void;
   reprocessDisabled?: boolean; reprocessTooltip?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -1667,6 +1690,7 @@ function KnowledgeItemRowMenu({ onOpen, openLabel = "Mở", onShare, onPromote, 
             </TooltipTrigger>
             {reprocessTooltip && <TooltipContent side="left" className="max-w-[240px]">{reprocessTooltip}</TooltipContent>}
           </Tooltip>
+          <button onClick={() => { setOpen(false); onDetach(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Gỡ khỏi Agent</button>
           <div className="mt-1 pt-1 border-t border-border">
             <button onClick={() => { setOpen(false); onDelete(); }} className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">Xóa</button>
           </div>

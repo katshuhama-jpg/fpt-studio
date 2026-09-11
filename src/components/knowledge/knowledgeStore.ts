@@ -256,6 +256,30 @@ export const knowledgeStore = {
     this.attachConsoleKb(agentId, kb.id);
     return { kbId: kb.id };
   },
+
+  /** "Gỡ khỏi Agent" — moves the item into the current user's personal Console KB (created
+   * lazily on first use, see knowledgeBaseStore.getOrCreatePersonalKb) and removes it from this
+   * Agent. Unlike promoteToConsole above, this deliberately does NOT re-attach the Agent to that
+   * KB: the whole point is that this Agent stops using the item, while the underlying document
+   * survives for the builder to find and attach to a different Agent later. */
+  detachFromAgent(agentId: string, itemId: string): { kbId: string } | null {
+    const item = store.get(k(agentId, itemId));
+    if (!item) return null;
+    const kb = knowledgeBaseStore.getOrCreatePersonalKb();
+    const isDone = item.status === "done";
+    if (item.kind === "faq") {
+      const faq = knowledgeFaqStore.create(kb.id, { question: item.name, answer: item.description, categories: [] });
+      if (isDone) knowledgeFaqStore.updateStatus(faq.id, "done", { chunkCount: item.chunkCount ?? 1 });
+    } else if (item.kind === "doc") {
+      const doc = knowledgeDocumentStore.addDocument(kb.id, { name: item.name, sizeBytes: item.sizeBytes ?? 0, folderId: null });
+      if (isDone) knowledgeDocumentStore.updateStatus(doc.id, "done", { chunkCount: item.chunkCount ?? 0 });
+    } else if (item.kind === "url") {
+      const url = knowledgeUrlStore.addUrl(kb.id, { url: item.name, source: "specified", folderId: null });
+      if (isDone) knowledgeUrlStore.updateStatus(url.id, "done", { chunkCount: item.chunkCount ?? 0 });
+    }
+    this.remove(agentId, itemId);
+    return { kbId: kb.id };
+  },
 };
 
 export { CURRENT_USER };
