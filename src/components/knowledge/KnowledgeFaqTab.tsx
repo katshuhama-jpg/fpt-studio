@@ -8,11 +8,14 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import RowActionMenu from "./RowActionMenu";
 import { toast } from "sonner";
 import { knowledgeFaqStore, type KnowledgeFaq } from "./knowledgeFaqStore";
+import { knowledgeStore } from "./knowledgeStore";
+import { agentHasEditRights, AgentOwnerCell, AgentEnabledToggle } from "./AgentKnowledgeCells";
 import { knowledgeBaseStore } from "./knowledgeBaseStore";
 import { KnowledgeStatusPill, KNOWLEDGE_STATUS_META, type KnowledgeFaqStatus } from "./knowledgeStatus";
 import { normalizeForCompare } from "./textSimilarity";
 import { TruncatedText, CategoryChips } from "./FaqCellDisplays";
 import AddEditFaqModal from "./AddEditFaqModal";
+import ShareKnowledgeBaseModal from "./ShareKnowledgeBaseModal";
 import ImportFaqModal from "./ImportFaqModal";
 import ExportFaqModal from "./ExportFaqModal";
 import AssignCategoriesModal from "./AssignCategoriesModal";
@@ -74,7 +77,14 @@ function MultiSelectFilter({ label, options, selected, onToggle, onClear }: {
   );
 }
 
-export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; viewOnly: boolean }) {
+/** Pass either `kbId` (Console FAQ tab) or `agentId` (Agent Details "Tri thức của Agent" > Câu
+ * hỏi thường gặp tab) — never both. Agent mode reuses this exact component scoped to one Agent's
+ * attached FAQs across every KB, with "Sở hữu"/"Kích hoạt" columns Console never shows, no bulk
+ * import (its target-KB assumption doesn't generalize across many KBs) or category management
+ * (categories are edited per-KB), and the row menu/click behavior from Round 4 Prompt F: no "Sửa"
+ * (editing question/answer is content editing, so it's Console-only here), not clickable, just
+ * Chia sẻ / Xử lý lại / Xóa / Gỡ khỏi Agent. */
+export default function KnowledgeFaqTab({ kbId, agentId, viewOnly }: { kbId?: string; agentId?: string; viewOnly: boolean }) {
   const [tick, setTick] = useState(0);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -91,7 +101,9 @@ export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; view
   const [showManageCategories, setShowManageCategories] = useState(false);
   const [showBulkReprocessConfirm, setShowBulkReprocessConfirm] = useState(false);
   const [editTarget, setEditTarget] = useState<KnowledgeFaq | null>(null);
+  const [shareTargets, setShareTargets] = useState<KnowledgeFaq[] | null>(null);
   const [deleteTargets, setDeleteTargets] = useState<KnowledgeFaq[] | null>(null);
+  const [detachTarget, setDetachTarget] = useState<KnowledgeFaq | null>(null);
   const createMenuRef = useRef<HTMLDivElement>(null);
   const skipClearRef = useRef(true);
 
@@ -120,8 +132,12 @@ export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; view
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterKey]);
 
-  const all = knowledgeFaqStore.list(kbId);
-  const categoryOptions = knowledgeFaqStore.listCategoriesWithCounts(kbId);
+  const agentRows = agentId ? knowledgeStore.listForAgent(agentId).filter(r => r.kind === "faq") : [];
+  const agentMeta = new Map(agentRows.map(r => [r.id, r]));
+  const all: KnowledgeFaq[] = agentId
+    ? agentRows.map(r => knowledgeFaqStore.get(r.kbId, r.id)).filter((f): f is KnowledgeFaq => !!f)
+    : knowledgeFaqStore.list(kbId!);
+  const categoryOptions = agentId ? knowledgeStore.listFaqCategoriesWithCounts(agentId) : knowledgeFaqStore.listCategoriesWithCounts(kbId!);
   void tick;
   const refresh = () => setTick(t => t + 1);
 
@@ -189,13 +205,19 @@ export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; view
   if (categoryFilter.size > 0) filterDescriptionParts.push(`Danh mục: ${[...categoryFilter].join(", ")}`);
   if (statusFilter.size > 0) filterDescriptionParts.push(`Trạng thái: ${[...statusFilter].map(s => KNOWLEDGE_STATUS_META[s].label).join(", ")}`);
   const filterDescription = filterDescriptionParts.join(" · ");
-  const kbName = knowledgeBaseStore.get(kbId)?.name ?? "Kho tri thức";
+  const kbName = !agentId ? (knowledgeBaseStore.get(kbId!)?.name ?? "Kho tri thức") : "";
 
   const changePageSize = (n: number) => {
     setPageSize(n);
     localStorage.setItem(PAGE_SIZE_KEY, String(n));
     setPage(1);
   };
+
+  const headerRowClass = agentId ? "border-b-2 border-border bg-surface-muted" : "border-b border-border bg-surface-muted";
+  const headerCellClass = agentId
+    ? "text-left px-2 py-2.5 text-xs font-bold uppercase tracking-[0.04em] text-foreground whitespace-nowrap"
+    : "text-left px-2 py-2.5 kb-table-header";
+  const questionWeightClass = agentId ? "text-sm font-semibold" : "text-sm font-medium";
 
   return (
     <div className="h-full overflow-y-auto">
@@ -225,7 +247,7 @@ export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; view
               Xóa bộ lọc
             </button>
           )}
-          {!viewOnly && (
+          {!viewOnly && !agentId && (
             <button onClick={() => setShowManageCategories(true)} className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-base">
               <Settings2 size={12} /> Quản lý danh mục
             </button>
@@ -233,15 +255,19 @@ export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; view
         </div>
         {!viewOnly && (
           <div className="flex items-center gap-2">
-            <button onClick={() => setShowExport(true)} className="h-9 px-3 flex items-center gap-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">
-              <Download size={14} /> Xuất tệp
-            </button>
+            {!agentId && (
+              <button onClick={() => setShowExport(true)} className="h-9 px-3 flex items-center gap-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">
+                <Download size={14} /> Xuất tệp
+              </button>
+            )}
             <div className="relative" ref={createMenuRef}>
               <button onClick={() => setShowCreateMenu(v => !v)} className="btn-primary h-9"><Plus size={14} /> Tạo <ChevronDown size={12} className={`transition-base ${showCreateMenu ? "rotate-180" : ""}`} /></button>
               {showCreateMenu && (
                 <div className="absolute right-0 top-full mt-1 z-20 min-w-52 max-w-xs rounded-lg border border-border bg-white shadow-elev py-1">
                   <button onClick={() => { setShowCreateMenu(false); setShowAdd(true); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Tạo FAQ</button>
-                  <button onClick={() => { setShowCreateMenu(false); setShowImport(true); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Nhập từ tệp</button>
+                  {!agentId && (
+                    <button onClick={() => { setShowCreateMenu(false); setShowImport(true); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Nhập từ tệp</button>
+                  )}
                 </div>
               )}
             </div>
@@ -252,7 +278,10 @@ export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; view
       {selected.size > 0 && !viewOnly && (
         <div className="flex items-center gap-3 mb-3 px-3 h-10 rounded-lg bg-primary-soft border border-primary/15">
           <span className="text-sm font-medium text-primary">Đã chọn {selected.size} câu hỏi</span>
-          <button onClick={() => setShowAssign(true)} className="text-xs font-semibold text-primary hover:underline">Gán danh mục</button>
+          {!agentId && <button onClick={() => setShowAssign(true)} className="text-xs font-semibold text-primary hover:underline">Gán danh mục</button>}
+          {agentId && (
+            <button onClick={() => setShareTargets(selectedRows)} className="text-xs font-semibold text-primary hover:underline">Chia sẻ</button>
+          )}
           {selectedFailedIds.length > 0 ? (
             <button onClick={bulkReprocessClick} className="text-xs font-semibold text-primary hover:underline">Xử lý lại</button>
           ) : (
@@ -278,7 +307,7 @@ export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; view
               <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">Thêm cặp câu hỏi – câu trả lời để Agent phản hồi nhanh và nhất quán.</p>
               <div className="flex items-center justify-center gap-2">
                 <button onClick={() => setShowAdd(true)} className="btn-primary h-9">Tạo FAQ</button>
-                <button onClick={() => setShowImport(true)} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Nhập từ tệp</button>
+                {!agentId && <button onClick={() => setShowImport(true)} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Nhập từ tệp</button>}
               </div>
             </>
           )}
@@ -294,31 +323,40 @@ export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; view
           <div className="rounded-xl border border-border overflow-x-auto scroll-shadow-x">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border bg-surface-muted">
+                <tr className={headerRowClass}>
                   {!viewOnly && (
                     <th className="w-10 px-4 py-2.5">
                       <input ref={headerCheckboxRef} type="checkbox" checked={allOnPageSelected} onChange={toggleSelectPage} className="w-4 h-4 accent-primary" aria-label="Chọn tất cả trên trang này" />
                     </th>
                   )}
-                  <th className="text-left px-2 py-2.5 kb-table-header">Câu hỏi</th>
-                  <th className="text-left px-2 py-2.5 kb-table-header">Câu trả lời</th>
-                  <th className="text-left px-2 py-2.5 kb-table-header">Danh mục</th>
-                  <th className="text-left px-2 py-2.5 kb-table-header">Trạng thái</th>
-                  <th className="text-left px-2 py-2.5 kb-table-header min-w-[160px]">Cập nhật lần cuối</th>
-                  <th className="text-left px-2 py-2.5 kb-table-header min-w-[120px]">Cập nhật bởi</th>
+                  <th className={headerCellClass}>Câu hỏi</th>
+                  <th className={headerCellClass}>Câu trả lời</th>
+                  <th className={headerCellClass}>Danh mục</th>
+                  <th className={headerCellClass}>Trạng thái</th>
+                  <th className={`${headerCellClass} min-w-[160px]`}>Cập nhật lần cuối</th>
+                  <th className={`${headerCellClass} min-w-[120px]`}>Cập nhật bởi</th>
+                  {agentId && <th className={`${headerCellClass} min-w-[150px]`}>Sở hữu</th>}
+                  {agentId && <th className={headerCellClass}>Kích hoạt</th>}
                   {!viewOnly && <th className="px-4 py-2.5 w-12" />}
                 </tr>
               </thead>
               <tbody>
-                {pageItems.map(f => (
+                {pageItems.map(f => {
+                  const meta = agentId ? agentMeta.get(f.id) : undefined;
+                  const canEdit = agentId ? agentHasEditRights(f.updatedBy, f.sharing) : true;
+                  return (
                   <tr key={f.id} className="border-b border-border last:border-0 hover:bg-surface-muted/50 transition-base">
                     {!viewOnly && (
                       <td className="px-4 py-3"><input type="checkbox" checked={selected.has(f.id)} onChange={() => toggleRow(f.id)} className="w-4 h-4 accent-primary" aria-label={`Chọn ${f.question}`} /></td>
                     )}
                     <td className="px-2 py-3 max-w-[220px]">
-                      <button onClick={() => setEditTarget(f)} className="text-left block w-full min-w-0" disabled={viewOnly}>
-                        <TruncatedText text={f.question} className="text-sm font-medium" />
-                      </button>
+                      {agentId ? (
+                        <TruncatedText text={f.question} className={questionWeightClass} />
+                      ) : (
+                        <button onClick={() => setEditTarget(f)} className="text-left block w-full min-w-0" disabled={viewOnly}>
+                          <TruncatedText text={f.question} className={questionWeightClass} />
+                        </button>
+                      )}
                     </td>
                     <td className="px-2 py-3 max-w-[260px]">
                       <TruncatedText text={f.answer} className="text-xs text-muted-foreground" />
@@ -337,26 +375,51 @@ export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; view
                     </td>
                     <td className="px-2 py-3 text-xs text-muted-foreground whitespace-nowrap">{new Date(f.updatedAt).toLocaleDateString("vi-VN")}</td>
                     <td className="px-2 py-3 text-xs text-muted-foreground truncate">{f.updatedBy}</td>
+                    {agentId && <td className="px-2 py-3"><AgentOwnerCell updatedBy={f.updatedBy} /></td>}
+                    {agentId && (
+                      <td className="px-2 py-3">
+                        <AgentEnabledToggle enabled={meta?.enabled ?? true} onChange={v => { knowledgeStore.setEnabledForAgent(agentId, "faq", f.id, v); refresh(); }} />
+                      </td>
+                    )}
                     {!viewOnly && (
                       <td className="px-4 py-3 text-right">
-                        <RowActionMenu
-                          items={[
-                            { label: "Sửa", onClick: () => setEditTarget(f) },
-                            {
-                              label: "Xử lý lại", onClick: () => reprocessOne(f), disabled: f.status !== "failed",
-                              disabledTooltip: f.status === "invalid"
-                                ? "Nội dung chưa hợp lệ. Hãy sửa câu hỏi hoặc câu trả lời trước khi xử lý lại."
-                                : f.status === "pending" || f.status === "processing"
-                                  ? "Câu hỏi đang được xử lý."
-                                  : undefined,
-                            },
-                            { label: "Xóa", onClick: () => setDeleteTargets([f]), danger: true },
-                          ]}
-                        />
+                        {agentId ? (
+                          <RowActionMenu
+                            items={[
+                              { label: "Chia sẻ", onClick: () => setShareTargets([f]) },
+                              {
+                                label: "Xử lý lại", onClick: () => reprocessOne(f), disabled: f.status !== "failed",
+                                disabledTooltip: f.status === "invalid"
+                                  ? "Nội dung chưa hợp lệ. Hãy sửa câu hỏi hoặc câu trả lời trước khi xử lý lại."
+                                  : f.status === "pending" || f.status === "processing"
+                                    ? "Câu hỏi đang được xử lý."
+                                    : undefined,
+                              },
+                              ...(canEdit ? [{ label: "Xóa", onClick: () => setDeleteTargets([f]), danger: true }] : []),
+                              { label: "Gỡ khỏi Agent", onClick: () => setDetachTarget(f) },
+                            ]}
+                          />
+                        ) : (
+                          <RowActionMenu
+                            items={[
+                              { label: "Sửa", onClick: () => setEditTarget(f) },
+                              {
+                                label: "Xử lý lại", onClick: () => reprocessOne(f), disabled: f.status !== "failed",
+                                disabledTooltip: f.status === "invalid"
+                                  ? "Nội dung chưa hợp lệ. Hãy sửa câu hỏi hoặc câu trả lời trước khi xử lý lại."
+                                  : f.status === "pending" || f.status === "processing"
+                                    ? "Câu hỏi đang được xử lý."
+                                    : undefined,
+                              },
+                              { label: "Xóa", onClick: () => setDeleteTargets([f]), danger: true },
+                            ]}
+                          />
+                        )}
                       </td>
                     )}
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -386,9 +449,9 @@ export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; view
         </>
       )}
 
-      <AddEditFaqModal open={showAdd} kbId={kbId} onClose={() => { setShowAdd(false); refresh(); }} />
-      {editTarget && <AddEditFaqModal open={!!editTarget} kbId={kbId} editingFaq={editTarget} onClose={() => { setEditTarget(null); refresh(); }} />}
-      {showImport && (
+      <AddEditFaqModal open={showAdd} kbId={agentId ? undefined : kbId} agentId={agentId} onClose={() => { setShowAdd(false); refresh(); }} />
+      {editTarget && <AddEditFaqModal open={!!editTarget} kbId={editTarget.kbId} editingFaq={editTarget} onClose={() => { setEditTarget(null); refresh(); }} />}
+      {showImport && kbId && (
         <ImportFaqModal
           open={showImport}
           kbId={kbId}
@@ -397,7 +460,7 @@ export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; view
           onViewInvalid={() => { setStatusFilter(new Set(["invalid"])); setCategoryFilter(new Set()); setQuery(""); setDebouncedQuery(""); }}
         />
       )}
-      {showExport && (
+      {showExport && !agentId && (
         <ExportFaqModal
           open={showExport}
           kbName={kbName}
@@ -409,7 +472,7 @@ export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; view
           onClose={() => setShowExport(false)}
         />
       )}
-      {showAssign && (
+      {showAssign && !agentId && (
         <AssignCategoriesModal
           open={showAssign}
           targets={selectedRows}
@@ -418,13 +481,57 @@ export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; view
           onDone={() => { setShowAssign(false); refresh(); }}
         />
       )}
-      {showManageCategories && (
+      {showManageCategories && kbId && (
         <ManageCategoriesModal
           open={showManageCategories}
           kbId={kbId}
           onClose={() => setShowManageCategories(false)}
           onChanged={refresh}
         />
+      )}
+
+      {agentId && shareTargets && shareTargets.length > 0 && (
+        <ShareKnowledgeBaseModal
+          open
+          title={shareTargets.length === 1 ? "Chia sẻ FAQ" : `Chia sẻ ${shareTargets.length} FAQ`}
+          name={shareTargets.length === 1 ? shareTargets[0].question : undefined}
+          ownerName={shareTargets.length === 1 ? shareTargets[0].updatedBy : "Tran Nam"}
+          sharing={shareTargets.length === 1 ? (shareTargets[0].sharing ?? { mode: "private", people: [] }) : { mode: "private", people: [] }}
+          querySharing={shareTargets.length === 1 ? (shareTargets[0].querySharing ?? { mode: "private", people: [] }) : { mode: "private", people: [] }}
+          onSave={(sharing, querySharing) => {
+            for (const t of shareTargets) {
+              knowledgeFaqStore.updateSharing(t.id, sharing);
+              if (querySharing) knowledgeFaqStore.updateQueryScope(t.id, querySharing);
+            }
+            setSelected(new Set());
+          }}
+          onClose={() => { setShareTargets(null); refresh(); }}
+        />
+      )}
+
+      {agentId && (
+        <AlertDialog open={!!detachTarget} onOpenChange={v => !v && setDetachTarget(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Gỡ tài liệu khỏi Agent?</AlertDialogTitle>
+              <AlertDialogDescription>Agent sẽ không còn tra cứu được nội dung này. Câu hỏi vẫn được giữ nguyên trong kho tri thức của nó.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-surface text-foreground border border-border hover:bg-surface-muted"
+                onClick={() => {
+                  if (detachTarget) knowledgeStore.detachFromAgent(agentId, "faq", detachTarget.id);
+                  setDetachTarget(null);
+                  refresh();
+                  toast.success("Đã gỡ khỏi Agent.");
+                }}
+              >
+                Gỡ khỏi Agent
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
 
       <AlertDialog open={showBulkReprocessConfirm} onOpenChange={setShowBulkReprocessConfirm}>
@@ -454,9 +561,11 @@ export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; view
               {deleteTargets && deleteTargets.length === 1 ? "Xóa câu hỏi này?" : `Xóa ${deleteTargets?.length} câu hỏi?`}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {deleteTargets && deleteTargets.length === 1
-                ? "Câu hỏi và câu trả lời sẽ bị xóa vĩnh viễn khỏi kho tri thức. Hành động này không thể hoàn tác."
-                : `${deleteTargets?.length} câu hỏi cùng câu trả lời sẽ bị xóa vĩnh viễn khỏi kho tri thức. Hành động này không thể hoàn tác.`}
+              {agentId
+                ? "Câu hỏi và câu trả lời sẽ bị xóa vĩnh viễn khỏi toàn bộ hệ thống, kể cả các Agent khác đang dùng chung. Hành động này không thể hoàn tác."
+                : deleteTargets && deleteTargets.length === 1
+                  ? "Câu hỏi và câu trả lời sẽ bị xóa vĩnh viễn khỏi kho tri thức. Hành động này không thể hoàn tác."
+                  : `${deleteTargets?.length} câu hỏi cùng câu trả lời sẽ bị xóa vĩnh viễn khỏi kho tri thức. Hành động này không thể hoàn tác.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {deleteTargets && deleteTargets.length === 1 && (
@@ -486,4 +595,3 @@ export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; view
     </div>
   );
 }
-

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Search, ChevronDown, Plus, Clock, Settings2, Map, X } from "lucide-react";
+import { Search, ChevronDown, Plus, Clock, Settings2, Map as MapIcon, X } from "lucide-react";
 import FileTypeIcon from "./FileTypeIcon";
 import CreateFolderModal from "./CreateFolderModal";
 import MoveToFolderModal from "./MoveToFolderModal";
@@ -12,11 +12,14 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { knowledgeUrlStore, type KnowledgeUrl, type UrlSource } from "./knowledgeUrlStore";
+import { knowledgeStore } from "./knowledgeStore";
+import { agentHasEditRights, AgentOwnerCell, AgentEnabledToggle } from "./AgentKnowledgeCells";
 import { knowledgeSettingsStore, shortCadence } from "./knowledgeSettingsStore";
 import { KnowledgeStatusPill, type KnowledgeProcessingStatus } from "./knowledgeStatus";
 import { formatVersion } from "./semver";
 import ChunkViewerModal from "./ChunkViewerModal";
 import AddUrlModal from "./AddUrlModal";
+import ShareKnowledgeBaseModal from "./ShareKnowledgeBaseModal";
 import UrlScheduleOverrideModal from "./UrlScheduleOverrideModal";
 import VersionHistoryPanel from "./VersionHistoryPanel";
 import SyncSettingsModal from "./SyncSettingsModal";
@@ -53,7 +56,13 @@ function relativeTime(ts: number): string {
   return `${Math.floor(hours / 24)} ngày trước`;
 }
 
-export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; viewOnly: boolean }) {
+/** Pass either `kbId` (Console Website tab) or `agentId` (Agent Details "Tri thức của Agent" >
+ * Website tab) — never both. Agent mode reuses this exact component scoped to one Agent's
+ * attached URLs across every KB, with "Sở hữu"/"Kích hoạt" columns Console never shows, no folder
+ * browsing or KB-wide sync/sitemap settings (all inherently single-KB concepts this cross-KB view
+ * has no single answer for), and the row menu/click behavior from Round 4 Prompt F: no "Mở", not
+ * clickable, just Chia sẻ / Xử lý lại / Xóa / Gỡ khỏi Agent. */
+export default function KnowledgeWebsiteTab({ kbId, agentId, viewOnly }: { kbId?: string; agentId?: string; viewOnly: boolean }) {
   const [params, setParams] = useSearchParams();
   const [tick, setTick] = useState(0);
   const [query, setQuery] = useState("");
@@ -68,7 +77,9 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
   const [showManageSitemaps, setShowManageSitemaps] = useState(false);
   const [scheduleTarget, setScheduleTarget] = useState<KnowledgeUrl | null>(null);
   const [versionTarget, setVersionTarget] = useState<KnowledgeUrl | null>(null);
+  const [shareTargets, setShareTargets] = useState<KnowledgeUrl[] | null>(null);
   const [deleteTargets, setDeleteTargets] = useState<KnowledgeUrl[] | null>(null);
+  const [detachTarget, setDetachTarget] = useState<KnowledgeUrl | null>(null);
   const [showCreateFolder, setShowCreateFolder] = useState(false);
   const [moveTargets, setMoveTargets] = useState<KnowledgeUrl[] | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
@@ -78,7 +89,7 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
   const createMenuRef = useRef<HTMLDivElement>(null);
 
   const openId = params.get("urlId");
-  const openUrl = openId ? knowledgeUrlStore.get(kbId, openId) : undefined;
+  const openUrl = !agentId && openId ? knowledgeUrlStore.get(kbId!, openId) : undefined;
 
   useEffect(() => {
     if (!showCreateMenu) return;
@@ -87,9 +98,13 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
     return () => document.removeEventListener("mousedown", h);
   }, [showCreateMenu]);
 
-  const all = knowledgeUrlStore.list(kbId);
-  const settings = knowledgeSettingsStore.get(kbId);
-  const sitemapCount = knowledgeSitemapStore.list(kbId).length;
+  const agentRows = agentId ? knowledgeStore.listForAgent(agentId).filter(r => r.kind === "url") : [];
+  const agentMeta = new Map(agentRows.map(r => [r.id, r]));
+  const all: KnowledgeUrl[] = agentId
+    ? agentRows.map(r => knowledgeUrlStore.get(r.kbId, r.id)).filter((u): u is KnowledgeUrl => !!u)
+    : knowledgeUrlStore.list(kbId!);
+  const settings = !agentId ? knowledgeSettingsStore.get(kbId!) : undefined;
+  const sitemapCount = !agentId ? knowledgeSitemapStore.list(kbId!).length : 0;
   void tick;
   const refresh = () => setTick(t => t + 1);
   const q = query.trim().toLowerCase();
@@ -116,6 +131,12 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
     refresh();
     toast.success(ids.length === 1 ? "Đang đồng bộ URL." : `Đang đồng bộ ${ids.length} URL.`);
   };
+
+  const headerRowClass = agentId ? "border-b-2 border-border bg-surface-muted" : "border-b border-border bg-surface-muted";
+  const headerCellClass = agentId
+    ? "text-left px-2 py-2.5 text-xs font-bold uppercase tracking-[0.04em] text-foreground whitespace-nowrap"
+    : "text-left px-2 py-2.5 kb-table-header";
+  const nameWeightClass = agentId ? "font-semibold" : "font-medium";
 
   return (
     <div className="h-full overflow-y-auto">
@@ -160,29 +181,31 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
         </div>
 
         <div className="flex items-center gap-2">
-          <Tooltip delayDuration={300}>
-            <TooltipTrigger asChild>
-              <span tabIndex={0} className="outline-none">
-                <button
-                  onClick={() => setShowSyncSettings(true)}
-                  disabled={all.length === 0}
-                  className="h-9 px-3 flex items-center gap-1.5 rounded-lg border border-border bg-surface text-sm hover:bg-surface-muted transition-base disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed"
-                >
-                  <Settings2 size={14} />
-                  Cài đặt đồng bộ
-                  {settings.scheduleEnabled && <span className="chip chip-muted ml-0.5">{shortCadence(settings.schedule)}</span>}
-                </button>
-              </span>
-            </TooltipTrigger>
-            {all.length === 0 && <TooltipContent>Thêm URL trước khi cài đặt lịch đồng bộ.</TooltipContent>}
-          </Tooltip>
+          {!agentId && (
+            <Tooltip delayDuration={300}>
+              <TooltipTrigger asChild>
+                <span tabIndex={0} className="outline-none">
+                  <button
+                    onClick={() => setShowSyncSettings(true)}
+                    disabled={all.length === 0}
+                    className="h-9 px-3 flex items-center gap-1.5 rounded-lg border border-border bg-surface text-sm hover:bg-surface-muted transition-base disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed"
+                  >
+                    <Settings2 size={14} />
+                    Cài đặt đồng bộ
+                    {settings?.scheduleEnabled && <span className="chip chip-muted ml-0.5">{shortCadence(settings.schedule)}</span>}
+                  </button>
+                </span>
+              </TooltipTrigger>
+              {all.length === 0 && <TooltipContent>Thêm URL trước khi cài đặt lịch đồng bộ.</TooltipContent>}
+            </Tooltip>
+          )}
 
-          {!viewOnly && (
+          {!viewOnly && !agentId && (
             <button
               onClick={() => setShowManageSitemaps(true)}
               className="h-9 px-3 flex items-center gap-1.5 rounded-lg border border-border bg-surface text-sm hover:bg-surface-muted transition-base"
             >
-              <Map size={14} />
+              <MapIcon size={14} />
               Quản lý sitemap
               {sitemapCount > 0 && <span className="chip chip-muted ml-0.5">{sitemapCount}</span>}
             </button>
@@ -196,12 +219,14 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
               {showCreateMenu && (
                 <div className="absolute right-0 top-full mt-1 z-20 min-w-52 max-w-xs rounded-lg border border-border bg-white shadow-elev py-1">
                   <button onClick={() => { setShowCreateMenu(false); setShowAddUrl(true); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">URL mới</button>
-                  <button
-                    onClick={() => { setShowCreateMenu(false); setShowCreateFolder(true); }}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base"
-                  >
-                    Thư mục mới
-                  </button>
+                  {!agentId && (
+                    <button
+                      onClick={() => { setShowCreateMenu(false); setShowCreateFolder(true); }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base"
+                    >
+                      Thư mục mới
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -220,10 +245,15 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
       {selected.size > 0 && !viewOnly && (
         <div className="flex items-center gap-3 mb-3 px-3 h-10 rounded-lg bg-primary-soft border border-primary/15">
           <span className="text-sm font-medium text-primary">Đã chọn {selected.size} mục</span>
-          <button onClick={() => syncNow([...selected])} className="text-xs font-semibold text-primary hover:underline">Đồng bộ ngay</button>
-          <button onClick={() => setMoveTargets(all.filter(u => selected.has(u.id)))} className="text-xs font-semibold text-primary hover:underline">
-            Di chuyển
-          </button>
+          <button onClick={() => syncNow([...selected])} className="text-xs font-semibold text-primary hover:underline">{agentId ? "Xử lý lại" : "Đồng bộ ngay"}</button>
+          {agentId && (
+            <button onClick={() => setShareTargets(all.filter(u => selected.has(u.id)))} className="text-xs font-semibold text-primary hover:underline">Chia sẻ</button>
+          )}
+          {!agentId && (
+            <button onClick={() => setMoveTargets(all.filter(u => selected.has(u.id)))} className="text-xs font-semibold text-primary hover:underline">
+              Di chuyển
+            </button>
+          )}
           <button onClick={() => setDeleteTargets(all.filter(u => selected.has(u.id)))} className="text-xs font-semibold text-destructive hover:underline">Xóa</button>
         </div>
       )}
@@ -248,7 +278,7 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
         <div className="rounded-xl border border-border overflow-x-auto scroll-shadow-x">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border bg-surface-muted">
+              <tr className={headerRowClass}>
                 {!viewOnly && (
                   <th className="w-10 px-4 py-2.5">
                     <input
@@ -261,29 +291,44 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
                     />
                   </th>
                 )}
-                <th className="text-left px-2 py-2.5 kb-table-header">Tên</th>
-                <th className="text-left px-2 py-2.5 kb-table-header">Nguồn</th>
-                <th className="text-left px-2 py-2.5 kb-table-header">Trạng thái</th>
-                <th className="text-left px-2 py-2.5 kb-table-header">Phiên bản</th>
-                <th className="text-left px-2 py-2.5 kb-table-header min-w-[160px]">Đồng bộ lần cuối</th>
-                <th className="text-left px-2 py-2.5 kb-table-header min-w-[120px]">Cập nhật bởi</th>
+                <th className={headerCellClass}>Tên</th>
+                <th className={headerCellClass}>Nguồn</th>
+                <th className={headerCellClass}>Trạng thái</th>
+                <th className={headerCellClass}>Phiên bản</th>
+                <th className={`${headerCellClass} min-w-[160px]`}>Đồng bộ lần cuối</th>
+                <th className={`${headerCellClass} min-w-[120px]`}>Cập nhật bởi</th>
+                {agentId && <th className={`${headerCellClass} min-w-[150px]`}>Sở hữu</th>}
+                {agentId && <th className={headerCellClass}>Kích hoạt</th>}
                 {!viewOnly && <th className="px-4 py-2.5 w-12" />}
               </tr>
             </thead>
             <tbody>
-              {filtered.map(u => (
+              {filtered.map(u => {
+                const meta = agentId ? agentMeta.get(u.id) : undefined;
+                const canEdit = agentId ? agentHasEditRights(u.updatedBy, u.sharing) : true;
+                return (
                 <tr key={u.id} className={`border-b border-border last:border-0 hover:bg-surface-muted/50 transition-base ${highlightId === u.id ? "bg-primary-soft/40" : ""}`}>
                   {!viewOnly && (
                     <td className="px-4 py-3"><input type="checkbox" checked={selected.has(u.id)} onChange={() => toggleRow(u.id)} className="w-4 h-4 accent-primary" aria-label={`Chọn ${u.name}`} /></td>
                   )}
                   <td className="px-2 py-3 max-w-[340px]">
-                    <button onClick={() => u.isFolder ? setFolderFilter(u.id) : openViewer(u.id)} className="flex items-center gap-2 w-full min-w-0 text-left disabled:cursor-default">
-                      <FileTypeIcon kind={u.isFolder ? "folder" : "url"} />
-                      <div className="min-w-0 block w-full">
-                        <div className="text-sm font-medium truncate">{u.isFolder ? u.name : u.title}</div>
-                        {!u.isFolder && u.url && <div className="text-xs text-muted-foreground truncate font-mono">{truncateMiddle(u.url)}</div>}
+                    {agentId ? (
+                      <div className="flex items-center gap-2 w-full min-w-0">
+                        <FileTypeIcon kind="url" />
+                        <div className="min-w-0 block w-full">
+                          <div className={`text-sm ${nameWeightClass} truncate`}>{u.title}</div>
+                          {u.url && <div className="text-xs text-muted-foreground truncate font-mono">{truncateMiddle(u.url)}</div>}
+                        </div>
                       </div>
-                    </button>
+                    ) : (
+                      <button onClick={() => u.isFolder ? setFolderFilter(u.id) : openViewer(u.id)} className="flex items-center gap-2 w-full min-w-0 text-left disabled:cursor-default">
+                        <FileTypeIcon kind={u.isFolder ? "folder" : "url"} />
+                        <div className="min-w-0 block w-full">
+                          <div className={`text-sm ${nameWeightClass} truncate`}>{u.isFolder ? u.name : u.title}</div>
+                          {!u.isFolder && u.url && <div className="text-xs text-muted-foreground truncate font-mono">{truncateMiddle(u.url)}</div>}
+                        </div>
+                      </button>
+                    )}
                   </td>
                   <td className="px-2 py-3">{!u.isFolder && u.source && <span className="chip chip-muted">{SOURCE_LABEL[u.source]}</span>}</td>
                   <td className="px-2 py-3">{!u.isFolder && <KnowledgeStatusPill status={u.status} />}</td>
@@ -322,9 +367,24 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
                     ) : "Chưa đồng bộ"}
                   </td>
                   <td className="px-2 py-3 text-xs text-muted-foreground truncate">{u.updatedBy}</td>
+                  {agentId && <td className="px-2 py-3"><AgentOwnerCell updatedBy={u.updatedBy} /></td>}
+                  {agentId && (
+                    <td className="px-2 py-3">
+                      <AgentEnabledToggle enabled={meta?.enabled ?? true} onChange={v => { knowledgeStore.setEnabledForAgent(agentId, "url", u.id, v); refresh(); }} />
+                    </td>
+                  )}
                   {!viewOnly && (
                     <td className="px-4 py-3 text-right">
-                      {u.isFolder ? (
+                      {agentId ? (
+                        <RowActionMenu
+                          items={[
+                            { label: "Chia sẻ", onClick: () => setShareTargets([u]) },
+                            { label: "Xử lý lại", onClick: () => syncNow([u.id]) },
+                            ...(canEdit ? [{ label: "Xóa", onClick: () => setDeleteTargets([u]), danger: true }] : []),
+                            { label: "Gỡ khỏi Agent", onClick: () => setDetachTarget(u) },
+                          ]}
+                        />
+                      ) : u.isFolder ? (
                         <RowActionMenu
                           ariaLabel="Thao tác thư mục"
                           items={[
@@ -348,18 +408,19 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
                     </td>
                   )}
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
       )}
 
-      <AddUrlModal open={showAddUrl} kbId={kbId} onClose={() => { setShowAddUrl(false); refresh(); }} />
-      {showSyncSettings && <SyncSettingsModal kbId={kbId} viewOnly={viewOnly} onClose={() => setShowSyncSettings(false)} onSaved={refresh} />}
-      {showManageSitemaps && <ManageSitemapsModal open={showManageSitemaps} kbId={kbId} onClose={() => { setShowManageSitemaps(false); refresh(); }} />}
+      <AddUrlModal open={showAddUrl} kbId={agentId ? undefined : kbId} agentId={agentId} onClose={() => { setShowAddUrl(false); refresh(); }} />
+      {showSyncSettings && kbId && <SyncSettingsModal kbId={kbId} viewOnly={viewOnly} onClose={() => setShowSyncSettings(false)} onSaved={refresh} />}
+      {showManageSitemaps && kbId && <ManageSitemapsModal open={showManageSitemaps} kbId={kbId} onClose={() => { setShowManageSitemaps(false); refresh(); }} />}
       {openUrl && (
         <ChunkViewerModal
-          kbId={kbId}
+          kbId={kbId!}
           sourceType="url"
           sourceId={openUrl.id}
           sourceName={openUrl.title ?? openUrl.name}
@@ -371,20 +432,22 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
         />
       )}
 
-      <CreateFolderModal
-        open={showCreateFolder}
-        existingNames={knowledgeUrlStore.listFolders(kbId).map(f => f.name)}
-        onClose={() => setShowCreateFolder(false)}
-        onCreate={name => {
-          const folder = knowledgeUrlStore.createFolder(kbId, name);
-          toast.success(`Đã tạo thư mục "${name}".`);
-          setHighlightId(folder.id);
-          setTimeout(() => setHighlightId(null), 2000);
-          refresh();
-        }}
-      />
+      {!agentId && kbId && (
+        <CreateFolderModal
+          open={showCreateFolder}
+          existingNames={knowledgeUrlStore.listFolders(kbId).map(f => f.name)}
+          onClose={() => setShowCreateFolder(false)}
+          onCreate={name => {
+            const folder = knowledgeUrlStore.createFolder(kbId, name);
+            toast.success(`Đã tạo thư mục "${name}".`);
+            setHighlightId(folder.id);
+            setTimeout(() => setHighlightId(null), 2000);
+            refresh();
+          }}
+        />
+      )}
 
-      {moveTargets && (
+      {moveTargets && kbId && (
         <MoveToFolderModal
           open={!!moveTargets}
           count={moveTargets.length}
@@ -400,7 +463,7 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
         />
       )}
 
-      {renaming && (
+      {renaming && kbId && (
         <RenameFolderDialog
           value={renameValue}
           onChange={setRenameValue}
@@ -409,7 +472,7 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
           onConfirm={() => { knowledgeUrlStore.rename(renaming.id, renameValue); setRenaming(null); refresh(); }}
         />
       )}
-      {scheduleTarget && <UrlScheduleOverrideModal kbId={kbId} url={scheduleTarget} onClose={() => { setScheduleTarget(null); refresh(); }} />}
+      {scheduleTarget && kbId && <UrlScheduleOverrideModal kbId={kbId} url={scheduleTarget} onClose={() => { setScheduleTarget(null); refresh(); }} />}
       {versionTarget && (
         <VersionHistoryPanel
           source={{ id: versionTarget.id, kbId: versionTarget.kbId, name: versionTarget.title ?? versionTarget.name, sourceType: "url", version: versionTarget.version, updatedAt: versionTarget.updatedAt, updatedBy: versionTarget.updatedBy }}
@@ -418,12 +481,92 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
         />
       )}
 
+      {agentId && shareTargets && shareTargets.length > 0 && (
+        <ShareKnowledgeBaseModal
+          open
+          title={shareTargets.length === 1 ? "Chia sẻ URL" : `Chia sẻ ${shareTargets.length} URL`}
+          name={shareTargets.length === 1 ? (shareTargets[0].title ?? shareTargets[0].name) : undefined}
+          ownerName={shareTargets.length === 1 ? shareTargets[0].updatedBy : "Tran Nam"}
+          sharing={shareTargets.length === 1 ? (shareTargets[0].sharing ?? { mode: "private", people: [] }) : { mode: "private", people: [] }}
+          querySharing={shareTargets.length === 1 ? (shareTargets[0].querySharing ?? { mode: "private", people: [] }) : { mode: "private", people: [] }}
+          onSave={(sharing, querySharing) => {
+            for (const t of shareTargets) {
+              knowledgeUrlStore.updateSharing(t.id, sharing);
+              if (querySharing) knowledgeUrlStore.updateQueryScope(t.id, querySharing);
+            }
+            setSelected(new Set());
+          }}
+          onClose={() => { setShareTargets(null); refresh(); }}
+        />
+      )}
+
+      {agentId && (
+        <AlertDialog open={!!detachTarget} onOpenChange={v => !v && setDetachTarget(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Gỡ tài liệu khỏi Agent?</AlertDialogTitle>
+              <AlertDialogDescription>Agent sẽ không còn tra cứu được nội dung này. URL vẫn được giữ nguyên trong kho tri thức của nó.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-surface text-foreground border border-border hover:bg-surface-muted"
+                onClick={() => {
+                  if (detachTarget) knowledgeStore.detachFromAgent(agentId, "url", detachTarget.id);
+                  setDetachTarget(null);
+                  refresh();
+                  toast.success("Đã gỡ khỏi Agent.");
+                }}
+              >
+                Gỡ khỏi Agent
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
       <AlertDialog open={!!deleteTargets} onOpenChange={v => !v && setDeleteTargets(null)}>
         <AlertDialogContent>
           {(() => {
             if (!deleteTargets) return null;
+            if (agentId) {
+              const single = deleteTargets.length === 1;
+              const others = single ? (agentMeta.get(deleteTargets[0].id)?.attachedAgentIds ?? []).filter(a => a !== agentId) : [];
+              return (
+                <>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>{single ? "Xóa URL này?" : `Xóa ${deleteTargets.length} mục?`}</AlertDialogTitle>
+                    <AlertDialogDescription asChild>
+                      <div className="space-y-3">
+                        <p>Nội dung sẽ bị xóa vĩnh viễn khỏi toàn bộ hệ thống, kể cả các Agent khác đang dùng chung URL này. Hành động này không thể hoàn tác.</p>
+                        {others.length > 0 && (
+                          <div className="flex items-start gap-2.5 rounded-lg border border-destructive/25 bg-[hsl(var(--destructive-soft))] px-3.5 py-3">
+                            <p className="text-xs text-destructive leading-relaxed">
+                              {others.length} Agent khác đang dùng chung URL này và sẽ mất nguồn tra cứu.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={() => {
+                        knowledgeUrlStore.removeMany(deleteTargets.map(d => d.id));
+                        toast.success(single ? "Đã xóa mục đã chọn." : `Đã xóa ${deleteTargets.length} mục.`);
+                        setDeleteTargets(null); setSelected(new Set()); refresh();
+                      }}
+                    >
+                      Xóa
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </>
+              );
+            }
             const folderTargets = deleteTargets.filter(d => d.isFolder);
-            const cascadeCount = folderTargets.reduce((sum, f) => sum + knowledgeUrlStore.countUrlsInFolder(kbId, f.id), 0);
+            const cascadeCount = folderTargets.reduce((sum, f) => sum + knowledgeUrlStore.countUrlsInFolder(kbId!, f.id), 0);
             const isSingleFolder = deleteTargets.length === 1 && folderTargets.length === 1;
             const title = isSingleFolder ? "Xóa thư mục này?" : deleteTargets.length === 1 ? "Xóa URL này?" : `Xóa ${deleteTargets.length} mục?`;
             return (
@@ -450,7 +593,7 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
                   <AlertDialogAction
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     onClick={() => {
-                      for (const f of folderTargets) knowledgeUrlStore.removeFolderCascade(kbId, f.id);
+                      for (const f of folderTargets) knowledgeUrlStore.removeFolderCascade(kbId!, f.id);
                       const urlIds = deleteTargets.filter(d => !d.isFolder).map(d => d.id);
                       if (urlIds.length > 0) knowledgeUrlStore.removeMany(urlIds);
                       toast.success(deleteTargets.length === 1 ? "Đã xóa mục đã chọn." : `Đã xóa ${deleteTargets.length} mục.`);
@@ -511,4 +654,3 @@ function RenameFolderDialog({ value, onChange, onCancel, onConfirm, isDuplicate 
     </div>
   );
 }
-

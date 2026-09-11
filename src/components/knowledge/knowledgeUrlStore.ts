@@ -34,13 +34,15 @@ export interface KnowledgeUrl {
   querySharing?: Sharing;
   /** Agent ids currently relying on this URL — same meaning as KnowledgeDocument's field. */
   attachedAgentIds?: string[];
+  /** Same meaning as KnowledgeDocument's field — the "Kích hoạt" toggle. */
+  disabledForAgentIds?: string[];
   createdAt: number;
   updatedAt: number;
   updatedBy: string;
 }
 
-const STORE_KEY = "knowledge_url_store_v5";
-const SEEDED_KEY = "knowledge_url_store_seeded_v5";
+const STORE_KEY = "knowledge_url_store_v6";
+const SEEDED_KEY = "knowledge_url_store_seeded_v6";
 const store = loadMap<string, KnowledgeUrl>(STORE_KEY);
 const persist = () => saveMap(STORE_KEY, store);
 
@@ -223,7 +225,20 @@ export const knowledgeUrlStore = {
   detachFromAgent(id: string, agentId: string) {
     const cur = store.get(id);
     if (!cur) return;
-    store.set(id, { ...cur, attachedAgentIds: (cur.attachedAgentIds ?? []).filter(a => a !== agentId) });
+    store.set(id, {
+      ...cur,
+      attachedAgentIds: (cur.attachedAgentIds ?? []).filter(a => a !== agentId),
+      disabledForAgentIds: (cur.disabledForAgentIds ?? []).filter(a => a !== agentId),
+    });
+    persist();
+  },
+  /** "Kích hoạt" toggle — see KnowledgeDocument's setEnabledForAgent for the full explanation. */
+  setEnabledForAgent(id: string, agentId: string, enabled: boolean) {
+    const cur = store.get(id);
+    if (!cur) return;
+    const disabled = new Set(cur.disabledForAgentIds ?? []);
+    if (enabled) disabled.delete(agentId); else disabled.add(agentId);
+    store.set(id, { ...cur, disabledForAgentIds: [...disabled] });
     persist();
   },
 };

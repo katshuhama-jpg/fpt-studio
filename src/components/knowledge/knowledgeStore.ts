@@ -38,6 +38,10 @@ export interface AgentKnowledgeRow {
   categories?: string[];
   /** Every Agent id currently attached to this item (including the one being queried for). */
   attachedAgentIds: string[];
+  /** "Kích hoạt" — true unless the Agent this row was fetched for has switched it off. A
+   * disabled item stays attached, stays listed, and stays active for every other Agent; only
+   * this one Agent stops drawing on it to answer. */
+  enabled: boolean;
   createdAt: number;
   updatedAt: number;
   updatedBy: string;
@@ -48,39 +52,42 @@ export interface AgentKnowledgeRow {
  * what shows in the Agent's knowledge table (that's `attachedAgentIds` on each real item,
  * populated in bulk by attachConsoleKb below); a document added to a KB after it was linked
  * won't retroactively appear for the Agent unless linked again. */
-const LINKED_KEY = "agent_knowledge_linked_kbs_v1";
+const LINKED_KEY = "agent_knowledge_linked_kbs_v2";
 const linkedKbs = loadMap<string, string[]>(LINKED_KEY);
 const persistLinked = () => saveMap(LINKED_KEY, linkedKbs);
 
-function toDocRow(d: KnowledgeDocument, kb: KnowledgeBase): AgentKnowledgeRow {
+function toDocRow(d: KnowledgeDocument, kb: KnowledgeBase, agentId: string): AgentKnowledgeRow {
   return {
     kind: "doc", id: d.id, kbId: kb.id, kbName: kb.name, kbIsDefault: !!kb.isDefault,
     name: d.name, description: "", status: d.status, statusReason: d.statusReason,
     chunkCount: d.chunkCount, sizeBytes: d.sizeBytes, version: d.version,
     sharing: d.sharing, querySharing: d.querySharing,
-    attachedAgentIds: d.attachedAgentIds ?? [], createdAt: d.createdAt, updatedAt: d.updatedAt, updatedBy: d.updatedBy,
+    attachedAgentIds: d.attachedAgentIds ?? [], enabled: !d.disabledForAgentIds?.includes(agentId),
+    createdAt: d.createdAt, updatedAt: d.updatedAt, updatedBy: d.updatedBy,
   };
 }
-function toUrlRow(u: KnowledgeUrl, kb: KnowledgeBase): AgentKnowledgeRow {
+function toUrlRow(u: KnowledgeUrl, kb: KnowledgeBase, agentId: string): AgentKnowledgeRow {
   return {
     kind: "url", id: u.id, kbId: kb.id, kbName: kb.name, kbIsDefault: !!kb.isDefault,
     name: u.name, description: "", status: u.status, statusReason: u.lastSyncError,
     chunkCount: u.chunkCount, version: u.version,
     sharing: u.sharing, querySharing: u.querySharing,
-    attachedAgentIds: u.attachedAgentIds ?? [], createdAt: u.createdAt, updatedAt: u.updatedAt, updatedBy: u.updatedBy,
+    attachedAgentIds: u.attachedAgentIds ?? [], enabled: !u.disabledForAgentIds?.includes(agentId),
+    createdAt: u.createdAt, updatedAt: u.updatedAt, updatedBy: u.updatedBy,
   };
 }
-function toFaqRow(f: KnowledgeFaq, kb: KnowledgeBase): AgentKnowledgeRow {
+function toFaqRow(f: KnowledgeFaq, kb: KnowledgeBase, agentId: string): AgentKnowledgeRow {
   return {
     kind: "faq", id: f.id, kbId: kb.id, kbName: kb.name, kbIsDefault: !!kb.isDefault,
     name: f.question, description: f.answer, status: f.status, statusReason: f.statusReason,
     chunkCount: f.chunkCount, categories: f.categories,
     sharing: f.sharing, querySharing: f.querySharing,
-    attachedAgentIds: f.attachedAgentIds ?? [], createdAt: f.updatedAt, updatedAt: f.updatedAt, updatedBy: f.updatedBy,
+    attachedAgentIds: f.attachedAgentIds ?? [], enabled: !f.disabledForAgentIds?.includes(agentId),
+    createdAt: f.updatedAt, updatedAt: f.updatedAt, updatedBy: f.updatedBy,
   };
 }
 
-const DEMO_SEEDED_KEY = "agent_knowledge_demo_seeded_v1";
+const DEMO_SEEDED_KEY = "agent_knowledge_demo_seeded_v2";
 
 /** Demo data so a fresh visit to a known seeded Agent's Knowledge screen shows real rows across
  * every status and both attachment mechanisms — a whole linked KB and directly-created content
@@ -122,13 +129,13 @@ export const knowledgeStore = {
     const rows: AgentKnowledgeRow[] = [];
     for (const kb of knowledgeBaseStore.list()) {
       for (const d of knowledgeDocumentStore.list(kb.id)) {
-        if (!d.isFolder && d.attachedAgentIds?.includes(agentId)) rows.push(toDocRow(d, kb));
+        if (!d.isFolder && d.attachedAgentIds?.includes(agentId)) rows.push(toDocRow(d, kb, agentId));
       }
       for (const u of knowledgeUrlStore.list(kb.id)) {
-        if (!u.isFolder && u.attachedAgentIds?.includes(agentId)) rows.push(toUrlRow(u, kb));
+        if (!u.isFolder && u.attachedAgentIds?.includes(agentId)) rows.push(toUrlRow(u, kb, agentId));
       }
       for (const f of knowledgeFaqStore.list(kb.id)) {
-        if (f.attachedAgentIds?.includes(agentId)) rows.push(toFaqRow(f, kb));
+        if (f.attachedAgentIds?.includes(agentId)) rows.push(toFaqRow(f, kb, agentId));
       }
     }
     return rows.sort((a, b) => b.updatedAt - a.updatedAt);
@@ -167,6 +174,12 @@ export const knowledgeStore = {
     if (kind === "doc") knowledgeDocumentStore.detachFromAgent(id, agentId);
     else if (kind === "url") knowledgeUrlStore.detachFromAgent(id, agentId);
     else knowledgeFaqStore.detachFromAgent(id, agentId);
+  },
+  /** "Kích hoạt" toggle — this Agent stops (or resumes) using the item without detaching it. */
+  setEnabledForAgent(agentId: string, kind: KnowledgeKind, id: string, enabled: boolean) {
+    if (kind === "doc") knowledgeDocumentStore.setEnabledForAgent(id, agentId, enabled);
+    else if (kind === "url") knowledgeUrlStore.setEnabledForAgent(id, agentId, enabled);
+    else knowledgeFaqStore.setEnabledForAgent(id, agentId, enabled);
   },
   /** "Xóa hẳn" — permanently deletes the item everywhere (every Agent and KB referencing it). */
   deleteEverywhere(kind: KnowledgeKind, id: string) {

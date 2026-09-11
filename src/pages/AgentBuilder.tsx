@@ -1,5 +1,6 @@
 import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { createPortal } from "react-dom";
+import { FileText as ConsoleTabDocIcon, Globe as ConsoleTabWebsiteIcon, HelpCircle as ConsoleTabFaqIcon } from "lucide-react";
 
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, BookOpen01Icon, Cancel01Icon, BoltIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, UserMultipleIcon, TextBoldIcon, TextItalicIcon, TextStrikethroughIcon, Heading01Icon, Heading02Icon, LeftToRightListBulletIcon, LeftToRightListNumberIcon, CodeIcon, Copy01Icon, SourceCodeIcon, GridViewIcon, Share08Icon, ApiIcon, TelegramIcon, WhatsappIcon, MessengerIcon, Building02Icon, UserIcon, QrCode01Icon, ExternalLinkIcon, InformationCircleIcon, MinusSignIcon, CircleArrowReload01Icon, Wrench01Icon, UserGroupIcon, ArrowLeftDoubleIcon } from "@hugeicons/core-free-icons";
@@ -60,19 +61,16 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { knowledgeStore, CURRENT_USER, type AgentKnowledgeRow, type KnowledgeKind } from "@/components/knowledge/knowledgeStore";
+import { knowledgeStore, CURRENT_USER, type AgentKnowledgeRow } from "@/components/knowledge/knowledgeStore";
 import { knowledgeBaseStore } from "@/components/knowledge/knowledgeBaseStore";
-import { knowledgeDocumentStore } from "@/components/knowledge/knowledgeDocumentStore";
-import { knowledgeUrlStore } from "@/components/knowledge/knowledgeUrlStore";
-import { knowledgeFaqStore } from "@/components/knowledge/knowledgeFaqStore";
 import { KnowledgeStatusPill } from "@/components/knowledge/knowledgeStatus";
 import AttachConsoleKnowledgeBaseModal from "@/components/knowledge/AttachConsoleKnowledgeBaseModal";
-import ShareKnowledgeBaseModal from "@/components/knowledge/ShareKnowledgeBaseModal";
+import KnowledgeDocumentsTab from "@/components/knowledge/KnowledgeDocumentsTab";
+import KnowledgeWebsiteTab from "@/components/knowledge/KnowledgeWebsiteTab";
+import KnowledgeFaqTab from "@/components/knowledge/KnowledgeFaqTab";
 import UploadDocumentsModal from "@/components/knowledge/UploadDocumentsModal";
 import AddUrlModal from "@/components/knowledge/AddUrlModal";
 import AddEditFaqModal from "@/components/knowledge/AddEditFaqModal";
-import FileTypeIcon from "@/components/knowledge/FileTypeIcon";
-import { formatFileSize } from "@/components/knowledge/formatFileSize";
 
 type Tab = "build" | "test" | "channels" | "insights";
 
@@ -1301,367 +1299,59 @@ function KnowledgeOwnerLabel({ row }: { row: AgentKnowledgeRow }) {
 
 function knowledgeRowKey(row: AgentKnowledgeRow) { return `${row.kind}:${row.id}`; }
 
-function knowledgeReprocessDisabled(row: AgentKnowledgeRow): boolean {
-  if (row.status === "pending" || row.status === "processing") return true;
-  if (row.kind === "faq") return row.status !== "failed";
-  return false;
-}
-function knowledgeReprocessTooltip(row: AgentKnowledgeRow): string | undefined {
-  if (row.status === "pending" || row.status === "processing") return "Nguồn tri thức đang được xử lý.";
-  if (row.kind === "faq" && row.status === "invalid") return "Nội dung chưa hợp lệ. Hãy sửa câu hỏi hoặc câu trả lời trước khi xử lý lại.";
-  if (row.kind === "faq" && row.status !== "failed") return "Chỉ áp dụng cho câu hỏi xử lý thất bại.";
-  return undefined;
-}
-/** Dispatches the visible processing-status transition after a reprocess, per store. */
-function knowledgeSetRowStatus(row: AgentKnowledgeRow, status: "processing" | "done") {
-  if (row.kind === "doc") knowledgeDocumentStore.updateStatus(row.id, status, status === "done" ? { chunkCount: row.chunkCount || 1 } : undefined);
-  else if (row.kind === "url") knowledgeUrlStore.updateStatus(row.id, status, status === "done" ? { chunkCount: row.chunkCount || 1 } : undefined);
-  else knowledgeFaqStore.updateStatus(row.id, status, status === "done" ? { chunkCount: row.chunkCount || 1 } : undefined);
-}
+type AgentKnowledgeTab = "documents" | "website" | "faq";
+const AGENT_KNOWLEDGE_TABS: { id: AgentKnowledgeTab; label: string; Icon: any }[] = [
+  { id: "documents", label: "Tài liệu", Icon: ConsoleTabDocIcon },
+  { id: "website", label: "Website", Icon: ConsoleTabWebsiteIcon },
+  { id: "faq", label: "Câu hỏi thường gặp", Icon: ConsoleTabFaqIcon },
+];
 
+/** "Tri thức của Agent" — REPLACES the old single merged table (Round 3 Prompt B) with the exact
+ * same tab structure, tables, and modals as a Console Knowledge Base detail page
+ * (KnowledgeDocumentsTab/KnowledgeWebsiteTab/KnowledgeFaqTab), just scoped to this Agent's
+ * attached content via each component's `agentId` prop instead of `kbId`. "Liên kết kho tri thức
+ * có sẵn" stays a standalone top-level action since it operates on whole KBs, not a single tab's
+ * content. `key={tick}` remounts the active tab after linking a KB so it re-reads the freshly
+ * exploded per-item attachments. */
 function KnowledgeTab({ agentId }: { agentId: string }) {
-  const [tick, setTick] = useState(0);
-  const [query, setQuery] = useState("");
+  const [tab, setTab] = useState<AgentKnowledgeTab>("documents");
   const [showAttach, setShowAttach] = useState(false);
-  const [showUpload, setShowUpload] = useState(false);
-  const [showAddUrl, setShowAddUrl] = useState(false);
-  const [showAddFaq, setShowAddFaq] = useState(false);
-  const [shareTargets, setShareTargets] = useState<AgentKnowledgeRow[] | null>(null);
-  const [reprocessTarget, setReprocessTarget] = useState<AgentKnowledgeRow | null>(null);
-  const [detachTarget, setDetachTarget] = useState<AgentKnowledgeRow | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<AgentKnowledgeRow | null>(null);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [tick, setTick] = useState(0);
   const refresh = () => setTick(t => t + 1);
-  void tick;
-
-  const toggleRow = (key: string) => setSelected(prev => {
-    const next = new Set(prev);
-    next.has(key) ? next.delete(key) : next.add(key);
-    return next;
-  });
-
-  const rows = knowledgeStore.listForAgent(agentId);
-  const q = query.trim().toLowerCase();
-  const filteredRows = q ? rows.filter(r => r.name.toLowerCase().includes(q)) : rows;
 
   return (
-    <div className="p-8 w-full space-y-6 animate-fade-up">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
+    <div className="h-full flex flex-col animate-fade-up">
+      <div className="px-8 pt-8 pb-4 flex items-center justify-between gap-3 flex-wrap shrink-0">
         <div>
-          <h2 className="font-display text-xl font-semibold">Tri thức</h2>
+          <h2 className="font-display text-xl font-semibold">Tri thức của Agent</h2>
           <p className="text-xs text-muted-foreground mt-0.5">Nguồn tri thức Agent này có thể tra cứu khi trả lời.</p>
         </div>
-        <KnowledgeAddMenu onAttach={() => setShowAttach(true)} onUpload={() => setShowUpload(true)} onAddUrl={() => setShowAddUrl(true)} onAddFaq={() => setShowAddFaq(true)} />
+        <button onClick={() => setShowAttach(true)} className="h-9 px-4 rounded-lg border border-dashed border-border hover:border-primary/40 hover:bg-primary-soft/30 text-sm font-medium transition-base whitespace-nowrap">
+          + Liên kết kho tri thức có sẵn
+        </button>
       </div>
 
-      <div className="relative w-72">
-        <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm nguồn tri thức..." className="ds-input pl-8 h-9" />
+      <div className="px-8 flex items-center gap-1 border-b border-border shrink-0">
+        {AGENT_KNOWLEDGE_TABS.map(({ id, label, Icon }) => (
+          <button
+            key={id}
+            onClick={() => setTab(id)}
+            className={`px-3 h-9 rounded-t-lg text-sm font-medium flex items-center gap-1.5 border-b-2 transition-base ${
+              tab === id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Icon size={15} /> {label}
+          </button>
+        ))}
       </div>
 
-      {selected.size > 0 && (
-        <div className="flex items-center gap-3 px-3 h-10 rounded-lg bg-primary-soft border border-primary/15">
-          <span className="text-sm font-medium text-primary">Đã chọn {selected.size} mục</span>
-          <button onClick={() => setShareTargets(rows.filter(r => selected.has(knowledgeRowKey(r))))} className="text-xs font-semibold text-primary hover:underline">
-            Chia sẻ
-          </button>
-          <button onClick={() => setSelected(new Set())} className="text-xs font-semibold text-muted-foreground hover:underline ml-auto">
-            Bỏ chọn
-          </button>
-        </div>
-      )}
-
-      {rows.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border p-10 text-center">
-          <p className="text-sm font-semibold mb-1">Agent chưa có tri thức nào</p>
-          <p className="text-xs text-muted-foreground max-w-sm mx-auto mb-4">Liên kết một kho tri thức có sẵn hoặc tải tài liệu, thêm website, tạo FAQ để Agent trả lời chính xác hơn.</p>
-          <KnowledgeAddMenu onAttach={() => setShowAttach(true)} onUpload={() => setShowUpload(true)} onAddUrl={() => setShowAddUrl(true)} onAddFaq={() => setShowAddFaq(true)} inline />
-        </div>
-      ) : filteredRows.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-          Không có nguồn tri thức phù hợp với tìm kiếm.
-        </div>
-      ) : (
-        <div className="rounded-lg overflow-hidden border border-border overflow-x-auto scroll-shadow-x">
-          <div className="grid grid-cols-[24px,1fr,150px,170px,44px] gap-3 px-4 py-2.5 bg-surface-muted border-b-2 border-border text-xs font-bold uppercase tracking-[0.04em] text-foreground whitespace-nowrap min-w-[760px]">
-            <div></div><div>Nguồn</div><div>Trạng thái</div><div>Sở hữu</div><div></div>
-          </div>
-          <div className="divide-y divide-border">
-            {filteredRows.map(row => {
-              const key = knowledgeRowKey(row);
-              const canEdit = hasKnowledgeEditRights(row);
-              return (
-                <div key={key} className="grid grid-cols-[24px,1fr,150px,170px,44px] gap-3 px-4 py-2.5 min-h-16 items-center hover:bg-surface-muted/50 transition-base group min-w-[760px]">
-                  <input type="checkbox" checked={selected.has(key)} onChange={() => toggleRow(key)} className="w-4 h-4 accent-primary" aria-label={`Chọn ${row.name}`} />
-                  <div className="flex flex-col items-start min-w-0">
-                    <span className="flex items-center gap-2 min-w-0 max-w-full">
-                      <FileTypeIcon kind={row.kind === "url" ? "url" : row.kind === "faq" ? "faq" : undefined} name={row.kind === "doc" ? row.name : undefined} />
-                      <span className="text-sm font-semibold truncate">{row.name}</span>
-                    </span>
-                    <span className="text-xs text-muted-foreground mt-0.5 truncate">
-                      {row.kbIsDefault ? "Cá nhân" : `Kho liên kết · ${row.kbName}`}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <KnowledgeStatusPill status={row.status} />
-                    {(row.status === "failed" || row.status === "invalid") && row.statusReason && (
-                      <Tooltip delayDuration={200}>
-                        <TooltipTrigger asChild>
-                          <span tabIndex={0} className="text-muted-foreground outline-none">
-                            <HugeiconsIcon icon={InformationCircleIcon} size={12} />
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-[260px]">{row.statusReason}</TooltipContent>
-                      </Tooltip>
-                    )}
-                  </div>
-                  <KnowledgeOwnerLabel row={row} />
-                  <div className="flex items-center justify-end">
-                    <KnowledgeRowMenu
-                      onShare={() => setShareTargets([row])}
-                      shareDisabled={!canEdit}
-                      onReprocess={() => setReprocessTarget(row)}
-                      reprocessDisabled={knowledgeReprocessDisabled(row)}
-                      reprocessTooltip={knowledgeReprocessTooltip(row)}
-                      onDetach={() => setDetachTarget(row)}
-                      onDelete={canEdit ? () => setDeleteTarget(row) : undefined}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      <div className="flex-1 overflow-hidden" key={tick}>
+        {tab === "documents" && <KnowledgeDocumentsTab agentId={agentId} viewOnly={false} />}
+        {tab === "website" && <KnowledgeWebsiteTab agentId={agentId} viewOnly={false} />}
+        {tab === "faq" && <KnowledgeFaqTab agentId={agentId} viewOnly={false} />}
+      </div>
 
       {showAttach && <AttachConsoleKnowledgeBaseModal agentId={agentId} onClose={() => { setShowAttach(false); refresh(); }} />}
-      {showUpload && <UploadDocumentsModal open={showUpload} agentId={agentId} onClose={() => { setShowUpload(false); refresh(); }} />}
-      {showAddUrl && <AddUrlModal open={showAddUrl} agentId={agentId} onClose={() => { setShowAddUrl(false); refresh(); }} />}
-      {showAddFaq && <AddEditFaqModal open={showAddFaq} agentId={agentId} onClose={() => { setShowAddFaq(false); refresh(); }} />}
-      {shareTargets && shareTargets.length > 0 && (
-        <ShareKnowledgeBaseModal
-          open
-          title={shareTargets.length === 1 ? "Chia sẻ tài liệu" : `Chia sẻ ${shareTargets.length} tài liệu`}
-          name={shareTargets.length === 1 ? shareTargets[0].name : undefined}
-          ownerName={shareTargets.length === 1 ? shareTargets[0].updatedBy : CURRENT_USER.name}
-          sharing={shareTargets.length === 1 ? (shareTargets[0].sharing ?? { mode: "private", people: [] }) : { mode: "private", people: [] }}
-          querySharing={shareTargets.length === 1 ? (shareTargets[0].querySharing ?? { mode: "private", people: [] }) : { mode: "private", people: [] }}
-          onSave={(sharing, querySharing) => {
-            for (const t of shareTargets) {
-              knowledgeStore.updateSharing(t.kind, t.id, sharing);
-              if (querySharing) knowledgeStore.updateQueryScope(t.kind, t.id, querySharing);
-            }
-            setSelected(new Set());
-          }}
-          onClose={() => { setShareTargets(null); refresh(); }}
-        />
-      )}
-
-      <AlertDialog open={!!reprocessTarget} onOpenChange={v => !v && setReprocessTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Xử lý lại "{reprocessTarget?.name}"?</AlertDialogTitle>
-            <AlertDialogDescription>Hệ thống sẽ phân tích lại nội dung và tạo mới các chunk liên quan.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => {
-                if (reprocessTarget) {
-                  knowledgeStore.reprocess(reprocessTarget.kind, reprocessTarget.id);
-                  setTimeout(() => { knowledgeSetRowStatus(reprocessTarget, "processing"); refresh(); }, 300);
-                  setTimeout(() => { knowledgeSetRowStatus(reprocessTarget, "done"); refresh(); }, 1500);
-                }
-                setReprocessTarget(null);
-                refresh();
-              }}
-            >
-              Xử lý lại
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={!!detachTarget} onOpenChange={v => !v && setDetachTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Gỡ tài liệu khỏi Agent?</AlertDialogTitle>
-            <AlertDialogDescription>Agent sẽ không còn tra cứu được nội dung này. Tài liệu vẫn được giữ nguyên trong kho tri thức của nó.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-surface text-foreground border border-border hover:bg-surface-muted"
-              onClick={() => {
-                if (detachTarget) knowledgeStore.detachFromAgent(agentId, detachTarget.kind, detachTarget.id);
-                setDetachTarget(null);
-                refresh();
-                toast.success("Đã gỡ khỏi Agent.");
-              }}
-            >
-              Gỡ khỏi Agent
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Xóa hẳn tài liệu này?</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-3">
-                <p>Tài liệu sẽ bị xóa vĩnh viễn khỏi toàn bộ hệ thống, kể cả các Agent khác đang dùng chung tài liệu này. Hành động này không thể hoàn tác.</p>
-                {(() => {
-                  const others = deleteTarget?.attachedAgentIds.filter(a => a !== agentId) ?? [];
-                  return others.length > 0 && (
-                    <div className="flex items-start gap-2.5 rounded-lg border border-destructive/25 bg-[hsl(var(--destructive-soft))] px-3.5 py-3">
-                      <HugeiconsIcon icon={Alert01Icon} size={14} className="shrink-0 mt-0.5 text-destructive" />
-                      <p className="text-xs text-destructive leading-relaxed">
-                        {others.length} Agent khác đang dùng chung tài liệu này và sẽ mất nguồn tra cứu: {others.map(id => getAgent(id).name).join(", ")}.
-                      </p>
-                    </div>
-                  );
-                })()}
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => { if (deleteTarget) knowledgeStore.deleteEverywhere(deleteTarget.kind, deleteTarget.id); setDeleteTarget(null); refresh(); }}
-            >
-              Xóa hẳn
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
-  );
-}
-
-/** The "+" action shared by the full Knowledge table and the Instructions sidebar mini-panel:
- * link a whole existing Console KB (exploding it into individual rows), or create something new
- * — which files into the creator's "Cá nhân" KB and attaches it here in the same step. */
-function KnowledgeAddMenu({ onAttach, onUpload, onAddUrl, onAddFaq, inline = false }: {
-  onAttach: () => void; onUpload: () => void; onAddUrl: () => void; onAddFaq: () => void; inline?: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, [open]);
-  const items = [
-    { label: "Liên kết kho tri thức có sẵn", onClick: onAttach },
-    { label: "Tải tài liệu", onClick: onUpload },
-    { label: "Thêm website", onClick: onAddUrl },
-    { label: "Tạo FAQ", onClick: onAddFaq },
-  ];
-  return (
-    <div ref={ref} className={`relative ${inline ? "inline-block" : "shrink-0"}`}>
-      <button onClick={() => setOpen(v => !v)} className="btn-primary h-9 whitespace-nowrap">
-        <HugeiconsIcon icon={Add01Icon} size={14} /> Thêm tri thức
-      </button>
-      {open && (
-        <div className="absolute right-0 top-full mt-1 z-20 w-60 rounded-lg border border-border bg-white shadow-elev py-1 text-left">
-          {items.map(item => (
-            <button key={item.label} onClick={() => { setOpen(false); item.onClick(); }} className="w-full text-left px-3.5 py-2.5 text-sm hover:bg-surface-muted transition-base">
-              {item.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-const KNOWLEDGE_ROW_MENU_WIDTH = 224; // w-56
-const KNOWLEDGE_ROW_MENU_HEIGHT_ESTIMATE = 200; // up to 4 items + padding
-
-/** Row "..." menu shared by the merged "Tri thức" table and the sidebar mini-panel. There is no
- * "Mở" — viewing/editing a document's content happens in Console, not from within an Agent, so
- * rows aren't clickable either. "Xóa" (onDelete) is omitted entirely — not merely disabled —
- * when the current user has no edit rights on the item, per its "Quyền quản lý tài liệu" sharing. */
-function KnowledgeRowMenu({ onShare, shareDisabled, onReprocess, reprocessDisabled, reprocessTooltip, onDetach, onDelete }: {
-  onShare: () => void; shareDisabled?: boolean;
-  onReprocess: () => void; reprocessDisabled?: boolean; reprocessTooltip?: string;
-  onDetach: () => void; onDelete?: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  const openMenu = () => {
-    const r = btnRef.current?.getBoundingClientRect();
-    if (r) {
-      // Render in a portal, positioned from the button's own screen rect, and flip upward
-      // whenever there isn't room below — this is the fix for the menu rendering off-screen
-      // on short tables (same fix as the Console Knowledge documents table).
-      const openUpward = window.innerHeight - r.bottom < KNOWLEDGE_ROW_MENU_HEIGHT_ESTIMATE && r.top > KNOWLEDGE_ROW_MENU_HEIGHT_ESTIMATE;
-      const left = Math.min(Math.max(r.right - KNOWLEDGE_ROW_MENU_WIDTH, 8), window.innerWidth - KNOWLEDGE_ROW_MENU_WIDTH - 8);
-      setPos(openUpward ? { bottom: window.innerHeight - r.top + 4, left } : { top: r.bottom + 4, left });
-    }
-    setOpen(true);
-  };
-
-  useEffect(() => {
-    if (!open) return;
-    const h = (e: MouseEvent) => {
-      if (
-        menuRef.current && !menuRef.current.contains(e.target as Node) &&
-        btnRef.current && !btnRef.current.contains(e.target as Node)
-      ) setOpen(false);
-    };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, [open]);
-
-  return (
-    <div className="relative" onClick={e => e.stopPropagation()}>
-      <button ref={btnRef} onClick={() => (open ? setOpen(false) : openMenu())} aria-label="Thao tác" className="w-9 h-9 min-w-[44px] min-h-[44px] -m-1.5 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-        <HugeiconsIcon icon={MoreHorizontalIcon} size={15} />
-      </button>
-      {open && createPortal(
-        <div
-          ref={menuRef}
-          className="fixed z-[9999] w-56 rounded-lg border border-border bg-white shadow-elev py-1"
-          style={{ top: pos.top, bottom: pos.bottom, left: pos.left }}
-          onMouseDown={e => e.stopPropagation()}
-        >
-          <button
-            disabled={shareDisabled}
-            onClick={() => { if (shareDisabled) return; setOpen(false); onShare(); }}
-            className={`w-full text-left px-3 py-2 text-sm transition-base ${shareDisabled ? "text-muted-foreground/50 cursor-not-allowed" : "hover:bg-surface-muted"}`}
-          >
-            Chia sẻ
-          </button>
-          <Tooltip delayDuration={200}>
-            <TooltipTrigger asChild>
-              <span>
-                <button
-                  disabled={reprocessDisabled}
-                  onClick={() => { if (reprocessDisabled) return; setOpen(false); onReprocess(); }}
-                  className={`w-full text-left px-3 py-2 text-sm transition-base ${reprocessDisabled ? "text-muted-foreground/50 cursor-not-allowed" : "hover:bg-surface-muted"}`}
-                >
-                  Xử lý lại
-                </button>
-              </span>
-            </TooltipTrigger>
-            {reprocessTooltip && <TooltipContent side="left" className="max-w-[240px]">{reprocessTooltip}</TooltipContent>}
-          </Tooltip>
-          {onDelete && (
-            <button onClick={() => { setOpen(false); onDelete(); }} className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">Xóa</button>
-          )}
-          <button onClick={() => { setOpen(false); onDetach(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Gỡ khỏi Agent</button>
-        </div>,
-        document.body,
-      )}
     </div>
   );
 }

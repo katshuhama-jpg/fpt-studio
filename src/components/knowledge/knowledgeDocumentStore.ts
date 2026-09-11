@@ -29,13 +29,18 @@ export interface KnowledgeDocument {
    * the document directly from an Agent's Knowledge screen (which attaches it in the same step).
    * Absent/empty means no Agent currently uses it, even though it still lives in its KB. */
   attachedAgentIds?: string[];
+  /** Agent ids that have this document attached (see attachedAgentIds) but currently have its
+   * "Kích hoạt" toggle switched off — that Agent stops drawing on this document to answer without
+   * detaching it: the document stays listed, stays in its KB, and stays active for every other
+   * Agent. Absent/empty means active for every Agent it's attached to. */
+  disabledForAgentIds?: string[];
   createdAt: number;
   updatedAt: number;
   updatedBy: string;
 }
 
-const STORE_KEY = "knowledge_document_store_v7";
-const SEEDED_KEY = "knowledge_document_store_seeded_v7";
+const STORE_KEY = "knowledge_document_store_v8";
+const SEEDED_KEY = "knowledge_document_store_seeded_v8";
 const store = loadMap<string, KnowledgeDocument>(STORE_KEY);
 const persist = () => saveMap(STORE_KEY, store);
 
@@ -290,7 +295,22 @@ export const knowledgeDocumentStore = {
   detachFromAgent(id: string, agentId: string) {
     const cur = store.get(id);
     if (!cur) return;
-    store.set(id, { ...cur, attachedAgentIds: (cur.attachedAgentIds ?? []).filter(a => a !== agentId) });
+    store.set(id, {
+      ...cur,
+      attachedAgentIds: (cur.attachedAgentIds ?? []).filter(a => a !== agentId),
+      disabledForAgentIds: (cur.disabledForAgentIds ?? []).filter(a => a !== agentId),
+    });
+    persist();
+  },
+  /** "Kích hoạt" toggle — an Agent-level on/off for one Agent's use of this document, distinct
+   * from attachedAgentIds (which controls whether it's connected at all). Turning it back on
+   * resumes use immediately; no reprocessing needed since the document itself never changed. */
+  setEnabledForAgent(id: string, agentId: string, enabled: boolean) {
+    const cur = store.get(id);
+    if (!cur) return;
+    const disabled = new Set(cur.disabledForAgentIds ?? []);
+    if (enabled) disabled.delete(agentId); else disabled.add(agentId);
+    store.set(id, { ...cur, disabledForAgentIds: [...disabled] });
     persist();
   },
 };

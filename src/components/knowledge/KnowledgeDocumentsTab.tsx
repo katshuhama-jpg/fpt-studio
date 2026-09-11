@@ -11,8 +11,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { knowledgeDocumentStore, type KnowledgeDocument } from "./knowledgeDocumentStore";
+import { knowledgeStore, type AgentKnowledgeRow } from "./knowledgeStore";
 import { CURRENT_USER } from "./knowledgeBaseStore";
 import { KnowledgeStatusPill, type KnowledgeProcessingStatus } from "./knowledgeStatus";
+import { agentHasEditRights, AgentOwnerCell, AgentEnabledToggle } from "./AgentKnowledgeCells";
 import FileTypeIcon from "./FileTypeIcon";
 import UploadDocumentsModal from "./UploadDocumentsModal";
 import ShareKnowledgeBaseModal from "./ShareKnowledgeBaseModal";
@@ -48,7 +50,15 @@ const isSharedWithMe = (d: KnowledgeDocument) => {
   return false;
 };
 
-export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string; viewOnly: boolean }) {
+/** Pass either `kbId` (Console Documents tab) or `agentId` (Agent Details "Tri thức của Agent" >
+ * Tài liệu tab) — never both. In agent mode this is the exact same component/table/modals as
+ * Console, just scoped to one Agent's attached documents across every KB they live in (its
+ * creator's Cá nhân KB, or a linked KB), with two extra columns Console itself never needs
+ * ("Sở hữu", "Kích hoạt") and no folder browsing — folders are inherently one-KB structures and
+ * this view spans many KBs by design, so documents render as a flat list regardless of which
+ * folder they'd sit in back home. Rows aren't clickable and there's no "Mở" in agent mode either:
+ * viewing/editing a document's content only happens in Console (see Round 4 Prompt F). */
+export default function KnowledgeDocumentsTab({ kbId, agentId, viewOnly }: { kbId?: string; agentId?: string; viewOnly: boolean }) {
   const [params, setParams] = useSearchParams();
   const [tick, setTick] = useState(0);
   const [query, setQuery] = useState("");
@@ -63,6 +73,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
   const [reprocessTarget, setReprocessTarget] = useState<KnowledgeDocument | null>(null);
   const [shareTargets, setShareTargets] = useState<KnowledgeDocument[] | null>(null);
   const [deleteTargets, setDeleteTargets] = useState<KnowledgeDocument[] | null>(null);
+  const [detachTarget, setDetachTarget] = useState<KnowledgeDocument | null>(null);
   const [showCreateFolder, setShowCreateFolder] = useState(false);
   const [editingFolder, setEditingFolder] = useState<KnowledgeDocument | null>(null);
   const [moveTargets, setMoveTargets] = useState<KnowledgeDocument[] | null>(null);
@@ -71,7 +82,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
   const createMenuRef = useRef<HTMLDivElement>(null);
 
   const openId = params.get("docId");
-  const openDoc = openId ? knowledgeDocumentStore.get(kbId, openId) : undefined;
+  const openDoc = !agentId && openId ? knowledgeDocumentStore.get(kbId!, openId) : undefined;
   const canOpen = (s: KnowledgeProcessingStatus) => s === "done" || s === "processing";
 
   useEffect(() => {
@@ -81,7 +92,11 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
     return () => document.removeEventListener("mousedown", h);
   }, [showCreateMenu]);
 
-  const all = knowledgeDocumentStore.list(kbId);
+  const agentRows = agentId ? knowledgeStore.listForAgent(agentId).filter(r => r.kind === "doc") : [];
+  const agentMeta = new Map(agentRows.map(r => [r.id, r]));
+  const all: KnowledgeDocument[] = agentId
+    ? agentRows.map(r => knowledgeDocumentStore.get(r.kbId, r.id)).filter((d): d is KnowledgeDocument => !!d)
+    : knowledgeDocumentStore.list(kbId!);
   void tick;
   const q = query.trim().toLowerCase();
   const openFolder = folderFilter ? all.find(d => d.id === folderFilter) : undefined;
@@ -175,12 +190,14 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
             </button>
             {showCreateMenu && (
               <div className="absolute right-0 top-full mt-1 z-20 min-w-52 max-w-xs rounded-lg border border-border bg-white shadow-elev py-1">
-                <button
-                  onClick={() => { setShowCreateMenu(false); setShowCreateFolder(true); }}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base"
-                >
-                  Thư mục mới
-                </button>
+                {!agentId && (
+                  <button
+                    onClick={() => { setShowCreateMenu(false); setShowCreateFolder(true); }}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base"
+                  >
+                    Thư mục mới
+                  </button>
+                )}
                 <button onClick={() => { setShowCreateMenu(false); setShowUpload(true); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">
                   Tải tài liệu lên
                 </button>
@@ -201,9 +218,11 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
       {selected.size > 0 && !viewOnly && (
         <div className="flex items-center gap-3 mb-3 px-3 h-10 rounded-lg bg-primary-soft border border-primary/15">
           <span className="text-sm font-medium text-primary">Đã chọn {selected.size} mục</span>
-          <button onClick={() => setMoveTargets(all.filter(d => selected.has(d.id)))} className="text-xs font-semibold text-primary hover:underline">
-            Di chuyển
-          </button>
+          {!agentId && (
+            <button onClick={() => setMoveTargets(all.filter(d => selected.has(d.id)))} className="text-xs font-semibold text-primary hover:underline">
+              Di chuyển
+            </button>
+          )}
           <button onClick={() => setShareTargets(all.filter(d => selected.has(d.id)))} className="text-xs font-semibold text-primary hover:underline">
             Chia sẻ
           </button>
@@ -252,12 +271,16 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                 <th className="text-left px-2 py-2.5 text-xs font-bold uppercase tracking-[0.04em] text-foreground whitespace-nowrap">Tên</th>
                 <th className="text-left px-2 py-2.5 text-xs font-bold uppercase tracking-[0.04em] text-foreground whitespace-nowrap">Trạng thái</th>
                 <th className="text-left px-2 py-2.5 text-xs font-bold uppercase tracking-[0.04em] text-foreground whitespace-nowrap">Cập nhật</th>
+                {agentId && <th className="text-left px-2 py-2.5 text-xs font-bold uppercase tracking-[0.04em] text-foreground whitespace-nowrap min-w-[150px]">Sở hữu</th>}
+                {agentId && <th className="text-left px-2 py-2.5 text-xs font-bold uppercase tracking-[0.04em] text-foreground whitespace-nowrap">Kích hoạt</th>}
                 {!viewOnly && <th className="px-4 py-2.5 w-12" />}
               </tr>
             </thead>
             <tbody>
               {filtered.map(d => {
-                const openable = d.isFolder || canOpen(d.status);
+                const openable = !agentId && (d.isFolder || canOpen(d.status));
+                const meta = agentId ? agentMeta.get(d.id) : undefined;
+                const canEdit = agentId ? agentHasEditRights(d.updatedBy, d.sharing) : true;
                 return (
                 <tr key={d.id} className={`border-b border-border last:border-0 hover:bg-surface-muted/50 transition-base ${highlightId === d.id ? "bg-primary-soft/40" : ""}`}>
                   {!viewOnly && (
@@ -266,19 +289,26 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                     </td>
                   )}
                   <td className="px-2 py-3 max-w-[380px]">
-                    <Tooltip delayDuration={300}>
-                      <TooltipTrigger asChild>
-                        <button
-                          onClick={() => d.isFolder ? setFolderFilter(d.id) : openable && openDocument(d.id)}
-                          className="flex items-center gap-2 w-full min-w-0 text-left disabled:cursor-default"
-                          disabled={!d.isFolder && !openable}
-                        >
-                          <FileTypeIcon kind={d.isFolder ? "folder" : undefined} name={d.isFolder ? undefined : d.name} />
-                          <span className={`text-sm font-semibold truncate block min-w-0 ${!d.isFolder && !openable ? "text-muted-foreground" : ""}`}>{d.name}</span>
-                        </button>
-                      </TooltipTrigger>
-                      {!d.isFolder && !openable && <TooltipContent>Tài liệu chưa xử lý xong nên chưa xem được nội dung.</TooltipContent>}
-                    </Tooltip>
+                    {agentId ? (
+                      <div className="flex items-center gap-2 min-w-0">
+                        <FileTypeIcon name={d.name} />
+                        <span className="text-sm font-semibold truncate block min-w-0">{d.name}</span>
+                      </div>
+                    ) : (
+                      <Tooltip delayDuration={300}>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() => d.isFolder ? setFolderFilter(d.id) : openable && openDocument(d.id)}
+                            className="flex items-center gap-2 w-full min-w-0 text-left disabled:cursor-default"
+                            disabled={!d.isFolder && !openable}
+                          >
+                            <FileTypeIcon kind={d.isFolder ? "folder" : undefined} name={d.isFolder ? undefined : d.name} />
+                            <span className={`text-sm font-semibold truncate block min-w-0 ${!d.isFolder && !openable ? "text-muted-foreground" : ""}`}>{d.name}</span>
+                          </button>
+                        </TooltipTrigger>
+                        {!d.isFolder && !openable && <TooltipContent>Tài liệu chưa xử lý xong nên chưa xem được nội dung.</TooltipContent>}
+                      </Tooltip>
+                    )}
                   </td>
                   <td className="px-2 py-3">
                     {!d.isFolder && (
@@ -300,9 +330,24 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                     )}
                   </td>
                   <td className="px-2 py-3 text-xs text-muted-foreground whitespace-nowrap">{new Date(d.updatedAt).toLocaleDateString("vi-VN")}</td>
+                  {agentId && <td className="px-2 py-3"><AgentOwnerCell updatedBy={d.updatedBy} /></td>}
+                  {agentId && (
+                    <td className="px-2 py-3">
+                      <AgentEnabledToggle enabled={meta?.enabled ?? true} onChange={v => { knowledgeStore.setEnabledForAgent(agentId, "doc", d.id, v); refresh(); }} />
+                    </td>
+                  )}
                   {!viewOnly && (
                     <td className="px-4 py-3 text-right">
-                      {d.isFolder ? (
+                      {agentId ? (
+                        <RowActionMenu
+                          items={[
+                            { label: "Chia sẻ", onClick: () => setShareTargets([d]) },
+                            { label: "Xử lý lại", onClick: () => setReprocessTarget(d) },
+                            ...(canEdit ? [{ label: "Xóa", onClick: () => setDeleteTargets([d]), danger: true }] : []),
+                            { label: "Gỡ khỏi Agent", onClick: () => setDetachTarget(d) },
+                          ]}
+                        />
+                      ) : d.isFolder ? (
                         <RowActionMenu
                           ariaLabel="Thao tác thư mục"
                           items={[
@@ -334,16 +379,16 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
         </div>
       )}
 
-      <UploadDocumentsModal open={showUpload} kbId={kbId} onClose={() => { setShowUpload(false); refresh(); }} />
+      <UploadDocumentsModal open={showUpload} kbId={agentId ? undefined : kbId} agentId={agentId} onClose={() => { setShowUpload(false); refresh(); }} />
 
-      {openDoc && <ChunkViewerModal kbId={kbId} sourceType="document" sourceId={openDoc.id} sourceName={openDoc.name} sourceStatus={openDoc.status} sourceCreatedAt={openDoc.createdAt} onClose={closeViewer} viewOnly={viewOnly} />}
+      {openDoc && <ChunkViewerModal kbId={kbId!} sourceType="document" sourceId={openDoc.id} sourceName={openDoc.name} sourceStatus={openDoc.status} sourceCreatedAt={openDoc.createdAt} onClose={closeViewer} viewOnly={viewOnly} />}
 
       {shareTargets && shareTargets.length > 0 && (
         <ShareKnowledgeBaseModal
           open
           title={shareTargets.length === 1 ? "Chia sẻ tài liệu" : `Chia sẻ ${shareTargets.length} tài liệu`}
           name={shareTargets.length === 1 ? shareTargets[0].name : undefined}
-          ownerName="Tran Nam"
+          ownerName={shareTargets.length === 1 ? shareTargets[0].updatedBy : "Tran Nam"}
           sharing={shareTargets.length === 1 ? (shareTargets[0].sharing ?? { mode: "private", people: [] }) : { mode: "private", people: [] }}
           querySharing={shareTargets.length === 1 ? (shareTargets[0].querySharing ?? { mode: "private", people: [] }) : { mode: "private", people: [] }}
           onSave={(sharing, querySharing) => {
@@ -366,7 +411,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
         />
       )}
 
-      {(showCreateFolder || editingFolder) && (
+      {(showCreateFolder || editingFolder) && kbId && (
         <DocumentFolderModal
           open
           editingFolder={editingFolder ?? undefined}
@@ -390,7 +435,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
         />
       )}
 
-      {moveTargets && (
+      {moveTargets && kbId && (
         <MoveToFolderModal
           open={!!moveTargets}
           count={moveTargets.length}
@@ -427,12 +472,75 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
         </AlertDialogContent>
       </AlertDialog>
 
+      {agentId && (
+        <AlertDialog open={!!detachTarget} onOpenChange={v => !v && setDetachTarget(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Gỡ tài liệu khỏi Agent?</AlertDialogTitle>
+              <AlertDialogDescription>Agent sẽ không còn tra cứu được nội dung này. Tài liệu vẫn được giữ nguyên trong kho tri thức của nó.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-surface text-foreground border border-border hover:bg-surface-muted"
+                onClick={() => {
+                  if (detachTarget) knowledgeStore.detachFromAgent(agentId, "doc", detachTarget.id);
+                  setDetachTarget(null);
+                  refresh();
+                  toast.success("Đã gỡ khỏi Agent.");
+                }}
+              >
+                Gỡ khỏi Agent
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
       <AlertDialog open={!!deleteTargets} onOpenChange={v => !v && setDeleteTargets(null)}>
         <AlertDialogContent>
           {(() => {
             if (!deleteTargets) return null;
+            if (agentId) {
+              const single = deleteTargets.length === 1;
+              const others = single ? (agentMeta.get(deleteTargets[0].id)?.attachedAgentIds ?? []).filter(a => a !== agentId) : [];
+              return (
+                <>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>{single ? `Xóa "${deleteTargets[0].name}"?` : `Xóa ${deleteTargets.length} mục?`}</AlertDialogTitle>
+                    <AlertDialogDescription asChild>
+                      <div className="space-y-3">
+                        <p>Tài liệu sẽ bị xóa vĩnh viễn khỏi toàn bộ hệ thống, kể cả các Agent khác đang dùng chung tài liệu này. Hành động này không thể hoàn tác.</p>
+                        {others.length > 0 && (
+                          <div className="flex items-start gap-2.5 rounded-lg border border-destructive/25 bg-[hsl(var(--destructive-soft))] px-3.5 py-3">
+                            <p className="text-xs text-destructive leading-relaxed">
+                              {others.length} Agent khác đang dùng chung tài liệu này và sẽ mất nguồn tra cứu.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={() => {
+                        knowledgeDocumentStore.removeMany(deleteTargets.map(d => d.id));
+                        toast.success(single ? `Đã xóa "${deleteTargets[0].name}".` : `Đã xóa ${deleteTargets.length} mục.`);
+                        setDeleteTargets(null);
+                        setSelected(new Set());
+                        refresh();
+                      }}
+                    >
+                      Xóa
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </>
+              );
+            }
             const folderTargets = deleteTargets.filter(d => d.isFolder);
-            const cascadeDocCount = folderTargets.reduce((sum, f) => sum + knowledgeDocumentStore.countDocumentsInFolder(kbId, f.id), 0);
+            const cascadeDocCount = folderTargets.reduce((sum, f) => sum + knowledgeDocumentStore.countDocumentsInFolder(kbId!, f.id), 0);
             const isSingleFolder = deleteTargets.length === 1 && folderTargets.length === 1;
             const title = isSingleFolder ? "Xóa thư mục này?" : deleteTargets.length === 1 ? `Xóa "${deleteTargets[0].name}"?` : `Xóa ${deleteTargets.length} mục?`;
             return (
@@ -459,7 +567,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                   <AlertDialogAction
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     onClick={() => {
-                      for (const f of folderTargets) knowledgeDocumentStore.removeFolderCascade(kbId, f.id);
+                      for (const f of folderTargets) knowledgeDocumentStore.removeFolderCascade(kbId!, f.id);
                       const fileIds = deleteTargets.filter(d => !d.isFolder).map(d => d.id);
                       if (fileIds.length > 0) knowledgeDocumentStore.removeMany(fileIds);
                       toast.success(deleteTargets.length === 1 ? `Đã xóa "${deleteTargets[0].name}".` : `Đã xóa ${deleteTargets.length} mục.`);
