@@ -1356,9 +1356,11 @@ function AgentKbCardMenu({ onOpen, onEdit, onShare, onDelete, editBlocked, share
 }
 
 /** One Knowledge Base card in section=knowledge's grid — visually identical to a Console
- * /knowledge card, plus the "Kích hoạt" toggle Round 6 Prompt K adds. */
+ * /knowledge card, plus the "Kích hoạt" toggle Round 6 Prompt K adds. `icon` is a fully-formed
+ * node (the same 32×32 tinted tile Console uses — see KnowledgeTypeIcon) rather than a bare
+ * glyph, so a real linked KB renders with the exact same color coding as its Console card. */
 function AgentKbCard({ icon, name, description, active, onToggleActive, onOpen, menu }: {
-  icon: any; name: string; description?: string;
+  icon: React.ReactNode; name: string; description?: string;
   active: boolean; onToggleActive: (v: boolean) => void; onOpen: () => void; menu: React.ReactNode;
 }) {
   return (
@@ -1371,7 +1373,7 @@ function AgentKbCard({ icon, name, description, active, onToggleActive, onOpen, 
     >
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex items-center gap-2.5 min-w-0">
-          <HugeiconsIcon icon={icon} size={16} className="text-muted-foreground shrink-0" />
+          {icon}
           <span className="font-semibold text-sm leading-snug line-clamp-2 min-w-0">{name}</span>
         </div>
         {menu}
@@ -1515,7 +1517,12 @@ function AgentKnowledgeGrid({ agentId, onOpenOwn }: { agentId: string; onOpenOwn
         </div>
         <div className="relative w-full md:w-64">
           <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input value={searchInput} onChange={e => setSearchInput(e.target.value)} placeholder="Tìm kho tri thức..." className="ds-input pl-8 h-9 w-full" />
+          <input
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
+            placeholder="Tìm kho tri thức..."
+            className="h-9 w-full pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+          />
         </div>
       </div>
 
@@ -1535,10 +1542,16 @@ function AgentKnowledgeGrid({ agentId, onOpenOwn }: { agentId: string; onOpenOwn
             const editBlocked = !c.isOwn && !isOwner ? "Chỉ chủ sở hữu mới có thể đổi tên kho tri thức này." : undefined;
             const shareBlocked = !c.isOwn && !isOwner ? "Chỉ chủ sở hữu mới có thể chia sẻ kho tri thức này." : undefined;
             const deleteBlocked = !c.isOwn && !isOwner ? "Chỉ chủ sở hữu mới có thể xóa kho tri thức này." : undefined;
+            // Same 32×32 tinted tile Console's KbCard uses (KnowledgeTypeIcon: amber for nội bộ,
+            // blue for kết nối ngoài) for a real KB, so the two screens read as one color system;
+            // the synthetic "Cá nhân" card gets its own tile in the app's primary/brand tint.
+            const icon = c.isOwn
+              ? <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-primary-soft text-primary"><HugeiconsIcon icon={BookOpen01Icon} size={16} /></span>
+              : <KnowledgeTypeIcon type={c.kb!.type} />;
             return (
               <AgentKbCard
                 key={c.id}
-                icon={c.isOwn ? BookOpen01Icon : ConnectIcon}
+                icon={icon}
                 name={c.name}
                 description={c.description}
                 active={c.active}
