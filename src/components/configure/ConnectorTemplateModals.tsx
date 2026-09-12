@@ -16,6 +16,16 @@ import {
   connectorTemplateStore, type ConnectorTemplateDef, type TemplateAccount,
 } from "./connectorTemplateStore";
 
+/** Lowercasing a whole field label for its placeholder mangles acronyms ("CRM" -> "crm"). Only
+ * lowercase words that aren't already all-uppercase (2+ letters), so "CRM Email" -> "CRM email"
+ * instead of "crm email". */
+function placeholderCase(label: string): string {
+  return label
+    .split(" ")
+    .map(word => (/^[A-Z]{2,}$/.test(word) ? word : word.toLowerCase()))
+    .join(" ");
+}
+
 function formatDate(ts: number) {
   return new Date(ts).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
@@ -80,7 +90,7 @@ export function ConnectorTemplateConnectModal({ template, onClose, onConnected }
                 type={f.type}
                 value={values[f.key] ?? ""}
                 onChange={e => { setValues(v => ({ ...v, [f.key]: e.target.value })); if (errors[f.key]) setErrors(er => ({ ...er, [f.key]: undefined })); }}
-                placeholder={`Nhập ${f.label.toLowerCase()}`}
+                placeholder={`Nhập ${placeholderCase(f.label)}`}
                 className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm outline-none transition-base ${
                   errors[f.key] ? "border-destructive" : "border-border focus:border-primary"
                 }`}
