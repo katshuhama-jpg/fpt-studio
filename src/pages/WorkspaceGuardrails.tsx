@@ -26,19 +26,11 @@ function isGuardrailAccessible(g: Guardrail, userId: string): boolean {
   return isAccessibleTo(g.sharing, g.ownerId, userId);
 }
 
-// A dedicated ownership pill ("Của tôi" / "Được chia sẻ · <tên>") is redundant on every row —
-// the active tab (Tất cả/Của tôi/Được chia sẻ) already tells the viewer which ownership category
-// they're looking at. Only the share-status pill on an owned guardrail ("Dùng chung" / "Chia sẻ
-// với N người") carries information the tab doesn't, so that's the only pill left; the sharer's
-// name on a shared-to-me guardrail is shown as plain text instead (see the row rendering below).
-function ShareStatusChip({ g }: { g: Guardrail }) {
-  if (!g.sharing) return null;
-  if (g.sharing.mode === "all") return <span className="chip chip-info">Dùng chung</span>;
-  if (g.sharing.mode === "specific" && g.sharing.people.length > 0) {
-    return <span className="chip chip-info">Chia sẻ với {g.sharing.people.length} người</span>;
-  }
-  return null;
-}
+// Ownership/share-status pills ("Của tôi", "Dùng chung", "Chia sẻ với N người") are gone — the
+// Tất cả/Của tôi/Được chia sẻ tab already tells the viewer which group they're looking at, and
+// who a guardrail is shared with isn't shown in the list at all. Instead every row carries one
+// plain "Người tạo: <tên>" line, "Bạn" for the viewer's own guardrails, so ownership stays
+// visible even while browsing "Tất cả" (see the row rendering below).
 
 /* ─── Main page ──────────────────────────────────────────────────────── */
 type MainTab = "all" | "mine" | "shared";
@@ -258,13 +250,8 @@ export default function WorkspaceGuardrails() {
               <div className="text-sm font-medium">{g.name}</div>
               <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
                 {g.desc}
-                {hasOwner && !isOwner && ` · Chia sẻ bởi ${g.ownerName ?? "—"}`}
+                {hasOwner && ` · Người tạo: ${isOwner ? "Bạn" : (g.ownerName ?? "—")}`}
               </div>
-              {hasOwner && isOwner && (g.sharing!.mode === "all" || (g.sharing!.mode === "specific" && g.sharing!.people.length > 0)) && (
-                <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
-                  <ShareStatusChip g={g} />
-                </div>
-              )}
             </div>
             <div><ActionPill>{g.action}</ActionPill></div>
             <div className="flex items-center">

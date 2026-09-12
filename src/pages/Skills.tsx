@@ -17,18 +17,11 @@ import SkillShareModal from "@/components/configure/SkillShareModal";
 
 type MainTab = "all" | "mine" | "shared";
 
-// A dedicated ownership pill ("Của tôi" / "Được chia sẻ · <tên>") is redundant on every card —
-// the active tab (Tất cả/Của tôi/Được chia sẻ) already tells the viewer which ownership category
-// they're looking at. Only the share-status pill on an owned skill ("Dùng chung" / "Chia sẻ với N
-// người") carries information the tab doesn't, so that's the only pill left; the sharer's name on
-// a shared-to-me skill is shown as plain text instead (see the card/row rendering below).
-function ShareStatusChip({ skill }: { skill: Skill }) {
-  if (skill.sharing.mode === "all") return <span className="chip chip-info">Dùng chung</span>;
-  if (skill.sharing.mode === "specific" && skill.sharing.people.length > 0) {
-    return <span className="chip chip-info">Chia sẻ với {skill.sharing.people.length} người</span>;
-  }
-  return null;
-}
+// Ownership/share-status pills ("Của tôi", "Dùng chung", "Chia sẻ với N người") are gone —
+// the Tất cả/Của tôi/Được chia sẻ tab already tells the viewer which group they're looking at,
+// and who a skill is shared with isn't shown in the list at all. Instead every card/row carries
+// one plain "Người tạo: <tên>" line, "Bạn" for the viewer's own skills, so ownership stays
+// visible even while browsing "Tất cả" (see the card/row rendering below).
 
 /** Card/row "..." menu — same permission matrix and structure as Knowledge's RowMenu: "Mở" is
  * always available, "Sửa"/"Chia sẻ"/"Xóa" are always rendered but individually
@@ -283,15 +276,7 @@ export default function Skills() {
                   </div>
                   <div className="font-semibold text-sm leading-snug mb-1.5 truncate">{s.name}</div>
                   <div className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{s.description}</div>
-                  {isOwner ? (
-                    (s.sharing.mode === "all" || (s.sharing.mode === "specific" && s.sharing.people.length > 0)) && (
-                      <div className="flex items-center gap-1 flex-wrap mt-3">
-                        <ShareStatusChip skill={s} />
-                      </div>
-                    )
-                  ) : (
-                    <div className="text-xs text-muted-foreground mt-3">Chia sẻ bởi {s.ownerName}</div>
-                  )}
+                  <div className="text-xs text-muted-foreground mt-3">Người tạo: {isOwner ? "Bạn" : s.ownerName}</div>
                   {s.attachedByAgentIds.length > 0 && (
                     <div className="text-xs text-muted-foreground mt-1.5">{s.attachedByAgentIds.length} Agent đang dùng</div>
                   )}
@@ -318,15 +303,9 @@ export default function Skills() {
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium truncate">{s.name}</div>
                   <div className="text-xs text-muted-foreground truncate">
-                    {s.description}
-                    {!isOwner && ` · Chia sẻ bởi ${s.ownerName}`}
+                    {s.description} · Người tạo: {isOwner ? "Bạn" : s.ownerName}
                   </div>
                 </div>
-                {isOwner && (
-                  <div className="flex items-center gap-1 shrink-0">
-                    <ShareStatusChip skill={s} />
-                  </div>
-                )}
                 {s.attachedByAgentIds.length > 0 && (
                   <div className="text-xs text-muted-foreground shrink-0">{s.attachedByAgentIds.length} Agent</div>
                 )}

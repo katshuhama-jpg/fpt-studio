@@ -458,7 +458,7 @@ function CustomConnectorCard({ connector: c, isMine, onShare, onDelete }: {
          * or overflowing the card on longer names. Only the owner's name remains, as plain text,
          * so a shared-to-me card still says whose connector it is. */}
         <p className="text-sm font-medium truncate">{c.name}</p>
-        {!isMine && <p className="text-xs text-muted-foreground truncate">Chia sẻ bởi {c.ownerName}</p>}
+        <p className="text-xs text-muted-foreground truncate">Người tạo: {isMine ? "Bạn" : c.ownerName}</p>
         <p className="text-xs text-muted-foreground truncate mt-0.5">{c.url}</p>
         <p className="text-[11px] text-muted-foreground mt-1">
           {AUTH_LABEL[c.authType]}
