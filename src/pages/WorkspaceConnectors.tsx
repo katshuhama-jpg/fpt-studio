@@ -1,9 +1,24 @@
 import { useState, useMemo } from "react";
-import { Search, CheckCircle2, ChevronRight } from "lucide-react";
+import { Search, CheckCircle2, ChevronRight, Plug, MoreVertical, AlertTriangle } from "lucide-react";
 import { useGroupAccess, isOwnedOrShared } from "@/pages/organization/scopeAccess";
+import { CURRENT_USER } from "@/components/knowledge/knowledgeBaseStore";
+import { customConnectorStore, type CustomConnector } from "@/components/configure/customConnectorStore";
+import { isAccessibleTo as isCustomConnectorAccessibleTo } from "@/components/configure/customConnectorSharing";
+import AddCustomConnectorModal from "@/components/configure/AddCustomConnectorModal";
+import CustomConnectorShareModal from "@/components/configure/CustomConnectorShareModal";
+import { getAgent } from "@/components/configure/agentStore";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 /* ─── Types ─────────────────────────────────────────── */
 type Tab = "all" | "connected" | "available";
+/** Top-level split, mirroring the real product's "Marketplace Connectors" / "Custom Connectors"
+ * tabs at console-agents.fpt.ai/connectors. "Custom" is scoped ONLY to self-added (Custom MCP)
+ * connectors — the Marketplace tab below is entirely unrelated pre-built catalog and is untouched
+ * by this split. */
+type Section = "marketplace" | "custom";
 
 interface Connector {
   id: string;
@@ -87,11 +102,28 @@ const CATEGORIES = [
   { key:"productivity", label:"Productivity",       icon:"⚡" },
 ];
 
+const AUTH_LABEL: Record<CustomConnector["authType"], string> = {
+  none: "No authentication",
+  static_headers: "Static Headers",
+};
+
 /* ─── Main page ──────────────────────────────────────── */
 export default function WorkspaceConnectors() {
   const access = useGroupAccess("connectors");
+  const [section, setSection] = useState<Section>("marketplace");
   const [tab, setTab]     = useState<Tab>("all");
   const [query, setQuery] = useState("");
+
+  // Custom Connectors section state — kept separate from the Marketplace tab/query state above
+  // since the two lists are unrelated data sources.
+  const [tick, setTick] = useState(0);
+  const refresh = () => setTick(t => t + 1);
+  void tick;
+  const [showAddCustom, setShowAddCustom] = useState(false);
+  const [shareTarget, setShareTarget] = useState<CustomConnector | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CustomConnector | null>(null);
+  const customConnectors = customConnectorStore.list();
+  const accessibleCustomConnectors = customConnectors.filter(c => isCustomConnectorAccessibleTo(c.sharing, c.ownerId, CURRENT_USER.id));
 
   // Only an established connection is really "someone's resource" — browsing the catalog of
   // not-yet-connected services is never restricted. A role whose Connectors View Scope is
@@ -122,62 +154,165 @@ export default function WorkspaceConnectors() {
         <p className="text-sm text-muted-foreground">Connect services so agents can access and act on your data.</p>
       </div>
 
-      {/* Toolbar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6 border-b border-border pb-3">
-        <div className="flex items-center gap-1">
-          {(["all","connected","available"] as Tab[]).map(t => (
-            <button key={t} onClick={() => setTab(t)}
-              className={`px-3 h-8 rounded-lg text-sm font-medium transition-base capitalize ${
-                tab === t ? "bg-primary-soft text-primary" : "text-muted-foreground hover:bg-surface-muted"
-              }`}
-            >{t === "all" ? "All" : t === "connected" ? "Connected" : "Available"}</button>
-          ))}
-        </div>
-        <div className="relative">
-          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search connectors…"
-            className="h-9 w-56 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30" />
-        </div>
+      {/* Marketplace / Custom split */}
+      <div className="flex items-center gap-1 mb-6 border-b border-border">
+        {([
+          { key: "marketplace" as Section, label: "Marketplace Connectors" },
+          { key: "custom" as Section, label: "Custom Connectors" },
+        ]).map(s => (
+          <button
+            key={s.key}
+            onClick={() => setSection(s.key)}
+            className={`px-3 pb-3 text-sm font-medium border-b-2 -mb-px transition-base ${
+              section === s.key ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {s.label}
+          </button>
+        ))}
       </div>
 
-      {/* Requested connections */}
-      {tab !== "connected" && requested.length > 0 && (
-        <div className="mb-8">
-          <div className="flex items-center gap-1.5 mb-3 text-xs font-semibold text-primary">
-            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-            Agents are requesting connections
+      {section === "marketplace" && (
+        <>
+          {/* Toolbar */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6 border-b border-border pb-3">
+            <div className="flex items-center gap-1">
+              {(["all","connected","available"] as Tab[]).map(t => (
+                <button key={t} onClick={() => setTab(t)}
+                  className={`px-3 h-8 rounded-lg text-sm font-medium transition-base capitalize ${
+                    tab === t ? "bg-primary-soft text-primary" : "text-muted-foreground hover:bg-surface-muted"
+                  }`}
+                >{t === "all" ? "All" : t === "connected" ? "Connected" : "Available"}</button>
+              ))}
+            </div>
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search connectors…"
+                className="h-9 w-56 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30" />
+            </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {requested.map(c => <ConnectorCard key={c.id} connector={c} />)}
+
+          {/* Requested connections */}
+          {tab !== "connected" && requested.length > 0 && (
+            <div className="mb-8">
+              <div className="flex items-center gap-1.5 mb-3 text-xs font-semibold text-primary">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                Agents are requesting connections
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {requested.map(c => <ConnectorCard key={c.id} connector={c} />)}
+              </div>
+              <div className="mt-6 mb-2 border-t border-border" />
+            </div>
+          )}
+
+          {/* Category sections */}
+          {CATEGORIES.map(cat => {
+            const items = filtered.filter(c => c.category === cat.key);
+            if (!items.length) return null;
+            return (
+              <div key={cat.key} className="mb-8">
+                <div className="flex items-center gap-2 mb-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  <span>{cat.icon}</span>{cat.label}
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {items.map(c => <ConnectorCard key={c.id} connector={c} />)}
+                </div>
+              </div>
+            );
+          })}
+
+          {filtered.length === 0 && !requested.length && (
+            <div className="py-20 text-center text-muted-foreground text-sm">No connectors found.</div>
+          )}
+        </>
+      )}
+
+      {section === "custom" && (
+        <div>
+          <div className="flex items-center justify-between gap-3 mb-5">
+            <p className="text-sm text-muted-foreground">Add an MCP server to grant its tools to your agents.</p>
+            <button
+              onClick={() => setShowAddCustom(true)}
+              className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium transition-base shrink-0"
+            >
+              + Add custom MCP
+            </button>
           </div>
-          <div className="mt-6 mb-2 border-t border-border" />
+
+          {accessibleCustomConnectors.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border bg-gradient-soft p-12 text-center">
+              <Plug size={22} className="mx-auto mb-3 text-muted-foreground" />
+              <p className="text-sm font-medium mb-1">No custom connectors yet</p>
+              <p className="text-sm text-muted-foreground">Add an MCP server to grant its tools to your agents.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {accessibleCustomConnectors.map(c => {
+                const isMine = c.ownerId === CURRENT_USER.id;
+                return (
+                  <CustomConnectorCard
+                    key={c.id}
+                    connector={c}
+                    isMine={isMine}
+                    onShare={isMine ? () => setShareTarget(c) : undefined}
+                    onDelete={() => setDeleteTarget(c)}
+                  />
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Category sections */}
-      {CATEGORIES.map(cat => {
-        const items = filtered.filter(c => c.category === cat.key);
-        if (!items.length) return null;
-        return (
-          <div key={cat.key} className="mb-8">
-            <div className="flex items-center gap-2 mb-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              <span>{cat.icon}</span>{cat.label}
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {items.map(c => <ConnectorCard key={c.id} connector={c} />)}
-            </div>
-          </div>
-        );
-      })}
-
-      {filtered.length === 0 && !requested.length && (
-        <div className="py-20 text-center text-muted-foreground text-sm">No connectors found.</div>
+      {showAddCustom && (
+        <AddCustomConnectorModal
+          onClose={() => setShowAddCustom(false)}
+          onCreated={() => { setShowAddCustom(false); refresh(); }}
+        />
       )}
+
+      {shareTarget && (
+        <CustomConnectorShareModal
+          open
+          name={shareTarget.name}
+          ownerName={shareTarget.ownerName}
+          sharing={shareTarget.sharing}
+          onSave={sharing => { customConnectorStore.updateSharing(shareTarget.id, sharing); refresh(); }}
+          onClose={() => setShareTarget(null)}
+        />
+      )}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xóa custom connector "{deleteTarget?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>Custom connector sẽ bị xóa vĩnh viễn khỏi workspace. Hành động này không thể hoàn tác.</AlertDialogDescription>
+          </AlertDialogHeader>
+          {deleteTarget && deleteTarget.attachedByAgentIds.length > 0 && (
+            <div className="flex items-start gap-2.5 rounded-lg border border-destructive/25 bg-[hsl(var(--destructive-soft))] px-3.5 py-3">
+              <AlertTriangle size={14} className="shrink-0 mt-0.5 text-destructive" />
+              <p className="text-xs text-destructive leading-relaxed">
+                {deleteTarget.attachedByAgentIds.length} Agent đang dùng custom connector này và sẽ mất quyền truy cập các công cụ của nó: {deleteTarget.attachedByAgentIds.map(id => getAgent(id).name).join(", ")}.
+              </p>
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy bỏ</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { if (deleteTarget) { customConnectorStore.remove(deleteTarget.id); refresh(); } setDeleteTarget(null); }}
+            >
+              Xóa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
 
-/* ─── Connector card ─────────────────────────────────── */
+/* ─── Connector card (Marketplace) ───────────────────── */
 function ConnectorCard({ connector: c }: { connector: Connector }) {
   return (
     <div className={`flex items-start gap-3 p-4 rounded-xl border bg-surface transition-base cursor-pointer hover:border-primary/40 hover:bg-primary-soft/10 ${
@@ -200,6 +335,60 @@ function ConnectorCard({ connector: c }: { connector: Connector }) {
         )}
       </div>
       <ChevronRight size={14} className="text-muted-foreground shrink-0 mt-0.5" />
+    </div>
+  );
+}
+
+/* ─── Custom Connector card + row menu ───────────────── */
+function CustomConnectorRowMenu({ onShare, onDelete }: { onShare?: () => void; onDelete: () => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative shrink-0" onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false); }}>
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        aria-label="Tuỳ chọn custom connector"
+        className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base"
+      >
+        <MoreVertical size={15} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-8 z-20 w-40 bg-white rounded-xl border border-border shadow-lg py-1 animate-fade-up">
+          {onShare && (
+            <button onClick={() => { setOpen(false); onShare(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">
+              Chia sẻ
+            </button>
+          )}
+          <button onClick={() => { setOpen(false); onDelete(); }} className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-destructive/5 transition-base">
+            Xóa
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CustomConnectorCard({ connector: c, isMine, onShare, onDelete }: {
+  connector: CustomConnector; isMine: boolean; onShare?: () => void; onDelete: () => void;
+}) {
+  return (
+    <div className="flex items-start gap-3 p-4 rounded-xl border border-border bg-surface">
+      <div className="w-10 h-10 rounded-xl border border-border bg-white flex items-center justify-center shrink-0">
+        <Plug size={16} className="text-muted-foreground" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+          <span className="text-sm font-medium truncate">{c.name}</span>
+          <span className="chip chip-muted shrink-0">{isMine ? "Của tôi" : `Được chia sẻ · ${c.ownerName}`}</span>
+          {isMine && c.sharing.mode === "all" && <span className="chip chip-info shrink-0">Dùng chung</span>}
+          {isMine && c.sharing.mode === "specific" && c.sharing.people.length > 0 && (
+            <span className="chip chip-info shrink-0">Chia sẻ với {c.sharing.people.length} người</span>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground truncate">{c.url}</p>
+        <p className="text-[11px] text-muted-foreground mt-1">{AUTH_LABEL[c.authType]}</p>
+      </div>
+      <CustomConnectorRowMenu onShare={onShare} onDelete={onDelete} />
     </div>
   );
 }

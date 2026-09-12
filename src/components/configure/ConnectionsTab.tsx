@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Search, MoreVertical, User, Building2, X, AlertTriangle, Info, Plus } from "lucide-react";
+import { Search, MoreVertical, User, Building2, X, AlertTriangle, Info, Plus, Plug } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -9,6 +9,10 @@ import { agentConnectorStore, type ConnectorScope } from "./agentConnectorStore"
 import { triggerStore, type ExternalApp } from "./triggerStore";
 import { hasTriggers } from "./agentAutomationGuard";
 import { CONNECTOR_BLOCKED_BY_TRIGGER_REASON } from "./agentPublishStore";
+import { customConnectorStore, type CustomConnector } from "./customConnectorStore";
+import { isAccessibleTo as isCustomConnectorAccessibleTo } from "./customConnectorSharing";
+import { CURRENT_USER } from "@/components/knowledge/knowledgeBaseStore";
+import AddCustomConnectorModal from "./AddCustomConnectorModal";
 import { toast } from "sonner";
 
 export const CATALOG = [
@@ -37,11 +41,41 @@ function accountLine(scope: ConnectorScope): string {
   return scope === "shared" ? `${SHARED_ACCOUNT_EMAIL} · Tài khoản tổ chức` : "Mỗi người dùng tự kết nối tài khoản của mình";
 }
 
+/* ---------- Custom Connector id namespacing ----------
+ * agentConnectorStore keys connections by a single connectorId string shared with CATALOG's
+ * plain ids ("gmail", "slack", ...). A Custom Connector (self-added MCP, tracked in
+ * customConnectorStore.ts) is a different, Console-level resource with its own id space, so it's
+ * referenced here as `custom:<customConnectorId>` to avoid ever colliding with a CATALOG id. */
+const CUSTOM_PREFIX = "custom:";
+const isCustomConnectorRef = (connectorId: string) => connectorId.startsWith(CUSTOM_PREFIX);
+const customConnectorIdOf = (connectorId: string) => connectorId.slice(CUSTOM_PREFIX.length);
+const customConnectorRef = (customId: string) => `${CUSTOM_PREFIX}${customId}`;
+
+interface ConnectorMeta {
+  id: string;
+  name: string;
+  desc: string;
+  logo?: string;
+}
+
+/** Resolves a connectorId (as stored on agentConnectorStore) to display metadata, whether it's a
+ * fixed CATALOG entry or a Console Custom Connector — so ConnectionCard/EditScopeModal/the delete
+ * dialog don't need to know which kind they're rendering. */
+function resolveConnectorMeta(connectorId: string): ConnectorMeta | undefined {
+  const builtin = CATALOG.find(c => c.id === connectorId);
+  if (builtin) return builtin;
+  if (isCustomConnectorRef(connectorId)) {
+    const c = customConnectorStore.get(customConnectorIdOf(connectorId));
+    if (c) return { id: connectorId, name: c.name, desc: c.url };
+  }
+  return undefined;
+}
+
 /* ---------- Edit modal — switch an existing connector's scope ---------- */
 function EditScopeModal({ agentId, connectorId, onClose, onSaved, onViewTriggers }: {
   agentId: string; connectorId: string; onClose: () => void; onSaved: () => void; onViewTriggers?: () => void;
 }) {
-  const meta = CATALOG.find(c => c.id === connectorId);
+  const meta = resolveConnectorMeta(connectorId);
   const existing = agentConnectorStore.list(agentId).find(c => c.connectorId === connectorId);
   const blockedByTriggers = hasTriggers(agentId);
   const [scope, setScope] = useState<ConnectorScope>(blockedByTriggers ? "shared" : (existing?.scope ?? "shared"));
@@ -64,7 +98,9 @@ function EditScopeModal({ agentId, connectorId, onClose, onSaved, onViewTriggers
       <div className="relative z-10 w-full max-w-md bg-white rounded-2xl border border-border shadow-lg animate-fade-up">
         <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
           <div className="w-8 h-8 rounded-lg border border-border bg-white flex items-center justify-center shrink-0 overflow-hidden p-1">
-            {meta && <img src={meta.logo} alt={meta.name} className="w-full h-full object-contain" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />}
+            {meta && (meta.logo
+              ? <img src={meta.logo} alt={meta.name} className="w-full h-full object-contain" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+              : <Plug size={14} className="text-muted-foreground" />)}
           </div>
           <h3 className="font-display text-base font-semibold flex-1">
             Chỉnh sửa kết nối {meta?.name ?? connectorId}
@@ -155,8 +191,11 @@ function EditScopeModal({ agentId, connectorId, onClose, onSaved, onViewTriggers
 }
 
 /* ---------- Add-connector picker — scope already chosen, just pick the service ---------- */
-function AddConnectorPicker({ scope, existingIds, onClose, onPick }: {
+function AddConnectorPicker({ scope, existingIds, onClose, onPick, onPickCustom }: {
   scope: ConnectorScope; existingIds: Set<string>; onClose: () => void; onPick: (connectorId: string) => void;
+  /** Shared scope only — lets the picker offer Custom Connectors + inline "+ Add custom MCP",
+   * mirroring the real product's "Shared Connectors" picker. */
+  onPickCustom?: { customConnectors: CustomConnector[]; onCreateNew: () => void };
 }) {
   const [query, setQuery] = useState("");
   const available = CATALOG.filter(c => !existingIds.has(c.id));
@@ -166,6 +205,14 @@ function AddConnectorPicker({ scope, existingIds, onClose, onPick }: {
     return available.filter(c => c.name.toLowerCase().includes(q) || c.desc.toLowerCase().includes(q));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, existingIds]);
+
+  const availableCustom = (onPickCustom?.customConnectors ?? []).filter(c => !existingIds.has(customConnectorRef(c.id)));
+  const filteredCustom = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return availableCustom;
+    return availableCustom.filter(c => c.name.toLowerCase().includes(q) || c.url.toLowerCase().includes(q));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, existingIds, onPickCustom]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -191,29 +238,63 @@ function AddConnectorPicker({ scope, existingIds, onClose, onPick }: {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-2">
-          {filtered.length === 0 ? (
+          {filtered.length === 0 && filteredCustom.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              {available.length === 0 ? "Bạn đã kết nối tất cả dịch vụ có sẵn." : "Không tìm thấy kết nối nào."}
+              {available.length === 0 && availableCustom.length === 0 ? "Bạn đã kết nối tất cả dịch vụ có sẵn." : "Không tìm thấy kết nối nào."}
             </p>
           ) : (
-            filtered.map(meta => (
-              <button
-                key={meta.id}
-                type="button"
-                onClick={() => onPick(meta.id)}
-                className="w-full flex items-start gap-3 p-3 rounded-xl border border-border hover:border-primary/40 hover:bg-surface-muted text-left transition-base"
-              >
-                <div className="w-9 h-9 rounded-lg border border-border bg-white flex items-center justify-center shrink-0 overflow-hidden p-1">
-                  <img src={meta.logo} alt={meta.name} className="w-full h-full object-contain" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium">{meta.name}</p>
-                  <p className="text-xs text-muted-foreground leading-relaxed">{meta.desc}</p>
-                </div>
-              </button>
-            ))
+            <>
+              {filtered.map(meta => (
+                <button
+                  key={meta.id}
+                  type="button"
+                  onClick={() => onPick(meta.id)}
+                  className="w-full flex items-start gap-3 p-3 rounded-xl border border-border hover:border-primary/40 hover:bg-surface-muted text-left transition-base"
+                >
+                  <div className="w-9 h-9 rounded-lg border border-border bg-white flex items-center justify-center shrink-0 overflow-hidden p-1">
+                    <img src={meta.logo} alt={meta.name} className="w-full h-full object-contain" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{meta.name}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{meta.desc}</p>
+                  </div>
+                </button>
+              ))}
+              {filteredCustom.length > 0 && (
+                <>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-1 pt-2">Custom Connectors</p>
+                  {filteredCustom.map(c => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => onPick(customConnectorRef(c.id))}
+                      className="w-full flex items-start gap-3 p-3 rounded-xl border border-border hover:border-primary/40 hover:bg-surface-muted text-left transition-base"
+                    >
+                      <div className="w-9 h-9 rounded-lg border border-border bg-white flex items-center justify-center shrink-0">
+                        <Plug size={15} className="text-muted-foreground" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">{c.name}</p>
+                        <p className="text-xs text-muted-foreground leading-relaxed truncate">{c.url}</p>
+                      </div>
+                    </button>
+                  ))}
+                </>
+              )}
+            </>
           )}
         </div>
+        {onPickCustom && (
+          <div className="px-5 py-3 border-t border-border shrink-0">
+            <button
+              type="button"
+              onClick={onPickCustom.onCreateNew}
+              className="w-full flex items-center justify-center gap-1.5 h-9 rounded-lg border border-dashed border-border hover:border-primary/40 hover:bg-surface-muted text-sm font-medium text-primary transition-base"
+            >
+              <Plus size={14} /> Add custom MCP
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -367,12 +448,14 @@ function CardMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => vo
 }
 
 function ConnectionCard({ meta, scope, onEdit, onRemove }: {
-  meta: typeof CATALOG[number]; scope: ConnectorScope; onEdit: () => void; onRemove: () => void;
+  meta: ConnectorMeta; scope: ConnectorScope; onEdit: () => void; onRemove: () => void;
 }) {
   return (
     <div className="flex items-start gap-3 p-4 rounded-xl border border-border bg-surface">
       <div className="w-10 h-10 rounded-xl border border-border bg-white flex items-center justify-center shrink-0 overflow-hidden p-1">
-        <img src={meta.logo} alt={meta.name} className="w-full h-full object-contain" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+        {meta.logo
+          ? <img src={meta.logo} alt={meta.name} className="w-full h-full object-contain" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+          : <Plug size={16} className="text-muted-foreground" />}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -399,15 +482,30 @@ export default function ConnectionsTab({ agentId, onViewTriggers, onChange }: {
   const [pickerScope, setPickerScope] = useState<ConnectorScope | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showAddCustom, setShowAddCustom] = useState(false);
   void tick;
 
   const connections = agentConnectorStore.list(agentId);
   const blockedPersonal = hasTriggers(agentId);
   const existingIds = new Set(connections.map(c => c.connectorId));
-  const deletingMeta = deletingId ? CATALOG.find(c => c.id === deletingId) : undefined;
+  const deletingMeta = deletingId ? resolveConnectorMeta(deletingId) : undefined;
   const affectedTriggers = deletingId
     ? triggerStore.list(agentId).filter(t => t.type === "external" && t.config.external?.app === (deletingId as ExternalApp))
     : [];
+
+  // Custom Connectors this user can actually see, for the "Dùng chung" picker — same
+  // ownership-aware filtering as the Console Connectors page's "Custom Connectors" tab.
+  const accessibleCustomConnectors = customConnectorStore.list().filter(c => isCustomConnectorAccessibleTo(c.sharing, c.ownerId, CURRENT_USER.id));
+
+  const attachConnector = (connectorId: string, scope: ConnectorScope) => {
+    const ok = agentConnectorStore.add(agentId, connectorId, scope);
+    if (!ok) {
+      toast.error(CONNECTOR_BLOCKED_BY_TRIGGER_REASON());
+      return false;
+    }
+    if (isCustomConnectorRef(connectorId)) customConnectorStore.addAttachingAgent(customConnectorIdOf(connectorId), agentId);
+    return true;
+  };
 
   return (
     <div className="p-8 w-full animate-fade-up">
@@ -426,7 +524,7 @@ export default function ConnectionsTab({ agentId, onViewTriggers, onChange }: {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {connections.map(c => {
-            const meta = CATALOG.find(m => m.id === c.connectorId);
+            const meta = resolveConnectorMeta(c.connectorId);
             if (!meta) return null;
             return (
               <ConnectionCard
@@ -454,12 +552,25 @@ export default function ConnectionsTab({ agentId, onViewTriggers, onChange }: {
           existingIds={existingIds}
           onClose={() => setPickerScope(null)}
           onPick={connectorId => {
-            const ok = agentConnectorStore.add(agentId, connectorId, pickerScope);
-            if (!ok) {
-              toast.error(CONNECTOR_BLOCKED_BY_TRIGGER_REASON());
-              return;
-            }
+            if (!attachConnector(connectorId, pickerScope)) return;
             toast.success("Đã lưu kết nối.");
+            setPickerScope(null);
+            refresh();
+          }}
+          onPickCustom={pickerScope === "shared" ? {
+            customConnectors: accessibleCustomConnectors,
+            onCreateNew: () => setShowAddCustom(true),
+          } : undefined}
+        />
+      )}
+
+      {showAddCustom && (
+        <AddCustomConnectorModal
+          onClose={() => setShowAddCustom(false)}
+          onCreated={connector => {
+            setShowAddCustom(false);
+            if (!attachConnector(customConnectorRef(connector.id), "shared")) return;
+            toast.success("Đã tạo và kết nối custom connector.");
             setPickerScope(null);
             refresh();
           }}
@@ -499,6 +610,7 @@ export default function ConnectionsTab({ agentId, onViewTriggers, onChange }: {
               onClick={() => {
                 if (!deletingId || !deletingMeta) return;
                 agentConnectorStore.remove(agentId, deletingId);
+                if (isCustomConnectorRef(deletingId)) customConnectorStore.removeAttachingAgent(customConnectorIdOf(deletingId), agentId);
                 affectedTriggers.forEach(t => {
                   if (t.type === "external" && t.config.external) {
                     triggerStore.update(agentId, t.id, {
