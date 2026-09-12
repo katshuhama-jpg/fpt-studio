@@ -34,6 +34,7 @@ import { CHANNEL_CATALOG, getChannelName, ChannelIcon, type ChannelCatalogEntry 
 import { connectedAccountStore } from "@/components/configure/connectedAccountStore";
 import { customConnectorStore, type CustomConnector, type ConnectorAuthType, type ConnectorHeader } from "@/components/configure/customConnectorStore";
 import { isAccessibleTo as isCustomConnectorAccessibleTo, type Sharing as CustomConnectorSharingShape } from "@/components/configure/customConnectorSharing";
+import CustomConnectorShareModal from "@/components/configure/CustomConnectorShareModal";
 import AppLogo from "@/components/configure/AppLogo";
 import { TYPE_META, summarizeConfig } from "@/components/configure/TriggersTab";
 import { guardrailConsoleStore, type Guardrail } from "@/components/configure/guardrailConsoleStore";
@@ -4325,6 +4326,9 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
   // not one flat list with a per-row scope badge — this tab is which scope's connectors are
   // currently displayed, independent of pickerMode (which scope a NEW connector is added to).
   const [activeScope, setActiveScope] = useState<ConnectorScope>("shared");
+  // Row-level "Chia sẻ" target — lets a user share a Custom Connector they attached via quick-add
+  // (which no longer asks about sharing up front) right from this list, without leaving the agent.
+  const [shareTarget, setShareTarget] = useState<CustomConnector | null>(null);
   const connected = agentConnectorStore.list(agentId).map(c => ({ id: c.connectorId, mode: c.scope }));
 
   // Custom Connectors ("Custom MCP") this user can see — same ownership-aware filtering as the
@@ -4391,10 +4395,24 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
     // whose metadata can't be found would otherwise vanish from the list while still
     // sitting in the store, which reads to the Builder as "my connector disappeared".
     const meta = resolveMeta(c.id);
+    // Custom Connectors can be shared after the fact — surface that action here (owner-only)
+    // since the quick-add modal itself no longer asks about sharing up front.
+    const customConnector = c.id.startsWith(CUSTOM_CONNECTOR_PREFIX)
+      ? customConnectorStore.get(c.id.slice(CUSTOM_CONNECTOR_PREFIX.length))
+      : undefined;
+    const canShare = !!customConnector && customConnector.ownerId === KB_CURRENT_USER.id;
     return (
       <div key={c.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base">
         <span className="w-6 h-6 rounded bg-surface-muted border border-border flex items-center justify-center text-[9px] font-bold shrink-0">{meta?.logo ?? "?"}</span>
         <span className="text-xs font-medium flex-1 truncate">{meta?.name ?? c.id}</span>
+        {canShare && (
+          <button
+            onClick={() => setShareTarget(customConnector)}
+            title="Chia sẻ custom connector"
+            className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-surface-muted transition-base shrink-0">
+            <HugeiconsIcon icon={Share08Icon} size={12} />
+          </button>
+        )}
         <button
           onClick={() => { agentConnectorStore.remove(agentId, c.id); setTick(t => t + 1); onChange?.(); }}
           className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-surface-muted transition-base shrink-0">
@@ -4510,6 +4528,17 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
           mode={pickerMode}
           onChangeMode={() => { setShowPicker(false); setShowMenu(true); }}
           onCreatedCustom={connector => toggleConnector(`${CUSTOM_CONNECTOR_PREFIX}${connector.id}`)}
+        />
+      )}
+
+      {shareTarget && (
+        <CustomConnectorShareModal
+          open
+          name={shareTarget.name}
+          ownerName={shareTarget.ownerName}
+          sharing={shareTarget.sharing}
+          onSave={sharing => { customConnectorStore.updateSharing(shareTarget.id, sharing); setTick(t => t + 1); onChange?.(); }}
+          onClose={() => setShareTarget(null)}
         />
       )}
     </>
