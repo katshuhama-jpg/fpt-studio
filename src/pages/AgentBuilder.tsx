@@ -33,8 +33,7 @@ import { collectMembers } from "@/pages/organization/orgData";
 import { CHANNEL_CATALOG, getChannelName, ChannelIcon, type ChannelCatalogEntry } from "@/components/configure/channelCatalog";
 import { connectedAccountStore } from "@/components/configure/connectedAccountStore";
 import { customConnectorStore, type CustomConnector, type ConnectorAuthType, type ConnectorHeader } from "@/components/configure/customConnectorStore";
-import { isAccessibleTo as isCustomConnectorAccessibleTo, type SharingMode as CustomConnectorSharingMode, type SharedPerson as CustomConnectorSharedPerson, type Sharing as CustomConnectorSharingShape } from "@/components/configure/customConnectorSharing";
-import CustomConnectorMemberPicker from "@/components/configure/CustomConnectorMemberPicker";
+import { isAccessibleTo as isCustomConnectorAccessibleTo, type Sharing as CustomConnectorSharingShape } from "@/components/configure/customConnectorSharing";
 import AppLogo from "@/components/configure/AppLogo";
 import { TYPE_META, summarizeConfig } from "@/components/configure/TriggersTab";
 import { guardrailConsoleStore, type Guardrail } from "@/components/configure/guardrailConsoleStore";
@@ -5106,9 +5105,6 @@ function AddCustomMcpModal({ onClose, onCreated }: { onClose: () => void; onCrea
   const [authType, setAuthType] = useState<ConnectorAuthType>("none");
   const [headers, setHeaders] = useState<ConnectorHeader[]>([{ key: "", value: "" }]);
   const [revealed, setRevealed] = useState<Set<number>>(new Set());
-  const [sharingMode, setSharingMode] = useState<CustomConnectorSharingMode>("private");
-  const [people, setPeople] = useState<CustomConnectorSharedPerson[]>([]);
-  const [submitAttempted, setSubmitAttempted] = useState(false);
 
   const authOptions: { id: ConnectorAuthType | "oauth-auto" | "oauth-manual"; label: string; disabled: boolean }[] = [
     { id: "none",           label: "Không xác thực",        disabled: false },
@@ -5116,15 +5112,8 @@ function AddCustomMcpModal({ onClose, onCreated }: { onClose: () => void; onCrea
     { id: "oauth-auto",     label: "OAuth 2.1 (Tự động)",   disabled: true },
     { id: "oauth-manual",   label: "OAuth 2.1 (Thủ công)",  disabled: true },
   ];
-  const sharingOptions: { value: CustomConnectorSharingMode; label: string; helper?: string }[] = [
-    { value: "private", label: "Chỉ mình tôi" },
-    { value: "all", label: "Tất cả người dùng Console", helper: "Mọi thành viên Console đều xem và dùng được custom connector này." },
-    { value: "specific", label: "Người dùng cụ thể" },
-  ];
-
   const duplicateName = name.trim() !== "" && customConnectorStore.isDuplicateName(name);
-  const peopleError = sharingMode === "specific" && people.length === 0;
-  const canSubmit = !!name.trim() && !!url.trim() && !duplicateName && !peopleError;
+  const canSubmit = !!name.trim() && !!url.trim() && !duplicateName;
 
   const setHeaderField = (i: number, field: "key" | "value", v: string) =>
     setHeaders(hs => hs.map((h, idx) => (idx === i ? { ...h, [field]: v } : h)));
@@ -5133,9 +5122,11 @@ function AddCustomMcpModal({ onClose, onCreated }: { onClose: () => void; onCrea
     setRevealed(prev => { const n = new Set(prev); n.has(i) ? n.delete(i) : n.add(i); return n; });
 
   const submit = () => {
-    setSubmitAttempted(true);
     if (!canSubmit) return;
-    const sharing: CustomConnectorSharingShape = { mode: sharingMode, people: sharingMode === "specific" ? people : [] };
+    // Quick-add from inside the Agent Builder always creates a private custom connector (owned
+    // by the current user) — the real product doesn't expose a sharing choice here. Sharing can
+    // be changed later from the Console's Connectors page.
+    const sharing: CustomConnectorSharingShape = { mode: "private", people: [] };
     const connector = customConnectorStore.create({
       name: name.trim(), url: url.trim(), authType,
       headers: headers.filter(h => h.key.trim()), sharing,
@@ -5242,43 +5233,6 @@ function AddCustomMcpModal({ onClose, onCreated }: { onClose: () => void; onCrea
               ))}
             </div>
             <p className="text-xs text-muted-foreground mt-2.5 leading-relaxed">Dùng static headers (ví dụ API key) để xác thực. OAuth 2.1 sắp ra mắt.</p>
-          </div>
-
-          <div>
-            <p className="text-sm font-semibold mb-2">Ai có quyền truy cập</p>
-            <div className="flex flex-col gap-2">
-              {sharingOptions.map(opt => {
-                const selected = sharingMode === opt.value;
-                return (
-                  <div key={opt.value}>
-                    <div
-                      onClick={() => setSharingMode(opt.value)}
-                      className={`flex items-start gap-3 px-3.5 py-3 rounded-xl border cursor-pointer transition-base ${
-                        selected ? "border-primary bg-primary/5" : "border-border bg-white hover:bg-surface-muted"
-                      }`}
-                    >
-                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${selected ? "border-primary" : "border-border"}`}>
-                        {selected && <div className="w-2 h-2 rounded-full bg-primary" />}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium">{opt.label}</div>
-                        {opt.helper && <div className="text-xs text-muted-foreground mt-0.5">{opt.helper}</div>}
-                      </div>
-                    </div>
-                    {selected && opt.value === "specific" && (
-                      <div className="mt-2 pl-3.5">
-                        <CustomConnectorMemberPicker
-                          value={people}
-                          onChange={setPeople}
-                          ownerRow={{ name: KB_CURRENT_USER.name, email: KB_CURRENT_USER.email }}
-                        />
-                        {peopleError && submitAttempted && <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người để chia sẻ.</p>}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
           </div>
         </div>
 
