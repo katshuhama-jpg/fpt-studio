@@ -32,7 +32,9 @@ import { useOrg } from "@/pages/organization/orgStore";
 import { collectMembers } from "@/pages/organization/orgData";
 import { CHANNEL_CATALOG, getChannelName, ChannelIcon, type ChannelCatalogEntry } from "@/components/configure/channelCatalog";
 import { connectedAccountStore } from "@/components/configure/connectedAccountStore";
-import ConnectionsTab, { CATALOG as CONNECTOR_CATALOG } from "@/components/configure/ConnectionsTab";
+import { customConnectorStore, type CustomConnector, type ConnectorAuthType, type ConnectorHeader } from "@/components/configure/customConnectorStore";
+import { isAccessibleTo as isCustomConnectorAccessibleTo, type SharingMode as CustomConnectorSharingMode, type SharedPerson as CustomConnectorSharedPerson, type Sharing as CustomConnectorSharingShape } from "@/components/configure/customConnectorSharing";
+import CustomConnectorMemberPicker from "@/components/configure/CustomConnectorMemberPicker";
 import AppLogo from "@/components/configure/AppLogo";
 import { TYPE_META, summarizeConfig } from "@/components/configure/TriggersTab";
 import { guardrailConsoleStore, type Guardrail } from "@/components/configure/guardrailConsoleStore";
@@ -97,7 +99,6 @@ const developNav = [
   { id: "skills",       label: "Skills",         icon: PuzzleIcon },
   { id: "guardrails",   label: "Guardrails",     icon: Shield01Icon },
   { id: "knowledge",    label: "Knowledge",      icon: NoteIcon },
-  { id: "connectors",   label: "Connections",    icon: ConnectIcon },
   { id: "triggers",     label: "Triggers",       icon: TimeScheduleIcon },
   { id: "sub-agents",   label: "Sub-Agents",     icon: UserMultipleIcon, comingSoon: true, hidden: true },
 ];
@@ -424,7 +425,7 @@ export default function AgentBuilder() {
                   { label: "Đã viết Instructions",     done: true,  section: "instructions" },
                   { label: "Đã chọn Model",             done: true,  section: "model" },
                   { label: "Đã cấu hình Guardrails",    done: agentGuardrailStore.list(id ?? "new").length > 0 || agentGuardrailStore.listAttachedConsoleGuardrailIds(id ?? "new").length > 0, section: "guardrails" },
-                  { label: "Đã cấu hình Kết nối",       done: agentConnectorStore.list(id ?? "new").length > 0, section: "connectors" },
+                  { label: "Đã cấu hình Kết nối",       done: agentConnectorStore.list(id ?? "new").length > 0, section: "instructions" },
                   { label: "Đã thêm Tri thức",          done: knowledgeStore.list(id ?? "new").length > 0 || knowledgeStore.listAttachedConsoleKbIds(id ?? "new").length > 0, section: "knowledge" },
                   ...(agentTriggers.length > 0
                     ? [{ label: "Đã cấu hình Trigger", done: !agentTriggers.some(triggerNeedsSetup), section: "triggers" }]
@@ -505,9 +506,6 @@ export default function AgentBuilder() {
               {tab === "build" && section === "skills" && <SkillsAgentTab agentId={id ?? "new"} />}
               {tab === "build" && section === "triggers" && (
                 <TriggersTab agentId={id ?? "new"} onChange={() => setTriggerTick(t => t + 1)} />
-              )}
-              {tab === "build" && section === "connectors" && (
-                <ConnectionsTab agentId={id ?? "new"} onViewTriggers={() => setSection("triggers")} onChange={() => setConnectionTick(t => t + 1)} />
               )}
               {tab === "test" && <TestTabNotBuilt />}
               {tab === "channels" && <DeployTab agentId={id} onViewTriggers={() => setParams({ tab: "build", section: "triggers" })} />}
@@ -4326,6 +4324,19 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
   void tick;
   const connected = agentConnectorStore.list(agentId).map(c => ({ id: c.connectorId, mode: c.scope }));
 
+  // Custom Connectors ("Custom MCP") this user can see — same ownership-aware filtering as the
+  // Console Connectors page's "Custom Connectors" tab.
+  const accessibleCustomConnectors = customConnectorStore.list().filter(c => isCustomConnectorAccessibleTo(c.sharing, c.ownerId, KB_CURRENT_USER.id));
+  const resolveMeta = (connectorId: string): { name: string; logo: string } | undefined => {
+    const builtin = SUB_AGENT_CONNECTORS.find(x => x.id === connectorId);
+    if (builtin) return { name: builtin.name, logo: builtin.logo };
+    if (connectorId.startsWith(CUSTOM_CONNECTOR_PREFIX)) {
+      const custom = customConnectorStore.get(connectorId.slice(CUSTOM_CONNECTOR_PREFIX.length));
+      if (custom) return { name: custom.name, logo: "🔌" };
+    }
+    return undefined;
+  };
+
   useEffect(() => {
     onRegisterAdd?.((pos: {top:number;left:number}) => { setMenuPos(pos); setShowMenu(true); });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -4348,14 +4359,17 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
 
   const connectedIds = connected.map(c => c.id);
   const toggleConnector = (id: string) => {
+    const isCustom = id.startsWith(CUSTOM_CONNECTOR_PREFIX);
     if (agentConnectorStore.list(agentId).some(c => c.connectorId === id)) {
       agentConnectorStore.remove(agentId, id);
+      if (isCustom) customConnectorStore.removeAttachingAgent(id.slice(CUSTOM_CONNECTOR_PREFIX.length), agentId);
     } else {
       const ok = agentConnectorStore.add(agentId, id, pickerMode);
       if (!ok) {
         toast.error(CONNECTOR_BLOCKED_BY_TRIGGER_REASON());
         return;
       }
+      if (isCustom) customConnectorStore.addAttachingAgent(id.slice(CUSTOM_CONNECTOR_PREFIX.length), agentId);
     }
     setTick(t => t + 1);
     onChange?.();
@@ -4380,7 +4394,7 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
             // Fall back to the raw id instead of silently dropping the row — a connector
             // whose metadata can't be found would otherwise vanish from the list while still
             // sitting in the store, which reads to the Builder as "my connector disappeared".
-            const meta = SUB_AGENT_CONNECTORS.find(x => x.id === c.id);
+            const meta = resolveMeta(c.id);
             return (
               <div key={c.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base">
                 <span className="w-6 h-6 rounded bg-surface-muted border border-border flex items-center justify-center text-[9px] font-bold shrink-0">{meta?.logo ?? "?"}</span>
@@ -4461,11 +4475,13 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
       {showPicker && (
         <ConnectorPickerModal
           connectors={SUB_AGENT_CONNECTORS}
+          customConnectors={accessibleCustomConnectors}
           added={connectedIds}
           onToggle={toggleConnector}
           onClose={() => setShowPicker(false)}
           mode={pickerMode}
           onChangeMode={() => { setShowPicker(false); setShowMenu(true); }}
+          onCreatedCustom={connector => toggleConnector(`${CUSTOM_CONNECTOR_PREFIX}${connector.id}`)}
         />
       )}
     </>
@@ -4908,6 +4924,13 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
 /* ============ Sub-Agents ============ */
 const CONNECTOR_CATEGORIES = ["Tất cả tích hợp", "Giao tiếp", "Năng suất", "Nhà phát triển", "Dữ liệu", "Nghiên cứu", "Khác"];
 
+/** Namespaces a Custom Connector's id when it's attached via agentConnectorStore, so it never
+ * collides with SUB_AGENT_CONNECTORS' plain ids ("gmail", "slack", ...). Shared by
+ * ConnectorsInner (the Instructions-embedded "Kết nối" widget — the only place Custom
+ * Connectors are managed at the Agent level, now that the standalone "Connections" nav tab
+ * is gone) and ConnectorPickerModal. */
+const CUSTOM_CONNECTOR_PREFIX = "custom:";
+
 const SUB_AGENT_CONNECTORS = [
   { id: "drive",    name: "Google Drive", logo: "D",  category: "Năng suất",       connected: true  },
   { id: "sheets",   name: "Sheets",       logo: "Sh", category: "Năng suất",       connected: false },
@@ -5048,17 +5071,48 @@ function InstructionsEditorModal({ value, onClose, onDone }: {
   );
 }
 
-function AddCustomMcpModal({ onClose }: { onClose: () => void }) {
+function AddCustomMcpModal({ onClose, onCreated }: { onClose: () => void; onCreated: (connector: CustomConnector) => void }) {
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
-  const [auth, setAuth] = useState<"none" | "static">("none");
+  const [authType, setAuthType] = useState<ConnectorAuthType>("none");
+  const [headers, setHeaders] = useState<ConnectorHeader[]>([{ key: "", value: "" }]);
+  const [revealed, setRevealed] = useState<Set<number>>(new Set());
+  const [sharingMode, setSharingMode] = useState<CustomConnectorSharingMode>("private");
+  const [people, setPeople] = useState<CustomConnectorSharedPerson[]>([]);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
 
-  const authOptions = [
-    { id: "none" as const,   label: "Không xác thực",        disabled: false },
-    { id: "static" as const, label: "Static Headers",        disabled: false },
-    { id: "oauth-auto",      label: "OAuth 2.1 (Tự động)",   disabled: true },
-    { id: "oauth-manual",    label: "OAuth 2.1 (Thủ công)",  disabled: true },
+  const authOptions: { id: ConnectorAuthType | "oauth-auto" | "oauth-manual"; label: string; disabled: boolean }[] = [
+    { id: "none",           label: "Không xác thực",        disabled: false },
+    { id: "static_headers", label: "Static Headers",        disabled: false },
+    { id: "oauth-auto",     label: "OAuth 2.1 (Tự động)",   disabled: true },
+    { id: "oauth-manual",   label: "OAuth 2.1 (Thủ công)",  disabled: true },
   ];
+  const sharingOptions: { value: CustomConnectorSharingMode; label: string; helper?: string }[] = [
+    { value: "private", label: "Chỉ mình tôi" },
+    { value: "all", label: "Tất cả người dùng Console", helper: "Mọi thành viên Console đều xem và dùng được custom connector này." },
+    { value: "specific", label: "Người dùng cụ thể" },
+  ];
+
+  const duplicateName = name.trim() !== "" && customConnectorStore.isDuplicateName(name);
+  const peopleError = sharingMode === "specific" && people.length === 0;
+  const canSubmit = !!name.trim() && !!url.trim() && !duplicateName && !peopleError;
+
+  const setHeaderField = (i: number, field: "key" | "value", v: string) =>
+    setHeaders(hs => hs.map((h, idx) => (idx === i ? { ...h, [field]: v } : h)));
+  const removeHeader = (i: number) => setHeaders(hs => hs.filter((_, idx) => idx !== i));
+  const toggleReveal = (i: number) =>
+    setRevealed(prev => { const n = new Set(prev); n.has(i) ? n.delete(i) : n.add(i); return n; });
+
+  const submit = () => {
+    setSubmitAttempted(true);
+    if (!canSubmit) return;
+    const sharing: CustomConnectorSharingShape = { mode: sharingMode, people: sharingMode === "specific" ? people : [] };
+    const connector = customConnectorStore.create({
+      name: name.trim(), url: url.trim(), authType,
+      headers: headers.filter(h => h.key.trim()), sharing,
+    });
+    onCreated(connector);
+  };
 
   return createPortal(
     <div className="fixed inset-0 z-[10001] flex items-center justify-center p-4">
@@ -5075,11 +5129,6 @@ function AddCustomMcpModal({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-4">
-          <div className="flex items-start gap-2.5 px-3.5 py-3 rounded-xl bg-surface-muted/60">
-            <HugeiconsIcon icon={UserGroupIcon} size={16} className="text-muted-foreground shrink-0 mt-0.5" />
-            <p className="text-xs text-muted-foreground leading-relaxed">Kết nối dùng chung: agent luôn dùng tài khoản của workspace cho server này.</p>
-          </div>
-
           <div>
             <p className="text-sm font-semibold mb-1.5">Tên</p>
             <input
@@ -5089,6 +5138,7 @@ function AddCustomMcpModal({ onClose }: { onClose: () => void }) {
               placeholder="my-mcp-server"
               className="ds-input w-full"
             />
+            {duplicateName && <p className="text-xs text-destructive mt-1.5">Đã có custom connector với tên này.</p>}
           </div>
 
           <div>
@@ -5105,31 +5155,109 @@ function AddCustomMcpModal({ onClose }: { onClose: () => void }) {
             <p className="text-sm font-semibold mb-2">Xác thực</p>
             <div className="flex flex-col gap-2.5">
               {authOptions.map(opt => (
-                <label key={opt.id} className={`flex items-center gap-2.5 ${opt.disabled ? "cursor-not-allowed" : "cursor-pointer"}`}>
-                  <input
-                    type="radio"
-                    name="mcp-auth"
-                    disabled={opt.disabled}
-                    checked={auth === opt.id}
-                    onChange={() => !opt.disabled && setAuth(opt.id as "none" | "static")}
-                    className="w-4 h-4 accent-primary"
-                  />
-                  <span className={`text-sm ${opt.disabled ? "text-muted-foreground" : "text-foreground"}`}>
-                    {opt.label}
-                    {opt.disabled && <span className="text-muted-foreground"> · Sắp có</span>}
-                  </span>
-                </label>
+                <div key={opt.id}>
+                  <label className={`flex items-center gap-2.5 ${opt.disabled ? "cursor-not-allowed" : "cursor-pointer"}`}>
+                    <input
+                      type="radio"
+                      name="mcp-auth"
+                      disabled={opt.disabled}
+                      checked={authType === opt.id}
+                      onChange={() => !opt.disabled && setAuthType(opt.id as ConnectorAuthType)}
+                      className="w-4 h-4 accent-primary"
+                    />
+                    <span className={`text-sm ${opt.disabled ? "text-muted-foreground" : "text-foreground"}`}>
+                      {opt.label}
+                      {opt.disabled && <span className="text-muted-foreground"> · Sắp có</span>}
+                    </span>
+                  </label>
+                  {authType === opt.id && opt.id === "static_headers" && (
+                    <div className="mt-2 pl-6 space-y-2">
+                      {headers.map((h, i) => (
+                        <div key={i} className="flex items-center gap-1.5">
+                          <input
+                            value={h.key}
+                            onChange={e => setHeaderField(i, "key", e.target.value)}
+                            placeholder="Authorization"
+                            className="ds-input flex-1 h-9"
+                          />
+                          <div className="relative flex-1">
+                            <input
+                              type={revealed.has(i) ? "text" : "password"}
+                              value={h.value}
+                              onChange={e => setHeaderField(i, "value", e.target.value)}
+                              placeholder="Bearer ..."
+                              className="ds-input w-full h-9 pr-10"
+                            />
+                            <button type="button" onClick={() => toggleReveal(i)} className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-muted-foreground hover:text-foreground">
+                              {revealed.has(i) ? "Ẩn" : "Hiện"}
+                            </button>
+                          </div>
+                          <button type="button" onClick={() => removeHeader(i)} className="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-muted hover:text-destructive transition-base">
+                            <HugeiconsIcon icon={Delete01Icon} size={13} />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setHeaders(hs => [...hs, { key: "", value: "" }])}
+                        className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                      >
+                        <HugeiconsIcon icon={Add01Icon} size={12} /> Thêm header
+                      </button>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Key dùng chung tuỳ chọn cho cả workspace. Để trống để mỗi người tự kết nối riêng ở Workspace.
+                      </p>
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
             <p className="text-xs text-muted-foreground mt-2.5 leading-relaxed">Dùng static headers (ví dụ API key) để xác thực. OAuth 2.1 sắp ra mắt.</p>
+          </div>
+
+          <div>
+            <p className="text-sm font-semibold mb-2">Ai có quyền truy cập</p>
+            <div className="flex flex-col gap-2">
+              {sharingOptions.map(opt => {
+                const selected = sharingMode === opt.value;
+                return (
+                  <div key={opt.value}>
+                    <div
+                      onClick={() => setSharingMode(opt.value)}
+                      className={`flex items-start gap-3 px-3.5 py-3 rounded-xl border cursor-pointer transition-base ${
+                        selected ? "border-primary bg-primary/5" : "border-border bg-white hover:bg-surface-muted"
+                      }`}
+                    >
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${selected ? "border-primary" : "border-border"}`}>
+                        {selected && <div className="w-2 h-2 rounded-full bg-primary" />}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium">{opt.label}</div>
+                        {opt.helper && <div className="text-xs text-muted-foreground mt-0.5">{opt.helper}</div>}
+                      </div>
+                    </div>
+                    {selected && opt.value === "specific" && (
+                      <div className="mt-2 pl-3.5">
+                        <CustomConnectorMemberPicker
+                          value={people}
+                          onChange={setPeople}
+                          ownerRow={{ name: KB_CURRENT_USER.name, email: KB_CURRENT_USER.email }}
+                        />
+                        {peopleError && submitAttempted && <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người để chia sẻ.</p>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
 
         <div className="flex items-center justify-end gap-2 px-6 py-4 shrink-0">
           <button onClick={onClose} className="btn-secondary">Huỷ</button>
           <button
-            disabled={!name.trim() || !url.trim()}
-            onClick={onClose}
+            disabled={!canSubmit}
+            onClick={submit}
             className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Lưu server
@@ -5141,8 +5269,13 @@ function AddCustomMcpModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-function ConnectorPickerModal({ connectors, added, onToggle, onClose, mode, onChangeMode }: {
+function ConnectorPickerModal({ connectors, customConnectors, added, onToggle, onClose, mode, onChangeMode, onCreatedCustom }: {
   connectors: { id: string; name: string; logo: string; category: string; connected: boolean }[];
+  /** Console Custom Connectors this user can see — merged into the grid below so a builder can
+   * attach one without leaving this picker, same list the Console Connectors page's "Custom
+   * Connectors" tab shows. Omitted by callers that don't offer Custom Connectors yet (e.g. the
+   * Sub-Agents picker). */
+  customConnectors?: CustomConnector[];
   added: string[];
   onToggle: (id: string) => void;
   onClose: () => void;
@@ -5150,18 +5283,25 @@ function ConnectorPickerModal({ connectors, added, onToggle, onClose, mode, onCh
    * don't have the concept of connector scope (e.g. the Sub-Agents picker). */
   mode?: ConnectorScope;
   onChangeMode?: () => void;
+  /** Fired after "Thêm MCP tuỳ chỉnh" actually creates a Console Custom Connector — the caller
+   * decides whether/how to attach it (e.g. toggling it on for this agent). */
+  onCreatedCustom?: (connector: CustomConnector) => void;
 }) {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("Tất cả tích hợp");
   const [catOpen, setCatOpen] = useState(false);
   const [showCustomMcp, setShowCustomMcp] = useState(false);
   const catRef = useRef<HTMLDivElement>(null);
-  const allSelected = connectors.length > 0 && connectors.every(c => added.includes(c.id));
+  const allConnectors = useMemo(() => [
+    ...connectors,
+    ...(customConnectors ?? []).map(c => ({ id: `${CUSTOM_CONNECTOR_PREFIX}${c.id}`, name: c.name, logo: "🔌", category: "Khác", connected: false })),
+  ], [connectors, customConnectors]);
+  const allSelected = allConnectors.length > 0 && allConnectors.every(c => added.includes(c.id));
   const toggleAll = () => {
-    if (allSelected) { connectors.forEach(c => { if (added.includes(c.id)) onToggle(c.id); }); }
-    else { connectors.forEach(c => { if (!added.includes(c.id)) onToggle(c.id); }); }
+    if (allSelected) { allConnectors.forEach(c => { if (added.includes(c.id)) onToggle(c.id); }); }
+    else { allConnectors.forEach(c => { if (!added.includes(c.id)) onToggle(c.id); }); }
   };
-  const filtered = connectors.filter(c =>
+  const filtered = allConnectors.filter(c =>
     (!search || c.name.toLowerCase().includes(search.toLowerCase())) &&
     (activeCategory === "Tất cả tích hợp" || c.category === activeCategory)
   );
@@ -5294,7 +5434,10 @@ function ConnectorPickerModal({ connectors, added, onToggle, onClose, mode, onCh
       </div>
 
       {showCustomMcp && (
-        <AddCustomMcpModal onClose={() => setShowCustomMcp(false)} />
+        <AddCustomMcpModal
+          onClose={() => setShowCustomMcp(false)}
+          onCreated={connector => { setShowCustomMcp(false); onCreatedCustom?.(connector); }}
+        />
       )}
     </div>,
     document.body
