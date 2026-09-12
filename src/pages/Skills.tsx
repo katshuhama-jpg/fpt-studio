@@ -292,6 +292,9 @@ export default function Skills() {
                   ) : (
                     <div className="text-xs text-muted-foreground mt-3">Chia sẻ bởi {s.ownerName}</div>
                   )}
+                  {s.attachedByAgentIds.length > 0 && (
+                    <div className="text-xs text-muted-foreground mt-1.5">{s.attachedByAgentIds.length} Agent đang dùng</div>
+                  )}
                 </div>
                 );
               })}
@@ -323,6 +326,9 @@ export default function Skills() {
                   <div className="flex items-center gap-1 shrink-0">
                     <ShareStatusChip skill={s} />
                   </div>
+                )}
+                {s.attachedByAgentIds.length > 0 && (
+                  <div className="text-xs text-muted-foreground shrink-0">{s.attachedByAgentIds.length} Agent</div>
                 )}
                 {menuFor(s)}
               </div>

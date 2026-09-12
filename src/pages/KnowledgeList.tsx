@@ -138,6 +138,7 @@ function KbCard({ kb, userId, access, onOpen, onEdit, onShare, onDelete }: {
       </p>
       <div className="mt-auto pt-3 border-t border-border text-xs text-muted-foreground">
         {!isOwner && `Chia sẻ bởi ${kb.ownerName} · `}{relativeTime(kb.updatedAt)}
+        {kb.attachedByAgentIds.length > 0 && ` · ${kb.attachedByAgentIds.length} Agent đang dùng`}
       </div>
     </div>
   );

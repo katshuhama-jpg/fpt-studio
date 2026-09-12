@@ -1,5 +1,7 @@
 import { useState, useMemo } from "react";
-import { Search, CheckCircle2, ChevronRight, Plug, MoreVertical, AlertTriangle } from "lucide-react";
+import { createPortal } from "react-dom";
+import { toast } from "sonner";
+import { Search, CheckCircle2, ChevronRight, Plug, MoreVertical, AlertTriangle, X } from "lucide-react";
 import { useGroupAccess, isOwnedOrShared } from "@/pages/organization/scopeAccess";
 import { CURRENT_USER } from "@/components/knowledge/knowledgeBaseStore";
 import { customConnectorStore, type CustomConnector } from "@/components/configure/customConnectorStore";
@@ -122,6 +124,17 @@ export default function WorkspaceConnectors() {
   const [showAddCustom, setShowAddCustom] = useState(false);
   const [shareTarget, setShareTarget] = useState<CustomConnector | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CustomConnector | null>(null);
+
+  // Marketplace connector cards used to be dead clicks (cursor-pointer + chevron with no
+  // onClick at all). `disconnected` is a session-local override so "Ngắt kết nối" from the
+  // detail modal below actually does something, without standing up a full persisted store
+  // for a static seed array.
+  const [detailTarget, setDetailTarget] = useState<Connector | null>(null);
+  const [disconnected, setDisconnected] = useState<Set<string>>(new Set());
+  const effectiveConnectors = useMemo(
+    () => CONNECTORS.map(c => (disconnected.has(c.id) ? { ...c, connected: false } : c)),
+    [disconnected],
+  );
   const customConnectors = customConnectorStore.list();
   const accessibleCustomConnectors = customConnectors.filter(c => isCustomConnectorAccessibleTo(c.sharing, c.ownerId, CURRENT_USER.id));
 
@@ -132,11 +145,11 @@ export default function WorkspaceConnectors() {
   const isConnectorVisible = (c: Connector) =>
     !c.connected || access.canSeeAll || isOwnedOrShared(c, access.userId);
 
-  const requested = CONNECTORS.filter(c => c.category === "requested" && isConnectorVisible(c));
+  const requested = effectiveConnectors.filter(c => c.category === "requested" && isConnectorVisible(c));
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
-    return CONNECTORS.filter(c => {
+    return effectiveConnectors.filter(c => {
       if (c.category === "requested") return false;
       if (!isConnectorVisible(c)) return false;
       if (tab === "connected" && !c.connected) return false;
@@ -145,7 +158,7 @@ export default function WorkspaceConnectors() {
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, query, access.canSeeAll, access.userId]);
+  }, [tab, query, access.canSeeAll, access.userId, effectiveConnectors]);
 
   return (
     <div className="px-8 py-8 max-w-[1200px] mx-auto animate-fade-up">
@@ -200,7 +213,13 @@ export default function WorkspaceConnectors() {
                 Agents are requesting connections
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {requested.map(c => <ConnectorCard key={c.id} connector={c} />)}
+                {requested.map(c => (
+                  <ConnectorCard
+                    key={c.id}
+                    connector={c}
+                    onOpen={() => (c.connected ? setDetailTarget(c) : toast.info(`Tích hợp ${c.name} sắp ra mắt — theo dõi để cập nhật khi có nhé.`))}
+                  />
+                ))}
               </div>
               <div className="mt-6 mb-2 border-t border-border" />
             </div>
@@ -216,7 +235,13 @@ export default function WorkspaceConnectors() {
                   <span>{cat.icon}</span>{cat.label}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {items.map(c => <ConnectorCard key={c.id} connector={c} />)}
+                  {items.map(c => (
+                    <ConnectorCard
+                      key={c.id}
+                      connector={c}
+                      onOpen={() => (c.connected ? setDetailTarget(c) : toast.info(`Tích hợp ${c.name} sắp ra mắt — theo dõi để cập nhật khi có nhé.`))}
+                    />
+                  ))}
                 </div>
               </div>
             );
@@ -308,14 +333,31 @@ export default function WorkspaceConnectors() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {detailTarget && (
+        <ConnectorDetailModal
+          connector={detailTarget}
+          onClose={() => setDetailTarget(null)}
+          onDisconnect={() => {
+            setDisconnected(prev => new Set(prev).add(detailTarget.id));
+            toast.success(`Đã ngắt kết nối ${detailTarget.name}.`);
+            setDetailTarget(null);
+          }}
+        />
+      )}
     </div>
   );
 }
 
 /* ─── Connector card (Marketplace) ───────────────────── */
-function ConnectorCard({ connector: c }: { connector: Connector }) {
+function ConnectorCard({ connector: c, onOpen }: { connector: Connector; onOpen: () => void }) {
   return (
-    <div className={`flex items-start gap-3 p-4 rounded-xl border bg-surface transition-base cursor-pointer hover:border-primary/40 hover:bg-primary-soft/10 ${
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={e => { if (e.key === "Enter") onOpen(); }}
+      className={`flex items-start gap-3 p-4 rounded-xl border bg-surface transition-base cursor-pointer hover:border-primary/40 hover:bg-primary-soft/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
       c.connected ? "border-primary/30" : "border-border"
     }`}>
       <div className="w-10 h-10 rounded-xl border border-border bg-white flex items-center justify-center shrink-0 overflow-hidden p-1">
@@ -386,9 +428,87 @@ function CustomConnectorCard({ connector: c, isMine, onShare, onDelete }: {
           )}
         </div>
         <p className="text-xs text-muted-foreground truncate">{c.url}</p>
-        <p className="text-[11px] text-muted-foreground mt-1">{AUTH_LABEL[c.authType]}</p>
+        <p className="text-[11px] text-muted-foreground mt-1">
+          {AUTH_LABEL[c.authType]}
+          {c.attachedByAgentIds.length > 0 && ` · ${c.attachedByAgentIds.length} Agent đang dùng`}
+        </p>
       </div>
       <CustomConnectorRowMenu onShare={onShare} onDelete={onDelete} />
     </div>
+  );
+}
+
+/* ─── Connector detail modal (Marketplace, connected only) ───────────────
+ * Marketplace connector cards used to render a hover state + chevron with no
+ * click handler at all — a dead end. This gives "connected" cards somewhere
+ * real to go: which Agents depend on it, and a way to disconnect. */
+function ConnectorDetailModal({ connector, onClose, onDisconnect }: {
+  connector: Connector; onClose: () => void; onDisconnect: () => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  return createPortal(
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative w-full max-w-[480px] bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh] animate-fade-up">
+        <div className="flex items-start justify-between px-6 py-5 border-b border-border shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl border border-border bg-white flex items-center justify-center shrink-0 overflow-hidden p-1">
+              <img src={connector.logo} alt={connector.name} className="w-full h-full object-contain" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="font-display text-lg font-semibold truncate">{connector.name}</h2>
+              <p className="text-xs text-success font-medium flex items-center gap-1 mt-0.5"><CheckCircle2 size={12} /> Đã kết nối</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base mt-0.5 shrink-0">
+            <X size={15} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
+          <p className="text-sm text-muted-foreground leading-relaxed">{connector.desc}</p>
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Agent đang dùng connector này</p>
+            {connector.requestedBy && connector.requestedBy.length > 0 ? (
+              <div className="flex flex-col gap-1.5">
+                {connector.requestedBy.map(name => (
+                  <div key={name} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-surface text-sm">
+                    <span className="w-6 h-6 rounded-full bg-primary-soft text-primary flex items-center justify-center text-[10px] font-bold shrink-0">{name.slice(0, 1).toUpperCase()}</span>
+                    {name}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Chưa có Agent nào dùng connector này.</p>
+            )}
+          </div>
+          {confirming && (
+            <div className="flex items-start gap-2.5 rounded-lg border border-destructive/25 bg-[hsl(var(--destructive-soft))] px-3.5 py-3">
+              <AlertTriangle size={14} className="shrink-0 mt-0.5 text-destructive" />
+              <p className="text-xs text-destructive leading-relaxed">
+                Ngắt kết nối {connector.name}? {connector.requestedBy && connector.requestedBy.length > 0
+                  ? `${connector.requestedBy.length} Agent (${connector.requestedBy.join(", ")}) `
+                  : "Các Agent đang dùng connector này "}sẽ mất quyền truy cập ngay lập tức.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-border shrink-0">
+          {confirming ? (
+            <>
+              <button onClick={() => setConfirming(false)} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Hủy bỏ</button>
+              <button onClick={onDisconnect} className="h-9 px-4 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 text-sm font-medium transition-base">Ngắt kết nối</button>
+            </>
+          ) : (
+            <>
+              <button onClick={() => setConfirming(true)} className="h-9 px-4 rounded-lg border border-destructive/30 text-destructive hover:bg-destructive/5 text-sm font-medium transition-base">Ngắt kết nối</button>
+              <button onClick={onClose} className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium transition-base">Đóng</button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }
