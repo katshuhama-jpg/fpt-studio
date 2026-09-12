@@ -10,6 +10,10 @@ import AddCustomConnectorModal from "@/components/configure/AddCustomConnectorMo
 import CustomConnectorShareModal from "@/components/configure/CustomConnectorShareModal";
 import { getAgent } from "@/components/configure/agentStore";
 import {
+  CONNECTOR_TEMPLATES, connectorTemplateStore, type ConnectorTemplateDef,
+} from "@/components/configure/connectorTemplateStore";
+import { ConnectorTemplateConnectModal, ConnectorTemplateManageModal } from "@/components/configure/ConnectorTemplateModals";
+import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
@@ -136,6 +140,11 @@ export default function WorkspaceConnectors() {
   const [shareTarget, setShareTarget] = useState<CustomConnector | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CustomConnector | null>(null);
   const [customTab, setCustomTab] = useState<CustomTab>("all");
+
+  // Connector Templates — internal FPT systems (FCI CRM/Member/Tickets) that moved out of
+  // Marketplace into Custom Connectors as pre-built templates (see connectorTemplateStore.ts).
+  const [connectTemplate, setConnectTemplate] = useState<ConnectorTemplateDef | null>(null);
+  const [manageTemplate, setManageTemplate] = useState<ConnectorTemplateDef | null>(null);
 
   // Marketplace connector cards used to be dead clicks (cursor-pointer + chevron with no
   // onClick at all). `disconnected` is a session-local override so "Ngắt kết nối" from the
@@ -281,6 +290,52 @@ export default function WorkspaceConnectors() {
 
       {section === "custom" && (
         <div>
+          {/* Connector Templates — pre-built by FPT (FCI CRM/Member/Tickets), distinct from the
+           * MCP connectors below that a user adds themselves. Kept as its own section with its
+           * own heading so the two kinds of "Custom" aren't visually mixed into one list. */}
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              <span>🏢</span>Connector Templates nội bộ
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">Các hệ thống nội bộ FPT dựng sẵn — chỉ cần điền credential để kết nối, không cần tự cấu hình MCP server.</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {CONNECTOR_TEMPLATES.map(t => {
+                const connected = connectorTemplateStore.isConnected(t.id);
+                return (
+                  <div
+                    key={t.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => (connected ? setManageTemplate(t) : setConnectTemplate(t))}
+                    onKeyDown={e => { if (e.key === "Enter") (connected ? setManageTemplate(t) : setConnectTemplate(t)); }}
+                    className={`flex items-start gap-3 p-4 rounded-xl border bg-surface transition-base cursor-pointer hover:border-primary/40 hover:bg-primary-soft/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                      connected ? "border-primary/30" : "border-border"
+                    }`}
+                  >
+                    <div className="w-10 h-10 rounded-xl border border-border bg-white flex items-center justify-center shrink-0 text-sm font-semibold text-muted-foreground">
+                      {t.name.slice(0, 1)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-sm font-medium">{t.name}</span>
+                        {connected && <CheckCircle2 size={13} className="text-success shrink-0" />}
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{t.desc}</p>
+                      {connected && (
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                          {connectorTemplateStore.listAccounts(t.id).length} credential đã kết nối
+                        </p>
+                      )}
+                    </div>
+                    <ChevronRight size={14} className="text-muted-foreground shrink-0 mt-0.5" />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mt-2 mb-5 border-t border-border" />
+
           <div className="flex items-center justify-between gap-3 mb-5">
             <p className="text-sm text-muted-foreground">Thêm một MCP server để cấp công cụ của nó cho Agent của bạn.</p>
             <button
@@ -398,6 +453,22 @@ export default function WorkspaceConnectors() {
             toast.success(`Đã ngắt kết nối ${detailTarget.name}.`);
             setDetailTarget(null);
           }}
+        />
+      )}
+
+      {connectTemplate && (
+        <ConnectorTemplateConnectModal
+          template={connectTemplate}
+          onClose={() => setConnectTemplate(null)}
+          onConnected={() => { setConnectTemplate(null); refresh(); }}
+        />
+      )}
+
+      {manageTemplate && (
+        <ConnectorTemplateManageModal
+          template={manageTemplate}
+          onClose={() => setManageTemplate(null)}
+          onChanged={refresh}
         />
       )}
     </div>
