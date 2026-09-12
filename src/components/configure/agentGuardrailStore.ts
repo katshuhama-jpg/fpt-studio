@@ -9,11 +9,19 @@ import type { Sharing } from "./guardrailSharing";
 const STORE_KEY = "agent_guardrail_store_v1";
 const ATTACHED_KEY = "agent_guardrail_attached_v1";
 const SEEDED_KEY = "agent_guardrail_store_seeded_v1";
+// Per-Agent "Kích hoạt" state (Round 8: sync with Knowledge's per-Agent activate toggle) —
+// keyed by `${agentId}:${guardrailId}` for BOTH this Agent's own guardrails and any Console
+// guardrail it has linked, so one Agent turning a shared guardrail off never affects another
+// Agent using the same guardrail, and is independent from the Console-level `enabled` flag
+// (WorkspaceGuardrails.tsx STATUS column), which is a global on/off for every Agent.
+const ACTIVE_KEY = "agent_guardrail_active_v1";
 const store = loadMap<string, Guardrail>(STORE_KEY);
 const attached = loadMap<string, string[]>(ATTACHED_KEY);
+const active = loadMap<string, boolean>(ACTIVE_KEY);
 const k = (agentId: string, id: string) => `${agentId}:${id}`;
 const persist = () => saveMap(STORE_KEY, store);
 const persistAttached = () => saveMap(ATTACHED_KEY, attached);
+const persistActive = () => saveMap(ACTIVE_KEY, active);
 
 /** Matches guardrailConsoleStore.ts's seed, which already lists "cskh" in g-4's and g-7's own
  * `attachedByAgentIds` — without this, a fresh session would show those two as linked on the
@@ -97,6 +105,16 @@ export const agentGuardrailStore = {
     attached.set(agentId, cur);
     persistAttached();
     guardrailConsoleStore.removeAttachingAgent(guardrailId, agentId);
+  },
+
+  // --- Per-Agent "Kích hoạt" (independent of Console-level `enabled`) ---
+  isActive(agentId: string, id: string): boolean {
+    const v = active.get(k(agentId, id));
+    return v ?? true;
+  },
+  setActive(agentId: string, id: string, val: boolean) {
+    active.set(k(agentId, id), val);
+    persistActive();
   },
 
   /** Creates a new Console guardrail from this Agent-private one, then re-links the Agent to

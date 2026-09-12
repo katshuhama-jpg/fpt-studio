@@ -1159,7 +1159,7 @@ function MoreLink({ count, onClick }: { count: number; onClick: () => void }) {
 const KNOWLEDGE_SOURCE_ROW_MENU_WIDTH = 176; // w-44
 const KNOWLEDGE_SOURCE_ROW_MENU_HEIGHT_ESTIMATE = 90; // 2 items + container padding
 
-function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, openLabel = "Mở nguồn tri thức", removeLabel = "Gỡ nguồn tri thức", disabled = false, disabledReason = "Nguồn tri thức đang được xử lý.", href, twoLine = false, hideOpen = false }: {
+function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, openLabel = "Mở nguồn tri thức", removeLabel = "Gỡ nguồn tri thức", disabled = false, disabledReason = "Nguồn tri thức đang được xử lý.", href, twoLine = false, hideOpen = false, toggle }: {
   icon: any; name: string; chip: React.ReactNode; onOpen: () => void; onRemove: () => void;
   openLabel?: string; removeLabel?: string; disabled?: boolean; disabledReason?: string;
   /** When set, opens in a new tab via a real anchor instead of calling onOpen in-place — used
@@ -1175,6 +1175,10 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, openLabel = "M
    * the remove action remains. Viewing/editing content happens on the full Knowledge screen or
    * in Console. */
   hideOpen?: boolean;
+  /** Optional per-Agent "Kích hoạt" switch rendered next to the chip — mirrors the toggle on
+   * the Knowledge tab's AgentKbCard so Guardrails/Skills rows offer the same per-Agent
+   * activate/deactivate control without a separate row layout. */
+  toggle?: { checked: boolean; onCheckedChange: (v: boolean) => void; tooltip?: string };
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
@@ -1232,6 +1236,17 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, openLabel = "M
     </div>
   );
 
+  const toggleEl = toggle ? (
+    <label
+      className="flex items-center gap-1 shrink-0 cursor-pointer"
+      onClick={e => e.stopPropagation()}
+      title={toggle.tooltip}
+    >
+      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Kích hoạt</span>
+      <Switch checked={toggle.checked} onCheckedChange={toggle.onCheckedChange} />
+    </label>
+  ) : null;
+
   const actionsMenu = (
     <div className={`relative shrink-0 ${twoLine ? "self-center" : ""}`} onClick={e => { e.preventDefault(); e.stopPropagation(); }}>
       <button
@@ -1254,6 +1269,7 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, openLabel = "M
         <div className={`text-sm font-medium truncate ${disabled ? "text-muted-foreground" : ""}`} title={name}>{name}</div>
         <div className="flex items-center gap-1 mt-1">{chip}</div>
       </div>
+      {toggleEl}
       {actionsMenu}
     </>
   ) : (
@@ -1261,6 +1277,7 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, openLabel = "M
       <HugeiconsIcon icon={icon} size={13} className="text-muted-foreground shrink-0" />
       <span className={`text-sm font-medium flex-1 truncate ${disabled ? "text-muted-foreground" : ""}`} title={name}>{name}</span>
       <span className="shrink-0">{chip}</span>
+      {toggleEl}
       {actionsMenu}
     </>
   );
@@ -6144,17 +6161,23 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
         ) : (
           <div className="space-y-2 mb-4">
             {filteredLinked.map(g => (
-              <KnowledgeSourceRow
-                key={g.id}
-                icon={Shield01Icon}
-                name={g.name}
-                chip={<div className="flex items-center gap-1 shrink-0"><GuardrailOwnershipTag g={g} userId={currentUser.id} /></div>}
-                onOpen={() => {}}
-                href={`/guardrails?open=${g.id}`}
-                onRemove={() => setDetachTarget({ id: g.id, name: g.name })}
-                openLabel="Mở guardrail"
-                removeLabel="Gỡ liên kết"
-              />
+              <div key={g.id} className={agentGuardrailStore.isActive(agentId, g.id) ? "" : "opacity-55"}>
+                <KnowledgeSourceRow
+                  icon={Shield01Icon}
+                  name={g.name}
+                  chip={<div className="flex items-center gap-1 shrink-0"><GuardrailOwnershipTag g={g} userId={currentUser.id} /></div>}
+                  onOpen={() => {}}
+                  href={`/guardrails?open=${g.id}`}
+                  onRemove={() => setDetachTarget({ id: g.id, name: g.name })}
+                  openLabel="Mở guardrail"
+                  removeLabel="Gỡ liên kết"
+                  toggle={{
+                    checked: agentGuardrailStore.isActive(agentId, g.id),
+                    onCheckedChange: v => { agentGuardrailStore.setActive(agentId, g.id, v); refresh(); },
+                    tooltip: "Bật/tắt: Agent này có áp dụng guardrail này khi phản hồi hay không.",
+                  }}
+                />
+              </div>
             ))}
           </div>
         )}
@@ -6186,7 +6209,7 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
         ) : (
           <div className="space-y-2">
             {filteredItems.map(g => (
-              <div key={g.id} className="flex items-start gap-3 px-3.5 py-3 rounded-lg border border-border bg-surface">
+              <div key={g.id} className={`flex items-start gap-3 px-3.5 py-3 rounded-lg border border-border bg-surface ${agentGuardrailStore.isActive(agentId, g.id) ? "" : "opacity-55"}`}>
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-medium">{g.name}</div>
                   <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed line-clamp-2">{g.desc}</div>
@@ -6195,6 +6218,13 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
                     <GuardrailOwnershipTag g={g} userId={currentUser.id} />
                   </div>
                 </div>
+                <label className="flex items-center gap-1 shrink-0 cursor-pointer self-start mt-0.5" title="Bật/tắt: Agent này có áp dụng guardrail này khi phản hồi hay không.">
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Kích hoạt</span>
+                  <Switch
+                    checked={agentGuardrailStore.isActive(agentId, g.id)}
+                    onCheckedChange={v => { agentGuardrailStore.setActive(agentId, g.id, v); refresh(); }}
+                  />
+                </label>
                 <GuardrailAgentItemRowMenu
                   onEdit={() => setEditTarget(g)}
                   onShare={() => setShareTarget(g)}
@@ -6335,17 +6365,23 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
         ) : (
           <div className="space-y-2 mb-4">
             {filteredLinked.map(s => (
-              <KnowledgeSourceRow
-                key={s.id}
-                icon={PuzzleIcon}
-                name={s.name}
-                chip={<div className="flex items-center gap-1 shrink-0"><SkillOwnershipTag skill={s} userId={currentUser.id} /></div>}
-                onOpen={() => {}}
-                href={`/tools/${s.id}`}
-                onRemove={() => setDetachTarget({ id: s.id, name: s.name })}
-                openLabel="Mở skill"
-                removeLabel="Gỡ liên kết"
-              />
+              <div key={s.id} className={agentSkillStore.isActive(agentId, s.id) ? "" : "opacity-55"}>
+                <KnowledgeSourceRow
+                  icon={PuzzleIcon}
+                  name={s.name}
+                  chip={<div className="flex items-center gap-1 shrink-0"><SkillOwnershipTag skill={s} userId={currentUser.id} /></div>}
+                  onOpen={() => {}}
+                  href={`/tools/${s.id}`}
+                  onRemove={() => setDetachTarget({ id: s.id, name: s.name })}
+                  openLabel="Mở skill"
+                  removeLabel="Gỡ liên kết"
+                  toggle={{
+                    checked: agentSkillStore.isActive(agentId, s.id),
+                    onCheckedChange: v => { agentSkillStore.setActive(agentId, s.id, v); refresh(); },
+                    tooltip: "Bật/tắt: Agent này có dùng skill này hay không.",
+                  }}
+                />
+              </div>
             ))}
           </div>
         )}
@@ -6377,7 +6413,7 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
         ) : (
           <div className="space-y-2">
             {filteredItems.map(s => (
-              <div key={s.id} className="flex items-start gap-3 px-3.5 py-3 rounded-lg border border-border bg-surface">
+              <div key={s.id} className={`flex items-start gap-3 px-3.5 py-3 rounded-lg border border-border bg-surface ${agentSkillStore.isActive(agentId, s.id) ? "" : "opacity-55"}`}>
                 <span className="w-8 h-8 rounded-md flex items-center justify-center text-base shrink-0" style={{ background: s.iconBg }}>{s.icon}</span>
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-medium">{s.name}</div>
@@ -6386,6 +6422,13 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
                     <SkillOwnershipTag skill={s} userId={currentUser.id} />
                   </div>
                 </div>
+                <label className="flex items-center gap-1 shrink-0 cursor-pointer self-start mt-0.5" title="Bật/tắt: Agent này có dùng skill này hay không.">
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Kích hoạt</span>
+                  <Switch
+                    checked={agentSkillStore.isActive(agentId, s.id)}
+                    onCheckedChange={v => { agentSkillStore.setActive(agentId, s.id, v); refresh(); }}
+                  />
+                </label>
                 <SkillAgentItemRowMenu
                   onEdit={() => setEditTarget(s)}
                   onShare={() => setShareTarget(s)}

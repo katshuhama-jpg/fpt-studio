@@ -7,11 +7,18 @@ import type { Sharing } from "./skillSharing";
 
 const STORE_KEY = "agent_skill_store_v1";
 const ATTACHED_KEY = "agent_skill_attached_v1";
+// Per-Agent "Kích hoạt" state (Round 8: sync with Knowledge's per-Agent activate toggle) —
+// keyed by `${agentId}:${skillId}` for BOTH this Agent's own skills and any Console skill it
+// has linked, so one Agent turning a shared skill off never affects another Agent using the
+// same skill. Skill has no Console-level enabled concept, so this is the only on/off state.
+const ACTIVE_KEY = "agent_skill_active_v1";
 const store = loadMap<string, Skill>(STORE_KEY);
 const attached = loadMap<string, string[]>(ATTACHED_KEY);
+const active = loadMap<string, boolean>(ACTIVE_KEY);
 const k = (agentId: string, id: string) => `${agentId}:${id}`;
 const persist = () => saveMap(STORE_KEY, store);
 const persistAttached = () => saveMap(ATTACHED_KEY, attached);
+const persistActive = () => saveMap(ACTIVE_KEY, active);
 
 export const agentSkillStore = {
   list(agentId: string): Skill[] {
@@ -71,6 +78,16 @@ export const agentSkillStore = {
     const cur = (attached.get(agentId) ?? []).filter(id => id !== skillId);
     attached.set(agentId, cur);
     persistAttached();
+  },
+
+  // --- Per-Agent "Kích hoạt" ---
+  isActive(agentId: string, id: string): boolean {
+    const v = active.get(k(agentId, id));
+    return v ?? true;
+  },
+  setActive(agentId: string, id: string, val: boolean) {
+    active.set(k(agentId, id), val);
+    persistActive();
   },
 
   /** Creates a new Console skill from this Agent-private one, then re-links the Agent to it. */
