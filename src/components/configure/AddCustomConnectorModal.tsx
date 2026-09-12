@@ -48,10 +48,23 @@ export default function AddCustomConnectorModal({ editing, onClose, onCreated, o
   const [sharingMode, setSharingMode] = useState<SharingMode>(editing?.sharing.mode ?? "private");
   const [people, setPeople] = useState<SharedPerson[]>(editing?.sharing.people ?? []);
   const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [urlTouched, setUrlTouched] = useState(false);
 
   const duplicateName = name.trim() !== "" && customConnectorStore.isDuplicateName(name, editing?.id);
+  // Matches the real product's own "Add custom MCP" validation (console-agents.fpt.ai/connectors):
+  // the URL must parse as a well-formed http(s) URL, checked on blur — this prototype used to
+  // accept any non-empty string here, so a typo'd URL silently saved with no feedback.
+  const isValidHttpUrl = (v: string) => {
+    try {
+      const u = new URL(v.trim());
+      return u.protocol === "http:" || u.protocol === "https:";
+    } catch {
+      return false;
+    }
+  };
+  const urlError = url.trim() !== "" && !isValidHttpUrl(url);
   const peopleError = sharingMode === "specific" && people.length === 0;
-  const canSubmit = !!name.trim() && !!url.trim() && !duplicateName && !peopleError;
+  const canSubmit = !!name.trim() && !!url.trim() && !duplicateName && !urlError && !peopleError;
 
   const setHeaderField = (i: number, field: "key" | "value", v: string) =>
     setHeaders(hs => hs.map((h, idx) => (idx === i ? { ...h, [field]: v } : h)));
@@ -112,9 +125,13 @@ export default function AddCustomConnectorModal({ editing, onClose, onCreated, o
             <input
               value={url}
               onChange={e => setUrl(e.target.value)}
+              onBlur={() => setUrlTouched(true)}
               placeholder="https://api.example.com/mcp"
-              className="w-full h-10 px-3 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base"
+              className={`w-full h-10 px-3 rounded-lg border bg-white text-sm outline-none focus:ring-2 transition-base ${
+                urlTouched && urlError ? "border-destructive focus:border-destructive focus:ring-destructive/20" : "border-border focus:border-primary focus:ring-primary/20"
+              }`}
             />
+            {urlTouched && urlError && <p className="text-xs text-destructive mt-1.5">Nhập một URL http(s) hợp lệ.</p>}
           </div>
 
           <div>
