@@ -51,7 +51,7 @@ function SkillRowMenu({ skill, onOpen, onEdit, onShare, onDelete, editBlocked, s
 
   const safeItems: { label: string; onClick: () => void; blocked?: string }[] = [
     { label: "Mở", onClick: onOpen },
-    { label: "Sửa", onClick: onEdit, blocked: editBlocked },
+    { label: "Chỉnh sửa", onClick: onEdit, blocked: editBlocked },
     { label: "Chia sẻ", onClick: onShare, blocked: shareBlocked },
   ];
 
@@ -189,7 +189,7 @@ export default function Skills() {
         <div className="max-w-[1200px] mx-auto px-8 py-5 flex items-center justify-between">
           <div>
             <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">Skills</h1>
-            <p className="text-sm text-muted-foreground">Skills shared across all agents in this workspace</p>
+            <p className="text-sm text-muted-foreground">Skill dùng chung cho tất cả Agent trong workspace.</p>
           </div>
           <div className="flex items-center gap-2">
             <button className="btn-secondary flex items-center gap-1.5"><BookOpen size={14} /> Browse Library</button>

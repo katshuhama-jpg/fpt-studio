@@ -146,7 +146,7 @@ export default function WorkspaceGuardrails() {
 
       <div className="mb-6">
         <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">Guardrails</h1>
-        <p className="text-sm text-muted-foreground truncate">Shared safety policies you can apply to any agent — content restrictions, data protection, approval flows, and custom rules.</p>
+        <p className="text-sm text-muted-foreground truncate">Chính sách an toàn dùng chung, áp dụng được cho mọi Agent — giới hạn nội dung, bảo vệ dữ liệu, luồng phê duyệt và quy tắc tùy chỉnh.</p>
       </div>
 
       {/* Ownership tabs */}

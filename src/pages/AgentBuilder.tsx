@@ -94,7 +94,7 @@ type Tab = "build" | "test" | "channels" | "insights";
 const developNav = [
   { id: "instructions", label: "Instructions", icon: FileEditIcon },
   { id: "model",        label: "Model",         icon: CpuIcon,          hidden: true },
-  { id: "skills",       label: "Skills",         icon: PuzzleIcon,      hidden: true },
+  { id: "skills",       label: "Skills",         icon: PuzzleIcon },
   { id: "guardrails",   label: "Guardrails",     icon: Shield01Icon },
   { id: "knowledge",    label: "Knowledge",      icon: NoteIcon },
   { id: "connectors",   label: "Connections",    icon: ConnectIcon },
@@ -107,7 +107,7 @@ const INSIGHTS_SUBTABS = [
   { id: "history", label: "History", icon: HistoryIcon },
 ];
 
-const BUILD_SECTIONS = ["instructions", "knowledge", "guardrails", "triggers", "connectors"];
+const BUILD_SECTIONS = ["instructions", "knowledge", "guardrails", "skills", "triggers", "connectors"];
 const INSIGHTS_SECTIONS = INSIGHTS_SUBTABS.map(s => s.id);
 
 // Sections that moved out of Build during the v2 nav restructure — audited against the old
@@ -502,6 +502,7 @@ export default function AgentBuilder() {
               {tab === "build" && section === "instructions" && <GeneralTab key={id ?? "new"} agentId={id ?? "new"} onRefineWithAI={() => setBuildMode("ai")} onChatToTest={() => { setBuildMode("manual"); setPreviewView("chat"); }} previewCollapsed={previewCollapsed} onReopenPreview={() => setPreviewCollapsed(false)} />}
               {tab === "build" && section === "knowledge" && <KnowledgeTab agentId={id ?? "new"} />}
               {tab === "build" && section === "guardrails" && <GuardrailsAgentTab agentId={id ?? "new"} />}
+              {tab === "build" && section === "skills" && <SkillsAgentTab agentId={id ?? "new"} />}
               {tab === "build" && section === "triggers" && (
                 <TriggersTab agentId={id ?? "new"} onChange={() => setTriggerTick(t => t + 1)} />
               )}
@@ -1696,7 +1697,7 @@ function AgentOwnKnowledgeView({ agentId, onBack }: { agentId: string; onBack: (
           <HugeiconsIcon icon={ChevronLeftIcon} size={14} /> Tri thức của Agent
         </button>
         <h2 className="font-display text-xl font-semibold">Cá nhân</h2>
-        <p className="text-xs text-muted-foreground mt-0.5">Tài liệu, website và FAQ bạn tạo trực tiếp trong Agent này — nếu muốn dùng cho nhiều Agent, hãy chia sẻ hoặc chuyển thành kho tri thức riêng.</p>
+        <p className="text-xs text-muted-foreground mt-0.5">Tài liệu, website và FAQ bạn tạo trực tiếp trong Agent này — nếu muốn dùng cho nhiều Agent, hãy chia sẻ với Console.</p>
       </div>
 
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -4490,7 +4491,7 @@ function SkillAgentItemRowMenu({ onEdit, onShare, onPromote, onDelete }: {
       </button>
       {open && createPortal(
         <div ref={menuRef} className="fixed z-[9999] w-52 rounded-lg border border-border bg-white shadow-elev py-1" style={{ top: pos.top, bottom: pos.bottom, left: pos.left }} onMouseDown={e => e.stopPropagation()}>
-          <button onClick={() => { setOpen(false); onEdit(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Sửa</button>
+          <button onClick={() => { setOpen(false); onEdit(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Chỉnh sửa</button>
           <button onClick={() => { setOpen(false); onShare(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Chia sẻ</button>
           <button onClick={() => { setOpen(false); onPromote(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Chuyển thành skill chung</button>
           <div className="mt-1 pt-1 border-t border-border">
@@ -6079,7 +6080,7 @@ function GuardrailAgentItemRowMenu({ onEdit, onShare, onPromote, onDelete }: {
       </button>
       {open && createPortal(
         <div ref={menuRef} className="fixed z-[9999] w-56 rounded-lg border border-border bg-white shadow-elev py-1" style={{ top: pos.top, bottom: pos.bottom, left: pos.left }} onMouseDown={e => e.stopPropagation()}>
-          <button onClick={() => { setOpen(false); onEdit(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Sửa</button>
+          <button onClick={() => { setOpen(false); onEdit(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Chỉnh sửa</button>
           <button onClick={() => { setOpen(false); onShare(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Chia sẻ</button>
           <button onClick={() => { setOpen(false); onPromote(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Chuyển thành guardrail chung</button>
           <div className="mt-1 pt-1 border-t border-border">
@@ -6270,6 +6271,199 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => { if (deleteTarget) agentGuardrailStore.remove(agentId, deleteTarget.id); setDeleteTarget(null); refresh(); }}
+            >
+              Xóa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+/** "Skills của Agent" — full dedicated page (Agent Details left nav), field-for-field port of
+ * GuardrailsAgentTab so Knowledge / Guardrails / Skills all follow the same "đã liên kết" +
+ * "riêng của Agent" pattern instead of Skills being confined to the compact sidebar widget. */
+function SkillsAgentTab({ agentId }: { agentId: string }) {
+  const { tree } = useOrg();
+  const members = useMemo(() => collectMembers(tree), [tree]);
+  const accessUserId = useGroupAccess("skills").userId;
+  const currentUser = useMemo(() => {
+    const me = members.find(m => m.id === accessUserId);
+    return { id: accessUserId, name: me?.name ?? "Tran Nam", email: me?.email ?? "tran.nam@fpt.com" };
+  }, [members, accessUserId]);
+
+  const [tick, setTick] = useState(0);
+  const refresh = () => setTick(t => t + 1);
+  void tick;
+  const [query, setQuery] = useState("");
+  const [showAttach, setShowAttach] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [editTarget, setEditTarget] = useState<Skill | null>(null);
+  const [shareTarget, setShareTarget] = useState<Skill | null>(null);
+  const [promoteTarget, setPromoteTarget] = useState<Skill | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [detachTarget, setDetachTarget] = useState<{ id: string; name: string } | null>(null);
+
+  const items = agentSkillStore.list(agentId);
+  const attachedSkills = agentSkillStore.listAttachedConsoleSkillIds(agentId)
+    .map(id => skillStore.get(id))
+    .filter((s): s is Skill => !!s);
+
+  const q = query.trim().toLowerCase();
+  const filteredItems = q ? items.filter(i => i.name.toLowerCase().includes(q)) : items;
+  const filteredLinked = q ? attachedSkills.filter(s => s.name.toLowerCase().includes(q)) : attachedSkills;
+
+  return (
+    <div className="p-8 w-full space-y-6 animate-fade-up">
+      <div>
+        <h2 className="font-display text-xl font-semibold">Skills của Agent</h2>
+        <p className="text-xs text-muted-foreground mt-0.5">Khả năng tái sử dụng Agent này đã được dạy.</p>
+      </div>
+
+      <div className="relative w-72">
+        <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm skill..." className="ds-input pl-8 h-9" />
+      </div>
+
+      {/* Section A — Skills đã liên kết */}
+      <Section icon={ConnectIcon} title="Skills đã liên kết" desc="Skill Console đang được Agent này sử dụng.">
+        {filteredLinked.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground mb-4">
+            {attachedSkills.length === 0 ? "Chưa liên kết skill nào. Liên kết để dùng lại skill đã có trong workspace." : "Không có skill phù hợp với tìm kiếm."}
+          </div>
+        ) : (
+          <div className="space-y-2 mb-4">
+            {filteredLinked.map(s => (
+              <KnowledgeSourceRow
+                key={s.id}
+                icon={PuzzleIcon}
+                name={s.name}
+                chip={<div className="flex items-center gap-1 shrink-0"><SkillOwnershipTag skill={s} userId={currentUser.id} /></div>}
+                onOpen={() => {}}
+                href={`/tools/${s.id}`}
+                onRemove={() => setDetachTarget({ id: s.id, name: s.name })}
+                openLabel="Mở skill"
+                removeLabel="Gỡ liên kết"
+              />
+            ))}
+          </div>
+        )}
+        <button onClick={() => setShowAttach(true)} className="h-9 px-4 rounded-lg border border-dashed border-border hover:border-primary/40 hover:bg-primary-soft/30 text-sm font-medium transition-base">
+          + Liên kết skill
+        </button>
+      </Section>
+
+      {/* Section B — Skills riêng của Agent */}
+      <Section
+        icon={PuzzleIcon}
+        title="Skills riêng của Agent"
+        desc="Skill bạn tạo tại đây chỉ thuộc về Agent này. Nếu muốn dùng cho nhiều Agent, hãy chuyển thành skill chung."
+        action={
+          <button onClick={() => setShowCreate(true)} className="h-9 px-4 rounded-lg border border-dashed border-border hover:border-primary/40 hover:bg-primary-soft/30 text-sm font-medium transition-base shrink-0">
+            + Tạo mới
+          </button>
+        }
+      >
+        {items.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border p-8 text-center">
+            <p className="text-sm font-medium mb-1">Agent chưa có skill riêng</p>
+            <p className="text-xs text-muted-foreground">Tạo skill để dạy Agent một khả năng có thể tái sử dụng.</p>
+          </div>
+        ) : filteredItems.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+            Không có skill phù hợp với tìm kiếm.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {filteredItems.map(s => (
+              <div key={s.id} className="flex items-start gap-3 px-3.5 py-3 rounded-lg border border-border bg-surface">
+                <span className="w-8 h-8 rounded-md flex items-center justify-center text-base shrink-0" style={{ background: s.iconBg }}>{s.icon}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium">{s.name}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed line-clamp-2">{s.description}</div>
+                  <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
+                    <SkillOwnershipTag skill={s} userId={currentUser.id} />
+                  </div>
+                </div>
+                <SkillAgentItemRowMenu
+                  onEdit={() => setEditTarget(s)}
+                  onShare={() => setShareTarget(s)}
+                  onPromote={() => setPromoteTarget(s)}
+                  onDelete={() => setDeleteTarget({ id: s.id, name: s.name })}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
+
+      {showAttach && <AttachConsoleSkillModal agentId={agentId} userId={currentUser.id} onClose={() => { setShowAttach(false); refresh(); }} />}
+      {showCreate && (
+        <CreateSkillModal
+          onClose={() => setShowCreate(false)}
+          onSubmit={(data: SkillFormData) => { agentSkillStore.create(agentId, { ...data, ownerId: currentUser.id, ownerName: currentUser.name }); refresh(); }}
+          currentUser={currentUser}
+          isDuplicateName={name => agentSkillStore.list(agentId).some(s => s.name.trim().toLowerCase() === name.trim().toLowerCase())}
+        />
+      )}
+      {editTarget && (
+        <CreateSkillModal
+          onClose={() => setEditTarget(null)}
+          onSubmit={(data: SkillFormData) => { agentSkillStore.update(agentId, editTarget.id, data); setEditTarget(null); refresh(); }}
+          initialData={editTarget}
+          currentUser={currentUser}
+          isDuplicateName={name => agentSkillStore.list(agentId).some(s => s.id !== editTarget.id && s.name.trim().toLowerCase() === name.trim().toLowerCase())}
+        />
+      )}
+      {shareTarget && (
+        <SkillShareModal
+          open
+          name={shareTarget.name}
+          ownerName={shareTarget.ownerName}
+          sharing={shareTarget.sharing}
+          onSave={sharing => { agentSkillStore.updateSharing(agentId, shareTarget.id, sharing); refresh(); }}
+          onClose={() => setShareTarget(null)}
+        />
+      )}
+      {promoteTarget && (
+        <PromoteSkillToConsoleDialog
+          agentId={agentId}
+          item={promoteTarget}
+          currentUser={currentUser}
+          onClose={() => { setPromoteTarget(null); refresh(); }}
+        />
+      )}
+
+      <AlertDialog open={!!detachTarget} onOpenChange={v => !v && setDetachTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Gỡ liên kết skill?</AlertDialogTitle>
+            <AlertDialogDescription>Agent sẽ không còn dùng được skill này. Skill vẫn được giữ nguyên trên Console.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { if (detachTarget) agentSkillStore.detachConsoleSkill(agentId, detachTarget.id); setDetachTarget(null); refresh(); }}
+            >
+              Gỡ liên kết
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xóa skill này?</AlertDialogTitle>
+            <AlertDialogDescription>Skill sẽ bị xóa vĩnh viễn khỏi Agent. Hành động này không thể hoàn tác.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { if (deleteTarget) agentSkillStore.remove(agentId, deleteTarget.id); setDeleteTarget(null); refresh(); }}
             >
               Xóa
             </AlertDialogAction>

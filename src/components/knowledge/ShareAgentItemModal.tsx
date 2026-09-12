@@ -17,7 +17,7 @@ import { knowledgeStore, type KnowledgeItem } from "./knowledgeStore";
 
 const BUILD_ACCESS_OPTIONS: { value: SharingMode; label: string; helper?: string }[] = [
   { value: "private", label: "Chỉ mình tôi" },
-  { value: "all", label: "Cả Console", helper: "Mọi builder đều dùng được." },
+  { value: "all", label: "Tất cả người dùng Console", helper: "Mọi builder đều dùng được." },
   { value: "specific", label: "Người cụ thể", helper: "Chỉ người bạn chọn." },
 ];
 
