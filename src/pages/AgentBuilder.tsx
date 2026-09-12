@@ -1252,7 +1252,7 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, openLabel = "M
         type="button"
         onClick={() => (open ? setOpen(false) : openMenu())}
         aria-label="Thao tác"
-        className="w-7 h-7 -m-2 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="w-7 h-7 -m-2 rounded-md flex items-center justify-center text-foreground/60 hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <HugeiconsIcon icon={MoreHorizontalIcon} size={14} />
       </button>
@@ -4409,7 +4409,7 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
           <button
             onClick={() => setShareTarget(customConnector)}
             title="Chia sẻ custom connector"
-            className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-surface-muted transition-base shrink-0">
+            className="w-6 h-6 rounded-md flex items-center justify-center text-foreground/60 hover:text-primary hover:bg-surface-muted transition-base shrink-0">
             <HugeiconsIcon icon={Share08Icon} size={12} />
           </button>
         )}
@@ -4418,7 +4418,7 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
           // Custom Connector here also clears this agent from its attachedByAgentIds — otherwise
           // the connector's "N Agent đang dùng" count and delete-warning list go stale.
           onClick={() => toggleConnector(c.id)}
-          className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-surface-muted transition-base shrink-0">
+          className="w-6 h-6 rounded-md flex items-center justify-center text-foreground/60 hover:text-destructive hover:bg-surface-muted transition-base shrink-0">
           <HugeiconsIcon icon={Delete01Icon} size={12} />
         </button>
       </div>
@@ -4579,7 +4579,7 @@ function SkillAgentItemRowMenu({ onEdit, onShare, onPromote, onDelete }: {
 
   return (
     <div className="relative shrink-0" onClick={e => e.stopPropagation()}>
-      <button ref={btnRef} onClick={() => (open ? setOpen(false) : openMenu())} aria-label="Thao tác" className="w-7 h-7 -m-2 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+      <button ref={btnRef} onClick={() => (open ? setOpen(false) : openMenu())} aria-label="Thao tác" className="w-7 h-7 -m-2 rounded-md flex items-center justify-center text-foreground/60 hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <HugeiconsIcon icon={MoreHorizontalIcon} size={14} />
       </button>
       {open && createPortal(
@@ -7051,7 +7051,7 @@ function TriggerRowMenu({ enabled, needsSetup, duplicateBlocked, enableBlocked, 
         ref={btnRef}
         type="button"
         onClick={() => (open ? setOpen(false) : openMenu())}
-        className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base"
+        className="w-6 h-6 rounded-md flex items-center justify-center text-foreground/60 hover:text-foreground hover:bg-surface-muted transition-base"
         aria-label="Trigger actions"
       >
         <HugeiconsIcon icon={MoreHorizontalIcon} size={13} />
