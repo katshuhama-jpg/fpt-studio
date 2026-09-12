@@ -4322,6 +4322,10 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
   const [pickerMode, setPickerMode] = useState<ConnectorScope>("shared");
   const [tick, setTick] = useState(0);
   void tick;
+  // Real product: attached connectors are shown split into two tabs ("Shared" / "Per-user"),
+  // not one flat list with a per-row scope badge — this tab is which scope's connectors are
+  // currently displayed, independent of pickerMode (which scope a NEW connector is added to).
+  const [activeScope, setActiveScope] = useState<ConnectorScope>("shared");
   const connected = agentConnectorStore.list(agentId).map(c => ({ id: c.connectorId, mode: c.scope }));
 
   // Custom Connectors ("Custom MCP") this user can see — same ownership-aware filtering as the
@@ -4375,44 +4379,69 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
     onChange?.();
   };
 
+  const sharedList = connected.filter(c => c.mode === "shared");
+  const personalList = connected.filter(c => c.mode === "personal");
+  const activeList = activeScope === "shared" ? sharedList : personalList;
+  const scopeTabs: { key: ConnectorScope; label: string }[] = [
+    { key: "shared", label: "Dùng chung" },
+    { key: "personal", label: "Riêng cá nhân" },
+  ];
+
+  const renderConnectorRow = (c: { id: string; mode: ConnectorScope }) => {
+    // Fall back to the raw id instead of silently dropping the row — a connector
+    // whose metadata can't be found would otherwise vanish from the list while still
+    // sitting in the store, which reads to the Builder as "my connector disappeared".
+    const meta = resolveMeta(c.id);
+    return (
+      <div key={c.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base">
+        <span className="w-6 h-6 rounded bg-surface-muted border border-border flex items-center justify-center text-[9px] font-bold shrink-0">{meta?.logo ?? "?"}</span>
+        <span className="text-xs font-medium flex-1 truncate">{meta?.name ?? c.id}</span>
+        <button
+          onClick={() => { agentConnectorStore.remove(agentId, c.id); setTick(t => t + 1); onChange?.(); }}
+          className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-surface-muted transition-base shrink-0">
+          <HugeiconsIcon icon={Delete01Icon} size={12} />
+        </button>
+      </div>
+    );
+  };
+
   return (
     <>
-      {connected.length === 0 ? (
-        <EmptyStateBox
-          icon={ConnectIcon}
-          description="Các tài khoản và hệ thống bên ngoài mà agent này có thể sử dụng."
-          addLabel="Thêm Connector"
-          onAdd={e => {
-            const r = e.currentTarget.getBoundingClientRect();
-            setMenuPos({ top: r.bottom + 4, left: r.right });
-            setShowMenu(true);
-          }}
-        />
+      {/* Shared / Per-user tabs — matches the real product: connectors already attached to
+          this agent are shown split by scope, not as one flat list with a per-row badge. */}
+      <div className="flex items-center gap-1 p-0.5 rounded-lg bg-surface-muted w-fit mb-2">
+        {scopeTabs.map(t => {
+          const count = t.key === "shared" ? sharedList.length : personalList.length;
+          const active = activeScope === t.key;
+          return (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setActiveScope(t.key)}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-base ${
+                active ? "bg-white text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {t.label} <span className={active ? "text-muted-foreground" : "text-muted-foreground/70"}>{count}</span>
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-[11px] text-muted-foreground leading-relaxed mb-2">
+        {activeScope === "shared"
+          ? "Agent luôn dùng chung một tài khoản workspace, bất kể ai đang thao tác."
+          : "Mỗi người tự kết nối và sử dụng tài khoản riêng của mình."}
+      </p>
+      {activeList.length === 0 ? (
+        <div className="rounded-xl border-2 border-dashed border-border flex flex-col items-center justify-center gap-1.5 py-5 px-4 text-center">
+          <HugeiconsIcon icon={ConnectIcon} size={20} className="text-muted-foreground/40" />
+          <p className="text-xs text-muted-foreground">
+            {activeScope === "shared" ? "Chưa có kết nối dùng chung nào." : "Chưa có kết nối cá nhân nào."}
+          </p>
+        </div>
       ) : (
         <div className="flex flex-col gap-1.5">
-          {connected.map(c => {
-            // Fall back to the raw id instead of silently dropping the row — a connector
-            // whose metadata can't be found would otherwise vanish from the list while still
-            // sitting in the store, which reads to the Builder as "my connector disappeared".
-            const meta = resolveMeta(c.id);
-            return (
-              <div key={c.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base">
-                <span className="w-6 h-6 rounded bg-surface-muted border border-border flex items-center justify-center text-[9px] font-bold shrink-0">{meta?.logo ?? "?"}</span>
-                <span className="text-xs font-medium flex-1 truncate">{meta?.name ?? c.id}</span>
-                <span
-                  className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap"
-                  style={c.mode === "shared" ? { background: "#EEF2FF", color: "#4338CA", border: "0.5px solid #C7D2FE" } : { background: "#ECFDF5", color: "#047857", border: "0.5px solid #A7F3D0" }}
-                >
-                  {c.mode === "shared" ? "Dùng chung" : "Riêng cá nhân"}
-                </span>
-                <button
-                  onClick={() => { agentConnectorStore.remove(agentId, c.id); setTick(t => t + 1); onChange?.(); }}
-                  className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-surface-muted transition-base shrink-0">
-                  <HugeiconsIcon icon={Delete01Icon} size={12} />
-                </button>
-              </div>
-            );
-          })}
+          {activeList.map(renderConnectorRow)}
         </div>
       )}
 
