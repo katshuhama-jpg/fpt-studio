@@ -1597,7 +1597,7 @@ function AgentKnowledgeGrid({ agentId, onOpenOwn }: { agentId: string; onOpenOwn
         </div>
       )}
 
-      {showAttach && <AttachConsoleKnowledgeBaseModal agentId={agentId} onClose={() => { setShowAttach(false); refresh(); }} />}
+      {showAttach && <AttachConsoleKnowledgeBaseModal agentId={agentId} userId={KB_CURRENT_USER.id} onClose={() => { setShowAttach(false); refresh(); }} />}
       {showCreateKb && (
         <CreateKnowledgeBaseModal
           open={showCreateKb}
@@ -4864,7 +4864,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
         document.body,
       )}
 
-      {showAttach && <AttachConsoleKnowledgeBaseModal agentId={agentId} onClose={() => { setShowAttach(false); refresh(); }} />}
+      {showAttach && <AttachConsoleKnowledgeBaseModal agentId={agentId} userId={KB_CURRENT_USER.id} onClose={() => { setShowAttach(false); refresh(); }} />}
 
       <AlertDialog open={!!detachTarget} onOpenChange={v => !v && setDetachTarget(null)}>
         <AlertDialogContent>

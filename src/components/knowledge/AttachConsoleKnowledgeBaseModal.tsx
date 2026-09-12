@@ -3,12 +3,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Search } from "lucide-react";
 import { toast } from "sonner";
-import { knowledgeBaseStore, CURRENT_USER } from "./knowledgeBaseStore";
+import { knowledgeBaseStore, isAccessibleTo } from "./knowledgeBaseStore";
 import { knowledgeStore } from "./knowledgeStore";
 
-export default function AttachConsoleKnowledgeBaseModal({ agentId, onClose }: { agentId: string; onClose: () => void }) {
+// userId gates the picker to KBs this user can actually access (owner, "all", or listed in
+// "specific") — Round 8: this modal used to list every Console KB regardless of its "Quyen
+// xay Agent" sharing, unlike AttachConsoleGuardrailModal.tsx / AttachConsoleSkillModal.tsx,
+// which already filtered by isAccessibleTo. Kept consistent with how the rest of this file
+// already keys ownership checks off KB_CURRENT_USER.id.
+export default function AttachConsoleKnowledgeBaseModal({ agentId, userId, onClose }: { agentId: string; userId: string; onClose: () => void }) {
   const alreadyLinked = new Set(knowledgeStore.listAttachedConsoleKbIds(agentId));
-  const all = knowledgeBaseStore.list();
+  const all = knowledgeBaseStore.list().filter(kb => isAccessibleTo(kb, userId));
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -68,7 +73,7 @@ export default function AttachConsoleKnowledgeBaseModal({ agentId, onClose }: { 
               <div className="space-y-1.5 py-1">
                 {visible.map(kb => {
                   const linked = alreadyLinked.has(kb.id);
-                  const isMine = kb.ownerId === CURRENT_USER.id;
+                  const isMine = kb.ownerId === userId;
                   const row = (
                     <label
                       key={kb.id}
