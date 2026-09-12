@@ -4414,7 +4414,10 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
           </button>
         )}
         <button
-          onClick={() => { agentConnectorStore.remove(agentId, c.id); setTick(t => t + 1); onChange?.(); }}
+          // Route through toggleConnector (not a bare agentConnectorStore.remove) so detaching a
+          // Custom Connector here also clears this agent from its attachedByAgentIds — otherwise
+          // the connector's "N Agent đang dùng" count and delete-warning list go stale.
+          onClick={() => toggleConnector(c.id)}
           className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-surface-muted transition-base shrink-0">
           <HugeiconsIcon icon={Delete01Icon} size={12} />
         </button>
