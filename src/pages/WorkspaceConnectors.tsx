@@ -21,6 +21,10 @@ type Tab = "all" | "connected" | "available";
  * connectors — the Marketplace tab below is entirely unrelated pre-built catalog and is untouched
  * by this split. */
 type Section = "marketplace" | "custom";
+/** Ownership filter for the Custom Connectors list — mirrors the Của tôi/Được chia sẻ split
+ * already used for Skills, replacing per-card ownership pills that crowded the row and broke
+ * layout on longer connector names (see CustomConnectorCard below). */
+type CustomTab = "all" | "mine" | "shared";
 
 interface Connector {
   id: string;
@@ -124,6 +128,7 @@ export default function WorkspaceConnectors() {
   const [showAddCustom, setShowAddCustom] = useState(false);
   const [shareTarget, setShareTarget] = useState<CustomConnector | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CustomConnector | null>(null);
+  const [customTab, setCustomTab] = useState<CustomTab>("all");
 
   // Marketplace connector cards used to be dead clicks (cursor-pointer + chevron with no
   // onClick at all). `disconnected` is a session-local override so "Ngắt kết nối" from the
@@ -137,6 +142,14 @@ export default function WorkspaceConnectors() {
   );
   const customConnectors = customConnectorStore.list();
   const accessibleCustomConnectors = customConnectors.filter(c => isCustomConnectorAccessibleTo(c.sharing, c.ownerId, CURRENT_USER.id));
+  const customTabCounts = {
+    all: accessibleCustomConnectors.length,
+    mine: accessibleCustomConnectors.filter(c => c.ownerId === CURRENT_USER.id).length,
+    shared: accessibleCustomConnectors.filter(c => c.ownerId !== CURRENT_USER.id).length,
+  };
+  const customFiltered = customTab === "mine" ? accessibleCustomConnectors.filter(c => c.ownerId === CURRENT_USER.id)
+    : customTab === "shared" ? accessibleCustomConnectors.filter(c => c.ownerId !== CURRENT_USER.id)
+    : accessibleCustomConnectors;
 
   // Only an established connection is really "someone's resource" — browsing the catalog of
   // not-yet-connected services is never restricted. A role whose Connectors View Scope is
@@ -265,15 +278,35 @@ export default function WorkspaceConnectors() {
             </button>
           </div>
 
+          {accessibleCustomConnectors.length > 0 && (
+            <div className="flex items-center gap-1 mb-5">
+              {([
+                { key: "all" as CustomTab, label: "Tất cả" },
+                { key: "mine" as CustomTab, label: "Của tôi" },
+                { key: "shared" as CustomTab, label: "Được chia sẻ" },
+              ]).map(t => (
+                <button key={t.key} onClick={() => setCustomTab(t.key)}
+                  className={`px-3 h-8 rounded-lg text-sm font-medium transition-base ${
+                    customTab === t.key ? "bg-primary-soft text-primary" : "text-muted-foreground hover:bg-surface-muted"
+                  }`}
+                >
+                  {t.label} <span className="ml-0.5 text-xs opacity-70">{customTabCounts[t.key]}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
           {accessibleCustomConnectors.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-gradient-soft p-12 text-center">
               <Plug size={22} className="mx-auto mb-3 text-muted-foreground" />
               <p className="text-sm font-medium mb-1">No custom connectors yet</p>
               <p className="text-sm text-muted-foreground">Add an MCP server to grant its tools to your agents.</p>
             </div>
+          ) : customFiltered.length === 0 ? (
+            <div className="py-16 text-center text-muted-foreground text-sm">Không có custom connector nào trong mục này.</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {accessibleCustomConnectors.map(c => {
+              {customFiltered.map(c => {
                 const isMine = c.ownerId === CURRENT_USER.id;
                 return (
                   <CustomConnectorCard
@@ -419,15 +452,14 @@ function CustomConnectorCard({ connector: c, isMine, onShare, onDelete }: {
         <Plug size={16} className="text-muted-foreground" />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-          <span className="text-sm font-medium truncate">{c.name}</span>
-          <span className="chip chip-muted shrink-0">{isMine ? "Của tôi" : `Được chia sẻ · ${c.ownerName}`}</span>
-          {isMine && c.sharing.mode === "all" && <span className="chip chip-info shrink-0">Dùng chung</span>}
-          {isMine && c.sharing.mode === "specific" && c.sharing.people.length > 0 && (
-            <span className="chip chip-info shrink-0">Chia sẻ với {c.sharing.people.length} người</span>
-          )}
-        </div>
-        <p className="text-xs text-muted-foreground truncate">{c.url}</p>
+        {/* Ownership/sharing pills ("Của tôi", "Dùng chung", "Chia sẻ với N người") used to sit
+         * in this row — redundant once the Tất cả/Của tôi/Được chia sẻ tab above already says
+         * which group a card belongs to, and they fought the connector name for space, wrapping
+         * or overflowing the card on longer names. Only the owner's name remains, as plain text,
+         * so a shared-to-me card still says whose connector it is. */}
+        <p className="text-sm font-medium truncate">{c.name}</p>
+        {!isMine && <p className="text-xs text-muted-foreground truncate">Chia sẻ bởi {c.ownerName}</p>}
+        <p className="text-xs text-muted-foreground truncate mt-0.5">{c.url}</p>
         <p className="text-[11px] text-muted-foreground mt-1">
           {AUTH_LABEL[c.authType]}
           {c.attachedByAgentIds.length > 0 && ` · ${c.attachedByAgentIds.length} Agent đang dùng`}
