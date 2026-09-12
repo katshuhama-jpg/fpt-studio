@@ -239,7 +239,10 @@ export function ConnectorTemplateManageModal({ template, onClose, onChanged }: {
       )}
 
       <AlertDialog open={!!removeTarget} onOpenChange={v => !v && setRemoveTarget(null)}>
-        <AlertDialogContent>
+        {/* z-[80]: this dialog opens while ConnectorTemplateManageModal's own full-screen portal
+         * (z-[70]) is still mounted underneath it. AlertDialogContent defaults to z-50, which
+         * would render the confirm dialog invisibly behind that modal — bump it above z-[70]. */}
+        <AlertDialogContent className="z-[80]">
           <AlertDialogHeader>
             <AlertDialogTitle>Xóa credential "{removeTarget?.credentialName}"?</AlertDialogTitle>
             <AlertDialogDescription>Các Agent đang dùng credential này sẽ mất quyền truy cập {template.name} qua credential đó. Hành động này không thể hoàn tác.</AlertDialogDescription>
@@ -257,7 +260,7 @@ export function ConnectorTemplateManageModal({ template, onClose, onChanged }: {
       </AlertDialog>
 
       <AlertDialog open={confirmDisconnect} onOpenChange={setConfirmDisconnect}>
-        <AlertDialogContent>
+        <AlertDialogContent className="z-[80]">
           <AlertDialogHeader>
             <AlertDialogTitle>Ngắt kết nối {template.name}?</AlertDialogTitle>
             <AlertDialogDescription className="flex items-start gap-2">
