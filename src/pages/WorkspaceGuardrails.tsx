@@ -10,6 +10,12 @@ import { isAccessibleTo, isViewOnly, type Sharing } from "@/components/configure
 import { guardrailConsoleStore, type Guardrail } from "@/components/configure/guardrailConsoleStore";
 import CreateGuardrailModal, { type CreateGuardrailData } from "@/components/configure/CreateGuardrailModal";
 import GuardrailShareModal from "@/components/configure/GuardrailShareModal";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { AlertTriangle } from "lucide-react";
+import { getAgent } from "@/components/configure/agentStore";
 
 /** True if `userId` can see this guardrail — always true for mandatory/all-agents compliance
  * rules, otherwise only if they created it, it's shared with every Console user, or it was
@@ -57,6 +63,7 @@ export default function WorkspaceGuardrails() {
   const [editItem, setEditItem] = useState<Guardrail | null>(null);
   const [viewItem, setViewItem] = useState<Guardrail | null>(null);
   const [shareItem, setShareItem] = useState<Guardrail | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Guardrail | null>(null);
   const [tab, setTab] = useState<MainTab>("all");
 
   // A guardrail linked to from elsewhere (e.g. an Agent's "Mở guardrail" row action) via
@@ -143,6 +150,32 @@ export default function WorkspaceGuardrails() {
           onClose={() => setShareItem(null)}
         />
       )}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xóa guardrail "{deleteTarget?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>Guardrail sẽ bị xóa vĩnh viễn khỏi workspace. Hành động này không thể hoàn tác.</AlertDialogDescription>
+          </AlertDialogHeader>
+          {deleteTarget && deleteTarget.attachedByAgentIds.length > 0 && (
+            <div className="flex items-start gap-2.5 rounded-lg border border-destructive/25 bg-[hsl(var(--destructive-soft))] px-3.5 py-3">
+              <AlertTriangle size={14} className="shrink-0 mt-0.5 text-destructive" />
+              <p className="text-xs text-destructive leading-relaxed">
+                {deleteTarget.attachedByAgentIds.length} Agent đang dùng guardrail này và sẽ mất chính sách bảo vệ: {deleteTarget.attachedByAgentIds.map(id => getAgent(id).name).join(", ")}.
+              </p>
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { if (deleteTarget) handleDelete(deleteTarget.id); setDeleteTarget(null); }}
+            >
+              Xóa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="mb-6">
         <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">Guardrails</h1>
@@ -260,7 +293,7 @@ export default function WorkspaceGuardrails() {
                 onOpen={() => setViewItem(g)}
                 onEdit={() => setEditItem(g)}
                 onShare={hasOwner ? () => setShareItem(g) : undefined}
-                onDelete={() => handleDelete(g.id)}
+                onDelete={() => setDeleteTarget(g)}
                 editBlocked={editBlocked}
                 shareBlocked={shareBlocked}
                 deleteBlocked={deleteBlocked}

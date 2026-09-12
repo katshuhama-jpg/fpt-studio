@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Puzzle, BookOpen, Plus, Search, LayoutGrid, List, MoreVertical } from "lucide-react";
+import { Puzzle, BookOpen, Plus, Search, LayoutGrid, List, MoreVertical, AlertTriangle } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -10,6 +10,7 @@ import { useGroupAccess } from "@/pages/organization/scopeAccess";
 import { useOrg } from "@/pages/organization/orgStore";
 import { collectMembers } from "@/pages/organization/orgData";
 import { skillStore, type Skill } from "@/components/configure/skillStore";
+import { getAgent } from "@/components/configure/agentStore";
 import { isAccessibleTo, isViewOnly, type Sharing } from "@/components/configure/skillSharing";
 import CreateSkillModal, { type SkillFormData } from "@/components/configure/CreateSkillModal";
 import SkillShareModal from "@/components/configure/SkillShareModal";
@@ -371,6 +372,14 @@ export default function Skills() {
             <AlertDialogTitle>Xóa skill "{deleteTarget?.name}"?</AlertDialogTitle>
             <AlertDialogDescription>Skill sẽ bị xóa vĩnh viễn khỏi workspace. Hành động này không thể hoàn tác.</AlertDialogDescription>
           </AlertDialogHeader>
+          {deleteTarget && deleteTarget.attachedByAgentIds.length > 0 && (
+            <div className="flex items-start gap-2.5 rounded-lg border border-destructive/25 bg-[hsl(var(--destructive-soft))] px-3.5 py-3">
+              <AlertTriangle size={14} className="shrink-0 mt-0.5 text-destructive" />
+              <p className="text-xs text-destructive leading-relaxed">
+                {deleteTarget.attachedByAgentIds.length} Agent đang dùng skill này và sẽ mất khả năng này: {deleteTarget.attachedByAgentIds.map(id => getAgent(id).name).join(", ")}.
+              </p>
+            </div>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
             <AlertDialogAction

@@ -41,6 +41,7 @@ export const agentSkillStore = {
       id, name: data.name.trim(), description: data.description.trim(), body: data.body,
       icon: "🧩", iconBg: "hsl(231 90% 93%)",
       ownerId: data.ownerId, ownerName: data.ownerName, sharing: data.sharing,
+      attachedByAgentIds: [],
       createdAt: now, updatedAt: now,
     };
     store.set(k(agentId, id), s);
@@ -73,11 +74,13 @@ export const agentSkillStore = {
     cur.add(skillId);
     attached.set(agentId, [...cur]);
     persistAttached();
+    skillStore.addAttachingAgent(skillId, agentId);
   },
   detachConsoleSkill(agentId: string, skillId: string) {
     const cur = (attached.get(agentId) ?? []).filter(id => id !== skillId);
     attached.set(agentId, cur);
     persistAttached();
+    skillStore.removeAttachingAgent(skillId, agentId);
   },
 
   // --- Per-Agent "Kích hoạt" ---

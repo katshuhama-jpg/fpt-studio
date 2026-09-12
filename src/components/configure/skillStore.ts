@@ -14,6 +14,9 @@ export interface Skill {
   ownerId: string;
   ownerName: string;
   sharing: Sharing;
+  /** Agent ids currently linked to this Console skill — same convention as Guardrail's
+   * attachedByAgentIds, used to warn before deleting a skill still in use by an Agent. */
+  attachedByAgentIds: string[];
   createdAt: number;
   updatedAt: number;
 }
@@ -33,7 +36,7 @@ function seed() {
   put({
     id: "account-briefing", icon: "🗂️", iconBg: "hsl(231 90% 93%)", name: "account-briefing",
     description: `Use when the user has an upcoming meeting and needs preparation, says "brief me on," "who am I meeting with," "prep me for my call with," "what do I need to know about this account," or wants talking points, agenda suggestions, or contact on meeting attendees. Also use before any external meeting where account context would help.`,
-    ownerId: "m-fsoft-ceo", ownerName: "Tran Nam", sharing: { mode: "private", people: [] },
+    ownerId: "m-fsoft-ceo", ownerName: "Tran Nam", sharing: { mode: "private", people: [] }, attachedByAgentIds: [],
     body: `# Account Briefing
 
 You are a sales intelligence analyst. Before important meetings, you prepare a comprehensive account brief that combines internal context (calendar, email) with external research (web, LinkedIn). Your goal is a 1-page brief the user can scan in 5 minutes before walking into the meeting.
@@ -137,6 +140,7 @@ This skill works best with Calendar + Email + Slack all connected, but adapts:
     description: `Use when the user asks "what is [competitor] doing," requests market analysis, or needs a competitive landscape summary for a specific company or product.`,
     ownerId: "m-fsoft-coo", ownerName: "Linh Phan",
     sharing: { mode: "specific", people: [{ userId: "m-fsoft-ceo", name: "Tran Nam", email: "tran.nam@fpt.com", access: "edit" }] },
+    attachedByAgentIds: [],
     body: `# Competitive Intel
 
 You are a market research analyst. Gather, synthesize, and deliver a competitive snapshot for any company or product the user names.
@@ -168,7 +172,7 @@ Summarize positioning, recent moves, and watch-outs in a structured brief.`,
   put({
     id: "email-drafter", icon: "📧", iconBg: "hsl(358 75% 94%)", name: "email-drafter",
     description: `Drafts professional emails based on context. Say "draft an email to..." with any details and it will compose a context-aware draft and save it for review.`,
-    ownerId: "m-fsoft-vn-1", ownerName: "Duy Nguyen", sharing: { mode: "private", people: [] },
+    ownerId: "m-fsoft-vn-1", ownerName: "Duy Nguyen", sharing: { mode: "private", people: [] }, attachedByAgentIds: [],
     body: `# Email Drafter
 
 You draft professional, context-aware emails. Read prior thread history, match the user's tone, and save as a draft for review.
@@ -197,7 +201,7 @@ Write the email and save as a draft — never send without user confirmation.`,
   put({
     id: "weekly-digest", icon: "📊", iconBg: "hsl(38 92% 93%)", name: "weekly-digest",
     description: `Runs every Monday. Pulls activity across calendar, Slack, and email and emails the team a summary of last week's performance and highlights.`,
-    ownerId: "m-fsoft-ceo", ownerName: "Tran Nam", sharing: { mode: "all", people: [] },
+    ownerId: "m-fsoft-ceo", ownerName: "Tran Nam", sharing: { mode: "all", people: [] }, attachedByAgentIds: [],
     body: `# Weekly Digest
 
 Runs automatically each Monday. Aggregates activity across calendar, Slack, and email into a concise summary for the team.
@@ -229,6 +233,7 @@ Format digest and send via Slack or email to the configured channel.`,
     description: `Use when the user asks for current vendor pricing tiers or wants a quick comparison of publicly listed retail prices before a quote.`,
     ownerId: "m-plat-1", ownerName: "Mai Hoang",
     sharing: { mode: "specific", people: [{ userId: "m-fsoft-ceo", name: "Tran Nam", email: "tran.nam@fpt.com", access: "view" }] },
+    attachedByAgentIds: [],
     body: `# Vendor Pricing Lookup
 
 You look up publicly listed retail prices for a named vendor or product tier and summarize them for the user — never quote internal cost prices.
@@ -280,6 +285,7 @@ export const skillStore = {
       id, name: data.name.trim(), description: data.description.trim(), body: data.body,
       icon: data.icon ?? "🧩", iconBg: data.iconBg ?? "hsl(231 90% 93%)",
       ownerId: data.ownerId, ownerName: data.ownerName, sharing: data.sharing,
+      attachedByAgentIds: [],
       createdAt: now, updatedAt: now,
     };
     store.set(id, s);
@@ -310,6 +316,18 @@ export const skillStore = {
   },
   remove(id: string) {
     store.delete(id);
+    persist();
+  },
+  addAttachingAgent(id: string, agentId: string) {
+    const cur = store.get(id);
+    if (!cur || cur.attachedByAgentIds.includes(agentId)) return;
+    store.set(id, { ...cur, attachedByAgentIds: [...cur.attachedByAgentIds, agentId] });
+    persist();
+  },
+  removeAttachingAgent(id: string, agentId: string) {
+    const cur = store.get(id);
+    if (!cur) return;
+    store.set(id, { ...cur, attachedByAgentIds: cur.attachedByAgentIds.filter(a => a !== agentId) });
     persist();
   },
 };
