@@ -21,8 +21,11 @@ export interface Skill {
   updatedAt: number;
 }
 
-const STORE_KEY = "skill_console_store_v1";
-const SEEDED_KEY = "skill_console_store_seeded_v1";
+// v2: bumped from v1 because older cached sessions in a long-lived tab may predate the
+// attachedByAgentIds field (added when delete-confirmation warnings were introduced) —
+// stale entries without it would otherwise crash any UI that reads .attachedByAgentIds.length.
+const STORE_KEY = "skill_console_store_v2";
+const SEEDED_KEY = "skill_console_store_seeded_v2";
 const store = loadMap<string, Skill>(STORE_KEY);
 const persist = () => saveMap(STORE_KEY, store);
 
