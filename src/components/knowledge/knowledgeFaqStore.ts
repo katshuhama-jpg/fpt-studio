@@ -2,6 +2,7 @@
 import { loadMap, saveMap } from "@/lib/sessionPersist";
 import type { KnowledgeFaqStatus } from "./knowledgeStatus";
 import { normalizeForCompare, similarity } from "./textSimilarity";
+import type { Sharing } from "./knowledgeBaseStore";
 
 export interface KnowledgeFaq {
   id: string;
@@ -9,6 +10,10 @@ export interface KnowledgeFaq {
   question: string;
   answer: string;
   categories: string[];
+  /** "Quyền xây Agent" access to this specific FAQ (Round 9 fix — kept it consistent with
+   * knowledgeDocumentStore.ts's per-document sharing, which already had this). Undefined ==
+   * "Chỉ mình tôi". */
+  sharing?: Sharing;
   status: KnowledgeFaqStatus;
   /** Reason shown in the row's info-icon tooltip — only meaningful for "failed" and "invalid". */
   statusReason?: string;
@@ -188,10 +193,11 @@ export const knowledgeFaqStore = {
     scored.sort((a, b) => b.score - a.score);
     return { exact, similar: scored.slice(0, 3).map(s => s.faq) };
   },
-  create(kbId: string, data: { question: string; answer: string; categories: string[] }): KnowledgeFaq {
+  create(kbId: string, data: { question: string; answer: string; categories: string[]; sharing?: Sharing }): KnowledgeFaq {
     const id = `faq-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 5)}`;
     const rec: KnowledgeFaq = {
       id, kbId, question: data.question.trim(), answer: data.answer.trim(), categories: data.categories,
+      sharing: data.sharing,
       status: "pending", chunkCount: 0, updatedAt: Date.now(), updatedBy: "Tran Nam",
     };
     store.set(id, rec);
@@ -202,6 +208,12 @@ export const knowledgeFaqStore = {
     const cur = store.get(id);
     if (!cur) return;
     store.set(id, { ...cur, ...patch, status: "pending", statusReason: undefined, chunkCount: 0, updatedAt: Date.now() });
+    persist();
+  },
+  updateSharing(id: string, sharing: Sharing) {
+    const cur = store.get(id);
+    if (!cur) return;
+    store.set(id, { ...cur, sharing, updatedAt: Date.now() });
     persist();
   },
   updateStatus(id: string, status: KnowledgeFaqStatus, patch?: Partial<Pick<KnowledgeFaq, "chunkCount" | "statusReason">>) {

@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { toast } from "sonner";
 import { knowledgeFaqStore, type KnowledgeFaq } from "./knowledgeFaqStore";
 import { knowledgeBaseStore } from "./knowledgeBaseStore";
+import ShareKnowledgeBaseModal from "./ShareKnowledgeBaseModal";
 import { KnowledgeStatusPill, KNOWLEDGE_STATUS_META, type KnowledgeFaqStatus } from "./knowledgeStatus";
 import { normalizeForCompare } from "./textSimilarity";
 import { TruncatedText, CategoryChips } from "./FaqCellDisplays";
@@ -90,6 +91,7 @@ export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; view
   const [showManageCategories, setShowManageCategories] = useState(false);
   const [showBulkReprocessConfirm, setShowBulkReprocessConfirm] = useState(false);
   const [editTarget, setEditTarget] = useState<KnowledgeFaq | null>(null);
+  const [shareTarget, setShareTarget] = useState<KnowledgeFaq | null>(null);
   const [deleteTargets, setDeleteTargets] = useState<KnowledgeFaq[] | null>(null);
   const createMenuRef = useRef<HTMLDivElement>(null);
   const skipClearRef = useRef(true);
@@ -341,6 +343,7 @@ export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; view
                         <RowMenu
                           status={f.status}
                           onEdit={() => setEditTarget(f)}
+                          onShare={() => setShareTarget(f)}
                           onReprocess={() => reprocessOne(f)}
                           onDelete={() => setDeleteTargets([f])}
                         />
@@ -379,6 +382,17 @@ export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; view
 
       <AddEditFaqModal open={showAdd} kbId={kbId} onClose={() => { setShowAdd(false); refresh(); }} />
       {editTarget && <AddEditFaqModal open={!!editTarget} kbId={kbId} editingFaq={editTarget} onClose={() => { setEditTarget(null); refresh(); }} />}
+      {shareTarget && (
+        <ShareKnowledgeBaseModal
+          open
+          title="Chia sẻ câu hỏi"
+          name={shareTarget.question}
+          ownerName={shareTarget.updatedBy}
+          sharing={shareTarget.sharing ?? { mode: "private", people: [] }}
+          onSave={sharing => knowledgeFaqStore.updateSharing(shareTarget.id, sharing)}
+          onClose={() => { setShareTarget(null); refresh(); }}
+        />
+      )}
       {showImport && (
         <ImportFaqModal
           open={showImport}
@@ -478,8 +492,8 @@ export default function KnowledgeFaqTab({ kbId, viewOnly }: { kbId: string; view
   );
 }
 
-function RowMenu({ status, onEdit, onReprocess, onDelete }: {
-  status: KnowledgeFaqStatus; onEdit: () => void; onReprocess: () => void; onDelete: () => void;
+function RowMenu({ status, onEdit, onShare, onReprocess, onDelete }: {
+  status: KnowledgeFaqStatus; onEdit: () => void; onShare: () => void; onReprocess: () => void; onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -505,6 +519,7 @@ function RowMenu({ status, onEdit, onReprocess, onDelete }: {
       {open && (
         <div className="absolute right-0 top-full mt-1 z-20 min-w-52 max-w-xs rounded-lg border border-border bg-white shadow-elev py-1">
           <button onClick={() => { setOpen(false); onEdit(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Sửa</button>
+          <button onClick={() => { setOpen(false); onShare(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Chia sẻ</button>
           <Tooltip delayDuration={200}>
             <TooltipTrigger asChild>
               <span>

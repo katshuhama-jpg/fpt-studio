@@ -9,6 +9,8 @@ import { knowledgeFaqStore, type KnowledgeFaq } from "./knowledgeFaqStore";
 import { knowledgeStore, type KnowledgeItem } from "./knowledgeStore";
 import CategoryChipsInput from "./CategoryChipsInput";
 import FaqSidePeek from "./FaqSidePeek";
+import MemberPicker from "./MemberPicker";
+import { CURRENT_USER, type SharingMode, type SharedPerson } from "./knowledgeBaseStore";
 
 const QUESTION_MAX = 500;
 const ANSWER_MAX = 5000;
@@ -16,6 +18,12 @@ const MAX_CATEGORIES = 10;
 const CATEGORY_MAX = 30;
 const DUPLICATE_CHECK_MIN_CHARS = 8;
 const DUPLICATE_CHECK_DEBOUNCE_MS = 500;
+
+const ACCESS_OPTIONS: { value: SharingMode; label: string; helper?: string }[] = [
+  { value: "private", label: "Chỉ mình tôi" },
+  { value: "all", label: "Tất cả người dùng Console", helper: "Mọi thành viên Console đều xem và dùng được FAQ này." },
+  { value: "specific", label: "Người dùng cụ thể" },
+];
 
 /** Pass either kbId (Console FAQ tab) or agentId (Agent Knowledge "Câu hỏi thường gặp" tile).
  * Categories, duplicate detection, and the side peek only apply to Console FAQs — Agent
@@ -42,6 +50,10 @@ export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, editi
   const [peekFaq, setPeekFaq] = useState<KnowledgeFaq | null>(null);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
+  // Only asked at creation (edit-time sharing changes go through the row-level "Chia sẻ"
+  // action instead, same split as UploadDocumentsModal).
+  const [accessMode, setAccessMode] = useState<SharingMode>("private");
+  const [accessPeople, setAccessPeople] = useState<SharedPerson[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Agent-level duplicate check is a plain exact-match lookup (no fuzzy scoring needed), so it
@@ -69,7 +81,8 @@ export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, editi
     : categories.some(c => c.length > CATEGORY_MAX)
       ? `Mỗi danh mục tối đa ${CATEGORY_MAX} ký tự.`
       : null;
-  const canSubmit = question.trim().length > 0 && answer.trim().length > 0 && !categoryError;
+  const accessInvalid = !isEdit && accessMode === "specific" && accessPeople.length === 0;
+  const canSubmit = question.trim().length > 0 && answer.trim().length > 0 && !categoryError && !accessInvalid;
 
   const isDirty = question.trim() !== initialQuestion.trim()
     || answer.trim() !== initialAnswer.trim()
@@ -90,13 +103,15 @@ export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, editi
     // path below, which only ever shows a non-blocking inline warning.
     if (agentId && agentDuplicate && !showDuplicateConfirm) { setShowDuplicateConfirm(true); return; }
 
+    const sharing = accessMode === "private" ? undefined : { mode: accessMode, people: accessMode === "specific" ? accessPeople : [] };
+
     if (agentId) {
       if (editingItem) {
         // Editing content isn't a reprocess — Trạng thái stays exactly as it was.
         knowledgeStore.update(agentId, editingItem.id, { name: question.trim(), description: answer.trim(), categories });
         toast.success("Đã lưu câu hỏi.");
       } else if (!isEdit) {
-        const item = knowledgeStore.add(agentId, { name: question.trim(), kind: "faq", description: answer.trim(), categories });
+        const item = knowledgeStore.add(agentId, { name: question.trim(), kind: "faq", description: answer.trim(), categories, sharing });
         toast.success("Đã lưu câu hỏi.");
         runLifecycle((status, chunkCount) => knowledgeStore.updateStatus(agentId, item.id, status, chunkCount !== undefined ? { chunkCount } : undefined));
       }
@@ -109,7 +124,7 @@ export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, editi
       toast.success("Đã lưu câu hỏi.");
       runLifecycle((status, chunkCount) => knowledgeFaqStore.updateStatus(editingFaq.id, status, chunkCount !== undefined ? { chunkCount } : undefined));
     } else {
-      const faq = knowledgeFaqStore.create(kbId!, { question: question.trim(), answer: answer.trim(), categories });
+      const faq = knowledgeFaqStore.create(kbId!, { question: question.trim(), answer: answer.trim(), categories, sharing });
       toast.success("Đã lưu câu hỏi.");
       runLifecycle((status, chunkCount) => knowledgeFaqStore.updateStatus(faq.id, status, chunkCount !== undefined ? { chunkCount } : undefined));
     }
@@ -213,6 +228,42 @@ export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, editi
               {maxCategoriesMsg && <p className="text-xs text-warning mt-1">Chỉ gắn được tối đa {MAX_CATEGORIES} danh mục cho một câu hỏi.</p>}
               {categoryError && <p className="text-xs text-destructive mt-1">{categoryError}</p>}
             </div>
+            {!isEdit && (
+              <div>
+                <label className="text-sm font-medium mb-2 block">Ai có quyền truy cập</label>
+                <div className="space-y-2">
+                  {ACCESS_OPTIONS.map(opt => {
+                    const selected = accessMode === opt.value;
+                    return (
+                      <div key={opt.value}>
+                        <div
+                          onClick={() => setAccessMode(opt.value)}
+                          className={`flex items-start gap-3 px-3.5 py-3 rounded-xl border cursor-pointer transition-base ${
+                            selected ? "border-primary bg-primary/5" : "border-border bg-white hover:bg-surface-muted"
+                          }`}
+                        >
+                          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${selected ? "border-primary" : "border-border"}`}>
+                            {selected && <div className="w-2 h-2 rounded-full bg-primary" />}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium">{opt.label}</div>
+                            {opt.helper && <div className="text-xs text-muted-foreground mt-0.5">{opt.helper}</div>}
+                          </div>
+                        </div>
+                        {selected && opt.value === "specific" && (
+                          <div className="mt-2 pl-3.5">
+                            <MemberPicker value={accessPeople} onChange={setAccessPeople} ownerRow={{ name: CURRENT_USER.name, email: CURRENT_USER.email }} />
+                            {accessPeople.length === 0 && (
+                              <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người để chia sẻ.</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <button onClick={requestClose} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Hủy bỏ</button>
