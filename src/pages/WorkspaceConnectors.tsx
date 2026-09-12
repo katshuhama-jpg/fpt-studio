@@ -101,17 +101,23 @@ const CONNECTORS: Connector[] = [
 ];
 
 const CATEGORIES = [
-  { key:"popular",      label:"Popular",            icon:"🔥" },
-  { key:"new",          label:"New",                icon:"✨" },
-  { key:"communication",label:"Communication",      icon:"💬" },
-  { key:"data",         label:"Data & analytics",   icon:"📊" },
-  { key:"productivity", label:"Productivity",       icon:"⚡" },
+  { key:"popular",      label:"Phổ biến",           icon:"🔥" },
+  { key:"new",          label:"Mới",                icon:"✨" },
+  { key:"communication",label:"Giao tiếp",          icon:"💬" },
+  { key:"data",         label:"Dữ liệu & phân tích",icon:"📊" },
+  { key:"productivity", label:"Năng suất",          icon:"⚡" },
 ];
 
 const AUTH_LABEL: Record<CustomConnector["authType"], string> = {
-  none: "No authentication",
+  none: "Không xác thực",
   static_headers: "Static Headers",
 };
+
+const MARKETPLACE_TABS: { key: Tab; label: string }[] = [
+  { key: "all", label: "Tất cả" },
+  { key: "connected", label: "Đã kết nối" },
+  { key: "available", label: "Chưa kết nối" },
+];
 
 /* ─── Main page ──────────────────────────────────────── */
 export default function WorkspaceConnectors() {
@@ -126,6 +132,7 @@ export default function WorkspaceConnectors() {
   const refresh = () => setTick(t => t + 1);
   void tick;
   const [showAddCustom, setShowAddCustom] = useState(false);
+  const [editTarget, setEditTarget] = useState<CustomConnector | null>(null);
   const [shareTarget, setShareTarget] = useState<CustomConnector | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CustomConnector | null>(null);
   const [customTab, setCustomTab] = useState<CustomTab>("all");
@@ -177,7 +184,7 @@ export default function WorkspaceConnectors() {
     <div className="px-8 py-8 max-w-[1200px] mx-auto animate-fade-up">
       <div className="mb-6">
         <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">Connectors</h1>
-        <p className="text-sm text-muted-foreground">Connect services so agents can access and act on your data.</p>
+        <p className="text-sm text-muted-foreground">Kết nối các dịch vụ để Agent có thể truy cập và thao tác trên dữ liệu của bạn.</p>
       </div>
 
       {/* Marketplace / Custom split */}
@@ -203,27 +210,33 @@ export default function WorkspaceConnectors() {
           {/* Toolbar */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6 border-b border-border pb-3">
             <div className="flex items-center gap-1">
-              {(["all","connected","available"] as Tab[]).map(t => (
-                <button key={t} onClick={() => setTab(t)}
-                  className={`px-3 h-8 rounded-lg text-sm font-medium transition-base capitalize ${
-                    tab === t ? "bg-primary-soft text-primary" : "text-muted-foreground hover:bg-surface-muted"
+              {MARKETPLACE_TABS.map(t => (
+                <button key={t.key} onClick={() => setTab(t.key)}
+                  className={`px-3 h-8 rounded-lg text-sm font-medium transition-base ${
+                    tab === t.key ? "bg-primary-soft text-primary" : "text-muted-foreground hover:bg-surface-muted"
                   }`}
-                >{t === "all" ? "All" : t === "connected" ? "Connected" : "Available"}</button>
+                >{t.label}</button>
               ))}
             </div>
             <div className="relative">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search connectors…"
+              <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm connector…"
                 className="h-9 w-56 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30" />
             </div>
           </div>
 
-          {/* Requested connections */}
-          {tab !== "connected" && requested.length > 0 && (
+          {/* Requested connections — these are always already-connected connectors (see seed
+           * data), so they belong on both "Tất cả" and "Đã kết nối"; only "Chưa kết nối" should
+           * hide them. Gap fix: this used to read `tab !== "connected"`, which meant the "Đã kết
+           * nối" filter excluded every requested-category connector (Outlook, SharePoint) on top
+           * of `filtered` already excluding them (see the `filtered` useMemo below) — the tab
+           * rendered fully blank with no empty state at all, even though 2 connectors really are
+           * connected. */}
+          {tab !== "available" && requested.length > 0 && (
             <div className="mb-8">
               <div className="flex items-center gap-1.5 mb-3 text-xs font-semibold text-primary">
                 <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                Agents are requesting connections
+                Agent đang yêu cầu kết nối
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {requested.map(c => (
@@ -261,7 +274,7 @@ export default function WorkspaceConnectors() {
           })}
 
           {filtered.length === 0 && !requested.length && (
-            <div className="py-20 text-center text-muted-foreground text-sm">No connectors found.</div>
+            <div className="py-20 text-center text-muted-foreground text-sm">Không tìm thấy connector nào.</div>
           )}
         </>
       )}
@@ -269,12 +282,12 @@ export default function WorkspaceConnectors() {
       {section === "custom" && (
         <div>
           <div className="flex items-center justify-between gap-3 mb-5">
-            <p className="text-sm text-muted-foreground">Add an MCP server to grant its tools to your agents.</p>
+            <p className="text-sm text-muted-foreground">Thêm một MCP server để cấp công cụ của nó cho Agent của bạn.</p>
             <button
               onClick={() => setShowAddCustom(true)}
               className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium transition-base shrink-0"
             >
-              + Add custom MCP
+              + Thêm MCP tùy chỉnh
             </button>
           </div>
 
@@ -299,8 +312,8 @@ export default function WorkspaceConnectors() {
           {accessibleCustomConnectors.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-gradient-soft p-12 text-center">
               <Plug size={22} className="mx-auto mb-3 text-muted-foreground" />
-              <p className="text-sm font-medium mb-1">No custom connectors yet</p>
-              <p className="text-sm text-muted-foreground">Add an MCP server to grant its tools to your agents.</p>
+              <p className="text-sm font-medium mb-1">Chưa có custom connector nào</p>
+              <p className="text-sm text-muted-foreground">Thêm một MCP server để cấp công cụ của nó cho Agent của bạn.</p>
             </div>
           ) : customFiltered.length === 0 ? (
             <div className="py-16 text-center text-muted-foreground text-sm">Không có custom connector nào trong mục này.</div>
@@ -313,6 +326,7 @@ export default function WorkspaceConnectors() {
                     key={c.id}
                     connector={c}
                     isMine={isMine}
+                    onEdit={isMine ? () => setEditTarget(c) : undefined}
                     onShare={isMine ? () => setShareTarget(c) : undefined}
                     onDelete={() => setDeleteTarget(c)}
                   />
@@ -327,6 +341,14 @@ export default function WorkspaceConnectors() {
         <AddCustomConnectorModal
           onClose={() => setShowAddCustom(false)}
           onCreated={() => { setShowAddCustom(false); refresh(); }}
+        />
+      )}
+
+      {editTarget && (
+        <AddCustomConnectorModal
+          editing={editTarget}
+          onClose={() => setEditTarget(null)}
+          onUpdated={() => { setEditTarget(null); toast.success("Đã lưu thay đổi."); refresh(); }}
         />
       )}
 
@@ -401,12 +423,12 @@ function ConnectorCard({ connector: c, onOpen }: { connector: Connector; onOpen:
           <span className="text-sm font-medium">{c.name}</span>
           {c.connected && <CheckCircle2 size={13} className="text-success shrink-0" />}
           {c.soon && !c.connected && (
-            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded border border-border bg-surface-muted text-muted-foreground shrink-0">Coming soon</span>
+            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded border border-border bg-surface-muted text-muted-foreground shrink-0">Sắp ra mắt</span>
           )}
         </div>
         <p className="text-xs text-muted-foreground leading-relaxed">{c.desc}</p>
         {c.requestedBy && (
-          <p className="text-[11px] text-muted-foreground mt-1">Requested by: {c.requestedBy.join(", ")}</p>
+          <p className="text-[11px] text-muted-foreground mt-1">Được yêu cầu bởi: {c.requestedBy.join(", ")}</p>
         )}
       </div>
       <ChevronRight size={14} className="text-muted-foreground shrink-0 mt-0.5" />
@@ -415,7 +437,7 @@ function ConnectorCard({ connector: c, onOpen }: { connector: Connector; onOpen:
 }
 
 /* ─── Custom Connector card + row menu ───────────────── */
-function CustomConnectorRowMenu({ onShare, onDelete }: { onShare?: () => void; onDelete: () => void }) {
+function CustomConnectorRowMenu({ onEdit, onShare, onDelete }: { onEdit?: () => void; onShare?: () => void; onDelete: () => void }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="relative shrink-0" onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false); }}>
@@ -429,6 +451,14 @@ function CustomConnectorRowMenu({ onShare, onDelete }: { onShare?: () => void; o
       </button>
       {open && (
         <div className="absolute right-0 top-8 z-20 w-40 bg-white rounded-xl border border-border shadow-lg py-1 animate-fade-up">
+          {/* Gap fix: this menu used to offer only Chia sẻ/Xóa — there was no way to correct a
+           * wrong URL or rotate a header/API key on an existing connector without deleting and
+           * recreating it (losing sharing config and breaking any Agent already attached). */}
+          {onEdit && (
+            <button onClick={() => { setOpen(false); onEdit(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">
+              Sửa
+            </button>
+          )}
           {onShare && (
             <button onClick={() => { setOpen(false); onShare(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">
               Chia sẻ
@@ -443,8 +473,8 @@ function CustomConnectorRowMenu({ onShare, onDelete }: { onShare?: () => void; o
   );
 }
 
-function CustomConnectorCard({ connector: c, isMine, onShare, onDelete }: {
-  connector: CustomConnector; isMine: boolean; onShare?: () => void; onDelete: () => void;
+function CustomConnectorCard({ connector: c, isMine, onEdit, onShare, onDelete }: {
+  connector: CustomConnector; isMine: boolean; onEdit?: () => void; onShare?: () => void; onDelete: () => void;
 }) {
   return (
     <div className="flex items-start gap-3 p-4 rounded-xl border border-border bg-surface">
@@ -465,7 +495,7 @@ function CustomConnectorCard({ connector: c, isMine, onShare, onDelete }: {
           {c.attachedByAgentIds.length > 0 && ` · ${c.attachedByAgentIds.length} Agent đang dùng`}
         </p>
       </div>
-      <CustomConnectorRowMenu onShare={onShare} onDelete={onDelete} />
+      <CustomConnectorRowMenu onEdit={onEdit} onShare={onShare} onDelete={onDelete} />
     </div>
   );
 }

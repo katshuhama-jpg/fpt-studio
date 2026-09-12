@@ -90,9 +90,9 @@ export const customConnectorStore = {
     seed();
     return store.get(id);
   },
-  isDuplicateName(name: string): boolean {
+  isDuplicateName(name: string, excludeId?: string): boolean {
     const n = name.trim().toLowerCase();
-    return this.list().some(c => c.name.trim().toLowerCase() === n);
+    return this.list().some(c => c.id !== excludeId && c.name.trim().toLowerCase() === n);
   },
   create(data: { name: string; url: string; authType: ConnectorAuthType; headers: ConnectorHeader[]; sharing: Sharing }): CustomConnector {
     const id = `cc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
@@ -111,6 +111,22 @@ export const customConnectorStore = {
     const cur = store.get(id);
     if (!cur) return;
     store.set(id, { ...cur, sharing, updatedAt: Date.now() });
+    persist();
+  },
+  /** Edits an existing Custom Connector's connection details (Name/URL/Authentication). Sharing
+   * is intentionally left untouched here — that's still the separate "Chia sẻ" modal's job — so
+   * editing connection details never accidentally changes who can see the connector. */
+  update(id: string, data: { name: string; url: string; authType: ConnectorAuthType; headers: ConnectorHeader[] }) {
+    const cur = store.get(id);
+    if (!cur) return;
+    store.set(id, {
+      ...cur,
+      name: data.name.trim(),
+      url: data.url.trim(),
+      authType: data.authType,
+      headers: data.authType === "static_headers" ? data.headers.filter(h => h.key.trim()) : [],
+      updatedAt: Date.now(),
+    });
     persist();
   },
   remove(id: string) {

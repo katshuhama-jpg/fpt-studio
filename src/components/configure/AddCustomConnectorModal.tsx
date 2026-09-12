@@ -13,33 +13,43 @@ const SHARING_OPTIONS: { value: SharingMode; label: string; helper?: string }[] 
 ];
 
 const AUTH_OPTIONS: { value: ConnectorAuthType; label: string }[] = [
-  { value: "none", label: "No authentication" },
+  { value: "none", label: "Không xác thực" },
   { value: "static_headers", label: "Static Headers" },
 ];
 
-/** "Add custom MCP" — the one creation form for a Custom Connector, opened both from the Console
- * Connectors page ("Custom Connectors" tab) and inline from an Agent's own "+ Thêm Connector"
- * picker (Dùng chung scope only), mirroring the dual creation entry points already established
- * for Knowledge/Guardrails/Skills. Field set and copy mirror the real product's own "Add custom
- * MCP" modal (console-agents.fpt.ai/connectors) — Name / URL / Authentication, with OAuth 2.1
- * shown as "Soon" since the real product hasn't shipped it either. The one addition beyond the
- * real product: "Ai có quyền truy cập" at the bottom, since the real product currently has no
- * ownership/sharing concept at all for Custom Connectors (private-by-default + explicit Console
- * share, same as Knowledge, per the approved design). */
-export default function AddCustomConnectorModal({ onClose, onCreated }: {
+/** "Thêm MCP tùy chỉnh" — the one creation/edit form for a Custom Connector, opened both from the
+ * Console Connectors page ("Custom Connectors" tab) and inline from an Agent's own "+ Thêm
+ * Connector" picker (Dùng chung scope only), mirroring the dual creation entry points already
+ * established for Knowledge/Guardrails/Skills. Field set mirrors the real product's own "Add
+ * custom MCP" modal (console-agents.fpt.ai/connectors) — Name / URL / Authentication, with OAuth
+ * 2.1 shown as "Sắp có" since the real product hasn't shipped it either. Two additions beyond the
+ * real product, per the approved Connector Management design: (1) "Ai có quyền truy cập" at the
+ * bottom — the real product currently has no ownership/sharing concept at all for Custom
+ * Connectors (private-by-default + explicit Console share, same as Knowledge); (2) edit mode
+ * (`editing` prop) — the real product's row menu today only offers Share/Delete, so a wrong
+ * URL/header can only be fixed by deleting and recreating the connector (losing its sharing
+ * config and breaking any Agent already using it). All UI copy is Vietnamese per the unified
+ * Connector Management language decision — English is kept only for established product/technical
+ * terms (Connector, MCP, URL, Static Headers, OAuth, header/key example values). */
+export default function AddCustomConnectorModal({ editing, onClose, onCreated, onUpdated }: {
+  editing?: CustomConnector;
   onClose: () => void;
-  onCreated: (connector: CustomConnector) => void;
+  onCreated?: (connector: CustomConnector) => void;
+  onUpdated?: (connector: CustomConnector) => void;
 }) {
-  const [name, setName] = useState("");
-  const [url, setUrl] = useState("");
-  const [authType, setAuthType] = useState<ConnectorAuthType>("none");
-  const [headers, setHeaders] = useState<ConnectorHeader[]>([{ key: "", value: "" }]);
+  const isEditing = !!editing;
+  const [name, setName] = useState(editing?.name ?? "");
+  const [url, setUrl] = useState(editing?.url ?? "");
+  const [authType, setAuthType] = useState<ConnectorAuthType>(editing?.authType ?? "none");
+  const [headers, setHeaders] = useState<ConnectorHeader[]>(
+    editing?.headers.length ? editing.headers.map(h => ({ ...h })) : [{ key: "", value: "" }],
+  );
   const [revealed, setRevealed] = useState<Set<number>>(new Set());
-  const [sharingMode, setSharingMode] = useState<SharingMode>("private");
-  const [people, setPeople] = useState<SharedPerson[]>([]);
+  const [sharingMode, setSharingMode] = useState<SharingMode>(editing?.sharing.mode ?? "private");
+  const [people, setPeople] = useState<SharedPerson[]>(editing?.sharing.people ?? []);
   const [submitAttempted, setSubmitAttempted] = useState(false);
 
-  const duplicateName = name.trim() !== "" && customConnectorStore.isDuplicateName(name);
+  const duplicateName = name.trim() !== "" && customConnectorStore.isDuplicateName(name, editing?.id);
   const peopleError = sharingMode === "specific" && people.length === 0;
   const canSubmit = !!name.trim() && !!url.trim() && !duplicateName && !peopleError;
 
@@ -52,12 +62,20 @@ export default function AddCustomConnectorModal({ onClose, onCreated }: {
   const submit = () => {
     setSubmitAttempted(true);
     if (!canSubmit) return;
+    if (isEditing && editing) {
+      customConnectorStore.update(editing.id, {
+        name: name.trim(), url: url.trim(), authType,
+        headers: headers.filter(h => h.key.trim()),
+      });
+      onUpdated?.(customConnectorStore.get(editing.id)!);
+      return;
+    }
     const sharing: Sharing = { mode: sharingMode, people: sharingMode === "specific" ? people : [] };
     const connector = customConnectorStore.create({
       name: name.trim(), url: url.trim(), authType,
       headers: headers.filter(h => h.key.trim()), sharing,
     });
-    onCreated(connector);
+    onCreated?.(connector);
   };
 
   return createPortal(
@@ -66,8 +84,10 @@ export default function AddCustomConnectorModal({ onClose, onCreated }: {
       <div className="relative w-full max-w-[520px] bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh] animate-fade-up">
         <div className="flex items-start justify-between px-6 py-5 border-b border-border shrink-0">
           <div>
-            <h2 className="font-display text-lg font-semibold">Add custom MCP</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">Connect an MCP server to give your agents its tools.</p>
+            <h2 className="font-display text-lg font-semibold">{isEditing ? "Sửa MCP tùy chỉnh" : "Thêm MCP tùy chỉnh"}</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {isEditing ? "Cập nhật thông tin kết nối của MCP server này." : "Kết nối một MCP server để cấp công cụ của nó cho Agent của bạn."}
+            </p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base mt-0.5">
             <X size={15} />
@@ -76,7 +96,7 @@ export default function AddCustomConnectorModal({ onClose, onCreated }: {
 
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
           <div>
-            <label className="text-sm font-medium mb-1.5 block">Name <span className="text-destructive">*</span></label>
+            <label className="text-sm font-medium mb-1.5 block">Tên <span className="text-destructive">*</span></label>
             <input
               autoFocus
               value={name}
@@ -98,7 +118,7 @@ export default function AddCustomConnectorModal({ onClose, onCreated }: {
           </div>
 
           <div>
-            <label className="text-sm font-medium mb-2 block">Authentication</label>
+            <label className="text-sm font-medium mb-2 block">Xác thực</label>
             <div className="space-y-2">
               {AUTH_OPTIONS.map(opt => {
                 const selected = authType === opt.value;
@@ -117,7 +137,7 @@ export default function AddCustomConnectorModal({ onClose, onCreated }: {
                     </div>
                     {selected && opt.value === "static_headers" && (
                       <div className="mt-2 pl-3.5 space-y-2">
-                        <label className="text-xs font-medium text-muted-foreground block">Headers (optional)</label>
+                        <label className="text-xs font-medium text-muted-foreground block">Headers (tùy chọn)</label>
                         {headers.map((h, i) => (
                           <div key={i} className="flex items-center gap-1.5">
                             <input
@@ -148,10 +168,10 @@ export default function AddCustomConnectorModal({ onClose, onCreated }: {
                           onClick={() => setHeaders(hs => [...hs, { key: "", value: "" }])}
                           className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                         >
-                          <Plus size={12} /> Add header
+                          <Plus size={12} /> Thêm header
                         </button>
                         <p className="text-xs text-muted-foreground leading-relaxed">
-                          Optional shared key for the whole workspace. Leave empty to let each person connect their own in Workspace.
+                          Khóa dùng chung (tùy chọn) cho cả workspace. Để trống để mỗi người tự kết nối bằng khóa riêng của mình.
                         </p>
                       </div>
                     )}
@@ -160,58 +180,63 @@ export default function AddCustomConnectorModal({ onClose, onCreated }: {
               })}
               <div className="flex items-center gap-3 px-3.5 py-3 rounded-xl border border-border opacity-45 cursor-not-allowed">
                 <div className="w-4 h-4 rounded-full border-2 border-border shrink-0" />
-                <span className="text-sm font-medium">OAuth 2.1 (Auto) · Soon</span>
+                <span className="text-sm font-medium">OAuth 2.1 (Tự động) · Sắp có</span>
               </div>
               <div className="flex items-center gap-3 px-3.5 py-3 rounded-xl border border-border opacity-45 cursor-not-allowed">
                 <div className="w-4 h-4 rounded-full border-2 border-border shrink-0" />
-                <span className="text-sm font-medium">OAuth 2.1 (Manual) · Soon</span>
+                <span className="text-sm font-medium">OAuth 2.1 (Thủ công) · Sắp có</span>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-2">Use static headers (e.g. an API key) to authenticate. OAuth 2.1 is coming soon.</p>
+            <p className="text-xs text-muted-foreground mt-2">Dùng Static Headers (vd: một API key) để xác thực. OAuth 2.1 sẽ sớm ra mắt.</p>
           </div>
 
-          <div>
-            <label className="text-sm font-medium mb-2 block">Ai có quyền truy cập</label>
-            <div className="space-y-2">
-              {SHARING_OPTIONS.map(opt => {
-                const selected = sharingMode === opt.value;
-                return (
-                  <div key={opt.value}>
-                    <div
-                      onClick={() => setSharingMode(opt.value)}
-                      className={`flex items-start gap-3 px-3.5 py-3 rounded-xl border cursor-pointer transition-base ${
-                        selected ? "border-primary bg-primary/5" : "border-border bg-white hover:bg-surface-muted"
-                      }`}
-                    >
-                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${selected ? "border-primary" : "border-border"}`}>
-                        {selected && <div className="w-2 h-2 rounded-full bg-primary" />}
+          {/* Sharing is edited from the dedicated "Chia sẻ" modal once a connector exists, so this
+           * section only applies at creation time — keeps edit mode focused on connection details
+           * and avoids the two flows fighting over the same state (see customConnectorStore.update). */}
+          {!isEditing && (
+            <div>
+              <label className="text-sm font-medium mb-2 block">Ai có quyền truy cập</label>
+              <div className="space-y-2">
+                {SHARING_OPTIONS.map(opt => {
+                  const selected = sharingMode === opt.value;
+                  return (
+                    <div key={opt.value}>
+                      <div
+                        onClick={() => setSharingMode(opt.value)}
+                        className={`flex items-start gap-3 px-3.5 py-3 rounded-xl border cursor-pointer transition-base ${
+                          selected ? "border-primary bg-primary/5" : "border-border bg-white hover:bg-surface-muted"
+                        }`}
+                      >
+                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${selected ? "border-primary" : "border-border"}`}>
+                          {selected && <div className="w-2 h-2 rounded-full bg-primary" />}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium">{opt.label}</div>
+                          {opt.helper && <div className="text-xs text-muted-foreground mt-0.5">{opt.helper}</div>}
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium">{opt.label}</div>
-                        {opt.helper && <div className="text-xs text-muted-foreground mt-0.5">{opt.helper}</div>}
-                      </div>
+                      {selected && opt.value === "specific" && (
+                        <div className="mt-2 pl-3.5">
+                          <CustomConnectorMemberPicker
+                            value={people}
+                            onChange={setPeople}
+                            ownerRow={{ name: CURRENT_USER.name, email: CURRENT_USER.email }}
+                          />
+                          {peopleError && submitAttempted && <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người để chia sẻ.</p>}
+                        </div>
+                      )}
                     </div>
-                    {selected && opt.value === "specific" && (
-                      <div className="mt-2 pl-3.5">
-                        <CustomConnectorMemberPicker
-                          value={people}
-                          onChange={setPeople}
-                          ownerRow={{ name: CURRENT_USER.name, email: CURRENT_USER.email }}
-                        />
-                        {peopleError && submitAttempted && <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người để chia sẻ.</p>}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border shrink-0">
-          <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Cancel</button>
+          <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Hủy</button>
           <button onClick={submit} disabled={!canSubmit} className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium transition-base disabled:opacity-40 disabled:cursor-not-allowed">
-            Save server
+            {isEditing ? "Lưu thay đổi" : "Lưu server"}
           </button>
         </div>
       </div>
