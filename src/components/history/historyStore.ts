@@ -40,12 +40,28 @@ export const CHANNEL_META: Record<ConversationChannel, { label: string; color: s
   slack: { label: "Slack", icon: SlackIcon, color: "#611F69" },
 };
 
+/**
+ * A tool/connector invocation the agent made while producing a given message — e.g. sending
+ * a confirmation email through a connected Gmail account. Only present on messages where the
+ * agent actually used a Skill or Connector already configured on this agent (see the agent's
+ * Configuration panel); most replies have none, which is expected and shown as a plain
+ * Input/Output turn with no tool-call step.
+ */
+export interface ToolCallInfo {
+  callId: string;
+  name: string;
+  connector: string;
+  input: Record<string, string>;
+  output: Record<string, string>;
+}
+
 export interface ConversationMessage {
   id: string;
   role: "customer" | "agent";
   content: string;
   at: number; // epoch ms
   feedback?: "up" | "down"; // only ever set on role: "agent"
+  toolCall?: ToolCallInfo;
 }
 
 export interface ConversationRecord {
@@ -88,7 +104,12 @@ function pseudoUlid(seed: string): string {
 function buildMessages(
   seedKey: string,
   endedAt: number,
-  turns: { role: "customer" | "agent"; content: string; feedback?: "up" | "down" }[],
+  turns: {
+    role: "customer" | "agent";
+    content: string;
+    feedback?: "up" | "down";
+    toolCall?: Omit<ToolCallInfo, "callId">;
+  }[],
 ): ConversationMessage[] {
   const startAt = endedAt - turns.length * 2 * MIN;
   return turns.map((t, i) => ({
@@ -97,6 +118,7 @@ function buildMessages(
     content: t.content,
     at: startAt + i * 2 * MIN,
     feedback: t.feedback,
+    toolCall: t.toolCall ? { ...t.toolCall, callId: `call_${pseudoUlid(`${seedKey}-tool${i + 1}`).slice(0, 18)}` } : undefined,
   }));
 }
 
@@ -123,6 +145,20 @@ function seedAgent(agentId: string) {
         { role: "customer", content: "I lost my credit card, can you lock it right now?" },
         { role: "agent", content: "I'm sorry to hear that. I've located your Visa card ending in 4821 — locking it now." },
         { role: "agent", content: "Your card is locked. No further transactions can go through until you unlock it or request a replacement.", feedback: "up" },
+        {
+          role: "agent",
+          content: "I've also emailed a confirmation to nguyen.thi.lan@gmail.com with the case reference for your records.",
+          toolCall: {
+            name: "send_email",
+            connector: "Gmail",
+            input: {
+              to: "nguyen.thi.lan@gmail.com",
+              subject: "Xác nhận khoá thẻ Visa •••• 4821",
+              template: "card_lock_confirmation",
+            },
+            output: { status: "sent", messageId: "18f2a9c4b6e2d701" },
+          },
+        },
         { role: "customer", content: "Thank you, that was fast." },
       ]),
     },

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Search, ChevronLeft, ChevronRight, Waypoints } from "lucide-react";
 import { format, startOfDay, endOfDay } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import { historyStore, CHANNEL_META, type ConversationRecord } from "./historyStore";
@@ -9,6 +9,7 @@ import { TimeRangeFilter, type TimeFilter } from "./TimeRangeFilter";
 import { ChannelFilterDropdown } from "./ChannelFilterDropdown";
 
 export default function HistoryTab({ agentId }: { agentId: string }) {
+  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const selectedId = params.get("conversationId");
   const selectConversation = (id: string) => {
@@ -106,31 +107,46 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
       ) : (
         <>
           <div className="rounded-xl border border-border overflow-x-auto">
-            <div className="grid grid-cols-[165px,235px,155px,1fr,80px] gap-5 px-6 py-2.5 bg-surface-muted section-eyebrow min-w-[980px]">
-              <div>Ended</div><div>Conversation ID</div><div>Channel</div><div>User</div><div>Messages</div>
+            <div className="grid grid-cols-[165px,235px,155px,1fr,80px,40px] gap-5 px-6 py-2.5 bg-surface-muted section-eyebrow min-w-[1020px]">
+              <div>Ended</div><div>Conversation ID</div><div>Channel</div><div>User</div><div>Messages</div><div />
             </div>
-            <div className="divide-y divide-border min-w-[980px]">
+            <div className="divide-y divide-border min-w-[1020px]">
               {shownConversations.map((c: ConversationRecord) => (
-                <button
+                <div
                   key={c.id}
-                  type="button"
-                  onClick={() => selectConversation(c.id)}
-                  className={`w-full grid grid-cols-[165px,235px,155px,1fr,80px] gap-5 px-6 py-3 items-center transition-base text-left ${
+                  className={`relative w-full grid grid-cols-[165px,235px,155px,1fr,80px,40px] gap-5 px-6 py-3 items-center transition-base ${
                     c.id === selectedId ? "bg-primary-soft" : "hover:bg-surface-muted/50"
                   }`}
                 >
-                  <div className="text-sm text-muted-foreground whitespace-nowrap">{format(new Date(c.endedAt), "dd/MM/yyyy - HH:mm")}</div>
-                  <div className="text-sm font-mono truncate">{c.id}</div>
-                  <div className="flex items-center gap-2 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => selectConversation(c.id)}
+                    aria-label={`View conversation ${c.id}`}
+                    className="absolute inset-0 text-left"
+                  />
+                  <div className="relative text-sm text-muted-foreground whitespace-nowrap pointer-events-none">{format(new Date(c.endedAt), "dd/MM/yyyy - HH:mm")}</div>
+                  <div className="relative text-sm font-mono truncate pointer-events-none">{c.id}</div>
+                  <div className="relative flex items-center gap-2 min-w-0 pointer-events-none">
                     <ChannelLogo channel={c.channel} size={26} />
                     <span className="text-sm truncate">{CHANNEL_META[c.channel].label}</span>
                   </div>
-                  <div className="min-w-0">
+                  <div className="relative min-w-0 pointer-events-none">
                     <div className="text-sm truncate">{c.username}</div>
                     <div className="text-xs text-muted-foreground truncate">{c.email ?? "—"}</div>
                   </div>
-                  <div className="text-sm text-muted-foreground">{c.messages.length}</div>
-                </button>
+                  <div className="relative text-sm text-muted-foreground pointer-events-none">{c.messages.length}</div>
+                  <div className="relative flex items-center justify-center">
+                    <button
+                      type="button"
+                      onClick={e => { e.stopPropagation(); navigate(`/agents/${agentId}/trace/${c.id}`); }}
+                      title="View trace"
+                      aria-label={`View trace for conversation ${c.id}`}
+                      className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-muted hover:text-primary transition-base"
+                    >
+                      <Waypoints size={15} />
+                    </button>
+                  </div>
+                </div>
               ))}
             </div>
           </div>

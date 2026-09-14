@@ -16,6 +16,7 @@ import AgentScaffold from "./pages/AgentScaffold";
 import Inventor from "./pages/Inventor";
 import TaskEditor from "./pages/TaskEditor";
 import ToolBuilder from "./pages/ToolBuilder";
+import ConversationTrace from "./pages/ConversationTrace";
 import OrgGeneral from "./pages/organization/General";
 import OrgStructure from "./pages/organization/Structure";
 import OrgMembers from "./pages/organization/Members";
@@ -81,6 +82,7 @@ const App = () => (
             <Route path="/inventor" element={<RequireAuth><Inventor /></RequireAuth>} />
             <Route path="/agents/:id/tools/new" element={<RequireAuth><ToolBuilder /></RequireAuth>} />
             <Route path="/agents/:id/tools/:toolId" element={<RequireAuth><ToolBuilder /></RequireAuth>} />
+            <Route path="/agents/:id/trace/:conversationId" element={<RequireAuth><ConversationTrace /></RequireAuth>} />
             <Route element={<RequireAuth><WorkspaceLayout /></RequireAuth>}>
               <Route path="/knowledge" element={<KnowledgeList />} />
               <Route path="/knowledge/:id" element={<KnowledgeDetail />} />

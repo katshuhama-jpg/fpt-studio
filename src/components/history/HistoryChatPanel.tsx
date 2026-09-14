@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { X, Copy, Check } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { X, Copy, Check, Waypoints } from "lucide-react";
 import { format } from "date-fns";
 import { historyStore, CHANNEL_META } from "./historyStore";
 import ChannelLogo from "./ChannelLogo";
@@ -13,6 +13,7 @@ import CollapsibleHistoryPanel from "./CollapsibleHistoryPanel";
  * agent live, just read-only.
  */
 export default function HistoryChatPanel({ agentId }: { agentId: string }) {
+  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const conversationId = params.get("conversationId");
   const record = conversationId ? historyStore.get(agentId, conversationId) : undefined;
@@ -49,14 +50,23 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
                     <span className="text-muted-foreground">{format(new Date(record.endedAt), "dd/MM/yyyy - HH:mm")}</span>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={closePanel}
-                  aria-label="Close conversation"
-                  className="h-7 w-7 shrink-0 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base"
-                >
-                  <X size={16} />
-                </button>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/agents/${agentId}/trace/${record.id}`)}
+                    className="h-7 px-2 flex items-center gap-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:bg-surface-muted hover:text-primary transition-base"
+                  >
+                    <Waypoints size={13} /> View trace
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closePanel}
+                    aria-label="Close conversation"
+                    className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
               </div>
               <div className="flex items-center gap-1 mt-2 min-w-0">
                 <span className="text-[10px] font-mono text-muted-foreground truncate">{record.id}</span>
