@@ -9,6 +9,7 @@ import { collectMembers } from "@/pages/organization/orgData";
 import { isAccessibleTo, isViewOnly, type Sharing } from "@/components/configure/guardrailSharing";
 import { guardrailConsoleStore, type Guardrail } from "@/components/configure/guardrailConsoleStore";
 import CreateGuardrailModal, { type CreateGuardrailData } from "@/components/configure/CreateGuardrailModal";
+import GuardrailDetailModal from "@/components/configure/GuardrailDetailModal";
 import GuardrailShareModal from "@/components/configure/GuardrailShareModal";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -24,6 +25,25 @@ function isGuardrailAccessible(g: Guardrail, userId: string): boolean {
   if (g.mandatory || g.allAgents) return true;
   if (!g.ownerId || !g.sharing) return false;
   return isAccessibleTo(g.sharing, g.ownerId, userId);
+}
+
+const NO_ROLE_PERMISSION = "Bạn không có quyền thực hiện thao tác này.";
+const NOT_OWNED_OR_SHARED = "Bạn chỉ có thể thao tác trên guardrail bạn tạo hoặc được chia sẻ.";
+const VIEW_ONLY = "Bạn chỉ có quyền xem guardrail này.";
+
+/** Same "can this viewer edit this guardrail" gate the row menu uses, factored out so the
+ * "Sửa" shortcut inside GuardrailDetailModal (opened from Row Menu "Mở") enforces the exact
+ * same permission matrix instead of drifting from it. Returns the block reason, or undefined
+ * when editing is allowed. */
+function editBlockedFor(g: Guardrail, access: { userId: string; hasPermission: (a: string) => boolean; canAct: (a: string, accessible: boolean) => boolean }): string | undefined {
+  const hasOwner = !g.mandatory && !!g.ownerId && !!g.sharing;
+  const isOwner = hasOwner && g.ownerId === access.userId;
+  const accessible = isGuardrailAccessible(g, access.userId);
+  const viewOnly = hasOwner && !isOwner && isViewOnly(g.sharing!, g.ownerId!, access.userId);
+  if (viewOnly) return VIEW_ONLY;
+  if (!access.hasPermission("manage")) return NO_ROLE_PERMISSION;
+  if (!access.canAct("manage", accessible)) return NOT_OWNED_OR_SHARED;
+  return undefined;
 }
 
 // Ownership/share-status pills ("Của tôi", "Dùng chung", "Chia sẻ với N người") are gone — the
@@ -131,7 +151,13 @@ export default function WorkspaceGuardrails() {
     <div className="px-8 py-8 max-w-[1200px] mx-auto animate-fade-up">
       {showCreate && <CreateGuardrailModal onClose={() => setShowCreate(false)} onSubmit={handleCreate} currentUser={currentUser} />}
       {editItem && <CreateGuardrailModal onClose={() => setEditItem(null)} onSubmit={g => { handleEdit(editItem.id, g); setEditItem(null); }} initialData={editItem} currentUser={currentUser} />}
-      {viewItem && <CreateGuardrailModal onClose={() => setViewItem(null)} onSubmit={() => {}} initialData={viewItem} currentUser={currentUser} readOnly />}
+      {viewItem && (
+        <GuardrailDetailModal
+          guardrail={viewItem}
+          onClose={() => setViewItem(null)}
+          onEdit={!editBlockedFor(viewItem, access) ? () => { setViewItem(null); setEditItem(viewItem); } : undefined}
+        />
+      )}
       {shareItem && (
         <GuardrailShareModal
           open
@@ -223,17 +249,9 @@ export default function WorkspaceGuardrails() {
           const hasOwner = !g.mandatory && !!g.ownerId && !!g.sharing;
           const isOwner = hasOwner && g.ownerId === access.userId;
           const accessible = isGuardrailAccessible(g, access.userId);
-          const viewOnly = hasOwner && !isOwner && isViewOnly(g.sharing!, g.ownerId!, access.userId);
           const canPause = access.canAct("pause", accessible);
 
-          const NO_ROLE_PERMISSION = "Bạn không có quyền thực hiện thao tác này.";
-          const NOT_OWNED_OR_SHARED = "Bạn chỉ có thể thao tác trên guardrail bạn tạo hoặc được chia sẻ.";
-          const VIEW_ONLY = "Bạn chỉ có quyền xem guardrail này.";
-
-          const editBlocked = viewOnly ? VIEW_ONLY
-            : !access.hasPermission("manage") ? NO_ROLE_PERMISSION
-            : !access.canAct("manage", accessible) ? NOT_OWNED_OR_SHARED
-            : undefined;
+          const editBlocked = editBlockedFor(g, access);
           const shareBlocked = !hasOwner ? undefined
             : !isOwner ? "Chỉ chủ sở hữu mới có thể chia sẻ guardrail này."
             : !access.hasPermission("publish") ? NO_ROLE_PERMISSION
