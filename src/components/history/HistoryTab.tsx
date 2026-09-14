@@ -161,7 +161,7 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
                     type="button"
                     onClick={() => selectConversation(c.id)}
                     aria-label={`View conversation ${c.id}`}
-                    className="absolute inset-0 text-left"
+                    className="absolute inset-0 text-left focus-ring rounded-md"
                   />
                   <div className="relative text-sm tabular-nums pointer-events-none">{stats.turns}</div>
                   <div className="relative text-sm text-muted-foreground whitespace-nowrap pointer-events-none">{format(new Date(c.startedAt), "dd/MM/yyyy - HH:mm")}</div>
@@ -173,15 +173,19 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
                     <ChannelLogo channel={c.channel} size={26} />
                     <span className="text-sm truncate">{CHANNEL_META[c.channel].label}</span>
                   </div>
-                  <div className={`relative flex items-center gap-1 text-sm tabular-nums pointer-events-none ${slowLatency ? "text-red-600" : "text-emerald-600"}`}>
-                    <Clock size={11} />{(stats.latencyMs / 1000).toFixed(1)}s
+                  <div className="relative pointer-events-none">
+                    <span className={`chip gap-1 px-2 py-0.5 text-[11px] tabular-nums ${slowLatency ? "chip-danger" : "chip-success"}`}>
+                      <Clock size={11} />{(stats.latencyMs / 1000).toFixed(1)}s
+                    </span>
                   </div>
-                  <div className={`relative flex items-center gap-1 text-sm tabular-nums pointer-events-none ${slowFirstToken ? "text-red-600" : "text-emerald-600"}`}>
-                    <Zap size={11} />{(stats.firstTokenMs / 1000).toFixed(1)}s
+                  <div className="relative pointer-events-none">
+                    <span className={`chip gap-1 px-2 py-0.5 text-[11px] tabular-nums ${slowFirstToken ? "chip-danger" : "chip-success"}`}>
+                      <Zap size={11} />{(stats.firstTokenMs / 1000).toFixed(1)}s
+                    </span>
                   </div>
                   <div className="relative text-sm text-muted-foreground tabular-nums pointer-events-none">{fmtCount(stats.tokens)}</div>
                   <div className="relative text-sm truncate pointer-events-none" title={c.error}>
-                    {c.error ? <span className="text-red-600">{c.error}</span> : <span className="text-muted-foreground">—</span>}
+                    {c.error ? <span className="text-destructive">{c.error}</span> : <span className="text-muted-foreground">—</span>}
                   </div>
                   <div className="relative flex items-center justify-center">
                     <button
@@ -189,7 +193,7 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
                       onClick={e => { e.stopPropagation(); navigate(`/agents/${agentId}/trace/${c.id}`); }}
                       title="View trace"
                       aria-label={`View trace for conversation ${c.id}`}
-                      className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-muted hover:text-primary transition-base"
+                      className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-muted hover:text-primary transition-base focus-ring"
                     >
                       <Waypoints size={15} />
                     </button>
