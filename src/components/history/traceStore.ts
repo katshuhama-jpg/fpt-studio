@@ -14,9 +14,11 @@ export interface TraceTurn {
   endedAt: number;
   latencyMs: number;
   tokensIn: number;
+  tokensCacheRead: number;
   tokensOut: number;
   tokensReasoning: number;
   costIn: number;
+  costCacheRead: number;
   costOut: number;
   costReasoning: number;
 }
@@ -29,9 +31,11 @@ export interface ConversationTrace {
   endedAt: number;
   totals: {
     tokensIn: number;
+    tokensCacheRead: number;
     tokensOut: number;
     tokensReasoning: number;
     costIn: number;
+    costCacheRead: number;
     costOut: number;
     costReasoning: number;
     p50LatencyMs: number;
@@ -44,7 +48,10 @@ const DEFAULT_MODEL = "GPT-4o mini";
 
 // USD per single token — small, plausible per-call figures (same order of magnitude as
 // current-generation hosted models), not tied to any specific vendor's real price sheet.
-const PRICE_PER_TOKEN = { input: 0.00000025, output: 0.000001, reasoning: 0.0000015 };
+// cacheRead is cheaper than a fresh input token, same idea as prompt-caching discounts on
+// real hosted models — most turns reuse the agent's Instructions + Knowledge context from
+// the previous turn instead of resending it at full price.
+const PRICE_PER_TOKEN = { input: 0.00000025, cacheRead: 0.00000005, output: 0.000001, reasoning: 0.0000015 };
 
 function hashSeed(seed: string): number {
   let h = 0;
@@ -83,6 +90,9 @@ export function buildTrace(record: ConversationRecord): ConversationTrace {
     const seed = `${record.id}-turn${turnIndex}`;
 
     const tokensIn = seededInt(`${seed}-tin`, 180, 420);
+    // Turn 1 has nothing to reuse yet — cache read only kicks in from the 2nd turn onward,
+    // once the agent's Instructions + Knowledge context has already been sent once.
+    const tokensCacheRead = turnIndex === 1 ? 0 : seededInt(`${seed}-tcache`, 900, 2600);
     const tokensOut = seededInt(`${seed}-tout`, 60, 260);
     const tokensReasoning = seededInt(`${seed}-trsn`, 20, 160);
     const baseLatency = seededInt(`${seed}-lat`, 780, 2400);
@@ -96,9 +106,11 @@ export function buildTrace(record: ConversationRecord): ConversationTrace {
       endedAt,
       latencyMs: baseLatency + toolLatency,
       tokensIn,
+      tokensCacheRead,
       tokensOut,
       tokensReasoning,
       costIn: tokensIn * PRICE_PER_TOKEN.input,
+      costCacheRead: tokensCacheRead * PRICE_PER_TOKEN.cacheRead,
       costOut: tokensOut * PRICE_PER_TOKEN.output,
       costReasoning: tokensReasoning * PRICE_PER_TOKEN.reasoning,
     });
@@ -110,15 +122,21 @@ export function buildTrace(record: ConversationRecord): ConversationTrace {
   const totals = turns.reduce(
     (acc, t) => ({
       tokensIn: acc.tokensIn + t.tokensIn,
+      tokensCacheRead: acc.tokensCacheRead + t.tokensCacheRead,
       tokensOut: acc.tokensOut + t.tokensOut,
       tokensReasoning: acc.tokensReasoning + t.tokensReasoning,
       costIn: acc.costIn + t.costIn,
+      costCacheRead: acc.costCacheRead + t.costCacheRead,
       costOut: acc.costOut + t.costOut,
       costReasoning: acc.costReasoning + t.costReasoning,
       p50LatencyMs: pct(0.5),
       p99LatencyMs: pct(0.99),
     }),
-    { tokensIn: 0, tokensOut: 0, tokensReasoning: 0, costIn: 0, costOut: 0, costReasoning: 0, p50LatencyMs: pct(0.5), p99LatencyMs: pct(0.99) },
+    {
+      tokensIn: 0, tokensCacheRead: 0, tokensOut: 0, tokensReasoning: 0,
+      costIn: 0, costCacheRead: 0, costOut: 0, costReasoning: 0,
+      p50LatencyMs: pct(0.5), p99LatencyMs: pct(0.99),
+    },
   );
 
   return {

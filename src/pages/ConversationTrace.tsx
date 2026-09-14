@@ -165,8 +165,8 @@ export default function ConversationTrace() {
     );
   }
 
-  const totalCost = trace.totals.costIn + trace.totals.costOut + trace.totals.costReasoning;
-  const totalTokens = trace.totals.tokensIn + trace.totals.tokensOut + trace.totals.tokensReasoning;
+  const totalCost = trace.totals.costIn + trace.totals.costCacheRead + trace.totals.costOut + trace.totals.costReasoning;
+  const totalTokens = trace.totals.tokensIn + trace.totals.tokensCacheRead + trace.totals.tokensOut + trace.totals.tokensReasoning;
   const pct = (v: number) => (totalCost > 0 ? Math.round((v / totalCost) * 100) : 0);
 
   return (
@@ -232,7 +232,7 @@ export default function ConversationTrace() {
           </div>
           <div className="flex-1 overflow-y-auto p-1.5 space-y-1">
             {trace.turns.map(turn => {
-              const cost = turn.costIn + turn.costOut + turn.costReasoning;
+              const cost = turn.costIn + turn.costCacheRead + turn.costOut + turn.costReasoning;
               const hasTool = turn.agentMessages.some(m => m.toolCall);
               return (
                 <HoverCard key={turn.index} openDelay={200} closeDelay={80}>
@@ -273,10 +273,13 @@ export default function ConversationTrace() {
                     <StatRow label="End" value={fmtTime(turn.endedAt)} />
                     <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mt-2 mb-1">Total cost breakdown</div>
                     <StatRow label={`Input (${pct(turn.costIn)}%)`} value={`${fmtTokens(turn.tokensIn)} · ${fmtUsd(turn.costIn)}`} />
+                    {turn.tokensCacheRead > 0 && (
+                      <StatRow label="cache read" value={`${fmtTokens(turn.tokensCacheRead)} · ${fmtUsd(turn.costCacheRead)}`} />
+                    )}
                     <StatRow label="Output" value={`${fmtTokens(turn.tokensOut)} · ${fmtUsd(turn.costOut)}`} />
                     <StatRow label="Reasoning" value={`${fmtTokens(turn.tokensReasoning)} · ${fmtUsd(turn.costReasoning)}`} />
                     <div className="border-t border-border mt-1.5 pt-1.5">
-                      <StatRow label="Total" value={`${fmtTokens(turn.tokensIn + turn.tokensOut + turn.tokensReasoning)} · ${fmtUsd(cost)}`} />
+                      <StatRow label="Total" value={`${fmtTokens(turn.tokensIn + turn.tokensCacheRead + turn.tokensOut + turn.tokensReasoning)} · ${fmtUsd(cost)}`} />
                     </div>
                   </HoverCardContent>
                 </HoverCard>
@@ -334,8 +337,8 @@ export default function ConversationTrace() {
                     <div className="border border-border rounded-xl p-3 bg-surface text-xs space-y-2">
                       <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Turn stats</div>
                       <StatRow label="Latency" value={fmtSec(turn.latencyMs)} />
-                      <StatRow label="Tokens" value={fmtTokens(turn.tokensIn + turn.tokensOut + turn.tokensReasoning)} />
-                      <StatRow label="Cost" value={fmtUsd(turn.costIn + turn.costOut + turn.costReasoning)} />
+                      <StatRow label="Tokens" value={fmtTokens(turn.tokensIn + turn.tokensCacheRead + turn.tokensOut + turn.tokensReasoning)} />
+                      <StatRow label="Cost" value={fmtUsd(turn.costIn + turn.costCacheRead + turn.costOut + turn.costReasoning)} />
                     </div>
                   </div>
                 )}
@@ -359,6 +362,9 @@ export default function ConversationTrace() {
 
           <div className="mt-4 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Total cost breakdown</div>
           <StatRow label={`Input (${pct(trace.totals.costIn)}%)`} value={`${fmtTokens(trace.totals.tokensIn)} · ${fmtUsd(trace.totals.costIn)}`} />
+          {trace.totals.tokensCacheRead > 0 && (
+            <StatRow label={`cache read (${pct(trace.totals.costCacheRead)}%)`} value={`${fmtTokens(trace.totals.tokensCacheRead)} · ${fmtUsd(trace.totals.costCacheRead)}`} />
+          )}
           <StatRow label={`Output (${pct(trace.totals.costOut)}%)`} value={`${fmtTokens(trace.totals.tokensOut)} · ${fmtUsd(trace.totals.costOut)}`} />
           <StatRow label={`Reasoning (${pct(trace.totals.costReasoning)}%)`} value={`${fmtTokens(trace.totals.tokensReasoning)} · ${fmtUsd(trace.totals.costReasoning)}`} />
           <div className="border-t border-border mt-1.5 pt-1.5">
