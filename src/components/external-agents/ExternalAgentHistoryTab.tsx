@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Search01Icon, Cancel01Icon, Copy01Icon, Tick02Icon, Download01Icon } from "@hugeicons/core-free-icons";
+import { Search01Icon, Cancel01Icon, Copy01Icon, Tick02Icon, Download01Icon, ChevronLeftIcon, ChevronRightIcon } from "@hugeicons/core-free-icons";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { startOfDay, endOfDay } from "date-fns";
@@ -134,6 +134,8 @@ export default function ExternalAgentHistoryTab({ agentId }: { agentId: string }
   const [channelFilter, setChannelFilter] = useState("all");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
   const [customRange, setCustomRange] = useState<DateRange | undefined>(undefined);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 8;
 
   const allConversations = useMemo(() => externalAgentConversationStore.list(agentId), [agentId]);
 
@@ -168,6 +170,13 @@ export default function ExternalAgentHistoryTab({ agentId }: { agentId: string }
     if (!selectedId && filtered.length > 0) selectConversation(filtered[0].id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agentId, filtered]);
+
+  // Back to page 1 whenever the search or filters change what's in the result set.
+  useEffect(() => { setPage(1); }, [query, channelFilter, timeFilter, customRange]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const shownConversations = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const selectedConversation = filtered.find(c => c.id === selectedId) ?? null;
   const hasAnyConversations = allConversations.length > 0;
@@ -254,7 +263,7 @@ export default function ExternalAgentHistoryTab({ agentId }: { agentId: string }
               <div>Ended</div><div>Conversation ID</div><div>Channel</div><div>User</div><div className="text-right">Messages</div>
             </div>
             <div className="divide-y divide-border min-w-[850px]">
-              {filtered.map(c => (
+              {shownConversations.map(c => (
                 <button
                   key={c.id}
                   type="button"
@@ -276,6 +285,34 @@ export default function ExternalAgentHistoryTab({ agentId }: { agentId: string }
                   <div className="text-sm text-muted-foreground text-right">{c.messages.length}</div>
                 </button>
               ))}
+            </div>
+          </div>
+        )}
+
+        {hasAnyConversations && filtered.length > 0 && totalPages > 1 && (
+          <div className="flex items-center justify-between mt-3">
+            <span className="text-sm text-muted-foreground">
+              {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length} · Page {currentPage}/{totalPages}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="h-8 w-8 flex items-center justify-center rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base disabled:opacity-40 disabled:cursor-not-allowed"
+                aria-label="Previous page"
+              >
+                <HugeiconsIcon icon={ChevronLeftIcon} size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="h-8 w-8 flex items-center justify-center rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base disabled:opacity-40 disabled:cursor-not-allowed"
+                aria-label="Next page"
+              >
+                <HugeiconsIcon icon={ChevronRightIcon} size={14} />
+              </button>
             </div>
           </div>
         )}
