@@ -4,7 +4,7 @@
 
 import {
   Building02Icon, MessengerIcon, ApiIcon, HeadsetIcon, WhatsappIcon,
-  InstagramIcon, LineIcon, ViberIcon, GoogleIcon, Globe02Icon, SlackIcon,
+  InstagramIcon, LineIcon, ViberIcon, GoogleIcon, Globe02Icon, SlackIcon, EyeIcon,
 } from "@hugeicons/core-free-icons";
 
 // The single channel set for every run-history screen (conversational Agent, External
@@ -14,7 +14,7 @@ import {
 export type ConversationChannel =
   | "workspace" | "messenger" | "zalo" | "teams" | "hifpt" | "api"
   | "engage" | "whatsapp" | "instagram" | "line" | "viber" | "google"
-  | "web" | "slack";
+  | "web" | "slack" | "preview";
 
 /**
  * `icon` renders via HugeiconsIcon (matches the icon set already used for channel
@@ -38,6 +38,10 @@ export const CHANNEL_META: Record<ConversationChannel, { label: string; color: s
   google: { label: "Google Business", icon: GoogleIcon, color: "#4285F4" },
   web: { label: "Web", icon: Globe02Icon, color: "#475569" },
   slack: { label: "Slack", icon: SlackIcon, color: "#611F69" },
+  // Conversations run from the Console's own "Preview & Test" panel while building/testing the
+  // agent, before it's deployed to a real channel — matches the channel value seen on the live
+  // agents.fpt.ai chat-history screen.
+  preview: { label: "Preview & Test", icon: EyeIcon, color: "#2563EB" },
 };
 
 /**
@@ -300,6 +304,18 @@ function seedAgent(agentId: string) {
         { role: "agent", content: "Sure — please share the new number and I'll send a verification code to it." },
         { role: "customer", content: "0912 345 678" },
         { role: "agent", content: "Code sent. Once verified, your account will use this number for all future OTPs.", feedback: "up" },
+      ]),
+    },
+    {
+      id: pseudoUlid("CV-1045"),
+      channel: "preview",
+      username: "Builder (you)",
+      startedAt: now - 20 * MIN,
+      endedAt: now - 18 * MIN,
+      messages: buildMessages("CV-1045", now - 18 * MIN, [
+        { role: "agent", content: "Xin chào! Quý khách cần hỗ trợ gì về khoản vay hôm nay?" },
+        { role: "customer", content: "Cho mình hỏi thử lãi suất vay tín chấp hiện tại." },
+        { role: "agent", content: "Lãi suất vay tín chấp hiện tại từ 1.6%/tháng, tuỳ hồ sơ. Đây là phản hồi thử nghiệm từ Preview & Test, dùng để kiểm tra agent trước khi triển khai ra kênh thật." },
       ]),
     },
   ];
