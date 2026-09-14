@@ -209,6 +209,7 @@ function seedAgent(agentId: string) {
           },
         },
         { role: "customer", content: "Great, thank you for your help!" },
+        { role: "agent", content: "You're very welcome — glad it's all sorted. Have a great day!" },
       ]),
     },
     {
@@ -222,6 +223,7 @@ function seedAgent(agentId: string) {
         { role: "customer", content: "What's my current account balance?" },
         { role: "agent", content: "Your checking account ending in 2290 has a balance of 45,320,000 VND as of this morning." },
         { role: "customer", content: "Perfect, thanks." },
+        { role: "agent", content: "You're welcome! Let us know if there's anything else." },
       ]),
     },
     {
@@ -282,6 +284,7 @@ function seedAgent(agentId: string) {
         { role: "agent", content: "I see that charge from yesterday. I've opened a dispute case — reference #DP-5567." },
         { role: "agent", content: "The disputed amount is temporarily credited back while we investigate. This usually takes 5-10 business days." },
         { role: "customer", content: "Okay, thank you for looking into it." },
+        { role: "agent", content: "Of course — we'll keep you posted on the case." },
       ]),
     },
     {
@@ -294,6 +297,7 @@ function seedAgent(agentId: string) {
         { role: "customer", content: "Has my international wire transfer to Singapore gone through yet?" },
         { role: "agent", content: "Your transfer of 25,000,000 VND initiated on the 3rd is showing as completed — it arrived at the recipient bank yesterday." },
         { role: "customer", content: "Great, appreciate it." },
+        { role: "agent", content: "You're welcome! Let us know if you need anything else." },
       ]),
     },
     {
@@ -309,6 +313,7 @@ function seedAgent(agentId: string) {
         { role: "customer", content: "Can I make an extra payment this month to reduce the principal?" },
         { role: "agent", content: "Yes — extra payments are applied directly to principal. You can submit one from the Loans tab, or I can start it here." },
         { role: "customer", content: "I'll do it from the app, thanks." },
+        { role: "agent", content: "Sounds good — we're here if you need a hand along the way." },
       ]),
     },
     {
@@ -323,6 +328,7 @@ function seedAgent(agentId: string) {
         { role: "agent", content: "Our 6-month term deposit is currently 4.8% p.a., and 12-month is 5.5% p.a." },
         { role: "agent", content: "Would you like me to start opening one for you now?" },
         { role: "customer", content: "Not yet, just checking rates." },
+        { role: "agent", content: "No problem — happy to help whenever you're ready." },
       ]),
     },
     {
