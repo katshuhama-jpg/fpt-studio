@@ -2,8 +2,7 @@ import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { X, Copy, Check, Waypoints } from "lucide-react";
 import { format } from "date-fns";
-import { historyStore, CHANNEL_META } from "./historyStore";
-import ChannelLogo from "./ChannelLogo";
+import { historyStore } from "./historyStore";
 import CollapsibleHistoryPanel from "./CollapsibleHistoryPanel";
 
 /**
@@ -38,16 +37,24 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
     <CollapsibleHistoryPanel hidden={hidden} width={476} emptyHint="Click a conversation in the list to view the full chat.">
       {record && (
         <>
-            {/* Conversation header — no avatar, higher-contrast identity + close */}
+            {/* Conversation header — minimal, matches the real agents.fpt.ai chat-history panel:
+                title + ID/copy + actions only. Channel and end time already live in the History
+                table row, so they aren't repeated here. */}
             <div className="px-4 py-3.5 border-b border-border shrink-0">
-              <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold leading-tight text-foreground truncate">{record.username}</div>
-                  <div className="flex items-center gap-1.5 mt-1.5 text-xs">
-                    <ChannelLogo channel={record.channel} size={16} />
-                    <span className="font-medium text-foreground/80">{CHANNEL_META[record.channel].label}</span>
-                    <span className="text-muted-foreground">·</span>
-                    <span className="text-muted-foreground">{format(new Date(record.endedAt), "dd/MM/yyyy - HH:mm")}</span>
+                  <div className="text-sm font-semibold leading-tight text-foreground truncate">Conversation details</div>
+                  <div className="flex items-center gap-1 mt-1.5 min-w-0">
+                    <span className="text-[10px] font-mono text-muted-foreground truncate">{record.id}</span>
+                    <button
+                      type="button"
+                      onClick={copyId}
+                      aria-label="Copy conversation ID"
+                      title="Copy conversation ID"
+                      className="h-5 w-5 shrink-0 flex items-center justify-center rounded text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base"
+                    >
+                      {copied ? <Check size={11} className="text-success" /> : <Copy size={11} />}
+                    </button>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
@@ -67,18 +74,6 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
                     <X size={16} />
                   </button>
                 </div>
-              </div>
-              <div className="flex items-center gap-1 mt-2 min-w-0">
-                <span className="text-[10px] font-mono text-muted-foreground truncate">{record.id}</span>
-                <button
-                  type="button"
-                  onClick={copyId}
-                  aria-label="Copy conversation ID"
-                  title="Copy conversation ID"
-                  className="h-5 w-5 shrink-0 flex items-center justify-center rounded text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base"
-                >
-                  {copied ? <Check size={11} className="text-success" /> : <Copy size={11} />}
-                </button>
               </div>
             </div>
 

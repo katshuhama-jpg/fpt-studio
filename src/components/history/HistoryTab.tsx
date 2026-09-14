@@ -107,14 +107,14 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
       ) : (
         <>
           <div className="rounded-xl border border-border overflow-x-auto">
-            <div className="grid grid-cols-[165px,235px,155px,1fr,80px,40px] gap-5 px-6 py-2.5 bg-surface-muted section-eyebrow min-w-[1020px]">
-              <div>Ended</div><div>Conversation ID</div><div>Channel</div><div>User</div><div>Messages</div><div />
+            <div className="grid grid-cols-[165px,1fr,190px,40px] gap-5 px-6 py-2.5 bg-surface-muted section-eyebrow min-w-[760px]">
+              <div>Ended</div><div>Conversation ID</div><div>Channel</div><div />
             </div>
-            <div className="divide-y divide-border min-w-[1020px]">
+            <div className="divide-y divide-border min-w-[760px]">
               {shownConversations.map((c: ConversationRecord) => (
                 <div
                   key={c.id}
-                  className={`relative w-full grid grid-cols-[165px,235px,155px,1fr,80px,40px] gap-5 px-6 py-3 items-center transition-base ${
+                  className={`relative w-full grid grid-cols-[165px,1fr,190px,40px] gap-5 px-6 py-3 items-center transition-base ${
                     c.id === selectedId ? "bg-primary-soft" : "hover:bg-surface-muted/50"
                   }`}
                 >
@@ -130,11 +130,6 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
                     <ChannelLogo channel={c.channel} size={26} />
                     <span className="text-sm truncate">{CHANNEL_META[c.channel].label}</span>
                   </div>
-                  <div className="relative min-w-0 pointer-events-none">
-                    <div className="text-sm truncate">{c.username}</div>
-                    <div className="text-xs text-muted-foreground truncate">{c.email ?? "—"}</div>
-                  </div>
-                  <div className="relative text-sm text-muted-foreground pointer-events-none">{c.messages.length}</div>
                   <div className="relative flex items-center justify-center">
                     <button
                       type="button"
