@@ -9,7 +9,7 @@ import { historyStore } from "@/components/history/historyStore";
 import type { ConversationMessage, ToolCallInfo } from "@/components/history/historyStore";
 import { buildTrace } from "@/components/history/traceStore";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuLabel,
+  DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuItem, DropdownMenuLabel,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
@@ -26,6 +26,32 @@ function fmtUsd(v: number) {
 }
 function fmtTokens(n: number) {
   return n >= 1000 ? `${(n / 1000).toFixed(2)}K` : `${n}`;
+}
+
+/** Minimal JS-object-to-YAML renderer — just enough for the flat tool-call payloads this
+ * prototype mocks, to offer the same JSON/YAML format switch LangSmith's Turns view has. Not
+ * a general YAML serializer (no anchors, multiline strings, etc.) since real payloads here are
+ * always plain objects/arrays/primitives. */
+function toYaml(value: unknown, indent = 0): string {
+  const pad = "  ".repeat(indent);
+  if (Array.isArray(value)) {
+    if (value.length === 0) return `${pad}[]`;
+    return value
+      .map(v => {
+        if (v !== null && typeof v === "object") {
+          const nested = toYaml(v, indent + 1).split("\n");
+          return `${pad}- ${nested[0].trim()}\n${nested.slice(1).join("\n")}`;
+        }
+        return `${pad}- ${JSON.stringify(v)}`;
+      })
+      .join("\n");
+  }
+  if (value !== null && typeof value === "object") {
+    return Object.entries(value as Record<string, unknown>)
+      .map(([k, v]) => (v !== null && typeof v === "object" ? `${pad}${k}:\n${toYaml(v, indent + 1)}` : `${pad}${k}: ${JSON.stringify(v)}`))
+      .join("\n");
+  }
+  return `${pad}${JSON.stringify(value)}`;
 }
 
 /** Small copy-on-hover affordance shared by every message / tool card. */
@@ -48,15 +74,63 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-/** One HUMAN input or AI output bubble inside a turn's Inputs/Outputs section. */
-function MessageCard({ role, content, feedback }: { role: "HUMAN" | "AI"; content: string; feedback?: "up" | "down" }) {
+/** A JSON/YAML-formatted payload with the same three controls LangSmith's Turns view has on
+ * every tool input/output block: a format dropdown, a "Raw" (single-line, unformatted) toggle,
+ * and copy. Shared by the inline tool-call block inside an AI message and by ToolResultCard. */
+function PayloadBlock({ value }: { value: unknown }) {
+  const [format, setFormat] = useState<"json" | "yaml">("json");
+  const [raw, setRaw] = useState(false);
+  const text = raw ? JSON.stringify(value) : format === "yaml" ? toYaml(value) : JSON.stringify(value, null, 2);
+  return (
+    <div>
+      <pre className="text-[11px] font-mono whitespace-pre-wrap break-words">{text}</pre>
+      <div className="flex items-center gap-1 mt-1.5">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="h-6 px-2 flex items-center gap-1 rounded-md text-[11px] font-medium text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base"
+            >
+              {format.toUpperCase()} <ChevronDown size={11} />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-28">
+            <DropdownMenuItem onClick={() => setFormat("json")} className="text-xs">
+              {format === "json" && <Check size={12} className="mr-1.5" />} JSON
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setFormat("yaml")} className="text-xs">
+              {format === "yaml" && <Check size={12} className="mr-1.5" />} YAML
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <button
+          type="button"
+          onClick={() => setRaw(v => !v)}
+          className={cn(
+            "h-6 px-2 rounded-md text-[11px] font-medium transition-base",
+            raw ? "bg-surface-muted text-foreground" : "text-muted-foreground hover:bg-surface-muted hover:text-foreground",
+          )}
+        >
+          Raw
+        </button>
+        <CopyButton text={text} />
+      </div>
+    </div>
+  );
+}
+
+/** One HUMAN input or AI output item inside a turn's Inputs/Outputs section. An AI message that
+ * made a tool call shows the call (name + id + input payload) inline, same as LangSmith renders
+ * an AIMessage's tool_calls as part of that same message — the tool's own response is a
+ * separate "TOOL" item below (ToolResultCard), matching the real AIMessage → ToolMessage pair. */
+function MessageCard({ role, content, feedback, toolCall }: { role: "HUMAN" | "AI"; content: string; feedback?: "up" | "down"; toolCall?: ToolCallInfo }) {
   return (
     <div className="group relative px-3.5 py-3">
       <div className="flex items-center justify-between">
         <span className={cn("text-[10px] font-bold tracking-wider", role === "HUMAN" ? "text-primary" : "text-accent")}>{role}</span>
         <CopyButton text={content} />
       </div>
-      <p className="mt-1.5 text-[13px] leading-relaxed whitespace-pre-wrap break-words">{content}</p>
+      {content && <p className="mt-1.5 text-[13px] leading-relaxed whitespace-pre-wrap break-words">{content}</p>}
       {feedback && (
         <div className={cn(
           "mt-2 inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded",
@@ -65,42 +139,32 @@ function MessageCard({ role, content, feedback }: { role: "HUMAN" | "AI"; conten
           Người dùng đánh giá {feedback === "up" ? "hữu ích 👍" : "chưa hữu ích 👎"}
         </div>
       )}
+      {toolCall && (
+        <div className={cn("pt-3", content || feedback ? "mt-3 border-t border-border/60" : "")}>
+          <div className="flex items-center gap-2 mb-1.5">
+            <Wrench size={12} className="text-accent shrink-0" />
+            <span className="text-xs font-semibold">{toolCall.name}</span>
+            <span className="chip chip-accent !h-5 !text-[10px]">{toolCall.connector}</span>
+            <span className="ml-auto text-[10px] font-mono text-muted-foreground truncate max-w-[140px]">{toolCall.callId}</span>
+          </div>
+          <PayloadBlock value={toolCall.input} />
+        </div>
+      )}
     </div>
   );
 }
 
-/** A tool/connector call step — rendered between the AI's own message when present. */
-function ToolCard({ call }: { call: ToolCallInfo }) {
-  const [raw, setRaw] = useState(false);
-  const inputStr = raw ? JSON.stringify(call.input) : JSON.stringify(call.input, null, 2);
-  const outputStr = raw ? JSON.stringify(call.output) : JSON.stringify(call.output, null, 2);
+/** The tool's response to a call made by the preceding AI message — its own list item, same as
+ * a ToolMessage is its own entry in the real message list (not nested inside the AI message). */
+function ToolResultCard({ call }: { call: ToolCallInfo }) {
   return (
-    <div className="group bg-accent-soft">
-      <div className="px-3.5 py-2 flex items-center gap-2 border-b border-border/60">
-        <Wrench size={12} className="text-accent shrink-0" />
-        <span className="text-[10px] font-bold tracking-wider text-accent">TOOL CALL</span>
-        <span className="text-xs font-mono">{call.name}</span>
-        <span className="chip chip-accent !h-5 !text-[10px]">{call.connector}</span>
+    <div className="px-3.5 py-3 bg-accent-soft">
+      <div className="flex items-center gap-2 mb-1.5">
+        <span className="text-[10px] font-bold tracking-wider text-accent">TOOL</span>
+        <span className="text-xs font-semibold">{call.name}</span>
         <span className="ml-auto text-[10px] font-mono text-muted-foreground truncate max-w-[140px]">{call.callId}</span>
-        <button
-          type="button"
-          onClick={() => setRaw(v => !v)}
-          className="text-[10px] font-medium text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded hover:bg-surface-muted transition-base"
-        >
-          {raw ? "Pretty" : "Raw"}
-        </button>
-        <CopyButton text={`${inputStr}\n${outputStr}`} />
       </div>
-      <div className="px-3.5 py-2 grid grid-cols-2 gap-3">
-        <div>
-          <div className="text-[10px] text-muted-foreground mb-1">input</div>
-          <pre className="text-[11px] font-mono whitespace-pre-wrap break-words">{inputStr}</pre>
-        </div>
-        <div>
-          <div className="text-[10px] text-muted-foreground mb-1">output</div>
-          <pre className="text-[11px] font-mono whitespace-pre-wrap break-words">{outputStr}</pre>
-        </div>
-      </div>
+      <PayloadBlock value={call.output} />
     </div>
   );
 }
@@ -317,13 +381,15 @@ export default function ConversationTrace() {
                       <div className="border border-border rounded-xl overflow-hidden bg-surface">
                         <div className="px-3.5 py-1.5 bg-surface-muted border-b border-border flex items-center gap-2">
                           <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Outputs</span>
-                          <span className="chip chip-muted !h-4 !text-[9px] !px-1.5">messages: {turn.agentMessages.length}</span>
+                          <span className="chip chip-muted !h-4 !text-[9px] !px-1.5">
+                            messages: {turn.agentMessages.reduce((n, m) => n + (m.toolCall ? 2 : 1), 0)}
+                          </span>
                         </div>
                         <div className="divide-y divide-border">
                           {turn.agentMessages.map(m => (
                             <div key={m.id} className="divide-y divide-border">
-                              {m.toolCall && <ToolCard call={m.toolCall} />}
-                              <MessageCard role="AI" content={m.content} feedback={m.feedback} />
+                              <MessageCard role="AI" content={m.content} feedback={m.feedback} toolCall={m.toolCall} />
+                              {m.toolCall && <ToolResultCard call={m.toolCall} />}
                             </div>
                           ))}
                           {turn.agentMessages.length === 0 && (

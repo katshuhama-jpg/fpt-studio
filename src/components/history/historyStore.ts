@@ -147,7 +147,26 @@ function seedAgent(agentId: string) {
       endedAt: now - 40 * MIN,
       messages: buildMessages("CV-1042", now - 40 * MIN, [
         { role: "customer", content: "I lost my credit card, can you lock it right now?" },
-        { role: "agent", content: "I'm sorry to hear that. I've located your Visa card ending in 4821 — locking it now." },
+        {
+          role: "agent",
+          content: "I'm sorry to hear that — let me pull up your account first.",
+          toolCall: {
+            name: "lookup_customer",
+            connector: "Core Banking",
+            input: { email: "nguyen.thi.lan@gmail.com" },
+            output: { customerName: "Nguyen Thi Lan", cardLast4: "4821", cardStatus: "active" },
+          },
+        },
+        {
+          role: "agent",
+          content: "I've located your Visa card ending in 4821 — locking it now.",
+          toolCall: {
+            name: "lock_card",
+            connector: "Core Banking",
+            input: { cardLast4: "4821", reason: "lost" },
+            output: { status: "locked", lockedAt: "2026-09-14T13:41:02Z" },
+          },
+        },
         { role: "agent", content: "Your card is locked. No further transactions can go through until you unlock it or request a replacement.", feedback: "up" },
         {
           role: "agent",
@@ -163,7 +182,18 @@ function seedAgent(agentId: string) {
             output: { status: "sent", messageId: "18f2a9c4b6e2d701" },
           },
         },
-        { role: "customer", content: "Thank you, that was fast." },
+        { role: "customer", content: "Thank you, that was fast. Can you also send me a replacement card?" },
+        {
+          role: "agent",
+          content: "Of course — I've ordered a replacement Visa card, mailed to your address on file.",
+          toolCall: {
+            name: "order_replacement_card",
+            connector: "Core Banking",
+            input: { cardLast4: "4821", deliveryMethod: "mail" },
+            output: { status: "ordered", estimatedArrival: "5-7 business days", trackingRef: "RC-88213" },
+          },
+        },
+        { role: "customer", content: "Great, thank you for your help!" },
       ]),
     },
     {
