@@ -139,13 +139,13 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
       ) : (
         <>
           <div className="rounded-xl border border-border overflow-x-auto">
-            <div className="grid grid-cols-[60px,130px,130px,170px,1fr,1fr,140px,90px,90px,70px,70px,160px,80px,50px] gap-5 px-6 py-2.5 bg-surface-muted section-eyebrow min-w-[1900px]">
+            <div className="grid grid-cols-[60px,130px,130px,170px,1fr,1fr,140px,90px,90px,70px,50px] gap-5 px-6 py-2.5 bg-surface-muted section-eyebrow min-w-[1530px]">
               <div>Turns</div><div>First Start Time</div><div>End time</div><div>Conversation ID</div>
               <div>First Input</div><div>Last Output</div><div>Channel</div>
-              <div>Latency</div><div>First Token</div><div>Tokens</div><div>Cost</div><div>Last Error</div><div>Feedback</div>
+              <div>Latency</div><div>First Token</div><div>Tokens</div>
               <div className="text-center">Trace</div>
             </div>
-            <div className="divide-y divide-border min-w-[1900px]">
+            <div className="divide-y divide-border min-w-[1530px]">
               {shownConversations.map((c: ConversationRecord) => {
                 const stats = rowStats(c);
                 const slowLatency = stats.latencyMs > SLOW_LATENCY_MS;
@@ -153,7 +153,7 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
                 return (
                 <div
                   key={c.id}
-                  className={`relative w-full grid grid-cols-[60px,130px,130px,170px,1fr,1fr,140px,90px,90px,70px,70px,160px,80px,50px] gap-5 px-6 py-3 items-center transition-base ${
+                  className={`relative w-full grid grid-cols-[60px,130px,130px,170px,1fr,1fr,140px,90px,90px,70px,50px] gap-5 px-6 py-3 items-center transition-base ${
                     c.id === selectedId ? "bg-primary-soft" : "hover:bg-surface-muted/50"
                   }`}
                 >
@@ -180,19 +180,6 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
                     <Zap size={11} />{(stats.firstTokenMs / 1000).toFixed(1)}s
                   </div>
                   <div className="relative text-sm text-muted-foreground tabular-nums pointer-events-none">{fmtCount(stats.tokens)}</div>
-                  <div className="relative text-sm text-muted-foreground tabular-nums pointer-events-none">${stats.cost.toFixed(4)}</div>
-                  <div className="relative text-sm truncate pointer-events-none" title={c.error}>
-                    {c.error ? <span className="text-red-600">{c.error}</span> : <span className="text-muted-foreground">—</span>}
-                  </div>
-                  <div className="relative text-sm whitespace-nowrap pointer-events-none">
-                    {stats.feedbackUp || stats.feedbackDown ? (
-                      <span className="text-muted-foreground">
-                        {stats.feedbackUp > 0 && <>👍 {stats.feedbackUp}</>}
-                        {stats.feedbackUp > 0 && stats.feedbackDown > 0 && " "}
-                        {stats.feedbackDown > 0 && <>👎 {stats.feedbackDown}</>}
-                      </span>
-                    ) : <span className="text-muted-foreground">—</span>}
-                  </div>
                   <div className="relative flex items-center justify-center">
                     <button
                       type="button"
