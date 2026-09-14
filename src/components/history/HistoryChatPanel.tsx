@@ -57,7 +57,7 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
                 <div className="min-w-0">
                   <div className="text-sm font-semibold leading-tight text-foreground truncate">Conversation details</div>
                   <div className="flex items-center gap-1 mt-1.5 min-w-0">
-                    <span className="text-[10px] font-mono text-muted-foreground truncate">{record.id}</span>
+                    <span className="text-[10px] text-muted-foreground truncate">{record.id}</span>
                     <button
                       type="button"
                       onClick={copyId}
@@ -176,11 +176,11 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
               <div className="space-y-2 text-xs">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-muted-foreground shrink-0">Message ID:</span>
-                  <span className="font-mono truncate">{audit.messageId}</span>
+                  <span className="truncate">{audit.messageId}</span>
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-muted-foreground shrink-0">Conversation ID:</span>
-                  <span className="font-mono truncate">{audit.conversationId}</span>
+                  <span className="truncate">{audit.conversationId}</span>
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-muted-foreground shrink-0">Start time:</span>

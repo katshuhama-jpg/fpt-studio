@@ -125,7 +125,7 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
                     className="absolute inset-0 text-left"
                   />
                   <div className="relative text-sm text-muted-foreground whitespace-nowrap pointer-events-none">{format(new Date(c.endedAt), "dd/MM/yyyy - HH:mm")}</div>
-                  <div className="relative text-sm font-mono truncate pointer-events-none">{c.id}</div>
+                  <div className="relative text-sm truncate pointer-events-none">{c.id}</div>
                   <div className="relative flex items-center gap-2 min-w-0 pointer-events-none">
                     <ChannelLogo channel={c.channel} size={26} />
                     <span className="text-sm truncate">{CHANNEL_META[c.channel].label}</span>
