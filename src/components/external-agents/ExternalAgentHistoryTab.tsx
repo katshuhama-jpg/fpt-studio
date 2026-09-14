@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Search01Icon, Cancel01Icon, Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { Search01Icon, Cancel01Icon, Copy01Icon, Tick02Icon, Download01Icon, ChevronLeftIcon, ChevronRightIcon } from "@hugeicons/core-free-icons";
+import * as XLSX from "xlsx";
+import { toast } from "sonner";
 import { startOfDay, endOfDay } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import { TimeRangeFilter, type TimeFilter } from "@/components/history/TimeRangeFilter";
@@ -132,6 +134,8 @@ export default function ExternalAgentHistoryTab({ agentId }: { agentId: string }
   const [channelFilter, setChannelFilter] = useState("all");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
   const [customRange, setCustomRange] = useState<DateRange | undefined>(undefined);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 8;
 
   const allConversations = useMemo(() => externalAgentConversationStore.list(agentId), [agentId]);
 
@@ -167,30 +171,58 @@ export default function ExternalAgentHistoryTab({ agentId }: { agentId: string }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agentId, filtered]);
 
+  // Back to page 1 whenever the search or filters change what's in the result set.
+  useEffect(() => { setPage(1); }, [query, channelFilter, timeFilter, customRange]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const shownConversations = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
   const selectedConversation = filtered.find(c => c.id === selectedId) ?? null;
   const hasAnyConversations = allConversations.length > 0;
   const hasActiveSearch = query.trim().length > 0;
 
   const clearSearch = () => setQuery("");
 
+  const exportToExcel = () => {
+    if (filtered.length === 0) return;
+    const header = ["Ended", "Conversation ID", "Channel", "User", "Email", "Messages"];
+    const rows = filtered.map(c => [
+      formatDateTime(c.endedAt),
+      c.id,
+      CHANNEL_META[c.channel].label,
+      c.username,
+      c.email ?? "",
+      c.messages.length,
+    ]);
+    const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+    ws["!cols"] = [{ wch: 18 }, { wch: 26 }, { wch: 14 }, { wch: 22 }, { wch: 26 }, { wch: 10 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "History");
+    const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    XLSX.writeFile(wb, `External_Agent_History_${stamp}.xlsx`);
+    toast.success(`Downloaded ${filtered.length} conversation${filtered.length === 1 ? "" : "s"}.`);
+  };
+
   return (
     <div className="flex-1 flex overflow-hidden">
       <div className="flex-1 min-w-0 overflow-y-auto p-8">
-        <div className="mb-5">
-          <h2 className="font-display text-xl font-semibold">History</h2>
-          <p className="text-sm text-muted-foreground mt-0.5">See past conversations between this agent and its users.</p>
-
-          <div className="relative mt-4">
-            <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Search by content, sender name, conversation ID, or message ID"
-              className="h-9 w-full pl-8 pr-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base"
-            />
+        <div className="mb-5 flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
+          <div>
+            <h2 className="font-display text-xl font-semibold">History</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">See past conversations between this agent and its users.</p>
           </div>
 
-          <div className="flex items-center gap-2 mt-2.5">
+          <div className="flex items-center gap-2 flex-wrap lg:flex-nowrap lg:shrink-0">
+            <div className="relative">
+              <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Search by content, sender name, conversation ID, or message ID"
+                className="h-9 w-64 pl-8 pr-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base"
+              />
+            </div>
             <ChannelFilterDropdown value={channelFilter} onChange={setChannelFilter} />
             <TimeRangeFilter
               value={timeFilter}
@@ -198,6 +230,15 @@ export default function ExternalAgentHistoryTab({ agentId }: { agentId: string }
               onPreset={v => setTimeFilter(v)}
               onApplyCustom={range => { setCustomRange(range); setTimeFilter("custom"); }}
             />
+            <button
+              type="button"
+              onClick={exportToExcel}
+              disabled={filtered.length === 0}
+              className="h-9 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+            >
+              <HugeiconsIcon icon={Download01Icon} size={14} />
+              Export
+            </button>
           </div>
         </div>
 
@@ -222,7 +263,7 @@ export default function ExternalAgentHistoryTab({ agentId }: { agentId: string }
               <div>Ended</div><div>Conversation ID</div><div>Channel</div><div>User</div><div className="text-right">Messages</div>
             </div>
             <div className="divide-y divide-border min-w-[850px]">
-              {filtered.map(c => (
+              {shownConversations.map(c => (
                 <button
                   key={c.id}
                   type="button"
@@ -244,6 +285,34 @@ export default function ExternalAgentHistoryTab({ agentId }: { agentId: string }
                   <div className="text-sm text-muted-foreground text-right">{c.messages.length}</div>
                 </button>
               ))}
+            </div>
+          </div>
+        )}
+
+        {hasAnyConversations && filtered.length > 0 && totalPages > 1 && (
+          <div className="flex items-center justify-between mt-3">
+            <span className="text-sm text-muted-foreground">
+              {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length} · Page {currentPage}/{totalPages}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="h-8 w-8 flex items-center justify-center rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base disabled:opacity-40 disabled:cursor-not-allowed"
+                aria-label="Previous page"
+              >
+                <HugeiconsIcon icon={ChevronLeftIcon} size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="h-8 w-8 flex items-center justify-center rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base disabled:opacity-40 disabled:cursor-not-allowed"
+                aria-label="Next page"
+              >
+                <HugeiconsIcon icon={ChevronRightIcon} size={14} />
+              </button>
             </div>
           </div>
         )}

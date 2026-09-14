@@ -96,14 +96,14 @@ export default function ExternalAgentPublishModal({ agent, open, onClose, onPubl
   const noteEmpty = note.trim().length === 0;
   const showNoteError = (noteTouched || attemptedSubmit) && noteEmpty;
   const hasPublishTarget = publishToEnabled && selectedChannels.size > 0;
-  const canPublish = !noteEmpty && hasPublishTarget;
+  // Channel selection is informational, not a gate — an agent can be published without being
+  // deployed to any channel yet (the toast makes that state explicit after publishing).
+  const canPublish = !noteEmpty;
   const footerHelper = noteEmpty
     ? "Hãy mô tả ngắn gọn phiên bản này thay đổi gì."
-    : !publishToEnabled
-      ? "Bật \"Publish tới kênh\" để chọn nơi triển khai"
-      : !hasPublishTarget
-        ? "Chưa chọn kênh triển khai"
-        : null;
+    : !hasPublishTarget
+      ? "Sẽ publish nhưng chưa triển khai trên kênh nào"
+      : null;
 
   const handlePublishToggle = (checked: boolean) => {
     setPublishToEnabled(checked);
@@ -120,7 +120,11 @@ export default function ExternalAgentPublishModal({ agent, open, onClose, onPubl
       return;
     }
     externalAgentStore.publishVersion(agent.id, { version: versionName, channels: [...selectedChannels], note });
-    toast.success(`"${agent.name}" ${versionName} đã được gửi duyệt.`);
+    toast.success(
+      hasPublishTarget
+        ? `"${agent.name}" ${versionName} đã được gửi duyệt.`
+        : `"${agent.name}" ${versionName} đã được publish nhưng chưa triển khai trên kênh nào.`
+    );
     onPublished();
     onClose();
   };

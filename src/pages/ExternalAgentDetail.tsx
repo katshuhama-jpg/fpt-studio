@@ -72,10 +72,6 @@ function CopyBlock({ code }: { code: string }) {
   );
 }
 
-function maskSecret(secret: string): string {
-  return "•".repeat(Math.min(secret.length, 32));
-}
-
 function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-[160px,1fr] items-start gap-1 sm:gap-2 py-2.5 border-b border-border last:border-0">
@@ -123,8 +119,6 @@ export default function ExternalAgentDetail() {
   const [showReject, setShowReject] = useState(false);
   const [checkingHealth, setCheckingHealth] = useState(false);
   const [justUnpublished, setJustUnpublished] = useState(false);
-  const [showSigningSecret, setShowSigningSecret] = useState(false);
-  const [signingSecretCopied, setSigningSecretCopied] = useState(false);
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -542,29 +536,6 @@ export default function ExternalAgentDetail() {
                     <span className="font-mono text-sm">••••••••</span>
                   </InfoRow>
                 )}
-                <InfoRow label="Signing secret">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-sm truncate">{showSigningSecret ? agent.signingSecret : maskSecret(agent.signingSecret)}</span>
-                    <button
-                      type="button"
-                      onClick={() => setShowSigningSecret(v => !v)}
-                      className="text-sm font-semibold text-primary hover:underline shrink-0"
-                    >
-                      {showSigningSecret ? "Hide" : "Show"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigator.clipboard?.writeText(agent.signingSecret).catch(() => {});
-                        setSigningSecretCopied(true);
-                        setTimeout(() => setSigningSecretCopied(false), 1200);
-                      }}
-                      className="text-sm font-semibold text-primary hover:underline shrink-0"
-                    >
-                      {signingSecretCopied ? "Copied" : "Copy"}
-                    </button>
-                  </div>
-                </InfoRow>
                 <InfoRow label="Allowed hosts for authorizeUrl">
                   {agent.allowedAuthorizeHosts.length > 0 ? (
                     <div className="flex flex-col items-start gap-1.5">
