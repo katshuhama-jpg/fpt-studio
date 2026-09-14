@@ -51,20 +51,22 @@ function toYaml(value: unknown, indent = 0): string {
   return `${pad}${JSON.stringify(value)}`;
 }
 
-/** Renders a JS value as syntax-highlighted JSON — same shape as `JSON.stringify(value, null, 2)`
- * but with LangSmith-style coloring (object keys in blue/primary, strings in green/success,
- * numbers and booleans in orange/warning, punctuation dimmed) built entirely from the app's own
- * design tokens, no new colors introduced. Only used for the formatted JSON view — the "Raw"
- * toggle intentionally stays plain, unhighlighted text (that's what "raw" means). */
+/** Renders a JS value as a structured JSON tree — same shape as `JSON.stringify(value, null, 2)`
+ * but with keys and punctuation dimmed (text-muted-foreground) and leaf values in full-contrast
+ * text-foreground — the same "muted label / full-contrast value" pattern StatRow already uses
+ * everywhere else on this page. Deliberately neutral/two-tone rather than a rainbow of hues
+ * (blue keys, green strings, orange numbers): that first pass read as too colorful next to
+ * LangSmith's own quiet, mostly-monochrome trace viewer. Only used for the formatted JSON view —
+ * the "Raw" toggle intentionally stays plain text (that's what "raw" means). */
 function renderJson(value: unknown, indent = 0): React.ReactNode {
   const pad = "  ".repeat(indent);
   const childPad = "  ".repeat(indent + 1);
   const punct = "text-muted-foreground";
   if (value === null) return <span className={punct}>null</span>;
   if (typeof value === "boolean" || typeof value === "number") {
-    return <span className="text-warning">{String(value)}</span>;
+    return <span className="text-foreground">{String(value)}</span>;
   }
-  if (typeof value === "string") return <span className="text-success">{JSON.stringify(value)}</span>;
+  if (typeof value === "string") return <span className="text-foreground">{JSON.stringify(value)}</span>;
   if (Array.isArray(value)) {
     if (value.length === 0) return <span className={punct}>[]</span>;
     return (
@@ -91,7 +93,7 @@ function renderJson(value: unknown, indent = 0): React.ReactNode {
         {entries.map(([k, v], i) => (
           <span key={k}>
             {childPad}
-            <span className="text-primary">{JSON.stringify(k)}</span>
+            <span className={punct}>{JSON.stringify(k)}</span>
             <span className={punct}>: </span>
             {renderJson(v, indent + 1)}
             {i < entries.length - 1 && <span className={punct}>,</span>}
@@ -212,7 +214,7 @@ function MessageCard({ role, content, feedback, toolCall }: { role: "HUMAN" | "A
  * a ToolMessage is its own entry in the real message list (not nested inside the AI message). */
 function ToolResultCard({ call }: { call: ToolCallInfo }) {
   return (
-    <div className="px-3.5 py-3 bg-accent-soft">
+    <div className="px-3.5 py-3 bg-surface-muted">
       <div className="flex items-center gap-2 mb-1.5">
         <span className="text-xs font-bold tracking-wider text-accent">TOOL</span>
         <span className="text-xs font-semibold">{call.name}</span>
