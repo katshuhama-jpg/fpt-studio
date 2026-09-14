@@ -112,6 +112,7 @@ export default function ChunkViewerModal({
   const [draftType, setDraftType] = useState<ChunkContentType>("text");
   const [htmlMode, setHtmlMode] = useState<"preview" | "raw">("preview");
   const [pendingTypeSwitch, setPendingTypeSwitch] = useState<ChunkContentType | null>(null);
+  const [saveAttempted, setSaveAttempted] = useState(false);
   const [cancelConfirm, setCancelConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<KnowledgeChunk | null>(null);
   const [reprocessConfirm, setReprocessConfirm] = useState(false);
@@ -167,8 +168,14 @@ export default function ChunkViewerModal({
     setDraftContent(c.content);
     setDraftType(c.contentType);
     setHtmlMode("preview");
+    setSaveAttempted(false);
   };
   const isDirty = (c: KnowledgeChunk) => draftTitle !== c.title || draftContent !== c.content || draftType !== c.contentType;
+
+  /** Empty is empty regardless of markup — an HTML chunk made of only empty tags (e.g. "<p></p>")
+   * has no real text either, so both content types are checked through their plain-text reading. */
+  const isContentBlank = (type: ChunkContentType, content: string) =>
+    (type === "html" ? htmlToText(content) : content).trim() === "";
 
   /** Converts draftContent to match the target type — never leaves it blank. Text -> HTML
    * wraps the text in <p> markup (shown right away in "Dạng thô"); HTML -> Text keeps the
@@ -193,6 +200,7 @@ export default function ChunkViewerModal({
   const confirmCancel = () => { setEditingId(null); setCancelConfirm(false); };
 
   const saveEdit = (c: KnowledgeChunk) => {
+    if (draftTitle.trim() === "" || isContentBlank(draftType, draftContent)) { setSaveAttempted(true); return; }
     knowledgeChunkStore.update(c.id, { title: draftTitle, content: draftContent, contentType: draftType });
     setEditingId(null);
     refresh();
@@ -390,12 +398,26 @@ export default function ChunkViewerModal({
                         </div>
                         <div>
                           <label className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">Tiêu đề <span className="text-destructive">*</span></label>
-                          <input value={draftTitle} onChange={e => setDraftTitle(e.target.value)} className="w-full h-9 px-2.5 rounded-lg border border-border bg-white text-sm font-medium outline-none focus:border-primary transition-base" />
+                          <input
+                            value={draftTitle}
+                            onChange={e => setDraftTitle(e.target.value)}
+                            className={`w-full h-9 px-2.5 rounded-lg border bg-white text-sm font-medium outline-none transition-base ${
+                              saveAttempted && draftTitle.trim() === "" ? "border-destructive focus:border-destructive" : "border-border focus:border-primary"
+                            }`}
+                          />
+                          {saveAttempted && draftTitle.trim() === "" && <p className="text-xs text-destructive mt-1">Vui lòng nhập tiêu đề.</p>}
                         </div>
                         <div>
                           <label className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">Nội dung <span className="text-destructive">*</span></label>
                           {draftType === "text" ? (
-                            <textarea value={draftContent} onChange={e => setDraftContent(e.target.value)} rows={5} className="w-full px-2.5 py-2 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary transition-base resize-none" />
+                            <textarea
+                              value={draftContent}
+                              onChange={e => setDraftContent(e.target.value)}
+                              rows={5}
+                              className={`w-full px-2.5 py-2 rounded-lg border bg-white text-sm outline-none transition-base resize-none ${
+                                saveAttempted && isContentBlank(draftType, draftContent) ? "border-destructive focus:border-destructive" : "border-border focus:border-primary"
+                              }`}
+                            />
                           ) : (
                             <div>
                               <div className="flex items-center gap-1 bg-surface-muted rounded-lg p-0.5 mb-2 w-fit">
@@ -412,6 +434,7 @@ export default function ChunkViewerModal({
                               )}
                             </div>
                           )}
+                          {saveAttempted && isContentBlank(draftType, draftContent) && <p className="text-xs text-destructive mt-1">Vui lòng nhập nội dung.</p>}
                         </div>
                         <div className="flex items-center justify-end gap-1.5">
                           <button onClick={() => cancelEdit(c)} aria-label="Hủy" className="h-8 w-8 min-w-[44px] min-h-[44px] -m-1.5 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-surface-muted transition-base"><X size={15} /></button>
