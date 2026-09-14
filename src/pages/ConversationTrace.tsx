@@ -80,15 +80,15 @@ function PayloadBlock({ value }: { value: unknown }) {
   const text = raw ? JSON.stringify(value) : format === "yaml" ? toYaml(value) : JSON.stringify(value, null, 2);
   return (
     <div>
-      <pre className="text-[11px] font-mono whitespace-pre-wrap break-words">{text}</pre>
+      <pre className="text-xs font-mono leading-relaxed whitespace-pre-wrap break-words">{text}</pre>
       <div className="flex items-center gap-1 mt-1.5">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="h-6 px-2 flex items-center gap-1 rounded-md text-[11px] font-medium text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base"
+              className="h-6 px-2 flex items-center gap-1 rounded-md text-xs font-medium text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base"
             >
-              {format.toUpperCase()} <ChevronDown size={11} />
+              {format.toUpperCase()} <ChevronDown size={12} />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-28">
@@ -104,7 +104,7 @@ function PayloadBlock({ value }: { value: unknown }) {
           type="button"
           onClick={() => setRaw(v => !v)}
           className={cn(
-            "h-6 px-2 rounded-md text-[11px] font-medium transition-base",
+            "h-6 px-2 rounded-md text-xs font-medium transition-base",
             raw ? "bg-surface-muted text-foreground" : "text-muted-foreground hover:bg-surface-muted hover:text-foreground",
           )}
         >
@@ -124,13 +124,13 @@ function MessageCard({ role, content, feedback, toolCall }: { role: "HUMAN" | "A
   return (
     <div className="group relative px-3.5 py-3">
       <div className="flex items-center justify-between">
-        <span className={cn("text-[10px] font-bold tracking-wider", role === "HUMAN" ? "text-primary" : "text-accent")}>{role}</span>
+        <span className={cn("text-xs font-bold tracking-wider", role === "HUMAN" ? "text-primary" : "text-accent")}>{role}</span>
         <CopyButton text={content} />
       </div>
-      {content && <p className="mt-1.5 text-[13px] leading-relaxed whitespace-pre-wrap break-words">{content}</p>}
+      {content && <p className="mt-1.5 text-sm leading-relaxed whitespace-pre-wrap break-words">{content}</p>}
       {feedback && (
         <div className={cn(
-          "mt-2 inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded",
+          "mt-2 inline-flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded",
           feedback === "up" ? "bg-success-soft text-success" : "bg-destructive-soft text-destructive",
         )}>
           Người dùng đánh giá {feedback === "up" ? "hữu ích 👍" : "chưa hữu ích 👎"}
@@ -141,8 +141,8 @@ function MessageCard({ role, content, feedback, toolCall }: { role: "HUMAN" | "A
           <div className="flex items-center gap-2 mb-1.5">
             <Wrench size={12} className="text-accent shrink-0" />
             <span className="text-xs font-semibold">{toolCall.name}</span>
-            <span className="chip chip-accent !h-5 !text-[10px]">{toolCall.connector}</span>
-            <span className="ml-auto text-[10px] font-mono text-muted-foreground truncate max-w-[140px]">{toolCall.callId}</span>
+            <span className="chip chip-accent !h-5 !text-[11px]">{toolCall.connector}</span>
+            <span className="ml-auto text-xs font-mono text-muted-foreground truncate max-w-[140px]">{toolCall.callId}</span>
           </div>
           <PayloadBlock value={toolCall.input} />
         </div>
@@ -157,9 +157,9 @@ function ToolResultCard({ call }: { call: ToolCallInfo }) {
   return (
     <div className="px-3.5 py-3 bg-accent-soft">
       <div className="flex items-center gap-2 mb-1.5">
-        <span className="text-[10px] font-bold tracking-wider text-accent">TOOL</span>
+        <span className="text-xs font-bold tracking-wider text-accent">TOOL</span>
         <span className="text-xs font-semibold">{call.name}</span>
-        <span className="ml-auto text-[10px] font-mono text-muted-foreground truncate max-w-[140px]">{call.callId}</span>
+        <span className="ml-auto text-xs font-mono text-muted-foreground truncate max-w-[140px]">{call.callId}</span>
       </div>
       <PayloadBlock value={call.output} />
     </div>
@@ -168,9 +168,9 @@ function ToolResultCard({ call }: { call: ToolCallInfo }) {
 
 function StatRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between py-1 text-xs">
+    <div className="flex items-center justify-between py-1.5 text-xs">
       <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium font-mono">{value}</span>
+      <span className="text-sm font-semibold font-mono text-foreground">{value}</span>
     </div>
   );
 }
@@ -269,7 +269,7 @@ export default function ConversationTrace() {
         {/* Left: Turns list */}
         <aside className="w-[248px] border-r border-border bg-surface flex flex-col shrink-0">
           <div className="h-10 px-3 flex items-center justify-between border-b border-border shrink-0">
-            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Turns</span>
+            <span className="text-overline font-semibold text-muted-foreground uppercase tracking-wider">Turns</span>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -281,11 +281,11 @@ export default function ConversationTrace() {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">Display</DropdownMenuLabel>
+                <DropdownMenuLabel className="text-overline uppercase tracking-wider text-muted-foreground">Display</DropdownMenuLabel>
                 <DropdownMenuCheckboxItem checked={showLatency} onCheckedChange={setShowLatency}>Show Latency</DropdownMenuCheckboxItem>
                 <DropdownMenuCheckboxItem checked={showTokens} onCheckedChange={setShowTokens}>Show Tokens</DropdownMenuCheckboxItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">Visibility</DropdownMenuLabel>
+                <DropdownMenuLabel className="text-overline uppercase tracking-wider text-muted-foreground">Visibility</DropdownMenuLabel>
                 <DropdownMenuCheckboxItem checked disabled>Show all turns</DropdownMenuCheckboxItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -306,16 +306,16 @@ export default function ConversationTrace() {
                       )}
                     >
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="h-5 w-5 shrink-0 rounded-full bg-surface-muted border border-border flex items-center justify-center text-[10px] font-semibold">
+                        <span className="h-5 w-5 shrink-0 rounded-full bg-surface-muted border border-border flex items-center justify-center text-xs font-semibold">
                           {turn.index}
                         </span>
                         <span className="text-sm font-medium truncate">Banking ABC Agent</span>
                         {hasTool && <Wrench size={11} className="text-accent shrink-0" />}
                       </div>
                       {(showLatency || showTokens) && (
-                        <div className="flex items-center gap-2.5 mt-1 pl-7 text-[10px] text-muted-foreground">
+                        <div className="flex items-center gap-2.5 mt-1 pl-7 text-xs text-muted-foreground">
                           {showLatency && (
-                            <span className="inline-flex items-center gap-0.5"><Clock size={10} />{fmtSec(turn.latencyMs)}</span>
+                            <span className="inline-flex items-center gap-0.5"><Clock size={11} />{fmtSec(turn.latencyMs)}</span>
                           )}
                           {showTokens && <span className="font-mono">{fmtTokens(tokens)}</span>}
                         </div>
@@ -327,11 +327,11 @@ export default function ConversationTrace() {
                       <Check size={13} className="text-success" />
                       <span className="font-semibold text-sm">Banking ABC Agent</span>
                     </div>
-                    <div className="text-[10px] text-muted-foreground mb-2">Thread Turn</div>
-                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Time</div>
+                    <div className="text-xs text-muted-foreground mb-2">Thread Turn</div>
+                    <div className="text-overline font-semibold uppercase tracking-wider text-muted-foreground mb-1">Time</div>
                     <StatRow label="Start" value={fmtTime(turn.startedAt)} />
                     <StatRow label="End" value={fmtTime(turn.endedAt)} />
-                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mt-2 mb-1">Token breakdown</div>
+                    <div className="text-overline font-semibold uppercase tracking-wider text-muted-foreground mt-2 mb-1">Token breakdown</div>
                     <StatRow label={`Input (${pct(turn.tokensIn)}%)`} value={fmtTokens(turn.tokensIn)} />
                     {turn.tokensCacheRead > 0 && (
                       <StatRow label="cache read" value={fmtTokens(turn.tokensCacheRead)} />
@@ -356,7 +356,7 @@ export default function ConversationTrace() {
                 <button
                   type="button"
                   onClick={() => setCollapsed(c => ({ ...c, [turn.index]: !c[turn.index] }))}
-                  className="w-full flex items-center gap-1.5 text-xs font-bold tracking-wider text-foreground/70 uppercase mb-3 hover:text-foreground transition-base"
+                  className="w-full flex items-center gap-1.5 text-sm font-bold tracking-wider text-foreground uppercase mb-3 transition-base"
                 >
                   <ChevronDown size={14} className={cn("transition-transform", collapsed[turn.index] && "-rotate-90")} />
                   Turn {turn.index}
@@ -368,7 +368,7 @@ export default function ConversationTrace() {
                       {turn.customer && (
                         <div className="border border-border rounded-xl overflow-hidden bg-surface">
                           <div className="px-3.5 py-1.5 bg-surface-muted border-b border-border text-right">
-                            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Inputs</span>
+                            <span className="text-overline font-semibold text-muted-foreground uppercase tracking-wider">Inputs</span>
                           </div>
                           <MessageCard role="HUMAN" content={turn.customer.content} />
                         </div>
@@ -376,8 +376,8 @@ export default function ConversationTrace() {
 
                       <div className="border border-border rounded-xl overflow-hidden bg-surface">
                         <div className="px-3.5 py-1.5 bg-surface-muted border-b border-border flex items-center gap-2">
-                          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Outputs</span>
-                          <span className="chip chip-muted !h-4 !text-[9px] !px-1.5">
+                          <span className="text-overline font-semibold text-muted-foreground uppercase tracking-wider">Outputs</span>
+                          <span className="chip chip-muted !h-5 !text-[11px] !px-1.5">
                             messages: {turn.agentMessages.reduce((n, m) => n + (m.toolCall ? 2 : 1), 0)}
                           </span>
                         </div>
@@ -389,7 +389,7 @@ export default function ConversationTrace() {
                             </div>
                           ))}
                           {turn.agentMessages.length === 0 && (
-                            <p className="px-3.5 py-3 text-xs text-muted-foreground">Cuộc hội thoại kết thúc — chưa có phản hồi từ agent.</p>
+                            <p className="px-3.5 py-3 text-sm text-muted-foreground">Cuộc hội thoại kết thúc — chưa có phản hồi từ agent.</p>
                           )}
                         </div>
                       </div>
@@ -397,7 +397,7 @@ export default function ConversationTrace() {
 
                     {/* Per-turn quick stats, mirrors the sidebar hover card inline */}
                     <div className="border border-border rounded-xl p-3 bg-surface text-xs space-y-2">
-                      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Turn stats</div>
+                      <div className="text-overline font-semibold uppercase tracking-wider text-muted-foreground">Turn stats</div>
                       <StatRow label="Latency" value={fmtSec(turn.latencyMs)} />
                       <StatRow label="Tokens" value={fmtTokens(turn.tokensIn + turn.tokensCacheRead + turn.tokensOut + turn.tokensReasoning)} />
                     </div>
@@ -410,18 +410,18 @@ export default function ConversationTrace() {
 
         {/* Right: Stats panel */}
         <aside className="w-[300px] border-l border-border bg-surface p-4 overflow-y-auto shrink-0">
-          <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Stats</div>
+          <div className="text-overline font-semibold text-muted-foreground uppercase tracking-wider mb-2">Stats</div>
           <StatRow label="Turns" value={String(trace.turns.length)} />
 
-          <div className="mt-4 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Time</div>
+          <div className="mt-4 text-overline font-semibold text-muted-foreground uppercase tracking-wider mb-1">Time</div>
           <StatRow label="First start" value={fmtTime(trace.startedAt)} />
           <StatRow label="Last end" value={fmtTime(trace.endedAt)} />
 
-          <div className="mt-4 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Latency</div>
+          <div className="mt-4 text-overline font-semibold text-muted-foreground uppercase tracking-wider mb-1">Latency</div>
           <StatRow label="P50" value={fmtSec(trace.totals.p50LatencyMs)} />
           <StatRow label="P99" value={fmtSec(trace.totals.p99LatencyMs)} />
 
-          <div className="mt-4 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Token breakdown</div>
+          <div className="mt-4 text-overline font-semibold text-muted-foreground uppercase tracking-wider mb-1">Token breakdown</div>
           <StatRow label={`Input (${pct(trace.totals.tokensIn)}%)`} value={fmtTokens(trace.totals.tokensIn)} />
           {trace.totals.tokensCacheRead > 0 && (
             <StatRow label={`cache read (${pct(trace.totals.tokensCacheRead)}%)`} value={fmtTokens(trace.totals.tokensCacheRead)} />
