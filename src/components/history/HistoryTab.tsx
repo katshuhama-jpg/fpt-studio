@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Search, ChevronLeft, ChevronRight, Waypoints, Clock } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, Waypoints, Clock, Zap } from "lucide-react";
 import { format, startOfDay, endOfDay } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import { historyStore, CHANNEL_META, type ConversationRecord } from "./historyStore";
@@ -9,27 +9,35 @@ import ChannelLogo from "./ChannelLogo";
 import { TimeRangeFilter, type TimeFilter } from "./TimeRangeFilter";
 import { ChannelFilterDropdown } from "./ChannelFilterDropdown";
 
-// Above this, a response is called out as slow (LangSmith colors its latency badges the same
-// way) — purely a display threshold for the prototype, not tied to any real SLA.
-const SLOW_RESPONSE_MS = 3000;
+// Above these, Latency / First Token are called out red — same red/green treatment LangSmith's
+// own Latency and First Token badges get on its Traces list — purely a display threshold for
+// the prototype, not tied to any real SLA.
+const SLOW_LATENCY_MS = 3000;
+const SLOW_FIRST_TOKEN_MS = 1500;
 
 function fmtCount(n: number) {
   return n >= 1000 ? `${(n / 1000).toFixed(1)}K` : `${n}`;
 }
 
-/** One row's worth of derived, LangSmith-Threads-style stats — turns, a representative
- * response time, token/cost totals, and the first/last message previews — computed from the
- * same deterministic buildTrace() the Trace page uses, so the numbers agree everywhere a given
- * conversation shows up. */
+/** One row's worth of derived stats — turns, Latency, First Token, token/cost totals, and the
+ * First Input / Last Output previews — computed from the same deterministic buildTrace() the
+ * Trace page uses, so the numbers agree everywhere a given conversation shows up. Field set and
+ * naming follow LangSmith's own Threads/Traces columns (Turns, First Input, Last Output,
+ * Latency, First Token, Tokens, Cost, Last Error, Feedback) rather than inventing new ones. */
 function rowStats(c: ConversationRecord) {
   const trace = buildTrace(c);
   const tokens = trace.totals.tokensIn + trace.totals.tokensCacheRead + trace.totals.tokensOut + trace.totals.tokensReasoning;
   const cost = trace.totals.costIn + trace.totals.costCacheRead + trace.totals.costOut + trace.totals.costReasoning;
-  const firstMessage = c.messages.find(m => m.role === "customer")?.content ?? c.messages[0]?.content ?? "";
-  const lastMessage = [...c.messages].reverse().find(m => m.role === "agent")?.content ?? c.messages[c.messages.length - 1]?.content ?? "";
+  const firstInput = c.messages.find(m => m.role === "customer")?.content ?? c.messages[0]?.content ?? "";
+  const lastOutput = [...c.messages].reverse().find(m => m.role === "agent")?.content ?? c.messages[c.messages.length - 1]?.content ?? "";
   const feedbackUp = c.messages.filter(m => m.feedback === "up").length;
   const feedbackDown = c.messages.filter(m => m.feedback === "down").length;
-  return { turns: trace.turns.length, responseMs: trace.totals.p50LatencyMs, tokens, cost, firstMessage, lastMessage, feedbackUp, feedbackDown };
+  return {
+    turns: trace.turns.length,
+    latencyMs: trace.totals.p50LatencyMs,
+    firstTokenMs: trace.totals.firstTokenMs,
+    tokens, cost, firstInput, lastOutput, feedbackUp, feedbackDown,
+  };
 }
 
 export default function HistoryTab({ agentId }: { agentId: string }) {
@@ -131,20 +139,21 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
       ) : (
         <>
           <div className="rounded-xl border border-border overflow-x-auto">
-            <div className="grid grid-cols-[60px,128px,128px,170px,1fr,1fr,140px,110px,70px,70px,160px,80px,50px] gap-5 px-6 py-2.5 bg-surface-muted section-eyebrow min-w-[1850px]">
-              <div>Turns</div><div>Started</div><div>Ended</div><div>Conversation ID</div>
-              <div>First message</div><div>Last message</div><div>Channel</div>
-              <div>Response time</div><div>Tokens</div><div>Cost</div><div>Error</div><div>Feedback</div>
+            <div className="grid grid-cols-[60px,130px,130px,170px,1fr,1fr,140px,90px,90px,70px,70px,160px,80px,50px] gap-5 px-6 py-2.5 bg-surface-muted section-eyebrow min-w-[1900px]">
+              <div>Turns</div><div>First Start Time</div><div>End time</div><div>Conversation ID</div>
+              <div>First Input</div><div>Last Output</div><div>Channel</div>
+              <div>Latency</div><div>First Token</div><div>Tokens</div><div>Cost</div><div>Last Error</div><div>Feedback</div>
               <div className="text-center">Trace</div>
             </div>
-            <div className="divide-y divide-border min-w-[1850px]">
+            <div className="divide-y divide-border min-w-[1900px]">
               {shownConversations.map((c: ConversationRecord) => {
                 const stats = rowStats(c);
-                const slow = stats.responseMs > SLOW_RESPONSE_MS;
+                const slowLatency = stats.latencyMs > SLOW_LATENCY_MS;
+                const slowFirstToken = stats.firstTokenMs > SLOW_FIRST_TOKEN_MS;
                 return (
                 <div
                   key={c.id}
-                  className={`relative w-full grid grid-cols-[60px,128px,128px,170px,1fr,1fr,140px,110px,70px,70px,160px,80px,50px] gap-5 px-6 py-3 items-center transition-base ${
+                  className={`relative w-full grid grid-cols-[60px,130px,130px,170px,1fr,1fr,140px,90px,90px,70px,70px,160px,80px,50px] gap-5 px-6 py-3 items-center transition-base ${
                     c.id === selectedId ? "bg-primary-soft" : "hover:bg-surface-muted/50"
                   }`}
                 >
@@ -158,14 +167,17 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
                   <div className="relative text-sm text-muted-foreground whitespace-nowrap pointer-events-none">{format(new Date(c.startedAt), "dd/MM/yyyy - HH:mm")}</div>
                   <div className="relative text-sm text-muted-foreground whitespace-nowrap pointer-events-none">{format(new Date(c.endedAt), "dd/MM/yyyy - HH:mm")}</div>
                   <div className="relative text-sm truncate pointer-events-none">{c.id}</div>
-                  <div className="relative text-sm text-muted-foreground truncate pointer-events-none" title={stats.firstMessage}>{stats.firstMessage}</div>
-                  <div className="relative text-sm text-muted-foreground truncate pointer-events-none" title={stats.lastMessage}>{stats.lastMessage}</div>
+                  <div className="relative text-sm text-muted-foreground truncate pointer-events-none" title={stats.firstInput}>{stats.firstInput}</div>
+                  <div className="relative text-sm text-muted-foreground truncate pointer-events-none" title={stats.lastOutput}>{stats.lastOutput}</div>
                   <div className="relative flex items-center gap-2 min-w-0 pointer-events-none">
                     <ChannelLogo channel={c.channel} size={26} />
                     <span className="text-sm truncate">{CHANNEL_META[c.channel].label}</span>
                   </div>
-                  <div className={`relative flex items-center gap-1 text-sm tabular-nums pointer-events-none ${slow ? "text-red-600" : "text-emerald-600"}`}>
-                    <Clock size={11} />{(stats.responseMs / 1000).toFixed(1)}s
+                  <div className={`relative flex items-center gap-1 text-sm tabular-nums pointer-events-none ${slowLatency ? "text-red-600" : "text-emerald-600"}`}>
+                    <Clock size={11} />{(stats.latencyMs / 1000).toFixed(1)}s
+                  </div>
+                  <div className={`relative flex items-center gap-1 text-sm tabular-nums pointer-events-none ${slowFirstToken ? "text-red-600" : "text-emerald-600"}`}>
+                    <Zap size={11} />{(stats.firstTokenMs / 1000).toFixed(1)}s
                   </div>
                   <div className="relative text-sm text-muted-foreground tabular-nums pointer-events-none">{fmtCount(stats.tokens)}</div>
                   <div className="relative text-sm text-muted-foreground tabular-nums pointer-events-none">${stats.cost.toFixed(4)}</div>

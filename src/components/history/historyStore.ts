@@ -86,6 +86,12 @@ export interface ConversationRecord {
    * one retry). Most conversations have none, which is the common case and shown as "—".
    */
   error?: string;
+  /**
+   * Forces every turn's latency to this value instead of the seeded hash — lets a couple of
+   * demo conversations reliably show a slow/red Latency in the History table, rather than
+   * hoping the hash happens to land above the slow threshold. See traceStore.ts buildTrace().
+   */
+  demoSlowMs?: number;
 }
 
 const store = new Map<string, ConversationRecord>();
@@ -153,6 +159,7 @@ function seedAgent(agentId: string) {
       email: "nguyen.thi.lan@gmail.com",
       startedAt: now - 45 * MIN,
       endedAt: now - 40 * MIN,
+      demoSlowMs: 9200,
       messages: buildMessages("CV-1042", now - 40 * MIN, [
         { role: "customer", content: "I lost my credit card, can you lock it right now?" },
         {
@@ -269,6 +276,7 @@ function seedAgent(agentId: string) {
       email: "vu.minh.khoa@gmail.com",
       startedAt: now - 6 * DAY - 8 * MIN,
       endedAt: now - 6 * DAY,
+      demoSlowMs: 6400,
       messages: buildMessages("CV-1027", now - 6 * DAY, [
         { role: "customer", content: "There's a charge on my statement I don't recognize — 1,200,000 VND to \"QRPAY MERCHANT 88\"." },
         { role: "agent", content: "I see that charge from yesterday. I've opened a dispute case — reference #DP-5567." },
@@ -324,6 +332,7 @@ function seedAgent(agentId: string) {
       email: "dang.thi.hoa@gmail.com",
       startedAt: now - 28 * DAY - 4 * MIN,
       endedAt: now - 28 * DAY,
+      error: "Guardrail: phản hồi đầu tiên bị chặn vì tiết lộ số dư tài khoản chưa xác thực danh tính, agent đã sinh lại câu trả lời.",
       messages: buildMessages("CV-1004", now - 28 * DAY, [
         { role: "customer", content: "Why was I charged a 50,000 VND monthly fee? I thought my account was fee-free." },
         { role: "agent", content: "Your account is fee-free with a minimum balance of 5,000,000 VND — last month it dropped below that for a few days." },

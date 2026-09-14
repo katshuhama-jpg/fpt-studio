@@ -13,6 +13,9 @@ export interface TraceTurn {
   startedAt: number;
   endedAt: number;
   latencyMs: number;
+  /** Time to the first streamed token — same "First Token" metric LangSmith's Traces (runs)
+   * list shows per call, mocked here as a seeded fraction of the turn's own latency. */
+  firstTokenMs: number;
   tokensIn: number;
   tokensCacheRead: number;
   tokensOut: number;
@@ -40,6 +43,7 @@ export interface ConversationTrace {
     costReasoning: number;
     p50LatencyMs: number;
     p99LatencyMs: number;
+    firstTokenMs: number;
   };
 }
 
@@ -141,6 +145,11 @@ export function buildTrace(record: ConversationRecord): ConversationTrace {
     const tokensReasoning = seededInt(`${seed}-trsn`, 20, 160);
     const baseLatency = seededInt(`${seed}-lat`, 780, 2400);
     const toolLatency = hasTool ? seededInt(`${seed}-toollat`, 320, 900) : 0;
+    // A handful of seed conversations set this explicitly (see historyStore.ts) so the History
+    // table's Latency column has a couple of obviously-red rows to point at, instead of relying
+    // on the seeded hash to happen to land above the slow threshold.
+    const latencyMs = record.demoSlowMs ?? baseLatency + toolLatency;
+    const firstTokenMs = Math.round(latencyMs * (0.25 + seededInt(`${seed}-ftfrac`, 0, 20) / 100));
 
     turns.push({
       index: turnIndex,
@@ -148,7 +157,8 @@ export function buildTrace(record: ConversationRecord): ConversationTrace {
       agentMessages,
       startedAt,
       endedAt,
-      latencyMs: baseLatency + toolLatency,
+      latencyMs,
+      firstTokenMs,
       tokensIn,
       tokensCacheRead,
       tokensOut,
@@ -162,6 +172,8 @@ export function buildTrace(record: ConversationRecord): ConversationTrace {
 
   const sortedLatency = turns.map(t => t.latencyMs).sort((a, b) => a - b);
   const pct = (p: number) => (sortedLatency.length ? sortedLatency[Math.min(sortedLatency.length - 1, Math.floor((sortedLatency.length - 1) * p))] : 0);
+  const sortedFirstToken = turns.map(t => t.firstTokenMs).sort((a, b) => a - b);
+  const pctFirstToken = (p: number) => (sortedFirstToken.length ? sortedFirstToken[Math.min(sortedFirstToken.length - 1, Math.floor((sortedFirstToken.length - 1) * p))] : 0);
 
   const totals = turns.reduce(
     (acc, t) => ({
@@ -175,11 +187,12 @@ export function buildTrace(record: ConversationRecord): ConversationTrace {
       costReasoning: acc.costReasoning + t.costReasoning,
       p50LatencyMs: pct(0.5),
       p99LatencyMs: pct(0.99),
+      firstTokenMs: pctFirstToken(0.5),
     }),
     {
       tokensIn: 0, tokensCacheRead: 0, tokensOut: 0, tokensReasoning: 0,
       costIn: 0, costCacheRead: 0, costOut: 0, costReasoning: 0,
-      p50LatencyMs: pct(0.5), p99LatencyMs: pct(0.99),
+      p50LatencyMs: pct(0.5), p99LatencyMs: pct(0.99), firstTokenMs: pctFirstToken(0.5),
     },
   );
 
