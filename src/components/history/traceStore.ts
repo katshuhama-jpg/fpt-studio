@@ -63,6 +63,50 @@ function seededInt(seed: string, min: number, max: number): number {
   return min + (hashSeed(seed) % (max - min + 1));
 }
 
+export interface MessageAuditFlowStep {
+  label: string;
+}
+
+export interface MessageAudit {
+  status: "Success";
+  latencyMs: number;
+  tokens: number;
+  messageId: string;
+  conversationId: string;
+  startedAt: number;
+  endedAt: number;
+  flow: MessageAuditFlowStep[];
+}
+
+/**
+ * Per-message "Agent audit" info, matching the modal already live on the real
+ * agents.fpt.ai chat-history screen (Status/Latency/Tokens + Message ID/Conversation ID
+ * + Start/End time + a "Flow" list of the steps that produced this message). Only agent
+ * messages are auditable, same as the real product — customer messages have nothing to
+ * show here. Numbers are deterministically mocked from the message id, same spirit as
+ * buildTrace() above.
+ */
+export function buildMessageAudit(record: ConversationRecord, message: ConversationMessage): MessageAudit {
+  const seed = `${record.id}-${message.id}`;
+  const latencyMs = seededInt(`${seed}-lat`, 640, 2400);
+  const tokens = seededInt(`${seed}-tok`, 90, 480);
+
+  const flow: MessageAuditFlowStep[] = [{ label: "User Input" }];
+  if (message.toolCall) flow.push({ label: `Tool call — ${message.toolCall.connector}: ${message.toolCall.name}` });
+  flow.push({ label: "Agent Response" });
+
+  return {
+    status: "Success",
+    latencyMs,
+    tokens,
+    messageId: message.id,
+    conversationId: record.id,
+    startedAt: message.at - latencyMs,
+    endedAt: message.at,
+    flow,
+  };
+}
+
 export function buildTrace(record: ConversationRecord): ConversationTrace {
   const turns: TraceTurn[] = [];
   const msgs = record.messages;
