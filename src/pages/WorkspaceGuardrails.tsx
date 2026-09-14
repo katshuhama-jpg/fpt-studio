@@ -263,7 +263,7 @@ export default function WorkspaceGuardrails() {
             : undefined;
 
           return (
-          <TRow key={g.id} cols="1fr 200px 1fr 72px 64px">
+          <TRow key={g.id} cols="1fr 200px 1fr 72px 64px" onClick={() => setViewItem(g)}>
             <div>
               <div className="text-sm font-medium">{g.name}</div>
               <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
@@ -286,7 +286,7 @@ export default function WorkspaceGuardrails() {
             </div>
             <div className="flex items-center">
               <button
-                onClick={() => canPause && toggleEnabled(g.id)}
+                onClick={e => { e.stopPropagation(); canPause && toggleEnabled(g.id); }}
                 disabled={!canPause}
                 title={!canPause ? "Bạn không có quyền tạm dừng guardrail này." : undefined}
                 className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
@@ -300,7 +300,7 @@ export default function WorkspaceGuardrails() {
                 )}
               </button>
             </div>
-            <div className="flex items-center justify-end">
+            <div className="flex items-center justify-end" onClick={e => e.stopPropagation()}>
               <RowMenu
                 onOpen={() => setViewItem(g)}
                 onEdit={() => setEditItem(g)}
@@ -333,9 +333,16 @@ function THead({ cols, cells, lastRight }: { cols: string; cells: string[]; last
   );
 }
 
-function TRow({ cols, children }: { cols: string; children: React.ReactNode }) {
+function TRow({ cols, children, onClick }: { cols: string; children: React.ReactNode; onClick?: () => void }) {
   return (
-    <div className="grid px-5 py-3.5 border-b border-border last:border-0 items-center gap-3" style={{gridTemplateColumns: cols}}>
+    <div
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={onClick ? (e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }) : undefined}
+      className={`grid px-5 py-3.5 border-b border-border last:border-0 items-center gap-3 ${onClick ? "cursor-pointer hover:bg-surface-muted/50 transition-base" : ""}`}
+      style={{gridTemplateColumns: cols}}
+    >
       {children}
     </div>
   );

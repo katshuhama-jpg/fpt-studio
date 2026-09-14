@@ -40,6 +40,7 @@ import { TYPE_META, summarizeConfig } from "@/components/configure/TriggersTab";
 import { guardrailConsoleStore, type Guardrail } from "@/components/configure/guardrailConsoleStore";
 import { agentGuardrailStore } from "@/components/configure/agentGuardrailStore";
 import CreateGuardrailModal, { type CreateGuardrailData } from "@/components/configure/CreateGuardrailModal";
+import GuardrailDetailModal from "@/components/configure/GuardrailDetailModal";
 import GuardrailOwnershipTag from "@/components/configure/GuardrailOwnershipTag";
 import GuardrailShareModal from "@/components/configure/GuardrailShareModal";
 import { isViewOnly as isGuardrailViewOnly, isAccessibleTo as isGuardrailAccessibleTo, type Sharing as GuardrailSharing, type SharingMode as GuardrailSharingMode } from "@/components/configure/guardrailSharing";
@@ -6284,6 +6285,7 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
   const [showAttach, setShowAttach] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [editTarget, setEditTarget] = useState<Guardrail | null>(null);
+  const [viewTarget, setViewTarget] = useState<Guardrail | null>(null);
   const [shareTarget, setShareTarget] = useState<Guardrail | null>(null);
   const [promoteTarget, setPromoteTarget] = useState<Guardrail | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
@@ -6367,7 +6369,14 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
         ) : (
           <div className="space-y-2">
             {filteredItems.map(g => (
-              <div key={g.id} className={`flex items-start gap-3 px-3.5 py-3 rounded-lg border border-border bg-surface ${agentGuardrailStore.isActive(agentId, g.id) ? "" : "opacity-55"}`}>
+              <div
+                key={g.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => setViewTarget(g)}
+                onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setViewTarget(g); } }}
+                className={`flex items-start gap-3 px-3.5 py-3 rounded-lg border border-border bg-surface cursor-pointer hover:bg-surface-muted/60 transition-base ${agentGuardrailStore.isActive(agentId, g.id) ? "" : "opacity-55"}`}
+              >
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-medium">{g.name}</div>
                   <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed line-clamp-2">{g.desc}</div>
@@ -6376,7 +6385,11 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
                     <GuardrailOwnershipTag g={g} userId={currentUser.id} />
                   </div>
                 </div>
-                <label className="flex items-center gap-1 shrink-0 cursor-pointer self-start mt-0.5" title="Bật/tắt: Agent này có áp dụng guardrail này khi phản hồi hay không.">
+                <label
+                  className="flex items-center gap-1 shrink-0 cursor-pointer self-start mt-0.5"
+                  title="Bật/tắt: Agent này có áp dụng guardrail này khi phản hồi hay không."
+                  onClick={e => e.stopPropagation()}
+                >
                   <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Kích hoạt</span>
                   <Switch
                     checked={agentGuardrailStore.isActive(agentId, g.id)}
@@ -6409,6 +6422,13 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
           onSubmit={g => { agentGuardrailStore.update(agentId, editTarget.id, g); setEditTarget(null); refresh(); }}
           initialData={editTarget}
           currentUser={currentUser}
+        />
+      )}
+      {viewTarget && (
+        <GuardrailDetailModal
+          guardrail={viewTarget}
+          onClose={() => setViewTarget(null)}
+          onEdit={() => { setViewTarget(null); setEditTarget(viewTarget); }}
         />
       )}
       {shareTarget && (
@@ -6682,6 +6702,7 @@ function GuardrailsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
   const [menuPos, setMenuPos] = useState<{top:number;left:number}>({top:0,left:0});
   const [showAttach, setShowAttach] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [viewTarget, setViewTarget] = useState<Guardrail | null>(null);
   const [detachTarget, setDetachTarget] = useState<{ id: string; name: string } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const refresh = () => setTick(t => t + 1);
@@ -6726,7 +6747,7 @@ function GuardrailsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
       key: `item-${item.id}`,
       name: item.name,
       icon: Shield01Icon,
-      open: () => setParams({ tab: "build", section: "guardrails" }),
+      open: () => setViewTarget(item),
       remove: () => setDeleteTarget({ id: item.id, name: item.name }),
       chip: <GuardrailOwnershipTag g={item} userId={currentUser.id} />,
     })),
@@ -6754,7 +6775,7 @@ function GuardrailsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
       ) : (
         <div className="flex flex-col gap-1.5">
           {shown.map(row => (
-            <KnowledgeSourceRow key={row.key} icon={row.icon} name={row.name} chip={row.chip} onOpen={row.open} onRemove={row.remove} href={row.href} twoLine />
+            <KnowledgeSourceRow key={row.key} icon={row.icon} name={row.name} chip={row.chip} onOpen={row.open} onRemove={row.remove} href={row.href} openLabel="Mở guardrail" removeLabel="Gỡ guardrail" twoLine />
           ))}
           {rows.length > 4 && (
             <button onClick={() => setParams({ tab: "build", section: "guardrails" })} className="text-xs text-primary hover:underline text-left mt-0.5">
@@ -6787,6 +6808,13 @@ function GuardrailsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
           onClose={() => setShowCreate(false)}
           onSubmit={g => { agentGuardrailStore.create(agentId, g); refresh(); }}
           currentUser={currentUser}
+        />
+      )}
+      {viewTarget && (
+        <GuardrailDetailModal
+          guardrail={viewTarget}
+          onClose={() => setViewTarget(null)}
+          onEdit={() => { setViewTarget(null); setParams({ tab: "build", section: "guardrails" }); }}
         />
       )}
 
