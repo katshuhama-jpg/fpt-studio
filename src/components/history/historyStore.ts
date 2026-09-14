@@ -113,7 +113,13 @@ function pseudoUlid(seed: string): string {
   let out = "";
   for (let i = 0; i < 26; i++) {
     x = (Math.imul(x, 1103515245) + 12345) >>> 0;
-    out += CROCKFORD_BASE32[x % 32];
+    // Use the LCG's top 5 bits, not `x % 32`: an LCG's low-order bits have a much shorter
+    // period than the generator as a whole (here, `x % 32` cycles through at most 32 values
+    // driven only by `x`'s low 5 bits), so indexing the alphabet with the low bits made every
+    // id a function of `seed`'s hash mod 32 alone — collapsing 12 different seed conversations
+    // down to ~9 distinct ids and silently dropping the rest from the History list. The top
+    // bits of a standard LCG don't have this flaw.
+    out += CROCKFORD_BASE32[(x >>> 27) & 31];
   }
   return out;
 }
