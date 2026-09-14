@@ -78,6 +78,14 @@ export interface ConversationRecord {
   startedAt: number;
   endedAt: number;
   messages: ConversationMessage[];
+  /**
+   * The most recent system-level failure this conversation hit (a tool/connector call that
+   * errored, timed out, or was retried) — same idea as LangSmith's Threads "Last Error" column.
+   * Independent of how the conversation reads to the customer: the agent can still have
+   * recovered and answered normally, same as CV-1035 below (the lock still went through after
+   * one retry). Most conversations have none, which is the common case and shown as "—".
+   */
+  error?: string;
 }
 
 const store = new Map<string, ConversationRecord>();
@@ -231,6 +239,7 @@ function seedAgent(agentId: string) {
       email: "pham.duc.anh@gmail.com",
       startedAt: now - 2 * DAY - 10 * MIN,
       endedAt: now - 2 * DAY,
+      error: "Timeout: Core Banking API không phản hồi sau 15s khi khoá thẻ (đã tự động thử lại và thành công ở lần 2).",
       messages: buildMessages("CV-1035", now - 2 * DAY, [
         { role: "customer", content: "My wallet was stolen this morning, I need to report my debit card lost." },
         { role: "agent", content: "Understood — I've locked debit card ending in 7734 immediately." },
