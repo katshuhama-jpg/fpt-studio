@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { format } from "date-fns";
 import {
   ChevronLeft, ChevronDown, Copy, Check, Clock, Wrench,
-  Settings2, Waypoints,
+  Settings2, Waypoints, AlertTriangle,
 } from "lucide-react";
 import { historyStore } from "@/components/history/historyStore";
 import type { ConversationMessage, ToolCallInfo } from "@/components/history/historyStore";
@@ -51,6 +51,60 @@ function toYaml(value: unknown, indent = 0): string {
   return `${pad}${JSON.stringify(value)}`;
 }
 
+/** Renders a JS value as syntax-highlighted JSON — same shape as `JSON.stringify(value, null, 2)`
+ * but with LangSmith-style coloring (object keys in blue/primary, strings in green/success,
+ * numbers and booleans in orange/warning, punctuation dimmed) built entirely from the app's own
+ * design tokens, no new colors introduced. Only used for the formatted JSON view — the "Raw"
+ * toggle intentionally stays plain, unhighlighted text (that's what "raw" means). */
+function renderJson(value: unknown, indent = 0): React.ReactNode {
+  const pad = "  ".repeat(indent);
+  const childPad = "  ".repeat(indent + 1);
+  const punct = "text-muted-foreground";
+  if (value === null) return <span className={punct}>null</span>;
+  if (typeof value === "boolean" || typeof value === "number") {
+    return <span className="text-warning">{String(value)}</span>;
+  }
+  if (typeof value === "string") return <span className="text-success">{JSON.stringify(value)}</span>;
+  if (Array.isArray(value)) {
+    if (value.length === 0) return <span className={punct}>[]</span>;
+    return (
+      <>
+        <span className={punct}>[</span>{"\n"}
+        {value.map((v, i) => (
+          <span key={i}>
+            {childPad}
+            {renderJson(v, indent + 1)}
+            {i < value.length - 1 && <span className={punct}>,</span>}
+            {"\n"}
+          </span>
+        ))}
+        {pad}<span className={punct}>]</span>
+      </>
+    );
+  }
+  if (typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>);
+    if (entries.length === 0) return <span className={punct}>{"{}"}</span>;
+    return (
+      <>
+        <span className={punct}>{"{"}</span>{"\n"}
+        {entries.map(([k, v], i) => (
+          <span key={k}>
+            {childPad}
+            <span className="text-primary">{JSON.stringify(k)}</span>
+            <span className={punct}>: </span>
+            {renderJson(v, indent + 1)}
+            {i < entries.length - 1 && <span className={punct}>,</span>}
+            {"\n"}
+          </span>
+        ))}
+        {pad}<span className={punct}>{"}"}</span>
+      </>
+    );
+  }
+  return <span>{String(value)}</span>;
+}
+
 /** Small copy-on-hover affordance shared by every message / tool card. */
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -78,9 +132,12 @@ function PayloadBlock({ value }: { value: unknown }) {
   const [format, setFormat] = useState<"json" | "yaml">("json");
   const [raw, setRaw] = useState(false);
   const text = raw ? JSON.stringify(value) : format === "yaml" ? toYaml(value) : JSON.stringify(value, null, 2);
+  const isColorizedJson = format === "json" && !raw;
   return (
     <div>
-      <pre className="text-xs font-mono leading-relaxed whitespace-pre-wrap break-words">{text}</pre>
+      <pre className="text-xs font-mono leading-relaxed whitespace-pre-wrap break-words">
+        {isColorizedJson ? renderJson(value) : text}
+      </pre>
       <div className="flex items-center gap-1 mt-1.5">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -257,6 +314,11 @@ export default function ConversationTrace() {
           >
             {copied ? <Check size={12} className="text-success" /> : <Copy size={12} />}
           </button>
+          {trace.error && (
+            <span className="chip chip-danger !h-6 gap-1 shrink-0" title={trace.error}>
+              <AlertTriangle size={11} /> Error
+            </span>
+          )}
         </div>
         <div className="flex-1" />
         <span className="text-xs text-muted-foreground shrink-0">
@@ -410,6 +472,14 @@ export default function ConversationTrace() {
 
         {/* Right: Stats panel */}
         <aside className="w-[300px] border-l border-border bg-surface p-4 overflow-y-auto shrink-0">
+          {trace.error && (
+            <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive-soft p-2.5">
+              <div className="flex items-center gap-1.5 text-overline font-semibold text-destructive uppercase tracking-wider mb-1">
+                <AlertTriangle size={12} /> Error
+              </div>
+              <p className="text-xs text-destructive leading-relaxed">{trace.error}</p>
+            </div>
+          )}
           <div className="text-overline font-semibold text-muted-foreground uppercase tracking-wider mb-2">Stats</div>
           <StatRow label="Turns" value={String(trace.turns.length)} />
 

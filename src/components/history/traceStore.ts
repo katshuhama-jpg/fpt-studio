@@ -32,6 +32,11 @@ export interface ConversationTrace {
   turns: TraceTurn[];
   startedAt: number;
   endedAt: number;
+  /** Carries the conversation-level error straight through from ConversationRecord (see its
+   * own doc comment in historyStore.ts) so the Trace page can surface the same "Last Error"
+   * the History table shows for this row — before this field existed, a conversation flagged
+   * as errored in the list had nothing to show for it on its own trace page. */
+  error?: string;
   totals: {
     tokensIn: number;
     tokensCacheRead: number;
@@ -203,5 +208,6 @@ export function buildTrace(record: ConversationRecord): ConversationTrace {
     startedAt: record.startedAt,
     endedAt: record.endedAt,
     totals,
+    error: record.error,
   };
 }
