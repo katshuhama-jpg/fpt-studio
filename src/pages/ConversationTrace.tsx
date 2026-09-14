@@ -21,9 +21,6 @@ function fmtTime(ms: number) {
 function fmtSec(ms: number) {
   return `${(ms / 1000).toFixed(2)}s`;
 }
-function fmtUsd(v: number) {
-  return `$${v.toFixed(4)}`;
-}
 function fmtTokens(n: number) {
   return n >= 1000 ? `${(n / 1000).toFixed(2)}K` : `${n}`;
 }
@@ -183,7 +180,7 @@ export default function ConversationTrace() {
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
   const [showLatency, setShowLatency] = useState(true);
-  const [showCost, setShowCost] = useState(true);
+  const [showTokens, setShowTokens] = useState(true);
   const [collapsed, setCollapsed] = useState<Record<number, boolean>>({});
   const [activeTurn, setActiveTurn] = useState(1);
   const mainRef = useRef<HTMLDivElement>(null);
@@ -229,9 +226,8 @@ export default function ConversationTrace() {
     );
   }
 
-  const totalCost = trace.totals.costIn + trace.totals.costCacheRead + trace.totals.costOut + trace.totals.costReasoning;
   const totalTokens = trace.totals.tokensIn + trace.totals.tokensCacheRead + trace.totals.tokensOut + trace.totals.tokensReasoning;
-  const pct = (v: number) => (totalCost > 0 ? Math.round((v / totalCost) * 100) : 0);
+  const pct = (v: number) => (totalTokens > 0 ? Math.round((v / totalTokens) * 100) : 0);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
@@ -287,7 +283,7 @@ export default function ConversationTrace() {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">Display</DropdownMenuLabel>
                 <DropdownMenuCheckboxItem checked={showLatency} onCheckedChange={setShowLatency}>Show Latency</DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem checked={showCost} onCheckedChange={setShowCost}>Show Cost and Tokens</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked={showTokens} onCheckedChange={setShowTokens}>Show Tokens</DropdownMenuCheckboxItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">Visibility</DropdownMenuLabel>
                 <DropdownMenuCheckboxItem checked disabled>Show all turns</DropdownMenuCheckboxItem>
@@ -296,7 +292,7 @@ export default function ConversationTrace() {
           </div>
           <div className="flex-1 overflow-y-auto p-1.5 space-y-1">
             {trace.turns.map(turn => {
-              const cost = turn.costIn + turn.costCacheRead + turn.costOut + turn.costReasoning;
+              const tokens = turn.tokensIn + turn.tokensCacheRead + turn.tokensOut + turn.tokensReasoning;
               const hasTool = turn.agentMessages.some(m => m.toolCall);
               return (
                 <HoverCard key={turn.index} openDelay={200} closeDelay={80}>
@@ -316,12 +312,12 @@ export default function ConversationTrace() {
                         <span className="text-sm font-medium truncate">Banking ABC Agent</span>
                         {hasTool && <Wrench size={11} className="text-accent shrink-0" />}
                       </div>
-                      {(showLatency || showCost) && (
+                      {(showLatency || showTokens) && (
                         <div className="flex items-center gap-2.5 mt-1 pl-7 text-[10px] text-muted-foreground">
                           {showLatency && (
                             <span className="inline-flex items-center gap-0.5"><Clock size={10} />{fmtSec(turn.latencyMs)}</span>
                           )}
-                          {showCost && <span className="font-mono">{fmtUsd(cost)}</span>}
+                          {showTokens && <span className="font-mono">{fmtTokens(tokens)}</span>}
                         </div>
                       )}
                     </button>
@@ -335,15 +331,15 @@ export default function ConversationTrace() {
                     <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Time</div>
                     <StatRow label="Start" value={fmtTime(turn.startedAt)} />
                     <StatRow label="End" value={fmtTime(turn.endedAt)} />
-                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mt-2 mb-1">Total cost breakdown</div>
-                    <StatRow label={`Input (${pct(turn.costIn)}%)`} value={`${fmtTokens(turn.tokensIn)} · ${fmtUsd(turn.costIn)}`} />
+                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mt-2 mb-1">Token breakdown</div>
+                    <StatRow label={`Input (${pct(turn.tokensIn)}%)`} value={fmtTokens(turn.tokensIn)} />
                     {turn.tokensCacheRead > 0 && (
-                      <StatRow label="cache read" value={`${fmtTokens(turn.tokensCacheRead)} · ${fmtUsd(turn.costCacheRead)}`} />
+                      <StatRow label="cache read" value={fmtTokens(turn.tokensCacheRead)} />
                     )}
-                    <StatRow label="Output" value={`${fmtTokens(turn.tokensOut)} · ${fmtUsd(turn.costOut)}`} />
-                    <StatRow label="Reasoning" value={`${fmtTokens(turn.tokensReasoning)} · ${fmtUsd(turn.costReasoning)}`} />
+                    <StatRow label="Output" value={fmtTokens(turn.tokensOut)} />
+                    <StatRow label="Reasoning" value={fmtTokens(turn.tokensReasoning)} />
                     <div className="border-t border-border mt-1.5 pt-1.5">
-                      <StatRow label="Total" value={`${fmtTokens(turn.tokensIn + turn.tokensCacheRead + turn.tokensOut + turn.tokensReasoning)} · ${fmtUsd(cost)}`} />
+                      <StatRow label="Total" value={fmtTokens(tokens)} />
                     </div>
                   </HoverCardContent>
                 </HoverCard>
@@ -404,7 +400,6 @@ export default function ConversationTrace() {
                       <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Turn stats</div>
                       <StatRow label="Latency" value={fmtSec(turn.latencyMs)} />
                       <StatRow label="Tokens" value={fmtTokens(turn.tokensIn + turn.tokensCacheRead + turn.tokensOut + turn.tokensReasoning)} />
-                      <StatRow label="Cost" value={fmtUsd(turn.costIn + turn.costCacheRead + turn.costOut + turn.costReasoning)} />
                     </div>
                   </div>
                 )}
@@ -426,15 +421,15 @@ export default function ConversationTrace() {
           <StatRow label="P50" value={fmtSec(trace.totals.p50LatencyMs)} />
           <StatRow label="P99" value={fmtSec(trace.totals.p99LatencyMs)} />
 
-          <div className="mt-4 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Total cost breakdown</div>
-          <StatRow label={`Input (${pct(trace.totals.costIn)}%)`} value={`${fmtTokens(trace.totals.tokensIn)} · ${fmtUsd(trace.totals.costIn)}`} />
+          <div className="mt-4 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Token breakdown</div>
+          <StatRow label={`Input (${pct(trace.totals.tokensIn)}%)`} value={fmtTokens(trace.totals.tokensIn)} />
           {trace.totals.tokensCacheRead > 0 && (
-            <StatRow label={`cache read (${pct(trace.totals.costCacheRead)}%)`} value={`${fmtTokens(trace.totals.tokensCacheRead)} · ${fmtUsd(trace.totals.costCacheRead)}`} />
+            <StatRow label={`cache read (${pct(trace.totals.tokensCacheRead)}%)`} value={fmtTokens(trace.totals.tokensCacheRead)} />
           )}
-          <StatRow label={`Output (${pct(trace.totals.costOut)}%)`} value={`${fmtTokens(trace.totals.tokensOut)} · ${fmtUsd(trace.totals.costOut)}`} />
-          <StatRow label={`Reasoning (${pct(trace.totals.costReasoning)}%)`} value={`${fmtTokens(trace.totals.tokensReasoning)} · ${fmtUsd(trace.totals.costReasoning)}`} />
+          <StatRow label={`Output (${pct(trace.totals.tokensOut)}%)`} value={fmtTokens(trace.totals.tokensOut)} />
+          <StatRow label={`Reasoning (${pct(trace.totals.tokensReasoning)}%)`} value={fmtTokens(trace.totals.tokensReasoning)} />
           <div className="border-t border-border mt-1.5 pt-1.5">
-            <StatRow label="Total" value={`${fmtTokens(totalTokens)} · ${fmtUsd(totalCost)}`} />
+            <StatRow label="Total" value={fmtTokens(totalTokens)} />
           </div>
         </aside>
       </div>
