@@ -75,7 +75,7 @@ function ToolCard({ call }: { call: ToolCallInfo }) {
   const inputStr = raw ? JSON.stringify(call.input) : JSON.stringify(call.input, null, 2);
   const outputStr = raw ? JSON.stringify(call.output) : JSON.stringify(call.output, null, 2);
   return (
-    <div className="group bg-accent-soft/30">
+    <div className="group bg-accent-soft">
       <div className="px-3.5 py-2 flex items-center gap-2 border-b border-border/60">
         <Wrench size={12} className="text-accent shrink-0" />
         <span className="text-[10px] font-bold tracking-wider text-accent">TOOL CALL</span>
@@ -290,13 +290,13 @@ export default function ConversationTrace() {
 
         {/* Middle: turn feed */}
         <main ref={mainRef} className="flex-1 overflow-y-auto">
-          <div className="max-w-[860px] mx-auto py-6 px-6 space-y-8">
+          <div className="max-w-[1400px] py-6 px-8 space-y-8">
             {trace.turns.map(turn => (
               <section key={turn.index} id={`turn-${turn.index}`} data-turn={turn.index} className="scroll-mt-3">
                 <button
                   type="button"
                   onClick={() => setCollapsed(c => ({ ...c, [turn.index]: !c[turn.index] }))}
-                  className="w-full flex items-center gap-1.5 text-xs font-bold tracking-wider text-muted-foreground uppercase mb-3 hover:text-foreground transition-base"
+                  className="w-full flex items-center gap-1.5 text-xs font-bold tracking-wider text-foreground/70 uppercase mb-3 hover:text-foreground transition-base"
                 >
                   <ChevronDown size={14} className={cn("transition-transform", collapsed[turn.index] && "-rotate-90")} />
                   Turn {turn.index}
@@ -307,7 +307,7 @@ export default function ConversationTrace() {
                     <div className="space-y-3 min-w-0">
                       {turn.customer && (
                         <div className="border border-border rounded-xl overflow-hidden bg-surface">
-                          <div className="px-3.5 py-1.5 bg-surface-muted/60 border-b border-border text-right">
+                          <div className="px-3.5 py-1.5 bg-surface-muted border-b border-border text-right">
                             <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Inputs</span>
                           </div>
                           <MessageCard role="HUMAN" content={turn.customer.content} />
@@ -315,7 +315,7 @@ export default function ConversationTrace() {
                       )}
 
                       <div className="border border-border rounded-xl overflow-hidden bg-surface">
-                        <div className="px-3.5 py-1.5 bg-surface-muted/60 border-b border-border flex items-center gap-2">
+                        <div className="px-3.5 py-1.5 bg-surface-muted border-b border-border flex items-center gap-2">
                           <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Outputs</span>
                           <span className="chip chip-muted !h-4 !text-[9px] !px-1.5">messages: {turn.agentMessages.length}</span>
                         </div>

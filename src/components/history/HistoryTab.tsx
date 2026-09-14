@@ -108,7 +108,7 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
         <>
           <div className="rounded-xl border border-border overflow-x-auto">
             <div className="grid grid-cols-[165px,1fr,190px,40px] gap-5 px-6 py-2.5 bg-surface-muted section-eyebrow min-w-[760px]">
-              <div>Ended</div><div>Conversation ID</div><div>Channel</div><div />
+              <div>Ended</div><div>Conversation ID</div><div>Channel</div><div className="text-center">Trace</div>
             </div>
             <div className="divide-y divide-border min-w-[760px]">
               {shownConversations.map((c: ConversationRecord) => (
