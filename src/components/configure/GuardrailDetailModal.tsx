@@ -18,7 +18,7 @@ export default function GuardrailDetailModal({ guardrail, onClose, onEdit }: {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0 }}>
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
-      <div className="relative w-full max-w-[480px] bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh]" style={{ animation: "fadeScaleIn 0.18s ease" }}>
+      <div className="relative w-full max-w-[480px] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" style={{ animation: "fadeScaleIn 0.18s ease" }}>
         <div className="flex items-start justify-between px-6 py-5 border-b border-border shrink-0">
           <h2 className="font-display text-lg font-semibold">Chi tiết guardrail</h2>
           <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base mt-0.5">
