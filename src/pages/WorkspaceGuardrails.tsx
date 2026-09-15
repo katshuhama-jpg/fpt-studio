@@ -231,10 +231,10 @@ export default function WorkspaceGuardrails() {
         ))}
       </div>
 
-      {/* Toolbar */}
-      <div className="flex items-center justify-between gap-3 mb-5">
-        <div />
-        <div className="flex items-center gap-3">
+      {/* Toolbar — filters on the left, primary action on the right (same split as
+          Knowledge's document toolbar and every other list page in the app). */}
+      <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
           <div className="relative">
             <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -247,15 +247,15 @@ export default function WorkspaceGuardrails() {
           <span className="text-xs text-muted-foreground whitespace-nowrap">
             {visibleGuardrails.filter(g => g.enabled).length} of {visibleGuardrails.length} active
           </span>
-          <button
-            onClick={() => canCreateGuardrail && setShowCreate(true)}
-            disabled={!canCreateGuardrail}
-            title={!canCreateGuardrail ? "You don't have permission to create guardrails." : undefined}
-            className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 transition-base disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <HugeiconsIcon icon={Add01Icon} size={14} /> Create guardrail
-          </button>
         </div>
+        <button
+          onClick={() => canCreateGuardrail && setShowCreate(true)}
+          disabled={!canCreateGuardrail}
+          title={!canCreateGuardrail ? "You don't have permission to create guardrails." : undefined}
+          className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 transition-base disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+        >
+          <HugeiconsIcon icon={Add01Icon} size={14} /> Create guardrail
+        </button>
       </div>
 
       {/* Table — all guardrails */}
