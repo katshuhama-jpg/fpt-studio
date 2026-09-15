@@ -2588,7 +2588,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto min-h-0">
           {tab === "config" ? (
             <div className="px-6 py-5">
               <p className="text-sm text-muted-foreground leading-relaxed mb-6">
@@ -2673,7 +2673,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
               </div>
             </div>
           ) : (
-            <div className="flex h-full">
+            <div className="flex h-full min-h-0">
               {/* Settings */}
               <div className="flex-1 overflow-y-auto flex flex-col">
                 <div className="flex items-center gap-6 px-6 shrink-0" style={{ height: "49px" }}>
@@ -2790,8 +2790,8 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
               </div>
 
               {/* Live preview */}
-              <div className="w-[460px] shrink-0 p-4 flex flex-col">
-              <div className="flex-1 rounded-2xl border border-border shadow-md overflow-hidden flex flex-col">
+              <div className="w-[460px] shrink-0 p-4 flex flex-col min-h-0">
+              <div className="flex-1 rounded-2xl border border-border shadow-md overflow-hidden flex flex-col min-h-0">
                 <div className="flex items-center justify-center gap-5 shrink-0" style={{ height: "49px" }}>
                   {(["minimized", "welcome", "chat"] as const).map(s => (
                     <button
@@ -2803,7 +2803,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
                     </button>
                   ))}
                 </div>
-                <div className="flex-1 flex justify-end p-4">
+                <div className="flex-1 flex justify-end p-4 min-h-0">
                     {previewState === "minimized" && (
                       <div className="flex items-center gap-2.5 self-end">
                         {starterGreeting && (
@@ -2826,7 +2826,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
                       </div>
                     )}
                     {previewState !== "minimized" && (
-                      <div className="w-full h-full rounded-xl border border-border bg-white shadow-md overflow-hidden flex flex-col">
+                      <div className="w-full h-full rounded-xl border border-border bg-white shadow-md overflow-hidden flex flex-col min-h-0">
                         <div className="flex items-center justify-between px-4 py-3 shrink-0" style={{ background: theme.header }}>
                           <div className="flex items-center gap-2">
                             {chat.showLogoHeader && (
@@ -2867,7 +2867,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
                             </div>
                           )
                         ) : (
-                          <div className="flex-1 flex flex-col gap-3 p-3 overflow-y-auto" style={{ background: theme.background }}>
+                          <div className="flex-1 flex flex-col gap-2 p-3 overflow-y-auto min-h-0" style={{ background: theme.background }}>
                             <p className="text-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground opacity-70">Today</p>
 
                             <div className="self-end max-w-[85%] rounded-xl rounded-tr-sm px-3 py-2 text-xs" style={{ background: theme.customerBubble, color: theme.customerText }}>
