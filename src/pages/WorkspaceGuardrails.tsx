@@ -2,7 +2,6 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Add01Icon, Delete01Icon, MoreVerticalIcon, PencilEdit01Icon, Search01Icon, Share08Icon, EyeIcon } from "@hugeicons/core-free-icons";
-import { Shield } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import { useGroupAccess } from "@/pages/organization/scopeAccess";
@@ -209,14 +208,9 @@ export default function WorkspaceGuardrails() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="mb-6 flex items-start gap-3">
-        <div className="w-11 h-11 rounded-xl bg-primary-soft text-primary flex items-center justify-center shrink-0">
-          <Shield size={20} />
-        </div>
-        <div>
-          <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">Guardrails</h1>
-          <p className="text-sm text-muted-foreground truncate">Chính sách an toàn dùng chung, áp dụng được cho mọi Agent — giới hạn nội dung, bảo vệ dữ liệu, luồng phê duyệt và quy tắc tùy chỉnh.</p>
-        </div>
+      <div className="mb-6">
+        <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">Guardrails</h1>
+        <p className="text-sm text-muted-foreground truncate">Chính sách an toàn dùng chung, áp dụng được cho mọi Agent — giới hạn nội dung, bảo vệ dữ liệu, luồng phê duyệt và quy tắc tùy chỉnh.</p>
       </div>
 
       {/* Ownership tabs */}
