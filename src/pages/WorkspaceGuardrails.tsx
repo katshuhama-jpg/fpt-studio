@@ -15,6 +15,8 @@ import GuardrailShareModal from "@/components/configure/GuardrailShareModal";
 import RequestPublishModal from "@/components/governance/RequestPublishModal";
 import { governanceStore } from "@/components/governance/governanceStore";
 import { StatusBadge } from "@/components/governance/governanceUi";
+import { resourceBlockStore } from "@/components/governance/resourceBlockStore";
+import { CancelCircleIcon } from "@hugeicons/core-free-icons";
 import { Rocket01Icon } from "@hugeicons/core-free-icons";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -152,6 +154,10 @@ export default function WorkspaceGuardrails() {
     guardrailConsoleStore.updateSharing(id, sharing);
     refresh();
   };
+  const toggleBlock = (id: string) => {
+    resourceBlockStore.setBlocked("guardrail", id, !resourceBlockStore.isBlocked("guardrail", id));
+    refresh();
+  };
 
   return (
     <div className="px-8 py-8 max-w-[1200px] mx-auto animate-fade-up">
@@ -275,10 +281,19 @@ export default function WorkspaceGuardrails() {
             : !access.canAct("delete", accessible) ? NOT_OWNED_OR_SHARED
             : undefined;
 
+          const isBlocked = !g.mandatory && resourceBlockStore.isBlocked("guardrail", g.id);
+
           return (
           <TRow key={g.id} cols="1fr 200px 1fr 72px 64px" onClick={() => setViewItem(g)}>
             <div>
-              <div className="text-sm font-medium">{g.name}</div>
+              <div className="flex items-center gap-1.5">
+                <div className="text-sm font-medium">{g.name}</div>
+                {isBlocked && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-destructive bg-destructive/10 border border-destructive/20 rounded-full px-1.5 py-0.5 whitespace-nowrap">
+                    <HugeiconsIcon icon={CancelCircleIcon} size={10} /> Đã chặn agent mới
+                  </span>
+                )}
+              </div>
               <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
                 {g.desc}
                 {hasOwner && ` · Người tạo: ${isOwner ? "Bạn" : (g.ownerName ?? "—")}`}
@@ -311,9 +326,12 @@ export default function WorkspaceGuardrails() {
                 onEdit={() => setEditItem(g)}
                 onShare={hasOwner ? () => setShareItem(g) : undefined}
                 onPublish={hasOwner && isOwner ? () => setPublishItem(g) : undefined}
+                onToggleBlock={!g.mandatory ? () => toggleBlock(g.id) : undefined}
+                isBlocked={isBlocked}
                 onDelete={() => setDeleteTarget(g)}
                 editBlocked={editBlocked}
                 shareBlocked={shareBlocked}
+                blockToggleBlocked={editBlocked}
                 deleteBlocked={deleteBlocked}
               />
             </div>
@@ -371,9 +389,13 @@ function ActionPill({ children }: { children: React.ReactNode }) {
  * disabled+tooltipped by whichever gate (ownership, sharing access level, role permission, or
  * role Scope) actually blocks it — never hidden outright, so an owner sees the full action set,
  * an edit-shared viewer sees Mở/Chỉnh sửa enabled, and a view-only viewer sees only Mở enabled. */
-function RowMenu({ onOpen, onEdit, onShare, onPublish, onDelete, editBlocked, shareBlocked, deleteBlocked }: {
-  onOpen: () => void; onEdit: () => void; onShare?: () => void; onPublish?: () => void; onDelete: () => void;
-  editBlocked?: string; shareBlocked?: string; deleteBlocked?: string;
+function RowMenu({
+  onOpen, onEdit, onShare, onPublish, onToggleBlock, isBlocked, onDelete,
+  editBlocked, shareBlocked, blockToggleBlocked, deleteBlocked,
+}: {
+  onOpen: () => void; onEdit: () => void; onShare?: () => void; onPublish?: () => void;
+  onToggleBlock?: () => void; isBlocked?: boolean; onDelete: () => void;
+  editBlocked?: string; shareBlocked?: string; blockToggleBlocked?: string; deleteBlocked?: string;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -427,6 +449,16 @@ function RowMenu({ onOpen, onEdit, onShare, onPublish, onDelete, editBlocked, sh
               className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface-muted transition-base"
             >
               <HugeiconsIcon icon={Rocket01Icon} size={13} className="text-muted-foreground" /> Publish
+            </button>
+          )}
+          {onToggleBlock && (
+            <button
+              disabled={!!blockToggleBlocked}
+              title={blockToggleBlocked}
+              onClick={() => { setOpen(false); onToggleBlock(); }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface-muted transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+            >
+              <HugeiconsIcon icon={CancelCircleIcon} size={13} className="text-muted-foreground" /> {isBlocked ? "Bỏ chặn agent mới" : "Chặn dùng trong Agent mới"}
             </button>
           )}
           <button

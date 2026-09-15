@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Filter, Layers } from "lucide-react";
 import {
-  governanceStore, RESOURCE_TYPE_LABEL, AUDIENCE_LABEL,
+  governanceStore, RESOURCE_TYPE_LABEL, AUDIENCE_LABEL, itemNeedsReview,
   type GovRequestStatus, type GovResourceType, type GovRequest,
 } from "@/components/governance/governanceStore";
 import { StatusBadge, ResourceTypeIcon, STATUS_ROW_ACCENT, initials, relativeTime } from "@/components/governance/governanceUi";
@@ -15,6 +15,7 @@ const TABS: { key: MainTab; label: string }[] = [
   { key: "needs_changes", label: "Cần cập nhật" },
   { key: "approved", label: "Đã duyệt" },
   { key: "rejected", label: "Từ chối" },
+  { key: "revoked", label: "Đã thu hồi" },
 ];
 
 const TYPE_FILTERS: { key: "all" | GovResourceType; label: string }[] = [
@@ -45,7 +46,7 @@ function ListHead() {
  * as a triage list at a glance, while resolved rows stay neutral. Columns still line up with
  * ListHead via the same grid template, so it scans like a table despite the card spacing. */
 function RequestCard({ r, onClick }: { r: GovRequest; onClick: () => void }) {
-  const needsAttention = r.bundledItems.filter(it => it.changeState !== "unchanged_approved").length;
+  const needsAttention = r.bundledItems.filter(it => itemNeedsReview(it.changeState)).length;
   return (
     <div
       role="button"
@@ -104,6 +105,7 @@ export default function GovernanceRequests() {
     needs_changes: all.filter(r => r.status === "needs_changes").length,
     approved: all.filter(r => r.status === "approved").length,
     rejected: all.filter(r => r.status === "rejected").length,
+    revoked: all.filter(r => r.status === "revoked").length,
   }), [all]);
 
   const filtered = useMemo(() => {

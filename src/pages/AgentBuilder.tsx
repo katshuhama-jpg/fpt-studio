@@ -67,6 +67,7 @@ import {
 import { knowledgeStore, OWN_KB_ID, type KnowledgeItem } from "@/components/knowledge/knowledgeStore";
 import { knowledgeBaseStore, CURRENT_USER as KB_CURRENT_USER, isViewOnly as isKbViewOnly, isAccessibleTo as isKbAccessibleTo, type KnowledgeBase } from "@/components/knowledge/knowledgeBaseStore";
 import { governanceStore, computeAgentBundle, agentEmoji } from "@/components/governance/governanceStore";
+import { resourceBlockStore } from "@/components/governance/resourceBlockStore";
 import { KnowledgeStatusPill } from "@/components/knowledge/knowledgeStatus";
 import AttachConsoleKnowledgeBaseModal from "@/components/knowledge/AttachConsoleKnowledgeBaseModal";
 import ShareKnowledgeBaseModal from "@/components/knowledge/ShareKnowledgeBaseModal";
@@ -4099,11 +4100,24 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
       onClose();
       return;
     }
+    const bundle = computeAgentBundle(agentId);
+    // Policy gate (hard block, item #10): a Guardrail/Connector an admin has toggled "Chặn dùng
+    // trong Agent mới" can't ride along in a new governance request at all — this stops the
+    // submission outright rather than letting an Admin discover it during review.
+    const blockedItems = bundle.filter(it =>
+      (it.type === "guardrail" || it.type === "connector") && resourceBlockStore.isBlocked(it.type, it.resourceId)
+    );
+    if (blockedItems.length > 0) {
+      toast.error(
+        `Không thể gửi duyệt — Agent đang dùng ${blockedItems.length} thành phần đã bị chặn sử dụng trong agent mới: ${blockedItems.map(it => it.name).join(", ")}. Vui lòng gỡ thành phần này khỏi Agent trước khi gửi duyệt.`
+      );
+      return;
+    }
     governanceStore.submit({
       resourceType: "agent", resourceId: agentId, resourceName: agentName, resourceIcon: agentEmoji(agentId),
       requesterId: KB_CURRENT_USER.id, requesterName: KB_CURRENT_USER.name,
       audience: effectiveAudience, note: note.trim(), version: versionName,
-      bundledItems: computeAgentBundle(agentId),
+      bundledItems: bundle,
     });
     toast.success("Đã gửi yêu cầu duyệt. Agent sẽ được publish sau khi Admin duyệt trong Trust & Governance › Requests.");
     onPublished?.();

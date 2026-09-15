@@ -19,10 +19,11 @@ const STATUS_STYLE: Record<GovRequestStatus, string> = {
   needs_changes: "bg-destructive/10 border-destructive/20 text-destructive",
   approved: "bg-success/10 border-success/20 text-success",
   rejected: "bg-surface-muted border-border text-muted-foreground",
+  revoked: "bg-surface-muted border-border text-muted-foreground",
 };
 
 const STATUS_DOT: Record<GovRequestStatus, string> = {
-  pending: "bg-warning", needs_changes: "bg-destructive", approved: "bg-success", rejected: "bg-muted-foreground",
+  pending: "bg-warning", needs_changes: "bg-destructive", approved: "bg-success", rejected: "bg-muted-foreground", revoked: "bg-muted-foreground",
 };
 
 export function StatusBadge({ status, className = "" }: { status: GovRequestStatus; className?: string }) {
@@ -43,6 +44,7 @@ export const STATUS_ROW_ACCENT: Record<GovRequestStatus, string> = {
   needs_changes: "border-l-destructive bg-destructive/[0.025]",
   approved: "border-l-transparent",
   rejected: "border-l-transparent",
+  revoked: "border-l-transparent",
 };
 
 /** 1-2 letter initials from a display name, for the small avatar circle next to a requester's
@@ -66,12 +68,14 @@ export function ResourceTypePill({ type }: { type: GovResourceType }) {
 
 const CHANGE_STATE_STYLE: Record<GovChangeState, string> = {
   new: "bg-primary-soft text-primary border-primary/20",
-  modified: "bg-warning/10 text-warning border-warning/25",
+  modified_major: "bg-warning/10 text-warning border-warning/25",
+  modified_minor: "bg-surface-muted text-foreground/70 border-border",
   unchanged_approved: "bg-surface-muted text-muted-foreground border-border",
 };
 const CHANGE_STATE_LABEL: Record<GovChangeState, string> = {
   new: "Mới — cần duyệt",
-  modified: "Đã sửa — cần duyệt",
+  modified_major: "Đã sửa — cần duyệt",
+  modified_minor: "Sửa nhẹ",
   unchanged_approved: "Đã duyệt trước đó",
 };
 
@@ -88,7 +92,8 @@ export function ChangeStateBadge({ state }: { state: GovChangeState }) {
  * (neutral border, dimmed via the caller's opacity-70), so a reviewer's eye lands on what changed. */
 export const CHANGE_STATE_ACCENT: Record<GovChangeState, string> = {
   new: "border-border border-l-primary bg-primary-soft/30",
-  modified: "border-border border-l-warning bg-warning/5",
+  modified_major: "border-border border-l-warning bg-warning/5",
+  modified_minor: "border-border border-l-border bg-surface",
   unchanged_approved: "border-border border-l-border bg-surface",
 };
 

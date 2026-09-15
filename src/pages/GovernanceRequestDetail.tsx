@@ -2,10 +2,11 @@ import { useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import {
   ChevronLeft, FlaskConical, ExternalLink, CheckCircle2, XCircle, MessageSquareWarning,
-  User, Clock, Layers, RotateCcw,
+  User, Clock, Layers, RotateCcw, AlertTriangle, ChevronDown, ChevronUp, Undo2,
 } from "lucide-react";
 import {
   governanceStore, resourcePath, RESOURCE_TYPE_LABEL, AUDIENCE_LABEL,
+  diffSnapshots, itemNeedsReview, checkDrift, type GovBundledItem,
 } from "@/components/governance/governanceStore";
 import { ACTION_LABEL } from "@/components/governance/auditLogStore";
 import {
@@ -14,7 +15,9 @@ import {
 import { CURRENT_USER } from "@/components/knowledge/knowledgeBaseStore";
 import { toast } from "sonner";
 
-type Dialog = "approve" | "reject" | "changes" | null;
+type Dialog = "approve" | "reject" | "changes" | "revoke" | null;
+
+const itemKey = (it: GovBundledItem) => `${it.type}:${it.resourceId}`;
 
 export default function GovernanceRequestDetail() {
   const { id } = useParams();
@@ -25,6 +28,7 @@ export default function GovernanceRequestDetail() {
   const req = id ? governanceStore.get(id) : undefined;
   const [dialog, setDialog] = useState<Dialog>(null);
   const [reason, setReason] = useState("");
+  const [openDiffs, setOpenDiffs] = useState<Set<string>>(new Set());
 
   if (!req) {
     return (
@@ -61,10 +65,30 @@ export default function GovernanceRequestDetail() {
     toast.success("Đã gửi lại yêu cầu — chuyển về hàng chờ duyệt.");
     refresh();
   };
+  const doRevoke = () => {
+    if (!reason.trim()) { toast.error("Vui lòng nhập lý do thu hồi."); return; }
+    governanceStore.revoke(req.id, CURRENT_USER.id, CURRENT_USER.name, reason.trim());
+    toast.success(`Đã thu hồi "${req.resourceName}".`);
+    closeDialog(); refresh();
+  };
+  const doDecideItem = (it: GovBundledItem, decision: "approved" | "rejected") => {
+    governanceStore.decideBundledItem(req.id, it.type, it.resourceId, it.decision === decision ? undefined : decision);
+    refresh();
+  };
+  const toggleDiff = (it: GovBundledItem) => {
+    setOpenDiffs(prev => {
+      const next = new Set(prev);
+      const k = itemKey(it);
+      if (next.has(k)) next.delete(k); else next.add(k);
+      return next;
+    });
+  };
 
   const canReview = req.status === "pending";
   const isAgent = req.resourceType === "agent";
-  const needsAttentionCount = req.bundledItems.filter(it => it.changeState !== "unchanged_approved").length;
+  const needsAttentionCount = req.bundledItems.filter(it => itemNeedsReview(it.changeState)).length;
+  const rejectedItemCount = req.bundledItems.filter(it => it.decision === "rejected").length;
+  const drift = checkDrift(req);
 
   return (
     <div className="p-6 md:p-8 max-w-[1200px] mx-auto">
@@ -103,6 +127,16 @@ export default function GovernanceRequestDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_336px] gap-6 lg:gap-8 items-start">
         {/* Main column */}
         <div className="min-w-0">
+          {drift.drifted && (
+            <div className="mb-6 flex items-start gap-2.5 rounded-lg border border-warning/25 bg-warning/5 px-3.5 py-3">
+              <AlertTriangle size={15} className="text-warning shrink-0 mt-0.5" />
+              <p className="text-sm text-warning leading-relaxed">
+                <span className="font-medium">{req.resourceName}</span> đã được chỉnh sửa tiếp sau khi gửi yêu cầu này{drift.at ? ` (lúc ${formatDateTime(drift.at)})` : ""} —
+                nội dung admin đang xem bên dưới có thể chưa phải bản mới nhất. Cân nhắc yêu cầu người gửi gửi lại trước khi duyệt.
+              </p>
+            </div>
+          )}
+
           {req.note && (
             <div className="mb-6">
               <p className="text-sm font-semibold mb-1.5">Ghi chú từ người gửi</p>
@@ -120,32 +154,86 @@ export default function GovernanceRequestDetail() {
                 )}
               </div>
               <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
-                Agent này tham chiếu các thành phần bên dưới. Duyệt/từ chối áp dụng cho toàn bộ yêu cầu — thành phần đã <span className="font-medium text-foreground">"Đã duyệt trước đó"</span> không cần xem lại, chỉ những thành phần mới/đã sửa mới cần chú ý.
+                Agent này tham chiếu các thành phần bên dưới. Mặc định cả yêu cầu được duyệt cùng lúc — nhưng bạn có thể{" "}
+                <span className="font-medium text-foreground">từ chối riêng từng thành phần</span> bên dưới: thành phần đó sẽ giữ nguyên bản đã duyệt trước đó, các thành phần còn lại vẫn được publish bình thường.
               </p>
               <div className="space-y-2">
-                {req.bundledItems.map(it => (
-                  <div
-                    key={`${it.type}-${it.resourceId}`}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl border border-l-4 transition-base ${CHANGE_STATE_ACCENT[it.changeState]} ${it.changeState === "unchanged_approved" ? "opacity-70" : ""}`}
-                  >
-                    <span className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shrink-0 text-muted-foreground border border-border/60">
-                      <ResourceTypeIcon type={it.type} size={14} />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-foreground truncate">{it.name}</p>
-                      <p className="text-xs text-muted-foreground">{RESOURCE_TYPE_LABEL[it.type]}</p>
+                {req.bundledItems.map(it => {
+                  const needsReview = itemNeedsReview(it.changeState);
+                  const diffs = diffSnapshots(it.liveSnapshot, it.candidateSnapshot);
+                  const isOpen = openDiffs.has(itemKey(it));
+                  return (
+                    <div
+                      key={itemKey(it)}
+                      className={`rounded-xl border border-l-4 transition-base ${CHANGE_STATE_ACCENT[it.changeState]} ${it.changeState === "unchanged_approved" ? "opacity-70" : ""}`}
+                    >
+                      <div className="flex items-center gap-3 px-4 py-3">
+                        <span className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shrink-0 text-muted-foreground border border-border/60">
+                          <ResourceTypeIcon type={it.type} size={14} />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-foreground truncate">{it.name}</p>
+                          <p className="text-xs text-muted-foreground">{RESOURCE_TYPE_LABEL[it.type]}</p>
+                        </div>
+                        <ChangeStateBadge state={it.changeState} />
+                        {diffs.length > 0 && (
+                          <button
+                            onClick={() => toggleDiff(it)}
+                            className="text-xs font-medium text-muted-foreground hover:text-foreground flex items-center gap-1 shrink-0 transition-base"
+                          >
+                            Xem thay đổi {isOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                          </button>
+                        )}
+                        <Link to={resourcePath(it.type, it.resourceId)} className="text-muted-foreground hover:text-foreground shrink-0" title="Xem chi tiết">
+                          <ExternalLink size={14} />
+                        </Link>
+                      </div>
+
+                      {isOpen && diffs.length > 0 && (
+                        <div className="px-4 pb-3">
+                          <div className="rounded-lg border border-border/70 bg-white/70 divide-y divide-border/60 overflow-hidden">
+                            {diffs.map(d => (
+                              <div key={d.key} className="px-3 py-2 text-xs">
+                                <p className="font-medium text-foreground mb-1">{d.label}</p>
+                                <p className="text-muted-foreground line-through opacity-70 break-words">{d.before}</p>
+                                <p className="text-foreground break-words">{d.after}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {canReview && needsReview && (
+                        <div className="flex items-center gap-2 px-4 pb-3 flex-wrap">
+                          <button
+                            onClick={() => doDecideItem(it, "approved")}
+                            className={`h-7 px-2.5 rounded-md text-xs font-medium border transition-base ${
+                              it.decision === "approved" ? "bg-success text-white border-success" : "border-border bg-white hover:bg-surface-muted text-foreground"
+                            }`}
+                          >
+                            Duyệt mục này
+                          </button>
+                          <button
+                            onClick={() => doDecideItem(it, "rejected")}
+                            className={`h-7 px-2.5 rounded-md text-xs font-medium border transition-base ${
+                              it.decision === "rejected" ? "bg-destructive text-white border-destructive" : "border-destructive/30 text-destructive bg-white hover:bg-destructive/5"
+                            }`}
+                          >
+                            Từ chối mục này
+                          </button>
+                          {it.decision === "rejected" && (
+                            <span className="text-[11px] text-muted-foreground">Sẽ giữ bản đã duyệt trước đó</span>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <ChangeStateBadge state={it.changeState} />
-                    <Link to={resourcePath(it.type, it.resourceId)} className="text-muted-foreground hover:text-foreground shrink-0" title="Xem chi tiết">
-                      <ExternalLink size={14} />
-                    </Link>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
 
-          {/* Review note (needs_changes / rejected / approved) */}
+          {/* Review note (needs_changes / rejected / approved / revoked) */}
           {req.reviewNote && req.status !== "pending" && (
             <div className="mb-6">
               <p className="text-sm font-semibold mb-1.5">
@@ -158,6 +246,16 @@ export default function GovernanceRequestDetail() {
               }`}>
                 {req.reviewNote}
                 {req.reviewerName && <span className="block mt-1.5 text-xs opacity-80">— {req.reviewerName}</span>}
+              </p>
+            </div>
+          )}
+
+          {req.status === "revoked" && req.revokeReason && (
+            <div className="mb-6">
+              <p className="text-sm font-semibold mb-1.5">Lý do thu hồi</p>
+              <p className="text-sm rounded-lg border border-destructive/25 bg-destructive/5 text-destructive px-3.5 py-3 leading-relaxed">
+                {req.revokeReason}
+                {req.revokedBy && <span className="block mt-1.5 text-xs opacity-80">— {req.revokedBy}{req.revokedAt ? ` · ${formatDateTime(req.revokedAt)}` : ""}</span>}
               </p>
             </div>
           )}
@@ -189,6 +287,11 @@ export default function GovernanceRequestDetail() {
 
           {canReview && (
             <div className="rounded-xl border border-border bg-surface p-3.5 space-y-2">
+              {rejectedItemCount > 0 && (
+                <p className="text-[11px] text-muted-foreground leading-relaxed px-0.5 pb-0.5">
+                  {rejectedItemCount} thành phần sẽ giữ bản đã duyệt trước đó khi bạn bấm Duyệt.
+                </p>
+              )}
               <button
                 onClick={() => setDialog("approve")}
                 className="w-full h-9 rounded-lg bg-success text-white hover:opacity-90 text-sm font-medium flex items-center justify-center gap-1.5 transition-base"
@@ -230,6 +333,18 @@ export default function GovernanceRequestDetail() {
             </div>
           )}
 
+          {req.status === "approved" && (
+            <div className="rounded-xl border border-border bg-surface p-3.5">
+              <button
+                onClick={() => setDialog("revoke")}
+                className="w-full h-9 rounded-lg border border-destructive/30 text-destructive bg-white hover:bg-destructive/5 text-sm font-medium flex items-center justify-center gap-1.5 transition-base"
+              >
+                <Undo2 size={14} /> Thu hồi
+              </button>
+              <p className="text-xs text-muted-foreground leading-relaxed mt-2">Gỡ publish ngay lập tức — resource trở về trạng thái như chưa từng được duyệt và cần gửi duyệt lại từ đầu.</p>
+            </div>
+          )}
+
           <div className="rounded-xl border border-border bg-surface p-3.5">
             <p className="text-sm font-semibold mb-2.5">Lịch sử</p>
             <div className="space-y-3">
@@ -256,12 +371,20 @@ export default function GovernanceRequestDetail() {
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={closeDialog} />
           <div className="relative z-10 w-full max-w-md mx-4 bg-white rounded-2xl border border-border shadow-lg p-6">
             <h3 className="font-display text-lg font-semibold mb-1">
-              {dialog === "approve" ? `Duyệt "${req.resourceName}"?` : dialog === "reject" ? `Từ chối "${req.resourceName}"?` : `Yêu cầu cập nhật cho "${req.resourceName}"`}
+              {dialog === "approve" ? `Duyệt "${req.resourceName}"?`
+                : dialog === "reject" ? `Từ chối "${req.resourceName}"?`
+                : dialog === "revoke" ? `Thu hồi "${req.resourceName}"?`
+                : `Yêu cầu cập nhật cho "${req.resourceName}"`}
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
-              {dialog === "approve" && "Sau khi duyệt, mục này (và các thành phần mới đi kèm) sẽ được publish theo phạm vi đã chọn."}
+              {dialog === "approve" && (
+                rejectedItemCount > 0
+                  ? `Các thành phần bạn đã đánh dấu "Từ chối mục này" (${rejectedItemCount}) sẽ giữ nguyên bản đã duyệt trước đó. Mọi thành phần còn lại — kể cả chưa quyết định — sẽ được publish theo phạm vi đã chọn.`
+                  : "Sau khi duyệt, mục này (và các thành phần mới đi kèm) sẽ được publish theo phạm vi đã chọn."
+              )}
               {dialog === "reject" && "Người gửi sẽ nhận được lý do từ chối và cần tạo yêu cầu mới nếu muốn gửi lại."}
               {dialog === "changes" && "Người gửi sẽ thấy góp ý này và có thể chỉnh sửa rồi gửi lại."}
+              {dialog === "revoke" && "Resource sẽ ngừng publish ngay lập tức và cần được gửi duyệt lại từ đầu nếu muốn publish lại. Hành động này không thể hoàn tác."}
             </p>
             {dialog !== "approve" && (
               <textarea
@@ -269,7 +392,7 @@ export default function GovernanceRequestDetail() {
                 autoFocus
                 value={reason}
                 onChange={e => setReason(e.target.value)}
-                placeholder={dialog === "reject" ? "Lý do từ chối..." : "Cần cập nhật những gì..."}
+                placeholder={dialog === "reject" ? "Lý do từ chối..." : dialog === "revoke" ? "Lý do thu hồi..." : "Cần cập nhật những gì..."}
                 className="w-full px-3 py-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none mb-4"
               />
             )}
@@ -285,14 +408,14 @@ export default function GovernanceRequestDetail() {
             <div className="flex items-center justify-end gap-2">
               <button onClick={closeDialog} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Hủy</button>
               <button
-                onClick={dialog === "approve" ? doApprove : dialog === "reject" ? doReject : doRequestChanges}
+                onClick={dialog === "approve" ? doApprove : dialog === "reject" ? doReject : dialog === "revoke" ? doRevoke : doRequestChanges}
                 className={`h-9 px-4 rounded-lg text-sm font-medium transition-base ${
-                  dialog === "reject" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  dialog === "reject" || dialog === "revoke" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   : dialog === "approve" ? "bg-success text-white hover:opacity-90"
                   : "bg-primary text-primary-foreground hover:bg-primary-glow"
                 }`}
               >
-                {dialog === "approve" ? "Xác nhận duyệt" : dialog === "reject" ? "Xác nhận từ chối" : "Gửi yêu cầu cập nhật"}
+                {dialog === "approve" ? "Xác nhận duyệt" : dialog === "reject" ? "Xác nhận từ chối" : dialog === "revoke" ? "Xác nhận thu hồi" : "Gửi yêu cầu cập nhật"}
               </button>
             </div>
           </div>

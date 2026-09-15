@@ -5,6 +5,8 @@ import { Search, CheckCircle2, ChevronRight, Plug, MoreVertical, AlertTriangle, 
 import RequestPublishModal from "@/components/governance/RequestPublishModal";
 import { governanceStore } from "@/components/governance/governanceStore";
 import { StatusBadge } from "@/components/governance/governanceUi";
+import { resourceBlockStore } from "@/components/governance/resourceBlockStore";
+import { Ban } from "lucide-react";
 import { useGroupAccess, isOwnedOrShared } from "@/pages/organization/scopeAccess";
 import { CURRENT_USER } from "@/components/knowledge/knowledgeBaseStore";
 import { customConnectorStore, type CustomConnector } from "@/components/configure/customConnectorStore";
@@ -138,6 +140,10 @@ export default function WorkspaceConnectors() {
   const [tick, setTick] = useState(0);
   const refresh = () => setTick(t => t + 1);
   void tick;
+  const toggleConnectorBlock = (id: string) => {
+    resourceBlockStore.setBlocked("connector", id, !resourceBlockStore.isBlocked("connector", id));
+    refresh();
+  };
   const [showAddCustom, setShowAddCustom] = useState(false);
   const [publishTarget, setPublishTarget] = useState<CustomConnector | null>(null);
   const [editTarget, setEditTarget] = useState<CustomConnector | null>(null);
@@ -388,6 +394,7 @@ export default function WorkspaceConnectors() {
                     onEdit={isMine ? () => setEditTarget(c) : undefined}
                     onShare={isMine ? () => setShareTarget(c) : undefined}
                     onPublish={isMine ? () => setPublishTarget(c) : undefined}
+                    onToggleBlock={isMine ? () => toggleConnectorBlock(c.id) : undefined}
                     onDelete={() => setDeleteTarget(c)}
                   />
                 );
@@ -520,7 +527,9 @@ function ConnectorCard({ connector: c, onOpen }: { connector: Connector; onOpen:
 }
 
 /* ─── Custom Connector card + row menu ───────────────── */
-function CustomConnectorRowMenu({ onEdit, onShare, onPublish, onDelete }: { onEdit?: () => void; onShare?: () => void; onPublish?: () => void; onDelete: () => void }) {
+function CustomConnectorRowMenu({ onEdit, onShare, onPublish, onToggleBlock, isBlocked, onDelete }: {
+  onEdit?: () => void; onShare?: () => void; onPublish?: () => void; onToggleBlock?: () => void; isBlocked?: boolean; onDelete: () => void;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <div className="relative shrink-0" onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false); }}>
@@ -552,6 +561,11 @@ function CustomConnectorRowMenu({ onEdit, onShare, onPublish, onDelete }: { onEd
               Publish
             </button>
           )}
+          {onToggleBlock && (
+            <button onClick={() => { setOpen(false); onToggleBlock(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">
+              {isBlocked ? "Bỏ chặn agent mới" : "Chặn dùng trong Agent mới"}
+            </button>
+          )}
           <button onClick={() => { setOpen(false); onDelete(); }} className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-destructive/5 transition-base">
             Xóa
           </button>
@@ -561,11 +575,12 @@ function CustomConnectorRowMenu({ onEdit, onShare, onPublish, onDelete }: { onEd
   );
 }
 
-function CustomConnectorCard({ connector: c, isMine, onEdit, onShare, onPublish, onDelete }: {
-  connector: CustomConnector; isMine: boolean; onEdit?: () => void; onShare?: () => void; onPublish?: () => void; onDelete: () => void;
+function CustomConnectorCard({ connector: c, isMine, onEdit, onShare, onPublish, onToggleBlock, onDelete }: {
+  connector: CustomConnector; isMine: boolean; onEdit?: () => void; onShare?: () => void; onPublish?: () => void; onToggleBlock?: () => void; onDelete: () => void;
 }) {
   const openReq = governanceStore.getOpenRequestForResource("connector", c.id);
   const isApproved = governanceStore.isResourceApproved("connector", c.id);
+  const isBlocked = resourceBlockStore.isBlocked("connector", c.id);
   return (
     <div className="flex items-start gap-3 p-4 rounded-xl border border-border bg-surface">
       <div className="w-10 h-10 rounded-xl border border-border bg-white flex items-center justify-center shrink-0">
@@ -577,7 +592,14 @@ function CustomConnectorCard({ connector: c, isMine, onEdit, onShare, onPublish,
          * which group a card belongs to, and they fought the connector name for space, wrapping
          * or overflowing the card on longer names. Only the owner's name remains, as plain text,
          * so a shared-to-me card still says whose connector it is. */}
-        <p className="text-sm font-medium truncate">{c.name}</p>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <p className="text-sm font-medium truncate">{c.name}</p>
+          {isBlocked && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-destructive bg-destructive/10 border border-destructive/20 rounded-full px-1.5 py-0.5 whitespace-nowrap">
+              <Ban size={10} /> Đã chặn agent mới
+            </span>
+          )}
+        </div>
         <p className="text-xs text-muted-foreground truncate">Người tạo: {isMine ? "Bạn" : c.ownerName}</p>
         <p className="text-xs text-muted-foreground truncate mt-0.5">{c.url}</p>
         <p className="text-[11px] text-muted-foreground mt-1">
@@ -588,7 +610,7 @@ function CustomConnectorCard({ connector: c, isMine, onEdit, onShare, onPublish,
           <div className="mt-1.5"><StatusBadge status={openReq ? openReq.status : "approved"} /></div>
         )}
       </div>
-      <CustomConnectorRowMenu onEdit={onEdit} onShare={onShare} onPublish={onPublish} onDelete={onDelete} />
+      <CustomConnectorRowMenu onEdit={onEdit} onShare={onShare} onPublish={onPublish} onToggleBlock={onToggleBlock} isBlocked={isBlocked} onDelete={onDelete} />
     </div>
   );
 }

@@ -3,12 +3,24 @@
 // persistence pattern used by agentPublishStore.ts / agentConnectorStore.ts (loadMap/saveMap,
 // survives reload + client-side nav, clears when the tab closes).
 //
+// Versioning model (v2): every resource that has ever cleared review has a "live snapshot" — a
+// lightweight fingerprint of its fields as of the last approval. Submitting a request captures a
+// "candidate snapshot" (current fields) to diff against that live snapshot. This is what drives:
+//   - changeState per bundled item: new (no live snapshot yet) / modified_major (a field the team
+//     considers behavior-affecting changed) / modified_minor (only cosmetic fields changed) /
+//     unchanged_approved (nothing changed since the live snapshot).
+//   - per-item approve/reject inside a bundle: rejecting one sub-resource does NOT block the rest
+//     of the request — the old live snapshot simply stays live for that one item (its edit is not
+//     promoted), while everything else the admin didn't reject still gets promoted. This mirrors
+//     "merge a PR despite one unrelated failing check" rather than an all-or-nothing gate.
+//   - drift detection: if the underlying resource's fields change again AFTER a request was
+//     submitted but BEFORE an admin decided, the Request Detail page flags it (comparing the
+//     candidate-at-submit snapshot to the resource's current fields).
+//
 // Design decision (confirmed with PO): when an Agent is submitted for publish and it references
 // Knowledge/Skill/Guardrail/Connector items that are new or modified, the whole thing becomes
-// ONE governance request (see `bundledItems`) — not N separate parent/child requests. An item
-// already approved and unchanged since is shown as "unchanged_approved" inside the bundle and
-// does not need to be re-reviewed; only new/modified items actually gate the Agent's approval.
-import { loadMap, saveMap, loadSet, saveSet } from "@/lib/sessionPersist";
+// ONE governance request (see `bundledItems`) — not N separate parent/child requests.
+import { loadMap, saveMap } from "@/lib/sessionPersist";
 import { agentPublishStore } from "../configure/agentPublishStore";
 import { knowledgeStore } from "@/components/knowledge/knowledgeStore";
 import { knowledgeBaseStore } from "@/components/knowledge/knowledgeBaseStore";
@@ -22,11 +34,15 @@ import { auditLogStore } from "./auditLogStore";
 import { getAgent } from "../configure/agentStore";
 
 export type GovResourceType = "agent" | "knowledge" | "skill" | "guardrail" | "connector";
-export type GovRequestStatus = "pending" | "needs_changes" | "approved" | "rejected";
+export type GovRequestStatus = "pending" | "needs_changes" | "approved" | "rejected" | "revoked";
 /** Scope requested for — same two "beyond just me" tiers Agent's Publish modal already offers
  * ("Only me" never creates a governance request; nothing to review there). */
 export type GovAudience = "org" | "community";
-export type GovChangeState = "new" | "modified" | "unchanged_approved";
+/** "modified" was a single bucket before — split so a name/description tweak doesn't demand the
+ * same scrutiny as a change to what the resource actually does (instructions/rule/auth/data
+ * source). See HEAVY_FIELDS below for exactly which fields tip an item into "_major". */
+export type GovChangeState = "new" | "modified_major" | "modified_minor" | "unchanged_approved";
+export type GovItemDecision = "approved" | "rejected";
 
 export const RESOURCE_TYPE_LABEL: Record<GovResourceType, string> = {
   agent: "Agent",
@@ -46,19 +62,60 @@ export const STATUS_LABEL: Record<GovRequestStatus, string> = {
   needs_changes: "Cần cập nhật",
   approved: "Đã duyệt",
   rejected: "Từ chối",
+  revoked: "Đã thu hồi",
 };
+
+/** Which fields count as "changes the resource's actual behavior" per type — a change here always
+ * classifies a bundled item as modified_major (blocks the "does this need a fresh look" question
+ * with a hard yes). Everything else tracked in the snapshot is modified_minor when it changes. */
+const HEAVY_FIELDS: Record<GovResourceType, string[]> = {
+  agent: ["instructions", "model", "channels"],
+  knowledge: ["description", "apiEndpoint", "hasApiKey", "querySharing"],
+  skill: ["body"],
+  guardrail: ["action", "enabled"],
+  connector: ["url", "authType", "headers"],
+};
+const LIGHT_FIELDS: Record<GovResourceType, string[]> = {
+  agent: ["name", "desc", "emoji"],
+  knowledge: ["name"],
+  skill: ["name", "description"],
+  guardrail: ["name", "desc"],
+  connector: ["name"],
+};
+/** Human labels for the field keys above, for the diff view — falls back to the raw key. */
+export const FIELD_LABEL: Record<string, string> = {
+  instructions: "Instructions", model: "Model", channels: "Channels", name: "Tên", desc: "Mô tả",
+  emoji: "Icon", description: "Mô tả", apiEndpoint: "API endpoint", hasApiKey: "API key",
+  querySharing: "Query sharing", body: "Nội dung / instructions", action: "Hành động",
+  enabled: "Bật/tắt", url: "URL", authType: "Kiểu xác thực", headers: "Headers",
+};
+
+export interface ResourceSnapshot {
+  fields: Record<string, string>;
+  capturedAt: number;
+}
 
 export interface GovBundledItem {
   type: Exclude<GovResourceType, "agent">;
   resourceId: string;
   name: string;
   changeState: GovChangeState;
+  /** Admin's per-item call while reviewing a bundle — undefined defaults to "approved" when the
+   * request is finalized, so the admin only has to actively click on the item(s) they want to
+   * hold back, not confirm every single one. */
+  decision?: GovItemDecision;
+  /** Last-approved fields (undefined if this item has never cleared review before). */
+  liveSnapshot?: ResourceSnapshot;
+  /** Fields as of when this bundle was computed (submit time) — diffed against liveSnapshot for
+   * the "Xem thay đổi" panel, and reused at approval time so what gets promoted is exactly what
+   * the admin reviewed, not whatever the resource happens to be at click-time. */
+  candidateSnapshot?: ResourceSnapshot;
 }
 
 export interface GovHistoryEntry {
   id: string;
   at: number;
-  action: "submitted" | "resubmitted" | "approved" | "rejected" | "changes_requested";
+  action: "submitted" | "resubmitted" | "approved" | "rejected" | "changes_requested" | "revoked";
   actorId: string;
   actorName: string;
   note?: string;
@@ -79,24 +136,31 @@ export interface GovRequest {
   submittedAt: number;
   updatedAt: number;
   bundledItems: GovBundledItem[];
+  /** Fields of the main resource itself, captured at submit time — diffed against its current
+   * fields to detect "builder kept editing after submitting" (see checkDrift). */
+  mainSnapshotAtSubmit?: ResourceSnapshot;
   reviewerId?: string;
   reviewerName?: string;
   reviewNote?: string;
+  revokedAt?: number;
+  revokedBy?: string;
+  revokeReason?: string;
   history: GovHistoryEntry[];
 }
 
 const REQ_KEY = "governance_request_store_v1";
-const APPROVED_KEY = "governance_approved_resources_v1";
-const SEEDED_KEY = "governance_store_seeded_v1";
+const LIVE_KEY = "governance_live_snapshots_v2";
+const SEEDED_KEY = "governance_store_seeded_v2";
 
 const store = loadMap<string, GovRequest>(REQ_KEY);
-/** Set of "type:resourceId" — a resource that has already cleared governance review at least
- * once. Drives the "unchanged_approved" vs "new"/"modified" distinction inside a bundle. */
-const approved = loadSet<string>(APPROVED_KEY);
+/** "type:resourceId" → last-approved snapshot. A resource "has cleared governance at least once"
+ * iff it has an entry here — this replaces the old plain approved-ids Set so classification can
+ * actually diff content instead of just checking a boolean. */
+const liveSnapshots = loadMap<string, ResourceSnapshot>(LIVE_KEY);
 const persist = () => saveMap(REQ_KEY, store);
-const persistApproved = () => saveSet(APPROVED_KEY, approved);
+const persistLive = () => saveMap(LIVE_KEY, liveSnapshots);
 
-const approvalKey = (type: Exclude<GovResourceType, "agent">, id: string) => `${type}:${id}`;
+const snapshotKey = (type: GovResourceType, id: string) => `${type}:${id}`;
 
 let seq = 1000;
 const nextId = () => `req-${seq++}`;
@@ -106,6 +170,83 @@ const HOUR = 60 * 60 * 1000;
 
 function historyEntry(action: GovHistoryEntry["action"], actorId: string, actorName: string, note?: string): GovHistoryEntry {
   return { id: `h-${seq++}`, at: now(), action, actorId, actorName, note };
+}
+
+/* ───────────────────────── snapshot + diff ───────────────────────── */
+
+function stringifyField(v: unknown): string {
+  if (v === undefined || v === null) return "";
+  if (Array.isArray(v)) return v.join(", ");
+  if (typeof v === "object") return JSON.stringify(v);
+  return String(v);
+}
+
+function pickFields(obj: Record<string, unknown>, keys: string[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const k of keys) out[k] = stringifyField(obj[k]);
+  return out;
+}
+
+/** Builds a fresh fingerprint of a resource's tracked fields right now — undefined if the
+ * resource no longer exists (deleted). */
+export function buildSnapshot(type: GovResourceType, id: string): ResourceSnapshot | undefined {
+  const keys = [...HEAVY_FIELDS[type], ...LIGHT_FIELDS[type]];
+  let obj: Record<string, unknown> | undefined;
+  switch (type) {
+    case "agent": obj = getAgent(id) as unknown as Record<string, unknown> | undefined; break;
+    case "knowledge": obj = knowledgeBaseStore.get(id) as unknown as Record<string, unknown> | undefined; break;
+    case "skill": obj = skillStore.get(id) as unknown as Record<string, unknown> | undefined; break;
+    case "guardrail": obj = guardrailConsoleStore.get(id) as unknown as Record<string, unknown> | undefined; break;
+    case "connector": obj = customConnectorStore.get(id) as unknown as Record<string, unknown> | undefined; break;
+  }
+  if (!obj) return undefined;
+  return { fields: pickFields(obj, keys), capturedAt: now() };
+}
+
+function classifyChange(type: GovResourceType, live: ResourceSnapshot | undefined, candidate: ResourceSnapshot | undefined): GovChangeState {
+  if (!live || !candidate) return "new";
+  const heavy = HEAVY_FIELDS[type];
+  let changedAny = false, changedHeavy = false;
+  for (const k of Object.keys(candidate.fields)) {
+    if (candidate.fields[k] !== (live.fields[k] ?? "")) {
+      changedAny = true;
+      if (heavy.includes(k)) changedHeavy = true;
+    }
+  }
+  if (!changedAny) return "unchanged_approved";
+  return changedHeavy ? "modified_major" : "modified_minor";
+}
+
+export interface FieldDiff { key: string; label: string; before: string; after: string }
+
+/** Field-level before/after for the "Xem thay đổi" panel — only the fields that actually differ. */
+export function diffSnapshots(base: ResourceSnapshot | undefined, current: ResourceSnapshot | undefined): FieldDiff[] {
+  if (!base || !current) return [];
+  const out: FieldDiff[] = [];
+  for (const k of Object.keys(current.fields)) {
+    const before = base.fields[k] ?? "";
+    const after = current.fields[k];
+    if (before !== after) out.push({ key: k, label: FIELD_LABEL[k] ?? k, before: before || "(chưa có)", after: after || "(để trống)" });
+  }
+  return out;
+}
+
+/** A bundled item counts as "needs the admin's attention" — new or a behavior-affecting change.
+ * modified_minor and unchanged_approved don't gate anything on their own. */
+export function itemNeedsReview(state: GovChangeState): boolean {
+  return state === "new" || state === "modified_major";
+}
+
+/** Has the main resource (the Agent, or the standalone Knowledge/Skill/Guardrail/Connector this
+ * request is about) been edited again since this request was submitted, and the request is still
+ * awaiting a decision? Drives the drift banner on Request Detail. */
+export function checkDrift(req: GovRequest): { drifted: boolean; at?: number } {
+  if (req.status !== "pending" && req.status !== "needs_changes") return { drifted: false };
+  if (!req.mainSnapshotAtSubmit) return { drifted: false };
+  const current = buildSnapshot(req.resourceType, req.resourceId);
+  if (!current) return { drifted: false };
+  const changed = Object.keys(current.fields).some(k => current.fields[k] !== (req.mainSnapshotAtSubmit!.fields[k] ?? ""));
+  return { drifted: changed, at: current.capturedAt };
 }
 
 /* ───────────────────────── seed ───────────────────────── */
@@ -215,10 +356,14 @@ function seed() {
   [agentBundleReq, kbReq, skillReq, guardrailReq, connectorReq, agentCleanReq].forEach(r => store.set(r.id, r));
   persist();
 
-  // Seed the approval ledger to match the stories above: weekly-digest + kb-1/kb-2 already
-  // cleared review before; kb-7 / g-6 / cc-3 / g-9 / kb-4 have not.
-  ["skill:weekly-digest", "knowledge:kb-1", "knowledge:kb-2", "skill:email-drafter"].forEach(k => approved.add(k as any));
-  persistApproved();
+  // Seed the live-snapshot ledger to match the stories above: weekly-digest + kb-1/kb-2/
+  // email-drafter already cleared review before; kb-7 / g-6 / cc-3 / g-9 / kb-4 have not.
+  (["skill:weekly-digest", "knowledge:kb-1", "knowledge:kb-2", "skill:email-drafter"] as const).forEach(k => {
+    const [type, id] = k.split(":") as [Exclude<GovResourceType, "agent">, string];
+    const snap = buildSnapshot(type, id);
+    if (snap) liveSnapshots.set(snapshotKey(type, id), snap);
+  });
+  persistLive();
 
   // Mirror the seed into the audit log so /governance/audit-log has matching history from day one.
   for (const r of [agentBundleReq, kbReq, skillReq, guardrailReq, connectorReq, agentCleanReq]) {
@@ -242,51 +387,49 @@ function markSeeded() {
 /* ───────────────────────── bundle computation ───────────────────────── */
 
 /** What an Agent's Publish modal would bundle *right now* if submitted for governance review —
- * every Knowledge/Skill/Guardrail/Connector it references, each tagged with whether it already
- * cleared review before (so the admin only has to look closely at what's actually new). Built-in
- * / mandatory / marketplace items (e.g. the PII protection guardrail, the Gmail connector) are
+ * every Knowledge/Skill/Guardrail/Connector it references, each classified against its last-
+ * approved snapshot (new / modified_major / modified_minor / unchanged_approved). Built-in /
+ * mandatory / marketplace items (e.g. the PII protection guardrail, the Gmail connector) are
  * excluded — they're not builder-owned resources and aren't part of this workflow. */
 export function computeAgentBundle(agentId: string): GovBundledItem[] {
   const items: GovBundledItem[] = [];
+
+  const addItem = (type: Exclude<GovResourceType, "agent">, id: string, name: string) => {
+    const live = liveSnapshots.get(snapshotKey(type, id));
+    const candidate = buildSnapshot(type, id);
+    items.push({
+      type, resourceId: id, name,
+      changeState: classifyChange(type, live, candidate),
+      liveSnapshot: live, candidateSnapshot: candidate,
+    });
+  };
 
   const kbIds = knowledgeStore.listAttachedConsoleKbIds(agentId);
   for (const id of kbIds) {
     const kb = knowledgeBaseStore.get(id);
     if (!kb) continue;
-    items.push({
-      type: "knowledge", resourceId: kb.id, name: kb.name,
-      changeState: approved.has(approvalKey("knowledge", kb.id)) ? "unchanged_approved" : "new",
-    });
+    addItem("knowledge", kb.id, kb.name);
   }
 
   const skillIds = agentSkillStore.listAttachedConsoleSkillIds(agentId);
   for (const id of skillIds) {
     const s = skillStore.get(id);
     if (!s) continue;
-    items.push({
-      type: "skill", resourceId: s.id, name: s.name,
-      changeState: approved.has(approvalKey("skill", s.id)) ? "unchanged_approved" : "new",
-    });
+    addItem("skill", s.id, s.name);
   }
 
   const guardrailIds = agentGuardrailStore.listAttachedConsoleGuardrailIds(agentId);
   for (const id of guardrailIds) {
     const g = guardrailConsoleStore.get(id);
     if (!g || g.mandatory) continue; // mandatory compliance rules aren't a builder resource
-    items.push({
-      type: "guardrail", resourceId: g.id, name: g.name,
-      changeState: approved.has(approvalKey("guardrail", g.id)) ? "unchanged_approved" : "new",
-    });
+    addItem("guardrail", g.id, g.name);
   }
 
   const connectors = agentConnectorStore.list(agentId);
   for (const c of connectors) {
     const cc = customConnectorStore.get(c.connectorId);
     if (!cc) continue; // marketplace/built-in connector (e.g. Gmail) — not a governance resource
-    items.push({
-      type: "connector", resourceId: cc.id, name: cc.name,
-      changeState: approved.has(approvalKey("connector", cc.id)) ? "unchanged_approved" : "new",
-    });
+    addItem("connector", cc.id, cc.name);
   }
 
   return items;
@@ -328,7 +471,7 @@ export const governanceStore = {
 
   isResourceApproved(type: Exclude<GovResourceType, "agent">, id: string): boolean {
     seed();
-    return approved.has(approvalKey(type, id));
+    return liveSnapshots.has(snapshotKey(type, id));
   },
 
   submit(input: {
@@ -344,6 +487,7 @@ export const governanceStore = {
       resourceIcon: input.resourceIcon, requesterId: input.requesterId, requesterName: input.requesterName,
       audience: input.audience, note: input.note, version: input.version, status: "pending",
       submittedAt: t, updatedAt: t, bundledItems: input.bundledItems ?? [],
+      mainSnapshotAtSubmit: buildSnapshot(input.resourceType, input.resourceId),
       history: [historyEntry("submitted", input.requesterId, input.requesterName)],
     };
     store.set(id, req);
@@ -357,7 +501,9 @@ export const governanceStore = {
   },
 
   /** Builder edits the resource and resends a "needs_changes" request — goes back to the end
-   * of the Pending queue, history keeps every earlier round intact. */
+   * of the Pending queue, history keeps every earlier round intact. Re-captures the submit-time
+   * snapshot and re-classifies bundled items so drift detection and diffs start fresh from this
+   * resubmission, not the original submission. */
   resubmit(id: string, actorId: string, actorName: string, note?: string): GovRequest | undefined {
     seed();
     const r = store.get(id);
@@ -366,10 +512,31 @@ export const governanceStore = {
     r.status = "pending";
     r.updatedAt = t;
     r.reviewNote = undefined;
+    r.mainSnapshotAtSubmit = buildSnapshot(r.resourceType, r.resourceId);
+    r.bundledItems = r.bundledItems.map(it => {
+      const live = liveSnapshots.get(snapshotKey(it.type, it.resourceId));
+      const candidate = buildSnapshot(it.type, it.resourceId);
+      return { ...it, decision: undefined, changeState: classifyChange(it.type, live, candidate), liveSnapshot: live, candidateSnapshot: candidate };
+    });
     r.history.push(historyEntry("resubmitted", actorId, actorName, note));
     store.set(id, r);
     persist();
     auditLogStore.log({ actorId, actorName, action: "resubmitted", resourceType: r.resourceType, resourceId: r.resourceId, resourceName: r.resourceName, requestId: id, note, at: t });
+    return r;
+  },
+
+  /** Set (or clear) the admin's per-item call while reviewing a bundle — does not finalize
+   * anything by itself, just records intent for the eventual approve() to honor. */
+  decideBundledItem(requestId: string, itemType: Exclude<GovResourceType, "agent">, itemResourceId: string, decision: GovItemDecision | undefined): GovRequest | undefined {
+    seed();
+    const r = store.get(requestId);
+    if (!r) return r;
+    const it = r.bundledItems.find(b => b.type === itemType && b.resourceId === itemResourceId);
+    if (!it) return r;
+    it.decision = decision;
+    r.updatedAt = now();
+    store.set(requestId, r);
+    persist();
     return r;
   },
 
@@ -382,16 +549,33 @@ export const governanceStore = {
     r.updatedAt = t;
     r.reviewerId = reviewerId; r.reviewerName = reviewerName; r.reviewNote = note;
     r.history.push(historyEntry("approved", reviewerId, reviewerName, note));
+
+    // Promote the main resource's current fields to "live".
+    const mainSnap = buildSnapshot(r.resourceType, r.resourceId);
+    if (mainSnap) liveSnapshots.set(snapshotKey(r.resourceType, r.resourceId), mainSnap);
+
+    // Promote every bundled item the admin didn't explicitly reject. A rejected item keeps its
+    // old live snapshot untouched — the Agent still "runs" against the last-approved version of
+    // that one piece; the rejected edit itself just never gets promoted (no separate blocking of
+    // the rest of the request, per the confirmed design).
+    r.bundledItems.forEach(it => {
+      if (it.decision === "rejected") {
+        auditLogStore.log({
+          actorId: reviewerId, actorName: reviewerName, action: "rejected",
+          resourceType: it.type, resourceId: it.resourceId, resourceName: it.name,
+          requestId: id, at: t, note: "Giữ nguyên bản đã duyệt trước đó trong bundle này — không áp dụng thay đổi mới.",
+        });
+        return;
+      }
+      const snap = it.candidateSnapshot ?? buildSnapshot(it.type, it.resourceId);
+      if (snap) liveSnapshots.set(snapshotKey(it.type, it.resourceId), snap);
+    });
+    persistLive();
     store.set(id, r);
     persist();
 
-    // Clear the whole bundle (including the resource itself, for non-agent types) into the
-    // approval ledger, then — for an Agent — actually flip it live via agentPublishStore so the
-    // rest of the prototype (top-bar pill, My agents list) reflects the approval immediately.
-    r.bundledItems.forEach(it => approved.add(approvalKey(it.type, it.resourceId)));
-    if (r.resourceType !== "agent") approved.add(approvalKey(r.resourceType, r.resourceId));
-    persistApproved();
-
+    // For an Agent, actually flip it live via agentPublishStore so the rest of the prototype
+    // (top-bar pill, My agents list) reflects the approval immediately.
     if (r.resourceType === "agent") {
       const current = agentPublishStore.get(r.resourceId);
       agentPublishStore.publish(r.resourceId, "workspace", current.channels, r.version ?? current.version, r.audience);
@@ -428,6 +612,35 @@ export const governanceStore = {
     store.set(id, r);
     persist();
     auditLogStore.log({ actorId: reviewerId, actorName: reviewerName, action: "changes_requested", resourceType: r.resourceType, resourceId: r.resourceId, resourceName: r.resourceName, requestId: id, note: comment, at: t });
+    return r;
+  },
+
+  /** Undo an approved request — rolls the main resource (and every bundled item this request
+   * promoted) back out of the live-snapshot ledger, so the next bundle computation sees them as
+   * "new" again, and un-publishes an Agent. Does not restore a prior live snapshot (this ledger
+   * only ever tracks the current live version, not full history) — a deliberate simplification
+   * for the prototype, called out in the commit message. */
+  revoke(id: string, reviewerId: string, reviewerName: string, reason: string): GovRequest | undefined {
+    seed();
+    const r = store.get(id);
+    if (!r || r.status !== "approved") return r;
+    const t = now();
+    r.status = "revoked";
+    r.updatedAt = t;
+    r.revokedAt = t; r.revokedBy = reviewerName; r.revokeReason = reason;
+    r.history.push(historyEntry("revoked", reviewerId, reviewerName, reason));
+    store.set(id, r);
+    persist();
+
+    r.bundledItems.forEach(it => {
+      if (it.decision !== "rejected") liveSnapshots.delete(snapshotKey(it.type, it.resourceId));
+    });
+    liveSnapshots.delete(snapshotKey(r.resourceType, r.resourceId));
+    persistLive();
+
+    if (r.resourceType === "agent") agentPublishStore.unpublish(r.resourceId);
+
+    auditLogStore.log({ actorId: reviewerId, actorName: reviewerName, action: "revoked", resourceType: r.resourceType, resourceId: r.resourceId, resourceName: r.resourceName, requestId: id, note: reason, at: t });
     return r;
   },
 };
