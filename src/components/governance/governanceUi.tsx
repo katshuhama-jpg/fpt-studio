@@ -34,6 +34,27 @@ export function StatusBadge({ status, className = "" }: { status: GovRequestStat
   );
 }
 
+/** Left-accent for a Request row on the Requests list — only "needs your action now" statuses
+ * (pending / needs_changes) get a colored bar, so the queue reads as a triage list at a glance;
+ * resolved statuses (approved/rejected) stay neutral rather than dimmed, since they're still
+ * legitimate rows to open (audit trail), not disabled ones. */
+export const STATUS_ROW_ACCENT: Record<GovRequestStatus, string> = {
+  pending: "border-l-warning bg-warning/[0.025]",
+  needs_changes: "border-l-destructive bg-destructive/[0.025]",
+  approved: "border-l-transparent",
+  rejected: "border-l-transparent",
+};
+
+/** 1-2 letter initials from a display name, for the small avatar circle next to a requester's
+ * name (matches the initials-circle pattern already used for the signed-in user in
+ * WorkspaceLayout, so a Request row's "Người gửi" reads as the same product). */
+export function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
 export function ResourceTypePill({ type }: { type: GovResourceType }) {
   return (
     <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-surface-muted border border-border rounded-full px-2.5 py-1 whitespace-nowrap">

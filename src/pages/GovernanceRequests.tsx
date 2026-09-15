@@ -3,9 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { Search, Filter, Layers } from "lucide-react";
 import {
   governanceStore, RESOURCE_TYPE_LABEL, AUDIENCE_LABEL,
-  type GovRequestStatus, type GovResourceType,
+  type GovRequestStatus, type GovResourceType, type GovRequest,
 } from "@/components/governance/governanceStore";
-import { StatusBadge, ResourceTypeIcon, relativeTime } from "@/components/governance/governanceUi";
+import { StatusBadge, ResourceTypeIcon, STATUS_ROW_ACCENT, initials, relativeTime } from "@/components/governance/governanceUi";
 
 type MainTab = "all" | GovRequestStatus;
 
@@ -26,42 +26,70 @@ const TYPE_FILTERS: { key: "all" | GovResourceType; label: string }[] = [
   { key: "connector", label: "Connector" },
 ];
 
-function Table({ children }: { children: React.ReactNode }) {
-  return <div className="rounded-xl border border-border bg-surface overflow-hidden">{children}</div>;
-}
-function THead({ cols, cells }: { cols: string; cells: string[] }) {
+const COLS = "1.5fr 110px 170px 170px 110px 130px";
+
+/** Column labels above the card-list — kept as a plain header row (not its own bordered box)
+ * so the eye reads it as "this is what lines up under each card", not as a separate block. */
+function ListHead() {
   return (
-    <div className="grid px-5 bg-surface-muted border-b border-border" style={{ gridTemplateColumns: cols }}>
-      {cells.map(c => (
-        <div key={c} className="py-2.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{c}</div>
+    <div className="grid px-4 gap-3" style={{ gridTemplateColumns: COLS }}>
+      {["Resource", "Loại", "Người gửi", "Publish to", "Gửi lúc", "Trạng thái"].map(c => (
+        <div key={c} className="pb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{c}</div>
       ))}
     </div>
   );
 }
-function TRow({ cols, children, onClick }: { cols: string; children: React.ReactNode; onClick?: () => void }) {
+
+/** Each request is its own rounded, left-accented card rather than a dense table row — accent
+ * color marks the rows that actually need a decision (pending/needs_changes) so the queue reads
+ * as a triage list at a glance, while resolved rows stay neutral. Columns still line up with
+ * ListHead via the same grid template, so it scans like a table despite the card spacing. */
+function RequestCard({ r, onClick }: { r: GovRequest; onClick: () => void }) {
+  const needsAttention = r.bundledItems.filter(it => it.changeState !== "unchanged_approved").length;
   return (
     <div
-      role={onClick ? "button" : undefined}
-      tabIndex={onClick ? 0 : undefined}
+      role="button"
+      tabIndex={0}
       onClick={onClick}
-      onKeyDown={onClick ? (e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }) : undefined}
-      className={`grid px-5 py-3.5 border-b border-border last:border-0 items-center gap-3 ${onClick ? "cursor-pointer hover:bg-surface-muted/50 transition-base" : ""}`}
-      style={{ gridTemplateColumns: cols }}
+      onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }}
+      className={`grid px-4 py-3.5 gap-3 items-center rounded-xl border border-l-4 bg-surface cursor-pointer hover:shadow-sm hover:border-border transition-base ${STATUS_ROW_ACCENT[r.status]}`}
+      style={{ gridTemplateColumns: COLS }}
     >
-      {children}
+      <div className="min-w-0 flex items-center gap-2.5">
+        <span className="w-9 h-9 rounded-xl bg-surface-muted flex items-center justify-center shrink-0 text-base border border-border/60">
+          {r.resourceIcon ?? <ResourceTypeIcon type={r.resourceType} size={16} className="text-muted-foreground" />}
+        </span>
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-foreground truncate">{r.resourceName}</p>
+          {r.bundledItems.length > 0 && (
+            <p className={`text-xs truncate ${needsAttention > 0 ? "text-primary font-medium" : "text-muted-foreground"}`}>
+              +{r.bundledItems.length} thành phần đi kèm{needsAttention > 0 ? ` · ${needsAttention} cần chú ý` : ""}
+            </p>
+          )}
+        </div>
+      </div>
+      <div className="text-sm text-muted-foreground">{RESOURCE_TYPE_LABEL[r.resourceType]}</div>
+      <div className="min-w-0 flex items-center gap-2">
+        <span className="w-6 h-6 rounded-full bg-primary-soft flex items-center justify-center text-[10px] font-semibold text-primary shrink-0">
+          {initials(r.requesterName)}
+        </span>
+        <span className="text-sm text-foreground truncate">{r.requesterName}</span>
+      </div>
+      <div className="text-sm text-muted-foreground truncate">{AUDIENCE_LABEL[r.audience]}</div>
+      <div className="text-sm text-muted-foreground">{relativeTime(r.submittedAt)}</div>
+      <div><StatusBadge status={r.status} /></div>
     </div>
   );
 }
-function EmptyRow({ label }: { label: string }) {
+
+function EmptyState({ label }: { label: string }) {
   return (
-    <div className="px-5 py-10 text-sm text-muted-foreground text-center flex flex-col items-center gap-2">
+    <div className="rounded-xl border border-border bg-surface px-5 py-10 text-sm text-muted-foreground text-center flex flex-col items-center gap-2">
       <Layers size={20} className="text-muted-foreground/50" />
       {label}
     </div>
   );
 }
-
-const COLS = "1.4fr 110px 130px 170px 110px 120px";
 
 export default function GovernanceRequests() {
   const navigate = useNavigate();
@@ -117,7 +145,7 @@ export default function GovernanceRequests() {
           <Filter size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
           <select
             value={typeFilter}
-            onChange={e => setTypeFilter(e.target.value as any)}
+            onChange={e => setTypeFilter(e.target.value as "all" | GovResourceType)}
             className="h-9 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30 appearance-none"
           >
             {TYPE_FILTERS.map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
@@ -134,31 +162,16 @@ export default function GovernanceRequests() {
         </div>
       </div>
 
-      <Table>
-        <THead cols={COLS} cells={["Resource", "Loại", "Người gửi", "Publish to", "Gửi lúc", "Trạng thái"]} />
-        {filtered.length === 0 ? (
-          <EmptyRow label={tab === "all" ? "Chưa có yêu cầu nào." : "Không có yêu cầu phù hợp."} />
-        ) : filtered.map(r => (
-          <TRow key={r.id} cols={COLS} onClick={() => navigate(`/governance/requests/${r.id}`)}>
-            <div className="min-w-0 flex items-center gap-2.5">
-              <span className="w-8 h-8 rounded-lg bg-surface-muted flex items-center justify-center shrink-0 text-base">
-                {r.resourceIcon ?? <ResourceTypeIcon type={r.resourceType} size={15} className="text-muted-foreground" />}
-              </span>
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">{r.resourceName}</p>
-                {r.bundledItems.length > 0 && (
-                  <p className="text-xs text-muted-foreground truncate">+{r.bundledItems.length} thành phần đi kèm</p>
-                )}
-              </div>
-            </div>
-            <div className="text-sm text-muted-foreground">{RESOURCE_TYPE_LABEL[r.resourceType]}</div>
-            <div className="text-sm text-foreground truncate">{r.requesterName}</div>
-            <div className="text-sm text-muted-foreground truncate">{AUDIENCE_LABEL[r.audience]}</div>
-            <div className="text-sm text-muted-foreground">{relativeTime(r.submittedAt)}</div>
-            <div><StatusBadge status={r.status} /></div>
-          </TRow>
-        ))}
-      </Table>
+      <ListHead />
+      {filtered.length === 0 ? (
+        <EmptyState label={tab === "all" ? "Chưa có yêu cầu nào." : "Không có yêu cầu phù hợp."} />
+      ) : (
+        <div className="space-y-2">
+          {filtered.map(r => (
+            <RequestCard key={r.id} r={r} onClick={() => navigate(`/governance/requests/${r.id}`)} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
