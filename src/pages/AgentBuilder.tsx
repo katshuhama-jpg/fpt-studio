@@ -2805,9 +2805,9 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
                     </button>
                   ))}
                 </div>
-                <div className="flex-1 flex items-end justify-end p-4">
+                <div className="flex-1 flex justify-end p-4">
                     {previewState === "minimized" && (
-                      <div className="flex items-center gap-2.5">
+                      <div className="flex items-center gap-2.5 self-end">
                         {starterGreeting && (
                           <div
                             className="flex items-center gap-2.5 pl-4 pr-1.5 py-1.5 rounded-full shadow-md"
@@ -2828,7 +2828,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
                       </div>
                     )}
                     {previewState !== "minimized" && (
-                      <div className="w-full rounded-xl border border-border bg-white shadow-md overflow-hidden flex flex-col" style={{ height: "380px" }}>
+                      <div className="w-full h-full rounded-xl border border-border bg-white shadow-md overflow-hidden flex flex-col">
                         <div className="flex items-center justify-between px-4 py-3 shrink-0" style={{ background: theme.header }}>
                           <div className="flex items-center gap-2">
                             {chat.showLogoHeader && (
