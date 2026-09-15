@@ -19,6 +19,10 @@ import KnowledgeTypeIcon from "@/components/knowledge/KnowledgeTypeIcon";
 import CreateKnowledgeBaseModal from "@/components/knowledge/CreateKnowledgeBaseModal";
 import ShareKnowledgeBaseModal from "@/components/knowledge/ShareKnowledgeBaseModal";
 import DeleteKnowledgeBaseDialog from "@/components/knowledge/DeleteKnowledgeBaseDialog";
+import RequestPublishModal from "@/components/governance/RequestPublishModal";
+import { governanceStore } from "@/components/governance/governanceStore";
+import { StatusBadge } from "@/components/governance/governanceUi";
+import { Rocket } from "lucide-react";
 import KnowledgeDocumentsTab from "@/components/knowledge/KnowledgeDocumentsTab";
 import KnowledgeWebsiteTab from "@/components/knowledge/KnowledgeWebsiteTab";
 import KnowledgeFaqTab from "@/components/knowledge/KnowledgeFaqTab";
@@ -79,6 +83,7 @@ export default function KnowledgeDetail() {
   const [showMenu, setShowMenu] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [showPublish, setShowPublish] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [showClearContent, setShowClearContent] = useState(false);
   const [editingName, setEditingName] = useState(false);
@@ -222,6 +227,21 @@ export default function KnowledgeDetail() {
 
           <div className="flex items-center gap-1.5 flex-wrap shrink-0">
             <OwnershipChips kb={kb} />
+            {(() => {
+              const openReq = governanceStore.getOpenRequestForResource("knowledge", kb.id);
+              const approved = governanceStore.isResourceApproved("knowledge", kb.id);
+              if (openReq) return <StatusBadge status={openReq.status} />;
+              if (approved) return <StatusBadge status="approved" />;
+              return null;
+            })()}
+            {canShare && (
+              <button
+                onClick={() => setShowPublish(true)}
+                className="h-9 px-3.5 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base"
+              >
+                <Rocket size={14} /> Publish
+              </button>
+            )}
             <div className="relative">
               <button
                 onClick={() => setShowMenu(v => !v)}
@@ -338,6 +358,12 @@ export default function KnowledgeDetail() {
         />
       )}
       {showDelete && <DeleteKnowledgeBaseDialog open={showDelete} kb={kb} onClose={() => setShowDelete(false)} onDeleted={() => navigate("/knowledge")} />}
+      {showPublish && (
+        <RequestPublishModal
+          resourceType="knowledge" resourceId={kb.id} resourceName={kb.name}
+          onClose={() => setShowPublish(false)}
+        />
+      )}
       <ClearContentDialog
         open={showClearContent}
         kbName={kb.name}

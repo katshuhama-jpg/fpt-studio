@@ -66,6 +66,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { knowledgeStore, OWN_KB_ID, type KnowledgeItem } from "@/components/knowledge/knowledgeStore";
 import { knowledgeBaseStore, CURRENT_USER as KB_CURRENT_USER, isViewOnly as isKbViewOnly, isAccessibleTo as isKbAccessibleTo, type KnowledgeBase } from "@/components/knowledge/knowledgeBaseStore";
+import { governanceStore, computeAgentBundle, agentEmoji } from "@/components/governance/governanceStore";
 import { KnowledgeStatusPill } from "@/components/knowledge/knowledgeStatus";
 import AttachConsoleKnowledgeBaseModal from "@/components/knowledge/AttachConsoleKnowledgeBaseModal";
 import ShareKnowledgeBaseModal from "@/components/knowledge/ShareKnowledgeBaseModal";
@@ -182,6 +183,9 @@ export default function AgentBuilder() {
   const kind = (() => { void publishTick; void triggerTick; return getAgentKind(id); })();
   const publishState = (() => { void publishTick; return agentPublishStore.get(id); })();
   const published = publishState.placement !== null;
+  // An open (pending/needs_changes) Governance request takes over the top-bar status pill —
+  // an agent mid-review isn't meaningfully "Draft" nor is it "Live" yet.
+  const openGovRequest = (() => { void publishTick; return governanceStore.getOpenRequestForResource("agent", id); })();
 
   useEffect(() => { setShowWelcome(welcome); }, [welcome]);
   const dismissWelcome = () => {
@@ -266,7 +270,19 @@ export default function AgentBuilder() {
         </div>
 
         <div className="flex items-center gap-2">
-          {published ? (
+          {openGovRequest ? (
+            <Link
+              to={`/governance/requests/${openGovRequest.id}`}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium shrink-0 transition-base hover:opacity-80 ${
+                openGovRequest.status === "needs_changes"
+                  ? "bg-destructive/10 border-destructive/20 text-destructive"
+                  : "bg-warning/10 border-warning/25 text-warning"
+              }`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${openGovRequest.status === "needs_changes" ? "bg-destructive" : "bg-warning"}`} />
+              {openGovRequest.status === "needs_changes" ? "Cần cập nhật" : "Đang chờ duyệt"} · {openGovRequest.version}
+            </Link>
+          ) : published ? (
             <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium shrink-0 ${
               kind === "automation"
                 ? "bg-indigo-50 border-indigo-200 text-indigo-700"
@@ -4065,13 +4081,31 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
     ).join("\n"));
   };
 
+  // "Only me" stays a plain instant publish (no reviewer needed for a private agent). Anything
+  // wider — a brand-new "Company / department"/"community" publish, or re-publishing an agent
+  // that's already at one of those audiences — goes through Governance instead of going live
+  // immediately, bundling whichever attached Knowledge/Skill/Guardrail/Connector items are new or
+  // not yet approved (see computeAgentBundle).
+  const effectiveAudience: PublishAudience = publishToOpen ? audience : (current.audience ?? "me");
   const doPublish = () => {
-    if (publishToOpen) {
-      agentPublishStore.publish(agentId, "workspace", current.channels, versionName, audience);
-    } else {
-      agentPublishStore.publish(agentId, current.placement, current.channels, versionName, current.audience);
+    if (effectiveAudience === "me") {
+      if (publishToOpen) {
+        agentPublishStore.publish(agentId, "workspace", current.channels, versionName, audience);
+      } else {
+        agentPublishStore.publish(agentId, current.placement, current.channels, versionName, current.audience);
+      }
+      toast.success(`Published ${versionName}.`);
+      onPublished?.();
+      onClose();
+      return;
     }
-    toast.success(`Published ${versionName}.`);
+    governanceStore.submit({
+      resourceType: "agent", resourceId: agentId, resourceName: agentName, resourceIcon: agentEmoji(agentId),
+      requesterId: KB_CURRENT_USER.id, requesterName: KB_CURRENT_USER.name,
+      audience: effectiveAudience, note: note.trim(), version: versionName,
+      bundledItems: computeAgentBundle(agentId),
+    });
+    toast.success("Đã gửi yêu cầu duyệt. Agent sẽ được publish sau khi Admin duyệt trong Trust & Governance › Requests.");
     onPublished?.();
     onClose();
   };
@@ -4085,9 +4119,11 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
           <div>
             <h2 className="font-display text-lg font-semibold">Publish "{agentName}"</h2>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {current.placement === null
-                ? `Publish creates ${versionName}.`
-                : `Publish creates ${versionName} and replaces the live one.`}
+              {effectiveAudience !== "me"
+                ? `Gửi yêu cầu duyệt ${versionName} tới Admin trước khi publish.`
+                : current.placement === null
+                  ? `Publish creates ${versionName}.`
+                  : `Publish creates ${versionName} and replaces the live one.`}
             </p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base mt-0.5">
@@ -4295,7 +4331,8 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
             className="h-9 px-5 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-2 transition-base"
             onClick={doPublish}
           >
-            <HugeiconsIcon icon={Rocket01Icon} size={14} /> Publish {versionName}
+            <HugeiconsIcon icon={Rocket01Icon} size={14} />
+            {effectiveAudience === "me" ? `Publish ${versionName}` : `Gửi yêu cầu duyệt ${versionName}`}
           </button>
         </div>
       </div>

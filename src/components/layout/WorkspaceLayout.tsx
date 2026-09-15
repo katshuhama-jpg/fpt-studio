@@ -5,8 +5,9 @@ import {
   Puzzle, ChevronsLeft, ChevronsRight, Search, Bell, Plus,
   ChevronRight, LifeBuoy, KeyRound, LogOut, User, ChevronDown, ChevronsUpDown,
   Check, Building2, PlusCircle, Sparkles, Shield, FileText, Rocket,
-  Network, Users, Cpu, UsersRound,
+  Network, Users, Cpu, UsersRound, ClipboardList, History,
 } from "lucide-react";
+import { governanceStore } from "@/components/governance/governanceStore";
 
 const APP_VERSION = "0.58.5";
 import { useEffect, useState } from "react";
@@ -53,6 +54,8 @@ const groups: Group[] = [
     label: "Trust & Governance",
     items: [
       { to: "/guardrails", label: "Guardrails", icon: Shield },
+      { to: "/governance/requests", label: "Requests", icon: ClipboardList },
+      { to: "/governance/audit-log", label: "Audit Log", icon: History },
       { to: "/roles", label: "Roles", icon: Shield },
       { to: "/members", label: "Members", icon: Users },
     ],
@@ -92,6 +95,15 @@ export default function WorkspaceLayout() {
   const loc = useLocation();
   const navigate = useNavigate();
   const orgItems: Item[] = orgItemsBase;
+  // Re-read on every route change so approving/rejecting a request and navigating back
+  // updates the sidebar badge without needing a manual refresh.
+  const pendingRequestCount = governanceStore.pendingCount();
+  const groupsWithBadges: Group[] = groups.map(g => g.id !== "trust" ? g : {
+    ...g,
+    items: g.items.map(it => it.to === "/governance/requests" && pendingRequestCount > 0
+      ? { ...it, badge: String(pendingRequestCount) }
+      : it),
+  });
   const inExternalAgentDetail = /^\/external-agents\/(?!guides(?:\/|$))[^/]+\/?$/.test(loc.pathname);
   const inWorkforceCanvas = /^\/workforce\/[^/]+\/?$/.test(loc.pathname);
   const inAgentBuilder = loc.pathname.startsWith("/agents/") || inExternalAgentDetail || inWorkforceCanvas;
@@ -164,7 +176,7 @@ export default function WorkspaceLayout() {
               ))}
             </div>
 
-            {groups.map(g => (
+            {groupsWithBadges.map(g => (
               <NavGroup
                 key={g.id}
                 group={g}

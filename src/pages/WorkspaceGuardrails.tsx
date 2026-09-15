@@ -11,6 +11,10 @@ import { guardrailConsoleStore, type Guardrail } from "@/components/configure/gu
 import CreateGuardrailModal, { type CreateGuardrailData } from "@/components/configure/CreateGuardrailModal";
 import GuardrailDetailModal from "@/components/configure/GuardrailDetailModal";
 import GuardrailShareModal from "@/components/configure/GuardrailShareModal";
+import RequestPublishModal from "@/components/governance/RequestPublishModal";
+import { governanceStore } from "@/components/governance/governanceStore";
+import { StatusBadge } from "@/components/governance/governanceUi";
+import { Rocket01Icon } from "@hugeicons/core-free-icons";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -75,6 +79,7 @@ export default function WorkspaceGuardrails() {
   const [editItem, setEditItem] = useState<Guardrail | null>(null);
   const [viewItem, setViewItem] = useState<Guardrail | null>(null);
   const [shareItem, setShareItem] = useState<Guardrail | null>(null);
+  const [publishItem, setPublishItem] = useState<Guardrail | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Guardrail | null>(null);
   const [tab, setTab] = useState<MainTab>("all");
 
@@ -166,6 +171,13 @@ export default function WorkspaceGuardrails() {
           sharing={shareItem.sharing ?? { mode: "private", people: [] }}
           onSave={sharing => handleShare(shareItem.id, sharing)}
           onClose={() => setShareItem(null)}
+        />
+      )}
+
+      {publishItem && (
+        <RequestPublishModal
+          resourceType="guardrail" resourceId={publishItem.id} resourceName={publishItem.name}
+          onClose={() => setPublishItem(null)}
         />
       )}
 
@@ -305,6 +317,7 @@ export default function WorkspaceGuardrails() {
                 onOpen={() => setViewItem(g)}
                 onEdit={() => setEditItem(g)}
                 onShare={hasOwner ? () => setShareItem(g) : undefined}
+                onPublish={hasOwner && isOwner ? () => setPublishItem(g) : undefined}
                 onDelete={() => setDeleteTarget(g)}
                 editBlocked={editBlocked}
                 shareBlocked={shareBlocked}
@@ -365,8 +378,8 @@ function ActionPill({ children }: { children: React.ReactNode }) {
  * disabled+tooltipped by whichever gate (ownership, sharing access level, role permission, or
  * role Scope) actually blocks it — never hidden outright, so an owner sees the full action set,
  * an edit-shared viewer sees Mở/Chỉnh sửa enabled, and a view-only viewer sees only Mở enabled. */
-function RowMenu({ onOpen, onEdit, onShare, onDelete, editBlocked, shareBlocked, deleteBlocked }: {
-  onOpen: () => void; onEdit: () => void; onShare?: () => void; onDelete: () => void;
+function RowMenu({ onOpen, onEdit, onShare, onPublish, onDelete, editBlocked, shareBlocked, deleteBlocked }: {
+  onOpen: () => void; onEdit: () => void; onShare?: () => void; onPublish?: () => void; onDelete: () => void;
   editBlocked?: string; shareBlocked?: string; deleteBlocked?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -413,6 +426,14 @@ function RowMenu({ onOpen, onEdit, onShare, onDelete, editBlocked, shareBlocked,
               className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface-muted transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
             >
               <HugeiconsIcon icon={Share08Icon} size={13} className="text-muted-foreground" /> Chia sẻ
+            </button>
+          )}
+          {onPublish && (
+            <button
+              onClick={() => { setOpen(false); onPublish(); }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface-muted transition-base"
+            >
+              <HugeiconsIcon icon={Rocket01Icon} size={13} className="text-muted-foreground" /> Publish
             </button>
           )}
           <button

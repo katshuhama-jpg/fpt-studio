@@ -13,6 +13,10 @@ import { isAccessibleTo, isViewOnly, type Sharing } from "@/components/configure
 import SkillOwnershipTag from "@/components/configure/SkillOwnershipTag";
 import CreateSkillModal, { type SkillFormData } from "@/components/configure/CreateSkillModal";
 import SkillShareModal from "@/components/configure/SkillShareModal";
+import RequestPublishModal from "@/components/governance/RequestPublishModal";
+import { governanceStore } from "@/components/governance/governanceStore";
+import { StatusBadge } from "@/components/governance/governanceUi";
+import { Rocket } from "lucide-react";
 import { renderSkillBody } from "@/components/configure/skillMarkdown";
 
 /** Dedicated detail page for a single Console skill — same structure as KnowledgeDetail.tsx
@@ -37,6 +41,7 @@ export default function SkillDetail() {
   const [showMenu, setShowMenu] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [showPublish, setShowPublish] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
 
   if (!skill) {
@@ -95,6 +100,21 @@ export default function SkillDetail() {
 
           <div className="flex items-center gap-1.5 flex-wrap shrink-0">
             <SkillOwnershipTag skill={skill} userId={access.userId} />
+            {(() => {
+              const openReq = governanceStore.getOpenRequestForResource("skill", skill.id);
+              const isApproved = governanceStore.isResourceApproved("skill", skill.id);
+              if (openReq) return <StatusBadge status={openReq.status} />;
+              if (isApproved) return <StatusBadge status="approved" />;
+              return null;
+            })()}
+            {canShare && (
+              <button
+                onClick={() => setShowPublish(true)}
+                className="h-9 px-3.5 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base"
+              >
+                <Rocket size={14} /> Publish
+              </button>
+            )}
             <div className="relative">
               <button
                 onClick={() => setShowMenu(v => !v)}
@@ -197,6 +217,13 @@ export default function SkillDetail() {
           sharing={skill.sharing}
           onSave={(sharing: Sharing) => { skillStore.updateSharing(skill.id, sharing); refresh(); }}
           onClose={() => setShowShare(false)}
+        />
+      )}
+
+      {showPublish && (
+        <RequestPublishModal
+          resourceType="skill" resourceId={skill.id} resourceName={skill.name}
+          onClose={() => setShowPublish(false)}
         />
       )}
 

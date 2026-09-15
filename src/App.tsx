@@ -33,6 +33,9 @@ import Skills from "./pages/Skills";
 import SkillDetail from "./pages/SkillDetail";
 import WorkspaceGuardrails from "./pages/WorkspaceGuardrails";
 import WorkspaceConnectors from "./pages/WorkspaceConnectors";
+import GovernanceRequests from "./pages/GovernanceRequests";
+import GovernanceRequestDetail from "./pages/GovernanceRequestDetail";
+import GovernanceAuditLog from "./pages/GovernanceAuditLog";
 import NotFound from "./pages/NotFound.tsx";
 import Login from "./pages/Login";
 import Onboarding from "./pages/Onboarding";
@@ -96,6 +99,9 @@ const App = () => (
               <Route path="/tools" element={<Skills />} />
               <Route path="/tools/:id" element={<SkillDetail />} />
               <Route path="/guardrails" element={<WorkspaceGuardrails />} />
+              <Route path="/governance/requests" element={<GovernanceRequests />} />
+              <Route path="/governance/requests/:id" element={<GovernanceRequestDetail />} />
+              <Route path="/governance/audit-log" element={<GovernanceAuditLog />} />
               <Route path="/models" element={<PlaceholderPage title="Models" />} />
               <Route path="/api-keys" element={<PlaceholderPage title="API Keys" />} />
               <Route path="/docs" element={<PlaceholderPage title="Document Center" />} />

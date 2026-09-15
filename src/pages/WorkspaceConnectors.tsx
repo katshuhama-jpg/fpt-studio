@@ -1,7 +1,10 @@
 import { useState, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
-import { Search, CheckCircle2, ChevronRight, Plug, MoreVertical, AlertTriangle, X } from "lucide-react";
+import { Search, CheckCircle2, ChevronRight, Plug, MoreVertical, AlertTriangle, X, Rocket } from "lucide-react";
+import RequestPublishModal from "@/components/governance/RequestPublishModal";
+import { governanceStore } from "@/components/governance/governanceStore";
+import { StatusBadge } from "@/components/governance/governanceUi";
 import { useGroupAccess, isOwnedOrShared } from "@/pages/organization/scopeAccess";
 import { CURRENT_USER } from "@/components/knowledge/knowledgeBaseStore";
 import { customConnectorStore, type CustomConnector } from "@/components/configure/customConnectorStore";
@@ -136,6 +139,7 @@ export default function WorkspaceConnectors() {
   const refresh = () => setTick(t => t + 1);
   void tick;
   const [showAddCustom, setShowAddCustom] = useState(false);
+  const [publishTarget, setPublishTarget] = useState<CustomConnector | null>(null);
   const [editTarget, setEditTarget] = useState<CustomConnector | null>(null);
   const [shareTarget, setShareTarget] = useState<CustomConnector | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CustomConnector | null>(null);
@@ -383,6 +387,7 @@ export default function WorkspaceConnectors() {
                     isMine={isMine}
                     onEdit={isMine ? () => setEditTarget(c) : undefined}
                     onShare={isMine ? () => setShareTarget(c) : undefined}
+                    onPublish={isMine ? () => setPublishTarget(c) : undefined}
                     onDelete={() => setDeleteTarget(c)}
                   />
                 );
@@ -396,6 +401,13 @@ export default function WorkspaceConnectors() {
         <AddCustomConnectorModal
           onClose={() => setShowAddCustom(false)}
           onCreated={() => { setShowAddCustom(false); refresh(); }}
+        />
+      )}
+
+      {publishTarget && (
+        <RequestPublishModal
+          resourceType="connector" resourceId={publishTarget.id} resourceName={publishTarget.name}
+          onClose={() => setPublishTarget(null)}
         />
       )}
 
@@ -508,7 +520,7 @@ function ConnectorCard({ connector: c, onOpen }: { connector: Connector; onOpen:
 }
 
 /* ─── Custom Connector card + row menu ───────────────── */
-function CustomConnectorRowMenu({ onEdit, onShare, onDelete }: { onEdit?: () => void; onShare?: () => void; onDelete: () => void }) {
+function CustomConnectorRowMenu({ onEdit, onShare, onPublish, onDelete }: { onEdit?: () => void; onShare?: () => void; onPublish?: () => void; onDelete: () => void }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="relative shrink-0" onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false); }}>
@@ -535,6 +547,11 @@ function CustomConnectorRowMenu({ onEdit, onShare, onDelete }: { onEdit?: () => 
               Chia sẻ
             </button>
           )}
+          {onPublish && (
+            <button onClick={() => { setOpen(false); onPublish(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">
+              Publish
+            </button>
+          )}
           <button onClick={() => { setOpen(false); onDelete(); }} className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-destructive/5 transition-base">
             Xóa
           </button>
@@ -544,9 +561,11 @@ function CustomConnectorRowMenu({ onEdit, onShare, onDelete }: { onEdit?: () => 
   );
 }
 
-function CustomConnectorCard({ connector: c, isMine, onEdit, onShare, onDelete }: {
-  connector: CustomConnector; isMine: boolean; onEdit?: () => void; onShare?: () => void; onDelete: () => void;
+function CustomConnectorCard({ connector: c, isMine, onEdit, onShare, onPublish, onDelete }: {
+  connector: CustomConnector; isMine: boolean; onEdit?: () => void; onShare?: () => void; onPublish?: () => void; onDelete: () => void;
 }) {
+  const openReq = governanceStore.getOpenRequestForResource("connector", c.id);
+  const isApproved = governanceStore.isResourceApproved("connector", c.id);
   return (
     <div className="flex items-start gap-3 p-4 rounded-xl border border-border bg-surface">
       <div className="w-10 h-10 rounded-xl border border-border bg-white flex items-center justify-center shrink-0">
@@ -565,8 +584,11 @@ function CustomConnectorCard({ connector: c, isMine, onEdit, onShare, onDelete }
           {AUTH_LABEL[c.authType]}
           {c.attachedByAgentIds.length > 0 && ` · ${c.attachedByAgentIds.length} Agent đang dùng`}
         </p>
+        {(openReq || isApproved) && (
+          <div className="mt-1.5"><StatusBadge status={openReq ? openReq.status : "approved"} /></div>
+        )}
       </div>
-      <CustomConnectorRowMenu onEdit={onEdit} onShare={onShare} onDelete={onDelete} />
+      <CustomConnectorRowMenu onEdit={onEdit} onShare={onShare} onPublish={onPublish} onDelete={onDelete} />
     </div>
   );
 }
