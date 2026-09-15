@@ -2,6 +2,8 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Add01Icon, Delete01Icon, MoreVerticalIcon, PencilEdit01Icon, Search01Icon, Share08Icon, EyeIcon } from "@hugeicons/core-free-icons";
+import { Shield } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import { useGroupAccess } from "@/pages/organization/scopeAccess";
 import { useOrg } from "@/pages/organization/orgStore";
@@ -207,9 +209,14 @@ export default function WorkspaceGuardrails() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="mb-6">
-        <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">Guardrails</h1>
-        <p className="text-sm text-muted-foreground truncate">Chính sách an toàn dùng chung, áp dụng được cho mọi Agent — giới hạn nội dung, bảo vệ dữ liệu, luồng phê duyệt và quy tắc tùy chỉnh.</p>
+      <div className="mb-6 flex items-start gap-3">
+        <div className="w-11 h-11 rounded-xl bg-primary-soft text-primary flex items-center justify-center shrink-0">
+          <Shield size={20} />
+        </div>
+        <div>
+          <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">Guardrails</h1>
+          <p className="text-sm text-muted-foreground truncate">Chính sách an toàn dùng chung, áp dụng được cho mọi Agent — giới hạn nội dung, bảo vệ dữ liệu, luồng phê duyệt và quy tắc tùy chỉnh.</p>
+        </div>
       </div>
 
       {/* Ownership tabs */}
@@ -233,7 +240,7 @@ export default function WorkspaceGuardrails() {
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-3 mb-5">
         <div />
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <div className="relative">
             <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -243,6 +250,9 @@ export default function WorkspaceGuardrails() {
               className="h-9 w-56 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
             />
           </div>
+          <span className="text-xs text-muted-foreground whitespace-nowrap">
+            {visibleGuardrails.filter(g => g.enabled).length} of {visibleGuardrails.length} active
+          </span>
           <button
             onClick={() => canCreateGuardrail && setShowCreate(true)}
             disabled={!canCreateGuardrail}
@@ -296,21 +306,13 @@ export default function WorkspaceGuardrails() {
                 <span className="text-xs text-muted-foreground">—</span>
               )}
             </div>
-            <div className="flex items-center">
-              <button
-                onClick={e => { e.stopPropagation(); canPause && toggleEnabled(g.id); }}
+            <div className="flex items-center" onClick={e => e.stopPropagation()}>
+              <Switch
+                checked={g.enabled}
+                onCheckedChange={() => canPause && toggleEnabled(g.id)}
                 disabled={!canPause}
                 title={!canPause ? "Bạn không có quyền tạm dừng guardrail này." : undefined}
-                className={`w-5 h-5 rounded flex items-center justify-center border-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                  g.enabled ? "bg-primary border-primary" : "bg-transparent border-border"
-                }`}
-              >
-                {g.enabled && (
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                    <path d="M2 5l2.5 2.5 3.5-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                )}
-              </button>
+              />
             </div>
             <div className="flex items-center justify-end" onClick={e => e.stopPropagation()}>
               <RowMenu
