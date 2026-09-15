@@ -192,7 +192,7 @@ export default function WorkspaceConnectors() {
   return (
     <div className="px-8 py-8 max-w-[1200px] mx-auto animate-fade-up">
       <div className="mb-6">
-        <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">Connectors</h1>
+        <h1 className="font-display text-xl font-semibold tracking-tight mb-1">Connectors</h1>
         <p className="text-sm text-muted-foreground">Kết nối các dịch vụ để Agent có thể truy cập và thao tác trên dữ liệu của bạn.</p>
       </div>
 

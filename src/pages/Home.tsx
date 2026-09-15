@@ -370,7 +370,7 @@ export default function Home() {
 
       {/* Page header */}
       <div className="px-6 pt-6 mb-6">
-        <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">Home</h1>
+        <h1 className="font-display text-xl font-semibold tracking-tight mb-1">Home</h1>
         <p className="text-sm text-muted-foreground">
           Workspace overview — pick up a recent agent or create a new one.
         </p>

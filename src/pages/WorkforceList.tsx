@@ -203,7 +203,7 @@ export default function WorkforceList() {
     <div className="px-4 sm:px-8 py-6 sm:py-8 max-w-[1280px] mx-auto animate-fade-up">
       <div className="mb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">Workforce</h1>
+          <h1 className="font-display text-xl font-semibold tracking-tight mb-1">Workforce</h1>
           <p className="text-sm text-muted-foreground">
             Sắp xếp cách các Agent chuyển giao hội thoại cho nhau, cho Omni Supports, hoặc cho người trong tổ chức.
           </p>

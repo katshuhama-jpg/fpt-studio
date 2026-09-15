@@ -88,7 +88,7 @@ export default function SkillDetail() {
           <div className="flex items-start gap-3 min-w-0 flex-1">
             <div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg mt-0.5 shrink-0" style={{ background: skill.iconBg }}>{skill.icon}</div>
             <div className="min-w-0 flex-1">
-              <h1 className="font-display text-2xl font-semibold tracking-tight truncate">{skill.name}</h1>
+              <h1 className="font-display text-xl font-semibold tracking-tight truncate">{skill.name}</h1>
               <p className="text-sm text-muted-foreground mt-1">{skill.description || "Chưa có mô tả"}</p>
             </div>
           </div>

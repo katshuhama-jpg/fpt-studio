@@ -182,7 +182,7 @@ export default function Skills() {
       <div className="bg-surface shrink-0">
         <div className="max-w-[1200px] mx-auto px-8 py-5 flex items-center justify-between">
           <div>
-            <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">Skills</h1>
+            <h1 className="font-display text-xl font-semibold tracking-tight mb-1">Skills</h1>
             <p className="text-sm text-muted-foreground">Skill dùng chung cho tất cả Agent trong workspace.</p>
           </div>
           <div className="flex items-center gap-2">
