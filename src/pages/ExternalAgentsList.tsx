@@ -341,15 +341,15 @@ export default function ExternalAgentsList() {
                       {a.emoji}
                     </div>
                     <div className="flex-1 min-w-0 pt-0.5">
-                      <p className="font-semibold text-base leading-snug truncate mb-1.5">{a.name}</p>
+                      <h3 className="font-semibold text-sm truncate mb-1.5">{a.name}</h3>
                       <span className={`chip ${STATUS_CHIP[a.status].chipClass} w-fit`}>
                         <span className="w-1.5 h-1.5 rounded-full bg-current" /> {STATUS_CHIP[a.status].label}
                       </span>
                     </div>
                   </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 flex-1 mb-4">{a.description || "No description"}</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 flex-1 mb-4">{a.description || "No description"}</p>
                   <div className="flex items-center justify-between">
-                    <div className="text-sm text-muted-foreground">{relativeTime(a.updatedAt)}</div>
+                    <div className="text-xs text-muted-foreground">{relativeTime(a.updatedAt)}</div>
                     <RowMenu
                       agent={a}
                       isAdmin={isAdmin}
