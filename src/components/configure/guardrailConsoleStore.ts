@@ -121,10 +121,13 @@ export const guardrailConsoleStore = {
     store.set(id, { ...cur, sharing, updatedAt: Date.now() });
     persist();
   },
+  // Pausing/resuming a guardrail is a status flip, not a content edit — it must NOT bump
+  // updatedAt, otherwise every toggle would re-sort the list() (sorted by updatedAt desc) and
+  // the row the user just clicked would jump to the top instead of staying put.
   toggleEnabled(id: string) {
     const cur = store.get(id);
     if (!cur) return;
-    store.set(id, { ...cur, enabled: !cur.enabled, updatedAt: Date.now() });
+    store.set(id, { ...cur, enabled: !cur.enabled });
     persist();
   },
   remove(id: string) {
