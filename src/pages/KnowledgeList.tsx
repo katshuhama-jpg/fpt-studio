@@ -133,7 +133,7 @@ function KbCard({ kb, userId, access, onOpen, onEdit, onShare, onDelete }: {
         </div>
         <RowMenu kb={kb} onOpen={onOpen} onEdit={onEdit} onShare={onShare} onDelete={onDelete} editBlocked={editBlocked} shareBlocked={shareBlocked} deleteBlocked={deleteBlocked} />
       </div>
-      <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 mb-3 min-h-[32px]">
+      <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 mb-3 min-h-[32px]">
         {kb.description || <span className="italic">Chưa có mô tả</span>}
       </p>
       <div className="mt-auto pt-3 border-t border-border text-xs text-muted-foreground">
