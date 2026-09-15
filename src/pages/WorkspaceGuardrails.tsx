@@ -208,54 +208,51 @@ export default function WorkspaceGuardrails() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="mb-6">
-        <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">Guardrails</h1>
-        <p className="text-sm text-muted-foreground truncate">Chính sách an toàn dùng chung, áp dụng được cho mọi Agent — giới hạn nội dung, bảo vệ dữ liệu, luồng phê duyệt và quy tắc tùy chỉnh.</p>
-      </div>
-
-      {/* Ownership tabs */}
-      <div className="flex items-center gap-1 flex-wrap mb-4">
-        {TABS.map(t => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`px-3 h-8 rounded-lg text-sm font-medium transition-base flex items-center gap-1.5 ${
-              tab === t.key ? "bg-primary-soft text-primary" : "text-muted-foreground hover:bg-surface-muted"
-            }`}
-          >
-            {t.label}
-            <span className={`text-xs px-1.5 py-0.5 rounded-full ${tab === t.key ? "bg-primary/10 text-primary" : "bg-surface-sunken text-muted-foreground"}`}>
-              {counts[t.key]}
-            </span>
-          </button>
-        ))}
-      </div>
-
-      {/* Toolbar — filters on the left, primary action on the right (same split as
-          Knowledge's document toolbar and every other list page in the app). */}
-      <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="relative">
-            <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Search guardrails"
-              className="h-9 w-56 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-            />
-          </div>
-          <span className="text-xs text-muted-foreground whitespace-nowrap">
-            {visibleGuardrails.filter(g => g.enabled).length} of {visibleGuardrails.length} active
-          </span>
+      {/* Title + primary action share one row, exactly like Knowledge's header
+          (KnowledgeList.tsx) — the button lives next to the H1, not down in the toolbar. */}
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">Guardrails</h1>
+          <p className="text-sm text-muted-foreground">Chính sách an toàn dùng chung, áp dụng được cho mọi Agent — giới hạn nội dung, bảo vệ dữ liệu, luồng phê duyệt và quy tắc tùy chỉnh.</p>
         </div>
         <button
           onClick={() => canCreateGuardrail && setShowCreate(true)}
           disabled={!canCreateGuardrail}
           title={!canCreateGuardrail ? "You don't have permission to create guardrails." : undefined}
-          className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 transition-base disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+          className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 transition-base disabled:opacity-40 disabled:cursor-not-allowed shrink-0 whitespace-nowrap"
         >
           <HugeiconsIcon icon={Add01Icon} size={14} /> Create guardrail
         </button>
+      </div>
+
+      {/* Ownership tabs (left) + search (right) share one row with a bottom border, exactly
+          like Knowledge's tab/search bar. */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-5 border-b border-border pb-3">
+        <div className="flex items-center gap-1 flex-wrap">
+          {TABS.map(t => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`px-3 h-8 rounded-lg text-sm font-medium transition-base flex items-center gap-1.5 ${
+                tab === t.key ? "bg-primary-soft text-primary" : "text-muted-foreground hover:bg-surface-muted"
+              }`}
+            >
+              {t.label}
+              <span className={`text-xs px-1.5 py-0.5 rounded-full ${tab === t.key ? "bg-primary/10 text-primary" : "bg-surface-sunken text-muted-foreground"}`}>
+                {counts[t.key]}
+              </span>
+            </button>
+          ))}
+        </div>
+        <div className="relative">
+          <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search guardrails"
+            className="h-9 w-56 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+          />
+        </div>
       </div>
 
       {/* Table — all guardrails */}
