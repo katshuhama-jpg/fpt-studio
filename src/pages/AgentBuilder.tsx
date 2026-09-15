@@ -2,7 +2,7 @@ import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { createPortal } from "react-dom";
 
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, BlockedIcon, BookOpen01Icon, Cancel01Icon, BoltIcon, PauseIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, UserMultipleIcon, TextBoldIcon, TextItalicIcon, TextStrikethroughIcon, Heading01Icon, Heading02Icon, LeftToRightListBulletIcon, LeftToRightListNumberIcon, CodeIcon, Copy01Icon, SourceCodeIcon, GridViewIcon, Share08Icon, ApiIcon, TelegramIcon, WhatsappIcon, MessengerIcon, Building02Icon, UserIcon, QrCode01Icon, ExternalLinkIcon, InformationCircleIcon, MinusSignIcon, CircleArrowReload01Icon, Wrench01Icon, UserGroupIcon, ArrowLeftDoubleIcon } from "@hugeicons/core-free-icons";
+import { Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, Attachment01Icon, BlockedIcon, BookOpen01Icon, Cancel01Icon, BoltIcon, PauseIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, UserMultipleIcon, TextBoldIcon, TextItalicIcon, TextStrikethroughIcon, Heading01Icon, Heading02Icon, LeftToRightListBulletIcon, LeftToRightListNumberIcon, CodeIcon, Copy01Icon, SourceCodeIcon, GridViewIcon, Share08Icon, ApiIcon, TelegramIcon, WhatsappIcon, MessengerIcon, Building02Icon, UserIcon, QrCode01Icon, ExternalLinkIcon, InformationCircleIcon, MinusSignIcon, CircleArrowReload01Icon, Wrench01Icon, UserGroupIcon, ArrowLeftDoubleIcon } from "@hugeicons/core-free-icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import AgentToolsTab from "@/components/tool-builder/AgentToolsTab";
 import TasksGrid from "@/components/tasks/TasksGrid";
@@ -2935,8 +2935,16 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
                             </div>
 
                             <div className="mt-auto pt-2 border-t border-border">
-                              <div className="h-8 rounded-full bg-surface-muted flex items-center px-3 text-xs text-muted-foreground">
-                                {chat.placeholderMessage}
+                              <div className="flex items-center gap-2">
+                                <button className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground shrink-0 hover:bg-surface-muted transition-base">
+                                  <HugeiconsIcon icon={Attachment01Icon} size={15} />
+                                </button>
+                                <div className="flex-1 h-9 rounded-xl border border-border bg-white flex items-center px-3 text-xs text-muted-foreground truncate">
+                                  {chat.placeholderMessage}
+                                </div>
+                                <button className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: theme.customerBubble }}>
+                                  <HugeiconsIcon icon={SentIcon} size={14} style={{ color: theme.customerText }} />
+                                </button>
                               </div>
                               {chat.aiDisclaimer && (
                                 <p className="text-[10px] text-muted-foreground text-center mt-1.5 leading-snug">{chat.aiDisclaimer}</p>
