@@ -8,7 +8,9 @@ import {
   governanceStore, resourcePath, RESOURCE_TYPE_LABEL, AUDIENCE_LABEL,
 } from "@/components/governance/governanceStore";
 import { ACTION_LABEL } from "@/components/governance/auditLogStore";
-import { StatusBadge, ResourceTypeIcon, ChangeStateBadge, relativeTime, formatDateTime } from "@/components/governance/governanceUi";
+import {
+  StatusBadge, ResourceTypeIcon, ChangeStateBadge, CHANGE_STATE_ACCENT, relativeTime, formatDateTime,
+} from "@/components/governance/governanceUi";
 import { CURRENT_USER } from "@/components/knowledge/knowledgeBaseStore";
 import { toast } from "sonner";
 
@@ -26,7 +28,7 @@ export default function GovernanceRequestDetail() {
 
   if (!req) {
     return (
-      <div className="p-8 max-w-[860px] mx-auto text-center">
+      <div className="p-8 max-w-[1200px] mx-auto text-center">
         <p className="text-sm text-muted-foreground mb-3">Không tìm thấy yêu cầu này.</p>
         <button onClick={() => navigate("/governance/requests")} className="text-sm font-semibold text-primary hover:underline">
           ← Quay lại danh sách Requests
@@ -62,15 +64,16 @@ export default function GovernanceRequestDetail() {
 
   const canReview = req.status === "pending";
   const isAgent = req.resourceType === "agent";
+  const needsAttentionCount = req.bundledItems.filter(it => it.changeState !== "unchanged_approved").length;
 
   return (
-    <div className="p-6 md:p-8 max-w-[860px] mx-auto">
+    <div className="p-6 md:p-8 max-w-[1200px] mx-auto">
       <button onClick={() => navigate("/governance/requests")} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4 transition-base">
         <ChevronLeft size={15} /> Requests
       </button>
 
       {/* Header */}
-      <div className="flex items-start justify-between gap-4 mb-1">
+      <div className="flex items-start justify-between gap-4 mb-6">
         <div className="flex items-center gap-3 min-w-0">
           <span className="w-11 h-11 rounded-xl bg-surface-muted flex items-center justify-center shrink-0 text-xl border border-border">
             {req.resourceIcon ?? <ResourceTypeIcon type={req.resourceType} size={18} className="text-muted-foreground" />}
@@ -94,139 +97,158 @@ export default function GovernanceRequestDetail() {
         </Link>
       </div>
 
-      {/* Meta */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 mb-6 p-4 rounded-xl border border-border bg-surface-muted/40">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Người gửi</p>
-          <p className="text-sm font-medium text-foreground flex items-center gap-1.5"><User size={13} className="text-muted-foreground" /> {req.requesterName}</p>
-        </div>
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Gửi lúc</p>
-          <p className="text-sm font-medium text-foreground flex items-center gap-1.5"><Clock size={13} className="text-muted-foreground" /> {relativeTime(req.submittedAt)}</p>
-        </div>
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Publish to</p>
-          <p className="text-sm font-medium text-foreground">{AUDIENCE_LABEL[req.audience]}</p>
-        </div>
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Cập nhật</p>
-          <p className="text-sm font-medium text-foreground">{relativeTime(req.updatedAt)}</p>
-        </div>
-      </div>
+      {/* Body — content column + a sticky rail for status/decision, matching the
+          review-page pattern used across the industry (meta + primary actions stay
+          reachable no matter how long the bundled-items list below gets). */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_336px] gap-6 lg:gap-8 items-start">
+        {/* Main column */}
+        <div className="min-w-0">
+          {req.note && (
+            <div className="mb-6">
+              <p className="text-sm font-semibold mb-1.5">Ghi chú từ người gửi</p>
+              <p className="text-sm text-muted-foreground rounded-lg border border-border bg-surface px-3.5 py-3 leading-relaxed">{req.note}</p>
+            </div>
+          )}
 
-      {req.note && (
-        <div className="mb-6">
-          <p className="text-sm font-semibold mb-1.5">Ghi chú từ người gửi</p>
-          <p className="text-sm text-muted-foreground rounded-lg border border-border bg-surface px-3.5 py-3 leading-relaxed">{req.note}</p>
-        </div>
-      )}
-
-      {/* Bundled sub-resources — the nested-approval answer */}
-      {req.bundledItems.length > 0 && (
-        <div className="mb-6">
-          <p className="text-sm font-semibold mb-1.5 flex items-center gap-1.5"><Layers size={14} className="text-muted-foreground" /> Thành phần đi kèm ({req.bundledItems.length})</p>
-          <p className="text-xs text-muted-foreground mb-2.5 leading-relaxed">
-            Agent này tham chiếu các thành phần bên dưới. Duyệt/từ chối áp dụng cho toàn bộ yêu cầu — thành phần đã <span className="font-medium text-foreground">"Đã duyệt trước đó"</span> không cần xem lại, chỉ những thành phần mới/đã sửa mới cần chú ý.
-          </p>
-          <div className="rounded-xl border border-border bg-surface overflow-hidden divide-y divide-border">
-            {req.bundledItems.map(it => (
-              <div key={`${it.type}-${it.resourceId}`} className="flex items-center gap-3 px-4 py-3">
-                <span className="w-8 h-8 rounded-lg bg-surface-muted flex items-center justify-center shrink-0 text-muted-foreground">
-                  <ResourceTypeIcon type={it.type} size={14} />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-foreground truncate">{it.name}</p>
-                  <p className="text-xs text-muted-foreground">{RESOURCE_TYPE_LABEL[it.type]}</p>
-                </div>
-                <ChangeStateBadge state={it.changeState} />
-                <Link to={resourcePath(it.type, it.resourceId)} className="text-muted-foreground hover:text-foreground shrink-0" title="Xem chi tiết">
-                  <ExternalLink size={14} />
-                </Link>
+          {/* Bundled sub-resources — the nested-approval answer */}
+          {req.bundledItems.length > 0 && (
+            <div className="mb-6">
+              <div className="flex items-center justify-between gap-2 flex-wrap mb-1.5">
+                <p className="text-sm font-semibold flex items-center gap-1.5"><Layers size={14} className="text-muted-foreground" /> Thành phần đi kèm ({req.bundledItems.length})</p>
+                {needsAttentionCount > 0 && (
+                  <span className="text-xs font-semibold text-primary bg-primary-soft rounded-full px-2.5 py-0.5 whitespace-nowrap">{needsAttentionCount} cần chú ý</span>
+                )}
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Review note (needs_changes / rejected / approved) */}
-      {req.reviewNote && req.status !== "pending" && (
-        <div className="mb-6">
-          <p className="text-sm font-semibold mb-1.5">
-            {req.status === "needs_changes" ? "Admin yêu cầu cập nhật" : req.status === "rejected" ? "Lý do từ chối" : "Ghi chú của Admin"}
-          </p>
-          <p className={`text-sm rounded-lg border px-3.5 py-3 leading-relaxed ${
-            req.status === "rejected" ? "border-destructive/25 bg-destructive/5 text-destructive"
-            : req.status === "needs_changes" ? "border-warning/25 bg-warning/5 text-warning"
-            : "border-border bg-surface text-muted-foreground"
-          }`}>
-            {req.reviewNote}
-            {req.reviewerName && <span className="block mt-1.5 text-xs opacity-80">— {req.reviewerName}</span>}
-          </p>
-        </div>
-      )}
-
-      {/* History timeline */}
-      <div className="mb-8">
-        <p className="text-sm font-semibold mb-2.5">Lịch sử</p>
-        <div className="space-y-3">
-          {[...req.history].reverse().map(h => (
-            <div key={h.id} className="flex gap-3 text-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 mt-2 shrink-0" />
-              <div className="min-w-0">
-                <p className="text-foreground">
-                  <span className="font-medium">{h.actorName}</span> {ACTION_LABEL[h.action].toLowerCase()}
-                  <span className="text-muted-foreground"> · {formatDateTime(h.at)}</span>
-                </p>
-                {h.note && <p className="text-muted-foreground mt-0.5">{h.note}</p>}
+              <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
+                Agent này tham chiếu các thành phần bên dưới. Duyệt/từ chối áp dụng cho toàn bộ yêu cầu — thành phần đã <span className="font-medium text-foreground">"Đã duyệt trước đó"</span> không cần xem lại, chỉ những thành phần mới/đã sửa mới cần chú ý.
+              </p>
+              <div className="space-y-2">
+                {req.bundledItems.map(it => (
+                  <div
+                    key={`${it.type}-${it.resourceId}`}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl border border-l-4 transition-base ${CHANGE_STATE_ACCENT[it.changeState]} ${it.changeState === "unchanged_approved" ? "opacity-70" : ""}`}
+                  >
+                    <span className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shrink-0 text-muted-foreground border border-border/60">
+                      <ResourceTypeIcon type={it.type} size={14} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground truncate">{it.name}</p>
+                      <p className="text-xs text-muted-foreground">{RESOURCE_TYPE_LABEL[it.type]}</p>
+                    </div>
+                    <ChangeStateBadge state={it.changeState} />
+                    <Link to={resourcePath(it.type, it.resourceId)} className="text-muted-foreground hover:text-foreground shrink-0" title="Xem chi tiết">
+                      <ExternalLink size={14} />
+                    </Link>
+                  </div>
+                ))}
               </div>
             </div>
-          ))}
-        </div>
-      </div>
+          )}
 
-      {/* Actions */}
-      {canReview && (
-        <div className="flex items-center gap-2 flex-wrap pb-4 border-t border-border pt-5">
-          <button
-            onClick={() => setDialog("approve")}
-            className="h-9 px-4 rounded-lg bg-success text-white hover:opacity-90 text-sm font-medium flex items-center gap-1.5 transition-base"
-          >
-            <CheckCircle2 size={14} /> Duyệt
-          </button>
-          <button
-            onClick={() => setDialog("changes")}
-            className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base"
-          >
-            <MessageSquareWarning size={14} /> Yêu cầu cập nhật
-          </button>
-          <button
-            onClick={() => setDialog("reject")}
-            className="h-9 px-4 rounded-lg border border-destructive/30 text-destructive bg-white hover:bg-destructive/5 text-sm font-medium flex items-center gap-1.5 transition-base"
-          >
-            <XCircle size={14} /> Từ chối
-          </button>
-          {isAgent && (
-            <Link
-              to={`/agents/${req.resourceId}?tab=test`}
-              className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base ml-auto"
-            >
-              <FlaskConical size={14} /> Test
-            </Link>
+          {/* Review note (needs_changes / rejected / approved) */}
+          {req.reviewNote && req.status !== "pending" && (
+            <div className="mb-6">
+              <p className="text-sm font-semibold mb-1.5">
+                {req.status === "needs_changes" ? "Admin yêu cầu cập nhật" : req.status === "rejected" ? "Lý do từ chối" : "Ghi chú của Admin"}
+              </p>
+              <p className={`text-sm rounded-lg border px-3.5 py-3 leading-relaxed ${
+                req.status === "rejected" ? "border-destructive/25 bg-destructive/5 text-destructive"
+                : req.status === "needs_changes" ? "border-warning/25 bg-warning/5 text-warning"
+                : "border-border bg-surface text-muted-foreground"
+              }`}>
+                {req.reviewNote}
+                {req.reviewerName && <span className="block mt-1.5 text-xs opacity-80">— {req.reviewerName}</span>}
+              </p>
+            </div>
           )}
         </div>
-      )}
 
-      {req.status === "needs_changes" && (
-        <div className="flex items-center gap-2 pb-4 border-t border-border pt-5">
-          <button
-            onClick={doResubmit}
-            className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 transition-base"
-          >
-            <RotateCcw size={14} /> Gửi lại yêu cầu (đã cập nhật)
-          </button>
-          <p className="text-xs text-muted-foreground">Mô phỏng bước builder chỉnh sửa xong và gửi lại — request quay về hàng chờ duyệt.</p>
+        {/* Right rail — request meta, decision actions, history. Sticky on desktop so
+            the actions never require scrolling to find, however long the bundle gets. */}
+        <div className="lg:sticky lg:top-6 space-y-4">
+          <div className="rounded-xl border border-border bg-surface-muted/40 p-4 space-y-3.5">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Người gửi</p>
+              <p className="text-sm font-medium text-foreground flex items-center gap-1.5"><User size={13} className="text-muted-foreground" /> {req.requesterName}</p>
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Gửi lúc</p>
+              <p className="text-sm font-medium text-foreground flex items-center gap-1.5"><Clock size={13} className="text-muted-foreground" /> {relativeTime(req.submittedAt)}</p>
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Publish to</p>
+              <p className="text-sm font-medium text-foreground">{AUDIENCE_LABEL[req.audience]}</p>
+            </div>
+            {req.updatedAt !== req.submittedAt && (
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Cập nhật</p>
+                <p className="text-sm font-medium text-foreground">{relativeTime(req.updatedAt)}</p>
+              </div>
+            )}
+          </div>
+
+          {canReview && (
+            <div className="rounded-xl border border-border bg-surface p-3.5 space-y-2">
+              <button
+                onClick={() => setDialog("approve")}
+                className="w-full h-9 rounded-lg bg-success text-white hover:opacity-90 text-sm font-medium flex items-center justify-center gap-1.5 transition-base"
+              >
+                <CheckCircle2 size={14} /> Duyệt
+              </button>
+              <button
+                onClick={() => setDialog("changes")}
+                className="w-full h-9 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium flex items-center justify-center gap-1.5 transition-base"
+              >
+                <MessageSquareWarning size={14} /> Yêu cầu cập nhật
+              </button>
+              <button
+                onClick={() => setDialog("reject")}
+                className="w-full h-9 rounded-lg border border-destructive/30 text-destructive bg-white hover:bg-destructive/5 text-sm font-medium flex items-center justify-center gap-1.5 transition-base"
+              >
+                <XCircle size={14} /> Từ chối
+              </button>
+              {isAgent && (
+                <Link
+                  to={`/agents/${req.resourceId}?tab=test`}
+                  className="w-full h-9 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium flex items-center justify-center gap-1.5 transition-base !mt-3"
+                >
+                  <FlaskConical size={14} /> Test
+                </Link>
+              )}
+            </div>
+          )}
+
+          {req.status === "needs_changes" && (
+            <div className="rounded-xl border border-border bg-surface p-3.5">
+              <button
+                onClick={doResubmit}
+                className="w-full h-9 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center justify-center gap-1.5 transition-base mb-2"
+              >
+                <RotateCcw size={14} /> Gửi lại yêu cầu (đã cập nhật)
+              </button>
+              <p className="text-xs text-muted-foreground leading-relaxed">Mô phỏng bước builder chỉnh sửa xong và gửi lại — request quay về hàng chờ duyệt.</p>
+            </div>
+          )}
+
+          <div className="rounded-xl border border-border bg-surface p-3.5">
+            <p className="text-sm font-semibold mb-2.5">Lịch sử</p>
+            <div className="space-y-3">
+              {[...req.history].reverse().map(h => (
+                <div key={h.id} className="flex gap-2.5 text-sm">
+                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 mt-1.5 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-foreground leading-snug">
+                      <span className="font-medium">{h.actorName}</span> {ACTION_LABEL[h.action].toLowerCase()}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{formatDateTime(h.at)}</p>
+                    {h.note && <p className="text-muted-foreground mt-1 text-xs leading-relaxed">{h.note}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-      )}
+      </div>
 
       {/* Confirm dialogs */}
       {dialog && (

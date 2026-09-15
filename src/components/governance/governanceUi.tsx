@@ -62,6 +62,15 @@ export function ChangeStateBadge({ state }: { state: GovChangeState }) {
   );
 }
 
+/** Left-accent + tint for a bundled sub-resource row on the Request Detail page — makes items that
+ * still need review pop (colored border, full-opacity) while already-approved items visually recede
+ * (neutral border, dimmed via the caller's opacity-70), so a reviewer's eye lands on what changed. */
+export const CHANGE_STATE_ACCENT: Record<GovChangeState, string> = {
+  new: "border-border border-l-primary bg-primary-soft/30",
+  modified: "border-border border-l-warning bg-warning/5",
+  unchanged_approved: "border-border border-l-border bg-surface",
+};
+
 /** "3 giờ trước" / "2 ngày trước" style relative time — matches the "Cập nhật 2 giờ trước" copy
  * already used across Knowledge/Skills/Guardrails list rows, so Governance reads as the same
  * product rather than a bolted-on module. */
