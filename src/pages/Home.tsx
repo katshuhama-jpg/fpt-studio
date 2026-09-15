@@ -138,13 +138,13 @@ function RecentAgentCard({ a }: { a: typeof recent[number] }) {
       <div className="flex items-start gap-3 mb-4">
         <div className={`w-14 h-14 rounded-2xl ${a.bg} flex items-center justify-center text-3xl shrink-0`}>{a.emoji}</div>
         <div className="flex-1 min-w-0 pt-0.5">
-          <p className="font-semibold text-base leading-snug truncate mb-1.5">{a.name}</p>
+          <p className="font-semibold text-sm leading-snug truncate mb-1.5">{a.name}</p>
           <span className={`chip ${a.status === "Active" ? "chip-success" : ""} w-fit`}>
             <span className="w-1.5 h-1.5 rounded-full bg-current" /> {a.status === "Active" ? "Live" : a.status}
           </span>
         </div>
       </div>
-      <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 flex-1 mb-4">{a.desc}</p>
+      <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 flex-1 mb-4">{a.desc}</p>
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
           {a.edited}
