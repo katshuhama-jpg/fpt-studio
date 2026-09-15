@@ -2556,7 +2556,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div
         className="relative z-10 h-full bg-white shadow-2xl flex flex-col shrink-0"
-        style={{ width: "900px", maxWidth: "95vw", animation: "slideInRight 0.22s ease" }}
+        style={{ width: "1100px", maxWidth: "95vw", animation: "slideInRight 0.22s ease" }}
       >
         {/* Header */}
         <div className="flex items-start justify-between px-6 pt-6 pb-4 shrink-0 border-b border-border">
@@ -2790,7 +2790,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
               </div>
 
               {/* Live preview */}
-              <div className="w-[352px] shrink-0 p-4 flex flex-col">
+              <div className="w-[460px] shrink-0 p-4 flex flex-col">
               <div className="flex-1 rounded-2xl border border-border shadow-md overflow-hidden flex flex-col">
                 <div className="flex items-center justify-center gap-5 shrink-0" style={{ height: "49px" }}>
                   {(["minimized", "welcome", "chat"] as const).map(s => (
