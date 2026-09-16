@@ -12,6 +12,13 @@ export interface TraceTurn {
   agentMessages: ConversationMessage[];
   startedAt: number;
   endedAt: number;
+  /** Mirrors the real tracing spec's `run` root span output. A turn ending on an unrecovered
+   * failed step is "failed"; a step that failed and then succeeded on retry (e.g. CV-1035)
+   * still reads as "completed" — the turn came through fine even though one step stumbled on
+   * the first try. "input_required" is never computed from the turn's own steps — it's applied
+   * as a post-process override, below, onto a conversation's LAST turn only, when
+   * ConversationRecord.awaitingHuman is set (the run genuinely hasn't resumed yet). */
+  outcome: "completed" | "failed" | "input_required";
   latencyMs: number;
   /** Time to the first streamed token — same "First Token" metric LangSmith's Traces (runs)
    * list shows per call, mocked here as a seeded fraction of the turn's own latency. */
@@ -101,7 +108,7 @@ export function buildMessageAudit(record: ConversationRecord, message: Conversat
   const tokens = seededInt(`${seed}-tok`, 90, 480);
 
   const flow: MessageAuditFlowStep[] = [{ label: "User Input" }];
-  if (message.toolCall) flow.push({ label: `Tool call — ${message.toolCall.connector}: ${message.toolCall.name}` });
+  for (const tc of message.toolCalls ?? []) flow.push({ label: `Tool call — ${tc.connector}: ${tc.name}` });
   flow.push({ label: "Agent Response" });
 
   return {
@@ -139,7 +146,15 @@ export function buildTrace(record: ConversationRecord): ConversationTrace {
 
     const startedAt = customer?.at ?? agentMessages[0]?.at ?? record.startedAt;
     const endedAt = agentMessages.length ? agentMessages[agentMessages.length - 1].at : startedAt;
-    const hasTool = agentMessages.some(m => m.toolCall);
+    const toolCallsInOrder = agentMessages.flatMap(m => m.toolCalls ?? []);
+    const hasTool = toolCallsInOrder.length > 0;
+    // "failed" only when the turn's own steps never recovered — the LAST tool-call attempt in
+    // the turn still failed. A failed attempt followed by a successful retry (CV-1035) still
+    // reads as "completed": the turn came through, even though one step stumbled on try 1.
+    const outcome: TraceTurn["outcome"] =
+      toolCallsInOrder.length > 0 && toolCallsInOrder[toolCallsInOrder.length - 1].status === "failed"
+        ? "failed"
+        : "completed";
     const seed = `${record.id}-turn${turnIndex}`;
 
     const tokensIn = seededInt(`${seed}-tin`, 180, 420);
@@ -162,6 +177,7 @@ export function buildTrace(record: ConversationRecord): ConversationTrace {
       agentMessages,
       startedAt,
       endedAt,
+      outcome,
       latencyMs,
       firstTokenMs,
       tokensIn,
@@ -173,6 +189,14 @@ export function buildTrace(record: ConversationRecord): ConversationTrace {
       costOut: tokensOut * PRICE_PER_TOKEN.output,
       costReasoning: tokensReasoning * PRICE_PER_TOKEN.reasoning,
     });
+  }
+
+  // A currently-paused run has no failed/completed steps of its own to derive an outcome from —
+  // it is paused, full stop. Only the conversation's very last turn can be the paused one (an
+  // earlier turn, by definition, already finished so a later one could start), so this only
+  // ever touches turns[turns.length - 1].
+  if (record.awaitingHuman && turns.length > 0) {
+    turns[turns.length - 1].outcome = "input_required";
   }
 
   const sortedLatency = turns.map(t => t.latencyMs).sort((a, b) => a - b);

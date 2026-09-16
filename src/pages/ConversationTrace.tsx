@@ -2,11 +2,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { format } from "date-fns";
 import {
-  ChevronLeft, ChevronDown, Copy, Check, Clock, Wrench,
-  Settings2, Waypoints, AlertTriangle,
+  ChevronLeft, ChevronDown, ChevronRight, Copy, Check, Clock, Wrench,
+  Settings2, Waypoints, AlertTriangle, ShieldAlert, CheckCircle2, XCircle,
+  UserCheck, Hourglass,
 } from "lucide-react";
 import { historyStore } from "@/components/history/historyStore";
-import type { ConversationMessage, ToolCallInfo } from "@/components/history/historyStore";
 import { buildTrace } from "@/components/history/traceStore";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuItem, DropdownMenuLabel,
@@ -175,11 +175,11 @@ function PayloadBlock({ value }: { value: unknown }) {
   );
 }
 
-/** One HUMAN input or AI output item inside a turn's Inputs/Outputs section. An AI message that
- * made a tool call shows the call (name + id + input payload) inline, same as LangSmith renders
- * an AIMessage's tool_calls as part of that same message — the tool's own response is a
- * separate "TOOL" item below (ToolResultCard), matching the real AIMessage → ToolMessage pair. */
-function MessageCard({ role, content, feedback, toolCall }: { role: "HUMAN" | "AI"; content: string; feedback?: "up" | "down"; toolCall?: ToolCallInfo }) {
+/** One HUMAN input or AI output item inside a turn's Inputs/Outputs section — just the chat
+ * bubble itself. Whatever the agent DID to produce it (tool calls, guardrail checks) renders
+ * separately as StepRow(s) around this bubble, not inside it — see the turn-rendering loop
+ * below and its comment for why. */
+function MessageCard({ role, content, feedback }: { role: "HUMAN" | "AI"; content: string; feedback?: "up" | "down" }) {
   return (
     <div className="group relative px-3.5 py-3">
       <div className="flex items-center justify-between">
@@ -195,32 +195,87 @@ function MessageCard({ role, content, feedback, toolCall }: { role: "HUMAN" | "A
           Người dùng đánh giá {feedback === "up" ? "hữu ích 👍" : "chưa hữu ích 👎"}
         </div>
       )}
-      {toolCall && (
-        <div className={cn("pt-3", content || feedback ? "mt-3 border-t border-border/60" : "")}>
-          <div className="flex items-center gap-2 mb-1.5">
-            <Wrench size={12} className="text-accent shrink-0" />
-            <span className="text-xs font-semibold">{toolCall.name}</span>
-            <span className="chip chip-accent !h-5 !text-[11px]">{toolCall.connector}</span>
-            <span className="ml-auto text-xs font-mono text-muted-foreground truncate max-w-[140px]">{toolCall.callId}</span>
-          </div>
-          <PayloadBlock value={toolCall.input} />
-        </div>
-      )}
     </div>
   );
 }
 
-/** The tool's response to a call made by the preceding AI message — its own list item, same as
- * a ToolMessage is its own entry in the real message list (not nested inside the AI message). */
-function ToolResultCard({ call }: { call: ToolCallInfo }) {
+const GUARDRAIL_ACTION_META: Record<string, { label: string; chipClass: string }> = {
+  pass: { label: "Pass", chipClass: "chip-muted" },
+  agent_refusal: { label: "Agent refusal", chipClass: "chip-warning" },
+  blocked: { label: "Blocked", chipClass: "chip-danger" },
+  replaced: { label: "Replaced", chipClass: "chip-warning" },
+};
+
+const HITL_ACTION_META: Record<string, { label: string; chipClass: string }> = {
+  approve: { label: "Approved", chipClass: "chip-success" },
+  edit: { label: "Edited", chipClass: "chip-warning" },
+  reject: { label: "Rejected", chipClass: "chip-danger" },
+  respond: { label: "Responded", chipClass: "chip-success" },
+  mixed: { label: "Mixed", chipClass: "chip-warning" },
+  authorized: { label: "Authorized", chipClass: "chip-success" },
+};
+
+/** One process step the agent took while producing a turn's reply — a tool call or a guardrail
+ * check — rendered as a compact row, collapsed by default, instead of a full-width card at the
+ * same visual weight as the actual chat bubble. This is the fix for dev feedback that "the tool/
+ * config parts sit at the same level as the result, unclear that they're part of producing it":
+ * steps now read as clearly subordinate to the MessageCard bubbles around them, matching how
+ * the team's own tracing spec (agent-execution-tracing.md) treats "the ordered list of steps
+ * the agent took" as a distinct concept from "the run's output" (the reply itself). */
+function StepRow({ kind, label, connector, callId, status, guardrailAction, hitlAction, error, input, output }: {
+  kind: "tool_call" | "guardrail" | "hitl";
+  label: string;
+  connector?: string;
+  callId?: string;
+  status?: "success" | "failed";
+  guardrailAction?: "pass" | "agent_refusal" | "blocked" | "replaced";
+  hitlAction?: "approve" | "edit" | "reject" | "respond" | "mixed" | "authorized";
+  error?: string;
+  input?: unknown;
+  output?: unknown;
+}) {
+  const [open, setOpen] = useState(false);
+  const actionMeta = guardrailAction
+    ? GUARDRAIL_ACTION_META[guardrailAction]
+    : hitlAction
+      ? HITL_ACTION_META[hitlAction]
+      : undefined;
   return (
-    <div className="px-3.5 py-3 bg-surface-muted">
-      <div className="flex items-center gap-2 mb-1.5">
-        <span className="text-xs font-bold tracking-wider text-accent">TOOL</span>
-        <span className="text-xs font-semibold">{call.name}</span>
-        <span className="ml-auto text-xs font-mono text-muted-foreground truncate max-w-[140px]">{call.callId}</span>
-      </div>
-      <PayloadBlock value={call.output} />
+    <div className={cn("rounded-lg border bg-surface", status === "failed" ? "border-destructive/30" : "border-border")}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left focus-ring rounded-lg"
+      >
+        <ChevronRight size={12} className={cn("text-muted-foreground shrink-0 transition-transform", open && "rotate-90")} />
+        {kind === "tool_call" && <Wrench size={12} className="text-muted-foreground shrink-0" />}
+        {kind === "guardrail" && <ShieldAlert size={12} className="text-muted-foreground shrink-0" />}
+        {kind === "hitl" && <UserCheck size={12} className="text-muted-foreground shrink-0" />}
+        <span className="text-xs font-semibold shrink-0">{label}</span>
+        {connector && <span className="chip chip-outline !h-5 !text-[11px] shrink-0">{connector}</span>}
+        {actionMeta && <span className={cn("chip !h-5 !text-[11px] shrink-0", actionMeta.chipClass)}>{actionMeta.label}</span>}
+        <span className="flex-1" />
+        {status === "failed" && <XCircle size={13} className="text-destructive shrink-0" />}
+        {status === "success" && <CheckCircle2 size={13} className="text-success shrink-0" />}
+        {callId && <span className="text-xs font-mono text-muted-foreground truncate max-w-[100px] shrink-0">{callId}</span>}
+      </button>
+      {open && (
+        <div className="px-2.5 pb-2.5 pt-0.5 border-t border-border space-y-2">
+          {error && <p className="text-xs text-destructive leading-relaxed">{error}</p>}
+          {input !== undefined && (
+            <div>
+              <div className="text-overline text-muted-foreground uppercase tracking-wider mb-1">Input</div>
+              <PayloadBlock value={input} />
+            </div>
+          )}
+          {output !== undefined && (
+            <div>
+              <div className="text-overline text-muted-foreground uppercase tracking-wider mb-1">Output</div>
+              <PayloadBlock value={output} />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -357,7 +412,8 @@ export default function ConversationTrace() {
           <div className="flex-1 overflow-y-auto p-1.5 space-y-1">
             {trace.turns.map(turn => {
               const tokens = turn.tokensIn + turn.tokensCacheRead + turn.tokensOut + turn.tokensReasoning;
-              const hasTool = turn.agentMessages.some(m => m.toolCall);
+              const hasTool = turn.agentMessages.some(m => m.toolCalls?.length);
+              const hasHitl = turn.agentMessages.some(m => m.hitl);
               return (
                 <HoverCard key={turn.index} openDelay={200} closeDelay={80}>
                   <HoverCardTrigger asChild>
@@ -375,6 +431,9 @@ export default function ConversationTrace() {
                         </span>
                         <span className="text-sm font-medium truncate">Banking ABC Agent</span>
                         {hasTool && <Wrench size={11} className="text-accent shrink-0" />}
+                        {hasHitl && <UserCheck size={11} className="text-accent shrink-0" />}
+                        {turn.outcome === "failed" && <AlertTriangle size={11} className="text-destructive shrink-0" />}
+                        {turn.outcome === "input_required" && <Hourglass size={11} className="text-warning shrink-0" />}
                       </div>
                       {(showLatency || showTokens) && (
                         <div className="flex items-center gap-2.5 mt-1 pl-7 text-xs text-muted-foreground">
@@ -424,6 +483,12 @@ export default function ConversationTrace() {
                 >
                   <ChevronDown size={14} className={cn("transition-transform", collapsed[turn.index] && "-rotate-90")} />
                   Turn {turn.index}
+                  {turn.outcome === "failed" && (
+                    <span className="chip chip-danger !h-5 !text-[11px] normal-case tracking-normal font-semibold">Failed</span>
+                  )}
+                  {turn.outcome === "input_required" && (
+                    <span className="chip chip-warning !h-5 !text-[11px] normal-case tracking-normal font-semibold">Đang chờ duyệt</span>
+                  )}
                 </button>
 
                 {!collapsed[turn.index] && (
@@ -442,14 +507,60 @@ export default function ConversationTrace() {
                         <div className="px-3.5 py-1.5 bg-surface-muted border-b border-border flex items-center gap-2">
                           <span className="text-overline font-semibold text-muted-foreground uppercase tracking-wider">Outputs</span>
                           <span className="chip chip-muted !h-5 !text-[11px] !px-1.5">
-                            messages: {turn.agentMessages.reduce((n, m) => n + (m.toolCall ? 2 : 1), 0)}
+                            messages: {turn.agentMessages.reduce((n, m) => n + 1 + (m.toolCalls?.length ?? 0) + (m.hitl ? 1 : 0), 0)}
                           </span>
                         </div>
                         <div className="divide-y divide-border">
                           {turn.agentMessages.map(m => (
-                            <div key={m.id} className="divide-y divide-border">
-                              <MessageCard role="AI" content={m.content} feedback={m.feedback} toolCall={m.toolCall} />
-                              {m.toolCall && <ToolResultCard call={m.toolCall} />}
+                            <div key={m.id}>
+                              {m.hitl && (
+                                <div className="px-3.5 pt-3">
+                                  <StepRow
+                                    kind="hitl"
+                                    label={
+                                      m.hitl.situation === "tool_approval"
+                                        ? `Human-in-the-loop — duyệt công cụ: ${m.hitl.toolName}`
+                                        : m.hitl.situation === "question"
+                                          ? "Human-in-the-loop — câu hỏi cho khách hàng"
+                                          : `Human-in-the-loop — kết nối tài khoản: ${m.hitl.provider}`
+                                    }
+                                    hitlAction={m.hitl.action}
+                                    input={
+                                      m.hitl.situation === "tool_approval"
+                                        ? { tool: m.hitl.toolName, input: m.hitl.toolInput }
+                                        : m.hitl.situation === "question"
+                                          ? { question: m.hitl.question }
+                                          : { provider: m.hitl.provider }
+                                    }
+                                    output={{ action: m.hitl.action, answer: m.hitl.answer }}
+                                  />
+                                </div>
+                              )}
+                              {m.guardrail && (
+                                <div className="px-3.5 pt-3">
+                                  <StepRow
+                                    kind="guardrail"
+                                    label={m.guardrail.name === "output" ? "Guardrail — kiểm tra output" : "Guardrail — kiểm tra input"}
+                                    guardrailAction={m.guardrail.action}
+                                    input={m.guardrail.rule ? { rule: m.guardrail.rule } : undefined}
+                                  />
+                                </div>
+                              )}
+                              <MessageCard role="AI" content={m.content} feedback={m.feedback} />
+                              {m.toolCalls?.map(tc => (
+                                <div key={tc.callId} className="px-3.5 pb-3">
+                                  <StepRow
+                                    kind="tool_call"
+                                    label={tc.name}
+                                    connector={tc.connector}
+                                    callId={tc.callId}
+                                    status={tc.status ?? "success"}
+                                    error={tc.error}
+                                    input={tc.input}
+                                    output={tc.output}
+                                  />
+                                </div>
+                              ))}
                             </div>
                           ))}
                           {turn.agentMessages.length === 0 && (
@@ -464,6 +575,10 @@ export default function ConversationTrace() {
                       <div className="text-overline font-semibold uppercase tracking-wider text-muted-foreground">Turn stats</div>
                       <StatRow label="Latency" value={fmtSec(turn.latencyMs)} />
                       <StatRow label="Tokens" value={fmtTokens(turn.tokensIn + turn.tokensCacheRead + turn.tokensOut + turn.tokensReasoning)} />
+                      <StatRow
+                        label="Steps"
+                        value={String(turn.agentMessages.reduce((n, m) => n + (m.toolCalls?.length ?? 0) + (m.guardrail ? 1 : 0) + (m.hitl ? 1 : 0), 0))}
+                      />
                     </div>
                   </div>
                 )}

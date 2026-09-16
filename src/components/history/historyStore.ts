@@ -57,6 +57,13 @@ export interface ToolCallInfo {
   connector: string;
   input: Record<string, string>;
   output: Record<string, string>;
+  /** Mirrors the real tracing spec's tool_call span `status` — whether this specific attempt
+   * succeeded or failed. Optional and defaults to "success" wherever it's absent, since every
+   * seed call written before this field existed doesn't set it. A failed call's `output` is
+   * typically empty; see `error` for the failure reason. */
+  status?: "success" | "failed";
+  /** Populated when `status` is "failed" — same idea as the real span's own `error` field. */
+  error?: string;
 }
 
 export interface ConversationMessage {
@@ -65,7 +72,44 @@ export interface ConversationMessage {
   content: string;
   at: number; // epoch ms
   feedback?: "up" | "down"; // only ever set on role: "agent"
-  toolCall?: ToolCallInfo;
+  /** Every tool/connector call this message's production involved, in order. Usually 0 or 1 —
+   * an array (not a single optional call) because a real run can retry the same tool more than
+   * once before succeeding (see CV-1035 below), and the real tracing spec traces each attempt
+   * as its own span rather than collapsing retries into one record. */
+  toolCalls?: ToolCallInfo[];
+  /**
+   * A guardrail check that actually intervened while producing this message — mirrors the real
+   * tracing spec's `guardrail` span (`name`: which side it checked, `action`: what happened).
+   * Only set for the rare case where a guardrail did something (see CV-1004 below); the common
+   * "checked, nothing happened" case is deliberately not modeled per-message, same spirit as
+   * ConversationRecord.error below only being set for the rare failure case, not every turn.
+   */
+  guardrail?: {
+    name: "input" | "output";
+    action: "pass" | "agent_refusal" | "blocked" | "replaced";
+    rule?: string;
+  };
+  /**
+   * Records what a human did to resume a paused run — mirrors the real tracing spec's `hitl`
+   * span (Human-in-the-Loop). Only set once a pause has actually been resolved by a person: the
+   * three situations from the spec are approving/editing/rejecting a sensitive tool call before
+   * it runs, answering (or declining to answer) a question the agent asked, and authorizing an
+   * account connection. A currently-paused run (see ConversationRecord.awaitingHuman below)
+   * carries no `hitl` here yet, precisely because nothing has resumed it.
+   */
+  hitl?: {
+    situation: "tool_approval" | "question" | "connect_account";
+    action: "approve" | "edit" | "reject" | "respond" | "mixed" | "authorized";
+    /** tool_approval only: which tool needed approval, and with what arguments. */
+    toolName?: string;
+    toolInput?: Record<string, unknown>;
+    /** question only: what the agent asked the person. */
+    question?: string;
+    /** connect_account only: which provider was being connected. */
+    provider?: string;
+    /** The person's actual decision / answer / edited value — the resumed run's real input. */
+    answer?: string;
+  };
 }
 
 export interface ConversationRecord {
@@ -92,6 +136,15 @@ export interface ConversationRecord {
    * hoping the hash happens to land above the slow threshold. See traceStore.ts buildTrace().
    */
   demoSlowMs?: number;
+  /**
+   * True while this conversation's most recent turn is paused waiting on a human decision (a
+   * sensitive tool awaiting approval, a question posed back to the person, or an account
+   * connection in progress) — mirrors the real tracing spec's `run` root span reporting
+   * "input_required" instead of "completed"/"failed". See traceStore.ts buildTrace(), which
+   * reads this to mark the conversation's last turn accordingly. Nothing has resumed the run
+   * yet, so its last message carries no resolved `hitl` — that only appears once a person acts.
+   */
+  awaitingHuman?: boolean;
 }
 
 const store = new Map<string, ConversationRecord>();
@@ -132,7 +185,9 @@ function buildMessages(
     role: "customer" | "agent";
     content: string;
     feedback?: "up" | "down";
-    toolCall?: Omit<ToolCallInfo, "callId">;
+    toolCalls?: Omit<ToolCallInfo, "callId">[];
+    guardrail?: ConversationMessage["guardrail"];
+    hitl?: ConversationMessage["hitl"];
   }[],
 ): ConversationMessage[] {
   const startAt = endedAt - turns.length * 2 * MIN;
@@ -142,7 +197,9 @@ function buildMessages(
     content: t.content,
     at: startAt + i * 2 * MIN,
     feedback: t.feedback,
-    toolCall: t.toolCall ? { ...t.toolCall, callId: `call_${pseudoUlid(`${seedKey}-tool${i + 1}`).slice(0, 18)}` } : undefined,
+    guardrail: t.guardrail,
+    hitl: t.hitl,
+    toolCalls: t.toolCalls?.map((tc, j) => ({ ...tc, callId: `call_${pseudoUlid(`${seedKey}-tool${i + 1}-${j + 1}`).slice(0, 18)}` })),
   }));
 }
 
@@ -171,28 +228,28 @@ function seedAgent(agentId: string) {
         {
           role: "agent",
           content: "I'm sorry to hear that — let me pull up your account first.",
-          toolCall: {
+          toolCalls: [{
             name: "lookup_customer",
             connector: "Core Banking",
             input: { email: "nguyen.thi.lan@gmail.com" },
             output: { customerName: "Nguyen Thi Lan", cardLast4: "4821", cardStatus: "active" },
-          },
+          }],
         },
         {
           role: "agent",
           content: "I've located your Visa card ending in 4821 — locking it now.",
-          toolCall: {
+          toolCalls: [{
             name: "lock_card",
             connector: "Core Banking",
             input: { cardLast4: "4821", reason: "lost" },
             output: { status: "locked", lockedAt: "2026-09-14T13:41:02Z" },
-          },
+          }],
         },
         { role: "agent", content: "Your card is locked. No further transactions can go through until you unlock it or request a replacement.", feedback: "up" },
         {
           role: "agent",
           content: "I've also emailed a confirmation to nguyen.thi.lan@gmail.com with the case reference for your records.",
-          toolCall: {
+          toolCalls: [{
             name: "send_email",
             connector: "Gmail",
             input: {
@@ -201,18 +258,18 @@ function seedAgent(agentId: string) {
               template: "card_lock_confirmation",
             },
             output: { status: "sent", messageId: "18f2a9c4b6e2d701" },
-          },
+          }],
         },
         { role: "customer", content: "Thank you, that was fast. Can you also send me a replacement card?" },
         {
           role: "agent",
           content: "Of course — I've ordered a replacement Visa card, mailed to your address on file.",
-          toolCall: {
+          toolCalls: [{
             name: "order_replacement_card",
             connector: "Core Banking",
             input: { cardLast4: "4821", deliveryMethod: "mail" },
             output: { status: "ordered", estimatedArrival: "5-7 business days", trackingRef: "RC-88213" },
-          },
+          }],
         },
         { role: "customer", content: "Great, thank you for your help!" },
         { role: "agent", content: "You're very welcome — glad it's all sorted. Have a great day!" },
@@ -257,7 +314,27 @@ function seedAgent(agentId: string) {
       error: "Timeout: Core Banking API không phản hồi sau 15s khi khoá thẻ (đã tự động thử lại và thành công ở lần 2).",
       messages: buildMessages("CV-1035", now - 2 * DAY, [
         { role: "customer", content: "My wallet was stolen this morning, I need to report my debit card lost." },
-        { role: "agent", content: "Understood — I've locked debit card ending in 7734 immediately." },
+        {
+          role: "agent",
+          content: "Understood — I've locked debit card ending in 7734 immediately.",
+          toolCalls: [
+            {
+              name: "lock_card",
+              connector: "Core Banking",
+              input: { cardLast4: "7734", reason: "stolen" },
+              output: {},
+              status: "failed",
+              error: "Timeout: Core Banking API không phản hồi sau 15s.",
+            },
+            {
+              name: "lock_card",
+              connector: "Core Banking",
+              input: { cardLast4: "7734", reason: "stolen" },
+              output: { status: "locked", lockedAt: "2026-09-12T09:14:41Z" },
+              status: "success",
+            },
+          ],
+        },
         { role: "agent", content: "Would you like a replacement card mailed to your address on file, or would you prefer to pick one up at a branch?" },
         { role: "customer", content: "Mail is fine." },
         { role: "agent", content: "Done — a replacement will arrive within 5-7 business days." },
@@ -287,7 +364,25 @@ function seedAgent(agentId: string) {
       demoSlowMs: 6400,
       messages: buildMessages("CV-1027", now - 6 * DAY, [
         { role: "customer", content: "There's a charge on my statement I don't recognize — 1,200,000 VND to \"QRPAY MERCHANT 88\"." },
-        { role: "agent", content: "I see that charge from yesterday. I've opened a dispute case — reference #DP-5567." },
+        {
+          role: "agent",
+          content: "I see that charge from yesterday. I've opened a dispute case — reference #DP-5567.",
+          hitl: {
+            situation: "tool_approval",
+            toolName: "open_dispute",
+            toolInput: { merchant: "QRPAY MERCHANT 88", amount: 1200000, currency: "VND" },
+            action: "approve",
+            answer: "Nhân viên CSKH xác nhận mở tranh chấp giúp khách hàng.",
+          },
+          toolCalls: [
+            {
+              name: "open_dispute",
+              connector: "Core Banking",
+              input: { merchant: "QRPAY MERCHANT 88", amount: 1200000, currency: "VND" },
+              output: { caseId: "DP-5567", status: "opened" },
+            },
+          ],
+        },
         { role: "agent", content: "The disputed amount is temporarily credited back while we investigate. This usually takes 5-10 business days." },
         { role: "customer", content: "Okay, thank you for looking into it." },
         { role: "agent", content: "Of course — we'll keep you posted on the case." },
@@ -347,7 +442,15 @@ function seedAgent(agentId: string) {
       error: "Guardrail: phản hồi đầu tiên bị chặn vì tiết lộ số dư tài khoản chưa xác thực danh tính, agent đã sinh lại câu trả lời.",
       messages: buildMessages("CV-1004", now - 28 * DAY, [
         { role: "customer", content: "Why was I charged a 50,000 VND monthly fee? I thought my account was fee-free." },
-        { role: "agent", content: "Your account is fee-free with a minimum balance of 5,000,000 VND — last month it dropped below that for a few days." },
+        {
+          role: "agent",
+          content: "Your account is fee-free with a minimum balance of 5,000,000 VND — last month it dropped below that for a few days.",
+          guardrail: {
+            name: "output",
+            action: "replaced",
+            rule: "Tiết lộ số dư tài khoản khi chưa xác thực danh tính khách hàng",
+          },
+        },
         { role: "customer", content: "That's annoying, nobody told me." },
         { role: "agent", content: "I understand the frustration — I've waived this month's fee as a one-time courtesy and enabled low-balance alerts for you.", feedback: "down" },
       ]),
@@ -376,6 +479,23 @@ function seedAgent(agentId: string) {
         { role: "agent", content: "Xin chào! Quý khách cần hỗ trợ gì về khoản vay hôm nay?" },
         { role: "customer", content: "Cho mình hỏi thử lãi suất vay tín chấp hiện tại." },
         { role: "agent", content: "Lãi suất vay tín chấp hiện tại từ 1.6%/tháng, tuỳ hồ sơ. Đây là phản hồi thử nghiệm từ Preview & Test, dùng để kiểm tra agent trước khi triển khai ra kênh thật." },
+      ]),
+    },
+    {
+      id: pseudoUlid("CV-1050"),
+      channel: "zalo",
+      username: "Tran Van Duc",
+      email: "tran.van.duc@gmail.com",
+      startedAt: now - 3 * MIN,
+      endedAt: now - 1 * MIN,
+      /** Demonstrates the real tracing spec's `hitl` situation still in flight: the run is
+       * paused awaiting a human decision, so it has no resolved `.hitl` on any message yet — see
+       * ConversationMessage.hitl above. traceStore.ts reads this flag to mark the conversation's
+       * last turn "input_required" instead of "completed"/"failed". */
+      awaitingHuman: true,
+      messages: buildMessages("CV-1050", now - 1 * MIN, [
+        { role: "customer", content: "Mình muốn chuyển 500,000,000 VND sang tài khoản công ty đối tác, chuyển gấp trong hôm nay được không?" },
+        { role: "agent", content: "Khoản chuyển này vượt hạn mức tự động (trên 200,000,000 VND/lần) nên mình đã gửi yêu cầu duyệt cho bộ phận kiểm soát rủi ro trước khi thực hiện. Mình sẽ báo lại ngay khi có kết quả." },
       ]),
     },
   ];
