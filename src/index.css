@@ -70,6 +70,17 @@
     --info: 232 83% 60%;
     --info-soft: 232 90% 96%;
 
+    /* ----- Code syntax highlighting (Trace page JSON/YAML payload viewer) -----
+       A separate token family from the status colors above on purpose: --success/--warning/etc.
+       mean "this outcome is good/bad", but a JSON key isn't good or bad, it's just a key — reusing
+       a status hue for it was a category error, and part of why earlier attempts to colorize this
+       view felt off. These three are sampled from LangSmith's own trace viewer (a muted,
+       code-editor-style palette, not the brighter accent hues used for status pills elsewhere)
+       and each independently clears 4.5:1 on white. */
+    --code-key: 205 99% 29%;      /* steel blue — object/property keys */
+    --code-string: 81 66% 30%;    /* olive green — string leaf values */
+    --code-number: 28 99% 36%;    /* burnt orange — number/boolean leaf values */
+
     --border: 40 10% 88%;
     --border-strong: 40 8% 80%;
     --input: 40 10% 88%;

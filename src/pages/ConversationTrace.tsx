@@ -52,21 +52,27 @@ function toYaml(value: unknown, indent = 0): string {
 }
 
 /** Renders a JS value as a structured JSON tree — same shape as `JSON.stringify(value, null, 2)`
- * but with keys and punctuation dimmed (text-muted-foreground) and leaf values in full-contrast
- * text-foreground — the same "muted label / full-contrast value" pattern StatRow already uses
- * everywhere else on this page. Deliberately neutral/two-tone rather than a rainbow of hues
- * (blue keys, green strings, orange numbers): that first pass read as too colorful next to
- * LangSmith's own quiet, mostly-monochrome trace viewer. Only used for the formatted JSON view —
- * the "Raw" toggle intentionally stays plain text (that's what "raw" means). */
+ * with LangSmith-style syntax coloring: keys in --code-key (steel blue), string leaf values in
+ * --code-string (olive), number/boolean leaf values in --code-number (burnt orange), punctuation
+ * (braces/commas/the ":" separator) dimmed as text-muted-foreground. This went through two
+ * earlier passes this session — a first attempt reused the page's brighter status hues
+ * (text-primary/text-success/text-warning) and got called "too colorful", so it was walked back
+ * to a flat neutral two-tone; that in turn got called "too much gray" once keys and punctuation
+ * were both muted. This third pass replaces the guessing with the actual reference: colors below
+ * are sampled directly from LangSmith's own trace viewer (a muted, code-editor-style palette,
+ * not the page's brighter accent hues) and verified at 4.5:1+ against white — see --code-key/
+ * --code-string/--code-number in index.css. Only used for the formatted JSON view — the "Raw"
+ * toggle intentionally stays plain text (that's what "raw" means), and YAML mode is unchanged
+ * (still plain text) — colorizing a YAML tree is a separate, larger piece of work than this. */
 function renderJson(value: unknown, indent = 0): React.ReactNode {
   const pad = "  ".repeat(indent);
   const childPad = "  ".repeat(indent + 1);
   const punct = "text-muted-foreground";
   if (value === null) return <span className={punct}>null</span>;
   if (typeof value === "boolean" || typeof value === "number") {
-    return <span className="text-foreground">{String(value)}</span>;
+    return <span className="text-[hsl(var(--code-number))]">{String(value)}</span>;
   }
-  if (typeof value === "string") return <span className="text-foreground">{JSON.stringify(value)}</span>;
+  if (typeof value === "string") return <span className="text-[hsl(var(--code-string))]">{JSON.stringify(value)}</span>;
   if (Array.isArray(value)) {
     if (value.length === 0) return <span className={punct}>[]</span>;
     return (
@@ -93,13 +99,7 @@ function renderJson(value: unknown, indent = 0): React.ReactNode {
         {entries.map(([k, v], i) => (
           <span key={k}>
             {childPad}
-            {/* Keys are the main scent for scanning a payload — they used to share the exact
-             * same muted gray as pure punctuation (braces/commas/colons), which is what made a
-             * card full of them read as "too much gray": nothing but the leaf values stood out.
-             * Keys now match leaf values at full-contrast text-foreground (kept distinguishable
-             * from them by weight, not color, since color-coding was explicitly removed earlier
-             * this session for being "too colorful"); punctuation stays muted on purpose. */}
-            <span className="text-foreground font-medium">{JSON.stringify(k)}</span>
+            <span className="text-[hsl(var(--code-key))]">{JSON.stringify(k)}</span>
             <span className={punct}>: </span>
             {renderJson(v, indent + 1)}
             {i < entries.length - 1 && <span className={punct}>,</span>}
