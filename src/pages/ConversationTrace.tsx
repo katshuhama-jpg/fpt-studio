@@ -531,7 +531,9 @@ export default function ConversationTrace() {
                                       m.hitl.situation === "tool_approval"
                                         ? { tool: m.hitl.toolName, input: m.hitl.toolInput }
                                         : m.hitl.situation === "question"
-                                          ? { question: m.hitl.question }
+                                          // `options` only shows up when the agent offered discrete
+                                          // choices rather than an open question — see historyStore.ts.
+                                          ? { question: m.hitl.question, ...(m.hitl.options ? { options: m.hitl.options } : {}) }
                                           : { provider: m.hitl.provider }
                                     }
                                     output={{ action: m.hitl.action, answer: m.hitl.answer }}

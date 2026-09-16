@@ -103,8 +103,12 @@ export interface ConversationMessage {
     /** tool_approval only: which tool needed approval, and with what arguments. */
     toolName?: string;
     toolInput?: Record<string, unknown>;
-    /** question only: what the agent asked the person. */
+    /** question only: what the agent asked the person, and — when the agent presented
+     * discrete choices rather than an open question — the options it offered. Free-typed
+     * answers (no fixed options) are common too, in which case this is left unset and
+     * `answer` below carries whatever the person typed. */
     question?: string;
+    options?: string[];
     /** connect_account only: which provider was being connected. */
     provider?: string;
     /** The person's actual decision / answer / edited value — the resumed run's real input. */
@@ -337,7 +341,25 @@ function seedAgent(agentId: string) {
         },
         { role: "agent", content: "Would you like a replacement card mailed to your address on file, or would you prefer to pick one up at a branch?" },
         { role: "customer", content: "Mail is fine." },
-        { role: "agent", content: "Done — a replacement will arrive within 5-7 business days." },
+        {
+          role: "agent",
+          content: "Done — a replacement will arrive within 5-7 business days.",
+          // Demonstrates the hitl "question" situation — the agent posed a question with two
+          // concrete options rather than asking for open-ended approval, and the customer picked
+          // one by typing a short reply rather than selecting a button. This was already present
+          // as plain chat content above; what's new is capturing it as a structured hitl span
+          // (same retrofit pattern as CV-1027's tool_approval one) so the Trace page actually
+          // renders a Human-in-the-loop step showing the question + options that were offered
+          // and what the customer answered, instead of that decision only being visible as two
+          // ordinary chat bubbles indistinguishable from the rest of the conversation.
+          hitl: {
+            situation: "question",
+            action: "respond",
+            question: "Would you like a replacement card mailed to your address on file, or would you prefer to pick one up at a branch?",
+            options: ["Mail to address on file", "Pick up at a branch"],
+            answer: "Mail is fine.",
+          },
+        },
       ]),
     },
     {
