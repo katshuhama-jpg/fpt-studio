@@ -186,7 +186,7 @@ export default function ExternalAgentIntegrationGuide() {
       </Link>
 
       <div className="mb-8">
-        <h1 className="font-display text-3xl font-semibold tracking-tight mb-1.5">External Agent integration guide</h1>
+        <h1 className="font-display text-xl font-semibold tracking-tight mb-1.5">External Agent integration guide</h1>
         <p className="text-sm text-muted-foreground max-w-2xl">
           The fpt-v1 HTTP contract your agent must implement to run on the FPT AI Platform.
         </p>

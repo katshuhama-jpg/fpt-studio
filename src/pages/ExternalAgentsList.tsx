@@ -207,7 +207,7 @@ export default function ExternalAgentsList() {
     <div className="px-4 sm:px-8 py-6 sm:py-8 max-w-[1280px] mx-auto animate-fade-up">
       <div className="mb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">External Agents</h1>
+          <h1 className="font-display text-xl font-semibold tracking-tight mb-1">External Agents</h1>
           <p className="text-sm text-muted-foreground">Connect and manage agents hosted outside the FPT AI Platform.</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap sm:shrink-0">
@@ -341,7 +341,7 @@ export default function ExternalAgentsList() {
                       {a.emoji}
                     </div>
                     <div className="flex-1 min-w-0 pt-0.5">
-                      <h3 className="font-semibold text-sm truncate mb-1.5">{a.name}</h3>
+                      <h3 className="font-semibold text-sm leading-snug truncate mb-1.5">{a.name}</h3>
                       <span className={`chip ${STATUS_CHIP[a.status].chipClass} w-fit`}>
                         <span className="w-1.5 h-1.5 rounded-full bg-current" /> {STATUS_CHIP[a.status].label}
                       </span>

@@ -1,6 +1,5 @@
 import { useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Switch } from "@/components/ui/switch";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   ChevronUpIcon, ChevronDownIcon, SparklesIcon, CheckmarkCircle01Icon, Rocket01Icon,
@@ -239,48 +238,61 @@ export default function ExternalAgentPublishModal({ agent, open, onClose, onPubl
           </div>
 
           <div className="rounded-xl border border-border p-4">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
+            <label className="flex items-center justify-between gap-3 flex-wrap cursor-pointer">
               <div className="flex items-start gap-3">
-                <Switch checked={publishToEnabled} onCheckedChange={handlePublishToggle} className="mt-0.5" />
+                <input
+                  type="checkbox"
+                  checked={publishToEnabled}
+                  onChange={e => handlePublishToggle(e.target.checked)}
+                  className="w-4 h-4 rounded accent-primary shrink-0 mt-0.5"
+                />
                 <div>
                   <p className="text-sm font-semibold">Publish tới kênh</p>
                   <p className="text-xs text-muted-foreground mt-0.5">Bật để chọn kênh triển khai cho phiên bản này</p>
                 </div>
               </div>
-              {publishToEnabled && (
-                selectedChannels.size > 0
-                  ? (
-                    <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-success bg-success/10 border border-success/20 rounded-full px-2 py-0.5 whitespace-nowrap">
-                      <span className="w-1.5 h-1.5 rounded-full bg-success shrink-0" /> Đã chọn {selectedChannels.size} kênh
-                    </span>
-                  )
-                  : <span className="text-[11px] font-semibold text-muted-foreground whitespace-nowrap">Chưa chọn kênh triển khai</span>
+              {publishToEnabled ? (
+                selectedChannels.size > 0 ? (
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-success bg-success/10 border border-success/20 rounded-full px-2 py-0.5 whitespace-nowrap">
+                    <span className="w-1.5 h-1.5 rounded-full bg-success shrink-0" /> Đã chọn {selectedChannels.size} kênh
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-semibold text-muted-foreground whitespace-nowrap">Chưa chọn kênh triển khai</span>
+                )
+              ) : agent.channels.length > 0 ? (
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-success bg-success/10 border border-success/20 rounded-full px-2 py-0.5 whitespace-nowrap">
+                  <span className="w-1.5 h-1.5 rounded-full bg-success shrink-0" /> Đang live {agent.channels.length} kênh
+                </span>
+              ) : (
+                <span className="text-[11px] font-semibold text-muted-foreground whitespace-nowrap">Chưa publish kênh nào</span>
               )}
-            </div>
+            </label>
 
-            <div className={`mt-3.5 grid grid-cols-2 gap-2 transition-base ${!publishToEnabled ? "opacity-50" : ""}`}>
-              {CHANNEL_CATALOG.map(ch => {
-                const disabled = !publishToEnabled || ch.available === false;
-                return (
-                  <label key={ch.id} className={`flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2.5 rounded-lg border transition-base ${
-                    disabled ? "border-border bg-surface-muted/40 cursor-not-allowed" : "border-border bg-surface hover:bg-surface-muted cursor-pointer"
-                  }`}>
-                    <input
-                      type="checkbox"
-                      checked={selectedChannels.has(ch.id) && !disabled}
-                      disabled={disabled}
-                      onChange={() => toggleChannel(ch.id)}
-                      className="w-4 h-4 rounded accent-primary shrink-0 disabled:cursor-not-allowed"
-                    />
-                    <span className="w-5 h-5 flex items-center justify-center shrink-0"><ChannelIcon ch={ch} size={16} /></span>
-                    <span className={`text-sm font-medium whitespace-nowrap ${disabled ? "text-muted-foreground" : "text-foreground"}`}>{ch.name}</span>
-                    {publishToEnabled && ch.available === false && (
-                      <span className="text-[9px] font-semibold px-1 py-0.5 rounded-full bg-surface-muted text-muted-foreground shrink-0 whitespace-nowrap ml-auto">Coming soon</span>
-                    )}
-                  </label>
-                );
-              })}
-            </div>
+            {publishToEnabled && (
+              <div className="mt-3.5 grid grid-cols-2 gap-2">
+                {CHANNEL_CATALOG.map(ch => {
+                  const disabled = ch.available === false;
+                  return (
+                    <label key={ch.id} className={`flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2.5 rounded-lg border transition-base ${
+                      disabled ? "border-border bg-surface-muted/40 cursor-not-allowed" : "border-border bg-surface hover:bg-surface-muted cursor-pointer"
+                    }`}>
+                      <input
+                        type="checkbox"
+                        checked={selectedChannels.has(ch.id) && !disabled}
+                        disabled={disabled}
+                        onChange={() => toggleChannel(ch.id)}
+                        className="w-4 h-4 rounded accent-primary shrink-0 disabled:cursor-not-allowed"
+                      />
+                      <span className="w-5 h-5 flex items-center justify-center shrink-0"><ChannelIcon ch={ch} size={16} /></span>
+                      <span className={`text-sm font-medium whitespace-nowrap ${disabled ? "text-muted-foreground" : "text-foreground"}`}>{ch.name}</span>
+                      {disabled && (
+                        <span className="text-[9px] font-semibold px-1 py-0.5 rounded-full bg-surface-muted text-muted-foreground shrink-0 whitespace-nowrap ml-auto">Coming soon</span>
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 

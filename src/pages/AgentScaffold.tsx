@@ -145,7 +145,7 @@ function PromptStage({
         <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-brand flex items-center justify-center shadow-elev mb-4">
           <Wand2 size={22} className="text-primary-foreground" />
         </div>
-        <h1 className="font-display text-3xl font-semibold tracking-tight mb-2">
+        <h1 className="font-display text-xl font-semibold tracking-tight mb-2">
           Describe the agent you want
         </h1>
         <p className="text-sm text-muted-foreground">

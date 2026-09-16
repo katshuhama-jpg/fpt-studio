@@ -218,8 +218,8 @@ export default function WorkspaceGuardrails() {
           (KnowledgeList.tsx) — the button lives next to the H1, not down in the toolbar. */}
       <div className="mb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">Guardrails</h1>
-          <p className="text-sm text-muted-foreground">Chính sách an toàn dùng chung, áp dụng được cho mọi Agent — giới hạn nội dung, bảo vệ dữ liệu, luồng phê duyệt và quy tắc tùy chỉnh.</p>
+          <h1 className="font-display text-xl font-semibold tracking-tight mb-1">Guardrails</h1>
+          <p className="text-sm text-muted-foreground truncate">Chính sách an toàn dùng chung, áp dụng được cho mọi Agent — giới hạn nội dung, bảo vệ dữ liệu, luồng phê duyệt và quy tắc tùy chỉnh.</p>
         </div>
         <button
           onClick={() => canCreateGuardrail && setShowCreate(true)}

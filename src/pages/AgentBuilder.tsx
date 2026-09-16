@@ -2,7 +2,7 @@ import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { createPortal } from "react-dom";
 
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, BookOpen01Icon, Cancel01Icon, BoltIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, UserMultipleIcon, TextBoldIcon, TextItalicIcon, TextStrikethroughIcon, Heading01Icon, Heading02Icon, LeftToRightListBulletIcon, LeftToRightListNumberIcon, CodeIcon, Copy01Icon, SourceCodeIcon, GridViewIcon, Share08Icon, ApiIcon, TelegramIcon, WhatsappIcon, MessengerIcon, Building02Icon, UserIcon, QrCode01Icon, ExternalLinkIcon, InformationCircleIcon, MinusSignIcon, CircleArrowReload01Icon, Wrench01Icon, UserGroupIcon, ArrowLeftDoubleIcon } from "@hugeicons/core-free-icons";
+import { Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, Attachment01Icon, BlockedIcon, BookOpen01Icon, Cancel01Icon, BoltIcon, PauseIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, UserMultipleIcon, TextBoldIcon, TextItalicIcon, TextStrikethroughIcon, Heading01Icon, Heading02Icon, LeftToRightListBulletIcon, LeftToRightListNumberIcon, CodeIcon, Copy01Icon, SourceCodeIcon, GridViewIcon, Share08Icon, ApiIcon, TelegramIcon, WhatsappIcon, MessengerIcon, Building02Icon, UserIcon, QrCode01Icon, ExternalLinkIcon, InformationCircleIcon, MinusSignIcon, CircleArrowReload01Icon, Wrench01Icon, UserGroupIcon, ArrowLeftDoubleIcon } from "@hugeicons/core-free-icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import AgentToolsTab from "@/components/tool-builder/AgentToolsTab";
 import TasksGrid from "@/components/tasks/TasksGrid";
@@ -42,11 +42,9 @@ import { agentGuardrailStore } from "@/components/configure/agentGuardrailStore"
 import CreateGuardrailModal, { type CreateGuardrailData } from "@/components/configure/CreateGuardrailModal";
 import GuardrailDetailModal from "@/components/configure/GuardrailDetailModal";
 import GuardrailOwnershipTag from "@/components/configure/GuardrailOwnershipTag";
-import GuardrailShareModal from "@/components/configure/GuardrailShareModal";
 import { isViewOnly as isGuardrailViewOnly, isAccessibleTo as isGuardrailAccessibleTo, type Sharing as GuardrailSharing, type SharingMode as GuardrailSharingMode } from "@/components/configure/guardrailSharing";
 import GuardrailMemberPicker from "@/components/configure/GuardrailMemberPicker";
 import AttachConsoleGuardrailModal from "@/components/configure/AttachConsoleGuardrailModal";
-import PromoteGuardrailToConsoleDialog from "@/components/configure/PromoteGuardrailToConsoleDialog";
 import { skillStore, type Skill } from "@/components/configure/skillStore";
 import { agentSkillStore } from "@/components/configure/agentSkillStore";
 import CreateSkillModal, { type SkillFormData } from "@/components/configure/CreateSkillModal";
@@ -2575,7 +2573,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div
         className="relative z-10 h-full bg-white shadow-2xl flex flex-col shrink-0"
-        style={{ width: "900px", maxWidth: "95vw", animation: "slideInRight 0.22s ease" }}
+        style={{ width: "1100px", maxWidth: "95vw", animation: "slideInRight 0.22s ease" }}
       >
         {/* Header */}
         <div className="flex items-start justify-between px-6 pt-6 pb-4 shrink-0 border-b border-border">
@@ -2607,7 +2605,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto min-h-0">
           {tab === "config" ? (
             <div className="px-6 py-5">
               <p className="text-sm text-muted-foreground leading-relaxed mb-6">
@@ -2692,7 +2690,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
               </div>
             </div>
           ) : (
-            <div className="flex h-full">
+            <div className="flex h-full min-h-0">
               {/* Settings */}
               <div className="flex-1 overflow-y-auto flex flex-col">
                 <div className="flex items-center gap-6 px-6 shrink-0" style={{ height: "49px" }}>
@@ -2809,8 +2807,8 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
               </div>
 
               {/* Live preview */}
-              <div className="w-[352px] shrink-0 p-4 flex flex-col">
-              <div className="flex-1 rounded-2xl border border-border shadow-md overflow-hidden flex flex-col">
+              <div className="w-[460px] shrink-0 p-4 flex flex-col min-h-0">
+              <div className="flex-1 rounded-2xl border border-border shadow-md overflow-hidden flex flex-col min-h-0">
                 <div className="flex items-center justify-center gap-5 shrink-0" style={{ height: "49px" }}>
                   {(["minimized", "welcome", "chat"] as const).map(s => (
                     <button
@@ -2822,9 +2820,9 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
                     </button>
                   ))}
                 </div>
-                <div className="flex-1 flex items-end justify-end p-4">
+                <div className="flex-1 flex justify-end p-4 min-h-0">
                     {previewState === "minimized" && (
-                      <div className="flex items-center gap-2.5">
+                      <div className="flex items-center gap-2.5 self-end">
                         {starterGreeting && (
                           <div
                             className="flex items-center gap-2.5 pl-4 pr-1.5 py-1.5 rounded-full shadow-md"
@@ -2845,7 +2843,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
                       </div>
                     )}
                     {previewState !== "minimized" && (
-                      <div className="w-full rounded-xl border border-border bg-white shadow-md overflow-hidden flex flex-col" style={{ height: "380px" }}>
+                      <div className="w-full h-full rounded-xl border border-border bg-white shadow-md overflow-hidden flex flex-col min-h-0">
                         <div className="flex items-center justify-between px-4 py-3 shrink-0" style={{ background: theme.header }}>
                           <div className="flex items-center gap-2">
                             {chat.showLogoHeader && (
@@ -2886,7 +2884,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
                             </div>
                           )
                         ) : (
-                          <div className="flex-1 flex flex-col gap-3 p-3 overflow-y-auto" style={{ background: theme.background }}>
+                          <div className="flex-1 flex flex-col gap-2 p-3 overflow-y-auto min-h-0" style={{ background: theme.background }}>
                             <p className="text-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground opacity-70">Today</p>
 
                             <div className="self-end max-w-[85%] rounded-xl rounded-tr-sm px-3 py-2 text-xs" style={{ background: theme.customerBubble, color: theme.customerText }}>
@@ -2954,8 +2952,16 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
                             </div>
 
                             <div className="mt-auto pt-2 border-t border-border">
-                              <div className="h-8 rounded-full bg-surface-muted flex items-center px-3 text-xs text-muted-foreground">
-                                {chat.placeholderMessage}
+                              <div className="flex items-center gap-2">
+                                <button className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground shrink-0 hover:bg-surface-muted transition-base">
+                                  <HugeiconsIcon icon={Attachment01Icon} size={15} />
+                                </button>
+                                <div className="flex-1 h-9 rounded-xl border border-border bg-white flex items-center px-3 text-xs text-muted-foreground truncate">
+                                  {chat.placeholderMessage}
+                                </div>
+                                <button className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: theme.customerBubble }}>
+                                  <HugeiconsIcon icon={SentIcon} size={14} style={{ color: theme.customerText }} />
+                                </button>
                               </div>
                               {chat.aiDisclaimer && (
                                 <p className="text-[10px] text-muted-foreground text-center mt-1.5 leading-snug">{chat.aiDisclaimer}</p>
@@ -6271,14 +6277,19 @@ function StarterPromptsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => voi
   );
 }
 
-function GuardrailAgentItemRowMenu({ onEdit, onShare, onPromote, onDelete }: {
-  onEdit: () => void; onShare: () => void; onPromote: () => void; onDelete: () => void;
+/** Card "..." menu for both AGENT-ONLY and FROM WORKSPACE guardrail cards — View details always
+ * available, Edit only for guardrails this Agent owns directly (linked Console guardrails are
+ * edited from Console instead), Pause/Resume mirrors the card's own toggle so it's reachable
+ * from the menu too, and the destructive action reads "Delete" for an owned guardrail or
+ * "Detach" for a linked one since unlinking never destroys the shared Console record. */
+function GuardrailAgentItemRowMenu({ onView, onEdit, isActive, onTogglePause, onDelete, deleteLabel = "Delete" }: {
+  onView: () => void; onEdit?: () => void; isActive: boolean; onTogglePause: () => void; onDelete: () => void; deleteLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const MENU_WIDTH = 224;
+  const MENU_WIDTH = 200;
   const MENU_HEIGHT_ESTIMATE = 190;
 
   const openMenu = () => {
@@ -6302,16 +6313,26 @@ function GuardrailAgentItemRowMenu({ onEdit, onShare, onPromote, onDelete }: {
 
   return (
     <div className="relative shrink-0" onClick={e => e.stopPropagation()}>
-      <button ref={btnRef} onClick={() => (open ? setOpen(false) : openMenu())} aria-label="Thao tác" className="w-9 h-9 min-w-[44px] min-h-[44px] -m-1.5 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+      <button ref={btnRef} onClick={() => (open ? setOpen(false) : openMenu())} aria-label="Actions" className="w-9 h-9 min-w-[44px] min-h-[44px] -m-1.5 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <HugeiconsIcon icon={MoreHorizontalIcon} size={15} />
       </button>
       {open && createPortal(
-        <div ref={menuRef} className="fixed z-[9999] w-56 rounded-lg border border-border bg-white shadow-elev py-1" style={{ top: pos.top, bottom: pos.bottom, left: pos.left }} onMouseDown={e => e.stopPropagation()}>
-          <button onClick={() => { setOpen(false); onEdit(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Chỉnh sửa</button>
-          <button onClick={() => { setOpen(false); onShare(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Chia sẻ</button>
-          <button onClick={() => { setOpen(false); onPromote(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Chuyển thành guardrail chung</button>
+        <div ref={menuRef} className="fixed z-[9999] w-48 rounded-lg border border-border bg-white shadow-elev py-1" style={{ top: pos.top, bottom: pos.bottom, left: pos.left }} onMouseDown={e => e.stopPropagation()}>
+          <button onClick={() => { setOpen(false); onView(); }} className="w-full flex items-center gap-2 text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">
+            <HugeiconsIcon icon={EyeIcon} size={14} className="text-muted-foreground" /> View details
+          </button>
+          {onEdit && (
+            <button onClick={() => { setOpen(false); onEdit(); }} className="w-full flex items-center gap-2 text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">
+              <HugeiconsIcon icon={PencilEdit01Icon} size={14} className="text-muted-foreground" /> Edit
+            </button>
+          )}
+          <button onClick={() => { setOpen(false); onTogglePause(); }} className="w-full flex items-center gap-2 text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">
+            <HugeiconsIcon icon={isActive ? PauseIcon : PlayCircleIcon} size={14} className="text-muted-foreground" /> {isActive ? "Pause" : "Resume"}
+          </button>
           <div className="mt-1 pt-1 border-t border-border">
-            <button onClick={() => { setOpen(false); onDelete(); }} className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">Xóa</button>
+            <button onClick={() => { setOpen(false); onDelete(); }} className="w-full flex items-center gap-2 text-left px-3 py-2 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">
+              <HugeiconsIcon icon={Delete01Icon} size={14} /> {deleteLabel}
+            </button>
           </div>
         </div>,
         document.body,
@@ -6332,13 +6353,10 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
   const [tick, setTick] = useState(0);
   const refresh = () => setTick(t => t + 1);
   void tick;
-  const [query, setQuery] = useState("");
   const [showAttach, setShowAttach] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [editTarget, setEditTarget] = useState<Guardrail | null>(null);
-  const [viewTarget, setViewTarget] = useState<Guardrail | null>(null);
-  const [shareTarget, setShareTarget] = useState<Guardrail | null>(null);
-  const [promoteTarget, setPromoteTarget] = useState<Guardrail | null>(null);
+  const [viewTarget, setViewTarget] = useState<{ g: Guardrail; editable: boolean } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [detachTarget, setDetachTarget] = useState<{ id: string; name: string } | null>(null);
 
@@ -6347,117 +6365,106 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
     .map(id => guardrailConsoleStore.get(id))
     .filter((g): g is Guardrail => !!g);
 
-  const q = query.trim().toLowerCase();
-  const filteredItems = q ? items.filter(i => i.name.toLowerCase().includes(q)) : items;
-  const filteredLinked = q ? attachedGuardrails.filter(g => g.name.toLowerCase().includes(q)) : attachedGuardrails;
+  /** One card, shared by both sections — only the destructive action (Delete vs Detach) and
+   * whether Edit is offered differ, since a linked Console guardrail is edited from Console. */
+  const renderCard = (g: Guardrail, opts: { onEdit?: () => void; onDelete: () => void; deleteLabel: string }) => {
+    const active = agentGuardrailStore.isActive(agentId, g.id);
+    const openView = () => setViewTarget({ g, editable: !!opts.onEdit });
+    return (
+      <div
+        key={g.id}
+        role="button"
+        tabIndex={0}
+        onClick={openView}
+        onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openView(); } }}
+        className={`flex flex-col gap-3 p-4 rounded-xl border border-border bg-white cursor-pointer hover:border-primary/30 hover:shadow-soft transition-base ${active ? "" : "opacity-60"}`}
+      >
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary-soft text-primary flex items-center justify-center shrink-0">
+            <HugeiconsIcon icon={BlockedIcon} size={18} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold truncate">{g.name}</div>
+            <span className="chip chip-muted mt-1.5 inline-flex w-fit">{g.action}</span>
+          </div>
+        </div>
+        <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 flex-1">{g.desc}</p>
+        <div className="flex items-center justify-between mt-1">
+          <div onClick={e => e.stopPropagation()}>
+            <Switch checked={active} onCheckedChange={v => { agentGuardrailStore.setActive(agentId, g.id, v); refresh(); }} />
+          </div>
+          <GuardrailAgentItemRowMenu
+            onView={openView}
+            onEdit={opts.onEdit}
+            isActive={active}
+            onTogglePause={() => { agentGuardrailStore.setActive(agentId, g.id, !active); refresh(); }}
+            onDelete={opts.onDelete}
+            deleteLabel={opts.deleteLabel}
+          />
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <div className="p-8 w-full space-y-6 animate-fade-up">
-      <div>
-        <h2 className="font-display text-xl font-semibold">Guardrails của Agent</h2>
-        <p className="text-xs text-muted-foreground mt-0.5">Quy tắc an toàn Agent này tuân theo khi phản hồi.</p>
-      </div>
-
-      <div className="relative w-72">
-        <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm guardrail..." className="ds-input pl-8 h-9" />
-      </div>
-
-      {/* Section A — Guardrails đã liên kết */}
-      <Section icon={ConnectIcon} title="Guardrails đã liên kết" desc="Guardrail Console đang được Agent này áp dụng.">
-        {filteredLinked.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground mb-4">
-            {attachedGuardrails.length === 0 ? "Chưa liên kết guardrail nào. Liên kết để dùng lại guardrail đã có trong workspace." : "Không có guardrail phù hợp với tìm kiếm."}
-          </div>
-        ) : (
-          <div className="space-y-2 mb-4">
-            {filteredLinked.map(g => (
-              <div key={g.id} className={agentGuardrailStore.isActive(agentId, g.id) ? "" : "opacity-55"}>
-                <KnowledgeSourceRow
-                  icon={Shield01Icon}
-                  name={g.name}
-                  chip={<div className="flex items-center gap-1 shrink-0"><GuardrailOwnershipTag g={g} userId={currentUser.id} /></div>}
-                  onOpen={() => {}}
-                  href={`/guardrails?open=${g.id}`}
-                  onRemove={() => setDetachTarget({ id: g.id, name: g.name })}
-                  openLabel="Mở guardrail"
-                  removeLabel="Gỡ liên kết"
-                  toggle={{
-                    checked: agentGuardrailStore.isActive(agentId, g.id),
-                    onCheckedChange: v => { agentGuardrailStore.setActive(agentId, g.id, v); refresh(); },
-                    tooltip: "Bật/tắt: Agent này có áp dụng guardrail này khi phản hồi hay không.",
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-        )}
-        <button onClick={() => setShowAttach(true)} className="h-9 px-4 rounded-lg border border-dashed border-border hover:border-primary/40 hover:bg-primary-soft/30 text-sm font-medium transition-base">
-          + Liên kết guardrail
-        </button>
-      </Section>
-
-      {/* Section B — Guardrails riêng của Agent */}
-      <Section
-        icon={Shield01Icon}
-        title="Guardrails riêng của Agent"
-        desc="Guardrail bạn tạo tại đây chỉ thuộc về Agent này. Nếu muốn dùng cho nhiều Agent, hãy chuyển thành guardrail chung."
-        action={
-          <button onClick={() => setShowCreate(true)} className="h-9 px-4 rounded-lg border border-dashed border-border hover:border-primary/40 hover:bg-primary-soft/30 text-sm font-medium transition-base shrink-0">
-            + Tạo mới
+    <div className="p-8 w-full space-y-8 animate-fade-up">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="font-display text-xl font-semibold">Guardrails</h2>
+          <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">Control what this agent will not do — restrict topics, protect sensitive data, and hold risky actions for review.</p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button onClick={() => setShowAttach(true)} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base">
+            <HugeiconsIcon icon={ConnectIcon} size={14} /> Add from workspace
           </button>
-        }
-      >
+          <button onClick={() => setShowCreate(true)} className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 transition-base">
+            <HugeiconsIcon icon={Add01Icon} size={14} /> Create new
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-xs font-bold uppercase tracking-wide text-foreground">Agent-only guardrails</span>
+          <span className="min-w-[20px] h-5 px-1 rounded-full bg-surface-muted text-muted-foreground text-xs font-semibold flex items-center justify-center">{items.length}</span>
+          <div className="flex-1 h-px bg-border" />
+        </div>
         {items.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border p-8 text-center">
-            <p className="text-sm font-medium mb-1">Agent chưa có guardrail riêng</p>
-            <p className="text-xs text-muted-foreground">Tạo guardrail để giới hạn nội dung Agent được phép trả lời.</p>
-          </div>
-        ) : filteredItems.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-            Không có guardrail phù hợp với tìm kiếm.
+            <p className="text-sm font-medium mb-1">This agent has no guardrails of its own yet</p>
+            <p className="text-xs text-muted-foreground">Create one to restrict what this agent is allowed to respond with.</p>
           </div>
         ) : (
-          <div className="space-y-2">
-            {filteredItems.map(g => (
-              <div
-                key={g.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => setViewTarget(g)}
-                onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setViewTarget(g); } }}
-                className={`flex items-start gap-3 px-3.5 py-3 rounded-lg border border-border bg-surface cursor-pointer hover:bg-surface-muted/60 transition-base ${agentGuardrailStore.isActive(agentId, g.id) ? "" : "opacity-55"}`}
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium">{g.name}</div>
-                  <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed line-clamp-2">{g.desc}</div>
-                  <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
-                    <span className="chip chip-muted">{g.action}</span>
-                    <GuardrailOwnershipTag g={g} userId={currentUser.id} />
-                  </div>
-                </div>
-                <label
-                  className="flex items-center gap-1 shrink-0 cursor-pointer self-start mt-0.5"
-                  title="Bật/tắt: Agent này có áp dụng guardrail này khi phản hồi hay không."
-                  onClick={e => e.stopPropagation()}
-                >
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Kích hoạt</span>
-                  <Switch
-                    checked={agentGuardrailStore.isActive(agentId, g.id)}
-                    onCheckedChange={v => { agentGuardrailStore.setActive(agentId, g.id, v); refresh(); }}
-                  />
-                </label>
-                <GuardrailAgentItemRowMenu
-                  onEdit={() => setEditTarget(g)}
-                  onShare={() => setShareTarget(g)}
-                  onPromote={() => setPromoteTarget(g)}
-                  onDelete={() => setDeleteTarget({ id: g.id, name: g.name })}
-                />
-              </div>
-            ))}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {items.map(g => renderCard(g, {
+              onEdit: () => setEditTarget(g),
+              onDelete: () => setDeleteTarget({ id: g.id, name: g.name }),
+              deleteLabel: "Delete",
+            }))}
           </div>
         )}
-      </Section>
+      </div>
+
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-xs font-bold uppercase tracking-wide text-foreground">From workspace</span>
+          <span className="min-w-[20px] h-5 px-1 rounded-full bg-surface-muted text-muted-foreground text-xs font-semibold flex items-center justify-center">{attachedGuardrails.length}</span>
+          <div className="flex-1 h-px bg-border" />
+        </div>
+        {attachedGuardrails.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border p-8 text-center">
+            <p className="text-sm font-medium mb-1">No workspace guardrails linked yet</p>
+            <p className="text-xs text-muted-foreground">Add an existing guardrail from the workspace to reuse it here.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {attachedGuardrails.map(g => renderCard(g, {
+              onDelete: () => setDetachTarget({ id: g.id, name: g.name }),
+              deleteLabel: "Detach",
+            }))}
+          </div>
+        )}
+      </div>
 
       {showAttach && <AttachConsoleGuardrailModal agentId={agentId} userId={currentUser.id} onClose={() => { setShowAttach(false); refresh(); }} />}
       {showCreate && (
@@ -6477,43 +6484,25 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
       )}
       {viewTarget && (
         <GuardrailDetailModal
-          guardrail={viewTarget}
+          guardrail={viewTarget.g}
           onClose={() => setViewTarget(null)}
-          onEdit={() => { setViewTarget(null); setEditTarget(viewTarget); }}
-        />
-      )}
-      {shareTarget && (
-        <GuardrailShareModal
-          open
-          name={shareTarget.name}
-          ownerName={shareTarget.ownerName ?? currentUser.name}
-          sharing={shareTarget.sharing ?? { mode: "private", people: [] }}
-          onSave={sharing => { agentGuardrailStore.updateSharing(agentId, shareTarget.id, sharing); refresh(); }}
-          onClose={() => setShareTarget(null)}
-        />
-      )}
-      {promoteTarget && (
-        <PromoteGuardrailToConsoleDialog
-          agentId={agentId}
-          item={promoteTarget}
-          currentUser={currentUser}
-          onClose={() => { setPromoteTarget(null); refresh(); }}
+          onEdit={viewTarget.editable ? () => { const g = viewTarget.g; setViewTarget(null); setEditTarget(g); } : undefined}
         />
       )}
 
       <AlertDialog open={!!detachTarget} onOpenChange={v => !v && setDetachTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Gỡ liên kết guardrail?</AlertDialogTitle>
-            <AlertDialogDescription>Agent sẽ không còn áp dụng guardrail này. Guardrail vẫn được giữ nguyên trên Console.</AlertDialogDescription>
+            <AlertDialogTitle>Detach "{detachTarget?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>This agent will stop applying this guardrail. The guardrail itself stays unchanged in the workspace.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => { if (detachTarget) agentGuardrailStore.detachConsoleGuardrail(agentId, detachTarget.id); setDetachTarget(null); refresh(); }}
             >
-              Gỡ liên kết
+              Detach
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -6522,16 +6511,16 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
       <AlertDialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Xóa guardrail này?</AlertDialogTitle>
-            <AlertDialogDescription>Guardrail sẽ bị xóa vĩnh viễn khỏi Agent. Hành động này không thể hoàn tác.</AlertDialogDescription>
+            <AlertDialogTitle>Delete "{deleteTarget?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>This guardrail will be permanently removed from this agent. This can't be undone.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => { if (deleteTarget) agentGuardrailStore.remove(agentId, deleteTarget.id); setDeleteTarget(null); refresh(); }}
             >
-              Xóa
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -138,13 +138,13 @@ function RecentAgentCard({ a }: { a: typeof recent[number] }) {
       <div className="flex items-start gap-3 mb-4">
         <div className={`w-14 h-14 rounded-2xl ${a.bg} flex items-center justify-center text-3xl shrink-0`}>{a.emoji}</div>
         <div className="flex-1 min-w-0 pt-0.5">
-          <p className="font-semibold text-base leading-snug truncate mb-1.5">{a.name}</p>
+          <p className="font-semibold text-sm leading-snug truncate mb-1.5">{a.name}</p>
           <span className={`chip ${a.status === "Active" ? "chip-success" : ""} w-fit`}>
             <span className="w-1.5 h-1.5 rounded-full bg-current" /> {a.status === "Active" ? "Live" : a.status}
           </span>
         </div>
       </div>
-      <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 flex-1 mb-4">{a.desc}</p>
+      <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 flex-1 mb-4">{a.desc}</p>
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
           {a.edited}
@@ -370,7 +370,7 @@ export default function Home() {
 
       {/* Page header */}
       <div className="px-6 pt-6 mb-6">
-        <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">Home</h1>
+        <h1 className="font-display text-xl font-semibold tracking-tight mb-1">Home</h1>
         <p className="text-sm text-muted-foreground">
           Workspace overview — pick up a recent agent or create a new one.
         </p>
@@ -384,7 +384,7 @@ export default function Home() {
         <div className="flex items-center justify-between px-10 py-10 gap-8">
           <div className="flex-1 min-w-0">
             <h2 className="font-display text-3xl font-bold text-foreground mb-2 tracking-tight">
-              Welcome to Agent Studio
+              Agent Console
             </h2>
             <p className="text-sm text-muted-foreground mb-7 max-w-sm leading-relaxed">
               Build, connect, and operate your enterprise AI Agent workforce.

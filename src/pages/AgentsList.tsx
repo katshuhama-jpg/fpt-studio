@@ -457,7 +457,7 @@ export default function AgentsList() {
 
       {/* Page header */}
       <div className="mb-6">
-        <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">My agents</h1>
+        <h1 className="font-display text-xl font-semibold tracking-tight mb-1">My agents</h1>
         <p className="text-sm text-muted-foreground">
           Manage every agent in this workspace — build, test, deploy and monitor.
         </p>
@@ -465,7 +465,7 @@ export default function AgentsList() {
 
       {/* ── Hero title + chat box ─────────────────────────────────────── */}
       <div className="flex flex-col items-center mb-8">
-        <h2 className="font-display text-4xl font-semibold tracking-tight text-center mb-2">
+        <h2 className="font-display text-3xl font-semibold tracking-tight text-center mb-2">
           Where do you want to start?
         </h2>
         <p className="text-base text-muted-foreground text-center mb-6">
