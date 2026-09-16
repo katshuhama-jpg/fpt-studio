@@ -572,9 +572,13 @@ export default function ConversationTrace() {
                       </div>
                     </div>
 
-                    {/* Per-turn quick stats, mirrors the sidebar hover card inline */}
-                    <div className="border border-border rounded-xl p-3 bg-surface text-xs space-y-2">
-                      <div className="text-overline font-semibold uppercase tracking-wider text-muted-foreground">Turn stats</div>
+                    {/* Per-turn quick stats, mirrors the sidebar hover card inline. No space-y wrapper here —
+                        each StatRow already carries its own py-1.5, and stacking a space-y-2 gap on top of that
+                        made row-to-row spacing (20px) nearly double the identical StatRow rows in the right-side
+                        Stats panel (12px, no wrapper gap there either — see below). Removing it makes the two
+                        stats surfaces, which render the exact same component, actually match. */}
+                    <div className="border border-border rounded-xl p-3 bg-surface text-xs">
+                      <div className="text-overline font-semibold uppercase tracking-wider text-muted-foreground mb-1">Turn stats</div>
                       <StatRow label="Latency" value={fmtSec(turn.latencyMs)} />
                       <StatRow label="Tokens" value={fmtTokens(turn.tokensIn + turn.tokensCacheRead + turn.tokensOut + turn.tokensReasoning)} />
                       <StatRow
