@@ -9,6 +9,12 @@ import { StatusBadge, ResourceTypeIcon, ResourceTypePill, STATUS_ROW_ACCENT, ini
 
 type MainTab = "all" | GovRequestStatus;
 
+/** Statuses the Admin still owes a decision on — mirrors governanceStore.pendingCount()'s own
+ * "open" definition, so this page's grouping doesn't invent a taxonomy the rest of the app
+ * doesn't already use. */
+const NEEDS_ACTION_STATUSES: GovRequestStatus[] = ["pending", "needs_changes"];
+const isNeedsAction = (s: GovRequestStatus) => NEEDS_ACTION_STATUSES.includes(s);
+
 const TABS: { key: MainTab; label: string }[] = [
   { key: "all", label: "Tất cả" },
   { key: "pending", label: "Chờ duyệt" },
@@ -95,6 +101,25 @@ function EmptyState({ label }: { label: string }) {
   );
 }
 
+/** Section divider for the "Tất cả" tab, splitting the feed into what the Admin still owes a
+ * decision (pending + needs_changes — governanceStore's own pendingCount() already treats these
+ * as one "open" bucket) vs what's fully resolved. Plain sort-by-recency used to interleave a
+ * 3-day-old pending request below several same-day approvals, so opening the page didn't surface
+ * what actually needed attention — this makes "still open" the thing the eye lands on first. */
+function SectionLabel({ children, count, tone }: { children: string; count: number; tone: "action" | "resolved" }) {
+  return (
+    <div className="flex items-center gap-2 mb-2.5">
+      <span className={`text-xs font-semibold uppercase tracking-wide whitespace-nowrap ${tone === "action" ? "text-primary" : "text-muted-foreground"}`}>
+        {children}
+      </span>
+      <span className={`text-[11px] font-semibold rounded-full px-1.5 py-0.5 ${tone === "action" ? "bg-primary-soft text-primary" : "bg-surface-sunken text-muted-foreground"}`}>
+        {count}
+      </span>
+      <span className="flex-1 h-px bg-border" />
+    </div>
+  );
+}
+
 export default function GovernanceRequests() {
   const navigate = useNavigate();
   const all = governanceStore.list();
@@ -111,13 +136,32 @@ export default function GovernanceRequests() {
     revoked: all.filter(r => r.status === "revoked").length,
   }), [all]);
 
-  const filtered = useMemo(() => {
+  // Type/search filter only — status grouping and sort order are decided below, separately per
+  // tab, since "open" and "resolved" requests read best in a different order (oldest-first so
+  // the longest-waiting item surfaces, vs newest-first so the latest decision is on top).
+  const typeAndQueryFiltered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return all
-      .filter(r => tab === "all" || r.status === tab)
       .filter(r => typeFilter === "all" || r.resourceType === typeFilter)
       .filter(r => !q || r.resourceName.toLowerCase().includes(q) || r.requesterName.toLowerCase().includes(q));
-  }, [all, tab, typeFilter, query]);
+  }, [all, typeFilter, query]);
+
+  const sortByUrgency = (list: GovRequest[]) => [...list].sort((a, b) => a.submittedAt - b.submittedAt);
+  const sortByRecency = (list: GovRequest[]) => [...list].sort((a, b) => b.updatedAt - a.updatedAt);
+
+  const needsActionList = useMemo(
+    () => sortByUrgency(typeAndQueryFiltered.filter(r => isNeedsAction(r.status))),
+    [typeAndQueryFiltered],
+  );
+  const resolvedList = useMemo(
+    () => sortByRecency(typeAndQueryFiltered.filter(r => !isNeedsAction(r.status))),
+    [typeAndQueryFiltered],
+  );
+  const singleTabList = useMemo(() => {
+    if (tab === "all") return [];
+    const list = typeAndQueryFiltered.filter(r => r.status === tab);
+    return isNeedsAction(tab) ? sortByUrgency(list) : sortByRecency(list);
+  }, [typeAndQueryFiltered, tab]);
 
   return (
     <div className="p-6 md:p-8 max-w-[1200px] mx-auto">
@@ -169,11 +213,38 @@ export default function GovernanceRequests() {
       </div>
 
       <ListHead />
-      {filtered.length === 0 ? (
-        <EmptyState label={tab === "all" ? "Chưa có yêu cầu nào." : "Không có yêu cầu phù hợp."} />
+      {tab === "all" ? (
+        needsActionList.length === 0 && resolvedList.length === 0 ? (
+          <EmptyState label="Chưa có yêu cầu nào." />
+        ) : (
+          <>
+            {needsActionList.length > 0 && (
+              <div className="mb-6">
+                <SectionLabel count={needsActionList.length} tone="action">Cần xử lý</SectionLabel>
+                <div className="space-y-2">
+                  {needsActionList.map(r => (
+                    <RequestCard key={r.id} r={r} onClick={() => navigate(`/governance/requests/${r.id}`)} />
+                  ))}
+                </div>
+              </div>
+            )}
+            {resolvedList.length > 0 && (
+              <div>
+                <SectionLabel count={resolvedList.length} tone="resolved">Đã xử lý</SectionLabel>
+                <div className="space-y-2">
+                  {resolvedList.map(r => (
+                    <RequestCard key={r.id} r={r} onClick={() => navigate(`/governance/requests/${r.id}`)} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )
+      ) : singleTabList.length === 0 ? (
+        <EmptyState label="Không có yêu cầu phù hợp." />
       ) : (
         <div className="space-y-2">
-          {filtered.map(r => (
+          {singleTabList.map(r => (
             <RequestCard key={r.id} r={r} onClick={() => navigate(`/governance/requests/${r.id}`)} />
           ))}
         </div>
