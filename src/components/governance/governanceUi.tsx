@@ -57,10 +57,16 @@ export function initials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+/** Icon + label chip for a resource type inside a table/list row. Text-foreground (not the
+ * muted tone the rest of the row's secondary columns use) — a bare "Loại" value competes with
+ * plain dark text everywhere else in the row (resource name, requester), so leaving it muted
+ * reads as unusually faint rather than intentionally de-emphasized. The bg-surface-muted/border
+ * pairing gives the chip its own outline, so it doesn't rely on text weight alone to register on
+ * a light background. */
 export function ResourceTypePill({ type }: { type: GovResourceType }) {
   return (
-    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-surface-muted border border-border rounded-full px-2.5 py-1 whitespace-nowrap">
-      <ResourceTypeIcon type={type} size={12} />
+    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-foreground bg-surface-muted border border-border rounded-full px-2.5 py-1 whitespace-nowrap">
+      <ResourceTypeIcon type={type} size={12} className="text-muted-foreground" />
       {RESOURCE_TYPE_LABEL[type]}
     </span>
   );

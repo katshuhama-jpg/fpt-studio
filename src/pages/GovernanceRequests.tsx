@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Filter, Layers } from "lucide-react";
+import { Search, Filter, Layers, ChevronDown } from "lucide-react";
 import {
-  governanceStore, RESOURCE_TYPE_LABEL, AUDIENCE_LABEL, itemNeedsReview,
+  governanceStore, AUDIENCE_LABEL, itemNeedsReview,
   type GovRequestStatus, type GovResourceType, type GovRequest,
 } from "@/components/governance/governanceStore";
-import { StatusBadge, ResourceTypeIcon, STATUS_ROW_ACCENT, initials, relativeTime } from "@/components/governance/governanceUi";
+import { StatusBadge, ResourceTypeIcon, ResourceTypePill, STATUS_ROW_ACCENT, initials, relativeTime } from "@/components/governance/governanceUi";
 
 type MainTab = "all" | GovRequestStatus;
 
@@ -63,13 +63,16 @@ function RequestCard({ r, onClick }: { r: GovRequest; onClick: () => void }) {
         <div className="min-w-0">
           <p className="text-sm font-medium text-foreground truncate">{r.resourceName}</p>
           {r.bundledItems.length > 0 && (
-            <p className={`text-xs truncate ${needsAttention > 0 ? "text-primary font-medium" : "text-muted-foreground"}`}>
-              +{r.bundledItems.length} thành phần đi kèm{needsAttention > 0 ? ` · ${needsAttention} cần chú ý` : ""}
-            </p>
+            <span className={`inline-flex items-center gap-1 mt-1 text-[11px] font-medium rounded-full px-2 py-0.5 whitespace-nowrap ${
+              needsAttention > 0 ? "text-primary bg-primary-soft" : "text-muted-foreground bg-surface-muted"
+            }`}>
+              <Layers size={10} />
+              {r.bundledItems.length} thành phần đi kèm{needsAttention > 0 ? ` · ${needsAttention} cần chú ý` : ""}
+            </span>
           )}
         </div>
       </div>
-      <div className="text-sm text-muted-foreground">{RESOURCE_TYPE_LABEL[r.resourceType]}</div>
+      <div><ResourceTypePill type={r.resourceType} /></div>
       <div className="min-w-0 flex items-center gap-2">
         <span className="w-6 h-6 rounded-full bg-primary-soft flex items-center justify-center text-[10px] font-semibold text-primary shrink-0">
           {initials(r.requesterName)}
@@ -144,14 +147,15 @@ export default function GovernanceRequests() {
 
       <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
         <div className="relative">
-          <Filter size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <Filter size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-foreground/70 pointer-events-none" />
           <select
             value={typeFilter}
             onChange={e => setTypeFilter(e.target.value as "all" | GovResourceType)}
-            className="h-9 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm text-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30 appearance-none"
+            className="h-9 pl-8 pr-7 rounded-lg bg-white border border-border shadow-sm text-sm font-medium text-foreground hover:border-ring/60 focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30 appearance-none transition-base"
           >
             {TYPE_FILTERS.map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
           </select>
+          <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
         </div>
         <div className="relative">
           <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -159,7 +163,7 @@ export default function GovernanceRequests() {
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Tìm theo tên hoặc người gửi..."
-            className="h-9 w-64 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+            className="h-9 w-64 pl-8 pr-3 rounded-lg bg-white border border-border shadow-sm text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30 transition-base"
           />
         </div>
       </div>
