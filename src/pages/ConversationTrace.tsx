@@ -605,26 +605,33 @@ export default function ConversationTrace() {
               <p className="text-xs text-[hsl(var(--destructive-strong))] leading-relaxed">{trace.error}</p>
             </div>
           )}
-          <div className="text-overline font-semibold text-muted-foreground uppercase tracking-wider mb-2">Stats</div>
-          <StatRow label="Turns" value={String(trace.turns.length)} />
+          {/* Wrapped in the same bordered-card treatment as the inline per-turn "Turn stats" box
+              (see StatRow usage above) — both surfaces render the exact same StatRow rows for the
+              same kind of data, so a design-critique pass flagged it as inconsistent that only one
+              of them read as its own distinct "stats widget" while the other sat bare against the
+              aside background. This card only adds the container; internal spacing is untouched. */}
+          <div className="border border-border rounded-xl p-3 bg-surface">
+            <div className="text-overline font-semibold text-muted-foreground uppercase tracking-wider mb-1">Stats</div>
+            <StatRow label="Turns" value={String(trace.turns.length)} />
 
-          <div className="mt-4 text-overline font-semibold text-muted-foreground uppercase tracking-wider mb-1">Time</div>
-          <StatRow label="First start" value={fmtTime(trace.startedAt)} />
-          <StatRow label="Last end" value={fmtTime(trace.endedAt)} />
+            <div className="mt-4 text-overline font-semibold text-muted-foreground uppercase tracking-wider mb-1">Time</div>
+            <StatRow label="First start" value={fmtTime(trace.startedAt)} />
+            <StatRow label="Last end" value={fmtTime(trace.endedAt)} />
 
-          <div className="mt-4 text-overline font-semibold text-muted-foreground uppercase tracking-wider mb-1">Latency</div>
-          <StatRow label="P50" value={fmtSec(trace.totals.p50LatencyMs)} />
-          <StatRow label="P99" value={fmtSec(trace.totals.p99LatencyMs)} />
+            <div className="mt-4 text-overline font-semibold text-muted-foreground uppercase tracking-wider mb-1">Latency</div>
+            <StatRow label="P50" value={fmtSec(trace.totals.p50LatencyMs)} />
+            <StatRow label="P99" value={fmtSec(trace.totals.p99LatencyMs)} />
 
-          <div className="mt-4 text-overline font-semibold text-muted-foreground uppercase tracking-wider mb-1">Token breakdown</div>
-          <StatRow label={`Input (${pct(trace.totals.tokensIn)}%)`} value={fmtTokens(trace.totals.tokensIn)} />
-          {trace.totals.tokensCacheRead > 0 && (
-            <StatRow label={`cache read (${pct(trace.totals.tokensCacheRead)}%)`} value={fmtTokens(trace.totals.tokensCacheRead)} />
-          )}
-          <StatRow label={`Output (${pct(trace.totals.tokensOut)}%)`} value={fmtTokens(trace.totals.tokensOut)} />
-          <StatRow label={`Reasoning (${pct(trace.totals.tokensReasoning)}%)`} value={fmtTokens(trace.totals.tokensReasoning)} />
-          <div className="border-t border-border mt-1.5 pt-1.5">
-            <StatRow label="Total" value={fmtTokens(totalTokens)} />
+            <div className="mt-4 text-overline font-semibold text-muted-foreground uppercase tracking-wider mb-1">Token breakdown</div>
+            <StatRow label={`Input (${pct(trace.totals.tokensIn)}%)`} value={fmtTokens(trace.totals.tokensIn)} />
+            {trace.totals.tokensCacheRead > 0 && (
+              <StatRow label={`cache read (${pct(trace.totals.tokensCacheRead)}%)`} value={fmtTokens(trace.totals.tokensCacheRead)} />
+            )}
+            <StatRow label={`Output (${pct(trace.totals.tokensOut)}%)`} value={fmtTokens(trace.totals.tokensOut)} />
+            <StatRow label={`Reasoning (${pct(trace.totals.tokensReasoning)}%)`} value={fmtTokens(trace.totals.tokensReasoning)} />
+            <div className="border-t border-border mt-1.5 pt-1.5">
+              <StatRow label="Total" value={fmtTokens(totalTokens)} />
+            </div>
           </div>
         </aside>
       </div>

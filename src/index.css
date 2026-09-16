@@ -49,7 +49,12 @@
     --secondary-foreground: 240 10% 14%;
 
     --muted: 40 14% 93%;
-    --muted-foreground: 240 5% 45%;
+    /* 45% lightness measured at 4.41:1 against --secondary (the chip-muted background) —
+       just under the 4.5:1 AA floor. 43% clears it (4.74:1) and, since darkening text only
+       ever raises contrast against a light background, this is a strict improvement (never a
+       regression) everywhere else --muted-foreground is already used against --background,
+       --surface, or --surface-muted. The 2-point shift is visually imperceptible on its own. */
+    --muted-foreground: 240 5% 43%;
 
     --destructive: 358 75% 55%;
     --destructive-foreground: 0 0% 100%;
