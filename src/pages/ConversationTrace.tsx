@@ -93,7 +93,13 @@ function renderJson(value: unknown, indent = 0): React.ReactNode {
         {entries.map(([k, v], i) => (
           <span key={k}>
             {childPad}
-            <span className={punct}>{JSON.stringify(k)}</span>
+            {/* Keys are the main scent for scanning a payload — they used to share the exact
+             * same muted gray as pure punctuation (braces/commas/colons), which is what made a
+             * card full of them read as "too much gray": nothing but the leaf values stood out.
+             * Keys now match leaf values at full-contrast text-foreground (kept distinguishable
+             * from them by weight, not color, since color-coding was explicitly removed earlier
+             * this session for being "too colorful"); punctuation stays muted on purpose. */}
+            <span className="text-foreground font-medium">{JSON.stringify(k)}</span>
             <span className={punct}>: </span>
             {renderJson(v, indent + 1)}
             {i < entries.length - 1 && <span className={punct}>,</span>}
