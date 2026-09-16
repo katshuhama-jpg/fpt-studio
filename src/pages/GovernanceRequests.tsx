@@ -9,16 +9,14 @@ import { StatusBadge, ResourceTypeIcon, ResourceTypePill, STATUS_ROW_ACCENT, ini
 
 type MainTab = "all" | GovRequestStatus;
 
-/** Which of the 3 priority groups a status belongs to, from the ADMIN's point of view (this
- * page's viewer) — not the same thing as governanceStore.pendingCount()'s "open" count, which
- * bundles pending+needs_changes together for a different job (a total badge). Here the two must
- * stay apart: "pending" is waiting on THIS viewer to decide; "needs_changes" is waiting on the
- * requester to fix and resubmit — the Admin has nothing to do on it right now, so grouping it
- * with "pending" under one urgent label overstates what actually needs the Admin's attention. */
-type Grouping = "action" | "waiting" | "resolved";
+/** Which of the 2 groups a status belongs to, from the ADMIN's point of view (this page's
+ * viewer): "action" is waiting on THIS viewer to decide (pending); everything else is already
+ * resolved one way or another (approved/rejected/revoked) — there's no longer a middle "waiting
+ * on the requester" state, since a rejected request simply needs a brand-new submission rather
+ * than an in-place resubmit. */
+type Grouping = "action" | "resolved";
 const GROUP_OF: Record<GovRequestStatus, Grouping> = {
   pending: "action",
-  needs_changes: "waiting",
   approved: "resolved",
   rejected: "resolved",
   revoked: "resolved",
@@ -27,7 +25,6 @@ const GROUP_OF: Record<GovRequestStatus, Grouping> = {
 const TABS: { key: MainTab; label: string }[] = [
   { key: "all", label: "Tất cả" },
   { key: "pending", label: "Chờ duyệt" },
-  { key: "needs_changes", label: "Cần cập nhật" },
   { key: "approved", label: "Đã duyệt" },
   { key: "rejected", label: "Từ chối" },
   { key: "revoked", label: "Đã thu hồi" },
@@ -57,9 +54,9 @@ function ListHead() {
 }
 
 /** Each request is its own rounded, left-accented card rather than a dense table row — accent
- * color marks the rows that actually need a decision (pending/needs_changes) so the queue reads
- * as a triage list at a glance, while resolved rows stay neutral. Columns still line up with
- * ListHead via the same grid template, so it scans like a table despite the card spacing. */
+ * color marks the rows that actually need a decision (pending) so the queue reads as a triage
+ * list at a glance, while resolved rows stay neutral. Columns still line up with ListHead via
+ * the same grid template, so it scans like a table despite the card spacing. */
 function RequestCard({ r, onClick }: { r: GovRequest; onClick: () => void }) {
   const needsAttention = r.bundledItems.filter(it => itemNeedsReview(it.changeState)).length;
   return (
@@ -110,13 +107,11 @@ function EmptyState({ label }: { label: string }) {
   );
 }
 
-/** Section divider for the "Tất cả" tab — 3 groups, not 2, because "cần xử lý" for an Admin
- * means only "pending" (see the Grouping comment above). "waiting" gets its own quieter
- * section: still open, still worth seeing, but not styled as urgent since there's nothing for
- * the Admin to click into and decide right now. */
+/** Section divider for the "Tất cả" tab — 2 groups: "cần xử lý" for an Admin means only
+ * "pending" (see the Grouping comment above); everything else is already resolved. */
 function SectionLabel({ children, count, tone }: { children: string; count: number; tone: Grouping }) {
-  const TONE_LABEL = tone === "action" ? "text-primary" : tone === "waiting" ? "text-foreground/80" : "text-muted-foreground";
-  const TONE_CHIP = tone === "action" ? "bg-primary-soft text-primary" : tone === "waiting" ? "bg-surface-muted text-foreground/70" : "bg-surface-sunken text-muted-foreground";
+  const TONE_LABEL = tone === "action" ? "text-primary" : "text-muted-foreground";
+  const TONE_CHIP = tone === "action" ? "bg-primary-soft text-primary" : "bg-surface-sunken text-muted-foreground";
   return (
     <div className="flex items-center gap-2 mb-2.5">
       <span className={`text-xs font-semibold uppercase tracking-wide whitespace-nowrap ${TONE_LABEL}`}>
@@ -140,7 +135,6 @@ export default function GovernanceRequests() {
   const counts = useMemo(() => ({
     all: all.length,
     pending: all.filter(r => r.status === "pending").length,
-    needs_changes: all.filter(r => r.status === "needs_changes").length,
     approved: all.filter(r => r.status === "approved").length,
     rejected: all.filter(r => r.status === "rejected").length,
     revoked: all.filter(r => r.status === "revoked").length,
@@ -157,21 +151,14 @@ export default function GovernanceRequests() {
   }, [all, typeFilter, query]);
 
   // "action" ages from submittedAt (that's the clock that's been running since the Admin first
-  // owed a decision); "waiting" ages from updatedAt (the moment it flipped to needs_changes —
-  // submittedAt would count time the Admin already reviewed, which isn't what's aging here);
-  // "resolved" just shows the latest activity first, same as before.
+  // owed a decision); "resolved" just shows the latest activity first.
   const sortForGroup = (list: GovRequest[], group: Grouping) => {
     if (group === "action") return [...list].sort((a, b) => a.submittedAt - b.submittedAt);
-    if (group === "waiting") return [...list].sort((a, b) => a.updatedAt - b.updatedAt);
     return [...list].sort((a, b) => b.updatedAt - a.updatedAt);
   };
 
   const actionList = useMemo(
     () => sortForGroup(typeAndQueryFiltered.filter(r => GROUP_OF[r.status] === "action"), "action"),
-    [typeAndQueryFiltered],
-  );
-  const waitingList = useMemo(
-    () => sortForGroup(typeAndQueryFiltered.filter(r => GROUP_OF[r.status] === "waiting"), "waiting"),
     [typeAndQueryFiltered],
   );
   const resolvedList = useMemo(
@@ -235,7 +222,7 @@ export default function GovernanceRequests() {
 
       <ListHead />
       {tab === "all" ? (
-        actionList.length === 0 && waitingList.length === 0 && resolvedList.length === 0 ? (
+        actionList.length === 0 && resolvedList.length === 0 ? (
           <EmptyState label="Chưa có yêu cầu nào." />
         ) : (
           <>
@@ -244,16 +231,6 @@ export default function GovernanceRequests() {
                 <SectionLabel count={actionList.length} tone="action">Chờ bạn duyệt</SectionLabel>
                 <div className="space-y-2">
                   {actionList.map(r => (
-                    <RequestCard key={r.id} r={r} onClick={() => navigate(`/governance/requests/${r.id}`)} />
-                  ))}
-                </div>
-              </div>
-            )}
-            {waitingList.length > 0 && (
-              <div className="mb-6">
-                <SectionLabel count={waitingList.length} tone="waiting">Đang chờ người gửi cập nhật</SectionLabel>
-                <div className="space-y-2">
-                  {waitingList.map(r => (
                     <RequestCard key={r.id} r={r} onClick={() => navigate(`/governance/requests/${r.id}`)} />
                   ))}
                 </div>

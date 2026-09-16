@@ -1,11 +1,11 @@
 // sessionStorage-backed audit trail for the Governance module — every submit/approve/reject/
-// request-changes/resubmit action across all five resource types lands here, independent of the
+// revoke action across all five resource types lands here, independent of the
 // GovRequest record it came from, so the Audit Log page reads as an append-only history even
 // after a request itself gets modified further. Written to exclusively by governanceStore.ts.
 import { loadMap, saveMap } from "@/lib/sessionPersist";
 import type { GovResourceType } from "./governanceStore";
 
-export type AuditAction = "submitted" | "resubmitted" | "approved" | "rejected" | "changes_requested" | "revoked";
+export type AuditAction = "submitted" | "approved" | "rejected" | "revoked";
 
 export interface AuditEntry {
   id: string;
@@ -27,10 +27,8 @@ let seq = 1;
 
 export const ACTION_LABEL: Record<AuditAction, string> = {
   submitted: "Đã gửi yêu cầu duyệt",
-  resubmitted: "Đã gửi lại yêu cầu",
   approved: "Đã duyệt",
   rejected: "Đã từ chối",
-  changes_requested: "Yêu cầu cập nhật",
   revoked: "Đã thu hồi",
 };
 

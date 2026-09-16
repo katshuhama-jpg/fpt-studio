@@ -16,14 +16,13 @@ export function ResourceTypeIcon({ type, size = 14, className = "" }: { type: Go
 
 const STATUS_STYLE: Record<GovRequestStatus, string> = {
   pending: "bg-warning/10 border-warning/25 text-warning",
-  needs_changes: "bg-destructive/10 border-destructive/20 text-destructive",
   approved: "bg-success/10 border-success/20 text-success",
   rejected: "bg-surface-muted border-border text-muted-foreground",
   revoked: "bg-surface-muted border-border text-muted-foreground",
 };
 
 const STATUS_DOT: Record<GovRequestStatus, string> = {
-  pending: "bg-warning", needs_changes: "bg-destructive", approved: "bg-success", rejected: "bg-muted-foreground", revoked: "bg-muted-foreground",
+  pending: "bg-warning", approved: "bg-success", rejected: "bg-muted-foreground", revoked: "bg-muted-foreground",
 };
 
 export function StatusBadge({ status, className = "" }: { status: GovRequestStatus; className?: string }) {
@@ -35,13 +34,12 @@ export function StatusBadge({ status, className = "" }: { status: GovRequestStat
   );
 }
 
-/** Left-accent for a Request row on the Requests list — only "needs your action now" statuses
- * (pending / needs_changes) get a colored bar, so the queue reads as a triage list at a glance;
- * resolved statuses (approved/rejected) stay neutral rather than dimmed, since they're still
- * legitimate rows to open (audit trail), not disabled ones. */
+/** Left-accent for a Request row on the Requests list — only "needs your action now" (pending)
+ * gets a colored bar, so the queue reads as a triage list at a glance; resolved statuses
+ * (approved/rejected/revoked) stay neutral rather than dimmed, since they're still legitimate
+ * rows to open (audit trail), not disabled ones. */
 export const STATUS_ROW_ACCENT: Record<GovRequestStatus, string> = {
   pending: "border-l-warning bg-warning/[0.025]",
-  needs_changes: "border-l-destructive bg-destructive/[0.025]",
   approved: "border-l-transparent",
   rejected: "border-l-transparent",
   revoked: "border-l-transparent",

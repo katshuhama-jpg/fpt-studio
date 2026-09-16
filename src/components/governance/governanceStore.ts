@@ -34,7 +34,7 @@ import { auditLogStore } from "./auditLogStore";
 import { getAgent } from "../configure/agentStore";
 
 export type GovResourceType = "agent" | "knowledge" | "skill" | "guardrail" | "connector";
-export type GovRequestStatus = "pending" | "needs_changes" | "approved" | "rejected" | "revoked";
+export type GovRequestStatus = "pending" | "approved" | "rejected" | "revoked";
 /** Scope requested for — same two "beyond just me" tiers Agent's Publish modal already offers
  * ("Only me" never creates a governance request; nothing to review there). */
 export type GovAudience = "org" | "community";
@@ -59,7 +59,6 @@ export const AUDIENCE_LABEL: Record<GovAudience, string> = {
 
 export const STATUS_LABEL: Record<GovRequestStatus, string> = {
   pending: "Chờ duyệt",
-  needs_changes: "Cần cập nhật",
   approved: "Đã duyệt",
   rejected: "Từ chối",
   revoked: "Đã thu hồi",
@@ -115,7 +114,7 @@ export interface GovBundledItem {
 export interface GovHistoryEntry {
   id: string;
   at: number;
-  action: "submitted" | "resubmitted" | "approved" | "rejected" | "changes_requested" | "revoked";
+  action: "submitted" | "approved" | "rejected" | "revoked";
   actorId: string;
   actorName: string;
   note?: string;
@@ -241,7 +240,7 @@ export function itemNeedsReview(state: GovChangeState): boolean {
  * request is about) been edited again since this request was submitted, and the request is still
  * awaiting a decision? Drives the drift banner on Request Detail. */
 export function checkDrift(req: GovRequest): { drifted: boolean; at?: number } {
-  if (req.status !== "pending" && req.status !== "needs_changes") return { drifted: false };
+  if (req.status !== "pending") return { drifted: false };
   if (!req.mainSnapshotAtSubmit) return { drifted: false };
   const current = buildSnapshot(req.resourceType, req.resourceId);
   if (!current) return { drifted: false };
@@ -274,19 +273,19 @@ function seed() {
     [historyEntry("submitted", "m-fsoft-vn-1", "Duy Nguyen")],
   );
 
-  // 2 — standalone Knowledge, sent back for changes.
+  // 2 — standalone Knowledge, rejected.
   const kbReq = mk(
     {
       id: "req-1002", resourceType: "knowledge", resourceId: "kb-4", resourceName: "Chính sách nhân sự",
       requesterId: "m-fsoft-coo", requesterName: "Linh Phan",
       audience: "org", note: "Chia sẻ chính sách nghỉ phép & phúc lợi mới nhất cho toàn công ty.",
-      status: "needs_changes", submittedAt: t - 1 * DAY, updatedAt: t - 5 * HOUR,
+      status: "rejected", submittedAt: t - 1 * DAY, updatedAt: t - 5 * HOUR,
       bundledItems: [], reviewerId: "m-fsoft-ceo", reviewerName: "Tran Nam",
       reviewNote: "Cần bổ sung nguồn tài liệu gốc (link phòng Nhân sự) trước khi duyệt — hiện chưa có căn cứ để đối chiếu.",
     },
     [
       historyEntry("submitted", "m-fsoft-coo", "Linh Phan"),
-      historyEntry("changes_requested", "m-fsoft-ceo", "Tran Nam", "Cần bổ sung nguồn tài liệu gốc (link phòng Nhân sự) trước khi duyệt — hiện chưa có căn cứ để đối chiếu."),
+      historyEntry("rejected", "m-fsoft-ceo", "Tran Nam", "Cần bổ sung nguồn tài liệu gốc (link phòng Nhân sự) trước khi duyệt — hiện chưa có căn cứ để đối chiếu."),
     ],
   );
 
@@ -448,12 +447,12 @@ export const governanceStore = {
     return store.get(id);
   },
 
-  /** The one open (pending or needs_changes) request for a resource, if any — drives the Agent
+  /** The one open (pending) request for a resource, if any — drives the Agent
    * Builder top-bar "Đang chờ duyệt" pill and blocks a second concurrent submission. */
   getOpenRequestForResource(resourceType: GovResourceType, resourceId: string): GovRequest | undefined {
     seed();
     return [...store.values()]
-      .filter(r => r.resourceType === resourceType && r.resourceId === resourceId && (r.status === "pending" || r.status === "needs_changes"))
+      .filter(r => r.resourceType === resourceType && r.resourceId === resourceId && r.status === "pending")
       .sort((a, b) => b.updatedAt - a.updatedAt)[0];
   },
 
@@ -466,7 +465,7 @@ export const governanceStore = {
 
   pendingCount(): number {
     seed();
-    return [...store.values()].filter(r => r.status === "pending" || r.status === "needs_changes").length;
+    return [...store.values()].filter(r => r.status === "pending").length;
   },
 
   isResourceApproved(type: Exclude<GovResourceType, "agent">, id: string): boolean {
@@ -498,31 +497,6 @@ export const governanceStore = {
       requestId: id, at: t,
     });
     return req;
-  },
-
-  /** Builder edits the resource and resends a "needs_changes" request — goes back to the end
-   * of the Pending queue, history keeps every earlier round intact. Re-captures the submit-time
-   * snapshot and re-classifies bundled items so drift detection and diffs start fresh from this
-   * resubmission, not the original submission. */
-  resubmit(id: string, actorId: string, actorName: string, note?: string): GovRequest | undefined {
-    seed();
-    const r = store.get(id);
-    if (!r || r.status !== "needs_changes") return r;
-    const t = now();
-    r.status = "pending";
-    r.updatedAt = t;
-    r.reviewNote = undefined;
-    r.mainSnapshotAtSubmit = buildSnapshot(r.resourceType, r.resourceId);
-    r.bundledItems = r.bundledItems.map(it => {
-      const live = liveSnapshots.get(snapshotKey(it.type, it.resourceId));
-      const candidate = buildSnapshot(it.type, it.resourceId);
-      return { ...it, decision: undefined, changeState: classifyChange(it.type, live, candidate), liveSnapshot: live, candidateSnapshot: candidate };
-    });
-    r.history.push(historyEntry("resubmitted", actorId, actorName, note));
-    store.set(id, r);
-    persist();
-    auditLogStore.log({ actorId, actorName, action: "resubmitted", resourceType: r.resourceType, resourceId: r.resourceId, resourceName: r.resourceName, requestId: id, note, at: t });
-    return r;
   },
 
   /** Set (or clear) the admin's per-item call while reviewing a bundle — does not finalize
@@ -597,21 +571,6 @@ export const governanceStore = {
     store.set(id, r);
     persist();
     auditLogStore.log({ actorId: reviewerId, actorName: reviewerName, action: "rejected", resourceType: r.resourceType, resourceId: r.resourceId, resourceName: r.resourceName, requestId: id, note: reason, at: t });
-    return r;
-  },
-
-  requestChanges(id: string, reviewerId: string, reviewerName: string, comment: string): GovRequest | undefined {
-    seed();
-    const r = store.get(id);
-    if (!r) return r;
-    const t = now();
-    r.status = "needs_changes";
-    r.updatedAt = t;
-    r.reviewerId = reviewerId; r.reviewerName = reviewerName; r.reviewNote = comment;
-    r.history.push(historyEntry("changes_requested", reviewerId, reviewerName, comment));
-    store.set(id, r);
-    persist();
-    auditLogStore.log({ actorId: reviewerId, actorName: reviewerName, action: "changes_requested", resourceType: r.resourceType, resourceId: r.resourceId, resourceName: r.resourceName, requestId: id, note: comment, at: t });
     return r;
   },
 

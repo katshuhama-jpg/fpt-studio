@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import {
-  ChevronLeft, FlaskConical, ExternalLink, CheckCircle2, XCircle, MessageSquareWarning,
-  User, Clock, Layers, RotateCcw, AlertTriangle, ChevronDown, ChevronUp, Undo2,
+  ChevronLeft, FlaskConical, ExternalLink, CheckCircle2, XCircle,
+  User, Clock, Layers, AlertTriangle, ChevronDown, ChevronUp, Undo2,
 } from "lucide-react";
 import {
   governanceStore, resourcePath, RESOURCE_TYPE_LABEL, AUDIENCE_LABEL,
@@ -15,7 +15,7 @@ import {
 import { CURRENT_USER } from "@/components/knowledge/knowledgeBaseStore";
 import { toast } from "sonner";
 
-type Dialog = "approve" | "reject" | "changes" | "revoke" | null;
+type Dialog = "approve" | "reject" | "revoke" | null;
 
 const itemKey = (it: GovBundledItem) => `${it.type}:${it.resourceId}`;
 
@@ -53,17 +53,6 @@ export default function GovernanceRequestDetail() {
     governanceStore.reject(req.id, CURRENT_USER.id, CURRENT_USER.name, reason.trim());
     toast.success(`Đã từ chối "${req.resourceName}".`);
     closeDialog(); refresh();
-  };
-  const doRequestChanges = () => {
-    if (!reason.trim()) { toast.error("Vui lòng nhập nội dung cần cập nhật."); return; }
-    governanceStore.requestChanges(req.id, CURRENT_USER.id, CURRENT_USER.name, reason.trim());
-    toast.success("Đã gửi yêu cầu cập nhật tới người gửi.");
-    closeDialog(); refresh();
-  };
-  const doResubmit = () => {
-    governanceStore.resubmit(req.id, req.requesterId, req.requesterName, "Đã cập nhật theo góp ý.");
-    toast.success("Đã gửi lại yêu cầu — chuyển về hàng chờ duyệt.");
-    refresh();
   };
   const doRevoke = () => {
     if (!reason.trim()) { toast.error("Vui lòng nhập lý do thu hồi."); return; }
@@ -233,15 +222,14 @@ export default function GovernanceRequestDetail() {
             </div>
           )}
 
-          {/* Review note (needs_changes / rejected / approved / revoked) */}
+          {/* Review note (rejected / approved / revoked) */}
           {req.reviewNote && req.status !== "pending" && (
             <div className="mb-6">
               <p className="text-sm font-semibold mb-1.5">
-                {req.status === "needs_changes" ? "Admin yêu cầu cập nhật" : req.status === "rejected" ? "Lý do từ chối" : "Ghi chú của Admin"}
+                {req.status === "rejected" ? "Lý do từ chối" : "Ghi chú của Admin"}
               </p>
               <p className={`text-sm rounded-lg border px-3.5 py-3 leading-relaxed ${
                 req.status === "rejected" ? "border-destructive/25 bg-destructive/5 text-destructive"
-                : req.status === "needs_changes" ? "border-warning/25 bg-warning/5 text-warning"
                 : "border-border bg-surface text-muted-foreground"
               }`}>
                 {req.reviewNote}
@@ -299,12 +287,6 @@ export default function GovernanceRequestDetail() {
                 <CheckCircle2 size={14} /> Duyệt
               </button>
               <button
-                onClick={() => setDialog("changes")}
-                className="w-full h-9 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium flex items-center justify-center gap-1.5 transition-base"
-              >
-                <MessageSquareWarning size={14} /> Yêu cầu cập nhật
-              </button>
-              <button
                 onClick={() => setDialog("reject")}
                 className="w-full h-9 rounded-lg border border-destructive/30 text-destructive bg-white hover:bg-destructive/5 text-sm font-medium flex items-center justify-center gap-1.5 transition-base"
               >
@@ -318,18 +300,6 @@ export default function GovernanceRequestDetail() {
                   <FlaskConical size={14} /> Test
                 </Link>
               )}
-            </div>
-          )}
-
-          {req.status === "needs_changes" && (
-            <div className="rounded-xl border border-border bg-surface p-3.5">
-              <button
-                onClick={doResubmit}
-                className="w-full h-9 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center justify-center gap-1.5 transition-base mb-2"
-              >
-                <RotateCcw size={14} /> Gửi lại yêu cầu (đã cập nhật)
-              </button>
-              <p className="text-xs text-muted-foreground leading-relaxed">Mô phỏng bước builder chỉnh sửa xong và gửi lại — request quay về hàng chờ duyệt.</p>
             </div>
           )}
 
@@ -373,8 +343,7 @@ export default function GovernanceRequestDetail() {
             <h3 className="font-display text-lg font-semibold mb-1">
               {dialog === "approve" ? `Duyệt "${req.resourceName}"?`
                 : dialog === "reject" ? `Từ chối "${req.resourceName}"?`
-                : dialog === "revoke" ? `Thu hồi "${req.resourceName}"?`
-                : `Yêu cầu cập nhật cho "${req.resourceName}"`}
+                : `Thu hồi "${req.resourceName}"?`}
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
               {dialog === "approve" && (
@@ -383,7 +352,6 @@ export default function GovernanceRequestDetail() {
                   : "Sau khi duyệt, mục này (và các thành phần mới đi kèm) sẽ được publish theo phạm vi đã chọn."
               )}
               {dialog === "reject" && "Người gửi sẽ nhận được lý do từ chối và cần tạo yêu cầu mới nếu muốn gửi lại."}
-              {dialog === "changes" && "Người gửi sẽ thấy góp ý này và có thể chỉnh sửa rồi gửi lại."}
               {dialog === "revoke" && "Resource sẽ ngừng publish ngay lập tức và cần được gửi duyệt lại từ đầu nếu muốn publish lại. Hành động này không thể hoàn tác."}
             </p>
             {dialog !== "approve" && (
@@ -392,7 +360,7 @@ export default function GovernanceRequestDetail() {
                 autoFocus
                 value={reason}
                 onChange={e => setReason(e.target.value)}
-                placeholder={dialog === "reject" ? "Lý do từ chối..." : dialog === "revoke" ? "Lý do thu hồi..." : "Cần cập nhật những gì..."}
+                placeholder={dialog === "reject" ? "Lý do từ chối..." : "Lý do thu hồi..."}
                 className="w-full px-3 py-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none mb-4"
               />
             )}
@@ -408,14 +376,13 @@ export default function GovernanceRequestDetail() {
             <div className="flex items-center justify-end gap-2">
               <button onClick={closeDialog} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Hủy</button>
               <button
-                onClick={dialog === "approve" ? doApprove : dialog === "reject" ? doReject : dialog === "revoke" ? doRevoke : doRequestChanges}
+                onClick={dialog === "approve" ? doApprove : dialog === "reject" ? doReject : doRevoke}
                 className={`h-9 px-4 rounded-lg text-sm font-medium transition-base ${
                   dialog === "reject" || dialog === "revoke" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  : dialog === "approve" ? "bg-success text-white hover:opacity-90"
-                  : "bg-primary text-primary-foreground hover:bg-primary-glow"
+                  : "bg-success text-white hover:opacity-90"
                 }`}
               >
-                {dialog === "approve" ? "Xác nhận duyệt" : dialog === "reject" ? "Xác nhận từ chối" : dialog === "revoke" ? "Xác nhận thu hồi" : "Gửi yêu cầu cập nhật"}
+                {dialog === "approve" ? "Xác nhận duyệt" : dialog === "reject" ? "Xác nhận từ chối" : "Xác nhận thu hồi"}
               </button>
             </div>
           </div>
