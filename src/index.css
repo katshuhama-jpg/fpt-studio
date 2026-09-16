@@ -38,6 +38,11 @@
     --accent: 152 60% 42%;
     --accent-foreground: 0 0% 100%;
     --accent-soft: 152 55% 94%;
+    /* Darker text-safe variant of --accent — --accent itself is 2.9:1 on white, well under the
+       4.5:1 WCAG AA floor for normal text, so it's only safe as a background tint or an icon
+       fill, never as small text/icon-as-text color. Mirrors the existing --primary-strong
+       pattern (same idea: a token dedicated to "readable text version of this hue"). */
+    --accent-strong: 152 60% 28%;
 
     /* ----- Neutrals ----- */
     --secondary: 40 14% 93%;
@@ -49,11 +54,19 @@
     --destructive: 358 75% 55%;
     --destructive-foreground: 0 0% 100%;
     --destructive-soft: 358 90% 96%;
+    /* Darker text-safe variant — --destructive is 4.3:1 on white and only 3.8:1 on its own
+       --destructive-soft, both under the 4.5:1 AA floor for normal text. */
+    --destructive-strong: 358 75% 46%;
 
     --success: 152 60% 42%;
     --success-soft: 152 55% 94%;
+    /* Same "readable text" pairing as --accent-strong above (identical hue/sat by design,
+       same underlying problem: 2.9:1 on white). */
+    --success-strong: 152 60% 28%;
     --warning: 38 92% 50%;
     --warning-soft: 38 95% 94%;
+    /* Darker text-safe variant — --warning is only 2.1:1 on white, the weakest of the four. */
+    --warning-strong: 38 92% 30%;
     --info: 232 83% 60%;
     --info-soft: 232 90% 96%;
 

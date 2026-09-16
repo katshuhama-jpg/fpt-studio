@@ -122,7 +122,7 @@ function CopyButton({ text }: { text: string }) {
       aria-label="Copy"
       className="h-6 w-6 shrink-0 flex items-center justify-center rounded-md text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-surface-muted hover:text-foreground transition-base"
     >
-      {copied ? <Check size={12} className="text-success" /> : <Copy size={12} />}
+      {copied ? <Check size={12} className="text-[hsl(var(--success-strong))]" /> : <Copy size={12} />}
     </button>
   );
 }
@@ -183,7 +183,7 @@ function MessageCard({ role, content }: { role: "HUMAN" | "AI"; content: string 
   return (
     <div className="group relative px-3.5 py-3">
       <div className="flex items-center justify-between">
-        <span className={cn("text-xs font-bold tracking-wider", role === "HUMAN" ? "text-primary" : "text-accent")}>{role}</span>
+        <span className={cn("text-xs font-bold tracking-wider", role === "HUMAN" ? "text-primary" : "text-[hsl(var(--accent-strong))]")}>{role}</span>
         <CopyButton text={content} />
       </div>
       {content && <p className="mt-1.5 text-sm leading-relaxed whitespace-pre-wrap break-words">{content}</p>}
@@ -191,20 +191,24 @@ function MessageCard({ role, content }: { role: "HUMAN" | "AI"; content: string 
   );
 }
 
+/** chipClass pairs the shared bg/border chip-* class with a `!text-[...]` override pointing at
+ * this token's darker "-strong" sibling (see index.css) — the shared chip-warning/success/danger
+ * classes are used across 20+ other pages, so the fix for their too-light default text color is
+ * scoped here to this lookup's output rather than touching those classes globally. */
 const GUARDRAIL_ACTION_META: Record<string, { label: string; chipClass: string }> = {
   pass: { label: "Pass", chipClass: "chip-muted" },
-  agent_refusal: { label: "Agent refusal", chipClass: "chip-warning" },
-  blocked: { label: "Blocked", chipClass: "chip-danger" },
-  replaced: { label: "Replaced", chipClass: "chip-warning" },
+  agent_refusal: { label: "Agent refusal", chipClass: "chip-warning !text-[hsl(var(--warning-strong))]" },
+  blocked: { label: "Blocked", chipClass: "chip-danger !text-[hsl(var(--destructive-strong))]" },
+  replaced: { label: "Replaced", chipClass: "chip-warning !text-[hsl(var(--warning-strong))]" },
 };
 
 const HITL_ACTION_META: Record<string, { label: string; chipClass: string }> = {
-  approve: { label: "Approved", chipClass: "chip-success" },
-  edit: { label: "Edited", chipClass: "chip-warning" },
-  reject: { label: "Rejected", chipClass: "chip-danger" },
-  respond: { label: "Responded", chipClass: "chip-success" },
-  mixed: { label: "Mixed", chipClass: "chip-warning" },
-  authorized: { label: "Authorized", chipClass: "chip-success" },
+  approve: { label: "Approved", chipClass: "chip-success !text-[hsl(var(--success-strong))]" },
+  edit: { label: "Edited", chipClass: "chip-warning !text-[hsl(var(--warning-strong))]" },
+  reject: { label: "Rejected", chipClass: "chip-danger !text-[hsl(var(--destructive-strong))]" },
+  respond: { label: "Responded", chipClass: "chip-success !text-[hsl(var(--success-strong))]" },
+  mixed: { label: "Mixed", chipClass: "chip-warning !text-[hsl(var(--warning-strong))]" },
+  authorized: { label: "Authorized", chipClass: "chip-success !text-[hsl(var(--success-strong))]" },
 };
 
 /** One process step the agent took while producing a turn's reply — a tool call or a guardrail
@@ -247,13 +251,13 @@ function StepRow({ kind, label, connector, callId, status, guardrailAction, hitl
         {connector && <span className="chip chip-outline !h-5 !text-[11px] shrink-0">{connector}</span>}
         {actionMeta && <span className={cn("chip !h-5 !text-[11px] shrink-0", actionMeta.chipClass)}>{actionMeta.label}</span>}
         <span className="flex-1" />
-        {status === "failed" && <XCircle size={13} className="text-destructive shrink-0" />}
-        {status === "success" && <CheckCircle2 size={13} className="text-success shrink-0" />}
+        {status === "failed" && <XCircle size={13} className="text-[hsl(var(--destructive-strong))] shrink-0" />}
+        {status === "success" && <CheckCircle2 size={13} className="text-[hsl(var(--success-strong))] shrink-0" />}
         {callId && <span className="text-xs font-mono text-muted-foreground truncate max-w-[100px] shrink-0">{callId}</span>}
       </button>
       {open && (
         <div className="px-2.5 pb-2.5 pt-0.5 border-t border-border space-y-2">
-          {error && <p className="text-xs text-destructive leading-relaxed">{error}</p>}
+          {error && <p className="text-xs text-[hsl(var(--destructive-strong))] leading-relaxed">{error}</p>}
           {input !== undefined && (
             <div>
               <div className="text-overline text-muted-foreground uppercase tracking-wider mb-1">Input</div>
@@ -361,10 +365,10 @@ export default function ConversationTrace() {
             title="Copy conversation ID"
             className="h-6 w-6 shrink-0 flex items-center justify-center rounded-md text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base"
           >
-            {copied ? <Check size={12} className="text-success" /> : <Copy size={12} />}
+            {copied ? <Check size={12} className="text-[hsl(var(--success-strong))]" /> : <Copy size={12} />}
           </button>
           {trace.error && (
-            <span className="chip chip-danger !h-6 gap-1 shrink-0" title={trace.error}>
+            <span className="chip chip-danger !text-[hsl(var(--destructive-strong))] !h-6 gap-1 shrink-0" title={trace.error}>
               <AlertTriangle size={11} /> Error
             </span>
           )}
@@ -422,10 +426,10 @@ export default function ConversationTrace() {
                           {turn.index}
                         </span>
                         <span className="text-sm font-medium truncate">Banking ABC Agent</span>
-                        {hasTool && <Wrench size={11} className="text-accent shrink-0" />}
-                        {hasHitl && <UserCheck size={11} className="text-accent shrink-0" />}
-                        {turn.outcome === "failed" && <AlertTriangle size={11} className="text-destructive shrink-0" />}
-                        {turn.outcome === "input_required" && <Hourglass size={11} className="text-warning shrink-0" />}
+                        {hasTool && <Wrench size={11} className="text-[hsl(var(--accent-strong))] shrink-0" />}
+                        {hasHitl && <UserCheck size={11} className="text-[hsl(var(--accent-strong))] shrink-0" />}
+                        {turn.outcome === "failed" && <AlertTriangle size={11} className="text-[hsl(var(--destructive-strong))] shrink-0" />}
+                        {turn.outcome === "input_required" && <Hourglass size={11} className="text-[hsl(var(--warning-strong))] shrink-0" />}
                       </div>
                       {(showLatency || showTokens) && (
                         <div className="flex items-center gap-2.5 mt-1 pl-7 text-xs text-muted-foreground">
@@ -439,7 +443,7 @@ export default function ConversationTrace() {
                   </HoverCardTrigger>
                   <HoverCardContent side="right" align="start" className="w-72 text-xs">
                     <div className="flex items-center gap-1.5">
-                      <Check size={13} className="text-success" />
+                      <Check size={13} className="text-[hsl(var(--success-strong))]" />
                       <span className="font-semibold text-sm">Banking ABC Agent</span>
                     </div>
                     <div className="text-xs text-muted-foreground mb-2">Thread Turn</div>
@@ -476,10 +480,10 @@ export default function ConversationTrace() {
                   <ChevronDown size={14} className={cn("transition-transform", collapsed[turn.index] && "-rotate-90")} />
                   Turn {turn.index}
                   {turn.outcome === "failed" && (
-                    <span className="chip chip-danger !h-5 !text-[11px] normal-case tracking-normal font-semibold">Failed</span>
+                    <span className="chip chip-danger !text-[hsl(var(--destructive-strong))] !h-5 !text-[11px] normal-case tracking-normal font-semibold">Failed</span>
                   )}
                   {turn.outcome === "input_required" && (
-                    <span className="chip chip-warning !h-5 !text-[11px] normal-case tracking-normal font-semibold">Đang chờ duyệt</span>
+                    <span className="chip chip-warning !text-[hsl(var(--warning-strong))] !h-5 !text-[11px] normal-case tracking-normal font-semibold">Đang chờ duyệt</span>
                   )}
                 </button>
 
@@ -583,10 +587,10 @@ export default function ConversationTrace() {
         <aside className="w-[300px] border-l border-border bg-surface p-4 overflow-y-auto shrink-0">
           {trace.error && (
             <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive-soft p-2.5">
-              <div className="flex items-center gap-1.5 text-overline font-semibold text-destructive uppercase tracking-wider mb-1">
+              <div className="flex items-center gap-1.5 text-overline font-semibold text-[hsl(var(--destructive-strong))] uppercase tracking-wider mb-1">
                 <AlertTriangle size={12} /> Error
               </div>
-              <p className="text-xs text-destructive leading-relaxed">{trace.error}</p>
+              <p className="text-xs text-[hsl(var(--destructive-strong))] leading-relaxed">{trace.error}</p>
             </div>
           )}
           <div className="text-overline font-semibold text-muted-foreground uppercase tracking-wider mb-2">Stats</div>
