@@ -179,7 +179,7 @@ function PayloadBlock({ value }: { value: unknown }) {
  * bubble itself. Whatever the agent DID to produce it (tool calls, guardrail checks) renders
  * separately as StepRow(s) around this bubble, not inside it — see the turn-rendering loop
  * below and its comment for why. */
-function MessageCard({ role, content, feedback }: { role: "HUMAN" | "AI"; content: string; feedback?: "up" | "down" }) {
+function MessageCard({ role, content }: { role: "HUMAN" | "AI"; content: string }) {
   return (
     <div className="group relative px-3.5 py-3">
       <div className="flex items-center justify-between">
@@ -187,14 +187,6 @@ function MessageCard({ role, content, feedback }: { role: "HUMAN" | "AI"; conten
         <CopyButton text={content} />
       </div>
       {content && <p className="mt-1.5 text-sm leading-relaxed whitespace-pre-wrap break-words">{content}</p>}
-      {feedback && (
-        <div className={cn(
-          "mt-2 inline-flex items-center gap-1 text-xs font-medium px-1.5 py-0.5 rounded",
-          feedback === "up" ? "bg-success-soft text-success" : "bg-destructive-soft text-destructive",
-        )}>
-          Người dùng đánh giá {feedback === "up" ? "hữu ích 👍" : "chưa hữu ích 👎"}
-        </div>
-      )}
     </div>
   );
 }
@@ -546,7 +538,7 @@ export default function ConversationTrace() {
                                   />
                                 </div>
                               )}
-                              <MessageCard role="AI" content={m.content} feedback={m.feedback} />
+                              <MessageCard role="AI" content={m.content} />
                               {m.toolCalls?.map(tc => (
                                 <div key={tc.callId} className="px-3.5 pb-3">
                                   <StepRow
