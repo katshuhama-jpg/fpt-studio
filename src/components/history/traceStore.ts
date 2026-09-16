@@ -79,10 +79,6 @@ function seededInt(seed: string, min: number, max: number): number {
   return min + (hashSeed(seed) % (max - min + 1));
 }
 
-export interface MessageAuditFlowStep {
-  label: string;
-}
-
 export interface MessageAudit {
   status: "Success";
   latencyMs: number;
@@ -91,25 +87,25 @@ export interface MessageAudit {
   conversationId: string;
   startedAt: number;
   endedAt: number;
-  flow: MessageAuditFlowStep[];
 }
 
 /**
  * Per-message "Agent audit" info, matching the modal already live on the real
  * agents.fpt.ai chat-history screen (Status/Latency/Tokens + Message ID/Conversation ID
- * + Start/End time + a "Flow" list of the steps that produced this message). Only agent
- * messages are auditable, same as the real product — customer messages have nothing to
- * show here. Numbers are deterministically mocked from the message id, same spirit as
- * buildTrace() above.
+ * + Start/End time). Only agent messages are auditable, same as the real product —
+ * customer messages have nothing to show here. Numbers are deterministically mocked
+ * from the message id, same spirit as buildTrace() above.
+ *
+ * This used to also return a "Flow" list (User Input → tool calls → Agent Response) for
+ * the modal to render as numbered steps, but that step list didn't actually explain
+ * anything useful in isolation from the rest of the trace — a bare "1 User Input, 2 Agent
+ * Response" reads as noise, and the full step-by-step breakdown already lives one click
+ * away on the Trace page ("View trace"). Removed rather than kept-but-unused.
  */
 export function buildMessageAudit(record: ConversationRecord, message: ConversationMessage): MessageAudit {
   const seed = `${record.id}-${message.id}`;
   const latencyMs = seededInt(`${seed}-lat`, 640, 2400);
   const tokens = seededInt(`${seed}-tok`, 90, 480);
-
-  const flow: MessageAuditFlowStep[] = [{ label: "User Input" }];
-  for (const tc of message.toolCalls ?? []) flow.push({ label: `Tool call — ${tc.connector}: ${tc.name}` });
-  flow.push({ label: "Agent Response" });
 
   return {
     status: "Success",
@@ -119,7 +115,6 @@ export function buildMessageAudit(record: ConversationRecord, message: Conversat
     conversationId: record.id,
     startedAt: message.at - latencyMs,
     endedAt: message.at,
-    flow,
   };
 }
 

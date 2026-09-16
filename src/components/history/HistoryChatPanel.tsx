@@ -149,8 +149,11 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
       )}
 
       {/* "Agent audit" modal — mirrors the real agents.fpt.ai chat-history screen's per-message
-          audit dialog: Status/Latency/Tokens strip, Message/Conversation IDs, Start/End time,
-          and the Flow steps that produced this message. */}
+          audit dialog: Status/Latency/Tokens strip, Message/Conversation IDs, Start/End time.
+          (This used to also list a "Flow" of numbered steps below — User Input, tool calls,
+          Agent Response — but on its own, out of context, that list read as confusing rather
+          than clarifying, so it's gone; the real step-by-step breakdown lives on the Trace page,
+          one click away via "View trace" above.) */}
       <Dialog open={!!auditMessage} onOpenChange={open => { if (!open) setAuditMessage(null); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -189,20 +192,6 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-muted-foreground shrink-0">End time:</span>
                   <span>{format(new Date(audit.endedAt), "dd-MM-yyyy HH:mm:ss")}</span>
-                </div>
-              </div>
-
-              <div>
-                <div className="text-xs font-semibold mb-2">Flow</div>
-                <div className="space-y-2">
-                  {audit.flow.map((step, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <span className="h-5 w-5 shrink-0 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-[10px]">
-                        {i + 1}
-                      </span>
-                      <span className="text-xs">{step.label}</span>
-                    </div>
-                  ))}
                 </div>
               </div>
             </div>
