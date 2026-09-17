@@ -520,6 +520,115 @@ function seedAgent(agentId: string) {
         { role: "agent", content: "Khoản chuyển này vượt hạn mức tự động (trên 200,000,000 VND/lần) nên mình đã gửi yêu cầu duyệt cho bộ phận kiểm soát rủi ro trước khi thực hiện. Mình sẽ báo lại ngay khi có kết quả." },
       ]),
     },
+    {
+      id: pseudoUlid("CV-1055"),
+      channel: "zalo",
+      username: "Nguyen Van Thanh",
+      email: "nguyen.van.thanh@gmail.com",
+      startedAt: now - 10 * MIN,
+      endedAt: now - 15_000,
+      /**
+       * Flagship demo conversation — deliberately dated more recent than every other seed
+       * conversation (including CV-1050) so it's the first row in the History table. Built to
+       * showcase every tracing span type the Trace page can render, all in one place, instead of
+       * a reviewer having to open several different conversations to see one example of each:
+       *   - tool_call, success (lookup_customer, link_wallet)
+       *   - tool_call, failed then retried within the same message (increase_credit_limit)
+       *   - hitl "connect_account" (linking the customer's MoMo wallet)
+       *   - hitl "question" with options (50tr vs. 80tr) and the customer's typed answer
+       *   - hitl "tool_approval" (the limit increase itself, since 80tr exceeds the auto threshold)
+       *   - guardrail "output" / "replaced" (masking the full card number before it went out)
+       * Every other seed conversation still demonstrates its own single case standalone
+       * (CV-1027 tool_approval, CV-1035 question + retry, CV-1004 guardrail, CV-1050 the
+       * still-open "input_required" outcome) — this one doesn't replace those, it's the
+       * one-stop walkthrough on top of them.
+       */
+      error: "Timeout: Core Banking API không phản hồi sau 15s khi tăng hạn mức thẻ (đã tự động thử lại và thành công ở lần 2).",
+      messages: buildMessages("CV-1055", now - 15_000, [
+        { role: "customer", content: "Mình muốn tăng hạn mức thẻ tín dụng và liên kết ví MoMo để nhận ưu đãi hoàn tiền." },
+        {
+          role: "agent",
+          content: "Để mình kiểm tra thông tin thẻ của bạn trước nhé.",
+          toolCalls: [{
+            name: "lookup_customer",
+            connector: "Core Banking",
+            input: { email: "nguyen.van.thanh@gmail.com" },
+            output: { customerName: "Nguyen Van Thanh", cardLast4: "5560", currentLimit: "30000000" },
+          }],
+        },
+        {
+          role: "agent",
+          content: "Để liên kết ví MoMo, hệ thống cần bạn xác nhận cho phép kết nối tới tài khoản MoMo của bạn.",
+          hitl: {
+            situation: "connect_account",
+            action: "authorized",
+            provider: "MoMo",
+            answer: "Khách hàng xác nhận liên kết qua mã OTP gửi tới số điện thoại đã đăng ký.",
+          },
+        },
+        {
+          role: "agent",
+          content: "Đã liên kết ví MoMo thành công — ưu đãi hoàn tiền sẽ được áp dụng sau khi hạn mức thẻ được cập nhật.",
+          toolCalls: [{
+            name: "link_wallet",
+            connector: "MoMo",
+            input: { cardLast4: "5560" },
+            output: { status: "linked", walletId: "MOMO-88213456" },
+          }],
+        },
+        { role: "customer", content: "Ok, vậy tăng hạn mức lên bao nhiêu được nhỉ?" },
+        { role: "agent", content: "Bạn muốn tăng hạn mức thẻ lên 50,000,000 VND hay 80,000,000 VND?" },
+        { role: "customer", content: "80 triệu nhé." },
+        {
+          role: "agent",
+          content: "Được rồi — 80,000,000 VND vượt hạn mức tự động (trên 50,000,000 VND/lần) nên mình cần trình duyệt nội bộ trước khi áp dụng, mình sẽ báo lại ngay khi có kết quả.",
+          hitl: {
+            situation: "question",
+            action: "respond",
+            question: "Bạn muốn tăng hạn mức thẻ lên 50,000,000 VND hay 80,000,000 VND?",
+            options: ["50,000,000 VND", "80,000,000 VND"],
+            answer: "80 triệu nhé.",
+          },
+        },
+        {
+          role: "agent",
+          content: "Yêu cầu đã được duyệt — hạn mức thẻ của bạn hiện đã là 80,000,000 VND.",
+          hitl: {
+            situation: "tool_approval",
+            action: "approve",
+            toolName: "increase_credit_limit",
+            toolInput: { cardLast4: "5560", newLimit: 80000000 },
+            answer: "Trưởng nhóm CSKH xác nhận nâng hạn mức theo yêu cầu khách hàng.",
+          },
+          toolCalls: [
+            {
+              name: "increase_credit_limit",
+              connector: "Core Banking",
+              input: { cardLast4: "5560", newLimit: 80000000 },
+              output: {},
+              status: "failed",
+              error: "Timeout: Core Banking API không phản hồi sau 15s.",
+            },
+            {
+              name: "increase_credit_limit",
+              connector: "Core Banking",
+              input: { cardLast4: "5560", newLimit: 80000000 },
+              output: { status: "active", newLimit: "80000000" },
+              status: "success",
+            },
+          ],
+        },
+        {
+          role: "agent",
+          content: "Thẻ của bạn (•••• 5560) đã được nâng hạn mức thành công. Ưu đãi hoàn tiền qua ví MoMo cũng đã sẵn sàng sử dụng.",
+          guardrail: {
+            name: "output",
+            action: "replaced",
+            rule: "Tiết lộ số thẻ đầy đủ trong tin nhắn trả lời khách hàng",
+          },
+        },
+      ]),
+    },
   ];
 
   for (const s of seed) store.set(k(agentId, s.id), { ...s, agentId });
