@@ -207,18 +207,47 @@ function buildMessages(
   }));
 }
 
-/** This demo conversation set is written specifically for "cskh" (Banking ABC — Customer
- * Care) — card locks, account balances, loan schedules, wire transfers — so only that
- * agent gets seeded. Every other agent, including Draft ones that have never been
- * published or used, starts with zero conversations and shows the real empty state. */
-const AUTO_SEEDED_AGENT_IDS = new Set(["cskh"]);
+/**
+ * Each Published/active conversational agent gets its own realistic seed history — written
+ * specifically for that agent's own domain, never shared/reused across agents (an HR bot
+ * showing up with banking dispute conversations would be a worse demo than no history at
+ * all). "sales" is deliberately left OUT of this set even though it's a conversational
+ * agent: it's the one agent seeded as Draft with convs: 0 / "Just now" (see agentStore.ts),
+ * kept that way on purpose so the History section still has a real, demonstrable EMPTY
+ * state somewhere in the prototype — seeding it too would mean nobody could see that state.
+ * Automation-kind agents (nightly-report, invoice-reminder, shipping-alerts) don't have a
+ * History/Trace tab at all (they get TriggerRunsTab instead), so they're not part of this
+ * either. Every agent not listed here starts with zero conversations and shows the real
+ * empty state, same as before.
+ *
+ * Every seeded agent's OWN most recent conversation is a flagship "one-stop" demo, dated
+ * later than every other conversation in that agent's history, that walks through every
+ * tracing span type the Trace page renders — tool_call success, tool_call failed-then-
+ * retried, hitl connect_account / question+options / tool_approval, and a guardrail
+ * intervention — all in one place. Tyler asked for this specifically so a dev opening any
+ * given demo agent's History doesn't have to go hunting across several different
+ * conversations to find one example of each span type; see CV-1055 (cskh) for the
+ * original, and HR-2001 / FAQ-3001 / OPS-4001 below for the same idea re-themed per agent.
+ */
+const AUTO_SEEDED_AGENT_IDS = new Set(["cskh", "hr", "faq", "ops"]);
 
 function seedAgent(agentId: string) {
   if ([...store.keys()].some(key => key.startsWith(`${agentId}:`))) return;
   if (!AUTO_SEEDED_AGENT_IDS.has(agentId)) return;
   const now = Date.now();
 
-  const seed: Omit<ConversationRecord, "agentId">[] = [
+  const seed: Omit<ConversationRecord, "agentId">[] =
+    agentId === "cskh" ? cskhSeed(now)
+    : agentId === "hr" ? hrSeed(now)
+    : agentId === "faq" ? faqSeed(now)
+    : opsSeed(now);
+
+  for (const s of seed) store.set(k(agentId, s.id), { ...s, agentId });
+}
+
+/** Banking ABC — Customer Care: card locks, account balances, loan schedules, wire transfers. */
+function cskhSeed(now: number): Omit<ConversationRecord, "agentId">[] {
+  return [
     {
       id: pseudoUlid("CV-1042"),
       channel: "messenger",
@@ -630,8 +659,310 @@ function seedAgent(agentId: string) {
       ]),
     },
   ];
+}
 
-  for (const s of seed) store.set(k(agentId, s.id), { ...s, agentId });
+/**
+ * HR Onboarding Bot: just the one flagship conversation (see the AUTO_SEEDED_AGENT_IDS
+ * comment above) — a new joiner's Day-1 setup, covering every span type in one thread:
+ * tool_call success (get_onboarding_checklist), hitl connect_account (enrolling benefits
+ * in BambooHR), hitl question+options (laptop delivery), tool_call failed-then-retried
+ * (scheduling the manager 1:1), hitl tool_approval (an early equipment request that
+ * needs manager sign-off), and a guardrail replace (redacting a colleague's exact salary
+ * band while explaining compensation ranges).
+ */
+function hrSeed(now: number): Omit<ConversationRecord, "agentId">[] {
+  return [
+    {
+      id: pseudoUlid("HR-2001"),
+      channel: "slack",
+      username: "Pham Thi Huyen",
+      email: "pham.thi.huyen@fpt.com.vn",
+      startedAt: now - 12 * MIN,
+      endedAt: now - 15_000,
+      error: "Timeout: Google Calendar API không phản hồi sau 15s khi đặt lịch 1:1 với quản lý (đã tự động thử lại và thành công ở lần 2).",
+      messages: buildMessages("HR-2001", now - 15_000, [
+        { role: "customer", content: "Hi! It's my first day — what do I need to get set up?" },
+        {
+          role: "agent",
+          content: "Welcome aboard! Let me pull up your onboarding checklist.",
+          toolCalls: [{
+            name: "get_onboarding_checklist",
+            connector: "BambooHR",
+            input: { employeeId: "E-20394" },
+            output: { role: "Product Analyst", manager: "Le Quoc Trung", checklistItems: "7" },
+          }],
+        },
+        {
+          role: "agent",
+          content: "First, to enroll your health and benefits plan, I need your permission to connect to BambooHR's benefits portal on your behalf.",
+          hitl: {
+            situation: "connect_account",
+            action: "authorized",
+            provider: "BambooHR",
+            answer: "Nhân viên mới xác nhận cho phép kết nối để đăng ký gói phúc lợi qua email công ty.",
+          },
+        },
+        { role: "customer", content: "Sounds good, what else?" },
+        { role: "agent", content: "Would you like your laptop shipped to your home address, or would you prefer to pick it up at the office on your first day?" },
+        { role: "customer", content: "I'll pick it up at the office." },
+        {
+          role: "agent",
+          content: "Got it — your laptop will be ready at the front desk on Day 1.",
+          hitl: {
+            situation: "question",
+            action: "respond",
+            question: "Would you like your laptop shipped to your home address, or would you prefer to pick it up at the office on your first day?",
+            options: ["Ship to home address", "Pick up at the office"],
+            answer: "I'll pick it up at the office.",
+          },
+        },
+        {
+          role: "agent",
+          content: "I've also booked your first 1:1 with your manager, Le Quoc Trung, for this Friday at 2pm.",
+          toolCalls: [
+            {
+              name: "schedule_manager_meeting",
+              connector: "Google Calendar",
+              input: { withEmployeeId: "E-10221", duration: "30m" },
+              output: {},
+              status: "failed",
+              error: "Timeout: Google Calendar API không phản hồi sau 15s.",
+            },
+            {
+              name: "schedule_manager_meeting",
+              connector: "Google Calendar",
+              input: { withEmployeeId: "E-10221", duration: "30m" },
+              output: { status: "scheduled", eventId: "GCAL-77213" },
+              status: "success",
+            },
+          ],
+        },
+        { role: "customer", content: "One more thing — can I get my equipment a few days early? I'd like to set it up before my start date." },
+        {
+          role: "agent",
+          content: "That's approved — IT will have your laptop and access badge ready two days early.",
+          hitl: {
+            situation: "tool_approval",
+            action: "approve",
+            toolName: "request_early_equipment",
+            toolInput: { employeeId: "E-20394", daysEarly: 2 },
+            answer: "Quản lý trực tiếp (Le Quoc Trung) phê duyệt cấp thiết bị sớm cho nhân viên mới.",
+          },
+        },
+        {
+          role: "agent",
+          content: "One last thing — your compensation band for this role is in the standard mid-level range; your HR Business Partner will walk you through the exact figures during your Week 1 meeting.",
+          guardrail: {
+            name: "output",
+            action: "replaced",
+            rule: "Tiết lộ mức lương/băng lương cụ thể của nhân viên khác khi giải thích compensation band",
+          },
+        },
+      ]),
+    },
+  ];
+}
+
+/**
+ * Product FAQ Assistant: just the one flagship conversation — a warranty claim that
+ * covers every span type: tool_call success (check_warranty_status), hitl connect_account
+ * (linking the product-registration account), hitl question+options (shipping speed),
+ * tool_call failed-then-retried (checking the serial number), hitl tool_approval (a
+ * replacement part that exceeds the free-replacement cost threshold), and a guardrail
+ * replace (masking the product's full serial number before it goes out in chat).
+ */
+function faqSeed(now: number): Omit<ConversationRecord, "agentId">[] {
+  return [
+    {
+      id: pseudoUlid("FAQ-3001"),
+      channel: "web",
+      username: "Vo Thi Kim Ngan",
+      email: "vo.thi.kim.ngan@gmail.com",
+      startedAt: now - 12 * MIN,
+      endedAt: now - 15_000,
+      error: "Timeout: Warranty API không phản hồi sau 15s khi tra cứu số serial (đã tự động thử lại và thành công ở lần 2).",
+      messages: buildMessages("FAQ-3001", now - 15_000, [
+        { role: "customer", content: "My blender stopped working after 3 months, is it still under warranty?" },
+        {
+          role: "agent",
+          content: "Let me check your warranty status first.",
+          toolCalls: [{
+            name: "check_warranty_status",
+            connector: "Warranty Portal",
+            input: { email: "vo.thi.kim.ngan@gmail.com" },
+            output: { product: "BlendMax Pro 900", purchaseDate: "2026-06-02", warrantyMonthsLeft: "9" },
+          }],
+        },
+        {
+          role: "agent",
+          content: "To pull up your specific unit's repair history, I need your permission to connect to your product-registration account.",
+          hitl: {
+            situation: "connect_account",
+            action: "authorized",
+            provider: "Product Registration Portal",
+            answer: "Khách hàng xác nhận liên kết tài khoản đăng ký sản phẩm qua email.",
+          },
+        },
+        { role: "customer", content: "Sure, go ahead." },
+        { role: "agent", content: "Would you like the replacement part sent by express shipping (1-2 days) or standard shipping (5-7 days)?" },
+        { role: "customer", content: "Express is fine." },
+        {
+          role: "agent",
+          content: "Confirmed — I'll get an express replacement part sent your way.",
+          hitl: {
+            situation: "question",
+            action: "respond",
+            question: "Would you like the replacement part sent by express shipping (1-2 days) or standard shipping (5-7 days)?",
+            options: ["Express shipping (1-2 days)", "Standard shipping (5-7 days)"],
+            answer: "Express is fine.",
+          },
+        },
+        {
+          role: "agent",
+          content: "I've pulled up your unit's serial number to file the claim.",
+          toolCalls: [
+            {
+              name: "check_serial_number",
+              connector: "Warranty Portal",
+              input: { product: "BlendMax Pro 900" },
+              output: {},
+              status: "failed",
+              error: "Timeout: Warranty API không phản hồi sau 15s.",
+            },
+            {
+              name: "check_serial_number",
+              connector: "Warranty Portal",
+              input: { product: "BlendMax Pro 900" },
+              output: { serial: "BM900-88213456", status: "verified" },
+              status: "success",
+            },
+          ],
+        },
+        { role: "customer", content: "Great, thank you!" },
+        {
+          role: "agent",
+          content: "Approved — since the motor assembly is a higher-cost part, this needed a quick sign-off, but it's confirmed and shipping express at no charge.",
+          hitl: {
+            situation: "tool_approval",
+            action: "approve",
+            toolName: "issue_replacement_part",
+            toolInput: { serial: "BM900-88213456", part: "motor_assembly", cost: 850000 },
+            answer: "Trưởng nhóm CSKH sản phẩm phê duyệt đổi linh kiện miễn phí vượt ngưỡng chi phí tự động.",
+          },
+        },
+        {
+          role: "agent",
+          content: "Your replacement part (serial •••• 3456) is on its way and should arrive within 1-2 days.",
+          guardrail: {
+            name: "output",
+            action: "replaced",
+            rule: "Tiết lộ số serial đầy đủ của sản phẩm trong tin nhắn trả lời khách hàng",
+          },
+        },
+      ]),
+    },
+  ];
+}
+
+/**
+ * IT Helpdesk: just the one flagship conversation — a VPN/access request that covers
+ * every span type: tool_call success (reset_vpn_credentials), hitl connect_account
+ * (linking an authenticator app for MFA), hitl question+options (reset method), tool_call
+ * failed-then-retried (checking Active Directory), hitl tool_approval (elevated access to
+ * a shared drive, needing security sign-off), and a guardrail replace (a temporary
+ * password that almost went out in plaintext, redacted before sending).
+ */
+function opsSeed(now: number): Omit<ConversationRecord, "agentId">[] {
+  return [
+    {
+      id: pseudoUlid("OPS-4001"),
+      channel: "teams",
+      username: "Dinh Cong Hieu",
+      email: "dinh.cong.hieu@fpt.com.vn",
+      startedAt: now - 12 * MIN,
+      endedAt: now - 15_000,
+      error: "Timeout: Active Directory không phản hồi sau 15s khi kiểm tra tài khoản (đã tự động thử lại và thành công ở lần 2).",
+      messages: buildMessages("OPS-4001", now - 15_000, [
+        { role: "customer", content: "I can't connect to the VPN, it keeps saying my credentials are invalid." },
+        {
+          role: "agent",
+          content: "Let me reset your VPN credentials.",
+          toolCalls: [{
+            name: "reset_vpn_credentials",
+            connector: "Core VPN",
+            input: { employeeId: "E-30112" },
+            output: { status: "reset", tempPassword: "issued" },
+          }],
+        },
+        {
+          role: "agent",
+          content: "While we're at it, I'd recommend setting up an authenticator app for MFA instead of SMS codes — I need your permission to link it to your account.",
+          hitl: {
+            situation: "connect_account",
+            action: "authorized",
+            provider: "Microsoft Authenticator",
+            answer: "Nhân viên xác nhận liên kết ứng dụng xác thực qua mã QR.",
+          },
+        },
+        { role: "customer", content: "Ok, linked it." },
+        { role: "agent", content: "Would you like to reset your login password via SMS code, or via the authenticator app you just linked?" },
+        { role: "customer", content: "Authenticator app, please." },
+        {
+          role: "agent",
+          content: "Done — check your authenticator app for the reset link.",
+          hitl: {
+            situation: "question",
+            action: "respond",
+            question: "Would you like to reset your login password via SMS code, or via the authenticator app you just linked?",
+            options: ["SMS code", "Authenticator app"],
+            answer: "Authenticator app, please.",
+          },
+        },
+        {
+          role: "agent",
+          content: "I've also double-checked your account status in Active Directory to make sure nothing else is locked.",
+          toolCalls: [
+            {
+              name: "check_ad_account_status",
+              connector: "Active Directory",
+              input: { employeeId: "E-30112" },
+              output: {},
+              status: "failed",
+              error: "Timeout: Active Directory không phản hồi sau 15s.",
+            },
+            {
+              name: "check_ad_account_status",
+              connector: "Active Directory",
+              input: { employeeId: "E-30112" },
+              output: { status: "active", locked: "false" },
+              status: "success",
+            },
+          ],
+        },
+        { role: "customer", content: "Thanks. Also, can I get access to the Finance shared drive? My manager said it's fine." },
+        {
+          role: "agent",
+          content: "Approved by IT Security — you now have read access to the Finance shared drive.",
+          hitl: {
+            situation: "tool_approval",
+            action: "approve",
+            toolName: "grant_shared_drive_access",
+            toolInput: { employeeId: "E-30112", drive: "Finance", level: "read" },
+            answer: "IT Security phê duyệt cấp quyền truy cập ổ chia sẻ Finance sau khi xác nhận với quản lý trực tiếp.",
+          },
+        },
+        {
+          role: "agent",
+          content: "Your VPN is reset — use the temporary password sent to your registered email, not this chat, to sign in.",
+          guardrail: {
+            name: "output",
+            action: "replaced",
+            rule: "Gửi mật khẩu tạm thời dạng plaintext qua kênh chat thay vì kênh bảo mật (email đã xác thực)",
+          },
+        },
+      ]),
+    },
+  ];
 }
 
 export const historyStore = {
