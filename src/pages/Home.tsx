@@ -384,7 +384,7 @@ export default function Home() {
         <div className="flex items-center justify-between px-10 py-10 gap-8">
           <div className="flex-1 min-w-0">
             <h2 className="font-display text-3xl font-bold text-foreground mb-2 tracking-tight">
-              Agent Console
+              Welcome to FPT AI Agent Console
             </h2>
             <p className="text-sm text-muted-foreground mb-7 max-w-sm leading-relaxed">
               Build, connect, and operate your enterprise AI Agent workforce.
