@@ -29,7 +29,8 @@ import { getAgentKind, type AgentKind } from "@/components/configure/agentKindSt
 import { AGENTS, getAgent } from "@/components/configure/agentStore";
 import { useGroupAccess, isOwnedOrShared } from "@/pages/organization/scopeAccess";
 import { useOrg } from "@/pages/organization/orgStore";
-import { collectMembers } from "@/pages/organization/orgData";
+import { collectMembers, countAll, unitMatches, type OrgUnit, type OrgMember } from "@/pages/organization/orgData";
+import { getCurrentTenantId, isPersonalSpace } from "@/lib/spaceStore";
 import { CHANNEL_CATALOG, getChannelName, ChannelIcon, type ChannelCatalogEntry } from "@/components/configure/channelCatalog";
 import { connectedAccountStore } from "@/components/configure/connectedAccountStore";
 import { customConnectorStore, type CustomConnector, type ConnectorAuthType, type ConnectorHeader } from "@/components/configure/customConnectorStore";
@@ -4022,6 +4023,110 @@ function AudienceRadioRow({ icon, title, description, selected, liveNow, liveLab
   );
 }
 
+/** Total headcount the current org selection reaches — counts a selected unit's whole subtree
+ * once (via countAll) and never double-counts a descendant that's covered by an already-
+ * selected ancestor. Mirrors the selection semantics in OrgSharePicker below. */
+function orgSelectionReach(unit: OrgUnit, selection: Set<string>, ancestorSelected: boolean): number {
+  const selfSelected = ancestorSelected || selection.has(`u:${unit.id}`);
+  if (selfSelected) return ancestorSelected ? 0 : countAll(unit);
+  let total = 0;
+  for (const m of unit.members) if (selection.has(`m:${m.id}`)) total += 1;
+  for (const child of unit.units) total += orgSelectionReach(child, selection, false);
+  return total;
+}
+
+/** Human-readable names for what's currently selected — used in the inline reach warning and
+ * as the scope shown to the Admin reviewing the governance request. */
+function orgSelectionSummary(unit: OrgUnit, selection: Set<string>, ancestorSelected: boolean): string[] {
+  const selfSelected = ancestorSelected || selection.has(`u:${unit.id}`);
+  if (selfSelected) return ancestorSelected ? [] : [`${unit.name} (${countAll(unit)} người)`];
+  const out: string[] = [];
+  for (const m of unit.members) if (selection.has(`m:${m.id}`)) out.push(m.name);
+  for (const child of unit.units) out.push(...orgSelectionSummary(child, selection, false));
+  return out;
+}
+
+/** Company/department scope picker for the Publish modal — same synced org tree as
+ * Organization › Structure (orgData.ts / useOrg()), no separate tree to maintain. Lets the
+ * publisher narrow "Company / department" down to the whole company, one unit, or specific
+ * people, same granularity as the description text already promised but had no UI for. */
+function OrgSharePicker({ tree, selection, onToggleUnit, onToggleMember }: {
+  tree: OrgUnit; selection: Set<string>;
+  onToggleUnit: (unit: OrgUnit) => void; onToggleMember: (member: OrgMember) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [expanded, setExpanded] = useState<Set<string>>(new Set([tree.id]));
+  const toggleExpand = (id: string) => setExpanded(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+  const query = search.trim().toLowerCase();
+  const memberMatches = (m: OrgMember) => !query || m.name.toLowerCase().includes(query) || (m.email ?? "").toLowerCase().includes(query);
+
+  const renderUnit = (unit: OrgUnit, depth: number, ancestorSelected: boolean): React.ReactNode => {
+    const matchingMembers = unit.members.filter(memberMatches);
+    if (query && !unitMatches(unit, query) && matchingMembers.length === 0) return null;
+    const isExpanded = query.length > 0 || expanded.has(unit.id);
+    const hasChildren = unit.units.length > 0 || unit.members.length > 0;
+    const checked = ancestorSelected || selection.has(`u:${unit.id}`);
+    return (
+      <div key={unit.id}>
+        <div className="flex items-center gap-2 py-1.5 hover:bg-surface-muted/60 rounded-md" style={{ paddingLeft: depth * 18 }}>
+          {hasChildren ? (
+            <button type="button" onClick={() => toggleExpand(unit.id)} className="w-4 h-4 flex items-center justify-center text-muted-foreground shrink-0">
+              <HugeiconsIcon icon={isExpanded ? ChevronDownIcon : ChevronRightIcon} size={12} />
+            </button>
+          ) : <span className="w-4 shrink-0" />}
+          <input
+            type="checkbox" checked={checked} disabled={ancestorSelected}
+            onChange={() => onToggleUnit(unit)}
+            className="w-4 h-4 rounded accent-primary shrink-0"
+          />
+          <HugeiconsIcon icon={Building02Icon} size={13} className="text-muted-foreground shrink-0" />
+          <span className="text-sm font-medium flex-1 truncate">{unit.name}</span>
+          <span className="text-xs text-muted-foreground shrink-0">{countAll(unit)}</span>
+        </div>
+        {isExpanded && (
+          <div>
+            {unit.units.map(child => renderUnit(child, depth + 1, checked))}
+            {matchingMembers.map(m => (
+              <div key={m.id} className="flex items-center gap-2 py-1.5 hover:bg-surface-muted/60 rounded-md" style={{ paddingLeft: (depth + 1) * 18 }}>
+                <span className="w-4 shrink-0" />
+                <input
+                  type="checkbox" checked={checked || selection.has(`m:${m.id}`)} disabled={checked}
+                  onChange={() => onToggleMember(m)}
+                  className="w-4 h-4 rounded accent-primary shrink-0"
+                />
+                <span className="text-sm flex-1 truncate">{m.name}</span>
+                <span className="text-xs text-muted-foreground shrink-0 truncate max-w-[140px]">{m.email}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="border border-border rounded-lg overflow-hidden bg-white">
+      <div className="p-2 border-b border-border">
+        <div className="relative">
+          <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text" value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Search companies, departments or people"
+            className="w-full pl-7 pr-2.5 py-1.5 rounded-md border border-border text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+          />
+        </div>
+      </div>
+      <div className="max-h-56 overflow-y-auto px-2 py-1">
+        {renderUnit(tree, 0, false)}
+      </div>
+    </div>
+  );
+}
+
 /** Read-only — external channels are no longer picked from inside the Publish modal, they're
  * all managed from the Deploy tab's own "External channels" grid (DeployTab in this file).
  * This row is purely informational signposting: Zalo already has its own toggle on that tab,
@@ -4053,6 +4158,13 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
   const current = agentPublishStore.get(agentId);
   const BASE = current.version.replace(/^v/, "").split(".").map(Number);
 
+  // Which Space owns this Agent decides what "Agent Workspace" (audience) options make sense:
+  // a personal Space has no company/department to share into, so "Company / department" is
+  // hidden entirely rather than shown and silently doing nothing meaningful (was the bug PM
+  // flagged — the option used to render for every user regardless of Space type).
+  const { tree: orgTree } = useOrg();
+  const personalSpace = isPersonalSpace(getCurrentTenantId());
+
   const [versionType, setVersionType] = useState<"patch" | "minor" | "major">("patch");
   const newVersion = (() => {
     const [maj, min, pat] = BASE;
@@ -4073,8 +4185,42 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
   // just bumps the version, keeping distribution as-is); on by default for a first-ever
   // publish, since there's nothing to "keep unchanged" yet.
   const [publishToOpen, setPublishToOpen] = useState(current.placement === null);
-  const [audience, setAudience] = useState<PublishAudience>(current.audience ?? "me");
+  const [audience, setAudience] = useState<PublishAudience>(() => {
+    const initial = current.audience ?? "me";
+    // Guard against stale/seeded state pointing at "org" from a personal Space — that
+    // combination can no longer be chosen, so fall back to "Only me" rather than render a
+    // selected-but-hidden option.
+    return personalSpace && initial === "org" ? "me" : initial;
+  });
   const currentAudience: PublishAudience = current.audience ?? "me";
+
+  // Company/department scope — which org units/members the Agent gets shared with. Keys are
+  // "u:<unitId>" or "m:<memberId>". Selecting a unit supersedes (and clears) any individually
+  // selected descendants, so the reach count below never double-counts.
+  const [orgSelection, setOrgSelection] = useState<Set<string>>(new Set());
+  const clearDescendantSelections = (unit: OrgUnit, set: Set<string>) => {
+    for (const child of unit.units) { set.delete(`u:${child.id}`); clearDescendantSelections(child, set); }
+    for (const m of unit.members) set.delete(`m:${m.id}`);
+  };
+  const toggleOrgUnit = (unit: OrgUnit) => {
+    setOrgSelection(prev => {
+      const next = new Set(prev);
+      const key = `u:${unit.id}`;
+      if (next.has(key)) next.delete(key);
+      else { next.add(key); clearDescendantSelections(unit, next); }
+      return next;
+    });
+  };
+  const toggleOrgMember = (member: OrgMember) => {
+    setOrgSelection(prev => {
+      const next = new Set(prev);
+      const key = `m:${member.id}`;
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+  const orgReachCount = orgSelectionReach(orgTree, orgSelection, false);
+  const orgReachSummary = orgSelectionSummary(orgTree, orgSelection, false).join(", ");
 
   const draftNoteFromChanges = () => {
     if (changes.length === 0) return;
@@ -4102,6 +4248,13 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
       onClose();
       return;
     }
+    // A Company/department request has to name a scope — "who exactly" is the whole point of
+    // this gate (see PM's original report: publishing wide used to be a single click with no
+    // statement of who'd see it). Community has no scope to pick, it's everyone by definition.
+    if (effectiveAudience === "org" && orgSelection.size === 0) {
+      toast.error("Chọn công ty, phòng ban hoặc nhân viên cụ thể sẽ thấy được Agent này trước khi gửi duyệt.");
+      return;
+    }
     const bundle = computeAgentBundle(agentId);
     // Policy gate (hard block, item #10): a Guardrail/Connector an admin has toggled "Chặn dùng
     // trong Agent mới" can't ride along in a new governance request at all — this stops the
@@ -4120,6 +4273,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
       requesterId: KB_CURRENT_USER.id, requesterName: KB_CURRENT_USER.name,
       audience: effectiveAudience, note: note.trim(), version: versionName,
       bundledItems: bundle,
+      scopeSummary: effectiveAudience === "org" ? orgReachSummary : undefined,
     });
     toast.success("Đã gửi yêu cầu duyệt. Agent sẽ được publish sau khi Admin duyệt trong Trust & Governance › Requests.");
     onPublished?.();
@@ -4291,6 +4445,11 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
                       )}
                     </p>
                   )}
+                  {personalSpace && (
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Bạn đang ở Space cá nhân nên không có công ty/phòng ban để publish tới — chuyển sang một Space doanh nghiệp để mở "Company / department".
+                    </p>
+                  )}
                   <div className="space-y-2">
                     <AudienceRadioRow
                       icon={UserIcon}
@@ -4301,15 +4460,30 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
                       liveLabel="Published"
                       onClick={() => setAudience("me")}
                     />
-                    <AudienceRadioRow
-                      icon={Building02Icon}
-                      title="Company / department"
-                      description="Share the agent with a whole company, one department, or selected employees."
-                      selected={audience === "org"}
-                      liveNow={current.placement !== null && currentAudience === "org"}
-                      liveLabel="Published"
-                      onClick={() => setAudience("org")}
-                    />
+                    {/* Personal Space owns no company/department — showing this option there used to be
+                        selectable and silently meaningless (the bug PM reported). Enterprise Space only. */}
+                    {!personalSpace && (
+                      <AudienceRadioRow
+                        icon={Building02Icon}
+                        title="Company / department"
+                        description="Share the agent with a whole company, one department, or selected employees."
+                        selected={audience === "org"}
+                        liveNow={current.placement !== null && currentAudience === "org"}
+                        liveLabel="Published"
+                        onClick={() => setAudience("org")}
+                      >
+                        {audience === "org" && (
+                          <div className="mt-2 pl-11">
+                            <p className={`text-xs mb-2 ${orgSelection.size === 0 ? "text-warning" : "text-warning font-medium"}`}>
+                              {orgSelection.size === 0
+                                ? "Chọn công ty, phòng ban hoặc nhân viên cụ thể bên dưới — Agent sẽ chỉ hiển thị cho người bạn chọn."
+                                : `Sẽ hiển thị cho khoảng ${orgReachCount} người: ${orgReachSummary}`}
+                            </p>
+                            <OrgSharePicker tree={orgTree} selection={orgSelection} onToggleUnit={toggleOrgUnit} onToggleMember={toggleOrgMember} />
+                          </div>
+                        )}
+                      </AudienceRadioRow>
+                    )}
                     <AudienceRadioRow
                       icon={Globe02Icon}
                       title="FPT AI Agent community"
@@ -4318,7 +4492,13 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
                       liveNow={current.placement !== null && currentAudience === "community"}
                       liveLabel="Published"
                       onClick={() => setAudience("community")}
-                    />
+                    >
+                      {audience === "community" && (
+                        <p className="text-xs text-warning mt-2 pl-11">
+                          Sẽ hiển thị cho toàn bộ người dùng FPT AI Agent, kể cả người ngoài công ty bạn.
+                        </p>
+                      )}
+                    </AudienceRadioRow>
                   </div>
                 </div>
 
@@ -4344,8 +4524,9 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
         <div className="flex items-center justify-end gap-2 px-6 py-4 shrink-0">
           <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Cancel</button>
           <button
-            className="h-9 px-5 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-2 transition-base"
+            className="h-9 px-5 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-2 transition-base disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary"
             onClick={doPublish}
+            disabled={effectiveAudience === "org" && orgSelection.size === 0}
           >
             <HugeiconsIcon icon={Rocket01Icon} size={14} />
             {effectiveAudience === "me" ? `Publish ${versionName}` : `Gửi yêu cầu duyệt ${versionName}`}

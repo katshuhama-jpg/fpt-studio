@@ -8,18 +8,14 @@ import {
   Network, Users, Cpu, UsersRound, ClipboardList, History,
 } from "lucide-react";
 import { governanceStore } from "@/components/governance/governanceStore";
+import { TENANTS, getCurrentTenantId, setCurrentTenantId } from "@/lib/spaceStore";
 
 const APP_VERSION = "0.58.5";
 import { useEffect, useState } from "react";
 import fptAiLogo from "@/assets/fpt-ai-logo.png";
 
-type Tenant = { id: string; name: string; plan: string; initial: string };
-const TENANTS: Tenant[] = [
-  { id: "fpt-smart-cloud", name: "FPT Smart Cloud", plan: "Enterprise", initial: "FS" },
-  { id: "fpt-telecom",     name: "FPT Telecom",     plan: "Business",   initial: "FT" },
-  { id: "fpt-software",    name: "FPT Software",    plan: "Enterprise", initial: "FW" },
-  { id: "sandbox",         name: "Personal Sandbox",plan: "Free",       initial: "PS" },
-];
+// Tenant/TENANTS + current-Space persistence now live in @/lib/spaceStore (shared with
+// AgentBuilder's Publish modal, which needs to know if the active Space is personal).
 
 type Item = { to: string; label: string; icon: any; badge?: string; external?: boolean };
 type Group = { id: string; label: string; items: Item[] };
@@ -78,7 +74,10 @@ export default function WorkspaceLayout() {
   const [collapsed, setCollapsed] = useState(() => typeof window !== "undefined" && window.matchMedia(NARROW_QUERY).matches);
   const [open, setOpen] = useState<Record<string, boolean>>({ build: true, resources: true, governance: true });
   const [userMenu, setUserMenu] = useState(false);
-  const [tenantId, setTenantId] = useState(TENANTS[0].id);
+  const [tenantId, setTenantIdState] = useState(getCurrentTenantId());
+  // Persist so other routes (e.g. the Agent Publish modal) can read which Space is active
+  // without this layout's local state being threaded down to them.
+  const setTenantId = (id: string) => { setTenantIdState(id); setCurrentTenantId(id); };
 
   // Sync the sidebar to the narrow/mobile breakpoint on resize, in both directions — otherwise
   // shrinking the window narrow and back wide again would leave it stuck collapsed with no way

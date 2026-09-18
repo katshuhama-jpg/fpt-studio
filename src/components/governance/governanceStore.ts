@@ -129,6 +129,11 @@ export interface GovRequest {
   requesterId: string;
   requesterName: string;
   audience: GovAudience;
+  /** Human-readable "who exactly" for an `audience: "org"` request — e.g. "Ban Giam doc (2
+   * người), Nhóm Product Management (1 người)". Undefined for "community" (always everyone,
+   * nothing to scope) and for older requests submitted before scoping existed. Set from the
+   * Publish modal's OrgSharePicker (AgentBuilder.tsx). */
+  scopeSummary?: string;
   note: string;
   version?: string;
   status: GovRequestStatus;
@@ -476,7 +481,7 @@ export const governanceStore = {
   submit(input: {
     resourceType: GovResourceType; resourceId: string; resourceName: string; resourceIcon?: string;
     requesterId: string; requesterName: string; audience: GovAudience; note: string; version?: string;
-    bundledItems?: GovBundledItem[];
+    bundledItems?: GovBundledItem[]; scopeSummary?: string;
   }): GovRequest {
     seed();
     const id = nextId();
@@ -484,7 +489,7 @@ export const governanceStore = {
     const req: GovRequest = {
       id, resourceType: input.resourceType, resourceId: input.resourceId, resourceName: input.resourceName,
       resourceIcon: input.resourceIcon, requesterId: input.requesterId, requesterName: input.requesterName,
-      audience: input.audience, note: input.note, version: input.version, status: "pending",
+      audience: input.audience, scopeSummary: input.scopeSummary, note: input.note, version: input.version, status: "pending",
       submittedAt: t, updatedAt: t, bundledItems: input.bundledItems ?? [],
       mainSnapshotAtSubmit: buildSnapshot(input.resourceType, input.resourceId),
       history: [historyEntry("submitted", input.requesterId, input.requesterName)],

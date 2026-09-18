@@ -264,6 +264,9 @@ export default function GovernanceRequestDetail() {
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Publish to</p>
               <p className="text-sm font-medium text-foreground">{AUDIENCE_LABEL[req.audience]}</p>
+              {req.scopeSummary && (
+                <p className="text-xs text-muted-foreground mt-1">{req.scopeSummary}</p>
+              )}
             </div>
             {req.updatedAt !== req.submittedAt && (
               <div>
