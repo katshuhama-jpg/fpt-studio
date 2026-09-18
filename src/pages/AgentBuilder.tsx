@@ -4484,6 +4484,10 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
                         )}
                       </AudienceRadioRow>
                     )}
+                    {/* No inline reach warning here (unlike Company/department below) — the
+                        description line above already states the full reach ("every FPT AI
+                        Agent user, including people outside your company"); repeating it as a
+                        second line was flagged as redundant during review. */}
                     <AudienceRadioRow
                       icon={Globe02Icon}
                       title="FPT AI Agent community"
@@ -4492,13 +4496,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
                       liveNow={current.placement !== null && currentAudience === "community"}
                       liveLabel="Published"
                       onClick={() => setAudience("community")}
-                    >
-                      {audience === "community" && (
-                        <p className="text-xs text-warning mt-2 pl-11">
-                          Sẽ hiển thị cho toàn bộ người dùng FPT AI Agent, kể cả người ngoài công ty bạn.
-                        </p>
-                      )}
-                    </AudienceRadioRow>
+                    />
                   </div>
                 </div>
 
