@@ -330,6 +330,10 @@
     --wf-warn: #D97706;    --wf-cond-border: #8891A6;
 
     --wf-accent: #4650D6;  --wf-accent-ink: #FFFFFF;
+    /* Pale tint of --wf-accent — same value as --wf-agent-bg (same hex as --wf-agent itself),
+       given its own name for uses that are about the system accent generically (e.g. the active
+       tab pill in a page header) rather than the Agent node type specifically. */
+    --wf-accent-bg: #EEF0FE;
     --wf-pub-bg: #E6F8EF;  --wf-pub-ink: #0E8F52;
 
     /* Same values as slateTheme.ts's WF_CONNECTOR_COLOR/WF_DOTMARK_COLOR — those exist because

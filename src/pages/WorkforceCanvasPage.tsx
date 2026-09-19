@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, Undo2, Redo2, LayoutGrid, Plus, Minus, Maximize, Lock, LockOpen, Play, ChevronDown, MessageSquare } from "lucide-react";
+import { ChevronLeft, Undo2, Redo2, LayoutGrid, Plus, Minus, Maximize, Lock, LockOpen, Play, ChevronDown, MessageSquare, Workflow, History } from "lucide-react";
 import { toast } from "sonner";
 import { ReactFlowProvider, useNodesState, useEdgesState, type ReactFlowInstance } from "reactflow";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -19,12 +19,14 @@ import AgentConfigDrawer from "@/components/workforce/AgentConfigDrawer";
 import ConditionDrawer from "@/components/workforce/ConditionDrawer";
 import GettingStartedChecklist from "@/components/workforce/GettingStartedChecklist";
 import RunTracePanel from "@/components/workforce/RunTracePanel";
+import RunHistoryTab from "@/components/workforce/RunHistoryTab";
 import ManualRunDialog, { type ManualRunTriggerOption } from "@/components/workforce/ManualRunDialog";
 import { DeleteNodeDialog } from "@/components/workforce/WorkforceDeleteDialogs";
 import { workforceStore } from "@/components/workforce/workforceStore";
 import { isConditionInvalid, type ConditionNodeData, type WorkforceNode, type WorkforceEdge, type WorkforceNodeData, type WorkforceStatus } from "@/components/workforce/types";
 import { removeNodeCascade, removeRouteByConditionId, getRouteEndpoints, isDestinationNode, autoArrange, getNodesUnreachableFromTrigger } from "@/components/workforce/graphOps";
 import { useRunTrace } from "@/components/workforce/useRunTrace";
+import { runHistoryStore, buildConditionChoices, type RunStatus } from "@/components/workforce/runHistoryStore";
 import type { WorkforceNodeActions } from "@/components/workforce/nodes/nodeActionsContext";
 
 const MAX_HISTORY = 50;
@@ -73,6 +75,15 @@ export default function WorkforceCanvasPage() {
   const [manualRunMessage, setManualRunMessage] = useState<string | null>(null);
   const [manualRunActive, setManualRunActive] = useState(false);
   const runTrace = useRunTrace(nodes as any, edges);
+  // When a run started, so the recorded WorkforceRunRecord (below) has a real duration — a ref
+  // (not state) since it's write-once-per-run and read only inside the recording effect, never
+  // rendered off directly.
+  const runStartedAtRef = useRef<number | null>(null);
+
+  // "Canvas" | "Lịch sử chạy" (S-gap-8, Observability) — single-row header tabs, same slot the
+  // Agent page's own Build/Test/Channels/Insights tabs occupy.
+  const [activeTab, setActiveTab] = useState<"canvas" | "history">("canvas");
+  const [runs, setRuns] = useState(() => runHistoryStore.list(id));
 
   // Undo/redo history — snapshots are pushed right before a mutating action (add/delete a
   // node or route, drag a node, open a config drawer, save a Condition) rather than on every
@@ -218,6 +229,35 @@ export default function WorkforceCanvasPage() {
   const triggerNodes = useMemo(() => nodes.filter(n => n.data.kind === "trigger"), [nodes]);
   const runActive = runTrace.state.status !== "idle";
 
+  // Persist every finished run to the "Lịch sử chạy" tab (S-gap-8, Observability) — fires once
+  // per completed run, right when `status` transitions into "done" (a restart or a fresh run
+  // walks back through "running"/"choice" first, so this fires again for each one). `manualRunActive`
+  // is exactly "this was a real 'Chạy Workforce' run, not a 'Chạy thử'" — RunTracePanel already
+  // keys its own "test" vs "manual" mode off the same flag.
+  useEffect(() => {
+    if (runTrace.state.status !== "done") return;
+    const s = runTrace.state;
+    const startedAt = runStartedAtRef.current ?? Date.now();
+    const status: RunStatus = s.endReason === "unwired" ? "error" : s.endReason === "stopped" ? "stopped" : "success";
+    const conditionChoices = buildConditionChoices(s.nodeStatus.keys(), nodes as any, edges, describeRunNode);
+    runHistoryStore.record({
+      workforceId: id,
+      source: manualRunActive ? "trigger" : "test",
+      triggerLabel: s.steps[0] ? describeRunNode(s.steps[0]) : "Trigger",
+      contextMessage: manualRunActive ? manualRunMessage : null,
+      startedAt,
+      endedAt: Date.now(),
+      status,
+      steps: s.steps,
+      edgeIds: [...s.edgeIds],
+      conditionChoices,
+      errorReason: s.endReason === "unwired" ? `Trigger "${s.steps[0] ? describeRunNode(s.steps[0]) : "này"}" chưa kết nối tới Agent nào — dừng ngay từ bước đầu.` : null,
+    });
+    setRuns(runHistoryStore.list(id));
+    runStartedAtRef.current = null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runTrace.state.status]);
+
   const handleTestRun = () => {
     if (triggerNodes.length === 0) {
       toast.error("Chưa có Trigger nào trên canvas để chạy thử");
@@ -225,6 +265,7 @@ export default function WorkforceCanvasPage() {
     }
     if (triggerNodes.length === 1) {
       setManualRunActive(false);
+      runStartedAtRef.current = Date.now();
       runTrace.start(triggerNodes[0].id);
       return;
     }
@@ -257,6 +298,7 @@ export default function WorkforceCanvasPage() {
     setManualRunOpen(false);
     setManualRunActive(true);
     setManualRunMessage(message || null);
+    runStartedAtRef.current = Date.now();
     runTrace.start(nodeId);
   };
 
@@ -320,105 +362,128 @@ export default function WorkforceCanvasPage() {
 
   return (
     <div className="wf-slate flex flex-col h-full">
-      {/* Two-tier header, echoing the Relevance AI reference canvas: a thin utility row (back
-          nav + status/save state + primary actions) sitting above a separate, much more
-          prominent title row — instead of cramming breadcrumb, name, status and save-state onto
-          one dense line. Same controls, same behavior, just given room to read as the page's
-          actual title rather than a small piece of a breadcrumb. */}
-      {/* Fixed h-10/h-14 rows (not intrinsic padding) so the total header height is an exact,
-          known 96px (24 * 4px) — every config drawer's `top-24` (see e.g. OmniConfigDrawer) is
-          hand-matched to this sum, same convention the old single-row header's `top-14` used. */}
+      {/* Single-row header (h-14, 56px), matching the Agent page's own top bar exactly — back
+          nav + editable name on the left, a centered tab bar in the same slot Agent's own
+          Build/Test/Channels/Insights occupies (S-gap-8: "Lịch sử chạy" is the run-history tab
+          this now lives at), status/save-state + run/Save/Publish actions on the right. Replaces
+          the earlier two-tier 96px header — every config drawer's `top-14` (see e.g.
+          OmniConfigDrawer) is hand-matched to this exact height. */}
       <div
-        className="flex items-center h-10 px-[22px] gap-2.5 shrink-0 [font-family:var(--wf-font-display)]"
+        className="flex items-center h-14 px-[18px] gap-3 shrink-0 [font-family:var(--wf-font-display)]"
         style={{ background: "var(--wf-surface)", borderBottom: "1px solid var(--wf-border)" }}
       >
         <button
           onClick={() => navigate("/workforce")}
-          className="flex items-center gap-1.5 text-[13px] shrink-0 transition-base hover:opacity-80"
+          className="flex items-center gap-1.5 text-[13px] font-semibold shrink-0 transition-base hover:opacity-80"
           style={{ color: "var(--wf-muted)" }}
         >
           <ChevronLeft size={14} /> Workforce
         </button>
-        <span className={`wf-pill ${status === "published" ? "" : "muted"}`}>
-          {status === "published" ? "Published" : "Draft"}
-        </span>
-        <span className="text-[12px]" style={{ color: "var(--wf-muted)" }}>{saveStateText}</span>
-
-        <div className="flex items-center gap-2.5 shrink-0 ml-auto">
-          <div className="relative">
-            <Tooltip delayDuration={300}>
-              <TooltipTrigger asChild>
-                <span>
-                  <button
-                    onClick={handleTestRun}
-                    disabled={runActive || triggerNodes.length === 0}
-                    className="wf-btn-sec flex items-center gap-1.5 disabled:opacity-40 disabled:pointer-events-none"
-                  >
-                    <Play size={13} fill="currentColor" /> Chạy thử {triggerNodes.length > 1 && <ChevronDown size={12} />}
-                  </button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                {triggerNodes.length === 0 ? "Cần ít nhất một Trigger trên canvas" : "Mô phỏng luồng chạy trên canvas"}
-              </TooltipContent>
-            </Tooltip>
-            {triggerMenuOpen && (
-              <>
-              <div className="fixed inset-0 z-20" onClick={() => setTriggerMenuOpen(false)} />
-              <div
-                className="absolute right-0 top-[calc(100%+6px)] w-[240px] py-1.5 z-30 animate-fade-up"
-                style={{ background: "var(--wf-surface)", border: "1px solid var(--wf-border)", borderRadius: "var(--wf-radius-sm)", boxShadow: "var(--wf-node-shadow-selected)" }}
-              >
-                <p className="px-3 pb-1 text-[11px] font-semibold" style={{ color: "var(--wf-muted)" }}>Chạy thử từ Trigger nào?</p>
-                {triggerNodes.map(t => (
-                  <button
-                    key={t.id}
-                    onClick={() => { setManualRunActive(false); runTrace.start(t.id); setTriggerMenuOpen(false); }}
-                    className="w-full text-left px-3 py-2 text-[12.5px] min-h-[44px] flex items-center transition-base hover:bg-[var(--wf-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    style={{ color: "var(--wf-text)" }}
-                  >
-                    {describeRunNode(t.id)}
-                  </button>
-                ))}
-              </div>
-              </>
-            )}
-          </div>
-          {status === "published" && manualTriggerOptions.length > 0 && (
-            <Tooltip delayDuration={300}>
-              <TooltipTrigger asChild>
-                <span>
-                  <button
-                    onClick={() => setManualRunOpen(true)}
-                    disabled={runActive}
-                    className="wf-btn-sec flex items-center gap-1.5 disabled:opacity-40 disabled:pointer-events-none"
-                  >
-                    <MessageSquare size={13} /> Chạy Workforce
-                  </button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Bắt đầu một lượt chạy thật, bằng cách gõ yêu cầu — giống người dùng thật sẽ làm</TooltipContent>
-            </Tooltip>
-          )}
-          <button onClick={handleSave} className="wf-btn-sec">Save</button>
-          <button onClick={handlePublish} className="wf-btn-pri">Publish</button>
-        </div>
-      </div>
-
-      <div
-        className="flex items-center h-14 px-[22px] shrink-0 [font-family:var(--wf-font-display)]"
-        style={{ background: "var(--wf-surface)", borderBottom: "1px solid var(--wf-border)" }}
-      >
+        <span style={{ color: "var(--wf-border)" }}>/</span>
         <input
           value={name}
           onChange={e => setName(e.target.value)}
           onBlur={() => workforceStore.rename(id, name.trim() || "Untitled workforce")}
-          className="bg-transparent outline-none font-extrabold min-w-0 flex-1 px-1.5 py-1 rounded transition-base text-[22px] hover:bg-[var(--wf-bg)] focus:bg-[var(--wf-bg)]"
-          style={{ color: "var(--wf-text)" }}
+          className="bg-transparent outline-none font-extrabold min-w-0 px-1.5 py-1 rounded transition-base text-[14.5px] hover:bg-[var(--wf-bg)] focus:bg-[var(--wf-bg)]"
+          style={{ color: "var(--wf-text)", width: `${Math.max(name.length, 6) + 1}ch` }}
         />
+
+        <div className="flex-1 flex items-center justify-center">
+          <div className="flex items-center gap-1">
+            {([
+              { id: "canvas" as const, label: "Canvas", Icon: Workflow },
+              { id: "history" as const, label: "Lịch sử chạy", Icon: History },
+            ]).map(({ id: tabId, label, Icon }) => (
+              <button
+                key={tabId}
+                onClick={() => setActiveTab(tabId)}
+                className="h-8 px-3 rounded-[var(--wf-radius-sm)] text-[13px] font-bold flex items-center gap-2 transition-base"
+                style={activeTab === tabId
+                  ? { background: "var(--wf-accent-bg)", color: "var(--wf-accent)" }
+                  : { background: "transparent", color: "var(--wf-muted)" }}
+              >
+                <Icon size={15} /> {label}
+                {tabId === "history" && runs.length > 0 && (
+                  <span
+                    className="text-[10.5px] font-bold tabular-nums rounded-full px-1.5 py-px"
+                    style={activeTab === tabId ? { background: "var(--wf-surface)", color: "var(--wf-accent)" } : { background: "var(--wf-bg)", color: "var(--wf-muted)" }}
+                  >
+                    {runs.length}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <span className={`wf-pill shrink-0 ${status === "published" ? "" : "muted"}`}>
+          {status === "published" ? "Published" : "Draft"}
+        </span>
+        <span className="text-[12px] shrink-0" style={{ color: "var(--wf-muted)" }}>{saveStateText}</span>
+        <div className="relative shrink-0">
+          <Tooltip delayDuration={300}>
+            <TooltipTrigger asChild>
+              <span>
+                <button
+                  onClick={handleTestRun}
+                  disabled={runActive || triggerNodes.length === 0}
+                  className="wf-btn-sec flex items-center gap-1.5 disabled:opacity-40 disabled:pointer-events-none"
+                >
+                  <Play size={13} fill="currentColor" /> Chạy thử {triggerNodes.length > 1 && <ChevronDown size={12} />}
+                </button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              {triggerNodes.length === 0 ? "Cần ít nhất một Trigger trên canvas" : "Mô phỏng luồng chạy trên canvas"}
+            </TooltipContent>
+          </Tooltip>
+          {triggerMenuOpen && (
+            <>
+            <div className="fixed inset-0 z-20" onClick={() => setTriggerMenuOpen(false)} />
+            <div
+              className="absolute right-0 top-[calc(100%+6px)] w-[240px] py-1.5 z-30 animate-fade-up"
+              style={{ background: "var(--wf-surface)", border: "1px solid var(--wf-border)", borderRadius: "var(--wf-radius-sm)", boxShadow: "var(--wf-node-shadow-selected)" }}
+            >
+              <p className="px-3 pb-1 text-[11px] font-semibold" style={{ color: "var(--wf-muted)" }}>Chạy thử từ Trigger nào?</p>
+              {triggerNodes.map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => { setManualRunActive(false); runStartedAtRef.current = Date.now(); runTrace.start(t.id); setTriggerMenuOpen(false); }}
+                  className="w-full text-left px-3 py-2 text-[12.5px] min-h-[44px] flex items-center transition-base hover:bg-[var(--wf-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  style={{ color: "var(--wf-text)" }}
+                >
+                  {describeRunNode(t.id)}
+                </button>
+              ))}
+            </div>
+            </>
+          )}
+        </div>
+        {status === "published" && manualTriggerOptions.length > 0 && (
+          <Tooltip delayDuration={300}>
+            <TooltipTrigger asChild>
+              <span>
+                <button
+                  onClick={() => setManualRunOpen(true)}
+                  disabled={runActive}
+                  className="wf-btn-sec flex items-center gap-1.5 disabled:opacity-40 disabled:pointer-events-none shrink-0"
+                >
+                  <MessageSquare size={13} /> Chạy Workforce
+                </button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Bắt đầu một lượt chạy thật, bằng cách gõ yêu cầu — giống người dùng thật sẽ làm</TooltipContent>
+          </Tooltip>
+        )}
+        <button onClick={handleSave} className="wf-btn-sec shrink-0">Save</button>
+        <button onClick={handlePublish} className="wf-btn-pri shrink-0">Publish</button>
       </div>
 
       <div className="flex-1 relative flex overflow-hidden">
+        {activeTab === "history" ? (
+          <RunHistoryTab workforceId={id} runs={runs} />
+        ) : (
+        <>
         <ReactFlowProvider>
           <Canvas
             nodes={nodes as any}
@@ -446,7 +511,7 @@ export default function WorkforceCanvasPage() {
             describeNode={describeRunNode}
             onChoose={runTrace.choose}
             onStop={runTrace.stop}
-            onRestart={() => runTrace.start(runTrace.state.steps[0])}
+            onRestart={() => { runStartedAtRef.current = Date.now(); runTrace.start(runTrace.state.steps[0]); }}
             onClose={() => { runTrace.reset(); setManualRunActive(false); setManualRunMessage(null); }}
             mode={manualRunActive ? "manual" : "test"}
             contextMessage={manualRunMessage}
@@ -475,6 +540,8 @@ export default function WorkforceCanvasPage() {
           <div className="h-px bg-border mx-1 my-0.5" />
           <RailButton label="Sắp xếp lại canvas" icon={<LayoutGrid size={16} />} onClick={handleAutoArrange} disabled={nodes.length === 0} />
         </div>
+        </>
+        )}
       </div>
 
       <ManualRunDialog

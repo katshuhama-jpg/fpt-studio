@@ -56,7 +56,7 @@ export default function ConditionDrawer({
   };
 
   return (
-    <aside className="fixed right-0 top-24 bottom-0 w-[440px] border-l border-border bg-surface shadow-2xl z-20 flex flex-col animate-fade-up">
+    <aside className="fixed right-0 top-14 bottom-0 w-[440px] border-l border-border bg-surface shadow-2xl z-20 flex flex-col animate-fade-up">
       <div className="px-4 py-3 border-b border-border shrink-0">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold">Điều kiện chuyển giao</h3>
