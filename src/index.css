@@ -290,7 +290,10 @@
     --wf-font-display: 'Manrope', ui-sans-serif, system-ui, sans-serif;
     --wf-font-body: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
 
-    --wf-radius: 14px;
+    /* Smaller than the earlier 14px — a tighter, more "solid" radius across node cards and other
+       large elements, closer to the Relevance AI reference's own corners and less of the soft/
+       floaty look the bigger radius read as. */
+    --wf-radius: 10px;
     --wf-radius-sm: 8px;
     /* A softer, more "lifted" two-layer shadow (tight contact shadow + a wider diffuse glow)
        instead of the old single 1px hairline — echoes the airy, floating-card feel of the
@@ -338,11 +341,13 @@
   }
   .wf-btn-sec:hover { background: var(--wf-bg); }
 
+  /* Status badge — small-radius rounded rectangle (not a full pill/oval), matching the rest of
+     the canvas's tighter corner-radius system. */
   .wf-pill {
     display: inline-block;
     font-family: var(--wf-font-display);
     font-size: 11px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;
-    padding: 3px 9px; border-radius: 999px;
+    padding: 3px 9px; border-radius: 6px;
     background: var(--wf-pub-bg); color: var(--wf-pub-ink);
   }
   .wf-pill.muted { background: #EEF0F3; color: var(--wf-muted); }

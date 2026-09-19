@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, Undo2, Redo2, LayoutGrid, Plus, Minus, Maximize, Lock, LockOpen, Workflow, BookOpen } from "lucide-react";
+import { ChevronLeft, Undo2, Redo2, LayoutGrid, Plus, Minus, Maximize, Lock, LockOpen } from "lucide-react";
 import { toast } from "sonner";
 import { ReactFlowProvider, useNodesState, useEdgesState, type ReactFlowInstance } from "reactflow";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -15,7 +15,6 @@ import TriggerConfigDrawer from "@/components/workforce/TriggerConfigDrawer";
 import AgentConfigDrawer from "@/components/workforce/AgentConfigDrawer";
 import ConditionDrawer from "@/components/workforce/ConditionDrawer";
 import GettingStartedChecklist from "@/components/workforce/GettingStartedChecklist";
-import WorkforceNotebookView from "@/components/workforce/WorkforceNotebookView";
 import { DeleteNodeDialog } from "@/components/workforce/WorkforceDeleteDialogs";
 import { workforceStore } from "@/components/workforce/workforceStore";
 import { isConditionInvalid, type ConditionNodeData, type WorkforceNode, type WorkforceEdge, type WorkforceNodeData, type WorkforceStatus } from "@/components/workforce/types";
@@ -42,11 +41,6 @@ export default function WorkforceCanvasPage() {
   const [edges, setEdges, onEdgesChange] = useEdgesState(wfRecord?.edges ?? []);
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
   const [locked, setLocked] = useState(false);
-  // Flow = the existing node canvas (unchanged). Notebook = a linear, document-style read of the
-  // same graph, grouped by route ("nhóm theo từng route riêng") — mirrors Relevance AI's own
-  // Flow/Notebook toggle. Both views share the same node data and the same config drawers below;
-  // this only changes how the graph is laid out on screen, never what it contains.
-  const [view, setView] = useState<"flow" | "notebook">("flow");
 
   const [saveState, setSaveState] = useState<"saved" | "saving" | "dirty">("saved");
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(wfRecord?.updatedAt ?? null);
@@ -235,91 +229,48 @@ export default function WorkforceCanvasPage() {
         />
       </div>
 
-      <div className="flex-1 relative flex flex-col overflow-hidden">
-        {/* Flow/Notebook segmented toggle — same two-tab idea as Relevance's own canvas header.
-            Fixed h-11 (44px) so the drawers below can offset for an exact total header height. */}
-        <div
-          className="flex items-center h-11 px-[22px] gap-1.5 shrink-0 [font-family:var(--wf-font-display)]"
-          style={{ background: "var(--wf-surface)", borderBottom: "1px solid var(--wf-border)" }}
-        >
-          <div className="inline-flex items-center rounded-full p-[3px]" style={{ background: "var(--wf-bg)", border: "1px solid var(--wf-border)" }}>
-            <button
-              type="button"
-              onClick={() => setView("flow")}
-              className="flex items-center gap-1.5 text-[12.5px] font-semibold rounded-full transition-base"
-              style={{
-                padding: "5px 12px",
-                background: view === "flow" ? "var(--wf-surface)" : "transparent",
-                color: view === "flow" ? "var(--wf-text)" : "var(--wf-muted)",
-                boxShadow: view === "flow" ? "0 1px 2px rgba(20,22,30,0.06)" : "none",
-              }}
-            >
-              <Workflow size={13} /> Flow
-            </button>
-            <button
-              type="button"
-              onClick={() => setView("notebook")}
-              className="flex items-center gap-1.5 text-[12.5px] font-semibold rounded-full transition-base"
-              style={{
-                padding: "5px 12px",
-                background: view === "notebook" ? "var(--wf-surface)" : "transparent",
-                color: view === "notebook" ? "var(--wf-text)" : "var(--wf-muted)",
-                boxShadow: view === "notebook" ? "0 1px 2px rgba(20,22,30,0.06)" : "none",
-              }}
-            >
-              <BookOpen size={13} /> Notebook
-            </button>
-          </div>
-        </div>
+      <div className="flex-1 relative flex overflow-hidden">
+        <ReactFlowProvider>
+          <Canvas
+            nodes={nodes as any}
+            edges={edges}
+            setNodes={setNodes as any}
+            onNodesChange={onNodesChange}
+            setEdges={setEdges}
+            onEdgesChange={onEdgesChange}
+            rfInstance={rfInstance}
+            setRfInstance={setRfInstance}
+            nodeActions={nodeActions}
+            onConfigureNode={onConfigureNode}
+            toast={(msg: string) => toast.success(msg)}
+            onBeforeMutate={snapshot}
+            locked={locked}
+          />
+        </ReactFlowProvider>
 
-        <div className="flex-1 relative flex overflow-hidden">
-          {view === "flow" ? (
-            <>
-              <ReactFlowProvider>
-                <Canvas
-                  nodes={nodes as any}
-                  edges={edges}
-                  setNodes={setNodes as any}
-                  onNodesChange={onNodesChange}
-                  setEdges={setEdges}
-                  onEdgesChange={onEdgesChange}
-                  rfInstance={rfInstance}
-                  setRfInstance={setRfInstance}
-                  nodeActions={nodeActions}
-                  onConfigureNode={onConfigureNode}
-                  toast={(msg: string) => toast.success(msg)}
-                  onBeforeMutate={snapshot}
-                  locked={locked}
-                />
-              </ReactFlowProvider>
+        <GettingStartedChecklist nodes={nodes as any} edges={edges} name={name} status={status} />
 
-              <GettingStartedChecklist nodes={nodes as any} edges={edges} name={name} status={status} />
-
-              {/* One unified control rail — zoom, fit, lock, undo/redo, tidy layout — instead of
-                  scattering these across separate floating widgets in different corners. Sits
-                  above the bottom palette bar (a full-width dock, not a floating pill) so the two
-                  never overlap. Flow-view only — none of this applies to the Notebook's linear
-                  read-oriented layout. */}
-              <div className="absolute bottom-[58px] left-4 z-10 flex flex-col gap-0.5 bg-white rounded-xl border border-border shadow-elev p-1">
-                <RailButton label="Phóng to" shortcut={undefined} icon={<Plus size={16} />} onClick={() => rfInstance?.zoomIn({ duration: 150 })} />
-                <RailButton label="Thu nhỏ" icon={<Minus size={16} />} onClick={() => rfInstance?.zoomOut({ duration: 150 })} />
-                <RailButton label="Vừa khung hình" icon={<Maximize size={15} />} onClick={() => rfInstance?.fitView({ duration: 200, padding: 0.2 })} />
-                <RailButton
-                  label={locked ? "Mở khóa canvas" : "Khóa canvas"}
-                  icon={locked ? <Lock size={15} /> : <LockOpen size={15} />}
-                  onClick={() => setLocked(v => !v)}
-                  active={locked}
-                />
-                <div className="h-px bg-border mx-1 my-0.5" />
-                <RailButton label="Hoàn tác" shortcut="Ctrl+Z" icon={<Undo2 size={16} />} onClick={undo} disabled={historyRef.current.length === 0} />
-                <RailButton label="Làm lại" shortcut="Ctrl+Shift+Z" icon={<Redo2 size={16} />} onClick={redo} disabled={futureRef.current.length === 0} />
-                <div className="h-px bg-border mx-1 my-0.5" />
-                <RailButton label="Sắp xếp lại canvas" icon={<LayoutGrid size={16} />} onClick={handleAutoArrange} disabled={nodes.length === 0} />
-              </div>
-            </>
-          ) : (
-            <WorkforceNotebookView nodes={nodes as any} edges={edges} members={members} onConfigureNode={onConfigureNode} />
-          )}
+        {/* One unified control rail — zoom, fit, lock, undo/redo, tidy layout — instead of
+            scattering these across separate floating widgets in different corners. Sits above
+            the bottom palette bar (a full-width dock, not a floating pill) so the two never
+            overlap. rounded-lg (8px), matching --wf-radius-sm, not the softer rounded-xl this
+            used before — keeps every floating control on the same small-radius, "solid" system
+            as the rest of the canvas chrome. */}
+        <div className="absolute bottom-[58px] left-4 z-10 flex flex-col gap-0.5 bg-white rounded-lg border border-border shadow-elev p-1">
+          <RailButton label="Phóng to" shortcut={undefined} icon={<Plus size={16} />} onClick={() => rfInstance?.zoomIn({ duration: 150 })} />
+          <RailButton label="Thu nhỏ" icon={<Minus size={16} />} onClick={() => rfInstance?.zoomOut({ duration: 150 })} />
+          <RailButton label="Vừa khung hình" icon={<Maximize size={15} />} onClick={() => rfInstance?.fitView({ duration: 200, padding: 0.2 })} />
+          <RailButton
+            label={locked ? "Mở khóa canvas" : "Khóa canvas"}
+            icon={locked ? <Lock size={15} /> : <LockOpen size={15} />}
+            onClick={() => setLocked(v => !v)}
+            active={locked}
+          />
+          <div className="h-px bg-border mx-1 my-0.5" />
+          <RailButton label="Hoàn tác" shortcut="Ctrl+Z" icon={<Undo2 size={16} />} onClick={undo} disabled={historyRef.current.length === 0} />
+          <RailButton label="Làm lại" shortcut="Ctrl+Shift+Z" icon={<Redo2 size={16} />} onClick={redo} disabled={futureRef.current.length === 0} />
+          <div className="h-px bg-border mx-1 my-0.5" />
+          <RailButton label="Sắp xếp lại canvas" icon={<LayoutGrid size={16} />} onClick={handleAutoArrange} disabled={nodes.length === 0} />
         </div>
       </div>
 
