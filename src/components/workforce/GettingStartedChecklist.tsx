@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronUp, ChevronDown, Check } from "lucide-react";
 import type { WorkforceNode, WorkforceEdge, WorkforceStatus } from "./types";
@@ -17,6 +17,7 @@ export default function GettingStartedChecklist({ nodes, edges, name, status }: 
   status: WorkforceStatus;
 }) {
   const [collapsed, setCollapsed] = useState(false);
+  const autoCollapsedRef = useRef(false);
 
   const hasAgent = nodes.some(n => n.data.kind === "agent");
   const hasRoute = nodes.some(n => n.data.kind === "condition");
@@ -32,9 +33,25 @@ export default function GettingStartedChecklist({ nodes, edges, name, status }: 
     { label: "Publish Workforce", done: isPublished },
     { label: "Xem lại trong danh sách Workforce", done: false, href: "/workforce" },
   ];
-  const doneCount = steps.filter(s => s.done).length;
+  // The final step is a "go look at your work" link, not something completable from inside the
+  // editor — it can never flip to `done` on this page, so counting it in the progress denominator
+  // would cap the bar at ~83% forever. Progress (and the "fully done" check that drives
+  // auto-collapse below) is computed only over the steps that actually represent setup work.
+  const requiredSteps = steps.filter(s => !s.href);
+  const doneCount = requiredSteps.filter(s => s.done).length;
   const currentIndex = steps.findIndex(s => !s.done);
-  const progressPct = Math.round((doneCount / steps.length) * 100);
+  const progressPct = Math.round((doneCount / requiredSteps.length) * 100);
+
+  // Auto-collapse once every required step is done, so the checklist gets out of the way instead
+  // of sitting open over a finished Workforce. Only fires once (ref-guarded) — if the user
+  // re-expands it afterward (e.g. to click through to "Xem lại trong danh sách Workforce"), we
+  // don't fight them by collapsing it again on the next render.
+  useEffect(() => {
+    if (progressPct === 100 && !autoCollapsedRef.current) {
+      autoCollapsedRef.current = true;
+      setCollapsed(true);
+    }
+  }, [progressPct]);
 
   return (
     <div className="absolute top-4 left-4 z-10 w-[320px] bg-white rounded-xl border border-border shadow-elev overflow-hidden animate-fade-up">
