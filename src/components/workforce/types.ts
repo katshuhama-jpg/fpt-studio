@@ -45,6 +45,22 @@ export interface NoteNodeData {
   text: string;
 }
 
+export type ToolRefSource = "builtin" | "connector";
+
+export interface ToolNodeData {
+  kind: "tool";
+  /** What this node documents — an installed Tool Store plugin (`source: "builtin"`, `id` is a
+   * builtinCatalog setId from tool-builder/types.ts) or a Connector/Integration app (`source:
+   * "connector"`, `id` is a CATALOG id from configure/ConnectionsTab.tsx) — the same two
+   * catalogs ("Your Tools" and "Integrations") Relevance AI's own Workforce "Add tool" panel
+   * pulls from (S-gap-4). Null until picked via the drawer.
+   *
+   * Unlike Agent/Omni/Person/Condition, a Tool node documents a capability available to this
+   * Workforce rather than a step in the routing graph — it has no Handles at all (same reason
+   * Note has none) and never appears in a route. */
+  ref: { source: ToolRefSource; id: string } | null;
+}
+
 export interface TriggerNodeData {
   kind: "trigger";
   /** Id into triggerStore (configure/triggerStore.ts) — the real, Agent-scoped trigger this node
@@ -60,7 +76,7 @@ export interface TriggerNodeData {
   triggerId: string | null;
 }
 
-export type WorkforceNodeData = AgentNodeData | OmniNodeData | PersonNodeData | ConditionNodeData | NoteNodeData | TriggerNodeData;
+export type WorkforceNodeData = AgentNodeData | OmniNodeData | PersonNodeData | ConditionNodeData | NoteNodeData | TriggerNodeData | ToolNodeData;
 export type WorkforceNode = Node<WorkforceNodeData>;
 export type WorkforceEdge = Edge;
 

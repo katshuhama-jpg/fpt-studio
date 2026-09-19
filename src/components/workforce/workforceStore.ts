@@ -43,6 +43,10 @@ function seedWorkforces(): Workforce[] {
         kind: "condition", type: "llm", ruleMatch: "all", rules: [], llmText: "",
       } },
       { id: "dest-person-1", type: "person", position: { x: 660, y: 260 }, data: { kind: "person", memberId: "m-fsoft-coo" } },
+
+      // Standalone — documents that "cskh" can look things up on the web mid-conversation. No
+      // edges: Tool nodes never participate in the routing graph (S-gap-4).
+      { id: "tool-web-search", type: "tool", position: { x: 60, y: 660 }, data: { kind: "tool", ref: { source: "builtin", id: "web-search" } } },
     ],
     edges: [
       { id: "e-trigger-cskh", source: "trigger-cskh", target: "src-cskh", type: "deletable", markerEnd: ROUTE_ARROW },

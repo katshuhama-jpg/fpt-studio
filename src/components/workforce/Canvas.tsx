@@ -11,17 +11,18 @@ import PersonNode from "./nodes/PersonNode";
 import ConditionNode from "./nodes/ConditionNode";
 import NoteNode from "./nodes/NoteNode";
 import TriggerNode from "./nodes/TriggerNode";
+import ToolNode from "./nodes/ToolNode";
 import DeletableEdge from "./edges/DeletableEdge";
 import Palette, { WORKFORCE_DRAG_MIME, type PaletteItemType } from "./Palette";
 import AgentPickerPopover from "./AgentPickerPopover";
 import PersonPickerPopover from "./PersonPickerPopover";
 import DestinationTypePopup from "./DestinationTypePopup";
 import { WorkforceNodeActionsContext, type WorkforceNodeActions } from "./nodes/nodeActionsContext";
-import { createAgentNode, createOmniNode, createPersonNode, createNoteNode, createTriggerNode, createRoute, createDirectEdge } from "./graphOps";
+import { createAgentNode, createOmniNode, createPersonNode, createNoteNode, createTriggerNode, createToolNode, createRoute, createDirectEdge } from "./graphOps";
 import { WF_DOT_COLOR } from "./slateTheme";
 import type { WorkforceNode, WorkforceEdge } from "./types";
 
-const nodeTypes = { agent: AgentNode, omni: OmniNode, person: PersonNode, condition: ConditionNode, note: NoteNode, trigger: TriggerNode };
+const nodeTypes = { agent: AgentNode, omni: OmniNode, person: PersonNode, condition: ConditionNode, note: NoteNode, trigger: TriggerNode, tool: ToolNode };
 const edgeTypes = { deletable: DeletableEdge };
 
 interface CanvasProps {
@@ -79,7 +80,7 @@ export default function Canvas({
     // Trigger, and nothing can connect INTO a Trigger (it has no target Handle at all).
     if (source.data.kind === "trigger") return target.data.kind === "agent";
     if (source.data.kind !== "agent") return false;
-    if (target.data.kind === "condition" || target.data.kind === "note" || target.data.kind === "trigger") return false;
+    if (target.data.kind === "condition" || target.data.kind === "note" || target.data.kind === "trigger" || target.data.kind === "tool") return false;
     if (target.data.kind === "agent" && source.data.kind === "agent" && source.data.agentId === target.data.agentId) return false;
     return true;
   }, [nodes]);
@@ -156,6 +157,11 @@ export default function Canvas({
       setNodes(ns => ns.concat(createTriggerNode(position)));
       lastAddedPositionRef.current = position;
       toast("Đã thêm Trigger vào Workforce");
+    } else if (type === "tool") {
+      onBeforeMutate();
+      setNodes(ns => ns.concat(createToolNode(position)));
+      lastAddedPositionRef.current = position;
+      toast("Đã thêm Tool vào Workforce");
     }
   }, [setNodes, toast, onBeforeMutate]);
 

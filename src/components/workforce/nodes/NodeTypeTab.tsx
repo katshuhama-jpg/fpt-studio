@@ -11,7 +11,7 @@ import type { ReactNode } from "react";
 export default function NodeTypeTab({ icon, label, kind }: {
   icon: ReactNode;
   label: string;
-  kind: "agent" | "omni" | "person" | "trigger";
+  kind: "agent" | "omni" | "person" | "trigger" | "tool";
 }) {
   return (
     <div className="flex items-center" style={{ padding: "10px 12px 0" }}>

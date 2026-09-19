@@ -50,6 +50,13 @@ export function createTriggerNode(position: XYPosition): WorkforceNode {
   return { id: uid("trigger"), type: "trigger", position, data: { kind: "trigger", triggerId: null } };
 }
 
+/** A Tool node documents a capability available to the Workforce (S-gap-4) — it never
+ * participates in the routing graph, so unlike Agent/Omni/Person it's created with no
+ * connections to make, the same as Note. */
+export function createToolNode(position: XYPosition): WorkforceNode {
+  return { id: uid("tool"), type: "tool", position, data: { kind: "tool", ref: null } };
+}
+
 /** A Trigger's connection to its first Agent is a plain edge, not a route — there's no decision
  * to make (nothing to branch on), so no Condition node gets inserted the way it would for an
  * Agent→Agent/Omni/Person connection. Still gets the same arrow-entering-destination marker as
@@ -149,7 +156,7 @@ export function getNodesUnreachableFromTrigger(nodes: WorkforceNode[], edges: Wo
   const wiredIds = new Set(edges.flatMap(e => [e.source, e.target]));
   const unreachable = new Set<string>();
   for (const n of nodes) {
-    if (n.data.kind === "trigger" || n.data.kind === "note") continue;
+    if (n.data.kind === "trigger" || n.data.kind === "note" || n.data.kind === "tool") continue;
     if (wiredIds.has(n.id) && !reachable.has(n.id)) unreachable.add(n.id);
   }
   return unreachable;

@@ -12,6 +12,7 @@ import PersonPickerPopover from "@/components/workforce/PersonPickerPopover";
 import PersonConfigDrawer from "@/components/workforce/PersonConfigDrawer";
 import OmniConfigDrawer from "@/components/workforce/OmniConfigDrawer";
 import TriggerConfigDrawer from "@/components/workforce/TriggerConfigDrawer";
+import ToolConfigDrawer from "@/components/workforce/ToolConfigDrawer";
 import AgentConfigDrawer from "@/components/workforce/AgentConfigDrawer";
 import ConditionDrawer from "@/components/workforce/ConditionDrawer";
 import GettingStartedChecklist from "@/components/workforce/GettingStartedChecklist";
@@ -134,6 +135,11 @@ export default function WorkforceCanvasPage() {
     const hasUnconfiguredTrigger = nodes.some(n => n.data.kind === "trigger" && edges.some(e => e.source === n.id) && !n.data.triggerId);
     if (hasUnconfiguredTrigger) {
       toast.error("Một số Trigger chưa chọn trigger thật — vui lòng chọn hoặc tạo trigger trước khi publish");
+      return;
+    }
+    const hasUnconfiguredTool = nodes.some(n => n.data.kind === "tool" && !n.data.ref);
+    if (hasUnconfiguredTool) {
+      toast.error("Một số node Tool chưa chọn tool hoặc integration — vui lòng chọn trước khi publish");
       return;
     }
     workforceStore.publish(id);
@@ -349,6 +355,16 @@ export default function WorkforceCanvasPage() {
           agentId={triggerAgentIds.get(configuringNode.id) ?? null}
           triggerId={configuringNode.data.triggerId}
           onSelectTrigger={value => setNodes(ns => ns.map(n => (n.id === configuringNode.id ? { ...n, data: { ...n.data, triggerId: value } } : n)))}
+          onClose={() => setConfiguringId(null)}
+          onDelete={() => setDeleteNodeId(configuringNode.id)}
+        />
+      )}
+
+      {configuringNode?.data.kind === "tool" && (
+        <ToolConfigDrawer
+          key={configuringNode.id}
+          toolRef={configuringNode.data.ref}
+          onSelect={value => setNodes(ns => ns.map(n => (n.id === configuringNode.id ? { ...n, data: { ...n.data, ref: value } } : n)))}
           onClose={() => setConfiguringId(null)}
           onDelete={() => setDeleteNodeId(configuringNode.id)}
         />
