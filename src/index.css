@@ -290,9 +290,13 @@
     --wf-font-display: 'Manrope', ui-sans-serif, system-ui, sans-serif;
     --wf-font-body: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
 
-    --wf-radius: 12px;
+    --wf-radius: 14px;
     --wf-radius-sm: 8px;
-    --wf-node-shadow: 0 1px 2px rgba(20, 22, 30, 0.05);
+    /* A softer, more "lifted" two-layer shadow (tight contact shadow + a wider diffuse glow)
+       instead of the old single 1px hairline — echoes the airy, floating-card feel of the
+       Relevance AI reference (app.relevanceai.com "Create tool" canvas) without changing the
+       card's actual size/spacing, just how much it reads as sitting above the dotted canvas. */
+    --wf-node-shadow: 0 1px 2px rgba(20, 22, 30, 0.04), 0 8px 20px rgba(20, 22, 30, 0.06);
 
     --wf-agent: #4650D6;   --wf-agent-bg: #EEF0FE;
     --wf-omni: #0E8F6E;    --wf-omni-bg: #E7F7F1;

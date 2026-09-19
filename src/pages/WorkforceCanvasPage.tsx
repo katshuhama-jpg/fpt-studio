@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { ChevronLeft, Undo2, Redo2, LayoutGrid, Plus, Minus, Maximize, Lock, LockOpen } from "lucide-react";
 import { toast } from "sonner";
 import { ReactFlowProvider, useNodesState, useEdgesState, type ReactFlowInstance } from "reactflow";
@@ -186,38 +186,47 @@ export default function WorkforceCanvasPage() {
 
   return (
     <div className="wf-slate flex flex-col h-full">
+      {/* Two-tier header, echoing the Relevance AI reference canvas: a thin utility row (back
+          nav + status/save state + primary actions) sitting above a separate, much more
+          prominent title row — instead of cramming breadcrumb, name, status and save-state onto
+          one dense line. Same controls, same behavior, just given room to read as the page's
+          actual title rather than a small piece of a breadcrumb. */}
+      {/* Fixed h-10/h-14 rows (not intrinsic padding) so the total header height is an exact,
+          known 96px (24 * 4px) — every config drawer's `top-24` (see e.g. OmniConfigDrawer) is
+          hand-matched to this sum, same convention the old single-row header's `top-14` used. */}
       <div
-        className="flex items-center py-[13px] px-[22px] gap-2.5 shrink-0 [font-family:var(--wf-font-display)]"
+        className="flex items-center h-10 px-[22px] gap-2.5 shrink-0 [font-family:var(--wf-font-display)]"
         style={{ background: "var(--wf-surface)", borderBottom: "1px solid var(--wf-border)" }}
       >
         <button
           onClick={() => navigate("/workforce")}
-          className="flex items-center gap-1.5 text-[13.5px] shrink-0 transition-base hover:opacity-80"
+          className="flex items-center gap-1.5 text-[13px] shrink-0 transition-base hover:opacity-80"
           style={{ color: "var(--wf-muted)" }}
         >
-          <ChevronLeft size={15} /> Back
+          <ChevronLeft size={14} /> Workforce
         </button>
-        <nav className="flex items-center gap-1.5 text-[13.5px] min-w-0 flex-1" style={{ color: "var(--wf-muted)" }}>
-          <span>/</span>
-          <Link to="/workforce" className="hover:opacity-80" style={{ color: "var(--wf-muted)" }}>Workforce</Link>
-          <span>/</span>
-          <input
-            value={name}
-            onChange={e => setName(e.target.value)}
-            onBlur={() => workforceStore.rename(id, name.trim() || "Untitled workforce")}
-            className="bg-transparent outline-none font-bold min-w-0 px-1.5 py-0.5 rounded transition-base"
-            style={{ color: "var(--wf-text)" }}
-          />
-          <span className={`wf-pill ${status === "published" ? "" : "muted"}`}>
-            {status === "published" ? "Published" : "Draft"}
-          </span>
-          <span className="text-[12.5px]" style={{ color: "var(--wf-muted)" }}>{saveStateText}</span>
-        </nav>
+        <span className={`wf-pill ${status === "published" ? "" : "muted"}`}>
+          {status === "published" ? "Published" : "Draft"}
+        </span>
+        <span className="text-[12px]" style={{ color: "var(--wf-muted)" }}>{saveStateText}</span>
 
-        <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex items-center gap-2.5 shrink-0 ml-auto">
           <button onClick={handleSave} className="wf-btn-sec">Save</button>
           <button onClick={handlePublish} className="wf-btn-pri">Publish</button>
         </div>
+      </div>
+
+      <div
+        className="flex items-center h-14 px-[22px] shrink-0 [font-family:var(--wf-font-display)]"
+        style={{ background: "var(--wf-surface)", borderBottom: "1px solid var(--wf-border)" }}
+      >
+        <input
+          value={name}
+          onChange={e => setName(e.target.value)}
+          onBlur={() => workforceStore.rename(id, name.trim() || "Untitled workforce")}
+          className="bg-transparent outline-none font-extrabold min-w-0 flex-1 px-1.5 py-1 rounded transition-base text-[22px] hover:bg-[var(--wf-bg)] focus:bg-[var(--wf-bg)]"
+          style={{ color: "var(--wf-text)" }}
+        />
       </div>
 
       <div className="flex-1 relative flex overflow-hidden">

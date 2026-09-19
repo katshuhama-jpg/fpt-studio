@@ -19,15 +19,16 @@ export const WORKFORCE_DRAG_MIME = "application/x-workforce-node";
  * two fully equivalent ways in, not click as an afterthought. Real `<button>` elements so
  * Enter/Space activation and focus styling come for free; `draggable` still layers on top.
  *
- * Each item renders as a small tinted "card" with two faint duplicate cards peeking out behind
- * it (an offset-stack effect, like a deck of draggable cards) instead of a flat toolbar row —
- * matching the reference canvas's own palette. Still one continuous dock along the bottom edge
+ * Each item is a single flat tinted pill (icon + label) — no stacked-card illusion. This matches
+ * the plain, airy "Steps" row in the Relevance AI reference canvas more closely than the earlier
+ * deck-of-cards treatment did: on hover a pill just lifts a couple of px and gains a soft shadow,
+ * rather than peeling back layered duplicates. Still one continuous dock along the bottom edge
  * (hairline top border) so it doesn't read as loose floating chips. */
 export default function Palette({ onItemClick }: { onItemClick: (type: PaletteItemType) => void }) {
   return (
     <div
       className="absolute bottom-0 left-0 right-0 z-10 flex items-center justify-center"
-      style={{ gap: 22, padding: "18px 20px 14px", background: "var(--wf-surface)", borderTop: "1px solid var(--wf-border)" }}
+      style={{ gap: 10, padding: "16px 20px", background: "var(--wf-surface)", borderTop: "1px solid var(--wf-border)" }}
     >
       {ITEMS.map(item => (
         <button
@@ -40,37 +41,21 @@ export default function Palette({ onItemClick }: { onItemClick: (type: PaletteIt
           }}
           onClick={() => onItemClick(item.type)}
           aria-label={`Thêm ${item.label} vào canvas`}
-          className="relative flex items-center min-h-[44px] cursor-grab active:cursor-grabbing select-none group focus-visible:outline-none"
-          style={{ marginTop: 6, marginBottom: 2 }}
+          className="flex items-center min-h-[44px] cursor-pointer select-none rounded-full transition-base hover:-translate-y-[2px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          style={{
+            gap: 7,
+            padding: "9px 14px",
+            background: item.accentBg,
+            border: "1px solid var(--wf-border)",
+            boxShadow: "0 1px 2px rgba(20,22,30,0.04)",
+          }}
         >
-          {/* Two faint stacked "cards" behind the real one — pure decoration, aria-hidden. */}
+          <item.icon size={15} style={{ color: item.accent }} />
           <span
-            aria-hidden
-            className="absolute inset-0 rounded-lg transition-transform duration-150 group-hover:translate-x-[3px] group-hover:translate-y-[3px]"
-            style={{ background: "var(--wf-surface)", border: "1px solid var(--wf-border)", transform: "translate(5px, 5px)" }}
-          />
-          <span
-            aria-hidden
-            className="absolute inset-0 rounded-lg transition-transform duration-150 group-hover:translate-x-[1.5px] group-hover:translate-y-[1.5px]"
-            style={{ background: "var(--wf-surface)", border: "1px solid var(--wf-border)", transform: "translate(2.5px, 2.5px)" }}
-          />
-          <span
-            className="relative flex items-center rounded-lg transition-base group-focus-visible:ring-2 group-focus-visible:ring-ring group-focus-visible:ring-offset-2"
-            style={{
-              gap: 7,
-              padding: "9px 14px",
-              background: item.accentBg,
-              border: "1px solid var(--wf-border)",
-              boxShadow: "0 1px 2px rgba(20,22,30,0.05)",
-            }}
+            className="text-[13px] font-semibold whitespace-nowrap [font-family:var(--wf-font-display)]"
+            style={{ color: item.accent }}
           >
-            <item.icon size={15} style={{ color: item.accent }} />
-            <span
-              className="text-[13px] font-semibold whitespace-nowrap [font-family:var(--wf-font-display)]"
-              style={{ color: item.accent }}
-            >
-              {item.label}
-            </span>
+            {item.label}
           </span>
         </button>
       ))}
