@@ -399,20 +399,6 @@
   @media (prefers-reduced-motion: reduce) {
     .wf-run-current { animation: none; }
   }
-
-  /* Traversed edge (S-gap-7) — a thin white dash marching along the solid green line, layered on
-     top of it (see DeletableEdge.tsx, which renders this as a second <path> sharing the same `d`
-     as the base edge) so a "vừa chạy qua đây" flow reads on the line itself rather than only via
-     the flat color swap. Loops continuously rather than settling, matching how the node-level
-     wfRunPulse above never settles either — the whole traversed path stays visibly "alive" for as
-     long as the run trace panel is open. */
-  .wf-edge-flow { animation: wfEdgeFlow 0.7s linear infinite; }
-  @keyframes wfEdgeFlow {
-    to { stroke-dashoffset: -24; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .wf-edge-flow { animation: none; }
-  }
 }
 
 @layer utilities {

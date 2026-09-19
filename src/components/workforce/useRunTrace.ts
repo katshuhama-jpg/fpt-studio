@@ -14,10 +14,14 @@ import type { WorkforceNode, WorkforceEdge } from "./types";
 export type RunNodeStatus = "current" | "done";
 
 /** What node/edge components read from context (see nodeActionsContext.ts) to render themselves
- * — deliberately just the two Maps/Sets a render needs, not the whole state machine below. */
+ * — deliberately just the Maps/Sets a render needs, not the whole state machine below.
+ * `travelingEdgeIds` is the "packet in flight" phase (see PACKET_TRAVEL_MS below): an edge sits
+ * here for a beat BEFORE it's added to `edgeIds`, so DeletableEdge can animate a dot travelling
+ * along its exact path rather than the line just instantly flipping color. */
 export interface RunTraceHighlight {
   nodeStatus: Map<string, RunNodeStatus>;
   edgeIds: Set<string>;
+  travelingEdgeIds: Set<string>;
 }
 
 export interface RunRouteOption {
@@ -71,11 +75,19 @@ function computeStep(nodeId: string, nodes: WorkforceNode[], edges: WorkforceEdg
 
 export interface RunTraceState {
   status: "idle" | "running" | "choice" | "done";
-  /** Meaningful (non-Condition) node ids reached so far, in order, starting with the Trigger. */
+  /** Meaningful (non-Condition) node ids reached so far, in order, starting with the Trigger.
+   * A step is only appended here once its packet finishes travelling (see `travelingEdgeIds`) —
+   * the side panel and the canvas commit to a new "current" node at the same moment. */
   steps: string[];
   currentNodeId: string | null;
   nodeStatus: Map<string, RunNodeStatus>;
   edgeIds: Set<string>;
+  /** Edge(s) a packet is currently travelling across, mid-hop — not yet "done". Cleared and
+   * folded into `edgeIds` once `PendingAdvance` commits. At most one hop's worth of edges at a
+   * time (1 for a Trigger's first hop, 2 for a routable node's auto-advance through its
+   * always-inserted Condition, which is treated as a single atomic hop just like the instant
+   * version of this state machine did). */
+  travelingEdgeIds: Set<string>;
   choiceOptions: RunRouteOption[] | null;
   endReason: "terminal" | "unwired" | "stopped" | null;
 }
@@ -86,6 +98,7 @@ const IDLE_STATE: RunTraceState = {
   currentNodeId: null,
   nodeStatus: new Map(),
   edgeIds: new Set(),
+  travelingEdgeIds: new Set(),
   choiceOptions: null,
   endReason: null,
 };
@@ -93,6 +106,20 @@ const IDLE_STATE: RunTraceState = {
 // Long enough to read as a deliberate step-by-step trace, short enough not to feel sluggish
 // when a chain auto-advances through several single-route hops in a row.
 const STEP_DELAY_MS = 650;
+// How long the travelling-packet animation takes to cross an edge (DeletableEdge.tsx's
+// <animateMotion dur="…">) — kept in one place so the state machine's commit timer and the
+// edge's own SVG animation duration can never drift apart.
+export const PACKET_TRAVEL_MS = 700;
+
+/** What the deferred "commit" (after the packet finishes travelling) needs to apply — computed
+ * once when the packet starts, stashed in a ref (not state — nothing renders off this directly)
+ * and read back by the commit effect. Covers both an auto-advance hop and a user-picked branch,
+ * so a single commit effect can handle either. */
+interface PendingAdvance {
+  touchedNodeIds: string[];
+  touchedEdgeIds: string[];
+  nextNodeId: string;
+}
 
 export function useRunTrace(nodes: WorkforceNode[], edges: WorkforceEdge[]) {
   const [state, setState] = useState<RunTraceState>(IDLE_STATE);
@@ -102,51 +129,83 @@ export function useRunTrace(nodes: WorkforceNode[], edges: WorkforceEdge[]) {
   const edgesRef = useRef(edges);
   nodesRef.current = nodes;
   edgesRef.current = edges;
+  const pendingRef = useRef<PendingAdvance | null>(null);
 
   const start = useCallback((triggerId: string) => {
+    pendingRef.current = null;
     setState({
       status: "running",
       steps: [triggerId],
       currentNodeId: triggerId,
       nodeStatus: new Map([[triggerId, "current"]]),
       edgeIds: new Set(),
+      travelingEdgeIds: new Set(),
       choiceOptions: null,
       endReason: null,
     });
   }, []);
 
   const stop = useCallback(() => {
-    setState(s => (s.status === "idle" || s.status === "done" ? s : { ...s, status: "done", endReason: "stopped" }));
+    setState(s => {
+      if (s.status === "idle" || s.status === "done") return s;
+      // Stopped mid-flight: snap the in-progress hop straight to "done" (not "current" — the run
+      // is over) rather than leaving a packet frozen mid-edge with nothing to finish the trip.
+      const pending = pendingRef.current;
+      if (s.travelingEdgeIds.size > 0 && pending && s.currentNodeId) {
+        const nodeStatus = new Map(s.nodeStatus);
+        nodeStatus.set(s.currentNodeId, "done");
+        for (const id of pending.touchedNodeIds) nodeStatus.set(id, "done");
+        nodeStatus.set(pending.nextNodeId, "done");
+        const edgeIds = new Set(s.edgeIds);
+        for (const id of pending.touchedEdgeIds) edgeIds.add(id);
+        pendingRef.current = null;
+        return {
+          ...s,
+          status: "done",
+          endReason: "stopped",
+          currentNodeId: pending.nextNodeId,
+          steps: [...s.steps, pending.nextNodeId],
+          nodeStatus,
+          edgeIds,
+          travelingEdgeIds: new Set(),
+        };
+      }
+      return { ...s, status: "done", endReason: "stopped" };
+    });
   }, []);
 
-  const reset = useCallback(() => setState(IDLE_STATE), []);
+  const reset = useCallback(() => {
+    pendingRef.current = null;
+    setState(IDLE_STATE);
+  }, []);
 
+  // Picking a branch starts that hop's packet travelling immediately (status flips back to
+  // "running" and the choice buttons disappear right away) — the actual node/edge commit is
+  // deferred to the same PACKET_TRAVEL_MS timer an auto-advance uses, below.
   const choose = useCallback((conditionId: string, targetId: string) => {
     setState(s => {
       if (s.status !== "choice" || !s.choiceOptions || !s.currentNodeId) return s;
       const option = s.choiceOptions.find(o => o.conditionId === conditionId && o.targetId === targetId);
       if (!option) return s;
-      const nodeStatus = new Map(s.nodeStatus);
-      nodeStatus.set(s.currentNodeId, "done");
-      nodeStatus.set(option.conditionId, "done");
-      nodeStatus.set(option.targetId, "current");
-      const edgeIds = new Set(s.edgeIds);
-      edgeIds.add(option.sourceEdgeId);
-      edgeIds.add(option.destEdgeId);
+      pendingRef.current = {
+        touchedNodeIds: [option.conditionId],
+        touchedEdgeIds: [option.sourceEdgeId, option.destEdgeId],
+        nextNodeId: option.targetId,
+      };
       return {
         ...s,
         status: "running",
-        steps: [...s.steps, option.targetId],
-        currentNodeId: option.targetId,
-        nodeStatus,
-        edgeIds,
         choiceOptions: null,
+        travelingEdgeIds: new Set([option.sourceEdgeId, option.destEdgeId]),
       };
     });
   }, []);
 
+  // Phase 1 — after the "thinking" pause, resolve what happens next. An auto-advance doesn't
+  // commit yet: it stashes the result and starts the packet travelling (`travelingEdgeIds`),
+  // letting phase 2 below apply it once the packet actually arrives.
   useEffect(() => {
-    if (state.status !== "running" || !state.currentNodeId) return;
+    if (state.status !== "running" || !state.currentNodeId || state.travelingEdgeIds.size > 0) return;
     const nodeId = state.currentNodeId;
     const t = setTimeout(() => {
       const result = computeStep(nodeId, nodesRef.current, edgesRef.current);
@@ -161,20 +220,51 @@ export function useRunTrace(nodes: WorkforceNode[], edges: WorkforceEdge[]) {
         if (result.kind === "choice") {
           return { ...s, status: "choice", choiceOptions: result.options };
         }
-        const nodeStatus = new Map(s.nodeStatus);
-        nodeStatus.set(nodeId, "done");
-        for (const id of result.touchedNodeIds) nodeStatus.set(id, "done");
-        nodeStatus.set(result.nextNodeId, "current");
-        const edgeIds = new Set(s.edgeIds);
-        for (const id of result.touchedEdgeIds) edgeIds.add(id);
-        return { ...s, steps: [...s.steps, result.nextNodeId], currentNodeId: result.nextNodeId, nodeStatus, edgeIds };
+        pendingRef.current = {
+          touchedNodeIds: result.touchedNodeIds,
+          touchedEdgeIds: result.touchedEdgeIds,
+          nextNodeId: result.nextNodeId,
+        };
+        return { ...s, travelingEdgeIds: new Set(result.touchedEdgeIds) };
       });
     }, STEP_DELAY_MS);
     return () => clearTimeout(t);
-  }, [state.status, state.currentNodeId]);
+  }, [state.status, state.currentNodeId, state.travelingEdgeIds]);
+
+  // Phase 2 — once the packet has had time to cross the edge(s), commit: the node it left
+  // becomes "done", the node it arrives at becomes "current", and the travelled edge(s) move
+  // from `travelingEdgeIds` into the permanent `edgeIds` set. Shared by both the auto-advance
+  // path above and `choose()`.
+  useEffect(() => {
+    if (state.status !== "running" || state.travelingEdgeIds.size === 0 || !state.currentNodeId) return;
+    const fromNodeId = state.currentNodeId;
+    const travelingIds = state.travelingEdgeIds;
+    const t = setTimeout(() => {
+      setState(s => {
+        const pending = pendingRef.current;
+        if (s.status !== "running" || s.travelingEdgeIds !== travelingIds || !pending) return s;
+        const nodeStatus = new Map(s.nodeStatus);
+        nodeStatus.set(fromNodeId, "done");
+        for (const id of pending.touchedNodeIds) nodeStatus.set(id, "done");
+        nodeStatus.set(pending.nextNodeId, "current");
+        const edgeIds = new Set(s.edgeIds);
+        for (const id of pending.touchedEdgeIds) edgeIds.add(id);
+        pendingRef.current = null;
+        return {
+          ...s,
+          steps: [...s.steps, pending.nextNodeId],
+          currentNodeId: pending.nextNodeId,
+          nodeStatus,
+          edgeIds,
+          travelingEdgeIds: new Set(),
+        };
+      });
+    }, PACKET_TRAVEL_MS);
+    return () => clearTimeout(t);
+  }, [state.status, state.currentNodeId, state.travelingEdgeIds]);
 
   const highlight: RunTraceHighlight | null =
-    state.status === "idle" ? null : { nodeStatus: state.nodeStatus, edgeIds: state.edgeIds };
+    state.status === "idle" ? null : { nodeStatus: state.nodeStatus, edgeIds: state.edgeIds, travelingEdgeIds: state.travelingEdgeIds };
 
   return { state, highlight, start, stop, reset, choose };
 }

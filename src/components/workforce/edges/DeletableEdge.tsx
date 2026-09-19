@@ -1,6 +1,7 @@
 import { BaseEdge, getSmoothStepPath, type EdgeProps } from "reactflow";
 import { WF_CONNECTOR_COLOR, WF_DOTMARK_COLOR, WF_RUN_COLOR } from "../slateTheme";
 import { useWorkforceNodeActions } from "../nodes/nodeActionsContext";
+import { PACKET_TRAVEL_MS } from "../useRunTrace";
 
 const CORNER_RADIUS = 6;
 
@@ -29,6 +30,10 @@ export default function DeletableEdge({
   // traversed (S-gap-7) overrides both — same green as a "done" node's outline, so the whole
   // path the run took reads as one continuous, unambiguous line across the canvas.
   const traversed = !!runTrace?.edgeIds.has(id);
+  // Mid-hop, between the source node going "current" and the commit that flips this edge to
+  // `traversed` (see PACKET_TRAVEL_MS / useRunTrace.ts) — the edge itself stays neutral for this
+  // beat; the travelling packet below is what sells the motion, not a color change here yet.
+  const traveling = !!runTrace?.travelingEdgeIds.has(id);
   const strokeColor = traversed ? WF_RUN_COLOR : selected ? WF_DOTMARK_COLOR : WF_CONNECTOR_COLOR;
 
   return (
@@ -39,22 +44,19 @@ export default function DeletableEdge({
         style={{ ...style, strokeWidth: traversed || selected ? 2.5 : 1.6, stroke: strokeColor, cursor: "pointer" }}
         interactionWidth={20}
       />
-      {/* Traversed-only flow animation: a marching white dash on top of the solid green line
-          (`.wf-edge-flow`, index.css), sharing the exact same path as the BaseEdge above so it
-          reads as motion ON that line rather than a second, separate line. Purely decorative —
-          pointer-events off so it never steals the click/selection target from the real edge. */}
-      {traversed && (
-        <path
-          d={edgePath}
-          fill="none"
-          stroke="#FFFFFF"
-          strokeWidth={2.5}
-          strokeDasharray="3 9"
-          strokeLinecap="round"
-          opacity={0.85}
-          className="wf-edge-flow"
-          style={{ pointerEvents: "none" }}
-        />
+      {/* Travelling-packet animation (S-gap-7, "chạy thử"): a small glowing dot rides along this
+          exact edge path — native SVG <animateMotion> rather than a JS-driven position, so it
+          follows the real orthogonal route (including the corner) with no extra math. `fill="freeze"`
+          holds it at the arrival point for the last frame so there's no snap-back before this
+          element unmounts (React removes it the instant `traveling` goes false, right as
+          useRunTrace's commit lands and the edge flips to solid green above). Remounts fresh
+          every time `traveling` turns true, so the animation always restarts from the source end.
+          Purely decorative — no pointer-events, so it never competes with the edge's own click
+          target. */}
+      {traveling && (
+        <circle r={4.5} fill={WF_DOTMARK_COLOR} stroke="#FFFFFF" strokeWidth={2} style={{ pointerEvents: "none" }}>
+          <animateMotion dur={`${PACKET_TRAVEL_MS}ms`} fill="freeze" path={edgePath} />
+        </circle>
       )}
     </>
   );
