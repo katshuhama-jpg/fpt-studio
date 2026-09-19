@@ -63,6 +63,15 @@ export interface NoteNodeData {
   text: string;
 }
 
+export interface SubProcessNodeData {
+  kind: "subprocess";
+  /** Id of another Workforce (workforceStore.ts) to call as a reusable step — never this
+   * Workforce's own id (S-gap-6: reusable sub-process, not self-recursion). Unlike Tool/Trigger,
+   * this node IS a normal routing step — it has both Handles, like Agent, so the flow can
+   * continue after the called Workforce finishes. Null until picked via the drawer. */
+  workforceId: string | null;
+}
+
 export type ToolRefSource = "builtin" | "connector";
 
 export interface ToolNodeData {
@@ -94,7 +103,7 @@ export interface TriggerNodeData {
   triggerId: string | null;
 }
 
-export type WorkforceNodeData = AgentNodeData | OmniNodeData | PersonNodeData | ConditionNodeData | NoteNodeData | TriggerNodeData | ToolNodeData;
+export type WorkforceNodeData = AgentNodeData | OmniNodeData | PersonNodeData | ConditionNodeData | NoteNodeData | TriggerNodeData | ToolNodeData | SubProcessNodeData;
 export type WorkforceNode = Node<WorkforceNodeData>;
 export type WorkforceEdge = Edge;
 

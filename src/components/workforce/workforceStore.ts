@@ -49,6 +49,17 @@ function seedWorkforces(): Workforce[] {
       // Standalone — documents that "cskh" can look things up on the web mid-conversation. No
       // edges: Tool nodes never participate in the routing graph (S-gap-4).
       { id: "tool-web-search", type: "tool", position: { x: 60, y: 660 }, data: { kind: "tool", ref: { source: "builtin", id: "web-search" } } },
+
+      // Continuation of the HR branch — once "hr" replies, hand off to the existing FAQ-escalation
+      // Workforce as a reusable sub-flow instead of re-building the same escalation logic here
+      // (S-gap-6). A normal routing node, so it still needs its own Condition to reach it.
+      { id: "cond-4", type: "condition", position: { x: 940, y: 460 }, data: {
+        kind: "condition", type: "llm", ruleMatch: "all", rules: [],
+        llmText: "Câu hỏi tuyển dụng vượt ngoài phạm vi FAQ nội bộ, cần leo thang.",
+      } },
+      { id: "subprocess-1", type: "subprocess", position: { x: 1220, y: 460 }, data: {
+        kind: "subprocess", workforceId: "wf-faq-escalation",
+      } },
     ],
     edges: [
       { id: "e-trigger-cskh", source: "trigger-cskh", target: "src-cskh", type: "deletable", markerEnd: ROUTE_ARROW },
@@ -58,6 +69,8 @@ function seedWorkforces(): Workforce[] {
       edge("e-cond-3-person-1", "cond-3", "dest-person-1", "cond-3"),
       edge("e-src-sales-cond-2", "src-sales", "cond-2", "cond-2"),
       edge("e-cond-2-hr", "cond-2", "dest-hr", "cond-2"),
+      edge("e-hr-cond-4", "dest-hr", "cond-4", "cond-4"),
+      edge("e-cond-4-subprocess-1", "cond-4", "subprocess-1", "cond-4"),
     ],
   };
 

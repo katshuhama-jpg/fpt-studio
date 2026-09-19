@@ -57,6 +57,13 @@ export function createToolNode(position: XYPosition): WorkforceNode {
   return { id: uid("tool"), type: "tool", position, data: { kind: "tool", ref: null } };
 }
 
+/** Calls another Workforce as a reusable step (S-gap-6) — a normal routing node (both Handles),
+ * placed empty like Trigger/Tool and configured via its own drawer rather than a picker shown
+ * before placement. */
+export function createSubProcessNode(position: XYPosition): WorkforceNode {
+  return { id: uid("subprocess"), type: "subprocess", position, data: { kind: "subprocess", workforceId: null } };
+}
+
 /** A Trigger's connection to its first Agent is a plain edge, not a route — there's no decision
  * to make (nothing to branch on), so no Condition node gets inserted the way it would for an
  * Agent→Agent/Omni/Person connection. Still gets the same arrow-entering-destination marker as

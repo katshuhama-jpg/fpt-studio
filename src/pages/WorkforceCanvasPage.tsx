@@ -13,6 +13,7 @@ import PersonConfigDrawer from "@/components/workforce/PersonConfigDrawer";
 import OmniConfigDrawer from "@/components/workforce/OmniConfigDrawer";
 import TriggerConfigDrawer from "@/components/workforce/TriggerConfigDrawer";
 import ToolConfigDrawer from "@/components/workforce/ToolConfigDrawer";
+import SubProcessConfigDrawer from "@/components/workforce/SubProcessConfigDrawer";
 import AgentConfigDrawer from "@/components/workforce/AgentConfigDrawer";
 import ConditionDrawer from "@/components/workforce/ConditionDrawer";
 import GettingStartedChecklist from "@/components/workforce/GettingStartedChecklist";
@@ -144,6 +145,11 @@ export default function WorkforceCanvasPage() {
     const hasUnconfiguredTool = nodes.some(n => n.data.kind === "tool" && !n.data.ref);
     if (hasUnconfiguredTool) {
       toast.error("Một số node Tool chưa chọn tool hoặc integration — vui lòng chọn trước khi publish");
+      return;
+    }
+    const hasUnconfiguredSubProcess = nodes.some(n => n.data.kind === "subprocess" && !n.data.workforceId);
+    if (hasUnconfiguredSubProcess) {
+      toast.error("Một số node Sub-process chưa chọn Workforce để gọi — vui lòng chọn trước khi publish");
       return;
     }
     workforceStore.publish(id);
@@ -414,6 +420,17 @@ export default function WorkforceCanvasPage() {
         />
       )}
 
+      {configuringNode?.data.kind === "subprocess" && (
+        <SubProcessConfigDrawer
+          key={configuringNode.id}
+          currentWorkforceId={id}
+          workforceId={configuringNode.data.workforceId}
+          onSelect={value => setNodes(ns => ns.map(n => (n.id === configuringNode.id ? { ...n, data: { ...n.data, workforceId: value } } : n)))}
+          onClose={() => setConfiguringId(null)}
+          onDelete={() => setDeleteNodeId(configuringNode.id)}
+        />
+      )}
+
       {configuringNode?.data.kind === "agent" && (
         <AgentConfigDrawer
           key={configuringNode.id}
@@ -431,6 +448,7 @@ export default function WorkforceCanvasPage() {
         const sourceLabel =
           source?.data.kind === "agent" ? AGENTS.find(a => a.id === source.data.agentId)?.name ?? "Agent" :
           source?.data.kind === "person" ? members.find(m => m.id === source.data.memberId)?.name ?? "Người trong tổ chức" :
+          source?.data.kind === "subprocess" ? (source.data.workforceId ? workforceStore.get(source.data.workforceId)?.name : undefined) ?? "Sub-process" :
           "—";
         const destinationKind: "agent" | "omni" | "person" = destination?.data.kind === "agent" || destination?.data.kind === "person"
           ? destination.data.kind
@@ -438,7 +456,8 @@ export default function WorkforceCanvasPage() {
         const destinationLabel = !destination ? "—" :
           destination.data.kind === "agent" ? AGENTS.find(a => a.id === destination.data.agentId)?.name ?? "Agent" :
           destination.data.kind === "omni" ? "Omni Supports" :
-          destination.data.kind === "person" ? members.find(m => m.id === destination.data.memberId)?.name ?? "Người trong tổ chức" : "—";
+          destination.data.kind === "person" ? members.find(m => m.id === destination.data.memberId)?.name ?? "Người trong tổ chức" :
+          destination.data.kind === "subprocess" ? (destination.data.workforceId ? workforceStore.get(destination.data.workforceId)?.name : undefined) ?? "Sub-process" : "—";
         const destAgentKeepContext = destination?.data.kind === "agent" ? destination.data.keepContext : undefined;
 
         return (

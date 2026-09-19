@@ -12,17 +12,18 @@ import ConditionNode from "./nodes/ConditionNode";
 import NoteNode from "./nodes/NoteNode";
 import TriggerNode from "./nodes/TriggerNode";
 import ToolNode from "./nodes/ToolNode";
+import SubProcessNode from "./nodes/SubProcessNode";
 import DeletableEdge from "./edges/DeletableEdge";
 import Palette, { WORKFORCE_DRAG_MIME, type PaletteItemType } from "./Palette";
 import AgentPickerPopover from "./AgentPickerPopover";
 import PersonPickerPopover from "./PersonPickerPopover";
 import DestinationTypePopup from "./DestinationTypePopup";
 import { WorkforceNodeActionsContext, type WorkforceNodeActions } from "./nodes/nodeActionsContext";
-import { createAgentNode, createOmniNode, createPersonNode, createNoteNode, createTriggerNode, createToolNode, createRoute, createDirectEdge } from "./graphOps";
+import { createAgentNode, createOmniNode, createPersonNode, createNoteNode, createTriggerNode, createToolNode, createSubProcessNode, createRoute, createDirectEdge } from "./graphOps";
 import { WF_DOT_COLOR } from "./slateTheme";
 import type { WorkforceNode, WorkforceEdge } from "./types";
 
-const nodeTypes = { agent: AgentNode, omni: OmniNode, person: PersonNode, condition: ConditionNode, note: NoteNode, trigger: TriggerNode, tool: ToolNode };
+const nodeTypes = { agent: AgentNode, omni: OmniNode, person: PersonNode, condition: ConditionNode, note: NoteNode, trigger: TriggerNode, tool: ToolNode, subprocess: SubProcessNode };
 const edgeTypes = { deletable: DeletableEdge };
 
 interface CanvasProps {
@@ -75,7 +76,7 @@ export default function Canvas({
   // continuing to its next destination; "notify" stays a dead end, same as every Person node
   // was before task kinds existed.
   const isRoutableSource = (data: WorkforceNode["data"]) =>
-    data.kind === "agent" || (data.kind === "person" && data.taskKind !== "notify");
+    data.kind === "agent" || data.kind === "subprocess" || (data.kind === "person" && data.taskKind !== "notify");
 
   const isValidConnection = useCallback((connection: Connection) => {
     if (!connection.source || !connection.target) return false;
@@ -169,6 +170,11 @@ export default function Canvas({
       setNodes(ns => ns.concat(createToolNode(position)));
       lastAddedPositionRef.current = position;
       toast("Đã thêm Tool vào Workforce");
+    } else if (type === "subprocess") {
+      onBeforeMutate();
+      setNodes(ns => ns.concat(createSubProcessNode(position)));
+      lastAddedPositionRef.current = position;
+      toast("Đã thêm Sub-process vào Workforce");
     }
   }, [setNodes, toast, onBeforeMutate]);
 

@@ -322,6 +322,9 @@
        (unlike every colored node above) documents a capability available to the Workforce rather
        than a routing step, mirroring Relevance AI's own Workforce "Tool" node (S-gap-4). */
     --wf-tool: #0E7490;    --wf-tool-bg: #E0F5FA;
+    /* Rose — distinct from Person's purple and every other node accent — for the Sub-process
+       node, which calls another whole Workforce as a reusable step (S-gap-6). */
+    --wf-subprocess: #BE185D; --wf-subprocess-bg: #FCE7F3;
     /* Condition chip has exactly two states — warn (unconfigured) and this default one, which
        doubles as "configured": no third color for "has data". */
     --wf-warn: #D97706;    --wf-cond-border: #8891A6;
