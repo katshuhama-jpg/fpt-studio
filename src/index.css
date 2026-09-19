@@ -305,6 +305,13 @@
        stopping short of the node's own accent color, which stays reserved for the strongest
        state, active/selected (defined per node as an accent-colored border + ring). */
     --wf-node-shadow-hover: 0 2px 4px rgba(20, 22, 30, 0.06), 0 12px 26px rgba(20, 22, 30, 0.10);
+    /* Selected/active shadow — pixel-measured off the Relevance AI reference (its selected
+       "Text to video generation" card): the lift around a selected card is a NEUTRAL soft glow,
+       not a flat ring tinted in the node's accent color. Sampling the halo outward from the
+       border read as a near-white gray (~rgb(249,249,251) fading to white), never the purple of
+       the border itself — so this stays gray/neutral for every node kind, only the border below
+       carries the per-kind accent. */
+    --wf-node-shadow-selected: 0 6px 20px rgba(20, 22, 30, 0.12), 0 2px 6px rgba(20, 22, 30, 0.08);
     --wf-border-hover: #C7CBD3;
 
     --wf-agent: #4650D6;   --wf-agent-bg: #EEF0FE;

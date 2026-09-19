@@ -19,11 +19,11 @@ export default function OmniNode({ id, selected }: NodeProps<OmniNodeData>) {
       style={{
         borderRadius: "var(--wf-radius)",
         background: "var(--wf-surface)",
-        border: `1px solid ${selected ? "var(--wf-omni)" : hovered ? "var(--wf-border-hover)" : "var(--wf-border)"}`,
-        boxShadow: selected ? "0 0 0 2px var(--wf-omni-bg)" : hovered ? "var(--wf-node-shadow-hover)" : "var(--wf-node-shadow)",
+        border: `${selected ? "2px" : "1px"} solid ${selected ? "var(--wf-omni)" : hovered ? "var(--wf-border-hover)" : "var(--wf-border)"}`,
+        boxShadow: selected ? "var(--wf-node-shadow-selected)" : hovered ? "var(--wf-node-shadow-hover)" : "var(--wf-node-shadow)",
       }}
     >
-      <NodeToolbarMenu visible={!!selected || hovered} onDelete={() => onDelete(id)} />
+      <NodeToolbarMenu visible={!!selected} onDelete={() => onDelete(id)} />
       <Handle type="target" position={Position.Left} className={HANDLE_CLASS} />
       <NodeTypeTab icon={<Headset size={12} />} label="Omni Supports" kind="omni" />
       <div className="flex items-start gap-[11px]" style={{ padding: "12px 14px 14px" }}>

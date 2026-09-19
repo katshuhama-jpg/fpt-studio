@@ -36,13 +36,13 @@ export default function ConditionNode({ id, data, selected }: NodeProps<Conditio
         gap: 7,
         padding: "8px 12px",
         background: "var(--wf-surface)",
-        border: `1px dashed ${accentColor}`,
+        border: `${selected ? "2px" : "1px"} dashed ${accentColor}`,
         borderRadius: "var(--wf-radius-sm)",
-        boxShadow: selected ? "0 0 0 2px var(--wf-agent-bg)" : hovered ? "var(--wf-node-shadow)" : "none",
+        boxShadow: selected ? "var(--wf-node-shadow-selected)" : hovered ? "var(--wf-node-shadow)" : "none",
         color: "var(--wf-text)",
       }}
     >
-      <NodeToolbarMenu visible={!!selected || hovered} onDelete={() => onDelete(id)} deleteLabel="Xóa route" />
+      <NodeToolbarMenu visible={!!selected} onDelete={() => onDelete(id)} deleteLabel="Xóa route" />
       <Handle type="target" position={Position.Left} className={HANDLE_CLASS} />
       {unconfigured
         ? <AlertTriangle size={13} className="shrink-0" style={{ color: iconColor }} />

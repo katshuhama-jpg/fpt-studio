@@ -1,10 +1,11 @@
 import { NodeToolbar, Position } from "reactflow";
 import { Trash2 } from "lucide-react";
 
-/** Delete-only affordance floating above a node, shown on hover or selection — matching the
- * interaction model where a single click on the node body opens its config drawer directly, so
- * delete has to live somewhere else entirely (this, plus the same trash icon repeated inside
- * the open drawer's own header). */
+/** Delete-only affordance floating above a node, shown only once the node is selected — not on
+ * hover, which read as noisy (a trash can popping up on every node you pass the cursor over).
+ * Matches the interaction model where a single click on the node body opens its config drawer
+ * directly, so delete has to live somewhere else entirely (this, plus the same trash icon
+ * repeated inside the open drawer's own header). */
 export default function NodeToolbarMenu({
   visible, onDelete, deleteLabel = "Xóa",
 }: {
