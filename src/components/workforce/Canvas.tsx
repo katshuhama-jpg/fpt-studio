@@ -296,6 +296,11 @@ export default function Canvas({
           fitViewOptions={{ padding: 0.2 }}
           minZoom={0.2}
           maxZoom={1.5}
+          // Wider than reactflow's 20px default: since our handles are a small target even at
+          // their new, more visible size (see handleStyle.ts), a drag that ends a bit short of a
+          // target handle should still snap into a connection rather than silently failing — this
+          // is the other half of the "khó nối" (hard to connect) feedback, on the completion end.
+          connectionRadius={32}
           proOptions={{ hideAttribution: true }}
         >
           <Background variant={BackgroundVariant.Dots} gap={20} size={1.6} color={WF_DOT_COLOR} className="![background-color:var(--wf-bg)]" />

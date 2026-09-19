@@ -1,10 +1,13 @@
-/** Connector dots are a single flat filled circle — 6px diameter, no border/ring/shadow of any
- * kind — matching the reference exactly (a white outline here was reading as a thick "ring"
- * once rendered at real size, not a plain dot). They keep a 44x44 invisible hit area via an
- * absolutely-positioned `::before` overlay (no border/background of its own, so it never paints
- * a bogus ring around the dot) — a competitor product we looked at made these dots too small to
- * reliably find, don't repeat that. `!border-0` explicitly overrides reactflow's own base
- * `.react-flow__handle` stylesheet, which otherwise ships a 1px white border by default. Hover
- * grows the visible dot and swaps in a crosshair cursor so Builders can tell where to drag from. */
+/** Connector dots — live-measured off Relevance AI's own Workforce canvas, not approximated from a
+ * screenshot: their idle handle is a 10px filled circle with a 2px WHITE ring (we'd earlier removed
+ * that ring thinking it read as a thick border at real size — it doesn't; Relevance ships one).
+ * Hovering grows it dramatically (~2.6x, to ~26px) — that big jump, not a small 125% nudge, is what
+ * makes "where do I grab this to connect" obvious; the "khó bấm để ra mũi tên" (hard to find/click
+ * the arrow) feedback was specifically about our old 6px dot barely changing size on hover. The
+ * white directional-arrow glyph Relevance shows inside its own enlarged handle is added as a
+ * background-image in index.css (`.wf-slate .react-flow__handle:hover`) — kept out of this
+ * Tailwind class because a data-URI SVG survives much more reliably as a plain CSS rule than as a
+ * Tailwind arbitrary-value string. The 44x44 invisible hit area (`::before`) is unchanged — the
+ * clickable/draggable region was never actually the problem, only its visibility was. */
 export const HANDLE_CLASS =
-  "!w-1.5 !h-1.5 !bg-[var(--wf-dotmark,var(--primary))] !border-0 !rounded-full !cursor-crosshair !shadow-none transition-transform duration-150 hover:!scale-125 focus-visible:!outline-none focus-visible:!ring-2 focus-visible:!ring-ring before:content-[''] before:absolute before:-inset-[19px] before:rounded-full";
+  "!w-2.5 !h-2.5 !bg-[var(--wf-dotmark,var(--primary))] !border-2 !border-white !rounded-full !cursor-crosshair !shadow-none transition-transform duration-150 hover:!scale-[2.6] focus-visible:!outline-none focus-visible:!ring-2 focus-visible:!ring-ring before:content-[''] before:absolute before:-inset-[17px] before:rounded-full";

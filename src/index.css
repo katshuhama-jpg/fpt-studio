@@ -290,29 +290,26 @@
     --wf-font-display: 'Manrope', ui-sans-serif, system-ui, sans-serif;
     --wf-font-body: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
 
-    /* Smaller than the earlier 14px — a tighter, more "solid" radius across node cards and other
-       large elements, closer to the Relevance AI reference's own corners and less of the soft/
-       floaty look the bigger radius read as. */
-    --wf-radius: 10px;
+    /* Live-measured (getComputedStyle, not a screenshot pixel-scan) off Relevance AI's own
+       Workforce canvas (app.relevanceai.com/workforce/.../build) step-node cards: their
+       border-radius is 12px, not the 10px we'd estimated earlier from a different page (their
+       Tool canvas). */
+    --wf-radius: 12px;
     --wf-radius-sm: 8px;
-    /* A softer, more "lifted" two-layer shadow (tight contact shadow + a wider diffuse glow)
-       instead of the old single 1px hairline — echoes the airy, floating-card feel of the
-       Relevance AI reference (app.relevanceai.com "Create tool" canvas) without changing the
-       card's actual size/spacing, just how much it reads as sitting above the dotted canvas. */
-    --wf-node-shadow: 0 1px 2px rgba(20, 22, 30, 0.04), 0 8px 20px rgba(20, 22, 30, 0.06);
-    /* Three distinct node states, not two: default (above) is the resting card; hover is a
-       clear-but-neutral "this is interactive" cue — border a shade darker, shadow a bit deeper —
-       stopping short of the node's own accent color, which stays reserved for the strongest
-       state, active/selected (defined per node as an accent-colored border + ring). */
-    --wf-node-shadow-hover: 0 2px 4px rgba(20, 22, 30, 0.06), 0 12px 26px rgba(20, 22, 30, 0.10);
-    /* Selected/active shadow — pixel-measured off the Relevance AI reference (its selected
-       "Text to video generation" card): the lift around a selected card is a NEUTRAL soft glow,
-       not a flat ring tinted in the node's accent color. Sampling the halo outward from the
-       border read as a near-white gray (~rgb(249,249,251) fading to white), never the purple of
-       the border itself — so this stays gray/neutral for every node kind, only the border below
-       carries the per-kind accent. */
-    --wf-node-shadow-selected: 0 6px 20px rgba(20, 22, 30, 0.12), 0 2px 6px rgba(20, 22, 30, 0.08);
-    --wf-border-hover: #C7CBD3;
+    /* Resting-card shadow — matches Relevance's own default (unhovered, unselected) card shadow
+       exactly, measured live: `0 4px 6px -1px rgba(0,0,0,.1), 0 2px 4px -2px rgba(0,0,0,.1)`
+       (their Tailwind `shadow-md`), recolored to our ink instead of pure black. More present than
+       our earlier, much softer default — theirs reads as a clearly "lifted" card even at rest. */
+    --wf-node-shadow: 0 4px 6px -1px rgba(20, 22, 30, 0.10), 0 2px 4px -2px rgba(20, 22, 30, 0.10);
+    /* Hover and selected are visually the SAME state on Relevance's own cards — confirmed live:
+       inspecting a selected-but-unhovered node and a hovered-but-unselected node back to back
+       returns byte-identical border/box-shadow (`border-border-focus`/`elevation-overlay` are
+       applied unconditionally when selected, and via a plain `:hover` variant otherwise — same
+       class, same computed style either way). So we stop treating hover as a third, in-between
+       tier and reuse this one value for both. The shadow itself is a large, NEUTRAL (navy-tinted,
+       not accent-tinted) soft glow — `0 16px 40px -4px rgba(13,22,47,.08), 0 4px 8px 0
+       rgba(13,22,47,.05)` verbatim — never a flat ring tinted in the node's own accent color. */
+    --wf-node-shadow-selected: 0 16px 40px -4px rgba(13, 22, 47, 0.08), 0 4px 8px 0 rgba(13, 22, 47, 0.05);
 
     --wf-agent: #4650D6;   --wf-agent-bg: #EEF0FE;
     --wf-omni: #0E8F6E;    --wf-omni-bg: #E7F7F1;
@@ -336,6 +333,21 @@
 
     background: var(--wf-bg);
     font-family: var(--wf-font-body);
+  }
+
+  /* Connection-handle hover glyph — a plain CSS rule rather than a Tailwind arbitrary value (see
+     handleStyle.ts) because a data-URI SVG url() is much more reliable written directly in CSS
+     than escaped inside a Tailwind class string. Only sets background-image/size — sizing itself
+     is the Tailwind `hover:scale` on the handle's own class list, so the two never fight over the
+     `transform` property. Right-pointing since our flow runs left-to-right (Relevance's own canvas
+     is top-to-bottom and uses a down-arrow glyph in the same spot). */
+  .wf-slate .react-flow__handle {
+    background-repeat: no-repeat;
+    background-position: center;
+  }
+  .wf-slate .react-flow__handle:hover {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='4' y1='12' x2='20' y2='12'/%3E%3Cpolyline points='13 5 20 12 13 19'/%3E%3C/svg%3E");
+    background-size: 62%;
   }
 
   .wf-btn-pri {
