@@ -32,11 +32,30 @@ export default function DeletableEdge({
   const strokeColor = traversed ? WF_RUN_COLOR : selected ? WF_DOTMARK_COLOR : WF_CONNECTOR_COLOR;
 
   return (
-    <BaseEdge
-      path={edgePath}
-      markerEnd={markerEnd}
-      style={{ ...style, strokeWidth: traversed || selected ? 2.5 : 1.6, stroke: strokeColor, cursor: "pointer" }}
-      interactionWidth={20}
-    />
+    <>
+      <BaseEdge
+        path={edgePath}
+        markerEnd={markerEnd}
+        style={{ ...style, strokeWidth: traversed || selected ? 2.5 : 1.6, stroke: strokeColor, cursor: "pointer" }}
+        interactionWidth={20}
+      />
+      {/* Traversed-only flow animation: a marching white dash on top of the solid green line
+          (`.wf-edge-flow`, index.css), sharing the exact same path as the BaseEdge above so it
+          reads as motion ON that line rather than a second, separate line. Purely decorative —
+          pointer-events off so it never steals the click/selection target from the real edge. */}
+      {traversed && (
+        <path
+          d={edgePath}
+          fill="none"
+          stroke="#FFFFFF"
+          strokeWidth={2.5}
+          strokeDasharray="3 9"
+          strokeLinecap="round"
+          opacity={0.85}
+          className="wf-edge-flow"
+          style={{ pointerEvents: "none" }}
+        />
+      )}
+    </>
   );
 }
