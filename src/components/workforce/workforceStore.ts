@@ -1,6 +1,6 @@
 import type { Workforce, WorkforceNode, WorkforceEdge } from "./types";
 import { ROUTE_ARROW } from "./graphOps";
-import { CSKH_WEBHOOK_TRIGGER_ID } from "../configure/triggerStore";
+import { CSKH_WEBHOOK_TRIGGER_ID, SALES_QUOTE_TRIGGER_ID } from "../configure/triggerStore";
 
 const HOUR = 3_600_000;
 
@@ -74,6 +74,72 @@ function seedWorkforces(): Workforce[] {
     ],
   };
 
+  // Built from the "Một yêu cầu kết nối cả doanh nghiệp" EOS diagram (2026-09-19): Mai's ACME
+  // quote request → Sales Agent drafts from CRM/ERP → within EOS's own stated discount policy
+  // (≤10%) the Sales Agent is trusted to send directly; above 10% it hands off to the Finance
+  // Agent for a policy check, then to a human Finance Manager for one-tap approve/reject
+  // (S-demo-1) — then either path converges on the Legal Agent, which attaches the current
+  // standard contract clauses before the quote is final. Every step is captured automatically
+  // by "Lịch sử chạy" (S-gap-8), matching the diagram's "mọi bước được ghi lại".
+  const salesQuoteAcme: Workforce = {
+    id: "wf-sales-quote-acme",
+    name: "Báo giá ACME — Chiết khấu & Phê duyệt",
+    status: "published",
+    createdAt: Date.now() - 6 * HOUR,
+    updatedAt: Date.now() - 25 * 60_000,
+    updatedBy: "Tran Nam",
+    nodes: [
+      { id: "trigger-quote", type: "trigger", position: { x: -260, y: 140 }, data: {
+        kind: "trigger", triggerId: SALES_QUOTE_TRIGGER_ID,
+      } },
+      { id: "sales-quote", type: "agent", position: { x: 60, y: 140 }, data: { kind: "agent", agentId: "sales-quote", keepContext: true } },
+
+      // Within EOS's own stated discount policy — Sales Agent's authority, no human needed.
+      { id: "cond-auto", type: "condition", position: { x: 380, y: -20 }, data: {
+        kind: "condition", type: "llm", ruleMatch: "all", rules: [],
+        llmText: "Mức chiết khấu Agent đề xuất trong báo giá ở mức 10% trở xuống — nằm trong thẩm quyền tự phê duyệt của Sales theo chính sách EOS.",
+      } },
+
+      // Above the threshold — needs Finance's policy check, then a human approval.
+      { id: "cond-escalate", type: "condition", position: { x: 380, y: 300 }, data: {
+        kind: "condition", type: "llm", ruleMatch: "all", rules: [],
+        llmText: "Mức chiết khấu Agent đề xuất trong báo giá vượt quá 10% — ngoài thẩm quyền tự phê duyệt, cần Tài chính kiểm tra và Quản lý phê duyệt.",
+      } },
+      { id: "finance-check", type: "agent", position: { x: 660, y: 300 }, data: { kind: "agent", agentId: "finance-check", keepContext: true } },
+      { id: "cond-to-approval", type: "condition", position: { x: 940, y: 300 }, data: {
+        kind: "condition", type: "llm", ruleMatch: "all", rules: [],
+        llmText: "Tài chính đã kiểm tra xong mức chiết khấu — chuyển cho Quản lý Tài chính phê duyệt.",
+      } },
+      { id: "person-finance-mgr", type: "person", position: { x: 1220, y: 300 }, data: {
+        kind: "person", memberId: "corp-finance-1", taskKind: "approve", slaMinutes: 60, escalation: null,
+      } },
+      { id: "cond-approved", type: "condition", position: { x: 1500, y: 300 }, data: {
+        kind: "condition", type: "llm", ruleMatch: "all", rules: [],
+        llmText: "Quản lý Tài chính đã phê duyệt mức chiết khấu đề xuất.",
+      } },
+
+      // Both paths converge here — Legal attaches the current standard clauses before the quote
+      // is final, matching the diagram's step 5 ("Gửi kèm điều khoản Pháp chế").
+      { id: "legal-review", type: "agent", position: { x: 1780, y: 140 }, data: { kind: "agent", agentId: "legal-review", keepContext: false } },
+
+      // Standalone — document the shared assets each Agent draws on (S-gap-4: Tool nodes never
+      // route, they just show what's available), matching the diagram's "dùng: ..." footnotes.
+      { id: "tool-crm", type: "tool", position: { x: 60, y: 480 }, data: { kind: "tool", ref: { source: "builtin", id: "crm-lookup" } } },
+      { id: "tool-email", type: "tool", position: { x: 1780, y: 380 }, data: { kind: "tool", ref: { source: "builtin", id: "email-sms" } } },
+    ],
+    edges: [
+      { id: "e-trigger-quote", source: "trigger-quote", target: "sales-quote", type: "deletable", markerEnd: ROUTE_ARROW },
+      edge("e-sales-cond-auto", "sales-quote", "cond-auto", "cond-auto"),
+      edge("e-cond-auto-legal", "cond-auto", "legal-review", "cond-auto"),
+      edge("e-sales-cond-escalate", "sales-quote", "cond-escalate", "cond-escalate"),
+      edge("e-cond-escalate-finance", "cond-escalate", "finance-check", "cond-escalate"),
+      edge("e-finance-cond-approval", "finance-check", "cond-to-approval", "cond-to-approval"),
+      edge("e-cond-approval-person", "cond-to-approval", "person-finance-mgr", "cond-to-approval"),
+      edge("e-person-cond-approved", "person-finance-mgr", "cond-approved", "cond-approved"),
+      edge("e-cond-approved-legal", "cond-approved", "legal-review", "cond-approved"),
+    ],
+  };
+
   const draft: Workforce = {
     id: "wf-faq-escalation",
     name: "FAQ escalation sang Omni",
@@ -106,7 +172,7 @@ function seedWorkforces(): Workforce[] {
     edges: [],
   };
 
-  return [published, draft, empty];
+  return [published, salesQuoteAcme, draft, empty];
 }
 
 const store = new Map<string, Workforce>();

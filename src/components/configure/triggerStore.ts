@@ -226,6 +226,34 @@ const AUTO_SEEDED_AGENT_IDS = new Set(["nightly-report", "invoice-reminder", "sh
  * other agents, not a fit for what this specific Workforce trigger represents. */
 export const CSKH_WEBHOOK_TRIGGER_ID = "cskh-webhook";
 
+/** Fixed id for "sales-quote"'s seeded manual trigger — referenced by the Workforce demo data
+ * (workforceStore.ts's "wf-sales-quote-acme" seed), same pattern as CSKH_WEBHOOK_TRIGGER_ID
+ * above. Type "manual" (not "developer"/webhook) since the diagram this demo is built from has
+ * Mai typing her request directly into a Workspace chat — a person starting the run by hand,
+ * not an external system calling in — matching ManualConfig's own "User message received" shape. */
+export const SALES_QUOTE_TRIGGER_ID = "sales-quote-manual";
+
+function seedSalesQuoteTrigger() {
+  if (seededAgents.has("sales-quote")) return;
+  seededAgents.add("sales-quote");
+  saveSet(SEEDED_KEY, seededAgents);
+  const now = Date.now();
+  const rec: TriggerRecord = {
+    id: SALES_QUOTE_TRIGGER_ID,
+    agentId: "sales-quote",
+    name: "Yêu cầu báo giá từ Workspace",
+    type: "manual",
+    enabled: true,
+    description: "Nhân viên Kinh doanh gõ yêu cầu báo giá trực tiếp trong Workspace — bắt đầu Workforce này.",
+    config: { manual: { instructions: "Nhập tên khách hàng, sản phẩm/dịch vụ và mức chiết khấu đề xuất." } },
+    lastFiredAt: now - 2 * 3_600_000,
+    createdAt: now - 86_400_000 * 6,
+    updatedAt: now - 86_400_000 * 6,
+  };
+  store.set(k("sales-quote", rec.id), rec);
+  persist();
+}
+
 function seedCskhWebhookTrigger() {
   if (seededAgents.has("cskh")) return;
   seededAgents.add("cskh");
@@ -255,6 +283,7 @@ function seedCskhWebhookTrigger() {
 
 function seedAgent(agentId: string) {
   if (agentId === "cskh") { seedCskhWebhookTrigger(); return; }
+  if (agentId === "sales-quote") { seedSalesQuoteTrigger(); return; }
   if (seededAgents.has(agentId)) return;
   seededAgents.add(agentId);
   saveSet(SEEDED_KEY, seededAgents);

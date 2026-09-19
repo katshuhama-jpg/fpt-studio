@@ -148,7 +148,67 @@ function seedRuns(): WorkforceRunRecord[] {
   ];
 }
 
+/** Same idea, for the ACME-quote demo workforce (wf-sales-quote-acme) — one run per branch, so
+ * "Lịch sử chạy" shows both the auto-approve short path and the Finance-escalation path without
+ * anyone having to run it live first. */
+function seedSalesQuoteRuns(): WorkforceRunRecord[] {
+  const wfId = "wf-sales-quote-acme";
+
+  return [
+    // ≤10% — within Sales's own EOS authority, straight through to Legal.
+    seedRun({
+      workforceId: wfId,
+      source: "trigger",
+      triggerLabel: "Yêu cầu báo giá từ Workspace",
+      contextMessage: "Báo giá ACME Corp — gói Enterprise, chiết khấu đề xuất 8%.",
+      startedAt: Date.now() - 3 * HOUR,
+      endedAt: Date.now() - 3 * HOUR + 2_600,
+      status: "success",
+      steps: ["trigger-quote", "sales-quote", "legal-review"],
+      edgeIds: ["e-trigger-quote", "e-sales-cond-auto", "e-cond-auto-legal"],
+      conditionChoices: [{
+        conditionId: "cond-auto",
+        conditionLabel: "Mức chiết khấu Agent đề xuất trong báo giá ở mức 10% trở xuống — nằm trong thẩm quyền tự phê duyệt của Sales theo chính sách EOS.",
+        targetLabel: "AI Agent Pháp chế — Điều khoản hợp đồng",
+      }],
+    }),
+    // >10% — Finance checks, Finance Manager approves, then converges on Legal.
+    seedRun({
+      workforceId: wfId,
+      source: "trigger",
+      triggerLabel: "Yêu cầu báo giá từ Workspace",
+      contextMessage: "Báo giá ACME Corp — gói Enterprise, chiết khấu đề xuất 12%.",
+      startedAt: Date.now() - 45 * 60_000,
+      endedAt: Date.now() - 45 * 60_000 + 4_100,
+      status: "success",
+      steps: ["trigger-quote", "sales-quote", "finance-check", "person-finance-mgr", "legal-review"],
+      edgeIds: [
+        "e-trigger-quote", "e-sales-cond-escalate", "e-cond-escalate-finance",
+        "e-finance-cond-approval", "e-cond-approval-person", "e-person-cond-approved", "e-cond-approved-legal",
+      ],
+      conditionChoices: [
+        {
+          conditionId: "cond-escalate",
+          conditionLabel: "Mức chiết khấu Agent đề xuất trong báo giá vượt quá 10% — ngoài thẩm quyền tự phê duyệt, cần Tài chính kiểm tra và Quản lý phê duyệt.",
+          targetLabel: "AI Agent Tài chính — Kiểm duyệt chiết khấu",
+        },
+        {
+          conditionId: "cond-to-approval",
+          conditionLabel: "Tài chính đã kiểm tra xong mức chiết khấu — chuyển cho Quản lý Tài chính phê duyệt.",
+          targetLabel: "Phan My Ngan",
+        },
+        {
+          conditionId: "cond-approved",
+          conditionLabel: "Quản lý Tài chính đã phê duyệt mức chiết khấu đề xuất.",
+          targetLabel: "AI Agent Pháp chế — Điều khoản hợp đồng",
+        },
+      ],
+    }),
+  ];
+}
+
 const store = new Map<string, WorkforceRunRecord>();
+for (const r of seedSalesQuoteRuns()) store.set(r.id, r);
 for (const r of seedRuns()) store.set(r.id, r);
 
 export const runHistoryStore = {
