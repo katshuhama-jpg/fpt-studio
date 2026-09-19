@@ -24,8 +24,8 @@ export default function PersonNode({ id, data, selected }: NodeProps<PersonNodeD
       style={{
         borderRadius: "var(--wf-radius)",
         background: "var(--wf-surface)",
-        border: `1px solid ${selected ? "var(--wf-person)" : "var(--wf-border)"}`,
-        boxShadow: selected ? "0 0 0 2px var(--wf-person-bg)" : "var(--wf-node-shadow)",
+        border: `1px solid ${selected ? "var(--wf-person)" : hovered ? "var(--wf-border-hover)" : "var(--wf-border)"}`,
+        boxShadow: selected ? "0 0 0 2px var(--wf-person-bg)" : hovered ? "var(--wf-node-shadow-hover)" : "var(--wf-node-shadow)",
       }}
     >
       <NodeToolbarMenu visible={!!selected || hovered} onDelete={() => onDelete(id)} />

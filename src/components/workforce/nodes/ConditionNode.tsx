@@ -38,7 +38,7 @@ export default function ConditionNode({ id, data, selected }: NodeProps<Conditio
         background: "var(--wf-surface)",
         border: `1px dashed ${accentColor}`,
         borderRadius: "var(--wf-radius-sm)",
-        boxShadow: selected ? "0 0 0 2px var(--wf-agent-bg)" : "none",
+        boxShadow: selected ? "0 0 0 2px var(--wf-agent-bg)" : hovered ? "var(--wf-node-shadow)" : "none",
         color: "var(--wf-text)",
       }}
     >

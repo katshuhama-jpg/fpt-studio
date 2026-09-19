@@ -26,8 +26,8 @@ export default function AgentNode({ id, data, selected }: NodeProps<AgentNodeDat
       style={{
         borderRadius: "var(--wf-radius)",
         background: "var(--wf-surface)",
-        border: `1px solid ${selected ? "var(--wf-agent)" : "var(--wf-border)"}`,
-        boxShadow: selected ? "0 0 0 2px var(--wf-agent-bg)" : "var(--wf-node-shadow)",
+        border: `1px solid ${selected ? "var(--wf-agent)" : hovered ? "var(--wf-border-hover)" : "var(--wf-border)"}`,
+        boxShadow: selected ? "0 0 0 2px var(--wf-agent-bg)" : hovered ? "var(--wf-node-shadow-hover)" : "var(--wf-node-shadow)",
       }}
     >
       <NodeToolbarMenu visible={!!selected || hovered} onDelete={() => onDelete(id)} />
