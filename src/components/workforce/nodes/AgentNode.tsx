@@ -10,10 +10,11 @@ import NodeTypeTab from "./NodeTypeTab";
 import MissingTriggerNotice from "./MissingTriggerNotice";
 
 export default function AgentNode({ id, data, selected }: NodeProps<AgentNodeData>) {
-  const { onDelete, unreachableNodeIds } = useWorkforceNodeActions();
+  const { onDelete, unreachableNodeIds, runTrace } = useWorkforceNodeActions();
   const [hovered, setHovered] = useState(false);
   const agent = AGENTS.find(a => a.id === data.agentId);
   const missingTrigger = unreachableNodeIds.has(id);
+  const runStatus = runTrace?.nodeStatus.get(id);
 
   const openAgent = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -24,12 +25,17 @@ export default function AgentNode({ id, data, selected }: NodeProps<AgentNodeDat
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className="relative flex flex-col overflow-hidden w-[230px] cursor-pointer transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className={`relative flex flex-col overflow-hidden w-[230px] cursor-pointer transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${runStatus === "current" ? "wf-run-current" : ""}`}
       style={{
         borderRadius: "var(--wf-radius)",
         background: "var(--wf-surface)",
         border: `1px solid ${missingTrigger ? "var(--wf-warn)" : selected || hovered ? "var(--wf-agent)" : "var(--wf-border)"}`,
         boxShadow: selected || hovered ? "var(--wf-node-shadow-selected)" : "var(--wf-node-shadow)",
+        // Run trace (S-gap-7): a separate outline layer so it never fights the border/box-shadow
+        // above — pulsing indigo while the simulated run is AT this node, solid green once it has
+        // passed through, same colors/meaning as a traversed edge (DeletableEdge.tsx).
+        outline: runStatus === "current" ? "3px solid var(--wf-accent)" : runStatus === "done" ? "2px solid var(--wf-pub-ink)" : "none",
+        outlineOffset: 2,
       }}
     >
       <NodeToolbarMenu visible={!!selected} onDelete={() => onDelete(id)} />

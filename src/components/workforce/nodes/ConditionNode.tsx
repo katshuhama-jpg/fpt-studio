@@ -8,10 +8,11 @@ import { HANDLE_CLASS } from "./handleStyle";
 import NodeToolbarMenu from "./NodeToolbarMenu";
 
 export default function ConditionNode({ id, data, selected }: NodeProps<ConditionNodeData>) {
-  const { onDelete } = useWorkforceNodeActions();
+  const { onDelete, runTrace } = useWorkforceNodeActions();
   const [hovered, setHovered] = useState(false);
   const unconfigured = isConditionInvalid(data);
   const invalid = !!data.invalid;
+  const runStatus = runTrace?.nodeStatus.get(id);
 
   const statusText = unconfigured
     ? "Chưa cấu hình điều kiện"
@@ -40,6 +41,11 @@ export default function ConditionNode({ id, data, selected }: NodeProps<Conditio
         borderRadius: "var(--wf-radius-sm)",
         boxShadow: selected || hovered ? "var(--wf-node-shadow-selected)" : "none",
         color: "var(--wf-text)",
+        // Run trace (S-gap-7): a route this simulated run actually took through gets a solid
+        // green outline once it's been passed — Condition nodes are only ever "done" here, never
+        // "current" (the source node stays highlighted while a branch choice is pending).
+        outline: runStatus === "done" ? "2px solid var(--wf-pub-ink)" : "none",
+        outlineOffset: 2,
       }}
     >
       <NodeToolbarMenu visible={!!selected} onDelete={() => onDelete(id)} deleteLabel="Xóa route" />

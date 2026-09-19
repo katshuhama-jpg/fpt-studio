@@ -12,11 +12,12 @@ import MissingTriggerNotice from "./MissingTriggerNotice";
 /** Calls another Workforce as a reusable step (S-gap-6) — a normal routing node with both
  * Handles, like Agent, so the flow continues here once the called Workforce finishes. */
 export default function SubProcessNode({ id, data, selected }: NodeProps<SubProcessNodeData>) {
-  const { onDelete, unreachableNodeIds } = useWorkforceNodeActions();
+  const { onDelete, unreachableNodeIds, runTrace } = useWorkforceNodeActions();
   const [hovered, setHovered] = useState(false);
   const target = data.workforceId ? workforceStore.get(data.workforceId) : undefined;
   const missingTrigger = unreachableNodeIds.has(id);
   const notConfigured = !target;
+  const runStatus = runTrace?.nodeStatus.get(id);
 
   const openTarget = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -27,12 +28,14 @@ export default function SubProcessNode({ id, data, selected }: NodeProps<SubProc
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className="relative flex flex-col overflow-hidden w-[230px] cursor-pointer transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className={`relative flex flex-col overflow-hidden w-[230px] cursor-pointer transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${runStatus === "current" ? "wf-run-current" : ""}`}
       style={{
         borderRadius: "var(--wf-radius)",
         background: "var(--wf-surface)",
         border: `1px solid ${missingTrigger || notConfigured ? "var(--wf-warn)" : selected || hovered ? "var(--wf-subprocess)" : "var(--wf-border)"}`,
         boxShadow: selected || hovered ? "var(--wf-node-shadow-selected)" : "var(--wf-node-shadow)",
+        outline: runStatus === "current" ? "3px solid var(--wf-accent)" : runStatus === "done" ? "2px solid var(--wf-pub-ink)" : "none",
+        outlineOffset: 2,
       }}
     >
       <NodeToolbarMenu visible={!!selected} onDelete={() => onDelete(id)} />

@@ -9,20 +9,23 @@ import NodeTypeTab from "./NodeTypeTab";
 import MissingTriggerNotice from "./MissingTriggerNotice";
 
 export default function OmniNode({ id, selected }: NodeProps<OmniNodeData>) {
-  const { onDelete, unreachableNodeIds } = useWorkforceNodeActions();
+  const { onDelete, unreachableNodeIds, runTrace } = useWorkforceNodeActions();
   const [hovered, setHovered] = useState(false);
   const missingTrigger = unreachableNodeIds.has(id);
+  const runStatus = runTrace?.nodeStatus.get(id);
 
   return (
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className="relative flex flex-col overflow-hidden w-[230px] cursor-pointer transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className={`relative flex flex-col overflow-hidden w-[230px] cursor-pointer transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${runStatus === "current" ? "wf-run-current" : ""}`}
       style={{
         borderRadius: "var(--wf-radius)",
         background: "var(--wf-surface)",
         border: `1px solid ${missingTrigger ? "var(--wf-warn)" : selected || hovered ? "var(--wf-omni)" : "var(--wf-border)"}`,
         boxShadow: selected || hovered ? "var(--wf-node-shadow-selected)" : "var(--wf-node-shadow)",
+        outline: runStatus === "current" ? "3px solid var(--wf-accent)" : runStatus === "done" ? "2px solid var(--wf-pub-ink)" : "none",
+        outlineOffset: 2,
       }}
     >
       <NodeToolbarMenu visible={!!selected} onDelete={() => onDelete(id)} />

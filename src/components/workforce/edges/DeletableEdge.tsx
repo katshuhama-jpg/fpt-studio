@@ -1,5 +1,6 @@
 import { BaseEdge, getSmoothStepPath, type EdgeProps } from "reactflow";
-import { WF_CONNECTOR_COLOR, WF_DOTMARK_COLOR } from "../slateTheme";
+import { WF_CONNECTOR_COLOR, WF_DOTMARK_COLOR, WF_RUN_COLOR } from "../slateTheme";
+import { useWorkforceNodeActions } from "../nodes/nodeActionsContext";
 
 const CORNER_RADIUS = 6;
 
@@ -16,21 +17,25 @@ const CORNER_RADIUS = 6;
  * node's own hover affordance, not from clicking the line, so this component has no delete UI of
  * its own. */
 export default function DeletableEdge({
-  sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, style, markerEnd, selected,
+  id, sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, style, markerEnd, selected,
 }: EdgeProps) {
+  const { runTrace } = useWorkforceNodeActions();
   const [edgePath] = getSmoothStepPath({
     sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, borderRadius: CORNER_RADIUS,
   });
   // Line itself is a neutral slate gray; the endpoint dots (the nodes' own Handles) and the
   // arrowhead carry the accent color, so a route reads as one continuous line with clearly
-  // marked start/end rather than a solid-accent line end to end.
-  const strokeColor = selected ? WF_DOTMARK_COLOR : WF_CONNECTOR_COLOR;
+  // marked start/end rather than a solid-accent line end to end. An edge the simulated run has
+  // traversed (S-gap-7) overrides both — same green as a "done" node's outline, so the whole
+  // path the run took reads as one continuous, unambiguous line across the canvas.
+  const traversed = !!runTrace?.edgeIds.has(id);
+  const strokeColor = traversed ? WF_RUN_COLOR : selected ? WF_DOTMARK_COLOR : WF_CONNECTOR_COLOR;
 
   return (
     <BaseEdge
       path={edgePath}
       markerEnd={markerEnd}
-      style={{ ...style, strokeWidth: selected ? 2.5 : 1.6, stroke: strokeColor, cursor: "pointer" }}
+      style={{ ...style, strokeWidth: traversed || selected ? 2.5 : 1.6, stroke: strokeColor, cursor: "pointer" }}
       interactionWidth={20}
     />
   );

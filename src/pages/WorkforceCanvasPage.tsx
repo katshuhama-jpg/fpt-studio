@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, Undo2, Redo2, LayoutGrid, Plus, Minus, Maximize, Lock, LockOpen } from "lucide-react";
+import { ChevronLeft, Undo2, Redo2, LayoutGrid, Plus, Minus, Maximize, Lock, LockOpen, Play, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { ReactFlowProvider, useNodesState, useEdgesState, type ReactFlowInstance } from "reactflow";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { AGENTS } from "@/components/configure/agentStore";
+import { triggerStore } from "@/components/configure/triggerStore";
 import { collectMembers } from "@/pages/organization/orgData";
 import { useOrg } from "@/pages/organization/orgStore";
 import Canvas from "@/components/workforce/Canvas";
@@ -17,10 +18,12 @@ import SubProcessConfigDrawer from "@/components/workforce/SubProcessConfigDrawe
 import AgentConfigDrawer from "@/components/workforce/AgentConfigDrawer";
 import ConditionDrawer from "@/components/workforce/ConditionDrawer";
 import GettingStartedChecklist from "@/components/workforce/GettingStartedChecklist";
+import RunTracePanel from "@/components/workforce/RunTracePanel";
 import { DeleteNodeDialog } from "@/components/workforce/WorkforceDeleteDialogs";
 import { workforceStore } from "@/components/workforce/workforceStore";
 import { isConditionInvalid, type ConditionNodeData, type WorkforceNode, type WorkforceEdge, type WorkforceNodeData, type WorkforceStatus } from "@/components/workforce/types";
 import { removeNodeCascade, removeRouteByConditionId, getRouteEndpoints, isDestinationNode, autoArrange, getNodesUnreachableFromTrigger } from "@/components/workforce/graphOps";
+import { useRunTrace } from "@/components/workforce/useRunTrace";
 import type { WorkforceNodeActions } from "@/components/workforce/nodes/nodeActionsContext";
 
 const MAX_HISTORY = 50;
@@ -57,6 +60,11 @@ export default function WorkforceCanvasPage() {
   // instead of `data.memberId` (S-gap-5).
   const [escalationPickerNodeId, setEscalationPickerNodeId] = useState<string | null>(null);
   const [deleteNodeId, setDeleteNodeId] = useState<string | null>(null);
+  // Only relevant when the canvas has more than one Trigger node — the small "which Trigger do
+  // you want to simulate?" menu that opens under the "Chạy thử" button in that case (S-gap-7).
+  // With zero or one Trigger, "Chạy thử" skips this and acts directly (see handleTestRun below).
+  const [triggerMenuOpen, setTriggerMenuOpen] = useState(false);
+  const runTrace = useRunTrace(nodes as any, edges);
 
   // Undo/redo history — snapshots are pushed right before a mutating action (add/delete a
   // node or route, drag a node, open a config drawer, save a Condition) rather than on every
@@ -177,12 +185,50 @@ export default function WorkforceCanvasPage() {
     return map;
   }, [nodes, edges]);
 
+  // Human-readable label for a node reached during a simulated run (S-gap-7) — one label
+  // resolver covering every kind a run can actually pass through (trigger/agent/omni/person/
+  // subprocess), reusing the same lookups (AGENTS, members, triggerStore, workforceStore)
+  // ConditionDrawer's own sourceLabel/destinationLabel already use below for the exact same
+  // purpose, just generalized to every routable node kind instead of only a route's two ends.
+  const describeRunNode = (nodeId: string): string => {
+    const n = nodes.find(nn => nn.id === nodeId);
+    if (!n) return "—";
+    switch (n.data.kind) {
+      case "agent": return AGENTS.find(a => a.id === n.data.agentId)?.name ?? "Agent";
+      case "omni": return "Omni Supports";
+      case "person": return members.find(m => m.id === n.data.memberId)?.name ?? "Người trong tổ chức";
+      case "subprocess": return (n.data.workforceId ? workforceStore.get(n.data.workforceId)?.name : undefined) ?? "Sub-process";
+      case "trigger": {
+        const agentId = triggerAgentIds.get(n.id) ?? null;
+        const record = agentId && n.data.triggerId ? triggerStore.get(agentId, n.data.triggerId) : undefined;
+        return record?.name ?? "Trigger";
+      }
+      default: return "—";
+    }
+  };
+
+  const triggerNodes = useMemo(() => nodes.filter(n => n.data.kind === "trigger"), [nodes]);
+  const runActive = runTrace.state.status !== "idle";
+
+  const handleTestRun = () => {
+    if (triggerNodes.length === 0) {
+      toast.error("Chưa có Trigger nào trên canvas để chạy thử");
+      return;
+    }
+    if (triggerNodes.length === 1) {
+      runTrace.start(triggerNodes[0].id);
+      return;
+    }
+    setTriggerMenuOpen(v => !v);
+  };
+
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       const isTyping = tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable;
       if (e.key === "Escape") {
-        if (escalationPickerNodeId) setEscalationPickerNodeId(null);
+        if (triggerMenuOpen) setTriggerMenuOpen(false);
+        else if (escalationPickerNodeId) setEscalationPickerNodeId(null);
         else if (personPickerNodeId) setPersonPickerNodeId(null);
         else if (configuringId) setConfiguringId(null);
         return;
@@ -208,7 +254,7 @@ export default function WorkforceCanvasPage() {
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodes, edges, configuringId, personPickerNodeId, escalationPickerNodeId, name]);
+  }, [nodes, edges, configuringId, personPickerNodeId, escalationPickerNodeId, triggerMenuOpen, name]);
 
   const onConfigureNode = (nodeId: string) => {
     const node = nodes.find(n => n.id === nodeId);
@@ -223,6 +269,7 @@ export default function WorkforceCanvasPage() {
     onNoteTextChange: (id2, text) => setNodes(ns => ns.map(n => (n.id === id2 ? { ...n, data: { ...n.data, text } } : n))),
     unreachableNodeIds,
     triggerAgentIds,
+    runTrace: runTrace.highlight,
   };
 
   const saveStateText =
@@ -260,6 +307,45 @@ export default function WorkforceCanvasPage() {
         <span className="text-[12px]" style={{ color: "var(--wf-muted)" }}>{saveStateText}</span>
 
         <div className="flex items-center gap-2.5 shrink-0 ml-auto">
+          <div className="relative">
+            <Tooltip delayDuration={300}>
+              <TooltipTrigger asChild>
+                <span>
+                  <button
+                    onClick={handleTestRun}
+                    disabled={runActive || triggerNodes.length === 0}
+                    className="wf-btn-sec flex items-center gap-1.5 disabled:opacity-40 disabled:pointer-events-none"
+                  >
+                    <Play size={13} fill="currentColor" /> Chạy thử {triggerNodes.length > 1 && <ChevronDown size={12} />}
+                  </button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                {triggerNodes.length === 0 ? "Cần ít nhất một Trigger trên canvas" : "Mô phỏng luồng chạy trên canvas"}
+              </TooltipContent>
+            </Tooltip>
+            {triggerMenuOpen && (
+              <>
+              <div className="fixed inset-0 z-20" onClick={() => setTriggerMenuOpen(false)} />
+              <div
+                className="absolute right-0 top-[calc(100%+6px)] w-[240px] py-1.5 z-30 animate-fade-up"
+                style={{ background: "var(--wf-surface)", border: "1px solid var(--wf-border)", borderRadius: "var(--wf-radius-sm)", boxShadow: "var(--wf-node-shadow-selected)" }}
+              >
+                <p className="px-3 pb-1 text-[11px] font-semibold" style={{ color: "var(--wf-muted)" }}>Chạy thử từ Trigger nào?</p>
+                {triggerNodes.map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => { runTrace.start(t.id); setTriggerMenuOpen(false); }}
+                    className="w-full text-left px-3 py-2 text-[12.5px] min-h-[44px] flex items-center transition-base hover:bg-[var(--wf-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    style={{ color: "var(--wf-text)" }}
+                  >
+                    {describeRunNode(t.id)}
+                  </button>
+                ))}
+              </div>
+              </>
+            )}
+          </div>
           <button onClick={handleSave} className="wf-btn-sec">Save</button>
           <button onClick={handlePublish} className="wf-btn-pri">Publish</button>
         </div>
@@ -298,6 +384,18 @@ export default function WorkforceCanvasPage() {
         </ReactFlowProvider>
 
         <GettingStartedChecklist nodes={nodes as any} edges={edges} name={name} status={status} />
+
+        {runActive && (
+          <RunTracePanel
+            nodes={nodes as any}
+            state={runTrace.state}
+            describeNode={describeRunNode}
+            onChoose={runTrace.choose}
+            onStop={runTrace.stop}
+            onRestart={() => runTrace.start(runTrace.state.steps[0])}
+            onClose={runTrace.reset}
+          />
+        )}
 
         {/* One unified control rail — zoom, fit, lock, undo/redo, tidy layout — instead of
             scattering these across separate floating widgets in different corners. Sits above

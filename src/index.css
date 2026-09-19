@@ -383,6 +383,22 @@
     background: var(--wf-pub-bg); color: var(--wf-pub-ink);
   }
   .wf-pill.muted { background: #EEF0F3; color: var(--wf-muted); }
+
+  /* On-canvas run trace (S-gap-7) — the node the simulated run is AT right now gets a pulsing
+     indigo outline (separate CSS box from border/box-shadow, so it layers over the node's own
+     selected/hover styling instead of fighting it); a node it already passed through keeps a
+     solid, non-animated green outline reusing --wf-pub-ink (the same "this works" green as the
+     Published pill) so the whole traversed path stays visible at a glance once the run moves on
+     or finishes. Only outline-color animates — outline-style/width stay constant — so this never
+     fights an inline `outline` shorthand set by the node component itself. */
+  .wf-run-current { animation: wfRunPulse 1.2s ease-in-out infinite; }
+  @keyframes wfRunPulse {
+    0%, 100% { outline-color: var(--wf-accent); }
+    50% { outline-color: color-mix(in srgb, var(--wf-accent) 35%, transparent); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .wf-run-current { animation: none; }
+  }
 }
 
 @layer utilities {

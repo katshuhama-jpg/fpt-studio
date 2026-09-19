@@ -12,3 +12,6 @@
 export const WF_DOT_COLOR = "#D8DBE2";
 export const WF_CONNECTOR_COLOR = "#8891A6";
 export const WF_DOTMARK_COLOR = "#4650D6";
+// Same value as --wf-pub-ink in index.css — reused here for the on-canvas run trace (S-gap-7)
+// to color an edge the simulated run has already traversed.
+export const WF_RUN_COLOR = "#0E8F52";
