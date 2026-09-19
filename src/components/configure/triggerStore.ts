@@ -7,7 +7,7 @@ import { perUserConnector } from "./agentAutomationGuard";
 
 export const TRIGGER_LIMIT = 10;
 
-export type TriggerType = "scheduled" | "developer" | "external";
+export type TriggerType = "scheduled" | "developer" | "external" | "manual";
 
 export type ScheduleFrequency = "daily" | "weekly" | "monthly" | "custom";
 export type CustomScheduleUnit = "minute" | "hour" | "day" | "week" | "month" | "year" | "cron";
@@ -26,6 +26,18 @@ export interface ScheduleConfig {
   intervalValue?: number;           // customUnit === "minute" (>=10) or "hour" (>=1)
   cron?: string;                     // customUnit === "cron" only — lives under "Custom / Advanced"
   timezone: string;
+  /** Optional free-text context passed into each run (separate from the trigger's own required
+   * `description`, which is a static label) — same "Instructions" field Relevance AI's own
+   * Recurring Schedule trigger has, alongside Name and the frequency/time picker. */
+  instructions?: string;
+}
+
+/** No required fields — a manual trigger needs no schedule, webhook, or connector, only an
+ * optional guide shown to whoever starts a run by hand (matching Relevance AI's default
+ * "User message received" trigger, whose own "Guide for using workforce" field shows on the
+ * "New task" page). This is the only trigger type `triggerNeedsSetup` never flags. */
+export interface ManualConfig {
+  instructions?: string;
 }
 
 export interface DeveloperConfig {
@@ -77,6 +89,7 @@ export interface TriggerRecord {
     schedule?: ScheduleConfig;
     developer?: DeveloperConfig;
     external?: ExternalConfig;
+    manual?: ManualConfig;
   };
   lastFiredAt: number | null;
   /** Set once at creation, never touched again — the list's sort key, so toggling

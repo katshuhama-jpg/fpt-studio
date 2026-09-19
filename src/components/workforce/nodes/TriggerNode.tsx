@@ -9,7 +9,7 @@ import NodeToolbarMenu from "./NodeToolbarMenu";
 import NodeTypeTab from "./NodeTypeTab";
 import MissingTriggerNotice from "./MissingTriggerNotice";
 
-const TYPE_ICON: Record<TriggerType, typeof Clock> = { scheduled: Clock, developer: Webhook, external: Globe };
+const TYPE_ICON: Record<TriggerType, typeof Clock> = { manual: MessageSquare, scheduled: Clock, developer: Webhook, external: Globe };
 
 /** What starts this Workforce running. Unlike every other node type, a Trigger only ever acts as
  * a source — it has no target Handle at all, since nothing can hand a conversation off *to* a

@@ -18,14 +18,16 @@ import { perUserConnector } from "./agentAutomationGuard";
 import { TRIGGER_BLOCKED_BY_PERSONAL_CONNECTOR_REASON } from "./agentPublishStore";
 import { CATALOG as CONNECTOR_CATALOG } from "./ConnectionsTab";
 import { toast } from "sonner";
-import { Clock, Webhook, Globe, Copy, Check, ChevronDown, ChevronLeft, Plus, X, RefreshCw, AlertTriangle, Info } from "lucide-react";
+import { Clock, Webhook, Globe, Copy, Check, ChevronDown, ChevronLeft, Plus, X, RefreshCw, AlertTriangle, Info, MessageSquare } from "lucide-react";
 
 const SAMPLE_PAYLOAD = JSON.stringify({ event: "order.created", order_id: "12345", customer_id: "789" }, null, 2);
 
 const NAME_MAX = 50;
 const DESC_MAX = 200;
+const INSTRUCTIONS_MAX = 300;
 
 const CATEGORY_OPTIONS: { value: TriggerType; label: string; icon: any; desc: string }[] = [
+  { value: "manual", label: "Chạy thủ công", icon: MessageSquare, desc: "Người dùng tự bắt đầu bằng cách gõ yêu cầu — từ nút Chạy hoặc từ khung chat." },
   { value: "scheduled", label: "Lịch", icon: Clock, desc: "Chạy agent tự động theo lịch lặp lại." },
   { value: "developer", label: "Webhook", icon: Webhook, desc: "Nhận một URL để hệ thống bên ngoài gọi (POST) và kích hoạt agent." },
   { value: "external", label: "Ứng dụng bên ngoài", icon: Globe, desc: "Kích hoạt agent khi có sự kiện ở ứng dụng khác." },
@@ -110,6 +112,10 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
   const [intervalValue, setIntervalValue] = useState("");
   const [cron, setCron] = useState("0 9 * * 1");
   const [timezone, setTimezone] = useState("GMT+07:00");
+  const [scheduleInstructions, setScheduleInstructions] = useState("");
+
+  // Manual
+  const [instructions, setInstructions] = useState("");
 
   // Webhook
   const [webhookUrl, setWebhookUrl] = useState("");
@@ -164,8 +170,10 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
     setDescription(t?.description ?? "");
     setErrors({});
 
-    const cat: TriggerType = t?.type === "developer" || t?.type === "external" ? t.type : "scheduled";
+    const cat: TriggerType = t?.type === "developer" || t?.type === "external" || t?.type === "manual" ? t.type : "scheduled";
     setCategory(cat);
+
+    setInstructions(t?.config.manual?.instructions ?? "");
 
     const sched = t?.config.schedule;
     const unit = sched?.customUnit ?? (sched?.frequency === "weekly" ? "week" : sched?.frequency === "monthly" ? "month" : "day");
@@ -179,6 +187,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
     setIntervalValue(sched?.intervalValue != null ? String(sched.intervalValue) : "");
     setCron(sched?.cron ?? "0 9 * * 1");
     setTimezone(sched?.timezone ?? "GMT+07:00");
+    setScheduleInstructions(sched?.instructions ?? "");
 
     const dev = t?.config.developer;
     setWebhookUrl(dev?.webhookUrl ?? `https://agents.fpt.ai/console/api/webhooks/triggers/${generateWebhookId()}`);
@@ -211,10 +220,11 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
 
     setInitialSnapshot(JSON.stringify({
       name: t?.name ?? "", description: t?.description ?? "", category: cat,
+      instructions: t?.config.manual?.instructions ?? "",
       timeOfDay: sched?.timeOfDay ?? "08:00", weekDays: sched?.weekDays?.length ? sched.weekDays : [1],
       dayOfMonth: sched?.dayOfMonth ?? 1, month: sched?.month ?? 0, startTime: sched?.startTime ?? defaultStartTime(),
       customUnit: unit, intervalValue: sched?.intervalValue != null ? String(sched.intervalValue) : "",
-      cron: sched?.cron ?? "0 9 * * 1", timezone: sched?.timezone ?? "GMT+07:00",
+      cron: sched?.cron ?? "0 9 * * 1", timezone: sched?.timezone ?? "GMT+07:00", scheduleInstructions: sched?.instructions ?? "",
       authentication: dev?.authentication ?? "bearer", credentialId: dev?.credentialId ?? "",
       payloadJson: dev?.payloadSchema ?? SAMPLE_PAYLOAD, requiredFields: dev?.requiredFields?.join(", ") ?? "",
       app: extApp, accountId: ext?.accountId ?? "", event: ext?.event ?? EXTERNAL_APP_EVENTS[extApp][0].value,
@@ -299,6 +309,9 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
     }
 
     const config: TriggerRecord["config"] = {};
+    if (category === "manual") {
+      config.manual = { ...(instructions.trim() ? { instructions: instructions.trim() } : {}) };
+    }
     if (category === "scheduled") {
       config.schedule = {
         frequency: "custom",
@@ -310,6 +323,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
         ...(customUnit === "week" ? { weekDays } : {}),
         ...(customUnit === "month" ? { dayOfMonth } : {}),
         ...(customUnit === "year" ? { dayOfMonth, month } : {}),
+        ...(scheduleInstructions.trim() ? { instructions: scheduleInstructions.trim() } : {}),
       };
     }
     if (category === "developer") {
@@ -423,7 +437,8 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
       : step === "details" ? (mode === "create" ? "Tạo" : "Lưu") : "Tiếp tục";
 
   const connectedAccounts = connectedAccountStore.list(app);
-  const categoryHeading = category === "scheduled" ? "Lịch lặp lại"
+  const categoryHeading = category === "manual" ? "Chạy thủ công"
+    : category === "scheduled" ? "Lịch lặp lại"
     : category === "developer" ? "Webhook"
     : EXTERNAL_APP_META[app].label;
 
@@ -438,6 +453,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
 
   const currentSnapshot = JSON.stringify({
     name, description, category,
+    instructions, scheduleInstructions,
     timeOfDay, weekDays, dayOfMonth, month, startTime, customUnit, intervalValue, cron, timezone,
     authentication, credentialId, payloadJson, requiredFields,
     app, accountId, event, gmailMode, includeAttachments, filterSearch, excludeEmails,
@@ -504,7 +520,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
               {mode === "create" && (
               <div>
                 <label className="text-xs font-medium mb-1.5 block">Loại</label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   {CATEGORY_OPTIONS.map(opt => {
                     const Icon = opt.icon;
                     const active = category === opt.value;
@@ -821,6 +837,50 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                   {TIMEZONE_OPTIONS.map(tz => <option key={tz.value} value={tz.value}>{tz.label}</option>)}
                 </select>
                 <p className="mt-1 text-[11px] text-muted-foreground">Dùng để tính toàn bộ mốc giờ ở trên.</p>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium flex items-center justify-between mb-1.5">
+                  <span>Instructions</span>
+                  <span className="text-[10px] font-mono text-muted-foreground">{scheduleInstructions.length}/{INSTRUCTIONS_MAX}</span>
+                </label>
+                <textarea
+                  value={scheduleInstructions}
+                  rows={3}
+                  maxLength={INSTRUCTIONS_MAX}
+                  onChange={e => setScheduleInstructions(e.target.value)}
+                  placeholder="Ngữ cảnh riêng cho mỗi lần chạy — khác với Mô tả ở trên (chỉ là nhãn tĩnh của trigger)."
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm outline-none resize-none transition-base focus:border-primary"
+                />
+                <p className="mt-1 text-[11px] text-muted-foreground">Tuỳ chọn — đưa thêm hướng dẫn/ngữ cảnh vào mỗi lần trigger này tự chạy.</p>
+              </div>
+            </div>
+          )}
+
+          {step === "details" && category === "manual" && (
+            <div className="rounded-lg border border-border p-3 space-y-3">
+              <div className="flex items-start gap-2.5 p-2.5 rounded-lg bg-surface-muted/60">
+                <Info size={14} className="text-muted-foreground shrink-0 mt-0.5" />
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Không cần cấu hình lịch, webhook hay kết nối ứng dụng nào — bất kỳ ai chạy Workforce này (từ nút "Chạy Workforce" hoặc khung chat) đều kích hoạt agent ngay khi gõ yêu cầu.
+                </p>
+              </div>
+              <div>
+                <label className="text-xs font-medium flex items-center justify-between mb-1.5">
+                  <span>Hướng dẫn sử dụng</span>
+                  <span className="text-[10px] font-mono text-muted-foreground">{instructions.length}/{INSTRUCTIONS_MAX}</span>
+                </label>
+                <textarea
+                  value={instructions}
+                  rows={4}
+                  maxLength={INSTRUCTIONS_MAX}
+                  onChange={e => setInstructions(e.target.value)}
+                  placeholder='Ví dụ: "Mô tả ngắn gọn giao dịch hoặc câu hỏi của khách hàng — agent sẽ tự xử lý hoặc chuyển tiếp phù hợp."'
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm outline-none resize-none transition-base focus:border-primary"
+                />
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Hiển thị cho người chạy Workforce này khi họ bắt đầu một nhiệm vụ mới. Để trống nếu không cần hướng dẫn thêm.
+                </p>
               </div>
             </div>
           )}

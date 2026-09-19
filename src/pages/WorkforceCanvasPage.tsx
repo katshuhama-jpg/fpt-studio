@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, Undo2, Redo2, LayoutGrid, Plus, Minus, Maximize, Lock, LockOpen, Play, ChevronDown } from "lucide-react";
+import { ChevronLeft, Undo2, Redo2, LayoutGrid, Plus, Minus, Maximize, Lock, LockOpen, Play, ChevronDown, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { ReactFlowProvider, useNodesState, useEdgesState, type ReactFlowInstance } from "reactflow";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -19,6 +19,7 @@ import AgentConfigDrawer from "@/components/workforce/AgentConfigDrawer";
 import ConditionDrawer from "@/components/workforce/ConditionDrawer";
 import GettingStartedChecklist from "@/components/workforce/GettingStartedChecklist";
 import RunTracePanel from "@/components/workforce/RunTracePanel";
+import ManualRunDialog, { type ManualRunTriggerOption } from "@/components/workforce/ManualRunDialog";
 import { DeleteNodeDialog } from "@/components/workforce/WorkforceDeleteDialogs";
 import { workforceStore } from "@/components/workforce/workforceStore";
 import { isConditionInvalid, type ConditionNodeData, type WorkforceNode, type WorkforceEdge, type WorkforceNodeData, type WorkforceStatus } from "@/components/workforce/types";
@@ -64,6 +65,13 @@ export default function WorkforceCanvasPage() {
   // you want to simulate?" menu that opens under the "Chạy thử" button in that case (S-gap-7).
   // With zero or one Trigger, "Chạy thử" skips this and acts directly (see handleTestRun below).
   const [triggerMenuOpen, setTriggerMenuOpen] = useState(false);
+  // "Chạy Workforce" (S-gap: manual/chat Trigger) — the real, non-test way a business user
+  // starts this Workforce. Kept fully separate from `triggerMenuOpen`/handleTestRun above: it
+  // only ever lists Trigger nodes backed by a "manual" TriggerRecord, and it collects a request
+  // message first (ManualRunDialog) before handing off to the same run-trace machinery.
+  const [manualRunOpen, setManualRunOpen] = useState(false);
+  const [manualRunMessage, setManualRunMessage] = useState<string | null>(null);
+  const [manualRunActive, setManualRunActive] = useState(false);
   const runTrace = useRunTrace(nodes as any, edges);
 
   // Undo/redo history — snapshots are pushed right before a mutating action (add/delete a
@@ -216,10 +224,40 @@ export default function WorkforceCanvasPage() {
       return;
     }
     if (triggerNodes.length === 1) {
+      setManualRunActive(false);
       runTrace.start(triggerNodes[0].id);
       return;
     }
     setTriggerMenuOpen(v => !v);
+  };
+
+  // Every Trigger node whose real trigger (resolved the same way TriggerNode.tsx itself does)
+  // is type "manual" — these are the only Triggers a business user can fire by hand from
+  // "Chạy Workforce" (S-gap: manual/chat Trigger, matching Relevance AI's default "User message
+  // received" Trigger). Requires the node to actually be wired to an Agent, same precondition
+  // every other Trigger use already enforces.
+  const manualTriggerOptions: ManualRunTriggerOption[] = useMemo(() => {
+    const options: ManualRunTriggerOption[] = [];
+    for (const n of triggerNodes) {
+      const agentId = triggerAgentIds.get(n.id) ?? null;
+      const triggerId = n.data.kind === "trigger" ? n.data.triggerId : null;
+      const record = agentId && triggerId ? triggerStore.get(agentId, triggerId) : undefined;
+      if (record?.type !== "manual") continue;
+      options.push({
+        nodeId: n.id,
+        name: record.name,
+        agentName: AGENTS.find(a => a.id === agentId)?.name ?? "Agent",
+        instructions: record.config.manual?.instructions,
+      });
+    }
+    return options;
+  }, [triggerNodes, triggerAgentIds]);
+
+  const handleManualRunStart = (nodeId: string, message: string) => {
+    setManualRunOpen(false);
+    setManualRunActive(true);
+    setManualRunMessage(message || null);
+    runTrace.start(nodeId);
   };
 
   useEffect(() => {
@@ -335,7 +373,7 @@ export default function WorkforceCanvasPage() {
                 {triggerNodes.map(t => (
                   <button
                     key={t.id}
-                    onClick={() => { runTrace.start(t.id); setTriggerMenuOpen(false); }}
+                    onClick={() => { setManualRunActive(false); runTrace.start(t.id); setTriggerMenuOpen(false); }}
                     className="w-full text-left px-3 py-2 text-[12.5px] min-h-[44px] flex items-center transition-base hover:bg-[var(--wf-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     style={{ color: "var(--wf-text)" }}
                   >
@@ -346,6 +384,22 @@ export default function WorkforceCanvasPage() {
               </>
             )}
           </div>
+          {status === "published" && manualTriggerOptions.length > 0 && (
+            <Tooltip delayDuration={300}>
+              <TooltipTrigger asChild>
+                <span>
+                  <button
+                    onClick={() => setManualRunOpen(true)}
+                    disabled={runActive}
+                    className="wf-btn-sec flex items-center gap-1.5 disabled:opacity-40 disabled:pointer-events-none"
+                  >
+                    <MessageSquare size={13} /> Chạy Workforce
+                  </button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Bắt đầu một lượt chạy thật, bằng cách gõ yêu cầu — giống người dùng thật sẽ làm</TooltipContent>
+            </Tooltip>
+          )}
           <button onClick={handleSave} className="wf-btn-sec">Save</button>
           <button onClick={handlePublish} className="wf-btn-pri">Publish</button>
         </div>
@@ -393,7 +447,9 @@ export default function WorkforceCanvasPage() {
             onChoose={runTrace.choose}
             onStop={runTrace.stop}
             onRestart={() => runTrace.start(runTrace.state.steps[0])}
-            onClose={runTrace.reset}
+            onClose={() => { runTrace.reset(); setManualRunActive(false); setManualRunMessage(null); }}
+            mode={manualRunActive ? "manual" : "test"}
+            contextMessage={manualRunMessage}
           />
         )}
 
@@ -420,6 +476,13 @@ export default function WorkforceCanvasPage() {
           <RailButton label="Sắp xếp lại canvas" icon={<LayoutGrid size={16} />} onClick={handleAutoArrange} disabled={nodes.length === 0} />
         </div>
       </div>
+
+      <ManualRunDialog
+        open={manualRunOpen}
+        options={manualTriggerOptions}
+        onStart={handleManualRunStart}
+        onClose={() => setManualRunOpen(false)}
+      />
 
       {personPickerNodeId && (
         <PersonPickerPopover

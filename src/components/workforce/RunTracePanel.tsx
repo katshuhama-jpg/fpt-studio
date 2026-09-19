@@ -20,7 +20,7 @@ function conditionSummary(node: WorkforceNode | undefined): string {
  * a Trigger's setup), so the two need to coexist on screen rather than fight for the same real
  * estate. Also clears the left control rail (bottom-[58px] left-4) and the bottom palette dock. */
 export default function RunTracePanel({
-  nodes, state, describeNode, onChoose, onStop, onRestart, onClose,
+  nodes, state, describeNode, onChoose, onStop, onRestart, onClose, mode = "test", contextMessage,
 }: {
   nodes: WorkforceNode[];
   state: RunTraceState;
@@ -29,12 +29,20 @@ export default function RunTracePanel({
   onStop: () => void;
   onRestart: () => void;
   onClose: () => void;
+  /** "test" (default) is the builder-only "Chạy thử" tool; "manual" is a real run kicked off
+   * from a manual Trigger's "Chạy Workforce" entry point (S-gap: manual/chat trigger) — same
+   * trace visualization either way, just different header wording so a business user doing a
+   * real run is never told this was only a "test". */
+  mode?: "test" | "manual";
+  /** The free-text request typed into ManualRunDialog when `mode === "manual"` — shown as the
+   * run's own context so it's clear what request this trace is walking through. */
+  contextMessage?: string | null;
 }) {
   const findNode = (id: string) => nodes.find(n => n.id === id);
 
   const endMessage =
-    state.endReason === "unwired" ? "Trigger này chưa kết nối tới Agent nào — không thể chạy thử." :
-    state.endReason === "stopped" ? "Đã dừng chạy thử." :
+    state.endReason === "unwired" ? `Trigger này chưa kết nối tới Agent nào — không thể ${mode === "manual" ? "chạy" : "chạy thử"}.` :
+    state.endReason === "stopped" ? `Đã dừng ${mode === "manual" ? "chạy" : "chạy thử"}.` :
     state.currentNodeId ? `Hoàn tất — kết thúc tại "${describeNode(state.currentNodeId)}".` : "Hoàn tất.";
 
   return (
@@ -52,7 +60,9 @@ export default function RunTracePanel({
           <Play size={11} fill="currentColor" />
         </div>
         <span className="text-[13px] font-bold flex-1 [font-family:var(--wf-font-display)]" style={{ color: "var(--wf-text)" }}>
-          {state.status === "done" ? "Kết quả chạy thử" : "Đang chạy thử"}
+          {mode === "manual"
+            ? (state.status === "done" ? "Kết quả" : "Đang chạy Workforce")
+            : (state.status === "done" ? "Kết quả chạy thử" : "Đang chạy thử")}
         </span>
         <button
           onClick={onClose}
@@ -64,6 +74,15 @@ export default function RunTracePanel({
       </div>
 
       <div className="flex-1 overflow-y-auto px-3.5 py-3">
+        {mode === "manual" && contextMessage && (
+          <div
+            className="mb-3 px-2.5 py-2 rounded-lg"
+            style={{ background: "var(--wf-bg)", border: "1px dashed var(--wf-border)" }}
+          >
+            <p className="text-[10.5px] font-semibold uppercase tracking-wide mb-0.5" style={{ color: "var(--wf-muted)" }}>Yêu cầu</p>
+            <p className="text-[12.5px] leading-snug" style={{ color: "var(--wf-text)" }}>{contextMessage}</p>
+          </div>
+        )}
         <ol className="space-y-2">
           {state.steps.map((nodeId, i) => {
             const node = findNode(nodeId);

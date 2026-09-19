@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { X, Zap, Trash2, Plus, Pencil, Clock, Webhook, Globe } from "lucide-react";
+import { X, Zap, Trash2, Plus, Pencil, Clock, Webhook, Globe, MessageSquare } from "lucide-react";
 import { useReturnFocusOnUnmount } from "./useReturnFocus";
 import { AGENTS } from "@/components/configure/agentStore";
 import { triggerStore, triggerNeedsSetup, type TriggerRecord, type TriggerType } from "@/components/configure/triggerStore";
@@ -7,6 +7,7 @@ import TriggerFormDialog from "@/components/configure/TriggerFormDialog";
 import AppLogo from "@/components/configure/AppLogo";
 
 const TYPE_META: Record<TriggerType, { label: string; icon: typeof Clock }> = {
+  manual: { label: "Chạy thủ công", icon: MessageSquare },
   scheduled: { label: "Lịch", icon: Clock },
   developer: { label: "Webhook", icon: Webhook },
   external: { label: "Ứng dụng bên ngoài", icon: Globe },
