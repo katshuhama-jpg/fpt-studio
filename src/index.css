@@ -297,6 +297,10 @@
     --wf-agent: #4650D6;   --wf-agent-bg: #EEF0FE;
     --wf-omni: #0E8F6E;    --wf-omni-bg: #E7F7F1;
     --wf-person: #6E4FD6;  --wf-person-bg: #F1ECFD;
+    /* Distinct from --wf-warn (#D97706) even though both sit in the amber family — Trigger is a
+       node-type identity color (always this color), --wf-warn is a transient state color on
+       Condition chips, so the two needed to read as different hues, not just different contexts. */
+    --wf-trigger: #C2560F; --wf-trigger-bg: #FBEADD;
     /* Condition chip has exactly two states — warn (unconfigured) and this default one, which
        doubles as "configured": no third color for "has data". */
     --wf-warn: #D97706;    --wf-cond-border: #8891A6;

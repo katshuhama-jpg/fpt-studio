@@ -46,6 +46,23 @@ export function createConditionNode(position: XYPosition): WorkforceNode {
   return { id: uid("cond"), type: "condition", position, data: { kind: "condition", type: "llm", llmText: "", ruleMatch: "all", rules: [] } };
 }
 
+export function createTriggerNode(position: XYPosition): WorkforceNode {
+  return {
+    id: uid("trigger"),
+    type: "trigger",
+    position,
+    data: { kind: "trigger", label: "Nhận tin nhắn từ khách hàng", description: "Từ kênh chat hoặc API — bắt đầu Workforce này." },
+  };
+}
+
+/** A Trigger's connection to its first Agent is a plain edge, not a route — there's no decision
+ * to make (nothing to branch on), so no Condition node gets inserted the way it would for an
+ * Agent→Agent/Omni/Person connection. Still gets the same arrow-entering-destination marker as
+ * the exit half of a real route, for visual consistency. */
+export function createDirectEdge(sourceId: string, targetId: string): WorkforceEdge {
+  return { id: uid("edge"), source: sourceId, target: targetId, type: "deletable", markerEnd: ROUTE_ARROW };
+}
+
 /** Every completed connection auto-inserts a Condition node between source and destination —
  * this builds that trio (condition node + the two edge halves) for a given source/destination
  * node id pair, positioning the condition node at the midpoint. */

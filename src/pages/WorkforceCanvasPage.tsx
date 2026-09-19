@@ -11,6 +11,7 @@ import Canvas from "@/components/workforce/Canvas";
 import PersonPickerPopover from "@/components/workforce/PersonPickerPopover";
 import PersonConfigDrawer from "@/components/workforce/PersonConfigDrawer";
 import OmniConfigDrawer from "@/components/workforce/OmniConfigDrawer";
+import TriggerConfigDrawer from "@/components/workforce/TriggerConfigDrawer";
 import AgentConfigDrawer from "@/components/workforce/AgentConfigDrawer";
 import ConditionDrawer from "@/components/workforce/ConditionDrawer";
 import GettingStartedChecklist from "@/components/workforce/GettingStartedChecklist";
@@ -294,6 +295,18 @@ export default function WorkforceCanvasPage() {
           key={configuringNode.id}
           reasonDefault={configuringNode.data.reasonDefault}
           onChange={value => setNodes(ns => ns.map(n => (n.id === configuringNode.id ? { ...n, data: { ...n.data, reasonDefault: value } } : n)))}
+          onClose={() => setConfiguringId(null)}
+          onDelete={() => setDeleteNodeId(configuringNode.id)}
+        />
+      )}
+
+      {configuringNode?.data.kind === "trigger" && (
+        <TriggerConfigDrawer
+          key={configuringNode.id}
+          label={configuringNode.data.label}
+          description={configuringNode.data.description}
+          onChangeLabel={value => setNodes(ns => ns.map(n => (n.id === configuringNode.id ? { ...n, data: { ...n.data, label: value } } : n)))}
+          onChangeDescription={value => setNodes(ns => ns.map(n => (n.id === configuringNode.id ? { ...n, data: { ...n.data, description: value } } : n)))}
           onClose={() => setConfiguringId(null)}
           onDelete={() => setDeleteNodeId(configuringNode.id)}
         />

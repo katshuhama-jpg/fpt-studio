@@ -19,6 +19,9 @@ function seedWorkforces(): Workforce[] {
     updatedAt: Date.now() - 2 * HOUR,
     updatedBy: "Tran Nam",
     nodes: [
+      { id: "trigger-cskh", type: "trigger", position: { x: -260, y: 60 }, data: {
+        kind: "trigger", label: "Nhận tin nhắn từ khách hàng", description: "Từ kênh chat hoặc API — bắt đầu Workforce này.",
+      } },
       { id: "src-cskh", type: "agent", position: { x: 60, y: 60 }, data: { kind: "agent", agentId: "cskh", keepContext: true } },
       { id: "src-sales", type: "agent", position: { x: 60, y: 460 }, data: { kind: "agent", agentId: "sales", keepContext: true } },
 
@@ -41,6 +44,7 @@ function seedWorkforces(): Workforce[] {
       { id: "dest-person-1", type: "person", position: { x: 660, y: 260 }, data: { kind: "person", memberId: "m-fsoft-coo" } },
     ],
     edges: [
+      { id: "e-trigger-cskh", source: "trigger-cskh", target: "src-cskh", type: "deletable", markerEnd: ROUTE_ARROW },
       edge("e-src-cskh-cond-1", "src-cskh", "cond-1", "cond-1"),
       edge("e-cond-1-omni-1", "cond-1", "dest-omni-1", "cond-1"),
       edge("e-src-cskh-cond-3", "src-cskh", "cond-3", "cond-3"),

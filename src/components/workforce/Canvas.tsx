@@ -10,17 +10,18 @@ import OmniNode from "./nodes/OmniNode";
 import PersonNode from "./nodes/PersonNode";
 import ConditionNode from "./nodes/ConditionNode";
 import NoteNode from "./nodes/NoteNode";
+import TriggerNode from "./nodes/TriggerNode";
 import DeletableEdge from "./edges/DeletableEdge";
 import Palette, { WORKFORCE_DRAG_MIME, type PaletteItemType } from "./Palette";
 import AgentPickerPopover from "./AgentPickerPopover";
 import PersonPickerPopover from "./PersonPickerPopover";
 import DestinationTypePopup from "./DestinationTypePopup";
 import { WorkforceNodeActionsContext, type WorkforceNodeActions } from "./nodes/nodeActionsContext";
-import { createAgentNode, createOmniNode, createPersonNode, createNoteNode, createRoute } from "./graphOps";
+import { createAgentNode, createOmniNode, createPersonNode, createNoteNode, createTriggerNode, createRoute, createDirectEdge } from "./graphOps";
 import { WF_DOT_COLOR } from "./slateTheme";
 import type { WorkforceNode, WorkforceEdge } from "./types";
 
-const nodeTypes = { agent: AgentNode, omni: OmniNode, person: PersonNode, condition: ConditionNode, note: NoteNode };
+const nodeTypes = { agent: AgentNode, omni: OmniNode, person: PersonNode, condition: ConditionNode, note: NoteNode, trigger: TriggerNode };
 const edgeTypes = { deletable: DeletableEdge };
 
 interface CanvasProps {
@@ -42,7 +43,7 @@ interface CanvasProps {
 export default function Canvas({
   nodes, edges, setNodes, onNodesChange, setEdges, onEdgesChange, rfInstance, setRfInstance, nodeActions, onConfigureNode, toast, onBeforeMutate, locked,
 }: CanvasProps) {
-  const [agentPicker, setAgentPicker] = useState<{ position: XYPosition; connectFrom?: string } | null>(null);
+  const [agentPicker, setAgentPicker] = useState<{ position: XYPosition; connectFrom?: string; direct?: boolean } | null>(null);
   const [personPicker, setPersonPicker] = useState<{ position: XYPosition; connectFrom?: string } | null>(null);
   const [destTypePopup, setDestTypePopup] = useState<{ screen: { x: number; y: number }; flow: XYPosition; sourceId: string } | null>(null);
 
@@ -73,8 +74,12 @@ export default function Canvas({
     const source = findNode(connection.source);
     const target = findNode(connection.target);
     if (!source || !target) return false;
+    // A Trigger only ever starts a flow into an Agent — no branching decision to make there
+    // (see createDirectEdge), so it can't hand off to Omni/Person/Condition/Note or to another
+    // Trigger, and nothing can connect INTO a Trigger (it has no target Handle at all).
+    if (source.data.kind === "trigger") return target.data.kind === "agent";
     if (source.data.kind !== "agent") return false;
-    if (target.data.kind === "condition" || target.data.kind === "note") return false;
+    if (target.data.kind === "condition" || target.data.kind === "note" || target.data.kind === "trigger") return false;
     if (target.data.kind === "agent" && source.data.kind === "agent" && source.data.agentId === target.data.agentId) return false;
     return true;
   }, [nodes]);
@@ -86,6 +91,11 @@ export default function Canvas({
     const target = findNode(connection.target);
     if (!source || !target) return;
     onBeforeMutate();
+    if (source.data.kind === "trigger") {
+      setEdges(es => es.concat(createDirectEdge(source.id, target.id)));
+      toast("Đã kết nối Trigger với Agent");
+      return;
+    }
     const { condition, edges: newEdges } = createRoute(source.id, target.position, source.position, target.id);
     setNodes(ns => ns.concat(condition));
     setEdges(es => es.concat(newEdges));
@@ -102,13 +112,19 @@ export default function Canvas({
     const sourceId = connectStartRef.current.nodeId;
     if (!sourceId) return;
     const sourceNode = findNode(sourceId);
-    if (!sourceNode || sourceNode.data.kind !== "agent") return;
+    if (!sourceNode || (sourceNode.data.kind !== "agent" && sourceNode.data.kind !== "trigger")) return;
     const target = event.target as HTMLElement;
     if (!target.classList.contains("react-flow__pane")) return;
     const clientX = "changedTouches" in event ? event.changedTouches[0].clientX : (event as MouseEvent).clientX;
     const clientY = "changedTouches" in event ? event.changedTouches[0].clientY : (event as MouseEvent).clientY;
     if (!rfInstance) return;
     const flow = rfInstance.screenToFlowPosition({ x: clientX, y: clientY });
+    // A Trigger's only valid destination is an Agent, so it skips the "what kind of destination"
+    // popup entirely and goes straight to the Agent picker, same shortcut Omni/Person don't get.
+    if (sourceNode.data.kind === "trigger") {
+      setAgentPicker({ position: flow, connectFrom: sourceId, direct: true });
+      return;
+    }
     setDestTypePopup({ screen: { x: clientX, y: clientY }, flow, sourceId });
   }, [rfInstance, nodes]);
 
@@ -135,6 +151,11 @@ export default function Canvas({
       onBeforeMutate();
       setNodes(ns => ns.concat(createNoteNode(position)));
       lastAddedPositionRef.current = position;
+    } else if (type === "trigger") {
+      onBeforeMutate();
+      setNodes(ns => ns.concat(createTriggerNode(position)));
+      lastAddedPositionRef.current = position;
+      toast("Đã thêm Trigger vào Workforce");
     }
   }, [setNodes, toast, onBeforeMutate]);
 
@@ -154,7 +175,14 @@ export default function Canvas({
   const finishAgentPick = (agentId: string) => {
     if (!agentPicker) return;
     onBeforeMutate();
-    if (agentPicker.connectFrom) {
+    if (agentPicker.connectFrom && agentPicker.direct) {
+      const destPos: XYPosition = { x: agentPicker.position.x + 260, y: agentPicker.position.y };
+      const destNode = createAgentNode(agentId, destPos, true);
+      setNodes(ns => ns.concat(destNode));
+      setEdges(es => es.concat(createDirectEdge(agentPicker.connectFrom!, destNode.id)));
+      lastAddedPositionRef.current = destPos;
+      toast("Đã kết nối Trigger với Agent");
+    } else if (agentPicker.connectFrom) {
       const source = findNode(agentPicker.connectFrom);
       const destPos: XYPosition = { x: agentPicker.position.x + 260, y: agentPicker.position.y };
       const destNode = createAgentNode(agentId, destPos, true);

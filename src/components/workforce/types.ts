@@ -45,7 +45,15 @@ export interface NoteNodeData {
   text: string;
 }
 
-export type WorkforceNodeData = AgentNodeData | OmniNodeData | PersonNodeData | ConditionNodeData | NoteNodeData;
+export interface TriggerNodeData {
+  kind: "trigger";
+  /** Short label shown as the card title — what starts this Workforce running. Editable via
+   * the Trigger's own drawer, same pattern as Omni Supports' "Lý do chuyển giao". */
+  label: string;
+  description: string;
+}
+
+export type WorkforceNodeData = AgentNodeData | OmniNodeData | PersonNodeData | ConditionNodeData | NoteNodeData | TriggerNodeData;
 export type WorkforceNode = Node<WorkforceNodeData>;
 export type WorkforceEdge = Edge;
 
