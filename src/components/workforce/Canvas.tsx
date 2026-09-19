@@ -248,6 +248,23 @@ export default function Canvas({
     onConfigureNode(node.id);
   }, [onConfigureNode]);
 
+  // The `fitView` prop alone can compute its fit before the custom node components have been
+  // measured (their width/height comes from content, not a size declared up front) — a known
+  // reactflow timing race that shows up as an initial view zoomed in too far, with some nodes
+  // cut off below the fold, exactly what it looks like the very first frame after mount. Once
+  // `onInit` fires, layout has committed for that frame, but node measurement can still lag by
+  // one more paint — so re-run fitView a couple of animation frames later, once everything has
+  // definitely settled. Runs once (rfInstance only transitions null -> instance a single time),
+  // so there's no visible re-flash, just a silent correction.
+  const onInit = useCallback((instance: ReactFlowInstance) => {
+    setRfInstance(instance);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        instance.fitView({ padding: 0.2, duration: 0 });
+      });
+    });
+  }, [setRfInstance]);
+
   const onEdgeClick = useCallback((_: React.MouseEvent, edge: Edge) => {
     const conditionId = edge.data?.conditionId;
     if (conditionId) onConfigureNode(conditionId);
@@ -268,7 +285,7 @@ export default function Canvas({
           onNodeClick={onNodeClick}
           onEdgeClick={onEdgeClick}
           onNodeDragStart={onBeforeMutate}
-          onInit={setRfInstance}
+          onInit={onInit}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           deleteKeyCode={null}
@@ -276,6 +293,7 @@ export default function Canvas({
           nodesConnectable={!locked}
           elementsSelectable={!locked}
           fitView
+          fitViewOptions={{ padding: 0.2 }}
           minZoom={0.2}
           maxZoom={1.5}
           proOptions={{ hideAttribution: true }}
