@@ -24,9 +24,27 @@ export interface OmniNodeData {
   reasonDefault: string;
 }
 
+export type HumanTaskKind = "approve" | "do" | "notify";
+
 export interface PersonNodeData {
   kind: "person";
   memberId: string | null;
+  /** What kind of handoff this is (S-gap-5, generalizing this into a real Human Task node,
+   * matching the Human-in-the-loop node every benchmarked competitor has — Dify's Human Input,
+   * Stack AI's dedicated HITL node, n8n's Wait node, Copilot Studio's approval flows):
+   * - "approve" — the person must Approve or Reject; route a Condition out of this node on a
+   *   rule matching the synthetic `outcome` variable ("approve" / "reject") to branch on it,
+   *   reusing the existing Condition rule system rather than a new branching primitive.
+   * - "do" — a task assigned to be completed; the flow continues once done (one route out,
+   *   same shape as an Agent node continuing to a destination).
+   * - "notify" — fire-and-forget, no response expected; terminal, same as every Person node
+   *   was before this field existed (the default for any node predating it). */
+  taskKind: HumanTaskKind;
+  /** Minutes before this task is considered overdue. Null = no SLA tracked. */
+  slaMinutes: number | null;
+  /** Who gets this task if the SLA elapses with no response. Null = no automatic escalation
+   * (just flagged overdue). Ignored when `slaMinutes` is null. */
+  escalation: { memberId: string } | null;
 }
 
 export interface ConditionNodeData {

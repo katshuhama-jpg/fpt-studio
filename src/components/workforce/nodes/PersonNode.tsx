@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Handle, Position, type NodeProps } from "reactflow";
-import { User } from "lucide-react";
+import { CheckCircle2, Clock, ListChecks, User } from "lucide-react";
 import { collectMembers } from "@/pages/organization/orgData";
 import { useOrg } from "@/pages/organization/orgStore";
 import type { PersonNodeData } from "../types";
@@ -10,6 +10,12 @@ import NodeToolbarMenu from "./NodeToolbarMenu";
 import NodeTypeTab from "./NodeTypeTab";
 import MissingTriggerNotice from "./MissingTriggerNotice";
 
+const TASK_KIND_META = {
+  approve: { label: "Cần duyệt", icon: CheckCircle2 },
+  do: { label: "Cần thực hiện", icon: ListChecks },
+  notify: { label: "Thông báo", icon: User },
+} as const;
+
 export default function PersonNode({ id, data, selected }: NodeProps<PersonNodeData>) {
   const { onDelete, unreachableNodeIds } = useWorkforceNodeActions();
   const [hovered, setHovered] = useState(false);
@@ -17,6 +23,12 @@ export default function PersonNode({ id, data, selected }: NodeProps<PersonNodeD
   const members = useMemo(() => collectMembers(tree), [tree]);
   const member = members.find(m => m.id === data.memberId);
   const missingTrigger = unreachableNodeIds.has(id);
+  // "notify" is fire-and-forget — no response to continue on, so (unlike "approve"/"do") it
+  // gets no source Handle, the same terminal shape every Person node had before task kinds
+  // existed (S-gap-5).
+  const continuable = data.taskKind !== "notify";
+  const taskMeta = TASK_KIND_META[data.taskKind];
+  const TaskIcon = taskMeta.icon;
 
   return (
     <div
@@ -49,8 +61,18 @@ export default function PersonNode({ id, data, selected }: NodeProps<PersonNodeD
           </p>
         </div>
       </div>
+      <div className="flex items-center flex-wrap gap-x-2.5 gap-y-1" style={{ padding: "0 14px 12px" }}>
+        <span className="inline-flex items-center gap-1 text-[11px] font-medium" style={{ color: "var(--wf-person)" }}>
+          <TaskIcon size={11} /> {taskMeta.label}
+        </span>
+        {data.slaMinutes != null && (
+          <span className="inline-flex items-center gap-1 text-[11px]" style={{ color: "var(--wf-muted)" }}>
+            <Clock size={11} /> SLA {data.slaMinutes} phút
+          </span>
+        )}
+      </div>
       {missingTrigger && <MissingTriggerNotice />}
-      <Handle type="source" position={Position.Right} className={HANDLE_CLASS} />
+      {continuable && <Handle type="source" position={Position.Right} className={HANDLE_CLASS} />}
     </div>
   );
 }

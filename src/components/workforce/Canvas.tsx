@@ -70,6 +70,13 @@ export default function Canvas({
 
   const findNode = (id: string) => nodes.find(n => n.id === id);
 
+  // A Person node can start a route only when it isn't a fire-and-forget Notify task — an
+  // "approve"/"do" Human Task continues the flow once acted on (S-gap-5), same as an Agent
+  // continuing to its next destination; "notify" stays a dead end, same as every Person node
+  // was before task kinds existed.
+  const isRoutableSource = (data: WorkforceNode["data"]) =>
+    data.kind === "agent" || (data.kind === "person" && data.taskKind !== "notify");
+
   const isValidConnection = useCallback((connection: Connection) => {
     if (!connection.source || !connection.target) return false;
     const source = findNode(connection.source);
@@ -79,7 +86,7 @@ export default function Canvas({
     // (see createDirectEdge), so it can't hand off to Omni/Person/Condition/Note or to another
     // Trigger, and nothing can connect INTO a Trigger (it has no target Handle at all).
     if (source.data.kind === "trigger") return target.data.kind === "agent";
-    if (source.data.kind !== "agent") return false;
+    if (!isRoutableSource(source.data)) return false;
     if (target.data.kind === "condition" || target.data.kind === "note" || target.data.kind === "trigger" || target.data.kind === "tool") return false;
     if (target.data.kind === "agent" && source.data.kind === "agent" && source.data.agentId === target.data.agentId) return false;
     return true;
@@ -113,7 +120,7 @@ export default function Canvas({
     const sourceId = connectStartRef.current.nodeId;
     if (!sourceId) return;
     const sourceNode = findNode(sourceId);
-    if (!sourceNode || (sourceNode.data.kind !== "agent" && sourceNode.data.kind !== "trigger")) return;
+    if (!sourceNode || !(isRoutableSource(sourceNode.data) || sourceNode.data.kind === "trigger")) return;
     const target = event.target as HTMLElement;
     if (!target.classList.contains("react-flow__pane")) return;
     const clientX = "changedTouches" in event ? event.changedTouches[0].clientX : (event as MouseEvent).clientX;

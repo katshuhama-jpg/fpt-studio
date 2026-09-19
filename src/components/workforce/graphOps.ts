@@ -35,7 +35,7 @@ export function createOmniNode(position: XYPosition): WorkforceNode {
 }
 
 export function createPersonNode(memberId: string, position: XYPosition): WorkforceNode {
-  return { id: uid("person"), type: "person", position, data: { kind: "person", memberId } };
+  return { id: uid("person"), type: "person", position, data: { kind: "person", memberId, taskKind: "do", slaMinutes: null, escalation: null } };
 }
 
 export function createNoteNode(position: XYPosition): WorkforceNode {

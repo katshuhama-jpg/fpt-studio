@@ -42,7 +42,9 @@ function seedWorkforces(): Workforce[] {
       { id: "cond-3", type: "condition", position: { x: 380, y: 260 }, data: {
         kind: "condition", type: "llm", ruleMatch: "all", rules: [], llmText: "",
       } },
-      { id: "dest-person-1", type: "person", position: { x: 660, y: 260 }, data: { kind: "person", memberId: "m-fsoft-coo" } },
+      { id: "dest-person-1", type: "person", position: { x: 660, y: 260 }, data: {
+        kind: "person", memberId: "m-fsoft-coo", taskKind: "approve", slaMinutes: 60, escalation: { memberId: "m-fsoft-ceo" },
+      } },
 
       // Standalone — documents that "cskh" can look things up on the web mid-conversation. No
       // edges: Tool nodes never participate in the routing graph (S-gap-4).

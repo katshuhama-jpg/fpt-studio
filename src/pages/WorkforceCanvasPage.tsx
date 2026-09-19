@@ -51,6 +51,10 @@ export default function WorkforceCanvasPage() {
   // itself opens that drawer via `configuringId` like every other node type, never this picker
   // directly.
   const [personPickerNodeId, setPersonPickerNodeId] = useState<string | null>(null);
+  // Set only from inside the Person node's own drawer when picking who a task escalates to on
+  // SLA breach — a separate id from `personPickerNodeId` because it writes to `data.escalation`
+  // instead of `data.memberId` (S-gap-5).
+  const [escalationPickerNodeId, setEscalationPickerNodeId] = useState<string | null>(null);
   const [deleteNodeId, setDeleteNodeId] = useState<string | null>(null);
 
   // Undo/redo history — snapshots are pushed right before a mutating action (add/delete a
@@ -172,7 +176,8 @@ export default function WorkforceCanvasPage() {
       const tag = (e.target as HTMLElement)?.tagName;
       const isTyping = tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable;
       if (e.key === "Escape") {
-        if (personPickerNodeId) setPersonPickerNodeId(null);
+        if (escalationPickerNodeId) setEscalationPickerNodeId(null);
+        else if (personPickerNodeId) setPersonPickerNodeId(null);
         else if (configuringId) setConfiguringId(null);
         return;
       }
@@ -197,7 +202,7 @@ export default function WorkforceCanvasPage() {
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodes, edges, configuringId, personPickerNodeId, name]);
+  }, [nodes, edges, configuringId, personPickerNodeId, escalationPickerNodeId, name]);
 
   const onConfigureNode = (nodeId: string) => {
     const node = nodes.find(n => n.id === nodeId);
@@ -324,14 +329,53 @@ export default function WorkforceCanvasPage() {
         />
       )}
 
+      {escalationPickerNodeId && (
+        <PersonPickerPopover
+          open
+          onClose={() => setEscalationPickerNodeId(null)}
+          onSelect={memberId => {
+            setNodes(ns => ns.map(n => (n.id === escalationPickerNodeId ? { ...n, data: { ...n.data, escalation: { memberId } } } : n)));
+            setEscalationPickerNodeId(null);
+            toast.success("Đã đặt người thay thế khi quá hạn");
+          }}
+        />
+      )}
+
       {configuringNode?.data.kind === "person" && (() => {
-        const member = members.find(m => m.id === configuringNode.data.memberId);
+        const data = configuringNode.data;
+        const member = members.find(m => m.id === data.memberId);
+        const escalationMember = data.escalation ? members.find(m => m.id === data.escalation!.memberId) : undefined;
         return (
           <PersonConfigDrawer
             key={configuringNode.id}
             name={member?.name ?? "Chưa chọn người nhận"}
             email={member?.email ?? "—"}
             initials={member?.initials ?? "?"}
+            taskKind={data.taskKind}
+            onChangeTaskKind={value => {
+              snapshot();
+              // "notify" is a dead end (no source Handle) — any existing outgoing routes would
+              // otherwise be left dangling from a node that can no longer draw new ones, so they
+              // get cascade-removed as part of the same change rather than left orphaned.
+              const conditionIds = value === "notify"
+                ? new Set(edges.filter(e => e.source === configuringNode.id).map(e => e.data?.conditionId).filter(Boolean))
+                : new Set();
+              if (conditionIds.size > 0) {
+                let n: any = nodes, e = edges;
+                for (const cid of conditionIds) ({ nodes: n, edges: e } = removeRouteByConditionId(cid as string, n, e));
+                setNodes(n.map((nn: any) => (nn.id === configuringNode.id ? { ...nn, data: { ...nn.data, taskKind: value } } : nn)));
+                setEdges(e);
+                toast(`Đã xoá ${conditionIds.size} route ra khỏi node — "Thông báo" không tiếp tục luồng`);
+              } else {
+                setNodes(ns => ns.map(n => (n.id === configuringNode.id ? { ...n, data: { ...n.data, taskKind: value } } : n)));
+              }
+            }}
+            slaMinutes={data.slaMinutes}
+            onChangeSla={value => setNodes(ns => ns.map(n => (n.id === configuringNode.id ? { ...n, data: { ...n.data, slaMinutes: value, escalation: value == null ? null : data.escalation } } : n)))}
+            escalationName={escalationMember?.name ?? null}
+            escalationInitials={escalationMember?.initials ?? "?"}
+            onChangeEscalation={() => setEscalationPickerNodeId(configuringNode.id)}
+            onClearEscalation={() => setNodes(ns => ns.map(n => (n.id === configuringNode.id ? { ...n, data: { ...n.data, escalation: null } } : n)))}
             onChangePerson={() => setPersonPickerNodeId(configuringNode.id)}
             onClose={() => setConfiguringId(null)}
             onDelete={() => setDeleteNodeId(configuringNode.id)}
@@ -384,7 +428,10 @@ export default function WorkforceCanvasPage() {
 
       {configuringNode?.data.kind === "condition" && (() => {
         const { source, destination } = getRouteEndpoints(configuringNode.id, nodes as any, edges);
-        const sourceLabel = source?.data.kind === "agent" ? AGENTS.find(a => a.id === source.data.agentId)?.name ?? "Agent" : "—";
+        const sourceLabel =
+          source?.data.kind === "agent" ? AGENTS.find(a => a.id === source.data.agentId)?.name ?? "Agent" :
+          source?.data.kind === "person" ? members.find(m => m.id === source.data.memberId)?.name ?? "Người trong tổ chức" :
+          "—";
         const destinationKind: "agent" | "omni" | "person" = destination?.data.kind === "agent" || destination?.data.kind === "person"
           ? destination.data.kind
           : "omni";
