@@ -13,7 +13,7 @@ export default function OmniConfigDrawer({
 }) {
   useReturnFocusOnUnmount();
   return (
-    <aside className="fixed right-0 top-24 bottom-0 w-[420px] border-l border-border bg-surface shadow-2xl z-20 flex flex-col animate-fade-up">
+    <aside className="fixed right-0 top-[140px] bottom-0 w-[420px] border-l border-border bg-surface shadow-2xl z-20 flex flex-col animate-fade-up">
       <div className="px-4 h-12 border-b border-border flex items-center gap-2 shrink-0">
         <div className="w-7 h-7 rounded-md bg-accent-soft text-accent flex items-center justify-center shrink-0">
           <Headset size={13} />
