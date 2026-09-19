@@ -129,6 +129,37 @@ export function removeRouteByConditionId(conditionId: string, nodes: WorkforceNo
   };
 }
 
+/** Nodes that are wired into some route (they touch at least one edge) but that no Trigger's
+ * forward path ever reaches — e.g. a whole Agent→Condition→Agent chain that was built without
+ * ever connecting a Trigger to its start. Such a chain can never actually run, but nothing
+ * about it looks broken at a glance (no empty field, no red text) the way an unconfigured
+ * Condition does, so it needs its own check rather than piggybacking on `isConditionInvalid`.
+ * Used both to block Publish (S-gap-1) and to live-render a warning on the affected node. */
+export function getNodesUnreachableFromTrigger(nodes: WorkforceNode[], edges: WorkforceEdge[]): Set<string> {
+  const outgoing = new Map<string, string[]>();
+  for (const e of edges) {
+    if (!outgoing.has(e.source)) outgoing.set(e.source, []);
+    outgoing.get(e.source)!.push(e.target);
+  }
+
+  const reachable = new Set<string>();
+  const queue = nodes.filter(n => n.data.kind === "trigger").map(n => n.id);
+  while (queue.length > 0) {
+    const current = queue.pop()!;
+    if (reachable.has(current)) continue;
+    reachable.add(current);
+    for (const next of outgoing.get(current) ?? []) queue.push(next);
+  }
+
+  const wiredIds = new Set(edges.flatMap(e => [e.source, e.target]));
+  const unreachable = new Set<string>();
+  for (const n of nodes) {
+    if (n.data.kind === "trigger" || n.data.kind === "note") continue;
+    if (wiredIds.has(n.id) && !reachable.has(n.id)) unreachable.add(n.id);
+  }
+  return unreachable;
+}
+
 const ARRANGE_LAYER_X = 320;
 const ARRANGE_ROW_Y = 160;
 const ARRANGE_ORIGIN: XYPosition = { x: 60, y: 60 };

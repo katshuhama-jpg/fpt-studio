@@ -8,13 +8,15 @@ import { useWorkforceNodeActions } from "./nodeActionsContext";
 import { HANDLE_CLASS } from "./handleStyle";
 import NodeToolbarMenu from "./NodeToolbarMenu";
 import NodeTypeTab from "./NodeTypeTab";
+import MissingTriggerNotice from "./MissingTriggerNotice";
 
 export default function PersonNode({ id, data, selected }: NodeProps<PersonNodeData>) {
-  const { onDelete } = useWorkforceNodeActions();
+  const { onDelete, unreachableNodeIds } = useWorkforceNodeActions();
   const [hovered, setHovered] = useState(false);
   const { tree } = useOrg();
   const members = useMemo(() => collectMembers(tree), [tree]);
   const member = members.find(m => m.id === data.memberId);
+  const missingTrigger = unreachableNodeIds.has(id);
 
   return (
     <div
@@ -24,7 +26,7 @@ export default function PersonNode({ id, data, selected }: NodeProps<PersonNodeD
       style={{
         borderRadius: "var(--wf-radius)",
         background: "var(--wf-surface)",
-        border: `1px solid ${selected || hovered ? "var(--wf-person)" : "var(--wf-border)"}`,
+        border: `1px solid ${missingTrigger ? "var(--wf-warn)" : selected || hovered ? "var(--wf-person)" : "var(--wf-border)"}`,
         boxShadow: selected || hovered ? "var(--wf-node-shadow-selected)" : "var(--wf-node-shadow)",
       }}
     >
@@ -47,6 +49,7 @@ export default function PersonNode({ id, data, selected }: NodeProps<PersonNodeD
           </p>
         </div>
       </div>
+      {missingTrigger && <MissingTriggerNotice />}
       <Handle type="source" position={Position.Right} className={HANDLE_CLASS} />
     </div>
   );

@@ -18,7 +18,7 @@ import GettingStartedChecklist from "@/components/workforce/GettingStartedCheckl
 import { DeleteNodeDialog } from "@/components/workforce/WorkforceDeleteDialogs";
 import { workforceStore } from "@/components/workforce/workforceStore";
 import { isConditionInvalid, type ConditionNodeData, type WorkforceNode, type WorkforceEdge, type WorkforceNodeData, type WorkforceStatus } from "@/components/workforce/types";
-import { removeNodeCascade, removeRouteByConditionId, getRouteEndpoints, isDestinationNode, autoArrange } from "@/components/workforce/graphOps";
+import { removeNodeCascade, removeRouteByConditionId, getRouteEndpoints, isDestinationNode, autoArrange, getNodesUnreachableFromTrigger } from "@/components/workforce/graphOps";
 import type { WorkforceNodeActions } from "@/components/workforce/nodes/nodeActionsContext";
 
 const MAX_HISTORY = 50;
@@ -126,10 +126,21 @@ export default function WorkforceCanvasPage() {
       toast.error("Một số route chưa cấu hình điều kiện chuyển giao, vui lòng hoàn tất trước khi publish");
       return;
     }
+    const unreachable = getNodesUnreachableFromTrigger(nodes as any, edges);
+    if (unreachable.size > 0) {
+      toast.error("Một số node không có Trigger nào dẫn tới, sẽ không bao giờ chạy — vui lòng nối Trigger hoặc xoá trước khi publish");
+      return;
+    }
     workforceStore.publish(id);
     setStatus("published");
     toast.success("Publish Workforce thành công");
   };
+
+  // Live, not just at publish time — so opening an already-published workforce that's since
+  // drifted into a broken state (someone added a chain and forgot to wire a Trigger to it)
+  // shows the warning immediately, the same way `isConditionInvalid` is computed live in
+  // ConditionNode rather than only stamped at publish time.
+  const unreachableNodeIds = useMemo(() => getNodesUnreachableFromTrigger(nodes as any, edges), [nodes, edges]);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -174,6 +185,7 @@ export default function WorkforceCanvasPage() {
   const nodeActions: WorkforceNodeActions = {
     onDelete: id2 => setDeleteNodeId(id2),
     onNoteTextChange: (id2, text) => setNodes(ns => ns.map(n => (n.id === id2 ? { ...n, data: { ...n.data, text } } : n))),
+    unreachableNodeIds,
   };
 
   const saveStateText =

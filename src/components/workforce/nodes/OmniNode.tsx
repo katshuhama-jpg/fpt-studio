@@ -6,10 +6,12 @@ import { useWorkforceNodeActions } from "./nodeActionsContext";
 import { HANDLE_CLASS } from "./handleStyle";
 import NodeToolbarMenu from "./NodeToolbarMenu";
 import NodeTypeTab from "./NodeTypeTab";
+import MissingTriggerNotice from "./MissingTriggerNotice";
 
 export default function OmniNode({ id, selected }: NodeProps<OmniNodeData>) {
-  const { onDelete } = useWorkforceNodeActions();
+  const { onDelete, unreachableNodeIds } = useWorkforceNodeActions();
   const [hovered, setHovered] = useState(false);
+  const missingTrigger = unreachableNodeIds.has(id);
 
   return (
     <div
@@ -19,7 +21,7 @@ export default function OmniNode({ id, selected }: NodeProps<OmniNodeData>) {
       style={{
         borderRadius: "var(--wf-radius)",
         background: "var(--wf-surface)",
-        border: `1px solid ${selected || hovered ? "var(--wf-omni)" : "var(--wf-border)"}`,
+        border: `1px solid ${missingTrigger ? "var(--wf-warn)" : selected || hovered ? "var(--wf-omni)" : "var(--wf-border)"}`,
         boxShadow: selected || hovered ? "var(--wf-node-shadow-selected)" : "var(--wf-node-shadow)",
       }}
     >
@@ -42,6 +44,7 @@ export default function OmniNode({ id, selected }: NodeProps<OmniNodeData>) {
           </p>
         </div>
       </div>
+      {missingTrigger && <MissingTriggerNotice />}
       <Handle type="source" position={Position.Right} className={HANDLE_CLASS} />
     </div>
   );
