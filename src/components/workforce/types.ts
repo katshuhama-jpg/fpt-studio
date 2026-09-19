@@ -47,10 +47,17 @@ export interface NoteNodeData {
 
 export interface TriggerNodeData {
   kind: "trigger";
-  /** Short label shown as the card title — what starts this Workforce running. Editable via
-   * the Trigger's own drawer, same pattern as Omni Supports' "Lý do chuyển giao". */
-  label: string;
-  description: string;
+  /** Id into triggerStore (configure/triggerStore.ts) — the real, Agent-scoped trigger this node
+   * fires. Null until the user picks or creates one via the drawer. Deliberately does NOT store
+   * its own free-text label/description (S-gap-3 fix) — those are display-only derived from the
+   * real TriggerRecord, the same record shown on the Agent Builder's own Triggers tab, so a
+   * Workforce Trigger and an Agent-level Trigger can never drift apart the way the old
+   * free-text fields could. Which Agent this trigger is scoped to is NOT stored here either — a
+   * Trigger node always connects straight to exactly one Agent node (see isValidConnection in
+   * Canvas.tsx), so that Agent's id is looked up live from the canvas edges each render (see
+   * `triggerAgentIds` in nodeActionsContext.ts) rather than duplicated and risking going stale
+   * if the connection is rewired. */
+  triggerId: string | null;
 }
 
 export type WorkforceNodeData = AgentNodeData | OmniNodeData | PersonNodeData | ConditionNodeData | NoteNodeData | TriggerNodeData;

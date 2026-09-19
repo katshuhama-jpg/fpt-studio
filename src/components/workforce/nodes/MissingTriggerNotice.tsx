@@ -6,8 +6,12 @@ import { AlertTriangle } from "lucide-react";
  * explicit call-out rather than relying on the user to notice a missing arrow somewhere
  * upstream. Deliberately the same visual language (orange, AlertTriangle) as the Condition
  * node's own "Chưa cấu hình điều kiện" warning, so the two read as one family of "this won't
- * run yet" signals rather than two different kinds of error. */
-export default function MissingTriggerNotice() {
+ * run yet" signals rather than two different kinds of error.
+ *
+ * Also reused by TriggerNode.tsx itself (with a different `text`) for its own two "won't fire"
+ * states — not connected to an Agent yet, or connected but no real trigger picked — so every
+ * "this node can't run" signal on the canvas shares one look. */
+export default function MissingTriggerNotice({ text = "Không có Trigger nào dẫn tới — sẽ không chạy" }: { text?: string }) {
   return (
     <div
       className="flex items-center gap-[6px]"
@@ -19,7 +23,7 @@ export default function MissingTriggerNotice() {
     >
       <AlertTriangle size={11} className="shrink-0" style={{ color: "var(--wf-warn)" }} />
       <span className="text-[11px] leading-tight" style={{ color: "var(--wf-warn)", fontFamily: "var(--wf-font-body)" }}>
-        Không có Trigger nào dẫn tới — sẽ không chạy
+        {text}
       </span>
     </div>
   );

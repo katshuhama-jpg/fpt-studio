@@ -204,7 +204,44 @@ const persist = () => saveMap(STORE_KEY, store);
  * until the Builder actually adds one. */
 const AUTO_SEEDED_AGENT_IDS = new Set(["nightly-report", "invoice-reminder", "shipping-alerts"]);
 
+/** Fixed id for "cskh"'s seeded webhook trigger — referenced directly by the Workforce demo
+ * data (workforceStore.ts's "wf-cskh-orchestration" seed) so its Trigger node has a real
+ * triggerId to point at out of the box, the same way every other demo node references real
+ * seed data instead of the free-text placeholder it used before the Trigger node was wired to
+ * triggerStore (S-gap-3). Kept as its own single seed rather than folding "cskh" into
+ * AUTO_SEEDED_AGENT_IDS — that set's three generic triggers are unrelated demo content for
+ * other agents, not a fit for what this specific Workforce trigger represents. */
+export const CSKH_WEBHOOK_TRIGGER_ID = "cskh-webhook";
+
+function seedCskhWebhookTrigger() {
+  if (seededAgents.has("cskh")) return;
+  seededAgents.add("cskh");
+  saveSet(SEEDED_KEY, seededAgents);
+  const now = Date.now();
+  const rec: TriggerRecord = {
+    id: CSKH_WEBHOOK_TRIGGER_ID,
+    agentId: "cskh",
+    name: "Nhận tin nhắn từ khách hàng",
+    type: "developer",
+    enabled: true,
+    description: "Từ kênh chat hoặc API — bắt đầu Workforce này.",
+    config: {
+      developer: {
+        webhookUrl: "https://agents.fpt.ai/console/api/webhooks/triggers/01M0CSKHWEBHOOK0000000000",
+        authentication: "bearer",
+        credentialId: "cred-cskh-webhook-seed",
+      },
+    },
+    lastFiredAt: now - 3_600_000,
+    createdAt: now - 86_400_000 * 20,
+    updatedAt: now - 86_400_000 * 20,
+  };
+  store.set(k("cskh", rec.id), rec);
+  persist();
+}
+
 function seedAgent(agentId: string) {
+  if (agentId === "cskh") { seedCskhWebhookTrigger(); return; }
   if (seededAgents.has(agentId)) return;
   seededAgents.add(agentId);
   saveSet(SEEDED_KEY, seededAgents);

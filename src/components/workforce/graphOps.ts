@@ -47,12 +47,7 @@ export function createConditionNode(position: XYPosition): WorkforceNode {
 }
 
 export function createTriggerNode(position: XYPosition): WorkforceNode {
-  return {
-    id: uid("trigger"),
-    type: "trigger",
-    position,
-    data: { kind: "trigger", label: "Nhận tin nhắn từ khách hàng", description: "Từ kênh chat hoặc API — bắt đầu Workforce này." },
-  };
+  return { id: uid("trigger"), type: "trigger", position, data: { kind: "trigger", triggerId: null } };
 }
 
 /** A Trigger's connection to its first Agent is a plain edge, not a route — there's no decision

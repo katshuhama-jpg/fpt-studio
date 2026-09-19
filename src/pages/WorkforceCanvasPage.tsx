@@ -131,6 +131,11 @@ export default function WorkforceCanvasPage() {
       toast.error("Một số node không có Trigger nào dẫn tới, sẽ không bao giờ chạy — vui lòng nối Trigger hoặc xoá trước khi publish");
       return;
     }
+    const hasUnconfiguredTrigger = nodes.some(n => n.data.kind === "trigger" && edges.some(e => e.source === n.id) && !n.data.triggerId);
+    if (hasUnconfiguredTrigger) {
+      toast.error("Một số Trigger chưa chọn trigger thật — vui lòng chọn hoặc tạo trigger trước khi publish");
+      return;
+    }
     workforceStore.publish(id);
     setStatus("published");
     toast.success("Publish Workforce thành công");
@@ -141,6 +146,20 @@ export default function WorkforceCanvasPage() {
   // shows the warning immediately, the same way `isConditionInvalid` is computed live in
   // ConditionNode rather than only stamped at publish time.
   const unreachableNodeIds = useMemo(() => getNodesUnreachableFromTrigger(nodes as any, edges), [nodes, edges]);
+
+  // For each Trigger node, the agentId of the Agent it connects to (or null) — see the field's
+  // own doc comment in nodeActionsContext.ts for why this is derived live from edges each
+  // render rather than stored on the Trigger node's own data.
+  const triggerAgentIds = useMemo(() => {
+    const map = new Map<string, string | null>();
+    for (const n of nodes) {
+      if (n.data.kind !== "trigger") continue;
+      const outEdge = edges.find(e => e.source === n.id);
+      const target = outEdge ? nodes.find(nn => nn.id === outEdge.target) : undefined;
+      map.set(n.id, target?.data.kind === "agent" ? target.data.agentId : null);
+    }
+    return map;
+  }, [nodes, edges]);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -186,6 +205,7 @@ export default function WorkforceCanvasPage() {
     onDelete: id2 => setDeleteNodeId(id2),
     onNoteTextChange: (id2, text) => setNodes(ns => ns.map(n => (n.id === id2 ? { ...n, data: { ...n.data, text } } : n))),
     unreachableNodeIds,
+    triggerAgentIds,
   };
 
   const saveStateText =
@@ -326,10 +346,9 @@ export default function WorkforceCanvasPage() {
       {configuringNode?.data.kind === "trigger" && (
         <TriggerConfigDrawer
           key={configuringNode.id}
-          label={configuringNode.data.label}
-          description={configuringNode.data.description}
-          onChangeLabel={value => setNodes(ns => ns.map(n => (n.id === configuringNode.id ? { ...n, data: { ...n.data, label: value } } : n)))}
-          onChangeDescription={value => setNodes(ns => ns.map(n => (n.id === configuringNode.id ? { ...n, data: { ...n.data, description: value } } : n)))}
+          agentId={triggerAgentIds.get(configuringNode.id) ?? null}
+          triggerId={configuringNode.data.triggerId}
+          onSelectTrigger={value => setNodes(ns => ns.map(n => (n.id === configuringNode.id ? { ...n, data: { ...n.data, triggerId: value } } : n)))}
           onClose={() => setConfiguringId(null)}
           onDelete={() => setDeleteNodeId(configuringNode.id)}
         />

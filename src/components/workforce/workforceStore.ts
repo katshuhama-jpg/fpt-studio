@@ -1,5 +1,6 @@
 import type { Workforce, WorkforceNode, WorkforceEdge } from "./types";
 import { ROUTE_ARROW } from "./graphOps";
+import { CSKH_WEBHOOK_TRIGGER_ID } from "../configure/triggerStore";
 
 const HOUR = 3_600_000;
 
@@ -20,7 +21,7 @@ function seedWorkforces(): Workforce[] {
     updatedBy: "Tran Nam",
     nodes: [
       { id: "trigger-cskh", type: "trigger", position: { x: -260, y: 60 }, data: {
-        kind: "trigger", label: "Nhận tin nhắn từ khách hàng", description: "Từ kênh chat hoặc API — bắt đầu Workforce này.",
+        kind: "trigger", triggerId: CSKH_WEBHOOK_TRIGGER_ID,
       } },
       { id: "src-cskh", type: "agent", position: { x: 60, y: 60 }, data: { kind: "agent", agentId: "cskh", keepContext: true } },
       { id: "src-sales", type: "agent", position: { x: 60, y: 460 }, data: { kind: "agent", agentId: "sales", keepContext: true } },
