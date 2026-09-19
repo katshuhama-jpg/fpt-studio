@@ -1,11 +1,12 @@
 import { useNavigate } from "react-router-dom";
-import { Zap, FlaskConical, CheckCircle2, Square, TriangleAlert, Waypoints } from "lucide-react";
+import { Zap, FlaskConical, CheckCircle2, Square, TriangleAlert, Waypoints, XCircle } from "lucide-react";
 import type { WorkforceRunRecord } from "./runHistoryStore";
 
 const STATUS_META: Record<WorkforceRunRecord["status"], { label: string; icon: typeof CheckCircle2; bg: string; ink: string }> = {
   success: { label: "Thành công", icon: CheckCircle2, bg: "var(--wf-pub-bg)", ink: "var(--wf-pub-ink)" },
   stopped: { label: "Đã dừng", icon: Square, bg: "var(--wf-bg)", ink: "var(--wf-muted)" },
   error: { label: "Lỗi", icon: TriangleAlert, bg: "#FDECEC", ink: "#C0362C" },
+  rejected: { label: "Bị từ chối", icon: XCircle, bg: "#FDECEC", ink: "#C0362C" },
 };
 
 function fmtDuration(ms: number): string {

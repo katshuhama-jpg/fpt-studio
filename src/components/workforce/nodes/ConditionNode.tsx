@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Handle, Position, type NodeProps } from "reactflow";
-import { GitBranch, AlertTriangle } from "lucide-react";
+import { GitBranch, AlertTriangle, ShieldCheck } from "lucide-react";
 import type { ConditionNodeData } from "../types";
 import { isConditionInvalid } from "../types";
 import { useWorkforceNodeActions } from "./nodeActionsContext";
@@ -18,7 +18,9 @@ export default function ConditionNode({ id, data, selected }: NodeProps<Conditio
     ? "Chưa cấu hình điều kiện"
     : data.type === "llm"
       ? data.llmText
-      : `${data.rules.length} điều kiện`;
+      : data.type === "agent-judgment"
+        ? (data.llmText.trim() || "Agent tự quyết định")
+        : `${data.rules.length} điều kiện`;
 
   // Exactly two visual states: warn (empty/unconfigured — including the post-publish "invalid"
   // flag, which only ever gets set on a condition that's still unconfigured) and the neutral
@@ -54,6 +56,9 @@ export default function ConditionNode({ id, data, selected }: NodeProps<Conditio
         ? <AlertTriangle size={13} className="shrink-0" style={{ color: iconColor }} />
         : <GitBranch size={13} className="shrink-0" style={{ color: iconColor }} />}
       <span className="text-[12px] truncate flex-1" style={{ fontFamily: "var(--wf-font-body)" }}>{statusText}</span>
+      {data.approval && (
+        <ShieldCheck size={13} className="shrink-0" style={{ color: "var(--wf-accent, #4650D6)" }} aria-label="Yêu cầu phê duyệt" />
+      )}
       <Handle type="source" position={Position.Right} className={HANDLE_CLASS} />
     </div>
   );

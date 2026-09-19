@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft, Bot, Boxes, Headset, User, Zap, CheckCircle2, Square, TriangleAlert, GitBranch } from "lucide-react";
+import { ChevronLeft, Bot, Boxes, Headset, User, Zap, CheckCircle2, Square, TriangleAlert, GitBranch, XCircle } from "lucide-react";
 import { ReactFlowProvider, useNodesState, useEdgesState } from "reactflow";
 import { AGENTS } from "@/components/configure/agentStore";
 import { triggerStore } from "@/components/configure/triggerStore";
@@ -18,6 +18,7 @@ const STATUS_META = {
   success: { label: "Thành công", icon: CheckCircle2, bg: "var(--wf-pub-bg)", ink: "var(--wf-pub-ink)" },
   stopped: { label: "Đã dừng", icon: Square, bg: "var(--wf-bg)", ink: "var(--wf-muted)" },
   error: { label: "Lỗi", icon: TriangleAlert, bg: "#FDECEC", ink: "#C0362C" },
+  rejected: { label: "Bị từ chối", icon: XCircle, bg: "#FDECEC", ink: "#C0362C" },
 } as const;
 
 function fmtDuration(ms: number): string {

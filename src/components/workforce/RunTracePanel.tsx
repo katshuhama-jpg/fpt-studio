@@ -1,4 +1,4 @@
-import { Bot, Boxes, CheckCircle2, GitBranch, Headset, Loader2, Play, Square, User, X, Zap } from "lucide-react";
+import { Bot, Boxes, Check, CheckCircle2, GitBranch, Headset, Loader2, Play, ShieldCheck, Square, User, X, XCircle, Zap } from "lucide-react";
 import type { WorkforceNode } from "./types";
 import type { RunTraceState } from "./useRunTrace";
 
@@ -11,6 +11,7 @@ const KIND_ICON: Record<string, typeof Bot> = {
 function conditionSummary(node: WorkforceNode | undefined): string {
   if (!node || node.data.kind !== "condition") return "—";
   if (node.data.type === "llm") return node.data.llmText.trim() || "Chưa cấu hình điều kiện";
+  if (node.data.type === "agent-judgment") return node.data.llmText.trim() || "Agent tự quyết định";
   return node.data.rules.length > 0 ? `${node.data.rules.length} điều kiện` : "Chưa cấu hình điều kiện";
 }
 
@@ -20,12 +21,17 @@ function conditionSummary(node: WorkforceNode | undefined): string {
  * a Trigger's setup), so the two need to coexist on screen rather than fight for the same real
  * estate. Also clears the left control rail (bottom-[58px] left-4) and the bottom palette dock. */
 export default function RunTracePanel({
-  nodes, state, describeNode, onChoose, onStop, onRestart, onClose, mode = "test", contextMessage,
+  nodes, state, describeNode, describeMember, onChoose, onResolveApproval, onStop, onRestart, onClose, mode = "test", contextMessage,
 }: {
   nodes: WorkforceNode[];
   state: RunTraceState;
   describeNode: (nodeId: string) => string;
+  /** Resolves an org member id to a display name — for the "Đang chờ <ai> duyệt" line, since
+   * this panel has no org data of its own (same reason ConditionDrawer takes a resolved
+   * `assigneeName` prop instead of an id). */
+  describeMember: (memberId: string | null) => string;
   onChoose: (conditionId: string, targetId: string) => void;
+  onResolveApproval: (decision: "approve" | "reject") => void;
   onStop: () => void;
   onRestart: () => void;
   onClose: () => void;
@@ -43,6 +49,7 @@ export default function RunTracePanel({
   const endMessage =
     state.endReason === "unwired" ? `Trigger này chưa kết nối tới Agent nào — không thể ${mode === "manual" ? "chạy" : "chạy thử"}.` :
     state.endReason === "stopped" ? `Đã dừng ${mode === "manual" ? "chạy" : "chạy thử"}.` :
+    state.endReason === "rejected" ? `${describeMember(state.pendingApproval?.assigneeId ?? null)} đã từ chối — dừng tại "${state.currentNodeId ? describeNode(state.currentNodeId) : "—"}".` :
     state.currentNodeId ? `Hoàn tất — kết thúc tại "${describeNode(state.currentNodeId)}".` : "Hoàn tất.";
 
   return (
@@ -130,6 +137,34 @@ export default function RunTracePanel({
                   </button>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {state.status === "approval" && state.pendingApproval && (
+          <div className="mt-3 pt-3" style={{ borderTop: "1px dashed var(--wf-border)" }}>
+            <p className="text-[11.5px] font-semibold mb-2 flex items-center gap-1.5" style={{ color: "var(--wf-muted)" }}>
+              <ShieldCheck size={12} />
+              {state.pendingApproval.mode === "agent-decide"
+                ? `Agent đang tự đánh giá — ${describeMember(state.pendingApproval.assigneeId)} có thể can thiệp`
+                : `Đang chờ ${describeMember(state.pendingApproval.assigneeId)} duyệt`}
+            </p>
+            <p className="text-[12.5px] font-semibold mb-2" style={{ color: "var(--wf-text)" }}>→ {describeNode(state.pendingApproval.option.targetId)}</p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onResolveApproval("approve")}
+                className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-lg text-[12.5px] font-semibold transition-base min-h-[44px]"
+                style={{ background: "var(--wf-pub-bg)", color: "var(--wf-pub-ink)" }}
+              >
+                <Check size={13} /> Duyệt
+              </button>
+              <button
+                onClick={() => onResolveApproval("reject")}
+                className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-lg border text-[12.5px] font-semibold transition-base min-h-[44px]"
+                style={{ borderColor: "var(--wf-border)", color: "var(--wf-muted)" }}
+              >
+                <XCircle size={13} /> Từ chối
+              </button>
             </div>
           </div>
         )}

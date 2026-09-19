@@ -62,6 +62,10 @@ export default function WorkforceCanvasPage() {
   // SLA breach — a separate id from `personPickerNodeId` because it writes to `data.escalation`
   // instead of `data.memberId` (S-gap-5).
   const [escalationPickerNodeId, setEscalationPickerNodeId] = useState<string | null>(null);
+  // Set only from inside a Condition's own drawer when picking who approves that route — writes
+  // to that Condition node's `data.approval.assigneeId` (S-demo gap 1: approval moved from a
+  // Person(approve) node onto the Condition/edge, matching Relevance AI's model).
+  const [approvalPickerConditionId, setApprovalPickerConditionId] = useState<string | null>(null);
   const [deleteNodeId, setDeleteNodeId] = useState<string | null>(null);
   // Only relevant when the canvas has more than one Trigger node — the small "which Trigger do
   // you want to simulate?" menu that opens under the "Chạy thử" button in that case (S-gap-7).
@@ -238,8 +242,9 @@ export default function WorkforceCanvasPage() {
     if (runTrace.state.status !== "done") return;
     const s = runTrace.state;
     const startedAt = runStartedAtRef.current ?? Date.now();
-    const status: RunStatus = s.endReason === "unwired" ? "error" : s.endReason === "stopped" ? "stopped" : "success";
+    const status: RunStatus = s.endReason === "unwired" ? "error" : s.endReason === "stopped" ? "stopped" : s.endReason === "rejected" ? "rejected" : "success";
     const conditionChoices = buildConditionChoices(s.nodeStatus.keys(), nodes as any, edges, describeRunNode);
+    const rejectedBy = s.endReason === "rejected" ? members.find(m => m.id === s.pendingApproval?.assigneeId) : undefined;
     runHistoryStore.record({
       workforceId: id,
       source: manualRunActive ? "trigger" : "test",
@@ -251,7 +256,9 @@ export default function WorkforceCanvasPage() {
       steps: s.steps,
       edgeIds: [...s.edgeIds],
       conditionChoices,
-      errorReason: s.endReason === "unwired" ? `Trigger "${s.steps[0] ? describeRunNode(s.steps[0]) : "này"}" chưa kết nối tới Agent nào — dừng ngay từ bước đầu.` : null,
+      errorReason: s.endReason === "unwired" ? `Trigger "${s.steps[0] ? describeRunNode(s.steps[0]) : "này"}" chưa kết nối tới Agent nào — dừng ngay từ bước đầu.`
+        : s.endReason === "rejected" ? `${rejectedBy?.name ?? "Người duyệt"} đã từ chối.`
+        : null,
     });
     setRuns(runHistoryStore.list(id));
     runStartedAtRef.current = null;
@@ -509,7 +516,9 @@ export default function WorkforceCanvasPage() {
             nodes={nodes as any}
             state={runTrace.state}
             describeNode={describeRunNode}
+            describeMember={memberId => members.find(m => m.id === memberId)?.name ?? "Người duyệt"}
             onChoose={runTrace.choose}
+            onResolveApproval={runTrace.resolveApproval}
             onStop={runTrace.stop}
             onRestart={() => { runStartedAtRef.current = Date.now(); runTrace.start(runTrace.state.steps[0]); }}
             onClose={() => { runTrace.reset(); setManualRunActive(false); setManualRunMessage(null); }}
@@ -571,6 +580,20 @@ export default function WorkforceCanvasPage() {
             setNodes(ns => ns.map(n => (n.id === escalationPickerNodeId ? { ...n, data: { ...n.data, escalation: { memberId } } } : n)));
             setEscalationPickerNodeId(null);
             toast.success("Đã đặt người thay thế khi quá hạn");
+          }}
+        />
+      )}
+
+      {approvalPickerConditionId && (
+        <PersonPickerPopover
+          open
+          onClose={() => setApprovalPickerConditionId(null)}
+          onSelect={memberId => {
+            setNodes(ns => ns.map(n => (n.id === approvalPickerConditionId && n.data.kind === "condition"
+              ? { ...n, data: { ...n.data, approval: { mode: n.data.approval?.mode ?? "required", assigneeId: memberId } } }
+              : n)));
+            setApprovalPickerConditionId(null);
+            toast.success("Đã chọn người duyệt");
           }}
         />
       )}
@@ -687,6 +710,9 @@ export default function WorkforceCanvasPage() {
           destination.data.kind === "person" ? members.find(m => m.id === destination.data.memberId)?.name ?? "Người trong tổ chức" :
           destination.data.kind === "subprocess" ? (destination.data.workforceId ? workforceStore.get(destination.data.workforceId)?.name : undefined) ?? "Sub-process" : "—";
         const destAgentKeepContext = destination?.data.kind === "agent" ? destination.data.keepContext : undefined;
+        const approvalAssignee = configuringNode.data.kind === "condition" && configuringNode.data.approval?.assigneeId
+          ? members.find(m => m.id === configuringNode.data.approval!.assigneeId)
+          : undefined;
 
         return (
           <ConditionDrawer
@@ -706,6 +732,9 @@ export default function WorkforceCanvasPage() {
             onChangeKeepContext={destination?.data.kind === "agent"
               ? (value => setNodes(ns => ns.map(n => (n.id === destination.id ? { ...n, data: { ...n.data, keepContext: value } } : n))))
               : undefined}
+            assigneeName={approvalAssignee?.name ?? null}
+            assigneeInitials={approvalAssignee?.initials}
+            onPickAssignee={() => setApprovalPickerConditionId(configuringNode.id)}
           />
         );
       })()}

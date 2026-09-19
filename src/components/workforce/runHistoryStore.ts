@@ -7,7 +7,7 @@
 import type { WorkforceNode, WorkforceEdge, ConditionNodeData } from "./types";
 
 export type RunSource = "test" | "trigger";
-export type RunStatus = "success" | "stopped" | "error";
+export type RunStatus = "success" | "stopped" | "error" | "rejected";
 
 /** One Condition the run actually passed through, whether it auto-advanced (only one route out)
  * or a person picked a branch mid-run — both are worth showing in a trace log, not just the
@@ -44,6 +44,7 @@ function conditionSummary(node: WorkforceNode | undefined): string {
   if (!node || node.data.kind !== "condition") return "—";
   const data = node.data as ConditionNodeData;
   if (data.type === "llm") return data.llmText.trim() || "Chưa cấu hình điều kiện";
+  if (data.type === "agent-judgment") return data.llmText.trim() || "Agent tự quyết định";
   return data.rules.length > 0 ? `${data.rules.length} điều kiện` : "Chưa cấu hình điều kiện";
 }
 
@@ -172,7 +173,9 @@ function seedSalesQuoteRuns(): WorkforceRunRecord[] {
         targetLabel: "AI Agent Pháp chế — Điều khoản hợp đồng",
       }],
     }),
-    // >10% — Finance checks, Finance Manager approves, then converges on Legal.
+    // >10% — Finance checks, then Phan My Ngan approves the connection into Legal directly (no
+    // separate Person(approve) node or "outcome" Condition anymore — approval is a property of
+    // `cond-to-approval` itself; see workforceStore.ts).
     seedRun({
       workforceId: wfId,
       source: "trigger",
@@ -181,10 +184,10 @@ function seedSalesQuoteRuns(): WorkforceRunRecord[] {
       startedAt: Date.now() - 45 * 60_000,
       endedAt: Date.now() - 45 * 60_000 + 4_100,
       status: "success",
-      steps: ["trigger-quote", "sales-quote", "finance-check", "person-finance-mgr", "legal-review"],
+      steps: ["trigger-quote", "sales-quote", "finance-check", "legal-review"],
       edgeIds: [
         "e-trigger-quote", "e-sales-cond-escalate", "e-cond-escalate-finance",
-        "e-finance-cond-approval", "e-cond-approval-person", "e-person-cond-approved", "e-cond-approved-legal",
+        "e-finance-cond-approval", "e-cond-approval-legal",
       ],
       conditionChoices: [
         {
@@ -195,14 +198,30 @@ function seedSalesQuoteRuns(): WorkforceRunRecord[] {
         {
           conditionId: "cond-to-approval",
           conditionLabel: "Tài chính đã kiểm tra xong mức chiết khấu — chuyển cho Quản lý Tài chính phê duyệt.",
-          targetLabel: "Phan My Ngan",
-        },
-        {
-          conditionId: "cond-approved",
-          conditionLabel: "Quản lý Tài chính đã phê duyệt mức chiết khấu đề xuất.",
           targetLabel: "AI Agent Pháp chế — Điều khoản hợp đồng",
         },
       ],
+    }),
+    // A third example: Phan My Ngan rejects the discount at the same approval gate — the run
+    // stops right there instead of silently passing through, which is the actual product gap
+    // this redesign fixes (approval used to be decorative in "Chạy thử": a Person(approve) node
+    // with a single outgoing route just auto-advanced, never actually pausing for a decision).
+    seedRun({
+      workforceId: wfId,
+      source: "trigger",
+      triggerLabel: "Yêu cầu báo giá từ Workspace",
+      contextMessage: "Báo giá ACME Corp — gói Enterprise, chiết khấu đề xuất 22%.",
+      startedAt: Date.now() - 3 * HOUR,
+      endedAt: Date.now() - 3 * HOUR + 3_200,
+      status: "rejected",
+      steps: ["trigger-quote", "sales-quote", "finance-check"],
+      edgeIds: ["e-trigger-quote", "e-sales-cond-escalate", "e-cond-escalate-finance"],
+      conditionChoices: [{
+        conditionId: "cond-escalate",
+        conditionLabel: "Mức chiết khấu Agent đề xuất trong báo giá vượt quá 10% — ngoài thẩm quyền tự phê duyệt, cần Tài chính kiểm tra và Quản lý phê duyệt.",
+        targetLabel: "AI Agent Tài chính — Kiểm duyệt chiết khấu",
+      }],
+      errorReason: "Phan My Ngan đã từ chối — mức 22% vượt quá khẩu vị rủi ro cho phép trong quý này.",
     }),
   ];
 }

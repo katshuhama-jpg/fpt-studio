@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Handle, Position, type NodeProps } from "reactflow";
-import { CheckCircle2, Clock, ListChecks, User } from "lucide-react";
+import { Clock, ListChecks, User } from "lucide-react";
 import { collectMembers } from "@/pages/organization/orgData";
 import { useOrg } from "@/pages/organization/orgStore";
 import type { PersonNodeData } from "../types";
@@ -11,7 +11,6 @@ import NodeTypeTab from "./NodeTypeTab";
 import MissingTriggerNotice from "./MissingTriggerNotice";
 
 const TASK_KIND_META = {
-  approve: { label: "Cần duyệt", icon: CheckCircle2 },
   do: { label: "Cần thực hiện", icon: ListChecks },
   notify: { label: "Thông báo", icon: User },
 } as const;
@@ -24,9 +23,9 @@ export default function PersonNode({ id, data, selected }: NodeProps<PersonNodeD
   const member = members.find(m => m.id === data.memberId);
   const missingTrigger = unreachableNodeIds.has(id);
   const runStatus = runTrace?.nodeStatus.get(id);
-  // "notify" is fire-and-forget — no response to continue on, so (unlike "approve"/"do") it
-  // gets no source Handle, the same terminal shape every Person node had before task kinds
-  // existed (S-gap-5).
+  // "notify" is fire-and-forget — no response to continue on, so (unlike "do") it gets no
+  // source Handle, the same terminal shape every Person node had before task kinds existed
+  // (S-gap-5).
   const continuable = data.taskKind !== "notify";
   const taskMeta = TASK_KIND_META[data.taskKind];
   const TaskIcon = taskMeta.icon;

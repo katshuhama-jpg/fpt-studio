@@ -43,7 +43,7 @@ export function createNoteNode(position: XYPosition): WorkforceNode {
 }
 
 export function createConditionNode(position: XYPosition): WorkforceNode {
-  return { id: uid("cond"), type: "condition", position, data: { kind: "condition", type: "llm", llmText: "", ruleMatch: "all", rules: [] } };
+  return { id: uid("cond"), type: "condition", position, data: { kind: "condition", type: "llm", llmText: "", ruleMatch: "all", rules: [], approval: null } };
 }
 
 export function createTriggerNode(position: XYPosition): WorkforceNode {

@@ -1,6 +1,6 @@
 import type { Node, Edge } from "reactflow";
 
-export type ConditionType = "llm" | "rule";
+export type ConditionType = "llm" | "rule" | "agent-judgment";
 export type RuleMatch = "all" | "any";
 
 export interface ConditionRule {
@@ -8,6 +8,27 @@ export interface ConditionRule {
   variable: string;
   operator: string;
   value: string;
+  /** Only meaningful when `variable` isn't one of ConditionDrawer's fixed VARIABLES (a
+   * user-typed custom variable, e.g. `discount_percent` sourced from an upstream agent's
+   * structured output) — picks numeric operators/input instead of text ones. Ignored for a
+   * known variable, whose type is already fixed. Optional so existing saved rules default to
+   * the old text behavior. */
+  numeric?: boolean;
+}
+
+/** Gap: approval was a Person(taskKind: "approve") node needing a downstream Condition to
+ * route on a synthetic `outcome` variable that was never actually wired anywhere (Condition's
+ * variable list never included it) — a real bug, not just a UX rough edge. Redesigned to match
+ * how Relevance AI's own Workforce models it: approval is a property of the CONNECTION
+ * (attached here to the Condition node, which already stands in for "the edge" per the
+ * [source] -> Condition -> [destination] invariant every route already follows), not a
+ * separate node type or a variable to route on. */
+export type ApprovalMode = "required" | "agent-decide";
+
+export interface ConditionApproval {
+  mode: ApprovalMode;
+  /** Org member id (orgData.ts) who must approve. Null = not yet assigned. */
+  assigneeId: string | null;
 }
 
 export interface AgentNodeData {
@@ -24,7 +45,7 @@ export interface OmniNodeData {
   reasonDefault: string;
 }
 
-export type HumanTaskKind = "approve" | "do" | "notify";
+export type HumanTaskKind = "do" | "notify";
 
 export interface PersonNodeData {
   kind: "person";
@@ -32,13 +53,13 @@ export interface PersonNodeData {
   /** What kind of handoff this is (S-gap-5, generalizing this into a real Human Task node,
    * matching the Human-in-the-loop node every benchmarked competitor has — Dify's Human Input,
    * Stack AI's dedicated HITL node, n8n's Wait node, Copilot Studio's approval flows):
-   * - "approve" — the person must Approve or Reject; route a Condition out of this node on a
-   *   rule matching the synthetic `outcome` variable ("approve" / "reject") to branch on it,
-   *   reusing the existing Condition rule system rather than a new branching primitive.
    * - "do" — a task assigned to be completed; the flow continues once done (one route out,
    *   same shape as an Agent node continuing to a destination).
    * - "notify" — fire-and-forget, no response expected; terminal, same as every Person node
-   *   was before this field existed (the default for any node predating it). */
+   *   was before this field existed (the default for any node predating it).
+   * A third kind, "approve", used to live here — it's gone. Approval moved onto the
+   * Condition/edge (see `ConditionApproval` above), matching Relevance AI's model and fixing
+   * the unwired `outcome` variable this node type used to require. */
   taskKind: HumanTaskKind;
   /** Minutes before this task is considered overdue. Null = no SLA tracked. */
   slaMinutes: number | null;
@@ -50,12 +71,20 @@ export interface PersonNodeData {
 export interface ConditionNodeData {
   kind: "condition";
   type: ConditionType;
+  /** For `type: "llm"` this is the required matching criteria. For `type: "agent-judgment"`
+   * it's optional free-text guidance for the agent's own reasoning — never required, since the
+   * whole point of this type is that there's no fixed criteria to write down. Unused for
+   * `type: "rule"`. */
   llmText: string;
   ruleMatch: RuleMatch;
   rules: ConditionRule[];
   /** Non-persisted, computed at publish-validation time and stamped onto the node for
    * rendering the red "invalid" outline (S11). */
   invalid?: boolean;
+  /** Null = "Auto Run" (Relevance's term) — the route just fires, no approval gate. Set = a
+   * human must weigh in before this route is taken (S-demo gap 1, from the Relevance AI
+   * research: approval as a property of the connection, not a separate Person node). */
+  approval: ConditionApproval | null;
 }
 
 export interface NoteNodeData {
@@ -121,10 +150,12 @@ export interface Workforce {
 }
 
 export function newConditionRule(): ConditionRule {
-  return { id: `rule-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, variable: "", operator: "bằng", value: "" };
+  return { id: `rule-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, variable: "", operator: "bằng", value: "", numeric: false };
 }
 
 export function isConditionInvalid(data: ConditionNodeData): boolean {
   if (data.type === "llm") return data.llmText.trim().length === 0;
+  // "agent-judgment" is never invalid by design — there's no fixed criteria to require.
+  if (data.type === "agent-judgment") return false;
   return data.rules.length === 0 || data.rules.some(r => !r.variable.trim() || !r.value.trim());
 }

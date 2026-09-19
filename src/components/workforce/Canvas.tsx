@@ -71,10 +71,10 @@ export default function Canvas({
 
   const findNode = (id: string) => nodes.find(n => n.id === id);
 
-  // A Person node can start a route only when it isn't a fire-and-forget Notify task — an
-  // "approve"/"do" Human Task continues the flow once acted on (S-gap-5), same as an Agent
-  // continuing to its next destination; "notify" stays a dead end, same as every Person node
-  // was before task kinds existed.
+  // A Person node can start a route only when it isn't a fire-and-forget Notify task — a "do"
+  // Human Task continues the flow once acted on (S-gap-5), same as an Agent continuing to its
+  // next destination; "notify" stays a dead end, same as every Person node was before task
+  // kinds existed.
   const isRoutableSource = (data: WorkforceNode["data"]) =>
     data.kind === "agent" || data.kind === "subprocess" || (data.kind === "person" && data.taskKind !== "notify");
 

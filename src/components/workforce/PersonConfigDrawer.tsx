@@ -1,9 +1,12 @@
-import { X, Trash2, UserCog, CheckCircle2, ListChecks, User as UserIcon, Info } from "lucide-react";
+import { X, Trash2, UserCog, ListChecks, User as UserIcon } from "lucide-react";
 import { useReturnFocusOnUnmount } from "./useReturnFocus";
 import type { HumanTaskKind } from "./types";
 
-const TASK_KIND_OPTIONS: { value: HumanTaskKind; label: string; desc: string; icon: typeof CheckCircle2 }[] = [
-  { value: "approve", label: "Cần duyệt", desc: "Người này Duyệt hoặc Từ chối, luồng rẽ theo kết quả.", icon: CheckCircle2 },
+// "Cần duyệt" used to live here as a third option — it's gone. Approval moved onto the
+// Condition/edge that leads to a step (see ConditionDrawer's "Yêu cầu phê duyệt" section),
+// matching Relevance AI's model instead of a Person node whose Duyệt/Từ chối outcome had to be
+// routed via a Condition rule on a variable (`outcome`) that never actually existed.
+const TASK_KIND_OPTIONS: { value: HumanTaskKind; label: string; desc: string; icon: typeof ListChecks }[] = [
   { value: "do", label: "Cần thực hiện", desc: "Một việc được giao — luồng tiếp tục sau khi hoàn thành.", icon: ListChecks },
   { value: "notify", label: "Thông báo", desc: "Chỉ báo cho người này biết — không cần phản hồi, kết thúc ở đây.", icon: UserIcon },
 ];
@@ -97,14 +100,6 @@ export default function PersonConfigDrawer({
               );
             })}
           </div>
-          {taskKind === "approve" && (
-            <div className="flex items-start gap-2 mt-2.5 p-2.5 rounded-lg bg-surface-muted">
-              <Info size={13} className="text-muted-foreground shrink-0 mt-0.5" />
-              <p className="text-[11px] text-muted-foreground leading-relaxed">
-                Nối một route ra khỏi node này cho mỗi kết quả, dùng điều kiện dạng quy tắc trên biến <code className="font-mono">outcome</code> (bằng <code className="font-mono">approve</code> hoặc <code className="font-mono">reject</code>) để rẽ luồng theo Duyệt/Từ chối.
-              </p>
-            </div>
-          )}
         </div>
 
         <div className="pt-3 border-t border-border">
