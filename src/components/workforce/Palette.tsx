@@ -21,11 +21,12 @@ export const WORKFORCE_DRAG_MIME = "application/x-workforce-node";
  * two fully equivalent ways in, not click as an afterthought. Real `<button>` elements so
  * Enter/Space activation and focus styling come for free; `draggable` still layers on top.
  *
- * Each item is a single flat tinted chip (icon + label) — small-radius rounded rectangle, not a
- * full pill/oval, matching the smaller, more solid corner radius used everywhere else on the
- * canvas (node cards, buttons, type tags). On hover a chip just lifts a couple of px and gains a
- * soft shadow. Still one continuous dock along the bottom edge (hairline top border) so it
- * doesn't read as loose floating chips. */
+ * Each item is a single flat tinted chip (icon + label) — no border, no resting shadow, just the
+ * type's own tint color and a slightly larger radius: the plainest, cleanest read of the three
+ * options tried (dropped the neutral gray border that made every chip look boxed-in regardless of
+ * its color). A chip only gains a shadow + lifts a couple px on hover, so the flat rest state stays
+ * calm and the affordance still shows up the moment it matters. Still one continuous dock along
+ * the bottom edge (hairline top border on the dock itself) so it doesn't read as loose chips. */
 export default function Palette({ onItemClick }: { onItemClick: (type: PaletteItemType) => void }) {
   return (
     <div
@@ -43,14 +44,13 @@ export default function Palette({ onItemClick }: { onItemClick: (type: PaletteIt
           }}
           onClick={() => onItemClick(item.type)}
           aria-label={`Thêm ${item.label} vào canvas`}
-          className="flex items-center min-h-[44px] cursor-pointer select-none transition-base hover:-translate-y-[2px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="flex items-center min-h-[44px] cursor-pointer select-none transition-base hover:-translate-y-[2px] hover:shadow-[0_4px_10px_-2px_rgba(20,22,30,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           style={{
             gap: 7,
-            padding: "9px 14px",
+            padding: "10px 14px",
             background: item.accentBg,
-            border: "1px solid var(--wf-border)",
-            borderRadius: "var(--wf-radius-sm)",
-            boxShadow: "0 1px 2px rgba(20,22,30,0.04)",
+            border: "none",
+            borderRadius: 11,
           }}
         >
           <item.icon size={15} style={{ color: item.accent }} />
