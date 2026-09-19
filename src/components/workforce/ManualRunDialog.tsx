@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
-import { MessageSquare, Play, Info, ChevronDown } from "lucide-react";
+import { MessageSquare, Play, Info } from "lucide-react";
 
 export interface ManualRunTriggerOption {
   nodeId: string;
@@ -15,10 +15,12 @@ export interface ManualRunTriggerOption {
  * "User message received" Trigger: shows that trigger's own "Guide for using workforce" text,
  * then takes a free-text request before handing off to the run.
  *
- * Styled from the wf-slate canvas system's own tokens (--wf-*) rather than the app's generic
- * shadcn Dialog look — this is reached from the canvas toolbar, right next to node cards and
- * drawers that already read as crisp/high-contrast, so a washed-out generic modal here stood
- * out as the one under-designed surface in the flow.
+ * Styled from the wf-slate canvas system's own tokens (--wf-*), tuned "bolder" than a plain
+ * settings dialog since this is the actual moment a real run starts: a gradient wash + glowing
+ * icon chip tinted in the Trigger's own accent color, and Trigger selection as a segmented
+ * control rather than a plain <select>. The footer intentionally stays on the shared wf-btn-sec /
+ * wf-btn-pri button system rather than a one-off pill/glow CTA, so it reads as the same "Hủy bỏ" /
+ * primary-action pairing every other drawer and dialog on the canvas already uses.
  *
  * Only ever opened with at least one option (WorkforceCanvasPage gates the toolbar button on
  * that), so `options` is never empty while `open` is true. */
@@ -51,75 +53,87 @@ export default function ManualRunDialog({
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
       <DialogContent
-        className="sm:max-w-[440px] p-0 gap-0 border-0 shadow-none overflow-hidden [font-family:var(--wf-font-body)]"
+        className="sm:max-w-[400px] p-0 gap-0 border-0 shadow-none overflow-hidden [font-family:var(--wf-font-body)]"
         style={{
-          borderRadius: "var(--wf-radius)",
+          borderRadius: 18,
           background: "var(--wf-surface)",
           border: "1px solid var(--wf-border)",
-          boxShadow: "var(--wf-node-shadow-selected)",
+          boxShadow: "0 24px 60px -10px rgba(194, 86, 15, 0.18), 0 6px 14px -2px rgba(13, 22, 47, 0.06)",
         }}
       >
-        {/* Header mirrors the icon-chip + title pattern every node config drawer already uses
-            (TriggerConfigDrawer, OmniConfigDrawer, …) — tinted in the Trigger's own accent
-            color since this action only ever fires through a manual Trigger. */}
-        <div className="flex items-center gap-2.5 px-5 h-14 shrink-0" style={{ borderBottom: "1px solid var(--wf-border)" }}>
+        {/* Header: gradient wash tinted in the Trigger's own accent color, with a glowing icon
+            chip — the one part of the feature meant to feel a step more "arrived" than a plain
+            settings dialog. */}
+        <div
+          className="px-[22px] pt-[22px] pb-4"
+          style={{ background: "linear-gradient(150deg, var(--wf-trigger-bg) 0%, var(--wf-surface) 78%)" }}
+        >
           <div
-            className="w-8 h-8 rounded-[9px] flex items-center justify-center shrink-0"
-            style={{ background: "var(--wf-trigger-bg)", color: "var(--wf-trigger)" }}
+            className="w-[42px] h-[42px] rounded-[13px] flex items-center justify-center mb-3"
+            style={{ background: "var(--wf-trigger)", color: "#FFFFFF", boxShadow: "0 8px 18px -4px rgba(194, 86, 15, 0.45)" }}
           >
-            <MessageSquare size={16} />
+            <MessageSquare size={20} />
           </div>
-          <div className="min-w-0">
-            <p className="text-[15px] font-bold leading-tight [font-family:var(--wf-font-display)]" style={{ color: "var(--wf-text)" }}>
-              Chạy Workforce
-            </p>
-            <p className="text-[12px] leading-tight mt-0.5" style={{ color: "var(--wf-muted)" }}>
-              Bắt đầu một lượt chạy thật, ngay bây giờ
-            </p>
-          </div>
+          <h3 className="text-[18px] font-extrabold leading-tight tracking-tight [font-family:var(--wf-font-display)]" style={{ color: "var(--wf-text)" }}>
+            Chạy Workforce
+          </h3>
+          <p className="text-[12.5px] mt-1" style={{ color: "var(--wf-muted)" }}>
+            Gõ yêu cầu — Workforce chạy thật ngay lập tức
+          </p>
         </div>
 
-        <div className="px-5 py-4 space-y-3.5">
+        <div className="px-[22px] pt-1 pb-1 space-y-3.5">
           {options.length > 1 && (
             <div>
-              <label className="text-[12px] font-semibold mb-1.5 block" style={{ color: "var(--wf-text)" }}>
+              <label className="text-[11px] font-extrabold uppercase tracking-wide flex items-center gap-1.5 mb-2" style={{ color: "var(--wf-muted)" }}>
+                <span className="w-[5px] h-[5px] rounded-full shrink-0" style={{ background: "var(--wf-trigger)" }} />
                 Bắt đầu từ Trigger nào?
               </label>
-              <div className="relative">
-                <select
-                  value={selected?.nodeId}
-                  onChange={e => setSelectedId(e.target.value)}
-                  className="w-full h-10 pl-3 pr-9 rounded-[8px] text-sm outline-none appearance-none transition-base"
-                  style={{ background: "var(--wf-surface)", border: "1px solid var(--wf-border)", color: "var(--wf-text)" }}
-                >
-                  {options.map(o => (
-                    <option key={o.nodeId} value={o.nodeId}>{o.name} — {o.agentName}</option>
-                  ))}
-                </select>
-                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--wf-muted)" }} />
+              <div className="flex flex-wrap gap-1.5 p-1 rounded-[11px]" style={{ background: "var(--wf-bg)", border: "1px solid var(--wf-border)" }}>
+                {options.map(o => {
+                  const on = o.nodeId === selected?.nodeId;
+                  return (
+                    <button
+                      key={o.nodeId}
+                      type="button"
+                      onClick={() => setSelectedId(o.nodeId)}
+                      aria-pressed={on}
+                      title={`${o.name} — ${o.agentName}`}
+                      className="text-[12px] font-bold rounded-[8px] transition-base"
+                      style={{
+                        padding: "9px 12px",
+                        color: on ? "var(--wf-text)" : "var(--wf-muted)",
+                        background: on ? "var(--wf-surface)" : "transparent",
+                        boxShadow: on ? "var(--wf-node-shadow)" : "none",
+                      }}
+                    >
+                      {o.name}
+                    </button>
+                  );
+                })}
               </div>
+              {selected && (
+                <p className="text-[11.5px] mt-1.5" style={{ color: "var(--wf-muted)" }}>
+                  → Agent: <span style={{ color: "var(--wf-text)", fontWeight: 600 }}>{selected.agentName}</span>
+                </p>
+              )}
             </div>
           )}
 
           {selected?.instructions && (
-            <div
-              className="flex items-start gap-2 rounded-[8px] p-2.5"
-              style={{ background: "var(--wf-trigger-bg)" }}
-            >
-              <Info size={14} className="shrink-0 mt-[1px]" style={{ color: "var(--wf-trigger)" }} />
-              <div className="min-w-0">
-                <p className="text-[10.5px] font-bold uppercase tracking-wide mb-0.5" style={{ color: "var(--wf-trigger)" }}>
-                  Hướng dẫn sử dụng
-                </p>
-                <p className="text-[13px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--wf-text)" }}>
-                  {selected.instructions}
-                </p>
-              </div>
+            <div className="rounded-[12px] p-3" style={{ background: "#FFF9F3", border: "1px dashed #E7B389" }}>
+              <p className="text-[10.5px] font-extrabold uppercase tracking-wide mb-1 flex items-center gap-1.5" style={{ color: "var(--wf-trigger)" }}>
+                <Info size={12} /> Hướng dẫn sử dụng
+              </p>
+              <p className="text-[12.5px] leading-relaxed whitespace-pre-wrap" style={{ color: "#7A3B10" }}>
+                {selected.instructions}
+              </p>
             </div>
           )}
 
           <div>
-            <label className="text-[12px] font-semibold mb-1.5 block" style={{ color: "var(--wf-text)" }}>
+            <label className="text-[11px] font-extrabold uppercase tracking-wide flex items-center gap-1.5 mb-2" style={{ color: "var(--wf-muted)" }}>
+              <span className="w-[5px] h-[5px] rounded-full shrink-0" style={{ background: "var(--wf-trigger)" }} />
               Yêu cầu của bạn
             </label>
             <textarea
@@ -127,16 +141,25 @@ export default function ManualRunDialog({
               value={message}
               rows={3}
               onChange={e => setMessage(e.target.value)}
+              onKeyDown={e => {
+                if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); start(); }
+              }}
               placeholder="Mô tả yêu cầu của bạn — Workforce sẽ bắt đầu chạy từ đây."
-              className="w-full px-3 py-2.5 rounded-[8px] text-sm outline-none resize-none transition-base placeholder:opacity-60"
-              style={{ background: "var(--wf-surface)", border: "1px solid var(--wf-border)", color: "var(--wf-text)" }}
-              onFocus={e => { e.currentTarget.style.borderColor = "var(--wf-accent)"; }}
-              onBlur={e => { e.currentTarget.style.borderColor = "var(--wf-border)"; }}
+              className="w-full px-3.5 py-3 rounded-[12px] text-sm outline-none resize-none transition-base placeholder:opacity-60"
+              style={{ background: "var(--wf-surface)", border: "1.5px solid var(--wf-accent)", color: "var(--wf-text)", boxShadow: "0 0 0 4px rgba(70, 80, 214, 0.10)" }}
             />
           </div>
         </div>
 
-        <DialogFooter className="px-5 py-3.5 m-0" style={{ borderTop: "1px solid var(--wf-border)", background: "var(--wf-bg)" }}>
+        {/* Footer stays on the shared wf-btn-sec / wf-btn-pri system — same pairing every other
+            drawer/dialog on the canvas uses — rather than a one-off CTA style. */}
+        <DialogFooter className="px-[22px] py-3.5 m-0 flex items-center gap-2" style={{ borderTop: "1px solid var(--wf-border)", background: "var(--wf-bg)" }}>
+          <span className="text-[11px] mr-auto hidden sm:inline-flex items-center gap-1" style={{ color: "var(--wf-muted)" }}>
+            Gửi nhanh:
+            <kbd className="px-1 py-0.5 rounded text-[10px]" style={{ background: "var(--wf-surface)", border: "1px solid var(--wf-border)" }}>⌘</kbd>
+            +
+            <kbd className="px-1 py-0.5 rounded text-[10px]" style={{ background: "var(--wf-surface)", border: "1px solid var(--wf-border)" }}>Enter</kbd>
+          </span>
           <button onClick={onClose} className="wf-btn-sec">Hủy bỏ</button>
           <button
             onClick={start}
