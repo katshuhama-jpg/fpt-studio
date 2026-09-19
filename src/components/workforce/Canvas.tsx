@@ -245,6 +245,18 @@ export default function Canvas({
       setAgentPicker({ position: flow, connectFrom: sourceId });
     } else if (type === "person") {
       setPersonPicker({ position: flow, connectFrom: sourceId });
+    } else if (type === "subprocess") {
+      // Same shortcut Agent/Omni/Person already get — Sub-process is a full routing node too
+      // (both Handles, per SubProcessNode.tsx), it just used to be missing from this popup, so
+      // the only way in was dragging one from the palette first and connecting by hand.
+      onBeforeMutate();
+      const source = findNode(sourceId);
+      const destNode = createSubProcessNode(flow);
+      const { condition, edges: newEdges } = createRoute(sourceId, flow, source?.position ?? flow, destNode.id);
+      setNodes(ns => ns.concat(condition, destNode));
+      setEdges(es => es.concat(newEdges));
+      lastAddedPositionRef.current = flow;
+      toast("Đã thêm Sub-process vào Workforce");
     } else {
       onBeforeMutate();
       const source = findNode(sourceId);
