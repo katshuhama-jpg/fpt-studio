@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
-import { Building2, ChevronRight, ChevronLeft, ChevronDown, Search, Users, Trash2, Plus, Pencil, X, FolderInput, Crown, Check, User } from "lucide-react";
+import { Building2, ChevronRight, ChevronLeft, ChevronDown, Search, Users, Trash2, Plus, Pencil, Upload, X, FolderInput, Crown, Check, User } from "lucide-react";
 import {
   OrgUnit, OrgMember, ApprovalResource, APPROVAL_RESOURCES,
   countAll, countDirect, findUnit, findPath, unitMatches, collectMembers,
@@ -9,6 +9,7 @@ import {
 import { useOrg, deriveNameFromEmail } from "./orgStore";
 import { useRoles, RoleDef } from "./rolesStore";
 import { MoveMemberModal } from "./MoveMemberModal";
+import ImportMembersModal from "./ImportMembersModal";
 
 /** Short label for a set of approval resource types — "All resource types" when every
  * type is granted, otherwise a comma list of just the granted ones. */
@@ -577,6 +578,7 @@ export default function OrgStructureExplorer() {
   const [memberPage, setMemberPage] = useState(1);
   const MEMBER_PAGE_SIZE = 10;
   const [showAddMember, setShowAddMember] = useState(false);
+  const [showImportUnit, setShowImportUnit] = useState(false);
   const [movingMember, setMovingMember] = useState<OrgMember | null>(null);
   const [deleteConfirmMemberId, setDeleteConfirmMemberId] = useState<string | null>(null);
   const [removeAdminTarget, setRemoveAdminTarget] = useState<{ member: OrgMember; sourceUnit: OrgUnit; scope: ApprovalResource[] } | null>(null);
@@ -588,9 +590,10 @@ export default function OrgStructureExplorer() {
   const [renamingUnit, setRenamingUnit] = useState(false);
   const [deletingUnit, setDeletingUnit] = useState(false);
 
+  const allOrgMembers = useMemo(() => collectMembers(tree), [tree]);
   const allEmails = useMemo(
-    () => collectMembers(tree).map(m => (m.email ?? "").trim().toLowerCase()).filter(Boolean),
-    [tree]
+    () => allOrgMembers.map(m => (m.email ?? "").trim().toLowerCase()).filter(Boolean),
+    [allOrgMembers]
   );
   const path = useMemo(() => findPath(tree, selectedId) ?? [tree], [tree, selectedId]);
   const selected = path[path.length - 1];
@@ -652,6 +655,19 @@ export default function OrgStructureExplorer() {
           onSave={(name, email, roleId) => addMember(selected.id, name, email, roleId)}
           existingEmails={allEmails}
           unitName={selected.name}
+        />
+      )}
+      {showImportUnit && (
+        <ImportMembersModal
+          roles={roles}
+          existingMembers={allOrgMembers}
+          tree={tree}
+          defaultUnitId={selected.id}
+          onClose={() => setShowImportUnit(false)}
+          onConfirm={validRows => {
+            validRows.forEach(r => addMember(r.unitId, r.name, r.email, r.roleId));
+            toast.success(`Imported ${validRows.length} member${validRows.length === 1 ? "" : "s"}.`);
+          }}
         />
       )}
       {movingMember && (
@@ -933,6 +949,13 @@ export default function OrgStructureExplorer() {
                 className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-glow transition-base shrink-0"
               >
                 <Plus size={12} /> Invite member
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowImportUnit(true)}
+                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-base shrink-0"
+              >
+                <Upload size={12} /> Import CSV
               </button>
               {selected.members.length > 6 && (
                 <div className="relative w-40">
