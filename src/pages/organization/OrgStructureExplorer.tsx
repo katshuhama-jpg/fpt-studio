@@ -174,28 +174,6 @@ function MemberModal({
               <p className="text-xs text-muted-foreground mt-1.5">Their name will be picked up automatically once they accept the invite.</p>
             )}
           </div>
-          {!isEdit && (
-            <div>
-              <label className="text-sm font-medium block mb-1.5">
-                Role{unitName ? ` in ${unitName}` : ""}
-              </label>
-              <div className="relative">
-                <select
-                  value={roleId}
-                  onChange={e => setRoleId(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Enter") submit(); }}
-                  className="ds-input h-10 appearance-none pr-9 cursor-pointer"
-                >
-                  {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                </select>
-                <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              </div>
-              <p className="text-xs text-muted-foreground mt-1.5">
-                This role's permissions only apply within {unitName ?? "the current unit"} — not other units. If the member moves to a different unit, the scope moves with them.
-                Making someone a Unit Admin is separate, and lets you choose exactly which resource types they approve.
-              </p>
-            </div>
-          )}
         </div>
         <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border shrink-0">
           <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">
