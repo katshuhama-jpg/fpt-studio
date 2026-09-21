@@ -7,7 +7,6 @@ import {
   Check, Building2, Sparkles, Shield, FileText, Rocket,
   Network, Users, Cpu, UsersRound, ClipboardList, History, Lock,
 } from "lucide-react";
-import { toast } from "sonner";
 import { useOrg } from "@/pages/organization/orgStore";
 import { governanceStore } from "@/components/governance/governanceStore";
 import { TENANTS, getAllTenants, getCurrentTenantId, setCurrentTenantId } from "@/lib/spaceStore";
@@ -103,7 +102,7 @@ export default function WorkspaceLayout() {
   // matches the RequireOrgConfigured route guard in App.tsx, but as a visible, disabled nav
   // state instead of a click that silently bounces to the setup wizard.
   const { isConfigured: orgConfigured } = useOrg();
-  const ORG_LOCKED_REASON = "Cần hoàn tất thiết lập Organization trước";
+  const ORG_LOCKED_REASON = "Hoàn tất thông tin doanh nghiệp/tổ chức để sử dụng tính năng này.";
   const orgItems: Item[] = orgItemsBase.map(it =>
     it.to === "/organization/structure" && !orgConfigured
       ? { ...it, locked: true, lockedReason: ORG_LOCKED_REASON }
@@ -498,17 +497,16 @@ function NavRow({ item, collapsed }: { item: Item; collapsed: boolean }) {
   );
   if (item.locked) {
     return (
-      <button
-        type="button"
+      <NavLink
+        to={item.to}
         title={item.lockedReason}
-        onClick={() => item.lockedReason && toast.info(item.lockedReason)}
         style={{ height: "36px" }}
-        className={`${baseCls} text-muted-foreground/70 hover:bg-surface-muted cursor-pointer`}
+        className={`${baseCls} text-muted-foreground/70 hover:bg-surface-muted`}
       >
         <item.icon size={18} className="shrink-0" />
         {!collapsed && <span className="truncate flex-1 text-left">{item.label}</span>}
         <Lock size={12} className="shrink-0" />
-      </button>
+      </NavLink>
     );
   }
   if (item.external) {
