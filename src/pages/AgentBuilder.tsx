@@ -6759,60 +6759,6 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
         <p className="text-xs text-muted-foreground mt-0.5">Khả năng tái sử dụng Agent này đã được dạy.</p>
       </div>
 
-      {/* Built-in skills — the ones the platform ships with every Agent. Listed above the
-        * Agent's own/linked skills because they're the baseline every Agent starts from, and
-        * kept in their own section since they can only be switched on and off, never edited,
-        * shared or deleted. The Core built-ins (self-configuration) never appear here. */}
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-xs font-bold uppercase tracking-wide text-foreground">Built-in skills</span>
-          <span className="min-w-[20px] h-5 px-1 rounded-full bg-surface-muted text-muted-foreground text-xs font-semibold flex items-center justify-center">{builtinSkills.length}</span>
-          <div className="flex-1 h-px bg-border" />
-          <button
-            onClick={() => setShowRestoreBuiltins(true)}
-            disabled={builtinsAtDefault}
-            title={builtinsAtDefault ? "Every built-in skill is already on." : undefined}
-            className="h-8 px-3 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white"
-          >
-            <HugeiconsIcon icon={CircleArrowReload01Icon} size={14} /> Restore defaults
-          </button>
-        </div>
-        <p className="text-sm text-muted-foreground mb-3">
-          Skills every agent ships with. Turn one off and this agent stops using it.
-          {builtinsOffCount > 0 && ` ${builtinsOffCount} of ${builtinSkills.length} turned off.`}
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {builtinSkills.map(s => {
-            const on = builtinSkillStore.isOn(agentId, s.id);
-            return (
-              <div
-                key={s.id}
-                className={`flex flex-col gap-3 p-4 rounded-xl border border-border bg-white transition-base ${on ? "" : "opacity-60"}`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary-soft flex items-center justify-center text-lg shrink-0">{s.icon}</div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-semibold truncate">{s.name}</div>
-                    <span className="chip chip-muted mt-1.5 inline-flex w-fit">v{s.version}</span>
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 flex-1">{s.description}</p>
-                <div className="flex items-center justify-between mt-1">
-                  <Switch
-                    checked={on}
-                    onCheckedChange={v => { if (v) setBuiltinOn(s, true); else setBuiltinOffTarget(s); }}
-                    aria-label={`Turn ${s.name} ${on ? "off" : "on"}`}
-                  />
-                  <span className={`text-xs font-semibold ${on ? "text-success" : "text-muted-foreground"}`}>
-                    {on ? "On" : "Off"}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
       <div className="relative w-72">
         <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
         <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm skill..." className="ds-input pl-8 h-9" />
@@ -6902,6 +6848,59 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
           </div>
         )}
       </Section>
+
+      {/* Built-in skills — the ones the platform ships with every Agent. Listed after the
+        * Agent's own and linked skills because they're the platform baseline rather than
+        * anything the user assembled, and kept in their own section since they can only be
+        * switched on and off, never edited, shared or deleted. The Core built-ins
+        * (self-configuration) never appear here. */}
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-xs font-bold uppercase tracking-wide text-foreground">Built-in skills</span>
+          <span className="min-w-[20px] h-5 px-1 rounded-full bg-surface-muted text-muted-foreground text-xs font-semibold flex items-center justify-center">{builtinSkills.length}</span>
+          <div className="flex-1 h-px bg-border" />
+          <button
+            onClick={() => setShowRestoreBuiltins(true)}
+            disabled={builtinsAtDefault}
+            title={builtinsAtDefault ? "Every built-in skill is already on." : undefined}
+            className="h-8 px-3 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white"
+          >
+            <HugeiconsIcon icon={CircleArrowReload01Icon} size={14} /> Restore defaults
+          </button>
+        </div>
+        <p className="text-sm text-muted-foreground mb-3">
+          Skills every agent ships with. Turn one off and this agent stops using it.
+          {builtinsOffCount > 0 && ` ${builtinsOffCount} of ${builtinSkills.length} turned off.`}
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {builtinSkills.map(s => {
+            const on = builtinSkillStore.isOn(agentId, s.id);
+            return (
+              <div
+                key={s.id}
+                className={`flex flex-col gap-3 p-4 rounded-xl border border-border bg-white transition-base ${on ? "" : "opacity-60"}`}
+              >
+                <div className="w-10 h-10 rounded-xl bg-primary-soft flex items-center justify-center text-lg shrink-0">{s.icon}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold truncate">{s.name}</div>
+                  <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 mt-1">{s.description}</p>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-1.5 text-sm font-medium whitespace-nowrap">
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${on ? "bg-success" : "bg-muted-foreground"}`} />
+                    <span className={on ? "text-success" : "text-muted-foreground"}>{on ? "Active" : "Inactive"}</span>
+                  </span>
+                  <Switch
+                    checked={on}
+                    onCheckedChange={v => { if (v) setBuiltinOn(s, true); else setBuiltinOffTarget(s); }}
+                    aria-label={`Turn ${s.name} ${on ? "off" : "on"}`}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {showAttach && <AttachConsoleSkillModal agentId={agentId} userId={currentUser.id} onClose={() => { setShowAttach(false); refresh(); }} />}
       {showCreate && (

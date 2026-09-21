@@ -10,6 +10,9 @@ export interface BuiltinSkill {
   name: string;
   /** One-line summary shown on the card — deliberately shorter than the full capability list. */
   description: string;
+  /** Tracked because built-ins ship versioned, but deliberately not rendered on the card —
+   * the Agent Details skill cards show no version anywhere, so surfacing one only here would
+   * be inconsistent. */
   version: string;
   icon: string;
   /** Core built-ins run the Agent's own self-configuration and are never shown to users or
