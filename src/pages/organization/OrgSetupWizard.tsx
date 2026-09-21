@@ -160,7 +160,7 @@ export default function OrgSetupWizard() {
           <div className="grid gap-3">
             <ModeCard
               icon={<Cloud size={18} />}
-              title="Kết nối với Microsoft Azure AD (Entra ID)"
+              title="Kết nối với Microsoft Azure AD"
               desc="Đồng bộ tự động chi nhánh, phòng ban và nhóm từ Azure AD hiện có — bạn không cần tạo lại từ đầu."
               busyLabel="Đang kết nối..."
               recommended
