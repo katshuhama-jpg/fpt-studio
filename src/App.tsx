@@ -77,7 +77,7 @@ function RequireOrgConfigured({ children }: { children: ReactNode }) {
               <div className="w-11 h-11 rounded-full bg-primary-soft text-primary flex items-center justify-center mb-2">
                 <Building2 size={20} />
               </div>
-              <DialogTitle>Hoàn tất thiết lập Organization</DialogTitle>
+              <DialogTitle>Hoàn tất thiết lập doanh nghiệp/tổ chức</DialogTitle>
             </DialogHeader>
             <p className="text-sm text-muted-foreground leading-relaxed py-1">
               Doanh nghiệp/Tổ chức của bạn chưa được thiết lập. Vui lòng hoàn tất bước này trước khi tiếp tục.

@@ -53,7 +53,7 @@ export default function OrgSetupWizard() {
     // paths visually consistent rather than one instantly resolving and one not.
     window.setTimeout(() => {
       completeOrgSetup({ name: name.trim(), description: description.trim() || undefined, logoDataUrl, mode });
-      toast.success(mode === "azure" ? "Đã kết nối Azure AD — cấu trúc tổ chức của bạn đã được đồng bộ." : "Đã tạo Organization. Vào Cấu trúc tổ chức để bắt đầu thêm chi nhánh, phòng ban và nhóm.");
+      toast.success(mode === "azure" ? "Đã kết nối Azure AD — cấu trúc tổ chức của bạn đã được đồng bộ." : "Đã lưu thông tin doanh nghiệp/tổ chức. Vào Cấu trúc tổ chức để bắt đầu thêm chi nhánh, phòng ban và nhóm.");
       navigate("/organization/structure");
     }, 900);
   };
@@ -61,13 +61,13 @@ export default function OrgSetupWizard() {
   return (
     <div className="px-8 py-10 max-w-[760px] mx-auto animate-fade-up">
       <PageHeader
-        title="Thiết lập Organization"
+        title="Thiết lập thông tin doanh nghiệp/tổ chức"
         desc={`Chỉ mất 2 bước để "${currentTenant?.name ?? ""}" sẵn sàng sử dụng.`}
       />
 
       {/* Step indicator */}
       <div className="flex items-center gap-2 mb-6 text-xs font-medium">
-        <StepDot active={step === 1} done={step === 2} index={1} label="Thông tin Organization" />
+        <StepDot active={step === 1} done={step === 2} index={1} label="Thông tin doanh nghiệp/tổ chức" />
         <div className="flex-1 h-px bg-border" />
         <StepDot active={step === 2} done={false} index={2} label="Cấu trúc tổ chức" />
       </div>
@@ -79,10 +79,10 @@ export default function OrgSetupWizard() {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               className="w-16 h-16 rounded-xl bg-surface-muted border border-dashed border-border flex items-center justify-center shrink-0 overflow-hidden hover:border-primary/50 transition-base cursor-pointer"
-              aria-label="Chọn logo Organization"
+              aria-label="Chọn logo doanh nghiệp/tổ chức"
             >
               {logoDataUrl ? (
-                <img src={logoDataUrl} alt="Logo Organization" className="w-full h-full object-contain" />
+                <img src={logoDataUrl} alt="Logo doanh nghiệp/tổ chức" className="w-full h-full object-contain" />
               ) : (
                 <ImagePlus size={20} className="text-muted-foreground" />
               )}
@@ -108,7 +108,7 @@ export default function OrgSetupWizard() {
 
           <div className="mb-5">
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-sm font-medium">Tên Organization <span className="text-destructive">*</span></label>
+              <label className="text-sm font-medium">Tên doanh nghiệp/tổ chức <span className="text-destructive">*</span></label>
               <span className="text-xs text-muted-foreground">{name.length}/{NAME_MAX}</span>
             </div>
             <input
@@ -154,7 +154,7 @@ export default function OrgSetupWizard() {
       {step === 2 && (
         <Card>
           <p className="text-sm text-muted-foreground mb-4">
-            Bạn muốn xây dựng cơ cấu tổ chức cho <strong className="text-foreground">{name.trim() || "Organization"}</strong> như thế nào?
+            Bạn muốn xây dựng cơ cấu tổ chức cho <strong className="text-foreground">{name.trim() || "doanh nghiệp/tổ chức của bạn"}</strong> như thế nào?
           </p>
 
           <div className="grid gap-3">
@@ -171,7 +171,7 @@ export default function OrgSetupWizard() {
             <ModeCard
               icon={<Building2 size={18} />}
               title="Tạo cấu trúc thủ công"
-              desc="Bắt đầu từ một Organization trống — bạn tự tạo chi nhánh, phòng ban và nhóm trong Cấu trúc tổ chức."
+              desc="Bắt đầu từ một doanh nghiệp/tổ chức trống — bạn tự tạo chi nhánh, phòng ban và nhóm trong Cấu trúc tổ chức."
               busyLabel="Đang tạo cấu trúc..."
               busy={connecting === "manual"}
               disabled={connecting !== null}
