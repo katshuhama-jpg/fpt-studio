@@ -4782,15 +4782,20 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
   );
 }
 
-function SkillAgentItemRowMenu({ onEdit, onShare, onPromote, onDelete }: {
-  onEdit: () => void; onShare: () => void; onPromote: () => void; onDelete: () => void;
+/** "..." menu on a skill card. Which items appear is driven purely by which handlers are
+ * passed: an Agent-only skill gets Edit / Share / Promote / Delete, a connected workspace skill
+ * only gets Open and Disconnect, and both get Activate/Deactivate — the card shows status but
+ * no toggle, so this menu is where that switch lives. */
+function SkillCardMenu({ onOpen, onEdit, onShare, onPromote, isActive, onToggleActive, onRemove, removeLabel }: {
+  onOpen?: () => void; onEdit?: () => void; onShare?: () => void; onPromote?: () => void;
+  isActive: boolean; onToggleActive: () => void; onRemove: () => void; removeLabel: string;
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const MENU_WIDTH = 208;
-  const MENU_HEIGHT_ESTIMATE = 190;
+  const MENU_HEIGHT_ESTIMATE = 210;
 
   const openMenu = () => {
     const r = btnRef.current?.getBoundingClientRect();
@@ -4811,18 +4816,32 @@ function SkillAgentItemRowMenu({ onEdit, onShare, onPromote, onDelete }: {
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
 
+  const item = (label: string, icon: any, onClick: () => void) => (
+    <button
+      key={label}
+      onClick={() => { setOpen(false); onClick(); }}
+      className="w-full flex items-center gap-2 text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base"
+    >
+      <HugeiconsIcon icon={icon} size={14} className="text-muted-foreground" /> {label}
+    </button>
+  );
+
   return (
     <div className="relative shrink-0" onClick={e => e.stopPropagation()}>
-      <button ref={btnRef} onClick={() => (open ? setOpen(false) : openMenu())} aria-label="Thao tác" className="w-7 h-7 -m-2 rounded-md flex items-center justify-center text-foreground/60 hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+      <button ref={btnRef} onClick={() => (open ? setOpen(false) : openMenu())} aria-label="Actions" className="w-7 h-7 -m-1 rounded-md flex items-center justify-center text-foreground/60 hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <HugeiconsIcon icon={MoreHorizontalIcon} size={14} />
       </button>
       {open && createPortal(
         <div ref={menuRef} className="fixed z-[9999] w-52 rounded-lg border border-border bg-white shadow-elev py-1" style={{ top: pos.top, bottom: pos.bottom, left: pos.left }} onMouseDown={e => e.stopPropagation()}>
-          <button onClick={() => { setOpen(false); onEdit(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Chỉnh sửa</button>
-          <button onClick={() => { setOpen(false); onShare(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Chia sẻ</button>
-          <button onClick={() => { setOpen(false); onPromote(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Chuyển thành skill chung</button>
+          {onOpen && item("Open skill", ExternalLinkIcon, onOpen)}
+          {onEdit && item("Edit", PencilEdit01Icon, onEdit)}
+          {onShare && item("Share", Share08Icon, onShare)}
+          {onPromote && item("Promote to workspace", Upload01Icon, onPromote)}
+          {item(isActive ? "Deactivate" : "Activate", isActive ? PauseIcon : PlayCircleIcon, onToggleActive)}
           <div className="mt-1 pt-1 border-t border-border">
-            <button onClick={() => { setOpen(false); onDelete(); }} className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">Xóa</button>
+            <button onClick={() => { setOpen(false); onRemove(); }} className="w-full flex items-center gap-2 text-left px-3 py-2 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">
+              <HugeiconsIcon icon={Delete01Icon} size={14} /> {removeLabel}
+            </button>
           </div>
         </div>,
         document.body,
@@ -4925,11 +4944,14 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
                       <div className="text-[13px] font-medium truncate">{s.name}</div>
                       <div className="flex items-center gap-1 mt-1"><SkillOwnershipTag skill={s} userId={currentUser.id} /></div>
                     </div>
-                    <SkillAgentItemRowMenu
+                    <SkillCardMenu
+                      isActive={agentSkillStore.isActive(agentId, s.id)}
+                      onToggleActive={() => { agentSkillStore.setActive(agentId, s.id, !agentSkillStore.isActive(agentId, s.id)); refresh(); }}
                       onEdit={() => setEditTarget(s)}
                       onShare={() => setShareTarget(s)}
                       onPromote={() => setPromoteTarget(s)}
-                      onDelete={() => setDeleteTarget({ id: s.id, name: s.name })}
+                      onRemove={() => setDeleteTarget({ id: s.id, name: s.name })}
+                      removeLabel="Delete"
                     />
                   </div>
                 ))}
@@ -6705,9 +6727,9 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
   );
 }
 
-/** "Skills của Agent" — full dedicated page (Agent Details left nav), field-for-field port of
- * GuardrailsAgentTab so Knowledge / Guardrails / Skills all follow the same "đã liên kết" +
- * "riêng của Agent" pattern instead of Skills being confined to the compact sidebar widget. */
+/** "Skills" — the Agent Details Skills screen. Three sections in increasing distance from the
+ * Agent: the skills it owns outright, the workspace skills it has connected, and last the
+ * built-ins every Agent ships with. Card grid rather than rows, matching the Guardrails screen. */
 function SkillsAgentTab({ agentId }: { agentId: string }) {
   const { tree } = useOrg();
   const members = useMemo(() => collectMembers(tree), [tree]);
@@ -6720,7 +6742,6 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
   const [tick, setTick] = useState(0);
   const refresh = () => setTick(t => t + 1);
   void tick;
-  const [query, setQuery] = useState("");
   const [showAttach, setShowAttach] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [editTarget, setEditTarget] = useState<Skill | null>(null);
@@ -6748,106 +6769,118 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
     .map(id => skillStore.get(id))
     .filter((s): s is Skill => !!s);
 
-  const q = query.trim().toLowerCase();
-  const filteredItems = q ? items.filter(i => i.name.toLowerCase().includes(q)) : items;
-  const filteredLinked = q ? attachedSkills.filter(s => s.name.toLowerCase().includes(q)) : attachedSkills;
+  const toggleActive = (s: Skill) => {
+    agentSkillStore.setActive(agentId, s.id, !agentSkillStore.isActive(agentId, s.id));
+    refresh();
+  };
+
+  /** One skill card. `agentCount` is how many Agents use the skill — always this one for an
+   * Agent-only skill, the Console record's own tally for a connected workspace skill. */
+  const renderSkillCard = (s: Skill, agentCount: number, menu: React.ReactNode) => {
+    const active = agentSkillStore.isActive(agentId, s.id);
+    return (
+      <div
+        key={s.id}
+        className={`flex flex-col gap-3 p-4 rounded-xl border border-border bg-white transition-base ${active ? "" : "opacity-60"}`}
+      >
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0" style={{ background: s.iconBg }}>{s.icon}</div>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-semibold truncate">{s.name}</div>
+          <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 mt-1">{s.description}</p>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <span className="flex items-center gap-1.5 text-sm whitespace-nowrap min-w-0">
+            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${active ? "bg-success" : "bg-muted-foreground"}`} />
+            <span className={`font-medium ${active ? "text-success" : "text-muted-foreground"}`}>{active ? "Active" : "Inactive"}</span>
+            <span className="text-muted-foreground">·</span>
+            <span className="flex items-center gap-1 text-muted-foreground truncate">
+              <HugeiconsIcon icon={UserIcon} size={13} className="shrink-0" />
+              {agentCount} {agentCount === 1 ? "agent" : "agents"}
+            </span>
+          </span>
+          {menu}
+        </div>
+      </div>
+    );
+  };
+
+  const emptyBox = (title: string, hint: string) => (
+    <div className="rounded-lg border border-dashed border-border p-8 text-center">
+      <p className="text-sm font-medium mb-1">{title}</p>
+      <p className="text-xs text-muted-foreground">{hint}</p>
+    </div>
+  );
+
+  const sectionHeader = (label: string, count: number, action?: React.ReactNode) => (
+    <div className="flex items-center gap-2 mb-3">
+      <span className="text-xs font-bold uppercase tracking-wide text-foreground">{label}</span>
+      <span className="min-w-[20px] h-5 px-1 rounded-full bg-surface-muted text-muted-foreground text-xs font-semibold flex items-center justify-center">{count}</span>
+      <div className="flex-1 h-px bg-border" />
+      {action}
+    </div>
+  );
+
+  const GRID = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4";
 
   return (
-    <div className="p-8 w-full space-y-6 animate-fade-up">
-      <div>
-        <h2 className="font-display text-xl font-semibold">Skills của Agent</h2>
-        <p className="text-xs text-muted-foreground mt-0.5">Khả năng tái sử dụng Agent này đã được dạy.</p>
-      </div>
-
-      <div className="relative w-72">
-        <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm skill..." className="ds-input pl-8 h-9" />
-      </div>
-
-      {/* Section A — Skills đã liên kết */}
-      <Section icon={ConnectIcon} title="Skills đã liên kết" desc="Skill Console đang được Agent này sử dụng.">
-        {filteredLinked.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground mb-4">
-            {attachedSkills.length === 0 ? "Chưa liên kết skill nào. Liên kết để dùng lại skill đã có trong workspace." : "Không có skill phù hợp với tìm kiếm."}
-          </div>
-        ) : (
-          <div className="space-y-2 mb-4">
-            {filteredLinked.map(s => (
-              <div key={s.id} className={agentSkillStore.isActive(agentId, s.id) ? "" : "opacity-55"}>
-                <KnowledgeSourceRow
-                  icon={PuzzleIcon}
-                  name={s.name}
-                  chip={<div className="flex items-center gap-1 shrink-0"><SkillOwnershipTag skill={s} userId={currentUser.id} /></div>}
-                  onOpen={() => {}}
-                  href={`/tools/${s.id}`}
-                  onRemove={() => setDetachTarget({ id: s.id, name: s.name })}
-                  openLabel="Mở skill"
-                  removeLabel="Gỡ liên kết"
-                  toggle={{
-                    checked: agentSkillStore.isActive(agentId, s.id),
-                    onCheckedChange: v => { agentSkillStore.setActive(agentId, s.id, v); refresh(); },
-                    tooltip: "Bật/tắt: Agent này có dùng skill này hay không.",
-                  }}
-                />
-              </div>
-            ))}
-          </div>
-        )}
-        <button onClick={() => setShowAttach(true)} className="h-9 px-4 rounded-lg border border-dashed border-border hover:border-primary/40 hover:bg-primary-soft/30 text-sm font-medium transition-base">
-          + Liên kết skill
-        </button>
-      </Section>
-
-      {/* Section B — Skills riêng của Agent */}
-      <Section
-        icon={PuzzleIcon}
-        title="Skills riêng của Agent"
-        desc="Skill bạn tạo tại đây chỉ thuộc về Agent này. Nếu muốn dùng cho nhiều Agent, hãy chuyển thành skill chung."
-        action={
-          <button onClick={() => setShowCreate(true)} className="h-9 px-4 rounded-lg border border-dashed border-border hover:border-primary/40 hover:bg-primary-soft/30 text-sm font-medium transition-base shrink-0">
-            + Tạo mới
+    <div className="p-8 w-full space-y-8 animate-fade-up">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="font-display text-xl font-semibold">Skills</h2>
+          <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">Bundles of instructions, resources, and executable code the Agent loads on demand.</p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button onClick={() => setShowAttach(true)} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base">
+            <HugeiconsIcon icon={ConnectIcon} size={14} /> Connect workspace skill
           </button>
-        }
-      >
+          <button onClick={() => setShowCreate(true)} className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 transition-base">
+            <HugeiconsIcon icon={Add01Icon} size={14} /> Create Skill
+          </button>
+        </div>
+      </div>
+
+      {/* Agent-only — created here, owned here, editable here. */}
+      <div>
+        {sectionHeader("Agent-only skills", items.length)}
         {items.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border p-8 text-center">
-            <p className="text-sm font-medium mb-1">Agent chưa có skill riêng</p>
-            <p className="text-xs text-muted-foreground">Tạo skill để dạy Agent một khả năng có thể tái sử dụng.</p>
-          </div>
-        ) : filteredItems.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-            Không có skill phù hợp với tìm kiếm.
-          </div>
+          emptyBox("This agent has no skills of its own yet", "Create one to teach this agent a reusable capability.")
         ) : (
-          <div className="space-y-2">
-            {filteredItems.map(s => (
-              <div key={s.id} className={`flex items-start gap-3 px-3.5 py-3 rounded-lg border border-border bg-surface ${agentSkillStore.isActive(agentId, s.id) ? "" : "opacity-55"}`}>
-                <span className="w-8 h-8 rounded-md flex items-center justify-center text-base shrink-0" style={{ background: s.iconBg }}>{s.icon}</span>
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium">{s.name}</div>
-                  <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed line-clamp-2">{s.description}</div>
-                  <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
-                    <SkillOwnershipTag skill={s} userId={currentUser.id} />
-                  </div>
-                </div>
-                <label className="flex items-center gap-1 shrink-0 cursor-pointer self-start mt-0.5" title="Bật/tắt: Agent này có dùng skill này hay không.">
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Kích hoạt</span>
-                  <Switch
-                    checked={agentSkillStore.isActive(agentId, s.id)}
-                    onCheckedChange={v => { agentSkillStore.setActive(agentId, s.id, v); refresh(); }}
-                  />
-                </label>
-                <SkillAgentItemRowMenu
-                  onEdit={() => setEditTarget(s)}
-                  onShare={() => setShareTarget(s)}
-                  onPromote={() => setPromoteTarget(s)}
-                  onDelete={() => setDeleteTarget({ id: s.id, name: s.name })}
-                />
-              </div>
-            ))}
+          <div className={GRID}>
+            {items.map(s => renderSkillCard(s, 1, (
+              <SkillCardMenu
+                isActive={agentSkillStore.isActive(agentId, s.id)}
+                onToggleActive={() => toggleActive(s)}
+                onEdit={() => setEditTarget(s)}
+                onShare={() => setShareTarget(s)}
+                onPromote={() => setPromoteTarget(s)}
+                onRemove={() => setDeleteTarget({ id: s.id, name: s.name })}
+                removeLabel="Delete"
+              />
+            )))}
           </div>
         )}
-      </Section>
+      </div>
+
+      {/* Connected workspace skills — the Console record stays the source of truth, so this
+        * Agent can only open, activate or disconnect them, never edit or delete. */}
+      <div>
+        {sectionHeader("Connected workspace skills", attachedSkills.length)}
+        {attachedSkills.length === 0 ? (
+          emptyBox("No workspace skills connected yet", "Connect an existing skill from the workspace to reuse it here.")
+        ) : (
+          <div className={GRID}>
+            {attachedSkills.map(s => renderSkillCard(s, Math.max(1, s.attachedByAgentIds.length), (
+              <SkillCardMenu
+                isActive={agentSkillStore.isActive(agentId, s.id)}
+                onToggleActive={() => toggleActive(s)}
+                onOpen={() => window.open(`/tools/${s.id}`, "_blank", "noopener")}
+                onRemove={() => setDetachTarget({ id: s.id, name: s.name })}
+                removeLabel="Disconnect"
+              />
+            )))}
+          </div>
+        )}
+      </div>
 
       {/* Built-in skills — the ones the platform ships with every Agent. Listed after the
         * Agent's own and linked skills because they're the platform baseline rather than
@@ -6855,10 +6888,7 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
         * switched on and off, never edited, shared or deleted. The Core built-ins
         * (self-configuration) never appear here. */}
       <div>
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-xs font-bold uppercase tracking-wide text-foreground">Built-in skills</span>
-          <span className="min-w-[20px] h-5 px-1 rounded-full bg-surface-muted text-muted-foreground text-xs font-semibold flex items-center justify-center">{builtinSkills.length}</span>
-          <div className="flex-1 h-px bg-border" />
+        {sectionHeader("Built-in skills", builtinSkills.length, (
           <button
             onClick={() => setShowRestoreBuiltins(true)}
             disabled={builtinsAtDefault}
@@ -6867,12 +6897,12 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
           >
             <HugeiconsIcon icon={CircleArrowReload01Icon} size={14} /> Restore defaults
           </button>
-        </div>
-        <p className="text-sm text-muted-foreground mb-3">
+        ))}
+        <p className="text-sm text-muted-foreground -mt-1 mb-3">
           Skills every agent ships with. Turn one off and this agent stops using it.
           {builtinsOffCount > 0 && ` ${builtinsOffCount} of ${builtinSkills.length} turned off.`}
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className={GRID}>
           {builtinSkills.map(s => {
             const on = builtinSkillStore.isOn(agentId, s.id);
             return (
@@ -6962,7 +6992,7 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Restore default skills?</AlertDialogTitle>
             <AlertDialogDescription>
-              Every built-in skill will be turned back on for this agent. Your own and linked skills aren't affected.
+              Every built-in skill will be turned back on for this agent. Your own and connected skills aren't affected.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -6985,16 +7015,16 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
       <AlertDialog open={!!detachTarget} onOpenChange={v => !v && setDetachTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Gỡ liên kết skill?</AlertDialogTitle>
-            <AlertDialogDescription>Agent sẽ không còn dùng được skill này. Skill vẫn được giữ nguyên trên Console.</AlertDialogDescription>
+            <AlertDialogTitle>Disconnect "{detachTarget?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>This agent will stop using the skill. The skill itself stays unchanged in the workspace.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
+            <AlertDialogCancel className="bg-white border border-border text-foreground hover:bg-surface-muted">Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => { if (detachTarget) agentSkillStore.detachConsoleSkill(agentId, detachTarget.id); setDetachTarget(null); refresh(); }}
             >
-              Gỡ liên kết
+              Disconnect
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -7003,16 +7033,16 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
       <AlertDialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Xóa skill này?</AlertDialogTitle>
-            <AlertDialogDescription>Skill sẽ bị xóa vĩnh viễn khỏi Agent. Hành động này không thể hoàn tác.</AlertDialogDescription>
+            <AlertDialogTitle>Delete "{deleteTarget?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>This skill will be permanently removed from this agent. This can't be undone.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
+            <AlertDialogCancel className="bg-white border border-border text-foreground hover:bg-surface-muted">Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => { if (deleteTarget) agentSkillStore.remove(agentId, deleteTarget.id); setDeleteTarget(null); refresh(); }}
             >
-              Xóa
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
