@@ -813,9 +813,17 @@ export default function OrgStructureExplorer() {
               )}
             </div>
           </div>
-          <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-full bg-surface-muted border border-border text-muted-foreground shrink-0">
-            <Users size={12} /> {countAll(selected)} people
-          </span>
+          <div className="flex items-center gap-2 shrink-0">
+            <button type="button" onClick={() => setShowImportUnit(true)} className="btn-secondary h-8 px-3 text-xs">
+              <Upload size={13} /> Import CSV
+            </button>
+            <button type="button" onClick={() => setShowAddMember(true)} className="btn-primary h-8 px-3 text-xs">
+              <Plus size={13} /> Invite member
+            </button>
+            <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-full bg-surface-muted border border-border text-muted-foreground shrink-0">
+              <Users size={12} /> {countAll(selected)} people
+            </span>
+          </div>
         </div>
 
         {/* Unit Admins — who can currently approve publishes into this unit, direct + inherited */}
@@ -942,20 +950,6 @@ export default function OrgStructureExplorer() {
               Members in this unit ({countDirect(selected)})
             </div>
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setShowAddMember(true)}
-                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-glow transition-base shrink-0"
-              >
-                <Plus size={12} /> Invite member
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowImportUnit(true)}
-                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-base shrink-0"
-              >
-                <Upload size={12} /> Import CSV
-              </button>
               {selected.members.length > 6 && (
                 <div className="relative w-40">
                   <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
