@@ -53,7 +53,7 @@ export default function OrgSetupWizard() {
     // paths visually consistent rather than one instantly resolving and one not.
     window.setTimeout(() => {
       completeOrgSetup({ name: name.trim(), description: description.trim() || undefined, logoDataUrl, mode });
-      toast.success(mode === "azure" ? "Đã kết nối Azure AD và tạo cấu trúc tổ chức." : "Đã tạo Organization. Bạn có thể tự xây cấu trúc trong Structure.");
+      toast.success(mode === "azure" ? "Đã kết nối Azure AD — cấu trúc tổ chức của bạn đã được đồng bộ." : "Đã tạo Organization. Vào Cấu trúc tổ chức để bắt đầu thêm chi nhánh, phòng ban và nhóm.");
       navigate("/organization/structure");
     }, 900);
   };
@@ -62,7 +62,7 @@ export default function OrgSetupWizard() {
     <div className="px-8 py-10 max-w-[760px] mx-auto animate-fade-up">
       <PageHeader
         title="Thiết lập Organization"
-        desc={`Space "${currentTenant?.name ?? ""}" chưa có Organization. Hoàn tất 2 bước dưới đây để bắt đầu.`}
+        desc={`Chỉ mất 2 bước để "${currentTenant?.name ?? ""}" sẵn sàng sử dụng.`}
       />
 
       {/* Step indicator */}
@@ -95,7 +95,7 @@ export default function OrgSetupWizard() {
               >
                 <Pencil size={13} /> {logoDataUrl ? "Đổi logo" : "Tải logo lên"}
               </button>
-              <p className="text-xs text-muted-foreground mt-0.5">Không bắt buộc. PNG hoặc JPG.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Không bắt buộc, bạn có thể thêm sau. PNG hoặc JPG.</p>
             </div>
             <input
               ref={fileInputRef}
@@ -121,7 +121,7 @@ export default function OrgSetupWizard() {
               className="w-full h-10 px-3 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base"
             />
             {nameTouched && !nameValid && (
-              <p className="text-xs text-destructive mt-1.5">Vui lòng nhập tên Organization.</p>
+              <p className="text-xs text-destructive mt-1.5">Vui lòng nhập tên để tiếp tục.</p>
             )}
           </div>
 
@@ -154,14 +154,15 @@ export default function OrgSetupWizard() {
       {step === 2 && (
         <Card>
           <p className="text-sm text-muted-foreground mb-4">
-            Công ty con, Department, Group của <strong className="text-foreground">{name.trim() || "Organization"}</strong> sẽ được thiết lập bằng cách nào?
+            Bạn muốn xây dựng cơ cấu tổ chức cho <strong className="text-foreground">{name.trim() || "Organization"}</strong> như thế nào?
           </p>
 
           <div className="grid gap-3">
             <ModeCard
               icon={<Cloud size={18} />}
               title="Kết nối với Microsoft Azure AD (Entra ID)"
-              desc="Công ty con, Department, Group sẽ tự động đồng bộ theo cấu trúc tổ chức đã có trên Azure AD của bạn."
+              desc="Đồng bộ tự động chi nhánh, phòng ban và nhóm từ Azure AD hiện có — bạn không cần tạo lại từ đầu."
+              busyLabel="Đang kết nối..."
               recommended
               busy={connecting === "azure"}
               disabled={connecting !== null}
@@ -169,8 +170,9 @@ export default function OrgSetupWizard() {
             />
             <ModeCard
               icon={<Building2 size={18} />}
-              title="Tự tạo cấu trúc"
-              desc="Bắt đầu từ một Organization trống — bạn tự tạo Company/Department/Group trong Structure."
+              title="Tạo cấu trúc thủ công"
+              desc="Bắt đầu từ một Organization trống — bạn tự tạo chi nhánh, phòng ban và nhóm trong Cấu trúc tổ chức."
+              busyLabel="Đang tạo cấu trúc..."
               busy={connecting === "manual"}
               disabled={connecting !== null}
               onClick={() => finish("manual")}
@@ -208,12 +210,13 @@ function StepDot({ active, done, index, label }: { active: boolean; done: boolea
   );
 }
 
-function ModeCard({ icon, title, desc, recommended, busy, disabled, onClick }: {
+function ModeCard({ icon, title, desc, recommended, busy, busyLabel, disabled, onClick }: {
   icon: React.ReactNode;
   title: string;
   desc: string;
   recommended?: boolean;
   busy?: boolean;
+  busyLabel?: string;
   disabled?: boolean;
   onClick: () => void;
 }) {
@@ -232,7 +235,7 @@ function ModeCard({ icon, title, desc, recommended, busy, disabled, onClick }: {
           <span className="text-sm font-semibold text-foreground">{title}</span>
           {recommended && <span className="chip chip-primary text-[10px]">Khuyến nghị</span>}
         </div>
-        <p className="text-xs text-muted-foreground mt-1">{busy ? "Đang kết nối..." : desc}</p>
+        <p className="text-xs text-muted-foreground mt-1">{busy ? (busyLabel ?? "Đang kết nối...") : desc}</p>
       </div>
     </button>
   );
