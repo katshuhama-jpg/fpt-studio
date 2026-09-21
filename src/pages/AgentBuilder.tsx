@@ -48,6 +48,7 @@ import GuardrailMemberPicker from "@/components/configure/GuardrailMemberPicker"
 import AttachConsoleGuardrailModal from "@/components/configure/AttachConsoleGuardrailModal";
 import { skillStore, type Skill } from "@/components/configure/skillStore";
 import { agentSkillStore } from "@/components/configure/agentSkillStore";
+import { builtinSkillStore, type BuiltinSkill } from "@/components/configure/builtinSkillStore";
 import CreateSkillModal, { type SkillFormData } from "@/components/configure/CreateSkillModal";
 import SkillOwnershipTag from "@/components/configure/SkillOwnershipTag";
 import SkillShareModal from "@/components/configure/SkillShareModal";
@@ -6727,6 +6728,20 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
   const [promoteTarget, setPromoteTarget] = useState<Skill | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [detachTarget, setDetachTarget] = useState<{ id: string; name: string } | null>(null);
+  // Built-in skills: turning one OFF asks first (it silently changes what the Agent can do),
+  // turning one back ON is harmless and applies straight away.
+  const [builtinOffTarget, setBuiltinOffTarget] = useState<BuiltinSkill | null>(null);
+  const [showRestoreBuiltins, setShowRestoreBuiltins] = useState(false);
+
+  const builtinSkills = builtinSkillStore.list();
+  const builtinsAtDefault = builtinSkillStore.isAtDefault(agentId);
+  const builtinsOffCount = builtinSkillStore.offCount(agentId);
+
+  const setBuiltinOn = (skill: BuiltinSkill, on: boolean) => {
+    builtinSkillStore.setOn(agentId, skill.id, on);
+    toast.success(`${skill.name} turned ${on ? "on" : "off"}.`);
+    refresh();
+  };
 
   const items = agentSkillStore.list(agentId);
   const attachedSkills = agentSkillStore.listAttachedConsoleSkillIds(agentId)
@@ -6742,6 +6757,60 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
       <div>
         <h2 className="font-display text-xl font-semibold">Skills của Agent</h2>
         <p className="text-xs text-muted-foreground mt-0.5">Khả năng tái sử dụng Agent này đã được dạy.</p>
+      </div>
+
+      {/* Built-in skills — the ones the platform ships with every Agent. Listed above the
+        * Agent's own/linked skills because they're the baseline every Agent starts from, and
+        * kept in their own section since they can only be switched on and off, never edited,
+        * shared or deleted. The Core built-ins (self-configuration) never appear here. */}
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-xs font-bold uppercase tracking-wide text-foreground">Built-in skills</span>
+          <span className="min-w-[20px] h-5 px-1 rounded-full bg-surface-muted text-muted-foreground text-xs font-semibold flex items-center justify-center">{builtinSkills.length}</span>
+          <div className="flex-1 h-px bg-border" />
+          <button
+            onClick={() => setShowRestoreBuiltins(true)}
+            disabled={builtinsAtDefault}
+            title={builtinsAtDefault ? "Every built-in skill is already on." : undefined}
+            className="h-8 px-3 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white"
+          >
+            <HugeiconsIcon icon={CircleArrowReload01Icon} size={14} /> Restore defaults
+          </button>
+        </div>
+        <p className="text-sm text-muted-foreground mb-3">
+          Skills every agent ships with. Turn one off and this agent stops using it.
+          {builtinsOffCount > 0 && ` ${builtinsOffCount} of ${builtinSkills.length} turned off.`}
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {builtinSkills.map(s => {
+            const on = builtinSkillStore.isOn(agentId, s.id);
+            return (
+              <div
+                key={s.id}
+                className={`flex flex-col gap-3 p-4 rounded-xl border border-border bg-white transition-base ${on ? "" : "opacity-60"}`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-primary-soft flex items-center justify-center text-lg shrink-0">{s.icon}</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-semibold truncate">{s.name}</div>
+                    <span className="chip chip-muted mt-1.5 inline-flex w-fit">v{s.version}</span>
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 flex-1">{s.description}</p>
+                <div className="flex items-center justify-between mt-1">
+                  <Switch
+                    checked={on}
+                    onCheckedChange={v => { if (v) setBuiltinOn(s, true); else setBuiltinOffTarget(s); }}
+                    aria-label={`Turn ${s.name} ${on ? "off" : "on"}`}
+                  />
+                  <span className={`text-xs font-semibold ${on ? "text-success" : "text-muted-foreground"}`}>
+                    {on ? "On" : "Off"}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       <div className="relative w-72">
@@ -6870,6 +6939,49 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
           onClose={() => { setPromoteTarget(null); refresh(); }}
         />
       )}
+
+      <AlertDialog open={!!builtinOffTarget} onOpenChange={v => !v && setBuiltinOffTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Turn off {builtinOffTarget?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>The agent won't use this skill until you turn it back on.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { if (builtinOffTarget) setBuiltinOn(builtinOffTarget, false); setBuiltinOffTarget(null); }}
+            >
+              Turn off
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showRestoreBuiltins} onOpenChange={v => !v && setShowRestoreBuiltins(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Restore default skills?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Every built-in skill will be turned back on for this agent. Your own and linked skills aren't affected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-white border border-border text-foreground hover:bg-surface-muted">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+              onClick={() => {
+                builtinSkillStore.restoreDefaults(agentId);
+                setShowRestoreBuiltins(false);
+                toast.success("Built-in skills restored to their defaults.");
+                refresh();
+              }}
+            >
+              Restore
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!detachTarget} onOpenChange={v => !v && setDetachTarget(null)}>
         <AlertDialogContent>
