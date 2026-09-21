@@ -8,7 +8,8 @@ import {
   Network, Users, Cpu, UsersRound, ClipboardList, History,
 } from "lucide-react";
 import { governanceStore } from "@/components/governance/governanceStore";
-import { TENANTS, getCurrentTenantId, setCurrentTenantId } from "@/lib/spaceStore";
+import { TENANTS, getAllTenants, addTenant, getCurrentTenantId, setCurrentTenantId } from "@/lib/spaceStore";
+import CreateSpaceModal from "./CreateSpaceModal";
 
 const APP_VERSION = "0.58.5";
 import { useEffect, useState } from "react";
@@ -78,6 +79,19 @@ export default function WorkspaceLayout() {
   // Persist so other routes (e.g. the Agent Publish modal) can read which Space is active
   // without this layout's local state being threaded down to them.
   const setTenantId = (id: string) => { setTenantIdState(id); setCurrentTenantId(id); };
+  // Reactive Space list — TENANTS (spaceStore.ts) is the fixed seed list; getAllTenants() also
+  // includes any Space created this session via "Create new Space" below.
+  const [tenants, setTenants] = useState(() => getAllTenants());
+  const [createSpaceOpen, setCreateSpaceOpen] = useState(false);
+  const handleCreateSpace = (name: string) => {
+    const created = addTenant(name);
+    setTenants(getAllTenants());
+    setTenantId(created.id);
+    setCreateSpaceOpen(false);
+    // New Space always starts with an empty Organization — send the Tenant Admin straight
+    // into the setup wizard (RequireOrgConfigured in App.tsx renders it automatically).
+    navigate("/organization");
+  };
 
   // Sync the sidebar to the narrow/mobile breakpoint on resize, in both directions — otherwise
   // shrinking the window narrow and back wide again would leave it stuck collapsed with no way
@@ -89,7 +103,7 @@ export default function WorkspaceLayout() {
     return () => mq.removeEventListener("change", handleChange);
   }, []);
 
-  const currentTenant = TENANTS.find(t => t.id === tenantId) ?? TENANTS[0];
+  const currentTenant = tenants.find(t => t.id === tenantId) ?? TENANTS[0];
   const userEmail = getUser()?.email || "tran.nam@fpt.com";
   const loc = useLocation();
   const navigate = useNavigate();
@@ -157,7 +171,7 @@ export default function WorkspaceLayout() {
           {/* Workspace switcher — picks which Console/workspace you're in. Org
               management moved off this control and now lives in the profile menu
               below ("Quản lý Org"), so this is purely a workspace picker. */}
-          <WorkspaceSwitcher collapsed={collapsed} tenantId={tenantId} onChange={setTenantId} />
+          <WorkspaceSwitcher collapsed={collapsed} tenantId={tenantId} tenants={tenants} onChange={setTenantId} onCreateSpace={() => setCreateSpaceOpen(true)} />
         </div>
 
         {/* Nav */}
@@ -304,7 +318,7 @@ export default function WorkspaceLayout() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-14 border-b border-border bg-surface flex items-center px-6 gap-4 shrink-0">
           <div className="flex items-center gap-2 text-sm">
-            <TenantSwitcher tenantId={tenantId} onChange={setTenantId} />
+            <TenantSwitcher tenantId={tenantId} tenants={tenants} onChange={setTenantId} onCreateSpace={() => setCreateSpaceOpen(true)} />
             <span className="text-muted-foreground">/</span>
             <span className="font-medium text-foreground capitalize">{breadcrumbLabel}</span>
           </div>
@@ -314,14 +328,20 @@ export default function WorkspaceLayout() {
           <Outlet />
         </main>
       </div>
+
+      <CreateSpaceModal
+        open={createSpaceOpen}
+        onClose={() => setCreateSpaceOpen(false)}
+        onCreate={handleCreateSpace}
+      />
     </div>
   );
 }
 
 /* ============ Workspace switcher (top of sidebar — picks the Console/workspace) ======= */
-function WorkspaceSwitcher({ collapsed, tenantId, onChange }: { collapsed: boolean; tenantId: string; onChange: (id: string) => void }) {
+function WorkspaceSwitcher({ collapsed, tenantId, tenants, onChange, onCreateSpace }: { collapsed: boolean; tenantId: string; tenants: typeof TENANTS; onChange: (id: string) => void; onCreateSpace: () => void }) {
   const [open, setOpen] = useState(false);
-  const active = TENANTS.find(t => t.id === tenantId) ?? TENANTS[0];
+  const active = tenants.find(t => t.id === tenantId) ?? TENANTS[0];
 
   return (
     <div className="relative">
@@ -349,10 +369,10 @@ function WorkspaceSwitcher({ collapsed, tenantId, onChange }: { collapsed: boole
           collapsed ? "left-full ml-2 top-0" : "left-0 top-full mt-1.5"
         }`}>
           <div className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-            <Building2 size={11} /> Choose workspace
+            <Building2 size={11} /> Choose Space
           </div>
           <div className="px-1.5 pb-1.5 space-y-0.5">
-            {TENANTS.map(t => {
+            {tenants.map(t => {
               const isActive = t.id === tenantId;
               return (
                 <button
@@ -376,8 +396,12 @@ function WorkspaceSwitcher({ collapsed, tenantId, onChange }: { collapsed: boole
             })}
           </div>
           <div className="px-1.5 pb-1.5 pt-1 mt-0.5 bg-surface-muted/40">
-            <button className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-xs font-medium hover:bg-surface text-primary transition-base">
-              <PlusCircle size={13} /> Create new workspace
+            <button
+              type="button"
+              onClick={() => { setOpen(false); onCreateSpace(); }}
+              className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-xs font-medium hover:bg-surface text-primary transition-base cursor-pointer"
+            >
+              <PlusCircle size={13} /> Create new Space
             </button>
           </div>
         </div>
@@ -387,9 +411,9 @@ function WorkspaceSwitcher({ collapsed, tenantId, onChange }: { collapsed: boole
 }
 
 /* ============ Tenant switcher (relocated to header) ============ */
-function TenantSwitcher({ tenantId, onChange }: { tenantId: string; onChange: (id: string) => void }) {
+function TenantSwitcher({ tenantId, tenants, onChange, onCreateSpace }: { tenantId: string; tenants: typeof TENANTS; onChange: (id: string) => void; onCreateSpace: () => void }) {
   const [open, setOpen] = useState(false);
-  const tenant = TENANTS.find(t => t.id === tenantId) ?? TENANTS[0];
+  const tenant = tenants.find(t => t.id === tenantId) ?? TENANTS[0];
 
   return (
     <div className="relative">
@@ -407,10 +431,10 @@ function TenantSwitcher({ tenantId, onChange }: { tenantId: string; onChange: (i
       {open && (
         <div className="absolute z-50 left-0 top-[calc(100%+6px)] w-64 bg-surface rounded-xl overflow-hidden ring-1 ring-border shadow-xl">
           <div className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-            <Building2 size={11} /> Switch tenant
+            <Building2 size={11} /> Switch Space
           </div>
           <div className="px-1.5 pb-1.5 space-y-0.5">
-            {TENANTS.map(t => (
+            {tenants.map(t => (
               <button
                 key={t.id}
                 onClick={() => { onChange(t.id); setOpen(false); }}
@@ -428,8 +452,12 @@ function TenantSwitcher({ tenantId, onChange }: { tenantId: string; onChange: (i
             ))}
           </div>
           <div className="px-1.5 pb-1.5 pt-1 mt-0.5 bg-surface-muted/40">
-            <button className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-xs font-medium hover:bg-surface text-primary transition-base">
-              <PlusCircle size={13} /> Create new tenant
+            <button
+              type="button"
+              onClick={() => { setOpen(false); onCreateSpace(); }}
+              className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-xs font-medium hover:bg-surface text-primary transition-base cursor-pointer"
+            >
+              <PlusCircle size={13} /> Create new Space
             </button>
           </div>
         </div>

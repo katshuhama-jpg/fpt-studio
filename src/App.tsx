@@ -22,7 +22,8 @@ import OrgStructure from "./pages/organization/Structure";
 import OrgMembers from "./pages/organization/Members";
 import OrgRoles from "./pages/organization/Roles";
 import { RolesProvider } from "./pages/organization/rolesStore";
-import { OrgProvider } from "./pages/organization/orgStore";
+import { OrgProvider, useOrg } from "./pages/organization/orgStore";
+import OrgSetupWizard from "./pages/organization/OrgSetupWizard";
 import { ConflictsProvider } from "./pages/organization/conflictsStore";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import KnowledgeList from "./pages/KnowledgeList";
@@ -43,6 +44,18 @@ import Onboarding from "./pages/Onboarding";
 import { getUser } from "@/lib/onboarding";
 
 const queryClient = new QueryClient();
+
+/**
+ * Gates General/Structure/Members/Roles behind the Organization setup wizard when the ACTIVE
+ * Space has no Organization configured yet (a freshly-created Space — see `addTenant` in
+ * spaceStore.ts). FPT's existing seed Spaces are always configured, so this is a no-op for
+ * them; it only ever intercepts a brand-new Space's first visit to these pages.
+ */
+function RequireOrgConfigured({ children }: { children: ReactNode }) {
+  const { isConfigured } = useOrg();
+  if (!isConfigured) return <OrgSetupWizard />;
+  return <>{children}</>;
+}
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const loc = useLocation();
@@ -93,10 +106,10 @@ const App = () => (
               <Route path="/workforce" element={<WorkforceList />} />
               <Route path="/workforce/:id" element={<WorkforceCanvasPage />} />
               <Route path="/workforce/:id/trace/:runId" element={<WorkforceTracePage />} />
-              <Route path="/members" element={<OrgMembers />} />
-              <Route path="/roles" element={<OrgRoles />} />
-              <Route path="/organization" element={<OrgGeneral />} />
-              <Route path="/organization/structure" element={<OrgStructure />} />
+              <Route path="/members" element={<RequireOrgConfigured><OrgMembers /></RequireOrgConfigured>} />
+              <Route path="/roles" element={<RequireOrgConfigured><OrgRoles /></RequireOrgConfigured>} />
+              <Route path="/organization" element={<RequireOrgConfigured><OrgGeneral /></RequireOrgConfigured>} />
+              <Route path="/organization/structure" element={<RequireOrgConfigured><OrgStructure /></RequireOrgConfigured>} />
               <Route path="/connectors" element={<WorkspaceConnectors />} />
               <Route path="/tools" element={<Skills />} />
               <Route path="/tools/:id" element={<SkillDetail />} />

@@ -1,8 +1,22 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { getUser } from "@/lib/onboarding";
 import { OrgUnit, OrgMember, ApprovalResource, orgTree as SEED_TREE } from "./orgData";
+import { getCurrentTenantId, subscribeTenantChange, markOrgConfigured, TENANTS as SEED_TENANTS } from "@/lib/spaceStore";
 
-const ROOT_ID = SEED_TREE.id;
+const SEED_TENANT_IDS = new Set(SEED_TENANTS.map(t => t.id));
+
+/** A brand-new Space starts with an empty Organization — a single root unit named after the
+ * Space, no members, no sub-units — until its Tenant Admin runs the Organization setup wizard
+ * (`completeOrgSetup` below). This is what "org rỗng" (empty Org) for a new Space means. */
+function emptyOrgTreeFor(tenantId: string): OrgUnit {
+  return { id: `root-${tenantId}`, name: "Tổ chức mới", members: [], units: [] };
+}
+
+/** Which Organization tree is shown depends on the ACTIVE Space: FPT's existing seed Spaces
+ * keep their long-standing seeded tree (untouched); any newly-created Space starts empty. */
+function initialTreeFor(tenantId: string): OrgUnit {
+  return SEED_TENANT_IDS.has(tenantId) ? SEED_TREE : emptyOrgTreeFor(tenantId);
+}
 
 let idCounter = 0;
 function nextId(prefix: string): string {
@@ -72,9 +86,18 @@ function updateMemberOwner(
   return { ...node, units: nextUnits };
 }
 
+/** The Org profile fields collected by the setup wizard (Tổng quan / General beyond just the
+ * tree's root name) — kept alongside the tree, per Space, rather than on the Tenant record in
+ * spaceStore.ts, since these are Organization details, not Space/plan details. */
+export type OrgProfile = { description?: string; logoDataUrl?: string; setupMode?: "azure" | "manual" };
+
 type OrgContextValue = {
   tree: OrgUnit;
   rootId: string;
+  /** False only for a freshly-created Space, until its Tenant Admin completes the
+   * Organization setup wizard — drives `RequireOrgConfigured` in App.tsx. */
+  isConfigured: boolean;
+  orgProfile: OrgProfile;
   createUnit: (parentId: string, name: string) => void;
   renameUnit: (unitId: string, name: string) => void;
   deleteUnit: (unitId: string) => void;
@@ -93,14 +116,18 @@ type OrgContextValue = {
    * cascade down to every nested unit, never upward.
    */
   setUnitAdminScope: (unitId: string, memberId: string, scope: ApprovalResource[]) => void;
+  /**
+   * Completes the Organization setup wizard for the ACTIVE (new) Space: names the root unit
+   * after the Org, stores its profile, and marks the Space configured.
+   * `mode: "manual"` leaves the tree at just the (renamed) empty root, for the Tenant Admin to
+   * build by hand on the Structure page.
+   * `mode: "azure"` additionally seeds a starter Company/Department structure, simulating what
+   * a real Azure AD connection would pull in — there is no live Azure AD integration in this
+   * prototype, this is illustrative only.
+   */
+  completeOrgSetup: (input: { name: string; description?: string; logoDataUrl?: string; mode: "azure" | "manual" }) => void;
 };
 
-/**
- * Removes memberId from wherever it lives in the tree, returning the pruned tree
- * plus the removed member object (or null if not found) — the counterpart to
- * updateUnit's insert-only semantics, needed so moveMember can relocate a member
- * across two different parents in one atomic tree rebuild.
- */
 function removeMemberFromTree(node: OrgUnit, memberId: string): { tree: OrgUnit; removed: OrgMember | null } {
   const direct = node.members.find(m => m.id === memberId);
   if (direct) {
@@ -125,7 +152,25 @@ function removeMemberFromTree(node: OrgUnit, memberId: string): { tree: OrgUnit;
 const OrgContext = createContext<OrgContextValue | null>(null);
 
 export function OrgProvider({ children }: { children: ReactNode }) {
-  const [tree, setTree] = useState<OrgUnit>(SEED_TREE);
+  const [tenantId, setTenantId] = useState(getCurrentTenantId());
+  const [treesByTenant, setTreesByTenant] = useState<Record<string, OrgUnit>>({});
+  const [configuredByTenant, setConfiguredByTenant] = useState<Record<string, boolean>>({});
+  const [profilesByTenant, setProfilesByTenant] = useState<Record<string, OrgProfile>>({});
+
+  // Re-sync when the active Space changes — OrgProvider is mounted above the router, so it
+  // can't rely on route props for this; spaceStore's tiny pub-sub fills that gap.
+  useEffect(() => subscribeTenantChange(() => setTenantId(getCurrentTenantId())), []);
+
+  const tree = treesByTenant[tenantId] ?? initialTreeFor(tenantId);
+  const isConfigured = configuredByTenant[tenantId] ?? SEED_TENANT_IDS.has(tenantId);
+  const orgProfile = profilesByTenant[tenantId] ?? {};
+
+  const setTree = (updater: (prev: OrgUnit) => OrgUnit) => {
+    setTreesByTenant(prev => {
+      const current = prev[tenantId] ?? initialTreeFor(tenantId);
+      return { ...prev, [tenantId]: updater(current) };
+    });
+  };
 
   const createUnit = (parentId: string, name: string) => {
     const trimmed = name.trim();
@@ -141,16 +186,16 @@ export function OrgProvider({ children }: { children: ReactNode }) {
 
   const renameUnit = (unitId: string, name: string) => {
     const trimmed = name.trim();
-    if (!trimmed || unitId === ROOT_ID) return;
     setTree(prev => {
+      if (!trimmed || unitId === prev.id) return prev;
       const updated = updateUnit(prev, unitId, unit => ({ ...unit, name: trimmed }));
       return updated ?? prev;
     });
   };
 
   const deleteUnit = (unitId: string) => {
-    if (unitId === ROOT_ID) return;
     setTree(prev => {
+      if (unitId === prev.id) return prev;
       const updated = updateUnit(prev, unitId, unit => {
         // Defensive guard — the UI already blocks this via ConfirmDeleteModal's `blocked` state,
         // but never allow a non-empty unit to be deleted even if called directly.
@@ -234,9 +279,36 @@ export function OrgProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const completeOrgSetup = ({ name, description, logoDataUrl, mode }: { name: string; description?: string; logoDataUrl?: string; mode: "azure" | "manual" }) => {
+    const trimmedName = name.trim() || "Tổ chức mới";
+    const activeTenantId = tenantId;
+    setTreesByTenant(prev => {
+      const rootIdForTenant = `root-${activeTenantId}`;
+      const base: OrgUnit = { id: rootIdForTenant, name: trimmedName, members: [], units: [] };
+      const nextTree: OrgUnit = mode === "azure"
+        ? {
+            ...base,
+            units: [
+              { id: nextId("unit"), name: "Ban Giám đốc", members: [], units: [] },
+              { id: nextId("unit"), name: "Phòng Công nghệ thông tin", members: [], units: [] },
+              { id: nextId("unit"), name: "Phòng Kinh doanh", members: [], units: [] },
+            ],
+          }
+        : base;
+      return { ...prev, [activeTenantId]: nextTree };
+    });
+    setProfilesByTenant(prev => ({ ...prev, [activeTenantId]: { description, logoDataUrl, setupMode: mode } }));
+    setConfiguredByTenant(prev => ({ ...prev, [activeTenantId]: true }));
+    markOrgConfigured(activeTenantId);
+  };
+
   return (
     <OrgContext.Provider
-      value={{ tree, rootId: ROOT_ID, createUnit, renameUnit, deleteUnit, addMember, updateMember, assignRole, removeMember, moveMember, setMemberInactive, setUnitAdminScope }}
+      value={{
+        tree, rootId: tree.id, isConfigured, orgProfile,
+        createUnit, renameUnit, deleteUnit, addMember, updateMember, assignRole, removeMember,
+        moveMember, setMemberInactive, setUnitAdminScope, completeOrgSetup,
+      }}
     >
       {children}
     </OrgContext.Provider>
