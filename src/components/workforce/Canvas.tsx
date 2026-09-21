@@ -123,6 +123,28 @@ export default function Canvas({
     const sourceNode = findNode(sourceId);
     if (!sourceNode || !(isRoutableSource(sourceNode.data) || sourceNode.data.kind === "trigger")) return;
     const target = event.target as HTMLElement;
+
+    // The drag can end anywhere inside an existing node's own DOM — its label, icon, badge,
+    // padding — not just precisely on its small connection-point dot. ReactFlow's built-in
+    // connectionRadius (see the <ReactFlow> prop below) already widens the snap zone AROUND a
+    // handle, but a release point that lands elsewhere on the node body still arrives here with
+    // connectionMadeRef false, and previously did nothing. Instead of requiring pixel-precision on
+    // the handle, treat a drop anywhere on a *different* node's element as "connect to this node" —
+    // this is the fix for "kéo mũi tên chỉ cần vào đâu đó của node đích cũng nối được, không cần
+    // trúng chính xác điểm nối". A drop that turns out not to be a valid connection (wrong node
+    // kind, self-loop, etc.) still gets a clear toast instead of silently doing nothing.
+    const targetNodeEl = target.closest<HTMLElement>(".react-flow__node");
+    const targetNodeId = targetNodeEl?.dataset.id;
+    if (targetNodeId && targetNodeId !== sourceId) {
+      const connection: Connection = { source: sourceId, target: targetNodeId, sourceHandle: null, targetHandle: null };
+      if (isValidConnection(connection)) {
+        onConnect(connection);
+      } else {
+        toast("Không thể nối vào node này");
+      }
+      return;
+    }
+
     if (!target.classList.contains("react-flow__pane")) return;
     const clientX = "changedTouches" in event ? event.changedTouches[0].clientX : (event as MouseEvent).clientX;
     const clientY = "changedTouches" in event ? event.changedTouches[0].clientY : (event as MouseEvent).clientY;
@@ -135,7 +157,7 @@ export default function Canvas({
       return;
     }
     setDestTypePopup({ screen: { x: clientX, y: clientY }, flow, sourceId });
-  }, [rfInstance, nodes]);
+  }, [rfInstance, nodes, isValidConnection, onConnect, toast]);
 
   const onDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
