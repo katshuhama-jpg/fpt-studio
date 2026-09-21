@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
-import { Building2, ChevronRight, ChevronLeft, ChevronDown, Search, Users, Trash2, Plus, X, FolderInput, Crown, Check, User } from "lucide-react";
+import { Building2, ChevronRight, ChevronLeft, ChevronDown, Search, Users, Trash2, Plus, Pencil, X, FolderInput, Crown, Check, User } from "lucide-react";
 import {
   OrgUnit, OrgMember, ApprovalResource, APPROVAL_RESOURCES,
   countAll, countDirect, findUnit, findPath, unitMatches, collectMembers,
@@ -206,6 +206,64 @@ function MemberModal({
             disabled={!canSubmit}
             className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-base disabled:opacity-40 disabled:cursor-not-allowed"
           >
+            {submitLabel}
+          </button>
+        </div>
+      </div>
+      <style>{`@keyframes fadeScaleIn{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:scale(1)}}`}</style>
+    </div>,
+    document.body
+  );
+}
+
+/* ─── Add/rename-unit modal (name-only form, reused for both) ──────────── */
+function UnitModal({
+  title, desc, initialName, submitLabel, onClose, onSave,
+}: {
+  title: string; desc: string; initialName?: string; submitLabel: string;
+  onClose: () => void; onSave: (name: string) => void;
+}) {
+  const [name, setName] = useState(initialName ?? "");
+  const [touched, setTouched] = useState(false);
+  const valid = name.trim().length > 0;
+  const submit = () => {
+    if (!valid) { setTouched(true); return; }
+    onSave(name.trim());
+    onClose();
+  };
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative w-[92vw] sm:w-[420px] bg-white rounded-2xl shadow-2xl" style={{ animation: "fadeScaleIn 0.18s ease" }}>
+        <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-border">
+          <div>
+            <h2 className="text-base font-semibold">{title}</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
+          </div>
+          <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground ml-4 shrink-0">
+            <X size={14} />
+          </button>
+        </div>
+        <div className="px-6 py-5">
+          <label className="text-sm font-medium block mb-1.5">Unit name <span className="text-destructive">*</span></label>
+          <input
+            autoFocus
+            value={name}
+            onChange={e => setName(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") submit(); }}
+            placeholder="e.g. Marketing"
+            className="w-full h-10 px-3 rounded-xl border border-border bg-surface text-sm outline-none focus:border-ring transition-base"
+          />
+          {touched && !valid && (
+            <p className="text-xs text-destructive mt-1.5">Enter a name to continue.</p>
+          )}
+        </div>
+        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border">
+          <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">
+            Cancel
+          </button>
+          <button onClick={submit} className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-base">
             {submitLabel}
           </button>
         </div>
@@ -510,7 +568,7 @@ function AssignAdminPopover({
 }
 
 export default function OrgStructureExplorer() {
-  const { tree, rootId, addMember, removeMember, setUnitAdminScope } = useOrg();
+  const { tree, rootId, orgProfile, addMember, removeMember, setUnitAdminScope, createUnit, renameUnit, deleteUnit } = useOrg();
   const { roles } = useRoles();
   const [selectedId, setSelectedId] = useState(rootId);
   const [expanded, setExpanded] = useState<Set<string>>(new Set([tree.id, ...tree.units.map(u => u.id)]));
@@ -522,6 +580,13 @@ export default function OrgStructureExplorer() {
   const [movingMember, setMovingMember] = useState<OrgMember | null>(null);
   const [deleteConfirmMemberId, setDeleteConfirmMemberId] = useState<string | null>(null);
   const [removeAdminTarget, setRemoveAdminTarget] = useState<{ member: OrgMember; sourceUnit: OrgUnit; scope: ApprovalResource[] } | null>(null);
+  // Structure can only be hand-edited when this Space's Organization was set up "manually" —
+  // an Azure AD-synced Organization (or one of FPT's long-standing seed Spaces) shows structure
+  // read-only here; it's expected to come from the source system instead.
+  const canEditStructure = orgProfile.setupMode === "manual";
+  const [showAddUnit, setShowAddUnit] = useState(false);
+  const [renamingUnit, setRenamingUnit] = useState(false);
+  const [deletingUnit, setDeletingUnit] = useState(false);
 
   const allEmails = useMemo(
     () => collectMembers(tree).map(m => (m.email ?? "").trim().toLowerCase()).filter(Boolean),
@@ -530,6 +595,8 @@ export default function OrgStructureExplorer() {
   const path = useMemo(() => findPath(tree, selectedId) ?? [tree], [tree, selectedId]);
   const selected = path[path.length - 1];
   const deleteTargetMember = deleteConfirmMemberId ? selected.members.find(m => m.id === deleteConfirmMemberId) ?? null : null;
+  const parentOfSelected = path.length > 1 ? path[path.length - 2] : null;
+  const unitHasChildren = selected.units.length > 0 || selected.members.length > 0;
 
   // Approval rights are one-way inheritable: a Unit Admin assigned on an ancestor unit can also
   // approve here, with the same resource scope, but a Unit Admin assigned here can't approve on
@@ -612,6 +679,43 @@ export default function OrgStructureExplorer() {
           }}
         />
       )}
+      {showAddUnit && (
+        <UnitModal
+          title="Add unit"
+          desc={`Add a new unit inside ${selected.name}.`}
+          submitLabel="Add unit"
+          onClose={() => setShowAddUnit(false)}
+          onSave={name => createUnit(selected.id, name)}
+        />
+      )}
+      {renamingUnit && (
+        <UnitModal
+          title="Rename unit"
+          desc="Update this unit's name."
+          initialName={selected.name}
+          submitLabel="Save"
+          onClose={() => setRenamingUnit(false)}
+          onSave={name => renameUnit(selected.id, name)}
+        />
+      )}
+      {deletingUnit && (
+        <ConfirmDeleteModal
+          title={unitHasChildren ? "Empty this unit first" : `Delete "${selected.name}"?`}
+          desc={
+            unitHasChildren
+              ? `"${selected.name}" still has ${selected.units.length > 0 ? `${selected.units.length} sub-unit${selected.units.length === 1 ? "" : "s"}` : ""}${selected.units.length > 0 && selected.members.length > 0 ? " and " : ""}${selected.members.length > 0 ? `${selected.members.length} member${selected.members.length === 1 ? "" : "s"}` : ""}. Move or remove them before deleting this unit.`
+              : "This action can't be undone."
+          }
+          confirmLabel="Delete unit"
+          blocked={unitHasChildren}
+          onClose={() => setDeletingUnit(false)}
+          onConfirm={() => {
+            deleteUnit(selected.id);
+            setDeletingUnit(false);
+            if (parentOfSelected) selectUnit(parentOfSelected.id);
+          }}
+        />
+      )}
 
       {/* ── Tree navigator ─────────────────────────────── */}
       <div className="border border-border rounded-xl flex flex-col min-h-[320px] lg:max-h-[620px]">
@@ -668,8 +772,30 @@ export default function OrgStructureExplorer() {
             <div className="w-11 h-11 rounded-xl bg-primary-soft text-primary flex items-center justify-center shrink-0">
               <Building2 size={18} />
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex items-center gap-1">
               <div className="text-lg font-display font-semibold truncate">{selected.name}</div>
+              {canEditStructure && selected.id !== rootId && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setRenamingUnit(true)}
+                    aria-label={`Rename ${selected.name}`}
+                    title="Rename unit"
+                    className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-base shrink-0"
+                  >
+                    <Pencil size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeletingUnit(true)}
+                    aria-label={`Delete ${selected.name}`}
+                    title="Delete unit"
+                    className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground hover:text-destructive transition-base shrink-0"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </>
+              )}
             </div>
           </div>
           <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-full bg-surface-muted border border-border text-muted-foreground shrink-0">
@@ -729,8 +855,19 @@ export default function OrgStructureExplorer() {
 
         {/* Sub-units */}
         <div className="mb-8 pt-6 border-t border-border">
-          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-            Unit ({selected.units.length})
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Unit ({selected.units.length})
+            </div>
+            {canEditStructure && (
+              <button
+                type="button"
+                onClick={() => setShowAddUnit(true)}
+                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-glow transition-base shrink-0"
+              >
+                <Plus size={12} /> Add unit
+              </button>
+            )}
           </div>
           {selected.units.length === 0 ? (
             <div className="text-sm text-muted-foreground border border-dashed border-border rounded-lg py-6 text-center">
