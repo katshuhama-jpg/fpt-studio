@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { getUser } from "@/lib/onboarding";
 import { OrgUnit, OrgMember, ApprovalResource, orgTree as SEED_TREE } from "./orgData";
-import { getCurrentTenantId, subscribeTenantChange, markOrgConfigured, TENANTS as SEED_TENANTS } from "@/lib/spaceStore";
+import { getCurrentTenantId, subscribeTenantChange, markOrgConfigured, isOrgConfigured as isTenantOrgConfigured, TENANTS as SEED_TENANTS } from "@/lib/spaceStore";
 
 const SEED_TENANT_IDS = new Set(SEED_TENANTS.map(t => t.id));
 
@@ -162,7 +162,9 @@ export function OrgProvider({ children }: { children: ReactNode }) {
   useEffect(() => subscribeTenantChange(() => setTenantId(getCurrentTenantId())), []);
 
   const tree = treesByTenant[tenantId] ?? initialTreeFor(tenantId);
-  const isConfigured = configuredByTenant[tenantId] ?? SEED_TENANT_IDS.has(tenantId);
+  // Local state wins once set this session; otherwise fall back to spaceStore's persisted flag
+  // (true for every Space except the pending one, until its setup wizard completes).
+  const isConfigured = configuredByTenant[tenantId] ?? isTenantOrgConfigured(tenantId);
   const orgProfile = profilesByTenant[tenantId] ?? {};
 
   const setTree = (updater: (prev: OrgUnit) => OrgUnit) => {

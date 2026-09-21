@@ -4,12 +4,11 @@ import {
   Home, MessageSquare, Bot, BookOpen, Plug, Globe,
   Puzzle, ChevronsLeft, ChevronsRight, Search, Bell, Plus,
   ChevronRight, LifeBuoy, KeyRound, LogOut, User, ChevronDown, ChevronsUpDown,
-  Check, Building2, PlusCircle, Sparkles, Shield, FileText, Rocket,
+  Check, Building2, Sparkles, Shield, FileText, Rocket,
   Network, Users, Cpu, UsersRound, ClipboardList, History,
 } from "lucide-react";
 import { governanceStore } from "@/components/governance/governanceStore";
-import { TENANTS, getAllTenants, addTenant, getCurrentTenantId, setCurrentTenantId } from "@/lib/spaceStore";
-import CreateSpaceModal from "./CreateSpaceModal";
+import { TENANTS, getAllTenants, getCurrentTenantId, setCurrentTenantId } from "@/lib/spaceStore";
 
 const APP_VERSION = "0.58.5";
 import { useEffect, useState } from "react";
@@ -79,19 +78,10 @@ export default function WorkspaceLayout() {
   // Persist so other routes (e.g. the Agent Publish modal) can read which Space is active
   // without this layout's local state being threaded down to them.
   const setTenantId = (id: string) => { setTenantIdState(id); setCurrentTenantId(id); };
-  // Reactive Space list — TENANTS (spaceStore.ts) is the fixed seed list; getAllTenants() also
-  // includes any Space created this session via "Create new Space" below.
-  const [tenants, setTenants] = useState(() => getAllTenants());
-  const [createSpaceOpen, setCreateSpaceOpen] = useState(false);
-  const handleCreateSpace = (name: string) => {
-    const created = addTenant(name);
-    setTenants(getAllTenants());
-    setTenantId(created.id);
-    setCreateSpaceOpen(false);
-    // New Space always starts with an empty Organization — send the Tenant Admin straight
-    // into the setup wizard (RequireOrgConfigured in App.tsx renders it automatically).
-    navigate("/organization");
-  };
+  // getAllTenants() = the 4 seed Spaces + the one pending-setup Space (spaceStore.ts) — a
+  // Tenant Admin switches between Spaces but never creates one (that's Super Admin's job,
+  // out of scope this round), so this list is fixed for the lifetime of the component.
+  const tenants = getAllTenants();
 
   // Sync the sidebar to the narrow/mobile breakpoint on resize, in both directions — otherwise
   // shrinking the window narrow and back wide again would leave it stuck collapsed with no way
@@ -171,7 +161,7 @@ export default function WorkspaceLayout() {
           {/* Workspace switcher — picks which Console/workspace you're in. Org
               management moved off this control and now lives in the profile menu
               below ("Quản lý Org"), so this is purely a workspace picker. */}
-          <WorkspaceSwitcher collapsed={collapsed} tenantId={tenantId} tenants={tenants} onChange={setTenantId} onCreateSpace={() => setCreateSpaceOpen(true)} />
+          <WorkspaceSwitcher collapsed={collapsed} tenantId={tenantId} tenants={tenants} onChange={setTenantId} />
         </div>
 
         {/* Nav */}
@@ -318,7 +308,7 @@ export default function WorkspaceLayout() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-14 border-b border-border bg-surface flex items-center px-6 gap-4 shrink-0">
           <div className="flex items-center gap-2 text-sm">
-            <TenantSwitcher tenantId={tenantId} tenants={tenants} onChange={setTenantId} onCreateSpace={() => setCreateSpaceOpen(true)} />
+            <TenantSwitcher tenantId={tenantId} tenants={tenants} onChange={setTenantId} />
             <span className="text-muted-foreground">/</span>
             <span className="font-medium text-foreground capitalize">{breadcrumbLabel}</span>
           </div>
@@ -328,18 +318,12 @@ export default function WorkspaceLayout() {
           <Outlet />
         </main>
       </div>
-
-      <CreateSpaceModal
-        open={createSpaceOpen}
-        onClose={() => setCreateSpaceOpen(false)}
-        onCreate={handleCreateSpace}
-      />
     </div>
   );
 }
 
 /* ============ Workspace switcher (top of sidebar — picks the Console/workspace) ======= */
-function WorkspaceSwitcher({ collapsed, tenantId, tenants, onChange, onCreateSpace }: { collapsed: boolean; tenantId: string; tenants: typeof TENANTS; onChange: (id: string) => void; onCreateSpace: () => void }) {
+function WorkspaceSwitcher({ collapsed, tenantId, tenants, onChange }: { collapsed: boolean; tenantId: string; tenants: typeof TENANTS; onChange: (id: string) => void }) {
   const [open, setOpen] = useState(false);
   const active = tenants.find(t => t.id === tenantId) ?? TENANTS[0];
 
@@ -348,7 +332,7 @@ function WorkspaceSwitcher({ collapsed, tenantId, tenants, onChange, onCreateSpa
       <button
         onClick={() => setOpen(v => !v)}
         title={collapsed ? active.name : undefined}
-        aria-label={collapsed ? `${active.name}, switch workspace` : undefined}
+        aria-label={collapsed ? `${active.name}, switch Space` : undefined}
         className={`w-full flex items-center gap-2.5 rounded-2xl bg-white border border-border shadow-soft hover:bg-surface-muted transition-base cursor-pointer ${
           collapsed ? "justify-center p-1.5" : "px-2.5 py-2"
         }`}
@@ -395,15 +379,6 @@ function WorkspaceSwitcher({ collapsed, tenantId, tenants, onChange, onCreateSpa
               );
             })}
           </div>
-          <div className="px-1.5 pb-1.5 pt-1 mt-0.5 bg-surface-muted/40">
-            <button
-              type="button"
-              onClick={() => { setOpen(false); onCreateSpace(); }}
-              className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-xs font-medium hover:bg-surface text-primary transition-base cursor-pointer"
-            >
-              <PlusCircle size={13} /> Create new Space
-            </button>
-          </div>
         </div>
       )}
     </div>
@@ -411,7 +386,7 @@ function WorkspaceSwitcher({ collapsed, tenantId, tenants, onChange, onCreateSpa
 }
 
 /* ============ Tenant switcher (relocated to header) ============ */
-function TenantSwitcher({ tenantId, tenants, onChange, onCreateSpace }: { tenantId: string; tenants: typeof TENANTS; onChange: (id: string) => void; onCreateSpace: () => void }) {
+function TenantSwitcher({ tenantId, tenants, onChange }: { tenantId: string; tenants: typeof TENANTS; onChange: (id: string) => void }) {
   const [open, setOpen] = useState(false);
   const tenant = tenants.find(t => t.id === tenantId) ?? TENANTS[0];
 
@@ -450,15 +425,6 @@ function TenantSwitcher({ tenantId, tenants, onChange, onCreateSpace }: { tenant
                 {t.id === tenantId && <Check size={13} className="text-primary shrink-0" />}
               </button>
             ))}
-          </div>
-          <div className="px-1.5 pb-1.5 pt-1 mt-0.5 bg-surface-muted/40">
-            <button
-              type="button"
-              onClick={() => { setOpen(false); onCreateSpace(); }}
-              className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-xs font-medium hover:bg-surface text-primary transition-base cursor-pointer"
-            >
-              <PlusCircle size={13} /> Create new Space
-            </button>
           </div>
         </div>
       )}

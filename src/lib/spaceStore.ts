@@ -1,9 +1,9 @@
 // Which Space (internally: "tenant" — PM/Dev term only, never shown in the product) the
 // person is currently working in. Space is where an Agent + its resources are built/owned:
 // either someone's personal Space ("Personal Sandbox" here) or an enterprise Space (FPT Smart
-// Cloud, FPT Telecom, FPT Software, or one created on the fly below). This is distinct from
-// "Agent Workspace" (agentPublishStore.ts / governanceStore.ts), which is where a published
-// Agent is shared TO.
+// Cloud, FPT Telecom, FPT Software, or a newly-onboarded customer — see PENDING_TENANT below).
+// This is distinct from "Agent Workspace" (agentPublishStore.ts / governanceStore.ts), which
+// is where a published Agent is shared TO.
 //
 // sessionStorage-backed so any route can read "what Space am I in right now" without prop-
 // drilling through the router — same pattern as agentPublishStore.ts / triggerStore.ts.
@@ -14,11 +14,10 @@ export type Tenant = {
   initial: string;
   /**
    * Whether this Space's Organization has already been set up (Org profile + Company/
-   * Department/Group structure). Omitted (undefined) means "yes" — every pre-existing seed
-   * Space below already has its Organization configured. Only a brand-new Space created via
-   * "Create new Space" starts at `false`, until its Tenant Admin completes the Organization
-   * setup wizard (see orgStore.tsx's `completeOrgSetup`) — this is what drives the wizard
-   * gate in App.tsx (`RequireOrgConfigured`).
+   * Department/Group structure). Omitted (undefined) means "yes". Only `PENDING_TENANT`
+   * below starts at `false`, until its Tenant Admin completes the Organization setup wizard
+   * (see orgStore.tsx's `completeOrgSetup`) — this is what drives the wizard gate in App.tsx
+   * (`RequireOrgConfigured`).
    */
   orgConfigured?: boolean;
 };
@@ -30,8 +29,21 @@ export const TENANTS: Tenant[] = [
   { id: "sandbox",         name: "Personal Sandbox",plan: "Free",       initial: "PS" },
 ];
 
+/**
+ * A Space is provisioned by a Super Admin (creating the Tenant and inviting its Tenant Admin)
+ * — a Tenant Admin never creates their own Space. That provisioning step is out of scope for
+ * this round (see BRAINSTORM_Governance_OrgTenantPublishScope.md), so this fixed entry stands
+ * in for "Super Admin already provisioned this Space for a newly-onboarded customer and
+ * invited you as its Tenant Admin." Its Organization starts empty (`orgConfigured: false`)
+ * until the Organization setup wizard is completed from inside it.
+ *
+ * Deliberately kept OUT of `TENANTS` above: orgStore.tsx only gives the 4 original Spaces
+ * FPT's seeded Organization tree, so this one correctly starts with an empty tree instead.
+ */
+const PENDING_TENANT: Tenant = { id: "acme-pending", name: "Ngân hàng ABC", plan: "Enterprise", initial: "AB", orgConfigured: false };
+
 const TENANT_KEY = "current_tenant_id";
-const CUSTOM_TENANTS_KEY = "custom_tenants_v1";
+const PENDING_CONFIGURED_KEY = "pending_tenant_org_configured";
 
 export function getCurrentTenantId(): string {
   try {
@@ -61,73 +73,29 @@ export function setCurrentTenantId(id: string) {
   tenantChangeListeners.forEach(fn => fn());
 }
 
-function readCustomTenants(): Tenant[] {
-  try {
-    const raw = sessionStorage.getItem(CUSTOM_TENANTS_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeCustomTenants(list: Tenant[]) {
-  try {
-    sessionStorage.setItem(CUSTOM_TENANTS_KEY, JSON.stringify(list));
-  } catch {
-    /* ignore */
-  }
-}
-
-/** First letter of the first word + first letter of the last word, uppercased — same scheme
- * as the seed Tenants' `initial` above (e.g. "FPT Smart Cloud" -> "FS"). */
-function deriveInitial(name: string): string {
-  const words = name.trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return "??";
-  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-  return `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase();
-}
-
-/** Seed Spaces + any Spaces created this session via "Create new Space". Call this instead of
- * reading `TENANTS` directly anywhere the list needs to reflect newly-created Spaces. */
+/** Every Space a Tenant Admin can switch into — the 4 seed Spaces plus the pending one above.
+ * Call this instead of reading `TENANTS` directly anywhere the full switcher list is needed. */
 export function getAllTenants(): Tenant[] {
-  return [...TENANTS, ...readCustomTenants()];
+  return [...TENANTS, PENDING_TENANT];
 }
 
-/**
- * Creates a brand-new enterprise Space with an empty Organization (`orgConfigured: false`) —
- * this is the "Create new Space" action. Its Organization stays empty until the Tenant Admin
- * (here: whoever is using the demo) completes the Organization setup wizard, which is gated in
- * automatically the next time this Space is active (see `RequireOrgConfigured` in App.tsx).
- * Does not touch any existing Space's data — in particular the FPT Spaces' Organization is
- * untouched.
- */
-export function addTenant(name: string): Tenant {
-  const trimmed = name.trim() || "Doanh nghiệp mới";
-  const tenant: Tenant = {
-    id: `space-${Date.now()}`,
-    name: trimmed,
-    plan: "Enterprise",
-    initial: deriveInitial(trimmed),
-    orgConfigured: false,
-  };
-  const custom = readCustomTenants();
-  custom.push(tenant);
-  writeCustomTenants(custom);
-  return tenant;
-}
-
+/** Whether `tenantId`'s Organization is set up — always true except for `PENDING_TENANT`
+ * before its setup wizard completes (persisted across reloads via sessionStorage). */
 export function isOrgConfigured(tenantId: string): boolean {
-  const t = getAllTenants().find(t => t.id === tenantId);
-  return t?.orgConfigured !== false;
+  if (tenantId !== PENDING_TENANT.id) return true;
+  try {
+    return sessionStorage.getItem(PENDING_CONFIGURED_KEY) === "1";
+  } catch {
+    return false;
+  }
 }
 
 export function markOrgConfigured(tenantId: string) {
-  const custom = readCustomTenants();
-  const idx = custom.findIndex(t => t.id === tenantId);
-  if (idx >= 0) {
-    custom[idx] = { ...custom[idx], orgConfigured: true };
-    writeCustomTenants(custom);
+  if (tenantId !== PENDING_TENANT.id) return;
+  try {
+    sessionStorage.setItem(PENDING_CONFIGURED_KEY, "1");
+  } catch {
+    /* ignore */
   }
 }
 
