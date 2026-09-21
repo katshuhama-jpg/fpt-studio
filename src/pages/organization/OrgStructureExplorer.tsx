@@ -569,7 +569,7 @@ function AssignAdminPopover({
 }
 
 export default function OrgStructureExplorer() {
-  const { tree, rootId, orgProfile, addMember, removeMember, setUnitAdminScope, createUnit, renameUnit, deleteUnit } = useOrg();
+  const { tree, rootId, orgProfile, addMember, removeMember, setUnitAdminScope, createUnit, renameUnit, deleteUnit, importMembers } = useOrg();
   const { roles } = useRoles();
   const [selectedId, setSelectedId] = useState(rootId);
   const [expanded, setExpanded] = useState<Set<string>>(new Set([tree.id, ...tree.units.map(u => u.id)]));
@@ -659,13 +659,12 @@ export default function OrgStructureExplorer() {
       )}
       {showImportUnit && (
         <ImportMembersModal
-          roles={roles}
           existingMembers={allOrgMembers}
           tree={tree}
           defaultUnitId={selected.id}
           onClose={() => setShowImportUnit(false)}
           onConfirm={validRows => {
-            validRows.forEach(r => addMember(r.unitId, r.name, r.email, r.roleId));
+            importMembers(selected.id, validRows);
             toast.success(`Imported ${validRows.length} member${validRows.length === 1 ? "" : "s"}.`);
           }}
         />

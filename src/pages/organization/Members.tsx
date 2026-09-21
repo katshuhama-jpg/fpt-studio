@@ -351,7 +351,7 @@ function ConfirmRemoveMemberModal({
 
 /* ─── Page ──────────────────────────────────────────────────────────────── */
 export default function Members() {
-  const { tree, rootId, assignRole, addMember, removeMember } = useOrg();
+  const { tree, rootId, assignRole, importMembers, removeMember } = useOrg();
   const { roles } = useRoles();
   const [roleFilter, setRoleFilter] = useState("all");
   const [query, setQuery] = useState("");
@@ -398,13 +398,12 @@ export default function Members() {
       )}
       {showImport && (
         <ImportMembersModal
-          roles={roles}
           existingMembers={allMembers}
           tree={tree}
           defaultUnitId={rootId}
           onClose={() => setShowImport(false)}
           onConfirm={validRows => {
-            validRows.forEach(r => addMember(r.unitId, r.name, r.email, r.roleId));
+            importMembers(rootId, validRows);
             toast.success(`Imported ${validRows.length} member${validRows.length === 1 ? "" : "s"}.`);
           }}
         />

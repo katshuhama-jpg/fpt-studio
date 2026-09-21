@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { getUser } from "@/lib/onboarding";
-import { OrgUnit, OrgMember, ApprovalResource, orgTree as SEED_TREE } from "./orgData";
+import { OrgUnit, OrgMember, ApprovalResource, findUnit, orgTree as SEED_TREE } from "./orgData";
 import { getCurrentTenantId, subscribeTenantChange, markOrgConfigured, isOrgConfigured as isTenantOrgConfigured, TENANTS as SEED_TENANTS } from "@/lib/spaceStore";
 
 const SEED_TENANT_IDS = new Set(SEED_TENANTS.map(t => t.id));
@@ -65,6 +65,31 @@ function updateUnit(
 }
 
 /**
+ * Walks `segments` starting at `unit`, creating any missing unit along the way as a new direct
+ * child of wherever the existing path runs out — used by CSV import ("Unit" column) so a path
+ * like "Sales/Team North" creates "Sales" under `unit` first (if missing), then "Team North"
+ * inside that. Returns the updated `unit` subtree plus the id of the final (existing or freshly
+ * created) unit that members should be added into.
+ */
+function ensureUnitPath(unit: OrgUnit, segments: string[]): { unit: OrgUnit; targetId: string } {
+  if (segments.length === 0) return { unit, targetId: unit.id };
+  const [head, ...rest] = segments;
+  const trimmedHead = head.trim();
+  if (!trimmedHead) return ensureUnitPath(unit, rest);
+  const existing = unit.units.find(u => u.name.toLowerCase() === trimmedHead.toLowerCase());
+  if (existing) {
+    const { unit: updatedChild, targetId } = ensureUnitPath(existing, rest);
+    return {
+      unit: { ...unit, units: unit.units.map(u => (u.id === existing.id ? updatedChild : u)) },
+      targetId,
+    };
+  }
+  const created: OrgUnit = { id: nextId("unit"), name: trimmedHead, members: [], units: [] };
+  const { unit: updatedCreated, targetId } = ensureUnitPath(created, rest);
+  return { unit: { ...unit, units: [...unit.units, updatedCreated] }, targetId };
+}
+
+/**
  * Rebuilds the tree, applying `fn` to whichever unit's `members` array
  * directly contains `memberId`.
  */
@@ -126,6 +151,15 @@ type OrgContextValue = {
    * prototype, this is illustrative only.
    */
   completeOrgSetup: (input: { name: string; description?: string; logoDataUrl?: string; mode: "azure" | "manual" }) => void;
+  /**
+   * Bulk-imports members from a CSV — used by ImportMembersModal. Each entry's `unitPath` is
+   * relative to `anchorUnitId` (empty path = add directly into the anchor); any unit along that
+   * path that doesn't exist yet is created, nested exactly as given, in the SAME pass so two
+   * entries sharing a not-yet-created path land in one new unit rather than each creating their
+   * own copy. Everyone imported gets the "viewer" role — promote them afterward from
+   * Members/Structure like any other member.
+   */
+  importMembers: (anchorUnitId: string, entries: { name: string; email: string; unitPath: string[] }[]) => void;
 };
 
 function removeMemberFromTree(node: OrgUnit, memberId: string): { tree: OrgUnit; removed: OrgMember | null } {
@@ -304,12 +338,49 @@ export function OrgProvider({ children }: { children: ReactNode }) {
     markOrgConfigured(activeTenantId);
   };
 
+  const importMembers = (anchorUnitId: string, entries: { name: string; email: string; unitPath: string[] }[]) => {
+    const invitedBy = { name: "Tran Nam", email: getUser()?.email || "tran.nam@fpt.com" };
+    setTree(prev => {
+      let working = prev;
+      for (const entry of entries) {
+        const trimmedName = entry.name.trim();
+        if (!trimmedName) continue;
+        let targetId = anchorUnitId;
+        if (entry.unitPath.length > 0) {
+          const anchor = findUnit(working, anchorUnitId);
+          if (anchor) {
+            const { unit: updatedAnchor, targetId: resolvedId } = ensureUnitPath(anchor, entry.unitPath);
+            working = updateUnit(working, anchorUnitId, () => updatedAnchor) ?? working;
+            targetId = resolvedId;
+          }
+        }
+        working = updateUnit(working, targetId, unit => ({
+          ...unit,
+          members: [
+            ...unit.members,
+            {
+              id: nextId("member"),
+              name: trimmedName,
+              role: "",
+              email: entry.email.trim(),
+              initials: deriveInitials(trimmedName),
+              roleId: "viewer",
+              invitedBy,
+              joinedAt: new Date().toISOString(),
+            },
+          ],
+        })) ?? working;
+      }
+      return working;
+    });
+  };
+
   return (
     <OrgContext.Provider
       value={{
         tree, rootId: tree.id, isConfigured, orgProfile,
         createUnit, renameUnit, deleteUnit, addMember, updateMember, assignRole, removeMember,
-        moveMember, setMemberInactive, setUnitAdminScope, completeOrgSetup,
+        moveMember, setMemberInactive, setUnitAdminScope, completeOrgSetup, importMembers,
       }}
     >
       {children}
