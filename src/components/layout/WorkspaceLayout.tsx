@@ -5,8 +5,10 @@ import {
   Puzzle, ChevronsLeft, ChevronsRight, Search, Bell, Plus,
   ChevronRight, LifeBuoy, KeyRound, LogOut, User, ChevronDown, ChevronsUpDown,
   Check, Building2, Sparkles, Shield, FileText, Rocket,
-  Network, Users, Cpu, UsersRound, ClipboardList, History,
+  Network, Users, Cpu, UsersRound, ClipboardList, History, Lock,
 } from "lucide-react";
+import { toast } from "sonner";
+import { useOrg } from "@/pages/organization/orgStore";
 import { governanceStore } from "@/components/governance/governanceStore";
 import { TENANTS, getAllTenants, getCurrentTenantId, setCurrentTenantId } from "@/lib/spaceStore";
 
@@ -17,7 +19,7 @@ import fptAiLogo from "@/assets/fpt-ai-logo.png";
 // Tenant/TENANTS + current-Space persistence now live in @/lib/spaceStore (shared with
 // AgentBuilder's Publish modal, which needs to know if the active Space is personal).
 
-type Item = { to: string; label: string; icon: any; badge?: string; external?: boolean };
+type Item = { to: string; label: string; icon: any; badge?: string; external?: boolean; locked?: boolean; lockedReason?: string };
 type Group = { id: string; label: string; items: Item[] };
 
 const topItems: Item[] = [
@@ -97,15 +99,26 @@ export default function WorkspaceLayout() {
   const userEmail = getUser()?.email || "tran.nam@fpt.com";
   const loc = useLocation();
   const navigate = useNavigate();
-  const orgItems: Item[] = orgItemsBase;
+  // Locks Structure/Members/Roles while the active Space's Organization isn't set up yet —
+  // matches the RequireOrgConfigured route guard in App.tsx, but as a visible, disabled nav
+  // state instead of a click that silently bounces to the setup wizard.
+  const { isConfigured: orgConfigured } = useOrg();
+  const ORG_LOCKED_REASON = "Cần hoàn tất thiết lập Organization trước";
+  const orgItems: Item[] = orgItemsBase.map(it =>
+    it.to === "/organization/structure" && !orgConfigured
+      ? { ...it, locked: true, lockedReason: ORG_LOCKED_REASON }
+      : it
+  );
   // Re-read on every route change so approving/rejecting a request and navigating back
   // updates the sidebar badge without needing a manual refresh.
   const pendingRequestCount = governanceStore.pendingCount();
   const groupsWithBadges: Group[] = groups.map(g => g.id !== "governance" ? g : {
     ...g,
-    items: g.items.map(it => it.to === "/governance/requests" && pendingRequestCount > 0
-      ? { ...it, badge: String(pendingRequestCount) }
-      : it),
+    items: g.items.map(it => {
+      if (it.to === "/governance/requests" && pendingRequestCount > 0) it = { ...it, badge: String(pendingRequestCount) };
+      if ((it.to === "/members" || it.to === "/roles") && !orgConfigured) it = { ...it, locked: true, lockedReason: ORG_LOCKED_REASON };
+      return it;
+    }),
   });
   const inExternalAgentDetail = /^\/external-agents\/(?!guides(?:\/|$))[^/]+\/?$/.test(loc.pathname);
   const inWorkforceCanvas = /^\/workforce\/[^/]+\/?$/.test(loc.pathname);
@@ -483,6 +496,21 @@ function NavRow({ item, collapsed }: { item: Item; collapsed: boolean }) {
       )}
     </>
   );
+  if (item.locked) {
+    return (
+      <button
+        type="button"
+        title={item.lockedReason}
+        onClick={() => item.lockedReason && toast.info(item.lockedReason)}
+        style={{ height: "36px" }}
+        className={`${baseCls} text-muted-foreground/70 hover:bg-surface-muted cursor-pointer`}
+      >
+        <item.icon size={18} className="shrink-0" />
+        {!collapsed && <span className="truncate flex-1 text-left">{item.label}</span>}
+        <Lock size={12} className="shrink-0" />
+      </button>
+    );
+  }
   if (item.external) {
     return (
       <a href={item.to} target="_blank" rel="noopener noreferrer" title={collapsed ? item.label : undefined}

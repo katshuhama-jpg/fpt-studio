@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
+import { toast } from "sonner";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -53,6 +54,16 @@ const queryClient = new QueryClient();
  */
 function RequireOrgConfigured({ children }: { children: ReactNode }) {
   const { isConfigured } = useOrg();
+  const loc = useLocation();
+  // "/organization" itself is the natural first stop (it just renders the wizard directly) —
+  // no notice needed there. Jumping straight to Structure/Members/Roles (nav, back button, a
+  // typed URL) while unconfigured *is* an intentional block, so say so instead of silently
+  // swapping in the wizard, which otherwise reads as the click having done nothing.
+  useEffect(() => {
+    if (!isConfigured && loc.pathname !== "/organization") {
+      toast.info("Organization của Space này chưa được thiết lập. Vui lòng hoàn tất bước thiết lập trước.");
+    }
+  }, [isConfigured, loc.pathname]);
   if (!isConfigured) return <OrgSetupWizard />;
   return <>{children}</>;
 }
