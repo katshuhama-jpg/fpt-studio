@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AlertTriangle, Check, ChevronLeft, Download, FileText, Loader2, UploadCloud, X } from "lucide-react";
-import { OrgMember } from "./orgData";
+import { OrgMember, OrgUnit } from "./orgData";
 import { RoleDef } from "./rolesStore";
 import { deriveNameFromEmail } from "./orgStore";
 import { DEFAULT_ROLE_ID } from "./Members";
@@ -12,6 +12,9 @@ type ImportRow = {
   email: string;
   roleLabel: string;
   roleId: string;
+  /** Resolved unit to add this member into, and its display name/path for the preview table. */
+  unitId: string;
+  unitLabel: string;
   status: "valid" | "skipped";
   reason?: string;
 };
@@ -27,6 +30,66 @@ function parseCSV(text: string): string[][] {
     .map(line => line.split(",").map(cell => cell.trim()));
 }
 
+/** Full breadcrumb path of a unit's name, root first (e.g. "Ngan hang ABC > Phong CNTT"), used
+ * to label the resolved Unit column and to disambiguate same-named units in different branches. */
+function unitPathLabel(tree: OrgUnit, targetId: string): string {
+  const walk = (node: OrgUnit, trail: string[]): string[] | null => {
+    if (node.id === targetId) return [...trail, node.name];
+    for (const child of node.units) {
+      const found = walk(child, [...trail, node.name]);
+      if (found) return found;
+    }
+    return null;
+  };
+  return (walk(tree, []) ?? [tree.name]).join(" > ");
+}
+
+/** First unit anywhere in the tree whose name matches exactly (case-insensitive). */
+function findUnitByName(tree: OrgUnit, name: string): OrgUnit | null {
+  if (tree.name.toLowerCase() === name.toLowerCase()) return tree;
+  for (const child of tree.units) {
+    const found = findUnitByName(child, name);
+    if (found) return found;
+  }
+  return null;
+}
+
+/** Walks a "/"-separated path of unit names, relative to the tree's root (root's own name is
+ * not repeated as the first segment) — for disambiguating units that share a name elsewhere. */
+function findUnitByPath(tree: OrgUnit, segments: string[]): OrgUnit | null {
+  let current = tree;
+  for (const seg of segments) {
+    const next = current.units.find(u => u.name.toLowerCase() === seg.toLowerCase());
+    if (!next) return null;
+    current = next;
+  }
+  return current;
+}
+
+/** Resolves a CSV row's "Unit" cell against the org tree — blank cell falls back to
+ * `fallbackUnitId`. Accepts either a bare unit name ("Phong Kinh doanh") matched anywhere in
+ * the tree, or a "/"-separated path from the root ("Phong Kinh doanh/Team Sales mien Bac") to
+ * disambiguate when two units share a name in different branches. */
+function resolveUnitCell(tree: OrgUnit, raw: string, fallbackUnitId: string): OrgUnit | null {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    const walk = (node: OrgUnit): OrgUnit | null => {
+      if (node.id === fallbackUnitId) return node;
+      for (const child of node.units) {
+        const found = walk(child);
+        if (found) return found;
+      }
+      return null;
+    };
+    return walk(tree);
+  }
+  if (trimmed.includes("/")) {
+    const segments = trimmed.split("/").map(s => s.trim()).filter(Boolean);
+    return findUnitByPath(tree, segments);
+  }
+  return findUnitByName(tree, trimmed);
+}
+
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -34,7 +97,12 @@ function formatBytes(bytes: number): string {
 }
 
 function downloadSampleTemplate() {
-  const csv = ["Name,Email,Role", "Mai Hoang,mai.hoang@fpt.com,Builder", ",khanh.nguyen@fpt.com,Viewer"].join("\n");
+  const csv = [
+    "Name,Email,Role,Unit",
+    "Mai Hoang,mai.hoang@fpt.com,Builder,Phong Kinh doanh",
+    ",khanh.nguyen@fpt.com,Viewer,Phong Kinh doanh/Team Sales mien Bac",
+    "An Tran,an.tran@fpt.com,Viewer,",
+  ].join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -47,12 +115,16 @@ function downloadSampleTemplate() {
 }
 
 export default function ImportMembersModal({
-  roles, existingMembers, onClose, onConfirm,
+  roles, existingMembers, tree, defaultUnitId, onClose, onConfirm,
 }: {
   roles: RoleDef[];
   existingMembers: OrgMember[];
+  /** Org tree the "Unit" column is resolved against. */
+  tree: OrgUnit;
+  /** Unit a row is added to when its Unit cell is left blank. */
+  defaultUnitId: string;
   onClose: () => void;
-  onConfirm: (rows: { name: string; email: string; roleId: string }[]) => void;
+  onConfirm: (rows: { name: string; email: string; roleId: string; unitId: string }[]) => void;
 }) {
   const [step, setStep] = useState<"upload" | "preview" | "done">("upload");
   const [dragActive, setDragActive] = useState(false);
@@ -90,6 +162,7 @@ export default function ImportMembersModal({
       const nameIdx = headers.indexOf("name");
       const emailIdx = headers.indexOf("email");
       const roleIdx = headers.indexOf("role");
+      const unitIdx = headers.indexOf("unit");
       if (emailIdx === -1) throw new Error("no-email-column");
 
       const existingEmails = new Set(existingMembers.map(m => m.email?.trim().toLowerCase()).filter(Boolean));
@@ -99,10 +172,14 @@ export default function ImportMembersModal({
         const emailRaw = (cells[emailIdx] ?? "").trim();
         const nameRaw = nameIdx !== -1 ? (cells[nameIdx] ?? "").trim() : "";
         const roleRaw = roleIdx !== -1 ? (cells[roleIdx] ?? "").trim() : "";
+        const unitRaw = unitIdx !== -1 ? (cells[unitIdx] ?? "").trim() : "";
         const name = nameRaw || (EMAIL_RE.test(emailRaw) ? deriveNameFromEmail(emailRaw) : "");
         const roleMatch = roles.find(r => r.name.toLowerCase() === roleRaw.toLowerCase());
         const roleId = roleMatch?.id ?? DEFAULT_ROLE_ID;
         const roleLabel = roleMatch ? roleMatch.name : roleRaw ? `${roleRaw} → Viewer` : "Viewer (default)";
+        const resolvedUnit = resolveUnitCell(tree, unitRaw, defaultUnitId);
+        const unitId = resolvedUnit?.id ?? defaultUnitId;
+        const unitLabel = resolvedUnit ? unitPathLabel(tree, resolvedUnit.id) : unitRaw;
 
         let status: "valid" | "skipped" = "valid";
         let reason: string | undefined;
@@ -111,15 +188,16 @@ export default function ImportMembersModal({
         else if (!EMAIL_RE.test(emailRaw)) { status = "skipped"; reason = "Invalid email format"; }
         else if (seenInFile.has(emailLower)) { status = "skipped"; reason = "Duplicate email in this file"; }
         else if (existingEmails.has(emailLower)) { status = "skipped"; reason = "Already an org member"; }
+        else if (unitRaw && !resolvedUnit) { status = "skipped"; reason = `Unit not found: "${unitRaw}"`; }
         if (status === "valid") seenInFile.add(emailLower);
 
-        return { rowNumber: i + 1, name, email: emailRaw, roleLabel, roleId, status, reason };
+        return { rowNumber: i + 1, name, email: emailRaw, roleLabel, roleId, unitId, unitLabel, status, reason };
       });
 
       setRows(builtRows);
       setStep("preview");
     } catch {
-      setParseError("Couldn't read this file. Make sure it's a .csv file with Name, Email, and Role columns — Email is required.");
+      setParseError("Couldn't read this file. Make sure it's a .csv file with Name, Email, Role, and Unit columns — Email is required.");
     } finally {
       setIsParsing(false);
     }
@@ -130,7 +208,7 @@ export default function ImportMembersModal({
 
   const submit = () => {
     if (validRows.length === 0) return;
-    onConfirm(validRows.map(r => ({ name: r.name, email: r.email, roleId: r.roleId })));
+    onConfirm(validRows.map(r => ({ name: r.name, email: r.email, roleId: r.roleId, unitId: r.unitId })));
     setImported(validRows);
     setStep("done");
   };
@@ -195,7 +273,7 @@ export default function ImportMembersModal({
                   <>
                     <UploadCloud size={28} className="text-muted-foreground" />
                     <div className="text-sm font-medium">Drag and drop your file here</div>
-                    <div className="text-xs text-muted-foreground">.csv file exported from Excel — expects Name, Email, Role columns</div>
+                    <div className="text-xs text-muted-foreground">.csv file exported from Excel — expects Name, Email, Role, Unit columns</div>
                     <button
                       type="button"
                       onClick={e => { e.stopPropagation(); fileInputRef.current?.click(); }}
@@ -263,14 +341,15 @@ export default function ImportMembersModal({
               </div>
 
               <div className="rounded-xl border border-border overflow-hidden">
-                <div className="grid grid-cols-[1fr,1fr,120px,160px] gap-3 px-4 py-2.5 bg-surface-muted section-eyebrow">
-                  <div>Name</div><div>Email</div><div>Role</div><div>Status</div>
+                <div className="grid grid-cols-[1fr,1fr,1fr,110px,150px] gap-3 px-4 py-2.5 bg-surface-muted section-eyebrow">
+                  <div>Name</div><div>Email</div><div>Unit</div><div>Role</div><div>Status</div>
                 </div>
                 <div className="divide-y divide-border max-h-64 overflow-y-auto">
                   {rows.map(r => (
-                    <div key={r.rowNumber} className="grid grid-cols-[1fr,1fr,120px,160px] gap-3 px-4 py-2.5 items-center text-sm">
+                    <div key={r.rowNumber} className="grid grid-cols-[1fr,1fr,1fr,110px,150px] gap-3 px-4 py-2.5 items-center text-sm">
                       <div className="truncate">{r.name || <span className="text-muted-foreground italic">—</span>}</div>
                       <div className="truncate text-muted-foreground">{r.email || <span className="italic">—</span>}</div>
+                      <div className="truncate text-xs text-muted-foreground" title={r.unitLabel}>{r.unitLabel}</div>
                       <div className="truncate text-xs text-muted-foreground">{r.roleLabel}</div>
                       <div>
                         {r.status === "valid" ? (
@@ -297,14 +376,15 @@ export default function ImportMembersModal({
               </div>
 
               <div className="rounded-xl border border-border overflow-hidden">
-                <div className="grid grid-cols-[1fr,1fr,120px] gap-3 px-4 py-2.5 bg-surface-muted section-eyebrow">
-                  <div>Name</div><div>Email</div><div>Role</div>
+                <div className="grid grid-cols-[1fr,1fr,1fr,120px] gap-3 px-4 py-2.5 bg-surface-muted section-eyebrow">
+                  <div>Name</div><div>Email</div><div>Unit</div><div>Role</div>
                 </div>
                 <div className="divide-y divide-border max-h-64 overflow-y-auto">
                   {imported.map(r => (
-                    <div key={r.rowNumber} className="grid grid-cols-[1fr,1fr,120px] gap-3 px-4 py-2.5 items-center text-sm">
+                    <div key={r.rowNumber} className="grid grid-cols-[1fr,1fr,1fr,120px] gap-3 px-4 py-2.5 items-center text-sm">
                       <div className="truncate">{r.name}</div>
                       <div className="truncate text-muted-foreground">{r.email}</div>
+                      <div className="truncate text-xs text-muted-foreground" title={r.unitLabel}>{r.unitLabel}</div>
                       <div className="truncate text-xs text-muted-foreground">{r.roleLabel}</div>
                     </div>
                   ))}

@@ -400,9 +400,11 @@ export default function Members() {
         <ImportMembersModal
           roles={roles}
           existingMembers={allMembers}
+          tree={tree}
+          defaultUnitId={rootId}
           onClose={() => setShowImport(false)}
           onConfirm={validRows => {
-            validRows.forEach(r => addMember(rootId, r.name, r.email, r.roleId));
+            validRows.forEach(r => addMember(r.unitId, r.name, r.email, r.roleId));
             toast.success(`Imported ${validRows.length} member${validRows.length === 1 ? "" : "s"}.`);
           }}
         />
