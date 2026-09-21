@@ -1,7 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { ReactNode, useEffect } from "react";
-import { toast } from "sonner";
+import { ReactNode, useEffect, useState } from "react";
+import { Building2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -56,15 +57,39 @@ function RequireOrgConfigured({ children }: { children: ReactNode }) {
   const { isConfigured } = useOrg();
   const loc = useLocation();
   // "/organization" itself is the natural first stop (it just renders the wizard directly) —
-  // no notice needed there. Jumping straight to Structure/Members/Roles (nav, back button, a
-  // typed URL) while unconfigured *is* an intentional block, so say so instead of silently
-  // swapping in the wizard, which otherwise reads as the click having done nothing.
+  // no dialog needed there. Jumping straight to Structure/Members/Roles (nav, back button, a
+  // typed URL) while unconfigured *is* an intentional block, so say so with something a lot
+  // more visible than a corner toast, instead of silently swapping in the wizard — which
+  // otherwise reads as the click having done nothing.
+  const shouldNotify = !isConfigured && loc.pathname !== "/organization";
+  const [dialogOpen, setDialogOpen] = useState(shouldNotify);
   useEffect(() => {
-    if (!isConfigured && loc.pathname !== "/organization") {
-      toast.info("Organization của Space này chưa được thiết lập. Vui lòng hoàn tất bước thiết lập trước.");
-    }
-  }, [isConfigured, loc.pathname]);
-  if (!isConfigured) return <OrgSetupWizard />;
+    if (shouldNotify) setDialogOpen(true);
+  }, [loc.pathname, shouldNotify]);
+
+  if (!isConfigured) {
+    return (
+      <>
+        <OrgSetupWizard />
+        <Dialog open={dialogOpen && shouldNotify} onOpenChange={setDialogOpen}>
+          <DialogContent className="sm:max-w-[440px]">
+            <DialogHeader>
+              <div className="w-11 h-11 rounded-full bg-primary-soft text-primary flex items-center justify-center mb-2">
+                <Building2 size={20} />
+              </div>
+              <DialogTitle>Chưa thể tiếp tục</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground leading-relaxed py-1">
+              Doanh nghiệp/Tổ chức của bạn chưa được thiết lập. Vui lòng hoàn tất bước này trước khi tiếp tục.
+            </p>
+            <DialogFooter>
+              <button onClick={() => setDialogOpen(false)} className="btn-primary h-9 px-4">Đã hiểu</button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </>
+    );
+  }
   return <>{children}</>;
 }
 
