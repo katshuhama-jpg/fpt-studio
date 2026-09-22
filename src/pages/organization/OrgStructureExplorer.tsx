@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Building2, ChevronRight, ChevronLeft, ChevronDown, Search, Users, Trash2, Plus, Pencil, Upload, X, FolderInput, Crown, Check, User } from "lucide-react";
 import {
   OrgUnit, OrgMember, ApprovalResource, APPROVAL_RESOURCES,
-  countAll, countDirect, findUnit, findPath, unitMatches, collectMembers,
+  countAll, countDirect, findUnit, findPath, unitMatches, collectMembers, collectUnitsWithDepth,
 } from "./orgData";
 import { useOrg, deriveNameFromEmail } from "./orgStore";
 import { useRoles, RoleDef } from "./rolesStore";
@@ -101,19 +101,24 @@ function TreeRow({
 
 /* ─── Invite/edit-member modal ──────────────────────────────────────────── */
 function MemberModal({
-  title, desc, initialName, initialEmail, initialRoleId, roles, submitLabel, onClose, onSave, existingEmails = [], unitName,
+  title, desc, initialName, initialEmail, initialRoleId, roles, submitLabel, onClose, onSave, existingEmails = [], tree, defaultUnitId,
 }: {
   title: string; desc: string; initialName?: string; initialEmail?: string; initialRoleId?: string; roles: RoleDef[]; submitLabel: string;
-  onClose: () => void; onSave: (name: string, email: string, roleId: string | undefined) => void;
+  onClose: () => void; onSave: (name: string, email: string, roleId: string | undefined, unitId: string) => void;
   /** Emails already used elsewhere in the org (lowercased, own current email already excluded when editing) — blocks inviting/renaming into a duplicate. */
   existingEmails?: string[];
-  /** Unit the invited member will belong to — role/permission chosen below only applies within this unit. */
-  unitName?: string;
+  /** Org tree the Unit picker is built from — only used when inviting (not editing). */
+  tree?: OrgUnit;
+  /** Unit pre-selected in the Unit picker — the unit that was selected in Structure when "Invite member" was clicked. Changeable before submitting. */
+  defaultUnitId?: string;
 }) {
   const isEdit = initialName !== undefined;
   const [name, setName] = useState(initialName ?? "");
   const [email, setEmail] = useState(initialEmail ?? "");
   const [roleId, setRoleId] = useState(initialRoleId ?? (isEdit ? "" : "viewer"));
+  const [unitId, setUnitId] = useState(defaultUnitId ?? tree?.id ?? "");
+  const unitRows = tree ? [{ unit: tree, depth: 0 }, ...collectUnitsWithDepth(tree)] : [];
+  const selectedUnitName = tree ? (findUnit(tree, unitId)?.name ?? tree.name) : undefined;
   const trimmedEmail = email.trim();
   // Standard local@domain.tld shape — good enough to catch missing "@"/domain without being a full RFC 5322 validator.
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -123,7 +128,7 @@ function MemberModal({
   const submit = () => {
     if (!canSubmit) return;
     const finalName = isEdit ? name.trim() : deriveNameFromEmail(email.trim());
-    onSave(finalName, email.trim(), roleId || undefined);
+    onSave(finalName, email.trim(), roleId || undefined, unitId);
     onClose();
   };
 
@@ -175,10 +180,29 @@ function MemberModal({
               <p className="text-xs text-muted-foreground mt-1.5">Their name will be picked up automatically once they accept the invite.</p>
             )}
           </div>
+          {!isEdit && tree && (
+            <div>
+              <label className="text-sm font-medium block mb-1.5">Unit</label>
+              <div className="relative">
+                <select
+                  value={unitId}
+                  onChange={e => setUnitId(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") submit(); }}
+                  className="ds-input h-10 appearance-none pr-9 cursor-pointer"
+                >
+                  {unitRows.map(({ unit, depth }) => (
+                    <option key={unit.id} value={unit.id}>{"\u00A0\u00A0".repeat(depth)}{depth > 0 ? "\u2013 " : ""}{unit.name}</option>
+                  ))}
+                </select>
+                <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1.5">Which unit this member belongs to.</p>
+            </div>
+          )}
           {!isEdit && (
             <div>
               <label className="text-sm font-medium block mb-1.5">
-                Role{unitName ? ` in ${unitName}` : ""}
+                Role{selectedUnitName ? ` in ${selectedUnitName}` : ""}
               </label>
               <div className="relative">
                 <select
@@ -192,7 +216,7 @@ function MemberModal({
                 <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               </div>
               <p className="text-xs text-muted-foreground mt-1.5">
-                This role's permissions only apply within {unitName ?? "the current unit"} — not other units. If the member moves to a different unit, the scope moves with them.
+                This role's permissions only apply within {selectedUnitName ?? "the current unit"} — not other units. If the member moves to a different unit, the scope moves with them.
                 Making someone a Unit Admin is separate, and lets you choose exactly which resource types they approve.
               </p>
             </div>
@@ -652,9 +676,10 @@ export default function OrgStructureExplorer() {
           roles={roles}
           submitLabel="Invite member"
           onClose={() => setShowAddMember(false)}
-          onSave={(name, email, roleId) => addMember(selected.id, name, email, roleId)}
+          onSave={(name, email, roleId, unitId) => addMember(unitId, name, email, roleId)}
           existingEmails={allEmails}
-          unitName={selected.name}
+          tree={tree}
+          defaultUnitId={selected.id}
         />
       )}
       {showImportUnit && (
