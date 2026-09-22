@@ -217,8 +217,18 @@ function buildMessages(
  * state somewhere in the prototype — seeding it too would mean nobody could see that state.
  * Automation-kind agents (nightly-report, invoice-reminder, shipping-alerts) don't have a
  * History/Trace tab at all (they get TriggerRunsTab instead), so they're not part of this
- * either. Every agent not listed here starts with zero conversations and shows the real
- * empty state, same as before.
+ * either.
+ *
+ * "cskh" (Banking ABC — Customer Care) is a special case: it now has a real Trigger
+ * configured (a separate, legitimate feature — any agent gains one the moment a Trigger is
+ * added to it, per agentKindStore.ts's hasTriggers() check), which makes it an
+ * automation-kind agent. Automation-kind agents show Trigger Runs instead of History/Trace,
+ * so cskh's own flagship trace (CV-1055 below) is no longer reachable from its UI — its seed
+ * data is left in place (harmless, and comes back if the Trigger is ever removed) but it no
+ * longer counts as one of the demo's reachable flagship agents. "finance-check" and
+ * "legal-review" take over that role instead (see below) so the tracing demo still has a
+ * banking/enterprise-approval-style flagship agent, not just HR/FAQ/IT ones. Every agent not
+ * listed in SEED_FN_BY_AGENT starts with zero conversations and shows the real empty state.
  *
  * Every seeded agent's OWN most recent conversation is a flagship "one-stop" demo, dated
  * later than every other conversation in that agent's history, that walks through every
@@ -226,23 +236,26 @@ function buildMessages(
  * retried, hitl connect_account / question+options / tool_approval, and a guardrail
  * intervention — all in one place. Tyler asked for this specifically so a dev opening any
  * given demo agent's History doesn't have to go hunting across several different
- * conversations to find one example of each span type; see CV-1055 (cskh) for the
- * original, and HR-2001 / FAQ-3001 / OPS-4001 below for the same idea re-themed per agent.
+ * conversations to find one example of each span type; see CV-1055 (cskh, no longer
+ * reachable — see above) for the original, and HR-2001 / FAQ-3001 / OPS-4001 / FIN-5001 /
+ * LGL-6001 below for the same idea re-themed per agent.
  */
-const AUTO_SEEDED_AGENT_IDS = new Set(["cskh", "hr", "faq", "ops"]);
+const SEED_FN_BY_AGENT: Record<string, (now: number) => Omit<ConversationRecord, "agentId">[]> = {
+  cskh: cskhSeed,
+  hr: hrSeed,
+  faq: faqSeed,
+  ops: opsSeed,
+  "finance-check": financeSeed,
+  "legal-review": legalSeed,
+};
 
 function seedAgent(agentId: string) {
   if ([...store.keys()].some(key => key.startsWith(`${agentId}:`))) return;
-  if (!AUTO_SEEDED_AGENT_IDS.has(agentId)) return;
+  const seedFn = SEED_FN_BY_AGENT[agentId];
+  if (!seedFn) return;
   const now = Date.now();
 
-  const seed: Omit<ConversationRecord, "agentId">[] =
-    agentId === "cskh" ? cskhSeed(now)
-    : agentId === "hr" ? hrSeed(now)
-    : agentId === "faq" ? faqSeed(now)
-    : opsSeed(now);
-
-  for (const s of seed) store.set(k(agentId, s.id), { ...s, agentId });
+  for (const s of seedFn(now)) store.set(k(agentId, s.id), { ...s, agentId });
 }
 
 /** Banking ABC — Customer Care: card locks, account balances, loan schedules, wire transfers. */
@@ -662,7 +675,7 @@ function cskhSeed(now: number): Omit<ConversationRecord, "agentId">[] {
 }
 
 /**
- * HR Onboarding Bot: just the one flagship conversation (see the AUTO_SEEDED_AGENT_IDS
+ * HR Onboarding Bot: just the one flagship conversation (see the SEED_FN_BY_AGENT
  * comment above) — a new joiner's Day-1 setup, covering every span type in one thread:
  * tool_call success (get_onboarding_checklist), hitl connect_account (enrolling benefits
  * in BambooHR), hitl question+options (laptop delivery), tool_call failed-then-retried
@@ -958,6 +971,210 @@ function opsSeed(now: number): Omit<ConversationRecord, "agentId">[] {
             name: "output",
             action: "replaced",
             rule: "Gửi mật khẩu tạm thời dạng plaintext qua kênh chat thay vì kênh bảo mật (email đã xác thực)",
+          },
+        },
+      ]),
+    },
+  ];
+}
+
+/**
+ * Finance Discount-Check Agent: just the one flagship conversation — a sales rep escalating
+ * a discount that exceeds the standard policy threshold, covering every span type: tool_call
+ * success (check_discount_policy), hitl connect_account (linking the CRM deal record), hitl
+ * question+options (whether the discount applies to the full term or year 1 only), tool_call
+ * failed-then-retried (checking the customer's credit standing), hitl tool_approval (the
+ * Finance Manager sign-off required above the policy threshold), and a guardrail replace
+ * (masking the customer's exact credit limit before it goes back to the requester).
+ */
+function financeSeed(now: number): Omit<ConversationRecord, "agentId">[] {
+  return [
+    {
+      id: pseudoUlid("FIN-5001"),
+      channel: "workspace",
+      username: "Nguyen Van Phuc",
+      email: "nguyen.van.phuc@fpt.com.vn",
+      startedAt: now - 12 * MIN,
+      endedAt: now - 15_000,
+      error: "Timeout: Credit Bureau API không phản hồi sau 15s khi kiểm tra hạn mức tín dụng khách hàng (đã tự động thử lại và thành công ở lần 2).",
+      messages: buildMessages("FIN-5001", now - 15_000, [
+        { role: "customer", content: "I need to submit a 22% discount for the ABC Corp deal — that's above our standard 15% cap." },
+        {
+          role: "agent",
+          content: "Let me check that against the current discount policy.",
+          toolCalls: [{
+            name: "check_discount_policy",
+            connector: "Finance Policy Engine",
+            input: { dealId: "DEAL-88213", requestedDiscountPct: 22 },
+            output: { standardCapPct: 15, requiresApproval: "true", tier: "Enterprise" },
+          }],
+        },
+        {
+          role: "agent",
+          content: "To pull the full deal record, I need your permission to connect to the CRM.",
+          hitl: {
+            situation: "connect_account",
+            action: "authorized",
+            provider: "Salesforce CRM",
+            answer: "Sales rep xác nhận cho phép kết nối CRM để lấy thông tin deal.",
+          },
+        },
+        { role: "customer", content: "Go ahead." },
+        { role: "agent", content: "Does this discount apply to the full contract term, or just the first year?" },
+        { role: "customer", content: "Just the first year." },
+        {
+          role: "agent",
+          content: "Noted — first-year only. Preparing the approval brief now.",
+          hitl: {
+            situation: "question",
+            action: "respond",
+            question: "Does this discount apply to the full contract term, or just the first year?",
+            options: ["Full contract term", "First year only"],
+            answer: "Just the first year.",
+          },
+        },
+        {
+          role: "agent",
+          content: "I've also checked the customer's credit standing for the risk assessment.",
+          toolCalls: [
+            {
+              name: "check_customer_credit_score",
+              connector: "Credit Bureau",
+              input: { customerId: "CUST-40221" },
+              output: {},
+              status: "failed",
+              error: "Timeout: Credit Bureau API không phản hồi sau 15s.",
+            },
+            {
+              name: "check_customer_credit_score",
+              connector: "Credit Bureau",
+              input: { customerId: "CUST-40221" },
+              output: { riskTier: "Low", status: "verified" },
+              status: "success",
+            },
+          ],
+        },
+        { role: "customer", content: "Great — so are we good to send this to the customer?" },
+        {
+          role: "agent",
+          content: "Approved — the 22% first-year discount is signed off and ready to include in the quote.",
+          hitl: {
+            situation: "tool_approval",
+            action: "approve",
+            toolName: "request_manager_approval",
+            toolInput: { dealId: "DEAL-88213", requestedDiscountPct: 22, capPct: 15 },
+            answer: "Finance Manager phê duyệt mức chiết khấu vượt hạn mức chuẩn cho deal Enterprise tier.",
+          },
+        },
+        {
+          role: "agent",
+          content: "One note — the customer's credit limit is on file with Finance; loop in your manager if you need the exact figure for the contract.",
+          guardrail: {
+            name: "output",
+            action: "replaced",
+            rule: "Tiết lộ hạn mức tín dụng cụ thể của khách hàng cho sales rep không có quyền xem",
+          },
+        },
+      ]),
+    },
+  ];
+}
+
+/**
+ * Legal Contract-Terms Agent: just the one flagship conversation — attaching contract
+ * clauses for a deal that needs a non-standard liability cap, covering every span type:
+ * tool_call success (fetch_standard_clauses), hitl connect_account (linking the Legal
+ * Knowledge Portal), hitl question+options (which jurisdiction's clause set applies), tool_call
+ * failed-then-retried (checking clause compliance), hitl tool_approval (Legal counsel sign-off
+ * for the non-standard liability cap), and a guardrail replace (masking the exact negotiated
+ * cap figure before it goes back over a general channel).
+ */
+function legalSeed(now: number): Omit<ConversationRecord, "agentId">[] {
+  return [
+    {
+      id: pseudoUlid("LGL-6001"),
+      channel: "workspace",
+      username: "Tran Bao Ngoc",
+      email: "tran.bao.ngoc@fpt.com.vn",
+      startedAt: now - 12 * MIN,
+      endedAt: now - 15_000,
+      error: "Timeout: Legal Knowledge Portal không phản hồi sau 15s khi kiểm tra tính tuân thủ của điều khoản (đã tự động thử lại và thành công ở lần 2).",
+      messages: buildMessages("LGL-6001", now - 15_000, [
+        { role: "customer", content: "I need clauses attached for the XYZ Corp contract — they're asking for a liability cap above our standard." },
+        {
+          role: "agent",
+          content: "Let me pull the standard clause set first.",
+          toolCalls: [{
+            name: "fetch_standard_clauses",
+            connector: "Legal Knowledge Portal",
+            input: { productLine: "Enterprise SaaS" },
+            output: { clauseSetVersion: "v4.2", standardLiabilityCap: "1x annual contract value" },
+          }],
+        },
+        {
+          role: "agent",
+          content: "To check the specific deviation against precedent, I need your permission to connect to the Legal Knowledge Portal.",
+          hitl: {
+            situation: "connect_account",
+            action: "authorized",
+            provider: "Legal Knowledge Portal",
+            answer: "Deal desk xác nhận cho phép kết nối Legal Knowledge Portal để tra cứu tiền lệ.",
+          },
+        },
+        { role: "customer", content: "Sure, go ahead." },
+        { role: "agent", content: "Which governing law applies to this contract — Vietnam or Singapore?" },
+        { role: "customer", content: "Singapore." },
+        {
+          role: "agent",
+          content: "Noted — using the Singapore-law clause variant.",
+          hitl: {
+            situation: "question",
+            action: "respond",
+            question: "Which governing law applies to this contract — Vietnam or Singapore?",
+            options: ["Vietnam law", "Singapore law"],
+            answer: "Singapore.",
+          },
+        },
+        {
+          role: "agent",
+          content: "I've also checked this deviation against compliance precedent.",
+          toolCalls: [
+            {
+              name: "check_clause_compliance",
+              connector: "Legal Knowledge Portal",
+              input: { clauseSetVersion: "v4.2", requestedCap: "2x annual contract value" },
+              output: {},
+              status: "failed",
+              error: "Timeout: Legal Knowledge Portal không phản hồi sau 15s.",
+            },
+            {
+              name: "check_clause_compliance",
+              connector: "Legal Knowledge Portal",
+              input: { clauseSetVersion: "v4.2", requestedCap: "2x annual contract value" },
+              output: { precedentFound: "true", riskLevel: "Medium" },
+              status: "success",
+            },
+          ],
+        },
+        { role: "customer", content: "Are we clear to send the contract with that cap?" },
+        {
+          role: "agent",
+          content: "Approved — Legal has signed off on the 2x liability cap for this deal.",
+          hitl: {
+            situation: "tool_approval",
+            action: "approve",
+            toolName: "request_legal_review",
+            toolInput: { dealId: "XYZ-CORP-2026", requestedCap: "2x annual contract value", standardCap: "1x annual contract value" },
+            answer: "Legal counsel phê duyệt mức giới hạn trách nhiệm vượt chuẩn cho hợp đồng luật Singapore.",
+          },
+        },
+        {
+          role: "agent",
+          content: "The contract package is ready — the exact negotiated cap figure is recorded with Legal; check with them directly if you need it for the customer-facing summary.",
+          guardrail: {
+            name: "output",
+            action: "replaced",
+            rule: "Tiết lộ số liệu giới hạn trách nhiệm đã đàm phán cụ thể ra kênh chung không giới hạn quyền xem",
           },
         },
       ]),
