@@ -163,7 +163,11 @@ const DAY = 86_400_000;
  * matching how real conversation/message ids look (e.g. "01KZRH7DYBDQR24DTHS4HSQGHQ").
  */
 const CROCKFORD_BASE32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-function pseudoUlid(seed: string): string {
+// Exported so other seed data (e.g. runsStore.ts's Trigger Run seeds) can link to a
+// specific conversation by the same human-readable label used here ("CV-1055") without
+// duplicating the hash — pseudoUlid is a pure function of its seed, so the id it produces
+// is stable wherever it's called from.
+export function pseudoUlid(seed: string): string {
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
   let x = h || 1;

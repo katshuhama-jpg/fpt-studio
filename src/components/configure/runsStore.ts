@@ -1,8 +1,9 @@
 // In-memory trigger-execution-history store for the "Run history" tab prototype.
 // A Console trigger belongs to the org-level Automation placement — one configuration,
 // one timezone, no per-installer identity.
-import { triggerStore, type TriggerType, type ExternalApp } from "./triggerStore";
+import { triggerStore, type TriggerType, type ExternalApp, CSKH_WEBHOOK_TRIGGER_ID } from "./triggerStore";
 import { agentPublishStore } from "./agentPublishStore";
+import { pseudoUlid } from "@/components/history/historyStore";
 
 export type RunStatus = "running" | "completed" | "failed";
 
@@ -24,14 +25,55 @@ export interface TriggerRun {
   configSnapshot?: string;    // pretty-printed JSON of the trigger config used for this run
   outputSummary?: string;
   errorReason?: string;       // Failed runs only
+  /** Set only on cskh's seeded webhook runs: this Trigger fires per incoming customer message
+   * (see triggerStore.ts's CSKH_WEBHOOK_TRIGGER_ID), so each run corresponds to one real
+   * conversation in historyStore.ts. Lets the detail Sheet offer a "Xem trace hội thoại" link
+   * into the SAME rich per-message trace page (tool calls, HITL, guardrails) conversational
+   * agents get — instead of re-building that rendering a second time inside this Sheet. */
+  conversationId?: string;
 }
 
 const store: TriggerRun[] = [];
 const seeded = new Set<string>();
 
+/**
+ * cskh's Trigger Runs are seeded unconditionally (not gated behind Published, unlike the
+ * generic seed below) — same reasoning as historyStore.ts's cskh conversations and
+ * triggerStore.ts's cskh trigger: this is the demo's own reference agent, so its tracing
+ * data should be reviewable any time, Draft or not. Each run links to a real conversation
+ * (by the same "CV-xxxx" label historyStore.ts seeds under) via `conversationId`, so drilling
+ * into "Chi tiết" here can offer the exact same rich trace (tool calls, HITL, guardrails)
+ * the agent's own History/Trace page would show for that conversation — reusing that page
+ * rather than re-implementing span rendering inside this Sheet.
+ */
+function seedCskhRuns() {
+  const now = Date.now();
+  store.push(
+    {
+      id: "run-cskh-1", agentId: "cskh", triggerId: CSKH_WEBHOOK_TRIGGER_ID,
+      triggerName: "Nhận tin nhắn từ khách hàng", triggerType: "developer",
+      source: "Webhook — tin nhắn khách hàng mới", status: "completed",
+      startedAt: now - 15 * 60_000, timezone: ORG_TIMEZONE, durationMs: 8_400,
+      payload: JSON.stringify({ channel: "zalo", customer: "Nguyen Van Thanh", firstMessage: "Mình muốn tăng hạn mức thẻ tín dụng và liên kết ví MoMo để nhận ưu đãi hoàn tiền." }, null, 2),
+      outputSummary: "Xử lý xong yêu cầu khoá thẻ và phát hành thẻ thay thế — đủ các bước: tra cứu tài khoản, xác nhận với khách hàng, và duyệt cấp lại thẻ.",
+      conversationId: pseudoUlid("CV-1055"),
+    },
+    {
+      id: "run-cskh-2", agentId: "cskh", triggerId: CSKH_WEBHOOK_TRIGGER_ID,
+      triggerName: "Nhận tin nhắn từ khách hàng", triggerType: "developer",
+      source: "Webhook — tin nhắn khách hàng mới", status: "completed",
+      startedAt: now - 3 * 3_600_000, timezone: ORG_TIMEZONE, durationMs: 5_100,
+      payload: JSON.stringify({ channel: "api", customer: "Pham Duc Anh", firstMessage: "My wallet was stolen this morning, I need to report my debit card lost." }, null, 2),
+      outputSummary: "Đã khoá thẻ ngay lập tức (thử lại tự động sau khi Core Banking API timeout lần đầu) và xác nhận với khách hàng sẽ gửi thẻ thay thế qua đường bưu điện.",
+      conversationId: pseudoUlid("CV-1035"),
+    },
+  );
+}
+
 function seedAgent(agentId: string) {
   if (seeded.has(agentId)) return;
   seeded.add(agentId);
+  if (agentId === "cskh") { seedCskhRuns(); return; }
   // A trigger only fires once the agent is published — a Draft agent has never run, so
   // sample run history only makes sense once the agent actually has triggers AND is live.
   if (triggerStore.list(agentId).length === 0) return;

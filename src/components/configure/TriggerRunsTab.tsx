@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Clock, Webhook, RefreshCw, Search, X, Copy, Check } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Clock, Webhook, RefreshCw, Search, X, Copy, Check, MessageSquareText } from "lucide-react";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from "@/components/ui/sheet";
@@ -122,6 +123,7 @@ function ScopeRow({ label, value, mono, copyable, copyToastMessage, badge }: {
 }
 
 export default function TriggerRunsTab({ agentId }: { agentId: string }) {
+  const navigate = useNavigate();
   const [tick, setTick] = useState(0);
   const refresh = () => setTick(t => t + 1);
   const [triggerFilter, setTriggerFilter] = useState(DEFAULT_TRIGGER_FILTER);
@@ -414,6 +416,22 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
                   <div>
                     <h4 className="text-xs font-semibold text-foreground mb-1">Kết quả</h4>
                     <p className="text-xs text-muted-foreground">{detailRun.outputSummary}</p>
+                  </div>
+                )}
+
+                {detailRun.conversationId && (
+                  <div className="rounded-lg border border-border bg-surface-muted p-3">
+                    <h4 className="text-xs font-semibold text-foreground mb-1">Hội thoại liên quan</h4>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Lần chạy này xử lý một hội thoại khách hàng — xem đầy đủ các bước tool call, human-in-the-loop và guardrail trong Trace chi tiết.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/agents/${agentId}/trace/${detailRun.conversationId}`)}
+                      className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-base"
+                    >
+                      <MessageSquareText size={12} /> Xem trace hội thoại
+                    </button>
                   </div>
                 )}
 
