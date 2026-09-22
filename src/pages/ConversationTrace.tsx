@@ -6,6 +6,7 @@ import {
   Settings2, Waypoints, AlertTriangle, ShieldAlert, CheckCircle2, XCircle,
   UserCheck, Hourglass,
 } from "lucide-react";
+import { getAgent } from "@/components/configure/agentStore";
 import { historyStore } from "@/components/history/historyStore";
 import { buildTrace } from "@/components/history/traceStore";
 import {
@@ -303,6 +304,9 @@ export default function ConversationTrace() {
 
   const record = useMemo(() => historyStore.get(agentId, conversationId), [agentId, conversationId]);
   const trace = useMemo(() => (record ? buildTrace(record) : null), [record]);
+  // Turn labels below previously hardcoded "Banking ABC Agent" — this page is shared by every
+  // agent's trace, so the label must reflect whichever agent's conversation is actually open.
+  const agentName = useMemo(() => getAgent(agentId).name, [agentId]);
 
   // Highlight whichever turn is currently in view while scrolling the middle feed, same as
   // LangSmith's Turns list tracking the active turn — not just on click.
@@ -431,7 +435,7 @@ export default function ConversationTrace() {
                         <span className="h-5 w-5 shrink-0 rounded-full bg-surface-muted border border-border flex items-center justify-center text-xs font-semibold">
                           {turn.index}
                         </span>
-                        <span className="text-sm font-medium truncate">Banking ABC Agent</span>
+                        <span className="text-sm font-medium truncate">{agentName}</span>
                         {hasTool && <Wrench size={11} className="text-[hsl(var(--accent-strong))] shrink-0" />}
                         {hasHitl && <UserCheck size={11} className="text-[hsl(var(--accent-strong))] shrink-0" />}
                         {turn.outcome === "failed" && <AlertTriangle size={11} className="text-[hsl(var(--destructive-strong))] shrink-0" />}
@@ -450,7 +454,7 @@ export default function ConversationTrace() {
                   <HoverCardContent side="right" align="start" className="w-72 text-xs">
                     <div className="flex items-center gap-1.5">
                       <Check size={13} className="text-[hsl(var(--success-strong))]" />
-                      <span className="font-semibold text-sm">Banking ABC Agent</span>
+                      <span className="font-semibold text-sm">{agentName}</span>
                     </div>
                     <div className="text-xs text-muted-foreground mb-2">Thread Turn</div>
                     <div className="text-overline font-semibold uppercase tracking-wider text-muted-foreground mb-1">Time</div>
