@@ -1000,7 +1000,7 @@ function financeSeed(now: number): Omit<ConversationRecord, "agentId">[] {
       email: "nguyen.van.phuc@fpt.com.vn",
       startedAt: now - 12 * MIN,
       endedAt: now - 15_000,
-      error: "Timeout: Credit Bureau API không phản hồi sau 15s khi kiểm tra hạn mức tín dụng khách hàng (đã tự động thử lại và thành công ở lần 2).",
+      error: "Timeout: Credit Bureau API did not respond within 15s while checking the customer's credit limit (auto-retried and succeeded on attempt 2).",
       messages: buildMessages("FIN-5001", now - 15_000, [
         { role: "customer", content: "I need to submit a 22% discount for the ABC Corp deal — that's above our standard 15% cap." },
         {
@@ -1020,7 +1020,7 @@ function financeSeed(now: number): Omit<ConversationRecord, "agentId">[] {
             situation: "connect_account",
             action: "authorized",
             provider: "Salesforce CRM",
-            answer: "Sales rep xác nhận cho phép kết nối CRM để lấy thông tin deal.",
+            answer: "Sales rep confirmed permission to connect the CRM to pull the deal record.",
           },
         },
         { role: "customer", content: "Go ahead." },
@@ -1067,7 +1067,7 @@ function financeSeed(now: number): Omit<ConversationRecord, "agentId">[] {
             action: "approve",
             toolName: "request_manager_approval",
             toolInput: { dealId: "DEAL-88213", requestedDiscountPct: 22, capPct: 15 },
-            answer: "Finance Manager phê duyệt mức chiết khấu vượt hạn mức chuẩn cho deal Enterprise tier.",
+            answer: "Finance Manager approved the discount above the standard cap for this Enterprise-tier deal.",
           },
         },
         {
@@ -1076,7 +1076,7 @@ function financeSeed(now: number): Omit<ConversationRecord, "agentId">[] {
           guardrail: {
             name: "output",
             action: "replaced",
-            rule: "Tiết lộ hạn mức tín dụng cụ thể của khách hàng cho sales rep không có quyền xem",
+            rule: "Disclosing the customer's specific credit limit to a sales rep without view access",
           },
         },
       ]),
@@ -1102,7 +1102,7 @@ function legalSeed(now: number): Omit<ConversationRecord, "agentId">[] {
       email: "tran.bao.ngoc@fpt.com.vn",
       startedAt: now - 12 * MIN,
       endedAt: now - 15_000,
-      error: "Timeout: Legal Knowledge Portal không phản hồi sau 15s khi kiểm tra tính tuân thủ của điều khoản (đã tự động thử lại và thành công ở lần 2).",
+      error: "Timeout: Legal Knowledge Portal did not respond within 15s while checking clause compliance (auto-retried and succeeded on attempt 2).",
       messages: buildMessages("LGL-6001", now - 15_000, [
         { role: "customer", content: "I need clauses attached for the XYZ Corp contract — they're asking for a liability cap above our standard." },
         {
@@ -1122,7 +1122,7 @@ function legalSeed(now: number): Omit<ConversationRecord, "agentId">[] {
             situation: "connect_account",
             action: "authorized",
             provider: "Legal Knowledge Portal",
-            answer: "Deal desk xác nhận cho phép kết nối Legal Knowledge Portal để tra cứu tiền lệ.",
+            answer: "Deal desk confirmed permission to connect the Legal Knowledge Portal to look up precedent.",
           },
         },
         { role: "customer", content: "Sure, go ahead." },
@@ -1169,7 +1169,7 @@ function legalSeed(now: number): Omit<ConversationRecord, "agentId">[] {
             action: "approve",
             toolName: "request_legal_review",
             toolInput: { dealId: "XYZ-CORP-2026", requestedCap: "2x annual contract value", standardCap: "1x annual contract value" },
-            answer: "Legal counsel phê duyệt mức giới hạn trách nhiệm vượt chuẩn cho hợp đồng luật Singapore.",
+            answer: "Legal counsel approved the liability cap above the standard for this Singapore-law contract.",
           },
         },
         {
@@ -1178,7 +1178,7 @@ function legalSeed(now: number): Omit<ConversationRecord, "agentId">[] {
           guardrail: {
             name: "output",
             action: "replaced",
-            rule: "Tiết lộ số liệu giới hạn trách nhiệm đã đàm phán cụ thể ra kênh chung không giới hạn quyền xem",
+            rule: "Disclosing the specific negotiated liability cap figure over an unrestricted general channel",
           },
         },
       ]),

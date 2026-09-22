@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Search, ChevronLeft, ChevronRight, Waypoints, Clock, Zap } from "lucide-react";
 import { format, startOfDay, endOfDay } from "date-fns";
 import type { DateRange } from "react-day-picker";
-import { historyStore, CHANNEL_META, type ConversationRecord } from "./historyStore";
+import { historyStore, CHANNEL_META, type ConversationRecord, type ConversationMessage } from "./historyStore";
 import { buildTrace } from "./traceStore";
 import ChannelLogo from "./ChannelLogo";
 import { TimeRangeFilter, type TimeFilter } from "./TimeRangeFilter";
@@ -17,6 +17,32 @@ const SLOW_FIRST_TOKEN_MS = 1500;
 
 function fmtCount(n: number) {
   return n >= 1000 ? `${(n / 1000).toFixed(1)}K` : `${n}`;
+}
+
+// Search used to only look at m.content — the customer/agent chat bubbles. That misses a real
+// case: the tracing spec renders tool-call connector/provider names, HITL questions/answers, and
+// guardrail rules as first-class content in the Trace page (e.g. "Salesforce CRM" is clearly
+// visible in a HITL connect_account span), so a reviewer searching for something they just saw
+// there got "No conversations match" even though the conversation plainly mentions it. This
+// widens the match to every field the Trace page actually renders, not just chat text.
+function messageMatchesQuery(m: ConversationMessage, q: string): boolean {
+  if (m.content.toLowerCase().includes(q) || m.id.toLowerCase().includes(q)) return true;
+  if (m.toolCalls?.some(t =>
+    t.name.toLowerCase().includes(q) ||
+    t.connector.toLowerCase().includes(q) ||
+    JSON.stringify(t.input).toLowerCase().includes(q) ||
+    JSON.stringify(t.output).toLowerCase().includes(q)
+  )) return true;
+  if (m.guardrail?.rule?.toLowerCase().includes(q)) return true;
+  const h = m.hitl;
+  if (h) {
+    if (h.toolName?.toLowerCase().includes(q)) return true;
+    if (h.question?.toLowerCase().includes(q)) return true;
+    if (h.provider?.toLowerCase().includes(q)) return true;
+    if (h.answer?.toLowerCase().includes(q)) return true;
+    if (h.options?.some(o => o.toLowerCase().includes(q))) return true;
+  }
+  return false;
 }
 
 /** One row's worth of derived stats — turns, Latency, First Token, token/cost totals, and the
@@ -89,7 +115,7 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
         if (!q) return true;
         if (c.id.toLowerCase().includes(q)) return true;
         if (c.username.toLowerCase().includes(q)) return true;
-        return c.messages.some(m => m.content.toLowerCase().includes(q) || m.id.toLowerCase().includes(q));
+        return c.messages.some(m => messageMatchesQuery(m, q));
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allConversations, query, channelFilter, timeFilter, customRange]);
