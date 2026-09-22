@@ -26,32 +26,37 @@ const topItems: Item[] = [
   { to: "https://agents-dev.fpt.ai/", label: "Chat", icon: MessageSquare, external: true },
 ];
 
+// Grouped by what the item IS, not by what you do with it: Build holds the things that run
+// (agents and the workforce that orchestrates them), Resources holds the raw material they draw
+// on (knowledge, connectors, skills, models, keys), and Trust & Governance holds the controls
+// over both. Knowledge/Connectors/Skills used to sit under Build, which read oddly next to the
+// agents themselves — they're inputs an agent consumes, not things you build and ship.
 const groups: Group[] = [
   {
     id: "build",
     label: "Build",
     items: [
-      { to: "/agents", label: "Agents", icon: Bot },
+      { to: "/agents", label: "My agents", icon: Bot },
       { to: "/external-agents", label: "External Agents", icon: Globe },
       { to: "/workforce", label: "Workforce", icon: UsersRound },
-      { to: "/knowledge", label: "Knowledge", icon: BookOpen },
-      { to: "/connectors", label: "Connectors", icon: Plug },
-      { to: "/tools", label: "Skills", icon: Puzzle },
-      { to: "/guardrails", label: "Guardrails", icon: Shield },
     ],
   },
   {
     id: "resources",
     label: "Resources",
     items: [
+      { to: "/knowledge", label: "Knowledge", icon: BookOpen },
+      { to: "/connectors", label: "Connectors", icon: Plug },
+      { to: "/tools", label: "Skills", icon: Puzzle },
       { to: "/models", label: "Models", icon: Cpu },
       { to: "/api-keys", label: "API Key", icon: KeyRound },
     ],
   },
   {
     id: "governance",
-    label: "Governance",
+    label: "Trust & Governance",
     items: [
+      { to: "/guardrails", label: "Guardrails", icon: Shield },
       { to: "/governance/requests", label: "Requests", icon: ClipboardList },
       { to: "/governance/audit-log", label: "Audit Log", icon: History },
       { to: "/roles", label: "Roles", icon: Shield },
