@@ -9,6 +9,11 @@ export type ConnectorScope = "shared" | "personal";
 export interface AgentConnector {
   connectorId: string;
   scope: ConnectorScope;
+  /** Which workspace Shared account this agent runs the connector as (see
+   * sharedConnectorAccountStore.ts). Only meaningful for scope "shared" — a personal connector
+   * is authorised per end user at run time, so there's nothing to pick here. Optional because
+   * connections seeded or made before the account step existed simply don't name one yet. */
+  accountId?: string;
 }
 
 const STORE_KEY = "agent_connector_store";
@@ -20,8 +25,10 @@ const persist = () => saveMap(STORE_KEY, store);
 /** Demo agents seeded with a sample connection so the Connections tab has something real
  * to show without manual setup. */
 const AUTO_SEED: Record<string, AgentConnector[]> = {
-  cskh: [{ connectorId: "gmail", scope: "shared" }],
-  "shipping-alerts": [{ connectorId: "gmail", scope: "shared" }],
+  // accountId matches the seeded Gmail account in sharedConnectorAccountStore.ts, so these demo
+  // agents show a real "Connected as ..." line instead of an unattributed connection.
+  cskh: [{ connectorId: "gmail", scope: "shared", accountId: "sa-gmail-1" }],
+  "shipping-alerts": [{ connectorId: "gmail", scope: "shared", accountId: "sa-gmail-1" }],
 };
 
 function seedAgent(agentId: string) {
@@ -42,12 +49,20 @@ export const agentConnectorStore = {
   /** Returns false (and writes nothing) when saving a per-user connector on an agent that
    * already has a trigger — an agent can never have both, regardless of what any caller's
    * own UI-level check already did. */
-  add(agentId: string, connectorId: string, scope: ConnectorScope): boolean {
+  add(agentId: string, connectorId: string, scope: ConnectorScope, accountId?: string): boolean {
     if (scope === "personal" && hasTriggers(agentId)) return false;
     const list = store.get(agentId) ?? [];
-    store.set(agentId, [...list.filter(c => c.connectorId !== connectorId), { connectorId, scope }]);
+    store.set(agentId, [...list.filter(c => c.connectorId !== connectorId), { connectorId, scope, accountId }]);
     persist();
     return true;
+  },
+  /** Swaps the Shared account an already-attached connector runs as, without detaching it —
+   * used when the user picks a different account for a connector they've already connected. */
+  setAccount(agentId: string, connectorId: string, accountId: string) {
+    const list = store.get(agentId);
+    if (!list) return;
+    store.set(agentId, list.map(c => (c.connectorId === connectorId ? { ...c, accountId } : c)));
+    persist();
   },
   remove(agentId: string, connectorId: string) {
     const list = store.get(agentId);

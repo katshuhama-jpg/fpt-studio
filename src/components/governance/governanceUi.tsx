@@ -1,17 +1,19 @@
 // Small shared presentational pieces for the Governance module (Requests list, Request detail,
 // Audit Log) — kept separate from governanceStore.ts because that file is logic-only (imported
 // by AgentBuilder.tsx too, which doesn't need JSX pulled in).
-import { Bot, BookOpen, Puzzle, Shield, Plug } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Robot01Icon, BookOpen01Icon, PuzzleIcon, Shield01Icon, Plug01Icon } from "@hugeicons/core-free-icons";
 import type { GovResourceType, GovRequestStatus, GovChangeState } from "./governanceStore";
 import { RESOURCE_TYPE_LABEL, STATUS_LABEL } from "./governanceStore";
 
 export const RESOURCE_TYPE_ICON: Record<GovResourceType, any> = {
-  agent: Bot, knowledge: BookOpen, skill: Puzzle, guardrail: Shield, connector: Plug,
+  agent: Robot01Icon, knowledge: BookOpen01Icon, skill: PuzzleIcon, guardrail: Shield01Icon, connector: Plug01Icon,
 };
 
+/** Wraps HugeiconsIcon so call sites keep the plain `{ type, size, className }` shape they had
+ * when these were Lucide components — the design system is HugeIcons (Stroke Rounded) only. */
 export function ResourceTypeIcon({ type, size = 14, className = "" }: { type: GovResourceType; size?: number; className?: string }) {
-  const Icon = RESOURCE_TYPE_ICON[type];
-  return <Icon size={size} className={className} />;
+  return <HugeiconsIcon icon={RESOURCE_TYPE_ICON[type]} size={size} className={className} />;
 }
 
 const STATUS_STYLE: Record<GovRequestStatus, string> = {
@@ -27,7 +29,7 @@ const STATUS_DOT: Record<GovRequestStatus, string> = {
 
 export function StatusBadge({ status, className = "" }: { status: GovRequestStatus; className?: string }) {
   return (
-    <span className={`inline-flex items-center gap-1.5 text-xs font-semibold rounded-full px-2.5 py-1 border whitespace-nowrap ${STATUS_STYLE[status]} ${className}`}>
+    <span className={`inline-flex items-center gap-1.5 text-xs font-medium rounded-full px-2.5 py-1 border whitespace-nowrap ${STATUS_STYLE[status]} ${className}`}>
       <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${STATUS_DOT[status]}`} />
       {STATUS_LABEL[status]}
     </span>
@@ -85,7 +87,7 @@ const CHANGE_STATE_LABEL: Record<GovChangeState, string> = {
 
 export function ChangeStateBadge({ state }: { state: GovChangeState }) {
   return (
-    <span className={`inline-flex items-center text-[11px] font-semibold rounded-full px-2 py-0.5 border whitespace-nowrap ${CHANGE_STATE_STYLE[state]}`}>
+    <span className={`inline-flex items-center text-xs font-medium rounded-sm px-2 py-0.5 border whitespace-nowrap ${CHANGE_STATE_STYLE[state]}`}>
       {CHANGE_STATE_LABEL[state]}
     </span>
   );
