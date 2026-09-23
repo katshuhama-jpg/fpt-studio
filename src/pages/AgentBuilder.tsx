@@ -19,6 +19,9 @@ import { businessProcessStore } from "@/components/business-processes/businessPr
 import { taskStore } from "@/components/tasks/taskStore";
 import { triggerStore, triggerNeedsSetup, TRIGGER_LIMIT, EXTERNAL_APP_META, type TriggerRecord } from "@/components/configure/triggerStore";
 import { agentConnectorStore, type ConnectorScope } from "@/components/configure/agentConnectorStore";
+import ConnectSharedConnectorModal from "@/components/configure/ConnectSharedConnectorModal";
+import { sharedConnectorAccountStore } from "@/components/configure/sharedConnectorAccountStore";
+import { connectorActionStore } from "@/components/configure/connectorActionStore";
 import { hasTriggers, perUserConnector } from "@/components/configure/agentAutomationGuard";
 import {
   agentPublishStore,
@@ -4554,6 +4557,10 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
   const [menuPos, setMenuPos] = useState<{top:number;left:number}>({top:0,left:0});
   const [showPicker, setShowPicker] = useState(false);
   const [pickerMode, setPickerMode] = useState<ConnectorScope>("shared");
+  // The Shared scope runs its own connect wizard (pick one connector -> choose/authorise the
+  // workspace account -> set per-action governance). Per-user keeps the multi-select picker,
+  // since each end user authorises their own account at run time — there's nothing to choose here.
+  const [showSharedConnect, setShowSharedConnect] = useState(false);
   const [tick, setTick] = useState(0);
   void tick;
   // Real product: attached connectors are shown split into two tabs ("Shared" / "Per-user"),
@@ -4563,7 +4570,7 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
   // Row-level "Chia sẻ" target — lets a user share a Custom Connector they attached via quick-add
   // (which no longer asks about sharing up front) right from this list, without leaving the agent.
   const [shareTarget, setShareTarget] = useState<CustomConnector | null>(null);
-  const connected = agentConnectorStore.list(agentId).map(c => ({ id: c.connectorId, mode: c.scope }));
+  const connected = agentConnectorStore.list(agentId).map(c => ({ id: c.connectorId, mode: c.scope, accountId: c.accountId }));
 
   // Custom Connectors ("Custom MCP") this user can see — same ownership-aware filtering as the
   // Console Connectors page's "Custom Connectors" tab.
@@ -4603,6 +4610,9 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
     const isCustom = id.startsWith(CUSTOM_CONNECTOR_PREFIX);
     if (agentConnectorStore.list(agentId).some(c => c.connectorId === id)) {
       agentConnectorStore.remove(agentId, id);
+      // Drop the per-action Auto/Ask/Block overrides too — re-adding the connector later should
+      // start from the defaults rather than silently inheriting decisions no longer on screen.
+      connectorActionStore.clear(agentId, id);
       if (isCustom) customConnectorStore.removeAttachingAgent(id.slice(CUSTOM_CONNECTOR_PREFIX.length), agentId);
     } else {
       const ok = agentConnectorStore.add(agentId, id, pickerMode);
@@ -4624,7 +4634,7 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
     { key: "personal", label: "Riêng cá nhân" },
   ];
 
-  const renderConnectorRow = (c: { id: string; mode: ConnectorScope }) => {
+  const renderConnectorRow = (c: { id: string; mode: ConnectorScope; accountId?: string }) => {
     // Fall back to the raw id instead of silently dropping the row — a connector
     // whose metadata can't be found would otherwise vanish from the list while still
     // sitting in the store, which reads to the Builder as "my connector disappeared".
@@ -4635,10 +4645,22 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
       ? customConnectorStore.get(c.id.slice(CUSTOM_CONNECTOR_PREFIX.length))
       : undefined;
     const canShare = !!customConnector && customConnector.ownerId === KB_CURRENT_USER.id;
+    // Which workspace account a Shared connector runs as is part of what the connection IS, so
+    // it sits on the row itself rather than behind a click.
+    const account = c.accountId ? sharedConnectorAccountStore.get(c.accountId) : undefined;
+    const restricted = connectorActionStore.restrictedCount(agentId, c.id);
     return (
       <div key={c.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base">
         <span className="w-6 h-6 rounded bg-surface-muted border border-border flex items-center justify-center text-[9px] font-bold shrink-0">{meta?.logo ?? "?"}</span>
-        <span className="text-xs font-medium flex-1 truncate">{meta?.name ?? c.id}</span>
+        <span className="flex-1 min-w-0">
+          <span className="block text-xs font-medium truncate">{meta?.name ?? c.id}</span>
+          {account && (
+            <span className="block text-[11px] text-muted-foreground truncate">Connected as {account.email}</span>
+          )}
+          {restricted > 0 && (
+            <span className="block text-[11px] text-muted-foreground truncate">{restricted} action bị giới hạn</span>
+          )}
+        </span>
         {canShare && (
           <button
             onClick={() => setShareTarget(customConnector)}
@@ -4727,7 +4749,10 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
                   }`}
                   onClick={() => {
                     if (item.disabled) return;
-                    setShowMenu(false); setPickerMode(item.mode); setShowPicker(true);
+                    setShowMenu(false);
+                    setPickerMode(item.mode);
+                    if (item.mode === "shared") setShowSharedConnect(true);
+                    else setShowPicker(true);
                   }}
                 >
                   <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
@@ -4753,6 +4778,29 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
           </div>
         </div>,
         document.body
+      )}
+
+      {showSharedConnect && (
+        <ConnectSharedConnectorModal
+          connectors={[
+            ...SUB_AGENT_CONNECTORS.map(c => ({ id: c.id, name: c.name, logo: c.logo, category: c.category })),
+            ...accessibleCustomConnectors.map(c => ({ id: `${CUSTOM_CONNECTOR_PREFIX}${c.id}`, name: c.name, logo: "🔌", category: "Khác" })),
+          ]}
+          alreadyConnectedIds={connectedIds}
+          agentId={agentId}
+          currentUserName={KB_CURRENT_USER.name}
+          onClose={() => { setShowSharedConnect(false); setTick(t => t + 1); onChange?.(); }}
+          onSwitchScope={() => { setShowSharedConnect(false); setShowMenu(true); }}
+          onConnected={(connectorId, accountId) => {
+            agentConnectorStore.add(agentId, connectorId, "shared", accountId);
+            if (connectorId.startsWith(CUSTOM_CONNECTOR_PREFIX)) {
+              customConnectorStore.addAttachingAgent(connectorId.slice(CUSTOM_CONNECTOR_PREFIX.length), agentId);
+            }
+            setActiveScope("shared");
+            setTick(t => t + 1);
+            onChange?.();
+          }}
+        />
       )}
 
       {showPicker && (
