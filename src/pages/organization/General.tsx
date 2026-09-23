@@ -2,16 +2,14 @@ import { Card, Row, PageHeader } from "./shared";
 import { Building2 } from "lucide-react";
 import fptLogo from "@/assets/fpt-logo.jpg";
 import { useOrg } from "./orgStore";
-import { getCurrentTenantId } from "@/lib/spaceStore";
-
-const SEED_TENANT_IDS = new Set(["fpt-smart-cloud", "fpt-telecom", "fpt-software", "sandbox"]);
+import { getCurrentTenantId, isSeedTenant } from "@/lib/spaceStore";
 
 export default function General() {
   const { tree, orgProfile } = useOrg();
-  const isSeedTenant = SEED_TENANT_IDS.has(getCurrentTenantId());
+  const isSeed = isSeedTenant(getCurrentTenantId());
 
   // FPT's existing seed Spaces keep their long-standing, view-only display — unchanged.
-  if (isSeedTenant) {
+  if (isSeed) {
     return (
       <div className="px-8 py-8 max-w-[1280px] mx-auto animate-fade-up space-y-6">
         <PageHeader title="General" desc="How your organization appears to teammates. View only." />
@@ -67,11 +65,6 @@ export default function General() {
             <span className="text-sm text-foreground">{orgProfile.description}</span>
           </Row>
         )}
-        <Row label="Cấu trúc tổ chức">
-          <span className="text-sm text-foreground">
-            {orgProfile.setupMode === "azure" ? "Đồng bộ từ Microsoft Azure AD" : "Tự tạo thủ công"}
-          </span>
-        </Row>
       </Card>
     </div>
   );

@@ -106,3 +106,12 @@ export function isPersonalSpace(tenantId: string): boolean {
   const t = getAllTenants().find(t => t.id === tenantId);
   return (t ?? TENANTS[0]).plan === "Free";
 }
+
+/** Whether `tenantId` is one of FPT's own long-standing reference Spaces — seeded up front with
+ * a large, realistic Organization tree — rather than a customer Space provisioned through the
+ * (Super Admin-only) Tenant + Org creation flow. Seed Spaces' Organization profile and structure
+ * stay view-only everywhere (General, Structure); every other Space is always built manually by
+ * its assigned Org Admin — there's no Azure AD or other auto-sync option. */
+export function isSeedTenant(tenantId: string): boolean {
+  return TENANTS.some(t => t.id === tenantId);
+}

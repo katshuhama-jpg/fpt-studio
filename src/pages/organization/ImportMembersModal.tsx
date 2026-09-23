@@ -29,13 +29,25 @@ function parseCSV(text: string): string[][] {
     .map(line => line.split(",").map(cell => cell.trim()));
 }
 
+/** First header index matching any of `candidates` (already-lowercased headers) — lets the
+ * parser accept either the English or Vietnamese column name for the same field. */
+function findHeaderIndex(headers: string[], candidates: string[]): number {
+  for (const c of candidates) {
+    const i = headers.indexOf(c);
+    if (i !== -1) return i;
+  }
+  return -1;
+}
+
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-/** True when every segment of `path`, walked one level at a time from `anchor`, already exists. */
+/** True when every segment of `path`, walked one level at a time from `anchor`, already exists —
+ * this is the file import's duplicate check: a path that already exists is reused as-is instead
+ * of creating a second unit with the same name. */
 function pathFullyExists(anchor: OrgUnit, path: string[]): boolean {
   let current = anchor;
   for (const seg of path) {
@@ -48,7 +60,7 @@ function pathFullyExists(anchor: OrgUnit, path: string[]): boolean {
 
 function downloadSampleTemplate() {
   const csv = [
-    "Name,Email,Unit",
+    "Name,Email,Đơn vị",
     "Mai Hoang,mai.hoang@fpt.com,Phong Kinh doanh",
     ",khanh.nguyen@fpt.com,Phong Kinh doanh/Team Sales mien Bac",
     "An Tran,an.tran@fpt.com,",
@@ -58,7 +70,7 @@ function downloadSampleTemplate() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "member-import-template.csv";
+  a.download = "mau-nhap-thanh-vien.csv";
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -69,11 +81,11 @@ function downloadSampleTemplate() {
 function UnitStatusChip({ willCreate }: { willCreate: boolean }) {
   return willCreate ? (
     <span className="chip chip-primary text-[10px] shrink-0">
-      <FolderPlus size={10} /> New unit
+      <FolderPlus size={10} /> Đơn vị mới
     </span>
   ) : (
     <span className="chip text-[10px] shrink-0">
-      <Building2 size={10} /> Existing
+      <Building2 size={10} /> Đã có
     </span>
   );
 }
@@ -82,9 +94,9 @@ export default function ImportMembersModal({
   existingMembers, tree, defaultUnitId, onClose, onConfirm,
 }: {
   existingMembers: OrgMember[];
-  /** Org tree the "Unit" column is resolved against. */
+  /** Org tree the "Đơn vị" column is resolved against. */
   tree: OrgUnit;
-  /** Anchor unit: where a blank Unit cell lands, and what a non-blank Unit path is relative to. */
+  /** Anchor unit: where a blank Đơn vị cell lands, and what a non-blank Đơn vị path is relative to. */
   defaultUnitId: string;
   onClose: () => void;
   /** Every imported member gets the default "viewer" role — promote them afterward from Members/Structure. */
@@ -125,9 +137,9 @@ export default function ImportMembersModal({
       const table = parseCSV(text);
       if (table.length < 2) throw new Error("empty");
       const headers = table[0].map(h => h.toLowerCase());
-      const nameIdx = headers.indexOf("name");
-      const emailIdx = headers.indexOf("email");
-      const unitIdx = headers.indexOf("unit");
+      const nameIdx = findHeaderIndex(headers, ["name", "tên", "ten"]);
+      const emailIdx = findHeaderIndex(headers, ["email"]);
+      const unitIdx = findHeaderIndex(headers, ["unit", "đơn vị", "don vi", "donvi"]);
       if (emailIdx === -1) throw new Error("no-email-column");
 
       const existingEmails = new Set(existingMembers.map(m => m.email?.trim().toLowerCase()).filter(Boolean));
@@ -145,10 +157,10 @@ export default function ImportMembersModal({
         let status: "valid" | "skipped" = "valid";
         let reason: string | undefined;
         const emailLower = emailRaw.toLowerCase();
-        if (!emailRaw) { status = "skipped"; reason = "Missing email"; }
-        else if (!EMAIL_RE.test(emailRaw)) { status = "skipped"; reason = "Invalid email format"; }
-        else if (seenInFile.has(emailLower)) { status = "skipped"; reason = "Duplicate email in this file"; }
-        else if (existingEmails.has(emailLower)) { status = "skipped"; reason = "Already an org member"; }
+        if (!emailRaw) { status = "skipped"; reason = "Thiếu email"; }
+        else if (!EMAIL_RE.test(emailRaw)) { status = "skipped"; reason = "Sai định dạng email"; }
+        else if (seenInFile.has(emailLower)) { status = "skipped"; reason = "Email bị trùng trong file"; }
+        else if (existingEmails.has(emailLower)) { status = "skipped"; reason = "Đã là thành viên tổ chức"; }
         if (status === "valid") seenInFile.add(emailLower);
 
         return { rowNumber: i + 1, name, email: emailRaw, unitPath, unitLabel, willCreateUnit, status, reason };
@@ -157,7 +169,7 @@ export default function ImportMembersModal({
       setRows(builtRows);
       setStep("preview");
     } catch {
-      setParseError("Couldn't read this file. Make sure it's a .csv file with Name, Email, and Unit columns — Email is required.");
+      setParseError("Không đọc được file này. Hãy đảm bảo đây là file .csv có các cột Name, Email và Đơn vị — Email là bắt buộc.");
     } finally {
       setIsParsing(false);
     }
@@ -186,11 +198,11 @@ export default function ImportMembersModal({
         {/* Header */}
         <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-border shrink-0">
           <div>
-            <h2 className="text-base font-semibold">Import members from Excel</h2>
+            <h2 className="text-base font-semibold">Nhập thành viên từ Excel</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {step === "upload" && "Upload a spreadsheet to add many members — and their units — at once."}
-              {step === "preview" && "Review what was found before importing."}
-              {step === "done" && "Import complete."}
+              {step === "upload" && "Tải lên một file bảng tính để thêm nhiều thành viên — và đơn vị của họ — cùng lúc."}
+              {step === "preview" && "Xem lại trước khi nhập."}
+              {step === "done" && "Đã nhập xong."}
             </p>
           </div>
           <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground ml-4 shrink-0">
@@ -207,13 +219,13 @@ export default function ImportMembersModal({
                 onClick={downloadSampleTemplate}
                 className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
               >
-                <Download size={12} /> Download sample template
+                <Download size={12} /> Tải file mẫu
               </button>
 
               <div
                 role="button"
                 tabIndex={0}
-                aria-label="Upload member import file"
+                aria-label="Tải lên file nhập thành viên"
                 onClick={() => fileInputRef.current?.click()}
                 onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInputRef.current?.click(); } }}
                 onDragOver={e => { e.preventDefault(); if (!isParsing) setDragActive(true); }}
@@ -232,19 +244,19 @@ export default function ImportMembersModal({
                 {isParsing ? (
                   <>
                     <Loader2 size={22} className="animate-spin text-primary" />
-                    <div className="text-sm font-medium">Reading {fileInfo?.name}…</div>
+                    <div className="text-sm font-medium">Đang đọc {fileInfo?.name}…</div>
                   </>
                 ) : (
                   <>
                     <UploadCloud size={28} className="text-muted-foreground" />
-                    <div className="text-sm font-medium">Drag and drop your file here</div>
-                    <div className="text-xs text-muted-foreground">.csv file exported from Excel — expects Name, Email, Unit columns</div>
+                    <div className="text-sm font-medium">Kéo thả file vào đây</div>
+                    <div className="text-xs text-muted-foreground">File .csv xuất từ Excel — cần có cột Name, Email, Đơn vị</div>
                     <button
                       type="button"
                       onClick={e => { e.stopPropagation(); fileInputRef.current?.click(); }}
                       className="btn-secondary mt-1"
                     >
-                      Browse files
+                      Chọn file
                     </button>
                   </>
                 )}
@@ -264,7 +276,7 @@ export default function ImportMembersModal({
               <div className="flex items-start gap-2.5 rounded-xl border border-primary/20 bg-primary-soft px-3.5 py-3">
                 <FolderPlus size={15} className="text-primary shrink-0 mt-0.5" />
                 <p className="text-xs text-foreground leading-relaxed">
-                  Unit names that don't exist yet — anywhere in the path — are created automatically, nested exactly as written (e.g. <span className="font-mono">Sales/Team North</span> creates "Sales" first if needed, then "Team North" inside it). Everyone imported starts as a Viewer; promote them afterward from Members or Structure.
+                  Tên đơn vị chưa tồn tại — ở bất kỳ đâu trong đường dẫn — sẽ được tự động tạo, lồng đúng như đã viết (ví dụ: <span className="font-mono">Sales/Team North</span> sẽ tạo "Sales" trước nếu chưa có, rồi tạo "Team North" bên trong). Đơn vị đã có sẵn thì dùng lại, không tạo trùng. Mọi người được nhập vào đều bắt đầu với vai trò Viewer; có thể nâng quyền sau tại Members hoặc Structure.
                 </p>
               </div>
 
@@ -294,7 +306,7 @@ export default function ImportMembersModal({
                 onClick={resetToUpload}
                 className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-base"
               >
-                <ChevronLeft size={12} /> Choose a different file
+                <ChevronLeft size={12} /> Chọn file khác
               </button>
 
               {fileInfo && (
@@ -302,28 +314,28 @@ export default function ImportMembersModal({
                   <FileText size={16} className="text-muted-foreground shrink-0" />
                   <div className="min-w-0 flex-1 text-xs">
                     <div className="font-medium text-foreground truncate">{fileInfo.name}</div>
-                    <div className="text-muted-foreground">{formatBytes(fileInfo.size)} · {rows.length} row{rows.length === 1 ? "" : "s"} found</div>
+                    <div className="text-muted-foreground">{formatBytes(fileInfo.size)} · tìm thấy {rows.length} dòng</div>
                   </div>
                 </div>
               )}
 
               <div className="text-xs text-muted-foreground">
-                <span className="text-foreground font-medium">{validRows.length}</span> will be imported
-                {skippedRows.length > 0 && <> · <span className="text-foreground font-medium">{skippedRows.length}</span> will be skipped</>}
+                <span className="text-foreground font-medium">{validRows.length}</span> sẽ được nhập
+                {skippedRows.length > 0 && <> · <span className="text-foreground font-medium">{skippedRows.length}</span> sẽ bị bỏ qua</>}
               </div>
 
               {unitsToCreate.length > 0 && (
                 <div className="flex items-start gap-2.5 rounded-xl border border-primary/20 bg-primary-soft px-3.5 py-3">
                   <FolderPlus size={15} className="text-primary shrink-0 mt-0.5" />
                   <p className="text-xs text-foreground leading-relaxed">
-                    <span className="font-medium">{unitsToCreate.length}</span> new unit{unitsToCreate.length === 1 ? "" : "s"} will be created: {unitsToCreate.join(", ")}
+                    <span className="font-medium">{unitsToCreate.length}</span> đơn vị mới sẽ được tạo: {unitsToCreate.join(", ")}
                   </p>
                 </div>
               )}
 
               <div className="rounded-xl border border-border overflow-hidden">
                 <div className="grid grid-cols-[1fr,1fr,1.4fr,150px] gap-3 px-4 py-2.5 bg-surface-muted section-eyebrow">
-                  <div>Name</div><div>Email</div><div>Unit</div><div>Status</div>
+                  <div>Tên</div><div>Email</div><div>Đơn vị</div><div>Trạng thái</div>
                 </div>
                 <div className="divide-y divide-border max-h-64 overflow-y-auto">
                   {rows.map(r => (
@@ -336,7 +348,7 @@ export default function ImportMembersModal({
                       </div>
                       <div>
                         {r.status === "valid" ? (
-                          <span className="chip chip-success text-[11px]"><Check size={11} /> Valid</span>
+                          <span className="chip chip-success text-[11px]"><Check size={11} /> Hợp lệ</span>
                         ) : (
                           <span className="chip chip-warning text-[11px]" title={r.reason}>{r.reason}</span>
                         )}
@@ -353,15 +365,15 @@ export default function ImportMembersModal({
               <div className="flex items-start gap-2.5 rounded-xl border border-success/30 bg-success/10 px-3.5 py-3">
                 <Check size={15} className="text-success shrink-0 mt-0.5" />
                 <div className="text-sm text-foreground">
-                  Imported <span className="font-medium">{imported.length}</span> member{imported.length === 1 ? "" : "s"}
-                  {unitsToCreate.length > 0 && <> · created <span className="font-medium">{unitsToCreate.length}</span> new unit{unitsToCreate.length === 1 ? "" : "s"}</>}
-                  {skippedRows.length > 0 && <> — {skippedRows.length} row{skippedRows.length === 1 ? "" : "s"} skipped.</>}
+                  Đã nhập <span className="font-medium">{imported.length}</span> thành viên
+                  {unitsToCreate.length > 0 && <> · đã tạo <span className="font-medium">{unitsToCreate.length}</span> đơn vị mới</>}
+                  {skippedRows.length > 0 && <> — {skippedRows.length} dòng bị bỏ qua.</>}
                 </div>
               </div>
 
               <div className="rounded-xl border border-border overflow-hidden">
                 <div className="grid grid-cols-[1fr,1fr,1.4fr] gap-3 px-4 py-2.5 bg-surface-muted section-eyebrow">
-                  <div>Name</div><div>Email</div><div>Unit</div>
+                  <div>Tên</div><div>Email</div><div>Đơn vị</div>
                 </div>
                 <div className="divide-y divide-border max-h-64 overflow-y-auto">
                   {imported.map(r => (
@@ -385,19 +397,19 @@ export default function ImportMembersModal({
           {step === "preview" ? (
             <>
               <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">
-                Cancel
+                Hủy
               </button>
               <button
                 onClick={submit}
                 disabled={validRows.length === 0}
                 className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-base disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                Import {validRows.length} member{validRows.length === 1 ? "" : "s"}
+                Nhập {validRows.length} thành viên
               </button>
             </>
           ) : (
             <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base">
-              Close
+              Đóng
             </button>
           )}
         </div>

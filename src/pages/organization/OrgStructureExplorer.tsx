@@ -10,6 +10,7 @@ import { useOrg, deriveNameFromEmail } from "./orgStore";
 import { useRoles, RoleDef } from "./rolesStore";
 import { MoveMemberModal } from "./MoveMemberModal";
 import ImportMembersModal from "./ImportMembersModal";
+import { getCurrentTenantId, isSeedTenant } from "@/lib/spaceStore";
 
 /** Short label for a set of approval resource types — "All resource types" when every
  * type is granted, otherwise a comma list of just the granted ones. */
@@ -182,7 +183,7 @@ function MemberModal({
           </div>
           {!isEdit && tree && (
             <div>
-              <label className="text-sm font-medium block mb-1.5">Unit</label>
+              <label className="text-sm font-medium block mb-1.5">Đơn vị</label>
               <div className="relative">
                 <select
                   value={unitId}
@@ -196,7 +197,7 @@ function MemberModal({
                 </select>
                 <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               </div>
-              <p className="text-xs text-muted-foreground mt-1.5">Which unit this member belongs to.</p>
+              <p className="text-xs text-muted-foreground mt-1.5">Đơn vị mà thành viên này sẽ thuộc về.</p>
             </div>
           )}
           {!isEdit && (
@@ -271,7 +272,7 @@ function UnitModal({
           </button>
         </div>
         <div className="px-6 py-5">
-          <label className="text-sm font-medium block mb-1.5">Unit name <span className="text-destructive">*</span></label>
+          <label className="text-sm font-medium block mb-1.5">Tên đơn vị <span className="text-destructive">*</span></label>
           <input
             autoFocus
             value={name}
@@ -593,7 +594,7 @@ function AssignAdminPopover({
 }
 
 export default function OrgStructureExplorer() {
-  const { tree, rootId, orgProfile, addMember, removeMember, setUnitAdminScope, createUnit, renameUnit, deleteUnit, importMembers } = useOrg();
+  const { tree, rootId, addMember, removeMember, setUnitAdminScope, createUnit, renameUnit, deleteUnit, importMembers } = useOrg();
   const { roles } = useRoles();
   const [selectedId, setSelectedId] = useState(rootId);
   const [expanded, setExpanded] = useState<Set<string>>(new Set([tree.id, ...tree.units.map(u => u.id)]));
@@ -606,10 +607,10 @@ export default function OrgStructureExplorer() {
   const [movingMember, setMovingMember] = useState<OrgMember | null>(null);
   const [deleteConfirmMemberId, setDeleteConfirmMemberId] = useState<string | null>(null);
   const [removeAdminTarget, setRemoveAdminTarget] = useState<{ member: OrgMember; sourceUnit: OrgUnit; scope: ApprovalResource[] } | null>(null);
-  // Structure can only be hand-edited when this Space's Organization was set up "manually" —
-  // an Azure AD-synced Organization (or one of FPT's long-standing seed Spaces) shows structure
-  // read-only here; it's expected to come from the source system instead.
-  const canEditStructure = orgProfile.setupMode === "manual";
+  // Structure is always hand-edited (there's no Azure AD or other auto-sync option) — only
+  // FPT's own long-standing seed Spaces (seeded up front with a large realistic tree) stay
+  // read-only here.
+  const canEditStructure = !isSeedTenant(getCurrentTenantId());
   const [showAddUnit, setShowAddUnit] = useState(false);
   const [renamingUnit, setRenamingUnit] = useState(false);
   const [deletingUnit, setDeletingUnit] = useState(false);
@@ -700,7 +701,7 @@ export default function OrgStructureExplorer() {
       {deleteTargetMember && (
         <ConfirmDeleteModal
           title={`Remove "${deleteTargetMember.name}"?`}
-          desc="This person will be removed from the unit. This action can't be undone."
+          desc="Người này sẽ bị xóa khỏi đơn vị. Hành động này không thể hoàn tác."
           confirmLabel="Remove member"
           onClose={() => setDeleteConfirmMemberId(null)}
           onConfirm={() => { removeMember(deleteTargetMember.id); setDeleteConfirmMemberId(null); }}
@@ -721,17 +722,17 @@ export default function OrgStructureExplorer() {
       )}
       {showAddUnit && (
         <UnitModal
-          title="Add unit"
-          desc={`Add a new unit inside ${selected.name}.`}
-          submitLabel="Add unit"
+          title="Thêm đơn vị"
+          desc={`Thêm đơn vị mới trong ${selected.name}.`}
+          submitLabel="Thêm đơn vị"
           onClose={() => setShowAddUnit(false)}
           onSave={name => createUnit(selected.id, name)}
         />
       )}
       {renamingUnit && (
         <UnitModal
-          title="Rename unit"
-          desc="Update this unit's name."
+          title="Đổi tên đơn vị"
+          desc="Cập nhật tên đơn vị."
           initialName={selected.name}
           submitLabel="Save"
           onClose={() => setRenamingUnit(false)}
@@ -743,10 +744,10 @@ export default function OrgStructureExplorer() {
           title={unitHasChildren ? "Empty this unit first" : `Delete "${selected.name}"?`}
           desc={
             unitHasChildren
-              ? `"${selected.name}" still has ${selected.units.length > 0 ? `${selected.units.length} sub-unit${selected.units.length === 1 ? "" : "s"}` : ""}${selected.units.length > 0 && selected.members.length > 0 ? " and " : ""}${selected.members.length > 0 ? `${selected.members.length} member${selected.members.length === 1 ? "" : "s"}` : ""}. Move or remove them before deleting this unit.`
+              ? `"${selected.name}" vẫn còn ${selected.units.length > 0 ? `${selected.units.length} đơn vị con` : ""}${selected.units.length > 0 && selected.members.length > 0 ? " và " : ""}${selected.members.length > 0 ? `${selected.members.length} thành viên` : ""}. Hãy chuyển hoặc xóa hết trước khi xóa đơn vị này.`
               : "This action can't be undone."
           }
-          confirmLabel="Delete unit"
+          confirmLabel="Xóa đơn vị"
           blocked={unitHasChildren}
           onClose={() => setDeletingUnit(false)}
           onConfirm={() => {
@@ -765,7 +766,7 @@ export default function OrgStructureExplorer() {
             <input
               value={treeQuery}
               onChange={e => setTreeQuery(e.target.value)}
-              placeholder="Search units or people…"
+              placeholder="Tìm đơn vị hoặc người…"
               className="ds-input pl-9 h-10 text-sm"
             />
           </div>
@@ -778,7 +779,7 @@ export default function OrgStructureExplorer() {
             />
           ) : (
             <div className="text-sm text-muted-foreground border border-dashed border-border rounded-lg py-10 px-3 text-center">
-              No units or people found.
+              Không tìm thấy đơn vị hoặc người nào.
             </div>
           )}
         </div>
@@ -820,7 +821,7 @@ export default function OrgStructureExplorer() {
                     type="button"
                     onClick={() => setRenamingUnit(true)}
                     aria-label={`Rename ${selected.name}`}
-                    title="Rename unit"
+                    title="Đổi tên đơn vị"
                     className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-base shrink-0"
                   >
                     <Pencil size={13} />
@@ -829,7 +830,7 @@ export default function OrgStructureExplorer() {
                     type="button"
                     onClick={() => setDeletingUnit(true)}
                     aria-label={`Delete ${selected.name}`}
-                    title="Delete unit"
+                    title="Xóa đơn vị"
                     className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground hover:text-destructive transition-base shrink-0"
                   >
                     <Trash2 size={13} />
@@ -905,7 +906,7 @@ export default function OrgStructureExplorer() {
         <div className="mb-8 pt-6 border-t border-border">
           <div className="flex items-center justify-between gap-3 mb-2">
             <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Unit ({selected.units.length})
+              Đơn vị ({selected.units.length})
             </div>
             {canEditStructure && (
               <button
@@ -913,13 +914,13 @@ export default function OrgStructureExplorer() {
                 onClick={() => setShowAddUnit(true)}
                 className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-glow transition-base shrink-0"
               >
-                <Plus size={12} /> Add unit
+                <Plus size={12} /> Thêm đơn vị
               </button>
             )}
           </div>
           {selected.units.length === 0 ? (
             <div className="text-sm text-muted-foreground border border-dashed border-border rounded-lg py-6 text-center">
-              No units yet.
+              Chưa có đơn vị nào.
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -972,7 +973,7 @@ export default function OrgStructureExplorer() {
         <div className="pt-6 border-t border-border">
           <div className="flex items-center justify-between gap-3 mb-2">
             <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Members in this unit ({countDirect(selected)})
+              Thành viên trong đơn vị này ({countDirect(selected)})
             </div>
             <div className="flex items-center gap-2">
               {selected.members.length > 6 && (
@@ -991,7 +992,7 @@ export default function OrgStructureExplorer() {
 
           {selected.members.length === 0 ? (
             <div className="text-sm text-muted-foreground border border-dashed border-border rounded-lg py-6 text-center">
-              No direct members in this unit yet.
+              Chưa có thành viên trực tiếp trong đơn vị này.
             </div>
           ) : (
             <>
@@ -1021,8 +1022,8 @@ export default function OrgStructureExplorer() {
                       <button
                         type="button"
                         onClick={() => setMovingMember(m)}
-                        aria-label={`Move ${m.name} to another unit`}
-                        title="Move to another unit"
+                        aria-label={`Chuyển ${m.name} sang đơn vị khác`}
+                        title="Chuyển sang đơn vị khác"
                         className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-base"
                       >
                         <FolderInput size={13} />
