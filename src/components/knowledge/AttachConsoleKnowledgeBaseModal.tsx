@@ -70,7 +70,7 @@ export default function AttachConsoleKnowledgeBaseModal({ agentId, userId, onClo
             {visible.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">Không tìm thấy kho tri thức phù hợp.</p>
             ) : (
-              <div className="space-y-1.5 py-1">
+              <div className="space-y-1.5 py-1 min-w-0">
                 {visible.map(kb => {
                   const linked = alreadyLinked.has(kb.id);
                   const isMine = kb.ownerId === userId;

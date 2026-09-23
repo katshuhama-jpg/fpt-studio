@@ -67,7 +67,7 @@ export default function AttachConsoleSkillModal({ agentId, userId, onClose }: { 
             {visible.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">Không tìm thấy skill phù hợp.</p>
             ) : (
-              <div className="space-y-1.5 py-1">
+              <div className="space-y-1.5 py-1 min-w-0">
                 {visible.map(s => {
                   const linked = alreadyLinked.has(s.id);
                   const isMine = s.ownerId === userId;

@@ -70,7 +70,7 @@ export default function AttachConsoleGuardrailModal({ agentId, userId, onClose }
             {visible.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">Không tìm thấy guardrail phù hợp.</p>
             ) : (
-              <div className="space-y-1.5 py-1">
+              <div className="space-y-1.5 py-1 min-w-0">
                 {visible.map(g => {
                   const linked = alreadyLinked.has(g.id);
                   const isMine = g.ownerId === userId;
