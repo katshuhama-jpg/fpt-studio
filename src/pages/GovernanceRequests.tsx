@@ -1,11 +1,13 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Filter, Layers, ChevronDown } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Search01Icon, FilterIcon, LayerIcon, ChevronDownIcon, InboxIcon } from "@hugeicons/core-free-icons";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   governanceStore, AUDIENCE_LABEL, itemNeedsReview,
   type GovRequestStatus, type GovResourceType, type GovRequest,
 } from "@/components/governance/governanceStore";
-import { StatusBadge, ResourceTypeIcon, ResourceTypePill, STATUS_ROW_ACCENT, initials, relativeTime } from "@/components/governance/governanceUi";
+import { StatusBadge, ResourceTypeIcon, ResourceTypePill, initials, relativeTime } from "@/components/governance/governanceUi";
 
 type MainTab = "all" | GovRequestStatus;
 
@@ -39,70 +41,83 @@ const TYPE_FILTERS: { key: "all" | GovResourceType; label: string }[] = [
   { key: "connector", label: "Connector" },
 ];
 
-const COLS = "1.5fr 110px 170px 170px 110px 130px";
-
-/** Column labels above the card-list — kept as a plain header row (not its own bordered box)
- * so the eye reads it as "this is what lines up under each card", not as a separate block. */
-function ListHead() {
-  return (
-    <div className="grid px-4 gap-3" style={{ gridTemplateColumns: COLS }}>
-      {["Resource", "Loại", "Người gửi", "Publish to", "Gửi lúc", "Trạng thái"].map(c => (
-        <div key={c} className="pb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{c}</div>
-      ))}
-    </div>
-  );
-}
-
-/** Each request is its own rounded, left-accented card rather than a dense table row — accent
- * color marks the rows that actually need a decision (pending) so the queue reads as a triage
- * list at a glance, while resolved rows stay neutral. Columns still line up with ListHead via
- * the same grid template, so it scans like a table despite the card spacing. */
-function RequestCard({ r, onClick }: { r: GovRequest; onClick: () => void }) {
+/** One request per table row. The queue used to render each request as its own rounded card
+ * with a colored left accent; it's a real table now — the design system's table treatment is a
+ * bordered row inside one card, and the status column already carries the colour that the
+ * accent bar was duplicating. */
+function RequestRow({ r, onClick }: { r: GovRequest; onClick: () => void }) {
   const needsAttention = r.bundledItems.filter(it => itemNeedsReview(it.changeState)).length;
   return (
-    <div
+    <TableRow
       role="button"
       tabIndex={0}
       onClick={onClick}
       onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }}
-      className={`grid px-4 py-3.5 gap-3 items-center rounded-xl border border-l-4 bg-surface cursor-pointer hover:shadow-sm hover:border-border transition-base ${STATUS_ROW_ACCENT[r.status]}`}
-      style={{ gridTemplateColumns: COLS }}
+      className="cursor-pointer focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
     >
-      <div className="min-w-0 flex items-center gap-2.5">
-        <span className="w-9 h-9 rounded-xl bg-surface-muted flex items-center justify-center shrink-0 text-base border border-border/60">
-          {r.resourceIcon ?? <ResourceTypeIcon type={r.resourceType} size={16} className="text-muted-foreground" />}
-        </span>
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-foreground truncate">{r.resourceName}</p>
-          {r.bundledItems.length > 0 && (
-            <span className={`inline-flex items-center gap-1 mt-1 text-[11px] font-medium rounded-full px-2 py-0.5 whitespace-nowrap ${
-              needsAttention > 0 ? "text-primary bg-primary-soft" : "text-muted-foreground bg-surface-muted"
-            }`}>
-              <Layers size={10} />
-              {r.bundledItems.length} thành phần đi kèm{needsAttention > 0 ? ` · ${needsAttention} cần chú ý` : ""}
-            </span>
-          )}
+      <TableCell className="py-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="w-9 h-9 rounded-md bg-muted flex items-center justify-center shrink-0 text-base">
+            {r.resourceIcon ?? <ResourceTypeIcon type={r.resourceType} size={16} className="text-muted-foreground" />}
+          </span>
+          <div className="min-w-0">
+            <p className="font-medium truncate">{r.resourceName}</p>
+            {r.bundledItems.length > 0 && (
+              <span className={`inline-flex items-center gap-1 mt-1 text-xs font-medium rounded-sm px-1.5 py-0.5 whitespace-nowrap ${
+                needsAttention > 0 ? "text-primary bg-primary/10" : "text-muted-foreground bg-muted"
+              }`}>
+                <HugeiconsIcon icon={LayerIcon} size={12} />
+                {r.bundledItems.length} thành phần đi kèm{needsAttention > 0 ? ` · ${needsAttention} cần chú ý` : ""}
+              </span>
+            )}
+          </div>
         </div>
-      </div>
-      <div><ResourceTypePill type={r.resourceType} /></div>
-      <div className="min-w-0 flex items-center gap-2">
-        <span className="w-6 h-6 rounded-full bg-primary-soft flex items-center justify-center text-[10px] font-semibold text-primary shrink-0">
-          {initials(r.requesterName)}
-        </span>
-        <span className="text-sm text-foreground truncate">{r.requesterName}</span>
-      </div>
-      <div className="text-sm text-muted-foreground truncate">{AUDIENCE_LABEL[r.audience]}</div>
-      <div className="text-sm text-muted-foreground">{relativeTime(r.submittedAt)}</div>
-      <div><StatusBadge status={r.status} /></div>
+      </TableCell>
+      <TableCell className="py-3"><ResourceTypePill type={r.resourceType} /></TableCell>
+      <TableCell className="py-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary shrink-0">
+            {initials(r.requesterName)}
+          </span>
+          <span className="truncate">{r.requesterName}</span>
+        </div>
+      </TableCell>
+      <TableCell className="py-3 text-muted-foreground">{AUDIENCE_LABEL[r.audience]}</TableCell>
+      <TableCell className="py-3 text-muted-foreground whitespace-nowrap tabular-nums">{relativeTime(r.submittedAt)}</TableCell>
+      <TableCell className="py-3"><StatusBadge status={r.status} /></TableCell>
+    </TableRow>
+  );
+}
+
+/** The whole list is one bordered card: header row, then the request rows. */
+function RequestTable({ rows, onOpen }: { rows: GovRequest[]; onOpen: (id: string) => void }) {
+  return (
+    <div className="rounded-lg border bg-card overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            <TableHead className="h-10">Resource</TableHead>
+            <TableHead className="h-10 w-[130px]">Loại</TableHead>
+            <TableHead className="h-10 w-[180px]">Người gửi</TableHead>
+            <TableHead className="h-10 w-[170px]">Publish to</TableHead>
+            <TableHead className="h-10 w-[130px]">Gửi lúc</TableHead>
+            <TableHead className="h-10 w-[140px]">Trạng thái</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map(r => <RequestRow key={r.id} r={r} onClick={() => onOpen(r.id)} />)}
+        </TableBody>
+      </Table>
     </div>
   );
 }
 
-function EmptyState({ label }: { label: string }) {
+function EmptyState({ title, hint }: { title: string; hint: string }) {
   return (
-    <div className="rounded-xl border border-border bg-surface px-5 py-10 text-sm text-muted-foreground text-center flex flex-col items-center gap-2">
-      <Layers size={20} className="text-muted-foreground/50" />
-      {label}
+    <div className="rounded-lg border bg-card px-5 py-12 flex flex-col items-center gap-2 text-center">
+      <HugeiconsIcon icon={InboxIcon} size={24} className="text-muted-foreground" />
+      <p className="font-medium">{title}</p>
+      <p className="text-sm text-muted-foreground">{hint}</p>
     </div>
   );
 }
@@ -110,14 +125,15 @@ function EmptyState({ label }: { label: string }) {
 /** Section divider for the "Tất cả" tab — 2 groups: "cần xử lý" for an Admin means only
  * "pending" (see the Grouping comment above); everything else is already resolved. */
 function SectionLabel({ children, count, tone }: { children: string; count: number; tone: Grouping }) {
-  const TONE_LABEL = tone === "action" ? "text-primary" : "text-muted-foreground";
-  const TONE_CHIP = tone === "action" ? "bg-primary-soft text-primary" : "bg-surface-sunken text-muted-foreground";
+  const isAction = tone === "action";
   return (
     <div className="flex items-center gap-2 mb-2.5">
-      <span className={`text-xs font-semibold uppercase tracking-wide whitespace-nowrap ${TONE_LABEL}`}>
+      <span className={`text-sm font-medium whitespace-nowrap ${isAction ? "text-foreground" : "text-muted-foreground"}`}>
         {children}
       </span>
-      <span className={`text-[11px] font-semibold rounded-full px-1.5 py-0.5 ${TONE_CHIP}`}>
+      <span className={`text-xs font-medium tabular-nums rounded-sm px-1.5 py-0.5 ${
+        isAction ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+      }`}>
         {count}
       </span>
       <span className="flex-1 h-px bg-border" />
@@ -171,10 +187,12 @@ export default function GovernanceRequests() {
     return sortForGroup(list, GROUP_OF[tab]);
   }, [typeAndQueryFiltered, tab]);
 
+  const openRequest = (id: string) => navigate(`/governance/requests/${id}`);
+
   return (
     <div className="p-6 md:p-8 max-w-[1200px] mx-auto">
       <div className="mb-6">
-        <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">Requests</h1>
+        <h1 className="text-2xl font-semibold tracking-tight mb-1">Requests</h1>
         <p className="text-sm text-muted-foreground">
           Duyệt yêu cầu publish/update cho Agent, Knowledge, Skill, Guardrails và Connector trước khi chia sẻ rộng hơn trong workspace.
         </p>
@@ -185,12 +203,14 @@ export default function GovernanceRequests() {
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`px-3 h-8 rounded-lg text-sm font-medium transition-base flex items-center gap-1.5 ${
-              tab === t.key ? "bg-primary-soft text-primary" : "text-muted-foreground hover:bg-surface-muted"
+            className={`px-3 h-9 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
+              tab === t.key ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
           >
             {t.label}
-            <span className={`text-xs px-1.5 py-0.5 rounded-full ${tab === t.key ? "bg-primary/10 text-primary" : "bg-surface-sunken text-muted-foreground"}`}>
+            <span className={`text-xs tabular-nums px-1.5 py-0.5 rounded-sm ${
+              tab === t.key ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+            }`}>
               {counts[t.key === "all" ? "all" : t.key]}
             </span>
           </button>
@@ -199,63 +219,51 @@ export default function GovernanceRequests() {
 
       <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
         <div className="relative">
-          <Filter size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-foreground/70 pointer-events-none" />
+          <HugeiconsIcon icon={FilterIcon} size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
           <select
             value={typeFilter}
             onChange={e => setTypeFilter(e.target.value as "all" | GovResourceType)}
-            className="h-9 pl-8 pr-7 rounded-lg bg-white border border-border shadow-sm text-sm font-medium text-foreground hover:border-ring/60 focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30 appearance-none transition-base"
+            aria-label="Lọc theo loại resource"
+            className="h-9 pl-9 pr-8 rounded-md border bg-transparent text-sm appearance-none transition-colors focus-visible:outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           >
             {TYPE_FILTERS.map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
           </select>
-          <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <HugeiconsIcon icon={ChevronDownIcon} size={16} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
         </div>
         <div className="relative">
-          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <HugeiconsIcon icon={Search01Icon} size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
           <input
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Tìm theo tên hoặc người gửi..."
-            className="h-9 w-64 pl-8 pr-3 rounded-lg bg-white border border-border shadow-sm text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30 transition-base"
+            className="h-9 w-64 pl-9 pr-3 rounded-md border bg-transparent text-sm placeholder:text-muted-foreground transition-colors focus-visible:outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           />
         </div>
       </div>
 
-      <ListHead />
       {tab === "all" ? (
         actionList.length === 0 && resolvedList.length === 0 ? (
-          <EmptyState label="Chưa có yêu cầu nào." />
+          <EmptyState title="Chưa có yêu cầu nào" hint="Yêu cầu publish từ thành viên workspace sẽ xuất hiện ở đây." />
         ) : (
-          <>
+          <div className="space-y-6">
             {actionList.length > 0 && (
-              <div className="mb-6">
+              <div>
                 <SectionLabel count={actionList.length} tone="action">Chờ bạn duyệt</SectionLabel>
-                <div className="space-y-2">
-                  {actionList.map(r => (
-                    <RequestCard key={r.id} r={r} onClick={() => navigate(`/governance/requests/${r.id}`)} />
-                  ))}
-                </div>
+                <RequestTable rows={actionList} onOpen={openRequest} />
               </div>
             )}
             {resolvedList.length > 0 && (
               <div>
                 <SectionLabel count={resolvedList.length} tone="resolved">Đã xử lý</SectionLabel>
-                <div className="space-y-2">
-                  {resolvedList.map(r => (
-                    <RequestCard key={r.id} r={r} onClick={() => navigate(`/governance/requests/${r.id}`)} />
-                  ))}
-                </div>
+                <RequestTable rows={resolvedList} onOpen={openRequest} />
               </div>
             )}
-          </>
+          </div>
         )
       ) : singleTabList.length === 0 ? (
-        <EmptyState label="Không có yêu cầu phù hợp." />
+        <EmptyState title="Không có yêu cầu phù hợp" hint="Thử đổi bộ lọc loại resource hoặc từ khóa tìm kiếm." />
       ) : (
-        <div className="space-y-2">
-          {singleTabList.map(r => (
-            <RequestCard key={r.id} r={r} onClick={() => navigate(`/governance/requests/${r.id}`)} />
-          ))}
-        </div>
+        <RequestTable rows={singleTabList} onOpen={openRequest} />
       )}
     </div>
   );
