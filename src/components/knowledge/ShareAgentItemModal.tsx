@@ -17,7 +17,7 @@ import { knowledgeStore, type KnowledgeItem } from "./knowledgeStore";
 
 const BUILD_ACCESS_OPTIONS: { value: SharingMode; label: string; helper?: string }[] = [
   { value: "private", label: "Chỉ mình tôi" },
-  { value: "all", label: "Tất cả người dùng Console", helper: "Mọi builder đều dùng được." },
+  { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi builder đều dùng được." },
   { value: "specific", label: "Người cụ thể", helper: "Chỉ người bạn chọn." },
 ];
 
@@ -30,7 +30,7 @@ const BUILD_ACCESS_OPTIONS: { value: SharingMode; label: string; helper?: string
  * 2. `QuerySharing`/`QueryScopeMode` ("Phạm vi trả lời") — a new, independent
  *    axis controlling which END USERS an already-published Agent may draw on this item for when
  *    answering a live chat. A "Chỉ mình tôi" item can still be answered broadly, and a
- *    "Tất cả người dùng Console" item can still be answer-restricted — the two questions don't
+ *    "Tất cả người dùng trong Space" item can still be answer-restricted — the two questions don't
  *    imply each other.
  *
  * `RadioCard` and the "Phạm vi trả lời" field itself live in QueryScopeSection.tsx, shared with

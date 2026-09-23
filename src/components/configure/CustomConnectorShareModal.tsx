@@ -12,7 +12,7 @@ import CustomConnectorMemberPicker from "./CustomConnectorMemberPicker";
 
 const SHARING_OPTIONS: { value: SharingMode; label: string; helper?: string }[] = [
   { value: "private", label: "Chỉ mình tôi" },
-  { value: "all", label: "Tất cả người dùng Console", helper: "Mọi thành viên Console đều xem và dùng được custom connector này." },
+  { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi thành viên trong Space đều xem và dùng được custom connector này." },
   { value: "specific", label: "Người dùng cụ thể" },
 ];
 
@@ -80,7 +80,7 @@ export default function CustomConnectorShareModal({
 
           <div className="space-y-5 py-1">
             <div>
-              <label className="text-sm font-medium mb-2 block">Ai có quyền truy cập</label>
+              <label className="text-sm font-medium mb-2 block">Chia sẻ tới</label>
               <div className="space-y-2">
                 {SHARING_OPTIONS.map(opt => {
                   const selected = mode === opt.value;

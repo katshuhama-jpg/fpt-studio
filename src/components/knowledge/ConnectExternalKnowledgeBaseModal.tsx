@@ -16,7 +16,7 @@ const DESC_MAX = 256;
 
 const SHARING_OPTIONS: { value: SharingMode; label: string; helper?: string }[] = [
   { value: "private", label: "Chỉ mình tôi" },
-  { value: "all", label: "Tất cả người dùng Console", helper: "Mọi thành viên Console đều xem và dùng được kho này." },
+  { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi thành viên trong Space đều xem và dùng được kho này." },
   { value: "specific", label: "Người dùng cụ thể" },
 ];
 
@@ -157,7 +157,7 @@ export default function ConnectExternalKnowledgeBaseModal({ open, onClose }: { o
           </div>
 
           <div>
-            <label className="text-sm font-medium mb-2 block">Quyền truy cập</label>
+            <label className="text-sm font-medium mb-2 block">Chia sẻ tới</label>
             <div className="space-y-2">
               {SHARING_OPTIONS.map(opt => (
                 <RadioCard key={opt.value} selected={sharingMode === opt.value} onSelect={() => setSharingMode(opt.value)} label={opt.label} helper={opt.helper}>

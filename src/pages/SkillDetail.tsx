@@ -179,10 +179,10 @@ export default function SkillDetail() {
           </div>
 
           <div className="rounded-xl border border-border bg-surface p-5">
-            <div className="text-sm font-semibold mb-2">Quyền truy cập</div>
+            <div className="text-sm font-semibold mb-2">Chia sẻ tới</div>
             <p className="text-sm text-muted-foreground">
               {skill.sharing.mode === "private" && "Chỉ mình tôi"}
-              {skill.sharing.mode === "all" && "Tất cả người dùng Console"}
+              {skill.sharing.mode === "all" && "Tất cả người dùng trong Space"}
               {skill.sharing.mode === "specific" && "Người dùng cụ thể"}
             </p>
             {skill.sharing.mode === "specific" && skill.sharing.people.length > 0 && (

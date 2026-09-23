@@ -21,7 +21,7 @@ const DUPLICATE_CHECK_DEBOUNCE_MS = 500;
 
 const ACCESS_OPTIONS: { value: SharingMode; label: string; helper?: string }[] = [
   { value: "private", label: "Chỉ mình tôi" },
-  { value: "all", label: "Tất cả người dùng Console", helper: "Mọi thành viên Console đều xem và dùng được FAQ này." },
+  { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi thành viên trong Space đều xem và dùng được FAQ này." },
   { value: "specific", label: "Người dùng cụ thể" },
 ];
 
@@ -230,7 +230,7 @@ export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, editi
             </div>
             {!isEdit && (
               <div>
-                <label className="text-sm font-medium mb-2 block">Ai có quyền truy cập</label>
+                <label className="text-sm font-medium mb-2 block">Chia sẻ tới</label>
                 <div className="space-y-2">
                   {ACCESS_OPTIONS.map(opt => {
                     const selected = accessMode === opt.value;
