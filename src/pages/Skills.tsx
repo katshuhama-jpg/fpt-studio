@@ -13,6 +13,8 @@ import { skillStore, type Skill } from "@/components/configure/skillStore";
 import { getAgent } from "@/components/configure/agentStore";
 import { isAccessibleTo, isViewOnly, type Sharing } from "@/components/configure/skillSharing";
 import CreateSkillModal, { type SkillFormData } from "@/components/configure/CreateSkillModal";
+import CreateSkillChoiceModal from "@/components/configure/CreateSkillChoiceModal";
+import UploadSkillModal from "@/components/configure/UploadSkillModal";
 import SkillShareModal from "@/components/configure/SkillShareModal";
 
 type MainTab = "all" | "mine" | "shared";
@@ -108,6 +110,8 @@ export default function Skills() {
   const [tab, setTab] = useState<MainTab>("all");
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [showChoice, setShowChoice] = useState(false);
+  const [showUpload, setShowUpload] = useState(false);
   const [editTarget, setEditTarget] = useState<Skill | null>(null);
   const [shareTarget, setShareTarget] = useState<Skill | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Skill | null>(null);
@@ -188,7 +192,7 @@ export default function Skills() {
           <div className="flex items-center gap-2">
             <button className="btn-secondary flex items-center gap-1.5"><BookOpen size={14} /> Browse Library</button>
             <button
-              onClick={() => canCreateSkill && setShowCreate(true)}
+              onClick={() => canCreateSkill && setShowChoice(true)}
               disabled={!canCreateSkill}
               title={!canCreateSkill ? "You don't have permission to create skills." : undefined}
               className="btn-primary flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
@@ -247,7 +251,7 @@ export default function Skills() {
           <div className="flex items-center gap-3">
             <button className="btn-secondary flex items-center gap-1.5"><BookOpen size={14} /> Browse Library</button>
             <button
-              onClick={() => canCreateSkill && setShowCreate(true)}
+              onClick={() => canCreateSkill && setShowChoice(true)}
               disabled={!canCreateSkill}
               title={!canCreateSkill ? "You don't have permission to create skills." : undefined}
               className="btn-primary flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
@@ -317,6 +321,14 @@ export default function Skills() {
         </div>
       )}
 
+      {showChoice && (
+        <CreateSkillChoiceModal
+          onClose={() => setShowChoice(false)}
+          onChooseManual={() => { setShowChoice(false); setShowCreate(true); }}
+          onChooseUpload={() => { setShowChoice(false); setShowUpload(true); }}
+        />
+      )}
+
       {showCreate && (
         <CreateSkillModal
           onClose={() => setShowCreate(false)}
@@ -326,6 +338,18 @@ export default function Skills() {
             openSkill(skill);
           }}
           currentUser={currentUser}
+          isDuplicateName={name => skillStore.isDuplicateName(name)}
+        />
+      )}
+
+      {showUpload && (
+        <UploadSkillModal
+          onClose={() => setShowUpload(false)}
+          onSubmit={data => {
+            const skill = skillStore.create({ ...data, ownerId: currentUser.id, ownerName: currentUser.name });
+            refresh();
+            openSkill(skill);
+          }}
           isDuplicateName={name => skillStore.isDuplicateName(name)}
         />
       )}

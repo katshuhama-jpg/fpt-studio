@@ -53,6 +53,8 @@ import { skillStore, type Skill } from "@/components/configure/skillStore";
 import { agentSkillStore } from "@/components/configure/agentSkillStore";
 import { builtinSkillStore, type BuiltinSkill } from "@/components/configure/builtinSkillStore";
 import CreateSkillModal, { type SkillFormData } from "@/components/configure/CreateSkillModal";
+import CreateSkillChoiceModal from "@/components/configure/CreateSkillChoiceModal";
+import UploadSkillModal from "@/components/configure/UploadSkillModal";
 import SkillOwnershipTag from "@/components/configure/SkillOwnershipTag";
 import SkillShareModal from "@/components/configure/SkillShareModal";
 import AttachConsoleSkillModal from "@/components/configure/AttachConsoleSkillModal";
@@ -5142,6 +5144,7 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
   const [menuPos, setMenuPos] = useState<{top:number;left:number}>({top:0,left:0});
   const [showAttach, setShowAttach] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [showUpload, setShowUpload] = useState(false);
   const [editTarget, setEditTarget] = useState<Skill | null>(null);
   const [shareTarget, setShareTarget] = useState<Skill | null>(null);
   const [promoteTarget, setPromoteTarget] = useState<Skill | null>(null);
@@ -5178,7 +5181,7 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
   const menuItems = [
     { icon: LayerAddIcon, label: "Connect workspace skill", onClick: () => setShowAttach(true) },
     { icon: Add01Icon,    label: "Create new skill", onClick: () => setShowCreate(true) },
-    { icon: Upload01Icon, label: "Upload a skill", onClick: undefined },
+    { icon: Upload01Icon, label: "Upload a skill", onClick: () => setShowUpload(true) },
   ];
 
   const total = attachedSkills.length + items.length;
@@ -5277,6 +5280,14 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
           onClose={() => setShowCreate(false)}
           onSubmit={(data: SkillFormData) => { agentSkillStore.create(agentId, { ...data, ownerId: currentUser.id, ownerName: currentUser.name }); refresh(); }}
           currentUser={currentUser}
+          isDuplicateName={name => agentSkillStore.list(agentId).some(s => s.name.trim().toLowerCase() === name.trim().toLowerCase())}
+        />
+      )}
+
+      {showUpload && (
+        <UploadSkillModal
+          onClose={() => setShowUpload(false)}
+          onSubmit={(data: SkillFormData) => { agentSkillStore.create(agentId, { ...data, ownerId: currentUser.id, ownerName: currentUser.name }); refresh(); }}
           isDuplicateName={name => agentSkillStore.list(agentId).some(s => s.name.trim().toLowerCase() === name.trim().toLowerCase())}
         />
       )}
@@ -7031,6 +7042,8 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
   void tick;
   const [showAttach, setShowAttach] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [showChoice, setShowChoice] = useState(false);
+  const [showUpload, setShowUpload] = useState(false);
   const [editTarget, setEditTarget] = useState<Skill | null>(null);
   const [shareTarget, setShareTarget] = useState<Skill | null>(null);
   const [promoteTarget, setPromoteTarget] = useState<Skill | null>(null);
@@ -7120,7 +7133,7 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
           <button onClick={() => setShowAttach(true)} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base">
             <HugeiconsIcon icon={ConnectIcon} size={14} /> Connect workspace skill
           </button>
-          <button onClick={() => setShowCreate(true)} className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 transition-base">
+          <button onClick={() => setShowChoice(true)} className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 transition-base">
             <HugeiconsIcon icon={Add01Icon} size={14} /> Create Skill
           </button>
         </div>
@@ -7220,11 +7233,26 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
       </div>
 
       {showAttach && <AttachConsoleSkillModal agentId={agentId} userId={currentUser.id} onClose={() => { setShowAttach(false); refresh(); }} />}
+      {showChoice && (
+        <CreateSkillChoiceModal
+          onClose={() => setShowChoice(false)}
+          onChooseManual={() => { setShowChoice(false); setShowCreate(true); }}
+          onChooseUpload={() => { setShowChoice(false); setShowUpload(true); }}
+        />
+      )}
       {showCreate && (
         <CreateSkillModal
           onClose={() => setShowCreate(false)}
           onSubmit={(data: SkillFormData) => { agentSkillStore.create(agentId, { ...data, ownerId: currentUser.id, ownerName: currentUser.name }); refresh(); }}
           currentUser={currentUser}
+          isDuplicateName={name => agentSkillStore.list(agentId).some(s => s.name.trim().toLowerCase() === name.trim().toLowerCase())}
+        />
+      )}
+
+      {showUpload && (
+        <UploadSkillModal
+          onClose={() => setShowUpload(false)}
+          onSubmit={(data: SkillFormData) => { agentSkillStore.create(agentId, { ...data, ownerId: currentUser.id, ownerName: currentUser.name }); refresh(); }}
           isDuplicateName={name => agentSkillStore.list(agentId).some(s => s.name.trim().toLowerCase() === name.trim().toLowerCase())}
         />
       )}
