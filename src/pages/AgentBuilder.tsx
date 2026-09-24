@@ -1476,6 +1476,9 @@ function AgentKnowledgeGrid({ agentId, onOpenOwn }: { agentId: string; onOpenOwn
   const [showAttach, setShowAttach] = useState(false);
   const [showCreateKb, setShowCreateKb] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
+  const [showUpload, setShowUpload] = useState(false);
+  const [showAddUrl, setShowAddUrl] = useState(false);
+  const [showAddFaq, setShowAddFaq] = useState(false);
   const [editKbTarget, setEditKbTarget] = useState<KnowledgeBase | null>(null);
   const [shareKbTarget, setShareKbTarget] = useState<KnowledgeBase | null>(null);
   const [deleteKbTarget, setDeleteKbTarget] = useState<KnowledgeBase | null>(null);
@@ -1583,9 +1586,16 @@ function AgentKnowledgeGrid({ agentId, onOpenOwn }: { agentId: string; onOpenOwn
             </button>
             {showAddMenu && (
               <div className="absolute right-0 top-full mt-1 z-20 w-64 rounded-lg border border-border bg-white shadow-elev py-1">
-                <button onClick={() => { setShowAddMenu(false); onOpenOwn(true); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">
-                  Tải tài liệu / Website / FAQ
+                <button onClick={() => { setShowAddMenu(false); setShowUpload(true); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">
+                  Tải tài liệu
                 </button>
+                <button onClick={() => { setShowAddMenu(false); setShowAddUrl(true); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">
+                  Website
+                </button>
+                <button onClick={() => { setShowAddMenu(false); setShowAddFaq(true); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">
+                  Câu hỏi thường gặp
+                </button>
+                <div className="h-px bg-border my-1" />
                 <button onClick={() => { setShowAddMenu(false); setShowCreateKb(true); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">
                   Tạo kho tri thức mới
                 </button>
@@ -1637,6 +1647,9 @@ function AgentKnowledgeGrid({ agentId, onOpenOwn }: { agentId: string; onOpenOwn
           onCreated={kb => { knowledgeStore.attachConsoleKb(agentId, kb.id); refresh(); }}
         />
       )}
+      {showUpload && <UploadDocumentsModal open={showUpload} agentId={agentId} onClose={() => { setShowUpload(false); refresh(); }} />}
+      {showAddUrl && <AddUrlModal open={showAddUrl} agentId={agentId} onClose={() => { setShowAddUrl(false); refresh(); }} />}
+      {showAddFaq && <AddEditFaqModal open={showAddFaq} agentId={agentId} onClose={() => { setShowAddFaq(false); refresh(); }} />}
       {editKbTarget && (
         <CreateKnowledgeBaseModal open={!!editKbTarget} editingKb={editKbTarget} onClose={() => setEditKbTarget(null)} onCreated={refresh} />
       )}
