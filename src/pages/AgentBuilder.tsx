@@ -70,7 +70,7 @@ import {
 import { knowledgeStore, OWN_KB_ID, type KnowledgeItem } from "@/components/knowledge/knowledgeStore";
 import { knowledgeBaseStore, CURRENT_USER as KB_CURRENT_USER, isViewOnly as isKbViewOnly, isAccessibleTo as isKbAccessibleTo, type KnowledgeBase } from "@/components/knowledge/knowledgeBaseStore";
 import { governanceStore, listAgentResourceRefs, agentEmoji } from "@/components/governance/governanceStore";
-import { collabGroupStore, overlapForGroup, GROUP_APPROVAL_THRESHOLD, type CollabGroup } from "@/components/configure/collabGroupStore";
+import { collabGroupStore, overlapForGroup, recheckAgentGroupPublish, GROUP_APPROVAL_THRESHOLD, type CollabGroup } from "@/components/configure/collabGroupStore";
 import { resourceBlockStore } from "@/components/governance/resourceBlockStore";
 import { KnowledgeStatusPill } from "@/components/knowledge/knowledgeStatus";
 import AttachConsoleKnowledgeBaseModal from "@/components/knowledge/AttachConsoleKnowledgeBaseModal";
