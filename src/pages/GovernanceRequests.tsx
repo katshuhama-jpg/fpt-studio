@@ -1,13 +1,21 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Search01Icon, FilterIcon, LayerIcon, ChevronDownIcon, InboxIcon } from "@hugeicons/core-free-icons";
+import { Search01Icon, FilterIcon, LayerIcon, ChevronDownIcon, InboxIcon, Robot01Icon, LibraryIcon } from "@hugeicons/core-free-icons";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   governanceStore, AUDIENCE_LABEL,
   type GovRequestStatus, type GovResourceType, type GovRequest,
 } from "@/components/governance/governanceStore";
 import { StatusBadge, ResourceTypeIcon, ResourceTypePill, initials, relativeTime } from "@/components/governance/governanceUi";
+
+/** The 2 independent decisions this queue covers (see the Governance solution note) now read as
+ * 2 separate queues, not one merged list with a type filter — Org/Unit Admin's "does this Agent
+ * reach users" and Tenant Admin's "does this resource go into the Tenant Library" are different
+ * questions with different answers possible (an Agent can be approved while a resource it uses
+ * is still private, or never gets approved for reuse at all), so they get their own tab, own
+ * counts, and own empty states rather than living side by side in one filterable table. */
+type Scope = "agent" | "resource";
 
 type MainTab = "all" | GovRequestStatus;
 
@@ -32,9 +40,10 @@ const TABS: { key: MainTab; label: string }[] = [
   { key: "revoked", label: "Đã thu hồi" },
 ];
 
-const TYPE_FILTERS: { key: "all" | GovResourceType; label: string }[] = [
+/** Only the 4 reusable-resource types — "agent" has its own scope tab now, so it never appears
+ * in this dropdown. */
+const RESOURCE_TYPE_FILTERS: { key: "all" | GovResourceType; label: string }[] = [
   { key: "all", label: "Tất cả loại" },
-  { key: "agent", label: "Agent" },
   { key: "knowledge", label: "Knowledge" },
   { key: "skill", label: "Skill" },
   { key: "guardrail", label: "Guardrails" },
@@ -45,7 +54,7 @@ const TYPE_FILTERS: { key: "all" | GovResourceType; label: string }[] = [
  * with a colored left accent; it's a real table now — the design system's table treatment is a
  * bordered row inside one card, and the status column already carries the colour that the
  * accent bar was duplicating. */
-function RequestRow({ r, onClick }: { r: GovRequest; onClick: () => void }) {
+function RequestRow({ r, scope, onClick }: { r: GovRequest; scope: Scope; onClick: () => void }) {
   return (
     <TableRow
       role="button"
@@ -70,7 +79,7 @@ function RequestRow({ r, onClick }: { r: GovRequest; onClick: () => void }) {
           </div>
         </div>
       </TableCell>
-      <TableCell className="py-3"><ResourceTypePill type={r.resourceType} /></TableCell>
+      {scope === "resource" && <TableCell className="py-3"><ResourceTypePill type={r.resourceType} /></TableCell>}
       <TableCell className="py-3">
         <div className="flex items-center gap-2 min-w-0">
           <span className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary shrink-0">
@@ -86,23 +95,26 @@ function RequestRow({ r, onClick }: { r: GovRequest; onClick: () => void }) {
   );
 }
 
-/** The whole list is one bordered card: header row, then the request rows. */
-function RequestTable({ rows, onOpen }: { rows: GovRequest[]; onOpen: (id: string) => void }) {
+/** The whole list is one bordered card: header row, then the request rows. The "Loại" column
+ * only makes sense in the Resource scope (the Agent scope is a single type by definition), and
+ * the "Publish to" header is relabelled per scope — for an Agent it's who the Agent reaches, for
+ * a Resource it's the reuse scope being requested inside the Tenant Library. */
+function RequestTable({ rows, scope, onOpen }: { rows: GovRequest[]; scope: Scope; onOpen: (id: string) => void }) {
   return (
     <div className="rounded-lg border bg-card overflow-hidden">
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             <TableHead className="h-10">Resource</TableHead>
-            <TableHead className="h-10 w-[130px]">Loại</TableHead>
+            {scope === "resource" && <TableHead className="h-10 w-[130px]">Loại</TableHead>}
             <TableHead className="h-10 w-[180px]">Người gửi</TableHead>
-            <TableHead className="h-10 w-[170px]">Publish to</TableHead>
+            <TableHead className="h-10 w-[170px]">{scope === "agent" ? "Publish to" : "Phạm vi dùng chung"}</TableHead>
             <TableHead className="h-10 w-[130px]">Gửi lúc</TableHead>
             <TableHead className="h-10 w-[140px]">Trạng thái</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map(r => <RequestRow key={r.id} r={r} onClick={() => onOpen(r.id)} />)}
+          {rows.map(r => <RequestRow key={r.id} r={r} scope={scope} onClick={() => onOpen(r.id)} />)}
         </TableBody>
       </Table>
     </div>
@@ -138,30 +150,95 @@ function SectionLabel({ children, count, tone }: { children: string; count: numb
   );
 }
 
+/** The 2 top-level scope tabs — bigger, more separated than the status tabs below them, since
+ * this is the decision that actually splits the queue in two; each carries its own "chờ duyệt"
+ * count so an Admin sees at a glance whether either queue needs attention without opening it. */
+function ScopeTabs({ scope, onChange, agentPending, resourcePending }: {
+  scope: Scope; onChange: (s: Scope) => void; agentPending: number; resourcePending: number;
+}) {
+  const items: { key: Scope; label: string; icon: any; pending: number }[] = [
+    { key: "agent", label: "Duyệt Agent", icon: Robot01Icon, pending: agentPending },
+    { key: "resource", label: "Duyệt dùng chung Resource", icon: LibraryIcon, pending: resourcePending },
+  ];
+  return (
+    <div className="flex items-center gap-2 mb-4 flex-wrap">
+      {items.map(it => {
+        const active = scope === it.key;
+        return (
+          <button
+            key={it.key}
+            onClick={() => onChange(it.key)}
+            className={`flex items-center gap-2 px-4 h-11 rounded-lg border text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
+              active ? "border-primary/30 bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted"
+            }`}
+          >
+            <HugeiconsIcon icon={it.icon} size={16} />
+            {it.label}
+            {it.pending > 0 && (
+              <span className={`text-xs tabular-nums px-1.5 py-0.5 rounded-sm ${
+                active ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
+              }`}>
+                {it.pending}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+const SCOPE_INTRO: Record<Scope, string> = {
+  agent: "Quyết định trong tab này chỉ ảnh hưởng đến việc một Agent có được publish tới người dùng trong Org/Unit hay không (Org/Unit Admin). Nó không phụ thuộc vào việc các Knowledge/Skill/Guardrails/Connector mà Agent đó dùng đã được duyệt dùng chung hay chưa — một Agent vẫn có thể được duyệt publish trong khi Resource nó dùng chưa (hoặc không bao giờ) được Tenant Admin cho phép dùng chung, xem trạng thái dùng chung ngay trên trang chi tiết của Agent.",
+  resource: "Quyết định trong tab này chỉ ảnh hưởng đến việc một Knowledge/Skill/Guardrails/Connector có được đưa vào Tenant Library để Builder khác dùng chung hay không (Tenant Admin). Nó không ảnh hưởng đến bất kỳ Agent nào đang dùng resource này — Agent đó có thể đã được publish và vẫn tiếp tục hoạt động bình thường dù resource ở đây bị từ chối dùng chung.",
+};
+
 export default function GovernanceRequests() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const all = governanceStore.list();
+
+  const scope: Scope = searchParams.get("scope") === "resource" ? "resource" : "agent";
+  const setScope = (s: Scope) => {
+    const next = new URLSearchParams(searchParams);
+    if (s === "agent") next.delete("scope"); else next.set("scope", s);
+    setSearchParams(next, { replace: true });
+    // Switching scope starts that queue fresh rather than carrying over a status/type filter
+    // that may not even apply on the other side (e.g. a "Guardrails" type filter has nothing to
+    // show in the Agent scope).
+    setTab("all");
+    setTypeFilter("all");
+  };
+
   const [tab, setTab] = useState<MainTab>("all");
   const [typeFilter, setTypeFilter] = useState<"all" | GovResourceType>("all");
   const [query, setQuery] = useState("");
 
+  const agentPending = useMemo(() => all.filter(r => r.resourceType === "agent" && r.status === "pending").length, [all]);
+  const resourcePending = useMemo(() => all.filter(r => r.resourceType !== "agent" && r.status === "pending").length, [all]);
+
+  const scopedAll = useMemo(
+    () => all.filter(r => scope === "agent" ? r.resourceType === "agent" : r.resourceType !== "agent"),
+    [all, scope],
+  );
+
   const counts = useMemo(() => ({
-    all: all.length,
-    pending: all.filter(r => r.status === "pending").length,
-    approved: all.filter(r => r.status === "approved").length,
-    rejected: all.filter(r => r.status === "rejected").length,
-    revoked: all.filter(r => r.status === "revoked").length,
-  }), [all]);
+    all: scopedAll.length,
+    pending: scopedAll.filter(r => r.status === "pending").length,
+    approved: scopedAll.filter(r => r.status === "approved").length,
+    rejected: scopedAll.filter(r => r.status === "rejected").length,
+    revoked: scopedAll.filter(r => r.status === "revoked").length,
+  }), [scopedAll]);
 
   // Type/search filter only — status grouping and sort order are decided below, separately per
   // tab, since "open" and "resolved" requests read best in a different order (oldest-first so
   // the longest-waiting item surfaces, vs newest-first so the latest decision is on top).
   const typeAndQueryFiltered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return all
-      .filter(r => typeFilter === "all" || r.resourceType === typeFilter)
+    return scopedAll
+      .filter(r => scope === "agent" || typeFilter === "all" || r.resourceType === typeFilter)
       .filter(r => !q || r.resourceName.toLowerCase().includes(q) || r.requesterName.toLowerCase().includes(q));
-  }, [all, typeFilter, query]);
+  }, [scopedAll, scope, typeFilter, query]);
 
   // "action" ages from submittedAt (that's the clock that's been running since the Admin first
   // owed a decision); "resolved" just shows the latest activity first.
@@ -191,12 +268,11 @@ export default function GovernanceRequests() {
       <div className="mb-6">
         <h1 className="text-2xl font-semibold tracking-tight mb-1">Requests</h1>
         <p className="text-sm text-muted-foreground max-w-3xl leading-relaxed">
-          Hai loại quyết định độc lập trong danh sách này: lọc theo loại <span className="font-medium text-foreground">Agent</span> để
-          duyệt Agent có được publish tới người dùng hay không; lọc theo <span className="font-medium text-foreground">Knowledge / Skill / Guardrails / Connector</span> để
-          duyệt thành phần đó có được đưa vào Tenant Library để Builder khác dùng chung hay không. Duyệt/từ chối một Agent không phụ thuộc
-          vào trạng thái dùng chung của các thành phần bên trong nó.
+          {SCOPE_INTRO[scope]}
         </p>
       </div>
+
+      <ScopeTabs scope={scope} onChange={setScope} agentPending={agentPending} resourcePending={resourcePending} />
 
       <div className="flex items-center gap-1 flex-wrap mb-4">
         {TABS.map(t => (
@@ -218,18 +294,20 @@ export default function GovernanceRequests() {
       </div>
 
       <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
-        <div className="relative">
-          <HugeiconsIcon icon={FilterIcon} size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-          <select
-            value={typeFilter}
-            onChange={e => setTypeFilter(e.target.value as "all" | GovResourceType)}
-            aria-label="Lọc theo loại resource"
-            className="h-9 pl-9 pr-8 rounded-md border bg-transparent text-sm appearance-none transition-colors focus-visible:outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-          >
-            {TYPE_FILTERS.map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
-          </select>
-          <HugeiconsIcon icon={ChevronDownIcon} size={16} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-        </div>
+        {scope === "resource" ? (
+          <div className="relative">
+            <HugeiconsIcon icon={FilterIcon} size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <select
+              value={typeFilter}
+              onChange={e => setTypeFilter(e.target.value as "all" | GovResourceType)}
+              aria-label="Lọc theo loại resource"
+              className="h-9 pl-9 pr-8 rounded-md border bg-transparent text-sm appearance-none transition-colors focus-visible:outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            >
+              {RESOURCE_TYPE_FILTERS.map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
+            </select>
+            <HugeiconsIcon icon={ChevronDownIcon} size={16} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          </div>
+        ) : <span />}
         <div className="relative">
           <HugeiconsIcon icon={Search01Icon} size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
           <input
@@ -243,19 +321,22 @@ export default function GovernanceRequests() {
 
       {tab === "all" ? (
         actionList.length === 0 && resolvedList.length === 0 ? (
-          <EmptyState title="Chưa có yêu cầu nào" hint="Yêu cầu publish từ thành viên workspace sẽ xuất hiện ở đây." />
+          <EmptyState
+            title={scope === "agent" ? "Chưa có Agent nào chờ duyệt publish" : "Chưa có Resource nào chờ duyệt dùng chung"}
+            hint={scope === "agent" ? "Yêu cầu publish Agent tới Org/Unit sẽ xuất hiện ở đây." : "Yêu cầu đưa Knowledge/Skill/Guardrails/Connector vào Tenant Library sẽ xuất hiện ở đây."}
+          />
         ) : (
           <div className="space-y-6">
             {actionList.length > 0 && (
               <div>
                 <SectionLabel count={actionList.length} tone="action">Chờ bạn duyệt</SectionLabel>
-                <RequestTable rows={actionList} onOpen={openRequest} />
+                <RequestTable rows={actionList} scope={scope} onOpen={openRequest} />
               </div>
             )}
             {resolvedList.length > 0 && (
               <div>
                 <SectionLabel count={resolvedList.length} tone="resolved">Đã xử lý</SectionLabel>
-                <RequestTable rows={resolvedList} onOpen={openRequest} />
+                <RequestTable rows={resolvedList} scope={scope} onOpen={openRequest} />
               </div>
             )}
           </div>
@@ -263,7 +344,7 @@ export default function GovernanceRequests() {
       ) : singleTabList.length === 0 ? (
         <EmptyState title="Không có yêu cầu phù hợp" hint="Thử đổi bộ lọc loại resource hoặc từ khóa tìm kiếm." />
       ) : (
-        <RequestTable rows={singleTabList} onOpen={openRequest} />
+        <RequestTable rows={singleTabList} scope={scope} onOpen={openRequest} />
       )}
     </div>
   );
