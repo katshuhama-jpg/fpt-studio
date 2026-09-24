@@ -7,7 +7,7 @@ import { skillStore } from "./skillStore";
 import { agentSkillStore } from "./agentSkillStore";
 import { isAccessibleTo } from "./skillSharing";
 
-/** "Connect workspace skill" — lists the actual Console Skills for this workspace (the same
+/** "Liên kết skill" — lists the actual Console Skills for this workspace (the same
  * ones shown on /tools), filtered to the ones the current user can access. Field-for-field port
  * of AttachConsoleKnowledgeBaseModal.tsx / AttachConsoleGuardrailModal.tsx. */
 export default function AttachConsoleSkillModal({ agentId, userId, onClose }: { agentId: string; userId: string; onClose: () => void }) {
@@ -45,9 +45,9 @@ export default function AttachConsoleSkillModal({ agentId, userId, onClose }: { 
     <Dialog open onOpenChange={v => !v && onClose()}>
       <DialogContent className="sm:max-w-[480px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Connect workspace skill</DialogTitle>
+          <DialogTitle>Liên kết skill</DialogTitle>
         </DialogHeader>
-        <p className="text-sm text-muted-foreground -mt-2">Skills shared across all agents in this workspace.</p>
+        <p className="text-sm text-muted-foreground -mt-2">Agent sẽ dùng skill trực tiếp từ Console — nội dung không được sao chép.</p>
 
         {all.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">Không có skill nào để liên kết.</p>
@@ -58,7 +58,7 @@ export default function AttachConsoleSkillModal({ agentId, userId, onClose }: { 
               <input
                 value={query}
                 onChange={e => setQuery(e.target.value)}
-                placeholder="Search..."
+                placeholder="Tìm skill..."
                 className="h-9 w-full pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
               />
             </div>

@@ -5179,7 +5179,7 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
     .filter((s): s is Skill => !!s);
 
   const menuItems = [
-    { icon: LayerAddIcon, label: "Connect workspace skill", onClick: () => setShowAttach(true) },
+    { icon: LayerAddIcon, label: "Liên kết skill có sẵn", onClick: () => setShowAttach(true) },
     { icon: Add01Icon,    label: "Create new skill", onClick: () => setShowCreate(true) },
     { icon: Upload01Icon, label: "Upload a skill", onClick: () => setShowUpload(true) },
   ];
@@ -6912,7 +6912,7 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button onClick={() => setShowAttach(true)} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base">
-            <HugeiconsIcon icon={ConnectIcon} size={14} /> Add from workspace
+            <HugeiconsIcon icon={ConnectIcon} size={14} /> Liên kết guardrail có sẵn
           </button>
           <button onClick={() => setShowCreate(true)} className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 transition-base">
             <HugeiconsIcon icon={Add01Icon} size={14} /> Create new
@@ -6944,14 +6944,14 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
 
       <div>
         <div className="flex items-center gap-2 mb-3">
-          <span className="text-xs font-bold uppercase tracking-wide text-foreground">From workspace</span>
+          <span className="text-xs font-bold uppercase tracking-wide text-foreground">Guardrails đã liên kết</span>
           <span className="min-w-[20px] h-5 px-1 rounded-full bg-surface-muted text-muted-foreground text-xs font-semibold flex items-center justify-center">{attachedGuardrails.length}</span>
           <div className="flex-1 h-px bg-border" />
         </div>
         {attachedGuardrails.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border p-8 text-center">
-            <p className="text-sm font-medium mb-1">No workspace guardrails linked yet</p>
-            <p className="text-xs text-muted-foreground">Add an existing guardrail from the workspace to reuse it here.</p>
+            <p className="text-sm font-medium mb-1">Chưa có guardrail nào được liên kết</p>
+            <p className="text-xs text-muted-foreground">Liên kết một guardrail có sẵn trong workspace để dùng lại ở đây.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -7132,7 +7132,7 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button onClick={() => setShowAttach(true)} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base">
-            <HugeiconsIcon icon={ConnectIcon} size={14} /> Connect workspace skill
+            <HugeiconsIcon icon={ConnectIcon} size={14} /> Liên kết skill có sẵn
           </button>
           <button onClick={() => setShowChoice(true)} className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 transition-base">
             <HugeiconsIcon icon={Add01Icon} size={14} /> Create Skill
@@ -7165,9 +7165,9 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
       {/* Connected workspace skills — the Console record stays the source of truth, so this
         * Agent can only open, activate or disconnect them, never edit or delete. */}
       <div>
-        {sectionHeader("Connected workspace skills", attachedSkills.length)}
+        {sectionHeader("Skills đã liên kết", attachedSkills.length)}
         {attachedSkills.length === 0 ? (
-          emptyBox("No workspace skills connected yet", "Connect an existing skill from the workspace to reuse it here.")
+          emptyBox("Chưa có skill nào được liên kết", "Liên kết một skill có sẵn trong workspace để dùng lại ở đây.")
         ) : (
           <div className={GRID}>
             {attachedSkills.map(s => renderSkillCard(s, Math.max(1, s.attachedByAgentIds.length), (
@@ -7428,7 +7428,7 @@ function GuardrailsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
   const shown = rows.slice(0, 4);
 
   const menuItems = [
-    { label: "Liên kết guardrail", onClick: () => setShowAttach(true) },
+    { label: "Liên kết guardrail có sẵn", onClick: () => setShowAttach(true) },
     { label: "Tạo mới", onClick: () => setShowCreate(true) },
   ];
 
