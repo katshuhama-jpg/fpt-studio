@@ -350,6 +350,7 @@ export default function Skills() {
             refresh();
             openSkill(skill);
           }}
+          currentUser={currentUser}
           isDuplicateName={name => skillStore.isDuplicateName(name)}
         />
       )}

@@ -5288,6 +5288,7 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
         <UploadSkillModal
           onClose={() => setShowUpload(false)}
           onSubmit={(data: SkillFormData) => { agentSkillStore.create(agentId, { ...data, ownerId: currentUser.id, ownerName: currentUser.name }); refresh(); }}
+          currentUser={currentUser}
           isDuplicateName={name => agentSkillStore.list(agentId).some(s => s.name.trim().toLowerCase() === name.trim().toLowerCase())}
         />
       )}
@@ -7253,6 +7254,7 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
         <UploadSkillModal
           onClose={() => setShowUpload(false)}
           onSubmit={(data: SkillFormData) => { agentSkillStore.create(agentId, { ...data, ownerId: currentUser.id, ownerName: currentUser.name }); refresh(); }}
+          currentUser={currentUser}
           isDuplicateName={name => agentSkillStore.list(agentId).some(s => s.name.trim().toLowerCase() === name.trim().toLowerCase())}
         />
       )}
