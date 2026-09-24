@@ -1331,7 +1331,6 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, openLabel = "M
   );
 }
 
-type KnowledgeMainTab = "all" | "mine" | "shared";
 
 /** Card "..." menu for section=knowledge's card grid (Round 6 Prompt K) — same action set as
  * Console's own /knowledge card menu (Mở / Đổi tên / Chia sẻ / Xóa), with `openOnly` for the
@@ -1403,10 +1402,12 @@ function AgentKbCardMenu({ onOpen, onEdit, onShare, onDelete, editBlocked, share
   );
 }
 
-/** One Knowledge Base card in section=knowledge's grid — visually identical to a Console
- * /knowledge card, plus the "Kích hoạt" toggle Round 6 Prompt K adds. `icon` is a fully-formed
- * node (the same 32×32 tinted tile Console uses — see KnowledgeTypeIcon) rather than a bare
- * glyph, so a real linked KB renders with the exact same color coding as its Console card. */
+
+/** One Knowledge Base card — restyled to match SkillsAgentTab/GuardrailsAgentTab's card (p-4
+ * border bg-white, opacity-60 when inactive, Switch + menu in the bottom row) so all three
+ * "attached resource" grids in Agent Details read as one consistent card system. `icon` is a
+ * fully-formed node (the same tinted tile Console uses — see KnowledgeTypeIcon) rather than a
+ * bare glyph, so a real linked KB renders with the exact same color coding as its Console card. */
 function AgentKbCard({ icon, name, description, active, onToggleActive, onOpen, menu }: {
   icon: React.ReactNode; name: string; description?: string;
   active: boolean; onToggleActive: (v: boolean) => void; onOpen: () => void; menu: React.ReactNode;
@@ -1417,39 +1418,35 @@ function AgentKbCard({ icon, name, description, active, onToggleActive, onOpen, 
       tabIndex={0}
       onClick={onOpen}
       onKeyDown={e => { if (e.key === "Enter") onOpen(); }}
-      className={`group rounded-xl border border-border bg-surface hover:border-primary/30 hover:shadow-elev transition-base cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring p-5 flex flex-col ${active ? "" : "opacity-55"}`}
+      className={`flex flex-col gap-3 p-4 rounded-xl border border-border bg-white hover:border-primary/30 hover:shadow-soft transition-base cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${active ? "" : "opacity-60"}`}
     >
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="flex items-center gap-2.5 min-w-0">
-          {icon}
-          <span className="font-semibold text-sm leading-snug line-clamp-2 min-w-0">{name}</span>
+      <div className="flex items-start gap-3">
+        {icon}
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold truncate">{name}</div>
         </div>
-        {menu}
       </div>
-      <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 mb-3 min-h-[32px]">
+      <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 flex-1">
         {description || <span className="italic">Chưa có mô tả</span>}
       </p>
-      <div className="mt-auto pt-3 border-t border-border flex items-center justify-end">
-        <label
-          className="flex items-center gap-1.5 shrink-0 cursor-pointer"
-          onClick={e => e.stopPropagation()}
-          title="Bật/tắt: Agent này có dùng nội dung kho tri thức này để trả lời hay không."
-        >
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Kích hoạt</span>
+      <div className="flex items-center justify-between mt-1">
+        <div onClick={e => e.stopPropagation()} title="Bật/tắt: Agent này có dùng nội dung kho tri thức này để trả lời hay không.">
           <Switch checked={active} onCheckedChange={onToggleActive} />
-        </label>
+        </div>
+        {menu}
       </div>
     </div>
   );
 }
 
-/** section=knowledge (Agent Details → Knowledge → "Tri thức của Agent") — Round 6 Prompt K:
- * this is the SAME component as Console's top-level /knowledge card grid (tabs, search, per-card
- * actions), reused rather than rebuilt, scoped to the Knowledge Bases attached to this Agent.
- * The Agent's own upload/website/FAQ items are represented as one synthetic "Cá nhân" card
- * (OWN_KB_ID) so the whole screen reads as a single, consistent list of Kho tri thức instead of
- * two different UI paradigms. The only two additions versus /knowledge are the "Kích hoạt"
- * toggle on every card, and the "Liên kết kho tri thức có sẵn" button in the toolbar. */
+
+/** section=knowledge (Agent Details → Knowledge → "Tri thức của Agent"). Synced to the same
+ * section layout Skills/Guardrails use in Agent Details: a "Kho tri thức đã liên kết" section
+ * for KBs shared in from the workspace, and a "Kho tri thức riêng của Agent" section for the
+ * Agent's own upload/website/FAQ bucket (one synthetic "Cá nhân" card, OWN_KB_ID) — instead of
+ * merging both into one filtered/tabbed grid the way this screen used to. Still keeps its own
+ * search box and the "Kích hoạt" toggle on every card, since neither has an equivalent on the
+ * Skills/Guardrails tabs. */
 function KnowledgeTab({ agentId }: { agentId: string }) {
   const [params, setParams] = useSearchParams();
   const view: "grid" | "own" = params.get("view") === "own" ? "own" : "grid";
@@ -1475,7 +1472,6 @@ function AgentKnowledgeGrid({ agentId, onOpenOwn }: { agentId: string; onOpenOwn
   const refresh = () => setTick(t => t + 1);
   void tick;
 
-  const [mainTab, setMainTab] = useState<KnowledgeMainTab>("all");
   const [searchInput, setSearchInput] = useState("");
   const [showAttach, setShowAttach] = useState(false);
   const [showCreateKb, setShowCreateKb] = useState(false);
@@ -1497,38 +1493,89 @@ function AgentKnowledgeGrid({ agentId, onOpenOwn }: { agentId: string; onOpenOwn
     .filter((kb): kb is KnowledgeBase => !!kb);
 
   type CardData = { id: string; isOwn: boolean; name: string; description?: string; isMine: boolean; ownerName?: string; kb?: KnowledgeBase; active: boolean };
-  const cards: CardData[] = [
-    {
-      id: OWN_KB_ID, isOwn: true, name: "Cá nhân",
-      description: "Tài liệu, website và câu hỏi thường gặp do bạn thêm riêng cho Agent này.",
-      isMine: true, active: knowledgeStore.isKbActive(agentId, OWN_KB_ID),
-    },
-    ...attachedKbs.map(kb => ({
-      id: kb.id, isOwn: false, name: kb.name, description: kb.description,
-      isMine: kb.ownerId === KB_CURRENT_USER.id, ownerName: kb.ownerName, kb,
-      active: knowledgeStore.isKbActive(agentId, kb.id),
-    })),
-  ];
+  const ownCard: CardData = {
+    id: OWN_KB_ID, isOwn: true, name: "Cá nhân",
+    description: "Tài liệu, website và câu hỏi thường gặp do bạn thêm riêng cho Agent này.",
+    isMine: true, active: knowledgeStore.isKbActive(agentId, OWN_KB_ID),
+  };
+  const attachedCards: CardData[] = attachedKbs.map(kb => ({
+    id: kb.id, isOwn: false, name: kb.name, description: kb.description,
+    isMine: kb.ownerId === KB_CURRENT_USER.id, ownerName: kb.ownerName, kb,
+    active: knowledgeStore.isKbActive(agentId, kb.id),
+  }));
 
-  const counts = { all: cards.length, mine: cards.filter(c => c.isMine).length, shared: cards.filter(c => !c.isMine).length };
-  const tabFiltered = mainTab === "mine" ? cards.filter(c => c.isMine) : mainTab === "shared" ? cards.filter(c => !c.isMine) : cards;
   const q = searchInput.trim().toLowerCase();
-  const filtered = q ? tabFiltered.filter(c => c.name.toLowerCase().includes(q)) : tabFiltered;
+  const matches = (c: CardData) => !q || c.name.toLowerCase().includes(q);
+  const filteredAttached = attachedCards.filter(matches);
+  const ownVisible = matches(ownCard);
 
-  const TABS: { key: KnowledgeMainTab; label: string }[] = [
-    { key: "all", label: "Tất cả" }, { key: "mine", label: "Của tôi" }, { key: "shared", label: "Được chia sẻ" },
-  ];
+  const renderCardFor = (c: CardData) => {
+    const isOwner = c.isOwn || c.kb?.ownerId === KB_CURRENT_USER.id;
+    // Real Console KBs open in a new tab instead of navigating this one away from the
+    // Agent Builder — matching the sidebar's own pattern — so switching to a shared KB's
+    // Console detail never silently discards unsaved Instructions edits.
+    const onOpen = () => { if (c.isOwn) onOpenOwn(); else window.open(`/knowledge/${c.id}`, "_blank", "noopener,noreferrer"); };
+    const editBlocked = !c.isOwn && !isOwner ? "Chỉ chủ sở hữu mới có thể đổi tên kho tri thức này." : undefined;
+    const shareBlocked = !c.isOwn && !isOwner ? "Chỉ chủ sở hữu mới có thể chia sẻ kho tri thức này." : undefined;
+    const deleteBlocked = !c.isOwn && !isOwner ? "Chỉ chủ sở hữu mới có thể xóa kho tri thức này." : undefined;
+    // Same tinted tile Console's KbCard uses (KnowledgeTypeIcon: amber for nội bộ, blue for kết
+    // nối ngoài) for a real KB, upsized to 40×40 to match the Skills/Guardrails card icon size;
+    // the synthetic "Cá nhân" card gets its own tile in the app's primary/brand tint.
+    const icon = c.isOwn
+      ? <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-primary-soft text-primary"><HugeiconsIcon icon={BookOpen01Icon} size={18} /></span>
+      : <KnowledgeTypeIcon type={c.kb!.type} className="w-10 h-10 rounded-xl" />;
+    return (
+      <AgentKbCard
+        key={c.id}
+        icon={icon}
+        name={c.name}
+        description={c.description}
+        active={c.active}
+        onToggleActive={v => { knowledgeStore.setKbActive(agentId, c.id, v); refresh(); }}
+        onOpen={onOpen}
+        menu={
+          <AgentKbCardMenu
+            openOnly={c.isOwn}
+            onOpen={onOpen}
+            onEdit={c.kb ? () => setEditKbTarget(c.kb!) : undefined}
+            onShare={c.kb ? () => setShareKbTarget(c.kb!) : undefined}
+            onDelete={c.kb ? () => setDeleteKbTarget(c.kb!) : undefined}
+            editBlocked={editBlocked}
+            shareBlocked={shareBlocked}
+            deleteBlocked={deleteBlocked}
+          />
+        }
+      />
+    );
+  };
+
+  const emptyBox = (title: string, hint: string) => (
+    <div className="rounded-lg border border-dashed border-border p-8 text-center">
+      <p className="text-sm font-medium mb-1">{title}</p>
+      <p className="text-xs text-muted-foreground">{hint}</p>
+    </div>
+  );
+
+  const sectionHeader = (label: string, count: number) => (
+    <div className="flex items-center gap-2 mb-3">
+      <span className="text-xs font-bold uppercase tracking-wide text-foreground">{label}</span>
+      <span className="min-w-[20px] h-5 px-1 rounded-full bg-surface-muted text-muted-foreground text-xs font-semibold flex items-center justify-center">{count}</span>
+      <div className="flex-1 h-px bg-border" />
+    </div>
+  );
+
+  const GRID = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4";
 
   return (
-    <div className="p-8 w-full space-y-5 animate-fade-up">
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-        <div className="min-w-0">
+    <div className="p-8 w-full space-y-8 animate-fade-up">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
           <h2 className="font-display text-xl font-semibold">Tri thức của Agent</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">Kho tri thức Agent này dùng để tra cứu khi trả lời — cùng danh sách như Console, có thêm nút bật/tắt riêng cho Agent này.</p>
+          <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">Kho tri thức Agent này dùng để tra cứu khi trả lời — cùng danh sách như Console, có thêm nút bật/tắt riêng cho Agent này.</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <button onClick={() => setShowAttach(true)} className="h-9 px-3.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base whitespace-nowrap">
-            Liên kết kho có sẵn
+          <button onClick={() => setShowAttach(true)} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base whitespace-nowrap">
+            <HugeiconsIcon icon={ConnectIcon} size={14} /> Liên kết kho tri thức có sẵn
           </button>
           <div className="relative" ref={addMenuRef}>
             <button onClick={() => setShowAddMenu(v => !v)} className="btn-primary h-9 whitespace-nowrap">
@@ -1548,80 +1595,39 @@ function AgentKnowledgeGrid({ agentId, onOpenOwn }: { agentId: string; onOpenOwn
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-border pb-3">
-        <div className="flex items-center gap-1 flex-wrap">
-          {TABS.map(t => (
-            <button
-              key={t.key}
-              onClick={() => setMainTab(t.key)}
-              className={`px-3 h-8 rounded-lg text-sm font-medium transition-base flex items-center gap-1.5 ${mainTab === t.key ? "bg-primary-soft text-primary" : "text-muted-foreground hover:bg-surface-muted"}`}
-            >
-              {t.label}
-              <span className={`text-xs px-1.5 py-0.5 rounded-full ${mainTab === t.key ? "bg-primary/10 text-primary" : "bg-surface-sunken text-muted-foreground"}`}>
-                {counts[t.key]}
-              </span>
-            </button>
-          ))}
-        </div>
-        <div className="relative w-full md:w-64">
-          <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={searchInput}
-            onChange={e => setSearchInput(e.target.value)}
-            placeholder="Tìm kho tri thức..."
-            className="h-9 w-full pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
-          />
-        </div>
+      <div className="relative w-full sm:w-72">
+        <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <input
+          value={searchInput}
+          onChange={e => setSearchInput(e.target.value)}
+          placeholder="Tìm kho tri thức..."
+          className="h-9 w-full pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+        />
       </div>
 
-      {filtered.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border bg-gradient-soft p-12 text-center">
-          <h3 className="font-display text-base font-semibold mb-1">Không tìm thấy kho tri thức phù hợp</h3>
-          <p className="text-sm text-muted-foreground max-w-md mx-auto">Thử đổi từ khóa hoặc bỏ bớt bộ lọc.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map(c => {
-            const isOwner = c.isOwn || c.kb?.ownerId === KB_CURRENT_USER.id;
-            // Real Console KBs open in a new tab instead of navigating this one away from the
-            // Agent Builder — matching the sidebar's own pattern — so switching to a shared KB's
-            // Console detail never silently discards unsaved Instructions edits.
-            const onOpen = () => { if (c.isOwn) onOpenOwn(); else window.open(`/knowledge/${c.id}`, "_blank", "noopener,noreferrer"); };
-            const editBlocked = !c.isOwn && !isOwner ? "Chỉ chủ sở hữu mới có thể đổi tên kho tri thức này." : undefined;
-            const shareBlocked = !c.isOwn && !isOwner ? "Chỉ chủ sở hữu mới có thể chia sẻ kho tri thức này." : undefined;
-            const deleteBlocked = !c.isOwn && !isOwner ? "Chỉ chủ sở hữu mới có thể xóa kho tri thức này." : undefined;
-            // Same 32×32 tinted tile Console's KbCard uses (KnowledgeTypeIcon: amber for nội bộ,
-            // blue for kết nối ngoài) for a real KB, so the two screens read as one color system;
-            // the synthetic "Cá nhân" card gets its own tile in the app's primary/brand tint.
-            const icon = c.isOwn
-              ? <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-primary-soft text-primary"><HugeiconsIcon icon={BookOpen01Icon} size={16} /></span>
-              : <KnowledgeTypeIcon type={c.kb!.type} />;
-            return (
-              <AgentKbCard
-                key={c.id}
-                icon={icon}
-                name={c.name}
-                description={c.description}
-                active={c.active}
-                onToggleActive={v => { knowledgeStore.setKbActive(agentId, c.id, v); refresh(); }}
-                onOpen={onOpen}
-                menu={
-                  <AgentKbCardMenu
-                    openOnly={c.isOwn}
-                    onOpen={onOpen}
-                    onEdit={c.kb ? () => setEditKbTarget(c.kb!) : undefined}
-                    onShare={c.kb ? () => setShareKbTarget(c.kb!) : undefined}
-                    onDelete={c.kb ? () => setDeleteKbTarget(c.kb!) : undefined}
-                    editBlocked={editBlocked}
-                    shareBlocked={shareBlocked}
-                    deleteBlocked={deleteBlocked}
-                  />
-                }
-              />
-            );
-          })}
-        </div>
-      )}
+      <div>
+        {sectionHeader("Kho tri thức đã liên kết", filteredAttached.length)}
+        {attachedCards.length === 0 ? (
+          emptyBox("Chưa có kho tri thức nào được liên kết", "Liên kết một kho tri thức có sẵn trong workspace để dùng lại ở đây.")
+        ) : filteredAttached.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-6">Không tìm thấy kho tri thức phù hợp.</p>
+        ) : (
+          <div className={GRID}>
+            {filteredAttached.map(renderCardFor)}
+          </div>
+        )}
+      </div>
+
+      <div>
+        {sectionHeader("Kho tri thức riêng của Agent", ownVisible ? 1 : 0)}
+        {ownVisible ? (
+          <div className={GRID}>
+            {renderCardFor(ownCard)}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground text-center py-6">Không tìm thấy kho tri thức phù hợp.</p>
+        )}
+      </div>
 
       {showAttach && <AttachConsoleKnowledgeBaseModal agentId={agentId} userId={KB_CURRENT_USER.id} onClose={() => { setShowAttach(false); refresh(); }} />}
       {showCreateKb && (
