@@ -3,7 +3,7 @@
 // by AgentBuilder.tsx too, which doesn't need JSX pulled in).
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Robot01Icon, BookOpen01Icon, PuzzleIcon, Shield01Icon, Plug01Icon } from "@hugeicons/core-free-icons";
-import type { GovResourceType, GovRequestStatus, GovChangeState } from "./governanceStore";
+import type { GovResourceType, GovRequestStatus, GovChangeState, ResourceShareStatus } from "./governanceStore";
 import { RESOURCE_TYPE_LABEL, STATUS_LABEL } from "./governanceStore";
 
 export const RESOURCE_TYPE_ICON: Record<GovResourceType, any> = {
@@ -72,17 +72,17 @@ export function ResourceTypePill({ type }: { type: GovResourceType }) {
   );
 }
 
+/** Simplified to 3 states (no heavy/light split — see governanceStore.ts's module doc comment):
+ * every tracked-field change reads the same "Đã sửa — cần duyệt", whatever field it touched. */
 const CHANGE_STATE_STYLE: Record<GovChangeState, string> = {
   new: "bg-primary-soft text-primary border-primary/20",
-  modified_major: "bg-warning/10 text-warning border-warning/25",
-  modified_minor: "bg-surface-muted text-foreground/70 border-border",
+  modified: "bg-warning/10 text-warning border-warning/25",
   unchanged_approved: "bg-surface-muted text-muted-foreground border-border",
 };
 const CHANGE_STATE_LABEL: Record<GovChangeState, string> = {
   new: "Mới — cần duyệt",
-  modified_major: "Đã sửa — cần duyệt",
-  modified_minor: "Sửa nhẹ",
-  unchanged_approved: "Đã duyệt trước đó",
+  modified: "Đã sửa — cần duyệt",
+  unchanged_approved: "Không đổi từ lần duyệt trước",
 };
 
 export function ChangeStateBadge({ state }: { state: GovChangeState }) {
@@ -93,15 +93,26 @@ export function ChangeStateBadge({ state }: { state: GovChangeState }) {
   );
 }
 
-/** Left-accent + tint for a bundled sub-resource row on the Request Detail page — makes items that
- * still need review pop (colored border, full-opacity) while already-approved items visually recede
- * (neutral border, dimmed via the caller's opacity-70), so a reviewer's eye lands on what changed. */
-export const CHANGE_STATE_ACCENT: Record<GovChangeState, string> = {
-  new: "border-border border-l-primary bg-primary-soft/30",
-  modified_major: "border-border border-l-warning bg-warning/5",
-  modified_minor: "border-border border-l-border bg-surface",
-  unchanged_approved: "border-border border-l-border bg-surface",
+/** Sharing status of a resource an Agent references (see governanceStore.resourceShareStatus) —
+ * purely informational on the Agent's own request; never a decision control. */
+const SHARE_STATUS_STYLE: Record<ResourceShareStatus, string> = {
+  shared: "bg-success/10 text-success border-success/20",
+  pending_review: "bg-warning/10 text-warning border-warning/25",
+  private: "bg-surface-muted text-muted-foreground border-border",
 };
+const SHARE_STATUS_LABEL: Record<ResourceShareStatus, string> = {
+  shared: "Đã dùng chung trong Tenant Library",
+  pending_review: "Đang chờ Tenant Admin duyệt dùng chung",
+  private: "Riêng tư — chỉ dùng trong Agent này",
+};
+
+export function ResourceShareStatusBadge({ status }: { status: ResourceShareStatus }) {
+  return (
+    <span className={`inline-flex items-center text-xs font-medium rounded-full px-2.5 py-1 border whitespace-nowrap ${SHARE_STATUS_STYLE[status]}`}>
+      {SHARE_STATUS_LABEL[status]}
+    </span>
+  );
+}
 
 /** "3 giờ trước" / "2 ngày trước" style relative time — matches the "Cập nhật 2 giờ trước" copy
  * already used across Knowledge/Skills/Guardrails list rows, so Governance reads as the same

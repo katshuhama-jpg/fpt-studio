@@ -36,7 +36,7 @@ const groups: Group[] = [
     id: "build",
     label: "Build",
     items: [
-      { to: "/agents", label: "My agents", icon: Bot },
+      { to: "/agents", label: "Agents", icon: Bot },
       { to: "/external-agents", label: "External Agents", icon: Globe },
       { to: "/workforce", label: "Workforce", icon: UsersRound },
     ],
@@ -78,7 +78,11 @@ const NARROW_QUERY = "(max-width: 767px)";
 
 export default function WorkspaceLayout() {
   const [collapsed, setCollapsed] = useState(() => typeof window !== "undefined" && window.matchMedia(NARROW_QUERY).matches);
-  const [open, setOpen] = useState<Record<string, boolean>>({ build: true, resources: true, governance: true });
+  // Sidebar was getting long (3 groups, 13 items) — default to only "Build" expanded (agents/
+  // workforce, what's used most day to day) and keep "Resources"/"Trust & Governance" collapsed
+  // until opened; each group still remembers its own open/closed state via NavGroup below, so
+  // this only changes the first-visit default, not what's reachable.
+  const [open, setOpen] = useState<Record<string, boolean>>({ build: true, resources: false, governance: false });
   const [userMenu, setUserMenu] = useState(false);
   const [tenantId, setTenantIdState] = useState(getCurrentTenantId());
   // Persist so other routes (e.g. the Agent Publish modal) can read which Space is active

@@ -10,11 +10,21 @@ import { loadMap, saveMap, loadSet, saveSet } from "@/lib/sessionPersist";
 export type Placement = "workspace" | "automation" | null;
 
 /** Who can see/use a Workspace-placement agent. Chosen in the Publish modal's "Publish to"
- * section (Only me / Company / department / FPT AI Agent community) — independent of
- * Placement, which stays "workspace" for all three since they're all still chat-based
- * publishing, just at different visibility scopes. Undefined on older/seeded state defaults
- * to "me" wherever it's read. */
-export type PublishAudience = "me" | "org" | "community";
+ * section:
+ *   - "me" — private, instant, no review.
+ *   - "quick_share" — a hand-picked list of up to 10 specific people ("Chia sẻ nhanh"),
+ *     instant, no review — genuinely small/ad-hoc sharing, same trust level as "me".
+ *   - "group" — a named, rostered "Nhóm cộng tác" (collabGroupStore.ts). Instant while its
+ *     roster's overlap with any real Org/Unit stays below the anti-bypass threshold; the
+ *     moment it crosses that threshold (checked continuously, not just at publish time — see
+ *     collabGroupStore.recheckGroupPublishes) it is treated exactly like "org": pulled back
+ *     to pending Org/Unit Admin review.
+ *   - "org" — Company / department, always reviewed.
+ *   - "community" — FPT AI Agent community, always reviewed.
+ * Independent of Placement, which stays "workspace" for all of these since they're all still
+ * chat-based publishing, just at different visibility scopes. Undefined on older/seeded state
+ * defaults to "me" wherever it's read. */
+export type PublishAudience = "me" | "quick_share" | "group" | "org" | "community";
 
 export const BASELINE_VERSION = "v1.0.1";
 
@@ -25,6 +35,17 @@ export interface AgentPublishState {
   /** The version currently live. Stays at BASELINE_VERSION until the agent is actually
    * published; unpublishing doesn't reset it, so a later republish keeps counting up. */
   version: string;
+  /** Human-readable "who exactly" for quick_share/group — e.g. "9 người: ..." or "Nhóm cộng
+   * tác 'Ra mắt Q4' (9 người)". Display-only. */
+  scopeSummary?: string;
+  /** Set only when audience is "group" — which collabGroupStore group this Agent is scoped to,
+   * so the continuous overlap recheck knows which roster to re-evaluate. */
+  groupId?: string;
+  /** Set by collabGroupStore.recheckGroupPublishes when a live "group" Agent's roster overlap
+   * has crossed the anti-bypass threshold since it was last approved — the Agent has been
+   * pulled back to pending review (see that function) and this flags why, for the banner on
+   * the Agent's own page. Cleared on the request's next approval. */
+  needsRegovernance?: { reason: string; unitName: string; overlapPct: number; at: number };
 }
 
 const STORE_KEY = "agent_publish_store";
@@ -57,12 +78,20 @@ export const agentPublishStore = {
     if (!s) return { placement: null, audience: undefined, channels: [], version: BASELINE_VERSION };
     // Defend against sessionStorage from an earlier build that predates a field — e.g. `version`
     // added after some sessions had already persisted state without it.
-    return { placement: s.placement, audience: s.audience, channels: s.channels ?? [], version: s.version ?? BASELINE_VERSION };
+    return {
+      placement: s.placement, audience: s.audience, channels: s.channels ?? [], version: s.version ?? BASELINE_VERSION,
+      scopeSummary: s.scopeSummary, groupId: s.groupId, needsRegovernance: s.needsRegovernance,
+    };
   },
-  publish(agentId: string, placement: Placement, channels: string[], version: string, audience?: PublishAudience) {
+  publish(agentId: string, placement: Placement, channels: string[], version: string, audience?: PublishAudience, extra?: { scopeSummary?: string; groupId?: string }) {
     seedAgent(agentId);
     const cur = store.get(agentId);
-    store.set(agentId, { placement, audience: audience ?? cur?.audience, channels, version });
+    store.set(agentId, {
+      placement, audience: audience ?? cur?.audience, channels, version,
+      scopeSummary: extra ? extra.scopeSummary : cur?.scopeSummary,
+      groupId: extra ? extra.groupId : cur?.groupId,
+      needsRegovernance: undefined,
+    });
     persist();
   },
   /** Toggles a channel's live/not-connected state on the currently-serving version,
@@ -83,6 +112,22 @@ export const agentPublishStore = {
     seedAgent(agentId);
     const s = store.get(agentId);
     return !!s && s.placement !== null;
+  },
+  /** Called by collabGroupStore's continuous overlap recheck — pulls a live "group" Agent back
+   * out of service (mirrors what an approved request's `revoke` does) and flags why, so the
+   * Agent's own page can explain it plainly instead of it just silently stopping. */
+  flagNeedsRegovernance(agentId: string, flag: { reason: string; unitName: string; overlapPct: number; at: number }) {
+    seedAgent(agentId);
+    const cur = this.get(agentId);
+    store.set(agentId, { ...cur, placement: null, channels: [], needsRegovernance: flag });
+    persist();
+  },
+  clearRegovernanceFlag(agentId: string) {
+    seedAgent(agentId);
+    const cur = this.get(agentId);
+    if (!cur.needsRegovernance) return;
+    store.set(agentId, { ...cur, needsRegovernance: undefined });
+    persist();
   },
 };
 

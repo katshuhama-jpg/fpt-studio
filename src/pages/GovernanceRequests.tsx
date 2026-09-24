@@ -4,7 +4,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Search01Icon, FilterIcon, LayerIcon, ChevronDownIcon, InboxIcon } from "@hugeicons/core-free-icons";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  governanceStore, AUDIENCE_LABEL, itemNeedsReview,
+  governanceStore, AUDIENCE_LABEL,
   type GovRequestStatus, type GovResourceType, type GovRequest,
 } from "@/components/governance/governanceStore";
 import { StatusBadge, ResourceTypeIcon, ResourceTypePill, initials, relativeTime } from "@/components/governance/governanceUi";
@@ -46,7 +46,6 @@ const TYPE_FILTERS: { key: "all" | GovResourceType; label: string }[] = [
  * bordered row inside one card, and the status column already carries the colour that the
  * accent bar was duplicating. */
 function RequestRow({ r, onClick }: { r: GovRequest; onClick: () => void }) {
-  const needsAttention = r.bundledItems.filter(it => itemNeedsReview(it.changeState)).length;
   return (
     <TableRow
       role="button"
@@ -62,12 +61,10 @@ function RequestRow({ r, onClick }: { r: GovRequest; onClick: () => void }) {
           </span>
           <div className="min-w-0">
             <p className="font-medium truncate">{r.resourceName}</p>
-            {r.bundledItems.length > 0 && (
-              <span className={`inline-flex items-center gap-1 mt-1 text-xs font-medium rounded-sm px-1.5 py-0.5 whitespace-nowrap ${
-                needsAttention > 0 ? "text-primary bg-primary/10" : "text-muted-foreground bg-muted"
-              }`}>
+            {r.resourceRefs && r.resourceRefs.length > 0 && (
+              <span className="inline-flex items-center gap-1 mt-1 text-xs font-medium rounded-sm px-1.5 py-0.5 whitespace-nowrap text-muted-foreground bg-muted">
                 <HugeiconsIcon icon={LayerIcon} size={12} />
-                {r.bundledItems.length} thành phần đi kèm{needsAttention > 0 ? ` · ${needsAttention} cần chú ý` : ""}
+                {r.resourceRefs.length} thành phần đi kèm
               </span>
             )}
           </div>
@@ -193,8 +190,11 @@ export default function GovernanceRequests() {
     <div className="p-6 md:p-8 max-w-[1200px] mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold tracking-tight mb-1">Requests</h1>
-        <p className="text-sm text-muted-foreground">
-          Duyệt yêu cầu publish/update cho Agent, Knowledge, Skill, Guardrails và Connector trước khi chia sẻ rộng hơn trong workspace.
+        <p className="text-sm text-muted-foreground max-w-3xl leading-relaxed">
+          Hai loại quyết định độc lập trong danh sách này: lọc theo loại <span className="font-medium text-foreground">Agent</span> để
+          duyệt Agent có được publish tới người dùng hay không; lọc theo <span className="font-medium text-foreground">Knowledge / Skill / Guardrails / Connector</span> để
+          duyệt thành phần đó có được đưa vào Tenant Library để Builder khác dùng chung hay không. Duyệt/từ chối một Agent không phụ thuộc
+          vào trạng thái dùng chung của các thành phần bên trong nó.
         </p>
       </div>
 

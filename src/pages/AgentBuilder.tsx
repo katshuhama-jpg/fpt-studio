@@ -32,7 +32,7 @@ import { getAgentKind, type AgentKind } from "@/components/configure/agentKindSt
 import { AGENTS, getAgent } from "@/components/configure/agentStore";
 import { useGroupAccess, isOwnedOrShared } from "@/pages/organization/scopeAccess";
 import { useOrg } from "@/pages/organization/orgStore";
-import { collectMembers, countAll, unitMatches, type OrgUnit, type OrgMember } from "@/pages/organization/orgData";
+import { collectMembers, countAll, unitMatches, findMember, type OrgUnit, type OrgMember } from "@/pages/organization/orgData";
 import { getCurrentTenantId, isPersonalSpace } from "@/lib/spaceStore";
 import { CHANNEL_CATALOG, getChannelName, ChannelIcon, type ChannelCatalogEntry } from "@/components/configure/channelCatalog";
 import { connectedAccountStore } from "@/components/configure/connectedAccountStore";
@@ -69,7 +69,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { knowledgeStore, OWN_KB_ID, type KnowledgeItem } from "@/components/knowledge/knowledgeStore";
 import { knowledgeBaseStore, CURRENT_USER as KB_CURRENT_USER, isViewOnly as isKbViewOnly, isAccessibleTo as isKbAccessibleTo, type KnowledgeBase } from "@/components/knowledge/knowledgeBaseStore";
-import { governanceStore, computeAgentBundle, agentEmoji } from "@/components/governance/governanceStore";
+import { governanceStore, listAgentResourceRefs, agentEmoji } from "@/components/governance/governanceStore";
+import { collabGroupStore, overlapForGroup, GROUP_APPROVAL_THRESHOLD, type CollabGroup } from "@/components/configure/collabGroupStore";
 import { resourceBlockStore } from "@/components/governance/resourceBlockStore";
 import { KnowledgeStatusPill } from "@/components/knowledge/knowledgeStatus";
 import AttachConsoleKnowledgeBaseModal from "@/components/knowledge/AttachConsoleKnowledgeBaseModal";
@@ -145,6 +146,14 @@ export default function AgentBuilder() {
   const { id = "new" } = useParams();
   const agent = getAgent(id);
   const access = useGroupAccess("agents");
+  const { tree: agentBuilderOrgTree } = useOrg();
+
+  // Same anti-bypass re-check as AgentsList, scoped to the single Agent being viewed here — a
+  // Builder who opens their own Agent (rather than the list) still gets the live roster-overlap
+  // check on load, so there's no route through the app that skips it.
+  useEffect(() => {
+    if (id !== "new") recheckAgentGroupPublish(id, agentBuilderOrgTree);
+  }, [id, agentBuilderOrgTree]);
   const [params, setParams] = useSearchParams();
   const VALID_TABS: Tab[] = ["build", "test", "channels", "insights"];
   const rawTab = params.get("tab");
@@ -3968,6 +3977,8 @@ function LiveDotChip({ label }: { label: string }) {
 
 const AUDIENCE_LABEL: Record<PublishAudience, string> = {
   me: "Only me",
+  quick_share: "Chia sẻ nhanh",
+  group: "Nhóm cộng tác",
   org: "Company / department",
   community: "FPT AI Agent community",
 };
@@ -4226,6 +4237,37 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
   const orgReachCount = orgSelectionReach(orgTree, orgSelection, false);
   const orgReachSummary = orgSelectionSummary(orgTree, orgSelection, false).join(", ");
 
+  // Chia sẻ nhanh — up to 10 hand-picked people, instant, no review (see Vấn đề 2 in the
+  // Governance solution note: this is the genuinely-small-ad-hoc case, split out from the
+  // rostered "Nhóm cộng tác" below so neither has to compromise on what it's for).
+  const [quickShareSelection, setQuickShareSelection] = useState<Set<string>>(new Set());
+  const toggleQuickShareMember = (id: string) => setQuickShareSelection(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id);
+    else if (next.size < 10) next.add(id);
+    return next;
+  });
+
+  // Nhóm cộng tác — a named, rostered group (collabGroupStore.ts). Instant while its overlap
+  // with every real Org/Unit stays below GROUP_APPROVAL_THRESHOLD; the moment it's at or above
+  // that threshold it routes through Org/Unit Admin review exactly like Company/department, and
+  // stays subject to the same continuous re-check afterward (see collabGroupStore.
+  // recheckAgentGroupPublish, run from WorkspaceLayout/AgentsList on normal navigation) — there is
+  // no safe moment to quietly remove one person and dodge review.
+  const existingGroups = collabGroupStore.list(orgTree);
+  const [groupMode, setGroupMode] = useState<"existing" | "new">(existingGroups.length > 0 ? "existing" : "new");
+  const [selectedGroupId, setSelectedGroupId] = useState<string>(current.groupId ?? "");
+  const [newGroupName, setNewGroupName] = useState("");
+  const [newGroupMembers, setNewGroupMembers] = useState<Set<string>>(new Set());
+  const groupPreview: CollabGroup | undefined = groupMode === "existing"
+    ? existingGroups.find(g => g.id === selectedGroupId)
+    : newGroupMembers.size > 0
+      ? { id: "draft", name: newGroupName.trim() || "(nhóm mới)", ownerId: KB_CURRENT_USER.id, ownerName: KB_CURRENT_USER.name, memberIds: [...newGroupMembers], createdAt: Date.now() }
+      : undefined;
+  const groupOverlap = groupPreview ? overlapForGroup(groupPreview, orgTree) : undefined;
+  const groupWillNeedReview = !!groupOverlap && groupOverlap.pct >= GROUP_APPROVAL_THRESHOLD;
+  const groupSelectionValid = groupMode === "existing" ? !!selectedGroupId : (newGroupName.trim().length > 0 && newGroupMembers.size > 0);
+
   const draftNoteFromChanges = () => {
     if (changes.length === 0) return;
     setNote(changes.map(c => c.kind === "value"
@@ -4234,12 +4276,25 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
     ).join("\n"));
   };
 
-  // "Only me" stays a plain instant publish (no reviewer needed for a private agent). Anything
-  // wider — a brand-new "Company / department"/"community" publish, or re-publishing an agent
-  // that's already at one of those audiences — goes through Governance instead of going live
-  // immediately, bundling whichever attached Knowledge/Skill/Guardrail/Connector items are new or
-  // not yet approved (see computeAgentBundle).
+  // "Only me" stays a plain instant publish (no reviewer needed for a private agent). Chia sẻ
+  // nhanh and a Nhóm cộng tác under the overlap threshold are the same — genuinely small/ad-hoc
+  // reach, same trust level as "me". Anything wider — a brand-new "Company / department"/
+  // "community" publish, a Nhóm cộng tác that's crossed the overlap threshold, or re-publishing
+  // an agent that's already at one of those audiences — goes through Governance instead of going
+  // live immediately. The Agent's own resources are attached only as read-only context for the
+  // reviewer (see listAgentResourceRefs) — never bundled into what gets approved/rejected here;
+  // whether each resource is shared for reuse by other builders is that resource's own,
+  // independent request (see governanceStore.ts's module doc comment).
   const effectiveAudience: PublishAudience = publishToOpen ? audience : (current.audience ?? "me");
+  const requiresReview = effectiveAudience === "org" || effectiveAudience === "community" || (effectiveAudience === "group" && groupWillNeedReview);
+
+  const blockedResourceItems = () => {
+    const refs = listAgentResourceRefs(agentId);
+    return refs.filter(it => (it.type === "guardrail" || it.type === "connector") && resourceBlockStore.isBlocked(it.type, it.resourceId));
+  };
+  const blockedToastMessage = (items: ReturnType<typeof listAgentResourceRefs>) =>
+    `Không thể tiếp tục — Agent đang dùng ${items.length} thành phần đã bị chặn sử dụng trong agent mới: ${items.map(it => it.name).join(", ")}. Vui lòng gỡ thành phần này khỏi Agent trước khi publish.`;
+
   const doPublish = () => {
     if (effectiveAudience === "me") {
       if (publishToOpen) {
@@ -4252,6 +4307,57 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
       onClose();
       return;
     }
+
+    if (effectiveAudience === "quick_share") {
+      if (quickShareSelection.size === 0) {
+        toast.error("Chọn ít nhất 1 người để Chia sẻ nhanh.");
+        return;
+      }
+      const blocked = blockedResourceItems();
+      if (blocked.length > 0) { toast.error(blockedToastMessage(blocked)); return; }
+      const names = [...quickShareSelection].map(mid => findMember(orgTree, mid)?.name).filter((n): n is string => !!n);
+      agentPublishStore.publish(agentId, "workspace", current.channels, versionName, "quick_share", {
+        scopeSummary: `${quickShareSelection.size} người: ${names.join(", ")}`,
+      });
+      toast.success(`Published ${versionName} cho ${quickShareSelection.size} người.`);
+      onPublished?.();
+      onClose();
+      return;
+    }
+
+    if (effectiveAudience === "group") {
+      if (!groupSelectionValid) {
+        toast.error(groupMode === "existing" ? "Chọn một Nhóm cộng tác." : "Đặt tên nhóm và chọn ít nhất 1 thành viên.");
+        return;
+      }
+      const blocked = blockedResourceItems();
+      if (blocked.length > 0) { toast.error(blockedToastMessage(blocked)); return; }
+
+      const group = groupMode === "existing"
+        ? existingGroups.find(g => g.id === selectedGroupId)!
+        : collabGroupStore.create({ name: newGroupName.trim(), ownerId: KB_CURRENT_USER.id, ownerName: KB_CURRENT_USER.name, memberIds: [...newGroupMembers] });
+      const overlap = overlapForGroup(group, orgTree);
+      const overlapPctLabel = Math.round(overlap.pct * 100);
+      const summary = `Nhóm cộng tác "${group.name}" (${group.memberIds.length} người${overlap.unit ? `, trùng ${overlapPctLabel}% với ${overlap.unit.name}` : ""})`;
+
+      if (overlap.pct >= GROUP_APPROVAL_THRESHOLD) {
+        governanceStore.submit({
+          resourceType: "agent", resourceId: agentId, resourceName: agentName, resourceIcon: agentEmoji(agentId),
+          requesterId: KB_CURRENT_USER.id, requesterName: KB_CURRENT_USER.name,
+          audience: "group", note: note.trim(), version: versionName,
+          resourceRefs: listAgentResourceRefs(agentId),
+          scopeSummary: summary,
+        });
+        toast.success(`Nhóm này trùng ${overlapPctLabel}% với ${overlap.unit?.name ?? "một phòng ban"} — đã gửi yêu cầu duyệt như publish theo Company / department.`);
+      } else {
+        agentPublishStore.publish(agentId, "workspace", current.channels, versionName, "group", { scopeSummary: summary, groupId: group.id });
+        toast.success(`Published ${versionName} cho ${summary}.`);
+      }
+      onPublished?.();
+      onClose();
+      return;
+    }
+
     // A Company/department request has to name a scope — "who exactly" is the whole point of
     // this gate (see PM's original report: publishing wide used to be a single click with no
     // statement of who'd see it). Community has no scope to pick, it's everyone by definition.
@@ -4259,24 +4365,13 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
       toast.error("Chọn công ty, phòng ban hoặc nhân viên cụ thể sẽ thấy được Agent này trước khi gửi duyệt.");
       return;
     }
-    const bundle = computeAgentBundle(agentId);
-    // Policy gate (hard block, item #10): a Guardrail/Connector an admin has toggled "Chặn dùng
-    // trong Agent mới" can't ride along in a new governance request at all — this stops the
-    // submission outright rather than letting an Admin discover it during review.
-    const blockedItems = bundle.filter(it =>
-      (it.type === "guardrail" || it.type === "connector") && resourceBlockStore.isBlocked(it.type, it.resourceId)
-    );
-    if (blockedItems.length > 0) {
-      toast.error(
-        `Không thể gửi duyệt — Agent đang dùng ${blockedItems.length} thành phần đã bị chặn sử dụng trong agent mới: ${blockedItems.map(it => it.name).join(", ")}. Vui lòng gỡ thành phần này khỏi Agent trước khi gửi duyệt.`
-      );
-      return;
-    }
+    const blocked = blockedResourceItems();
+    if (blocked.length > 0) { toast.error(blockedToastMessage(blocked)); return; }
     governanceStore.submit({
       resourceType: "agent", resourceId: agentId, resourceName: agentName, resourceIcon: agentEmoji(agentId),
       requesterId: KB_CURRENT_USER.id, requesterName: KB_CURRENT_USER.name,
       audience: effectiveAudience, note: note.trim(), version: versionName,
-      bundledItems: bundle,
+      resourceRefs: listAgentResourceRefs(agentId),
       scopeSummary: effectiveAudience === "org" ? orgReachSummary : undefined,
     });
     toast.success("Đã gửi yêu cầu duyệt. Agent sẽ được publish sau khi Admin duyệt trong Trust & Governance › Requests.");
@@ -4293,8 +4388,8 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
           <div>
             <h2 className="font-display text-lg font-semibold">Publish "{agentName}"</h2>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {effectiveAudience !== "me"
-                ? `Gửi yêu cầu duyệt ${versionName} tới Admin trước khi publish.`
+              {requiresReview
+                ? `Gửi yêu cầu duyệt ${versionName} tới Org/Unit Admin trước khi publish.`
                 : current.placement === null
                   ? `Publish creates ${versionName}.`
                   : `Publish creates ${versionName} and replaces the live one.`}
@@ -4458,12 +4553,92 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
                     <AudienceRadioRow
                       icon={UserIcon}
                       title="Only me"
-                      description="Only you can use the agent. It is added straight to My agents in Workspace."
+                      description="Only you can use the agent. It is added straight to Agents in Workspace."
                       selected={audience === "me"}
                       liveNow={current.placement !== null && currentAudience === "me"}
                       liveLabel="Published"
                       onClick={() => setAudience("me")}
                     />
+                    <AudienceRadioRow
+                      icon={UserMultipleIcon}
+                      title="Chia sẻ nhanh"
+                      description="Chọn tối đa 10 người cụ thể. Publish ngay, không cần duyệt — dùng cho chia sẻ tạm/nhanh thật sự, không phải cách né duyệt cho một nhóm lớn hơn."
+                      selected={audience === "quick_share"}
+                      liveNow={current.placement !== null && currentAudience === "quick_share"}
+                      liveLabel="Published"
+                      onClick={() => setAudience("quick_share")}
+                    >
+                      {audience === "quick_share" && (
+                        <div className="mt-2 pl-11">
+                          <MemberMultiSelect tree={orgTree} selection={quickShareSelection} onToggle={toggleQuickShareMember} cap={10} />
+                        </div>
+                      )}
+                    </AudienceRadioRow>
+                    <AudienceRadioRow
+                      icon={UserGroupIcon}
+                      title="Nhóm cộng tác"
+                      description="Một nhóm đặt tên, có danh sách thành viên, dùng lại nhiều lần. Publish ngay nếu nhóm chưa trùng nhiều với một phòng ban thật — từ 80% trùng trở lên sẽ tự chuyển sang cần Org/Unit Admin duyệt như Company / department, và tiếp tục được kiểm tra lại sau này."
+                      selected={audience === "group"}
+                      liveNow={current.placement !== null && currentAudience === "group"}
+                      liveLabel="Published"
+                      onClick={() => setAudience("group")}
+                    >
+                      {audience === "group" && (
+                        <div className="mt-2 pl-11 space-y-2.5">
+                          <div className="flex gap-2">
+                            <button
+                              type="button" onClick={() => setGroupMode("existing")}
+                              className={`h-7 px-2.5 rounded-md text-xs font-medium border transition-base ${groupMode === "existing" ? "border-primary bg-primary-soft text-primary" : "border-border bg-white text-foreground hover:bg-surface-muted"}`}
+                            >
+                              Chọn nhóm có sẵn
+                            </button>
+                            <button
+                              type="button" onClick={() => setGroupMode("new")}
+                              className={`h-7 px-2.5 rounded-md text-xs font-medium border transition-base ${groupMode === "new" ? "border-primary bg-primary-soft text-primary" : "border-border bg-white text-foreground hover:bg-surface-muted"}`}
+                            >
+                              + Tạo nhóm mới
+                            </button>
+                          </div>
+
+                          {groupMode === "existing" ? (
+                            existingGroups.length === 0 ? (
+                              <p className="text-xs text-muted-foreground">Chưa có Nhóm cộng tác nào — chọn "+ Tạo nhóm mới".</p>
+                            ) : (
+                              <select
+                                value={selectedGroupId}
+                                onChange={e => setSelectedGroupId(e.target.value)}
+                                className="w-full h-8 px-2 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary"
+                              >
+                                <option value="">— Chọn nhóm —</option>
+                                {existingGroups.map(g => <option key={g.id} value={g.id}>{g.name} ({g.memberIds.length} người)</option>)}
+                              </select>
+                            )
+                          ) : (
+                            <>
+                              <input
+                                value={newGroupName}
+                                onChange={e => setNewGroupName(e.target.value)}
+                                placeholder="Tên nhóm, ví dụ: Ra mắt sản phẩm Q4"
+                                className="w-full h-8 px-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary"
+                              />
+                              <MemberMultiSelect
+                                tree={orgTree}
+                                selection={newGroupMembers}
+                                onToggle={mid => setNewGroupMembers(prev => {
+                                  const next = new Set(prev);
+                                  if (next.has(mid)) next.delete(mid); else next.add(mid);
+                                  return next;
+                                })}
+                              />
+                            </>
+                          )}
+
+                          {groupOverlap && groupPreview && (
+                            <GroupOverlapNotice overlap={groupOverlap} threshold={GROUP_APPROVAL_THRESHOLD} />
+                          )}
+                        </div>
+                      )}
+                    </AudienceRadioRow>
                     {/* Personal Space owns no company/department — showing this option there used to be
                         selectable and silently meaningless (the bug PM reported). Enterprise Space only. */}
                     {!personalSpace && (
@@ -4528,15 +4703,79 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
           <button
             className="h-9 px-5 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-2 transition-base disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary"
             onClick={doPublish}
-            disabled={effectiveAudience === "org" && orgSelection.size === 0}
+            disabled={
+              (effectiveAudience === "org" && orgSelection.size === 0) ||
+              (effectiveAudience === "quick_share" && quickShareSelection.size === 0) ||
+              (effectiveAudience === "group" && !groupSelectionValid)
+            }
           >
             <HugeiconsIcon icon={Rocket01Icon} size={14} />
-            {effectiveAudience === "me" ? `Publish ${versionName}` : `Gửi yêu cầu duyệt ${versionName}`}
+            {requiresReview ? `Gửi yêu cầu duyệt ${versionName}` : `Publish ${versionName}`}
           </button>
         </div>
       </div>
     </div>,
     document.body
+  );
+}
+
+/** Shared member checkbox picker — used by both "Chia sẻ nhanh" (capped) and "Nhóm cộng tác"
+ * (uncapped, when creating a new group). Flat list of every person in the org tree, since
+ * neither of these picks by unit — that's what OrgSharePicker (Company / department) is for. */
+function MemberMultiSelect({ tree, selection, onToggle, cap }: {
+  tree: OrgUnit; selection: Set<string>; onToggle: (id: string) => void; cap?: number;
+}) {
+  const [search, setSearch] = useState("");
+  const allMembers = collectMembers(tree);
+  const query = search.trim().toLowerCase();
+  const filtered = allMembers.filter(m => !query || m.name.toLowerCase().includes(query) || (m.email ?? "").toLowerCase().includes(query));
+  const atCap = !!cap && selection.size >= cap;
+  return (
+    <div>
+      <div className="relative mb-1.5">
+        <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <input
+          value={search} onChange={e => setSearch(e.target.value)} placeholder="Tìm người..."
+          className="w-full h-8 pl-7 pr-2 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+        />
+      </div>
+      <div className="max-h-36 overflow-y-auto rounded-lg border border-border divide-y divide-border/60 bg-white">
+        {filtered.slice(0, 80).map(m => {
+          const checked = selection.has(m.id);
+          const disabled = !checked && atCap;
+          return (
+            <label key={m.id} className={`flex items-center gap-2 px-2.5 py-1.5 text-sm ${disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer hover:bg-surface-muted"}`}>
+              <input type="checkbox" checked={checked} disabled={disabled} onChange={() => onToggle(m.id)} className="w-3.5 h-3.5 rounded accent-primary shrink-0" />
+              <span className="truncate flex-1">{m.name}</span>
+              <span className="text-xs text-muted-foreground truncate shrink-0 max-w-[110px]">{m.role}</span>
+            </label>
+          );
+        })}
+        {filtered.length === 0 && <p className="px-2.5 py-2 text-xs text-muted-foreground">Không tìm thấy.</p>}
+      </div>
+      <p className={`text-xs mt-1.5 ${atCap ? "text-warning font-medium" : "text-muted-foreground"}`}>
+        {selection.size}{cap ? `/${cap}` : ""} người đã chọn{atCap ? " — đã đạt giới hạn Chia sẻ nhanh" : ""}.
+      </p>
+    </div>
+  );
+}
+
+/** Live "would this need Org/Unit Admin review" preview while picking/building a Nhóm cộng tác —
+ * see collabGroupStore.overlapForGroup. Recomputed on every keystroke/checkbox toggle, same
+ * function the continuous background re-check uses, so what the Builder sees here is exactly
+ * the rule that gets enforced later too. */
+function GroupOverlapNotice({ overlap, threshold }: { overlap: ReturnType<typeof overlapForGroup>; threshold: number }) {
+  const pctLabel = Math.round(overlap.pct * 100);
+  const needsApproval = overlap.pct >= threshold;
+  if (!overlap.unit || overlap.pct === 0) {
+    return <p className="text-xs text-muted-foreground">Nhóm này chưa trùng đáng kể với phòng ban nào — publish ngay, không cần duyệt.</p>;
+  }
+  return (
+    <p className={`text-xs leading-relaxed ${needsApproval ? "text-warning font-medium" : "text-muted-foreground"}`}>
+      Trùng {pctLabel}% với {overlap.unit.name}{needsApproval
+        ? ` — vượt ngưỡng ${Math.round(threshold * 100)}%, sẽ cần Org/Unit Admin duyệt như Company / department (và tiếp tục được kiểm tra lại sau này).`
+        : ` — dưới ngưỡng ${Math.round(threshold * 100)}%, publish ngay không cần duyệt.`}
+    </p>
   );
 }
 

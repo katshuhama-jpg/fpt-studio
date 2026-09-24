@@ -5,7 +5,7 @@ import {
   Add01Icon, Search01Icon, FilterIcon, MoreVerticalIcon, Chat01Icon, Activity01Icon,
   SparklesIcon, Cancel01Icon, BoltIcon, TimeScheduleIcon,
 } from "@hugeicons/core-free-icons";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import { useGroupAccess, isOwnedOrShared } from "@/pages/organization/scopeAccess";
 import { getAgentKind } from "@/components/configure/agentKindStore";
@@ -13,6 +13,8 @@ import { agentPublishStore } from "@/components/configure/agentPublishStore";
 import { runsStore } from "@/components/configure/runsStore";
 import { triggerStore, triggerNeedsSetup, type TriggerType } from "@/components/configure/triggerStore";
 import { AGENTS as agents } from "@/components/configure/agentStore";
+import { useOrg } from "@/pages/organization/orgStore";
+import { recheckAgentGroupPublish } from "@/components/configure/collabGroupStore";
 import { getChannelName } from "@/components/configure/channelCatalog";
 
 /* ─── Data ─────────────────────────────────────────────────────────────── */
@@ -387,6 +389,14 @@ export default function AgentsList() {
   const { can } = useMyPermissions();
   const access = useGroupAccess("agents");
   const canCreateAgent = can("agents.create");
+  const { tree: orgTree } = useOrg();
+
+  // Anti-bypass: re-check every Nhóm cộng tác-scoped Agent's live roster overlap on a normal
+  // page visit (see collabGroupStore.recheckAgentGroupPublish's doc comment) — this is the
+  // "there is never a safe window" enforcement for Vấn đề 2, not just a one-time gate at publish.
+  useEffect(() => {
+    for (const a of agents) recheckAgentGroupPublish(a.id, orgTree);
+  }, [orgTree]);
 
   // A role whose Agents View Scope is "Own & Shared" (or that has no View permission at all —
   // View is only ever needed to see other people's agents) only ever sees agents it created or
@@ -457,7 +467,7 @@ export default function AgentsList() {
 
       {/* Page header */}
       <div className="mb-6">
-        <h1 className="font-display text-xl font-semibold tracking-tight mb-1">My agents</h1>
+        <h1 className="font-display text-xl font-semibold tracking-tight mb-1">Agents</h1>
         <p className="text-sm text-muted-foreground">
           Manage every agent in this workspace — build, test, deploy and monitor.
         </p>

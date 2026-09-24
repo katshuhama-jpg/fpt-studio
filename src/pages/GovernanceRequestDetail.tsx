@@ -2,22 +2,20 @@ import { useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import {
   ChevronLeft, FlaskConical, ExternalLink, CheckCircle2, XCircle,
-  User, Clock, Layers, AlertTriangle, ChevronDown, ChevronUp, Undo2,
+  User, Clock, Layers, AlertTriangle, ChevronDown, ChevronUp, Undo2, Info,
 } from "lucide-react";
 import {
   governanceStore, resourcePath, RESOURCE_TYPE_LABEL, AUDIENCE_LABEL,
-  diffSnapshots, itemNeedsReview, checkDrift, type GovBundledItem,
+  checkDrift, mainChangeState, resourceShareStatus, requestDiff,
 } from "@/components/governance/governanceStore";
 import { ACTION_LABEL } from "@/components/governance/auditLogStore";
 import {
-  StatusBadge, ResourceTypeIcon, ChangeStateBadge, CHANGE_STATE_ACCENT, relativeTime, formatDateTime,
+  StatusBadge, ResourceTypeIcon, ChangeStateBadge, ResourceShareStatusBadge, relativeTime, formatDateTime,
 } from "@/components/governance/governanceUi";
 import { CURRENT_USER } from "@/components/knowledge/knowledgeBaseStore";
 import { toast } from "sonner";
 
 type Dialog = "approve" | "reject" | "revoke" | null;
-
-const itemKey = (it: GovBundledItem) => `${it.type}:${it.resourceId}`;
 
 export default function GovernanceRequestDetail() {
   const { id } = useParams();
@@ -28,7 +26,7 @@ export default function GovernanceRequestDetail() {
   const req = id ? governanceStore.get(id) : undefined;
   const [dialog, setDialog] = useState<Dialog>(null);
   const [reason, setReason] = useState("");
-  const [openDiffs, setOpenDiffs] = useState<Set<string>>(new Set());
+  const [changesOpen, setChangesOpen] = useState(false);
 
   if (!req) {
     return (
@@ -60,30 +58,28 @@ export default function GovernanceRequestDetail() {
     toast.success(`Đã thu hồi "${req.resourceName}".`);
     closeDialog(); refresh();
   };
-  const doDecideItem = (it: GovBundledItem, decision: "approved" | "rejected") => {
-    governanceStore.decideBundledItem(req.id, it.type, it.resourceId, it.decision === decision ? undefined : decision);
-    refresh();
-  };
-  const toggleDiff = (it: GovBundledItem) => {
-    setOpenDiffs(prev => {
-      const next = new Set(prev);
-      const k = itemKey(it);
-      if (next.has(k)) next.delete(k); else next.add(k);
-      return next;
-    });
-  };
 
   const canReview = req.status === "pending";
   const isAgent = req.resourceType === "agent";
-  const needsAttentionCount = req.bundledItems.filter(it => itemNeedsReview(it.changeState)).length;
-  const rejectedItemCount = req.bundledItems.filter(it => it.decision === "rejected").length;
   const drift = checkDrift(req);
+  const changeState = mainChangeState(req);
 
   return (
     <div className="p-6 md:p-8 max-w-[1200px] mx-auto">
       <button onClick={() => navigate("/governance/requests")} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4 transition-base">
         <ChevronLeft size={15} /> Requests
       </button>
+
+      {/* Purpose banner — states plainly which of the 2 independent decisions this page is,
+          so a reviewer never mistakes "duyệt Agent" for "duyệt resource dùng chung" or vice versa. */}
+      <div className="mb-6 flex items-start gap-2.5 rounded-lg border border-border bg-surface-muted/50 px-3.5 py-3">
+        <Info size={15} className="text-muted-foreground shrink-0 mt-0.5" />
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          {isAgent
+            ? <>Quyết định ở đây <span className="font-medium text-foreground">chỉ ảnh hưởng đến việc Agent này có được publish tới người dùng hay không</span>. Trạng thái dùng chung của các thành phần bên trong Agent (nếu có) là quyết định riêng, độc lập — xem mục "Thành phần Agent này sử dụng" bên dưới.</>
+            : <>Quyết định ở đây <span className="font-medium text-foreground">chỉ ảnh hưởng đến việc thành phần này có được đưa vào Tenant Library để Builder khác dùng chung hay không</span>. Từ chối không gỡ thành phần này khỏi bất kỳ Agent nào đang dùng nó — Agent đó vẫn chạy bình thường với bản riêng của mình.</>}
+        </p>
+      </div>
 
       {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-6">
@@ -99,6 +95,7 @@ export default function GovernanceRequestDetail() {
               </span>
               {req.version && <span className="text-xs font-medium text-muted-foreground bg-surface-muted border border-border rounded-full px-2.5 py-1">{req.version}</span>}
               <StatusBadge status={req.status} />
+              <ChangeStateBadge state={changeState} />
             </div>
           </div>
         </div>
@@ -110,9 +107,7 @@ export default function GovernanceRequestDetail() {
         </Link>
       </div>
 
-      {/* Body — content column + a sticky rail for status/decision, matching the
-          review-page pattern used across the industry (meta + primary actions stay
-          reachable no matter how long the bundled-items list below gets). */}
+      {/* Body — content column + a sticky rail for status/decision. */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_336px] gap-6 lg:gap-8 items-start">
         {/* Main column */}
         <div className="min-w-0">
@@ -133,88 +128,47 @@ export default function GovernanceRequestDetail() {
             </div>
           )}
 
-          {/* Bundled sub-resources — the nested-approval answer */}
-          {req.bundledItems.length > 0 && (
+          {/* Thay đổi so với lần duyệt trước — the resource's own fields, no bundling. */}
+          {changeState === "modified" && (
             <div className="mb-6">
-              <div className="flex items-center justify-between gap-2 flex-wrap mb-1.5">
-                <p className="text-sm font-semibold flex items-center gap-1.5"><Layers size={14} className="text-muted-foreground" /> Thành phần đi kèm ({req.bundledItems.length})</p>
-                {needsAttentionCount > 0 && (
-                  <span className="text-xs font-semibold text-primary bg-primary-soft rounded-full px-2.5 py-0.5 whitespace-nowrap">{needsAttentionCount} cần chú ý</span>
-                )}
-              </div>
+              <button
+                type="button"
+                onClick={() => setChangesOpen(o => !o)}
+                className="w-full flex items-center justify-between mb-1.5"
+              >
+                <span className="text-sm font-semibold">Thay đổi so với lần duyệt trước</span>
+                {changesOpen ? <ChevronUp size={15} className="text-muted-foreground" /> : <ChevronDown size={15} className="text-muted-foreground" />}
+              </button>
+              {changesOpen && <MainDiffRows req={req} />}
+            </div>
+          )}
+
+          {/* Thành phần Agent này sử dụng — read-only context, never a decision control (see
+              banner above). Sharing status is resolved live, not frozen at submit time. */}
+          {isAgent && req.resourceRefs && req.resourceRefs.length > 0 && (
+            <div className="mb-6">
+              <p className="text-sm font-semibold flex items-center gap-1.5 mb-1.5">
+                <Layers size={14} className="text-muted-foreground" /> Thành phần Agent này sử dụng ({req.resourceRefs.length})
+              </p>
               <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
-                Agent này tham chiếu các thành phần bên dưới. Mặc định cả yêu cầu được duyệt cùng lúc — nhưng bạn có thể{" "}
-                <span className="font-medium text-foreground">từ chối riêng từng thành phần</span> bên dưới: thành phần đó sẽ giữ nguyên bản đã duyệt trước đó, các thành phần còn lại vẫn được publish bình thường.
+                Danh sách dưới đây chỉ để tham khảo — trạng thái dùng chung của từng thành phần do Tenant Admin quyết định riêng, ở trang của chính thành phần đó, và không ảnh hưởng đến việc bạn duyệt Agent này.
               </p>
               <div className="space-y-2">
-                {req.bundledItems.map(it => {
-                  const needsReview = itemNeedsReview(it.changeState);
-                  const diffs = diffSnapshots(it.liveSnapshot, it.candidateSnapshot);
-                  const isOpen = openDiffs.has(itemKey(it));
+                {req.resourceRefs.map(it => {
+                  const status = resourceShareStatus(it.type, it.resourceId);
                   return (
-                    <div
-                      key={itemKey(it)}
-                      className={`rounded-xl border border-l-4 transition-base ${CHANGE_STATE_ACCENT[it.changeState]} ${it.changeState === "unchanged_approved" ? "opacity-70" : ""}`}
-                    >
-                      <div className="flex items-center gap-3 px-4 py-3">
-                        <span className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shrink-0 text-muted-foreground border border-border/60">
-                          <ResourceTypeIcon type={it.type} size={14} />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-foreground truncate">{it.name}</p>
-                          <p className="text-xs text-muted-foreground">{RESOURCE_TYPE_LABEL[it.type]}</p>
-                        </div>
-                        <ChangeStateBadge state={it.changeState} />
-                        {diffs.length > 0 && (
-                          <button
-                            onClick={() => toggleDiff(it)}
-                            className="text-xs font-medium text-muted-foreground hover:text-foreground flex items-center gap-1 shrink-0 transition-base"
-                          >
-                            Xem thay đổi {isOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                          </button>
-                        )}
-                        <Link to={resourcePath(it.type, it.resourceId)} className="text-muted-foreground hover:text-foreground shrink-0" title="Xem chi tiết">
-                          <ExternalLink size={14} />
-                        </Link>
+                    <div key={`${it.type}:${it.resourceId}`} className="rounded-xl border border-border bg-surface flex items-center gap-3 px-4 py-3">
+                      <span className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shrink-0 text-muted-foreground border border-border/60">
+                        <ResourceTypeIcon type={it.type} size={14} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-foreground truncate">{it.name}</p>
+                        <p className="text-xs text-muted-foreground">{RESOURCE_TYPE_LABEL[it.type]}</p>
                       </div>
-
-                      {isOpen && diffs.length > 0 && (
-                        <div className="px-4 pb-3">
-                          <div className="rounded-lg border border-border/70 bg-white/70 divide-y divide-border/60 overflow-hidden">
-                            {diffs.map(d => (
-                              <div key={d.key} className="px-3 py-2 text-xs">
-                                <p className="font-medium text-foreground mb-1">{d.label}</p>
-                                <p className="text-muted-foreground line-through opacity-70 break-words">{d.before}</p>
-                                <p className="text-foreground break-words">{d.after}</p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {canReview && needsReview && (
-                        <div className="flex items-center gap-2 px-4 pb-3 flex-wrap">
-                          <button
-                            onClick={() => doDecideItem(it, "approved")}
-                            className={`h-7 px-2.5 rounded-md text-xs font-medium border transition-base ${
-                              it.decision === "approved" ? "bg-success text-white border-success" : "border-border bg-white hover:bg-surface-muted text-foreground"
-                            }`}
-                          >
-                            Duyệt mục này
-                          </button>
-                          <button
-                            onClick={() => doDecideItem(it, "rejected")}
-                            className={`h-7 px-2.5 rounded-md text-xs font-medium border transition-base ${
-                              it.decision === "rejected" ? "bg-destructive text-white border-destructive" : "border-destructive/30 text-destructive bg-white hover:bg-destructive/5"
-                            }`}
-                          >
-                            Từ chối mục này
-                          </button>
-                          {it.decision === "rejected" && (
-                            <span className="text-[11px] text-muted-foreground">Sẽ giữ bản đã duyệt trước đó</span>
-                          )}
-                        </div>
-                      )}
+                      <ResourceShareStatusBadge status={status} />
+                      <Link to={resourcePath(it.type, it.resourceId)} className="text-muted-foreground hover:text-foreground shrink-0" title="Xem chi tiết">
+                        <ExternalLink size={14} />
+                      </Link>
                     </div>
                   );
                 })}
@@ -249,8 +203,7 @@ export default function GovernanceRequestDetail() {
           )}
         </div>
 
-        {/* Right rail — request meta, decision actions, history. Sticky on desktop so
-            the actions never require scrolling to find, however long the bundle gets. */}
+        {/* Right rail — request meta, decision actions, history. */}
         <div className="lg:sticky lg:top-6 space-y-4">
           <div className="rounded-xl border border-border bg-surface-muted/40 p-4 space-y-3.5">
             <div>
@@ -278,11 +231,6 @@ export default function GovernanceRequestDetail() {
 
           {canReview && (
             <div className="rounded-xl border border-border bg-surface p-3.5 space-y-2">
-              {rejectedItemCount > 0 && (
-                <p className="text-[11px] text-muted-foreground leading-relaxed px-0.5 pb-0.5">
-                  {rejectedItemCount} thành phần sẽ giữ bản đã duyệt trước đó khi bạn bấm Duyệt.
-                </p>
-              )}
               <button
                 onClick={() => setDialog("approve")}
                 className="w-full h-9 rounded-lg bg-success text-white hover:opacity-90 text-sm font-medium flex items-center justify-center gap-1.5 transition-base"
@@ -349,13 +297,13 @@ export default function GovernanceRequestDetail() {
                 : `Thu hồi "${req.resourceName}"?`}
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
-              {dialog === "approve" && (
-                rejectedItemCount > 0
-                  ? `Các thành phần bạn đã đánh dấu "Từ chối mục này" (${rejectedItemCount}) sẽ giữ nguyên bản đã duyệt trước đó. Mọi thành phần còn lại — kể cả chưa quyết định — sẽ được publish theo phạm vi đã chọn.`
-                  : "Sau khi duyệt, mục này (và các thành phần mới đi kèm) sẽ được publish theo phạm vi đã chọn."
-              )}
+              {dialog === "approve" && (isAgent
+                ? "Sau khi duyệt, Agent này sẽ publish theo phạm vi đã chọn."
+                : "Sau khi duyệt, thành phần này sẽ xuất hiện trong Tenant Library để các Builder khác dùng chung.")}
               {dialog === "reject" && "Người gửi sẽ nhận được lý do từ chối và cần tạo yêu cầu mới nếu muốn gửi lại."}
-              {dialog === "revoke" && "Resource sẽ ngừng publish ngay lập tức và cần được gửi duyệt lại từ đầu nếu muốn publish lại. Hành động này không thể hoàn tác."}
+              {dialog === "revoke" && (isAgent
+                ? "Agent sẽ ngừng publish ngay lập tức và cần được gửi duyệt lại từ đầu nếu muốn publish lại. Hành động này không thể hoàn tác."
+                : "Thành phần sẽ ngừng dùng chung ngay lập tức (các Agent đang dùng bản riêng của họ không bị ảnh hưởng) và cần được gửi duyệt lại từ đầu. Hành động này không thể hoàn tác.")}
             </p>
             {dialog !== "approve" && (
               <textarea
@@ -391,6 +339,26 @@ export default function GovernanceRequestDetail() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** The main resource's own field-level diff vs. its last-approved live snapshot — replaces the
+ * old per-bundled-item diff panel now that there's no bundle. */
+function MainDiffRows({ req }: { req: import("@/components/governance/governanceStore").GovRequest }) {
+  const diffs = requestDiff(req);
+  if (diffs.length === 0) {
+    return <p className="text-xs text-muted-foreground">Không có thay đổi nào ở các trường được theo dõi.</p>;
+  }
+  return (
+    <div className="rounded-lg border border-border/70 bg-white/70 divide-y divide-border/60 overflow-hidden">
+      {diffs.map(d => (
+        <div key={d.key} className="px-3 py-2.5 text-xs">
+          <p className="font-medium text-foreground mb-1">{d.label}</p>
+          <p className="text-muted-foreground line-through opacity-70 break-words">{d.before}</p>
+          <p className="text-foreground break-words">{d.after}</p>
+        </div>
+      ))}
     </div>
   );
 }
