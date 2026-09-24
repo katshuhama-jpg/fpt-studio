@@ -256,7 +256,8 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
           )}
 
           <div>
-            <label className="text-sm font-medium mb-2 block">Chia sẻ tới</label>
+            <label className="text-sm font-medium mb-1 block">Chia sẻ tới</label>
+            <p className="text-xs text-muted-foreground mb-2">Chọn ai có thể xem và dùng các tài liệu này.</p>
             <div className="space-y-2">
               {ACCESS_OPTIONS.map(opt => {
                 const selected = accessMode === opt.value;
