@@ -2,6 +2,7 @@ import { createPortal } from "react-dom";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Cancel01Icon } from "@hugeicons/core-free-icons";
 import type { Guardrail } from "./guardrailConsoleStore";
+import { actionLabelVi } from "./guardrailConsoleStore";
 
 /** Compact read-only "Chi tiết guardrail" summary opened from Row Menu "Mở" (Console list) and
  * from an Agent's linked-guardrail "Mở guardrail" row — Chủ đề / Mô tả / Phản hồi only, with an
@@ -38,7 +39,7 @@ export default function GuardrailDetailModal({ guardrail, onClose, onEdit }: {
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Phản hồi</p>
             <span className="inline-flex px-2.5 py-1 rounded-full border border-border bg-surface-muted text-sm text-foreground">
-              {guardrail.action}
+              {actionLabelVi(guardrail.action)}
             </span>
           </div>
         </div>

@@ -41,7 +41,7 @@ import { isAccessibleTo as isCustomConnectorAccessibleTo, type Sharing as Custom
 import CustomConnectorShareModal from "@/components/configure/CustomConnectorShareModal";
 import AppLogo from "@/components/configure/AppLogo";
 import { TYPE_META, summarizeConfig } from "@/components/configure/TriggersTab";
-import { guardrailConsoleStore, type Guardrail } from "@/components/configure/guardrailConsoleStore";
+import { guardrailConsoleStore, type Guardrail, actionLabelVi } from "@/components/configure/guardrailConsoleStore";
 import { agentGuardrailStore } from "@/components/configure/agentGuardrailStore";
 import CreateGuardrailModal, { type CreateGuardrailData } from "@/components/configure/CreateGuardrailModal";
 import GuardrailDetailModal from "@/components/configure/GuardrailDetailModal";
@@ -5141,11 +5141,11 @@ function SkillCardMenu({ onOpen, onEdit, onShare, onPromote, isActive, onToggleA
       </button>
       {open && createPortal(
         <div ref={menuRef} className="fixed z-[9999] w-52 rounded-lg border border-border bg-white shadow-elev py-1" style={{ top: pos.top, bottom: pos.bottom, left: pos.left }} onMouseDown={e => e.stopPropagation()}>
-          {onOpen && item("Open skill", ExternalLinkIcon, onOpen)}
-          {onEdit && item("Edit", PencilEdit01Icon, onEdit)}
-          {onShare && item("Share", Share08Icon, onShare)}
-          {onPromote && item("Promote to workspace", Upload01Icon, onPromote)}
-          {item(isActive ? "Deactivate" : "Activate", isActive ? PauseIcon : PlayCircleIcon, onToggleActive)}
+          {onOpen && item("Mở skill", ExternalLinkIcon, onOpen)}
+          {onEdit && item("Chỉnh sửa", PencilEdit01Icon, onEdit)}
+          {onShare && item("Chia sẻ", Share08Icon, onShare)}
+          {onPromote && item("Chuyển thành skill chung", Upload01Icon, onPromote)}
+          {item(isActive ? "Tắt" : "Bật", isActive ? PauseIcon : PlayCircleIcon, onToggleActive)}
           <div className="mt-1 pt-1 border-t border-border">
             <button onClick={() => { setOpen(false); onRemove(); }} className="w-full flex items-center gap-2 text-left px-3 py-2 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">
               <HugeiconsIcon icon={Delete01Icon} size={14} /> {removeLabel}
@@ -6798,7 +6798,7 @@ function StarterPromptsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => voi
  * edited from Console instead), Pause/Resume mirrors the card's own toggle so it's reachable
  * from the menu too, and the destructive action reads "Delete" for an owned guardrail or
  * "Detach" for a linked one since unlinking never destroys the shared Console record. */
-function GuardrailAgentItemRowMenu({ onView, onEdit, isActive, onTogglePause, onDelete, deleteLabel = "Delete" }: {
+function GuardrailAgentItemRowMenu({ onView, onEdit, isActive, onTogglePause, onDelete, deleteLabel = "Xóa" }: {
   onView: () => void; onEdit?: () => void; isActive: boolean; onTogglePause: () => void; onDelete: () => void; deleteLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -6835,15 +6835,15 @@ function GuardrailAgentItemRowMenu({ onView, onEdit, isActive, onTogglePause, on
       {open && createPortal(
         <div ref={menuRef} className="fixed z-[9999] w-48 rounded-lg border border-border bg-white shadow-elev py-1" style={{ top: pos.top, bottom: pos.bottom, left: pos.left }} onMouseDown={e => e.stopPropagation()}>
           <button onClick={() => { setOpen(false); onView(); }} className="w-full flex items-center gap-2 text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">
-            <HugeiconsIcon icon={EyeIcon} size={14} className="text-muted-foreground" /> View details
+            <HugeiconsIcon icon={EyeIcon} size={14} className="text-muted-foreground" /> Xem chi tiết
           </button>
           {onEdit && (
             <button onClick={() => { setOpen(false); onEdit(); }} className="w-full flex items-center gap-2 text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">
-              <HugeiconsIcon icon={PencilEdit01Icon} size={14} className="text-muted-foreground" /> Edit
+              <HugeiconsIcon icon={PencilEdit01Icon} size={14} className="text-muted-foreground" /> Chỉnh sửa
             </button>
           )}
           <button onClick={() => { setOpen(false); onTogglePause(); }} className="w-full flex items-center gap-2 text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">
-            <HugeiconsIcon icon={isActive ? PauseIcon : PlayCircleIcon} size={14} className="text-muted-foreground" /> {isActive ? "Pause" : "Resume"}
+            <HugeiconsIcon icon={isActive ? PauseIcon : PlayCircleIcon} size={14} className="text-muted-foreground" /> {isActive ? "Tạm dừng" : "Tiếp tục"}
           </button>
           <div className="mt-1 pt-1 border-t border-border">
             <button onClick={() => { setOpen(false); onDelete(); }} className="w-full flex items-center gap-2 text-left px-3 py-2 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">
@@ -6901,7 +6901,7 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold truncate">{g.name}</div>
-            <span className="chip chip-muted mt-1.5 inline-flex w-fit">{g.action}</span>
+            <span className="chip chip-muted mt-1.5 inline-flex w-fit">{actionLabelVi(g.action)}</span>
           </div>
         </div>
         <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 flex-1">{g.desc}</p>
@@ -6926,36 +6926,36 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
     <div className="p-8 w-full space-y-8 animate-fade-up">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="font-display text-xl font-semibold">Guardrails</h2>
-          <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">Control what this agent will not do — restrict topics, protect sensitive data, and hold risky actions for review.</p>
+          <h2 className="font-display text-xl font-semibold">Guardrail của Agent</h2>
+          <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">Giới hạn những điều Agent không được làm — chặn chủ đề nhạy cảm, bảo vệ dữ liệu và giữ lại các hành động rủi ro để duyệt trước.</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button onClick={() => setShowAttach(true)} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base">
             <HugeiconsIcon icon={ConnectIcon} size={14} /> Liên kết guardrail có sẵn
           </button>
           <button onClick={() => setShowCreate(true)} className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 transition-base">
-            <HugeiconsIcon icon={Add01Icon} size={14} /> Create new
+            <HugeiconsIcon icon={Add01Icon} size={14} /> Tạo guardrail mới
           </button>
         </div>
       </div>
 
       <div>
         <div className="flex items-center gap-2 mb-3">
-          <span className="text-xs font-bold uppercase tracking-wide text-foreground">Agent-only guardrails</span>
+          <span className="text-xs font-bold uppercase tracking-wide text-foreground">Guardrail riêng của Agent</span>
           <span className="min-w-[20px] h-5 px-1 rounded-full bg-surface-muted text-muted-foreground text-xs font-semibold flex items-center justify-center">{items.length}</span>
           <div className="flex-1 h-px bg-border" />
         </div>
         {items.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border p-8 text-center">
-            <p className="text-sm font-medium mb-1">This agent has no guardrails of its own yet</p>
-            <p className="text-xs text-muted-foreground">Create one to restrict what this agent is allowed to respond with.</p>
+            <p className="text-sm font-medium mb-1">Agent này chưa có guardrail riêng nào</p>
+            <p className="text-xs text-muted-foreground">Tạo một guardrail để giới hạn những gì Agent được phép trả lời.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {items.map(g => renderCard(g, {
               onEdit: () => setEditTarget(g),
               onDelete: () => setDeleteTarget({ id: g.id, name: g.name }),
-              deleteLabel: "Delete",
+              deleteLabel: "Xóa",
             }))}
           </div>
         )}
@@ -6976,7 +6976,7 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {attachedGuardrails.map(g => renderCard(g, {
               onDelete: () => setDetachTarget({ id: g.id, name: g.name }),
-              deleteLabel: "Detach",
+              deleteLabel: "Gỡ liên kết",
             }))}
           </div>
         )}
@@ -7009,16 +7009,16 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
       <AlertDialog open={!!detachTarget} onOpenChange={v => !v && setDetachTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Detach "{detachTarget?.name}"?</AlertDialogTitle>
-            <AlertDialogDescription>This agent will stop applying this guardrail. The guardrail itself stays unchanged in the workspace.</AlertDialogDescription>
+            <AlertDialogTitle>Gỡ liên kết "{detachTarget?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>Agent này sẽ ngừng áp dụng guardrail này. Guardrail vẫn được giữ nguyên trong workspace.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => { if (detachTarget) agentGuardrailStore.detachConsoleGuardrail(agentId, detachTarget.id); setDetachTarget(null); refresh(); }}
             >
-              Detach
+              Gỡ liên kết
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -7027,16 +7027,16 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
       <AlertDialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete "{deleteTarget?.name}"?</AlertDialogTitle>
-            <AlertDialogDescription>This guardrail will be permanently removed from this agent. This can't be undone.</AlertDialogDescription>
+            <AlertDialogTitle>Xóa "{deleteTarget?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>Guardrail này sẽ bị xóa vĩnh viễn khỏi Agent. Không thể hoàn tác.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => { if (deleteTarget) agentGuardrailStore.remove(agentId, deleteTarget.id); setDeleteTarget(null); refresh(); }}
             >
-              Delete
+              Xóa
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -7080,7 +7080,7 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
 
   const setBuiltinOn = (skill: BuiltinSkill, on: boolean) => {
     builtinSkillStore.setOn(agentId, skill.id, on);
-    toast.success(`${skill.name} turned ${on ? "on" : "off"}.`);
+    toast.success(`Đã ${on ? "bật" : "tắt"} ${skill.name}.`);
     refresh();
   };
 
@@ -7111,11 +7111,11 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
         <div className="flex items-center justify-between gap-2">
           <span className="flex items-center gap-1.5 text-sm whitespace-nowrap min-w-0">
             <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${active ? "bg-success" : "bg-muted-foreground"}`} />
-            <span className={`font-medium ${active ? "text-success" : "text-muted-foreground"}`}>{active ? "Active" : "Inactive"}</span>
+            <span className={`font-medium ${active ? "text-success" : "text-muted-foreground"}`}>{active ? "Đang bật" : "Đã tắt"}</span>
             <span className="text-muted-foreground">·</span>
             <span className="flex items-center gap-1 text-muted-foreground truncate">
               <HugeiconsIcon icon={UserIcon} size={13} className="shrink-0" />
-              {agentCount} {agentCount === 1 ? "agent" : "agents"}
+              {agentCount} agent
             </span>
           </span>
           {menu}
@@ -7146,24 +7146,24 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
     <div className="p-8 w-full space-y-8 animate-fade-up">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="font-display text-xl font-semibold">Skills</h2>
-          <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">Bundles of instructions, resources, and executable code the Agent loads on demand.</p>
+          <h2 className="font-display text-xl font-semibold">Kỹ năng của Agent</h2>
+          <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">Tập hợp hướng dẫn, tài nguyên và mã thực thi mà Agent tải khi cần.</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button onClick={() => setShowAttach(true)} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base">
             <HugeiconsIcon icon={ConnectIcon} size={14} /> Liên kết skill có sẵn
           </button>
           <button onClick={() => setShowChoice(true)} className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 transition-base">
-            <HugeiconsIcon icon={Add01Icon} size={14} /> Create Skill
+            <HugeiconsIcon icon={Add01Icon} size={14} /> Tạo kỹ năng
           </button>
         </div>
       </div>
 
       {/* Agent-only — created here, owned here, editable here. */}
       <div>
-        {sectionHeader("Agent-only skills", items.length)}
+        {sectionHeader("Kỹ năng riêng của Agent", items.length)}
         {items.length === 0 ? (
-          emptyBox("This agent has no skills of its own yet", "Create one to teach this agent a reusable capability.")
+          emptyBox("Agent này chưa có kỹ năng riêng nào", "Tạo một kỹ năng để trang bị thêm năng lực cho Agent này.")
         ) : (
           <div className={GRID}>
             {items.map(s => renderSkillCard(s, 1, (
@@ -7174,7 +7174,7 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
                 onShare={() => setShareTarget(s)}
                 onPromote={() => setPromoteTarget(s)}
                 onRemove={() => setDeleteTarget({ id: s.id, name: s.name })}
-                removeLabel="Delete"
+                removeLabel="Xóa"
               />
             )))}
           </div>
@@ -7195,7 +7195,7 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
                 onToggleActive={() => toggleActive(s)}
                 onOpen={() => window.open(`/tools/${s.id}`, "_blank", "noopener")}
                 onRemove={() => setDetachTarget({ id: s.id, name: s.name })}
-                removeLabel="Disconnect"
+                removeLabel="Gỡ liên kết"
               />
             )))}
           </div>
@@ -7208,19 +7208,19 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
         * switched on and off, never edited, shared or deleted. The Core built-ins
         * (self-configuration) never appear here. */}
       <div>
-        {sectionHeader("Built-in skills", builtinSkills.length, (
+        {sectionHeader("Kỹ năng tích hợp sẵn", builtinSkills.length, (
           <button
             onClick={() => setShowRestoreBuiltins(true)}
             disabled={builtinsAtDefault}
             title={builtinsAtDefault ? "Every built-in skill is already on." : undefined}
             className="h-8 px-3 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white"
           >
-            <HugeiconsIcon icon={CircleArrowReload01Icon} size={14} /> Restore defaults
+            <HugeiconsIcon icon={CircleArrowReload01Icon} size={14} /> Khôi phục mặc định
           </button>
         ))}
         <p className="text-sm text-muted-foreground -mt-1 mb-3">
-          Skills every agent ships with. Turn one off and this agent stops using it.
-          {builtinsOffCount > 0 && ` ${builtinsOffCount} of ${builtinSkills.length} turned off.`}
+          Kỹ năng mà mọi Agent đều có sẵn. Tắt một kỹ năng thì Agent sẽ ngừng dùng kỹ năng đó.
+          {builtinsOffCount > 0 && ` Đã tắt ${builtinsOffCount}/${builtinSkills.length}.`}
         </p>
         <div className={GRID}>
           {builtinSkills.map(s => {
@@ -7238,7 +7238,7 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
                 <div className="flex items-center justify-between gap-2">
                   <span className="flex items-center gap-1.5 text-sm font-medium whitespace-nowrap">
                     <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${on ? "bg-success" : "bg-muted-foreground"}`} />
-                    <span className={on ? "text-success" : "text-muted-foreground"}>{on ? "Active" : "Inactive"}</span>
+                    <span className={on ? "text-success" : "text-muted-foreground"}>{on ? "Đang bật" : "Đã tắt"}</span>
                   </span>
                   <Switch
                     checked={on}
@@ -7308,16 +7308,16 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
       <AlertDialog open={!!builtinOffTarget} onOpenChange={v => !v && setBuiltinOffTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Turn off {builtinOffTarget?.name}?</AlertDialogTitle>
-            <AlertDialogDescription>The agent won't use this skill until you turn it back on.</AlertDialogDescription>
+            <AlertDialogTitle>Tắt {builtinOffTarget?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>Agent sẽ ngừng dùng kỹ năng này cho đến khi bạn bật lại.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => { if (builtinOffTarget) setBuiltinOn(builtinOffTarget, false); setBuiltinOffTarget(null); }}
             >
-              Turn off
+              Tắt
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -7326,23 +7326,23 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
       <AlertDialog open={showRestoreBuiltins} onOpenChange={v => !v && setShowRestoreBuiltins(false)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Restore default skills?</AlertDialogTitle>
+            <AlertDialogTitle>Khôi phục kỹ năng mặc định?</AlertDialogTitle>
             <AlertDialogDescription>
-              Every built-in skill will be turned back on for this agent. Your own and connected skills aren't affected.
+              Mọi kỹ năng tích hợp sẵn sẽ được bật lại cho Agent này. Kỹ năng riêng và kỹ năng đã liên kết của bạn không bị ảnh hưởng.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-white border border-border text-foreground hover:bg-surface-muted">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="bg-white border border-border text-foreground hover:bg-surface-muted">Hủy</AlertDialogCancel>
             <AlertDialogAction
               className="bg-primary text-primary-foreground hover:bg-primary/90"
               onClick={() => {
                 builtinSkillStore.restoreDefaults(agentId);
                 setShowRestoreBuiltins(false);
-                toast.success("Built-in skills restored to their defaults.");
+                toast.success("Đã khôi phục kỹ năng tích hợp sẵn về mặc định.");
                 refresh();
               }}
             >
-              Restore
+              Khôi phục
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -7351,16 +7351,16 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
       <AlertDialog open={!!detachTarget} onOpenChange={v => !v && setDetachTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Disconnect "{detachTarget?.name}"?</AlertDialogTitle>
-            <AlertDialogDescription>This agent will stop using the skill. The skill itself stays unchanged in the workspace.</AlertDialogDescription>
+            <AlertDialogTitle>Gỡ liên kết "{detachTarget?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>Agent này sẽ ngừng dùng skill này. Skill vẫn được giữ nguyên trong workspace.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-white border border-border text-foreground hover:bg-surface-muted">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="bg-white border border-border text-foreground hover:bg-surface-muted">Hủy</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => { if (detachTarget) agentSkillStore.detachConsoleSkill(agentId, detachTarget.id); setDetachTarget(null); refresh(); }}
             >
-              Disconnect
+              Gỡ liên kết
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -7369,16 +7369,16 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
       <AlertDialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete "{deleteTarget?.name}"?</AlertDialogTitle>
-            <AlertDialogDescription>This skill will be permanently removed from this agent. This can't be undone.</AlertDialogDescription>
+            <AlertDialogTitle>Xóa "{deleteTarget?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>Skill này sẽ bị xóa vĩnh viễn khỏi Agent. Không thể hoàn tác.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-white border border-border text-foreground hover:bg-surface-muted">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="bg-white border border-border text-foreground hover:bg-surface-muted">Hủy</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => { if (deleteTarget) agentSkillStore.remove(agentId, deleteTarget.id); setDeleteTarget(null); refresh(); }}
             >
-              Delete
+              Xóa
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

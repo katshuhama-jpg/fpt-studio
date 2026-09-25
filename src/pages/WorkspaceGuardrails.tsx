@@ -8,7 +8,7 @@ import { useGroupAccess } from "@/pages/organization/scopeAccess";
 import { useOrg } from "@/pages/organization/orgStore";
 import { collectMembers } from "@/pages/organization/orgData";
 import { isAccessibleTo, isViewOnly, type Sharing } from "@/components/configure/guardrailSharing";
-import { guardrailConsoleStore, type Guardrail } from "@/components/configure/guardrailConsoleStore";
+import { guardrailConsoleStore, type Guardrail, actionLabelVi } from "@/components/configure/guardrailConsoleStore";
 import CreateGuardrailModal, { type CreateGuardrailData } from "@/components/configure/CreateGuardrailModal";
 import GuardrailDetailModal from "@/components/configure/GuardrailDetailModal";
 import GuardrailShareModal from "@/components/configure/GuardrailShareModal";
@@ -299,7 +299,7 @@ export default function WorkspaceGuardrails() {
                 {hasOwner && ` · Người tạo: ${isOwner ? "Bạn" : (g.ownerName ?? "—")}`}
               </div>
             </div>
-            <div><ActionPill>{g.action}</ActionPill></div>
+            <div><ActionPill>{actionLabelVi(g.action)}</ActionPill></div>
             <div className="flex items-center">
               {g.mandatory || g.allAgents ? (
                 <span className="flex items-center gap-1.5 text-xs font-medium text-foreground">

@@ -7,6 +7,22 @@ import { loadMap, saveMap } from "@/lib/sessionPersist";
 import type { Sharing } from "./guardrailSharing";
 
 export type ActionKind = "Autogenerate response" | "Custom response" | "Require approval" | "Block" | "Redact and warn" | "Politely decline";
+
+/** Display label for an ActionKind — the stored value stays the English literal (compared
+ * against directly in CreateGuardrailModal's response-type logic and used as seed-data keys),
+ * this only translates what the badge/chip shows the user. */
+const ACTION_LABEL_VI: Record<ActionKind, string> = {
+  "Autogenerate response": "Tự động tạo phản hồi",
+  "Custom response": "Phản hồi tùy chỉnh",
+  "Require approval": "Cần phê duyệt",
+  "Block": "Chặn",
+  "Redact and warn": "Ẩn thông tin và cảnh báo",
+  "Politely decline": "Từ chối lịch sự",
+};
+export function actionLabelVi(action: ActionKind): string {
+  return ACTION_LABEL_VI[action] ?? action;
+}
+
 export interface AgentChip { name: string; color: string }
 
 export interface Guardrail {
