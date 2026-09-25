@@ -83,7 +83,7 @@ export default function RequestPublishModal({ resourceType, resourceId, resource
                   : "Admin đã yêu cầu cập nhật cho lần gửi trước. Vào trang Requests để xem góp ý và gửi lại."}
               </p>
             </div>
-            <a href={`/governance/requests/${openRequest.id}`} className="text-sm font-semibold text-primary hover:underline mt-1">
+            <a href={`/governance/library-requests/${openRequest.id}`} className="text-sm font-semibold text-primary hover:underline mt-1">
               Xem yêu cầu
             </a>
           </div>

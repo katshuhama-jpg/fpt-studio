@@ -125,7 +125,7 @@ export default function GovernanceAuditLog() {
               <ResourceTypeIcon type={e.resourceType} size={13} /> {RESOURCE_TYPE_LABEL[e.resourceType]}
             </div>
             <div className="text-sm text-foreground truncate">{e.actorName}</div>
-            <Link to={`/governance/requests/${e.requestId}`} className="text-sm text-primary hover:underline truncate flex items-center gap-1">
+            <Link to={`${e.resourceType === "agent" ? "/governance/requests" : "/governance/library-requests"}/${e.requestId}`} className="text-sm text-primary hover:underline truncate flex items-center gap-1">
               {e.resourceName} <ExternalLink size={11} className="shrink-0" />
             </Link>
           </TRow>

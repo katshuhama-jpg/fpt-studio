@@ -203,7 +203,7 @@ export function RequestsQueuePage({ scope, title, intro, note }: { scope: Scope;
     return sortForGroup(list, GROUP_OF[tab]);
   }, [typeAndQueryFiltered, tab]);
 
-  const openRequest = (id: string) => navigate(`/governance/requests/${id}`);
+  const openRequest = (id: string) => navigate(`${scope === "agent" ? "/governance/requests" : "/governance/library-requests"}/${id}`);
 
   return (
     <div className="p-6 md:p-8 max-w-[1200px] mx-auto">

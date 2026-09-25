@@ -40,6 +40,7 @@ import WorkspaceConnectors from "./pages/WorkspaceConnectors";
 import GovernanceRequests from "./pages/GovernanceRequests";
 import GovernanceLibraryRequests from "./pages/GovernanceLibraryRequests";
 import GovernanceRequestDetail from "./pages/GovernanceRequestDetail";
+import GovernanceLibraryRequestDetail from "./pages/GovernanceLibraryRequestDetail";
 import GovernanceAuditLog from "./pages/GovernanceAuditLog";
 import NotFound from "./pages/NotFound.tsx";
 import Login from "./pages/Login";
@@ -154,6 +155,7 @@ const App = () => (
               <Route path="/governance/requests" element={<GovernanceRequests />} />
               <Route path="/governance/library-requests" element={<GovernanceLibraryRequests />} />
               <Route path="/governance/requests/:id" element={<GovernanceRequestDetail />} />
+              <Route path="/governance/library-requests/:id" element={<GovernanceLibraryRequestDetail />} />
               <Route path="/governance/audit-log" element={<GovernanceAuditLog />} />
               <Route path="/models" element={<PlaceholderPage title="Models" />} />
               <Route path="/api-keys" element={<PlaceholderPage title="API Keys" />} />
