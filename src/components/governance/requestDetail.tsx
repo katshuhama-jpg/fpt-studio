@@ -13,6 +13,7 @@ import {
   StatusBadge, ResourceTypeIcon, ChangeStateBadge, ResourceShareStatusBadge, relativeTime, formatDateTime,
 } from "@/components/governance/governanceUi";
 import { ResourceContentSection, ResourceUsageSection, testConnector, type ResourceReqType } from "@/components/governance/resourceContent";
+import { AgentTestPanel } from "@/components/governance/agentTestPanel";
 import { CURRENT_USER } from "@/components/knowledge/knowledgeBaseStore";
 import { toast } from "sonner";
 
@@ -42,6 +43,7 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
   const [reason, setReason] = useState("");
   const [changesOpen, setChangesOpen] = useState(false);
   const [testState, setTestState] = useState<"idle" | "testing">("idle");
+  const [testPanelOpen, setTestPanelOpen] = useState(false);
 
   // A request only ever lives at ONE correct URL — /governance/requests/:id for an Agent,
   // /governance/library-requests/:id for a Resource — so the left-nav highlight is always
@@ -287,12 +289,12 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
                 <XCircle size={14} /> Từ chối
               </button>
               {isAgent && (
-                <Link
-                  to={`/agents/${req.resourceId}?tab=test`}
+                <button
+                  onClick={() => setTestPanelOpen(true)}
                   className="w-full h-9 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium flex items-center justify-center gap-1.5 transition-base !mt-3"
                 >
                   <FlaskConical size={14} /> Test
-                </Link>
+                </button>
               )}
               {!isAgent && resourceType === "connector" && (
                 <button
@@ -397,6 +399,13 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Test chat — stays on this page instead of navigating to /agents/:id?tab=test, so the
+          admin never loses their place mid-review (and doesn't land on that tab's not-yet-built
+          placeholder). See agentTestPanel.tsx. */}
+      {isAgent && (
+        <AgentTestPanel agentId={req.resourceId} open={testPanelOpen} onOpenChange={setTestPanelOpen} />
       )}
     </div>
   );
