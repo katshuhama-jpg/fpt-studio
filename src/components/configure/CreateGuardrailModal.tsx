@@ -200,7 +200,7 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
 
           <div>
             <label className="text-sm font-medium mb-1 block">Chia sẻ tới</label>
-            <p className="text-xs text-muted-foreground mb-2">Chọn ai có thể xem và dùng guardrail này.</p>
+            <p className="text-xs text-muted-foreground mb-3">Chọn ai có thể xem và dùng guardrail này.</p>
             <div className="space-y-2">
               {SHARING_OPTIONS.map(opt => {
                 const selected = sharingMode === opt.value;
