@@ -468,9 +468,15 @@ export const governanceStore = {
       .sort((a, b) => b.updatedAt - a.updatedAt);
   },
 
-  pendingCount(): number {
+  /** Optional scope narrows the count to just the Agent queue or just the Resource queue —
+   * the 2 are separate pages now (GovernanceRequests.tsx / GovernanceLibraryRequests.tsx), each
+   * with its own sidebar badge, so the badge itself needs to know which page it points at. */
+  pendingCount(scope?: "agent" | "resource"): number {
     seed();
-    return [...store.values()].filter(r => r.status === "pending").length;
+    return [...store.values()].filter(r =>
+      r.status === "pending" &&
+      (!scope || (scope === "agent" ? r.resourceType === "agent" : r.resourceType !== "agent"))
+    ).length;
   },
 
   isResourceApproved(type: Exclude<GovResourceType, "agent">, id: string): boolean {

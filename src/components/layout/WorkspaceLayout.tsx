@@ -5,7 +5,7 @@ import {
   Puzzle, ChevronsLeft, ChevronsRight, Search, Bell, Plus,
   ChevronRight, LifeBuoy, KeyRound, LogOut, User, ChevronDown, ChevronsUpDown,
   Check, Building2, Sparkles, Shield, FileText, Rocket,
-  Network, Users, Cpu, UsersRound, ClipboardList, History, Lock,
+  Network, Users, Cpu, UsersRound, ClipboardList, History, Lock, Library,
 } from "lucide-react";
 import { useOrg } from "@/pages/organization/orgStore";
 import { governanceStore } from "@/components/governance/governanceStore";
@@ -57,7 +57,12 @@ const groups: Group[] = [
     label: "Trust & Governance",
     items: [
       { to: "/guardrails", label: "Guardrails", icon: Shield },
-      { to: "/governance/requests", label: "Requests", icon: ClipboardList },
+      // Split from one "Requests" item into 2 — Agent Requests (Org/Unit Admin: does an Agent
+      // reach users) and Resource Requests (Tenant Admin: does a resource enter the Tenant
+      // Library) are 2 different admin personas who land on their own page, not a shared queue
+      // with a filter (see requestsQueue.tsx's doc comment).
+      { to: "/governance/requests", label: "Agent Requests", icon: ClipboardList },
+      { to: "/governance/library-requests", label: "Resource Requests", icon: Library },
       { to: "/governance/audit-log", label: "Audit Log", icon: History },
       { to: "/roles", label: "Roles", icon: Shield },
       { to: "/members", label: "Members", icon: Users },
@@ -118,12 +123,15 @@ export default function WorkspaceLayout() {
       : it
   );
   // Re-read on every route change so approving/rejecting a request and navigating back
-  // updates the sidebar badge without needing a manual refresh.
-  const pendingRequestCount = governanceStore.pendingCount();
+  // updates the sidebar badge without needing a manual refresh. Each queue gets its own count
+  // now that they're separate pages.
+  const pendingAgentRequestCount = governanceStore.pendingCount("agent");
+  const pendingResourceRequestCount = governanceStore.pendingCount("resource");
   const groupsWithBadges: Group[] = groups.map(g => g.id !== "governance" ? g : {
     ...g,
     items: g.items.map(it => {
-      if (it.to === "/governance/requests" && pendingRequestCount > 0) it = { ...it, badge: String(pendingRequestCount) };
+      if (it.to === "/governance/requests" && pendingAgentRequestCount > 0) it = { ...it, badge: String(pendingAgentRequestCount) };
+      if (it.to === "/governance/library-requests" && pendingResourceRequestCount > 0) it = { ...it, badge: String(pendingResourceRequestCount) };
       if ((it.to === "/members" || it.to === "/roles") && !orgConfigured) it = { ...it, locked: true, lockedReason: ORG_LOCKED_REASON };
       return it;
     }),

@@ -67,7 +67,7 @@ export default function GovernanceRequestDetail() {
   return (
     <div className="p-6 md:p-8 max-w-[1200px] mx-auto">
       <button
-        onClick={() => navigate(`/governance/requests${req.resourceType === "agent" ? "" : "?scope=resource"}`)}
+        onClick={() => navigate(req.resourceType === "agent" ? "/governance/requests" : "/governance/library-requests")}
         className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4 transition-base"
       >
         <ChevronLeft size={15} /> Requests
