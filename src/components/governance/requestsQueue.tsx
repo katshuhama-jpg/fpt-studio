@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Search01Icon, FilterIcon, LayerIcon, ChevronDownIcon, InboxIcon } from "@hugeicons/core-free-icons";
+import { Search01Icon, FilterIcon, LayerIcon, ChevronDownIcon, InboxIcon, InformationCircleIcon } from "@hugeicons/core-free-icons";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   governanceStore, AUDIENCE_LABEL,
   type GovRequestStatus, type GovResourceType, type GovRequest,
@@ -150,7 +151,7 @@ function SectionLabel({ children, count, tone }: { children: string; count: numb
   );
 }
 
-export function RequestsQueuePage({ scope, title, intro }: { scope: Scope; title: string; intro: string }) {
+export function RequestsQueuePage({ scope, title, intro, note }: { scope: Scope; title: string; intro: string; note: string }) {
   const navigate = useNavigate();
   const all = governanceStore.list();
 
@@ -207,7 +208,17 @@ export function RequestsQueuePage({ scope, title, intro }: { scope: Scope; title
   return (
     <div className="p-6 md:p-8 max-w-[1200px] mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight mb-1">{title}</h1>
+        <div className="flex items-center gap-1.5 mb-1">
+          <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+          <Tooltip delayDuration={200}>
+            <TooltipTrigger asChild>
+              <button type="button" aria-label="Giải thích thêm" className="text-muted-foreground hover:text-foreground transition-colors">
+                <HugeiconsIcon icon={InformationCircleIcon} size={16} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right" sideOffset={6} className="max-w-xs">{note}</TooltipContent>
+          </Tooltip>
+        </div>
         <p className="text-sm text-muted-foreground max-w-3xl leading-relaxed">{intro}</p>
       </div>
 
