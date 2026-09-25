@@ -7,7 +7,11 @@
 // (blast-radius: which Agents already depend on this) from `resourceUsage.ts`.
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Link2, KeyRound, Database, Code2, ShieldAlert, Globe, Lock, Users, ExternalLink } from "lucide-react";
+import { KeyRound, Globe, Lock, Users, ExternalLink } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { InformationCircleIcon } from "@hugeicons/core-free-icons";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { ResourceTypeIcon } from "./governanceUi";
 import { knowledgeBaseStore } from "@/components/knowledge/knowledgeBaseStore";
 import { skillStore } from "../configure/skillStore";
 import { guardrailConsoleStore, actionLabelVi } from "../configure/guardrailConsoleStore";
@@ -28,11 +32,16 @@ function maskSecret(v: string): string {
   return `${v.slice(0, 2)}••••${v.slice(-2)}`;
 }
 
-function ContentBlock({ icon: Icon, title, children }: { icon: any; title: string; children: ReactNode }) {
+/** One consistent heading — "Nội dung & cấu hình" — across all 4 resource types, rather than a
+ * different word per type ("Cấu hình Connector" vs "Nội dung Knowledge" vs ...). The type itself
+ * is already visible in the badge next to the resource name above, so repeating it here just adds
+ * a second, inconsistently-worded label for the same fact; one fixed heading reads as the same
+ * section every time a Tenant Admin opens a different resource type's request. */
+function ContentBlock({ type, children }: { type: ResourceReqType; children: ReactNode }) {
   return (
     <div className="mb-6">
       <p className="text-sm font-semibold flex items-center gap-1.5 mb-3">
-        <Icon size={14} className="text-muted-foreground" /> {title}
+        <ResourceTypeIcon type={type} size={14} className="text-muted-foreground" /> Nội dung & cấu hình
       </p>
       <div className="rounded-xl border border-border bg-surface p-4 space-y-3.5">{children}</div>
     </div>
@@ -57,13 +66,13 @@ export function ResourceContentSection({ type, id }: { type: ResourceReqType; id
     const c = customConnectorStore.get(id);
     if (!c) return null;
     return (
-      <ContentBlock icon={Link2} title="Cấu hình Connector">
+      <ContentBlock type={type}>
         <Field label="Endpoint">
           <span className="font-mono text-xs break-all">{c.url}</span>
         </Field>
         <Field label="Xác thực">
           {c.authType === "none" ? (
-            <span className="inline-flex items-center gap-1.5 text-muted-foreground"><Globe size={13} /> Không cần xác thực — endpoint mở, không có secret nào đi kèm</span>
+            <span className="inline-flex items-center gap-1.5 text-muted-foreground"><Globe size={13} /> Không cần xác thực</span>
           ) : (
             <span className="inline-flex items-center gap-1.5"><KeyRound size={13} className="text-warning" /> Header tĩnh (static headers) — có secret đi kèm</span>
           )}
@@ -88,7 +97,7 @@ export function ResourceContentSection({ type, id }: { type: ResourceReqType; id
     const kb = knowledgeBaseStore.get(id);
     if (!kb) return null;
     return (
-      <ContentBlock icon={Database} title="Nội dung Knowledge">
+      <ContentBlock type={type}>
         <Field label="Loại">
           {kb.type === "internal" ? "Nội bộ — tài liệu / URL / FAQ tải lên Console" : "Kết nối API ngoài"}
         </Field>
@@ -124,7 +133,7 @@ export function ResourceContentSection({ type, id }: { type: ResourceReqType; id
     const s = skillStore.get(id);
     if (!s) return null;
     return (
-      <ContentBlock icon={Code2} title="Nội dung Skill">
+      <ContentBlock type={type}>
         {s.description && <Field label="Mô tả"><p className="leading-relaxed">{s.description}</p></Field>}
         <Field label="Instructions">
           <pre className="max-h-64 overflow-y-auto whitespace-pre-wrap break-words rounded-lg bg-surface-muted border border-border/70 p-3 text-xs font-mono leading-relaxed text-foreground">
@@ -138,7 +147,7 @@ export function ResourceContentSection({ type, id }: { type: ResourceReqType; id
   const g = guardrailConsoleStore.get(id);
   if (!g) return null;
   return (
-    <ContentBlock icon={ShieldAlert} title="Nội dung Guardrail">
+    <ContentBlock type={type}>
       <Field label="Mô tả"><p className="leading-relaxed">{g.desc}</p></Field>
       <Field label="Hành động khi vi phạm">{actionLabelVi(g.action)}</Field>
       <Field label="Trạng thái">
@@ -160,15 +169,27 @@ export function ResourceUsageSection({ type, id }: { type: ResourceReqType; id: 
   const liveCount = usage.filter(u => u.status === "Published").length;
   return (
     <div className="mb-6">
-      <p className="text-sm font-semibold flex items-center gap-1.5 mb-1.5">
-        <Users size={14} className="text-muted-foreground" /> Đang được Agent nào sử dụng ({usage.length})
-      </p>
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <p className="text-sm font-semibold flex items-center gap-1.5">
+          <Users size={14} className="text-muted-foreground" /> Agent đang sử dụng thành phần này ({usage.length})
+        </p>
+        <Tooltip delayDuration={200}>
+          <TooltipTrigger asChild>
+            <button type="button" aria-label="Giải thích thêm" className="text-muted-foreground hover:text-foreground transition-colors">
+              <HugeiconsIcon icon={InformationCircleIcon} size={14} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right" sideOffset={6} className="max-w-xs">
+            Đây là phạm vi ảnh hưởng nếu bạn từ chối — các Agent đã Published vẫn tiếp tục chạy bình thường với bản riêng của mình, không bị gỡ.
+          </TooltipContent>
+        </Tooltip>
+      </div>
       <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
         {usage.length === 0
-          ? "Chưa có Agent nào dùng thành phần này — quyết định ở đây chưa ảnh hưởng đến người dùng thật nào ngay lúc này."
+          ? "Chưa có Agent nào dùng thành phần này."
           : liveCount > 0
-            ? `${liveCount}/${usage.length} Agent đã Published (đang phục vụ người dùng thật) — đây là phạm vi ảnh hưởng nếu bạn từ chối thành phần này.`
-            : `Cả ${usage.length} Agent đều đang ở trạng thái Draft (chưa phục vụ người dùng thật).`}
+            ? `${liveCount}/${usage.length} Agent đã Published.`
+            : `Cả ${usage.length} Agent đang ở trạng thái Draft.`}
       </p>
       {usage.length > 0 && (
         <div className="space-y-2">
