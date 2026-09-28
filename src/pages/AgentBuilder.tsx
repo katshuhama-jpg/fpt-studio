@@ -5386,7 +5386,8 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
 /* ============ Knowledge sidebar summary (S15) ============ */
 function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAdd?: (fn: (pos:{top:number;left:number}) => void) => void }) {
   const [, setParams] = useSearchParams();
-  const kbCanSeeAll = useGroupAccess("knowledge").canSeeAll;
+  const kbAccess = useGroupAccess("knowledge");
+  const kbCanSeeAll = kbAccess.canSeeAll;
   const [tick, setTick] = useState(0);
   const [showMenu, setShowMenu] = useState(false);
   const [menuPos, setMenuPos] = useState<{top:number;left:number}>({top:0,left:0});
@@ -5429,7 +5430,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
       // chung pill, matching every other Knowledge screen in the product.
       chip: (
         <span className={`text-xs shrink-0 whitespace-nowrap ${kb.ownerId === KB_CURRENT_USER.id ? "text-muted-foreground" : "font-medium text-primary"}`}>
-          {kb.ownerId === KB_CURRENT_USER.id ? "Của tôi" : kbCanSeeAll || isKbAccessibleTo(kb, KB_CURRENT_USER.id) ? "Được chia sẻ" : "Chỉ xem trong Agent"}
+          {kb.ownerId === KB_CURRENT_USER.id ? "Của tôi" : kbCanSeeAll || isKbAccessibleTo(kb, KB_CURRENT_USER.id) ? "Được chia sẻ" : kbAccess.hasPermission("manage") ? "Sửa được qua Agent này" : "Chỉ xem trong Agent"}
         </span>
       ),
     })),
@@ -7177,7 +7178,7 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
             * only (see agentContextAccess.tsx) — say so, and whose it is. */}
           {s.ownerId && s.sharing && s.ownerId !== accessUserId && !skillsAccess.canSeeAll && !isSkillAccessibleTo(s.sharing, s.ownerId, accessUserId) && (
             <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-              <HugeiconsIcon icon={EyeIcon} size={12} className="shrink-0" /> Chỉ xem trong Agent · {s.ownerName}
+              <HugeiconsIcon icon={EyeIcon} size={12} className="shrink-0" /> {skillsAccess.hasPermission("manage") ? "Sửa được qua Agent này" : "Chỉ xem trong Agent"} · {s.ownerName}
             </p>
           )}
         </div>

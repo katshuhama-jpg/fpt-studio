@@ -154,7 +154,7 @@ export default function KnowledgeDetail() {
   // all) can't reach a KB it doesn't own and wasn't shared with just by typing its URL —
   // mirrors the not-found state above rather than silently rendering the KB's real content.
   const viaAgentOnly = !access.canSeeAll && !isAccessibleTo(kb, access.userId);
-  if (viaAgentOnly && !agentCtx.allowed) {
+  if (viaAgentOnly && (!agentCtx.allowed || !access.hasPermission("view"))) {
     return (
       <div className="flex flex-col h-full bg-background items-center justify-center text-center px-6">
         <Database size={22} className="text-muted-foreground/60 mb-3" />
@@ -166,11 +166,12 @@ export default function KnowledgeDetail() {
     );
   }
 
-  const viewOnly = isViewOnly(kb, access.userId);
+  // Via an Agent that uses it: Role's "Build knowledge" decides editing, not per-person share access.
+  const viewOnly = !viaAgentOnly && isViewOnly(kb, access.userId);
   // Sharing, deleting, and the inline click-to-rename title are reserved for the owner — an
   // editor (or anyone on a "Dùng chung" KB) can edit content but not the KB's own access/lifecycle.
   const isOwner = kb.ownerId === CURRENT_USER.id;
-  const accessible = isAccessibleTo(kb, access.userId);
+  const accessible = isAccessibleTo(kb, access.userId) || (viaAgentOnly && agentCtx.allowed);
   const canEdit = access.canAct("manage", accessible) && !viewOnly;
   const canShare = isOwner && access.canAct("publish", accessible);
   const canClearContent = access.canAct("manage", accessible) && !viewOnly;
@@ -202,7 +203,7 @@ export default function KnowledgeDetail() {
           <span className="text-sm text-foreground font-medium truncate">{kb.name}</span>
         </div>
         {viaAgentOnly && agentCtx.agent && (
-          <div className="mb-3"><AgentContextBanner agent={agentCtx.agent} ownerName={kb.ownerName} noun="kho tri thức" /></div>
+          <div className="mb-3"><AgentContextBanner agent={agentCtx.agent} ownerName={kb.ownerName} noun="kho tri thức" canEdit={canEdit} /></div>
         )}
 
         <div className="flex items-start justify-between gap-4 flex-wrap pb-4">

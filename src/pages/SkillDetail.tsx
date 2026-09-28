@@ -64,7 +64,8 @@ export default function SkillDetail() {
   // A role whose Skills View Scope is "Own & Shared" (or with no View permission at all) can't
   // reach a skill it doesn't own and wasn't shared with just by typing its URL.
   const viaAgentOnly = !access.canSeeAll && !isAccessibleTo(skill.sharing, skill.ownerId, access.userId);
-  if (viaAgentOnly && !agentCtx.allowed) {
+  // Agent context counts as inside the viewer's scope, but they still need "View skills".
+  if (viaAgentOnly && (!agentCtx.allowed || !access.hasPermission("view"))) {
     return (
       <div className="flex flex-col h-full bg-background items-center justify-center text-center px-6">
         <Puzzle size={22} className="text-muted-foreground/60 mb-3" />
@@ -77,8 +78,10 @@ export default function SkillDetail() {
   }
 
   const isOwner = skill.ownerId === access.userId;
-  const accessible = isAccessibleTo(skill.sharing, skill.ownerId, access.userId);
-  const viewOnly = !isOwner && isViewOnly(skill.sharing, skill.ownerId, access.userId);
+  // Reached through an Agent that uses it: treat as inside the viewer's Own & Shared scope, and
+  // let their Role's "Build skills" decide editing (the per-person share access doesn't apply).
+  const accessible = isAccessibleTo(skill.sharing, skill.ownerId, access.userId) || (viaAgentOnly && agentCtx.allowed);
+  const viewOnly = !isOwner && !viaAgentOnly && isViewOnly(skill.sharing, skill.ownerId, access.userId);
   const canEdit = access.canAct("manage", accessible) && !viewOnly;
   const canShare = isOwner && access.canAct("publish", accessible);
   const canDelete = isOwner && access.canAct("delete", accessible);
@@ -95,7 +98,7 @@ export default function SkillDetail() {
           <span className="text-sm text-foreground font-medium truncate">{skill.name}</span>
         </div>
         {viaAgentOnly && agentCtx.agent && (
-          <div className="mb-3"><AgentContextBanner agent={agentCtx.agent} ownerName={skill.ownerName} noun="skill" /></div>
+          <div className="mb-3"><AgentContextBanner agent={agentCtx.agent} ownerName={skill.ownerName} noun="skill" canEdit={canEdit} /></div>
         )}
 
         <div className="flex items-start justify-between gap-4 flex-wrap">
