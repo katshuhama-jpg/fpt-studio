@@ -71,18 +71,15 @@ export const AGENT_CAPABILITIES: AgentCapability[] = [
   },
 ];
 
-/** Capabilities the platform keeps on permanently — kept here so the list isn't lost, and so a
- * future "what can this agent do" view has one source. Never rendered as a toggle: Knowledge
- * follows whether a corpus exists, office/design document generation is toggled in Skills
- * (see builtinSkillStore.ts), and the rest are structural. */
-export const ALWAYS_ON_CAPABILITIES: { name: string; reason: string }[] = [
-  { name: "Knowledge (RAG)", reason: "Bật/tắt theo việc Agent có tri thức hay không." },
-  { name: "Tạo tài liệu văn phòng / thiết kế", reason: "Bật/tắt ở phần Skills mặc định." },
-  { name: "Tự cấu hình agent", reason: "Chỉ chạy ở chế độ refine, tự tắt ở chế độ chat." },
-  { name: "Trả file cho người dùng", reason: "Năng lực cố định." },
-  { name: "Đọc ảnh", reason: "Năng lực cố định." },
-  { name: "Hệ thống file ảo — đọc file", reason: "Agent đọc skills dựa trên năng lực này." },
-];
+// Deliberately absent from the list above, and not shown anywhere in the UI: the capabilities
+// the platform keeps on permanently. Recorded here only so the next reader knows the omission
+// was a decision rather than an oversight.
+//   Knowledge (RAG)                     — follows whether the agent has a corpus.
+//   Tạo tài liệu văn phòng / thiết kế   — toggled in Skills instead (builtinSkillStore.ts).
+//   Tự cấu hình agent                   — refine mode only, off in normal chat.
+//   Trả file cho người dùng             — structural.
+//   Đọc ảnh                             — structural.
+//   Hệ thống file ảo — đọc file         — the agent reads its skills through it.
 
 // Only OFF states are stored, keyed `${agentId}:${capabilityId}` — every capability ships on, so
 // an absent key means "on". That keeps a brand-new agent (and any agent created before this
