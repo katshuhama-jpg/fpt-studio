@@ -188,12 +188,12 @@ export default function WorkspaceGuardrails() {
             </AlertDialogTitle>
             <AlertDialogDescription>
               {applyAllTarget?.allAgents
-                ? "Guardrail sẽ không còn tự động chạy trên mọi Agent. Chỉ những Agent đã liên kết trực tiếp mới tiếp tục dùng, và quyền xem quay về theo phần Chia sẻ tới."
-                : "Guardrail sẽ tự động chạy trên tất cả Agent trong Space, Builder không tắt hay gỡ được. Mọi Builder đều xem được guardrail này (chỉ xem) để biết Agent của mình đang chịu rule nào."}
+                ? "Guardrail sẽ ngừng chạy trên các Agent trong Space, trừ những Agent đã liên kết trực tiếp. Chỉ những người được chia sẻ mới còn xem được guardrail này."
+                : "Guardrail này sẽ chạy trên tất cả Agent trong Space, kể cả Agent tạo sau này. Builder xem được nội dung nhưng không thể tắt hay gỡ khỏi Agent của mình."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Hủy bỏ</AlertDialogCancel>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
             <AlertDialogAction onClick={() => { if (applyAllTarget) toggleApplyAll(applyAllTarget); setApplyAllTarget(null); }}>
               {applyAllTarget?.allAgents ? "Ngừng áp dụng" : "Áp dụng cho mọi Agent"}
             </AlertDialogAction>
