@@ -87,17 +87,17 @@ function RequestRow({ r, scope, onClick }: { r: GovRequest; scope: Scope; onClic
           <span className="truncate">{r.requesterName}</span>
         </div>
       </TableCell>
-      <TableCell className="py-3 text-muted-foreground">{AUDIENCE_LABEL[r.audience]}</TableCell>
+      {scope === "resource" && <TableCell className="py-3 text-muted-foreground">{AUDIENCE_LABEL[r.audience]}</TableCell>}
       <TableCell className="py-3 text-muted-foreground whitespace-nowrap tabular-nums">{formatDateTime(r.submittedAt)}</TableCell>
       <TableCell className="py-3"><StatusBadge status={r.status} /></TableCell>
     </TableRow>
   );
 }
 
-/** The whole list is one bordered card: header row, then the request rows. The "Loại" column
- * only appears on the Resource page (the Agent page is a single type by definition), and the
- * "Publish to" header is relabelled per scope — for an Agent it's who the Agent reaches, for a
- * Resource it's the reuse scope being requested inside the Tenant Library. */
+/** The whole list is one bordered card: header row, then the request rows. The "Loại" and
+ * "Phạm vi dùng chung" columns only appear on the Resource page — an Agent is single-type, and
+ * where it gets published (several Workspace audiences + external channels) doesn't fit one
+ * table cell, so it lives in the "Kênh triển khai" section of the Agent request's detail page. */
 function RequestTable({ rows, scope, onOpen }: { rows: GovRequest[]; scope: Scope; onOpen: (id: string) => void }) {
   return (
     <div className="rounded-lg border bg-card overflow-hidden">
@@ -107,7 +107,7 @@ function RequestTable({ rows, scope, onOpen }: { rows: GovRequest[]; scope: Scop
             <TableHead className="h-10">Resource</TableHead>
             {scope === "resource" && <TableHead className="h-10 w-[130px]">Loại</TableHead>}
             <TableHead className="h-10 w-[180px]">Người gửi</TableHead>
-            <TableHead className="h-10 w-[170px]">{scope === "agent" ? "Publish to" : "Phạm vi dùng chung"}</TableHead>
+            {scope === "resource" && <TableHead className="h-10 w-[170px]">Phạm vi dùng chung</TableHead>}
             <TableHead className="h-10 w-[160px]">Gửi lúc</TableHead>
             <TableHead className="h-10 w-[140px]">Trạng thái</TableHead>
           </TableRow>

@@ -20,12 +20,12 @@ export function ResourceTypeIcon({ type, size = 14, className = "" }: { type: Go
 const STATUS_STYLE: Record<GovRequestStatus, string> = {
   pending: "bg-warning/10 border-warning/25 text-warning",
   approved: "bg-success/10 border-success/20 text-success",
-  rejected: "bg-surface-muted border-border text-muted-foreground",
+  rejected: "bg-destructive/10 border-destructive/20 text-destructive",
   revoked: "bg-surface-muted border-border text-muted-foreground",
 };
 
 const STATUS_DOT: Record<GovRequestStatus, string> = {
-  pending: "bg-warning", approved: "bg-success", rejected: "bg-muted-foreground", revoked: "bg-muted-foreground",
+  pending: "bg-warning", approved: "bg-success", rejected: "bg-destructive", revoked: "bg-muted-foreground",
 };
 
 export function StatusBadge({ status, className = "" }: { status: GovRequestStatus; className?: string }) {
@@ -58,16 +58,23 @@ export function initials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-/** Icon + label chip for a resource type inside a table/list row. Text-foreground (not the
- * muted tone the rest of the row's secondary columns use) — a bare "Loại" value competes with
- * plain dark text everywhere else in the row (resource name, requester), so leaving it muted
- * reads as unusually faint rather than intentionally de-emphasized. The bg-surface-muted/border
- * pairing gives the chip its own outline, so it doesn't rely on text weight alone to register on
- * a light background. */
+/** Per-type tint so Knowledge / Skill / Guardrails / Connector are told apart at a glance, not
+ * only by reading the label. Hues deliberately avoid the status colours (amber = Chờ duyệt,
+ * green = Đã duyệt, red = Từ chối) so a type tag is never mistaken for a status. The label stays,
+ * so colour is never the only cue. */
+export const RESOURCE_TYPE_TINT: Record<GovResourceType, { pill: string; icon: string }> = {
+  agent: { pill: "bg-surface-muted border-border text-foreground", icon: "text-muted-foreground" },
+  knowledge: { pill: "bg-sky-50 border-sky-200 text-sky-800", icon: "text-sky-600" },
+  skill: { pill: "bg-violet-50 border-violet-200 text-violet-800", icon: "text-violet-600" },
+  guardrail: { pill: "bg-pink-50 border-pink-200 text-pink-800", icon: "text-pink-600" },
+  connector: { pill: "bg-teal-50 border-teal-200 text-teal-800", icon: "text-teal-600" },
+};
+
 export function ResourceTypePill({ type }: { type: GovResourceType }) {
+  const t = RESOURCE_TYPE_TINT[type];
   return (
-    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-foreground bg-surface-muted border border-border rounded-full px-2.5 py-1 whitespace-nowrap">
-      <ResourceTypeIcon type={type} size={12} className="text-muted-foreground" />
+    <span className={`inline-flex items-center gap-1.5 text-xs font-medium border rounded-full px-2.5 py-1 whitespace-nowrap ${t.pill}`}>
+      <ResourceTypeIcon type={type} size={12} className={t.icon} />
       {RESOURCE_TYPE_LABEL[type]}
     </span>
   );
@@ -156,7 +163,7 @@ export function RequestAvatar({ type, resourceId, fallbackIcon, size = "md" }: {
   }
   return (
     <span className={`${box} bg-surface-muted border border-border flex items-center justify-center shrink-0`} aria-hidden="true">
-      <ResourceTypeIcon type={type} size={size === "lg" ? 18 : 16} className="text-muted-foreground" />
+      <ResourceTypeIcon type={type} size={size === "lg" ? 18 : 16} className={RESOURCE_TYPE_TINT[type].icon} />
     </span>
   );
 }

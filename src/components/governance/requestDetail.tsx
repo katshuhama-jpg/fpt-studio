@@ -14,6 +14,7 @@ import {
 } from "@/components/governance/governanceUi";
 import { AgentContentSection, ResourceContentSection, ResourceUsageSection, testConnector, type ResourceReqType } from "@/components/governance/resourceContent";
 import { AgentTestPanel } from "@/components/governance/agentTestPanel";
+import { AgentDeploymentSection } from "@/components/governance/agentDeployment";
 import { CURRENT_USER } from "@/components/knowledge/knowledgeBaseStore";
 import { toast } from "sonner";
 
@@ -187,7 +188,12 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
               and a one-line note to decide from. Agent: description/model/channels/instructions
               (the components it uses follow below). Resource: type-specific config + usage. */}
           {isAgent ? (
-            <AgentContentSection agentId={req.resourceId} channels={req.channels} />
+            <>
+              {/* Where it will be published first — who is affected is the first thing a
+                  reviewer weighs; then what the Agent is. */}
+              <AgentDeploymentSection req={req} />
+              <AgentContentSection agentId={req.resourceId} />
+            </>
           ) : (
             <>
               <ResourceContentSection type={resourceType} id={req.resourceId} />
@@ -237,13 +243,17 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Gửi lúc</p>
               <p className="text-sm font-medium text-foreground flex items-center gap-1.5"><Clock size={13} className="text-muted-foreground" /> <span className="tabular-nums">{formatDateTime(req.submittedAt)}</span></p>
             </div>
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Publish to</p>
-              <p className="text-sm font-medium text-foreground">{AUDIENCE_LABEL[req.audience]}</p>
-              {req.scopeSummary && (
-                <p className="text-xs text-muted-foreground mt-1">{req.scopeSummary}</p>
-              )}
-            </div>
+            {/* Agent: where it's published is the "Kênh triển khai" section in the main column.
+                Resource: the requested sharing scope stays here. */}
+            {!isAgent && (
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Phạm vi dùng chung</p>
+                <p className="text-sm font-medium text-foreground">{AUDIENCE_LABEL[req.audience]}</p>
+                {req.scopeSummary && (
+                  <p className="text-xs text-muted-foreground mt-1">{req.scopeSummary}</p>
+                )}
+              </div>
+            )}
             {req.updatedAt !== req.submittedAt && (
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Cập nhật</p>

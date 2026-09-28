@@ -103,6 +103,18 @@ export interface AgentResourceRef {
   name: string;
 }
 
+/** One audience an Agent is published to inside Agent Workspace — mirrors the Deploy tab's
+ * "Agent Workspace" list (a company, a department, a Nhóm cộng tác, individual people, or the
+ * whole FPT AI Agent community). An Agent can target several at once. */
+export type WorkspaceTargetKind = "company" | "department" | "group" | "people" | "community";
+export interface WorkspaceTarget {
+  kind: WorkspaceTargetKind;
+  name: string;
+  members?: number;
+  /** Optional one-liner, e.g. why a Nhóm cộng tác needed review ("trùng 85% với Ban Pháp chế"). */
+  detail?: string;
+}
+
 export interface GovHistoryEntry {
   id: string;
   at: number;
@@ -138,6 +150,9 @@ export interface GovRequest {
    * Workspace, so it's always shown first on Request Detail. Undefined on older requests —
    * Request Detail then falls back to the Agent's configured channels. */
   channels?: string[];
+  /** Only set for resourceType "agent" — who inside Agent Workspace this publish reaches. Falls
+   * back to `audience` + `scopeSummary` on older requests (see workspaceTargetsOf). */
+  workspaceTargets?: WorkspaceTarget[];
   /** Fields of the main resource itself, captured at submit time — diffed against its current
    * fields to detect "builder kept editing after submitting" (see checkDrift), and against its
    * last-approved live snapshot for the "Xem thay đổi" panel. */
@@ -151,9 +166,9 @@ export interface GovRequest {
   history: GovHistoryEntry[];
 }
 
-const REQ_KEY = "governance_request_store_v4";
-const LIVE_KEY = "governance_live_snapshots_v4";
-const SEEDED_KEY = "governance_store_seeded_v4";
+const REQ_KEY = "governance_request_store_v5";
+const LIVE_KEY = "governance_live_snapshots_v5";
+const SEEDED_KEY = "governance_store_seeded_v5";
 
 const store = loadMap<string, GovRequest>(REQ_KEY);
 /** "type:resourceId" → last-approved snapshot. A resource "has cleared governance at least once"
@@ -267,6 +282,14 @@ export function resourceShareStatus(type: Exclude<GovResourceType, "agent">, id:
   return "private";
 }
 
+/** Workspace audiences for an Agent request — the explicit list when the request has one, else a
+ * single entry derived from the older `audience` + `scopeSummary` fields. */
+export function workspaceTargetsOf(req: GovRequest): WorkspaceTarget[] {
+  if (req.workspaceTargets && req.workspaceTargets.length > 0) return req.workspaceTargets;
+  if (req.audience === "community") return [{ kind: "community", name: "FPT AI Agent community" }];
+  return [{ kind: req.audience === "group" ? "group" : "department", name: req.scopeSummary ?? AUDIENCE_LABEL[req.audience] }];
+}
+
 /* ───────────────────────── seed ───────────────────────── */
 
 function seed() {
@@ -286,6 +309,7 @@ function seed() {
       audience: "org", note: "Mở rộng agent Onboarding cho toàn bộ phòng Nhân sự — bổ sung lộ trình sản phẩm và cảnh báo leo thang.",
       version: "v1.1.0", status: "pending", submittedAt: t - 3 * HOUR, updatedAt: t - 3 * HOUR,
       scopeSummary: "Phòng Nhân sự (36 người)", channels: ["web"],
+      workspaceTargets: [{ kind: "department", name: "Phòng Nhân sự", members: 36 }, { kind: "people", name: "Ban Giám đốc", members: 3 }],
       resourceRefs: [
         { type: "knowledge", resourceId: "kb-7", name: "Lộ trình sản phẩm nội bộ" },
         { type: "skill", resourceId: "weekly-digest", name: "weekly-digest" },
@@ -383,7 +407,13 @@ function seed() {
     {
       id: "req-2001", resourceType: "agent", resourceId: "sales-quote", resourceName: "Trợ lý Báo giá (Sales)",
       resourceIcon: "💼", requesterId: "m-fsoft-coo", requesterName: "Linh Phan",
-      audience: "org", scopeSummary: "Phòng Kinh doanh (48 người)", channels: ["web", "zalo"],
+      audience: "org", scopeSummary: "Phòng Kinh doanh (48 người)", channels: ["web", "zalo", "teams", "api"],
+      workspaceTargets: [
+        { kind: "department", name: "Phòng Kinh doanh", members: 48 },
+        { kind: "department", name: "Phòng Chăm sóc khách hàng", members: 22 },
+        { kind: "group", name: "Nhóm cộng tác 'Ra mắt Q4'", members: 9 },
+        { kind: "people", name: "Linh Phan, Tran Nam", members: 2 },
+      ],
       note: "Nâng cấp model và cập nhật mô tả theo chính sách chiết khấu EOS mới — cần duyệt lại trước khi áp dụng cho toàn phòng Kinh doanh.",
       version: "v2.0.0", status: "pending", submittedAt: t - 45 * 60 * 1000, updatedAt: t - 45 * 60 * 1000,
       resourceRefs: [
@@ -403,6 +433,7 @@ function seed() {
       id: "req-2002", resourceType: "agent", resourceId: "legal-review", resourceName: "AI Agent Pháp chế — Điều khoản hợp đồng",
       resourceIcon: "⚖️", requesterId: "m-plat-1", requesterName: "Mai Hoang",
       audience: "group", scopeSummary: "Nhóm cộng tác 'Pháp chế EOS' (12 người, trùng 85% với Ban Pháp chế)", channels: ["teams"],
+      workspaceTargets: [{ kind: "group", name: "Nhóm cộng tác 'Pháp chế EOS'", members: 12, detail: "Trùng 85% với Ban Pháp chế — vượt ngưỡng nên cần duyệt" }],
       note: "Nhóm cộng tác đã vượt ngưỡng trùng lặp với Ban Pháp chế — gửi duyệt theo quy định.",
       version: "v1.2.0", status: "pending", submittedAt: t - 5 * HOUR, updatedAt: t - 5 * HOUR,
       resourceRefs: [
@@ -419,6 +450,7 @@ function seed() {
       id: "req-2003", resourceType: "agent", resourceId: "finance-check", resourceName: "AI Agent Tài chính — Kiểm duyệt chiết khấu",
       resourceIcon: "🧮", requesterId: "m-fsoft-coo", requesterName: "Linh Phan",
       audience: "org", scopeSummary: "Phòng Tài chính (14 người), Phòng Kinh doanh (48 người)", channels: ["teams", "email"],
+      workspaceTargets: [{ kind: "department", name: "Phòng Tài chính", members: 14 }, { kind: "department", name: "Phòng Kinh doanh", members: 48 }],
       note: "Mở rộng cho Phòng Kinh doanh tự kiểm tra đề xuất chiết khấu trước khi gửi Tài chính.",
       version: "v1.3.0", status: "pending", submittedAt: t - 1 * DAY - 2 * HOUR, updatedAt: t - 1 * DAY - 2 * HOUR,
       resourceRefs: [
@@ -434,6 +466,7 @@ function seed() {
       id: "req-2004", resourceType: "agent", resourceId: "ops", resourceName: "IT Helpdesk",
       resourceIcon: "🛠️", requesterId: "m-fsoft-vn-1", requesterName: "Duy Nguyen",
       audience: "community", channels: ["web", "api"],
+      workspaceTargets: [{ kind: "community", name: "FPT AI Agent community" }],
       note: "Agent đã chạy ổn định 1 tháng nội bộ — đề xuất chia sẻ cho FPT AI Agent community làm mẫu Helpdesk L1.",
       version: "v1.4.0", status: "pending", submittedAt: t - 2 * DAY, updatedAt: t - 2 * DAY,
       resourceRefs: [
@@ -449,6 +482,7 @@ function seed() {
       id: "req-2005", resourceType: "agent", resourceId: "faq", resourceName: "Product FAQ Assistant",
       resourceIcon: "📦", requesterId: "m-plat-1", requesterName: "Mai Hoang",
       audience: "org", scopeSummary: "Toàn công ty", channels: ["web", "messenger"],
+      workspaceTargets: [{ kind: "company", name: "FPT Smart Cloud", members: 1250 }],
       note: "Publish bản FAQ sản phẩm mới cho toàn công ty.",
       version: "v1.1.0", status: "approved", submittedAt: t - 4 * DAY, updatedAt: t - 3 * DAY,
       resourceRefs: [{ type: "knowledge", resourceId: "kb-2", name: "FAQ chăm sóc khách hàng" }],
@@ -465,6 +499,7 @@ function seed() {
       id: "req-2006", resourceType: "agent", resourceId: "sales", resourceName: "Sales Lead Qualifier",
       resourceIcon: "🎯", requesterId: "m-fsoft-vn-1", requesterName: "Duy Nguyen",
       audience: "community", channels: ["web"],
+      workspaceTargets: [{ kind: "community", name: "FPT AI Agent community" }],
       note: "Chia sẻ Agent chấm điểm lead cho community.",
       version: "v1.0.2", status: "rejected", submittedAt: t - 6 * DAY, updatedAt: t - 5 * DAY,
       resourceRefs: [{ type: "connector", resourceId: "cc-1", name: "internal-crm-mcp" }],
@@ -608,7 +643,7 @@ export const governanceStore = {
   submit(input: {
     resourceType: GovResourceType; resourceId: string; resourceName: string; resourceIcon?: string;
     requesterId: string; requesterName: string; audience: GovAudience; note: string; version?: string;
-    resourceRefs?: AgentResourceRef[]; scopeSummary?: string; channels?: string[];
+    resourceRefs?: AgentResourceRef[]; scopeSummary?: string; channels?: string[]; workspaceTargets?: WorkspaceTarget[];
   }): GovRequest {
     seed();
     const id = nextId();
@@ -617,7 +652,7 @@ export const governanceStore = {
       id, resourceType: input.resourceType, resourceId: input.resourceId, resourceName: input.resourceName,
       resourceIcon: input.resourceIcon, requesterId: input.requesterId, requesterName: input.requesterName,
       audience: input.audience, scopeSummary: input.scopeSummary, note: input.note, version: input.version, status: "pending",
-      submittedAt: t, updatedAt: t, resourceRefs: input.resourceRefs, channels: input.channels,
+      submittedAt: t, updatedAt: t, resourceRefs: input.resourceRefs, channels: input.channels, workspaceTargets: input.workspaceTargets,
       mainSnapshotAtSubmit: buildSnapshot(input.resourceType, input.resourceId),
       history: [historyEntry("submitted", input.requesterId, input.requesterName)],
     };
