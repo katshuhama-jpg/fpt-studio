@@ -17,6 +17,7 @@ import { skillStore } from "../configure/skillStore";
 import { guardrailConsoleStore, actionLabelVi } from "../configure/guardrailConsoleStore";
 import { customConnectorStore } from "../configure/customConnectorStore";
 import { listResourceUsage } from "./resourceUsage";
+import { getAgent } from "../configure/agentStore";
 import type { GovResourceType } from "./governanceStore";
 
 export type ResourceReqType = Exclude<GovResourceType, "agent">;
@@ -37,7 +38,7 @@ function maskSecret(v: string): string {
  * is already visible in the badge next to the resource name above, so repeating it here just adds
  * a second, inconsistently-worded label for the same fact; one fixed heading reads as the same
  * section every time a Tenant Admin opens a different resource type's request. */
-function ContentBlock({ type, children }: { type: ResourceReqType; children: ReactNode }) {
+function ContentBlock({ type, children }: { type: GovResourceType; children: ReactNode }) {
   return (
     <div className="mb-6">
       <p className="text-sm font-semibold flex items-center gap-1.5 mb-3">
@@ -161,6 +162,39 @@ export function ResourceContentSection({ type, id }: { type: ResourceReqType; id
   );
 }
 
+/** The Agent's own configuration, for the Org/Unit Admin reviewing a publish request — the same
+ * core fields the Agent's own detail page shows (description, model, channels, instructions),
+ * so the reviewer can judge the Agent from the request page itself instead of leaving it. The
+ * components it uses (Knowledge/Skill/Guardrails/Connector) are listed separately below this
+ * block on the request page. */
+export function AgentContentSection({ agentId }: { agentId: string }) {
+  const a = getAgent(agentId);
+  return (
+    <ContentBlock type="agent">
+      {a.desc && <Field label="Mô tả"><p className="leading-relaxed">{a.desc}</p></Field>}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+        <Field label="Model">{a.model || "(chưa chọn)"}</Field>
+        <Field label="Kênh">
+          {a.channels.length === 0 ? (
+            <span className="text-muted-foreground">Chưa gắn kênh nào</span>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {a.channels.map(c => (
+                <span key={c} className="text-xs font-medium text-foreground bg-surface-muted border border-border rounded-full px-2.5 py-0.5">{c}</span>
+              ))}
+            </div>
+          )}
+        </Field>
+      </div>
+      <Field label="Instructions">
+        <pre className="max-h-64 overflow-y-auto whitespace-pre-wrap break-words rounded-lg bg-surface-muted border border-border/70 p-3 text-xs font-mono leading-relaxed text-foreground">
+          {a.instructions || "(chưa có instructions)"}
+        </pre>
+      </Field>
+    </ContentBlock>
+  );
+}
+
 /** Blast radius: every Agent that already references this resource today, and whether it's live
  * (Published) or still a Draft. This is the number a Tenant Admin actually needs before rejecting
  * or approving — "0 Agent dùng" reads very differently from "12 Agent dùng, 9 đã Published". */
@@ -205,7 +239,14 @@ export function ResourceUsageSection({ type, id }: { type: ResourceReqType; id: 
                 <span className={`w-1.5 h-1.5 rounded-full ${u.status === "Published" ? "bg-success" : "bg-muted-foreground"}`} />
                 {u.status === "Published" ? "Đã publish" : "Draft"}
               </span>
-              <Link to={`/agents/${u.agentId}`} className="text-muted-foreground hover:text-foreground shrink-0" title="Xem Agent">
+              <Link
+                to={`/agents/${u.agentId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Mở trong tab mới"
+                aria-label={`Mở ${u.name} trong tab mới`}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted shrink-0 transition-base"
+              >
                 <ExternalLink size={14} />
               </Link>
             </div>

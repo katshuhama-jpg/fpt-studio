@@ -10,10 +10,13 @@ import {
 } from "@/components/governance/governanceStore";
 import { ACTION_LABEL } from "@/components/governance/auditLogStore";
 import {
-  StatusBadge, ResourceTypeIcon, ChangeStateBadge, ResourceShareStatusBadge, relativeTime, formatDateTime,
+  StatusBadge, ResourceTypeIcon, ResourceTypePill, ChangeStateBadge, ResourceShareStatusBadge, relativeTime, formatDateTime,
 } from "@/components/governance/governanceUi";
-import { ResourceContentSection, ResourceUsageSection, testConnector, type ResourceReqType } from "@/components/governance/resourceContent";
+import { AgentContentSection, ResourceContentSection, ResourceUsageSection, testConnector, type ResourceReqType } from "@/components/governance/resourceContent";
 import { AgentTestPanel } from "@/components/governance/agentTestPanel";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { InformationCircleIcon } from "@hugeicons/core-free-icons";
 import { CURRENT_USER } from "@/components/knowledge/knowledgeBaseStore";
 import { toast } from "sonner";
 
@@ -110,8 +113,8 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
         <Info size={15} className="text-muted-foreground shrink-0 mt-0.5" />
         <p className="text-sm text-muted-foreground leading-relaxed">
           {isAgent
-            ? <>Quyết định ở đây <span className="font-medium text-foreground">chỉ ảnh hưởng đến việc Agent này có được publish tới người dùng hay không</span>. Trạng thái dùng chung của các thành phần bên trong Agent (nếu có) là quyết định riêng, độc lập — xem mục "Thành phần Agent này sử dụng" bên dưới.</>
-            : <>Quyết định ở đây <span className="font-medium text-foreground">chỉ ảnh hưởng đến việc thành phần này có được đưa vào Tenant Library để Builder khác dùng chung hay không</span>. Từ chối không gỡ thành phần này khỏi bất kỳ Agent nào đang dùng nó — Agent đó vẫn chạy bình thường với bản riêng của mình.</>}
+            ? <>Bạn đang quyết định <span className="font-medium text-foreground">Agent này có được publish tới người dùng hay không</span>.</>
+            : <>Bạn đang quyết định <span className="font-medium text-foreground">thành phần này có được đưa vào Tenant Library để Builder khác dùng chung hay không</span>.</>}
         </p>
       </div>
 
@@ -124,20 +127,24 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
           <div className="min-w-0">
             <h1 className="font-display text-2xl font-semibold tracking-tight truncate">{req.resourceName}</h1>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
-              <span className="text-xs font-medium text-muted-foreground bg-surface-muted border border-border rounded-full px-2.5 py-1">
-                {RESOURCE_TYPE_LABEL[req.resourceType]}
-              </span>
+              {/* Same chips, same order, same styling as the Requests list row: type pill →
+                  meta → the one colored StatusBadge last. */}
+              <ResourceTypePill type={req.resourceType} />
               {req.version && <span className="text-xs font-medium text-muted-foreground bg-surface-muted border border-border rounded-full px-2.5 py-1">{req.version}</span>}
-              <StatusBadge status={req.status} />
               <ChangeStateBadge state={changeState} />
+              <StatusBadge status={req.status} />
             </div>
           </div>
         </div>
+        {/* Opens in a new tab so the reviewer never loses their place in the approval flow. */}
         <Link
           to={resourcePath(req.resourceType, req.resourceId)}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Mở trong tab mới"
           className="h-9 px-3.5 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base shrink-0"
         >
-          Xem chi tiết <ExternalLink size={13} />
+          Mở trang {RESOURCE_TYPE_LABEL[req.resourceType]} <ExternalLink size={13} />
         </Link>
       </div>
 
@@ -163,10 +170,12 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
           )}
 
           {/* Nội dung/cấu hình thật của resource + phạm vi ảnh hưởng — the content that was
-              completely missing before this pass: without it, a Tenant Admin had nothing but a
-              name and a one-line note to decide from. Agent side doesn't need this block — an
-              Agent's own "what's inside it" is the resourceRefs list further down. */}
-          {!isAgent && (
+              completely missing before this pass: without it, a reviewer had nothing but a name
+              and a one-line note to decide from. Agent: description/model/channels/instructions
+              (the components it uses follow below). Resource: type-specific config + usage. */}
+          {isAgent ? (
+            <AgentContentSection agentId={req.resourceId} />
+          ) : (
             <>
               <ResourceContentSection type={resourceType} id={req.resourceId} />
               <ResourceUsageSection type={resourceType} id={req.resourceId} />
@@ -192,12 +201,21 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
               banner above). Sharing status is resolved live, not frozen at submit time. */}
           {isAgent && req.resourceRefs && req.resourceRefs.length > 0 && (
             <div className="mb-6">
-              <p className="text-sm font-semibold flex items-center gap-1.5 mb-1.5">
-                <Layers size={14} className="text-muted-foreground" /> Thành phần Agent này sử dụng ({req.resourceRefs.length})
-              </p>
-              <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
-                Danh sách dưới đây chỉ để tham khảo — trạng thái dùng chung của từng thành phần do Tenant Admin quyết định riêng, ở trang của chính thành phần đó, và không ảnh hưởng đến việc bạn duyệt Agent này.
-              </p>
+              <div className="flex items-center gap-1.5 mb-3">
+                <p className="text-sm font-semibold flex items-center gap-1.5">
+                  <Layers size={14} className="text-muted-foreground" /> Thành phần Agent này sử dụng ({req.resourceRefs.length})
+                </p>
+                <Tooltip delayDuration={200}>
+                  <TooltipTrigger asChild>
+                    <button type="button" aria-label="Giải thích thêm" className="text-muted-foreground hover:text-foreground transition-colors">
+                      <HugeiconsIcon icon={InformationCircleIcon} size={14} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" sideOffset={6} className="max-w-xs">
+                    Trạng thái dùng chung của từng thành phần do Tenant Admin duyệt riêng và không ảnh hưởng đến việc duyệt Agent này.
+                  </TooltipContent>
+                </Tooltip>
+              </div>
               <div className="space-y-2">
                 {req.resourceRefs.map(it => {
                   const status = resourceShareStatus(it.type, it.resourceId);
@@ -211,7 +229,14 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
                         <p className="text-xs text-muted-foreground">{RESOURCE_TYPE_LABEL[it.type]}</p>
                       </div>
                       <ResourceShareStatusBadge status={status} />
-                      <Link to={resourcePath(it.type, it.resourceId)} className="text-muted-foreground hover:text-foreground shrink-0" title="Xem chi tiết">
+                      <Link
+                        to={resourcePath(it.type, it.resourceId)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="Mở trong tab mới"
+                        aria-label={`Mở ${it.name} trong tab mới`}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted shrink-0 transition-base"
+                      >
                         <ExternalLink size={14} />
                       </Link>
                     </div>

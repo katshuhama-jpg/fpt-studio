@@ -72,22 +72,20 @@ export function ResourceTypePill({ type }: { type: GovResourceType }) {
   );
 }
 
-/** Simplified to 3 states (no heavy/light split — see governanceStore.ts's module doc comment):
- * every tracked-field change reads the same "Đã sửa — cần duyệt", whatever field it touched. */
-const CHANGE_STATE_STYLE: Record<GovChangeState, string> = {
-  new: "bg-primary-soft text-primary border-primary/20",
-  modified: "bg-warning/10 text-warning border-warning/25",
-  unchanged_approved: "bg-surface-muted text-muted-foreground border-border",
-};
+/** Change-state chip next to a request's title. Same pill shape/size as the other meta chips
+ * (type, version) and deliberately neutral: the StatusBadge is the ONE colored chip in that row,
+ * exactly as on the Requests list, so the detail header reads the same as the row that was
+ * clicked. Labels no longer repeat "cần duyệt" — the status chip right beside it already says
+ * "Chờ duyệt", so this chip only answers "what kind of change is this?". */
 const CHANGE_STATE_LABEL: Record<GovChangeState, string> = {
-  new: "Mới — cần duyệt",
-  modified: "Đã sửa — cần duyệt",
-  unchanged_approved: "Không đổi từ lần duyệt trước",
+  new: "Bản mới",
+  modified: "Có chỉnh sửa",
+  unchanged_approved: "Không thay đổi",
 };
 
 export function ChangeStateBadge({ state }: { state: GovChangeState }) {
   return (
-    <span className={`inline-flex items-center text-xs font-medium rounded-sm px-2 py-0.5 border whitespace-nowrap ${CHANGE_STATE_STYLE[state]}`}>
+    <span className="inline-flex items-center text-xs font-medium text-muted-foreground bg-surface-muted border border-border rounded-full px-2.5 py-1 whitespace-nowrap">
       {CHANGE_STATE_LABEL[state]}
     </span>
   );
