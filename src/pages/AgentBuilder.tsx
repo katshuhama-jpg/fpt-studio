@@ -5385,6 +5385,7 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
 /* ============ Knowledge sidebar summary (S15) ============ */
 function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAdd?: (fn: (pos:{top:number;left:number}) => void) => void }) {
   const [, setParams] = useSearchParams();
+  const kbCanSeeAll = useGroupAccess("knowledge").canSeeAll;
   const [tick, setTick] = useState(0);
   const [showMenu, setShowMenu] = useState(false);
   const [menuPos, setMenuPos] = useState<{top:number;left:number}>({top:0,left:0});
@@ -5427,7 +5428,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
       // chung pill, matching every other Knowledge screen in the product.
       chip: (
         <span className={`text-xs shrink-0 whitespace-nowrap ${kb.ownerId === KB_CURRENT_USER.id ? "text-muted-foreground" : "font-medium text-primary"}`}>
-          {kb.ownerId === KB_CURRENT_USER.id ? "Của tôi" : isKbAccessibleTo(kb, KB_CURRENT_USER.id) ? "Được chia sẻ" : "Chỉ xem trong Agent"}
+          {kb.ownerId === KB_CURRENT_USER.id ? "Của tôi" : kbCanSeeAll || isKbAccessibleTo(kb, KB_CURRENT_USER.id) ? "Được chia sẻ" : "Chỉ xem trong Agent"}
         </span>
       ),
     })),
