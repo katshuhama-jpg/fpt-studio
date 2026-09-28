@@ -8,7 +8,7 @@ import {
   governanceStore, AUDIENCE_LABEL,
   type GovRequestStatus, type GovResourceType, type GovRequest,
 } from "@/components/governance/governanceStore";
-import { StatusBadge, ResourceTypeIcon, ResourceTypePill, initials, relativeTime } from "@/components/governance/governanceUi";
+import { StatusBadge, ResourceTypePill, RequestAvatar, initials, formatDateTime } from "@/components/governance/governanceUi";
 
 /** Shared table/list building blocks for the 2 separate Requests pages — GovernanceRequests.tsx
  * (Agent, Org/Unit Admin) and GovernanceLibraryRequests.tsx (Resource, Tenant Admin). These used
@@ -66,9 +66,7 @@ function RequestRow({ r, scope, onClick }: { r: GovRequest; scope: Scope; onClic
     >
       <TableCell className="py-3">
         <div className="flex items-center gap-3 min-w-0">
-          <span className="w-9 h-9 rounded-md bg-muted flex items-center justify-center shrink-0 text-base">
-            {r.resourceIcon ?? <ResourceTypeIcon type={r.resourceType} size={16} className="text-muted-foreground" />}
-          </span>
+          <RequestAvatar type={r.resourceType} resourceId={r.resourceId} fallbackIcon={r.resourceIcon} />
           <div className="min-w-0">
             <p className="font-medium truncate">{r.resourceName}</p>
             {r.resourceRefs && r.resourceRefs.length > 0 && (
@@ -90,7 +88,7 @@ function RequestRow({ r, scope, onClick }: { r: GovRequest; scope: Scope; onClic
         </div>
       </TableCell>
       <TableCell className="py-3 text-muted-foreground">{AUDIENCE_LABEL[r.audience]}</TableCell>
-      <TableCell className="py-3 text-muted-foreground whitespace-nowrap tabular-nums">{relativeTime(r.submittedAt)}</TableCell>
+      <TableCell className="py-3 text-muted-foreground whitespace-nowrap tabular-nums">{formatDateTime(r.submittedAt)}</TableCell>
       <TableCell className="py-3"><StatusBadge status={r.status} /></TableCell>
     </TableRow>
   );
@@ -110,7 +108,7 @@ function RequestTable({ rows, scope, onOpen }: { rows: GovRequest[]; scope: Scop
             {scope === "resource" && <TableHead className="h-10 w-[130px]">Loại</TableHead>}
             <TableHead className="h-10 w-[180px]">Người gửi</TableHead>
             <TableHead className="h-10 w-[170px]">{scope === "agent" ? "Publish to" : "Phạm vi dùng chung"}</TableHead>
-            <TableHead className="h-10 w-[130px]">Gửi lúc</TableHead>
+            <TableHead className="h-10 w-[160px]">Gửi lúc</TableHead>
             <TableHead className="h-10 w-[140px]">Trạng thái</TableHead>
           </TableRow>
         </TableHeader>

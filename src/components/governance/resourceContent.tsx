@@ -162,28 +162,35 @@ export function ResourceContentSection({ type, id }: { type: ResourceReqType; id
   );
 }
 
+/** Display labels for publish-channel ids. Workspace (people chat with the Agent inside FPT AI
+ * Agents) is always part of an Agent publish request, so it's listed first; external channels
+ * follow. Unknown ids fall back to the raw value. */
+const CHANNEL_LABEL: Record<string, string> = {
+  web: "Web widget", zalo: "Zalo OA", messenger: "Messenger", api: "API",
+  slack: "Slack", teams: "Microsoft Teams", email: "Email",
+};
+const channelLabel = (c: string) => CHANNEL_LABEL[c.toLowerCase()] ?? c;
+
 /** The Agent's own configuration, for the Org/Unit Admin reviewing a publish request — the same
  * core fields the Agent's own detail page shows (description, model, channels, instructions),
  * so the reviewer can judge the Agent from the request page itself instead of leaving it. The
  * components it uses (Knowledge/Skill/Guardrails/Connector) are listed separately below this
  * block on the request page. */
-export function AgentContentSection({ agentId }: { agentId: string }) {
+export function AgentContentSection({ agentId, channels }: { agentId: string; channels?: string[] }) {
   const a = getAgent(agentId);
+  const external = [...new Set((channels ?? a.channels).map(channelLabel))];
   return (
     <ContentBlock type="agent">
       {a.desc && <Field label="Mô tả"><p className="leading-relaxed">{a.desc}</p></Field>}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
         <Field label="Model">{a.model || "(chưa chọn)"}</Field>
-        <Field label="Kênh">
-          {a.channels.length === 0 ? (
-            <span className="text-muted-foreground">Chưa gắn kênh nào</span>
-          ) : (
-            <div className="flex flex-wrap gap-1.5">
-              {a.channels.map(c => (
-                <span key={c} className="text-xs font-medium text-foreground bg-surface-muted border border-border rounded-full px-2.5 py-0.5">{c}</span>
-              ))}
-            </div>
-          )}
+        <Field label={`Kênh publish (${external.length + 1})`}>
+          <div className="flex flex-wrap gap-1.5">
+            <span className="text-xs font-medium text-primary bg-primary-soft border border-primary/20 rounded-full px-2.5 py-0.5">Workspace</span>
+            {external.map(c => (
+              <span key={c} className="text-xs font-medium text-foreground bg-surface-muted border border-border rounded-full px-2.5 py-0.5">{c}</span>
+            ))}
+          </div>
         </Field>
       </div>
       <Field label="Instructions">

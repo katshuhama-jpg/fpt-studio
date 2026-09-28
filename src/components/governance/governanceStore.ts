@@ -60,7 +60,7 @@ export const RESOURCE_TYPE_LABEL: Record<GovResourceType, string> = {
 export const AUDIENCE_LABEL: Record<GovAudience, string> = {
   org: "Company / department",
   community: "FPT AI Agent community",
-  group: "Nhóm cộng tác (vượt ngưỡng trùng lặp)",
+  group: "Nhóm cộng tác",
 };
 
 export const STATUS_LABEL: Record<GovRequestStatus, string> = {
@@ -133,6 +133,11 @@ export interface GovRequest {
   /** Only set for resourceType "agent" — the resources it references, for read-only display next
    * to the Agent (see AgentResourceRef doc comment). Never used to gate this request's decision. */
   resourceRefs?: AgentResourceRef[];
+  /** Only set for resourceType "agent" — the external channels this publish request asks for
+   * (e.g. "web", "zalo"). Workspace is implicit: every Agent governance request publishes to
+   * Workspace, so it's always shown first on Request Detail. Undefined on older requests —
+   * Request Detail then falls back to the Agent's configured channels. */
+  channels?: string[];
   /** Fields of the main resource itself, captured at submit time — diffed against its current
    * fields to detect "builder kept editing after submitting" (see checkDrift), and against its
    * last-approved live snapshot for the "Xem thay đổi" panel. */
@@ -146,9 +151,9 @@ export interface GovRequest {
   history: GovHistoryEntry[];
 }
 
-const REQ_KEY = "governance_request_store_v3";
-const LIVE_KEY = "governance_live_snapshots_v3";
-const SEEDED_KEY = "governance_store_seeded_v3";
+const REQ_KEY = "governance_request_store_v4";
+const LIVE_KEY = "governance_live_snapshots_v4";
+const SEEDED_KEY = "governance_store_seeded_v4";
 
 const store = loadMap<string, GovRequest>(REQ_KEY);
 /** "type:resourceId" → last-approved snapshot. A resource "has cleared governance at least once"
@@ -280,6 +285,7 @@ function seed() {
       resourceIcon: "🤝", requesterId: "m-fsoft-vn-1", requesterName: "Duy Nguyen",
       audience: "org", note: "Mở rộng agent Onboarding cho toàn bộ phòng Nhân sự — bổ sung lộ trình sản phẩm và cảnh báo leo thang.",
       version: "v1.1.0", status: "pending", submittedAt: t - 3 * HOUR, updatedAt: t - 3 * HOUR,
+      scopeSummary: "Phòng Nhân sự (36 người)", channels: ["web"],
       resourceRefs: [
         { type: "knowledge", resourceId: "kb-7", name: "Lộ trình sản phẩm nội bộ" },
         { type: "skill", resourceId: "weekly-digest", name: "weekly-digest" },
@@ -366,7 +372,113 @@ function seed() {
     ],
   );
 
-  [agentReq, kbReq, skillReq, guardrailReq, connectorReq, agentCleanReq].forEach(r => store.set(r.id, r));
+
+  // ── More Agent requests, so the Agent Requests queue demos realistically (several pending
+  // requests across different audiences/channels, plus resolved ones). History timestamps are
+  // set explicitly (hAt) so the timeline matches submittedAt instead of "now".
+  const hAt = (action: GovHistoryEntry["action"], actorId: string, actorName: string, at: number, note?: string): GovHistoryEntry =>
+    ({ id: `h-${seq++}`, at, action, actorId, actorName, note });
+
+  const quoteReq = mk(
+    {
+      id: "req-2001", resourceType: "agent", resourceId: "sales-quote", resourceName: "Trợ lý Báo giá (Sales)",
+      resourceIcon: "💼", requesterId: "m-fsoft-coo", requesterName: "Linh Phan",
+      audience: "org", scopeSummary: "Phòng Kinh doanh (48 người)", channels: ["web", "zalo"],
+      note: "Nâng cấp model và cập nhật mô tả theo chính sách chiết khấu EOS mới — cần duyệt lại trước khi áp dụng cho toàn phòng Kinh doanh.",
+      version: "v2.0.0", status: "pending", submittedAt: t - 45 * 60 * 1000, updatedAt: t - 45 * 60 * 1000,
+      resourceRefs: [
+        { type: "knowledge", resourceId: "kb-5", name: "Kịch bản bán hàng" },
+        { type: "skill", resourceId: "vendor-pricing-lookup", name: "vendor-pricing-lookup" },
+        { type: "skill", resourceId: "email-drafter", name: "email-drafter" },
+        { type: "guardrail", resourceId: "g-4", name: "Commercial response policy" },
+        { type: "guardrail", resourceId: "g-9", name: "Vendor pricing disclosure" },
+        { type: "connector", resourceId: "cc-1", name: "internal-crm-mcp" },
+      ],
+    },
+    [hAt("submitted", "m-fsoft-coo", "Linh Phan", t - 45 * 60 * 1000)],
+  );
+
+  const legalReq = mk(
+    {
+      id: "req-2002", resourceType: "agent", resourceId: "legal-review", resourceName: "AI Agent Pháp chế — Điều khoản hợp đồng",
+      resourceIcon: "⚖️", requesterId: "m-plat-1", requesterName: "Mai Hoang",
+      audience: "group", scopeSummary: "Nhóm cộng tác 'Pháp chế EOS' (12 người, trùng 85% với Ban Pháp chế)", channels: ["teams"],
+      note: "Nhóm cộng tác đã vượt ngưỡng trùng lặp với Ban Pháp chế — gửi duyệt theo quy định.",
+      version: "v1.2.0", status: "pending", submittedAt: t - 5 * HOUR, updatedAt: t - 5 * HOUR,
+      resourceRefs: [
+        { type: "knowledge", resourceId: "kb-6", name: "Cổng tri thức pháp lý" },
+        { type: "guardrail", resourceId: "g-5", name: "Legal and medical advice" },
+        { type: "connector", resourceId: "cc-3", name: "legal-search-mcp" },
+      ],
+    },
+    [hAt("submitted", "m-plat-1", "Mai Hoang", t - 5 * HOUR)],
+  );
+
+  const financeReq = mk(
+    {
+      id: "req-2003", resourceType: "agent", resourceId: "finance-check", resourceName: "AI Agent Tài chính — Kiểm duyệt chiết khấu",
+      resourceIcon: "🧮", requesterId: "m-fsoft-coo", requesterName: "Linh Phan",
+      audience: "org", scopeSummary: "Phòng Tài chính (14 người), Phòng Kinh doanh (48 người)", channels: ["teams", "email"],
+      note: "Mở rộng cho Phòng Kinh doanh tự kiểm tra đề xuất chiết khấu trước khi gửi Tài chính.",
+      version: "v1.3.0", status: "pending", submittedAt: t - 1 * DAY - 2 * HOUR, updatedAt: t - 1 * DAY - 2 * HOUR,
+      resourceRefs: [
+        { type: "guardrail", resourceId: "g-4", name: "Commercial response policy" },
+        { type: "connector", resourceId: "cc-2", name: "finance-reporting-mcp" },
+      ],
+    },
+    [hAt("submitted", "m-fsoft-coo", "Linh Phan", t - 1 * DAY - 2 * HOUR)],
+  );
+
+  const helpdeskReq = mk(
+    {
+      id: "req-2004", resourceType: "agent", resourceId: "ops", resourceName: "IT Helpdesk",
+      resourceIcon: "🛠️", requesterId: "m-fsoft-vn-1", requesterName: "Duy Nguyen",
+      audience: "community", channels: ["web", "api"],
+      note: "Agent đã chạy ổn định 1 tháng nội bộ — đề xuất chia sẻ cho FPT AI Agent community làm mẫu Helpdesk L1.",
+      version: "v1.4.0", status: "pending", submittedAt: t - 2 * DAY, updatedAt: t - 2 * DAY,
+      resourceRefs: [
+        { type: "knowledge", resourceId: "kb-3", name: "Tài liệu vận hành nội bộ" },
+        { type: "skill", resourceId: "weekly-digest", name: "weekly-digest" },
+      ],
+    },
+    [hAt("submitted", "m-fsoft-vn-1", "Duy Nguyen", t - 2 * DAY)],
+  );
+
+  const faqReq = mk(
+    {
+      id: "req-2005", resourceType: "agent", resourceId: "faq", resourceName: "Product FAQ Assistant",
+      resourceIcon: "📦", requesterId: "m-plat-1", requesterName: "Mai Hoang",
+      audience: "org", scopeSummary: "Toàn công ty", channels: ["web", "messenger"],
+      note: "Publish bản FAQ sản phẩm mới cho toàn công ty.",
+      version: "v1.1.0", status: "approved", submittedAt: t - 4 * DAY, updatedAt: t - 3 * DAY,
+      resourceRefs: [{ type: "knowledge", resourceId: "kb-2", name: "FAQ chăm sóc khách hàng" }],
+      reviewerId: "m-fsoft-ceo", reviewerName: "Tran Nam", reviewNote: "Đã test các câu hỏi thường gặp — trả lời đúng, duyệt.",
+    },
+    [
+      hAt("submitted", "m-plat-1", "Mai Hoang", t - 4 * DAY),
+      hAt("approved", "m-fsoft-ceo", "Tran Nam", t - 3 * DAY, "Đã test các câu hỏi thường gặp — trả lời đúng, duyệt."),
+    ],
+  );
+
+  const salesReq = mk(
+    {
+      id: "req-2006", resourceType: "agent", resourceId: "sales", resourceName: "Sales Lead Qualifier",
+      resourceIcon: "🎯", requesterId: "m-fsoft-vn-1", requesterName: "Duy Nguyen",
+      audience: "community", channels: ["web"],
+      note: "Chia sẻ Agent chấm điểm lead cho community.",
+      version: "v1.0.2", status: "rejected", submittedAt: t - 6 * DAY, updatedAt: t - 5 * DAY,
+      resourceRefs: [{ type: "connector", resourceId: "cc-1", name: "internal-crm-mcp" }],
+      reviewerId: "m-fsoft-ceo", reviewerName: "Tran Nam",
+      reviewNote: "Agent đang gọi CRM nội bộ — không phù hợp publish ra community. Vui lòng chọn phạm vi Company / department.",
+    },
+    [
+      hAt("submitted", "m-fsoft-vn-1", "Duy Nguyen", t - 6 * DAY),
+      hAt("rejected", "m-fsoft-ceo", "Tran Nam", t - 5 * DAY, "Agent đang gọi CRM nội bộ — không phù hợp publish ra community. Vui lòng chọn phạm vi Company / department."),
+    ],
+  );
+  const extraAgentReqs = [quoteReq, legalReq, financeReq, helpdeskReq, faqReq, salesReq];
+
+  [agentReq, kbReq, skillReq, guardrailReq, connectorReq, agentCleanReq, ...extraAgentReqs].forEach(r => store.set(r.id, r));
   persist();
 
   // Seed the live-snapshot ledger to match the stories above: weekly-digest + kb-1/kb-2/
@@ -376,10 +488,19 @@ function seed() {
     const snap = buildSnapshot(type, id);
     if (snap) liveSnapshots.set(snapshotKey(type, id), snap);
   });
+  const faqSnap = buildSnapshot("agent", "faq");
+  if (faqSnap) liveSnapshots.set(snapshotKey("agent", "faq"), faqSnap);
+  // sales-quote was approved before on an older model/description — so its pending v2.0.0
+  // request shows "Có chỉnh sửa" with a real field diff.
+  const quoteSnap = buildSnapshot("agent", "sales-quote");
+  if (quoteSnap) liveSnapshots.set(snapshotKey("agent", "sales-quote"), {
+    capturedAt: t - 20 * DAY,
+    fields: { ...quoteSnap.fields, model: "Gemini 1.5 Flash", desc: "Soạn báo giá từ CRM & ERP theo mẫu báo giá chuẩn." },
+  });
   persistLive();
 
   // Mirror the seed into the audit log so /governance/audit-log has matching history from day one.
-  for (const r of [agentReq, kbReq, skillReq, guardrailReq, connectorReq, agentCleanReq]) {
+  for (const r of [agentReq, kbReq, skillReq, guardrailReq, connectorReq, agentCleanReq, ...extraAgentReqs]) {
     for (const h of r.history) {
       auditLogStore.log({
         actorId: h.actorId, actorName: h.actorName, action: h.action,
@@ -487,7 +608,7 @@ export const governanceStore = {
   submit(input: {
     resourceType: GovResourceType; resourceId: string; resourceName: string; resourceIcon?: string;
     requesterId: string; requesterName: string; audience: GovAudience; note: string; version?: string;
-    resourceRefs?: AgentResourceRef[]; scopeSummary?: string;
+    resourceRefs?: AgentResourceRef[]; scopeSummary?: string; channels?: string[];
   }): GovRequest {
     seed();
     const id = nextId();
@@ -496,7 +617,7 @@ export const governanceStore = {
       id, resourceType: input.resourceType, resourceId: input.resourceId, resourceName: input.resourceName,
       resourceIcon: input.resourceIcon, requesterId: input.requesterId, requesterName: input.requesterName,
       audience: input.audience, scopeSummary: input.scopeSummary, note: input.note, version: input.version, status: "pending",
-      submittedAt: t, updatedAt: t, resourceRefs: input.resourceRefs,
+      submittedAt: t, updatedAt: t, resourceRefs: input.resourceRefs, channels: input.channels,
       mainSnapshotAtSubmit: buildSnapshot(input.resourceType, input.resourceId),
       history: [historyEntry("submitted", input.requesterId, input.requesterName)],
     };

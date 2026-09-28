@@ -5,6 +5,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Robot01Icon, BookOpen01Icon, PuzzleIcon, Shield01Icon, Plug01Icon } from "@hugeicons/core-free-icons";
 import type { GovResourceType, GovRequestStatus, GovChangeState, ResourceShareStatus } from "./governanceStore";
 import { RESOURCE_TYPE_LABEL, STATUS_LABEL } from "./governanceStore";
+import { getAgent } from "../configure/agentStore";
 
 export const RESOURCE_TYPE_ICON: Record<GovResourceType, any> = {
   agent: Robot01Icon, knowledge: BookOpen01Icon, skill: PuzzleIcon, guardrail: Shield01Icon, connector: Plug01Icon,
@@ -134,5 +135,28 @@ export function formatDateTime(ts: number): string {
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const hh = String(d.getHours()).padStart(2, "0");
   const mi = String(d.getMinutes()).padStart(2, "0");
-  return `${hh}:${mi} · ${dd}/${mm}/${d.getFullYear()}`;
+  return `${dd}/${mm}/${d.getFullYear()} - ${hh}:${mi}`;
+}
+
+/** A request's avatar — the Agent's own avatar (its emoji on its own background colour, exactly
+ * as on the Agents list and the Agent's detail page) for an Agent request, the type icon for a
+ * Resource request. Used by both the Requests list row and the Request Detail header so the
+ * reviewer recognises the same Agent everywhere. */
+export function RequestAvatar({ type, resourceId, fallbackIcon, size = "md" }: {
+  type: GovResourceType; resourceId: string; fallbackIcon?: string; size?: "md" | "lg";
+}) {
+  const box = size === "lg" ? "w-11 h-11 rounded-xl text-xl" : "w-9 h-9 rounded-lg text-base";
+  if (type === "agent") {
+    const a = getAgent(resourceId);
+    return (
+      <span className={`${box} ${a.bg} flex items-center justify-center shrink-0`} aria-hidden="true">
+        {a.emoji || fallbackIcon}
+      </span>
+    );
+  }
+  return (
+    <span className={`${box} bg-surface-muted border border-border flex items-center justify-center shrink-0`} aria-hidden="true">
+      <ResourceTypeIcon type={type} size={size === "lg" ? 18 : 16} className="text-muted-foreground" />
+    </span>
+  );
 }

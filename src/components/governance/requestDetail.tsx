@@ -6,17 +6,14 @@ import {
 } from "lucide-react";
 import {
   governanceStore, resourcePath, RESOURCE_TYPE_LABEL, AUDIENCE_LABEL,
-  checkDrift, mainChangeState, resourceShareStatus, requestDiff,
+  checkDrift, mainChangeState, requestDiff, type AgentResourceRef,
 } from "@/components/governance/governanceStore";
 import { ACTION_LABEL } from "@/components/governance/auditLogStore";
 import {
-  StatusBadge, ResourceTypeIcon, ResourceTypePill, ChangeStateBadge, ResourceShareStatusBadge, relativeTime, formatDateTime,
+  StatusBadge, ResourceTypePill, ChangeStateBadge, RequestAvatar, formatDateTime,
 } from "@/components/governance/governanceUi";
 import { AgentContentSection, ResourceContentSection, ResourceUsageSection, testConnector, type ResourceReqType } from "@/components/governance/resourceContent";
 import { AgentTestPanel } from "@/components/governance/agentTestPanel";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { InformationCircleIcon } from "@hugeicons/core-free-icons";
 import { CURRENT_USER } from "@/components/knowledge/knowledgeBaseStore";
 import { toast } from "sonner";
 
@@ -44,7 +41,7 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
   const req = id ? governanceStore.get(id) : undefined;
   const [dialog, setDialog] = useState<Dialog>(null);
   const [reason, setReason] = useState("");
-  const [changesOpen, setChangesOpen] = useState(false);
+  const [changesOpen, setChangesOpen] = useState(true);
   const [testState, setTestState] = useState<"idle" | "testing">("idle");
   const [testPanelOpen, setTestPanelOpen] = useState(false);
 
@@ -121,15 +118,15 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
       {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-6">
         <div className="flex items-center gap-3 min-w-0">
-          <span className="w-11 h-11 rounded-xl bg-surface-muted flex items-center justify-center shrink-0 text-xl border border-border">
-            {req.resourceIcon ?? <ResourceTypeIcon type={req.resourceType} size={18} className="text-muted-foreground" />}
-          </span>
+          <RequestAvatar type={req.resourceType} resourceId={req.resourceId} fallbackIcon={req.resourceIcon} size="lg" />
           <div className="min-w-0">
             <h1 className="font-display text-2xl font-semibold tracking-tight truncate">{req.resourceName}</h1>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
               {/* Same chips, same order, same styling as the Requests list row: type pill →
                   meta → the one colored StatusBadge last. */}
-              <ResourceTypePill type={req.resourceType} />
+              {/* Type pill only on Resource requests — the Agent page is single-type by definition
+                  (same as its list, which has no "Loại" column). */}
+              {!isAgent && <ResourceTypePill type={req.resourceType} />}
               {req.version && <span className="text-xs font-medium text-muted-foreground bg-surface-muted border border-border rounded-full px-2.5 py-1">{req.version}</span>}
               <ChangeStateBadge state={changeState} />
               <StatusBadge status={req.status} />
@@ -169,20 +166,8 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
             </div>
           )}
 
-          {/* Nội dung/cấu hình thật của resource + phạm vi ảnh hưởng — the content that was
-              completely missing before this pass: without it, a reviewer had nothing but a name
-              and a one-line note to decide from. Agent: description/model/channels/instructions
-              (the components it uses follow below). Resource: type-specific config + usage. */}
-          {isAgent ? (
-            <AgentContentSection agentId={req.resourceId} />
-          ) : (
-            <>
-              <ResourceContentSection type={resourceType} id={req.resourceId} />
-              <ResourceUsageSection type={resourceType} id={req.resourceId} />
-            </>
-          )}
-
-          {/* Thay đổi so với lần duyệt trước — the resource's own fields, no bundling. */}
+          {/* Thay đổi so với lần duyệt trước — shown FIRST and open by default for a modified
+              request: "what changed" is the main question when re-reviewing something already approved. */}
           {changeState === "modified" && (
             <div className="mb-6">
               <button
@@ -197,53 +182,21 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
             </div>
           )}
 
-          {/* Thành phần Agent này sử dụng — read-only context, never a decision control (see
-              banner above). Sharing status is resolved live, not frozen at submit time. */}
+          {/* Nội dung/cấu hình thật của resource + phạm vi ảnh hưởng — the content that was
+              completely missing before this pass: without it, a reviewer had nothing but a name
+              and a one-line note to decide from. Agent: description/model/channels/instructions
+              (the components it uses follow below). Resource: type-specific config + usage. */}
+          {isAgent ? (
+            <AgentContentSection agentId={req.resourceId} channels={req.channels} />
+          ) : (
+            <>
+              <ResourceContentSection type={resourceType} id={req.resourceId} />
+              <ResourceUsageSection type={resourceType} id={req.resourceId} />
+            </>
+          )}
+
           {isAgent && req.resourceRefs && req.resourceRefs.length > 0 && (
-            <div className="mb-6">
-              <div className="flex items-center gap-1.5 mb-3">
-                <p className="text-sm font-semibold flex items-center gap-1.5">
-                  <Layers size={14} className="text-muted-foreground" /> Thành phần Agent này sử dụng ({req.resourceRefs.length})
-                </p>
-                <Tooltip delayDuration={200}>
-                  <TooltipTrigger asChild>
-                    <button type="button" aria-label="Giải thích thêm" className="text-muted-foreground hover:text-foreground transition-colors">
-                      <HugeiconsIcon icon={InformationCircleIcon} size={14} />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" sideOffset={6} className="max-w-xs">
-                    Trạng thái dùng chung của từng thành phần do Tenant Admin duyệt riêng và không ảnh hưởng đến việc duyệt Agent này.
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-              <div className="space-y-2">
-                {req.resourceRefs.map(it => {
-                  const status = resourceShareStatus(it.type, it.resourceId);
-                  return (
-                    <div key={`${it.type}:${it.resourceId}`} className="rounded-xl border border-border bg-surface flex items-center gap-3 px-4 py-3">
-                      <span className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shrink-0 text-muted-foreground border border-border/60">
-                        <ResourceTypeIcon type={it.type} size={14} />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-foreground truncate">{it.name}</p>
-                        <p className="text-xs text-muted-foreground">{RESOURCE_TYPE_LABEL[it.type]}</p>
-                      </div>
-                      <ResourceShareStatusBadge status={status} />
-                      <Link
-                        to={resourcePath(it.type, it.resourceId)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title="Mở trong tab mới"
-                        aria-label={`Mở ${it.name} trong tab mới`}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted shrink-0 transition-base"
-                      >
-                        <ExternalLink size={14} />
-                      </Link>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <AgentComponents refs={req.resourceRefs} />
           )}
 
           {/* Review note (rejected / approved / revoked) */}
@@ -282,7 +235,7 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
             </div>
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Gửi lúc</p>
-              <p className="text-sm font-medium text-foreground flex items-center gap-1.5"><Clock size={13} className="text-muted-foreground" /> {relativeTime(req.submittedAt)}</p>
+              <p className="text-sm font-medium text-foreground flex items-center gap-1.5"><Clock size={13} className="text-muted-foreground" /> <span className="tabular-nums">{formatDateTime(req.submittedAt)}</span></p>
             </div>
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Publish to</p>
@@ -294,7 +247,7 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
             {req.updatedAt !== req.submittedAt && (
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Cập nhật</p>
-                <p className="text-sm font-medium text-foreground">{relativeTime(req.updatedAt)}</p>
+                <p className="text-sm font-medium text-foreground tabular-nums">{formatDateTime(req.updatedAt)}</p>
               </div>
             )}
           </div>
@@ -452,6 +405,71 @@ function MainDiffRows({ req }: { req: import("@/components/governance/governance
           <p className="text-foreground break-words">{d.after}</p>
         </div>
       ))}
+    </div>
+  );
+}
+
+const COMPONENT_TYPES = ["knowledge", "skill", "guardrail", "connector"] as const;
+
+/** What the Agent is built from, grouped by type. Tabs (only when the Agent uses more than one
+ * type) let the reviewer look at, say, just the Guardrails; each row opens the component in a new
+ * tab so the review isn't interrupted. The components' own Tenant-sharing status is deliberately
+ * NOT shown here — it's a separate Tenant Admin decision and irrelevant to publishing this Agent. */
+function AgentComponents({ refs }: { refs: AgentResourceRef[] }) {
+  const types = COMPONENT_TYPES.filter(t => refs.some(r => r.type === t));
+  const [tab, setTab] = useState<"all" | ResourceReqType>("all");
+  const shown = tab === "all" ? refs : refs.filter(r => r.type === tab);
+  const tabs = [
+    { key: "all" as const, label: "Tất cả", count: refs.length },
+    ...types.map(t => ({ key: t, label: RESOURCE_TYPE_LABEL[t], count: refs.filter(r => r.type === t).length })),
+  ];
+  return (
+    <div className="mb-6">
+      <p className="text-sm font-semibold flex items-center gap-1.5 mb-3">
+        <Layers size={14} className="text-muted-foreground" /> Thành phần Agent này sử dụng ({refs.length})
+      </p>
+      {types.length > 1 && (
+        <div role="tablist" aria-label="Lọc thành phần theo loại" className="flex items-center gap-1 flex-wrap mb-3">
+          {tabs.map(t => {
+            const active = tab === t.key;
+            return (
+              <button
+                key={t.key}
+                role="tab"
+                aria-selected={active}
+                onClick={() => setTab(t.key)}
+                className={`px-3 h-8 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 ${
+                  active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                {t.label}
+                <span className={`text-xs tabular-nums px-1.5 py-0.5 rounded-sm ${active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                  {t.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <div className="space-y-2">
+        {shown.map(it => (
+          <div key={`${it.type}:${it.resourceId}`} className="rounded-xl border border-border bg-surface flex items-center gap-3 px-4 py-3">
+            {/* Type shown once, as the tag — no separate leading icon repeating it. */}
+            <p className="min-w-0 flex-1 text-sm font-medium text-foreground truncate">{it.name}</p>
+            <ResourceTypePill type={it.type} />
+            <Link
+              to={resourcePath(it.type, it.resourceId)}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Mở trong tab mới"
+              aria-label={`Mở ${it.name} trong tab mới`}
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted shrink-0 transition-base"
+            >
+              <ExternalLink size={14} />
+            </Link>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
