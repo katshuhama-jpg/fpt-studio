@@ -7,6 +7,7 @@ import {
 import { getAgent, type AgentRecord } from "@/components/configure/agentStore";
 import { useOrg } from "@/pages/organization/orgStore";
 import { collectMembers } from "@/pages/organization/orgData";
+import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 
 /**
  * "Resource đang được Agent dùng" guard, shared by Skill / Guardrail / Connector / Knowledge.
@@ -63,14 +64,17 @@ export function ResourceInUseDialog({
 }) {
   const { tree } = useOrg();
   const members = useMemo(() => collectMembers(tree), [tree]);
-  const ownerName = (id?: string) => members.find(m => m.id === id)?.name ?? "Không rõ chủ sở hữu";
+  const { userId: meId } = useMyPermissions();
+  const ownerName = (id?: string) =>
+    id && id === meId ? "Bạn" : members.find(m => m.id === id)?.name ?? "Không rõ chủ sở hữu";
   const groups = useMemo(() => {
     const byOwner = new Map<string | undefined, AgentRecord[]>();
     for (const a of agents) byOwner.set(a.ownerId, [...(byOwner.get(a.ownerId) ?? []), a]);
     return [...byOwner.entries()]
       .map(([ownerId, list]) => ({ ownerId, agents: list }))
-      .sort((x, y) => y.agents.length - x.agents.length);
-  }, [agents]);
+      // The viewer's own Agents first (the one group they can fix themselves), then largest first.
+      .sort((x, y) => Number(y.ownerId === meId) - Number(x.ownerId === meId) || y.agents.length - x.agents.length);
+  }, [agents, meId]);
   // Collapsible per owner. Each time the dialog opens: a single owner is shown expanded; with
   // several owners every group starts collapsed to "name · N Agent", so the full list of people
   // who must act fits at a glance (expanding even one big group pushed the others out of view).
@@ -111,7 +115,7 @@ export function ResourceInUseDialog({
                     type="button"
                     onClick={() => toggle(g.ownerId)}
                     aria-expanded={expanded.has(groupKey(g.ownerId))}
-                    className="sticky top-0 z-10 w-full flex items-center gap-2 bg-surface-muted hover:bg-surface-sunken px-3 py-2 text-left transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                    className="sticky top-0 z-10 w-full flex items-center gap-2 bg-surface-muted hover:bg-surface-sunken px-3 py-2 min-h-10 text-left cursor-pointer transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                   >
                     <ChevronDown
                       size={14}
@@ -120,12 +124,18 @@ export function ResourceInUseDialog({
                     <span className="text-xs font-semibold truncate min-w-0 flex-1">{ownerName(g.ownerId)}</span>
                     <span className="text-xs text-muted-foreground shrink-0">{g.agents.length} Agent</span>
                   </button>
-                  {expanded.has(groupKey(g.ownerId)) && g.agents.map(a => (
-                    <div key={a.id} className="flex items-center gap-2 px-3 py-1.5">
-                      <span className="w-6 h-6 rounded-md bg-surface-muted flex items-center justify-center text-xs shrink-0">{a.emoji}</span>
-                      <span className="text-sm truncate min-w-0" title={a.name}>{a.name}</span>
+                  {expanded.has(groupKey(g.ownerId)) && (
+                    <div className="py-1">
+                      {g.agents.map(a => (
+                        // pl-[34px] = px-3 (12) + chevron (14) + gap-2 (8): Agent rows line up under
+                        // the owner's name, so the chevron column reads as the group's spine.
+                        <div key={a.id} className="flex items-center gap-2 pl-[34px] pr-3 py-1.5">
+                          <span className="w-6 h-6 rounded-md bg-surface-muted flex items-center justify-center text-xs shrink-0">{a.emoji}</span>
+                          <span className="text-sm truncate min-w-0" title={a.name}>{a.name}</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
               ))}
             </div>
