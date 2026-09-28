@@ -56,9 +56,6 @@ export default function AgentCapabilitiesModal({ agentId, onClose, onChanged }: 
                   <div className="min-w-0 flex-1">
                     <p className={`text-sm font-medium ${on ? "" : "text-muted-foreground"}`}>{cap.name}</p>
                     <p className="text-sm text-muted-foreground leading-relaxed mt-0.5">{cap.description}</p>
-                    {cap.note && (
-                      <p className="text-xs text-muted-foreground/80 leading-relaxed mt-1">{cap.note}</p>
-                    )}
                   </div>
                   <Switch
                     checked={on}
