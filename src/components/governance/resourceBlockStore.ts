@@ -19,8 +19,11 @@ const persist = () => saveSet(KEY, blocked);
 const key = (type: BlockableResourceType, id: string) => `${type}:${id}`;
 
 export const resourceBlockStore = {
-  isBlocked(type: BlockableResourceType, id: string): boolean {
-    return blocked.has(key(type, id));
+  // The "Chặn dùng trong Agent mới" row action was removed from the Guardrails and Connectors
+  // menus, so nothing can set or clear a block from the UI anymore. Always report "not blocked"
+  // so a block left over in an old session can never silently stop an Agent from publishing.
+  isBlocked(_type: BlockableResourceType, _id: string): boolean {
+    return false;
   },
   setBlocked(type: BlockableResourceType, id: string, value: boolean) {
     if (value) blocked.add(key(type, id));

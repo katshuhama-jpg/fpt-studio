@@ -2,7 +2,7 @@ import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { createPortal } from "react-dom";
 
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, Attachment01Icon, BlockedIcon, BookOpen01Icon, Cancel01Icon, BoltIcon, PauseIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, UserMultipleIcon, TextBoldIcon, TextItalicIcon, TextStrikethroughIcon, Heading01Icon, Heading02Icon, LeftToRightListBulletIcon, LeftToRightListNumberIcon, CodeIcon, Copy01Icon, SourceCodeIcon, GridViewIcon, Share08Icon, ApiIcon, TelegramIcon, WhatsappIcon, MessengerIcon, Building02Icon, UserIcon, QrCode01Icon, ExternalLinkIcon, InformationCircleIcon, MinusSignIcon, CircleArrowReload01Icon, Wrench01Icon, UserGroupIcon, ArrowLeftDoubleIcon } from "@hugeicons/core-free-icons";
+import { SquareLock01Icon, Activity01Icon, Add01Icon, AiBrain01Icon, Alert01Icon, Analytics01Icon, ArrowRight01Icon, Attachment01Icon, BlockedIcon, BookOpen01Icon, Cancel01Icon, BoltIcon, PauseIcon, CheckListIcon, CheckmarkCircle01Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, Clock01Icon, CogIcon, ConnectIcon, CpuIcon, Database01Icon, Delete01Icon, Download01Icon, Edit01Icon, EyeIcon, FileEditIcon, FileQuestionMarkIcon, FlaskConicalIcon, FloppyDiskIcon, FlowCircleIcon, Globe02Icon, HistoryIcon, LayerAddIcon, MessageAdd01Icon, Chat01Icon, MonitorDotIcon, MoreHorizontalIcon, NoteIcon, PencilEdit01Icon, PlayCircleIcon, Plug01Icon, PuzzleIcon, Robot01Icon, Rocket01Icon, Search01Icon, SentIcon, Shield01Icon, SlidersHorizontalIcon, SmartPhone01Icon, SparklesIcon, StarIcon, TimeScheduleIcon, Touchpad01Icon, Upload01Icon, UserCheck01Icon, UserCircleIcon, UserMultipleIcon, TextBoldIcon, TextItalicIcon, TextStrikethroughIcon, Heading01Icon, Heading02Icon, LeftToRightListBulletIcon, LeftToRightListNumberIcon, CodeIcon, Copy01Icon, SourceCodeIcon, GridViewIcon, Share08Icon, ApiIcon, TelegramIcon, WhatsappIcon, MessengerIcon, Building02Icon, UserIcon, QrCode01Icon, ExternalLinkIcon, InformationCircleIcon, MinusSignIcon, CircleArrowReload01Icon, Wrench01Icon, UserGroupIcon, ArrowLeftDoubleIcon } from "@hugeicons/core-free-icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import AgentToolsTab from "@/components/tool-builder/AgentToolsTab";
 import TasksGrid from "@/components/tasks/TasksGrid";
@@ -6879,7 +6879,10 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
   const items = agentGuardrailStore.list(agentId);
   const attachedGuardrails = agentGuardrailStore.listAttachedConsoleGuardrailIds(agentId)
     .map(id => guardrailConsoleStore.get(id))
-    .filter((g): g is Guardrail => !!g);
+    .filter((g): g is Guardrail => !!g && !g.mandatory && !g.allAgents);
+  // Guardrails applied to every Agent from Console. They always run on this Agent, so the
+  // Builder sees them here read-only (regardless of "Chia sẻ tới") — no toggle, no unlink.
+  const appliedAllGuardrails = guardrailConsoleStore.list().filter(g => g.mandatory || g.allAgents);
 
   /** One card, shared by both sections — only the destructive action (Delete vs Detach) and
    * whether Edit is offered differ, since a linked Console guardrail is edited from Console. */
@@ -6937,6 +6940,54 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
             <HugeiconsIcon icon={Add01Icon} size={14} /> Tạo guardrail mới
           </button>
         </div>
+      </div>
+
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-xs font-bold uppercase tracking-wide text-foreground">Áp dụng cho mọi Agent</span>
+          <span className="min-w-[20px] h-5 px-1 rounded-full bg-surface-muted text-muted-foreground text-xs font-semibold flex items-center justify-center">{appliedAllGuardrails.length}</span>
+          <div className="flex-1 h-px bg-border" />
+        </div>
+        <p className="text-xs text-muted-foreground -mt-1 mb-3">Do người quản trị áp dụng cho tất cả Agent trong Space. Các guardrail này luôn chạy trên Agent, bạn chỉ xem được, không tắt hay gỡ được.</p>
+        {appliedAllGuardrails.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border p-8 text-center">
+            <p className="text-sm font-medium mb-1">Chưa có guardrail nào áp dụng cho mọi Agent</p>
+            <p className="text-xs text-muted-foreground">Khi người quản trị áp dụng một guardrail cho toàn Space, guardrail đó sẽ hiện ở đây.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {appliedAllGuardrails.map(g => {
+              const openView = () => setViewTarget({ g, editable: false });
+              return (
+                <div
+                  key={g.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={openView}
+                  onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openView(); } }}
+                  className={`flex flex-col gap-3 p-4 rounded-xl border border-border bg-white cursor-pointer hover:border-primary/30 hover:shadow-soft transition-base ${g.enabled ? "" : "opacity-60"}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary-soft text-primary flex items-center justify-center shrink-0">
+                      <HugeiconsIcon icon={BlockedIcon} size={18} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-semibold truncate">{g.name}</div>
+                      <span className="chip chip-muted mt-1.5 inline-flex w-fit">{actionLabelVi(g.action)}</span>
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 flex-1">{g.desc}</p>
+                  <div className="flex items-center justify-between mt-1 text-xs">
+                    <span className="inline-flex items-center gap-1 font-medium text-primary">
+                      <HugeiconsIcon icon={SquareLock01Icon} size={12} /> Áp dụng cho mọi Agent
+                    </span>
+                    {!g.enabled && <span className="text-muted-foreground">Đang tạm dừng</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div>

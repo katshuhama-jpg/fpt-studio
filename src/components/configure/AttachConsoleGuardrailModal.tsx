@@ -13,8 +13,10 @@ import { isAccessibleTo } from "./guardrailSharing";
  * AttachConsoleKnowledgeBaseModal.tsx. */
 export default function AttachConsoleGuardrailModal({ agentId, userId, onClose }: { agentId: string; userId: string; onClose: () => void }) {
   const alreadyLinked = new Set(agentGuardrailStore.listAttachedConsoleGuardrailIds(agentId));
+  // Guardrails applied to every Agent already run on this one — they're listed read-only in the
+  // "Áp dụng cho mọi Agent" section of the tab, so linking them again here would just duplicate.
   const all = guardrailConsoleStore.list().filter(g =>
-    g.mandatory || g.allAgents || (g.ownerId && g.sharing && isAccessibleTo(g.sharing, g.ownerId, userId)),
+    !g.mandatory && !g.allAgents && g.ownerId && g.sharing && isAccessibleTo(g.sharing, g.ownerId, userId),
   );
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");

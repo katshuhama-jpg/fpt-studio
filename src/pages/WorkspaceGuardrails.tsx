@@ -12,12 +12,9 @@ import { guardrailConsoleStore, type Guardrail, actionLabelVi } from "@/componen
 import CreateGuardrailModal, { type CreateGuardrailData } from "@/components/configure/CreateGuardrailModal";
 import GuardrailDetailModal from "@/components/configure/GuardrailDetailModal";
 import GuardrailShareModal from "@/components/configure/GuardrailShareModal";
-import RequestPublishModal from "@/components/governance/RequestPublishModal";
 import { governanceStore } from "@/components/governance/governanceStore";
 import { StatusBadge } from "@/components/governance/governanceUi";
-import { resourceBlockStore } from "@/components/governance/resourceBlockStore";
-import { CancelCircleIcon } from "@hugeicons/core-free-icons";
-import { Rocket01Icon } from "@hugeicons/core-free-icons";
+import { GlobeIcon } from "@hugeicons/core-free-icons";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -82,7 +79,7 @@ export default function WorkspaceGuardrails() {
   const [editItem, setEditItem] = useState<Guardrail | null>(null);
   const [viewItem, setViewItem] = useState<Guardrail | null>(null);
   const [shareItem, setShareItem] = useState<Guardrail | null>(null);
-  const [publishItem, setPublishItem] = useState<Guardrail | null>(null);
+  const [applyAllTarget, setApplyAllTarget] = useState<Guardrail | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Guardrail | null>(null);
   const [tab, setTab] = useState<MainTab>("all");
 
@@ -154,8 +151,8 @@ export default function WorkspaceGuardrails() {
     guardrailConsoleStore.updateSharing(id, sharing);
     refresh();
   };
-  const toggleBlock = (id: string) => {
-    resourceBlockStore.setBlocked("guardrail", id, !resourceBlockStore.isBlocked("guardrail", id));
+  const toggleApplyAll = (g: Guardrail) => {
+    guardrailConsoleStore.update(g.id, { allAgents: !g.allAgents });
     refresh();
   };
 
@@ -181,12 +178,28 @@ export default function WorkspaceGuardrails() {
         />
       )}
 
-      {publishItem && (
-        <RequestPublishModal
-          resourceType="guardrail" resourceId={publishItem.id} resourceName={publishItem.name}
-          onClose={() => setPublishItem(null)}
-        />
-      )}
+      <AlertDialog open={!!applyAllTarget} onOpenChange={v => !v && setApplyAllTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {applyAllTarget?.allAgents
+                ? `Ngừng áp dụng "${applyAllTarget?.name}" cho mọi Agent?`
+                : `Áp dụng "${applyAllTarget?.name}" cho mọi Agent?`}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {applyAllTarget?.allAgents
+                ? "Guardrail sẽ không còn tự động chạy trên mọi Agent. Chỉ những Agent đã liên kết trực tiếp mới tiếp tục dùng, và quyền xem quay về theo phần Chia sẻ tới."
+                : "Guardrail sẽ tự động chạy trên tất cả Agent trong Space, Builder không tắt hay gỡ được. Mọi Builder đều xem được guardrail này (chỉ xem) để biết Agent của mình đang chịu rule nào."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy bỏ</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { if (applyAllTarget) toggleApplyAll(applyAllTarget); setApplyAllTarget(null); }}>
+              {applyAllTarget?.allAgents ? "Ngừng áp dụng" : "Áp dụng cho mọi Agent"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>
         <AlertDialogContent>
@@ -272,6 +285,7 @@ export default function WorkspaceGuardrails() {
 
           const editBlocked = editBlockedFor(g, access);
           const shareBlocked = !hasOwner ? undefined
+            : g.allAgents ? "Guardrail đang áp dụng cho mọi Agent nên mọi Builder đều xem được."
             : !isOwner ? "Chỉ chủ sở hữu mới có thể chia sẻ guardrail này."
             : !access.hasPermission("publish") ? NO_ROLE_PERMISSION
             : !access.canAct("publish", accessible) ? NOT_OWNED_OR_SHARED
@@ -281,18 +295,11 @@ export default function WorkspaceGuardrails() {
             : !access.canAct("delete", accessible) ? NOT_OWNED_OR_SHARED
             : undefined;
 
-          const isBlocked = !g.mandatory && resourceBlockStore.isBlocked("guardrail", g.id);
-
           return (
           <TRow key={g.id} cols="1fr 200px 1fr 72px 64px" onClick={() => setViewItem(g)}>
             <div>
               <div className="flex items-center gap-1.5">
                 <div className="text-sm font-medium">{g.name}</div>
-                {isBlocked && (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-destructive bg-destructive/10 border border-destructive/20 rounded-full px-1.5 py-0.5 whitespace-nowrap">
-                    <HugeiconsIcon icon={CancelCircleIcon} size={10} /> Đã chặn agent mới
-                  </span>
-                )}
               </div>
               <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
                 {g.desc}
@@ -325,13 +332,12 @@ export default function WorkspaceGuardrails() {
                 onOpen={() => setViewItem(g)}
                 onEdit={() => setEditItem(g)}
                 onShare={hasOwner ? () => setShareItem(g) : undefined}
-                onPublish={hasOwner && isOwner ? () => setPublishItem(g) : undefined}
-                onToggleBlock={!g.mandatory ? () => toggleBlock(g.id) : undefined}
-                isBlocked={isBlocked}
+                onToggleApplyAll={!g.mandatory ? () => setApplyAllTarget(g) : undefined}
+                isAppliedAll={!!g.allAgents}
                 onDelete={() => setDeleteTarget(g)}
                 editBlocked={editBlocked}
                 shareBlocked={shareBlocked}
-                blockToggleBlocked={editBlocked}
+                applyAllBlocked={editBlocked}
                 deleteBlocked={deleteBlocked}
               />
             </div>
@@ -390,12 +396,12 @@ function ActionPill({ children }: { children: React.ReactNode }) {
  * role Scope) actually blocks it — never hidden outright, so an owner sees the full action set,
  * an edit-shared viewer sees Mở/Chỉnh sửa enabled, and a view-only viewer sees only Mở enabled. */
 function RowMenu({
-  onOpen, onEdit, onShare, onPublish, onToggleBlock, isBlocked, onDelete,
-  editBlocked, shareBlocked, blockToggleBlocked, deleteBlocked,
+  onOpen, onEdit, onShare, onToggleApplyAll, isAppliedAll, onDelete,
+  editBlocked, shareBlocked, applyAllBlocked, deleteBlocked,
 }: {
-  onOpen: () => void; onEdit: () => void; onShare?: () => void; onPublish?: () => void;
-  onToggleBlock?: () => void; isBlocked?: boolean; onDelete: () => void;
-  editBlocked?: string; shareBlocked?: string; blockToggleBlocked?: string; deleteBlocked?: string;
+  onOpen: () => void; onEdit: () => void; onShare?: () => void;
+  onToggleApplyAll?: () => void; isAppliedAll?: boolean; onDelete: () => void;
+  editBlocked?: string; shareBlocked?: string; applyAllBlocked?: string; deleteBlocked?: string;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -418,7 +424,7 @@ function RowMenu({
         <HugeiconsIcon icon={MoreVerticalIcon} size={13} />
       </button>
       {open && (
-        <div className="absolute right-0 top-8 z-20 w-40 bg-white rounded-xl border border-border shadow-lg py-1 animate-fade-up">
+        <div className="absolute right-0 top-8 z-20 w-56 bg-white rounded-xl border border-border shadow-lg py-1 animate-fade-up">
           <button
             onClick={() => { setOpen(false); onOpen(); }}
             className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface-muted transition-base"
@@ -443,22 +449,14 @@ function RowMenu({
               <HugeiconsIcon icon={Share08Icon} size={13} className="text-muted-foreground" /> Chia sẻ
             </button>
           )}
-          {onPublish && (
+          {onToggleApplyAll && (
             <button
-              onClick={() => { setOpen(false); onPublish(); }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface-muted transition-base"
+              disabled={!!applyAllBlocked}
+              title={applyAllBlocked}
+              onClick={() => { setOpen(false); onToggleApplyAll(); }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-surface-muted transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
             >
-              <HugeiconsIcon icon={Rocket01Icon} size={13} className="text-muted-foreground" /> Publish
-            </button>
-          )}
-          {onToggleBlock && (
-            <button
-              disabled={!!blockToggleBlocked}
-              title={blockToggleBlocked}
-              onClick={() => { setOpen(false); onToggleBlock(); }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface-muted transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-            >
-              <HugeiconsIcon icon={CancelCircleIcon} size={13} className="text-muted-foreground" /> {isBlocked ? "Bỏ chặn agent mới" : "Chặn dùng trong Agent mới"}
+              <HugeiconsIcon icon={GlobeIcon} size={13} className="text-muted-foreground shrink-0" /> {isAppliedAll ? "Ngừng áp dụng cho mọi Agent" : "Áp dụng cho mọi Agent"}
             </button>
           )}
           <button

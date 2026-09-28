@@ -42,7 +42,9 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
   const [samples, setSamples]   = useState("");
   const [response, setResponse] = useState<ResponseKind>(actionToResponse(initialData?.action));
   const [fixedText, setFixedText] = useState("");
-  const [allAgents, setAllAgents] = useState(initialData?.allAgents ?? false);
+  // "Áp dụng cho mọi Agent" is no longer set here — it is a governance action done afterwards
+  // from the Console row menu. Editing keeps whatever value the guardrail already has.
+  const allAgents = initialData?.allAgents ?? false;
   const [sharingMode, setSharingMode] = useState<SharingMode>(initialData?.sharing?.mode ?? "private");
   const [people, setPeople] = useState<SharedPerson[]>(initialData?.sharing?.people ?? []);
   const [submitAttempted, setSubmitAttempted] = useState(false);
@@ -70,8 +72,8 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
   };
 
   const responseOptions: { key: ResponseKind; title: string; desc: string }[] = [
-    { key: "auto",  title: "Autogenerate response",                 desc: "Agent automatically rewrites responses based on your instructions." },
-    { key: "fixed", title: "Custom response", desc: "Agent replies using the exact text you provide." },
+    { key: "auto",  title: "Tự tạo câu trả lời", desc: "Agent tự viết lại câu trả lời dựa trên hướng dẫn của bạn." },
+    { key: "fixed", title: "Câu trả lời cố định", desc: "Agent trả lời đúng nguyên văn nội dung bạn nhập." },
   ];
 
   return createPortal(
@@ -81,19 +83,19 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
       <div className="relative w-full max-w-[520px] bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh]" style={{animation:"fadeScaleIn 0.18s ease"}}>
         <div className="flex items-start justify-between px-6 py-5 border-b border-border shrink-0">
           <div>
-            <h2 className="font-display text-lg font-semibold">{readOnly ? initialData?.name : isEdit ? "Edit Guardrail" : "Create Guardrail"}</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">{readOnly ? "Bạn chỉ có quyền xem guardrail này." : "Define the rule and choose how the agent responds."}</p>
+            <h2 className="font-display text-lg font-semibold">{readOnly ? initialData?.name : isEdit ? "Chỉnh sửa guardrail" : "Tạo guardrail"}</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">{readOnly ? "Bạn chỉ có quyền xem guardrail này." : "Định nghĩa rule và chọn cách Agent phản hồi."}</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base mt-0.5"><HugeiconsIcon icon={Cancel01Icon} size={15} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
           <div>
-            <h3 className="text-sm font-semibold mb-4">Define the rule</h3>
+            <h3 className="text-sm font-semibold mb-4">Định nghĩa rule</h3>
             <div className="space-y-4">
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-sm font-medium">Topic <span className="text-destructive">*</span></label>
+                  <label className="text-sm font-medium">Chủ đề <span className="text-destructive">*</span></label>
                   <span className="text-xs text-muted-foreground">{topic.length}/100</span>
                 </div>
                 <input
@@ -107,7 +109,7 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
               </div>
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-sm font-medium">Description <span className="text-destructive">*</span></label>
+                  <label className="text-sm font-medium">Mô tả <span className="text-destructive">*</span></label>
                   <span className="text-xs text-muted-foreground">{desc.length}/800</span>
                 </div>
                 <textarea
@@ -121,10 +123,10 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
               </div>
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-sm font-medium">Samples</label>
+                  <label className="text-sm font-medium">Ví dụ mẫu</label>
                   <span className="text-xs text-muted-foreground">{samples.length}/2000</span>
                 </div>
-                <p className="text-xs text-primary mb-1.5 italic">Tip: Each sample must be separated by a line break.</p>
+                <p className="text-xs text-primary mb-1.5 italic">Mẹo: mỗi ví dụ nằm trên một dòng riêng.</p>
                 <textarea
                   disabled={readOnly}
                   maxLength={2000}
@@ -138,8 +140,8 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
           </div>
 
           <div>
-            <h3 className="text-sm font-semibold mb-1">Response</h3>
-            <p className="text-xs text-muted-foreground mb-4">Choose what the agent does when this rule triggers.</p>
+            <h3 className="text-sm font-semibold mb-1">Phản hồi</h3>
+            <p className="text-xs text-muted-foreground mb-4">Chọn Agent sẽ làm gì khi rule này được kích hoạt.</p>
             <div className="space-y-3">
               {responseOptions.map(opt => {
                 const selected = response === opt.key;
@@ -161,13 +163,13 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
                       <div className="text-xs text-muted-foreground mt-0.5">{opt.desc}</div>
                       {selected && opt.key === "fixed" && (
                         <div className="mt-3">
-                          <label className="block text-xs font-semibold mb-1.5">Fixed paragraph <span className="text-destructive">*</span></label>
+                          <label className="block text-xs font-semibold mb-1.5">Nội dung trả lời <span className="text-destructive">*</span></label>
                           <div className="relative">
                             <textarea
                               disabled={readOnly}
                               rows={4}
                               maxLength={300}
-                              placeholder="Write the exact reply the agent should send."
+                              placeholder="Nhập nguyên văn câu trả lời Agent sẽ gửi."
                               className="w-full px-3 py-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none disabled:bg-surface-muted disabled:text-muted-foreground"
                               value={fixedText}
                               onChange={e => { e.stopPropagation(); setFixedText(e.target.value); }}
@@ -183,19 +185,6 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
               })}
             </div>
 
-            <label className={`mt-3 flex items-center gap-2.5 select-none ${readOnly ? "" : "cursor-pointer"}`}>
-              <input
-                type="checkbox"
-                disabled={readOnly}
-                checked={allAgents}
-                onChange={e => setAllAgents(e.target.checked)}
-                className="w-4 h-4 accent-primary shrink-0"
-              />
-              <div>
-                <span className="text-sm font-medium">Apply for all agents</span>
-                <p className="text-xs text-muted-foreground">This guardrail will be assigned to every agent in the workspace.</p>
-              </div>
-            </label>
           </div>
 
           <div>
@@ -261,9 +250,9 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
             <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base ml-auto">Đóng</button>
           ) : (
             <>
-              <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Cancel</button>
+              <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Hủy</button>
               <button onClick={submit} disabled={!topic.trim()} className="h-9 px-6 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium transition-base disabled:opacity-40 disabled:cursor-not-allowed">
-                {isEdit ? "Save changes" : "Create guardrail"}
+                {isEdit ? "Lưu thay đổi" : "Tạo guardrail"}
               </button>
             </>
           )}

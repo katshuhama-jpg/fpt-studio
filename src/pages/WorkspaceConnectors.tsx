@@ -6,7 +6,6 @@ import RequestPublishModal from "@/components/governance/RequestPublishModal";
 import { governanceStore } from "@/components/governance/governanceStore";
 import { StatusBadge } from "@/components/governance/governanceUi";
 import { resourceBlockStore } from "@/components/governance/resourceBlockStore";
-import { Ban } from "lucide-react";
 import { useGroupAccess, isOwnedOrShared } from "@/pages/organization/scopeAccess";
 import { CURRENT_USER } from "@/components/knowledge/knowledgeBaseStore";
 import { customConnectorStore, type CustomConnector } from "@/components/configure/customConnectorStore";
@@ -140,10 +139,6 @@ export default function WorkspaceConnectors() {
   const [tick, setTick] = useState(0);
   const refresh = () => setTick(t => t + 1);
   void tick;
-  const toggleConnectorBlock = (id: string) => {
-    resourceBlockStore.setBlocked("connector", id, !resourceBlockStore.isBlocked("connector", id));
-    refresh();
-  };
   const [showAddCustom, setShowAddCustom] = useState(false);
   const [publishTarget, setPublishTarget] = useState<CustomConnector | null>(null);
   const [editTarget, setEditTarget] = useState<CustomConnector | null>(null);
@@ -394,7 +389,6 @@ export default function WorkspaceConnectors() {
                     onEdit={isMine ? () => setEditTarget(c) : undefined}
                     onShare={isMine ? () => setShareTarget(c) : undefined}
                     onPublish={isMine ? () => setPublishTarget(c) : undefined}
-                    onToggleBlock={isMine ? () => toggleConnectorBlock(c.id) : undefined}
                     onDelete={() => setDeleteTarget(c)}
                   />
                 );
@@ -594,11 +588,6 @@ function CustomConnectorCard({ connector: c, isMine, onEdit, onShare, onPublish,
          * so a shared-to-me card still says whose connector it is. */}
         <div className="flex items-center gap-1.5 flex-wrap">
           <p className="text-sm font-medium truncate">{c.name}</p>
-          {isBlocked && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-destructive bg-destructive/10 border border-destructive/20 rounded-full px-1.5 py-0.5 whitespace-nowrap">
-              <Ban size={10} /> Đã chặn agent mới
-            </span>
-          )}
         </div>
         <p className="text-xs text-muted-foreground truncate">Người tạo: {isMine ? "Bạn" : c.ownerName}</p>
         <p className="text-xs text-muted-foreground truncate mt-0.5">{c.url}</p>
