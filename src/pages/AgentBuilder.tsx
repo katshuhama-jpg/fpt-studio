@@ -53,6 +53,7 @@ import { skillStore, type Skill } from "@/components/configure/skillStore";
 import { agentSkillStore } from "@/components/configure/agentSkillStore";
 import { builtinSkillStore, type BuiltinSkill } from "@/components/configure/builtinSkillStore";
 import { agentCapabilityStore } from "@/components/configure/agentCapabilityStore";
+import AgentCapabilitiesModal from "@/components/configure/AgentCapabilitiesModal";
 import CreateSkillModal, { type SkillFormData } from "@/components/configure/CreateSkillModal";
 import CreateSkillChoiceModal from "@/components/configure/CreateSkillChoiceModal";
 import UploadSkillModal from "@/components/configure/UploadSkillModal";
@@ -6704,62 +6705,50 @@ function DeleteStarterPromptDialog({ title, open, onOpenChange, onConfirm }: {
  * agent (memory, web search, planning, sandbox, ...). Sits in Advanced settings because every
  * one of them is on by default and most agents never touch them; the ones the platform keeps on
  * permanently aren't listed at all, and document/design generation is toggled in Skills instead
- * (see builtinSkillStore.ts) so a capability never has two switches. */
+ * (see builtinSkillStore.ts) so a capability never has two switches.
+ *
+ * The rail shows only the on/total count and an Edit button — the nine rows each carry a
+ * description (and some a condition note) that doesn't fit legibly in a 476px sidebar, so the
+ * switches themselves live in a dialog. */
 function CapabilitiesInner({ agentId }: { agentId: string }) {
   const [tick, setTick] = useState(0);
   void tick;
+  const [showEditor, setShowEditor] = useState(false);
   const capabilities = agentCapabilityStore.list();
   const onCount = agentCapabilityStore.onCount(agentId);
-  const atDefault = agentCapabilityStore.isAtDefault(agentId);
+  const offNames = capabilities.filter(cap => !agentCapabilityStore.isOn(agentId, cap.id)).map(cap => cap.name);
 
   return (
-    <div className="rounded-xl border border-border bg-surface overflow-hidden">
-      <div className="flex items-center gap-2 px-3.5 py-3">
-        <HugeiconsIcon icon={BoltIcon} size={16} className="text-foreground shrink-0" />
-        <span className="text-sm font-semibold flex-1">Agent capabilities</span>
-        <span className="text-sm text-muted-foreground shrink-0">{onCount}/{capabilities.length}</span>
-      </div>
-
-      <div className="px-3.5 pb-3 space-y-1">
-        {capabilities.map(cap => {
-          const on = agentCapabilityStore.isOn(agentId, cap.id);
-          return (
-            <div key={cap.id} className="flex items-start gap-2 px-2.5 py-2 rounded-lg border border-border bg-surface">
-              <div className="min-w-0 flex-1">
-                <p className={`text-[13px] font-medium ${on ? "" : "text-muted-foreground"}`}>{cap.name}</p>
-                <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5">{cap.description}</p>
-                {cap.note && <p className="text-[11px] text-muted-foreground/80 leading-relaxed mt-0.5">{cap.note}</p>}
-              </div>
-              <Switch
-                checked={on}
-                onCheckedChange={v => {
-                  agentCapabilityStore.setOn(agentId, cap.id, v);
-                  toast.success(`${v ? "Đã bật" : "Đã tắt"} ${cap.name}.`);
-                  setTick(t => t + 1);
-                }}
-                aria-label={`${on ? "Tắt" : "Bật"} ${cap.name}`}
-                className="shrink-0 mt-0.5"
-              />
-            </div>
-          );
-        })}
-      </div>
-
-      {!atDefault && (
-        <div className="px-3.5 pb-3">
+    <>
+      <div className="rounded-xl border border-border bg-surface overflow-hidden">
+        <div className="flex items-center gap-2 px-3.5 py-3">
+          <HugeiconsIcon icon={BoltIcon} size={16} className="text-foreground shrink-0" />
+          <span className="text-sm font-semibold flex-1">Agent capabilities</span>
+          <span className="text-sm text-muted-foreground tabular-nums shrink-0">{onCount}/{capabilities.length}</span>
           <button
-            onClick={() => {
-              agentCapabilityStore.restoreDefaults(agentId);
-              toast.success("Đã bật lại toàn bộ năng lực mặc định.");
-              setTick(t => t + 1);
-            }}
-            className="w-full h-8 rounded-lg border border-dashed border-border text-xs font-medium text-muted-foreground hover:border-primary/40 hover:text-primary transition-base"
+            onClick={() => setShowEditor(true)}
+            className="h-7 px-2.5 rounded-md border border-border text-xs font-medium text-foreground hover:bg-surface-muted transition-base shrink-0"
           >
-            Khôi phục mặc định
+            Edit
           </button>
         </div>
+        {offNames.length > 0 && (
+          // Naming what's off matters more than naming what's on: the count alone doesn't tell a
+          // reviewer whether the agent lost web search or just carousel rendering.
+          <p className="px-3.5 pb-3 -mt-1 text-[11px] text-muted-foreground leading-relaxed line-clamp-2">
+            Đang tắt: {offNames.join(", ")}.
+          </p>
+        )}
+      </div>
+
+      {showEditor && (
+        <AgentCapabilitiesModal
+          agentId={agentId}
+          onClose={() => setShowEditor(false)}
+          onChanged={() => setTick(t => t + 1)}
+        />
       )}
-    </div>
+    </>
   );
 }
 
