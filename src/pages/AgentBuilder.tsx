@@ -70,6 +70,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { knowledgeStore, OWN_KB_ID, type KnowledgeItem } from "@/components/knowledge/knowledgeStore";
+import { isAccessibleTo as isSkillAccessibleTo } from "@/components/configure/skillSharing";
 import { knowledgeBaseStore, CURRENT_USER as KB_CURRENT_USER, isViewOnly as isKbViewOnly, isAccessibleTo as isKbAccessibleTo, type KnowledgeBase } from "@/components/knowledge/knowledgeBaseStore";
 import { governanceStore, listAgentResourceRefs, agentEmoji } from "@/components/governance/governanceStore";
 import { collabGroupStore, overlapForGroup, recheckAgentGroupPublish, GROUP_APPROVAL_THRESHOLD, type CollabGroup } from "@/components/configure/collabGroupStore";
@@ -7115,7 +7116,8 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
 function SkillsAgentTab({ agentId }: { agentId: string }) {
   const { tree } = useOrg();
   const members = useMemo(() => collectMembers(tree), [tree]);
-  const accessUserId = useGroupAccess("skills").userId;
+  const skillsAccess = useGroupAccess("skills");
+  const accessUserId = skillsAccess.userId;
   const currentUser = useMemo(() => {
     const me = members.find(m => m.id === accessUserId);
     return { id: accessUserId, name: me?.name ?? "Tran Nam", email: me?.email ?? "tran.nam@fpt.com" };
@@ -7171,6 +7173,13 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
         <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold truncate">{s.name}</div>
           <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 mt-1">{s.description}</p>
+          {/* Attached to this Agent but not shared with the viewer: they see it read-only here
+            * only (see agentContextAccess.tsx) — say so, and whose it is. */}
+          {s.ownerId && s.sharing && s.ownerId !== accessUserId && !skillsAccess.canSeeAll && !isSkillAccessibleTo(s.sharing, s.ownerId, accessUserId) && (
+            <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+              <HugeiconsIcon icon={EyeIcon} size={12} className="shrink-0" /> Chỉ xem trong Agent · {s.ownerName}
+            </p>
+          )}
         </div>
         <div className="flex items-center justify-between gap-2">
           <span className="flex items-center gap-1.5 text-sm whitespace-nowrap min-w-0">
