@@ -6952,11 +6952,11 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
           <span className="min-w-[20px] h-5 px-1 rounded-full bg-surface-muted text-muted-foreground text-xs font-semibold flex items-center justify-center">{appliedAllGuardrails.length}</span>
           <div className="flex-1 h-px bg-border" />
         </div>
-        <p className="text-xs text-muted-foreground -mt-1 mb-3">Do người quản trị áp dụng cho tất cả Agent trong Space. Các guardrail này luôn chạy trên Agent, bạn chỉ xem được, không tắt hay gỡ được.</p>
+        <p className="text-xs text-muted-foreground -mt-1 mb-3">Được áp dụng cho tất cả Agent trong Space. Các guardrail này luôn chạy trên Agent, bạn chỉ xem được, không tắt hay gỡ được.</p>
         {appliedAllGuardrails.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border p-8 text-center">
             <p className="text-sm font-medium mb-1">Chưa có guardrail nào áp dụng cho mọi Agent</p>
-            <p className="text-xs text-muted-foreground">Khi người quản trị áp dụng một guardrail cho toàn Space, guardrail đó sẽ hiện ở đây.</p>
+            <p className="text-xs text-muted-foreground">Khi một guardrail được áp dụng cho mọi Agent trong Space, guardrail đó sẽ hiện ở đây.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
