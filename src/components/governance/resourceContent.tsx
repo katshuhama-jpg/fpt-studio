@@ -5,9 +5,9 @@
 // Connector's auth/endpoint, a Skill's actual instructions, a Knowledge base's size/source,
 // a Guardrail's real rule) rather than one generic template. Paired with `ResourceUsageSection`
 // (blast-radius: which Agents already depend on this) from `resourceUsage.ts`.
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { KeyRound, Globe, Lock, Users, ExternalLink } from "lucide-react";
+import { KeyRound, Globe, Lock, Users, ExternalLink, Plug, UsersRound } from "lucide-react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { InformationCircleIcon } from "@hugeicons/core-free-icons";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -18,7 +18,9 @@ import { guardrailConsoleStore, actionLabelVi } from "../configure/guardrailCons
 import { customConnectorStore } from "../configure/customConnectorStore";
 import { listResourceUsage } from "./resourceUsage";
 import { getAgent } from "../configure/agentStore";
-import type { GovResourceType } from "./governanceStore";
+import type { GovResourceType, GovRequest, AgentConnectionSnap } from "./governanceStore";
+import { agentConnectorStore } from "../configure/agentConnectorStore";
+import { CATALOG as CONNECTION_CATALOG } from "../configure/ConnectionsTab";
 
 export type ResourceReqType = Exclude<GovResourceType, "agent">;
 
@@ -163,24 +165,97 @@ export function ResourceContentSection({ type, id }: { type: ResourceReqType; id
 }
 
 /** The Agent's own configuration, for the Org/Unit Admin reviewing a publish request — the same
- * core fields the Agent's own detail page shows (description, model, channels, instructions),
- * so the reviewer can judge the Agent from the request page itself instead of leaving it. Where it
- * will be published (Workspace audiences + external channels) is its own section — agentDeployment.tsx. The
- * components it uses (Knowledge/Skill/Guardrails/Connector) are listed separately below this
- * block on the request page. */
-export function AgentContentSection({ agentId }: { agentId: string }) {
-  const a = getAgent(agentId);
+ * sections, in the same order, as the Agent's Build page on Console (Mô tả · Model · Instructions
+ * · Kết nối · Agent phụ · Câu hỏi gợi ý), so a reviewer who knows the Build page finds everything
+ * where they expect it. Kỹ năng / Guardrails / Tri thức / Connector are the "Thành phần" section
+ * further down the request page; where the Agent will be published is "Kênh triển khai". */
+export function AgentContentSection({ req }: { req: GovRequest }) {
+  const a = getAgent(req.resourceId);
+  const [showAll, setShowAll] = useState(false);
+  const connections: AgentConnectionSnap[] = req.connections ?? agentConnectorStore.list(req.resourceId).map(c => {
+    const cat = CONNECTION_CATALOG.find(x => x.id === c.connectorId);
+    return { name: cat?.name ?? c.connectorId, logoUrl: cat?.logo, scope: c.scope };
+  });
+  const subAgents = req.subAgents ?? [];
+  const prompts = req.starterPrompts ?? [];
+  const instructions = a.instructions || "";
+  const long = instructions.split("\n").length > 12;
+
   return (
     <ContentBlock type="agent">
       {a.desc && <Field label="Mô tả"><p className="leading-relaxed">{a.desc}</p></Field>}
       <Field label="Model">{a.model || "(chưa chọn)"}</Field>
+
       <Field label="Instructions">
-        <pre className="max-h-64 overflow-y-auto whitespace-pre-wrap break-words rounded-lg bg-surface-muted border border-border/70 p-3 text-xs font-mono leading-relaxed text-foreground">
-          {a.instructions || "(chưa có instructions)"}
-        </pre>
+        {instructions ? (
+          <>
+            <pre className={`whitespace-pre-wrap break-words rounded-lg bg-surface-muted border border-border/70 p-3 text-xs font-mono leading-relaxed text-foreground ${showAll ? "max-h-[480px] overflow-y-auto" : "max-h-48 overflow-hidden"}`}>
+              {instructions}
+            </pre>
+            {long && (
+              <button type="button" onClick={() => setShowAll(v => !v)} className="mt-1.5 text-xs font-medium text-primary hover:underline">
+                {showAll ? "Thu gọn" : "Xem toàn bộ instructions"}
+              </button>
+            )}
+          </>
+        ) : <Empty>Chưa có instructions</Empty>}
+      </Field>
+
+      <Field label={`Kết nối (${connections.length})`}>
+        {connections.length === 0 ? <Empty>Chưa có kết nối nào</Empty> : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {connections.map((c, i) => (
+              <div key={i} className="rounded-lg border border-border bg-white px-3 py-2 flex items-center gap-2.5 min-w-0">
+                <span className="w-7 h-7 rounded-md border border-border bg-white flex items-center justify-center shrink-0 overflow-hidden">
+                  {c.logoUrl ? <img src={c.logoUrl} alt="" className="w-full h-full object-contain p-1" /> : <Plug size={13} className="text-muted-foreground" />}
+                </span>
+                <span className="text-sm font-medium truncate flex-1">{c.name}</span>
+                <span className={`text-[11px] font-medium rounded-full px-2 py-0.5 border whitespace-nowrap ${
+                  c.scope === "shared" ? "bg-surface-muted border-border text-muted-foreground" : "bg-amber-50 border-amber-200 text-amber-800"
+                }`}>
+                  {c.scope === "shared" ? "Dùng chung" : "Riêng người"}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Field>
+
+      <Field label={`Agent phụ (${subAgents.length})`}>
+        {subAgents.length === 0 ? <Empty>Không dùng agent phụ</Empty> : (
+          <div className="space-y-2">
+            {subAgents.map(sa => (
+              <div key={sa.name} className="rounded-lg border border-border bg-white px-3 py-2.5">
+                <div className="flex items-center gap-2 min-w-0">
+                  <UsersRound size={13} className="text-muted-foreground shrink-0" />
+                  <span className="text-sm font-medium font-mono truncate">{sa.name}</span>
+                  {sa.model && <span className="text-xs text-muted-foreground truncate">· {sa.model}</span>}
+                  {sa.status === "paused" && (
+                    <span className="ml-auto text-[11px] font-medium rounded-full px-2 py-0.5 border bg-surface-muted border-border text-muted-foreground">Tạm dừng</span>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed mt-1">{sa.description}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </Field>
+
+      <Field label={`Câu hỏi gợi ý (${prompts.length}/3)`}>
+        {prompts.length === 0 ? <Empty>Chưa có câu hỏi gợi ý</Empty> : (
+          <div className="flex flex-wrap gap-1.5">
+            {prompts.map(q => (
+              <span key={q} className="text-xs text-foreground bg-white border border-border rounded-full px-3 py-1">{q}</span>
+            ))}
+          </div>
+        )}
       </Field>
     </ContentBlock>
   );
+}
+
+function Empty({ children }: { children: ReactNode }) {
+  return <span className="text-sm text-muted-foreground">{children}</span>;
 }
 
 /** Blast radius: every Agent that already references this resource today, and whether it's live

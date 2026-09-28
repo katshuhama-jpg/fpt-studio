@@ -19,7 +19,7 @@ const KIND_META: Record<WorkspaceTargetKind, { label: string; icon: typeof Build
 
 /** Channels the shared catalog doesn't carry (yet) but requests can name. */
 const EXTRA_CHANNELS: Record<string, { name: string; mark: JSX.Element }> = {
-  teams: { name: "Microsoft Teams", mark: <span className="text-[11px] font-bold" style={{ color: "#6264A7" }}>T</span> },
+  teams: { name: "Microsoft Teams", mark: <img src="https://upload.wikimedia.org/wikipedia/commons/9/94/Microsoft_Office_Teams_%282019%E2%80%932025%29.svg" alt="" className="w-4 h-4 object-contain" /> },
   email: { name: "Email", mark: <Mail size={15} className="text-muted-foreground" /> },
 };
 

@@ -192,7 +192,7 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
               {/* Where it will be published first — who is affected is the first thing a
                   reviewer weighs; then what the Agent is. */}
               <AgentDeploymentSection req={req} />
-              <AgentContentSection agentId={req.resourceId} />
+              <AgentContentSection req={req} />
             </>
           ) : (
             <>

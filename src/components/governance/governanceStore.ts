@@ -115,6 +115,12 @@ export interface WorkspaceTarget {
   detail?: string;
 }
 
+/** Snapshot of the rest of an Agent's configuration at submit time — the same sections the
+ * Agent's own Build page shows (Kết nối, Agent phụ, Câu hỏi gợi ý), so the reviewer approves
+ * exactly the version that was submitted. */
+export interface AgentConnectionSnap { name: string; logoUrl?: string; scope: "shared" | "personal" }
+export interface SubAgentSnap { name: string; description: string; model?: string; status?: "active" | "paused" }
+
 export interface GovHistoryEntry {
   id: string;
   at: number;
@@ -153,6 +159,11 @@ export interface GovRequest {
   /** Only set for resourceType "agent" — who inside Agent Workspace this publish reaches. Falls
    * back to `audience` + `scopeSummary` on older requests (see workspaceTargetsOf). */
   workspaceTargets?: WorkspaceTarget[];
+  /** Agent only — config snapshots (see AgentConnectionSnap). Undefined = fall back to live data
+   * where the prototype has it (connections), else shown as "Chưa có". */
+  connections?: AgentConnectionSnap[];
+  subAgents?: SubAgentSnap[];
+  starterPrompts?: string[];
   /** Fields of the main resource itself, captured at submit time — diffed against its current
    * fields to detect "builder kept editing after submitting" (see checkDrift), and against its
    * last-approved live snapshot for the "Xem thay đổi" panel. */
@@ -166,9 +177,9 @@ export interface GovRequest {
   history: GovHistoryEntry[];
 }
 
-const REQ_KEY = "governance_request_store_v5";
-const LIVE_KEY = "governance_live_snapshots_v5";
-const SEEDED_KEY = "governance_store_seeded_v5";
+const REQ_KEY = "governance_request_store_v6";
+const LIVE_KEY = "governance_live_snapshots_v6";
+const SEEDED_KEY = "governance_store_seeded_v6";
 
 const store = loadMap<string, GovRequest>(REQ_KEY);
 /** "type:resourceId" → last-approved snapshot. A resource "has cleared governance at least once"
@@ -297,6 +308,18 @@ function seed() {
   markSeeded();
   const t = now();
 
+  const LOGO = {
+    outlook: "https://upload.wikimedia.org/wikipedia/commons/4/45/Microsoft_Office_Outlook_%282018%E2%80%932024%29.svg",
+    sharepoint: "https://upload.wikimedia.org/wikipedia/commons/e/e1/Microsoft_Office_SharePoint_%282018%E2%80%93present%29.svg",
+    teams: "https://upload.wikimedia.org/wikipedia/commons/9/94/Microsoft_Office_Teams_%282019%E2%80%932025%29.svg",
+    salesforce: "https://upload.wikimedia.org/wikipedia/commons/f/f9/Salesforce.com_logo.svg",
+    sheets: "https://upload.wikimedia.org/wikipedia/commons/a/ae/Google_Sheets_2020_Logo.svg",
+    slack: "https://upload.wikimedia.org/wikipedia/commons/d/d5/Slack_icon_2019.svg",
+    gcalendar: "https://upload.wikimedia.org/wikipedia/commons/a/a5/Google_Calendar_icon_%282020%29.svg",
+    gdrive: "https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg",
+  } as const;
+  const conn = (name: string, logo: keyof typeof LOGO, scope: "shared" | "personal"): AgentConnectionSnap => ({ name, logoUrl: LOGO[logo], scope });
+
   const mk = (r: Omit<GovRequest, "history">, hist: GovHistoryEntry[]): GovRequest => ({ ...r, history: hist });
 
   // 1 — the centerpiece: an Agent request. Its resourceRefs are shown to the Org/Unit Admin as
@@ -310,6 +333,9 @@ function seed() {
       version: "v1.1.0", status: "pending", submittedAt: t - 3 * HOUR, updatedAt: t - 3 * HOUR,
       scopeSummary: "Phòng Nhân sự (36 người)", channels: ["web"],
       workspaceTargets: [{ kind: "department", name: "Phòng Nhân sự", members: 36 }, { kind: "people", name: "Ban Giám đốc", members: 3 }],
+      connections: [conn("Microsoft Outlook", "outlook", "shared"), conn("Google Calendar", "gcalendar", "personal")],
+      subAgents: [],
+      starterPrompts: ["Tuần đầu onboarding gồm những gì?", "Đặt lịch gặp HRBP giúp tôi"],
       resourceRefs: [
         { type: "knowledge", resourceId: "kb-7", name: "Lộ trình sản phẩm nội bộ" },
         { type: "skill", resourceId: "weekly-digest", name: "weekly-digest" },
@@ -414,6 +440,12 @@ function seed() {
         { kind: "group", name: "Nhóm cộng tác 'Ra mắt Q4'", members: 9 },
         { kind: "people", name: "Linh Phan, Tran Nam", members: 2 },
       ],
+      connections: [conn("Microsoft Outlook", "outlook", "shared"), conn("Microsoft SharePoint", "sharepoint", "shared"), conn("Salesforce", "salesforce", "personal")],
+      subAgents: [
+        { name: "discount-checker", description: "Kiểm tra mức chiết khấu đề xuất so với hạn mức 10% trước khi soạn báo giá.", model: "DeepSeek V4 Flash", status: "active" },
+        { name: "quote-formatter", description: "Định dạng báo giá theo mẫu chuẩn EOS và xuất PDF.", model: "DeepSeek V4 Flash", status: "active" },
+      ],
+      starterPrompts: ["Soạn báo giá cho khách hàng ABC Corp", "Chiết khấu tối đa cho gói Enterprise là bao nhiêu?", "Tạo báo giá từ deal mới nhất trên CRM"],
       note: "Nâng cấp model và cập nhật mô tả theo chính sách chiết khấu EOS mới — cần duyệt lại trước khi áp dụng cho toàn phòng Kinh doanh.",
       version: "v2.0.0", status: "pending", submittedAt: t - 45 * 60 * 1000, updatedAt: t - 45 * 60 * 1000,
       resourceRefs: [
@@ -434,6 +466,12 @@ function seed() {
       resourceIcon: "⚖️", requesterId: "m-plat-1", requesterName: "Mai Hoang",
       audience: "group", scopeSummary: "Nhóm cộng tác 'Pháp chế EOS' (12 người, trùng 85% với Ban Pháp chế)", channels: ["teams"],
       workspaceTargets: [{ kind: "group", name: "Nhóm cộng tác 'Pháp chế EOS'", members: 12, detail: "Trùng 85% với Ban Pháp chế — vượt ngưỡng nên cần duyệt" }],
+      connections: [conn("Microsoft Outlook", "outlook", "shared"), conn("Microsoft SharePoint", "sharepoint", "shared")],
+      subAgents: [
+        { name: "clause-matcher", description: "Đối chiếu điều khoản trong hợp đồng với thư viện điều khoản chuẩn.", model: "Claude 3.5", status: "active" },
+        { name: "risk-scorer", description: "Chấm điểm rủi ro hợp đồng theo checklist pháp chế.", model: "Claude 3.5", status: "paused" },
+      ],
+      starterPrompts: ["Có hợp đồng nào đang chờ Legal duyệt không?", "Tóm tắt rủi ro của hợp đồng mới nhất"],
       note: "Nhóm cộng tác đã vượt ngưỡng trùng lặp với Ban Pháp chế — gửi duyệt theo quy định.",
       version: "v1.2.0", status: "pending", submittedAt: t - 5 * HOUR, updatedAt: t - 5 * HOUR,
       resourceRefs: [
@@ -451,6 +489,9 @@ function seed() {
       resourceIcon: "🧮", requesterId: "m-fsoft-coo", requesterName: "Linh Phan",
       audience: "org", scopeSummary: "Phòng Tài chính (14 người), Phòng Kinh doanh (48 người)", channels: ["teams", "email"],
       workspaceTargets: [{ kind: "department", name: "Phòng Tài chính", members: 14 }, { kind: "department", name: "Phòng Kinh doanh", members: 48 }],
+      connections: [conn("Microsoft Teams", "teams", "shared"), conn("Google Sheets", "sheets", "shared")],
+      subAgents: [],
+      starterPrompts: ["Đề xuất chiết khấu 15% này có cần Quản lý duyệt không?", "Hạn mức chiết khấu hiện hành là bao nhiêu?"],
       note: "Mở rộng cho Phòng Kinh doanh tự kiểm tra đề xuất chiết khấu trước khi gửi Tài chính.",
       version: "v1.3.0", status: "pending", submittedAt: t - 1 * DAY - 2 * HOUR, updatedAt: t - 1 * DAY - 2 * HOUR,
       resourceRefs: [
@@ -467,6 +508,9 @@ function seed() {
       resourceIcon: "🛠️", requesterId: "m-fsoft-vn-1", requesterName: "Duy Nguyen",
       audience: "community", channels: ["web", "api"],
       workspaceTargets: [{ kind: "community", name: "FPT AI Agent community" }],
+      connections: [conn("Slack", "slack", "shared")],
+      subAgents: [{ name: "vpn-helper", description: "Hướng dẫn cài đặt và xử lý lỗi VPN từng bước.", model: "DeepSeek V4 Flash", status: "active" }],
+      starterPrompts: ["Tôi quên mật khẩu", "Hướng dẫn cài VPN trên macOS", "Tạo ticket hỗ trợ"],
       note: "Agent đã chạy ổn định 1 tháng nội bộ — đề xuất chia sẻ cho FPT AI Agent community làm mẫu Helpdesk L1.",
       version: "v1.4.0", status: "pending", submittedAt: t - 2 * DAY, updatedAt: t - 2 * DAY,
       resourceRefs: [
@@ -483,6 +527,9 @@ function seed() {
       resourceIcon: "📦", requesterId: "m-plat-1", requesterName: "Mai Hoang",
       audience: "org", scopeSummary: "Toàn công ty", channels: ["web", "messenger"],
       workspaceTargets: [{ kind: "company", name: "FPT Smart Cloud", members: 1250 }],
+      connections: [conn("Google Drive", "gdrive", "shared")],
+      subAgents: [],
+      starterPrompts: ["Chính sách bảo hành sản phẩm?", "Cách reset thiết bị về mặc định"],
       note: "Publish bản FAQ sản phẩm mới cho toàn công ty.",
       version: "v1.1.0", status: "approved", submittedAt: t - 4 * DAY, updatedAt: t - 3 * DAY,
       resourceRefs: [{ type: "knowledge", resourceId: "kb-2", name: "FAQ chăm sóc khách hàng" }],
@@ -644,6 +691,7 @@ export const governanceStore = {
     resourceType: GovResourceType; resourceId: string; resourceName: string; resourceIcon?: string;
     requesterId: string; requesterName: string; audience: GovAudience; note: string; version?: string;
     resourceRefs?: AgentResourceRef[]; scopeSummary?: string; channels?: string[]; workspaceTargets?: WorkspaceTarget[];
+    connections?: AgentConnectionSnap[]; subAgents?: SubAgentSnap[]; starterPrompts?: string[];
   }): GovRequest {
     seed();
     const id = nextId();
@@ -653,6 +701,7 @@ export const governanceStore = {
       resourceIcon: input.resourceIcon, requesterId: input.requesterId, requesterName: input.requesterName,
       audience: input.audience, scopeSummary: input.scopeSummary, note: input.note, version: input.version, status: "pending",
       submittedAt: t, updatedAt: t, resourceRefs: input.resourceRefs, channels: input.channels, workspaceTargets: input.workspaceTargets,
+      connections: input.connections, subAgents: input.subAgents, starterPrompts: input.starterPrompts,
       mainSnapshotAtSubmit: buildSnapshot(input.resourceType, input.resourceId),
       history: [historyEntry("submitted", input.requesterId, input.requesterName)],
     };

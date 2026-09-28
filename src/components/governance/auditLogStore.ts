@@ -20,7 +20,7 @@ export interface AuditEntry {
   note?: string;
 }
 
-const KEY = "governance_audit_log_v3";
+const KEY = "governance_audit_log_v4";
 const store = loadMap<string, AuditEntry>(KEY);
 const persist = () => saveMap(KEY, store);
 let seq = 1;
