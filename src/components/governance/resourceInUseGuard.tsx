@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -70,6 +71,20 @@ export function ResourceInUseDialog({
       .map(([ownerId, list]) => ({ ownerId, agents: list }))
       .sort((x, y) => y.agents.length - x.agents.length);
   }, [agents]);
+  // Collapsible per owner. Each time the dialog opens: a single owner is shown expanded; with
+  // several owners every group starts collapsed to "name · N Agent", so the full list of people
+  // who must act fits at a glance (expanding even one big group pushed the others out of view).
+  const groupKey = (ownerId?: string) => ownerId ?? "unknown";
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (open) setExpanded(new Set(groups.length === 1 ? [groupKey(groups[0].ownerId)] : []));
+  }, [open, groups]);
+  const toggle = (ownerId?: string) => setExpanded(prev => {
+    const next = new Set(prev);
+    const k = groupKey(ownerId);
+    if (next.has(k)) next.delete(k); else next.add(k);
+    return next;
+  });
 
   return (
     <AlertDialog open={open} onOpenChange={v => !v && onClose()}>
@@ -91,12 +106,21 @@ export function ResourceInUseDialog({
              * stay pinned while scrolling so every row still reads "whose Agent is this". */}
             <div className="rounded-lg border border-border max-h-64 overflow-y-auto">
               {groups.map(g => (
-                <div key={g.ownerId ?? "unknown"} className="border-b border-border last:border-0">
-                  <div className="sticky top-0 z-10 flex items-center justify-between gap-2 bg-surface-muted px-3 py-1.5">
-                    <span className="text-xs font-semibold truncate">{ownerName(g.ownerId)}</span>
+                <div key={groupKey(g.ownerId)} className="border-b border-border last:border-0">
+                  <button
+                    type="button"
+                    onClick={() => toggle(g.ownerId)}
+                    aria-expanded={expanded.has(groupKey(g.ownerId))}
+                    className="sticky top-0 z-10 w-full flex items-center gap-2 bg-surface-muted hover:bg-surface-sunken px-3 py-2 text-left transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                  >
+                    <ChevronDown
+                      size={14}
+                      className={`shrink-0 text-muted-foreground transition-transform duration-150 ${expanded.has(groupKey(g.ownerId)) ? "" : "-rotate-90"}`}
+                    />
+                    <span className="text-xs font-semibold truncate min-w-0 flex-1">{ownerName(g.ownerId)}</span>
                     <span className="text-xs text-muted-foreground shrink-0">{g.agents.length} Agent</span>
-                  </div>
-                  {g.agents.map(a => (
+                  </button>
+                  {expanded.has(groupKey(g.ownerId)) && g.agents.map(a => (
                     <div key={a.id} className="flex items-center gap-2 px-3 py-1.5">
                       <span className="w-6 h-6 rounded-md bg-surface-muted flex items-center justify-center text-xs shrink-0">{a.emoji}</span>
                       <span className="text-sm truncate min-w-0" title={a.name}>{a.name}</span>
