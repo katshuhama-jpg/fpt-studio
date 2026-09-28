@@ -22,9 +22,8 @@ const MAX_FILES_MSG = "Chỉ có thể tải tối đa 10 tệp mỗi lần. Vui
 const MAX_SIZE_MSG = "Tệp vượt quá 30MB. Vui lòng nén hoặc chia nhỏ tệp trước khi tải lên.";
 
 const ACCESS_OPTIONS: { value: SharingMode; label: string; helper?: string }[] = [
-  { value: "private", label: "Chỉ mình tôi" },
-  { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi thành viên trong Space đều xem và dùng được kho này." },
-  { value: "specific", label: "Người dùng cụ thể" },
+  { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi thành viên trong Space đều dùng lại được." },
+  { value: "specific", label: "Người dùng cụ thể", helper: "Chỉ những người bạn chọn mới dùng lại được." },
 ];
 
 interface StagedFile {
@@ -62,14 +61,14 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
   const [folderId, setFolderId] = useState<string | null>(initialFolderId);
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
-  const [accessMode, setAccessMode] = useState<SharingMode>("private");
+  const [accessMode, setAccessMode] = useState<SharingMode>("all");
   const [accessPeople, setAccessPeople] = useState<SharedPerson[]>([]);
   // Name conflicts are resolved one at a time via a choice dialog before the file is staged —
   // this queue holds the ones still waiting on a choice.
   const [duplicateQueue, setDuplicateQueue] = useState<File[]>([]);
 
   useEffect(() => { if (open) setFolderId(initialFolderId); }, [open, initialFolderId]);
-  useEffect(() => { if (open) { setAccessMode("private"); setAccessPeople([]); setDuplicateQueue([]); } }, [open]);
+  useEffect(() => { if (open) { setAccessMode("all"); setAccessPeople([]); setDuplicateQueue([]); } }, [open]);
 
   const accessInvalid = accessMode === "specific" && accessPeople.length === 0;
 
@@ -257,7 +256,7 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
 
           <div>
             <label className="text-sm font-medium mb-1 block">Chia sẻ tới</label>
-            <p className="text-xs text-muted-foreground mb-3">Chọn ai có thể xem và dùng các tài liệu này.</p>
+            <p className="text-xs text-muted-foreground mb-3">Chia sẻ để người khác dùng lại các tài liệu này cho Agent của họ.</p>
             <div className="space-y-2">
               {ACCESS_OPTIONS.map(opt => {
                 const selected = accessMode === opt.value;

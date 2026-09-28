@@ -15,9 +15,8 @@ const NAME_MAX = 50;
 const DESC_MAX = 256;
 
 const SHARING_OPTIONS: { value: SharingMode; label: string; helper?: string }[] = [
-  { value: "private", label: "Chỉ mình tôi" },
-  { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi thành viên trong Space đều xem và dùng được kho này." },
-  { value: "specific", label: "Người dùng cụ thể" },
+  { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi thành viên trong Space đều dùng lại được." },
+  { value: "specific", label: "Người dùng cụ thể", helper: "Chỉ những người bạn chọn mới dùng lại được." },
 ];
 
 type TestState = "idle" | "testing" | "success" | "failure";
@@ -37,7 +36,7 @@ export default function ConnectExternalKnowledgeBaseModal({ open, onClose }: { o
   const [endpoint, setEndpoint] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
-  const [sharingMode, setSharingMode] = useState<SharingMode>("private");
+  const [sharingMode, setSharingMode] = useState<SharingMode>("all");
   const [people, setPeople] = useState<Sharing["people"]>([]);
   const [querySharing, setQuerySharing] = useState<QuerySharing>(DEFAULT_QUERY_SHARING);
   const [endpointTouched, setEndpointTouched] = useState(false);
@@ -158,7 +157,7 @@ export default function ConnectExternalKnowledgeBaseModal({ open, onClose }: { o
 
           <div>
             <label className="text-sm font-medium mb-1 block">Chia sẻ tới</label>
-            <p className="text-xs text-muted-foreground mb-3">Chọn ai có thể xem và dùng kho tri thức này.</p>
+            <p className="text-xs text-muted-foreground mb-3">Chia sẻ để người khác dùng lại kho tri thức này cho Agent của họ.</p>
             <div className="space-y-2">
               {SHARING_OPTIONS.map(opt => (
                 <RadioCard key={opt.value} selected={sharingMode === opt.value} onSelect={() => setSharingMode(opt.value)} label={opt.label} helper={opt.helper}>

@@ -13,9 +13,8 @@ import { type Sharing, type SharingMode } from "./customConnectorSharing";
 import CustomConnectorMemberPicker from "./CustomConnectorMemberPicker";
 
 const SHARING_OPTIONS: { value: SharingMode; label: string; helper?: string }[] = [
-  { value: "private", label: "Chỉ mình tôi" },
-  { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi thành viên trong Space đều xem và dùng được custom connector này." },
-  { value: "specific", label: "Người dùng cụ thể" },
+  { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi thành viên trong Space đều dùng lại được." },
+  { value: "specific", label: "Người dùng cụ thể", helper: "Chỉ những người bạn chọn mới dùng lại được." },
 ];
 
 /** "Chia sẻ" modal for a Custom Connector's row "..." menu — owner-only, lets them add/remove
@@ -36,7 +35,7 @@ export default function CustomConnectorShareModal({
   resourceOwnerId?: string;
   attachedAgentIds?: string[];
 }) {
-  const [mode, setMode] = useState<SharingMode>(initialSharing.mode);
+  const [mode, setMode] = useState<SharingMode>(initialSharing.mode === "private" ? "all" : initialSharing.mode);
   const [people, setPeople] = useState(initialSharing.people);
   const [blockingAgents, setBlockingAgents] = useState<AgentRecord[]>([]);
   const [showRevokeConfirm, setShowRevokeConfirm] = useState(false);
@@ -90,7 +89,7 @@ export default function CustomConnectorShareModal({
           <div className="space-y-5 py-1">
             <div>
               <label className="text-sm font-medium mb-1 block">Chia sẻ tới</label>
-              <p className="text-xs text-muted-foreground mb-3">Chọn ai có thể xem và dùng connector này.</p>
+              <p className="text-xs text-muted-foreground mb-3">Chia sẻ để người khác dùng lại connector này cho Agent của họ.</p>
               <div className="space-y-2">
                 {SHARING_OPTIONS.map(opt => {
                   const selected = mode === opt.value;

@@ -12,9 +12,8 @@ import SkillMemberPicker from "./SkillMemberPicker";
 const NAME_MAX = 60;
 const DESC_MAX = 400;
 const SHARING_OPTIONS: { value: SharingMode; label: string; helper?: string }[] = [
-  { value: "private", label: "Chỉ mình tôi" },
-  { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi thành viên trong Space đều xem và dùng được skill này." },
-  { value: "specific", label: "Người dùng cụ thể" },
+  { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi thành viên trong Space đều dùng lại được." },
+  { value: "specific", label: "Người dùng cụ thể", helper: "Chỉ những người bạn chọn mới dùng lại được." },
 ];
 
 export interface SkillFormData {
@@ -39,7 +38,7 @@ export default function CreateSkillModal({ onClose, onSubmit, initialData, curre
   const [name, setName] = useState(initialData?.name ?? "");
   const [description, setDescription] = useState(initialData?.description ?? "");
   const [body, setBody] = useState(initialData?.body ?? "");
-  const [sharingMode, setSharingMode] = useState<SharingMode>("private");
+  const [sharingMode, setSharingMode] = useState<SharingMode>("all");
   const [people, setPeople] = useState<SharedPerson[]>([]);
   const [nameTouched, setNameTouched] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
@@ -136,7 +135,7 @@ export default function CreateSkillModal({ onClose, onSubmit, initialData, curre
             {!isEdit && (
               <div>
                 <label className="text-sm font-medium mb-1 block">Chia sẻ tới</label>
-                <p className="text-xs text-muted-foreground mb-3">Chọn ai có thể xem và dùng skill này.</p>
+                <p className="text-xs text-muted-foreground mb-3">Chia sẻ để người khác dùng lại skill này cho Agent của họ.</p>
                 <div className="space-y-2">
                   {SHARING_OPTIONS.map(opt => {
                     const selected = sharingMode === opt.value;

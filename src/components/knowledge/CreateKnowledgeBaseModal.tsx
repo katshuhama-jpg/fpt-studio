@@ -19,9 +19,8 @@ const NAME_MAX = 50;
 const DESC_MAX = 256;
 
 const SHARING_OPTIONS: { value: SharingMode; label: string; helper?: string }[] = [
-  { value: "private", label: "Chỉ mình tôi" },
-  { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi thành viên trong Space đều xem và dùng được kho này." },
-  { value: "specific", label: "Người dùng cụ thể" },
+  { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi thành viên trong Space đều dùng lại được." },
+  { value: "specific", label: "Người dùng cụ thể", helper: "Chỉ những người bạn chọn mới dùng lại được." },
 ];
 
 export default function CreateKnowledgeBaseModal({
@@ -35,7 +34,7 @@ export default function CreateKnowledgeBaseModal({
   const isEdit = !!editingKb;
   const [name, setName] = useState(editingKb?.name ?? "");
   const [description, setDescription] = useState(editingKb?.description ?? "");
-  const [sharingMode, setSharingMode] = useState<SharingMode>(editingKb?.sharing.mode ?? "private");
+  const [sharingMode, setSharingMode] = useState<SharingMode>(!editingKb || editingKb.sharing.mode === "private" ? "all" : editingKb.sharing.mode);
   const [people, setPeople] = useState(editingKb?.sharing.people ?? []);
   const [querySharing, setQuerySharing] = useState<QuerySharing>(editingKb?.querySharing ?? DEFAULT_QUERY_SHARING);
   const [nameTouched, setNameTouched] = useState(false);
@@ -150,7 +149,7 @@ export default function CreateKnowledgeBaseModal({
               <>
                 <div>
                   <label className="text-sm font-medium mb-1 block">Chia sẻ tới</label>
-                  <p className="text-xs text-muted-foreground mb-3">Chọn ai có thể xem và dùng kho tri thức này.</p>
+                  <p className="text-xs text-muted-foreground mb-3">Chia sẻ để người khác dùng lại kho tri thức này cho Agent của họ.</p>
                   <div className="space-y-2">
                     {SHARING_OPTIONS.map(opt => (
                       <RadioCard key={opt.value} selected={sharingMode === opt.value} onSelect={() => setSharingMode(opt.value)} label={opt.label} helper={opt.helper}>

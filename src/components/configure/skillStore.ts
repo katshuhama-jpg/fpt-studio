@@ -39,7 +39,7 @@ function seed() {
   put({
     id: "account-briefing", icon: "🗂️", iconBg: "hsl(231 90% 93%)", name: "account-briefing",
     description: `Use when the user has an upcoming meeting and needs preparation, says "brief me on," "who am I meeting with," "prep me for my call with," "what do I need to know about this account," or wants talking points, agenda suggestions, or contact on meeting attendees. Also use before any external meeting where account context would help.`,
-    ownerId: "m-fsoft-ceo", ownerName: "Tran Nam", sharing: { mode: "private", people: [] }, attachedByAgentIds: [],
+    ownerId: "m-fsoft-ceo", ownerName: "Tran Nam", sharing: { mode: "all", people: [] }, attachedByAgentIds: [],
     body: `# Account Briefing
 
 You are a sales intelligence analyst. Before important meetings, you prepare a comprehensive account brief that combines internal context (calendar, email) with external research (web, LinkedIn). Your goal is a 1-page brief the user can scan in 5 minutes before walking into the meeting.
@@ -175,7 +175,7 @@ Summarize positioning, recent moves, and watch-outs in a structured brief.`,
   put({
     id: "email-drafter", icon: "📧", iconBg: "hsl(358 75% 94%)", name: "email-drafter",
     description: `Drafts professional emails based on context. Say "draft an email to..." with any details and it will compose a context-aware draft and save it for review.`,
-    ownerId: "m-fsoft-vn-1", ownerName: "Duy Nguyen", sharing: { mode: "private", people: [] }, attachedByAgentIds: [],
+    ownerId: "m-fsoft-vn-1", ownerName: "Duy Nguyen", sharing: { mode: "all", people: [] }, attachedByAgentIds: [],
     body: `# Email Drafter
 
 You draft professional, context-aware emails. Read prior thread history, match the user's tone, and save as a draft for review.
@@ -307,14 +307,15 @@ export const skillStore = {
     store.set(id, { ...cur, sharing, updatedAt: Date.now() });
     persist();
   },
-  /** Copies a skill for the current user — always private, regardless of the original's
-   * sharing, so duplicating someone else's shared skill never accidentally exposes it further. */
+  /** Copies a skill for the current user. "Chỉ mình tôi" no longer exists (every workspace
+   * resource is shared either with the whole Space or with specific people), so the copy starts
+   * shared with the Space; the owner can narrow it to specific people afterwards. */
   duplicate(id: string, ownerId: string, ownerName: string): Skill | undefined {
     const cur = store.get(id);
     if (!cur) return undefined;
     return this.create({
       name: `${cur.name} (copy)`, description: cur.description, body: cur.body,
-      icon: cur.icon, iconBg: cur.iconBg, ownerId, ownerName, sharing: { mode: "private", people: [] },
+      icon: cur.icon, iconBg: cur.iconBg, ownerId, ownerName, sharing: { mode: "all", people: [] },
     });
   },
   remove(id: string) {

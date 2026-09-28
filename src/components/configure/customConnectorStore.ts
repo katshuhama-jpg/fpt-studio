@@ -52,7 +52,7 @@ function seed() {
     id: "cc-1", name: "internal-crm-mcp", url: "https://mcp.internal.fpt.com/crm",
     authType: "static_headers", headers: [{ key: "Authorization", value: "Bearer ••••••••" }],
     ownerId: CURRENT_USER.id, ownerName: CURRENT_USER.name,
-    sharing: { mode: "private", people: [] },
+    sharing: { mode: "all", people: [] },
     attachedByAgentIds: ["cskh"],
     createdAt: now - 14 * DAY, updatedAt: now - 2 * 3_600_000,
   });
@@ -73,7 +73,7 @@ function seed() {
     id: "cc-3", name: "legal-search-mcp", url: "https://mcp.legal.fpt.com/search",
     authType: "none", headers: [],
     ownerId: "m-fsoft-vn-1", ownerName: "Duy Nguyen",
-    sharing: { mode: "private", people: [] },
+    sharing: { mode: "all", people: [] },
     attachedByAgentIds: [],
     createdAt: now - 20 * DAY, updatedAt: now - 20 * DAY,
   });

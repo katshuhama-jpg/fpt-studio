@@ -7,9 +7,8 @@ import { type SharingMode, type SharedPerson } from "./guardrailSharing";
 import GuardrailMemberPicker from "./GuardrailMemberPicker";
 
 const SHARING_OPTIONS: { value: SharingMode; label: string; helper?: string }[] = [
-  { value: "private", label: "Chỉ mình tôi" },
-  { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi thành viên trong Space đều xem và dùng được guardrail này." },
-  { value: "specific", label: "Người dùng cụ thể" },
+  { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi thành viên trong Space đều dùng lại được." },
+  { value: "specific", label: "Người dùng cụ thể", helper: "Chỉ những người bạn chọn mới dùng lại được." },
 ];
 
 type ResponseKind = "auto" | "fixed" | null;
@@ -46,7 +45,7 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
   const [response, setResponse] = useState<ResponseKind>(actionToResponse(initialData?.action));
   const [fixedText, setFixedText] = useState("");
   const [allAgents, setAllAgents] = useState(initialData?.allAgents ?? false);
-  const [sharingMode, setSharingMode] = useState<SharingMode>(initialData?.sharing?.mode ?? "private");
+  const [sharingMode, setSharingMode] = useState<SharingMode>(!initialData?.sharing || initialData.sharing.mode === "private" ? "all" : initialData.sharing.mode);
   const [people, setPeople] = useState<SharedPerson[]>(initialData?.sharing?.people ?? []);
   const [submitAttempted, setSubmitAttempted] = useState(false);
 
@@ -214,7 +213,7 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
             <p className="text-xs text-muted-foreground mb-3">
               {allAgents
                 ? "Guardrail áp dụng cho mọi Agent nên mọi người trong Space đều xem được."
-                : "Chọn ai có thể xem và dùng guardrail này."}
+                : "Chia sẻ để người khác dùng lại guardrail này cho Agent của họ."}
             </p>
             <div className="space-y-2">
               {SHARING_OPTIONS.map(opt => {

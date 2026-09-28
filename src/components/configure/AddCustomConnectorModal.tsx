@@ -7,9 +7,8 @@ import { type SharingMode, type SharedPerson, type Sharing } from "./customConne
 import CustomConnectorMemberPicker from "./CustomConnectorMemberPicker";
 
 const SHARING_OPTIONS: { value: SharingMode; label: string; helper?: string }[] = [
-  { value: "private", label: "Chỉ mình tôi" },
-  { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi thành viên trong Space đều xem và dùng được custom connector này." },
-  { value: "specific", label: "Người dùng cụ thể" },
+  { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi thành viên trong Space đều dùng lại được." },
+  { value: "specific", label: "Người dùng cụ thể", helper: "Chỉ những người bạn chọn mới dùng lại được." },
 ];
 
 const AUTH_OPTIONS: { value: ConnectorAuthType; label: string }[] = [
@@ -45,7 +44,7 @@ export default function AddCustomConnectorModal({ editing, onClose, onCreated, o
     editing?.headers.length ? editing.headers.map(h => ({ ...h })) : [{ key: "", value: "" }],
   );
   const [revealed, setRevealed] = useState<Set<number>>(new Set());
-  const [sharingMode, setSharingMode] = useState<SharingMode>(editing?.sharing.mode ?? "private");
+  const [sharingMode, setSharingMode] = useState<SharingMode>(!editing || editing.sharing.mode === "private" ? "all" : editing.sharing.mode);
   const [people, setPeople] = useState<SharedPerson[]>(editing?.sharing.people ?? []);
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [urlTouched, setUrlTouched] = useState(false);
@@ -213,7 +212,7 @@ export default function AddCustomConnectorModal({ editing, onClose, onCreated, o
           {!isEditing && (
             <div>
               <label className="text-sm font-medium mb-1 block">Chia sẻ tới</label>
-              <p className="text-xs text-muted-foreground mb-3">Chọn ai có thể xem và dùng connector này.</p>
+              <p className="text-xs text-muted-foreground mb-3">Chia sẻ để người khác dùng lại connector này cho Agent của họ.</p>
               <div className="space-y-2">
                 {SHARING_OPTIONS.map(opt => {
                   const selected = sharingMode === opt.value;

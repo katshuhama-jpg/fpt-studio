@@ -5733,10 +5733,10 @@ function AddCustomMcpModal({ onClose, onCreated }: { onClose: () => void; onCrea
 
   const submit = () => {
     if (!canSubmit) return;
-    // Quick-add from inside the Agent Builder always creates a private custom connector (owned
-    // by the current user) — the real product doesn't expose a sharing choice here. Sharing can
-    // be changed later from the Console's Connectors page.
-    const sharing: CustomConnectorSharingShape = { mode: "private", people: [] };
+    // Quick-add from inside the Agent Builder doesn't ask about sharing. "Chỉ mình tôi" no longer
+    // exists, so the new custom connector starts shared with the whole Space; the owner can
+    // narrow it to specific people later from the Console's Connectors page.
+    const sharing: CustomConnectorSharingShape = { mode: "all", people: [] };
     const connector = customConnectorStore.create({
       name: name.trim(), url: url.trim(), authType,
       headers: headers.filter(h => h.key.trim()), sharing,

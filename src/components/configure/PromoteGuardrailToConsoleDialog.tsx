@@ -8,9 +8,8 @@ import GuardrailMemberPicker from "./GuardrailMemberPicker";
 
 const NAME_MAX = 100;
 const SHARING_OPTIONS: { value: SharingMode; label: string; helper?: string }[] = [
-  { value: "private", label: "Chỉ mình tôi" },
-  { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi thành viên trong Space đều xem và dùng được guardrail này." },
-  { value: "specific", label: "Người dùng cụ thể" },
+  { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi thành viên trong Space đều dùng lại được." },
+  { value: "specific", label: "Người dùng cụ thể", helper: "Chỉ những người bạn chọn mới dùng lại được." },
 ];
 
 /** "Chuyển thành guardrail chung" — promotes an Agent-private guardrail into the Console list,
@@ -21,7 +20,7 @@ export default function PromoteGuardrailToConsoleDialog({ agentId, item, current
   onClose: () => void; onPromoted?: (guardrailId: string) => void;
 }) {
   const [name, setName] = useState(item.name.slice(0, NAME_MAX));
-  const [mode, setMode] = useState<SharingMode>("private");
+  const [mode, setMode] = useState<SharingMode>("all");
   const [people, setPeople] = useState<Sharing["people"]>([]);
   const [submitAttempted, setSubmitAttempted] = useState(false);
 
@@ -65,7 +64,7 @@ export default function PromoteGuardrailToConsoleDialog({ agentId, item, current
 
         <div>
           <label className="text-sm font-medium mb-1 block">Chia sẻ tới</label>
-          <p className="text-xs text-muted-foreground mb-3">Chọn ai có thể xem và dùng guardrail này sau khi đưa lên Console.</p>
+          <p className="text-xs text-muted-foreground mb-3">Chia sẻ để người khác dùng lại guardrail này cho Agent của họ sau khi đưa lên Console.</p>
           <div className="space-y-2">
             {SHARING_OPTIONS.map(opt => {
               const selected = mode === opt.value;

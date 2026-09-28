@@ -20,9 +20,8 @@ const DUPLICATE_CHECK_MIN_CHARS = 8;
 const DUPLICATE_CHECK_DEBOUNCE_MS = 500;
 
 const ACCESS_OPTIONS: { value: SharingMode; label: string; helper?: string }[] = [
-  { value: "private", label: "Chỉ mình tôi" },
-  { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi thành viên trong Space đều xem và dùng được FAQ này." },
-  { value: "specific", label: "Người dùng cụ thể" },
+  { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi thành viên trong Space đều dùng lại được." },
+  { value: "specific", label: "Người dùng cụ thể", helper: "Chỉ những người bạn chọn mới dùng lại được." },
 ];
 
 /** Pass either kbId (Console FAQ tab) or agentId (Agent Knowledge "Câu hỏi thường gặp" tile).
@@ -52,7 +51,7 @@ export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, editi
   const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false);
   // Only asked at creation (edit-time sharing changes go through the row-level "Chia sẻ"
   // action instead, same split as UploadDocumentsModal).
-  const [accessMode, setAccessMode] = useState<SharingMode>("private");
+  const [accessMode, setAccessMode] = useState<SharingMode>("all");
   const [accessPeople, setAccessPeople] = useState<SharedPerson[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -231,7 +230,7 @@ export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, editi
             {!isEdit && (
               <div>
                 <label className="text-sm font-medium mb-1 block">Chia sẻ tới</label>
-                <p className="text-xs text-muted-foreground mb-3">Chọn ai có thể xem và dùng FAQ này.</p>
+                <p className="text-xs text-muted-foreground mb-3">Chia sẻ để người khác dùng lại FAQ này cho Agent của họ.</p>
                 <div className="space-y-2">
                   {ACCESS_OPTIONS.map(opt => {
                     const selected = accessMode === opt.value;

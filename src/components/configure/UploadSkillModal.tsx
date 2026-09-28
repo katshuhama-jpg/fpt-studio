@@ -10,9 +10,8 @@ import type { SkillFormData } from "./CreateSkillModal";
 const ALLOWED_EXT = ["md", "zip", "skill"];
 const ACCEPT_ATTR = ALLOWED_EXT.map(e => `.${e}`).join(",");
 const SHARING_OPTIONS: { value: SharingMode; label: string; helper?: string }[] = [
-  { value: "private", label: "Chỉ mình tôi" },
-  { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi thành viên trong Space đều xem và dùng được skill này." },
-  { value: "specific", label: "Người dùng cụ thể" },
+  { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi thành viên trong Space đều dùng lại được." },
+  { value: "specific", label: "Người dùng cụ thể", helper: "Chỉ những người bạn chọn mới dùng lại được." },
 ];
 
 function extOf(name: string): string {
@@ -58,7 +57,7 @@ export default function UploadSkillModal({ onClose, onSubmit, currentUser, isDup
   const [staged, setStaged] = useState<Staged | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [sharingMode, setSharingMode] = useState<SharingMode>("private");
+  const [sharingMode, setSharingMode] = useState<SharingMode>("all");
   const [people, setPeople] = useState<SharedPerson[]>([]);
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -179,7 +178,7 @@ export default function UploadSkillModal({ onClose, onSubmit, currentUser, isDup
 
         <div>
           <label className="text-sm font-medium mb-1 block">Chia sẻ tới</label>
-          <p className="text-xs text-muted-foreground mb-3">Chọn ai có thể xem và dùng skill này.</p>
+          <p className="text-xs text-muted-foreground mb-3">Chia sẻ để người khác dùng lại skill này cho Agent của họ.</p>
           <div className="space-y-2">
             {SHARING_OPTIONS.map(opt => {
               const selected = sharingMode === opt.value;

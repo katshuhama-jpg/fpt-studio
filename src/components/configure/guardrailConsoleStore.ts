@@ -70,14 +70,14 @@ function seed() {
     id: "g-4", name: "Commercial response policy", desc: "Prevent AI from making pricing commitments or answering restricted topics.",
     action: "Autogenerate response", mandatory: false,
     agents: [{ name: "Banking ABC", color: "#4338ca" }, { name: "IT Helpdesk", color: "#059669" }, { name: "Product FAQ", color: "#d97706" }, { name: "Sales Qualifier", color: "#db2777" }],
-    enabled: true, ownerId: "m-fsoft-ceo", ownerName: "Tran Nam", sharing: { mode: "private", people: [] },
+    enabled: true, ownerId: "m-fsoft-ceo", ownerName: "Tran Nam", sharing: { mode: "all", people: [] },
     attachedByAgentIds: ["cskh"], createdAt: now - 20 * DAY, updatedAt: now - 2 * 3_600_000,
   });
   put({ id: "g-5", name: "Legal and medical advice", desc: "Do not provide legal or medical advice — refer to a specialist.", action: "Custom response", mandatory: false, agents: [], allAgents: true, enabled: true, attachedByAgentIds: [], createdAt: now - 60 * DAY, updatedAt: now - 60 * DAY });
   put({
     id: "g-6", name: "Escalate risky replies", desc: "Human approval for any commitments about future roadmap.",
     action: "Require approval", mandatory: false, agents: [{ name: "Sales Qualifier", color: "#d97706" }], enabled: false,
-    ownerId: "m-fsoft-coo", ownerName: "Linh Phan", sharing: { mode: "private", people: [] },
+    ownerId: "m-fsoft-coo", ownerName: "Linh Phan", sharing: { mode: "all", people: [] },
     attachedByAgentIds: [], createdAt: now - 15 * DAY, updatedAt: now - 15 * DAY,
   });
   put({
