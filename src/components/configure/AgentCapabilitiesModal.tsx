@@ -9,8 +9,9 @@ import { agentCapabilityStore } from "./agentCapabilityStore";
 /** Full editor for the agent's default capabilities. Lives in a dialog rather than inline in
  * the config rail because each of the nine needs a description (and some a condition note) to
  * be decidable — too much for a 476px sidebar, where the rail instead shows just the on/total
- * count. Laid out as a two-column grid of cards rather than one divided list so the nine fit
- * without a long scroll. Changes are written straight through, so there's nothing to save. */
+ * count. Each capability is one full-width row — no card chrome and no divider rules, so the
+ * nine read as a single settings list and the eye runs straight down the switches rather than
+ * across boxes. Changes are written straight through, so there's nothing to save. */
 export default function AgentCapabilitiesModal({ agentId, onClose, onChanged }: {
   agentId: string;
   onClose: () => void;
@@ -47,19 +48,16 @@ export default function AgentCapabilitiesModal({ agentId, onClose, onChanged }: 
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-4">
             {capabilities.map(cap => {
               const on = agentCapabilityStore.isOn(agentId, cap.id);
               return (
-                <div
-                  key={cap.id}
-                  className={`flex items-start gap-3 rounded-md border p-3.5 transition-colors ${on ? "" : "bg-muted/30"}`}
-                >
+                <div key={cap.id} className="flex items-start gap-4">
                   <div className="min-w-0 flex-1">
                     <p className={`text-sm font-medium ${on ? "" : "text-muted-foreground"}`}>{cap.name}</p>
                     <p className="text-sm text-muted-foreground leading-relaxed mt-0.5">{cap.description}</p>
                     {cap.note && (
-                      <p className="text-xs text-muted-foreground/80 leading-relaxed mt-1.5">{cap.note}</p>
+                      <p className="text-xs text-muted-foreground/80 leading-relaxed mt-1">{cap.note}</p>
                     )}
                   </div>
                   <Switch
