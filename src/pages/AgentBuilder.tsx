@@ -6707,7 +6707,7 @@ function DeleteStarterPromptDialog({ title, open, onOpenChange, onConfirm }: {
  * permanently aren't listed at all, and document/design generation is toggled in Skills instead
  * (see builtinSkillStore.ts) so a capability never has two switches.
  *
- * The rail shows only the on/total count and an Edit button — the nine rows each carry a
+ * The rail shows only the on/total count and an Edit button — the nine cards each carry a
  * description (and some a condition note) that doesn't fit legibly in a 476px sidebar, so the
  * switches themselves live in a dialog. */
 function CapabilitiesInner({ agentId }: { agentId: string }) {
@@ -6716,7 +6716,6 @@ function CapabilitiesInner({ agentId }: { agentId: string }) {
   const [showEditor, setShowEditor] = useState(false);
   const capabilities = agentCapabilityStore.list();
   const onCount = agentCapabilityStore.onCount(agentId);
-  const offNames = capabilities.filter(cap => !agentCapabilityStore.isOn(agentId, cap.id)).map(cap => cap.name);
 
   return (
     <>
@@ -6732,13 +6731,6 @@ function CapabilitiesInner({ agentId }: { agentId: string }) {
             Edit
           </button>
         </div>
-        {offNames.length > 0 && (
-          // Naming what's off matters more than naming what's on: the count alone doesn't tell a
-          // reviewer whether the agent lost web search or just carousel rendering.
-          <p className="px-3.5 pb-3 -mt-1 text-[11px] text-muted-foreground leading-relaxed line-clamp-2">
-            Đang tắt: {offNames.join(", ")}.
-          </p>
-        )}
       </div>
 
       {showEditor && (
