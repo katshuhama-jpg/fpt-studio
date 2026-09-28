@@ -16,9 +16,8 @@ import QueryScopeSection, { RadioCard, isQueryScopeValid } from "./QueryScopeSec
 import { knowledgeStore, type KnowledgeItem } from "./knowledgeStore";
 
 const BUILD_ACCESS_OPTIONS: { value: SharingMode; label: string; helper?: string }[] = [
-  { value: "private", label: "Chỉ mình tôi" },
-  { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi builder đều dùng được." },
-  { value: "specific", label: "Người cụ thể", helper: "Chỉ người bạn chọn." },
+  { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi thành viên trong Space đều dùng lại được." },
+  { value: "specific", label: "Người dùng cụ thể", helper: "Chỉ những người bạn chọn mới dùng lại được." },
 ];
 
 /** Merged "Chia sẻ" dialog for an Agent's own Knowledge item (doc/url/FAQ in the "Cá nhân"
@@ -47,7 +46,8 @@ export default function ShareAgentItemModal({ agentId, items, onClose }: {
   const initialSharing: Sharing = single?.sharing ?? { mode: "private", people: [] };
   const initialQuerySharing: QuerySharing = single?.querySharing ?? DEFAULT_QUERY_SHARING;
 
-  const [buildMode, setBuildMode] = useState<SharingMode>(initialSharing.mode);
+  // "Chỉ mình tôi" no longer exists — an item never shared before opens as "Tất cả".
+  const [buildMode, setBuildMode] = useState<SharingMode>(initialSharing.mode === "private" ? "all" : initialSharing.mode);
   const [buildPeople, setBuildPeople] = useState(initialSharing.people);
   const [querySharing, setQuerySharing] = useState<QuerySharing>(initialQuerySharing);
   const [showRevokeConfirm, setShowRevokeConfirm] = useState(false);
@@ -90,8 +90,8 @@ export default function ShareAgentItemModal({ agentId, items, onClose }: {
 
           <div className="space-y-6 py-1">
             <div>
-              <label className="text-sm font-medium block">Quyền xây Agent</label>
-              <p className="text-xs text-muted-foreground mt-0.5 mb-2.5">Ai được dùng tài liệu này để xây Agent trong Console.</p>
+              <label className="text-sm font-medium mb-1 block">Chia sẻ tới</label>
+              <p className="text-xs text-muted-foreground mb-3">Chia sẻ để người khác dùng lại tài liệu này cho Agent của họ.</p>
               <div className="space-y-2">
                 {BUILD_ACCESS_OPTIONS.map(opt => (
                   <RadioCard key={opt.value} selected={buildMode === opt.value} onSelect={() => setBuildMode(opt.value)} label={opt.label} helper={opt.helper}>

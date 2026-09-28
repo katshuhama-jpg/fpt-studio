@@ -1517,7 +1517,7 @@ function AgentKnowledgeGrid({ agentId, onOpenOwn }: { agentId: string; onOpenOwn
     // Real Console KBs open in a new tab instead of navigating this one away from the
     // Agent Builder — matching the sidebar's own pattern — so switching to a shared KB's
     // Console detail never silently discards unsaved Instructions edits.
-    const onOpen = () => { if (c.isOwn) onOpenOwn(); else window.open(`/knowledge/${c.id}`, "_blank", "noopener,noreferrer"); };
+    const onOpen = () => { if (c.isOwn) onOpenOwn(); else window.open(`/knowledge/${c.id}?viaAgent=${agentId}`, "_blank", "noopener,noreferrer"); };
     const editBlocked = !c.isOwn && !isOwner ? "Chỉ chủ sở hữu mới có thể đổi tên kho tri thức này." : undefined;
     const shareBlocked = !c.isOwn && !isOwner ? "Chỉ chủ sở hữu mới có thể chia sẻ kho tri thức này." : undefined;
     const deleteBlocked = !c.isOwn && !isOwner ? "Chỉ chủ sở hữu mới có thể xóa kho tri thức này." : undefined;
@@ -5235,7 +5235,7 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
                     name={s.name}
                     chip={<div className="flex items-center gap-1 shrink-0"><SkillOwnershipTag skill={s} userId={currentUser.id} /></div>}
                     onOpen={() => {}}
-                    href={`/tools/${s.id}`}
+                    href={`/tools/${s.id}?viaAgent=${agentId}`}
                     onRemove={() => setDetachTarget({ id: s.id, name: s.name })}
                     openLabel="Mở skill"
                     removeLabel="Gỡ liên kết"
@@ -5421,13 +5421,13 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
       key: `kb-${kb.id}`,
       name: kb.name,
       icon: ConnectIcon,
-      href: `/knowledge/${kb.id}`,
+      href: `/knowledge/${kb.id}?viaAgent=${agentId}`,
       remove: () => setDetachTarget({ id: kb.id, name: kb.name }),
       // Plain "Của tôi"/"Được chia sẻ" caption — no more granular Riêng tư/Chia sẻ · N/Dùng
       // chung pill, matching every other Knowledge screen in the product.
       chip: (
         <span className={`text-xs shrink-0 whitespace-nowrap ${kb.ownerId === KB_CURRENT_USER.id ? "text-muted-foreground" : "font-medium text-primary"}`}>
-          {kb.ownerId === KB_CURRENT_USER.id ? "Của tôi" : "Được chia sẻ"}
+          {kb.ownerId === KB_CURRENT_USER.id ? "Của tôi" : isKbAccessibleTo(kb, KB_CURRENT_USER.id) ? "Được chia sẻ" : "Chỉ xem trong Agent"}
         </span>
       ),
     })),
@@ -7256,7 +7256,7 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
               <SkillCardMenu
                 isActive={agentSkillStore.isActive(agentId, s.id)}
                 onToggleActive={() => toggleActive(s)}
-                onOpen={() => window.open(`/tools/${s.id}`, "_blank", "noopener")}
+                onOpen={() => window.open(`/tools/${s.id}?viaAgent=${agentId}`, "_blank", "noopener")}
                 onRemove={() => setDetachTarget({ id: s.id, name: s.name })}
                 removeLabel="Gỡ liên kết"
               />

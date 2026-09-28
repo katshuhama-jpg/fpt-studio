@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import {
   knowledgeBaseStore, isViewOnly, isAccessibleTo, CURRENT_USER, type KnowledgeBase,
 } from "@/components/knowledge/knowledgeBaseStore";
+import { useAgentContextAccess, AgentContextBanner } from "@/components/governance/agentContextAccess";
 import { useGroupAccess } from "@/pages/organization/scopeAccess";
 import { knowledgeDocumentStore } from "@/components/knowledge/knowledgeDocumentStore";
 import { knowledgeUrlStore } from "@/components/knowledge/knowledgeUrlStore";
@@ -75,11 +76,13 @@ export default function KnowledgeDetail() {
   const [params, setParams] = useSearchParams();
   const rawTab = params.get("tab");
   const tab: Tab = VALID_TABS.includes(rawTab as Tab) ? (rawTab as Tab) : "documents";
-  const setTab = (t: Tab) => setParams({ tab: t });
+  // Keep ?viaAgent= when switching tabs, or read-only Agent-context access would be lost.
+  const setTab = (t: Tab) => { const via = params.get("viaAgent"); setParams(via ? { tab: t, viaAgent: via } : { tab: t }); };
 
   const [loadState, setLoadState] = useState<"loading" | "error" | "ready">("loading");
   const [tick, setTick] = useState(0);
   const [kb, setKb] = useState<KnowledgeBase | undefined>(undefined);
+  const agentCtx = useAgentContextAccess(kb?.attachedByAgentIds);
   const [showMenu, setShowMenu] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showShare, setShowShare] = useState(false);
@@ -150,7 +153,8 @@ export default function KnowledgeDetail() {
   // A role whose Knowledge View Scope is "Own & Shared" (or that has no View permission at
   // all) can't reach a KB it doesn't own and wasn't shared with just by typing its URL —
   // mirrors the not-found state above rather than silently rendering the KB's real content.
-  if (!access.canSeeAll && !isAccessibleTo(kb, access.userId)) {
+  const viaAgentOnly = !access.canSeeAll && !isAccessibleTo(kb, access.userId);
+  if (viaAgentOnly && !agentCtx.allowed) {
     return (
       <div className="flex flex-col h-full bg-background items-center justify-center text-center px-6">
         <Database size={22} className="text-muted-foreground/60 mb-3" />
@@ -197,6 +201,9 @@ export default function KnowledgeDetail() {
           <span className="text-sm text-muted-foreground/50">/</span>
           <span className="text-sm text-foreground font-medium truncate">{kb.name}</span>
         </div>
+        {viaAgentOnly && agentCtx.agent && (
+          <div className="mb-3"><AgentContextBanner agent={agentCtx.agent} ownerName={kb.ownerName} noun="kho tri thức" /></div>
+        )}
 
         <div className="flex items-start justify-between gap-4 flex-wrap pb-4">
           <div className="flex items-start gap-3 min-w-0 flex-1">

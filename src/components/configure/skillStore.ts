@@ -138,6 +138,29 @@ This skill works best with Calendar + Email + Slack all connected, but adapts:
     createdAt: now - 30 * DAY, updatedAt: now - 2 * 3_600_000,
   });
 
+  // Demo for "xem trong phạm vi Agent": Linh Phan built "Product FAQ Assistant" (shared with
+  // Tran Nam) with this skill, and shared the skill only with Duy Nguyen so he can reuse it.
+  // Tran Nam isn't in the sharing list but still sees it read-only inside that Agent.
+  put({
+    id: "debt-lookup", icon: "💳", iconBg: "hsl(210 60% 93%)", name: "debt-lookup",
+    description: "Use when a customer asks about an outstanding balance, due date, or payment history — look it up and answer in plain language.",
+    ownerId: "m-fsoft-coo", ownerName: "Linh Phan",
+    sharing: { mode: "specific", people: [{ userId: "m-fsoft-vn-1", name: "Duy Nguyen", email: "duy.nguyen@fpt.com", access: "view" }] },
+    attachedByAgentIds: ["faq"],
+    body: `# Debt Lookup
+
+Look up the customer's outstanding balance before answering any payment question.
+
+## Steps
+1. Confirm the customer's account by phone number or contract ID.
+2. Read the current balance, next due date and the last 3 payments.
+3. Answer in one short paragraph; never quote internal penalty rates.
+
+## Don't
+- Don't promise a due-date extension — hand off to a human instead.`,
+    createdAt: now - 12 * DAY, updatedAt: now - 3 * DAY,
+  });
+
   put({
     id: "competitive-intel", icon: "🏆", iconBg: "hsl(152 55% 92%)", name: "competitive-intel",
     description: `Use when the user asks "what is [competitor] doing," requests market analysis, or needs a competitive landscape summary for a specific company or product.`,

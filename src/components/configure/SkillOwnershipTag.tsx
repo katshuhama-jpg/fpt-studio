@@ -1,3 +1,4 @@
+import { isAccessibleTo } from "./skillSharing";
 import type { Skill } from "./skillStore";
 
 /** Owner/sharing chip pair for a skill detail page or Agent sidebar — same pattern as
@@ -15,6 +16,11 @@ export default function SkillOwnershipTag({ skill, userId }: { skill: Skill; use
         )}
       </>
     );
+  }
+  // Attached to an Agent the viewer works on but not shared with them: visible read-only in
+  // that Agent only (see agentContextAccess.tsx), so don't claim it was shared.
+  if (!isAccessibleTo(skill.sharing, skill.ownerId, userId)) {
+    return <span className="chip chip-muted">Chỉ xem trong Agent · {skill.ownerName}</span>;
   }
   return <span className="chip chip-muted">Được chia sẻ · {skill.ownerName}</span>;
 }

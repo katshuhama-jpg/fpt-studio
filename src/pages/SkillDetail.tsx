@@ -7,6 +7,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useGroupAccess } from "@/pages/organization/scopeAccess";
+import { useAgentContextAccess, AgentContextBanner } from "@/components/governance/agentContextAccess";
 import { useOrg } from "@/pages/organization/orgStore";
 import { collectMembers } from "@/pages/organization/orgData";
 import { skillStore } from "@/components/configure/skillStore";
@@ -38,6 +39,9 @@ export default function SkillDetail() {
   const refresh = () => setTick(t => t + 1);
   void tick;
   const skill = skillStore.get(id);
+  // Opened from an Agent that uses this skill (?viaAgent=) — read-only access even when the
+  // skill isn't shared with the viewer (see agentContextAccess.tsx).
+  const agentCtx = useAgentContextAccess(skill?.attachedByAgentIds);
 
   const [showMenu, setShowMenu] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
@@ -59,7 +63,8 @@ export default function SkillDetail() {
 
   // A role whose Skills View Scope is "Own & Shared" (or with no View permission at all) can't
   // reach a skill it doesn't own and wasn't shared with just by typing its URL.
-  if (!access.canSeeAll && !isAccessibleTo(skill.sharing, skill.ownerId, access.userId)) {
+  const viaAgentOnly = !access.canSeeAll && !isAccessibleTo(skill.sharing, skill.ownerId, access.userId);
+  if (viaAgentOnly && !agentCtx.allowed) {
     return (
       <div className="flex flex-col h-full bg-background items-center justify-center text-center px-6">
         <Puzzle size={22} className="text-muted-foreground/60 mb-3" />
@@ -89,6 +94,9 @@ export default function SkillDetail() {
           <span className="text-sm text-muted-foreground/50">/</span>
           <span className="text-sm text-foreground font-medium truncate">{skill.name}</span>
         </div>
+        {viaAgentOnly && agentCtx.agent && (
+          <div className="mb-3"><AgentContextBanner agent={agentCtx.agent} ownerName={skill.ownerName} noun="skill" /></div>
+        )}
 
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="flex items-start gap-3 min-w-0 flex-1">

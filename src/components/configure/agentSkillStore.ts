@@ -20,6 +20,15 @@ const persist = () => saveMap(STORE_KEY, store);
 const persistAttached = () => saveMap(ATTACHED_KEY, attached);
 const persistActive = () => saveMap(ACTIVE_KEY, active);
 
+// Demo seed (once per session): "Product FAQ Assistant" uses Linh Phan's "debt-lookup" skill,
+// mirrored on the skill side via skillStore's attachedByAgentIds.
+const DEMO_SEEDED_KEY = "agent_skill_attached_demo_seeded_v1";
+if (typeof sessionStorage !== "undefined" && !sessionStorage.getItem(DEMO_SEEDED_KEY)) {
+  sessionStorage.setItem(DEMO_SEEDED_KEY, "1");
+  attached.set("faq", [...new Set([...(attached.get("faq") ?? []), "debt-lookup"])]);
+  persistAttached();
+}
+
 export const agentSkillStore = {
   list(agentId: string): Skill[] {
     const prefix = `${agentId}:`;
