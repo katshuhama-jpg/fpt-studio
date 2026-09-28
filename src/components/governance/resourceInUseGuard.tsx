@@ -79,7 +79,9 @@ export function ResourceInUseDialog({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         {agents.length > 0 && (
-          <div className="space-y-2">
+          // min-w-0: AlertDialogContent is a CSS grid, and a grid item defaults to min-width:auto —
+          // without it one long Agent name widens the list past the dialog edge instead of truncating.
+          <div className="space-y-2 min-w-0">
             {/* One line summary first, so the size of the problem is clear before the list. */}
             <p className="text-xs text-muted-foreground">
               {agents.length} Agent · của {groups.length} người
