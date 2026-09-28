@@ -64,8 +64,9 @@ export default function SkillDetail() {
   // A role whose Skills View Scope is "Own & Shared" (or with no View permission at all) can't
   // reach a skill it doesn't own and wasn't shared with just by typing its URL.
   const viaAgentOnly = !access.canSeeAll && !isAccessibleTo(skill.sharing, skill.ownerId, access.userId);
-  // Agent context counts as inside the viewer's scope, but they still need "View skills".
-  if (viaAgentOnly && (!agentCtx.allowed || !access.hasPermission("view"))) {
+  // Agent context counts as inside the viewer's scope; they still need "View skills" or
+  // "Build skills" (Build implies seeing what you edit — the default Builder role has no View).
+  if (viaAgentOnly && (!agentCtx.allowed || !(access.hasPermission("view") || access.hasPermission("manage")))) {
     return (
       <div className="flex flex-col h-full bg-background items-center justify-center text-center px-6">
         <Puzzle size={22} className="text-muted-foreground/60 mb-3" />

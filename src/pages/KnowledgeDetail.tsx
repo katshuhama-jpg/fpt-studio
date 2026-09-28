@@ -154,7 +154,7 @@ export default function KnowledgeDetail() {
   // all) can't reach a KB it doesn't own and wasn't shared with just by typing its URL —
   // mirrors the not-found state above rather than silently rendering the KB's real content.
   const viaAgentOnly = !access.canSeeAll && !isAccessibleTo(kb, access.userId);
-  if (viaAgentOnly && (!agentCtx.allowed || !access.hasPermission("view"))) {
+  if (viaAgentOnly && (!agentCtx.allowed || !(access.hasPermission("view") || access.hasPermission("manage")))) {
     return (
       <div className="flex flex-col h-full bg-background items-center justify-center text-center px-6">
         <Database size={22} className="text-muted-foreground/60 mb-3" />
