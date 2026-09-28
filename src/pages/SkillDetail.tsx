@@ -7,7 +7,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useGroupAccess } from "@/pages/organization/scopeAccess";
-import { useAgentContextAccess, AgentContextBanner } from "@/components/governance/agentContextAccess";
+import { useAgentContextAccess } from "@/components/governance/agentContextAccess";
 import { useOrg } from "@/pages/organization/orgStore";
 import { collectMembers } from "@/pages/organization/orgData";
 import { skillStore } from "@/components/configure/skillStore";
@@ -97,9 +97,6 @@ export default function SkillDetail() {
           <span className="text-sm text-muted-foreground/50">/</span>
           <span className="text-sm text-foreground font-medium truncate">{skill.name}</span>
         </div>
-        {viaAgentOnly && agentCtx.agent && (
-          <div className="mb-3"><AgentContextBanner agent={agentCtx.agent} ownerName={skill.ownerName} noun="skill" canEdit={canEdit} /></div>
-        )}
 
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="flex items-start gap-3 min-w-0 flex-1">

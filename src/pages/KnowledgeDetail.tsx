@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import {
   knowledgeBaseStore, isViewOnly, isAccessibleTo, CURRENT_USER, type KnowledgeBase,
 } from "@/components/knowledge/knowledgeBaseStore";
-import { useAgentContextAccess, AgentContextBanner } from "@/components/governance/agentContextAccess";
+import { useAgentContextAccess } from "@/components/governance/agentContextAccess";
 import { useGroupAccess } from "@/pages/organization/scopeAccess";
 import { knowledgeDocumentStore } from "@/components/knowledge/knowledgeDocumentStore";
 import { knowledgeUrlStore } from "@/components/knowledge/knowledgeUrlStore";
@@ -202,9 +202,6 @@ export default function KnowledgeDetail() {
           <span className="text-sm text-muted-foreground/50">/</span>
           <span className="text-sm text-foreground font-medium truncate">{kb.name}</span>
         </div>
-        {viaAgentOnly && agentCtx.agent && (
-          <div className="mb-3"><AgentContextBanner agent={agentCtx.agent} ownerName={kb.ownerName} noun="kho tri thức" canEdit={canEdit} /></div>
-        )}
 
         <div className="flex items-start justify-between gap-4 flex-wrap pb-4">
           <div className="flex items-start gap-3 min-w-0 flex-1">
