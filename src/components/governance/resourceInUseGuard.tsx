@@ -62,7 +62,14 @@ export function ResourceInUseDialog({
 }) {
   const { tree } = useOrg();
   const members = useMemo(() => collectMembers(tree), [tree]);
-  const ownerName = (id?: string) => members.find(m => m.id === id)?.name ?? "—";
+  const ownerName = (id?: string) => members.find(m => m.id === id)?.name ?? "Không rõ chủ sở hữu";
+  const groups = useMemo(() => {
+    const byOwner = new Map<string | undefined, AgentRecord[]>();
+    for (const a of agents) byOwner.set(a.ownerId, [...(byOwner.get(a.ownerId) ?? []), a]);
+    return [...byOwner.entries()]
+      .map(([ownerId, list]) => ({ ownerId, agents: list }))
+      .sort((x, y) => y.agents.length - x.agents.length);
+  }, [agents]);
 
   return (
     <AlertDialog open={open} onOpenChange={v => !v && onClose()}>
@@ -72,17 +79,31 @@ export function ResourceInUseDialog({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         {agents.length > 0 && (
-        <div className="rounded-lg border border-border divide-y divide-border max-h-56 overflow-y-auto">
-          {agents.map(a => (
-            <div key={a.id} className="flex items-center gap-2.5 px-3 py-2.5">
-              <span className="w-7 h-7 rounded-lg bg-surface-muted flex items-center justify-center text-sm shrink-0">{a.emoji}</span>
-              <div className="min-w-0">
-                <div className="text-sm font-medium truncate">{a.name}</div>
-                <div className="text-xs text-muted-foreground truncate">Chủ sở hữu: {ownerName(a.ownerId)}</div>
-              </div>
+          <div className="space-y-2">
+            {/* One line summary first, so the size of the problem is clear before the list. */}
+            <p className="text-xs text-muted-foreground">
+              {agents.length} Agent · của {groups.length} người
+            </p>
+            {/* Grouped by owner (who has to act), biggest group first. The list scrolls inside a
+             * fixed-height box, so 3 Agents or 300 never push the dialog off-screen; group headers
+             * stay pinned while scrolling so every row still reads "whose Agent is this". */}
+            <div className="rounded-lg border border-border max-h-64 overflow-y-auto">
+              {groups.map(g => (
+                <div key={g.ownerId ?? "unknown"} className="border-b border-border last:border-0">
+                  <div className="sticky top-0 z-10 flex items-center justify-between gap-2 bg-surface-muted px-3 py-1.5">
+                    <span className="text-xs font-semibold truncate">{ownerName(g.ownerId)}</span>
+                    <span className="text-xs text-muted-foreground shrink-0">{g.agents.length} Agent</span>
+                  </div>
+                  {g.agents.map(a => (
+                    <div key={a.id} className="flex items-center gap-2 px-3 py-1.5">
+                      <span className="w-6 h-6 rounded-md bg-surface-muted flex items-center justify-center text-xs shrink-0">{a.emoji}</span>
+                      <span className="text-sm truncate min-w-0" title={a.name}>{a.name}</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </div>
         )}
         <AlertDialogFooter>
           <AlertDialogAction onClick={onClose}>Đã hiểu</AlertDialogAction>
