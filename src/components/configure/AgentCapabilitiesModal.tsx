@@ -9,9 +9,9 @@ import { agentCapabilityStore } from "./agentCapabilityStore";
 /** Full editor for the agent's default capabilities. Lives in a dialog rather than inline in
  * the config rail because each of the nine needs a description (and some a condition note) to
  * be decidable — too much for a 476px sidebar, where the rail instead shows just the on/total
- * count. Each capability is one full-width row — no card chrome and no divider rules, so the
- * nine read as a single settings list and the eye runs straight down the switches rather than
- * across boxes. Changes are written straight through, so there's nothing to save. */
+ * count. Each capability is its own full-width bordered row rather than a multi-column grid
+ * or one box split by divider rules, so the eye runs straight down the switches on the right.
+ * Changes are written straight through, so there's nothing to save. */
 export default function AgentCapabilitiesModal({ agentId, onClose, onChanged }: {
   agentId: string;
   onClose: () => void;
@@ -48,11 +48,11 @@ export default function AgentCapabilitiesModal({ agentId, onClose, onChanged }: 
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-4">
-          <div className="space-y-4">
+          <div className="space-y-2.5">
             {capabilities.map(cap => {
               const on = agentCapabilityStore.isOn(agentId, cap.id);
               return (
-                <div key={cap.id} className="flex items-start gap-4">
+                <div key={cap.id} className="flex items-start gap-4 rounded-md border p-3.5">
                   <div className="min-w-0 flex-1">
                     <p className={`text-sm font-medium ${on ? "" : "text-muted-foreground"}`}>{cap.name}</p>
                     <p className="text-sm text-muted-foreground leading-relaxed mt-0.5">{cap.description}</p>
