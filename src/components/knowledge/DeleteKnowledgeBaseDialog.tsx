@@ -35,7 +35,7 @@ export default function DeleteKnowledgeBaseDialog({
         open={open}
         onClose={onClose}
         title="Chưa thể xóa kho tri thức"
-        description={`${kb.attachedByAgentIds.length} Agent đang dùng kho tri thức này. Hãy gỡ kho tri thức khỏi các Agent dưới đây trước, rồi xóa.`}
+        description={"Kho tri thức vẫn đang được các Agent dưới đây sử dụng. Chủ sở hữu cần gỡ kho tri thức khỏi Agent trước, sau đó bạn mới xóa được."}
         agents={agentsUsing(kb.attachedByAgentIds)}
       />
     );

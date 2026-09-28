@@ -181,8 +181,8 @@ export default function WorkspaceGuardrails() {
         onClose={() => setDeleteTarget(null)}
         title="Chưa thể xóa guardrail"
         description={deleteTarget?.allAgents
-          ? "Guardrail đang được áp dụng cho mọi Agent. Hãy bỏ \"Áp dụng cho mọi Agent\" trong Chỉnh sửa trước, rồi xóa."
-          : `${agentsUsing(deleteTarget?.attachedByAgentIds).length} Agent đang dùng guardrail này. Hãy gỡ guardrail khỏi các Agent dưới đây trước, rồi xóa.`}
+          ? "Guardrail đang áp dụng cho mọi Agent. Bỏ chọn \"Áp dụng cho mọi Agent\" trong Chỉnh sửa trước, sau đó bạn mới xóa được."
+          : "Guardrail vẫn đang được các Agent dưới đây sử dụng. Chủ sở hữu cần gỡ guardrail khỏi Agent trước, sau đó bạn mới xóa được."}
         agents={agentsUsing(deleteTarget?.attachedByAgentIds)}
       />
       <AlertDialog open={!!deleteTarget && deleteTarget.attachedByAgentIds.length === 0 && !deleteTarget.allAgents} onOpenChange={v => !v && setDeleteTarget(null)}>

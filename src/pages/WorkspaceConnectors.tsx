@@ -438,7 +438,7 @@ export default function WorkspaceConnectors() {
         open={!!deleteTarget && deleteTarget.attachedByAgentIds.length > 0}
         onClose={() => setDeleteTarget(null)}
         title="Chưa thể xóa connector"
-        description={`${agentsUsing(deleteTarget?.attachedByAgentIds).length} Agent đang dùng connector này. Hãy gỡ connector khỏi các Agent dưới đây trước, rồi xóa.`}
+        description={"Connector vẫn đang được các Agent dưới đây sử dụng. Chủ sở hữu cần gỡ connector khỏi Agent trước, sau đó bạn mới xóa được."}
         agents={agentsUsing(deleteTarget?.attachedByAgentIds)}
       />
       <AlertDialog open={!!deleteTarget && deleteTarget.attachedByAgentIds.length === 0} onOpenChange={v => !v && setDeleteTarget(null)}>

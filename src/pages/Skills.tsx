@@ -383,7 +383,7 @@ export default function Skills() {
         open={!!deleteTarget && deleteTarget.attachedByAgentIds.length > 0}
         onClose={() => setDeleteTarget(null)}
         title="Chưa thể xóa skill"
-        description={`${agentsUsing(deleteTarget?.attachedByAgentIds).length} Agent đang dùng skill này. Hãy gỡ skill khỏi các Agent dưới đây trước, rồi xóa.`}
+        description={"Skill vẫn đang được các Agent dưới đây sử dụng. Chủ sở hữu cần gỡ skill khỏi Agent trước, sau đó bạn mới xóa được."}
         agents={agentsUsing(deleteTarget?.attachedByAgentIds)}
       />
       <AlertDialog open={!!deleteTarget && deleteTarget.attachedByAgentIds.length === 0} onOpenChange={v => !v && setDeleteTarget(null)}>

@@ -145,7 +145,7 @@ export default function GuardrailShareModal({
         open={blockingAgents.length > 0}
         onClose={() => setBlockingAgents([])}
         title="Chưa thể thu hẹp chia sẻ"
-        description={`${blockingAgents.length} Agent đang dùng guardrail này và chủ sở hữu của chúng sẽ mất quyền truy cập. Hãy gỡ guardrail khỏi các Agent dưới đây trước, rồi thay đổi chia sẻ.`}
+        description={"Những người dưới đây sẽ mất quyền truy cập trong khi Agent của họ vẫn đang dùng guardrail này. Nhờ họ gỡ guardrail khỏi Agent trước, rồi đổi chia sẻ."}
         agents={blockingAgents}
       />
     </>
