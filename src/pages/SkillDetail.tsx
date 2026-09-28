@@ -174,7 +174,7 @@ export default function SkillDetail() {
         </div>
       </div>
 
-      {viewOnly && (
+      {viewOnly && !viaAgentOnly && (
         <div className="px-4 sm:px-6 py-2.5 bg-surface-muted border-b border-border text-xs text-muted-foreground shrink-0">
           Bạn đang xem skill được chia sẻ. Liên hệ {skill.ownerName} nếu cần quyền chỉnh sửa.
         </div>
@@ -187,6 +187,9 @@ export default function SkillDetail() {
             <div>{renderSkillBody(skill.body)}</div>
           </div>
 
+          {/* Who a skill is shared with is the owner's business — not shown to someone who only
+            * sees the skill because an Agent they work on uses it. */}
+          {!viaAgentOnly && (
           <div className="rounded-xl border border-border bg-surface p-5">
             <div className="text-sm font-semibold mb-1">Chia sẻ tới</div>
             <p className="text-xs text-muted-foreground mb-3">Những người được dùng lại skill này cho Agent của họ.</p>
@@ -206,6 +209,7 @@ export default function SkillDetail() {
               </ul>
             )}
           </div>
+          )}
         </div>
       </div>
 
