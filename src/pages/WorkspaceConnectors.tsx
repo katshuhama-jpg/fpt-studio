@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { agentsUsing, ResourceInUseDialog } from "@/components/governance/resourceInUseGuard";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { Search, CheckCircle2, ChevronRight, Plug, MoreVertical, AlertTriangle, X, Rocket } from "lucide-react";
@@ -426,12 +427,21 @@ export default function WorkspaceConnectors() {
           name={shareTarget.name}
           ownerName={shareTarget.ownerName}
           sharing={shareTarget.sharing}
+          resourceOwnerId={shareTarget.ownerId}
+          attachedAgentIds={shareTarget.attachedByAgentIds}
           onSave={sharing => { customConnectorStore.updateSharing(shareTarget.id, sharing); refresh(); }}
           onClose={() => setShareTarget(null)}
         />
       )}
 
-      <AlertDialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>
+      <ResourceInUseDialog
+        open={!!deleteTarget && deleteTarget.attachedByAgentIds.length > 0}
+        onClose={() => setDeleteTarget(null)}
+        title="Chưa thể xóa connector"
+        description={`${agentsUsing(deleteTarget?.attachedByAgentIds).length} Agent đang dùng connector này. Hãy gỡ connector khỏi các Agent dưới đây trước, rồi xóa.`}
+        agents={agentsUsing(deleteTarget?.attachedByAgentIds)}
+      />
+      <AlertDialog open={!!deleteTarget && deleteTarget.attachedByAgentIds.length === 0} onOpenChange={v => !v && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Xóa custom connector "{deleteTarget?.name}"?</AlertDialogTitle>

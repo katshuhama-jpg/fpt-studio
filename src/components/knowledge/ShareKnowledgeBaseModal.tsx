@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { agentsBlockingUnshare, ResourceInUseDialog } from "@/components/governance/resourceInUseGuard";
+import type { AgentRecord } from "@/components/configure/agentStore";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -20,7 +22,7 @@ const SHARING_OPTIONS: { value: SharingMode; label: string; helper?: string }[] 
  * Knowledge item's "Quyền" (S14), so both share the exact same sharing UI and copy instead of
  * drifting into two pickers. The caller owns persistence via onSave. */
 export default function ShareKnowledgeBaseModal({
-  open, onClose, name, ownerName, sharing: initialSharing, onSave, title = "Chia sẻ kho tri thức",
+  open, onClose, name, ownerName, sharing: initialSharing, onSave, resourceOwnerId, attachedAgentIds, title = "Chia sẻ kho tri thức",
 }: {
   open: boolean;
   onClose: () => void;
@@ -29,10 +31,15 @@ export default function ShareKnowledgeBaseModal({
   ownerName: string;
   sharing: Sharing;
   onSave: (sharing: Sharing) => void;
+  /** Owner + Agents currently using this resource — narrowing sharing so one of those
+   * Agents' owners loses access is blocked (see resourceInUseGuard.tsx). */
+  resourceOwnerId?: string;
+  attachedAgentIds?: string[];
   title?: string;
 }) {
   const [mode, setMode] = useState<SharingMode>(initialSharing.mode);
   const [people, setPeople] = useState(initialSharing.people);
+  const [blockingAgents, setBlockingAgents] = useState<AgentRecord[]>([]);
   const [showRevokeConfirm, setShowRevokeConfirm] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
 
@@ -63,6 +70,8 @@ export default function ShareKnowledgeBaseModal({
   const save = () => {
     setSubmitAttempted(true);
     if (!canSubmit) return;
+    const blockers = agentsBlockingUnshare(attachedAgentIds, resourceOwnerId, { mode, people: mode === "specific" ? people : [] });
+    if (blockers.length > 0) { setBlockingAgents(blockers); return; }
     const downgrading = initialSharing.mode === "all" && mode !== "all";
     if (downgrading || revokedCount > 0) {
       setShowRevokeConfirm(true);
@@ -139,6 +148,13 @@ export default function ShareKnowledgeBaseModal({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <ResourceInUseDialog
+        open={blockingAgents.length > 0}
+        onClose={() => setBlockingAgents([])}
+        title="Chưa thể thu hẹp chia sẻ"
+        description={`${blockingAgents.length} Agent đang dùng kho tri thức này và chủ sở hữu của chúng sẽ mất quyền truy cập. Hãy gỡ kho tri thức khỏi các Agent dưới đây trước, rồi thay đổi chia sẻ.`}
+        agents={blockingAgents}
+      />
     </>
   );
 }

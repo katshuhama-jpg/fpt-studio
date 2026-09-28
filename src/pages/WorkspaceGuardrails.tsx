@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
+import { agentsUsing, ResourceInUseDialog } from "@/components/governance/resourceInUseGuard";
 import { useSearchParams } from "react-router-dom";
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Add01Icon, Delete01Icon, MoreVerticalIcon, PencilEdit01Icon, Search01Icon, Share08Icon, EyeIcon } from "@hugeicons/core-free-icons";
@@ -173,6 +174,8 @@ export default function WorkspaceGuardrails() {
           name={shareItem.name}
           ownerName={shareItem.ownerName ?? currentUser.name}
           sharing={shareItem.sharing ?? { mode: "private", people: [] }}
+          resourceOwnerId={shareItem.ownerId}
+          attachedAgentIds={shareItem.attachedByAgentIds}
           onSave={sharing => handleShare(shareItem.id, sharing)}
           onClose={() => setShareItem(null)}
         />
@@ -201,7 +204,16 @@ export default function WorkspaceGuardrails() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>
+      <ResourceInUseDialog
+        open={!!deleteTarget && (deleteTarget.attachedByAgentIds.length > 0 || !!deleteTarget.allAgents)}
+        onClose={() => setDeleteTarget(null)}
+        title="Chưa thể xóa guardrail"
+        description={deleteTarget?.allAgents
+          ? "Guardrail đang được áp dụng cho mọi Agent. Hãy ngừng áp dụng cho mọi Agent trước, rồi xóa."
+          : `${agentsUsing(deleteTarget?.attachedByAgentIds).length} Agent đang dùng guardrail này. Hãy gỡ guardrail khỏi các Agent dưới đây trước, rồi xóa.`}
+        agents={agentsUsing(deleteTarget?.attachedByAgentIds)}
+      />
+      <AlertDialog open={!!deleteTarget && deleteTarget.attachedByAgentIds.length === 0 && !deleteTarget.allAgents} onOpenChange={v => !v && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Xóa guardrail "{deleteTarget?.name}"?</AlertDialogTitle>

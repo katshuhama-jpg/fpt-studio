@@ -353,6 +353,8 @@ export default function KnowledgeDetail() {
           name={kb.name}
           ownerName={kb.ownerName}
           sharing={kb.sharing}
+          resourceOwnerId={kb.ownerId}
+          attachedAgentIds={kb.attachedByAgentIds}
           onSave={sharing => knowledgeBaseStore.updateSharing(kb.id, sharing)}
           onClose={() => { setShowShare(false); refresh(); }}
         />

@@ -1659,6 +1659,8 @@ function AgentKnowledgeGrid({ agentId, onOpenOwn }: { agentId: string; onOpenOwn
           name={shareKbTarget.name}
           ownerName={shareKbTarget.ownerName}
           sharing={shareKbTarget.sharing}
+          resourceOwnerId={shareKbTarget.ownerId}
+          attachedAgentIds={shareKbTarget.attachedByAgentIds}
           onSave={sharing => knowledgeBaseStore.updateSharing(shareKbTarget.id, sharing)}
           onClose={() => { setShareKbTarget(null); refresh(); }}
         />
@@ -5082,6 +5084,8 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
           name={shareTarget.name}
           ownerName={shareTarget.ownerName}
           sharing={shareTarget.sharing}
+          resourceOwnerId={shareTarget.ownerId}
+          attachedAgentIds={shareTarget.attachedByAgentIds}
           onSave={sharing => { customConnectorStore.updateSharing(shareTarget.id, sharing); setTick(t => t + 1); onChange?.(); }}
           onClose={() => setShareTarget(null)}
         />

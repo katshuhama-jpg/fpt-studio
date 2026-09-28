@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { agentsUsing, ResourceInUseDialog } from "@/components/governance/resourceInUseGuard";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
@@ -27,6 +28,18 @@ export default function DeleteKnowledgeBaseDialog({
       duration: 10_000,
     });
   };
+
+  if (kb.attachedByAgentIds.length > 0) {
+    return (
+      <ResourceInUseDialog
+        open={open}
+        onClose={onClose}
+        title="Chưa thể xóa kho tri thức"
+        description={`${kb.attachedByAgentIds.length} Agent đang dùng kho tri thức này. Hãy gỡ kho tri thức khỏi các Agent dưới đây trước, rồi xóa.`}
+        agents={agentsUsing(kb.attachedByAgentIds)}
+      />
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) { setTyped(""); onClose(); } }}>

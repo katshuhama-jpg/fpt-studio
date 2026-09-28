@@ -404,6 +404,8 @@ export default function KnowledgeList() {
           name={shareTarget.name}
           ownerName={shareTarget.ownerName}
           sharing={shareTarget.sharing}
+          resourceOwnerId={shareTarget.ownerId}
+          attachedAgentIds={shareTarget.attachedByAgentIds}
           onSave={sharing => knowledgeBaseStore.updateSharing(shareTarget.id, sharing)}
           onClose={() => { setShareTarget(null); refresh(); }}
         />

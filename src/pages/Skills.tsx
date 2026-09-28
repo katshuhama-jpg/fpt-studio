@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
+import { agentsUsing, ResourceInUseDialog } from "@/components/governance/resourceInUseGuard";
 import { useNavigate } from "react-router-dom";
 import { Puzzle, BookOpen, Plus, Search, LayoutGrid, List, MoreVertical, AlertTriangle } from "lucide-react";
 import {
@@ -371,12 +372,21 @@ export default function Skills() {
           name={shareTarget.name}
           ownerName={shareTarget.ownerName}
           sharing={shareTarget.sharing}
+          resourceOwnerId={shareTarget.ownerId}
+          attachedAgentIds={shareTarget.attachedByAgentIds}
           onSave={(sharing: Sharing) => { skillStore.updateSharing(shareTarget.id, sharing); refresh(); }}
           onClose={() => setShareTarget(null)}
         />
       )}
 
-      <AlertDialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>
+      <ResourceInUseDialog
+        open={!!deleteTarget && deleteTarget.attachedByAgentIds.length > 0}
+        onClose={() => setDeleteTarget(null)}
+        title="Chưa thể xóa skill"
+        description={`${agentsUsing(deleteTarget?.attachedByAgentIds).length} Agent đang dùng skill này. Hãy gỡ skill khỏi các Agent dưới đây trước, rồi xóa.`}
+        agents={agentsUsing(deleteTarget?.attachedByAgentIds)}
+      />
+      <AlertDialog open={!!deleteTarget && deleteTarget.attachedByAgentIds.length === 0} onOpenChange={v => !v && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Xóa skill "{deleteTarget?.name}"?</AlertDialogTitle>

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { agentsUsing, ResourceInUseDialog } from "@/components/governance/resourceInUseGuard";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ChevronLeft, MoreHorizontal, Puzzle } from "lucide-react";
 import {
@@ -216,6 +217,8 @@ export default function SkillDetail() {
           name={skill.name}
           ownerName={skill.ownerName}
           sharing={skill.sharing}
+          resourceOwnerId={skill.ownerId}
+          attachedAgentIds={skill.attachedByAgentIds}
           onSave={(sharing: Sharing) => { skillStore.updateSharing(skill.id, sharing); refresh(); }}
           onClose={() => setShowShare(false)}
         />
@@ -228,7 +231,14 @@ export default function SkillDetail() {
         />
       )}
 
-      <AlertDialog open={showDelete} onOpenChange={setShowDelete}>
+      <ResourceInUseDialog
+        open={showDelete && skill.attachedByAgentIds.length > 0}
+        onClose={() => setShowDelete(false)}
+        title="Chưa thể xóa skill"
+        description={`${agentsUsing(skill.attachedByAgentIds).length} Agent đang dùng skill này. Hãy gỡ skill khỏi các Agent dưới đây trước, rồi xóa.`}
+        agents={agentsUsing(skill.attachedByAgentIds)}
+      />
+      <AlertDialog open={showDelete && skill.attachedByAgentIds.length === 0} onOpenChange={setShowDelete}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Xóa skill "{skill.name}"?</AlertDialogTitle>
