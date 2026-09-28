@@ -105,6 +105,14 @@ function seed() {
   persist();
 }
 
+/** Server-side rule mirrored in the store: a guardrail applied to every Agent is always shared
+ * with everyone in the Space — otherwise Builders would have a rule running on their Agents that
+ * they can't see. Normalizes on every create/update so the combination can never be saved. */
+function withAllAgentsSharing<T extends { allAgents?: boolean; sharing?: Sharing }>(g: T): T {
+  if (!g.allAgents || !g.sharing) return g;
+  return { ...g, sharing: { mode: "all", people: [] } };
+}
+
 export const guardrailConsoleStore = {
   list(): Guardrail[] {
     seed();
@@ -120,7 +128,7 @@ export const guardrailConsoleStore = {
   }): Guardrail {
     const id = `g-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
     const now = Date.now();
-    const g: Guardrail = { ...data, id, mandatory: false, agents: [], attachedByAgentIds: [], createdAt: now, updatedAt: now };
+    const g: Guardrail = { ...withAllAgentsSharing(data), id, mandatory: false, agents: [], attachedByAgentIds: [], createdAt: now, updatedAt: now };
     store.set(id, g);
     persist();
     return g;
@@ -128,13 +136,13 @@ export const guardrailConsoleStore = {
   update(id: string, patch: Partial<Pick<Guardrail, "name" | "desc" | "action" | "allAgents" | "sharing">>) {
     const cur = store.get(id);
     if (!cur) return;
-    store.set(id, { ...cur, ...patch, updatedAt: Date.now() });
+    store.set(id, { ...withAllAgentsSharing({ ...cur, ...patch }), updatedAt: Date.now() });
     persist();
   },
   updateSharing(id: string, sharing: Sharing) {
     const cur = store.get(id);
     if (!cur) return;
-    store.set(id, { ...cur, sharing, updatedAt: Date.now() });
+    store.set(id, { ...withAllAgentsSharing({ ...cur, sharing }), updatedAt: Date.now() });
     persist();
   },
   // Pausing/resuming a guardrail is a status flip, not a content edit — it must NOT bump

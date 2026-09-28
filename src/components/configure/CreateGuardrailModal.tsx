@@ -22,7 +22,7 @@ export interface CreateGuardrailData {
 /** THE ONE guardrail creation/edit/view form product-wide — used by the Console /guardrails
  * page and every Agent's Guardrails tab, so there is exactly one guardrail data model and one
  * creation form anywhere a guardrail gets created or edited. */
-export default function CreateGuardrailModal({ onClose, onSubmit, initialData, currentUser, readOnly }: {
+export default function CreateGuardrailModal({ onClose, onSubmit, initialData, currentUser, readOnly, allowApplyAll = true }: {
   onClose: () => void;
   onSubmit: (g: CreateGuardrailData) => void;
   initialData?: Guardrail;
@@ -30,6 +30,9 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
   /** Opened for a view-only shared guardrail — every field is inert and there's no primary
    * button, just "Đóng". */
   readOnly?: boolean;
+  /** Show the "Áp dụng cho mọi Agent" option — off only when editing an Agent's own private
+   * guardrail, which can't become Space-wide from its edit form. */
+  allowApplyAll?: boolean;
 }) {
   const isEdit = !!initialData;
   const actionToResponse = (a?: ActionKind): ResponseKind => {
@@ -42,9 +45,7 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
   const [samples, setSamples]   = useState("");
   const [response, setResponse] = useState<ResponseKind>(actionToResponse(initialData?.action));
   const [fixedText, setFixedText] = useState("");
-  // "Áp dụng cho mọi Agent" is no longer set here — it is a governance action done afterwards
-  // from the Console row menu. Editing keeps whatever value the guardrail already has.
-  const allAgents = initialData?.allAgents ?? false;
+  const [allAgents, setAllAgents] = useState(initialData?.allAgents ?? false);
   const [sharingMode, setSharingMode] = useState<SharingMode>(initialData?.sharing?.mode ?? "private");
   const [people, setPeople] = useState<SharedPerson[]>(initialData?.sharing?.people ?? []);
   const [submitAttempted, setSubmitAttempted] = useState(false);
@@ -55,7 +56,8 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
     return "Autogenerate response";
   };
 
-  const peopleError = sharingMode === "specific" && people.length === 0;
+  const effectiveMode: SharingMode = allAgents ? "all" : sharingMode;
+  const peopleError = !allAgents && sharingMode === "specific" && people.length === 0;
   const canSubmit = !!topic.trim() && !peopleError;
 
   const submit = () => {
@@ -66,7 +68,11 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
       enabled: initialData?.enabled ?? true,
       ownerId: initialData?.ownerId ?? currentUser.id,
       ownerName: initialData?.ownerName ?? currentUser.name,
-      sharing: { mode: sharingMode, people: sharingMode === "specific" ? people : [] },
+      // A guardrail running on every Agent must be visible to everyone whose Agent it runs on,
+      // so "Áp dụng cho mọi Agent" always implies "Tất cả người dùng trong Space".
+      sharing: allAgents
+        ? { mode: "all", people: [] }
+        : { mode: sharingMode, people: sharingMode === "specific" ? people : [] },
     });
     onClose();
   };
@@ -187,17 +193,39 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
 
           </div>
 
+          {allowApplyAll && (
+            <label className={`flex items-start gap-2.5 select-none rounded-xl border px-3.5 py-3 transition-base ${allAgents ? "border-primary bg-primary/5" : "border-border bg-white"} ${readOnly ? "" : "cursor-pointer"}`}>
+              <input
+                type="checkbox"
+                disabled={readOnly}
+                checked={allAgents}
+                onChange={e => setAllAgents(e.target.checked)}
+                className="w-4 h-4 accent-primary shrink-0 mt-0.5"
+              />
+              <div>
+                <span className="text-sm font-medium">Áp dụng cho mọi Agent</span>
+                <p className="text-xs text-muted-foreground mt-0.5">Guardrail sẽ tự động chạy trên tất cả Agent trong Space.</p>
+              </div>
+            </label>
+          )}
+
           <div>
             <label className="text-sm font-medium mb-1 block">Chia sẻ tới</label>
-            <p className="text-xs text-muted-foreground mb-3">Chọn ai có thể xem và dùng guardrail này.</p>
+            <p className="text-xs text-muted-foreground mb-3">
+              {allAgents
+                ? "Guardrail áp dụng cho mọi Agent nên mọi người trong Space đều xem được."
+                : "Chọn ai có thể xem và dùng guardrail này."}
+            </p>
             <div className="space-y-2">
               {SHARING_OPTIONS.map(opt => {
-                const selected = sharingMode === opt.value;
+                const selected = effectiveMode === opt.value;
+                const locked = readOnly || allAgents;
                 return (
                   <div key={opt.value}>
                     <div
-                      onClick={() => !readOnly && setSharingMode(opt.value)}
-                      className={`flex items-start gap-3 px-3.5 py-3 rounded-xl border transition-base ${readOnly ? "cursor-default" : "cursor-pointer"} ${
+                      onClick={() => !locked && setSharingMode(opt.value)}
+                      aria-disabled={allAgents && !selected ? true : undefined}
+                      className={`flex items-start gap-3 px-3.5 py-3 rounded-xl border transition-base ${locked ? "cursor-default" : "cursor-pointer"} ${allAgents && !selected ? "opacity-50" : ""} ${
                         selected ? "border-primary bg-primary/5" : "border-border bg-white hover:bg-surface-muted"
                       }`}
                     >

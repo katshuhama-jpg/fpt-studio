@@ -7041,7 +7041,14 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
       {showCreate && (
         <CreateGuardrailModal
           onClose={() => setShowCreate(false)}
-          onSubmit={g => { agentGuardrailStore.create(agentId, g); refresh(); }}
+          onSubmit={g => {
+            // "Áp dụng cho mọi Agent" makes it a Space-wide guardrail, so it's created in the
+            // Console library (not as this Agent's private one) and shows up read-only in every
+            // Agent's "Áp dụng cho mọi Agent" section, this one included.
+            if (g.allAgents) { guardrailConsoleStore.create(g); toast.success("Đã tạo guardrail và áp dụng cho mọi Agent."); }
+            else agentGuardrailStore.create(agentId, g);
+            refresh();
+          }}
           currentUser={currentUser}
         />
       )}
@@ -7051,6 +7058,7 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
           onSubmit={g => { agentGuardrailStore.update(agentId, editTarget.id, g); setEditTarget(null); refresh(); }}
           initialData={editTarget}
           currentUser={currentUser}
+          allowApplyAll={false}
         />
       )}
       {viewTarget && (
@@ -7553,7 +7561,14 @@ function GuardrailsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
       {showCreate && (
         <CreateGuardrailModal
           onClose={() => setShowCreate(false)}
-          onSubmit={g => { agentGuardrailStore.create(agentId, g); refresh(); }}
+          onSubmit={g => {
+            // "Áp dụng cho mọi Agent" makes it a Space-wide guardrail, so it's created in the
+            // Console library (not as this Agent's private one) and shows up read-only in every
+            // Agent's "Áp dụng cho mọi Agent" section, this one included.
+            if (g.allAgents) { guardrailConsoleStore.create(g); toast.success("Đã tạo guardrail và áp dụng cho mọi Agent."); }
+            else agentGuardrailStore.create(agentId, g);
+            refresh();
+          }}
           currentUser={currentUser}
         />
       )}
