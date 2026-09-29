@@ -323,9 +323,9 @@ export default function AgentBuilder() {
               {kind === "automation"
                 ? "Automation"
                 : publishState.placement === "workspace"
-                  ? (publishState.audience === "org" ? "Live · Company / department"
-                    : publishState.audience === "community" ? "Live · FPT AI Agent community"
-                    : "Live · Only me")
+                  ? (publishState.audience === "org" ? "Live · Công ty / phòng ban"
+                    : publishState.audience === "community" ? "Live · Cộng đồng FPT AI Agent"
+                    : "Live · Chỉ mình tôi")
                   : publishState.channels.length === 1
                     ? `Live on ${getChannelName(publishState.channels[0])}`
                     : publishState.channels.length > 1
@@ -4058,11 +4058,11 @@ function LiveDotChip({ label }: { label: string }) {
 }
 
 const AUDIENCE_LABEL: Record<PublishAudience, string> = {
-  me: "Only me",
+  me: "Chỉ mình tôi",
   quick_share: "Chia sẻ nhanh",
   group: "Nhóm cộng tác",
-  org: "Company / department",
-  community: "FPT AI Agent community",
+  org: "Công ty / phòng ban",
+  community: "Cộng đồng FPT AI Agent",
 };
 
 /** The muted pill next to the "Publish to" checkbox — reflects the currently live audience
@@ -4076,9 +4076,13 @@ function AudiencePill({ audience }: { audience: PublishAudience }) {
   );
 }
 
-function AudienceRadioRow({ icon, title, description, selected, liveNow, liveLabel = "Live now", disabled, onClick, children }: {
+function AudienceRadioRow({ icon, title, description, selected, liveNow, liveLabel = "Đang live", review, disabled, onClick, children }: {
   icon: any; title: string; description: string;
-  selected: boolean; liveNow?: boolean; liveLabel?: string; disabled?: boolean; onClick: () => void;
+  selected: boolean; liveNow?: boolean; liveLabel?: string;
+  /** Whether choosing this option publishes instantly or goes to Org/Unit Admin review —
+   * shown up front so the Builder knows before picking, not only when the CTA changes. */
+  review?: "instant" | "required" | "maybe";
+  disabled?: boolean; onClick: () => void;
   children?: React.ReactNode;
 }) {
   return (
@@ -4110,6 +4114,15 @@ function AudienceRadioRow({ icon, title, description, selected, liveNow, liveLab
         <span className="flex-1 min-w-0 pt-px">
           <span className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-semibold text-foreground">{title}</span>
+            {review && (
+              <span className={`text-[11px] font-medium rounded-full px-2 py-0.5 border whitespace-nowrap ${
+                review === "instant" ? "bg-success/10 border-success/20 text-success"
+                : review === "required" ? "bg-warning/10 border-warning/25 text-warning"
+                : "bg-surface-muted border-border text-muted-foreground"
+              }`}>
+                {review === "instant" ? "Publish ngay" : review === "required" ? "Cần duyệt" : "Có thể cần duyệt"}
+              </span>
+            )}
             {liveNow && <LiveDotChip label={liveLabel} />}
           </span>
           <span className="block text-xs text-muted-foreground leading-relaxed mt-0.5">{description}</span>
@@ -4249,7 +4262,7 @@ function OrgSharePicker({ tree, selection, onToggleUnit, onToggleMember }: {
  * This row is purely informational signposting: Zalo already has its own toggle on that tab,
  * everything else isn't wired up yet. */
 function PublishChannelStatusRow({ ch }: { ch: ChannelCatalogEntry }) {
-  const status = ch.id === "zalo" ? "Managed on the Deploy tab" : "Coming soon";
+  const status = ch.id === "zalo" ? "Quản lý ở tab Channels" : "Sắp có";
   return (
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2.5 rounded-lg border border-border bg-surface-muted/40">
       <span className="w-5 h-5 flex items-center justify-center shrink-0 opacity-70"><ChannelIcon ch={ch} size={16} /></span>
@@ -4286,10 +4299,11 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
   });
   const parseVer = (v?: string) => (v ?? "v0.0.0").replace(/^v/, "").split(".").map(n => Number(n) || 0);
   const cmpVer = (a: number[], b: number[]) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
+  // Also never reuse the number of a rejected/withdrawn request — "v1.0.2 bị từ chối" followed by a
+  // brand-new "v1.0.2" would read as the same version.
   const BASE = (() => {
-    const live = parseVer(current.version);
-    const pend = pendingRequest?.version ? parseVer(pendingRequest.version) : null;
-    return pend && cmpVer(pend, live) > 0 ? pend : live;
+    const candidates = [parseVer(current.version), ...governanceStore.listForResource("agent", agentId).filter(r => r.version).map(r => parseVer(r.version))];
+    return candidates.reduce((a, b) => (cmpVer(b, a) > 0 ? b : a));
   })();
 
   // Which Space owns this Agent decides what "Agent Workspace" (audience) options make sense:
@@ -4421,7 +4435,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
       } else {
         agentPublishStore.publish(agentId, current.placement, current.channels, versionName, current.audience);
       }
-      toast.success(`Published ${versionName}.`);
+      toast.success(`Đã publish ${versionName}.`);
       onPublished?.();
       onClose();
       return;
@@ -4438,7 +4452,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
       agentPublishStore.publish(agentId, "workspace", current.channels, versionName, "quick_share", {
         scopeSummary: `${quickShareSelection.size} người: ${names.join(", ")}`,
       });
-      toast.success(`Published ${versionName} cho ${quickShareSelection.size} người.`);
+      toast.success(`Đã publish ${versionName} cho ${quickShareSelection.size} người.`);
       onPublished?.();
       onClose();
       return;
@@ -4469,10 +4483,10 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
           ...requestSnapshot(),
           workspaceTargets: [{ kind: "group", name: group.name, members: group.memberIds.length, detail: overlap.unit ? `Trùng ${overlapPctLabel}% với ${overlap.unit.name} — vượt ngưỡng nên cần duyệt` : undefined }],
         });
-        toast.success(`Nhóm này trùng ${overlapPctLabel}% với ${overlap.unit?.name ?? "một phòng ban"} — đã gửi yêu cầu duyệt như publish theo Company / department.`);
+        toast.success(`Nhóm này trùng ${overlapPctLabel}% với ${overlap.unit?.name ?? "một phòng ban"} — đã gửi yêu cầu duyệt như khi publish cho Công ty / phòng ban.`);
       } else {
         agentPublishStore.publish(agentId, "workspace", current.channels, versionName, "group", { scopeSummary: summary, groupId: group.id });
-        toast.success(`Published ${versionName} cho ${summary}.`);
+        toast.success(`Đã publish ${versionName} cho ${summary}.`);
       }
       onPublished?.();
       onClose();
@@ -4497,7 +4511,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
       ...requestSnapshot(),
       workspaceTargets: effectiveAudience === "org"
         ? orgSelectionTargets(orgTree, orgSelection)
-        : [{ kind: "community", name: "FPT AI Agent community" }],
+        : [{ kind: "community", name: "Cộng đồng FPT AI Agent" }],
     });
     toast.success(`Đã gửi yêu cầu duyệt ${versionName}. Agent sẽ được publish khi Org/Unit Admin duyệt — theo dõi trạng thái ngay trên trang này.`);
     onPublished?.();
@@ -4516,8 +4530,8 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
               {requiresReview
                 ? `Gửi yêu cầu duyệt ${versionName} tới Org/Unit Admin trước khi publish.`
                 : current.placement === null
-                  ? `Publish creates ${versionName}.`
-                  : `Publish creates ${versionName} and replaces the live one.`}
+                  ? `Publish sẽ tạo ${versionName}.`
+                  : `Publish sẽ tạo ${versionName} và thay bản đang live.`}
             </p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base mt-0.5">
@@ -4539,7 +4553,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
             <div>
               <button type="button" onClick={() => setChangesOpen(o => !o)} className="w-full flex items-center justify-between mb-2">
                 <span className="flex items-center gap-2">
-                  <span className="text-sm font-semibold">Changes</span>
+                  <span className="text-sm font-semibold">Thay đổi</span>
                   <span className="text-sm text-muted-foreground">{totalChangeRows}</span>
                 </span>
                 <HugeiconsIcon icon={changesOpen ? ChevronUpIcon : ChevronDownIcon} size={16} className="text-muted-foreground" />
@@ -4556,7 +4570,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
                         <span className="flex-1 text-sm text-muted-foreground text-right">{c.beforeLabel} → {c.afterLabel}</span>
                       ) : (
                         <>
-                          <span className="flex-1 text-sm text-muted-foreground text-right">{c.before} → {c.after} lines</span>
+                          <span className="flex-1 text-sm text-muted-foreground text-right">{c.before} → {c.after} dòng</span>
                           <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${
                             c.after - c.before > 0 ? "bg-success/10 text-success" : c.after - c.before < 0 ? "bg-destructive/10 text-destructive" : "bg-surface-muted text-muted-foreground"
                           }`}>{c.after - c.before > 0 ? `+${c.after - c.before}` : c.after - c.before}</span>
@@ -4567,9 +4581,9 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
                   {agentConnectors.length > 0 && (
                     <div className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg bg-surface-muted/60">
                       <span className="w-4 text-center text-sm font-semibold shrink-0 text-muted-foreground">~</span>
-                      <span className="text-sm font-medium shrink-0">Connectors</span>
+                      <span className="text-sm font-medium shrink-0">Kết nối</span>
                       <span className="flex-1 text-sm text-muted-foreground text-right">
-                        {agentConnectors.length} connector · {hasPersonalConnector ? "Personal" : "Shared"}
+                        {agentConnectors.length} kết nối · {hasPersonalConnector ? "Riêng người" : "Dùng chung"}
                       </span>
                     </div>
                   )}
@@ -4590,9 +4604,9 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
           {/* Section 2 — Version type */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium">Version type</p>
+              <p className="text-sm font-medium">Loại phiên bản</p>
               <div className="text-right">
-                <p className="text-xs text-muted-foreground">New version</p>
+                <p className="text-xs text-muted-foreground">Phiên bản mới</p>
                 <p className="text-xl font-bold tracking-tight text-foreground font-display">
                   v<span className={versionType === "major" ? "text-primary underline underline-offset-4 decoration-2" : ""}>{newVersion[0]}</span>
                   .
@@ -4623,25 +4637,25 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
               ))}
             </div>
             <p className="text-sm text-muted-foreground">
-              {versionType === "patch" && "Small fixes and patches; existing features stay the same."}
-              {versionType === "minor" && "New features that don't break existing behavior."}
-              {versionType === "major" && "Big changes that may not be backwards compatible."}
+              {versionType === "patch" && "Sửa lỗi nhỏ — các tính năng hiện có giữ nguyên."}
+              {versionType === "minor" && "Thêm tính năng mới, không thay đổi cách Agent đang hoạt động."}
+              {versionType === "major" && "Thay đổi lớn, có thể không tương thích với bản trước."}
             </p>
           </div>
 
           {/* Section 3 — Release notes */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-sm font-medium">Release notes</label>
+              <label className="text-sm font-medium">Ghi chú phát hành</label>
               <button type="button" onClick={draftNoteFromChanges} className="flex items-center gap-1 text-sm font-semibold text-primary hover:underline">
-                <HugeiconsIcon icon={SparklesIcon} size={12} /> Write from changes
+                <HugeiconsIcon icon={SparklesIcon} size={12} /> Viết từ thay đổi
               </button>
             </div>
             <div className="relative">
               <textarea
                 rows={3}
                 maxLength={NOTE_MAX}
-                placeholder="What's new in this version? The people using the agent will read this."
+                placeholder="Bản này có gì mới? Người dùng Agent sẽ đọc phần này."
                 className="w-full px-3 pt-2.5 pb-7 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none"
                 value={note}
                 onChange={e => setNote(e.target.value)}
@@ -4659,7 +4673,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
                 onChange={e => setPublishToOpen(e.target.checked)}
                 className="w-5 h-5 rounded-md accent-primary shrink-0"
               />
-              <span className="text-sm font-semibold">Publish to</span>
+              <span className="text-sm font-semibold">Publish tới</span>
               <AudiencePill audience={currentAudience} />
             </label>
 
@@ -4679,26 +4693,28 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
                   )}
                   {personalSpace && (
                     <p className="text-xs text-muted-foreground mb-2">
-                      Bạn đang ở Space cá nhân nên không có công ty/phòng ban để publish tới — chuyển sang một Space doanh nghiệp để mở "Company / department".
+                      Bạn đang ở Space cá nhân nên không có công ty/phòng ban để publish tới — chuyển sang một Space doanh nghiệp để mở "Công ty / phòng ban".
                     </p>
                   )}
                   <div className="space-y-2">
                     <AudienceRadioRow
                       icon={UserIcon}
-                      title="Only me"
-                      description="Only you can use the agent. It is added straight to Agents in Workspace."
+                      title="Chỉ mình tôi"
+                      description="Chỉ bạn dùng được Agent này. Agent được thêm ngay vào Agents trong Workspace."
+                      review="instant"
                       selected={audience === "me"}
                       liveNow={current.placement !== null && currentAudience === "me"}
-                      liveLabel="Published"
+                      liveLabel="Đang live"
                       onClick={() => setAudience("me")}
                     />
                     <AudienceRadioRow
                       icon={UserMultipleIcon}
                       title="Chia sẻ nhanh"
-                      description="Chọn tối đa 10 người cụ thể. Publish ngay, không cần duyệt — dùng cho chia sẻ tạm/nhanh thật sự, không phải cách né duyệt cho một nhóm lớn hơn."
+                      description="Chọn tối đa 10 người cụ thể, dành cho chia sẻ nhanh và tạm thời."
+                      review="instant"
                       selected={audience === "quick_share"}
                       liveNow={current.placement !== null && currentAudience === "quick_share"}
-                      liveLabel="Published"
+                      liveLabel="Đang live"
                       onClick={() => setAudience("quick_share")}
                     >
                       {audience === "quick_share" && (
@@ -4710,10 +4726,11 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
                     <AudienceRadioRow
                       icon={UserGroupIcon}
                       title="Nhóm cộng tác"
-                      description="Một nhóm đặt tên, có danh sách thành viên, dùng lại nhiều lần. Publish ngay nếu nhóm chưa trùng nhiều với một phòng ban thật — từ 80% trùng trở lên sẽ tự chuyển sang cần Org/Unit Admin duyệt như Company / department, và tiếp tục được kiểm tra lại sau này."
+                      description="Nhóm có tên và danh sách thành viên, dùng lại được. Cần duyệt nếu nhóm trùng từ 80% trở lên với một phòng ban."
+                      review="maybe"
                       selected={audience === "group"}
                       liveNow={current.placement !== null && currentAudience === "group"}
-                      liveLabel="Published"
+                      liveLabel="Đang live"
                       onClick={() => setAudience("group")}
                     >
                       {audience === "group" && (
@@ -4777,11 +4794,12 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
                     {!personalSpace && (
                       <AudienceRadioRow
                         icon={Building02Icon}
-                        title="Company / department"
-                        description="Share the agent with a whole company, one department, or selected employees."
+                        title="Công ty / phòng ban"
+                        description="Chia sẻ cho cả công ty, một phòng ban hoặc nhân viên cụ thể."
+                        review="required"
                         selected={audience === "org"}
                         liveNow={current.placement !== null && currentAudience === "org"}
-                        liveLabel="Published"
+                        liveLabel="Đang live"
                         onClick={() => setAudience("org")}
                       >
                         {audience === "org" && (
@@ -4802,18 +4820,19 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
                         second line was flagged as redundant during review. */}
                     <AudienceRadioRow
                       icon={Globe02Icon}
-                      title="FPT AI Agent community"
-                      description="Publish the agent to every FPT AI Agent user, including people outside your company."
+                      title="Cộng đồng FPT AI Agent"
+                      description="Mọi người dùng FPT AI Agent, kể cả người ngoài công ty bạn."
+                      review="required"
                       selected={audience === "community"}
                       liveNow={current.placement !== null && currentAudience === "community"}
-                      liveLabel="Published"
+                      liveLabel="Đang live"
                       onClick={() => setAudience("community")}
                     />
                   </div>
                 </div>
 
                 <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-2">External channels</p>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Kênh ngoài</p>
                   <div className="grid grid-cols-2 gap-2">
                     {CHANNEL_CATALOG.map(ch => (
                       <PublishChannelStatusRow key={ch.id} ch={ch} />
@@ -4821,7 +4840,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
                   </div>
                   <div className="text-right mt-2">
                     <button type="button" onClick={onManageChannels} className="text-sm font-semibold text-primary hover:underline flex items-center gap-0.5 ml-auto">
-                      Manage <HugeiconsIcon icon={ChevronRightIcon} size={12} />
+                      Quản lý <HugeiconsIcon icon={ChevronRightIcon} size={12} />
                     </button>
                   </div>
                 </div>
@@ -4832,7 +4851,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-2 px-6 py-4 shrink-0">
-          <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Cancel</button>
+          <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Hủy</button>
           <button
             className="h-9 px-5 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-2 transition-base disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary"
             onClick={doPublish}

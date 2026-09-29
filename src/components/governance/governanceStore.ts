@@ -61,8 +61,8 @@ export const RESOURCE_TYPE_LABEL: Record<GovResourceType, string> = {
 };
 
 export const AUDIENCE_LABEL: Record<GovAudience, string> = {
-  org: "Company / department",
-  community: "FPT AI Agent community",
+  org: "Công ty / phòng ban",
+  community: "Cộng đồng FPT AI Agent",
   group: "Nhóm cộng tác",
 };
 
@@ -321,7 +321,7 @@ export function resourceShareStatus(type: Exclude<GovResourceType, "agent">, id:
  * single entry derived from the older `audience` + `scopeSummary` fields. */
 export function workspaceTargetsOf(req: GovRequest): WorkspaceTarget[] {
   if (req.workspaceTargets && req.workspaceTargets.length > 0) return req.workspaceTargets;
-  if (req.audience === "community") return [{ kind: "community", name: "FPT AI Agent community" }];
+  if (req.audience === "community") return [{ kind: "community", name: "Cộng đồng FPT AI Agent" }];
   return [{ kind: req.audience === "group" ? "group" : "department", name: req.scopeSummary ?? AUDIENCE_LABEL[req.audience] }];
 }
 
@@ -395,7 +395,7 @@ function seed() {
     {
       id: "req-1003", changeStateAtSubmit: "new", resourceType: "skill", resourceId: "email-drafter", resourceName: "email-drafter",
       requesterId: "m-fsoft-vn-1", requesterName: "Duy Nguyen",
-      audience: "community", note: "Skill soạn email đã dùng ổn định 2 tuần trong team — đề xuất mở cho toàn bộ FPT AI Agent community.",
+      audience: "community", note: "Skill soạn email đã dùng ổn định 2 tuần trong team — đề xuất mở cho toàn bộ Cộng đồng FPT AI Agent.",
       status: "approved", submittedAt: t - 3 * DAY, updatedAt: t - 2 * DAY,
       reviewerId: "m-fsoft-ceo", reviewerName: "Tran Nam", reviewNote: "Đã test thử — hoạt động tốt, duyệt.",
     },
@@ -537,11 +537,11 @@ function seed() {
       id: "req-2004", resourceType: "agent", resourceId: "ops", resourceName: "IT Helpdesk",
       resourceIcon: "🛠️", requesterId: "m-fsoft-vn-1", requesterName: "Duy Nguyen",
       audience: "community", channels: ["web", "api"],
-      workspaceTargets: [{ kind: "community", name: "FPT AI Agent community" }],
+      workspaceTargets: [{ kind: "community", name: "Cộng đồng FPT AI Agent" }],
       connections: [conn("Slack", "slack", "shared")],
       subAgents: [{ name: "vpn-helper", description: "Hướng dẫn cài đặt và xử lý lỗi VPN từng bước.", model: "DeepSeek V4 Flash", status: "active" }],
       starterPrompts: ["Tôi quên mật khẩu", "Hướng dẫn cài VPN trên macOS", "Tạo ticket hỗ trợ"],
-      note: "Agent đã chạy ổn định 1 tháng nội bộ — đề xuất chia sẻ cho FPT AI Agent community làm mẫu Helpdesk L1.",
+      note: "Agent đã chạy ổn định 1 tháng nội bộ — đề xuất chia sẻ cho Cộng đồng FPT AI Agent làm mẫu Helpdesk L1.",
       version: "v1.4.0", status: "pending", submittedAt: t - 2 * DAY, updatedAt: t - 2 * DAY,
       resourceRefs: [
         { type: "knowledge", resourceId: "kb-3", name: "Tài liệu vận hành nội bộ" },
@@ -576,16 +576,16 @@ function seed() {
       id: "req-2006", changeStateAtSubmit: "new", resourceType: "agent", resourceId: "sales", resourceName: "Sales Lead Qualifier",
       resourceIcon: "🎯", requesterId: "m-fsoft-vn-1", requesterName: "Duy Nguyen",
       audience: "community", channels: ["web"],
-      workspaceTargets: [{ kind: "community", name: "FPT AI Agent community" }],
+      workspaceTargets: [{ kind: "community", name: "Cộng đồng FPT AI Agent" }],
       note: "Chia sẻ Agent chấm điểm lead cho community.",
       version: "v1.0.2", status: "rejected", submittedAt: t - 6 * DAY, updatedAt: t - 5 * DAY,
       resourceRefs: [{ type: "connector", resourceId: "cc-1", name: "internal-crm-mcp" }],
       reviewerId: "m-fsoft-ceo", reviewerName: "Tran Nam",
-      reviewNote: "Agent đang gọi CRM nội bộ — không phù hợp publish ra community. Vui lòng chọn phạm vi Company / department.",
+      reviewNote: "Agent đang gọi CRM nội bộ — không phù hợp publish ra community. Vui lòng chọn phạm vi Công ty / phòng ban.",
     },
     [
       hAt("submitted", "m-fsoft-vn-1", "Duy Nguyen", t - 6 * DAY),
-      hAt("rejected", "m-fsoft-ceo", "Tran Nam", t - 5 * DAY, "Agent đang gọi CRM nội bộ — không phù hợp publish ra community. Vui lòng chọn phạm vi Company / department."),
+      hAt("rejected", "m-fsoft-ceo", "Tran Nam", t - 5 * DAY, "Agent đang gọi CRM nội bộ — không phù hợp publish ra community. Vui lòng chọn phạm vi Công ty / phòng ban."),
     ],
   );
   const extraAgentReqs = [quoteReq, legalReq, financeReq, helpdeskReq, faqReq, salesReq];
