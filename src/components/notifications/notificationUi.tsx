@@ -47,8 +47,20 @@ const KIND_META: Record<NotificationKind, { icon: typeof Bell; tone: Tone; chip:
 };
 
 /** "Agent của bạn" / "Agent được chia sẻ với bạn" for outcomes; nothing extra for incoming. */
+const RESOLVED: Record<string, string> = {
+  approved: "Đã được duyệt", rejected: "Đã bị từ chối", withdrawn: "Người gửi đã rút", revoked: "Đã thu hồi",
+};
+/** An incoming request that someone already decided (or the sender withdrew) is no longer
+ * actionable — say so instead of still asking "Cần bạn duyệt". */
+function resolvedLabel(n: AppNotification): string | null {
+  if (n.kind !== "request_submitted" || !n.requestId) return null;
+  const st = governanceStore.get(n.requestId)?.status;
+  return st && st !== "pending" ? RESOLVED[st] ?? null : null;
+}
+
 function contextLabel(n: AppNotification, userId: string): string | null {
-  if (n.kind === "request_submitted" || !n.resourceId) return null;
+  if (n.kind === "request_submitted") return resolvedLabel(n);
+  if (!n.resourceId) return null;
   if (n.resourceId.startsWith("ext-")) return "Agent của bạn";
   const a = getAgent(n.resourceId) as { ownerId?: string; sharedWith?: string[] } | undefined;
   if (a?.ownerId === userId) return "Agent của bạn";
@@ -63,19 +75,20 @@ export function NotificationItem({ n, viewer, onOpen, compact }: { n: AppNotific
   const tone = TONE[meta.tone];
   const Icon = meta.icon;
   const ctx = contextLabel(n, viewer.userId);
+  const resolved = !!resolvedLabel(n);
   return (
     <button
       type="button"
-      aria-label={`${meta.chip}. ${n.title}. ${relativeTimeVi(n.at)}${read ? "" : ". Chưa đọc"}`}
+      aria-label={`${meta.chip}${resolved ? ` (${ctx})` : ""}. ${n.title}. ${relativeTimeVi(n.at)}${read ? "" : ". Chưa đọc"}`}
       onClick={() => { notificationStore.markRead(n.id, viewer.userId); onOpen?.(); navigate(n.href); }}
       className={`group w-full text-left flex items-start gap-3 cursor-pointer ${compact ? "px-4 py-3" : "px-5 py-3.5"} transition-colors duration-150 hover:bg-surface-muted focus-visible:outline-none focus-visible:bg-surface-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40`}
     >
-      <span className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${tone.icon}`} aria-hidden>
+      <span className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${resolved ? "bg-surface-muted text-muted-foreground" : tone.icon}`} aria-hidden>
         <Icon size={16} strokeWidth={2} />
       </span>
       <span className="flex-1 min-w-0">
         <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-          <span className={`px-1.5 py-px rounded font-medium ${tone.chip}`}>{meta.chip}</span>
+          <span className={`px-1.5 py-px rounded font-medium ${resolved ? "bg-surface-muted text-muted-foreground" : tone.chip}`}>{meta.chip}</span>
           {ctx && <span className="truncate">{ctx}</span>}
           <span aria-hidden>·</span>
           <span className="shrink-0">{relativeTimeVi(n.at)}</span>

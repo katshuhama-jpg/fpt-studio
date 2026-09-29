@@ -2,6 +2,7 @@
 // list → detail → status changes all read/write the same in-memory + sessionStorage map and
 // stay in sync across navigation within the session, the same pattern as triggerStore.ts /
 // agentConnectorStore.ts.
+import { currentPersona } from "@/lib/demoPersona";
 import { loadMap, saveMap, loadSet, saveSet } from "@/lib/sessionPersist";
 import { agentPublishStore } from "@/components/configure/agentPublishStore";
 
@@ -99,7 +100,7 @@ const history = loadMap<string, HistoryEntry[]>(HISTORY_KEY);
 const persistStore = () => saveMap(STORE_KEY, store);
 const persistHistory = () => saveMap(HISTORY_KEY, history);
 
-const CURRENT_USER = "Tran Nam";
+const CURRENT_USER = currentPersona().name;
 
 const MIN = 60_000;
 const HOUR = 3_600_000;

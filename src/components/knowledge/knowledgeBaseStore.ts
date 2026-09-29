@@ -4,6 +4,7 @@
 // src/components/knowledge/knowledgeStore.ts (the per-Agent Knowledge store) per the
 // two-store architecture: an Agent can attach a Console KB by reference, or promote one of
 // its own items into a new Console KB, but the two stores are never merged.
+import { currentPersona } from "@/lib/demoPersona";
 import { loadMap, saveMap } from "@/lib/sessionPersist";
 import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
 import { knowledgeUrlStore } from "./knowledgeUrlStore";
@@ -85,7 +86,8 @@ type StoredKnowledgeBase = Omit<KnowledgeBase, "stats">;
 // id matches the org member `useMyPermissions()` resolves the signed-in demo persona to
 // (src/pages/organization/orgData.ts's "m-fsoft-ceo") — scope enforcement compares a KB's
 // ownerId/sharing against that same id, so the two must never drift apart.
-export const CURRENT_USER = { id: "m-fsoft-ceo", name: "Tran Nam", email: "tran.nam@fpt.com" };
+const __persona = currentPersona();
+export const CURRENT_USER = { id: __persona.id, name: __persona.name, email: __persona.email };
 
 // v3 — CURRENT_USER.id changed from the disconnected "tran-nam" to the real org-member id
 // ("m-fsoft-ceo"), and a KB genuinely inaccessible to the current user (kb-7) was added — a

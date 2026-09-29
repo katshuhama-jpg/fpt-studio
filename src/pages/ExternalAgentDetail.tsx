@@ -40,11 +40,11 @@ const TOP_TABS: { id: Tab; label: string; Icon: any }[] = [
 ];
 
 const ENDPOINTS: { method: string; path: string; purpose: string; required: boolean }[] = [
-  { method: "GET", path: "/health", purpose: "Status and protocol version.", required: true },
-  { method: "POST", path: "/runs", purpose: "Calls the agent to run.", required: true },
-  { method: "GET", path: "/tools", purpose: "Lists the tools this agent declares.", required: false },
-  { method: "POST", path: "/credentials", purpose: "Registers a per-user credential (optional, off this phase).", required: false },
-  { method: "POST", path: "/credentials/revoke", purpose: "Revokes a per-user credential (optional, off this phase).", required: false },
+  { method: "GET", path: "/health", purpose: "Trạng thái và phiên bản protocol.", required: true },
+  { method: "POST", path: "/runs", purpose: "Gọi Agent chạy.", required: true },
+  { method: "GET", path: "/tools", purpose: "Liệt kê các tool Agent khai báo.", required: false },
+  { method: "POST", path: "/credentials", purpose: "Đăng ký credential theo người dùng (tùy chọn, chưa bật ở phase này).", required: false },
+  { method: "POST", path: "/credentials/revoke", purpose: "Thu hồi credential theo người dùng (tùy chọn, chưa bật ở phase này).", required: false },
 ];
 
 function CopyButton({ value }: { value: string }) {
@@ -99,7 +99,8 @@ function endpointStatus(agent: ExternalAgent, path: string): EndpointStatus {
 }
 function EndpointStatusBadge({ status }: { status: EndpointStatus }) {
   const cls = status === "Active" ? "chip-success" : status === "Error" ? "chip-danger" : "chip-muted";
-  return <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border ${cls}`}>{status}</span>;
+  const label = status === "Active" ? "Hoạt động" : status === "Error" ? "Lỗi" : "Chưa có";
+  return <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border ${cls}`}>{label}</span>;
 }
 
 export default function ExternalAgentDetail() {
@@ -285,19 +286,19 @@ export default function ExternalAgentDetail() {
           </button>
 
           {agent.status === "published" && isAdmin && (
-            <button onClick={() => setShowPause(true)} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base whitespace-nowrap">Pause</button>
+            <button onClick={() => setShowPause(true)} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base whitespace-nowrap">Tạm dừng</button>
           )}
 
           {agent.status === "paused" && isAdmin && (
             <button
               onClick={() => {
                 externalAgentStore.resume(agent.id);
-                toast.success(`"${agent.name}" is published again.`);
+                toast.success(`Đã tiếp tục "${agent.name}". Agent đang phục vụ người dùng trở lại.`);
                 refresh();
               }}
               className="btn-primary h-9 whitespace-nowrap"
             >
-              Resume
+              Tiếp tục
             </button>
           )}
 
@@ -330,7 +331,7 @@ export default function ExternalAgentDetail() {
                         </button>
                       </span>
                     </TooltipTrigger>
-                    {agent.status === "published" && <TooltipContent side="left">Pause this agent before deleting.</TooltipContent>}
+                    {agent.status === "published" && <TooltipContent side="left">Tạm dừng Agent trước khi xóa.</TooltipContent>}
                   </Tooltip>
                 </div>
               </>
@@ -499,9 +500,9 @@ export default function ExternalAgentDetail() {
                   <HugeiconsIcon icon={Alert01Icon} size={14} className="shrink-0 mt-0.5 text-destructive" />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-destructive leading-relaxed">
-                      This agent has been unreachable since{" "}
-                      {agent.lastHealthyAt ? new Date(agent.lastHealthyAt).toLocaleDateString() : "it was first connected"}.
-                      Conversations on its published channels may be failing.
+                      Không kết nối được tới Agent từ{" "}
+                      {agent.lastHealthyAt ? new Date(agent.lastHealthyAt).toLocaleDateString("vi-VN") : "lần kết nối đầu tiên"}.
+                      Hội thoại trên các kênh đã publish có thể đang lỗi.
                     </p>
                     <button
                       type="button"
@@ -517,20 +518,20 @@ export default function ExternalAgentDetail() {
                       className="mt-1.5 text-sm font-semibold text-destructive hover:underline disabled:opacity-50 flex items-center gap-1"
                     >
                       {checkingHealth && <HugeiconsIcon icon={Loading01Icon} size={11} className="animate-spin" />}
-                      Run check now
+                      Kiểm tra ngay
                     </button>
                   </div>
                 </div>
               )}
 
               <div className="rounded-xl border border-border p-4">
-                <h3 className="text-lg font-semibold mb-2">Connection</h3>
+                <h3 className="text-lg font-semibold mb-2">Kết nối</h3>
                 <InfoRow label="Trạng thái">
                   <div className="space-y-1">
                     <StatusBadge status={agent.status} />
                     {latestStatusChange && (
                       <p className="text-sm text-muted-foreground">
-                        Changed by {latestStatusChange.actor} · {relativeTime(latestStatusChange.at)}
+                        Cập nhật bởi {latestStatusChange.actor} · {relativeTime(latestStatusChange.at)}
                       </p>
                     )}
                   </div>
@@ -538,15 +539,15 @@ export default function ExternalAgentDetail() {
                 <InfoRow label="Base URL">
                   <span className="text-sm break-all">{agent.baseUrl}</span>
                 </InfoRow>
-                <InfoRow label="Authentication">
-                  {agent.authMethod === "bearer" ? "Bearer Token" : agent.authMethod === "headers" ? "Headers (optional)" : "None"}
+                <InfoRow label="Xác thực">
+                  {agent.authMethod === "bearer" ? "Bearer Token" : agent.authMethod === "headers" ? "Headers (tùy chọn)" : "Không"}
                 </InfoRow>
                 {agent.authMethod === "bearer" && (
                   <InfoRow label="Bearer Token">
                     <span className="font-mono text-sm">••••••••</span>
                   </InfoRow>
                 )}
-                <InfoRow label="Allowed hosts for authorizeUrl">
+                <InfoRow label="Host được phép cho authorizeUrl">
                   {agent.allowedAuthorizeHosts.length > 0 ? (
                     <div className="flex flex-col items-start gap-1.5">
                       {agent.allowedAuthorizeHosts.map(host => (
@@ -568,7 +569,7 @@ export default function ExternalAgentDetail() {
                   <div className="flex items-center gap-2 shrink-0">
                     {agent.lastHealthCheckAt != null && (
                       <span className="text-[11px] text-muted-foreground whitespace-nowrap">
-                        Checked {relativeTime(agent.lastHealthCheckAt)}
+                        Kiểm tra {relativeTime(agent.lastHealthCheckAt)}
                       </span>
                     )}
                     <button
@@ -580,25 +581,25 @@ export default function ExternalAgentDetail() {
                           const ok = externalAgentStore.runHealthCheck(agent.id);
                           setCheckingHealth(false);
                           refresh();
-                          if (ok) toast.success("Health check passed — required endpoints are reachable.");
-                          else toast.error("Health check failed — the agent didn't respond. See Status below.");
+                          if (ok) toast.success("Kết nối ổn — các endpoint bắt buộc đều phản hồi.");
+                          else toast.error("Không kết nối được — Agent không phản hồi. Xem trạng thái endpoint bên dưới.");
                         }, 700);
                       }}
                       className="h-7 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base disabled:opacity-50 flex items-center gap-1.5"
                     >
                       {checkingHealth && <HugeiconsIcon icon={Loading01Icon} size={11} className="animate-spin" />}
-                      Recheck now
+                      Kiểm tra lại
                     </button>
                   </div>
                 </div>
-                <p className="text-sm text-muted-foreground mb-3">These are the addresses the platform calls on your agent.</p>
+                <p className="text-sm text-muted-foreground mb-3">Các địa chỉ nền tảng gọi tới Agent của bạn.</p>
                 <div className="rounded-lg border border-border overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-surface-muted">
                         <th className="text-left px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">Endpoint</th>
-                        <th className="text-left px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Purpose</th>
-                        <th className="text-left px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">Status</th>
+                        <th className="text-left px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Mục đích</th>
+                        <th className="text-left px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">Trạng thái</th>
                         <th className="px-3 py-2 w-9" />
                       </tr>
                     </thead>
@@ -611,9 +612,9 @@ export default function ExternalAgentDetail() {
                               <div className="flex items-center gap-1.5">
                                 <span className={`text-sm ${!e.required ? "text-muted-foreground" : ""}`}>{e.method} {e.path}</span>
                                 {e.required ? (
-                                  <span className="inline-flex items-center text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border chip-success">Required</span>
+                                  <span className="inline-flex items-center text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border chip-success">Bắt buộc</span>
                                 ) : (
-                                  <span className="inline-flex items-center text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border bg-surface-muted text-muted-foreground border-border">Optional</span>
+                                  <span className="inline-flex items-center text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border bg-surface-muted text-muted-foreground border-border">Tùy chọn</span>
                                 )}
                               </div>
                             </td>
@@ -667,7 +668,7 @@ export default function ExternalAgentDetail() {
         onOpenChange={setShowPause}
         onConfirm={() => {
           externalAgentStore.pause(agent.id);
-          toast.info(`"${agent.name}" is paused. Resume it any time.`);
+          toast.info(`Đã tạm dừng "${agent.name}". Bấm Tiếp tục bất cứ lúc nào.`);
           setShowPause(false);
           refresh();
         }}
@@ -679,7 +680,7 @@ export default function ExternalAgentDetail() {
         onOpenChange={setShowReject}
         onConfirm={reason => {
           externalAgentStore.reject(agent.id, reason);
-          toast.info(`"${agent.name}" was rejected.`);
+          toast.info(`Đã từ chối "${agent.name}".`);
           setShowReject(false);
           refresh();
         }}
@@ -691,7 +692,7 @@ export default function ExternalAgentDetail() {
         onOpenChange={setShowDelete}
         onConfirm={() => {
           externalAgentStore.remove(agent.id);
-          toast.success(`"${agent.name}" has been deleted.`);
+          toast.success(`Đã xóa "${agent.name}".`);
           navigate("/external-agents");
         }}
       />

@@ -41,14 +41,14 @@ export function PauseExternalAgentDialog({ name, open, onOpenChange, onConfirm }
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Pause this external agent?</AlertDialogTitle>
+          <AlertDialogTitle>Tạm dừng "{name}"?</AlertDialogTitle>
           <AlertDialogDescription>
-            "{name}" will stop responding to calls. Conversations currently using it will stop working until you resume it.
+            Agent sẽ ngừng phản hồi ngay. Các hội thoại đang dùng Agent sẽ dừng cho tới khi bạn bấm Tiếp tục.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm}>Pause</AlertDialogAction>
+          <AlertDialogCancel>Hủy</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm}>Tạm dừng</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

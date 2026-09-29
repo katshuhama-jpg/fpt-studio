@@ -133,6 +133,7 @@ export function AgentVersionsPanel({ agentId, agentName, onPublish, onChanged }:
   const [tick, setTick] = useState(0);
   const [filter, setFilter] = useState<VersionStatus | "all">("all");
   const [rollback, setRollback] = useState<VersionRow | null>(null);
+  const pendingForRollback = rollback ? governanceStore.getOpenRequestForResource("agent", agentId) : undefined;
   const [withdrawRow, setWithdrawRow] = useState<VersionRow | null>(null);
   // The version whose detail sheet is open — kept in the URL (?v=v1.2.0) so the status chips in
   // the top bar and the rejection banner can deep-link straight to a version's detail.
@@ -151,6 +152,10 @@ export function AgentVersionsPanel({ agentId, agentName, onPublish, onChanged }:
   const doRollback = () => {
     const rel = rollback?.release;
     if (!rollback || !rel) return;
+    // Same rule as a direct publish (R3): a pending version request would roll this back again
+    // once approved, so restoring withdraws it first (the dialog warned about it).
+    const pendingReq = governanceStore.getOpenRequestForResource("agent", agentId);
+    if (pendingReq) governanceStore.withdraw(pendingReq.id, CURRENT_USER.id, CURRENT_USER.name, `Tự rút vì ${CURRENT_USER.name} khôi phục ${rel.version}.`);
     agentPublishStore.publish(agentId, "workspace", rel.channels, rel.version, rel.audience, { scopeSummary: rel.scopeSummary, groupId: rel.groupId, via: "rollback", byName: CURRENT_USER.name });
     auditLogStore.log({
       actorId: CURRENT_USER.id, actorName: CURRENT_USER.name, action: "rolled_back",
@@ -290,6 +295,11 @@ export function AgentVersionsPanel({ agentId, agentName, onPublish, onChanged }:
                   Phạm vi và kênh cũng quay về như lúc {rollback?.version} đang live — Workspace: <b className="text-foreground">{rollback?.scope ?? "—"}</b>;
                   Kênh ngoài: <b className="text-foreground">{rollback?.channels?.length ? rollback.channels.map(channelLabel).join(", ") : "Không"}</b>.
                 </p>
+                {pendingForRollback && (
+                  <p className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-foreground">
+                    Yêu cầu <b>{pendingForRollback.version}</b> đang chờ duyệt sẽ được rút — nếu không, khi được duyệt nó sẽ thay bản bạn vừa khôi phục.
+                  </p>
+                )}
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>

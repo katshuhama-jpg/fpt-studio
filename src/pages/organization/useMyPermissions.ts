@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { currentPersona } from "@/lib/demoPersona";
 import { getUser } from "@/lib/onboarding";
 import { useOrg } from "./orgStore";
 import { useRoles, RoleDef } from "./rolesStore";
@@ -21,7 +22,9 @@ export function useMyPermissions() {
   // resource's ownerId/sharedWith, not just the permission set.
   const me = useMemo(() => {
     const members = collectMembers(tree);
+    const persona = currentPersona();
     return (
+      members.find(m => m.id === persona.id) ??
       members.find(m => (m.email ?? "").trim().toLowerCase() === email) ??
       members.find(m => m.name === "Tran Nam")
     );

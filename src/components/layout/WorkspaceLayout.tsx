@@ -11,6 +11,7 @@ import { useOrg } from "@/pages/organization/orgStore";
 import { governanceStore } from "@/components/governance/governanceStore";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import { NotificationBell } from "@/components/notifications/notificationUi";
+import { DEMO_PERSONAS, currentPersona, switchPersona } from "@/lib/demoPersona";
 import { TENANTS, getAllTenants, getCurrentTenantId, setCurrentTenantId } from "@/lib/spaceStore";
 
 const APP_VERSION = "0.58.5";
@@ -163,6 +164,7 @@ export default function WorkspaceLayout() {
   }
 
   const BREADCRUMB_LABELS: Record<string, string> = { tools: "Skills", notifications: "Thông báo" };
+  const persona = currentPersona();
   const ORG_BREADCRUMB_LABELS: Record<string, string> = { "": "General", structure: "Structure" };
   let breadcrumbLabel: string;
   if (inOrganization) {
@@ -245,12 +247,28 @@ export default function WorkspaceLayout() {
               {/* Identity */}
               <div className="px-3 py-3 flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-full bg-primary-soft flex items-center justify-center text-xs font-semibold text-primary shrink-0">
-                  TN
+                  {persona.initials}
                 </div>
                 <div className="min-w-0 text-left">
-                  <div className="text-sm font-semibold text-foreground truncate">Tran Nam</div>
-                  <div className="text-xs text-muted-foreground truncate">{userEmail}</div>
+                  <div className="text-sm font-semibold text-foreground truncate">{persona.name}</div>
+                  <div className="text-xs text-muted-foreground truncate">{persona.email}</div>
                 </div>
+              </div>
+              <div className="border-t border-border" />
+              {/* Demo only: switch persona to show the approval flow from both sides. */}
+              <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Xem với vai trò (demo)</div>
+              <div className="px-1.5 pb-1.5 space-y-0.5">
+                {DEMO_PERSONAS.map(p => (
+                  <button
+                    key={p.key}
+                    onClick={() => { if (p.key !== persona.key) switchPersona(p.key); else setUserMenu(false); }}
+                    className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-left text-sm transition-base ${p.key === persona.key ? "bg-primary-soft" : "hover:bg-surface-muted"}`}
+                  >
+                    <span className="w-6 h-6 rounded-full bg-surface border border-border flex items-center justify-center text-[10px] font-semibold text-primary shrink-0">{p.initials}</span>
+                    <span className="flex-1 min-w-0 truncate">{p.name} <span className="text-xs text-muted-foreground">· {p.title}</span></span>
+                    {p.key === persona.key && <Check size={13} className="text-primary shrink-0" />}
+                  </button>
+                ))}
               </div>
               <div className="border-t border-border" />
 
@@ -308,13 +326,13 @@ export default function WorkspaceLayout() {
             className="flex-1 min-w-0 flex items-center gap-2.5 px-1.5 py-1 rounded-md hover:bg-surface-muted transition-base"
           >
             <div className="w-8 h-8 rounded-full bg-primary-soft flex items-center justify-center text-xs font-semibold text-primary shrink-0">
-              TN
+              {persona.initials}
             </div>
             {!collapsed && (
               <>
                 <div className="flex-1 min-w-0 text-left">
-                  <div className="text-xs font-semibold text-foreground truncate">Tran Nam</div>
-                  <div className="text-xs text-muted-foreground truncate">Workspace Admin</div>
+                  <div className="text-xs font-semibold text-foreground truncate">{persona.name}</div>
+                  <div className="text-xs text-muted-foreground truncate">{persona.title}</div>
                 </div>
                 <ChevronDown size={13} className={`text-muted-foreground transition-base ${userMenu ? "rotate-180" : ""}`} />
               </>
@@ -325,7 +343,7 @@ export default function WorkspaceLayout() {
           {!collapsed && (
             <button
               onClick={() => setCollapsed(true)}
-              className="absolute -right-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-surface border border-border shadow-sm hover:bg-surface-muted text-muted-foreground flex items-center justify-center transition-base"
+              className="absolute -right-3 -top-3 h-6 w-6 rounded-full bg-surface border border-border shadow-sm hover:bg-surface-muted text-muted-foreground flex items-center justify-center transition-base"
               aria-label="Collapse sidebar"
             >
               <ChevronsLeft size={12} />
@@ -334,7 +352,7 @@ export default function WorkspaceLayout() {
           {collapsed && (
             <button
               onClick={() => setCollapsed(false)}
-              className="absolute -right-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-surface border border-border shadow-sm hover:bg-surface-muted text-muted-foreground flex items-center justify-center transition-base"
+              className="absolute -right-3 -top-3 h-6 w-6 rounded-full bg-surface border border-border shadow-sm hover:bg-surface-muted text-muted-foreground flex items-center justify-center transition-base"
               aria-label="Expand sidebar"
             >
               <ChevronsRight size={12} />
@@ -349,7 +367,7 @@ export default function WorkspaceLayout() {
           <div className="flex items-center gap-2 text-sm">
             <TenantSwitcher tenantId={tenantId} tenants={tenants} onChange={setTenantId} />
             <span className="text-muted-foreground">/</span>
-            <span className="font-medium text-foreground capitalize">{breadcrumbLabel}</span>
+            <span className="font-medium text-foreground">{breadcrumbLabel.charAt(0).toUpperCase() + breadcrumbLabel.slice(1)}</span>
           </div>
 
         </header>

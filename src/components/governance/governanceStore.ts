@@ -244,6 +244,8 @@ export interface GovRequest {
   revokedAt?: number;
   revokedBy?: string;
   revokeReason?: string;
+  /** Set when the Admin revoked back to the previous live version instead of stopping the Agent. */
+  revokedToVersion?: string;
   history: GovHistoryEntry[];
 }
 
@@ -816,7 +818,7 @@ function buildNotification(r: GovRequest, action: GovHistoryEntry["action"], act
       break;
     case "revoked":
       kind = isCh ? "channel_revoked" : "request_revoked";
-      seg = isCh ? [[`Kênh ${chs} của `], A, [" đã bị tắt"]] : [["Agent "], A, [" đã bị thu hồi"]];
+      seg = isCh ? [[`Kênh ${chs} của `], A, [" đã bị tắt"]] : [["Agent "], A, [r.revokedToVersion ? ` đã bị thu hồi, quay về ${r.revokedToVersion}` : " đã bị thu hồi"]];
       break;
     default:
       return null;
@@ -1112,10 +1114,20 @@ export const governanceStore = {
    * computation sees it as "new" again) and un-publishes an Agent. Does not restore a prior live
    * snapshot (this ledger only ever tracks the current live version, not full history) — a
    * deliberate simplification for the prototype. */
-  revoke(id: string, reviewerId: string, reviewerName: string, reason: string): GovRequest | undefined {
+  /** The version a revoke can fall back to: only for a publish request whose version is the one
+   * serving right now, and only if an earlier version was live before it. */
+  revokeFallback(r: GovRequest) {
+    if (r.resourceType !== "agent" || requestKind(r) !== "publish") return undefined;
+    const pub = agentPublishStore.get(r.resourceId);
+    if (pub.placement === null || pub.version !== r.version) return undefined;
+    return agentPublishStore.releases(r.resourceId).filter(e => e.version !== r.version).pop();
+  },
+
+  revoke(id: string, reviewerId: string, reviewerName: string, reason: string, mode: "previous" | "stop" = "stop"): GovRequest | undefined {
     seed();
     const r = store.get(id);
     if (!r || r.status !== "approved") return r;
+    const fallback = mode === "previous" ? this.revokeFallback(r) : undefined;
     const t = now();
     r.status = "revoked";
     r.updatedAt = t;
@@ -1128,6 +1140,14 @@ export const governanceStore = {
       // Revoking a channel approval switches just those channels back off.
       const current = agentPublishStore.get(r.resourceId);
       agentPublishStore.setChannels(r.resourceId, current.channels.filter(c => !(r.channelsAdded ?? []).includes(c)));
+    } else if (fallback) {
+      // Back to the version that was live before — it had already cleared review.
+      r.revokedToVersion = fallback.version;
+      store.set(id, r);
+      persist();
+      agentPublishStore.publish(r.resourceId, "workspace", fallback.channels, fallback.version, fallback.audience,
+        { scopeSummary: fallback.scopeSummary, groupId: fallback.groupId, via: "rollback", byName: reviewerName });
+      if (isExternalAgentId(r.resourceId)) externalAgentStore.applyGovernance(r.resourceId, { status: "published", version: fallback.version, channels: fallback.channels }, `${reviewerName} thu hồi ${r.version ?? ""}, quay về ${fallback.version}`.trim(), reason);
     } else {
       liveSnapshots.delete(snapshotKey(r.resourceType, r.resourceId));
       persistLive();
