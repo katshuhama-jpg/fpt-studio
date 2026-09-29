@@ -19,7 +19,7 @@ import {
 } from "@/components/configure/connectorTemplateStore";
 import { ConnectorTemplateConnectModal, ConnectorTemplateManageModal } from "@/components/configure/ConnectorTemplateModals";
 import {
-  ownershipTags, countByTab, matchesTab, OwnershipTabs, ResourceCard, ResourceIconTile, CreatorLabel, AgentCount,
+  ownershipTags, countByTab, matchesTab, OwnershipTabs, ResourceCard, ResourceIconTile, CardCreator, AgentCount,
   type OwnershipTab, type OwnershipTag,
 } from "@/components/governance/resourceOwnership";
 import {
@@ -338,7 +338,7 @@ export default function WorkspaceConnectors() {
                       extra={connected
                         ? <p className="text-xs text-success font-medium flex items-center gap-1"><CheckCircle2 size={12} /> {connectorTemplateStore.listAccounts(t.id).length} credential đã kết nối</p>
                         : <p className="text-xs text-muted-foreground">Chưa kết nối · điền credential để dùng</p>}
-                      creator={<CreatorLabel displayName="FPT AI Agents" system />}
+                      creator={<CardCreator displayName="FPT AI Agents" system />}
                       highlighted={connected}
                       onOpen={open}
                     />
@@ -563,7 +563,7 @@ function CustomConnectorCard({ connector: c, tags, isMine, onEdit, onShare, onPu
           {(openReq || isApproved) && <StatusBadge status={openReq ? openReq.status : "approved"} />}
         </div>
       }
-      creator={<CreatorLabel displayName={isMine ? "Bạn" : c.ownerName} fullName={c.ownerName} />}
+      creator={<CardCreator displayName={isMine ? "Bạn" : c.ownerName} fullName={c.ownerName} />}
       agents={<AgentCount count={c.attachedByAgentIds.length} />}
     />
   );

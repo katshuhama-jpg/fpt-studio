@@ -14,7 +14,7 @@ import ShareKnowledgeBaseModal from "@/components/knowledge/ShareKnowledgeBaseMo
 import DeleteKnowledgeBaseDialog from "@/components/knowledge/DeleteKnowledgeBaseDialog";
 import { useGroupAccess } from "@/pages/organization/scopeAccess";
 import {
-  ownershipTags, countByTab, matchesTab, OwnershipTabs, ResourceCard, CreatorLabel, AgentCount, type OwnershipTab,
+  ownershipTags, countByTab, matchesTab, OwnershipTabs, ResourceCard, CardCreator, AgentCount, type OwnershipTab,
 } from "@/components/governance/resourceOwnership";
 
 type MainTab = OwnershipTab;
@@ -132,7 +132,7 @@ function KbCard({ kb, userId, access, onOpen, onEdit, onShare, onDelete }: {
       menu={<RowMenu kb={kb} onOpen={onOpen} onEdit={onEdit} onShare={onShare} onDelete={onDelete} editBlocked={editBlocked} shareBlocked={shareBlocked} deleteBlocked={deleteBlocked} />}
       description={kb.description}
       extra={<p className="text-xs text-muted-foreground">{relativeTime(kb.updatedAt)}</p>}
-      creator={<CreatorLabel displayName={isOwner ? "Bạn" : kb.ownerName} fullName={kb.ownerName} />}
+      creator={<CardCreator displayName={isOwner ? "Bạn" : kb.ownerName} fullName={kb.ownerName} />}
       agents={<AgentCount count={kb.attachedByAgentIds.length} />}
       onOpen={onOpen}
     />

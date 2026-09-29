@@ -130,14 +130,34 @@ export function CreatorLabel({ displayName, fullName, system }: { displayName: s
   );
 }
 
+/** Avatar + name for the resource-card footer — no "Người tạo:" label, since sitting next to
+ * the ownership Tag on the same line already gives it enough context. Bigger and legible
+ * (not bold) so it doesn't get lost next to the Tag pill. Truncates with an ellipsis instead
+ * of wrapping so the footer always stays on one line. */
+export function CardCreator({ displayName, fullName, system }: { displayName: string; fullName?: string; system?: boolean }) {
+  return (
+    <span className="flex items-center gap-1.5 min-w-0" title={displayName}>
+      <span className={`w-[18px] h-[18px] rounded-full shrink-0 flex items-center justify-center text-[8px] font-bold ${system ? "bg-surface-sunken text-foreground/70" : "bg-primary-soft text-primary-strong"}`} aria-hidden>
+        {system ? <ShieldCheck size={11} /> : initials(fullName ?? displayName)}
+      </span>
+      <span className="truncate text-[12.5px] font-medium text-foreground">{displayName}</span>
+    </span>
+  );
+}
+
 /** Agent-usage count is no longer shown on resource cards (moved to the detail popup) —
  * kept as a no-op so call sites don't need to change if it comes back. */
 export function AgentCount(_: { count: number; all?: boolean }) {
   return null;
 }
 
-/** "Phương án A" card: icon · name + tags · ⋮ / description / Người tạo ··· N Agent. */
-export function ResourceCard({ icon, name, nameNode, tags, menu, description, creator, agents, extra, onOpen, highlighted }: {
+/** "Phương án A" card: icon · name · ⋮ / description / Tag ··· avatar + tên người tạo.
+ * Header is icon + name only (one line, nothing else) so it never shifts depending on what's
+ * below. The footer always has the ownership Tag (every resource has at least one) plus the
+ * creator — when worth showing — on the same single line, so the footer is never empty and
+ * never wraps to a second line. Height is fixed so every card in the grid lines up, whatever
+ * the number of tags or the length of the description/creator name. */
+export function ResourceCard({ icon, name, nameNode, tags, menu, description, creator, extra, onOpen, highlighted }: {
   icon: ReactNode;
   name: string;
   /** Optional replacement for the plain name (e.g. a Link) — `name` still labels the card. */
@@ -146,6 +166,8 @@ export function ResourceCard({ icon, name, nameNode, tags, menu, description, cr
   menu?: ReactNode;
   description?: string;
   creator: ReactNode;
+  /** @deprecated Agent-usage count is no longer shown on cards — kept so call sites building
+   * it (e.g. via `AgentCount`) don't need to change; the value is accepted and ignored. */
   agents?: ReactNode;
   /** Extra line under the description (status badges, URL…). */
   extra?: ReactNode;
@@ -160,7 +182,7 @@ export function ResourceCard({ icon, name, nameNode, tags, menu, description, cr
       aria-label={interactive ? `Mở ${name}` : undefined}
       onClick={onOpen}
       onKeyDown={interactive ? ((e: KeyboardEvent) => { if (e.key === "Enter" && e.target === e.currentTarget) onOpen!(); }) : undefined}
-      className={`group rounded-xl border bg-surface p-4 flex flex-col transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+      className={`group rounded-xl border bg-surface p-4 flex flex-col h-[204px] overflow-hidden transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
         highlighted ? "border-primary/30" : "border-border"
       } ${interactive ? "cursor-pointer hover:border-primary/30 hover:shadow-elev" : ""}`}
     >
@@ -168,18 +190,17 @@ export function ResourceCard({ icon, name, nameNode, tags, menu, description, cr
         {icon}
         <div className="min-w-0 flex-1">
           <div className="text-sm font-semibold leading-snug truncate" title={name}>{nameNode ?? name}</div>
-          <OwnershipTagList tags={tags} className="mt-1.5" />
         </div>
         {menu && <div className="shrink-0 -mr-1 -mt-1" onClick={e => e.stopPropagation()}>{menu}</div>}
       </div>
       <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 mt-3 min-h-[32px] [overflow-wrap:anywhere]">
         {description || <span className="italic">Chưa có mô tả</span>}
       </p>
-      {extra && <div className="mt-2">{extra}</div>}
+      {extra && <div className="mt-2 overflow-hidden">{extra}</div>}
       <div className="mt-auto pt-3">
         <div className="pt-3 border-t border-border flex items-center gap-2 text-xs text-foreground">
-          <div className="min-w-0 flex-1">{isCreatorRedundant(tags) ? null : creator}</div>
-          {agents}
+          <OwnershipTagList tags={tags} className="shrink-0 flex-nowrap" />
+          {!isCreatorRedundant(tags) && <div className="min-w-0 flex-1 flex justify-end">{creator}</div>}
         </div>
       </div>
     </div>

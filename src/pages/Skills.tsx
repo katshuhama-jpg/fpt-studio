@@ -21,7 +21,7 @@ import { VISIBLE_BUILTIN_SKILLS, type BuiltinSkill } from "@/components/configur
 import { SystemResourceDetailModal } from "@/components/configure/AgentResourceDetailModal";
 import {
   ownershipTags, countByTab, matchesTab, OwnershipTabs, OwnershipTagList, ResourceCard, ResourceIconTile,
-  CreatorLabel, AgentCount, type OwnershipTab, type OwnershipTag,
+  CardCreator, AgentCount, type OwnershipTab, type OwnershipTag,
 } from "@/components/governance/resourceOwnership";
 
 type MainTab = OwnershipTab;
@@ -258,7 +258,7 @@ export default function Skills() {
                   name={i.skill.name}
                   tags={i.tags}
                   description={i.skill.description}
-                  creator={<CreatorLabel displayName="FPT AI Agents" system />}
+                  creator={<CardCreator displayName="FPT AI Agents" system />}
                   agents={<AgentCount count={0} all />}
                   onOpen={() => setSystemTarget(i.skill as BuiltinSkill)}
                 />
@@ -270,7 +270,7 @@ export default function Skills() {
                   tags={i.tags}
                   menu={menuFor(i.skill as Skill)}
                   description={i.skill.description}
-                  creator={<CreatorLabel displayName={(i.skill as Skill).ownerId === access.userId ? "Bạn" : (i.skill as Skill).ownerName} fullName={(i.skill as Skill).ownerId === access.userId ? currentUser.name : (i.skill as Skill).ownerName} />}
+                  creator={<CardCreator displayName={(i.skill as Skill).ownerId === access.userId ? "Bạn" : (i.skill as Skill).ownerName} fullName={(i.skill as Skill).ownerId === access.userId ? currentUser.name : (i.skill as Skill).ownerName} />}
                   agents={<AgentCount count={(i.skill as Skill).attachedByAgentIds.length} />}
                   onOpen={() => openSkill(i.skill as Skill)}
                 />
