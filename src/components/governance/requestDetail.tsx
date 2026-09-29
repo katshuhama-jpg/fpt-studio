@@ -124,16 +124,21 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
         <ChevronLeft size={15} /> Requests
       </button>
 
-      {/* Purpose banner — states plainly which of the 2 independent decisions this page is,
-          so a reviewer never mistakes "duyệt Agent" for "duyệt resource dùng chung" or vice versa. */}
-      <div className="mb-6 flex items-start gap-2.5 rounded-lg border border-border bg-surface-muted/50 px-3.5 py-3">
-        <Info size={15} className="text-muted-foreground shrink-0 mt-0.5" />
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          {isAgent
-            ? <>Bạn đang quyết định <span className="font-medium text-foreground">Agent này có được publish tới người dùng hay không</span>.</>
-            : <>Bạn đang quyết định <span className="font-medium text-foreground">thành phần này có được đưa vào Tenant Library để Builder khác dùng chung hay không</span>.</>}
-        </p>
-      </div>
+      {/* Pending: purpose banner (which of the 2 independent decisions this page is).
+          Decided: outcome banner in its place — the result, who, when and why is the first thing
+          anyone reopening a resolved request needs, not something to scroll to the bottom for. */}
+      {req.status === "pending" ? (
+        <div className="mb-6 flex items-start gap-2.5 rounded-lg border border-border bg-surface-muted/50 px-3.5 py-3">
+          <Info size={15} className="text-muted-foreground shrink-0 mt-0.5" />
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            {isAgent
+              ? <>Bạn đang quyết định <span className="font-medium text-foreground">Agent này có được publish tới người dùng hay không</span>.</>
+              : <>Bạn đang quyết định <span className="font-medium text-foreground">thành phần này có được đưa vào Tenant Library để Builder khác dùng chung hay không</span>.</>}
+          </p>
+        </div>
+      ) : (
+        <OutcomeBanner req={req} isAgent={isAgent} />
+      )}
 
       {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-6">
@@ -228,31 +233,6 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
             />
           )}
 
-          {/* Review note (rejected / approved / revoked) */}
-          {req.reviewNote && req.status !== "pending" && (
-            <div className="mb-6">
-              <p className="text-sm font-semibold mb-1.5">
-                {req.status === "rejected" ? "Lý do từ chối" : "Ghi chú của Admin"}
-              </p>
-              <p className={`text-sm rounded-lg border px-3.5 py-3 leading-relaxed ${
-                req.status === "rejected" ? "border-destructive/25 bg-destructive/5 text-destructive"
-                : "border-border bg-surface text-muted-foreground"
-              }`}>
-                {req.reviewNote}
-                {req.reviewerName && <span className="block mt-1.5 text-xs opacity-80">— {req.reviewerName}</span>}
-              </p>
-            </div>
-          )}
-
-          {req.status === "revoked" && req.revokeReason && (
-            <div className="mb-6">
-              <p className="text-sm font-semibold mb-1.5">Lý do thu hồi</p>
-              <p className="text-sm rounded-lg border border-destructive/25 bg-destructive/5 text-destructive px-3.5 py-3 leading-relaxed">
-                {req.revokeReason}
-                {req.revokedBy && <span className="block mt-1.5 text-xs opacity-80">— {req.revokedBy}{req.revokedAt ? ` · ${formatDateTime(req.revokedAt)}` : ""}</span>}
-              </p>
-            </div>
-          )}
         </div>
 
         {/* Right rail — request meta, decision actions, history. */}
@@ -475,6 +455,32 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
       {isAgent && (
         <AgentTestPanel agentId={req.resourceId} open={testPanelOpen} onOpenChange={setTestPanelOpen} />
       )}
+    </div>
+  );
+}
+
+/** Result of a decided request, shown at the top of the page. */
+function OutcomeBanner({ req, isAgent }: { req: import("@/components/governance/governanceStore").GovRequest; isAgent: boolean }) {
+  const last = [...req.history].reverse().find(h => h.action !== "submitted");
+  const meta = {
+    approved: { box: "border-success/25 bg-success/5", icon: CheckCircle2, iconCls: "text-success",
+      title: isAgent ? `Đã duyệt — ${req.version ?? "bản này"} đã được publish` : "Đã duyệt — đã có trong Tenant Library" },
+    rejected: { box: "border-destructive/25 bg-destructive/5", icon: XCircle, iconCls: "text-destructive", title: "Đã từ chối" },
+    revoked: { box: "border-destructive/25 bg-destructive/5", icon: Undo2, iconCls: "text-destructive",
+      title: isAgent ? "Đã thu hồi — Agent đã ngừng publish" : "Đã thu hồi — đã gỡ khỏi Tenant Library" },
+    withdrawn: { box: "border-border bg-surface-muted/50", icon: Undo2, iconCls: "text-muted-foreground", title: "Đã rút yêu cầu" },
+    pending: { box: "", icon: Info, iconCls: "", title: "" },
+  }[req.status];
+  const Icon = meta.icon;
+  const note = req.status === "revoked" ? (req.revokeReason ?? last?.note) : req.status === "withdrawn" ? last?.note : req.reviewNote;
+  return (
+    <div className={`mb-6 flex items-start gap-2.5 rounded-lg border px-3.5 py-3 ${meta.box}`}>
+      <Icon size={16} className={`shrink-0 mt-0.5 ${meta.iconCls}`} />
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-foreground">{meta.title}</p>
+        {note && <p className="text-sm text-foreground/80 mt-0.5 leading-relaxed">“{note}”</p>}
+        {last && <p className="text-xs text-muted-foreground mt-1">{last.actorName} · {formatDateTime(last.at)}</p>}
+      </div>
     </div>
   );
 }
