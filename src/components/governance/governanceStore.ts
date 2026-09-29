@@ -247,9 +247,9 @@ export interface GovRequest {
   history: GovHistoryEntry[];
 }
 
-const REQ_KEY = "governance_request_store_v13";
+const REQ_KEY = "governance_request_store_v14";
 const LIVE_KEY = "governance_live_snapshots_v9";
-const SEEDED_KEY = "governance_store_seeded_v13";
+const SEEDED_KEY = "governance_store_seeded_v14";
 const DISMISSED_KEY = "governance_dismissed_rejections_v1";
 
 const store = loadMap<string, GovRequest>(REQ_KEY);
@@ -771,7 +771,7 @@ function seed() {
   for (const r of [agentReq, agentCleanReq, ...extraAgentReqs]) {
     if (r.resourceType !== "agent") continue;
     for (const h of r.history) {
-      const n = buildNotification(r, h.action, h.actorId, h.actorName, h.note);
+      const n = buildNotification(r, h.action, h.actorId, h.actorName);
       if (!n) continue;
       if (h.action === "submitted" && r.status !== "pending") continue;
       seeded.push({ ...n, id: `ntf-seed-${r.id}-${h.action}`, at: h.at, readBy: t - h.at > (h.action === "submitted" ? DAY : 6 * DAY) ? ["m-fsoft-ceo"] : [] });
@@ -791,47 +791,42 @@ function agentAudience(r: GovRequest): string[] {
   return [owner, ...(a?.sharedWith ?? []), r.requesterId].filter(Boolean) as string[];
 }
 
-function buildNotification(r: GovRequest, action: GovHistoryEntry["action"], actorId: string, actorName: string, note?: string):
+function buildNotification(r: GovRequest, action: GovHistoryEntry["action"], actorId: string, actorName: string):
   Omit<AppNotification, "id" | "readBy" | "at"> | null {
   if (r.resourceType !== "agent") return null;
   const isCh = requestKind(r) === "channels";
   const chs = (r.channelsAdded ?? []).map(channelLabel).join(", ");
-  const v = r.version ? ` ${r.version}` : "";
   const path = resourcePath("agent", r.resourceId);
-  const quote = note ? `${actorName}: “${note}”` : actorName;
-  const base = { actorId, actorName, resourceIcon: r.resourceIcon, requestId: r.id };
-  let kind: NotificationKind; let title: string; let body: string | undefined; let href = path;
+  const A: [string, boolean] = [r.resourceName, true];
+  let kind: NotificationKind; let seg: [string, boolean?][]; let href = path;
   let recipients = agentAudience(r);
   switch (action) {
     case "submitted":
       kind = "request_submitted"; recipients = [REVIEWERS]; href = `/governance/requests/${r.id}`;
-      title = isCh ? `${actorName} xin bật kênh ${chs} cho ${r.resourceName}` : `${actorName} gửi yêu cầu duyệt ${r.resourceName}${v}`;
-      body = isCh ? `Bản đang live${v} · phạm vi Workspace giữ nguyên.` : `Phạm vi: ${r.scopeSummary ?? AUDIENCE_LABEL[r.audience]}`;
+      seg = isCh ? [[actorName, true], [` gửi yêu cầu duyệt bật kênh ${chs} cho `], A] : [[actorName, true], [" gửi yêu cầu duyệt publish "], A];
       break;
     case "approved":
       kind = isCh ? "channel_approved" : "request_approved";
-      title = isCh ? `Kênh ${chs} của ${r.resourceName} đã được bật` : `${r.resourceName}${v} đã được duyệt`;
-      body = isCh ? `${actorName} đã duyệt — Agent bắt đầu nhận tin nhắn từ kênh này.` : `${actorName} đã duyệt — đang live cho ${r.scopeSummary ?? AUDIENCE_LABEL[r.audience]}.`;
+      seg = isCh ? [[`Yêu cầu bật kênh ${chs} cho `], A, [" đã được duyệt"]] : [["Yêu cầu publish "], A, [" đã được duyệt"]];
       if (!isCh) href = `${path}?tab=build&section=versions`;
       break;
     case "rejected":
       kind = isCh ? "channel_rejected" : "request_rejected";
-      title = isCh ? `Yêu cầu bật kênh ${chs} cho ${r.resourceName} chưa được duyệt` : `${r.resourceName}${v} chưa được duyệt`;
-      body = quote;
+      seg = isCh ? [[`Yêu cầu bật kênh ${chs} cho `], A, [" bị từ chối"]] : [["Yêu cầu publish "], A, [" bị từ chối"]];
       break;
     case "revoked":
       kind = isCh ? "channel_revoked" : "request_revoked";
-      title = isCh ? `Kênh ${chs} của ${r.resourceName} đã bị tắt` : `${r.resourceName} đã bị thu hồi`;
-      body = isCh ? quote : `${quote} Agent đã ngừng phục vụ người dùng.`;
+      seg = isCh ? [[`Kênh ${chs} của `], A, [" đã bị tắt"]] : [["Agent "], A, [" đã bị thu hồi"]];
       break;
     default:
       return null;
   }
-  return { ...base, kind, title, body, href, recipients };
+  return { actorId, actorName, resourceId: r.resourceId, resourceIcon: r.resourceIcon, requestId: r.id, kind, href, recipients,
+    segments: seg, title: seg.map(x => x[0]).join("") };
 }
 
-function notify(r: GovRequest, action: GovHistoryEntry["action"], actorId: string, actorName: string, note?: string) {
-  const n = buildNotification(r, action, actorId, actorName, note);
+function notify(r: GovRequest, action: GovHistoryEntry["action"], actorId: string, actorName: string, _note?: string) {
+  const n = buildNotification(r, action, actorId, actorName);
   if (n) notificationStore.push(n);
 }
 

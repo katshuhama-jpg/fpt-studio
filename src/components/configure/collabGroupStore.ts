@@ -163,8 +163,8 @@ export function recheckAgentGroupPublish(agentId: string, tree: OrgUnit) {
   notificationStore.push({
     kind: "regovern_required", actorId: "system", actorName: "Hệ thống",
     recipients: [rec?.ownerId ?? group.ownerId, ...(rec?.sharedWith ?? []), group.ownerId],
-    title: `${agent.name} tạm dừng để duyệt lại`,
-    body: `Nhóm cộng tác "${group.name}" hiện trùng ${overlapPctLabel}% với ${unitName} (ngưỡng ${Math.round(GROUP_APPROVAL_THRESHOLD * 100)}%). Hệ thống đã tự gửi yêu cầu duyệt tới Org/Unit Admin.`,
-    href: `/agents/${agentId}`, resourceIcon: agentEmoji(agentId),
+    title: `${agent.name} đã được gửi duyệt lại vì nhóm chia sẻ quá rộng`,
+    segments: [[agent.name, true], [" đã được gửi duyệt lại vì nhóm chia sẻ quá rộng"]],
+    href: `/agents/${agentId}`, resourceId: agentId, resourceIcon: agentEmoji(agentId),
   });
 }

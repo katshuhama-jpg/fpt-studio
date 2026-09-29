@@ -33,15 +33,18 @@ export interface AppNotification {
   recipients: string[];
   actorId: string;
   actorName: string;
+  /** Plain text (aria / fallback). */
   title: string;
-  body?: string;
+  /** Same sentence split so names render bold: [text, bold?][]. */
+  segments?: [string, boolean?][];
   href: string;
+  resourceId?: string;
   resourceIcon?: string;
   requestId?: string;
   readBy: string[];
 }
 
-const KEY = "app_notifications_v1";
+const KEY = "app_notifications_v2";
 const EVT = "app-notifications-changed";
 let store = loadMap<string, AppNotification>(KEY);
 let seq = store.size + 1;
