@@ -207,69 +207,6 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
               </div>
             </label>
           )}
-
-          <div>
-            <label className="text-sm font-medium mb-1 block">Chia sẻ tới</label>
-            <p className="text-xs text-muted-foreground mb-3">
-              {allAgents
-                ? "Guardrail áp dụng cho mọi Agent nên mọi người trong Space đều xem được."
-                : "Chia sẻ để người khác dùng lại guardrail này cho Agent của họ."}
-            </p>
-            <div className="space-y-2">
-              {SHARING_OPTIONS.map(opt => {
-                const selected = effectiveMode === opt.value;
-                const locked = readOnly || allAgents;
-                return (
-                  <div key={opt.value}>
-                    <div
-                      onClick={() => !locked && setSharingMode(opt.value)}
-                      aria-disabled={allAgents && !selected ? true : undefined}
-                      className={`flex items-start gap-3 px-3.5 py-3 rounded-xl border transition-base ${locked ? "cursor-default" : "cursor-pointer"} ${allAgents && !selected ? "opacity-50" : ""} ${
-                        selected ? "border-primary bg-primary/5" : "border-border bg-white hover:bg-surface-muted"
-                      }`}
-                    >
-                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${selected ? "border-primary" : "border-border"}`}>
-                        {selected && <div className="w-2 h-2 rounded-full bg-primary" />}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium">{opt.label}</div>
-                        {opt.helper && <div className="text-xs text-muted-foreground mt-0.5">{opt.helper}</div>}
-                      </div>
-                    </div>
-                    {selected && opt.value === "specific" && (
-                      <div className="mt-2 pl-3.5">
-                        {readOnly ? (
-                          <div className="space-y-1.5">
-                            <div className="flex items-center gap-2.5 px-1 py-1.5 text-sm">
-                              <span className="font-medium">{initialData?.ownerName ?? currentUser.name}</span>
-                              <span className="text-xs text-muted-foreground">Chủ sở hữu</span>
-                            </div>
-                            {people.map(p => (
-                              <div key={p.userId} className="flex items-center justify-between gap-2.5 px-1 py-1.5 text-sm">
-                                <span className="font-medium truncate">{p.name}</span>
-                                <span className="text-xs text-muted-foreground shrink-0">{p.access === "edit" ? "Có thể chỉnh sửa" : "Có thể xem"}</span>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <>
-                            <GuardrailMemberPicker
-                              value={people}
-                              onChange={setPeople}
-                              ownerRow={{ name: initialData?.ownerName ?? currentUser.name, email: initialData?.ownerId === currentUser.id || !initialData ? currentUser.email : "" }}
-                            />
-                            {peopleError && submitAttempted && (
-                              <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người để chia sẻ.</p>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
         </div>
 
         <div className="flex items-center justify-between px-6 py-4 shrink-0 bg-white">

@@ -155,25 +155,6 @@ export default function ConnectExternalKnowledgeBaseModal({ open, onClose }: { o
             </div>
           </div>
 
-          <div>
-            <label className="text-sm font-medium mb-1 block">Chia sẻ tới</label>
-            <p className="text-xs text-muted-foreground mb-3">Chia sẻ để người khác dùng lại kho tri thức này cho Agent của họ.</p>
-            <div className="space-y-2">
-              {SHARING_OPTIONS.map(opt => (
-                <RadioCard key={opt.value} selected={sharingMode === opt.value} onSelect={() => setSharingMode(opt.value)} label={opt.label} helper={opt.helper}>
-                  {opt.value === "specific" && (
-                    <>
-                      <MemberPicker value={people} onChange={setPeople} ownerRow={{ name: CURRENT_USER.name, email: CURRENT_USER.email }} />
-                      {submitAttempted && sharingMode === "specific" && people.length === 0 && (
-                        <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người để chia sẻ.</p>
-                      )}
-                    </>
-                  )}
-                </RadioCard>
-              ))}
-            </div>
-          </div>
-
           <div className="border-t border-border pt-5">
             <QueryScopeSection
               value={querySharing}

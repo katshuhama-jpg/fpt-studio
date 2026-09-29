@@ -47,6 +47,7 @@ import { guardrailConsoleStore, type Guardrail, actionLabelVi } from "@/componen
 import { agentGuardrailStore } from "@/components/configure/agentGuardrailStore";
 import CreateGuardrailModal, { type CreateGuardrailData } from "@/components/configure/CreateGuardrailModal";
 import GuardrailDetailModal from "@/components/configure/GuardrailDetailModal";
+import AgentResourceDetailModal, { type AgentResourceRef } from "@/components/configure/AgentResourceDetailModal";
 import GuardrailOwnershipTag from "@/components/configure/GuardrailOwnershipTag";
 import { isViewOnly as isGuardrailViewOnly, isAccessibleTo as isGuardrailAccessibleTo, type Sharing as GuardrailSharing, type SharingMode as GuardrailSharingMode } from "@/components/configure/guardrailSharing";
 import GuardrailMemberPicker from "@/components/configure/GuardrailMemberPicker";
@@ -5027,6 +5028,8 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
   // Row-level "Chia sẻ" target — lets a user share a Custom Connector they attached via quick-add
   // (which no longer asks about sharing up front) right from this list, without leaving the agent.
   const [shareTarget, setShareTarget] = useState<CustomConnector | null>(null);
+  // Clicking a Custom Connector row shows its details in a popup, without leaving the Agent.
+  const [detailTarget, setDetailTarget] = useState<AgentResourceRef | null>(null);
   const connected = agentConnectorStore.list(agentId).map(c => ({ id: c.connectorId, mode: c.scope, accountId: c.accountId }));
 
   // Custom Connectors ("Custom MCP") this user can see — same ownership-aware filtering as the
@@ -5107,7 +5110,15 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
     const account = c.accountId ? sharedConnectorAccountStore.get(c.accountId) : undefined;
     const restricted = connectorActionStore.restrictedCount(agentId, c.id);
     return (
-      <div key={c.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base">
+      <div
+        key={c.id}
+        role={customConnector ? "button" : undefined}
+        tabIndex={customConnector ? 0 : undefined}
+        aria-label={customConnector ? `Xem chi tiết ${customConnector.name}` : undefined}
+        onClick={customConnector ? () => setDetailTarget({ kind: "connector", id: customConnector.id }) : undefined}
+        onKeyDown={customConnector ? (e => { if (e.key === "Enter") setDetailTarget({ kind: "connector", id: customConnector.id }); }) : undefined}
+        className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${customConnector ? "cursor-pointer" : ""}`}
+      >
         <span className="w-6 h-6 rounded bg-surface-muted border border-border flex items-center justify-center text-[9px] font-bold shrink-0">{meta?.logo ?? "?"}</span>
         <span className="flex-1 min-w-0">
           <span className="block text-xs font-medium truncate">{meta?.name ?? c.id}</span>
@@ -5120,7 +5131,7 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
         </span>
         {canShare && (
           <button
-            onClick={() => setShareTarget(customConnector)}
+            onClick={e => { e.stopPropagation(); setShareTarget(customConnector); }}
             title="Chia sẻ custom connector"
             className="w-6 h-6 rounded-md flex items-center justify-center text-foreground/60 hover:text-primary hover:bg-surface-muted transition-base shrink-0">
             <HugeiconsIcon icon={Share08Icon} size={12} />
@@ -5130,7 +5141,7 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
           // Route through toggleConnector (not a bare agentConnectorStore.remove) so detaching a
           // Custom Connector here also clears this agent from its attachedByAgentIds — otherwise
           // the connector's "N Agent đang dùng" count and delete-warning list go stale.
-          onClick={() => toggleConnector(c.id)}
+          onClick={e => { e.stopPropagation(); toggleConnector(c.id); }}
           className="w-6 h-6 rounded-md flex items-center justify-center text-foreground/60 hover:text-destructive hover:bg-surface-muted transition-base shrink-0">
           <HugeiconsIcon icon={Delete01Icon} size={12} />
         </button>
@@ -5285,6 +5296,14 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
           onClose={() => setShareTarget(null)}
         />
       )}
+      {detailTarget && (
+        <AgentResourceDetailModal
+          agentId={agentId}
+          target={detailTarget}
+          onClose={() => setDetailTarget(null)}
+          onChanged={() => { setTick(t => t + 1); onChange?.(); }}
+        />
+      )}
     </>
   );
 }
@@ -5368,6 +5387,7 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
   const [promoteTarget, setPromoteTarget] = useState<Skill | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [detachTarget, setDetachTarget] = useState<{ id: string; name: string } | null>(null);
+  const [detailTarget, setDetailTarget] = useState<AgentResourceRef | null>(null);
   const [tick, setTick] = useState(0);
   const refresh = () => setTick(t => t + 1);
   void tick;
@@ -5429,10 +5449,9 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
                     icon={PuzzleIcon}
                     name={s.name}
                     chip={<div className="flex items-center gap-1 shrink-0"><SkillOwnershipTag skill={s} userId={currentUser.id} /></div>}
-                    onOpen={() => {}}
-                    href={`/tools/${s.id}?viaAgent=${agentId}`}
+                    onOpen={() => setDetailTarget({ kind: "skill", id: s.id })}
                     onRemove={() => setDetachTarget({ id: s.id, name: s.name })}
-                    openLabel="Mở skill"
+                    openLabel="Xem chi tiết"
                     removeLabel="Gỡ liên kết"
                     twoLine
                   />
@@ -5446,7 +5465,15 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
               <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Skills riêng của Agent</div>
               <div className="flex flex-col gap-1.5">
                 {items.map(s => (
-                  <div key={s.id} className="flex items-start gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base">
+                  <div
+                    key={s.id}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Xem chi tiết ${s.name}`}
+                    onClick={() => setDetailTarget({ kind: "agentSkill", id: s.id })}
+                    onKeyDown={e => { if (e.target === e.currentTarget && e.key === "Enter") setDetailTarget({ kind: "agentSkill", id: s.id }); }}
+                    className="flex items-start gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
                     <HugeiconsIcon icon={PuzzleIcon} size={13} className="text-muted-foreground shrink-0 mt-0.5" />
                     <div className="min-w-0 flex-1">
                       <div className="text-[13px] font-medium truncate">{s.name}</div>
@@ -5537,6 +5564,9 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
           onClose={() => { setPromoteTarget(null); refresh(); }}
         />
       )}
+      {detailTarget && (
+        <AgentResourceDetailModal agentId={agentId} target={detailTarget} onClose={() => setDetailTarget(null)} onChanged={refresh} />
+      )}
 
       <AlertDialog open={!!detachTarget} onOpenChange={v => !v && setDetachTarget(null)}>
         <AlertDialogContent>
@@ -5588,6 +5618,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
   const [showAttach, setShowAttach] = useState(false);
   const [detachTarget, setDetachTarget] = useState<{ id: string; name: string } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [detailTarget, setDetailTarget] = useState<AgentResourceRef | null>(null);
   const refresh = () => setTick(t => t + 1);
   void tick;
 
@@ -5612,13 +5643,14 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
     .map(id => knowledgeBaseStore.get(id))
     .filter((kb): kb is NonNullable<typeof kb> => !!kb);
 
-  type Row = { key: string; name: string; icon: any; remove: () => void; chip: React.ReactNode; disabled?: boolean; disabledReason?: string; href?: string };
+  type Row = { key: string; name: string; icon: any; open: () => void; remove: () => void; chip: React.ReactNode; disabled?: boolean; disabledReason?: string; href?: string };
   const rows: Row[] = [
     ...attachedKbs.map(kb => ({
       key: `kb-${kb.id}`,
       name: kb.name,
       icon: ConnectIcon,
       href: `/knowledge/${kb.id}?viaAgent=${agentId}`,
+      open: () => setDetailTarget({ kind: "knowledgeBase", id: kb.id }),
       remove: () => setDetachTarget({ id: kb.id, name: kb.name }),
       // Plain "Của tôi"/"Được chia sẻ" caption — no more granular Riêng tư/Chia sẻ · N/Dùng
       // chung pill, matching every other Knowledge screen in the product.
@@ -5635,6 +5667,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
         key: `item-${item.id}`,
         name: item.name,
         icon: NoteIcon,
+        open: () => setDetailTarget({ kind: "knowledgeItem", id: item.id }),
         remove: () => setDeleteTarget({ id: item.id, name: item.name }),
         chip: (
           <div className="flex items-center gap-1.5 shrink-0">
@@ -5685,12 +5718,12 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
               icon={row.icon}
               name={row.name}
               chip={row.chip}
-              onOpen={() => {}}
+              onOpen={row.open}
               onRemove={row.remove}
+              openLabel="Xem chi tiết"
               removeLabel={row.href ? "Gỡ liên kết" : "Xóa"}
               disabled={row.disabled}
               disabledReason={row.disabledReason}
-              hideOpen
               twoLine
             />
           ))}
@@ -5716,6 +5749,15 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
       )}
 
       {showAttach && <AttachConsoleKnowledgeBaseModal agentId={agentId} userId={KB_CURRENT_USER.id} onClose={() => { setShowAttach(false); refresh(); }} />}
+      {detailTarget && (
+        <AgentResourceDetailModal
+          agentId={agentId}
+          target={detailTarget}
+          onClose={() => setDetailTarget(null)}
+          onChanged={refresh}
+          onOpenKnowledge={() => setParams({ tab: "build", section: "knowledge", view: "own" })}
+        />
+      )}
 
       <AlertDialog open={!!detachTarget} onOpenChange={v => !v && setDetachTarget(null)}>
         <AlertDialogContent>
@@ -7705,7 +7747,7 @@ function GuardrailsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
   const [menuPos, setMenuPos] = useState<{top:number;left:number}>({top:0,left:0});
   const [showAttach, setShowAttach] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
-  const [viewTarget, setViewTarget] = useState<Guardrail | null>(null);
+  const [detailTarget, setDetailTarget] = useState<AgentResourceRef | null>(null);
   const [detachTarget, setDetachTarget] = useState<{ id: string; name: string } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const refresh = () => setTick(t => t + 1);
@@ -7741,8 +7783,7 @@ function GuardrailsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
       key: `g-${g.id}`,
       name: g.name,
       icon: Shield01Icon,
-      open: () => {},
-      href: `/guardrails?open=${g.id}`,
+      open: () => setDetailTarget({ kind: "guardrail", id: g.id }),
       remove: () => setDetachTarget({ id: g.id, name: g.name }),
       chip: <GuardrailOwnershipTag g={g} userId={currentUser.id} />,
     })),
@@ -7750,7 +7791,7 @@ function GuardrailsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
       key: `item-${item.id}`,
       name: item.name,
       icon: Shield01Icon,
-      open: () => setViewTarget(item),
+      open: () => setDetailTarget({ kind: "agentGuardrail", id: item.id }),
       remove: () => setDeleteTarget({ id: item.id, name: item.name }),
       chip: <GuardrailOwnershipTag g={item} userId={currentUser.id} />,
     })),
@@ -7778,7 +7819,7 @@ function GuardrailsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
       ) : (
         <div className="flex flex-col gap-1.5">
           {shown.map(row => (
-            <KnowledgeSourceRow key={row.key} icon={row.icon} name={row.name} chip={row.chip} onOpen={row.open} onRemove={row.remove} href={row.href} openLabel="Mở guardrail" removeLabel="Gỡ guardrail" twoLine />
+            <KnowledgeSourceRow key={row.key} icon={row.icon} name={row.name} chip={row.chip} onOpen={row.open} onRemove={row.remove} openLabel="Xem chi tiết" removeLabel="Gỡ guardrail" twoLine />
           ))}
           {rows.length > 4 && (
             <button onClick={() => setParams({ tab: "build", section: "guardrails" })} className="text-xs text-primary hover:underline text-left mt-0.5">
@@ -7820,12 +7861,8 @@ function GuardrailsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
           currentUser={currentUser}
         />
       )}
-      {viewTarget && (
-        <GuardrailDetailModal
-          guardrail={viewTarget}
-          onClose={() => setViewTarget(null)}
-          onEdit={() => { setViewTarget(null); setParams({ tab: "build", section: "guardrails" }); }}
-        />
+      {detailTarget && (
+        <AgentResourceDetailModal agentId={agentId} target={detailTarget} onClose={() => setDetailTarget(null)} onChanged={refresh} />
       )}
 
       <AlertDialog open={!!detachTarget} onOpenChange={v => !v && setDetachTarget(null)}>

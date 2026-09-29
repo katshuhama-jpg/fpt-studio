@@ -205,49 +205,6 @@ export default function AddCustomConnectorModal({ editing, onClose, onCreated, o
             </div>
             <p className="text-xs text-muted-foreground mt-2">Dùng Static Headers (vd: một API key) để xác thực. OAuth 2.1 sẽ sớm ra mắt.</p>
           </div>
-
-          {/* Sharing is edited from the dedicated "Chia sẻ" modal once a connector exists, so this
-           * section only applies at creation time — keeps edit mode focused on connection details
-           * and avoids the two flows fighting over the same state (see customConnectorStore.update). */}
-          {!isEditing && (
-            <div>
-              <label className="text-sm font-medium mb-1 block">Chia sẻ tới</label>
-              <p className="text-xs text-muted-foreground mb-3">Chia sẻ để người khác dùng lại connector này cho Agent của họ.</p>
-              <div className="space-y-2">
-                {SHARING_OPTIONS.map(opt => {
-                  const selected = sharingMode === opt.value;
-                  return (
-                    <div key={opt.value}>
-                      <div
-                        onClick={() => setSharingMode(opt.value)}
-                        className={`flex items-start gap-3 px-3.5 py-3 rounded-xl border cursor-pointer transition-base ${
-                          selected ? "border-primary bg-primary/5" : "border-border bg-white hover:bg-surface-muted"
-                        }`}
-                      >
-                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${selected ? "border-primary" : "border-border"}`}>
-                          {selected && <div className="w-2 h-2 rounded-full bg-primary" />}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-sm font-medium">{opt.label}</div>
-                          {opt.helper && <div className="text-xs text-muted-foreground mt-0.5">{opt.helper}</div>}
-                        </div>
-                      </div>
-                      {selected && opt.value === "specific" && (
-                        <div className="mt-2 pl-3.5">
-                          <CustomConnectorMemberPicker
-                            value={people}
-                            onChange={setPeople}
-                            ownerRow={{ name: CURRENT_USER.name, email: CURRENT_USER.email }}
-                          />
-                          {peopleError && submitAttempted && <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người để chia sẻ.</p>}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border shrink-0">
