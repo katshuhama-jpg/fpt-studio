@@ -131,10 +131,10 @@ export function CreatorLabel({ displayName, fullName, system }: { displayName: s
 }
 
 export function AgentCount({ count, all }: { count: number; all?: boolean }) {
-  const label = all ? "Mọi Agent" : count === 0 ? "Chưa có Agent dùng" : `${count} Agent`;
+  if (all || count === 0) return null;
   return (
     <span className="flex items-center gap-1 text-muted-foreground whitespace-nowrap" title="Số Agent đang dùng">
-      <Bot size={13} aria-hidden /> {label}
+      <Bot size={13} aria-hidden /> {count} Agent
     </span>
   );
 }
