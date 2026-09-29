@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
-import { Building2, ChevronRight, ChevronLeft, ChevronDown, Search, Users, Trash2, Plus, Pencil, Upload, X, FolderInput, Crown, Check, User } from "lucide-react";
+import { Building2, ChevronRight, ChevronLeft, ChevronDown, Search, Users, Trash2, Plus, Pencil, Upload, X, FolderInput, UserPlus, Crown, Check, User } from "lucide-react";
 import {
   OrgUnit, OrgMember, ApprovalResource, APPROVAL_RESOURCES,
   countAll, countDirect, findUnit, findPath, unitMatches, collectMembers, collectUnitsWithDepth,
 } from "./orgData";
-import { useOrg, deriveNameFromEmail } from "./orgStore";
+import { useOrg, deriveNameFromEmail, OrgMembershipRef } from "./orgStore";
 import { useRoles, RoleDef } from "./rolesStore";
 import { MoveMemberModal } from "./MoveMemberModal";
 import ImportMembersModal from "./ImportMembersModal";
@@ -102,16 +102,16 @@ function TreeRow({
 
 /* ─── Invite/edit-member modal ──────────────────────────────────────────── */
 function MemberModal({
-  title, desc, initialName, initialEmail, initialRoleId, roles, submitLabel, onClose, onSave, existingEmails = [], tree, defaultUnitId,
+  title, desc, initialName, initialEmail, initialRoleId, roles, submitLabel, onClose, onSave, tree, defaultUnitId, findOtherOrgMemberships,
 }: {
   title: string; desc: string; initialName?: string; initialEmail?: string; initialRoleId?: string; roles: RoleDef[]; submitLabel: string;
   onClose: () => void; onSave: (name: string, email: string, roleId: string | undefined, unitId: string) => void;
-  /** Emails already used elsewhere in the org (lowercased, own current email already excluded when editing) — blocks inviting/renaming into a duplicate. */
-  existingEmails?: string[];
   /** Org tree the Unit picker is built from — only used when inviting (not editing). */
   tree?: OrgUnit;
   /** Unit pre-selected in the Unit picker — the unit that was selected in Structure when "Invite member" was clicked. Changeable before submitting. */
   defaultUnitId?: string;
+  /** Every OTHER org this email already belongs to (any unit) — surfaced as an informational note, never a block, since one person can now hold separate memberships in several orgs. */
+  findOtherOrgMemberships?: (email: string) => OrgMembershipRef[];
 }) {
   const isEdit = initialName !== undefined;
   const [name, setName] = useState(initialName ?? "");
@@ -119,13 +119,24 @@ function MemberModal({
   const [roleId, setRoleId] = useState(initialRoleId ?? (isEdit ? "" : "viewer"));
   const [unitId, setUnitId] = useState(defaultUnitId ?? tree?.id ?? "");
   const unitRows = tree ? [{ unit: tree, depth: 0 }, ...collectUnitsWithDepth(tree)] : [];
-  const selectedUnitName = tree ? (findUnit(tree, unitId)?.name ?? tree.name) : undefined;
+  const selectedUnit = tree ? findUnit(tree, unitId) ?? tree : undefined;
+  const selectedUnitName = selectedUnit?.name ?? tree?.name;
   const trimmedEmail = email.trim();
   // Standard local@domain.tld shape — good enough to catch missing "@"/domain without being a full RFC 5322 validator.
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const isEmailInvalid = trimmedEmail.length > 0 && !EMAIL_RE.test(trimmedEmail);
-  const isEmailDuplicate = trimmedEmail.length > 0 && !isEmailInvalid && existingEmails.includes(trimmedEmail.toLowerCase());
-  const canSubmit = (isEdit ? !!name.trim() && !!trimmedEmail : !!trimmedEmail) && !isEmailInvalid && !isEmailDuplicate;
+  const emailLower = trimmedEmail.toLowerCase();
+  // A duplicate now only blocks when the email is already a member of THIS SAME unit — the same
+  // email can legitimately sit in other units (same org) or other orgs at once (see item 5).
+  const isEmailDuplicateInUnit =
+    trimmedEmail.length > 0 && !isEmailInvalid && !!selectedUnit &&
+    selectedUnit.members.some(m => (m.email ?? "").trim().toLowerCase() === emailLower);
+  const sameOrgElsewhere =
+    trimmedEmail.length > 0 && !isEmailInvalid && !isEmailDuplicateInUnit && !!tree &&
+    collectMembers(tree).some(m => (m.email ?? "").trim().toLowerCase() === emailLower);
+  const otherOrgMemberships =
+    trimmedEmail.length > 0 && !isEmailInvalid && findOtherOrgMemberships ? findOtherOrgMemberships(trimmedEmail) : [];
+  const canSubmit = (isEdit ? !!name.trim() && !!trimmedEmail : !!trimmedEmail) && !isEmailInvalid && !isEmailDuplicateInUnit;
   const submit = () => {
     if (!canSubmit) return;
     const finalName = isEdit ? name.trim() : deriveNameFromEmail(email.trim());
@@ -168,15 +179,22 @@ function MemberModal({
               onChange={e => setEmail(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter" && isEdit) submit(); }}
               placeholder="e.g. mai.hoang@fpt.com"
-              aria-invalid={isEmailInvalid || isEmailDuplicate}
+              aria-invalid={isEmailInvalid || isEmailDuplicateInUnit}
               className={`w-full h-10 px-3 rounded-xl border bg-surface text-sm outline-none transition-base ${
-                isEmailInvalid || isEmailDuplicate ? "border-destructive focus:border-destructive" : "border-border focus:border-ring"
+                isEmailInvalid || isEmailDuplicateInUnit ? "border-destructive focus:border-destructive" : "border-border focus:border-ring"
               }`}
             />
             {isEmailInvalid ? (
               <p className="text-xs text-destructive mt-1.5">That email doesn't look right (e.g. mai.hoang@fpt.com).</p>
-            ) : isEmailDuplicate ? (
-              <p className="text-xs text-destructive mt-1.5">This email is already used by another member in the organization.</p>
+            ) : isEmailDuplicateInUnit ? (
+              <p className="text-xs text-destructive mt-1.5">Email này đã là thành viên của {selectedUnitName ?? "đơn vị này"} rồi.</p>
+            ) : otherOrgMemberships.length > 0 ? (
+              <p className="text-xs text-muted-foreground mt-1.5">
+                Email này đã có mặt ở <span className="font-medium text-foreground">{otherOrgMemberships[0].tenantName}</span>
+                {otherOrgMemberships.length > 1 ? ` và ${otherOrgMemberships.length - 1} tổ chức khác` : ""} — vẫn có thể thêm vào đây, với vai trò riêng.
+              </p>
+            ) : sameOrgElsewhere ? (
+              <p className="text-xs text-muted-foreground mt-1.5">Email này đã có mặt ở một đơn vị khác trong tổ chức — sẽ có mặt ở cả hai nơi sau khi thêm.</p>
             ) : !isEdit && (
               <p className="text-xs text-muted-foreground mt-1.5">Their name will be picked up automatically once they accept the invite.</p>
             )}
@@ -594,7 +612,7 @@ function AssignAdminPopover({
 }
 
 export default function OrgStructureExplorer() {
-  const { tree, rootId, addMember, removeMember, setUnitAdminScope, createUnit, renameUnit, deleteUnit, importMembers } = useOrg();
+  const { tree, rootId, addMember, removeMember, setUnitAdminScope, createUnit, renameUnit, deleteUnit, importMembers, findMembershipsByEmail } = useOrg();
   const { roles } = useRoles();
   const [selectedId, setSelectedId] = useState(rootId);
   const [expanded, setExpanded] = useState<Set<string>>(new Set([tree.id, ...tree.units.map(u => u.id)]));
@@ -604,7 +622,10 @@ export default function OrgStructureExplorer() {
   const MEMBER_PAGE_SIZE = 10;
   const [showAddMember, setShowAddMember] = useState(false);
   const [showImportUnit, setShowImportUnit] = useState(false);
-  const [movingMember, setMovingMember] = useState<OrgMember | null>(null);
+  const [memberUnitAction, setMemberUnitAction] = useState<{ member: OrgMember; mode: "move" | "add" } | null>(null);
+  /** This email's memberships in every OTHER org (never this one) — informational only, never blocking. */
+  const findOtherOrgMemberships = (email: string): OrgMembershipRef[] =>
+    findMembershipsByEmail(email).filter(m => m.tenantId !== getCurrentTenantId());
   const [deleteConfirmMemberId, setDeleteConfirmMemberId] = useState<string | null>(null);
   const [removeAdminTarget, setRemoveAdminTarget] = useState<{ member: OrgMember; sourceUnit: OrgUnit; scope: ApprovalResource[] } | null>(null);
   // Structure is always hand-edited (there's no Azure AD or other auto-sync option) — only
@@ -616,10 +637,6 @@ export default function OrgStructureExplorer() {
   const [deletingUnit, setDeletingUnit] = useState(false);
 
   const allOrgMembers = useMemo(() => collectMembers(tree), [tree]);
-  const allEmails = useMemo(
-    () => allOrgMembers.map(m => (m.email ?? "").trim().toLowerCase()).filter(Boolean),
-    [allOrgMembers]
-  );
   const path = useMemo(() => findPath(tree, selectedId) ?? [tree], [tree, selectedId]);
   const selected = path[path.length - 1];
   const deleteTargetMember = deleteConfirmMemberId ? selected.members.find(m => m.id === deleteConfirmMemberId) ?? null : null;
@@ -678,9 +695,9 @@ export default function OrgStructureExplorer() {
           submitLabel="Invite member"
           onClose={() => setShowAddMember(false)}
           onSave={(name, email, roleId, unitId) => addMember(unitId, name, email, roleId)}
-          existingEmails={allEmails}
           tree={tree}
           defaultUnitId={selected.id}
+          findOtherOrgMemberships={findOtherOrgMemberships}
         />
       )}
       {showImportUnit && (
@@ -688,6 +705,7 @@ export default function OrgStructureExplorer() {
           existingMembers={allOrgMembers}
           tree={tree}
           defaultUnitId={selected.id}
+          findOtherOrgMemberships={findOtherOrgMemberships}
           onClose={() => setShowImportUnit(false)}
           onConfirm={validRows => {
             importMembers(selected.id, validRows);
@@ -695,8 +713,13 @@ export default function OrgStructureExplorer() {
           }}
         />
       )}
-      {movingMember && (
-        <MoveMemberModal member={movingMember} currentUnitId={selected.id} onClose={() => setMovingMember(null)} />
+      {memberUnitAction && (
+        <MoveMemberModal
+          member={memberUnitAction.member}
+          currentUnitId={selected.id}
+          mode={memberUnitAction.mode}
+          onClose={() => setMemberUnitAction(null)}
+        />
       )}
       {deleteTargetMember && (
         <ConfirmDeleteModal
@@ -1021,7 +1044,16 @@ export default function OrgStructureExplorer() {
                     <div className="flex items-center gap-1 shrink-0">
                       <button
                         type="button"
-                        onClick={() => setMovingMember(m)}
+                        onClick={() => setMemberUnitAction({ member: m, mode: "add" })}
+                        aria-label={`Thêm ${m.name} vào đơn vị khác`}
+                        title="Thêm vào đơn vị khác"
+                        className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-base"
+                      >
+                        <UserPlus size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMemberUnitAction({ member: m, mode: "move" })}
                         aria-label={`Chuyển ${m.name} sang đơn vị khác`}
                         title="Chuyển sang đơn vị khác"
                         className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-base"

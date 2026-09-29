@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import {
-  ownershipTags, countByTab, matchesTab, OwnershipTabs, OwnershipTagList, CreatorLabel, type OwnershipTab,
+  ownershipTags, countByTab, matchesTab, OwnershipTabs, OwnershipTagList, CreatorLabel, isCreatorRedundant, type OwnershipTab,
 } from "@/components/governance/resourceOwnership";
 import { agentsUsing, ResourceInUseDialog } from "@/components/governance/resourceInUseGuard";
 import { useSearchParams } from "react-router-dom";
@@ -263,8 +263,8 @@ export default function WorkspaceGuardrails() {
               <OwnershipTagList tags={tagsOf(g)} className="mt-1.5" />
               <div className="text-xs text-muted-foreground mt-1.5 leading-relaxed line-clamp-2">{g.desc}</div>
               <div className="text-xs mt-2">
-                {g.mandatory
-                  ? <CreatorLabel displayName="FPT AI Agents" system />
+                {isCreatorRedundant(tagsOf(g))
+                  ? null
                   : hasOwner
                     ? <CreatorLabel displayName={isOwner ? "Bạn" : (g.ownerName ?? "—")} fullName={g.ownerName} />
                     : null}

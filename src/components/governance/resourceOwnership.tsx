@@ -36,6 +36,14 @@ export function ownershipTags({ system, ownerId, sharing, userId }: {
   return tags;
 }
 
+/** A card/row's ownership tag already answers "who created this" for these two cases
+ * ("Của tôi" = you did, "Hệ thống" = the platform did) — showing "Người tạo: ..." underneath
+ * just repeats it. Only when a resource is someone else's shared item (tags = ["shared"]) does
+ * a creator line carry real information (their name). */
+export function isCreatorRedundant(tags: OwnershipTag[]): boolean {
+  return tags.includes("mine") || tags.includes("system");
+}
+
 export const OWNERSHIP_TABS: { key: OwnershipTab; label: string }[] = [
   { key: "all", label: "Tất cả" },
   { key: "mine", label: "Của tôi" },
@@ -123,10 +131,10 @@ export function CreatorLabel({ displayName, fullName, system }: { displayName: s
 }
 
 export function AgentCount({ count, all }: { count: number; all?: boolean }) {
-  if (!all && count === 0) return <span className="text-muted-foreground whitespace-nowrap">Chưa có Agent dùng</span>;
+  const label = all ? "Mọi Agent" : count === 0 ? "Chưa có Agent dùng" : `${count} Agent`;
   return (
     <span className="flex items-center gap-1 text-muted-foreground whitespace-nowrap" title="Số Agent đang dùng">
-      <Bot size={13} aria-hidden /> {all ? "Mọi Agent" : `${count} Agent`}
+      <Bot size={13} aria-hidden /> {label}
     </span>
   );
 }
@@ -173,7 +181,7 @@ export function ResourceCard({ icon, name, nameNode, tags, menu, description, cr
       {extra && <div className="mt-2">{extra}</div>}
       <div className="mt-auto pt-3">
         <div className="pt-3 border-t border-border flex items-center gap-2 text-xs text-foreground">
-          <div className="min-w-0 flex-1">{creator}</div>
+          <div className="min-w-0 flex-1">{isCreatorRedundant(tags) ? null : creator}</div>
           {agents}
         </div>
       </div>

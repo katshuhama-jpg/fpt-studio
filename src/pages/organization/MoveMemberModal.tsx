@@ -1,26 +1,41 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { Building2, Search, X, ChevronRight } from "lucide-react";
-import { OrgMember, OrgUnit, collectUnitsWithDepth, findPath } from "./orgData";
+import { OrgMember, OrgUnit, collectMembers, collectUnitsWithDepth, findMemberUnit, findPath } from "./orgData";
 import { useOrg } from "./orgStore";
 
 /**
- * Move a member from their current unit to a different one, anywhere in the tree.
- * Shared between the unit detail view (Structure) and the global Members list —
- * both just need a member + their current unit id.
+ * Move a member from their current unit to a different one, anywhere in the tree — or, in "add"
+ * mode, give them an ADDITIONAL membership in another unit while keeping their current one (one
+ * person can now belong to several units in the same org — see item 5). Shared between the unit
+ * detail view (Structure) and the global Members list — both just need a member + their current
+ * unit id.
  */
 export function MoveMemberModal({
-  member, currentUnitId, onClose,
+  member, currentUnitId, mode = "move", onClose,
 }: {
   member: OrgMember;
   currentUnitId: string;
+  /** "move" (default) relocates the member; "add" gives them a second, independent membership in the chosen unit, keeping every unit they're already in. */
+  mode?: "move" | "add";
   onClose: () => void;
 }) {
-  const { tree, moveMember } = useOrg();
+  const { tree, moveMember, addMember } = useOrg();
   const [query, setQuery] = useState("");
   const [targetId, setTargetId] = useState<string | null>(null);
 
-  const rows = [{ unit: tree, depth: 0 }, ...collectUnitsWithDepth(tree)].filter(r => r.unit.id !== currentUnitId);
+  // Units to exclude from the target list: in "move" mode just the current unit; in "add" mode,
+  // every unit this same email already sits in (adding them again there would be a no-op duplicate).
+  const excludedUnitIds =
+    mode === "move"
+      ? new Set([currentUnitId])
+      : new Set(
+          collectMembers(tree)
+            .filter(m => (m.email ?? "").trim().toLowerCase() === (member.email ?? "").trim().toLowerCase())
+            .map(m => findMemberUnit(tree, m.id)?.id)
+            .filter((id): id is string => !!id)
+        );
+  const rows = [{ unit: tree, depth: 0 }, ...collectUnitsWithDepth(tree)].filter(r => !excludedUnitIds.has(r.unit.id));
   const q = query.trim().toLowerCase();
   const filtered = q ? rows.filter(r => r.unit.name.toLowerCase().includes(q)) : rows;
 
@@ -31,7 +46,11 @@ export function MoveMemberModal({
 
   const submit = () => {
     if (!targetId) return;
-    moveMember(member.id, targetId);
+    if (mode === "add") {
+      addMember(targetId, member.name, member.email ?? "", member.roleId);
+    } else {
+      moveMember(member.id, targetId);
+    }
     onClose();
   };
 
@@ -41,8 +60,12 @@ export function MoveMemberModal({
       <div className="relative w-[92vw] sm:w-1/2 min-w-[420px] max-w-[560px] bg-white rounded-2xl flex flex-col shadow-2xl max-h-[80vh]" style={{ animation: "fadeScaleIn 0.18s ease" }}>
         <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-border shrink-0">
           <div>
-            <h2 className="text-base font-semibold">Chuyển {member.name} sang đơn vị khác</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Hiện đang ở: {currentLabel}</p>
+            <h2 className="text-base font-semibold">
+              {mode === "add" ? `Thêm ${member.name} vào đơn vị khác` : `Chuyển ${member.name} sang đơn vị khác`}
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {mode === "add" ? `Vẫn giữ nguyên ở: ${currentLabel} — chọn thêm một đơn vị nữa bên dưới.` : `Hiện đang ở: ${currentLabel}`}
+            </p>
           </div>
           <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground ml-4 shrink-0">
             <X size={14} />
@@ -56,7 +79,7 @@ export function MoveMemberModal({
               autoFocus
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="Tìm đơn vị đích…"
+              placeholder={mode === "add" ? "Tìm đơn vị muốn thêm vào…" : "Tìm đơn vị đích…"}
               className="ds-input pl-8 h-9 text-sm"
             />
           </div>
@@ -86,7 +109,11 @@ export function MoveMemberModal({
         {targetId && (
           <div className="px-6 py-3 border-t border-border shrink-0 flex items-center gap-2 text-xs text-muted-foreground">
             <span className="truncate">{currentLabel}</span>
-            <ChevronRight size={12} className="shrink-0" />
+            {mode === "add" ? (
+              <span className="shrink-0 font-medium text-foreground">+</span>
+            ) : (
+              <ChevronRight size={12} className="shrink-0" />
+            )}
             <span className="truncate text-foreground font-medium">{targetLabel}</span>
           </div>
         )}
@@ -100,7 +127,7 @@ export function MoveMemberModal({
             disabled={!targetId}
             className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-base disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Chuyển đơn vị
+            {mode === "add" ? "Thêm vào đơn vị" : "Chuyển đơn vị"}
           </button>
         </div>
       </div>

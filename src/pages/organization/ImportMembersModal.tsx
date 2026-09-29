@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AlertTriangle, Building2, Check, ChevronLeft, Download, FileText, FolderPlus, Loader2, UploadCloud, X } from "lucide-react";
 import { OrgMember, OrgUnit, findUnit } from "./orgData";
-import { deriveNameFromEmail } from "./orgStore";
+import { deriveNameFromEmail, OrgMembershipRef } from "./orgStore";
 
 type ImportRow = {
   rowNumber: number;
@@ -16,6 +16,9 @@ type ImportRow = {
   willCreateUnit: boolean;
   status: "valid" | "skipped";
   reason?: string;
+  /** Informational only, never blocking — this email already has a membership somewhere else
+   * (a different unit in this org, or a different org entirely). */
+  note?: string;
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -58,6 +61,19 @@ function pathFullyExists(anchor: OrgUnit, path: string[]): boolean {
   return true;
 }
 
+/** Same walk as `pathFullyExists`, but returns the actual existing unit (or null if the path
+ * isn't fully there yet) — used to check for a duplicate member IN THAT SPECIFIC unit, since a
+ * brand-new unit created by this import can never already contain anyone. */
+function resolveExistingUnit(anchor: OrgUnit, path: string[]): OrgUnit | null {
+  let current = anchor;
+  for (const seg of path) {
+    const next = current.units.find(u => u.name.toLowerCase() === seg.toLowerCase());
+    if (!next) return null;
+    current = next;
+  }
+  return current;
+}
+
 function downloadSampleTemplate() {
   const csv = [
     "Name,Email,Đơn vị",
@@ -91,13 +107,15 @@ function UnitStatusChip({ willCreate }: { willCreate: boolean }) {
 }
 
 export default function ImportMembersModal({
-  existingMembers, tree, defaultUnitId, onClose, onConfirm,
+  existingMembers, tree, defaultUnitId, findOtherOrgMemberships, onClose, onConfirm,
 }: {
   existingMembers: OrgMember[];
   /** Org tree the "Đơn vị" column is resolved against. */
   tree: OrgUnit;
   /** Anchor unit: where a blank Đơn vị cell lands, and what a non-blank Đơn vị path is relative to. */
   defaultUnitId: string;
+  /** Every OTHER org a row's email already belongs to (any unit) — surfaced as an informational note, never a block. */
+  findOtherOrgMemberships?: (email: string) => OrgMembershipRef[];
   onClose: () => void;
   /** Every imported member gets the default "viewer" role — promote them afterward from Members/Structure. */
   onConfirm: (rows: { name: string; email: string; unitPath: string[] }[]) => void;
@@ -142,7 +160,9 @@ export default function ImportMembersModal({
       const unitIdx = findHeaderIndex(headers, ["unit", "đơn vị", "don vi", "donvi"]);
       if (emailIdx === -1) throw new Error("no-email-column");
 
-      const existingEmails = new Set(existingMembers.map(m => m.email?.trim().toLowerCase()).filter(Boolean));
+      // Org-wide (any unit) — no longer a block by itself: it only tells us this email has a
+      // membership SOMEWHERE else in this org, which becomes an informational note below.
+      const existingEmailsOrgWide = new Set(existingMembers.map(m => m.email?.trim().toLowerCase()).filter(Boolean));
       const seenInFile = new Set<string>();
 
       const builtRows: ImportRow[] = table.slice(1).map((cells, i) => {
@@ -153,17 +173,24 @@ export default function ImportMembersModal({
         const unitPath = unitRaw.split("/").map(s => s.trim()).filter(Boolean);
         const willCreateUnit = unitPath.length > 0 && !pathFullyExists(anchorUnit, unitPath);
         const unitLabel = unitPath.length === 0 ? anchorUnit.name : unitPath.join(" / ");
+        // A brand-new unit can never already contain anyone; only resolve/check an existing one.
+        const targetUnit = willCreateUnit ? null : unitPath.length === 0 ? anchorUnit : resolveExistingUnit(anchorUnit, unitPath);
 
         let status: "valid" | "skipped" = "valid";
         let reason: string | undefined;
+        let note: string | undefined;
         const emailLower = emailRaw.toLowerCase();
+        const alreadyInTargetUnit = !!targetUnit && targetUnit.members.some(m => (m.email ?? "").trim().toLowerCase() === emailLower);
+        const otherOrgHits = EMAIL_RE.test(emailRaw) && findOtherOrgMemberships ? findOtherOrgMemberships(emailRaw) : [];
         if (!emailRaw) { status = "skipped"; reason = "Thiếu email"; }
         else if (!EMAIL_RE.test(emailRaw)) { status = "skipped"; reason = "Sai định dạng email"; }
         else if (seenInFile.has(emailLower)) { status = "skipped"; reason = "Email bị trùng trong file"; }
-        else if (existingEmails.has(emailLower)) { status = "skipped"; reason = "Đã là thành viên tổ chức"; }
+        else if (alreadyInTargetUnit) { status = "skipped"; reason = "Đã là thành viên của đơn vị này"; }
+        else if (existingEmailsOrgWide.has(emailLower)) { note = "Đã có ở một đơn vị khác trong tổ chức — sẽ thêm vào đây nữa."; }
+        else if (otherOrgHits.length > 0) { note = `Đã có ở tổ chức khác (${otherOrgHits[0].tenantName}).`; }
         if (status === "valid") seenInFile.add(emailLower);
 
-        return { rowNumber: i + 1, name, email: emailRaw, unitPath, unitLabel, willCreateUnit, status, reason };
+        return { rowNumber: i + 1, name, email: emailRaw, unitPath, unitLabel, willCreateUnit, status, reason, note };
       });
 
       setRows(builtRows);
@@ -348,7 +375,10 @@ export default function ImportMembersModal({
                       </div>
                       <div>
                         {r.status === "valid" ? (
-                          <span className="chip chip-success text-[11px]"><Check size={11} /> Hợp lệ</span>
+                          <div className="flex flex-col gap-0.5 min-w-0">
+                            <span className="chip chip-success text-[11px] self-start"><Check size={11} /> Hợp lệ</span>
+                            {r.note && <span className="text-[10px] text-muted-foreground leading-tight truncate" title={r.note}>{r.note}</span>}
+                          </div>
                         ) : (
                           <span className="chip chip-warning text-[11px]" title={r.reason}>{r.reason}</span>
                         )}

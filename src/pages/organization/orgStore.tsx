@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { getUser } from "@/lib/onboarding";
-import { OrgUnit, OrgMember, ApprovalResource, findUnit, orgTree as SEED_TREE } from "./orgData";
-import { getCurrentTenantId, subscribeTenantChange, markOrgConfigured, isOrgConfigured as isTenantOrgConfigured, isSeedTenant } from "@/lib/spaceStore";
+import { OrgUnit, OrgMember, ApprovalResource, findUnit, collectMembers, findMemberUnit, findPath, orgTree as SEED_TREE } from "./orgData";
+import { getCurrentTenantId, subscribeTenantChange, markOrgConfigured, isOrgConfigured as isTenantOrgConfigured, isSeedTenant, getAllTenants } from "@/lib/spaceStore";
 
 /** A brand-new Space starts with an empty Organization — a single root unit named after the
  * Space, no members, no sub-units — until its assigned Org Admin runs the Organization setup
@@ -115,6 +115,18 @@ function updateMemberOwner(
  * spaceStore.ts, since these are Organization details, not Space/plan details. */
 export type OrgProfile = { description?: string; logoDataUrl?: string };
 
+/** One membership record: which unit, in which Org/Space (Tenant), a given email currently sits
+ * in — used to surface "this person already exists elsewhere" across units and across orgs, now
+ * that one email can belong to several units and/or several orgs at once. */
+export type OrgMembershipRef = {
+  tenantId: string;
+  tenantName: string;
+  unitId: string;
+  unitName: string;
+  /** Breadcrumb from that org's root down to the unit, e.g. "FPT Software / Phòng Kinh doanh". */
+  unitPath: string;
+};
+
 type OrgContextValue = {
   tree: OrgUnit;
   rootId: string;
@@ -156,6 +168,15 @@ type OrgContextValue = {
    * Members/Structure like any other member.
    */
   importMembers: (anchorUnitId: string, entries: { name: string; email: string; unitPath: string[] }[]) => void;
+  /**
+   * Every membership record for `email` (case-insensitive) across EVERY Space/Org this prototype
+   * knows about, current org included — one member can now sit in several units within the same
+   * org, and/or hold separate memberships in different orgs entirely (each org's admin invites
+   * independently, the same way a person joins several separate Slack workspaces with one email).
+   * Used to show an informational note instead of blocking, wherever an email that's about to be
+   * invited/imported already has a membership somewhere.
+   */
+  findMembershipsByEmail: (email: string) => OrgMembershipRef[];
 };
 
 function removeMemberFromTree(node: OrgUnit, memberId: string): { tree: OrgUnit; removed: OrgMember | null } {
@@ -361,12 +382,36 @@ export function OrgProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const findMembershipsByEmail = (email: string): OrgMembershipRef[] => {
+    const normalized = email.trim().toLowerCase();
+    if (!normalized) return [];
+    const results: OrgMembershipRef[] = [];
+    for (const t of getAllTenants()) {
+      const tTree = treesByTenant[t.id] ?? initialTreeFor(t.id);
+      for (const m of collectMembers(tTree)) {
+        if ((m.email ?? "").trim().toLowerCase() !== normalized) continue;
+        const unit = findMemberUnit(tTree, m.id);
+        if (!unit) continue;
+        const path = findPath(tTree, unit.id) ?? [unit];
+        results.push({
+          tenantId: t.id,
+          tenantName: t.name,
+          unitId: unit.id,
+          unitName: unit.name,
+          unitPath: path.map(u => u.name).join(" / "),
+        });
+      }
+    }
+    return results;
+  };
+
   return (
     <OrgContext.Provider
       value={{
         tree, rootId: tree.id, isConfigured, orgProfile,
         createUnit, renameUnit, deleteUnit, addMember, updateMember, assignRole, removeMember,
         moveMember, setMemberInactive, setUnitAdminScope, completeOrgSetup, importMembers,
+        findMembershipsByEmail,
       }}
     >
       {children}
