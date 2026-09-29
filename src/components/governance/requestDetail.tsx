@@ -16,6 +16,7 @@ import { AgentContentSection, ResourceContentSection, ResourceUsageSection, test
 import { AgentTestPanel } from "@/components/governance/agentTestPanel";
 import { AgentDeploymentSection } from "@/components/governance/agentDeployment";
 import { CURRENT_USER } from "@/components/knowledge/knowledgeBaseStore";
+import { knowledgeStore } from "@/components/knowledge/knowledgeStore";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import { toast } from "sonner";
 
@@ -216,8 +217,12 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
             </>
           )}
 
-          {isAgent && req.resourceRefs && req.resourceRefs.length > 0 && (
-            <AgentComponents refs={req.resourceRefs} />
+          {isAgent && (
+            <AgentComponents
+              agentId={req.resourceId}
+              refs={req.resourceRefs ?? []}
+              privateKnowledge={req.privateKnowledge ?? knowledgeStore.list(req.resourceId).map(k => ({ name: k.kind === "url" ? (k.title || k.name) : k.name, kind: k.kind }))}
+            />
           )}
 
           {/* Review note (rejected / approved / revoked) */}
@@ -464,18 +469,33 @@ const COMPONENT_TYPES = ["knowledge", "skill", "guardrail", "connector"] as cons
  * type) let the reviewer look at, say, just the Guardrails; each row opens the component in a new
  * tab so the review isn't interrupted. The components' own Tenant-sharing status is deliberately
  * NOT shown here — it's a separate Tenant Admin decision and irrelevant to publishing this Agent. */
-function AgentComponents({ refs }: { refs: AgentResourceRef[] }) {
-  const types = COMPONENT_TYPES.filter(t => refs.some(r => r.type === t));
+const PRIVATE_KIND_LABEL = { doc: "Tài liệu", url: "URL", faq: "FAQ" } as const;
+
+function AgentComponents({ agentId, refs, privateKnowledge }: {
+  agentId: string;
+  refs: AgentResourceRef[];
+  /** The Agent's own knowledge items (uploaded straight into the Agent, not a Console KB). */
+  privateKnowledge: { name: string; kind: "doc" | "url" | "faq" }[];
+}) {
+  type Row =
+    | { key: string; type: ResourceReqType; name: string; to: string; privateKind?: undefined }
+    | { key: string; type: "knowledge"; name: string; to: string; privateKind: "doc" | "url" | "faq" };
+  const rows: Row[] = [
+    ...refs.map(r => ({ key: `${r.type}:${r.resourceId}`, type: r.type, name: r.name, to: resourcePath(r.type, r.resourceId) })),
+    ...privateKnowledge.map((k, i) => ({ key: `own:${i}`, type: "knowledge" as const, name: k.name, to: `/agents/${agentId}?tab=build&section=knowledge`, privateKind: k.kind })),
+  ];
+  const types = COMPONENT_TYPES.filter(t => rows.some(r => r.type === t));
   const [tab, setTab] = useState<"all" | ResourceReqType>("all");
-  const shown = tab === "all" ? refs : refs.filter(r => r.type === tab);
+  if (rows.length === 0) return null;
+  const shown = tab === "all" ? rows : rows.filter(r => r.type === tab);
   const tabs = [
-    { key: "all" as const, label: "Tất cả", count: refs.length },
-    ...types.map(t => ({ key: t, label: RESOURCE_TYPE_LABEL[t], count: refs.filter(r => r.type === t).length })),
+    { key: "all" as const, label: "Tất cả", count: rows.length },
+    ...types.map(t => ({ key: t, label: RESOURCE_TYPE_LABEL[t], count: rows.filter(r => r.type === t).length })),
   ];
   return (
     <div className="mb-6">
       <p className="text-sm font-semibold flex items-center gap-1.5 mb-3">
-        <Layers size={14} className="text-muted-foreground" /> Thành phần Agent này sử dụng ({refs.length})
+        <Layers size={14} className="text-muted-foreground" /> Thành phần Agent này sử dụng ({rows.length})
       </p>
       {types.length > 1 && (
         <div role="tablist" aria-label="Lọc thành phần theo loại" className="flex items-center gap-1 flex-wrap mb-3">
@@ -502,12 +522,17 @@ function AgentComponents({ refs }: { refs: AgentResourceRef[] }) {
       )}
       <div className="space-y-2">
         {shown.map(it => (
-          <div key={`${it.type}:${it.resourceId}`} className="rounded-xl border border-border bg-surface flex items-center gap-3 px-4 py-3">
+          <div key={it.key} className="rounded-xl border border-border bg-surface flex items-center gap-3 px-4 py-3">
             {/* Type shown once, as the tag — no separate leading icon repeating it. */}
-            <p className="min-w-0 flex-1 text-sm font-medium text-foreground truncate">{it.name}</p>
+            <p className="min-w-0 flex-1 text-sm font-medium text-foreground truncate" title={it.name}>{it.name}</p>
+            {it.privateKind && (
+              <span className="text-[11px] font-medium text-muted-foreground bg-surface-muted border border-border rounded-full px-2 py-0.5 whitespace-nowrap">
+                Riêng của Agent · {PRIVATE_KIND_LABEL[it.privateKind]}
+              </span>
+            )}
             <ResourceTypePill type={it.type} />
             <Link
-              to={resourcePath(it.type, it.resourceId)}
+              to={it.to}
               target="_blank"
               rel="noopener noreferrer"
               title="Mở trong tab mới"

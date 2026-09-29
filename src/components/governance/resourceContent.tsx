@@ -18,6 +18,7 @@ import { guardrailConsoleStore, actionLabelVi } from "../configure/guardrailCons
 import { customConnectorStore } from "../configure/customConnectorStore";
 import { listResourceUsage } from "./resourceUsage";
 import { getAgent } from "../configure/agentStore";
+import { agentModelStore } from "../configure/agentModelStore";
 import type { GovResourceType, GovRequest, AgentConnectionSnap } from "./governanceStore";
 import { agentConnectorStore } from "../configure/agentConnectorStore";
 import { CATALOG as CONNECTION_CATALOG } from "../configure/ConnectionsTab";
@@ -184,7 +185,7 @@ export function AgentContentSection({ req }: { req: GovRequest }) {
   return (
     <ContentBlock type="agent">
       {a.desc && <Field label="Mô tả"><p className="leading-relaxed">{a.desc}</p></Field>}
-      <Field label="Model">{a.model || "(chưa chọn)"}</Field>
+      <Field label="Model">{req.model ?? agentModelStore.label(req.resourceId)}</Field>
 
       <Field label="Instructions">
         {instructions ? (

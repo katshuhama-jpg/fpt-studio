@@ -17,6 +17,7 @@ import { useOrg } from "@/pages/organization/orgStore";
 import { recheckAgentGroupPublish } from "@/components/configure/collabGroupStore";
 import { getChannelName } from "@/components/configure/channelCatalog";
 import { AgentGovBadge, agentGovState } from "@/components/governance/governanceUi";
+import { agentModelStore } from "@/components/configure/agentModelStore";
 
 /* ─── Data ─────────────────────────────────────────────────────────────── */
 
@@ -245,7 +246,7 @@ function ConversationalCard({ a }: { a: typeof agents[number] }) {
                 {a.status}
               </span>
               <AgentGovBadge agentId={a.id} />
-              <span className="text-muted-foreground truncate">· {a.model}</span>
+              <span className="text-muted-foreground truncate">· {agentModelStore.label(a.id)}</span>
             </div>
           </div>
           <button className="opacity-0 group-hover:opacity-100 transition-base text-muted-foreground hover:text-foreground p-1">
@@ -315,7 +316,7 @@ function AutomationCard({ a }: { a: typeof agents[number] }) {
                 {badgeLabel}
               </span>
               <AgentGovBadge agentId={a.id} />
-              <span className="text-muted-foreground">· {a.model}</span>
+              <span className="text-muted-foreground truncate">· {agentModelStore.label(a.id)}</span>
             </div>
           </div>
           <button className="opacity-0 group-hover:opacity-100 transition-base text-muted-foreground hover:text-foreground p-1">

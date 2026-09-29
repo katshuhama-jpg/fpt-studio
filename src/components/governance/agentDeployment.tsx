@@ -6,7 +6,7 @@
 // channels at once, and each of those widens the blast radius differently.
 import { Building2, Network, UsersRound, User, Globe, Mail, LayoutGrid } from "lucide-react";
 import { CHANNEL_CATALOG, ChannelIcon } from "../configure/channelCatalog";
-import { getAgent } from "../configure/agentStore";
+import { agentPublishStore } from "../configure/agentPublishStore";
 import { workspaceTargetsOf, type GovRequest, type WorkspaceTargetKind } from "./governanceStore";
 
 const KIND_META: Record<WorkspaceTargetKind, { label: string; icon: typeof Building2 }> = {
@@ -32,7 +32,8 @@ function channelInfo(id: string): { name: string; mark: JSX.Element } {
 
 export function AgentDeploymentSection({ req }: { req: GovRequest }) {
   const targets = workspaceTargetsOf(req);
-  const channels = [...new Set((req.channels ?? getAgent(req.resourceId).channels).map(c => c.toLowerCase()))];
+  // Fallback = channels configured on the Agent's Deploy tab (never the static demo record).
+  const channels = [...new Set((req.channels ?? agentPublishStore.get(req.resourceId).channels).map(c => c.toLowerCase()))];
   const people = targets.reduce((n, t) => n + (t.members ?? 0), 0);
 
   return (

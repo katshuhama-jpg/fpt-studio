@@ -38,6 +38,7 @@ import { agentConnectorStore } from "../configure/agentConnectorStore";
 import { customConnectorStore } from "../configure/customConnectorStore";
 import { auditLogStore } from "./auditLogStore";
 import { getAgent } from "../configure/agentStore";
+import { agentModelStore } from "../configure/agentModelStore";
 
 export type GovResourceType = "agent" | "knowledge" | "skill" | "guardrail" | "connector";
 /** "withdrawn" = the requester pulled it back, or it was replaced by a newer submission for the
@@ -167,6 +168,9 @@ export interface GovRequest {
   connections?: AgentConnectionSnap[];
   subAgents?: SubAgentSnap[];
   starterPrompts?: string[];
+  /** Agent only — model display name and the Agent's own (private) knowledge items at submit. */
+  model?: string;
+  privateKnowledge?: { name: string; kind: "doc" | "url" | "faq" }[];
   /** Fields of the main resource itself, captured at submit time — diffed against its current
    * fields to detect "builder kept editing after submitting" (see checkDrift), and against its
    * last-approved live snapshot for the "Xem thay đổi" panel. */
@@ -195,7 +199,14 @@ const persistLive = () => saveMap(LIVE_KEY, liveSnapshots);
 const snapshotKey = (type: GovResourceType, id: string) => `${type}:${id}`;
 
 let seq = 1000;
-const nextId = () => `req-${seq++}`;
+/** Next request id — one above the highest existing numeric id. `seq` alone restarts at 1000 on
+ * every page load, which after a reload could hand out an id already in the store (e.g. the
+ * seeded req-1001) and silently overwrite that request. */
+const nextId = () => {
+  let max = 999;
+  for (const k of store.keys()) { const n = Number(k.replace(/^req-/, "")); if (Number.isFinite(n) && n > max) max = n; }
+  return `req-${max + 1}`;
+};
 const now = () => Date.now();
 const DAY = 24 * 60 * 60 * 1000;
 const HOUR = 60 * 60 * 1000;
@@ -225,7 +236,8 @@ export function buildSnapshot(type: GovResourceType, id: string): ResourceSnapsh
   const keys = TRACKED_FIELDS[type];
   let obj: Record<string, unknown> | undefined;
   switch (type) {
-    case "agent": obj = getAgent(id) as unknown as Record<string, unknown> | undefined; break;
+    // Model comes from agentModelStore (what the Builder shows), not the static AgentRecord.
+    case "agent": obj = { ...(getAgent(id) as unknown as Record<string, unknown>), model: agentModelStore.label(id) }; break;
     case "knowledge": obj = knowledgeBaseStore.get(id) as unknown as Record<string, unknown> | undefined; break;
     case "skill": obj = skillStore.get(id) as unknown as Record<string, unknown> | undefined; break;
     case "guardrail": obj = guardrailConsoleStore.get(id) as unknown as Record<string, unknown> | undefined; break;
@@ -723,6 +735,7 @@ export const governanceStore = {
     requesterId: string; requesterName: string; audience: GovAudience; note: string; version?: string;
     resourceRefs?: AgentResourceRef[]; scopeSummary?: string; channels?: string[]; workspaceTargets?: WorkspaceTarget[];
     connections?: AgentConnectionSnap[]; subAgents?: SubAgentSnap[]; starterPrompts?: string[];
+    model?: string; privateKnowledge?: { name: string; kind: "doc" | "url" | "faq" }[];
   }): GovRequest {
     seed();
     // One open request per resource: submitting a newer version replaces the pending one
@@ -740,6 +753,7 @@ export const governanceStore = {
       audience: input.audience, scopeSummary: input.scopeSummary, note: input.note, version: input.version, status: "pending",
       submittedAt: t, updatedAt: t, resourceRefs: input.resourceRefs, channels: input.channels, workspaceTargets: input.workspaceTargets,
       connections: input.connections, subAgents: input.subAgents, starterPrompts: input.starterPrompts,
+      model: input.model, privateKnowledge: input.privateKnowledge,
       mainSnapshotAtSubmit: buildSnapshot(input.resourceType, input.resourceId),
       history: [historyEntry("submitted", input.requesterId, input.requesterName)],
     };

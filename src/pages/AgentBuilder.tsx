@@ -76,6 +76,8 @@ import { isAccessibleTo as isSkillAccessibleTo } from "@/components/configure/sk
 import { knowledgeBaseStore, CURRENT_USER as KB_CURRENT_USER, isViewOnly as isKbViewOnly, isAccessibleTo as isKbAccessibleTo, type KnowledgeBase } from "@/components/knowledge/knowledgeBaseStore";
 import { governanceStore, listAgentResourceRefs, agentEmoji } from "@/components/governance/governanceStore";
 import { PendingRequestPill } from "@/components/governance/agentRequestPill";
+import { agentModelStore, modelName } from "@/components/configure/agentModelStore";
+import type { WorkspaceTarget } from "@/components/governance/governanceStore";
 import { formatDateTime as formatGovDateTime } from "@/components/governance/governanceUi";
 import { collabGroupStore, overlapForGroup, recheckAgentGroupPublish, GROUP_APPROVAL_THRESHOLD, type CollabGroup } from "@/components/configure/collabGroupStore";
 import { resourceBlockStore } from "@/components/governance/resourceBlockStore";
@@ -3786,7 +3788,10 @@ function NewConfigPanel({ agentId, model, onModelChange, onConnectionsChange }: 
 
 function PreviewPanel({ agentId, view, onViewChange, onConnectionsChange, onClose }: { agentId: string; view: "config" | "chat"; onViewChange: (v: "config" | "chat") => void; onConnectionsChange?: () => void; onClose?: () => void }) {
   const setView = onViewChange;
-  const [selectedModel, setSelectedModel] = useState("deepseek-v4-flash");
+  // Persisted per Agent (agentModelStore) — the list card, Publish diff and governance request
+  // all read this same value, so the Agent never shows a different model in different places.
+  const [selectedModel, setSelectedModelState] = useState(() => agentModelStore.get(agentId));
+  const setSelectedModel = (id: string) => { agentModelStore.set(agentId, id); setSelectedModelState(id); };
   const [messages, setMessages] = useState<{ role: "user" | "agent"; text: string }[]>([
     { role: "agent", text: "Hello! I'm Banking ABC Customer Care. How can I help you today?" },
   ]);
@@ -4025,11 +4030,12 @@ function mockPublishChanges(agentId: string): PublishChange[] {
     if (out.some(o => o.id === c.id)) continue;
     const seed = hashString(agentId + c.id);
     if (c.id === "model") {
-      const fromIdx = seed % MODELS.length;
-      const toIdx = (fromIdx + 1 + (seed % (MODELS.length - 1))) % MODELS.length;
+      // "After" is the Agent's real current model (agentModelStore); "before" is a stable mock.
+      const currentId = agentModelStore.get(agentId);
+      const others = MODELS.filter(m => m.id !== currentId);
       out.push({
         id: c.id, label: c.label, marker: "~", kind: "value", before: 0, after: 0,
-        beforeLabel: MODELS[fromIdx].id, afterLabel: MODELS[toIdx].id,
+        beforeLabel: others[seed % others.length].name, afterLabel: modelName(currentId),
       });
       continue;
     }
@@ -4135,6 +4141,26 @@ function orgSelectionSummary(unit: OrgUnit, selection: Set<string>, ancestorSele
   for (const m of unit.members) if (selection.has(`m:${m.id}`)) out.push(m.name);
   for (const child of unit.units) out.push(...orgSelectionSummary(child, selection, false));
   return out;
+}
+
+/** Structured version of orgSelectionSummary for the governance request's "Kênh triển khai"
+ * section: each selected unit becomes one target (the corporation and its direct subsidiaries
+ * are "company", anything deeper is "department"); individually picked people are grouped into
+ * one "Cá nhân" target. */
+function orgSelectionTargets(tree: OrgUnit, selection: Set<string>): WorkspaceTarget[] {
+  const units: WorkspaceTarget[] = [];
+  const people: string[] = [];
+  const walk = (unit: OrgUnit, depth: number) => {
+    if (selection.has(`u:${unit.id}`)) {
+      units.push({ kind: depth <= 1 ? "company" : "department", name: unit.name, members: countAll(unit) });
+      return;
+    }
+    for (const m of unit.members) if (selection.has(`m:${m.id}`)) people.push(m.name);
+    for (const child of unit.units) walk(child, depth + 1);
+  };
+  walk(tree, 0);
+  if (people.length > 0) units.push({ kind: "people", name: people.join(", "), members: people.length });
+  return units;
 }
 
 /** Company/department scope picker for the Publish modal — same synced org tree as
@@ -4251,6 +4277,13 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
   // replaces it (governanceStore.submit withdraws it), so the new version must count up from
   // whichever is higher — the live version or the pending one — never step backwards.
   const pendingRequest = governanceStore.getOpenRequestForResource("agent", agentId);
+  // What the Admin reviews = exactly what this submission contains: the Agent's current model,
+  // the external channels configured on its Deploy tab, and its own (Agent-private) knowledge.
+  const requestSnapshot = () => ({
+    model: agentModelStore.label(agentId),
+    channels: [...current.channels],
+    privateKnowledge: knowledgeStore.list(agentId).map(k => ({ name: k.kind === "url" ? (k.title || k.name) : k.name, kind: k.kind })),
+  });
   const parseVer = (v?: string) => (v ?? "v0.0.0").replace(/^v/, "").split(".").map(n => Number(n) || 0);
   const cmpVer = (a: number[], b: number[]) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
   const BASE = (() => {
@@ -4433,6 +4466,8 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
           audience: "group", note: note.trim(), version: versionName,
           resourceRefs: listAgentResourceRefs(agentId),
           scopeSummary: summary,
+          ...requestSnapshot(),
+          workspaceTargets: [{ kind: "group", name: group.name, members: group.memberIds.length, detail: overlap.unit ? `Trùng ${overlapPctLabel}% với ${overlap.unit.name} — vượt ngưỡng nên cần duyệt` : undefined }],
         });
         toast.success(`Nhóm này trùng ${overlapPctLabel}% với ${overlap.unit?.name ?? "một phòng ban"} — đã gửi yêu cầu duyệt như publish theo Company / department.`);
       } else {
@@ -4459,6 +4494,10 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
       audience: effectiveAudience, note: note.trim(), version: versionName,
       resourceRefs: listAgentResourceRefs(agentId),
       scopeSummary: effectiveAudience === "org" ? orgReachSummary : undefined,
+      ...requestSnapshot(),
+      workspaceTargets: effectiveAudience === "org"
+        ? orgSelectionTargets(orgTree, orgSelection)
+        : [{ kind: "community", name: "FPT AI Agent community" }],
     });
     toast.success("Đã gửi yêu cầu duyệt. Agent sẽ được publish sau khi Admin duyệt trong Trust & Governance › Requests.");
     onPublished?.();
