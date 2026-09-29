@@ -4499,7 +4499,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
         ? orgSelectionTargets(orgTree, orgSelection)
         : [{ kind: "community", name: "FPT AI Agent community" }],
     });
-    toast.success("Đã gửi yêu cầu duyệt. Agent sẽ được publish sau khi Admin duyệt trong Trust & Governance › Requests.");
+    toast.success(`Đã gửi yêu cầu duyệt ${versionName}. Agent sẽ được publish khi Org/Unit Admin duyệt — theo dõi trạng thái ngay trên trang này.`);
     onPublished?.();
     onClose();
   };

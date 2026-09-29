@@ -171,6 +171,11 @@ export interface GovRequest {
   /** Agent only — model display name and the Agent's own (private) knowledge items at submit. */
   model?: string;
   privateKnowledge?: { name: string; kind: "doc" | "url" | "faq" }[];
+  /** Frozen at submit: what kind of change this request was, and the field diff, vs. the live
+   * version at that moment. Once a request is decided these are what the page shows — comparing
+   * an approved version with itself afterwards would read "Không thay đổi". */
+  changeStateAtSubmit?: GovChangeState;
+  diffAtSubmit?: FieldDiff[];
   /** Fields of the main resource itself, captured at submit time — diffed against its current
    * fields to detect "builder kept editing after submitting" (see checkDrift), and against its
    * last-approved live snapshot for the "Xem thay đổi" panel. */
@@ -269,7 +274,9 @@ export function diffSnapshots(base: ResourceSnapshot | undefined, current: Resou
 
 /** The main resource's change state right now, relative to its last-approved live snapshot — shown
  * next to the request header so a reviewer immediately sees "Mới" / "Đã sửa" / "Không đổi". */
-export function mainChangeState(req: GovRequest): GovChangeState {
+export function mainChangeState(req: GovRequest): GovChangeState | null {
+  // Decided requests keep the state they were submitted with (null → unknown, chip hidden).
+  if (req.status !== "pending") return req.changeStateAtSubmit ?? null;
   const live = liveSnapshots.get(snapshotKey(req.resourceType, req.resourceId));
   const candidate = buildSnapshot(req.resourceType, req.resourceId) ?? req.mainSnapshotAtSubmit;
   return classifyChange(live, candidate);
@@ -280,6 +287,7 @@ export function mainChangeState(req: GovRequest): GovChangeState {
  * snapshot when the resource has since been deleted, so the panel still shows *something*
  * rather than silently going blank. */
 export function requestDiff(req: GovRequest): FieldDiff[] {
+  if (req.status !== "pending") return req.diffAtSubmit ?? [];
   const live = liveSnapshots.get(snapshotKey(req.resourceType, req.resourceId));
   const candidate = buildSnapshot(req.resourceType, req.resourceId) ?? req.mainSnapshotAtSubmit;
   return diffSnapshots(live, candidate);
@@ -369,7 +377,7 @@ function seed() {
   // 2 — standalone Knowledge, rejected (Tenant Admin's own queue — unrelated to any Agent).
   const kbReq = mk(
     {
-      id: "req-1002", resourceType: "knowledge", resourceId: "kb-4", resourceName: "Chính sách nhân sự",
+      id: "req-1002", changeStateAtSubmit: "new", resourceType: "knowledge", resourceId: "kb-4", resourceName: "Chính sách nhân sự",
       requesterId: "m-fsoft-coo", requesterName: "Linh Phan",
       audience: "org", note: "Chia sẻ chính sách nghỉ phép & phúc lợi mới nhất cho toàn công ty.",
       status: "rejected", submittedAt: t - 1 * DAY, updatedAt: t - 5 * HOUR,
@@ -385,7 +393,7 @@ function seed() {
   // 3 — standalone Skill, already approved.
   const skillReq = mk(
     {
-      id: "req-1003", resourceType: "skill", resourceId: "email-drafter", resourceName: "email-drafter",
+      id: "req-1003", changeStateAtSubmit: "new", resourceType: "skill", resourceId: "email-drafter", resourceName: "email-drafter",
       requesterId: "m-fsoft-vn-1", requesterName: "Duy Nguyen",
       audience: "community", note: "Skill soạn email đã dùng ổn định 2 tuần trong team — đề xuất mở cho toàn bộ FPT AI Agent community.",
       status: "approved", submittedAt: t - 3 * DAY, updatedAt: t - 2 * DAY,
@@ -400,7 +408,7 @@ function seed() {
   // 4 — standalone Guardrail, rejected.
   const guardrailReq = mk(
     {
-      id: "req-1004", resourceType: "guardrail", resourceId: "g-9", resourceName: "Vendor pricing disclosure",
+      id: "req-1004", changeStateAtSubmit: "new", resourceType: "guardrail", resourceId: "g-9", resourceName: "Vendor pricing disclosure",
       requesterId: "m-plat-1", requesterName: "Mai Hoang",
       audience: "org", note: "Áp dụng cho toàn bộ Agent bán hàng để tránh lộ giá vendor nội bộ.",
       status: "rejected", submittedAt: t - 6 * DAY, updatedAt: t - 5 * DAY,
@@ -428,7 +436,7 @@ function seed() {
   // v1.4.0 request, req-2004, is a real "Có chỉnh sửa" against this).
   const agentCleanReq = mk(
     {
-      id: "req-1006", resourceType: "agent", resourceId: "ops", resourceName: "IT Helpdesk",
+      id: "req-1006", changeStateAtSubmit: "new", resourceType: "agent", resourceId: "ops", resourceName: "IT Helpdesk",
       resourceIcon: "🛠️", requesterId: "m-fsoft-vn-1", requesterName: "Duy Nguyen",
       audience: "org", scopeSummary: "FPT Smart Cloud (35 người)", channels: ["web", "api"],
       workspaceTargets: [{ kind: "company", name: "FPT Smart Cloud", members: 35 }],
@@ -545,7 +553,7 @@ function seed() {
 
   const faqReq = mk(
     {
-      id: "req-2005", resourceType: "agent", resourceId: "faq", resourceName: "Product FAQ Assistant",
+      id: "req-2005", changeStateAtSubmit: "new", resourceType: "agent", resourceId: "faq", resourceName: "Product FAQ Assistant",
       resourceIcon: "📦", requesterId: "m-plat-1", requesterName: "Mai Hoang",
       audience: "org", scopeSummary: "Toàn công ty", channels: ["web"],
       workspaceTargets: [{ kind: "company", name: "FPT Smart Cloud", members: 1250 }],
@@ -565,7 +573,7 @@ function seed() {
 
   const salesReq = mk(
     {
-      id: "req-2006", resourceType: "agent", resourceId: "sales", resourceName: "Sales Lead Qualifier",
+      id: "req-2006", changeStateAtSubmit: "new", resourceType: "agent", resourceId: "sales", resourceName: "Sales Lead Qualifier",
       resourceIcon: "🎯", requesterId: "m-fsoft-vn-1", requesterName: "Duy Nguyen",
       audience: "community", channels: ["web"],
       workspaceTargets: [{ kind: "community", name: "FPT AI Agent community" }],
@@ -770,6 +778,11 @@ export const governanceStore = {
       connections: input.connections, subAgents: input.subAgents, starterPrompts: input.starterPrompts,
       model: input.model, privateKnowledge: input.privateKnowledge,
       mainSnapshotAtSubmit: buildSnapshot(input.resourceType, input.resourceId),
+      ...(() => {
+        const live = liveSnapshots.get(snapshotKey(input.resourceType, input.resourceId));
+        const candidate = buildSnapshot(input.resourceType, input.resourceId);
+        return { changeStateAtSubmit: classifyChange(live, candidate), diffAtSubmit: diffSnapshots(live, candidate) };
+      })(),
       history: [historyEntry("submitted", input.requesterId, input.requesterName)],
     };
     store.set(id, req);

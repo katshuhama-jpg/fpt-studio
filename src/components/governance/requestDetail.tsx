@@ -145,7 +145,7 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
                   (same as its list, which has no "Loại" column). */}
               {!isAgent && <ResourceTypePill type={req.resourceType} />}
               {req.version && <span className="text-xs font-medium text-muted-foreground bg-surface-muted border border-border rounded-full px-2.5 py-1">{req.version}</span>}
-              <ChangeStateBadge state={changeState} />
+              {changeState && <ChangeStateBadge state={changeState} />}
               <StatusBadge status={req.status} />
             </div>
           </div>
@@ -353,7 +353,11 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
               >
                 <Undo2 size={14} /> Thu hồi
               </button>
-              <p className="text-xs text-muted-foreground leading-relaxed mt-2">Gỡ publish ngay lập tức — resource trở về trạng thái như chưa từng được duyệt và cần gửi duyệt lại từ đầu.</p>
+              <p className="text-xs text-muted-foreground leading-relaxed mt-2">
+                {isAgent
+                  ? "Agent ngừng phục vụ người dùng ngay lập tức. Muốn publish lại cần gửi yêu cầu mới."
+                  : "Thành phần ngừng dùng chung trong Tenant Library ngay lập tức. Muốn dùng chung lại cần gửi yêu cầu mới."}
+              </p>
             </div>
           )}
 
