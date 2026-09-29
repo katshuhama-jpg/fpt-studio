@@ -19,6 +19,10 @@ import {
 } from "@/components/configure/connectorTemplateStore";
 import { ConnectorTemplateConnectModal, ConnectorTemplateManageModal } from "@/components/configure/ConnectorTemplateModals";
 import {
+  ownershipTags, countByTab, matchesTab, OwnershipTabs, ResourceCard, ResourceIconTile, CreatorLabel, AgentCount,
+  type OwnershipTab, type OwnershipTag,
+} from "@/components/governance/resourceOwnership";
+import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
@@ -33,7 +37,7 @@ type Section = "marketplace" | "custom";
 /** Ownership filter for the Custom Connectors list — mirrors the Của tôi/Được chia sẻ split
  * already used for Skills, replacing per-card ownership pills that crowded the row and broke
  * layout on longer connector names (see CustomConnectorCard below). */
-type CustomTab = "all" | "mine" | "shared";
+type CustomTab = OwnershipTab;
 
 interface Connector {
   id: string;
@@ -164,14 +168,15 @@ export default function WorkspaceConnectors() {
   );
   const customConnectors = customConnectorStore.list();
   const accessibleCustomConnectors = customConnectors.filter(c => isCustomConnectorAccessibleTo(c.sharing, c.ownerId, CURRENT_USER.id));
-  const customTabCounts = {
-    all: accessibleCustomConnectors.length,
-    mine: accessibleCustomConnectors.filter(c => c.ownerId === CURRENT_USER.id).length,
-    shared: accessibleCustomConnectors.filter(c => c.ownerId !== CURRENT_USER.id).length,
-  };
-  const customFiltered = customTab === "mine" ? accessibleCustomConnectors.filter(c => c.ownerId === CURRENT_USER.id)
-    : customTab === "shared" ? accessibleCustomConnectors.filter(c => c.ownerId !== CURRENT_USER.id)
-    : accessibleCustomConnectors;
+  // Custom section = FPT's internal connector templates (tagged Hệ thống) + MCP connectors people
+  // added (Của tôi / Được chia sẻ). Tabs filter by tag.
+  type CustomItem = { kind: "template"; t: ConnectorTemplateDef; tags: OwnershipTag[] } | { kind: "custom"; c: CustomConnector; tags: OwnershipTag[] };
+  const customItems: CustomItem[] = [
+    ...CONNECTOR_TEMPLATES.map(t => ({ kind: "template" as const, t, tags: ["system"] as OwnershipTag[] })),
+    ...accessibleCustomConnectors.map(c => ({ kind: "custom" as const, c, tags: ownershipTags({ ownerId: c.ownerId, sharing: c.sharing, userId: CURRENT_USER.id }) })),
+  ];
+  const customTabCounts = countByTab(customItems, i => i.tags);
+  const customFiltered = customItems.filter(i => matchesTab(i.tags, customTab));
 
   // Only an established connection is really "someone's resource" — browsing the catalog of
   // not-yet-connected services is never restricted. A role whose Connectors View Scope is
@@ -296,54 +301,8 @@ export default function WorkspaceConnectors() {
 
       {section === "custom" && (
         <div>
-          {/* Connector Templates — pre-built by FPT (FCI CRM/Member/Tickets), distinct from the
-           * MCP connectors below that a user adds themselves. Kept as its own section with its
-           * own heading so the two kinds of "Custom" aren't visually mixed into one list. */}
-          <div className="mb-8">
-            <div className="flex items-center gap-2 mb-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              <span>🏢</span>Connector Templates nội bộ
-            </div>
-            <p className="text-xs text-muted-foreground mb-3">Các hệ thống nội bộ FPT dựng sẵn — chỉ cần điền credential để kết nối, không cần tự cấu hình MCP server.</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {CONNECTOR_TEMPLATES.map(t => {
-                const connected = connectorTemplateStore.isConnected(t.id);
-                return (
-                  <div
-                    key={t.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => (connected ? setManageTemplate(t) : setConnectTemplate(t))}
-                    onKeyDown={e => { if (e.key === "Enter") (connected ? setManageTemplate(t) : setConnectTemplate(t)); }}
-                    className={`flex items-start gap-3 p-4 rounded-xl border bg-surface transition-base cursor-pointer hover:border-primary/40 hover:bg-primary-soft/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                      connected ? "border-primary/30" : "border-border"
-                    }`}
-                  >
-                    <div className="w-10 h-10 rounded-xl border border-border bg-white flex items-center justify-center shrink-0 text-sm font-semibold text-muted-foreground">
-                      {t.name.slice(0, 1)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <span className="text-sm font-medium">{t.name}</span>
-                        {connected && <CheckCircle2 size={13} className="text-success shrink-0" />}
-                      </div>
-                      <p className="text-xs text-muted-foreground leading-relaxed">{t.desc}</p>
-                      {connected && (
-                        <p className="text-[11px] text-muted-foreground mt-1">
-                          {connectorTemplateStore.listAccounts(t.id).length} credential đã kết nối
-                        </p>
-                      )}
-                    </div>
-                    <ChevronRight size={14} className="text-muted-foreground shrink-0 mt-0.5" />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="mt-2 mb-5 border-t border-border" />
-
           <div className="flex items-center justify-between gap-3 mb-5">
-            <p className="text-sm text-muted-foreground">Thêm một MCP server để cấp công cụ của nó cho Agent của bạn.</p>
+            <p className="text-sm text-muted-foreground">Connector hệ thống nội bộ FPT dựng sẵn, hoặc thêm một MCP server để cấp công cụ của nó cho Agent của bạn.</p>
             <button
               onClick={() => setShowAddCustom(true)}
               className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium transition-base shrink-0"
@@ -352,40 +311,46 @@ export default function WorkspaceConnectors() {
             </button>
           </div>
 
-          {accessibleCustomConnectors.length > 0 && (
-            <div className="flex items-center gap-1 mb-5">
-              {([
-                { key: "all" as CustomTab, label: "Tất cả" },
-                { key: "mine" as CustomTab, label: "Của tôi" },
-                { key: "shared" as CustomTab, label: "Được chia sẻ" },
-              ]).map(t => (
-                <button key={t.key} onClick={() => setCustomTab(t.key)}
-                  className={`px-3 h-8 rounded-lg text-sm font-medium transition-base ${
-                    customTab === t.key ? "bg-primary-soft text-primary" : "text-muted-foreground hover:bg-surface-muted"
-                  }`}
-                >
-                  {t.label} <span className="ml-0.5 text-xs opacity-70">{customTabCounts[t.key]}</span>
-                </button>
-              ))}
-            </div>
-          )}
+          <div className="mb-5">
+            <OwnershipTabs tab={customTab} onChange={setCustomTab} counts={customTabCounts} />
+          </div>
 
-          {accessibleCustomConnectors.length === 0 ? (
+          {customFiltered.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-gradient-soft p-12 text-center">
               <Plug size={22} className="mx-auto mb-3 text-muted-foreground" />
-              <p className="text-sm font-medium mb-1">Chưa có custom connector nào</p>
+              <p className="text-sm font-medium mb-1">{customTab === "mine" ? "Bạn chưa thêm custom connector nào" : customTab === "shared" ? "Chưa có custom connector nào được chia sẻ" : "Chưa có custom connector nào"}</p>
               <p className="text-sm text-muted-foreground">Thêm một MCP server để cấp công cụ của nó cho Agent của bạn.</p>
             </div>
-          ) : customFiltered.length === 0 ? (
-            <div className="py-16 text-center text-muted-foreground text-sm">Không có custom connector nào trong mục này.</div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {customFiltered.map(c => {
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {customFiltered.map(i => {
+                if (i.kind === "template") {
+                  const t = i.t;
+                  const connected = connectorTemplateStore.isConnected(t.id);
+                  const open = () => (connected ? setManageTemplate(t) : setConnectTemplate(t));
+                  return (
+                    <ResourceCard
+                      key={`tpl-${t.id}`}
+                      icon={<ResourceIconTile system><span className="text-sm font-semibold">{t.name.slice(0, 1)}</span></ResourceIconTile>}
+                      name={t.name}
+                      tags={i.tags}
+                      description={t.desc}
+                      extra={connected
+                        ? <p className="text-xs text-success font-medium flex items-center gap-1"><CheckCircle2 size={12} /> {connectorTemplateStore.listAccounts(t.id).length} credential đã kết nối</p>
+                        : <p className="text-xs text-muted-foreground">Chưa kết nối · điền credential để dùng</p>}
+                      creator={<CreatorLabel displayName="FPT AI Agents" system />}
+                      highlighted={connected}
+                      onOpen={open}
+                    />
+                  );
+                }
+                const c = i.c;
                 const isMine = c.ownerId === CURRENT_USER.id;
                 return (
                   <CustomConnectorCard
                     key={c.id}
                     connector={c}
+                    tags={i.tags}
                     isMine={isMine}
                     onEdit={isMine ? () => setEditTarget(c) : undefined}
                     onShare={isMine ? () => setShareTarget(c) : undefined}
@@ -579,38 +544,28 @@ function CustomConnectorRowMenu({ onEdit, onShare, onPublish, onToggleBlock, isB
   );
 }
 
-function CustomConnectorCard({ connector: c, isMine, onEdit, onShare, onPublish, onToggleBlock, onDelete }: {
-  connector: CustomConnector; isMine: boolean; onEdit?: () => void; onShare?: () => void; onPublish?: () => void; onToggleBlock?: () => void; onDelete: () => void;
+function CustomConnectorCard({ connector: c, tags, isMine, onEdit, onShare, onPublish, onToggleBlock, onDelete }: {
+  connector: CustomConnector; tags: OwnershipTag[]; isMine: boolean; onEdit?: () => void; onShare?: () => void; onPublish?: () => void; onToggleBlock?: () => void; onDelete: () => void;
 }) {
   const openReq = governanceStore.getOpenRequestForResource("connector", c.id);
   const isApproved = governanceStore.isResourceApproved("connector", c.id);
   const isBlocked = resourceBlockStore.isBlocked("connector", c.id);
   return (
-    <div className="flex items-start gap-3 p-4 rounded-xl border border-border bg-surface">
-      <div className="w-10 h-10 rounded-xl border border-border bg-white flex items-center justify-center shrink-0">
-        <Plug size={16} className="text-muted-foreground" />
-      </div>
-      <div className="flex-1 min-w-0">
-        {/* Ownership/sharing pills ("Của tôi", "Dùng chung", "Chia sẻ với N người") used to sit
-         * in this row — redundant once the Tất cả/Của tôi/Được chia sẻ tab above already says
-         * which group a card belongs to, and they fought the connector name for space, wrapping
-         * or overflowing the card on longer names. Only the owner's name remains, as plain text,
-         * so a shared-to-me card still says whose connector it is. */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <p className="text-sm font-medium truncate">{c.name}</p>
+    <ResourceCard
+      icon={<ResourceIconTile><Plug size={16} /></ResourceIconTile>}
+      name={c.name}
+      tags={tags}
+      menu={<CustomConnectorRowMenu onEdit={onEdit} onShare={onShare} onPublish={onPublish} onToggleBlock={onToggleBlock} isBlocked={isBlocked} onDelete={onDelete} />}
+      description={c.url}
+      extra={
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-muted-foreground">{AUTH_LABEL[c.authType]}</span>
+          {(openReq || isApproved) && <StatusBadge status={openReq ? openReq.status : "approved"} />}
         </div>
-        <p className="text-xs text-muted-foreground truncate">Người tạo: {isMine ? "Bạn" : c.ownerName}</p>
-        <p className="text-xs text-muted-foreground truncate mt-0.5">{c.url}</p>
-        <p className="text-[11px] text-muted-foreground mt-1">
-          {AUTH_LABEL[c.authType]}
-          {c.attachedByAgentIds.length > 0 && ` · ${c.attachedByAgentIds.length} Agent đang dùng`}
-        </p>
-        {(openReq || isApproved) && (
-          <div className="mt-1.5"><StatusBadge status={openReq ? openReq.status : "approved"} /></div>
-        )}
-      </div>
-      <CustomConnectorRowMenu onEdit={onEdit} onShare={onShare} onPublish={onPublish} onToggleBlock={onToggleBlock} isBlocked={isBlocked} onDelete={onDelete} />
-    </div>
+      }
+      creator={<CreatorLabel displayName={isMine ? "Bạn" : c.ownerName} fullName={c.ownerName} />}
+      agents={<AgentCount count={c.attachedByAgentIds.length} />}
+    />
   );
 }
 

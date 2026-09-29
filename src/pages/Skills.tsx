@@ -17,8 +17,14 @@ import CreateSkillModal, { type SkillFormData } from "@/components/configure/Cre
 import CreateSkillChoiceModal from "@/components/configure/CreateSkillChoiceModal";
 import UploadSkillModal from "@/components/configure/UploadSkillModal";
 import SkillShareModal from "@/components/configure/SkillShareModal";
+import { VISIBLE_BUILTIN_SKILLS, type BuiltinSkill } from "@/components/configure/builtinSkillStore";
+import { SystemResourceDetailModal } from "@/components/configure/AgentResourceDetailModal";
+import {
+  ownershipTags, countByTab, matchesTab, OwnershipTabs, OwnershipTagList, ResourceCard, ResourceIconTile,
+  CreatorLabel, AgentCount, type OwnershipTab, type OwnershipTag,
+} from "@/components/governance/resourceOwnership";
 
-type MainTab = "all" | "mine" | "shared";
+type MainTab = OwnershipTab;
 
 // Ownership/share-status pills ("Của tôi", "Dùng chung", "Chia sẻ với N người") are gone —
 // the Tất cả/Của tôi/Được chia sẻ tab already tells the viewer which group they're looking at,
@@ -124,29 +130,20 @@ export default function Skills() {
   // every count and list below.
   const visibleSkills = access.canSeeAll ? skills : skills.filter(s => isAccessibleTo(s.sharing, s.ownerId, access.userId));
 
-  const isMine = (s: Skill) => s.ownerId === access.userId;
-  const isSharedWithMe = (s: Skill) => !isMine(s) && isAccessibleTo(s.sharing, s.ownerId, access.userId);
-
-  const counts = {
-    all: visibleSkills.length,
-    mine: visibleSkills.filter(isMine).length,
-    shared: visibleSkills.filter(isSharedWithMe).length,
-  };
-
-  const tabFiltered = tab === "mine" ? visibleSkills.filter(isMine)
-    : tab === "shared" ? visibleSkills.filter(isSharedWithMe)
-    : visibleSkills;
-
-  const q = search.trim().toLowerCase();
-  const visible = q
-    ? tabFiltered.filter(s => s.name.toLowerCase().includes(q) || s.description.toLowerCase().includes(q))
-    : tabFiltered;
-
-  const TABS: { key: MainTab; label: string }[] = [
-    { key: "all", label: "Tất cả" },
-    { key: "mine", label: "Của tôi" },
-    { key: "shared", label: "Được chia sẻ" },
+  // One list for the library: Space skills (tagged Của tôi / Được chia sẻ) + the platform's
+  // built-in skills (tagged Hệ thống). Tabs filter by tag, so a skill you own and shared shows
+  // under both "Của tôi" and "Được chia sẻ".
+  type Item = { kind: "space"; skill: Skill; tags: OwnershipTag[] } | { kind: "system"; skill: BuiltinSkill; tags: OwnershipTag[] };
+  const items: Item[] = [
+    ...visibleSkills.map(s => ({ kind: "space" as const, skill: s, tags: ownershipTags({ ownerId: s.ownerId, sharing: s.sharing, userId: access.userId }) })),
+    ...VISIBLE_BUILTIN_SKILLS.map(b => ({ kind: "system" as const, skill: b, tags: ["system"] as OwnershipTag[] })),
   ];
+  const counts = countByTab(items, i => i.tags);
+  const q = search.trim().toLowerCase();
+  const visible = items
+    .filter(i => matchesTab(i.tags, tab))
+    .filter(i => !q || i.skill.name.toLowerCase().includes(q) || i.skill.description.toLowerCase().includes(q));
+  const [systemTarget, setSystemTarget] = useState<BuiltinSkill | null>(null);
 
   const NO_ROLE_PERMISSION = "Bạn không có quyền thực hiện thao tác này.";
   const NOT_OWNED_OR_SHARED = "Bạn chỉ có thể thao tác trên skill bạn tạo hoặc được chia sẻ.";
@@ -207,22 +204,7 @@ export default function Skills() {
       {/* Ownership tabs + search + view toggle */}
       <div className="border-b border-border bg-background shrink-0">
         <div className="max-w-[1200px] mx-auto px-8 py-3 flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-1 flex-wrap">
-            {TABS.map(t => (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                className={`px-3 h-8 rounded-lg text-sm font-medium transition-base flex items-center gap-1.5 ${
-                  tab === t.key ? "bg-primary-soft text-primary" : "text-muted-foreground hover:bg-surface-muted"
-                }`}
-              >
-                {t.label}
-                <span className={`text-xs px-1.5 py-0.5 rounded-full ${tab === t.key ? "bg-primary/10 text-primary" : "bg-surface-sunken text-muted-foreground"}`}>
-                  {counts[t.key]}
-                </span>
-              </button>
-            ))}
-          </div>
+          <OwnershipTabs tab={tab} onChange={setTab} counts={counts} />
           <div className="flex items-center gap-2 flex-wrap">
             <div className="relative">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -242,7 +224,11 @@ export default function Skills() {
       </div>
 
       {/* Cards */}
-      {visible.length === 0 ? (
+      {visible.length === 0 && (tab !== "all" || q) ? (
+        <div className="flex-1 flex items-center justify-center text-center p-10 text-sm text-muted-foreground">
+          {q ? "Không tìm thấy skill nào phù hợp." : tab === "mine" ? "Bạn chưa tạo skill nào." : tab === "shared" ? "Chưa có skill nào được chia sẻ." : "Chưa có skill hệ thống nào."}
+        </div>
+      ) : visible.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center p-10 animate-fade-up">
           <div className="w-16 h-16 rounded-2xl bg-primary-soft text-primary flex items-center justify-center mb-5 border border-primary/15">
             <Puzzle size={26} />
@@ -265,61 +251,70 @@ export default function Skills() {
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-[1200px] mx-auto px-8 py-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {visible.map(s => {
-                const isOwner = s.ownerId === access.userId;
-                return (
-                <div key={s.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => openSkill(s)}
-                  onKeyDown={e => { if (e.key === "Enter") openSkill(s); }}
-                  className="rounded-xl border p-4 cursor-pointer transition-base border-border bg-surface hover:border-border-strong hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <div className="flex items-start justify-between gap-2 mb-3">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base" style={{ background: s.iconBg }}>{s.icon}</div>
-                    {menuFor(s)}
-                  </div>
-                  <div className="font-semibold text-sm leading-snug mb-1.5 truncate">{s.name}</div>
-                  <div className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{s.description}</div>
-                  <div className="text-xs text-muted-foreground mt-3">Người tạo: {isOwner ? "Bạn" : s.ownerName}</div>
-                  {s.attachedByAgentIds.length > 0 && (
-                    <div className="text-xs text-muted-foreground mt-1.5">{s.attachedByAgentIds.length} Agent đang dùng</div>
-                  )}
-                </div>
-                );
-              })}
+              {visible.map(i => i.kind === "system" ? (
+                <ResourceCard
+                  key={`sys-${i.skill.id}`}
+                  icon={<ResourceIconTile system><Puzzle size={18} /></ResourceIconTile>}
+                  name={i.skill.name}
+                  tags={i.tags}
+                  description={i.skill.description}
+                  creator={<CreatorLabel displayName="FPT AI Agents" system />}
+                  agents={<AgentCount count={0} all />}
+                  onOpen={() => setSystemTarget(i.skill as BuiltinSkill)}
+                />
+              ) : (
+                <ResourceCard
+                  key={i.skill.id}
+                  icon={<ResourceIconTile><Puzzle size={18} /></ResourceIconTile>}
+                  name={i.skill.name}
+                  tags={i.tags}
+                  menu={menuFor(i.skill as Skill)}
+                  description={i.skill.description}
+                  creator={<CreatorLabel displayName={(i.skill as Skill).ownerId === access.userId ? "Bạn" : (i.skill as Skill).ownerName} fullName={(i.skill as Skill).ownerId === access.userId ? currentUser.name : (i.skill as Skill).ownerName} />}
+                  agents={<AgentCount count={(i.skill as Skill).attachedByAgentIds.length} />}
+                  onOpen={() => openSkill(i.skill as Skill)}
+                />
+              ))}
             </div>
           </div>
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-[1200px] mx-auto px-8">
-            {visible.map(s => {
-              const isOwner = s.ownerId === access.userId;
+            {visible.map(i => {
+              const system = i.kind === "system";
+              const sk = i.skill;
+              const owner = system ? "FPT AI Agents" : (sk as Skill).ownerId === access.userId ? "Bạn" : (sk as Skill).ownerName;
+              const open = () => (system ? setSystemTarget(sk as BuiltinSkill) : openSkill(sk as Skill));
               return (
-              <div key={s.id}
+              <div key={`${i.kind}-${sk.id}`}
                 role="button"
                 tabIndex={0}
-                onClick={() => openSkill(s)}
-                onKeyDown={e => { if (e.key === "Enter") openSkill(s); }}
+                onClick={open}
+                onKeyDown={e => { if (e.key === "Enter" && e.target === e.currentTarget) open(); }}
                 className="flex items-center gap-3 py-3 border-b border-border cursor-pointer transition-base hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center text-sm shrink-0" style={{ background: s.iconBg }}>{s.icon}</div>
+                <ResourceIconTile system={system}><Puzzle size={16} /></ResourceIconTile>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">{s.name}</div>
-                  <div className="text-xs text-muted-foreground truncate">
-                    {s.description} · Người tạo: {isOwner ? "Bạn" : s.ownerName}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-sm font-medium truncate">{sk.name}</span>
+                    <OwnershipTagList tags={i.tags} className="shrink-0 flex-nowrap" />
+                  </div>
+                  <div className="text-xs text-muted-foreground truncate mt-0.5">
+                    {sk.description} · Người tạo: {owner}
                   </div>
                 </div>
-                {s.attachedByAgentIds.length > 0 && (
-                  <div className="text-xs text-muted-foreground shrink-0">{s.attachedByAgentIds.length} Agent</div>
-                )}
-                {menuFor(s)}
+                <div className="text-xs shrink-0"><AgentCount count={system ? 0 : (sk as Skill).attachedByAgentIds.length} all={system} /></div>
+                {system ? <span className="w-7 shrink-0" /> : <div onClick={e => e.stopPropagation()}>{menuFor(sk as Skill)}</div>}
               </div>
               );
             })}
           </div>
         </div>
+      )}
+
+      {systemTarget && (
+        <SystemResourceDetailModal typeLabel="skill" name={systemTarget.name} description={systemTarget.description} onClose={() => setSystemTarget(null)} />
       )}
 
       {showChoice && (

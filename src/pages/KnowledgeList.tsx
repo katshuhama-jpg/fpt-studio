@@ -13,8 +13,11 @@ import ConnectExternalKnowledgeBaseModal from "@/components/knowledge/ConnectExt
 import ShareKnowledgeBaseModal from "@/components/knowledge/ShareKnowledgeBaseModal";
 import DeleteKnowledgeBaseDialog from "@/components/knowledge/DeleteKnowledgeBaseDialog";
 import { useGroupAccess } from "@/pages/organization/scopeAccess";
+import {
+  ownershipTags, countByTab, matchesTab, OwnershipTabs, ResourceCard, CreatorLabel, AgentCount, type OwnershipTab,
+} from "@/components/governance/resourceOwnership";
 
-type MainTab = "all" | "mine" | "shared";
+type MainTab = OwnershipTab;
 type TypeFilter = "all" | "internal" | "external_api";
 
 function relativeTime(ts: number): string {
@@ -113,34 +116,26 @@ function KbCard({ kb, userId, access, onOpen, onEdit, onShare, onDelete }: {
     : !access.canAct("delete", accessible) ? NOT_OWNED_OR_SHARED
     : undefined;
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={e => { if (e.key === "Enter") onOpen(); }}
-      className="group rounded-xl border border-border bg-surface hover:border-primary/30 hover:shadow-elev transition-base cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring p-5 flex flex-col"
-    >
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <KnowledgeTypeIcon type={kb.type} />
-          <Link
-            to={`/knowledge/${kb.id}`}
-            onClick={e => e.stopPropagation()}
-            className="font-semibold text-sm leading-snug line-clamp-2 min-w-0 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
-          >
-            {kb.name}
-          </Link>
-        </div>
-        <RowMenu kb={kb} onOpen={onOpen} onEdit={onEdit} onShare={onShare} onDelete={onDelete} editBlocked={editBlocked} shareBlocked={shareBlocked} deleteBlocked={deleteBlocked} />
-      </div>
-      <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 mb-3 min-h-[32px]">
-        {kb.description || <span className="italic">Chưa có mô tả</span>}
-      </p>
-      <div className="mt-auto pt-3 border-t border-border text-xs text-muted-foreground">
-        {`Người tạo: ${isOwner ? "Bạn" : kb.ownerName} · `}{relativeTime(kb.updatedAt)}
-        {kb.attachedByAgentIds.length > 0 && ` · ${kb.attachedByAgentIds.length} Agent đang dùng`}
-      </div>
-    </div>
+    <ResourceCard
+      icon={<KnowledgeTypeIcon type={kb.type} className="w-9 h-9 rounded-[10px]" />}
+      name={kb.name}
+      nameNode={
+        <Link
+          to={`/knowledge/${kb.id}`}
+          onClick={e => e.stopPropagation()}
+          className="hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+        >
+          {kb.name}
+        </Link>
+      }
+      tags={ownershipTags({ ownerId: kb.ownerId, sharing: kb.sharing, userId })}
+      menu={<RowMenu kb={kb} onOpen={onOpen} onEdit={onEdit} onShare={onShare} onDelete={onDelete} editBlocked={editBlocked} shareBlocked={shareBlocked} deleteBlocked={deleteBlocked} />}
+      description={kb.description}
+      extra={<p className="text-xs text-muted-foreground">{relativeTime(kb.updatedAt)}</p>}
+      creator={<CreatorLabel displayName={isOwner ? "Bạn" : kb.ownerName} fullName={kb.ownerName} />}
+      agents={<AgentCount count={kb.attachedByAgentIds.length} />}
+      onOpen={onOpen}
+    />
   );
 }
 
@@ -209,18 +204,11 @@ export default function KnowledgeList() {
     [kbs, access.canSeeAll, userId],
   );
 
-  const isMine = (kb: KnowledgeBase) => kb.ownerId === userId;
-  const isSharedWithMe = (kb: KnowledgeBase) => !isMine(kb) && isAccessibleTo(kb, userId);
+  // Tags per KB (Của tôi / Được chia sẻ — no built-in KBs exist yet, so Hệ thống stays empty).
+  const tagsOf = (kb: KnowledgeBase) => ownershipTags({ ownerId: kb.ownerId, sharing: kb.sharing, userId });
+  const counts = useMemo(() => countByTab(visibleKbs, tagsOf), [visibleKbs, userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const counts = useMemo(() => ({
-    all: visibleKbs.length,
-    mine: visibleKbs.filter(isMine).length,
-    shared: visibleKbs.filter(isSharedWithMe).length,
-  }), [visibleKbs, userId]);
-
-  const tabFiltered = tab === "mine" ? visibleKbs.filter(isMine)
-    : tab === "shared" ? visibleKbs.filter(isSharedWithMe)
-    : visibleKbs;
+  const tabFiltered = visibleKbs.filter(kb => matchesTab(tagsOf(kb), tab));
   const typeFiltered = typeFilter === "all" ? tabFiltered : tabFiltered.filter(kb => kb.type === typeFilter);
   const q = search.trim().toLowerCase();
   const filtered = q
@@ -231,11 +219,6 @@ export default function KnowledgeList() {
   const hasActiveFilters = tab !== "all" || typeFilter !== "all" || search.trim().length > 0;
   const clearFilters = () => { setTab("all"); setTypeFilter("all"); setSearchInput(""); setSearch(""); };
 
-  const TABS: { key: MainTab; label: string }[] = [
-    { key: "all", label: "Tất cả" },
-    { key: "mine", label: "Của tôi" },
-    { key: "shared", label: "Được chia sẻ" },
-  ];
   const TYPE_OPTIONS: { key: TypeFilter; label: string }[] = [
     { key: "all", label: "Tất cả" },
     { key: "internal", label: "Nội bộ" },
@@ -277,22 +260,7 @@ export default function KnowledgeList() {
 
       {loadState === "ready" && hasAnyKb && (
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-5 border-b border-border pb-3">
-          <div className="flex items-center gap-1 flex-wrap">
-            {TABS.map(t => (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                className={`px-3 h-8 rounded-lg text-sm font-medium transition-base flex items-center gap-1.5 ${
-                  tab === t.key ? "bg-primary-soft text-primary" : "text-muted-foreground hover:bg-surface-muted"
-                }`}
-              >
-                {t.label}
-                <span className={`text-xs px-1.5 py-0.5 rounded-full ${tab === t.key ? "bg-primary/10 text-primary" : "bg-surface-sunken text-muted-foreground"}`}>
-                  {counts[t.key]}
-                </span>
-              </button>
-            ))}
-          </div>
+          <OwnershipTabs tab={tab} onChange={setTab} counts={counts} />
           <div className="flex items-center gap-2 flex-wrap">
             <div className="relative">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -364,7 +332,14 @@ export default function KnowledgeList() {
         </div>
       )}
 
-      {loadState === "ready" && hasAnyKb && filtered.length === 0 && (
+      {loadState === "ready" && hasAnyKb && filtered.length === 0 && tab === "system" && !q && typeFilter === "all" && (
+        <div className="rounded-2xl border border-dashed border-border bg-gradient-soft p-12 text-center">
+          <h3 className="font-display text-base font-semibold mb-1">Chưa có kho tri thức hệ thống</h3>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto">Kho tri thức do FPT AI Agents cung cấp sẵn sẽ hiện ở đây.</p>
+        </div>
+      )}
+
+      {loadState === "ready" && hasAnyKb && filtered.length === 0 && !(tab === "system" && !q && typeFilter === "all") && (
         <div className="rounded-2xl border border-dashed border-border bg-gradient-soft p-12 text-center">
           <h3 className="font-display text-base font-semibold mb-1">Không tìm thấy kho tri thức phù hợp</h3>
           <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">Thử đổi từ khóa hoặc bỏ bớt bộ lọc.</p>

@@ -492,3 +492,24 @@ export default function AgentResourceDetailModal({ agentId, target, onClose, onC
     case "connector": return <ConnectorDetail id={target.id} onClose={onClose} onChanged={changed} />;
   }
 }
+
+/** Read-only detail for a platform ("Hệ thống") resource — built-in skills, mandatory
+ * guardrails… Opened from the Space libraries; nothing to edit or share. */
+export function SystemResourceDetailModal({ typeLabel, name, description, usedBy = "Mọi Agent trong Space", onClose }: {
+  typeLabel: string;
+  name: string;
+  description?: string;
+  usedBy?: string;
+  onClose: () => void;
+}) {
+  return (
+    <Shell typeLabel={typeLabel} name={name} onClose={onClose} note="Resource hệ thống do FPT AI Agents cung cấp, không sửa hay chia sẻ được.">
+      <Meta rows={[
+        { label: "Loại", value: "Hệ thống" },
+        { label: "Người tạo", value: "FPT AI Agents" },
+        { label: "Đang dùng trong", value: usedBy },
+      ]} />
+      <Field label="Mô tả"><p className="whitespace-pre-wrap">{description || "Chưa có mô tả"}</p></Field>
+    </Shell>
+  );
+}

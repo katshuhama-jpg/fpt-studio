@@ -1,4 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from "react";
+import {
+  ownershipTags, countByTab, matchesTab, OwnershipTabs, OwnershipTagList, CreatorLabel, type OwnershipTab,
+} from "@/components/governance/resourceOwnership";
 import { agentsUsing, ResourceInUseDialog } from "@/components/governance/resourceInUseGuard";
 import { useSearchParams } from "react-router-dom";
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -57,7 +60,7 @@ function editBlockedFor(g: Guardrail, access: { userId: string; hasPermission: (
 // visible even while browsing "Tất cả" (see the row rendering below).
 
 /* ─── Main page ──────────────────────────────────────────────────────── */
-type MainTab = "all" | "mine" | "shared";
+type MainTab = OwnershipTab;
 
 export default function WorkspaceGuardrails() {
   const { can } = useMyPermissions();
@@ -106,29 +109,18 @@ export default function WorkspaceGuardrails() {
   // were shared with it — not just on a filter tab, but in every count and list below.
   const visibleGuardrails = access.canSeeAll ? items : items.filter(g => isGuardrailAccessible(g, access.userId));
 
-  const isMine = (g: Guardrail) => !!g.ownerId && g.ownerId === access.userId;
-  const isSharedWithMe = (g: Guardrail) => !isMine(g) && !!g.ownerId && !!g.sharing && isAccessibleTo(g.sharing, g.ownerId, access.userId);
+  // Mandatory compliance rules ship with the platform → "Hệ thống"; the rest are tagged
+  // Của tôi / Được chia sẻ from the viewer's side (both at once for your own shared guardrail).
+  const tagsOf = (g: Guardrail) => ownershipTags({ system: g.mandatory, ownerId: g.ownerId, sharing: g.sharing, userId: access.userId });
+  const counts = useMemo(() => countByTab(visibleGuardrails, tagsOf), [visibleGuardrails, access.userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const counts = useMemo(() => ({
-    all: visibleGuardrails.length,
-    mine: visibleGuardrails.filter(isMine).length,
-    shared: visibleGuardrails.filter(isSharedWithMe).length,
-  }), [visibleGuardrails, access.userId]);
-
-  const tabFiltered = tab === "mine" ? visibleGuardrails.filter(isMine)
-    : tab === "shared" ? visibleGuardrails.filter(isSharedWithMe)
-    : visibleGuardrails;
+  const tabFiltered = visibleGuardrails.filter(g => matchesTab(tagsOf(g), tab));
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
     return tabFiltered.filter(g => !q || g.name.toLowerCase().includes(q) || g.desc.toLowerCase().includes(q));
   }, [tabFiltered, query]);
 
-  const TABS: { key: MainTab; label: string }[] = [
-    { key: "all", label: "Tất cả" },
-    { key: "mine", label: "Của tôi" },
-    { key: "shared", label: "Được chia sẻ" },
-  ];
 
   const handleCreate = (g: CreateGuardrailData) => {
     guardrailConsoleStore.create(g);
@@ -231,22 +223,7 @@ export default function WorkspaceGuardrails() {
       {/* Ownership tabs (left) + search (right) share one row with a bottom border, exactly
           like Knowledge's tab/search bar. */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-5 border-b border-border pb-3">
-        <div className="flex items-center gap-1 flex-wrap">
-          {TABS.map(t => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`px-3 h-8 rounded-lg text-sm font-medium transition-base flex items-center gap-1.5 ${
-                tab === t.key ? "bg-primary-soft text-primary" : "text-muted-foreground hover:bg-surface-muted"
-              }`}
-            >
-              {t.label}
-              <span className={`text-xs px-1.5 py-0.5 rounded-full ${tab === t.key ? "bg-primary/10 text-primary" : "bg-surface-sunken text-muted-foreground"}`}>
-                {counts[t.key]}
-              </span>
-            </button>
-          ))}
-        </div>
+        <OwnershipTabs tab={tab} onChange={setTab} counts={counts} />
         <div className="relative">
           <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -281,13 +258,16 @@ export default function WorkspaceGuardrails() {
 
           return (
           <TRow key={g.id} cols="1fr 200px 1fr 72px 64px" onClick={() => setViewItem(g)}>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <div className="text-sm font-medium">{g.name}</div>
-              </div>
-              <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                {g.desc}
-                {hasOwner && ` · Người tạo: ${isOwner ? "Bạn" : (g.ownerName ?? "—")}`}
+            <div className="min-w-0">
+              <div className="text-sm font-medium">{g.name}</div>
+              <OwnershipTagList tags={tagsOf(g)} className="mt-1.5" />
+              <div className="text-xs text-muted-foreground mt-1.5 leading-relaxed line-clamp-2">{g.desc}</div>
+              <div className="text-xs mt-2">
+                {g.mandatory
+                  ? <CreatorLabel displayName="FPT AI Agents" system />
+                  : hasOwner
+                    ? <CreatorLabel displayName={isOwner ? "Bạn" : (g.ownerName ?? "—")} fullName={g.ownerName} />
+                    : null}
               </div>
             </div>
             <div><ActionPill>{actionLabelVi(g.action)}</ActionPill></div>
