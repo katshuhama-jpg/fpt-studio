@@ -12,6 +12,7 @@ import TriggerFormDialog from "@/components/configure/TriggerFormDialog";
 import TriggerBlockedByConnectorNotice from "@/components/configure/TriggerBlockedByConnectorNotice";
 import DeleteTriggerDialog from "@/components/configure/DeleteTriggerDialog";
 import HistoryTab from "@/components/history/HistoryTab";
+import { AgentVersionsPanel } from "@/components/governance/agentVersionsPanel";
 import HistoryChatPanel from "@/components/history/HistoryChatPanel";
 import TriggerRunsTab from "@/components/configure/TriggerRunsTab";
 import ChatOptimizationTab from "@/components/configure/ChatOptimizationTab";
@@ -75,6 +76,7 @@ import { knowledgeStore, OWN_KB_ID, type KnowledgeItem } from "@/components/know
 import { isAccessibleTo as isSkillAccessibleTo } from "@/components/configure/skillSharing";
 import { knowledgeBaseStore, CURRENT_USER as KB_CURRENT_USER, isViewOnly as isKbViewOnly, isAccessibleTo as isKbAccessibleTo, type KnowledgeBase } from "@/components/knowledge/knowledgeBaseStore";
 import { governanceStore, listAgentResourceRefs, agentEmoji } from "@/components/governance/governanceStore";
+import { auditLogStore } from "@/components/governance/auditLogStore";
 import { PendingRequestPill } from "@/components/governance/agentRequestPill";
 import { agentModelStore, modelName } from "@/components/configure/agentModelStore";
 import type { WorkspaceTarget } from "@/components/governance/governanceStore";
@@ -116,6 +118,7 @@ const developNav = [
   { id: "guardrails",   label: "Guardrails",     icon: Shield01Icon },
   { id: "knowledge",    label: "Knowledge",      icon: NoteIcon },
   { id: "triggers",     label: "Triggers",       icon: TimeScheduleIcon },
+  { id: "versions",     label: "Phiên bản",      icon: HistoryIcon },
   { id: "sub-agents",   label: "Sub-Agents",     icon: UserMultipleIcon, comingSoon: true, hidden: true },
 ];
 
@@ -124,7 +127,7 @@ const INSIGHTS_SUBTABS = [
   { id: "history", label: "History", icon: HistoryIcon },
 ];
 
-const BUILD_SECTIONS = ["instructions", "knowledge", "guardrails", "skills", "triggers", "connectors"];
+const BUILD_SECTIONS = ["instructions", "knowledge", "guardrails", "skills", "triggers", "connectors", "versions"];
 const INSIGHTS_SECTIONS = INSIGHTS_SUBTABS.map(s => s.id);
 
 // Sections that moved out of Build during the v2 nav restructure — audited against the old
@@ -318,7 +321,7 @@ export default function AgentBuilder() {
             <PendingRequestPill req={openGovRequest} onChanged={() => setPublishTick(t => t + 1)} />
           )}
           {published ? (
-            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium shrink-0 ${
+            <button type="button" title="Xem tất cả phiên bản" onClick={() => setParams({ tab: "build", section: "versions" })} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium shrink-0 transition-base hover:opacity-80 ${
               kind === "automation"
                 ? "bg-indigo-50 border-indigo-200 text-indigo-700"
                 : "bg-success/10 border-success/20 text-success"
@@ -329,13 +332,15 @@ export default function AgentBuilder() {
                 : publishState.placement === "workspace"
                   ? (publishState.audience === "org" ? "Live · Công ty / phòng ban"
                     : publishState.audience === "community" ? "Live · Cộng đồng FPT AI Agent"
+                    : publishState.audience === "group" ? "Live · Nhóm cộng tác"
+                    : publishState.audience === "quick_share" ? "Live · Chia sẻ nhanh"
                     : "Live · Chỉ mình tôi")
                   : publishState.channels.length === 1
                     ? `Live on ${getChannelName(publishState.channels[0])}`
                     : publishState.channels.length > 1
                       ? `Live on ${publishState.channels.length} channels`
                       : "Live"} · {publishState.version}
-            </div>
+            </button>
           ) : (
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-muted border border-border text-muted-foreground text-xs font-medium shrink-0">
               <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground" /> Draft
@@ -587,11 +592,14 @@ export default function AgentBuilder() {
               {tab === "build" && section === "knowledge" && <KnowledgeTab agentId={id ?? "new"} />}
               {tab === "build" && section === "guardrails" && <GuardrailsAgentTab agentId={id ?? "new"} />}
               {tab === "build" && section === "skills" && <SkillsAgentTab agentId={id ?? "new"} />}
+              {tab === "build" && section === "versions" && (
+                <AgentVersionsPanel key={publishTick} agentId={id ?? "new"} onPublish={() => canPublishAgent && setShowPublish(true)} onChanged={() => setPublishTick(t => t + 1)} />
+              )}
               {tab === "build" && section === "triggers" && (
                 <TriggersTab agentId={id ?? "new"} onChange={() => setTriggerTick(t => t + 1)} />
               )}
               {tab === "test" && <TestTabNotBuilt />}
-              {tab === "channels" && <DeployTab agentId={id} onViewTriggers={() => setParams({ tab: "build", section: "triggers" })} />}
+              {tab === "channels" && <DeployTab agentId={id} onViewTriggers={() => setParams({ tab: "build", section: "triggers" })} onViewVersions={() => setParams({ tab: "build", section: "versions" })} onOpenPublish={() => canPublishAgent && setShowPublish(true)} />}
               {tab === "insights" && section === "performance" && <PerformanceTab />}
               {tab === "insights" && section === "history" && (
                 kind === "automation"
@@ -3086,7 +3094,7 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-function DeployTab({ agentId, onViewTriggers }: { agentId: string; onViewTriggers?: () => void }) {
+function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish }: { agentId: string; onViewTriggers?: () => void; onViewVersions?: () => void; onOpenPublish?: () => void }) {
   const access = useGroupAccess("agents");
   const ownedAgent = AGENTS.find(a => a.id === agentId);
   const canPublishAgent = access.canAct("publish", ownedAgent ? isOwnedOrShared(ownedAgent, access.userId) : true);
@@ -3094,7 +3102,6 @@ function DeployTab({ agentId, onViewTriggers }: { agentId: string; onViewTrigger
   const refresh = () => setTick(t => t + 1);
   const [showPublish, setShowPublish] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [showVersionSelect, setShowVersionSelect] = useState(false);
   const [showWebWidgetConfig, setShowWebWidgetConfig] = useState(false);
   const [recipients, setRecipients] = useState<{ id: number; name: string; sub: string }[]>([]);
   const agentTriggers = triggerStore.list(agentId);
@@ -3107,11 +3114,37 @@ function DeployTab({ agentId, onViewTriggers }: { agentId: string; onViewTrigger
   // header pill reads "Automation · v1.0.2" while this summary bar contradicts it with 0.
   const liveDestinationCount = publishState.channels.length + (published && isAutomation ? 1 : 0);
 
-  const toggleChannel = (id: string) => {
-    if (!published) return;
-    const set = new Set(publishState.channels);
-    set.has(id) ? set.delete(id) : set.add(id);
-    agentPublishStore.setChannels(agentId, [...set]);
+  // External channels are their own publish scope (outside Agent Workspace): switching one ON
+  // always goes to Org/Unit Admin review — whatever the Workspace scope is, even "Chỉ mình tôi" —
+  // while switching one OFF only narrows who can reach the Agent, so it applies immediately.
+  const channelRequest = governanceStore.getOpenRequestForResource("agent", agentId, "channels");
+  const pendingChannels = new Set(channelRequest?.channelsAdded ?? []);
+  const [channelConfirm, setChannelConfirm] = useState<{ id: string; mode: "on" | "off" } | null>(null);
+  const requestChannelOn = (id: string) => {
+    const agent = getAgent(agentId);
+    governanceStore.submit({
+      kind: "channels", channelsAdded: [id], channels: publishState.channels,
+      resourceType: "agent", resourceId: agentId, resourceName: agent.name, resourceIcon: agent.emoji,
+      requesterId: KB_CURRENT_USER.id, requesterName: KB_CURRENT_USER.name,
+      audience: publishState.audience === "community" ? "community" : publishState.audience === "group" ? "group" : "org",
+      scopeSummary: publishState.scopeSummary, version: servingVersion,
+      // Same Workspace scope the live version was approved with — unchanged by this request.
+      workspaceTargets: governanceStore.listForResource("agent", agentId)
+        .find(r => (r.kind ?? "publish") === "publish" && r.status === "approved" && r.version === servingVersion)?.workspaceTargets,
+      note: `Bật kênh ${getChannelName(id)} cho bản đang live ${servingVersion}.`,
+      resourceRefs: listAgentResourceRefs(agentId),
+    });
+    toast.success(`Đã gửi yêu cầu bật ${getChannelName(id)}. Kênh sẽ hoạt động khi Org/Unit Admin duyệt.`);
+    refresh();
+  };
+  const turnChannelOff = (id: string) => {
+    agentPublishStore.setChannels(agentId, publishState.channels.filter(c => c !== id));
+    auditLogStore.log({
+      actorId: KB_CURRENT_USER.id, actorName: KB_CURRENT_USER.name, action: "channel_off",
+      resourceType: "agent", resourceId: agentId, resourceName: getAgent(agentId).name,
+      note: `Tắt kênh ${getChannelName(id)}`, at: Date.now(),
+    });
+    toast.success(`Đã tắt ${getChannelName(id)}. Agent không còn nhận tin nhắn từ kênh này.`);
     refresh();
   };
 
@@ -3138,13 +3171,6 @@ function DeployTab({ agentId, onViewTriggers }: { agentId: string; onViewTrigger
           onClose={() => setShowSuccess(false)}
         />
       )}
-      {showVersionSelect && (
-        <VersionSelectModal
-          currentVersion={servingVersion}
-          onClose={() => setShowVersionSelect(false)}
-          onRelease={v => { agentPublishStore.publish(agentId, publishState.placement, publishState.channels, v); refresh(); }}
-        />
-      )}
       {/* Header */}
       <div className="flex items-start gap-3 mb-6">
         <div className="w-11 h-11 rounded-xl bg-primary-soft flex items-center justify-center shrink-0">
@@ -3168,8 +3194,11 @@ function DeployTab({ agentId, onViewTriggers }: { agentId: string; onViewTrigger
             <p className="text-base font-semibold">{liveDestinationCount}</p>
           </div>
         </div>
-        <button onClick={() => setShowVersionSelect(true)} className="btn-primary">
-          <HugeiconsIcon icon={Rocket01Icon} size={14} /> Choose release version
+        {/* Switching the live version happens only on Build › Phiên bản (rollback to a version that
+            was approved/live before) — never freely from here, so there's no way to put an
+            unreviewed version live by picking it in a list. */}
+        <button onClick={onViewVersions} className="btn-secondary">
+          <HugeiconsIcon icon={HistoryIcon} size={14} /> Xem phiên bản
         </button>
       </div>
 
@@ -3207,7 +3236,9 @@ function DeployTab({ agentId, onViewTriggers }: { agentId: string; onViewTrigger
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-3">
             <h2 className="text-lg font-semibold">Agent Workspace</h2>
-            {recipients.length > 0 ? (
+            {published && recipients.length === 0 ? (
+              <span className="text-sm text-muted-foreground">Đang live cho: <span className="text-foreground font-medium">{publishState.scopeSummary ?? "Chỉ mình tôi"}</span></span>
+            ) : recipients.length > 0 ? (
               <>
                 <span className="text-sm text-muted-foreground">{recipients.length} recipient{recipients.length > 1 ? "s" : ""}</span>
                 <a href="#" className="text-sm font-medium text-primary hover:underline flex items-center gap-0.5 ml-auto">
@@ -3219,7 +3250,22 @@ function DeployTab({ agentId, onViewTriggers }: { agentId: string; onViewTrigger
             )}
           </div>
 
-          {recipients.length === 0 ? (
+          {published && recipients.length === 0 ? (
+            <div className="rounded-xl border border-border bg-surface px-4 py-3.5 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-success/10 flex items-center justify-center shrink-0">
+                <HugeiconsIcon icon={UserGroupIcon} size={16} className="text-success" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold truncate">{publishState.scopeSummary ?? "Chỉ mình tôi"}</p>
+                <p className="text-xs text-muted-foreground">Bản {servingVersion} · đổi phạm vi bằng nút Publish (theo luật duyệt của phạm vi mới)</p>
+              </div>
+              <button
+                onClick={() => canPublishAgent && (onOpenPublish ? onOpenPublish() : setShowPublish(true))}
+                disabled={!canPublishAgent}
+                className="btn-secondary disabled:opacity-40 disabled:cursor-not-allowed"
+              >Đổi phạm vi</button>
+            </div>
+          ) : recipients.length === 0 ? (
             <div className="rounded-2xl border-2 border-dashed border-border flex flex-col items-center justify-center text-center py-16 px-6">
               <div className="w-12 h-12 rounded-xl bg-surface-muted flex items-center justify-center mb-4">
                 <HugeiconsIcon icon={Share08Icon} size={20} className="text-muted-foreground" />
@@ -3229,7 +3275,7 @@ function DeployTab({ agentId, onViewTriggers }: { agentId: string; onViewTrigger
                 Publish to open this agent to a small group first, then expand.
               </p>
               <button
-                onClick={() => canPublishAgent && setShowPublish(true)}
+                onClick={() => canPublishAgent && (onOpenPublish ? onOpenPublish() : setShowPublish(true))}
                 disabled={!canPublishAgent}
                 title={!canPublishAgent ? "Bạn không có quyền publish agent này." : undefined}
                 className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
@@ -3270,20 +3316,13 @@ function DeployTab({ agentId, onViewTriggers }: { agentId: string; onViewTrigger
         <div className="grid grid-cols-3 gap-3">
           {CHANNEL_CATALOG.map(c => {
             const live = published && publishState.channels.includes(c.id);
-            const disabled = !published || c.available === false;
+            const pending = published && !live && pendingChannels.has(c.id);
+            const unavailable = !published || c.available === false;
             return (
-              <button
+              <div
                 key={c.id}
-                onClick={() => {
-                  if (!published || c.available === false) return;
-                  if (c.id === "web") setShowWebWidgetConfig(true);
-                  else toggleChannel(c.id);
-                }}
-                disabled={disabled}
                 className={`flex items-center gap-3 px-4 py-3.5 rounded-xl border text-left transition-base ${
-                  !disabled
-                    ? "border-border bg-surface hover:border-primary/30 hover:shadow-soft cursor-pointer"
-                    : "border-border bg-surface-muted/40 opacity-70 cursor-not-allowed"
+                  !unavailable ? "border-border bg-surface" : "border-border bg-surface-muted/40 opacity-70"
                 }`}
               >
                 <div className="w-8 h-8 rounded-lg bg-surface border border-border flex items-center justify-center shrink-0">
@@ -3291,15 +3330,53 @@ function DeployTab({ agentId, onViewTriggers }: { agentId: string; onViewTrigger
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium truncate">{c.name}</p>
-                  <p className={`text-sm truncate ${live ? "text-success" : "text-muted-foreground"}`}>
-                    {c.available === false ? "Coming soon" : !published ? "Publish the agent to enable this channel" : live ? `Live · ${servingVersion}` : "Not connected"}
+                  <p className={`text-xs truncate ${live ? "text-success" : pending ? "text-warning" : "text-muted-foreground"}`}>
+                    {c.available === false ? "Sắp có" : !published ? "Publish Agent trước để bật kênh" : live ? `Live · ${servingVersion}` : pending ? "Chờ duyệt bật kênh" : "Chưa bật"}
                   </p>
                 </div>
-              </button>
+                {!unavailable && (
+                  live ? (
+                    <div className="flex items-center gap-1 shrink-0">
+                      {c.id === "web" && (
+                        <button onClick={() => setShowWebWidgetConfig(true)} className="h-7 px-2 rounded-md text-xs font-medium text-muted-foreground hover:bg-surface-muted">Cấu hình</button>
+                      )}
+                      <button onClick={() => setChannelConfirm({ id: c.id, mode: "off" })} className="h-7 px-2.5 rounded-md border border-border text-xs font-medium hover:bg-surface-muted">Tắt</button>
+                    </div>
+                  ) : pending ? (
+                    <Link to={`/governance/requests/${channelRequest!.id}`} target="_blank" rel="noopener noreferrer" className="h-7 px-2 rounded-md text-xs font-medium text-primary hover:bg-primary-soft flex items-center shrink-0">Xem yêu cầu</Link>
+                  ) : (
+                    <button onClick={() => setChannelConfirm({ id: c.id, mode: "on" })} className="h-7 px-2.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 shrink-0">Bật</button>
+                  )
+                )}
+              </div>
             );
           })}
         </div>
       </div>
+
+      <AlertDialog open={!!channelConfirm} onOpenChange={o => !o && setChannelConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {channelConfirm?.mode === "on" ? `Gửi yêu cầu bật ${channelConfirm ? getChannelName(channelConfirm.id) : ""}?` : `Tắt ${channelConfirm ? getChannelName(channelConfirm.id) : ""}?`}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {channelConfirm?.mode === "on"
+                ? `Kênh ngoài đưa Agent ra ngoài Agent Workspace nên cần Org/Unit Admin duyệt trước khi hoạt động. Bản live ${servingVersion} và phạm vi Workspace giữ nguyên.`
+                : `Agent sẽ ngừng nhận tin nhắn từ kênh này ngay. Muốn bật lại sẽ cần gửi duyệt.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { if (!channelConfirm) return; channelConfirm.mode === "on" ? requestChannelOn(channelConfirm.id) : turnChannelOff(channelConfirm.id); setChannelConfirm(null); }}
+              className={channelConfirm?.mode === "off" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : undefined}
+            >
+              {channelConfirm?.mode === "on" ? "Gửi yêu cầu" : "Tắt kênh"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -4435,7 +4512,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
   const doPublish = () => {
     if (effectiveAudience === "me") {
       if (publishToOpen) {
-        agentPublishStore.publish(agentId, "workspace", current.channels, versionName, audience);
+        agentPublishStore.publish(agentId, "workspace", current.channels, versionName, audience, { scopeSummary: "Chỉ mình tôi", groupId: undefined });
       } else {
         agentPublishStore.publish(agentId, current.placement, current.channels, versionName, current.audience);
       }
@@ -4454,6 +4531,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
       if (blocked.length > 0) { toast.error(blockedToastMessage(blocked)); return; }
       const names = [...quickShareSelection].map(mid => findMember(orgTree, mid)?.name).filter((n): n is string => !!n);
       agentPublishStore.publish(agentId, "workspace", current.channels, versionName, "quick_share", {
+        groupId: undefined,
         scopeSummary: `${quickShareSelection.size} người: ${names.join(", ")}`,
       });
       toast.success(`Đã publish ${versionName} cho ${quickShareSelection.size} người.`);

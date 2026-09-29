@@ -5,7 +5,7 @@ import { Search01Icon, FilterIcon, LayerIcon, ChevronDownIcon, InboxIcon, Inform
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
-  governanceStore, AUDIENCE_LABEL,
+  governanceStore, AUDIENCE_LABEL, requestKind, channelLabel,
   type GovRequestStatus, type GovResourceType, type GovRequest,
 } from "@/components/governance/governanceStore";
 import { StatusBadge, ResourceTypePill, RequestAvatar, initials, formatDateTime } from "@/components/governance/governanceUi";
@@ -70,8 +70,12 @@ function RequestRow({ r, scope, onClick }: { r: GovRequest; scope: Scope; onClic
         <div className="flex items-center gap-3 min-w-0">
           <RequestAvatar type={r.resourceType} resourceId={r.resourceId} fallbackIcon={r.resourceIcon} />
           <div className="min-w-0">
-            <p className="font-medium truncate">{r.resourceName}</p>
-            {r.resourceRefs && r.resourceRefs.length > 0 && (
+            <p className="font-medium truncate">{r.resourceName}{r.version && <span className="ml-2 text-xs font-normal text-muted-foreground">{r.version}</span>}</p>
+            {requestKind(r) === "channels" ? (
+              <span className="inline-flex items-center gap-1 mt-1 text-xs font-medium rounded-sm px-1.5 py-0.5 whitespace-nowrap text-sky-800 bg-sky-50">
+                Bật kênh ngoài: {(r.channelsAdded ?? []).map(channelLabel).join(", ")}
+              </span>
+            ) : r.resourceRefs && r.resourceRefs.length > 0 && (
               <span className="inline-flex items-center gap-1 mt-1 text-xs font-medium rounded-sm px-1.5 py-0.5 whitespace-nowrap text-muted-foreground bg-muted">
                 <HugeiconsIcon icon={LayerIcon} size={12} />
                 {r.resourceRefs.length} thành phần đi kèm
@@ -106,7 +110,7 @@ function RequestTable({ rows, scope, onOpen }: { rows: GovRequest[]; scope: Scop
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <TableHead className="h-10">Resource</TableHead>
+            <TableHead className="h-10">{scope === "agent" ? "Agent" : "Resource"}</TableHead>
             {scope === "resource" && <TableHead className="h-10 w-[130px]">Loại</TableHead>}
             <TableHead className="h-10 w-[180px]">Người gửi</TableHead>
             {scope === "resource" && <TableHead className="h-10 w-[170px]">Phạm vi dùng chung</TableHead>}

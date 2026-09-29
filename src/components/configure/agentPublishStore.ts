@@ -48,8 +48,41 @@ export interface AgentPublishState {
   needsRegovernance?: { reason: string; unitName: string; overlapPct: number; at: number };
 }
 
-const STORE_KEY = "agent_publish_store_v2";
-const SEEDED_KEY = "agent_publish_store_seeded_v2";
+/** One entry per version that actually went live (direct publish, approved request, or
+ * rollback) — what the Builder's "Phiên bản" page reads to know which older versions can be
+ * restored and with exactly which scope/channels they were live. */
+export interface ReleaseEntry {
+  version: string;
+  at: number;
+  audience?: PublishAudience;
+  scopeSummary?: string;
+  groupId?: string;
+  channels: string[];
+  via: "direct" | "approved" | "rollback";
+  /** Who put it live this time (rollback / direct publish); approvals are attributed via the request. */
+  byName?: string;
+}
+
+const STORE_KEY = "agent_publish_store_v3";
+const RELEASE_KEY = "agent_release_log_v1";
+const releaseLog = loadMap<string, ReleaseEntry[]>(RELEASE_KEY);
+const persistReleases = () => saveMap(RELEASE_KEY, releaseLog);
+const DAY_MS = 86_400_000;
+/** Earlier live versions for the seeded live Agents, so the Phiên bản page has real history to
+ * show and restore (the last entry of each list is the version currently live). */
+const SEED_RELEASES: Record<string, Omit<ReleaseEntry, "at">[]> = {
+  faq: [
+    { version: "v1.0.0", audience: "org", scopeSummary: "Phòng Chăm sóc khách hàng (22 người)", channels: ["web"], via: "approved" },
+    { version: "v1.1.0", audience: "org", scopeSummary: "Toàn công ty", channels: ["web"], via: "approved" },
+  ],
+  ops: [
+    { version: "v1.2.0", audience: "org", scopeSummary: "Phòng Vận hành (18 người)", channels: ["web"], via: "approved" },
+    { version: "v1.3.0", audience: "org", scopeSummary: "FPT Smart Cloud (35 người)", channels: ["web", "api"], via: "approved" },
+  ],
+  "finance-check": [{ version: "v1.2.0", audience: "org", scopeSummary: "Phòng Tài chính (14 người)", channels: ["slack"], via: "approved" }],
+  "legal-review": [{ version: "v1.1.0", audience: "org", scopeSummary: "Ban Pháp chế (14 người)", channels: ["slack"], via: "approved" }],
+};
+const SEEDED_KEY = "agent_publish_store_seeded_v3";
 const store = loadMap<string, AgentPublishState>(STORE_KEY);
 const seededAgents = loadSet<string>(SEEDED_KEY);
 const persist = () => saveMap(STORE_KEY, store);
@@ -76,6 +109,12 @@ function seedAgent(agentId: string) {
   if (!seed) return;
   store.set(agentId, seed);
   persist();
+  const rel = SEED_RELEASES[agentId];
+  if (rel) {
+    const base = Date.now() - (rel.length + 1) * 9 * DAY_MS;
+    releaseLog.set(agentId, rel.map((r, i) => ({ ...r, at: base + i * 9 * DAY_MS })));
+    persistReleases();
+  }
 }
 
 export const agentPublishStore = {
@@ -90,16 +129,28 @@ export const agentPublishStore = {
       scopeSummary: s.scopeSummary, groupId: s.groupId, needsRegovernance: s.needsRegovernance,
     };
   },
-  publish(agentId: string, placement: Placement, channels: string[], version: string, audience?: PublishAudience, extra?: { scopeSummary?: string; groupId?: string }) {
+  publish(agentId: string, placement: Placement, channels: string[], version: string, audience?: PublishAudience, extra?: { scopeSummary?: string; groupId?: string; via?: ReleaseEntry["via"]; byName?: string }) {
     seedAgent(agentId);
     const cur = store.get(agentId);
-    store.set(agentId, {
+    const next: AgentPublishState = {
       placement, audience: audience ?? cur?.audience, channels, version,
-      scopeSummary: extra ? extra.scopeSummary : cur?.scopeSummary,
-      groupId: extra ? extra.groupId : cur?.groupId,
+      scopeSummary: extra && "scopeSummary" in extra ? extra.scopeSummary : cur?.scopeSummary,
+      groupId: extra && "groupId" in extra ? extra.groupId : cur?.groupId,
       needsRegovernance: undefined,
-    });
+    };
+    store.set(agentId, next);
     persist();
+    if (placement !== null) {
+      const log = (releaseLog.get(agentId) ?? []).filter(e => e.version !== version);
+      log.push({ version, at: Date.now(), audience: next.audience, scopeSummary: next.scopeSummary, groupId: next.groupId, channels: [...channels], via: extra?.via ?? "direct", byName: extra?.byName });
+      releaseLog.set(agentId, log);
+      persistReleases();
+    }
+  },
+  /** Every version that has been live for this Agent, oldest first. */
+  releases(agentId: string): ReleaseEntry[] {
+    seedAgent(agentId);
+    return [...(releaseLog.get(agentId) ?? [])].sort((a, b) => a.at - b.at);
   },
   /** Toggles a channel's live/not-connected state on the currently-serving version,
    * without treating it as a new release. */

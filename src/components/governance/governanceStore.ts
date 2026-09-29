@@ -39,6 +39,14 @@ import { customConnectorStore } from "../configure/customConnectorStore";
 import { auditLogStore } from "./auditLogStore";
 import { getAgent } from "../configure/agentStore";
 import { agentModelStore } from "../configure/agentModelStore";
+import { CHANNEL_CATALOG } from "../configure/channelCatalog";
+
+const EXTRA_CHANNEL_NAMES: Record<string, string> = { teams: "Microsoft Teams", email: "Email" };
+/** Display name of an external channel id ("slack" → "Slack"). */
+export function channelLabel(id: string): string {
+  const k = id.toLowerCase();
+  return CHANNEL_CATALOG.find(c => c.id === k)?.name ?? EXTRA_CHANNEL_NAMES[k] ?? id;
+}
 
 export type GovResourceType = "agent" | "knowledge" | "skill" | "guardrail" | "connector";
 /** "withdrawn" = the requester pulled it back, or it was replaced by a newer submission for the
@@ -134,8 +142,20 @@ export interface GovHistoryEntry {
   note?: string;
 }
 
+/** What an Agent request asks for. "publish" (default) = a new version going live to a Workspace
+ * scope. "channels" = turning on one or more external channels for the version already live —
+ * external channels are their own publish scope (outside Agent Workspace), so switching one ON
+ * always needs Org/Unit Admin review whatever the Workspace scope is; switching one OFF is
+ * immediate and never needs review. The two kinds are tracked independently: each can have its
+ * own open request at the same time. */
+export type GovRequestKind = "publish" | "channels";
+export const requestKind = (r: GovRequest): GovRequestKind => r.kind ?? "publish";
+
 export interface GovRequest {
   id: string;
+  kind?: GovRequestKind;
+  /** kind "channels" only — the channels this request switches ON (ids from CHANNEL_CATALOG). */
+  channelsAdded?: string[];
   resourceType: GovResourceType;
   resourceId: string;
   resourceName: string;
@@ -189,9 +209,9 @@ export interface GovRequest {
   history: GovHistoryEntry[];
 }
 
-const REQ_KEY = "governance_request_store_v7";
-const LIVE_KEY = "governance_live_snapshots_v7";
-const SEEDED_KEY = "governance_store_seeded_v7";
+const REQ_KEY = "governance_request_store_v8";
+const LIVE_KEY = "governance_live_snapshots_v8";
+const SEEDED_KEY = "governance_store_seeded_v8";
 const DISMISSED_KEY = "governance_dismissed_rejections_v1";
 
 const store = loadMap<string, GovRequest>(REQ_KEY);
@@ -275,6 +295,7 @@ export function diffSnapshots(base: ResourceSnapshot | undefined, current: Resou
 /** The main resource's change state right now, relative to its last-approved live snapshot — shown
  * next to the request header so a reviewer immediately sees "Mới" / "Đã sửa" / "Không đổi". */
 export function mainChangeState(req: GovRequest): GovChangeState | null {
+  if (requestKind(req) === "channels") return "modified";
   // Decided requests keep the state they were submitted with (null → unknown, chip hidden).
   if (req.status !== "pending") return req.changeStateAtSubmit ?? null;
   const live = liveSnapshots.get(snapshotKey(req.resourceType, req.resourceId));
@@ -287,6 +308,7 @@ export function mainChangeState(req: GovRequest): GovChangeState | null {
  * snapshot when the resource has since been deleted, so the panel still shows *something*
  * rather than silently going blank. */
 export function requestDiff(req: GovRequest): FieldDiff[] {
+  if (requestKind(req) === "channels") return req.diffAtSubmit ?? [];
   if (req.status !== "pending") return req.diffAtSubmit ?? [];
   const live = liveSnapshots.get(snapshotKey(req.resourceType, req.resourceId));
   const candidate = buildSnapshot(req.resourceType, req.resourceId) ?? req.mainSnapshotAtSubmit;
@@ -297,6 +319,7 @@ export function requestDiff(req: GovRequest): FieldDiff[] {
  * request is about) been edited again since this request was submitted, and the request is still
  * awaiting a decision? Drives the drift banner on Request Detail. */
 export function checkDrift(req: GovRequest): { drifted: boolean; at?: number } {
+  if (requestKind(req) === "channels") return { drifted: false };
   if (req.status !== "pending") return { drifted: false };
   if (!req.mainSnapshotAtSubmit) return { drifted: false };
   const current = buildSnapshot(req.resourceType, req.resourceId);
@@ -588,7 +611,22 @@ function seed() {
       hAt("rejected", "m-fsoft-ceo", "Tran Nam", t - 5 * DAY, "Agent đang gọi CRM nội bộ — không phù hợp publish ra community. Vui lòng chọn phạm vi Công ty / phòng ban."),
     ],
   );
-  const extraAgentReqs = [quoteReq, legalReq, financeReq, helpdeskReq, faqReq, salesReq];
+  // Channel request: turn on API for the Legal Agent's live v1.1.0 — external channels are their
+  // own publish scope, reviewed separately from any version/Workspace publish request.
+  const legalApiReq = mk(
+    {
+      id: "req-2008", kind: "channels", channelsAdded: ["api"], changeStateAtSubmit: "modified",
+      diffAtSubmit: [{ key: "channels", label: "Kênh ngoài", before: "Slack", after: "Slack, API" }],
+      resourceType: "agent", resourceId: "legal-review", resourceName: "AI Agent Pháp chế — Điều khoản hợp đồng",
+      resourceIcon: "⚖️", requesterId: "m-plat-1", requesterName: "Mai Hoang",
+      audience: "org", scopeSummary: "Ban Pháp chế (14 người)", channels: ["slack", "api"],
+      workspaceTargets: [{ kind: "department", name: "Ban Pháp chế", members: 14 }],
+      note: "Bật API để hệ thống quản lý hợp đồng gọi Agent kiểm tra điều khoản tự động.",
+      version: "v1.1.0", status: "pending", submittedAt: t - 3 * HOUR, updatedAt: t - 3 * HOUR,
+    },
+    [hAt("submitted", "m-plat-1", "Mai Hoang", t - 3 * HOUR)],
+  );
+  const extraAgentReqs = [quoteReq, legalReq, financeReq, helpdeskReq, faqReq, salesReq, legalApiReq];
 
   [agentReq, kbReq, skillReq, guardrailReq, connectorReq, agentCleanReq, ...extraAgentReqs].forEach(r => store.set(r.id, r));
   persist();
@@ -696,19 +734,19 @@ export const governanceStore = {
 
   /** The one open (pending) request for a resource, if any — drives the Agent
    * Builder top-bar "Đang chờ duyệt" pill and blocks a second concurrent submission. */
-  getOpenRequestForResource(resourceType: GovResourceType, resourceId: string): GovRequest | undefined {
+  getOpenRequestForResource(resourceType: GovResourceType, resourceId: string, kind: GovRequestKind = "publish"): GovRequest | undefined {
     seed();
     return [...store.values()]
-      .filter(r => r.resourceType === resourceType && r.resourceId === resourceId && r.status === "pending")
+      .filter(r => r.resourceType === resourceType && r.resourceId === resourceId && r.status === "pending" && requestKind(r) === kind)
       .sort((a, b) => b.updatedAt - a.updatedAt)[0];
   },
 
   /** Most recent request for a resource, any status — drives the Builder-side "Bị từ chối" pill,
    * banner and Agents-list badge (a rejection only matters while it's the latest word). */
-  latestForResource(resourceType: GovResourceType, resourceId: string): GovRequest | undefined {
+  latestForResource(resourceType: GovResourceType, resourceId: string, kind: GovRequestKind = "publish"): GovRequest | undefined {
     seed();
     return [...store.values()]
-      .filter(r => r.resourceType === resourceType && r.resourceId === resourceId)
+      .filter(r => r.resourceType === resourceType && r.resourceId === resourceId && requestKind(r) === kind)
       .sort((a, b) => b.submittedAt - a.submittedAt)[0];
   },
 
@@ -759,14 +797,19 @@ export const governanceStore = {
     resourceRefs?: AgentResourceRef[]; scopeSummary?: string; channels?: string[]; workspaceTargets?: WorkspaceTarget[];
     connections?: AgentConnectionSnap[]; subAgents?: SubAgentSnap[]; starterPrompts?: string[];
     model?: string; privateKnowledge?: { name: string; kind: "doc" | "url" | "faq" }[];
+    kind?: GovRequestKind; channelsAdded?: string[];
   }): GovRequest {
     seed();
-    // One open request per resource: submitting a newer version replaces the pending one
-    // (withdrawn with a pointer to the new version), so the Admin only ever reviews the latest.
-    const previous = this.getOpenRequestForResource(input.resourceType, input.resourceId);
+    const kind = input.kind ?? "publish";
+    // One open request per resource and kind: submitting a newer one replaces the pending one
+    // (withdrawn with a pointer to the new one), so the Admin only ever reviews the latest. For
+    // "channels", the new request carries the union of both, so nothing asked for is lost.
+    const previous = this.getOpenRequestForResource(input.resourceType, input.resourceId, kind);
+    let channelsAdded = input.channelsAdded;
     if (previous) {
+      if (kind === "channels") channelsAdded = [...new Set([...(previous.channelsAdded ?? []), ...(input.channelsAdded ?? [])])];
       this.withdraw(previous.id, input.requesterId, input.requesterName,
-        `Được thay thế bởi yêu cầu ${input.version ?? "mới hơn"}.`);
+        kind === "channels" ? "Được gộp vào yêu cầu bật kênh mới hơn." : `Được thay thế bởi yêu cầu ${input.version ?? "mới hơn"}.`);
     }
     const id = nextId();
     const t = now();
@@ -777,12 +820,21 @@ export const governanceStore = {
       submittedAt: t, updatedAt: t, resourceRefs: input.resourceRefs, channels: input.channels, workspaceTargets: input.workspaceTargets,
       connections: input.connections, subAgents: input.subAgents, starterPrompts: input.starterPrompts,
       model: input.model, privateKnowledge: input.privateKnowledge,
+      kind, channelsAdded,
       mainSnapshotAtSubmit: buildSnapshot(input.resourceType, input.resourceId),
-      ...(() => {
+      ...(kind === "channels" ? (() => {
+        const before = input.channels ?? [];
+        const after = [...new Set([...before, ...(channelsAdded ?? [])])];
+        return {
+          channels: after,
+          changeStateAtSubmit: "modified" as GovChangeState,
+          diffAtSubmit: [{ key: "channels", label: "Kênh ngoài", before: before.map(channelLabel).join(", ") || "Chưa có", after: after.map(channelLabel).join(", ") }],
+        };
+      })() : (() => {
         const live = liveSnapshots.get(snapshotKey(input.resourceType, input.resourceId));
         const candidate = buildSnapshot(input.resourceType, input.resourceId);
         return { changeStateAtSubmit: classifyChange(live, candidate), diffAtSubmit: diffSnapshots(live, candidate) };
-      })(),
+      })()),
       history: [historyEntry("submitted", input.requesterId, input.requesterName)],
     };
     store.set(id, req);
@@ -821,6 +873,16 @@ export const governanceStore = {
     r.reviewerId = reviewerId; r.reviewerName = reviewerName; r.reviewNote = note;
     r.history.push(historyEntry("approved", reviewerId, reviewerName, note));
 
+    if (requestKind(r) === "channels") {
+      // Turning channels ON for the version already live — no new version, no snapshot change.
+      store.set(id, r);
+      persist();
+      const current = agentPublishStore.get(r.resourceId);
+      agentPublishStore.setChannels(r.resourceId, [...new Set([...current.channels, ...(r.channelsAdded ?? [])])]);
+      auditLogStore.log({ actorId: reviewerId, actorName: reviewerName, action: "approved", resourceType: r.resourceType, resourceId: r.resourceId, resourceName: r.resourceName, requestId: id, note, at: t });
+      return r;
+    }
+
     // Promote the resource's current fields to "live" — the only thing an approval does.
     const mainSnap = buildSnapshot(r.resourceType, r.resourceId);
     if (mainSnap) liveSnapshots.set(snapshotKey(r.resourceType, r.resourceId), mainSnap);
@@ -832,7 +894,8 @@ export const governanceStore = {
     // (top-bar pill, My agents list) reflects the approval immediately.
     if (r.resourceType === "agent") {
       const current = agentPublishStore.get(r.resourceId);
-      agentPublishStore.publish(r.resourceId, "workspace", current.channels, r.version ?? current.version, r.audience === "group" ? "group" : r.audience === "community" ? "community" : "org");
+      agentPublishStore.publish(r.resourceId, "workspace", current.channels, r.version ?? current.version, r.audience === "group" ? "group" : r.audience === "community" ? "community" : "org",
+        { scopeSummary: r.scopeSummary ?? (r.audience === "community" ? "Cộng đồng FPT AI Agent" : current.scopeSummary), groupId: current.groupId, via: "approved" });
       agentPublishStore.clearRegovernanceFlag(r.resourceId);
     }
 
@@ -871,10 +934,15 @@ export const governanceStore = {
     store.set(id, r);
     persist();
 
-    liveSnapshots.delete(snapshotKey(r.resourceType, r.resourceId));
-    persistLive();
-
-    if (r.resourceType === "agent") agentPublishStore.unpublish(r.resourceId);
+    if (requestKind(r) === "channels") {
+      // Revoking a channel approval switches just those channels back off.
+      const current = agentPublishStore.get(r.resourceId);
+      agentPublishStore.setChannels(r.resourceId, current.channels.filter(c => !(r.channelsAdded ?? []).includes(c)));
+    } else {
+      liveSnapshots.delete(snapshotKey(r.resourceType, r.resourceId));
+      persistLive();
+      if (r.resourceType === "agent") agentPublishStore.unpublish(r.resourceId);
+    }
 
     auditLogStore.log({ actorId: reviewerId, actorName: reviewerName, action: "revoked", resourceType: r.resourceType, resourceId: r.resourceId, resourceName: r.resourceName, requestId: id, note: reason, at: t });
     return r;

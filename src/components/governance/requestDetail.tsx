@@ -7,6 +7,7 @@ import {
 import {
   governanceStore, resourcePath, RESOURCE_TYPE_LABEL, AUDIENCE_LABEL,
   checkDrift, mainChangeState, requestDiff, type AgentResourceRef,
+  requestKind, channelLabel,
 } from "@/components/governance/governanceStore";
 import { ACTION_LABEL } from "@/components/governance/auditLogStore";
 import {
@@ -102,6 +103,7 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
     closeDialog(); refresh();
   };
   const isAgent = req.resourceType === "agent";
+  const isChannelReq = requestKind(req) === "channels";
   // Who can decide is governed purely by Role permission (Roles → Publish requests). The requester
   // additionally gets "Rút yêu cầu"; if their role also holds the review permission they can decide
   // their own request too (self-approval is a permission question, not a hard block).
@@ -132,13 +134,15 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
         <div className="mb-6 flex items-start gap-2.5 rounded-lg border border-border bg-surface-muted/50 px-3.5 py-3">
           <Info size={15} className="text-muted-foreground shrink-0 mt-0.5" />
           <p className="text-sm text-muted-foreground leading-relaxed">
-            {isAgent
+            {isChannelReq
+              ? <>Bạn đang quyết định <span className="font-medium text-foreground">có bật thêm kênh ngoài {(req.channelsAdded ?? []).map(channelLabel).join(", ")} cho bản đang live hay không</span>. Phiên bản và phạm vi Workspace giữ nguyên.</>
+              : isAgent
               ? <>Bạn đang quyết định <span className="font-medium text-foreground">Agent này có được publish tới người dùng hay không</span>.</>
               : <>Bạn đang quyết định <span className="font-medium text-foreground">thành phần này có được đưa vào Tenant Library để Builder khác dùng chung hay không</span>.</>}
           </p>
         </div>
       ) : (
-        <OutcomeBanner req={req} isAgent={isAgent} />
+        <OutcomeBanner req={req} isAgent={isAgent} isChannelReq={isChannelReq} />
       )}
 
       {/* Header */}
@@ -153,8 +157,9 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
               {/* Type pill only on Resource requests — the Agent page is single-type by definition
                   (same as its list, which has no "Loại" column). */}
               {!isAgent && <ResourceTypePill type={req.resourceType} />}
+              {isChannelReq && <span className="text-xs font-medium text-sky-800 bg-sky-50 border border-sky-200 rounded-full px-2.5 py-1">Bật kênh ngoài</span>}
               {req.version && <span className="text-xs font-medium text-muted-foreground bg-surface-muted border border-border rounded-full px-2.5 py-1">{req.version}</span>}
-              {changeState && <ChangeStateBadge state={changeState} />}
+              {changeState && !isChannelReq && <ChangeStateBadge state={changeState} />}
               <StatusBadge status={req.status} />
             </div>
           </div>
@@ -201,7 +206,7 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
                 onClick={() => setChangesOpen(o => !o)}
                 className="w-full flex items-center justify-between mb-1.5"
               >
-                <span className="text-sm font-semibold">Thay đổi so với lần duyệt trước</span>
+                <span className="text-sm font-semibold">{isChannelReq ? "Kênh ngoài thay đổi" : "Thay đổi so với lần duyệt trước"}</span>
                 {changesOpen ? <ChevronUp size={15} className="text-muted-foreground" /> : <ChevronDown size={15} className="text-muted-foreground" />}
               </button>
               {changesOpen && <MainDiffRows req={req} />}
@@ -377,7 +382,9 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
                 : `Thu hồi "${req.resourceName}"?`}
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
-              {dialog === "approve" && (isAgent
+              {dialog === "approve" && (isChannelReq
+                ? `Agent sẽ hoạt động thêm trên ${(req.channelsAdded ?? []).map(channelLabel).join(", ")}. Bản live và phạm vi Workspace giữ nguyên.`
+                : isAgent
                 ? (() => {
                     const live = agentPublishStore.get(req.resourceId);
                     const replaces = live.placement !== null && live.version && live.version !== req.version ? ` Bản ${req.version} sẽ thay bản đang live ${live.version}.` : "";
@@ -386,7 +393,9 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
                 : "Sau khi duyệt, thành phần này sẽ xuất hiện trong Tenant Library để các Builder khác dùng chung.")}
               {dialog === "reject" && "Người gửi sẽ nhận được lý do từ chối và cần tạo yêu cầu mới nếu muốn gửi lại."}
               {dialog === "withdraw" && "Admin sẽ không còn thấy yêu cầu này để duyệt. Agent giữ nguyên trạng thái hiện tại — bạn có thể gửi lại bất cứ lúc nào."}
-              {dialog === "revoke" && (isAgent
+              {dialog === "revoke" && (isChannelReq
+                ? `Agent sẽ ngừng hoạt động trên ${(req.channelsAdded ?? []).map(channelLabel).join(", ")} ngay lập tức. Bản live trong Agent Workspace không bị ảnh hưởng.`
+                : isAgent
                 ? "Agent sẽ ngừng publish ngay lập tức và cần được gửi duyệt lại từ đầu nếu muốn publish lại. Hành động này không thể hoàn tác."
                 : "Thành phần sẽ ngừng dùng chung ngay lập tức (các Agent đang dùng bản riêng của họ không bị ảnh hưởng) và cần được gửi duyệt lại từ đầu. Hành động này không thể hoàn tác.")}
             </p>
@@ -461,14 +470,14 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
 }
 
 /** Result of a decided request, shown at the top of the page. */
-function OutcomeBanner({ req, isAgent }: { req: import("@/components/governance/governanceStore").GovRequest; isAgent: boolean }) {
+function OutcomeBanner({ req, isAgent, isChannelReq }: { req: import("@/components/governance/governanceStore").GovRequest; isAgent: boolean; isChannelReq?: boolean }) {
   const last = [...req.history].reverse().find(h => h.action !== "submitted");
   const meta = {
     approved: { box: "border-success/25 bg-success/5", icon: CheckCircle2, iconCls: "text-success",
-      title: isAgent ? `Đã duyệt — ${req.version ?? "bản này"} đã được publish` : "Đã duyệt — đã có trong Tenant Library" },
+      title: isChannelReq ? `Đã duyệt — đã bật ${(req.channelsAdded ?? []).map(channelLabel).join(", ")}` : isAgent ? `Đã duyệt — ${req.version ?? "bản này"} đã được publish` : "Đã duyệt — đã có trong Tenant Library" },
     rejected: { box: "border-destructive/25 bg-destructive/5", icon: XCircle, iconCls: "text-destructive", title: "Đã từ chối" },
     revoked: { box: "border-destructive/25 bg-destructive/5", icon: Undo2, iconCls: "text-destructive",
-      title: isAgent ? "Đã thu hồi — Agent đã ngừng publish" : "Đã thu hồi — đã gỡ khỏi Tenant Library" },
+      title: isChannelReq ? `Đã thu hồi — đã tắt ${(req.channelsAdded ?? []).map(channelLabel).join(", ")}` : isAgent ? "Đã thu hồi — Agent đã ngừng publish" : "Đã thu hồi — đã gỡ khỏi Tenant Library" },
     withdrawn: { box: "border-border bg-surface-muted/50", icon: Undo2, iconCls: "text-muted-foreground", title: "Đã rút yêu cầu" },
     pending: { box: "", icon: Info, iconCls: "", title: "" },
   }[req.status];

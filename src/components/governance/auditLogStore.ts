@@ -5,7 +5,7 @@
 import { loadMap, saveMap } from "@/lib/sessionPersist";
 import type { GovResourceType } from "./governanceStore";
 
-export type AuditAction = "submitted" | "approved" | "rejected" | "revoked" | "withdrawn";
+export type AuditAction = "submitted" | "approved" | "rejected" | "revoked" | "withdrawn" | "rolled_back" | "channel_off";
 
 export interface AuditEntry {
   id: string;
@@ -16,11 +16,11 @@ export interface AuditEntry {
   resourceType: GovResourceType;
   resourceId: string;
   resourceName: string;
-  requestId: string;
+  requestId?: string;
   note?: string;
 }
 
-const KEY = "governance_audit_log_v5";
+const KEY = "governance_audit_log_v6";
 const store = loadMap<string, AuditEntry>(KEY);
 const persist = () => saveMap(KEY, store);
 let seq = 1;
@@ -31,6 +31,8 @@ export const ACTION_LABEL: Record<AuditAction, string> = {
   rejected: "Đã từ chối",
   revoked: "Đã thu hồi",
   withdrawn: "Đã rút yêu cầu",
+  rolled_back: "Đã khôi phục phiên bản cũ",
+  channel_off: "Đã tắt kênh ngoài",
 };
 
 export interface AuditFilter {

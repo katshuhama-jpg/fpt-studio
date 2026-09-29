@@ -88,6 +88,9 @@ export function AgentDeploymentSection({ req }: { req: GovRequest }) {
                   <div key={id} className="rounded-lg border border-border bg-white px-3 py-2.5 flex items-center gap-2.5 min-w-0">
                     <span className="w-8 h-8 rounded-md bg-surface-muted flex items-center justify-center shrink-0">{c.mark}</span>
                     <p className="text-sm font-medium text-foreground truncate">{c.name}</p>
+                    {(req.channelsAdded ?? []).includes(id) && (
+                      <span className="ml-auto text-[11px] font-medium text-sky-800 bg-sky-50 border border-sky-200 rounded-full px-2 py-0.5 shrink-0">Mới</span>
+                    )}
                   </div>
                 );
               })}
