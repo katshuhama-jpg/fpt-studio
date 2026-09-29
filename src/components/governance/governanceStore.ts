@@ -184,9 +184,9 @@ export interface GovRequest {
   history: GovHistoryEntry[];
 }
 
-const REQ_KEY = "governance_request_store_v6";
-const LIVE_KEY = "governance_live_snapshots_v6";
-const SEEDED_KEY = "governance_store_seeded_v6";
+const REQ_KEY = "governance_request_store_v7";
+const LIVE_KEY = "governance_live_snapshots_v7";
+const SEEDED_KEY = "governance_store_seeded_v7";
 const DISMISSED_KEY = "governance_dismissed_rejections_v1";
 
 const store = loadMap<string, GovRequest>(REQ_KEY);
@@ -338,6 +338,11 @@ function seed() {
 
   const mk = (r: Omit<GovRequest, "history">, hist: GovHistoryEntry[]): GovRequest => ({ ...r, history: hist });
 
+  // History timestamps are set explicitly so each request's timeline matches its submittedAt /
+  // updatedAt (historyEntry() stamps "now", which made "Gửi lúc" and "Lịch sử" disagree).
+  const hAt = (action: GovHistoryEntry["action"], actorId: string, actorName: string, at: number, note?: string): GovHistoryEntry =>
+    ({ id: `h-${seq++}`, at, action, actorId, actorName, note });
+
   // 1 — the centerpiece: an Agent request. Its resourceRefs are shown to the Org/Unit Admin as
   // read-only context — 2 of the 3 haven't cleared Tenant review yet, but that never blocks this
   // Agent's own approval (see the module doc comment above).
@@ -347,8 +352,8 @@ function seed() {
       resourceIcon: "🤝", requesterId: "m-fsoft-vn-1", requesterName: "Duy Nguyen",
       audience: "org", note: "Mở rộng agent Onboarding cho toàn bộ phòng Nhân sự — bổ sung lộ trình sản phẩm và cảnh báo leo thang.",
       version: "v1.1.0", status: "pending", submittedAt: t - 3 * HOUR, updatedAt: t - 3 * HOUR,
-      scopeSummary: "Phòng Nhân sự (36 người)", channels: ["web"],
-      workspaceTargets: [{ kind: "department", name: "Phòng Nhân sự", members: 36 }, { kind: "people", name: "Ban Giám đốc", members: 3 }],
+      scopeSummary: "Phòng Nhân sự (36 người)", channels: [],
+      workspaceTargets: [{ kind: "department", name: "Phòng Nhân sự", members: 36 }, { kind: "department", name: "Ban Giám đốc", members: 3 }],
       connections: [conn("Microsoft Outlook", "outlook", "shared"), conn("Google Calendar", "gcalendar", "personal")],
       subAgents: [],
       starterPrompts: ["Tuần đầu onboarding gồm những gì?", "Đặt lịch gặp HRBP giúp tôi"],
@@ -358,7 +363,7 @@ function seed() {
         { type: "guardrail", resourceId: "g-6", name: "Escalate risky replies" },
       ],
     },
-    [historyEntry("submitted", "m-fsoft-vn-1", "Duy Nguyen")],
+    [hAt("submitted", "m-fsoft-vn-1", "Duy Nguyen", t - 3 * HOUR)],
   );
 
   // 2 — standalone Knowledge, rejected (Tenant Admin's own queue — unrelated to any Agent).
@@ -372,8 +377,8 @@ function seed() {
       reviewNote: "Cần bổ sung nguồn tài liệu gốc (link phòng Nhân sự) trước khi duyệt — hiện chưa có căn cứ để đối chiếu.",
     },
     [
-      historyEntry("submitted", "m-fsoft-coo", "Linh Phan"),
-      historyEntry("rejected", "m-fsoft-ceo", "Tran Nam", "Cần bổ sung nguồn tài liệu gốc (link phòng Nhân sự) trước khi duyệt — hiện chưa có căn cứ để đối chiếu."),
+      hAt("submitted", "m-fsoft-coo", "Linh Phan", t - 1 * DAY),
+      hAt("rejected", "m-fsoft-ceo", "Tran Nam", t - 5 * HOUR, "Cần bổ sung nguồn tài liệu gốc (link phòng Nhân sự) trước khi duyệt — hiện chưa có căn cứ để đối chiếu."),
     ],
   );
 
@@ -387,8 +392,8 @@ function seed() {
       reviewerId: "m-fsoft-ceo", reviewerName: "Tran Nam", reviewNote: "Đã test thử — hoạt động tốt, duyệt.",
     },
     [
-      historyEntry("submitted", "m-fsoft-vn-1", "Duy Nguyen"),
-      historyEntry("approved", "m-fsoft-ceo", "Tran Nam", "Đã test thử — hoạt động tốt, duyệt."),
+      hAt("submitted", "m-fsoft-vn-1", "Duy Nguyen", t - 3 * DAY),
+      hAt("approved", "m-fsoft-ceo", "Tran Nam", t - 2 * DAY, "Đã test thử — hoạt động tốt, duyệt."),
     ],
   );
 
@@ -403,8 +408,8 @@ function seed() {
       reviewNote: "Chưa rõ phạm vi áp dụng — vui lòng làm rõ áp dụng cho Agent nào và bổ sung ví dụ câu trả lời mẫu trước khi gửi lại.",
     },
     [
-      historyEntry("submitted", "m-plat-1", "Mai Hoang"),
-      historyEntry("rejected", "m-fsoft-ceo", "Tran Nam", "Chưa rõ phạm vi áp dụng — vui lòng làm rõ áp dụng cho Agent nào và bổ sung ví dụ câu trả lời mẫu trước khi gửi lại."),
+      hAt("submitted", "m-plat-1", "Mai Hoang", t - 6 * DAY),
+      hAt("rejected", "m-fsoft-ceo", "Tran Nam", t - 5 * DAY, "Chưa rõ phạm vi áp dụng — vui lòng làm rõ áp dụng cho Agent nào và bổ sung ví dụ câu trả lời mẫu trước khi gửi lại."),
     ],
   );
 
@@ -416,25 +421,28 @@ function seed() {
       audience: "org", note: "Kết nối tra cứu văn bản pháp lý — đề xuất dùng chung cho các Agent pháp chế & tuân thủ.",
       status: "pending", submittedAt: t - 6 * HOUR, updatedAt: t - 6 * HOUR,
     },
-    [historyEntry("submitted", "m-fsoft-vn-1", "Duy Nguyen")],
+    [hAt("submitted", "m-fsoft-vn-1", "Duy Nguyen", t - 6 * HOUR)],
   );
 
-  // 6 — historical Agent request, fully approved — gives the Audit Log something with real depth.
+  // 6 — historical Agent request, fully approved — IT Helpdesk's current live v1.3.0 (its later
+  // v1.4.0 request, req-2004, is a real "Có chỉnh sửa" against this).
   const agentCleanReq = mk(
     {
-      id: "req-1006", resourceType: "agent", resourceId: "cskh", resourceName: "Banking ABC — Customer Care",
-      resourceIcon: "🏦", requesterId: "m-fsoft-ceo", requesterName: "Tran Nam",
-      audience: "org", note: "Publish bản chính thức phục vụ tổng đài CSKH.",
-      version: "v1.0.1", status: "approved", submittedAt: t - 8 * DAY, updatedAt: t - 7 * DAY,
-      resourceRefs: [
-        { type: "knowledge", resourceId: "kb-1", name: "Chính sách ngân hàng ABC" },
-        { type: "knowledge", resourceId: "kb-2", name: "FAQ chăm sóc khách hàng" },
-      ],
+      id: "req-1006", resourceType: "agent", resourceId: "ops", resourceName: "IT Helpdesk",
+      resourceIcon: "🛠️", requesterId: "m-fsoft-vn-1", requesterName: "Duy Nguyen",
+      audience: "org", scopeSummary: "FPT Smart Cloud (35 người)", channels: ["web", "api"],
+      workspaceTargets: [{ kind: "company", name: "FPT Smart Cloud", members: 35 }],
+      connections: [conn("Slack", "slack", "shared")],
+      subAgents: [],
+      starterPrompts: ["Tôi quên mật khẩu", "Hướng dẫn cài VPN trên macOS"],
+      note: "Publish bản chính thức Helpdesk L1 cho toàn công ty.",
+      version: "v1.3.0", status: "approved", submittedAt: t - 8 * DAY, updatedAt: t - 7 * DAY,
+      resourceRefs: [{ type: "knowledge", resourceId: "kb-3", name: "Tài liệu vận hành nội bộ" }],
       reviewerId: "m-fsoft-ceo", reviewerName: "Tran Nam", reviewNote: "Đạt yêu cầu, duyệt bản chính thức.",
     },
     [
-      historyEntry("submitted", "m-fsoft-ceo", "Tran Nam"),
-      historyEntry("approved", "m-fsoft-ceo", "Tran Nam", "Đạt yêu cầu, duyệt bản chính thức."),
+      hAt("submitted", "m-fsoft-vn-1", "Duy Nguyen", t - 8 * DAY),
+      hAt("approved", "m-fsoft-ceo", "Tran Nam", t - 7 * DAY, "Đạt yêu cầu, duyệt bản chính thức."),
     ],
   );
 
@@ -442,34 +450,32 @@ function seed() {
   // ── More Agent requests, so the Agent Requests queue demos realistically (several pending
   // requests across different audiences/channels, plus resolved ones). History timestamps are
   // set explicitly (hAt) so the timeline matches submittedAt instead of "now".
-  const hAt = (action: GovHistoryEntry["action"], actorId: string, actorName: string, at: number, note?: string): GovHistoryEntry =>
-    ({ id: `h-${seq++}`, at, action, actorId, actorName, note });
 
   const quoteReq = mk(
     {
-      id: "req-2001", resourceType: "agent", resourceId: "sales-quote", resourceName: "Trợ lý Báo giá (Sales)",
-      resourceIcon: "💼", requesterId: "m-fsoft-coo", requesterName: "Linh Phan",
-      audience: "org", scopeSummary: "Phòng Kinh doanh (48 người)", channels: ["web", "zalo", "teams", "api"],
+      id: "req-2001", resourceType: "agent", resourceId: "faq", resourceName: "Product FAQ Assistant",
+      resourceIcon: "📦", requesterId: "m-fsoft-coo", requesterName: "Linh Phan",
+      audience: "org", scopeSummary: "Phòng Chăm sóc khách hàng (22 người), Phòng Kinh doanh (48 người), Linh Phan, Tran Nam",
+      channels: ["web", "api"],
       workspaceTargets: [
-        { kind: "department", name: "Phòng Kinh doanh", members: 48 },
         { kind: "department", name: "Phòng Chăm sóc khách hàng", members: 22 },
-        { kind: "group", name: "Nhóm cộng tác 'Ra mắt Q4'", members: 9 },
+        { kind: "department", name: "Phòng Kinh doanh", members: 48 },
         { kind: "people", name: "Linh Phan, Tran Nam", members: 2 },
       ],
-      connections: [conn("Microsoft Outlook", "outlook", "shared"), conn("Microsoft SharePoint", "sharepoint", "shared"), conn("Salesforce", "salesforce", "personal")],
+      connections: [conn("Google Drive", "gdrive", "shared"), conn("Microsoft SharePoint", "sharepoint", "shared"), conn("Salesforce", "salesforce", "personal")],
       subAgents: [
-        { name: "discount-checker", description: "Kiểm tra mức chiết khấu đề xuất so với hạn mức 10% trước khi soạn báo giá.", model: "DeepSeek V4 Flash", status: "active" },
-        { name: "quote-formatter", description: "Định dạng báo giá theo mẫu chuẩn EOS và xuất PDF.", model: "DeepSeek V4 Flash", status: "active" },
+        { name: "warranty-checker", description: "Tra cứu tình trạng bảo hành theo số serial và hướng dẫn thủ tục đổi trả.", model: "DeepSeek V4 Flash", status: "active" },
+        { name: "manual-finder", description: "Tìm đúng trang hướng dẫn sử dụng theo model sản phẩm.", model: "DeepSeek V4 Flash", status: "active" },
       ],
-      starterPrompts: ["Soạn báo giá cho khách hàng ABC Corp", "Chiết khấu tối đa cho gói Enterprise là bao nhiêu?", "Tạo báo giá từ deal mới nhất trên CRM"],
-      note: "Nâng cấp model và cập nhật mô tả theo chính sách chiết khấu EOS mới — cần duyệt lại trước khi áp dụng cho toàn phòng Kinh doanh.",
-      version: "v2.0.0", status: "pending", submittedAt: t - 45 * 60 * 1000, updatedAt: t - 45 * 60 * 1000,
+      starterPrompts: ["Chính sách bảo hành sản phẩm?", "Cách reset thiết bị về mặc định", "Kiểm tra bảo hành theo số serial"],
+      note: "Đổi model và mở rộng cho phòng Kinh doanh — thêm tra cứu bảo hành theo serial.",
+      version: "v1.2.0", status: "pending", submittedAt: t - 45 * 60 * 1000, updatedAt: t - 45 * 60 * 1000,
       resourceRefs: [
+        { type: "knowledge", resourceId: "kb-2", name: "FAQ chăm sóc khách hàng" },
         { type: "knowledge", resourceId: "kb-5", name: "Kịch bản bán hàng" },
-        { type: "skill", resourceId: "vendor-pricing-lookup", name: "vendor-pricing-lookup" },
         { type: "skill", resourceId: "email-drafter", name: "email-drafter" },
         { type: "guardrail", resourceId: "g-4", name: "Commercial response policy" },
-        { type: "guardrail", resourceId: "g-9", name: "Vendor pricing disclosure" },
+        { type: "guardrail", resourceId: "g-7", name: "Competitor mention block" },
         { type: "connector", resourceId: "cc-1", name: "internal-crm-mcp" },
       ],
     },
@@ -480,7 +486,7 @@ function seed() {
     {
       id: "req-2002", resourceType: "agent", resourceId: "legal-review", resourceName: "AI Agent Pháp chế — Điều khoản hợp đồng",
       resourceIcon: "⚖️", requesterId: "m-plat-1", requesterName: "Mai Hoang",
-      audience: "group", scopeSummary: "Nhóm cộng tác 'Pháp chế EOS' (12 người, trùng 85% với Ban Pháp chế)", channels: ["teams"],
+      audience: "group", scopeSummary: "Nhóm cộng tác 'Pháp chế EOS' (12 người, trùng 85% với Ban Pháp chế)", channels: ["slack"],
       workspaceTargets: [{ kind: "group", name: "Nhóm cộng tác 'Pháp chế EOS'", members: 12, detail: "Trùng 85% với Ban Pháp chế — vượt ngưỡng nên cần duyệt" }],
       connections: [conn("Microsoft Outlook", "outlook", "shared"), conn("Microsoft SharePoint", "sharepoint", "shared")],
       subAgents: [
@@ -503,7 +509,7 @@ function seed() {
     {
       id: "req-2003", resourceType: "agent", resourceId: "finance-check", resourceName: "AI Agent Tài chính — Kiểm duyệt chiết khấu",
       resourceIcon: "🧮", requesterId: "m-fsoft-coo", requesterName: "Linh Phan",
-      audience: "org", scopeSummary: "Phòng Tài chính (14 người), Phòng Kinh doanh (48 người)", channels: ["teams", "email"],
+      audience: "org", scopeSummary: "Phòng Tài chính (14 người), Phòng Kinh doanh (48 người)", channels: ["slack"],
       workspaceTargets: [{ kind: "department", name: "Phòng Tài chính", members: 14 }, { kind: "department", name: "Phòng Kinh doanh", members: 48 }],
       connections: [conn("Microsoft Teams", "teams", "shared"), conn("Google Sheets", "sheets", "shared")],
       subAgents: [],
@@ -541,7 +547,7 @@ function seed() {
     {
       id: "req-2005", resourceType: "agent", resourceId: "faq", resourceName: "Product FAQ Assistant",
       resourceIcon: "📦", requesterId: "m-plat-1", requesterName: "Mai Hoang",
-      audience: "org", scopeSummary: "Toàn công ty", channels: ["web", "messenger"],
+      audience: "org", scopeSummary: "Toàn công ty", channels: ["web"],
       workspaceTargets: [{ kind: "company", name: "FPT Smart Cloud", members: 1250 }],
       connections: [conn("Google Drive", "gdrive", "shared")],
       subAgents: [],
@@ -586,14 +592,23 @@ function seed() {
     const snap = buildSnapshot(type, id);
     if (snap) liveSnapshots.set(snapshotKey(type, id), snap);
   });
+  // faq's live v1.1.0 and ops's live v1.3.0 predate their pending requests (req-2001 / req-2004),
+  // so those show "Có chỉnh sửa" with a real field diff (model + description).
   const faqSnap = buildSnapshot("agent", "faq");
-  if (faqSnap) liveSnapshots.set(snapshotKey("agent", "faq"), faqSnap);
-  // sales-quote was approved before on an older model/description — so its pending v2.0.0
-  // request shows "Có chỉnh sửa" with a real field diff.
-  const quoteSnap = buildSnapshot("agent", "sales-quote");
-  if (quoteSnap) liveSnapshots.set(snapshotKey("agent", "sales-quote"), {
-    capturedAt: t - 20 * DAY,
-    fields: { ...quoteSnap.fields, model: "Gemini 1.5 Flash", desc: "Soạn báo giá từ CRM & ERP theo mẫu báo giá chuẩn." },
+  if (faqSnap) liveSnapshots.set(snapshotKey("agent", "faq"), {
+    capturedAt: t - 3 * DAY,
+    fields: { ...faqSnap.fields, model: "Qwen Turbo", desc: "Product manuals and troubleshooting." },
+  });
+  // finance-check / legal-review are live with the same configuration their pending requests
+  // carry (those requests only widen the audience) → "Không thay đổi", not "Bản mới".
+  for (const aid of ["finance-check", "legal-review"]) {
+    const snap = buildSnapshot("agent", aid);
+    if (snap) liveSnapshots.set(snapshotKey("agent", aid), snap);
+  }
+  const opsSnap = buildSnapshot("agent", "ops");
+  if (opsSnap) liveSnapshots.set(snapshotKey("agent", "ops"), {
+    capturedAt: t - 7 * DAY,
+    fields: { ...opsSnap.fields, model: "Qwen Turbo" },
   });
   persistLive();
 

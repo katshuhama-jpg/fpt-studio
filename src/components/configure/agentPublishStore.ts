@@ -48,8 +48,8 @@ export interface AgentPublishState {
   needsRegovernance?: { reason: string; unitName: string; overlapPct: number; at: number };
 }
 
-const STORE_KEY = "agent_publish_store";
-const SEEDED_KEY = "agent_publish_store_seeded";
+const STORE_KEY = "agent_publish_store_v2";
+const SEEDED_KEY = "agent_publish_store_seeded_v2";
 const store = loadMap<string, AgentPublishState>(STORE_KEY);
 const seededAgents = loadSet<string>(SEEDED_KEY);
 const persist = () => saveMap(STORE_KEY, store);
@@ -59,6 +59,13 @@ const persist = () => saveMap(STORE_KEY, store);
  * Seeded once per session — unpublishing it during the session is not undone on reload. */
 const AUTO_PUBLISHED_SEED: Record<string, AgentPublishState> = {
   "shipping-alerts": { placement: "automation", channels: ["slack"], version: BASELINE_VERSION },
+  // Live Workspace Agents that also have governance history (governanceStore seed) — their
+  // live version/audience/channels match the approved requests there, so the Builder pill,
+  // Deploy tab and review page all tell the same story.
+  faq: { placement: "workspace", audience: "org", channels: ["web"], version: "v1.1.0", scopeSummary: "Toàn công ty" },
+  ops: { placement: "workspace", audience: "org", channels: ["web", "api"], version: "v1.3.0", scopeSummary: "FPT Smart Cloud (35 người)" },
+  "finance-check": { placement: "workspace", audience: "org", channels: ["slack"], version: "v1.2.0", scopeSummary: "Phòng Tài chính (14 người)" },
+  "legal-review": { placement: "workspace", audience: "org", channels: ["slack"], version: "v1.1.0", scopeSummary: "Ban Pháp chế (14 người)" },
 };
 
 function seedAgent(agentId: string) {
