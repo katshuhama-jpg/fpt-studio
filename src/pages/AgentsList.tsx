@@ -16,10 +16,11 @@ import { AGENTS as agents } from "@/components/configure/agentStore";
 import { useOrg } from "@/pages/organization/orgStore";
 import { recheckAgentGroupPublish } from "@/components/configure/collabGroupStore";
 import { getChannelName } from "@/components/configure/channelCatalog";
+import { AgentGovBadge, agentGovState } from "@/components/governance/governanceUi";
 
 /* ─── Data ─────────────────────────────────────────────────────────────── */
 
-const tabs = ["All agents", "Published", "Draft", "Shared with me"] as const;
+const tabs = ["All agents", "Published", "Draft", "Chờ duyệt", "Bị từ chối", "Shared with me"] as const;
 const kindFilters = ["All", "Agents", "Automation Agents"] as const;
 
 const SUGGESTIONS = [
@@ -243,7 +244,8 @@ function ConversationalCard({ a }: { a: typeof agents[number] }) {
               }`}>
                 {a.status}
               </span>
-              <span className="text-muted-foreground">· {a.model}</span>
+              <AgentGovBadge agentId={a.id} />
+              <span className="text-muted-foreground truncate">· {a.model}</span>
             </div>
           </div>
           <button className="opacity-0 group-hover:opacity-100 transition-base text-muted-foreground hover:text-foreground p-1">
@@ -312,6 +314,7 @@ function AutomationCard({ a }: { a: typeof agents[number] }) {
               <span className={`font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${badgeClass}`}>
                 {badgeLabel}
               </span>
+              <AgentGovBadge agentId={a.id} />
               <span className="text-muted-foreground">· {a.model}</span>
             </div>
           </div>
@@ -420,6 +423,8 @@ export default function AgentsList() {
     "All agents": visibleAgents.length,
     "Published": visibleAgents.filter(a => agentTabStatus(a) === "Published").length,
     "Draft": visibleAgents.filter(a => agentTabStatus(a) === "Draft").length,
+    "Chờ duyệt": visibleAgents.filter(a => agentGovState(a.id)?.state === "pending").length,
+    "Bị từ chối": visibleAgents.filter(a => agentGovState(a.id)?.state === "rejected").length,
     "Shared with me": sharedWithMe.length,
   };
 
@@ -428,7 +433,11 @@ export default function AgentsList() {
       ? visibleAgents
       : activeTab === "Shared with me"
         ? sharedWithMe
-        : visibleAgents.filter(a => agentTabStatus(a) === activeTab);
+        : activeTab === "Chờ duyệt"
+          ? visibleAgents.filter(a => agentGovState(a.id)?.state === "pending")
+          : activeTab === "Bị từ chối"
+            ? visibleAgents.filter(a => agentGovState(a.id)?.state === "rejected")
+            : visibleAgents.filter(a => agentTabStatus(a) === activeTab);
 
   const q = search.trim().toLowerCase();
   const searched = q

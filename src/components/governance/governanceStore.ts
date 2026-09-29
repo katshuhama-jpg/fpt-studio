@@ -183,6 +183,7 @@ export interface GovRequest {
 const REQ_KEY = "governance_request_store_v6";
 const LIVE_KEY = "governance_live_snapshots_v6";
 const SEEDED_KEY = "governance_store_seeded_v6";
+const DISMISSED_KEY = "governance_dismissed_rejections_v1";
 
 const store = loadMap<string, GovRequest>(REQ_KEY);
 /** "type:resourceId" → last-approved snapshot. A resource "has cleared governance at least once"
@@ -665,6 +666,33 @@ export const governanceStore = {
     return [...store.values()]
       .filter(r => r.resourceType === resourceType && r.resourceId === resourceId && r.status === "pending")
       .sort((a, b) => b.updatedAt - a.updatedAt)[0];
+  },
+
+  /** Most recent request for a resource, any status — drives the Builder-side "Bị từ chối" pill,
+   * banner and Agents-list badge (a rejection only matters while it's the latest word). */
+  latestForResource(resourceType: GovResourceType, resourceId: string): GovRequest | undefined {
+    seed();
+    return [...store.values()]
+      .filter(r => r.resourceType === resourceType && r.resourceId === resourceId)
+      .sort((a, b) => b.submittedAt - a.submittedAt)[0];
+  },
+
+  /** Builder can hide the rejection banner for a given request (per browser session). */
+  isRejectionDismissed(requestId: string): boolean {
+    try { return (JSON.parse(sessionStorage.getItem(DISMISSED_KEY) ?? "[]") as string[]).includes(requestId); } catch { return false; }
+  },
+  dismissRejection(requestId: string) {
+    try {
+      const ids = JSON.parse(sessionStorage.getItem(DISMISSED_KEY) ?? "[]") as string[];
+      if (!ids.includes(requestId)) sessionStorage.setItem(DISMISSED_KEY, JSON.stringify([...ids, requestId]));
+    } catch { /* ignore */ }
+  },
+
+  restoreRejection(requestId: string) {
+    try {
+      const ids = JSON.parse(sessionStorage.getItem(DISMISSED_KEY) ?? "[]") as string[];
+      sessionStorage.setItem(DISMISSED_KEY, JSON.stringify(ids.filter(x => x !== requestId)));
+    } catch { /* ignore */ }
   },
 
   listForResource(resourceType: GovResourceType, resourceId: string): GovRequest[] {

@@ -76,6 +76,7 @@ import { isAccessibleTo as isSkillAccessibleTo } from "@/components/configure/sk
 import { knowledgeBaseStore, CURRENT_USER as KB_CURRENT_USER, isViewOnly as isKbViewOnly, isAccessibleTo as isKbAccessibleTo, type KnowledgeBase } from "@/components/knowledge/knowledgeBaseStore";
 import { governanceStore, listAgentResourceRefs, agentEmoji } from "@/components/governance/governanceStore";
 import { PendingRequestPill } from "@/components/governance/agentRequestPill";
+import { formatDateTime as formatGovDateTime } from "@/components/governance/governanceUi";
 import { collabGroupStore, overlapForGroup, recheckAgentGroupPublish, GROUP_APPROVAL_THRESHOLD, type CollabGroup } from "@/components/configure/collabGroupStore";
 import { resourceBlockStore } from "@/components/governance/resourceBlockStore";
 import { KnowledgeStatusPill } from "@/components/knowledge/knowledgeStatus";
@@ -205,6 +206,14 @@ export default function AgentBuilder() {
   // An open (pending) Governance request takes over the top-bar status pill — an agent
   // mid-review isn't meaningfully "Draft" nor is it "Live" yet.
   const openGovRequest = (() => { void publishTick; return governanceStore.getOpenRequestForResource("agent", id); })();
+  // Latest request was rejected (and nothing newer sent) → red pill + reason banner for the Builder.
+  const [rejectBannerTick, setRejectBannerTick] = useState(0);
+  const rejectedGovRequest = (() => {
+    void publishTick;
+    const latest = governanceStore.latestForResource("agent", id);
+    return !openGovRequest && latest?.status === "rejected" ? latest : undefined;
+  })();
+  const showRejectBanner = (() => { void rejectBannerTick; return !!rejectedGovRequest && !governanceStore.isRejectionDismissed(rejectedGovRequest.id); })();
 
   useEffect(() => { setShowWelcome(welcome); }, [welcome]);
   const dismissWelcome = () => {
@@ -289,6 +298,17 @@ export default function AgentBuilder() {
         </div>
 
         <div className="flex items-center gap-2">
+          {rejectedGovRequest && (
+            <button
+              type="button"
+              onClick={() => { governanceStore.restoreRejection(rejectedGovRequest.id); setRejectBannerTick(t => t + 1); }}
+              title="Xem lý do từ chối"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium shrink-0 transition-base hover:opacity-80 bg-destructive/10 border-destructive/20 text-destructive"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-destructive" />
+              Bị từ chối · {rejectedGovRequest.version}
+            </button>
+          )}
           {openGovRequest ? (
             <PendingRequestPill req={openGovRequest} onChanged={() => setPublishTick(t => t + 1)} />
           ) : published ? (
@@ -362,6 +382,37 @@ export default function AgentBuilder() {
           onManageChannels={() => { setShowPublish(false); setTab("channels"); }}
           onManageTriggers={() => { setShowPublish(false); setParams({ tab: "build", section: "triggers" }); }}
         />
+      )}
+
+      {/* Rejection banner — the Builder's side of a rejected publish request: why, by whom, and
+          the way forward. Hidden with "Ẩn" (per session); clicking the red pill brings it back;
+          disappears on its own once a newer request is sent. */}
+      {rejectedGovRequest && showRejectBanner && (
+        <div className="border-b border-destructive/20 bg-destructive/5 px-4 py-3 flex items-start gap-3 shrink-0">
+          <HugeiconsIcon icon={Alert01Icon} size={16} className="text-destructive shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-foreground">Yêu cầu publish {rejectedGovRequest.version} bị từ chối</p>
+            {rejectedGovRequest.reviewNote && (
+              <p className="text-sm text-foreground/80 mt-0.5 leading-relaxed">“{rejectedGovRequest.reviewNote}”</p>
+            )}
+            <p className="text-xs text-muted-foreground mt-1">
+              {rejectedGovRequest.reviewerName ?? "Admin"} · {formatGovDateTime(rejectedGovRequest.updatedAt)} — sửa theo góp ý rồi gửi lại để được duyệt.
+            </p>
+          </div>
+          <button
+            onClick={() => { governanceStore.dismissRejection(rejectedGovRequest.id); setRejectBannerTick(t => t + 1); }}
+            className="btn-secondary h-8 px-3 text-xs shrink-0"
+          >
+            Ẩn
+          </button>
+          <button
+            onClick={() => canPublishAgent && setShowPublish(true)}
+            disabled={!canPublishAgent}
+            className="btn-primary h-8 px-3 text-xs shrink-0 disabled:opacity-40"
+          >
+            Sửa & gửi lại
+          </button>
+        </div>
       )}
 
       {/* Welcome banner (first-time onboarding success) */}

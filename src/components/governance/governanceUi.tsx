@@ -4,7 +4,7 @@
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Robot01Icon, BookOpen01Icon, PuzzleIcon, Shield01Icon, Plug01Icon } from "@hugeicons/core-free-icons";
 import type { GovResourceType, GovRequestStatus, GovChangeState, ResourceShareStatus } from "./governanceStore";
-import { RESOURCE_TYPE_LABEL, STATUS_LABEL } from "./governanceStore";
+import { RESOURCE_TYPE_LABEL, STATUS_LABEL, governanceStore } from "./governanceStore";
 import { getAgent } from "../configure/agentStore";
 
 export const RESOURCE_TYPE_ICON: Record<GovResourceType, any> = {
@@ -166,6 +166,30 @@ export function RequestAvatar({ type, resourceId, fallbackIcon, size = "md" }: {
   return (
     <span className={`${box} bg-surface-muted border border-border flex items-center justify-center shrink-0`} aria-hidden="true">
       <ResourceTypeIcon type={type} size={size === "lg" ? 18 : 16} className={RESOURCE_TYPE_TINT[type].icon} />
+    </span>
+  );
+}
+
+/** Governance state of an Agent for the Builder side (Agents list card, filters): "pending" while
+ * a request waits, "rejected" while the latest request was rejected and nothing newer was sent. */
+export function agentGovState(agentId: string): { state: "pending" | "rejected"; version?: string } | null {
+  const latest = governanceStore.latestForResource("agent", agentId);
+  if (!latest) return null;
+  if (latest.status === "pending") return { state: "pending", version: latest.version };
+  if (latest.status === "rejected") return { state: "rejected", version: latest.version };
+  return null;
+}
+
+export function AgentGovBadge({ agentId }: { agentId: string }) {
+  const g = agentGovState(agentId);
+  if (!g) return null;
+  const pending = g.state === "pending";
+  return (
+    <span className={`inline-flex items-center gap-1 font-medium px-1.5 py-0.5 rounded border whitespace-nowrap ${
+      pending ? "bg-warning/10 border-warning/25 text-warning" : "bg-destructive/10 border-destructive/20 text-destructive"
+    }`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${pending ? "bg-warning" : "bg-destructive"}`} />
+      {pending ? "Chờ duyệt" : "Bị từ chối"}{g.version ? ` ${g.version}` : ""}
     </span>
   );
 }
