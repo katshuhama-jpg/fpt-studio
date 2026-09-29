@@ -5,7 +5,7 @@
 import { loadMap, saveMap } from "@/lib/sessionPersist";
 import type { GovResourceType } from "./governanceStore";
 
-export type AuditAction = "submitted" | "approved" | "rejected" | "revoked";
+export type AuditAction = "submitted" | "approved" | "rejected" | "revoked" | "withdrawn";
 
 export interface AuditEntry {
   id: string;
@@ -30,6 +30,7 @@ export const ACTION_LABEL: Record<AuditAction, string> = {
   approved: "Đã duyệt",
   rejected: "Đã từ chối",
   revoked: "Đã thu hồi",
+  withdrawn: "Đã rút yêu cầu",
 };
 
 export interface AuditFilter {

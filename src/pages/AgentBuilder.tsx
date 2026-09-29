@@ -4201,7 +4201,17 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
   const agentConnectors = agentConnectorStore.list(agentId);
   const hasPersonalConnector = agentConnectorStore.hasPersonalConnector(agentId);
   const current = agentPublishStore.get(agentId);
-  const BASE = current.version.replace(/^v/, "").split(".").map(Number);
+  // A pending governance request for this Agent (if any). Submitting a new review request
+  // replaces it (governanceStore.submit withdraws it), so the new version must count up from
+  // whichever is higher — the live version or the pending one — never step backwards.
+  const pendingRequest = governanceStore.getOpenRequestForResource("agent", agentId);
+  const parseVer = (v?: string) => (v ?? "v0.0.0").replace(/^v/, "").split(".").map(n => Number(n) || 0);
+  const cmpVer = (a: number[], b: number[]) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
+  const BASE = (() => {
+    const live = parseVer(current.version);
+    const pend = pendingRequest?.version ? parseVer(pendingRequest.version) : null;
+    return pend && cmpVer(pend, live) > 0 ? pend : live;
+  })();
 
   // Which Space owns this Agent decides what "Agent Workspace" (audience) options make sense:
   // a personal Space has no company/department to share into, so "Company / department" is
@@ -4431,6 +4441,14 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          {pendingRequest && requiresReview && (
+            <div className="flex items-start gap-2.5 rounded-lg border border-warning/25 bg-warning/5 px-3.5 py-3">
+              <HugeiconsIcon icon={Clock01Icon} size={15} className="text-warning shrink-0 mt-0.5" />
+              <p className="text-sm text-foreground leading-relaxed">
+                Yêu cầu <span className="font-medium">{pendingRequest.version}</span> đang chờ duyệt. Gửi bản {versionName} sẽ thay thế yêu cầu đó — Admin chỉ cần duyệt bản mới nhất.
+              </p>
+            </div>
+          )}
           {/* Section 1 — Changes */}
           {totalChangeRows > 0 && (
             <div>

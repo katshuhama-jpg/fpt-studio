@@ -22,10 +22,11 @@ const STATUS_STYLE: Record<GovRequestStatus, string> = {
   approved: "bg-success/10 border-success/20 text-success",
   rejected: "bg-destructive/10 border-destructive/20 text-destructive",
   revoked: "bg-surface-muted border-border text-muted-foreground",
+  withdrawn: "bg-surface-muted border-border text-muted-foreground",
 };
 
 const STATUS_DOT: Record<GovRequestStatus, string> = {
-  pending: "bg-warning", approved: "bg-success", rejected: "bg-destructive", revoked: "bg-muted-foreground",
+  pending: "bg-warning", approved: "bg-success", rejected: "bg-destructive", revoked: "bg-muted-foreground", withdrawn: "bg-muted-foreground",
 };
 
 export function StatusBadge({ status, className = "" }: { status: GovRequestStatus; className?: string }) {
@@ -46,6 +47,7 @@ export const STATUS_ROW_ACCENT: Record<GovRequestStatus, string> = {
   approved: "border-l-transparent",
   rejected: "border-l-transparent",
   revoked: "border-l-transparent",
+  withdrawn: "border-l-transparent",
 };
 
 /** 1-2 letter initials from a display name, for the small avatar circle next to a requester's

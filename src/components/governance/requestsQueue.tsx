@@ -31,6 +31,7 @@ const GROUP_OF: Record<GovRequestStatus, Grouping> = {
   approved: "resolved",
   rejected: "resolved",
   revoked: "resolved",
+  withdrawn: "resolved",
 };
 
 const TABS: { key: MainTab; label: string }[] = [
@@ -39,6 +40,7 @@ const TABS: { key: MainTab; label: string }[] = [
   { key: "approved", label: "Đã duyệt" },
   { key: "rejected", label: "Từ chối" },
   { key: "revoked", label: "Đã thu hồi" },
+  { key: "withdrawn", label: "Đã rút" },
 ];
 
 /** Only the 4 reusable-resource types — the Agent page has no type filter at all, since it's a
@@ -168,6 +170,7 @@ export function RequestsQueuePage({ scope, title, intro, note }: { scope: Scope;
     approved: scopedAll.filter(r => r.status === "approved").length,
     rejected: scopedAll.filter(r => r.status === "rejected").length,
     revoked: scopedAll.filter(r => r.status === "revoked").length,
+    withdrawn: scopedAll.filter(r => r.status === "withdrawn").length,
   }), [scopedAll]);
 
   // Type/search filter only — status grouping and sort order are decided below, separately per

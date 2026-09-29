@@ -15,7 +15,7 @@ type RangeKey = typeof RANGE_OPTIONS[number]["key"];
 
 const ACTION_DOT: Record<AuditAction, string> = {
   submitted: "bg-primary", approved: "bg-success",
-  rejected: "bg-destructive", revoked: "bg-destructive",
+  rejected: "bg-destructive", revoked: "bg-destructive", withdrawn: "bg-muted-foreground",
 };
 
 function Table({ children }: { children: React.ReactNode }) {

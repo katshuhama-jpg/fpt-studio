@@ -40,7 +40,9 @@ import { auditLogStore } from "./auditLogStore";
 import { getAgent } from "../configure/agentStore";
 
 export type GovResourceType = "agent" | "knowledge" | "skill" | "guardrail" | "connector";
-export type GovRequestStatus = "pending" | "approved" | "rejected" | "revoked";
+/** "withdrawn" = the requester pulled it back, or it was replaced by a newer submission for the
+ * same resource (see `submit`) — never decided by an Admin. */
+export type GovRequestStatus = "pending" | "approved" | "rejected" | "revoked" | "withdrawn";
 /** Scope requested for. "group" is an Agent published to a Nhóm cộng tác (collaboration group)
  * whose roster currently overlaps an Org/Unit roster above the anti-bypass threshold — see
  * collabGroupStore.ts. It reviews exactly like "org" (Org/Unit Admin decides), just labeled so the
@@ -68,6 +70,7 @@ export const STATUS_LABEL: Record<GovRequestStatus, string> = {
   approved: "Đã duyệt",
   rejected: "Từ chối",
   revoked: "Đã thu hồi",
+  withdrawn: "Đã rút",
 };
 
 /** Fields tracked per type for the live/candidate snapshot diff — no heavy/light distinction
@@ -124,7 +127,7 @@ export interface SubAgentSnap { name: string; description: string; model?: strin
 export interface GovHistoryEntry {
   id: string;
   at: number;
-  action: "submitted" | "approved" | "rejected" | "revoked";
+  action: "submitted" | "approved" | "rejected" | "revoked" | "withdrawn";
   actorId: string;
   actorName: string;
   note?: string;
@@ -694,6 +697,13 @@ export const governanceStore = {
     connections?: AgentConnectionSnap[]; subAgents?: SubAgentSnap[]; starterPrompts?: string[];
   }): GovRequest {
     seed();
+    // One open request per resource: submitting a newer version replaces the pending one
+    // (withdrawn with a pointer to the new version), so the Admin only ever reviews the latest.
+    const previous = this.getOpenRequestForResource(input.resourceType, input.resourceId);
+    if (previous) {
+      this.withdraw(previous.id, input.requesterId, input.requesterName,
+        `Được thay thế bởi yêu cầu ${input.version ?? "mới hơn"}.`);
+    }
     const id = nextId();
     const t = now();
     const req: GovRequest = {
@@ -713,6 +723,22 @@ export const governanceStore = {
       requestId: id, at: t,
     });
     return req;
+  },
+
+  /** Requester pulls a pending request back (or `submit` replaces it with a newer one). The
+   * resource's live state is untouched — nothing was ever approved from this request. */
+  withdraw(id: string, actorId: string, actorName: string, note?: string): GovRequest | undefined {
+    seed();
+    const r = store.get(id);
+    if (!r || r.status !== "pending") return r;
+    const t = now();
+    r.status = "withdrawn";
+    r.updatedAt = t;
+    r.history.push(historyEntry("withdrawn", actorId, actorName, note));
+    store.set(id, r);
+    persist();
+    auditLogStore.log({ actorId, actorName, action: "withdrawn", resourceType: r.resourceType, resourceId: r.resourceId, resourceName: r.resourceName, requestId: id, note, at: t });
+    return r;
   },
 
   approve(id: string, reviewerId: string, reviewerName: string, note?: string): GovRequest | undefined {
