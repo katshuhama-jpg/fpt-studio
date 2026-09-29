@@ -246,9 +246,9 @@ export interface GovRequest {
   history: GovHistoryEntry[];
 }
 
-const REQ_KEY = "governance_request_store_v11";
+const REQ_KEY = "governance_request_store_v12";
 const LIVE_KEY = "governance_live_snapshots_v9";
-const SEEDED_KEY = "governance_store_seeded_v11";
+const SEEDED_KEY = "governance_store_seeded_v12";
 const DISMISSED_KEY = "governance_dismissed_rejections_v1";
 
 const store = loadMap<string, GovRequest>(REQ_KEY);
@@ -684,7 +684,7 @@ function seed() {
   const extLegalReq = mk(
     {
       id: "req-3002", changeStateAtSubmit: "new", resourceType: "agent", resourceId: "ext-seed-4", resourceName: "Legal Doc Checker",
-      resourceIcon: "⚖️", requesterId: "m-plat-1", requesterName: "Mai Hoang",
+      resourceIcon: "📜", requesterId: "m-plat-1", requesterName: "Mai Hoang",
       audience: "org", scopeSummary: "Ban Pháp chế (14 người)", channels: [],
       workspaceTargets: [{ kind: "department", name: "Ban Pháp chế", members: 14 }],
       externalSnap: externalSnapOf("ext-seed-4"),
@@ -706,7 +706,22 @@ function seed() {
     },
     [hAt("submitted", "m-fsoft-vn-1", "Duy Nguyen", t - 2 * DAY), hAt("rejected", "m-fsoft-ceo", "Tran Nam", t - 1 * DAY, "Domain wh.partner.io chưa có trong danh sách đối tác được phê duyệt.")],
   );
-  const extraAgentReqs = [quoteReq, legalReq, financeReq, helpdeskReq, faqReq, salesReq, legalApiReq, extFlightReq, extLegalReq, extWarehouseReq];
+  // External Agent channel request: Flight Assistant (live v1.0.2 on Web widget + API) asks to add Slack.
+  const extFlightSlackReq = mk(
+    {
+      id: "req-3004", kind: "channels", channelsAdded: ["slack"], changeStateAtSubmit: "modified",
+      diffAtSubmit: [{ key: "channels", label: "Kênh ngoài", before: "Web widget, API", after: "Web widget, API, Slack" }],
+      resourceType: "agent", resourceId: "ext-seed-1", resourceName: "Flight Assistant",
+      resourceIcon: "✈️", requesterId: "m-plat-1", requesterName: "Mai Hoang",
+      audience: "org", scopeSummary: "Toàn công ty", channels: ["web", "api", "slack"],
+      workspaceTargets: [{ kind: "company", name: "FPT Smart Cloud", members: 1250 }],
+      externalSnap: externalSnapOf("ext-seed-1"),
+      note: "Bật Slack để nhân viên đặt vé công tác ngay trong kênh #travel.",
+      version: "v1.0.2", status: "pending", submittedAt: t - 2 * HOUR, updatedAt: t - 2 * HOUR,
+    },
+    [hAt("submitted", "m-plat-1", "Mai Hoang", t - 2 * HOUR)],
+  );
+  const extraAgentReqs = [quoteReq, legalReq, financeReq, helpdeskReq, faqReq, salesReq, legalApiReq, extFlightReq, extLegalReq, extWarehouseReq, extFlightSlackReq];
 
   [agentReq, kbReq, skillReq, guardrailReq, connectorReq, agentCleanReq, ...extraAgentReqs].forEach(r => store.set(r.id, r));
   persist();

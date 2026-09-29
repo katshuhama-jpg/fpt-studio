@@ -91,9 +91,9 @@ export interface HistoryEntry {
 // signingSecret/guardrail existed) would load stale objects missing the new fields, and the
 // page would crash on render with no error boundary — a blank white screen for anyone who had
 // the External Agents page open across a deploy that changed the data shape.
-const STORE_KEY = "external_agent_store_v9";
-const HISTORY_KEY = "external_agent_history_v9";
-const SEEDED_KEY = "external_agent_store_seeded_v9";
+const STORE_KEY = "external_agent_store_v10";
+const HISTORY_KEY = "external_agent_history_v10";
+const SEEDED_KEY = "external_agent_store_seeded_v10";
 const store = loadMap<string, ExternalAgent>(STORE_KEY);
 const history = loadMap<string, HistoryEntry[]>(HISTORY_KEY);
 const persistStore = () => saveMap(STORE_KEY, store);
@@ -175,7 +175,7 @@ function seedDefaultAgents() {
   // 4 — Legal Doc Checker (Pending approval)
   put({
     id: "ext-seed-4", name: "Legal Doc Checker", description: "Contract clause review against company policy.",
-    emoji: "⚖️", bg: "bg-amber-50",
+    emoji: "📜", bg: "bg-amber-50",
     baseUrl: "https://legal.partner-ai.com", authMethod: "bearer", hasToken: true, signingSecret: generateSigningSecret(),
     allowedAuthorizeHosts: ["auth.partner-ai.com"], historyDelivery: { mode: "last_n", lastN: 5 },
     guardrail: null, status: "pending_approval", rejection: null, archived: false,
