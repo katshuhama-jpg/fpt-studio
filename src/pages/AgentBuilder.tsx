@@ -52,6 +52,8 @@ import AttachConsoleGuardrailModal from "@/components/configure/AttachConsoleGua
 import { skillStore, type Skill } from "@/components/configure/skillStore";
 import { agentSkillStore } from "@/components/configure/agentSkillStore";
 import { builtinSkillStore, type BuiltinSkill } from "@/components/configure/builtinSkillStore";
+import { agentCapabilityStore } from "@/components/configure/agentCapabilityStore";
+import AgentCapabilitiesModal from "@/components/configure/AgentCapabilitiesModal";
 import CreateSkillModal, { type SkillFormData } from "@/components/configure/CreateSkillModal";
 import CreateSkillChoiceModal from "@/components/configure/CreateSkillChoiceModal";
 import UploadSkillModal from "@/components/configure/UploadSkillModal";
@@ -3653,6 +3655,10 @@ function NewConfigPanel({ agentId, model, onModelChange, onConnectionsChange }: 
         <StarterPromptsInner onRegisterAdd={(fn) => { starterPromptsAddRef.current = fn; }} />
       ),
     },
+    {
+      id: "capabilities", icon: BoltIcon, label: "Agent capabilities",
+      content: <CapabilitiesInner agentId={agentId} />,
+    },
   ];
 
   return (
@@ -6699,6 +6705,49 @@ function DeleteStarterPromptDialog({ title, open, onOpenChange, onConfirm }: {
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+  );
+}
+
+/** "Agent capabilities" — the platform behaviours a builder is allowed to switch off for this
+ * agent (memory, web search, planning, sandbox, ...). Sits in Advanced settings because every
+ * one of them is on by default and most agents never touch them; the ones the platform keeps on
+ * permanently aren't listed at all, and document/design generation is toggled in Skills instead
+ * (see builtinSkillStore.ts) so a capability never has two switches.
+ *
+ * The rail shows only the on/total count and an Edit button — the nine cards each carry a
+ * description (and some a condition note) that doesn't fit legibly in a 476px sidebar, so the
+ * switches themselves live in a dialog. */
+function CapabilitiesInner({ agentId }: { agentId: string }) {
+  const [tick, setTick] = useState(0);
+  void tick;
+  const [showEditor, setShowEditor] = useState(false);
+  const capabilities = agentCapabilityStore.list();
+  const onCount = agentCapabilityStore.onCount(agentId);
+
+  return (
+    <>
+      <div className="rounded-xl border border-border bg-surface overflow-hidden">
+        <div className="flex items-center gap-2 px-3.5 py-3">
+          <HugeiconsIcon icon={BoltIcon} size={16} className="text-foreground shrink-0" />
+          <span className="text-sm font-semibold flex-1">Agent capabilities</span>
+          <span className="text-sm text-muted-foreground tabular-nums shrink-0">{onCount}/{capabilities.length}</span>
+          <button
+            onClick={() => setShowEditor(true)}
+            className="h-7 px-2.5 rounded-md border border-border text-xs font-medium text-foreground hover:bg-surface-muted transition-base shrink-0"
+          >
+            Edit
+          </button>
+        </div>
+      </div>
+
+      {showEditor && (
+        <AgentCapabilitiesModal
+          agentId={agentId}
+          onClose={() => setShowEditor(false)}
+          onChanged={() => setTick(t => t + 1)}
+        />
+      )}
+    </>
   );
 }
 
