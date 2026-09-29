@@ -45,6 +45,8 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
   const req = id ? governanceStore.get(id) : undefined;
   const [dialog, setDialog] = useState<Dialog>(null);
   const [reason, setReason] = useState("");
+  const [reasonError, setReasonError] = useState(false);
+  const REASON_MAX = 500;
   const [changesOpen, setChangesOpen] = useState(true);
   const [testState, setTestState] = useState<"idle" | "testing">("idle");
   const [testPanelOpen, setTestPanelOpen] = useState(false);
@@ -74,7 +76,7 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
     );
   }
 
-  const closeDialog = () => { setDialog(null); setReason(""); };
+  const closeDialog = () => { setDialog(null); setReason(""); setReasonError(false); };
 
   const doApprove = () => {
     governanceStore.approve(req.id, CURRENT_USER.id, CURRENT_USER.name, reason.trim() || undefined);
@@ -82,7 +84,7 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
     closeDialog(); refresh();
   };
   const doReject = () => {
-    if (!reason.trim()) { toast.error("Vui lòng nhập lý do từ chối."); return; }
+    if (!reason.trim()) { setReasonError(true); return; }
     governanceStore.reject(req.id, CURRENT_USER.id, CURRENT_USER.name, reason.trim());
     toast.success(`Đã từ chối "${req.resourceName}".`);
     closeDialog(); refresh();
@@ -93,7 +95,7 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
     closeDialog(); refresh();
   };
   const doRevoke = () => {
-    if (!reason.trim()) { toast.error("Vui lòng nhập lý do thu hồi."); return; }
+    if (!reason.trim()) { setReasonError(true); return; }
     governanceStore.revoke(req.id, CURRENT_USER.id, CURRENT_USER.name, reason.trim());
     toast.success(`Đã thu hồi "${req.resourceName}".`);
     closeDialog(); refresh();
@@ -403,23 +405,48 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
                 : "Thành phần sẽ ngừng dùng chung ngay lập tức (các Agent đang dùng bản riêng của họ không bị ảnh hưởng) và cần được gửi duyệt lại từ đầu. Hành động này không thể hoàn tác.")}
             </p>
             {(dialog === "reject" || dialog === "revoke") && (
-              <textarea
-                rows={3}
-                autoFocus
-                value={reason}
-                onChange={e => setReason(e.target.value)}
-                placeholder={dialog === "reject" ? "Lý do từ chối..." : "Lý do thu hồi..."}
-                className="w-full px-3 py-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none mb-4"
-              />
+              <div className="mb-4">
+                <label htmlFor="gov-reason" className="block text-sm font-medium mb-1.5">
+                  {dialog === "reject" ? "Lý do từ chối" : "Lý do thu hồi"} <span className="text-destructive">*</span>
+                </label>
+                <textarea
+                  id="gov-reason"
+                  rows={3}
+                  autoFocus
+                  maxLength={REASON_MAX}
+                  value={reason}
+                  onChange={e => { setReason(e.target.value); if (e.target.value.trim()) setReasonError(false); }}
+                  aria-invalid={reasonError}
+                  aria-describedby="gov-reason-help"
+                  placeholder={dialog === "reject" ? "Ví dụ: Cần bổ sung Guardrails cho câu hỏi về lương thưởng." : "Ví dụ: Agent trả lời sai chính sách mới, tạm dừng để sửa."}
+                  className={`w-full px-3 py-2.5 rounded-lg border bg-white text-sm outline-none focus:ring-2 transition-base resize-none ${
+                    reasonError ? "border-destructive focus:border-destructive focus:ring-destructive/20" : "border-border focus:border-primary focus:ring-primary/20"
+                  }`}
+                />
+                <div id="gov-reason-help" className="flex items-start justify-between gap-3 mt-1">
+                  <p className={`text-xs ${reasonError ? "text-destructive" : "text-muted-foreground"}`}>
+                    {reasonError
+                      ? (dialog === "reject" ? "Nhập lý do để người gửi biết cần sửa gì." : "Nhập lý do để người gửi biết vì sao Agent bị thu hồi.")
+                      : "Người gửi sẽ thấy lý do này."}
+                  </p>
+                  <span className="text-xs text-muted-foreground tabular-nums shrink-0">{reason.length}/{REASON_MAX}</span>
+                </div>
+              </div>
             )}
             {dialog === "approve" && (
-              <textarea
-                rows={2}
-                value={reason}
-                onChange={e => setReason(e.target.value)}
-                placeholder="Ghi chú (tùy chọn)..."
-                className="w-full px-3 py-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none mb-4"
-              />
+              <div className="mb-4">
+                <label htmlFor="gov-note" className="block text-sm font-medium mb-1.5">Ghi chú <span className="text-muted-foreground font-normal">(tùy chọn)</span></label>
+                <textarea
+                  id="gov-note"
+                  rows={2}
+                  maxLength={REASON_MAX}
+                  value={reason}
+                  onChange={e => setReason(e.target.value)}
+                  placeholder="Ví dụ: Đã test các câu hỏi thường gặp, trả lời đúng."
+                  className="w-full px-3 py-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none"
+                />
+                <p className="text-xs text-muted-foreground tabular-nums text-right mt-1">{reason.length}/{REASON_MAX}</p>
+              </div>
             )}
             <div className="flex items-center justify-end gap-2">
               <button onClick={closeDialog} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">{dialog === "withdraw" ? "Giữ yêu cầu" : "Hủy"}</button>
