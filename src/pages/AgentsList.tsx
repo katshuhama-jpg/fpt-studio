@@ -268,14 +268,15 @@ function ConversationalCard({ a }: { a: typeof agents[number] }) {
           <span>Updated {a.updated}</span>
           <span>·</span>
           <span className="truncate">{agentModelStore.label(a.id)}</span>
-          {a.channels.length > 0 && (
+          {/* External channels actually live right now (agentPublishStore) — not the static seed list. */}
+          {(() => { const live = agentPublishStore.isPublished(a.id) ? agentPublishStore.get(a.id).channels : []; return live.length > 0 && (
             <>
               <span>·</span>
-              {a.channels.map(c => (
-                <span key={c} className="px-1.5 py-0.5 rounded bg-surface-muted">{c}</span>
+              {live.map(c => (
+                <span key={c} className="px-1.5 py-0.5 rounded bg-surface-muted">{getChannelName(c)}</span>
               ))}
             </>
-          )}
+          ); })()}
         </div>
       </div>
     </Link>
