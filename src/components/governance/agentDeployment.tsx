@@ -98,3 +98,19 @@ export function AgentDeploymentSection({ req }: { req: GovRequest }) {
     </div>
   );
 }
+
+/** One-sentence summary of what approving this Agent request switches on — used by the Duyệt
+ * confirm dialog so the Admin sees exactly who and which channels, not "phạm vi đã chọn". */
+export function deploymentSummary(req: GovRequest): string {
+  const targets = workspaceTargetsOf(req);
+  const channels = [...new Set((req.channels ?? agentPublishStore.get(req.resourceId).channels).map(c => c.toLowerCase()))].map(id => channelInfo(id).name);
+  const community = targets.some(t => t.kind === "community");
+  const people = targets.reduce((n, t) => n + (t.members ?? 0), 0);
+  const names = targets.map(t => t.kind === "people" && (t.members ?? 0) > 1 ? `${t.members} cá nhân` : t.name);
+  const shown = names.length > 3 ? `${names.slice(0, 3).join(", ")} +${names.length - 3}` : names.join(", ");
+  const who = community
+    ? "toàn bộ FPT AI Agent community"
+    : `${people > 0 ? `khoảng ${people.toLocaleString("vi-VN")} người` : "người dùng"} (${shown})`;
+  const where = channels.length > 0 ? ` và trên ${channels.join(", ")}` : " trong Agent Workspace";
+  return `Agent sẽ hoạt động với ${who}${where}.`;
+}

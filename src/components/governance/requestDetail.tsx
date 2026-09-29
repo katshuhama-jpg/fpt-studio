@@ -14,7 +14,8 @@ import {
 } from "@/components/governance/governanceUi";
 import { AgentContentSection, ResourceContentSection, ResourceUsageSection, testConnector, type ResourceReqType } from "@/components/governance/resourceContent";
 import { AgentTestPanel } from "@/components/governance/agentTestPanel";
-import { AgentDeploymentSection } from "@/components/governance/agentDeployment";
+import { AgentDeploymentSection, deploymentSummary } from "@/components/governance/agentDeployment";
+import { agentPublishStore } from "@/components/configure/agentPublishStore";
 import { CURRENT_USER } from "@/components/knowledge/knowledgeBaseStore";
 import { knowledgeStore } from "@/components/knowledge/knowledgeStore";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
@@ -396,7 +397,11 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
               {dialog === "approve" && (isAgent
-                ? "Sau khi duyệt, Agent này sẽ publish theo phạm vi đã chọn."
+                ? (() => {
+                    const live = agentPublishStore.get(req.resourceId);
+                    const replaces = live.placement !== null && live.version && live.version !== req.version ? ` Bản ${req.version} sẽ thay bản đang live ${live.version}.` : "";
+                    return deploymentSummary(req) + replaces;
+                  })()
                 : "Sau khi duyệt, thành phần này sẽ xuất hiện trong Tenant Library để các Builder khác dùng chung.")}
               {dialog === "reject" && "Người gửi sẽ nhận được lý do từ chối và cần tạo yêu cầu mới nếu muốn gửi lại."}
               {dialog === "withdraw" && "Admin sẽ không còn thấy yêu cầu này để duyệt. Agent giữ nguyên trạng thái hiện tại — bạn có thể gửi lại bất cứ lúc nào."}
