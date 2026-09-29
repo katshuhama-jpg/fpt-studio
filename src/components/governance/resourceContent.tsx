@@ -332,3 +332,35 @@ export function testConnector(url: string): Promise<{ ok: boolean; message: stri
     setTimeout(() => resolve({ ok: true, message: `Kết nối thành công tới ${url}` }), 900);
   });
 }
+
+/** External Agent version of "Nội dung & cấu hình" on Request Detail / Version detail: an
+ * External Agent has no model/instructions/skills here — the external service owns those — so
+ * the reviewer judges its connection instead: where requests go, how they're authenticated,
+ * what conversation data leaves the platform, which guardrail applies, and whether it's healthy.
+ * Read from the snapshot frozen at submit (GovRequest.externalSnap). */
+export function ExternalAgentContentSection({ req }: { req: GovRequest }) {
+  const x = req.externalSnap;
+  if (!x) return null;
+  return (
+    <ContentBlock type="agent">
+      <Field label="Loại Agent">
+        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-sky-800 bg-sky-50 border border-sky-200 rounded-full px-2.5 py-1">
+          <Globe size={12} /> External Agent · chạy trên hệ thống của đối tác
+        </span>
+      </Field>
+      {x.description && <Field label="Mô tả"><p className="leading-relaxed">{x.description}</p></Field>}
+      <Field label="Base URL"><code className="text-xs font-mono bg-surface-muted border border-border/70 rounded px-1.5 py-0.5 break-all">{x.baseUrl}</code></Field>
+      <Field label="Xác thực"><span className="flex items-center gap-1.5"><KeyRound size={13} className="text-muted-foreground" /> {x.authMethod} · mọi request đều ký HMAC (X-FPT-Signature)</span></Field>
+      <Field label="Trạng thái kết nối">
+        {x.endpointsOk === null ? <span className="text-muted-foreground">Chưa kiểm tra</span>
+          : x.endpointsOk ? <span className="text-success">Endpoint bắt buộc đang hoạt động</span>
+          : <span className="text-destructive">Không kết nối được — cần kiểm tra trước khi duyệt</span>}
+      </Field>
+      <Field label="Lịch sử hội thoại gửi kèm mỗi lượt">{x.historyDelivery}</Field>
+      <Field label="Host được phép cho đăng nhập người dùng">
+        {x.authorizeHosts.length ? <span className="flex flex-wrap gap-1">{x.authorizeHosts.map(h => <code key={h} className="text-xs font-mono bg-surface-muted border border-border/70 rounded px-1.5 py-0.5">{h}</code>)}</span> : <span className="text-muted-foreground">Không có</span>}
+      </Field>
+      <Field label="Guardrail">{x.guardrail ?? <span className="text-muted-foreground">Chưa gắn — vẫn áp dụng Guardrail hệ thống và doanh nghiệp</span>}</Field>
+    </ContentBlock>
+  );
+}

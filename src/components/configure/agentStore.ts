@@ -284,6 +284,8 @@ You track shipment status changes from the logistics webhook and post delivery u
   },
 ];
 
+import { externalAgentStore } from "../external-agents/externalAgentStore";
+
 const FALLBACK: Omit<AgentRecord, "id"> = {
   name: "New agent", emoji: "🤖", bg: "bg-primary-soft", accent: "bg-primary",
   status: "Draft", desc: "", model: "DeepSeek V4 Flash", convs: 0, success: 0, channels: [], updated: "Just now",
@@ -291,5 +293,13 @@ const FALLBACK: Omit<AgentRecord, "id"> = {
 };
 
 export function getAgent(id: string): AgentRecord {
-  return AGENTS.find(a => a.id === id) ?? { id, ...FALLBACK };
+  const found = AGENTS.find(a => a.id === id);
+  if (found) return found;
+  // External Agents ("ext-…") share the governance surfaces (requests, test panel, avatars) —
+  // resolve their identity from their own store instead of the "New agent" fallback.
+  if (id.startsWith("ext-")) {
+    const x = externalAgentStore.get(id);
+    if (x) return { id, ...FALLBACK, name: x.name, emoji: x.emoji, bg: x.bg, desc: x.description, model: "External", status: x.status === "published" ? "Published" : "Draft" };
+  }
+  return { id, ...FALLBACK };
 }

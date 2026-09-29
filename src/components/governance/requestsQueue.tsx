@@ -70,7 +70,10 @@ function RequestRow({ r, scope, onClick }: { r: GovRequest; scope: Scope; onClic
         <div className="flex items-center gap-3 min-w-0">
           <RequestAvatar type={r.resourceType} resourceId={r.resourceId} fallbackIcon={r.resourceIcon} />
           <div className="min-w-0">
-            <p className="font-medium truncate">{r.resourceName}{r.version && <span className="ml-2 text-xs font-normal text-muted-foreground">{r.version}</span>}</p>
+            <p className="font-medium truncate">
+              {r.resourceName}{r.version && <span className="ml-2 text-xs font-normal text-muted-foreground">{r.version}</span>}
+              {r.resourceId.startsWith("ext-") && <span className="ml-2 text-[11px] font-medium text-sky-800 bg-sky-50 border border-sky-200 rounded-full px-1.5 py-0.5 align-middle">External</span>}
+            </p>
             {requestKind(r) === "channels" ? (
               <span className="inline-flex items-center gap-1 mt-1 text-xs font-medium rounded-sm px-1.5 py-0.5 whitespace-nowrap text-sky-800 bg-sky-50">
                 Bật kênh ngoài: {(r.channelsAdded ?? []).map(channelLabel).join(", ")}

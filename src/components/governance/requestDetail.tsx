@@ -7,13 +7,13 @@ import {
 import {
   governanceStore, resourcePath, RESOURCE_TYPE_LABEL, AUDIENCE_LABEL,
   checkDrift, mainChangeState, requestDiff, type AgentResourceRef,
-  requestKind, channelLabel,
+  requestKind, channelLabel, isExternalAgentId,
 } from "@/components/governance/governanceStore";
 import { ACTION_LABEL } from "@/components/governance/auditLogStore";
 import {
   StatusBadge, ResourceTypePill, ChangeStateBadge, RequestAvatar, formatDateTime,
 } from "@/components/governance/governanceUi";
-import { AgentContentSection, ResourceContentSection, ResourceUsageSection, testConnector, type ResourceReqType } from "@/components/governance/resourceContent";
+import { AgentContentSection, ExternalAgentContentSection, ResourceContentSection, ResourceUsageSection, testConnector, type ResourceReqType } from "@/components/governance/resourceContent";
 import { AgentTestPanel } from "@/components/governance/agentTestPanel";
 import { AgentDeploymentSection, deploymentSummary } from "@/components/governance/agentDeployment";
 import { agentPublishStore } from "@/components/configure/agentPublishStore";
@@ -157,6 +157,7 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
               {/* Type pill only on Resource requests — the Agent page is single-type by definition
                   (same as its list, which has no "Loại" column). */}
               {!isAgent && <ResourceTypePill type={req.resourceType} />}
+              {req.externalSnap && <span className="text-xs font-medium text-sky-800 bg-sky-50 border border-sky-200 rounded-full px-2.5 py-1">External Agent</span>}
               {isChannelReq && <span className="text-xs font-medium text-sky-800 bg-sky-50 border border-sky-200 rounded-full px-2.5 py-1">Bật kênh ngoài</span>}
               {req.version && <span className="text-xs font-medium text-muted-foreground bg-surface-muted border border-border rounded-full px-2.5 py-1">{req.version}</span>}
               {changeState && !isChannelReq && <ChangeStateBadge state={changeState} />}
@@ -222,7 +223,7 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
               {/* Where it will be published first — who is affected is the first thing a
                   reviewer weighs; then what the Agent is. */}
               <AgentDeploymentSection req={req} />
-              <AgentContentSection req={req} />
+              {req.externalSnap || isExternalAgentId(req.resourceId) ? <ExternalAgentContentSection req={req} /> : <AgentContentSection req={req} />}
             </>
           ) : (
             <>
@@ -231,7 +232,7 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
             </>
           )}
 
-          {isAgent && (
+          {isAgent && !isExternalAgentId(req.resourceId) && (
             <AgentComponents
               agentId={req.resourceId}
               refs={req.resourceRefs ?? []}

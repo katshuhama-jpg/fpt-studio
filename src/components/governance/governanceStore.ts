@@ -40,6 +40,35 @@ import { auditLogStore } from "./auditLogStore";
 import { getAgent } from "../configure/agentStore";
 import { agentModelStore } from "../configure/agentModelStore";
 import { CHANNEL_CATALOG } from "../configure/channelCatalog";
+import { externalAgentStore } from "../external-agents/externalAgentStore";
+
+/** External Agents live under ids "ext-…" and go through the exact same Agent approval model. */
+export const isExternalAgentId = (id: string) => id.startsWith("ext-");
+/** What a reviewer needs to judge an External Agent — the connection, not model/skills. Frozen at submit. */
+export interface ExternalAgentSnap {
+  description: string;
+  baseUrl: string;
+  authMethod: string;
+  guardrail: string | null;
+  historyDelivery: string;
+  authorizeHosts: string[];
+  endpointsOk: boolean | null;
+  lastHealthCheckAt: number | null;
+}
+export function externalSnapOf(id: string): ExternalAgentSnap | undefined {
+  const a = externalAgentStore.get(id);
+  if (!a) return undefined;
+  return {
+    description: a.description,
+    baseUrl: a.baseUrl,
+    authMethod: a.authMethod === "bearer" ? "Bearer token" : a.authMethod === "headers" ? "Custom headers" : "Không xác thực",
+    guardrail: a.guardrail,
+    historyDelivery: a.historyDelivery.mode === "full" ? "Toàn bộ hội thoại" : a.historyDelivery.mode === "last_n" ? `${a.historyDelivery.lastN ?? 10} tin gần nhất` : "Không gửi",
+    authorizeHosts: a.allowedAuthorizeHosts,
+    endpointsOk: a.lastHealthCheckOk,
+    lastHealthCheckAt: a.lastHealthCheckAt,
+  };
+}
 
 const EXTRA_CHANNEL_NAMES: Record<string, string> = { teams: "Microsoft Teams", email: "Email" };
 /** Display name of an external channel id ("slack" → "Slack"). */
@@ -162,6 +191,8 @@ export interface GovRequest {
   kind?: GovRequestKind;
   /** kind "channels" only — the channels this request switches ON (ids from CHANNEL_CATALOG). */
   channelsAdded?: string[];
+  /** Set for an External Agent request (resourceId "ext-…") — its connection, frozen at submit. */
+  externalSnap?: ExternalAgentSnap;
   resourceType: GovResourceType;
   resourceId: string;
   resourceName: string;
@@ -215,9 +246,9 @@ export interface GovRequest {
   history: GovHistoryEntry[];
 }
 
-const REQ_KEY = "governance_request_store_v10";
+const REQ_KEY = "governance_request_store_v11";
 const LIVE_KEY = "governance_live_snapshots_v9";
-const SEEDED_KEY = "governance_store_seeded_v10";
+const SEEDED_KEY = "governance_store_seeded_v11";
 const DISMISSED_KEY = "governance_dismissed_rejections_v1";
 
 const store = loadMap<string, GovRequest>(REQ_KEY);
@@ -302,6 +333,7 @@ export function diffSnapshots(base: ResourceSnapshot | undefined, current: Resou
  * next to the request header so a reviewer immediately sees "Mới" / "Đã sửa" / "Không đổi". */
 export function mainChangeState(req: GovRequest): GovChangeState | null {
   if (requestKind(req) === "channels") return "modified";
+  if (req.externalSnap) return req.changeStateAtSubmit ?? null;
   // Decided requests keep the state they were submitted with (null → unknown, chip hidden).
   if (req.status !== "pending") return req.changeStateAtSubmit ?? null;
   const live = liveSnapshots.get(snapshotKey(req.resourceType, req.resourceId));
@@ -314,7 +346,7 @@ export function mainChangeState(req: GovRequest): GovChangeState | null {
  * snapshot when the resource has since been deleted, so the panel still shows *something*
  * rather than silently going blank. */
 export function requestDiff(req: GovRequest): FieldDiff[] {
-  if (requestKind(req) === "channels") return req.diffAtSubmit ?? [];
+  if (requestKind(req) === "channels" || req.externalSnap) return req.diffAtSubmit ?? [];
   if (req.status !== "pending") return req.diffAtSubmit ?? [];
   const live = liveSnapshots.get(snapshotKey(req.resourceType, req.resourceId));
   const candidate = buildSnapshot(req.resourceType, req.resourceId) ?? req.mainSnapshotAtSubmit;
@@ -325,7 +357,7 @@ export function requestDiff(req: GovRequest): FieldDiff[] {
  * request is about) been edited again since this request was submitted, and the request is still
  * awaiting a decision? Drives the drift banner on Request Detail. */
 export function checkDrift(req: GovRequest): { drifted: boolean; at?: number } {
-  if (requestKind(req) === "channels") return { drifted: false };
+  if (requestKind(req) === "channels" || req.externalSnap) return { drifted: false };
   if (req.status !== "pending") return { drifted: false };
   if (!req.mainSnapshotAtSubmit) return { drifted: false };
   const current = buildSnapshot(req.resourceType, req.resourceId);
@@ -634,7 +666,47 @@ function seed() {
     },
     [hAt("submitted", "m-plat-1", "Mai Hoang", t - 3 * HOUR)],
   );
-  const extraAgentReqs = [quoteReq, legalReq, financeReq, helpdeskReq, faqReq, salesReq, legalApiReq];
+  // External Agents — same approval model as Agents (Agent Requests queue, Role permission,
+  // Workspace scope). Statuses mirror the External Agent seed (externalAgentStore.ts).
+  const extFlightReq = mk(
+    {
+      id: "req-3001", changeStateAtSubmit: "new", resourceType: "agent", resourceId: "ext-seed-1", resourceName: "Flight Assistant",
+      resourceIcon: "✈️", requesterId: "m-plat-1", requesterName: "Mai Hoang",
+      audience: "org", scopeSummary: "Toàn công ty", channels: [],
+      workspaceTargets: [{ kind: "company", name: "FPT Smart Cloud", members: 1250 }],
+      externalSnap: externalSnapOf("ext-seed-1"),
+      note: "Trợ lý đặt vé công tác — đối tác ABC, đã ký NDA.",
+      version: "v1.0.2", status: "approved", submittedAt: t - 9 * DAY, updatedAt: t - 8 * DAY,
+      reviewerId: "m-fsoft-ceo", reviewerName: "Tran Nam", reviewNote: "Đã test tìm và giữ chỗ chuyến bay nội địa — duyệt.",
+    },
+    [hAt("submitted", "m-plat-1", "Mai Hoang", t - 9 * DAY), hAt("approved", "m-fsoft-ceo", "Tran Nam", t - 8 * DAY, "Đã test tìm và giữ chỗ chuyến bay nội địa — duyệt.")],
+  );
+  const extLegalReq = mk(
+    {
+      id: "req-3002", changeStateAtSubmit: "new", resourceType: "agent", resourceId: "ext-seed-4", resourceName: "Legal Doc Checker",
+      resourceIcon: "⚖️", requesterId: "m-plat-1", requesterName: "Mai Hoang",
+      audience: "org", scopeSummary: "Ban Pháp chế (14 người)", channels: [],
+      workspaceTargets: [{ kind: "department", name: "Ban Pháp chế", members: 14 }],
+      externalSnap: externalSnapOf("ext-seed-4"),
+      note: "Agent đối tác rà soát điều khoản hợp đồng theo chính sách công ty — dùng thử cho Ban Pháp chế.",
+      version: "v1.0.1", status: "pending", submittedAt: t - 5 * HOUR, updatedAt: t - 5 * HOUR,
+    },
+    [hAt("submitted", "m-plat-1", "Mai Hoang", t - 5 * HOUR)],
+  );
+  const extWarehouseReq = mk(
+    {
+      id: "req-3003", changeStateAtSubmit: "new", resourceType: "agent", resourceId: "ext-seed-5", resourceName: "Warehouse Bot",
+      resourceIcon: "📦", requesterId: "m-fsoft-vn-1", requesterName: "Duy Nguyen",
+      audience: "org", scopeSummary: "Phòng Vận hành (18 người)", channels: [],
+      workspaceTargets: [{ kind: "department", name: "Phòng Vận hành", members: 18 }],
+      externalSnap: externalSnapOf("ext-seed-5"),
+      note: "Tra tồn kho và gợi ý nhập hàng.",
+      version: "v1.0.1", status: "rejected", submittedAt: t - 2 * DAY, updatedAt: t - 1 * DAY,
+      reviewerId: "m-fsoft-ceo", reviewerName: "Tran Nam", reviewNote: "Domain wh.partner.io chưa có trong danh sách đối tác được phê duyệt.",
+    },
+    [hAt("submitted", "m-fsoft-vn-1", "Duy Nguyen", t - 2 * DAY), hAt("rejected", "m-fsoft-ceo", "Tran Nam", t - 1 * DAY, "Domain wh.partner.io chưa có trong danh sách đối tác được phê duyệt.")],
+  );
+  const extraAgentReqs = [quoteReq, legalReq, financeReq, helpdeskReq, faqReq, salesReq, legalApiReq, extFlightReq, extLegalReq, extWarehouseReq];
 
   [agentReq, kbReq, skillReq, guardrailReq, connectorReq, agentCleanReq, ...extraAgentReqs].forEach(r => store.set(r.id, r));
   persist();
@@ -805,7 +877,7 @@ export const governanceStore = {
     resourceRefs?: AgentResourceRef[]; scopeSummary?: string; channels?: string[]; workspaceTargets?: WorkspaceTarget[];
     connections?: AgentConnectionSnap[]; subAgents?: SubAgentSnap[]; starterPrompts?: string[];
     model?: string; privateKnowledge?: { name: string; kind: "doc" | "url" | "faq" }[];
-    kind?: GovRequestKind; channelsAdded?: string[];
+    kind?: GovRequestKind; channelsAdded?: string[]; externalSnap?: ExternalAgentSnap;
   }): GovRequest {
     seed();
     const kind = input.kind ?? "publish";
@@ -828,8 +900,8 @@ export const governanceStore = {
       submittedAt: t, updatedAt: t, resourceRefs: input.resourceRefs, channels: input.channels, workspaceTargets: input.workspaceTargets,
       connections: input.connections, subAgents: input.subAgents, starterPrompts: input.starterPrompts,
       model: input.model, privateKnowledge: input.privateKnowledge,
-      kind, channelsAdded,
-      mainSnapshotAtSubmit: buildSnapshot(input.resourceType, input.resourceId),
+      kind, channelsAdded, externalSnap: input.externalSnap,
+      mainSnapshotAtSubmit: input.externalSnap ? undefined : buildSnapshot(input.resourceType, input.resourceId),
       ...(kind === "channels" ? (() => {
         const before = input.channels ?? [];
         const after = [...new Set([...before, ...(channelsAdded ?? [])])];
@@ -838,6 +910,14 @@ export const governanceStore = {
           changeStateAtSubmit: "modified" as GovChangeState,
           diffAtSubmit: [{ key: "channels", label: "Kênh ngoài", before: before.map(channelLabel).join(", ") || "Chưa có", after: after.map(channelLabel).join(", ") }],
         };
+      })() : input.externalSnap ? (() => {
+        // External Agent: diff its connection against the last approved External request.
+        const prev = [...store.values()].filter(r => r.resourceId === input.resourceId && r.status === "approved" && r.externalSnap && requestKind(r) === "publish")
+          .sort((a, b) => b.updatedAt - a.updatedAt)[0]?.externalSnap;
+        const cur = input.externalSnap!;
+        const fields: [keyof ExternalAgentSnap, string][] = [["description", "Mô tả"], ["baseUrl", "Base URL"], ["authMethod", "Xác thực"], ["guardrail", "Guardrail"], ["historyDelivery", "Lịch sử hội thoại gửi kèm"]];
+        const diff = prev ? fields.filter(([k]) => String(prev[k] ?? "") !== String(cur[k] ?? "")).map(([k, label]) => ({ key: String(k), label, before: String(prev[k] ?? "—"), after: String(cur[k] ?? "—") })) : [];
+        return { changeStateAtSubmit: (prev ? (diff.length ? "modified" : "unchanged_approved") : "new") as GovChangeState, diffAtSubmit: diff };
       })() : (() => {
         const live = liveSnapshots.get(snapshotKey(input.resourceType, input.resourceId));
         const candidate = buildSnapshot(input.resourceType, input.resourceId);
@@ -847,6 +927,12 @@ export const governanceStore = {
     };
     store.set(id, req);
     persist();
+    if (isExternalAgentId(input.resourceId) && kind === "publish") {
+      const ext = externalAgentStore.get(input.resourceId);
+      // A live External Agent stays "published" while its next version waits; otherwise it's pending.
+      if (ext && ext.status !== "published") externalAgentStore.applyGovernance(input.resourceId, { status: "pending_approval", rejection: null }, `Đã gửi yêu cầu duyệt ${input.version ?? ""}`.trim(), input.note || undefined);
+      else if (ext) externalAgentStore.applyGovernance(input.resourceId, {}, `Đã gửi yêu cầu duyệt ${input.version ?? ""}`.trim(), input.note || undefined);
+    }
     auditLogStore.log({
       actorId: input.requesterId, actorName: input.requesterName, action: "submitted",
       resourceType: input.resourceType, resourceId: input.resourceId, resourceName: input.resourceName,
@@ -867,6 +953,11 @@ export const governanceStore = {
     r.history.push(historyEntry("withdrawn", actorId, actorName, note));
     store.set(id, r);
     persist();
+    if (isExternalAgentId(r.resourceId) && requestKind(r) === "publish") {
+      const live = agentPublishStore.get(r.resourceId).placement !== null;
+      const ext = externalAgentStore.get(r.resourceId);
+      if (ext && ext.status === "pending_approval") externalAgentStore.applyGovernance(r.resourceId, { status: live ? "published" : "draft" }, `Đã rút yêu cầu ${r.version ?? ""}`.trim());
+    }
     auditLogStore.log({ actorId, actorName, action: "withdrawn", resourceType: r.resourceType, resourceId: r.resourceId, resourceName: r.resourceName, requestId: id, note, at: t, detail: auditDetail(r) });
     return r;
   },
@@ -886,13 +977,15 @@ export const governanceStore = {
       store.set(id, r);
       persist();
       const current = agentPublishStore.get(r.resourceId);
-      agentPublishStore.setChannels(r.resourceId, [...new Set([...current.channels, ...(r.channelsAdded ?? [])])]);
+      const nextChannels = [...new Set([...current.channels, ...(r.channelsAdded ?? [])])];
+      agentPublishStore.setChannels(r.resourceId, nextChannels);
+      if (isExternalAgentId(r.resourceId)) externalAgentStore.applyGovernance(r.resourceId, { channels: nextChannels }, `Đã duyệt bật kênh ${(r.channelsAdded ?? []).map(channelLabel).join(", ")}`);
       auditLogStore.log({ actorId: reviewerId, actorName: reviewerName, action: "approved", resourceType: r.resourceType, resourceId: r.resourceId, resourceName: r.resourceName, requestId: id, note, at: t, detail: auditDetail(r) });
       return r;
     }
 
     // Promote the resource's current fields to "live" — the only thing an approval does.
-    const mainSnap = buildSnapshot(r.resourceType, r.resourceId);
+    const mainSnap = r.externalSnap ? undefined : buildSnapshot(r.resourceType, r.resourceId);
     if (mainSnap) liveSnapshots.set(snapshotKey(r.resourceType, r.resourceId), mainSnap);
     persistLive();
     store.set(id, r);
@@ -905,6 +998,7 @@ export const governanceStore = {
       agentPublishStore.publish(r.resourceId, "workspace", current.channels, r.version ?? current.version, r.audience === "group" ? "group" : r.audience === "community" ? "community" : "org",
         { scopeSummary: r.scopeSummary ?? (r.audience === "community" ? "Cộng đồng FPT AI Agent" : current.scopeSummary), groupId: current.groupId, via: "approved" });
       agentPublishStore.clearRegovernanceFlag(r.resourceId);
+      if (isExternalAgentId(r.resourceId)) externalAgentStore.applyGovernance(r.resourceId, { status: "published", version: r.version ?? current.version, rejection: null, channels: current.channels }, `Đã được duyệt ${r.version ?? ""} bởi ${reviewerName}`.trim(), note);
     }
 
     auditLogStore.log({ actorId: reviewerId, actorName: reviewerName, action: "approved", resourceType: r.resourceType, resourceId: r.resourceId, resourceName: r.resourceName, requestId: id, note, at: t, detail: auditDetail(r) });
@@ -922,6 +1016,10 @@ export const governanceStore = {
     r.history.push(historyEntry("rejected", reviewerId, reviewerName, reason));
     store.set(id, r);
     persist();
+    if (isExternalAgentId(r.resourceId) && requestKind(r) === "publish") {
+      const live = agentPublishStore.get(r.resourceId).placement !== null;
+      externalAgentStore.applyGovernance(r.resourceId, { status: live ? "published" : "rejected", rejection: { at: t, by: reviewerName, reason } }, `${reviewerName} từ chối ${r.version ?? ""}`.trim(), reason);
+    }
     auditLogStore.log({ actorId: reviewerId, actorName: reviewerName, action: "rejected", resourceType: r.resourceType, resourceId: r.resourceId, resourceName: r.resourceName, requestId: id, note: reason, at: t, detail: auditDetail(r) });
     return r;
   },
@@ -950,6 +1048,7 @@ export const governanceStore = {
       liveSnapshots.delete(snapshotKey(r.resourceType, r.resourceId));
       persistLive();
       if (r.resourceType === "agent") agentPublishStore.unpublish(r.resourceId);
+      if (isExternalAgentId(r.resourceId)) externalAgentStore.applyGovernance(r.resourceId, { status: "draft", channels: [] }, `${reviewerName} thu hồi ${r.version ?? ""}`.trim(), reason);
     }
 
     auditLogStore.log({ actorId: reviewerId, actorName: reviewerName, action: "revoked", resourceType: r.resourceType, resourceId: r.resourceId, resourceName: r.resourceName, requestId: id, note: reason, at: t, detail: auditDetail(r) });
@@ -962,7 +1061,7 @@ export const governanceStore = {
  * pages that accept a ?open= query to jump straight to the item). */
 export function resourcePath(type: GovResourceType, id: string): string {
   switch (type) {
-    case "agent": return `/agents/${id}`;
+    case "agent": return isExternalAgentId(id) ? `/external-agents/${id}` : `/agents/${id}`;
     case "knowledge": return `/knowledge/${id}`;
     case "skill": return `/tools/${id}`;
     case "guardrail": return `/guardrails?open=${id}`;
@@ -971,5 +1070,6 @@ export function resourcePath(type: GovResourceType, id: string): string {
 }
 
 export function agentEmoji(agentId: string): string | undefined {
+  if (isExternalAgentId(agentId)) return externalAgentStore.get(agentId)?.emoji;
   try { return getAgent(agentId)?.emoji; } catch { return undefined; }
 }

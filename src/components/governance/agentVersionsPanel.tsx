@@ -10,7 +10,7 @@ import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { AgentDeploymentSection } from "./agentDeployment";
-import { AgentContentSection } from "./resourceContent";
+import { AgentContentSection, ExternalAgentContentSection } from "./resourceContent";
 import { ExternalLink, Undo2, RotateCcw, Send, Pencil, ChevronRight, Clock, CheckCircle2, Circle, XCircle, Info } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -18,7 +18,8 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { agentPublishStore, type ReleaseEntry, type PublishAudience } from "../configure/agentPublishStore";
-import { governanceStore, requestKind, channelLabel, requestDiff, type GovRequest } from "./governanceStore";
+import { governanceStore, requestKind, channelLabel, requestDiff, isExternalAgentId, type GovRequest } from "./governanceStore";
+import { externalAgentStore } from "../external-agents/externalAgentStore";
 import { auditLogStore } from "./auditLogStore";
 import { formatDateTime } from "./governanceUi";
 import { getAgent } from "../configure/agentStore";
@@ -122,8 +123,10 @@ export function agentVersionRows(agentId: string): VersionRow[] {
 
 const FILTERS: (VersionStatus | "all")[] = ["all", "live", "pending", "rejected", "withdrawn", "revoked", "previous"];
 
-export function AgentVersionsPanel({ agentId, onPublish, onChanged }: {
+export function AgentVersionsPanel({ agentId, agentName, onPublish, onChanged }: {
   agentId: string;
+  /** Display name — required for External Agents (not in the internal Agent store). */
+  agentName?: string;
   onPublish: () => void;
   onChanged: () => void;
 }) {
@@ -151,9 +154,10 @@ export function AgentVersionsPanel({ agentId, onPublish, onChanged }: {
     agentPublishStore.publish(agentId, "workspace", rel.channels, rel.version, rel.audience, { scopeSummary: rel.scopeSummary, groupId: rel.groupId, via: "rollback", byName: CURRENT_USER.name });
     auditLogStore.log({
       actorId: CURRENT_USER.id, actorName: CURRENT_USER.name, action: "rolled_back",
-      resourceType: "agent", resourceId: agentId, resourceName: getAgent(agentId).name,
+      resourceType: "agent", resourceId: agentId, resourceName: agentName ?? getAgent(agentId).name,
       note: `Khôi phục ${rel.version} (thay cho ${liveRow?.version ?? "bản đang live"})`, at: Date.now(),
     });
+    if (isExternalAgentId(agentId)) externalAgentStore.applyGovernance(agentId, { status: "published", version: rel.version, channels: rel.channels }, `Khôi phục ${rel.version}`);
     toast.success(`Đã khôi phục ${rel.version}. Người dùng đang dùng lại bản này.`);
     setRollback(null);
     refresh();
@@ -410,7 +414,7 @@ function VersionDetailSheet({ row, liveVersion, onClose, onPublish, onRollback, 
               {req ? (
                 <>
                   <AgentDeploymentSection req={req} />
-                  <AgentContentSection req={req} />
+                  {req.externalSnap ? <ExternalAgentContentSection req={req} /> : <AgentContentSection req={req} />}
                 </>
               ) : (
                 <div className="rounded-lg border border-border px-3.5 py-3 text-sm space-y-1">

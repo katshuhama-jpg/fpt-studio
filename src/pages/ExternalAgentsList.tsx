@@ -14,6 +14,7 @@ import {
   DeleteExternalAgentDialog, PauseExternalAgentDialog,
 } from "@/components/external-agents/ExternalAgentDialogs";
 import { toast } from "sonner";
+import { AgentVersionLines } from "@/components/governance/governanceUi";
 
 // Friendlier pill-style status for the card grid — same .chip pattern as the internal Agent's
 // RecentAgentCard (Home.tsx), distinct from the small formal StatusBadge used elsewhere (detail
@@ -82,11 +83,11 @@ function RowMenu({ agent, isAdmin, onOpen, onEdit, onSubmit, onPauseResume, onDe
   switch (agent.status) {
     case "draft":
       items.push({ label: "Edit connection", onClick: onEdit });
-      if (agent.lastValidation?.passed) items.push({ label: "Submit for approval", onClick: onSubmit });
+      if (agent.lastValidation?.passed) items.push({ label: "Publish", onClick: onSubmit });
       break;
     case "rejected":
       items.push({ label: "Edit connection", onClick: onEdit });
-      items.push({ label: "Submit again", onClick: onSubmit });
+      items.push({ label: "Sửa & gửi lại", onClick: onSubmit });
       break;
     case "published":
       items.push({ label: "Edit connection", onClick: onEdit });
@@ -342,9 +343,12 @@ export default function ExternalAgentsList() {
                     </div>
                     <div className="flex-1 min-w-0 pt-0.5">
                       <h3 className="font-semibold text-sm leading-snug truncate mb-1.5">{a.name}</h3>
-                      <span className={`chip ${STATUS_CHIP[a.status].chipClass} w-fit`}>
-                        <span className="w-1.5 h-1.5 rounded-full bg-current" /> {STATUS_CHIP[a.status].label}
-                      </span>
+                      {/* Same version lines as Agent cards: what users are on + the latest request. */}
+                      {a.status === "paused" ? (
+                        <span className={`chip ${STATUS_CHIP[a.status].chipClass} w-fit`}>
+                          <span className="w-1.5 h-1.5 rounded-full bg-current" /> {STATUS_CHIP[a.status].label}
+                        </span>
+                      ) : <AgentVersionLines agentId={a.id} />}
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 flex-1 mb-4">{a.description || "No description"}</p>
@@ -355,11 +359,7 @@ export default function ExternalAgentsList() {
                       isAdmin={isAdmin}
                       onOpen={() => navigate(`/external-agents/${a.id}`)}
                       onEdit={() => setEditTarget(a)}
-                      onSubmit={() => {
-                        externalAgentStore.submitForApproval(a.id);
-                        toast.success(`"${a.name}" was submitted for approval.`);
-                        refresh();
-                      }}
+                      onSubmit={() => navigate(`/external-agents/${a.id}?openPublish=1`)}
                       onPauseResume={() => {
                         if (a.status === "published") setPauseTarget(a);
                         else { externalAgentStore.resume(a.id); toast.success(`"${a.name}" is published again.`); refresh(); }

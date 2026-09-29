@@ -5,7 +5,7 @@ import {
   PencilEdit01Icon, FlaskConicalIcon, GridViewIcon, Analytics01Icon,
   ChevronLeftIcon, ChevronRightIcon, MoreHorizontalIcon, Copy01Icon, Tick02Icon, Loading01Icon,
   Alert01Icon, Globe02Icon, FileEditIcon, BookOpen01Icon,
-  PanelLeftOpenIcon, PanelLeftCloseIcon,
+  PanelLeftOpenIcon, PanelLeftCloseIcon, HistoryIcon, Rocket01Icon, Cancel01Icon,
 } from "@hugeicons/core-free-icons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -15,7 +15,12 @@ import {
 } from "@/components/external-agents/externalAgentStore";
 import { StatusBadge, relativeTime } from "@/components/external-agents/statusMeta";
 import ConnectExternalAgentModal from "@/components/external-agents/ConnectExternalAgentModal";
-import ExternalAgentPublishModal from "@/components/external-agents/ExternalAgentPublishModal";
+import { PublishModal } from "@/pages/AgentBuilder";
+import { AgentStatusCluster } from "@/components/governance/agentStatusCluster";
+import { AgentVersionsPanel } from "@/components/governance/agentVersionsPanel";
+import { governanceStore } from "@/components/governance/governanceStore";
+import { formatDateTime } from "@/components/governance/governanceUi";
+import { agentPublishStore } from "@/components/configure/agentPublishStore";
 import {
   DeleteExternalAgentDialog, PauseExternalAgentDialog, RejectExternalAgentDialog,
 } from "@/components/external-agents/ExternalAgentDialogs";
@@ -140,6 +145,16 @@ export default function ExternalAgentDetail() {
   // error-state Retry button, which genuinely needs to re-run the fetch attempt.
   const refresh = () => setAgent(externalAgentStore.get(id));
   const hardRefresh = () => setTick(t => t + 1);
+  // Governance state (same model as internal Agents): live version/scope, pending/rejected request.
+  const [govTick, setGovTick] = useState(0);
+  const govChanged = () => { setGovTick(t => t + 1); refresh(); };
+  const section = params.get("section") === "versions" ? "versions" : "instructions";
+  const publishState = (() => { void govTick; return agentPublishStore.get(id); })();
+  const pendingReq = (() => { void govTick; return governanceStore.getOpenRequestForResource("agent", id); })();
+  const latestReq = (() => { void govTick; return governanceStore.latestForResource("agent", id); })();
+  const rejectedReq = !pendingReq && latestReq?.status === "rejected" ? latestReq : undefined;
+  const [rejectTick, setRejectTick] = useState(0);
+  const showRejectCallout = (() => { void rejectTick; return !!rejectedReq && !governanceStore.isRejectionDismissed(rejectedReq.id); })();
 
   // Lets other pages (e.g. the list view, after creating/editing an agent) hand off into
   // opening the Publish modal here via a one-shot ?openPublish=1 query param.
@@ -247,57 +262,27 @@ export default function ExternalAgentDetail() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <StatusBadge status={agent.status} />
-          {agent.status === "published" && (
-            <span className="px-1.5 py-0.5 rounded bg-surface-muted text-xs text-muted-foreground whitespace-nowrap">Workspace · {agent.version}</span>
-          )}
-
-          {agent.status === "draft" && (
-            <div className="flex items-center gap-2 flex-wrap">
-              {!validationPassed && (
-                <span className="text-sm text-muted-foreground max-w-[200px] text-right leading-tight">
-                  Validate your connection first.
-                </span>
-              )}
-              <button
-                disabled={!validationPassed}
-                onClick={() => setShowPublishModal(true)}
-                className="btn-primary h-9 whitespace-nowrap disabled:opacity-40 disabled:pointer-events-none"
-              >
-                Submit for approval
-              </button>
-            </div>
-          )}
-
-          {agent.status === "pending_approval" && (
-            <div className="flex items-center gap-2 flex-wrap">
-              <button
-                onClick={() => setShowReject(true)}
-                className="h-9 px-4 rounded-lg border border-destructive/30 text-destructive hover:bg-[hsl(var(--destructive-soft))] text-sm font-medium transition-base whitespace-nowrap"
-              >
-                Reject
-              </button>
-              <button
-                onClick={() => {
-                  externalAgentStore.approve(agent.id);
-                  toast.success(`"${agent.name}" was approved and is now published.`);
-                  refresh();
-                }}
-                className="btn-primary h-9 whitespace-nowrap"
-              >
-                Approve
-              </button>
-            </div>
-          )}
-
-          {agent.status === "rejected" && (
-            <button
-              onClick={() => setShowPublishModal(true)}
-              className="btn-primary h-9 whitespace-nowrap"
-            >
-              Submit again
-            </button>
-          )}
+          {agent.status === "paused" && <StatusBadge status={agent.status} />}
+          <AgentStatusCluster
+            publishState={publishState}
+            isAutomation={false}
+            pending={pendingReq}
+            rejected={rejectedReq}
+            rejectBannerVisible={showRejectCallout}
+            onChanged={govChanged}
+            onOpenVersions={() => setParams({ tab: "build", section: "versions" })}
+            onOpenVersion={v => setParams({ tab: "build", section: "versions", v })}
+            onPublish={() => validationPassed && setShowPublishModal(true)}
+            onShowRejectBanner={() => { if (rejectedReq) { governanceStore.restoreRejection(rejectedReq.id); setRejectTick(t => t + 1); } }}
+          />
+          <button
+            disabled={!validationPassed || agent.status === "paused"}
+            title={!validationPassed ? "Kiểm tra kết nối trước khi publish." : agent.status === "paused" ? "Resume Agent trước khi publish." : undefined}
+            onClick={() => setShowPublishModal(true)}
+            className="btn-primary h-9 whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <HugeiconsIcon icon={Rocket01Icon} size={13} /> Publish
+          </button>
 
           {agent.status === "published" && isAdmin && (
             <button onClick={() => setShowPause(true)} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base whitespace-nowrap">Pause</button>
@@ -372,13 +357,20 @@ export default function ExternalAgentDetail() {
               }}
             >
               <nav className="shrink-0 px-2 pt-2 pb-1 flex flex-col" style={{ gap: "4px" }}>
-                <button
-                  style={{ height: "36px", fontSize: "14px" }}
-                  className="w-full flex items-center rounded-lg px-2.5 transition-base shrink-0 bg-primary-soft text-primary font-medium"
-                >
-                  <HugeiconsIcon icon={FileEditIcon} size={18} className="shrink-0" />
-                  <span className="flex-1 text-left truncate ml-2.5">Instructions</span>
-                </button>
+                {([
+                  { id: "instructions", label: "Instructions", icon: FileEditIcon },
+                  { id: "versions", label: "Phiên bản", icon: HistoryIcon },
+                ] as const).map(it => (
+                  <button
+                    key={it.id}
+                    onClick={() => setParams({ tab: "build", ...(it.id === "versions" ? { section: "versions" } : {}) })}
+                    style={{ height: "36px", fontSize: "14px" }}
+                    className={`w-full flex items-center rounded-lg px-2.5 transition-base shrink-0 ${section === it.id ? "bg-primary-soft text-primary font-medium" : "text-foreground hover:bg-surface-muted"}`}
+                  >
+                    <HugeiconsIcon icon={it.icon} size={18} className="shrink-0" />
+                    <span className="flex-1 text-left truncate ml-2.5">{it.label}</span>
+                  </button>
+                ))}
               </nav>
 
               <div className="flex-1" />
@@ -408,6 +400,11 @@ export default function ExternalAgentDetail() {
                 </button>
               </div>
             </aside>
+          {section === "versions" ? (
+            <div className="flex-1 overflow-y-auto">
+              <AgentVersionsPanel key={govTick} agentId={agent.id} agentName={agent.name} onPublish={() => setShowPublishModal(true)} onChanged={govChanged} />
+            </div>
+          ) : (
           <div className="flex-1 overflow-y-auto p-4 sm:p-8">
             <div className="space-y-4">
               {sidebarCollapsed && (
@@ -475,12 +472,25 @@ export default function ExternalAgentDetail() {
                 </div>
               )}
 
-              {agent.status === "rejected" && agent.rejection && (
-                <div className="flex items-start gap-2.5 rounded-lg border border-destructive/25 bg-[hsl(var(--destructive-soft))] px-3.5 py-3">
-                  <HugeiconsIcon icon={Alert01Icon} size={14} className="shrink-0 mt-0.5 text-destructive" />
-                  <p className="text-sm text-destructive leading-relaxed min-w-0 flex-1">
-                    Rejected: {agent.rejection.reason}
-                  </p>
+              {rejectedReq && showRejectCallout && (
+                <div role="status" className="rounded-xl border border-destructive/20 bg-white shadow-soft flex items-start gap-3 pl-3 pr-2 py-2.5 border-l-[3px] border-l-destructive">
+                  <span className="w-8 h-8 rounded-lg bg-destructive/10 text-destructive flex items-center justify-center shrink-0">
+                    <HugeiconsIcon icon={Alert01Icon} size={16} />
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-foreground">
+                      Bản <span className="font-mono">{rejectedReq.version}</span> chưa được duyệt
+                      <span className="font-normal text-muted-foreground"> · {rejectedReq.reviewerName ?? "Admin"} góp ý lúc {formatDateTime(rejectedReq.updatedAt)}</span>
+                    </p>
+                    {rejectedReq.reviewNote && <p className="text-sm text-foreground/80 mt-0.5 leading-relaxed line-clamp-2">“{rejectedReq.reviewNote}”</p>}
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0 self-center">
+                    <button onClick={() => rejectedReq.version && setParams({ tab: "build", section: "versions", v: rejectedReq.version })} className="h-8 px-3 rounded-lg text-xs font-medium hover:bg-surface-muted">Xem chi tiết</button>
+                    <button onClick={() => setShowPublishModal(true)} className="h-8 px-3 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium">Sửa &amp; gửi lại</button>
+                    <button onClick={() => { governanceStore.dismissRejection(rejectedReq.id); setRejectTick(t => t + 1); }} aria-label="Ẩn thông báo" title="Ẩn thông báo" className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-surface-muted flex items-center justify-center">
+                      <HugeiconsIcon icon={Cancel01Icon} size={15} />
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -619,11 +629,12 @@ export default function ExternalAgentDetail() {
               </div>
             </div>
           </div>
+          )}
           </>
         )}
 
         {tab === "test" && <ExternalAgentTestTab agent={agent} />}
-        {tab === "channels" && <ExternalAgentChannelsTab agent={agent} onRefresh={refresh} />}
+        {tab === "channels" && <ExternalAgentChannelsTab agent={agent} onRefresh={govChanged} onViewVersions={() => setParams({ tab: "build", section: "versions" })} />}
         {tab === "insights" && <ExternalAgentInsightsTab agentId={agent.id} />}
       </div>
 
@@ -639,15 +650,16 @@ export default function ExternalAgentDetail() {
         }}
       />
 
-      <ExternalAgentPublishModal
-        agent={agent}
-        open={showPublishModal}
-        onClose={() => setShowPublishModal(false)}
-        onPublished={() => {
-          setJustUnpublished(false);
-          refresh();
-        }}
-      />
+      {showPublishModal && (
+        <PublishModal
+          agentId={agent.id}
+          agentName={agent.name}
+          external={agent}
+          onClose={() => setShowPublishModal(false)}
+          onPublished={() => { setJustUnpublished(false); govChanged(); }}
+          onManageChannels={() => { setShowPublishModal(false); setTab("channels"); }}
+        />
+      )}
 
       <PauseExternalAgentDialog
         name={agent.name}

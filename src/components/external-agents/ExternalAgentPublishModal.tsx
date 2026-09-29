@@ -23,7 +23,7 @@ interface ChangeRow { id: string; label: string; kind: "diff" | "count"; marker:
  * built from External Agent fields: Instructions (the description text) gets a line-diff row
  * like the internal Agent's Instructions/Model, Endpoints gets a count row like the internal
  * Agent's Connectors row, and Guardrail only appears when one is actually attached. */
-function mockExternalChanges(agent: ExternalAgent): ChangeRow[] {
+export function mockExternalChanges(agent: ExternalAgent): ChangeRow[] {
   const out: ChangeRow[] = [];
   const h = hashString(agent.id);
   const descLines = Math.max(1, agent.description.trim().split(/\n+/).filter(Boolean).length + (h % 6));

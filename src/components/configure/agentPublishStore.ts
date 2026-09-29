@@ -63,7 +63,7 @@ export interface ReleaseEntry {
   byName?: string;
 }
 
-const STORE_KEY = "agent_publish_store_v3";
+const STORE_KEY = "agent_publish_store_v4";
 const RELEASE_KEY = "agent_release_log_v1";
 const releaseLog = loadMap<string, ReleaseEntry[]>(RELEASE_KEY);
 const persistReleases = () => saveMap(RELEASE_KEY, releaseLog);
@@ -79,12 +79,14 @@ const SEED_RELEASES: Record<string, Omit<ReleaseEntry, "at">[]> = {
     { version: "v1.2.0", audience: "org", scopeSummary: "Phòng Vận hành (18 người)", channels: ["web"], via: "approved" },
     { version: "v1.3.0", audience: "org", scopeSummary: "FPT Smart Cloud (35 người)", channels: ["web", "api"], via: "approved" },
   ],
+  "ext-seed-1": [{ version: "v1.0.2", audience: "org", scopeSummary: "Toàn công ty", channels: ["web", "api"], via: "approved" }],
+  "ext-seed-2": [{ version: "v1.1.0", audience: "org", scopeSummary: "Phòng Nhân sự (36 người)", channels: ["web"], via: "approved" }],
   cskh: [{ version: "v2.0.0", audience: "org", scopeSummary: "Phòng Chăm sóc khách hàng (22 người)", channels: ["web", "zalo"], via: "approved" }],
   "sales-quote": [{ version: "v1.0.0", audience: "org", scopeSummary: "Phòng Kinh doanh (48 người)", channels: [], via: "approved" }],
   "finance-check": [{ version: "v1.2.0", audience: "org", scopeSummary: "Phòng Tài chính (14 người)", channels: ["slack"], via: "approved" }],
   "legal-review": [{ version: "v1.1.0", audience: "org", scopeSummary: "Ban Pháp chế (14 người)", channels: ["slack"], via: "approved" }],
 };
-const SEEDED_KEY = "agent_publish_store_seeded_v3";
+const SEEDED_KEY = "agent_publish_store_seeded_v4";
 const store = loadMap<string, AgentPublishState>(STORE_KEY);
 const seededAgents = loadSet<string>(SEEDED_KEY);
 const persist = () => saveMap(STORE_KEY, store);
@@ -98,6 +100,9 @@ const AUTO_PUBLISHED_SEED: Record<string, AgentPublishState> = {
   // live version/audience/channels match the approved requests there, so the Builder pill,
   // Deploy tab and review page all tell the same story.
   faq: { placement: "workspace", audience: "org", channels: ["web"], version: "v1.1.0", scopeSummary: "Toàn công ty" },
+  // External Agents that are live (externalAgentStore seed) — same publish model as Agents.
+  "ext-seed-1": { placement: "workspace", audience: "org", channels: ["web", "api"], version: "v1.0.2", scopeSummary: "Toàn công ty" },
+  "ext-seed-2": { placement: "workspace", audience: "org", channels: ["web"], version: "v1.1.0", scopeSummary: "Phòng Nhân sự (36 người)" },
   cskh: { placement: "workspace", audience: "org", channels: ["web", "zalo"], version: "v2.0.0", scopeSummary: "Phòng Chăm sóc khách hàng (22 người)" },
   "sales-quote": { placement: "workspace", audience: "org", channels: [], version: "v1.0.0", scopeSummary: "Phòng Kinh doanh (48 người)" },
   ops: { placement: "workspace", audience: "org", channels: ["web", "api"], version: "v1.3.0", scopeSummary: "FPT Smart Cloud (35 người)" },

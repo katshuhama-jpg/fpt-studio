@@ -77,7 +77,9 @@ import {
 import { knowledgeStore, OWN_KB_ID, type KnowledgeItem } from "@/components/knowledge/knowledgeStore";
 import { isAccessibleTo as isSkillAccessibleTo } from "@/components/configure/skillSharing";
 import { knowledgeBaseStore, CURRENT_USER as KB_CURRENT_USER, isViewOnly as isKbViewOnly, isAccessibleTo as isKbAccessibleTo, type KnowledgeBase } from "@/components/knowledge/knowledgeBaseStore";
-import { governanceStore, listAgentResourceRefs, agentEmoji } from "@/components/governance/governanceStore";
+import { governanceStore, listAgentResourceRefs, agentEmoji, externalSnapOf } from "@/components/governance/governanceStore";
+import { externalAgentStore, type ExternalAgent } from "@/components/external-agents/externalAgentStore";
+import { mockExternalChanges } from "@/components/external-agents/ExternalAgentPublishModal";
 import { auditLogStore } from "@/components/governance/auditLogStore";
 import { PendingRequestPill } from "@/components/governance/agentRequestPill";
 import { agentModelStore, modelName } from "@/components/configure/agentModelStore";
@@ -4173,9 +4175,14 @@ function PublishChannelStatusRow({ ch }: { ch: ChannelCatalogEntry }) {
   );
 }
 
-function PublishModal({ agentId, agentName, onClose, onPublished, onManageChannels, onManageTriggers }: {
+/** The one Publish modal for every Agent — internal Agents and External Agents (pass `external`)
+ * share the same scope choices, review rules, versioning, pending/withdraw logic and requests. */
+export function PublishModal({ agentId, agentName, onClose, onPublished, onManageChannels, onManageTriggers, external }: {
   agentId: string; agentName: string; onClose: () => void; onPublished?: () => void;
   onManageChannels?: () => void; onManageTriggers?: () => void;
+  /** External Agent being published — swaps the internal-only parts (model, knowledge, change
+   * list) for the External Agent's connection snapshot, and keeps its own status in sync. */
+  external?: ExternalAgent;
 }) {
   const agentTriggers = triggerStore.list(agentId);
   const triggerCount = agentTriggers.length;
@@ -4191,11 +4198,19 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
   const pendingRequest = governanceStore.getOpenRequestForResource("agent", agentId);
   // What the Admin reviews = exactly what this submission contains: the Agent's current model,
   // the external channels configured on its Deploy tab, and its own (Agent-private) knowledge.
-  const requestSnapshot = () => ({
-    model: agentModelStore.label(agentId),
-    channels: [...current.channels],
-    privateKnowledge: knowledgeStore.list(agentId).map(k => ({ name: k.kind === "url" ? (k.title || k.name) : k.name, kind: k.kind })),
-  });
+  const requestSnapshot = () => external
+    ? { channels: [...current.channels], externalSnap: externalSnapOf(agentId) }
+    : {
+        model: agentModelStore.label(agentId),
+        channels: [...current.channels],
+        privateKnowledge: knowledgeStore.list(agentId).map(k => ({ name: k.kind === "url" ? (k.title || k.name) : k.name, kind: k.kind })),
+      };
+  // A direct (no-review) publish of an External Agent also flips its own status to published.
+  const syncExternalLive = () => {
+    if (!external) return;
+    const live = agentPublishStore.get(agentId);
+    externalAgentStore.applyGovernance(agentId, { status: "published", version: versionName, rejection: null, channels: live.channels }, `Đã publish ${versionName} (phạm vi không cần duyệt)`);
+  };
   const parseVer = (v?: string) => (v ?? "v0.0.0").replace(/^v/, "").split(".").map(n => Number(n) || 0);
   const cmpVer = (a: number[], b: number[]) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
   // Also never reuse the number of a rejected/withdrawn request — "v1.0.2 bị từ chối" followed by a
@@ -4221,7 +4236,11 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
   })();
   const versionName = `v${newVersion.join(".")}`;
 
-  const changes = mockPublishChanges(agentId);
+  const changes: PublishChange[] = external
+    ? mockExternalChanges(external).map(c => c.kind === "diff"
+        ? { id: c.id, label: c.label, marker: c.marker, kind: "diff" as const, before: c.before, after: c.after }
+        : { id: c.id, label: c.label, marker: c.marker, kind: "value" as const, before: 0, after: 0, afterLabel: c.countLabel })
+    : mockPublishChanges(agentId);
   const [changesOpen, setChangesOpen] = useState(true);
   const totalChangeRows = changes.length + (agentConnectors.length > 0 ? 1 : 0) + (triggerCount > 0 ? 1 : 0);
 
@@ -4340,10 +4359,12 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
         withdrawPendingForDirect();
 
         agentPublishStore.publish(agentId, "workspace", current.channels, versionName, audience, { scopeSummary: "Chỉ mình tôi", groupId: undefined });
+        syncExternalLive();
       } else {
         withdrawPendingForDirect();
 
         agentPublishStore.publish(agentId, current.placement, current.channels, versionName, current.audience);
+        syncExternalLive();
       }
       toast.success(`Đã publish ${versionName}.`);
       onPublished?.();
@@ -4356,6 +4377,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
       withdrawPendingForDirect();
 
       agentPublishStore.publish(agentId, "workspace", current.channels, versionName, "quick_share", { scopeSummary: current.scopeSummary, groupId: undefined });
+      syncExternalLive();
       toast.success(`Đã publish ${versionName} cho ${current.scopeSummary ?? "những người đã chọn"}.`);
       onPublished?.();
       onClose();
@@ -4375,6 +4397,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
         groupId: undefined,
         scopeSummary: `${quickShareSelection.size} người: ${names.join(", ")}`,
       });
+      syncExternalLive();
       toast.success(`Đã publish ${versionName} cho ${quickShareSelection.size} người.`);
       onPublished?.();
       onClose();
@@ -4398,7 +4421,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
 
       if (overlap.pct >= GROUP_APPROVAL_THRESHOLD) {
         governanceStore.submit({
-          resourceType: "agent", resourceId: agentId, resourceName: agentName, resourceIcon: agentEmoji(agentId),
+          resourceType: "agent", resourceId: agentId, resourceName: agentName, resourceIcon: (external?.emoji ?? agentEmoji(agentId)),
           requesterId: KB_CURRENT_USER.id, requesterName: KB_CURRENT_USER.name,
           audience: "group", note: note.trim(), version: versionName,
           resourceRefs: listAgentResourceRefs(agentId),
@@ -4411,6 +4434,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
         withdrawPendingForDirect();
 
         agentPublishStore.publish(agentId, "workspace", current.channels, versionName, "group", { scopeSummary: summary, groupId: group.id });
+        syncExternalLive();
         toast.success(`Đã publish ${versionName} cho ${summary}.`);
       }
       onPublished?.();
@@ -4435,7 +4459,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
     const blocked = blockedResourceItems();
     if (blocked.length > 0) { toast.error(blockedToastMessage(blocked)); return; }
     governanceStore.submit({
-      resourceType: "agent", resourceId: agentId, resourceName: agentName, resourceIcon: agentEmoji(agentId),
+      resourceType: "agent", resourceId: agentId, resourceName: agentName, resourceIcon: (external?.emoji ?? agentEmoji(agentId)),
       requesterId: KB_CURRENT_USER.id, requesterName: KB_CURRENT_USER.name,
       audience: effectiveAudience, note: note.trim(), version: versionName,
       resourceRefs: listAgentResourceRefs(agentId),
@@ -4509,7 +4533,7 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
                       }`}>{c.marker}</span>
                       <span className="text-sm font-medium shrink-0">{c.label}</span>
                       {c.kind === "value" ? (
-                        <span className="flex-1 text-sm text-muted-foreground text-right">{c.beforeLabel} → {c.afterLabel}</span>
+                        <span className="flex-1 text-sm text-muted-foreground text-right">{c.beforeLabel ? `${c.beforeLabel} → ` : ""}{c.afterLabel}</span>
                       ) : (
                         <>
                           <span className="flex-1 text-sm text-muted-foreground text-right">{c.before} → {c.after} dòng</span>

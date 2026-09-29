@@ -3,6 +3,7 @@
 // stay in sync across navigation within the session, the same pattern as triggerStore.ts /
 // agentConnectorStore.ts.
 import { loadMap, saveMap, loadSet, saveSet } from "@/lib/sessionPersist";
+import { agentPublishStore } from "@/components/configure/agentPublishStore";
 
 // Five statuses: Draft -> Pending approval -> Published (or -> Rejected -> back to Pending
 // approval), and Published <-> Paused. This is a BA/UX-review prototype — approve/reject are
@@ -90,9 +91,9 @@ export interface HistoryEntry {
 // signingSecret/guardrail existed) would load stale objects missing the new fields, and the
 // page would crash on render with no error boundary — a blank white screen for anyone who had
 // the External Agents page open across a deploy that changed the data shape.
-const STORE_KEY = "external_agent_store_v8";
-const HISTORY_KEY = "external_agent_history_v8";
-const SEEDED_KEY = "external_agent_store_seeded_v8";
+const STORE_KEY = "external_agent_store_v9";
+const HISTORY_KEY = "external_agent_history_v9";
+const SEEDED_KEY = "external_agent_store_seeded_v9";
 const store = loadMap<string, ExternalAgent>(STORE_KEY);
 const history = loadMap<string, HistoryEntry[]>(HISTORY_KEY);
 const persistStore = () => saveMap(STORE_KEY, store);
@@ -193,7 +194,7 @@ function seedDefaultAgents() {
     baseUrl: "https://wh.partner.io", authMethod: "bearer", hasToken: true, signingSecret: generateSigningSecret(),
     allowedAuthorizeHosts: ["auth.partner.io"], historyDelivery: { mode: "none" },
     guardrail: null, status: "rejected",
-    rejection: { at: now - 1 * DAY, by: CURRENT_USER, reason: "Domain is not on the approved partner list." },
+    rejection: { at: now - 1 * DAY, by: CURRENT_USER, reason: "Domain wh.partner.io chưa có trong danh sách đối tác được phê duyệt." },
     archived: false,
     createdAt: now - 3 * DAY, updatedAt: now - 1 * DAY,
     lastHealthCheckAt: now - 1 * DAY, lastHealthCheckOk: true, lastHealthyAt: now - 1 * DAY,
@@ -371,6 +372,7 @@ export const externalAgentStore = {
     if (wasPublished) {
       addHistory(id, { at: next.updatedAt, actor: CURRENT_USER, summary: "Connection updated", detail: details.length > 0 ? details.join(" · ") : undefined });
       addHistory(id, { at: next.updatedAt, actor: CURRENT_USER, summary: "Unpublished (edited)" });
+      agentPublishStore.unpublish(id); // keep the shared publish model in sync
     } else if (details.length > 0) {
       addHistory(id, { at: next.updatedAt, actor: CURRENT_USER, summary: "Connection edited", detail: details.join(" · ") });
     }
@@ -422,6 +424,18 @@ export const externalAgentStore = {
     if (!cur || cur.status !== "published") return;
     store.set(id, { ...cur, channels, updatedAt: Date.now() });
     persistStore();
+  },
+  /** Governance sync — External Agents now go through the same approval model as Agents
+   * (governanceStore: Agent Requests queue, Role permission, Workspace scope, channel requests,
+   * versions). governanceStore calls this to mirror each decision onto the External Agent's own
+   * status/version/channels so its list, detail page and Activity tab stay consistent. */
+  applyGovernance(id: string, patch: Partial<Pick<ExternalAgent, "status" | "version" | "channels" | "rejection">>, summary?: string, detail?: string) {
+    const cur = store.get(id);
+    if (!cur) return;
+    const now = Date.now();
+    store.set(id, { ...cur, ...patch, updatedAt: now });
+    persistStore();
+    if (summary) addHistory(id, { at: now, actor: CURRENT_USER, summary, detail });
   },
   /** Simulates the current user acting as an FPT admin — this prototype has no real
    * role-based access control, per the BA/UX review scope. */
