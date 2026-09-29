@@ -1,13 +1,12 @@
-// Agent top-bar status — one compact, segmented control instead of a row of free-standing pills.
-// Each segment is one fact, in the order a Builder asks about them: what users are on right now
-// (Live vY, or Nháp if never published), then what's next (Chờ duyệt vX / Bị từ chối vX). Labels
-// stay short (status + version only) so adding a segment never pushes the bar into wrapping; the
-// details — Workspace scope, external channels, who/when, reason — live in each segment's popover.
-// Colour is never the only cue: every segment carries its text label, plus an aria-label that
-// reads the full sentence.
+// Agent top-bar status. Two different facts, shown as two different kinds of chip side by side:
+// the Agent's own state (quiet badge: "● Live v1.1.0" or "● Bản nháp") and, if there is one, the
+// state of its latest publish REQUEST (outlined chip with icon: "Yêu cầu v1.2.0 · Chờ duyệt ⌄").
+// They used to share one segmented pill, which read as one sentence ("Nháp · Bị từ chối" looked
+// like "the draft is rejected"). Labels stay short; details (scope, channels, who/when, reason)
+// live in each chip's popover. Colour is never the only cue: every chip has text + aria-label.
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Clock, User, Users, Radio, Undo2, ExternalLink, Pencil, History, Send, CheckCircle2, Circle, XCircle, Zap, Globe } from "lucide-react";
+import { Clock, User, Users, Radio, Undo2, ExternalLink, Pencil, History, Send, CheckCircle2, Circle, XCircle, Zap, Globe, ChevronDown } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -20,27 +19,41 @@ import type { AgentPublishState } from "../configure/agentPublishStore";
 import { CURRENT_USER } from "@/components/knowledge/knowledgeBaseStore";
 
 type Tone = "live" | "pending" | "rejected" | "draft" | "automation";
-const TONE: Record<Tone, { dot: string; text: string; hover: string }> = {
-  live: { dot: "bg-success", text: "text-success", hover: "hover:bg-success/5" },
-  pending: { dot: "bg-warning", text: "text-warning", hover: "hover:bg-warning/5" },
-  rejected: { dot: "bg-destructive", text: "text-destructive", hover: "hover:bg-destructive/5" },
-  draft: { dot: "bg-muted-foreground", text: "text-muted-foreground", hover: "hover:bg-surface-muted" },
-  automation: { dot: "bg-indigo-500", text: "text-indigo-700", hover: "hover:bg-indigo-50" },
+const TONE: Record<Tone, { dot: string; text: string; hover: string; soft: string; border: string }> = {
+  live: { dot: "bg-success", text: "text-success", hover: "hover:bg-success/5", soft: "bg-success/10 hover:bg-success/15", border: "border-success/30" },
+  pending: { dot: "bg-warning", text: "text-warning", hover: "hover:bg-warning/5", soft: "bg-warning/10 hover:bg-warning/15", border: "border-warning/40" },
+  rejected: { dot: "bg-destructive", text: "text-destructive", hover: "hover:bg-destructive/5", soft: "bg-destructive/10 hover:bg-destructive/15", border: "border-destructive/35" },
+  draft: { dot: "bg-muted-foreground", text: "text-muted-foreground", hover: "hover:bg-surface-muted", soft: "bg-surface-muted hover:bg-muted", border: "border-border" },
+  automation: { dot: "bg-indigo-500", text: "text-indigo-700", hover: "hover:bg-indigo-50", soft: "bg-indigo-50 hover:bg-indigo-100", border: "border-indigo-200" },
 };
 
-function Segment({ tone, label, version, aria, children }: { tone: Tone; label: string; version?: string; aria: string; children: ReactNode }) {
+/** Two visually different kinds of chip, because they answer two different questions:
+ *  - "state"   — what the Agent IS right now (Live vY / Nháp). Quiet, soft-filled badge.
+ *  - "request" — what's happening to a publish REQUEST (Chờ duyệt / Bị từ chối). Outlined,
+ *    with an icon, the word "Yêu cầu" and a chevron, so it reads as "a request about a version",
+ *    never as a second status of the Agent itself (e.g. "Nháp · Bị từ chối" must not read as
+ *    "the draft is rejected"). They sit side by side with a gap, not inside one container. */
+function Segment({ tone, label, version, aria, variant = "state", icon, children }: {
+  tone: Tone; label: string; version?: string; aria: string; variant?: "state" | "request"; icon?: ReactNode; children: ReactNode;
+}) {
   const t = TONE[tone];
+  const base = "h-8 flex items-center gap-1.5 text-xs font-medium whitespace-nowrap cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 shrink-0";
+  const cls = variant === "state"
+    ? `${base} px-3 rounded-full ${t.soft}`
+    : `${base} pl-2.5 pr-2 rounded-lg border bg-white ${t.border} ${t.hover}`;
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button
-          type="button"
-          aria-label={aria}
-          className={`h-full px-3 flex items-center gap-1.5 text-xs font-medium whitespace-nowrap cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-inset first:rounded-l-full last:rounded-r-full ${t.hover}`}
-        >
-          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${t.dot}`} aria-hidden />
+        <button type="button" aria-label={aria} className={cls}>
+          {variant === "state"
+            ? <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${t.dot}`} aria-hidden />
+            : <span className={t.text} aria-hidden>{icon}</span>}
+          {variant === "request" && <span className="text-muted-foreground">Yêu cầu</span>}
+          {variant === "request" && version && <span className="font-mono text-[11px] text-foreground">{version}</span>}
+          {variant === "request" && <span className="text-muted-foreground" aria-hidden>·</span>}
           <span className={t.text}>{label}</span>
-          {version && <span className="font-mono text-[11px] text-foreground/70">{version}</span>}
+          {variant === "state" && version && <span className="font-mono text-[11px] text-foreground/70">{version}</span>}
+          {variant === "request" && <ChevronDown size={13} className="text-muted-foreground" aria-hidden />}
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" sideOffset={8} className="w-[340px] p-0 overflow-hidden rounded-xl shadow-lg">
@@ -133,7 +146,7 @@ export function AgentStatusCluster({ publishState, isAutomation, pending, reject
 
   return (
     <>
-      <div className="h-8 inline-flex items-stretch rounded-full border border-border bg-surface divide-x divide-border shrink-0" role="group" aria-label="Trạng thái phiên bản">
+      <div className="flex items-center gap-2 shrink-0" role="group" aria-label="Trạng thái phiên bản">
         {/* 1 — what users are on right now */}
         {published ? (
           <Segment
@@ -159,7 +172,7 @@ export function AgentStatusCluster({ publishState, isAutomation, pending, reject
             </div>
           </Segment>
         ) : (
-          <Segment tone="draft" label="Nháp" aria="Chưa publish. Bấm để xem chi tiết.">
+          <Segment tone="draft" label="Bản nháp" aria="Chưa publish. Bấm để xem chi tiết.">
             <Header
               icon={<Pencil size={16} />}
               iconBox="bg-surface-muted text-muted-foreground"
@@ -176,7 +189,7 @@ export function AgentStatusCluster({ publishState, isAutomation, pending, reject
 
         {/* 2 — what's next */}
         {pending && (
-          <Segment tone="pending" label="Chờ duyệt" version={pending.version} aria={`Yêu cầu ${pending.version} đang chờ duyệt. Bấm để xem chi tiết.`}>
+          <Segment variant="request" icon={<Clock size={14} />} tone="pending" label="Chờ duyệt" version={pending.version} aria={`Yêu cầu ${pending.version} đang chờ duyệt. Bấm để xem chi tiết.`}>
             <Header
               icon={<Clock size={17} />}
               iconBox="bg-warning/10 text-warning"
@@ -214,7 +227,7 @@ export function AgentStatusCluster({ publishState, isAutomation, pending, reject
           </Segment>
         )}
         {!pending && rejected && (
-          <Segment tone="rejected" label="Bị từ chối" version={rejected.version} aria={`Yêu cầu ${rejected.version} bị từ chối. Bấm để xem lý do.`}>
+          <Segment variant="request" icon={<XCircle size={14} />} tone="rejected" label="Bị từ chối" version={rejected.version} aria={`Yêu cầu ${rejected.version} bị từ chối. Bấm để xem lý do.`}>
             <Header
               icon={<XCircle size={17} />}
               iconBox="bg-destructive/10 text-destructive"
