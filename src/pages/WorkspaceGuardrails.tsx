@@ -393,7 +393,7 @@ function RowMenu({
             onClick={() => { setOpen(false); onOpen(); }}
             className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface-muted transition-base"
           >
-            <HugeiconsIcon icon={EyeIcon} size={13} className="text-muted-foreground" /> Mở
+            <HugeiconsIcon icon={EyeIcon} size={13} className="text-muted-foreground" /> Xem chi tiết
           </button>
           <button
             disabled={!!editBlocked}

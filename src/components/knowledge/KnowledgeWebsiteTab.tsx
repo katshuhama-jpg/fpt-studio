@@ -475,7 +475,7 @@ function FolderRowMenu({ onOpen, onRename, onMove, onDelete }: {
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
   const items: { label: string; onClick: () => void; danger?: boolean }[] = [
-    { label: "Mở", onClick: onOpen },
+    { label: "Xem chi tiết", onClick: onOpen },
     { label: "Đổi tên", onClick: onRename },
     { label: "Di chuyển", onClick: onMove },
     { label: "Xóa", onClick: onDelete, danger: true },
@@ -554,7 +554,7 @@ function RowMenu({ onOpen, onSync, onSchedule, onMove, onDelete }: {
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
   const items: { label: string; onClick: () => void; danger?: boolean }[] = [
-    { label: "Mở", onClick: onOpen },
+    { label: "Xem chi tiết", onClick: onOpen },
     { label: "Đồng bộ ngay", onClick: onSync },
     { label: "Cài đặt lịch riêng", onClick: onSchedule },
     { label: "Di chuyển", onClick: onMove },

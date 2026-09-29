@@ -498,7 +498,7 @@ function RowMenu({ canOpen, onOpen, onShare, onReprocess, onRename, onMove, onDe
   }, [open]);
 
   const items: { label: string; onClick: () => void; danger?: boolean; disabled?: boolean; disabledTooltip?: string }[] = [
-    { label: "Mở", onClick: onOpen, disabled: !canOpen, disabledTooltip: "Tài liệu chưa xử lý xong nên chưa xem được nội dung." },
+    { label: "Xem chi tiết", onClick: onOpen, disabled: !canOpen, disabledTooltip: "Tài liệu chưa xử lý xong nên chưa xem được nội dung." },
     { label: "Chia sẻ", onClick: onShare },
     { label: "Xử lý lại", onClick: onReprocess },
     { label: "Đổi tên", onClick: onRename },
@@ -579,7 +579,7 @@ function FolderRowMenu({ onOpen, onRename, onMove, onDelete }: {
   }, [open]);
 
   const items: { label: string; onClick: () => void; danger?: boolean }[] = [
-    { label: "Mở", onClick: onOpen },
+    { label: "Xem chi tiết", onClick: onOpen },
     { label: "Đổi tên", onClick: onRename },
     { label: "Di chuyển", onClick: onMove },
     { label: "Xóa", onClick: onDelete, danger: true },

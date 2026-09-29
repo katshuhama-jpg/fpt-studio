@@ -49,7 +49,7 @@ function RowMenu({ kb, onOpen, onEdit, onShare, onDelete, editBlocked, shareBloc
   }, [open]);
 
   const safeItems: { label: string; onClick: () => void; blocked?: string }[] = [
-    { label: "Mở", onClick: onOpen },
+    { label: "Xem chi tiết", onClick: onOpen },
     { label: "Chỉnh sửa", onClick: onEdit, blocked: editBlocked },
     { label: "Chia sẻ", onClick: onShare, blocked: shareBlocked },
   ];

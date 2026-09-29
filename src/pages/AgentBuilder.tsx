@@ -1236,7 +1236,7 @@ function MoreLink({ count, onClick }: { count: number; onClick: () => void }) {
 const KNOWLEDGE_SOURCE_ROW_MENU_WIDTH = 176; // w-44
 const KNOWLEDGE_SOURCE_ROW_MENU_HEIGHT_ESTIMATE = 90; // 2 items + container padding
 
-function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, onShare, openLabel = "Mở nguồn tri thức", removeLabel = "Gỡ nguồn tri thức", disabled = false, disabledReason = "Nguồn tri thức đang được xử lý.", href, twoLine = false, hideOpen = false }: {
+function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, onShare, openLabel = "Xem chi tiết", removeLabel = "Gỡ nguồn tri thức", disabled = false, disabledReason = "Nguồn tri thức đang được xử lý.", href, twoLine = false, hideOpen = false }: {
   icon: any; name: string; chip: React.ReactNode; onOpen: () => void; onRemove: () => void;
   /** Owner-only "Chia sẻ" action (e.g. a knowledge item that exists only in this Agent). */
   onShare?: () => void;
@@ -1327,9 +1327,9 @@ function AgentKbCardMenu({ onOpen, onEdit, onShare, onDetach, editBlocked, share
   editBlocked?: string; shareBlocked?: string; openOnly?: boolean;
 }) {
   const items: ActionMenuItem[] = openOnly
-    ? [{ label: "Mở", icon: ExternalLinkIcon, onSelect: onOpen }]
+    ? [{ label: "Xem chi tiết", icon: ExternalLinkIcon, onSelect: onOpen }]
     : [
-        { label: "Mở", icon: ExternalLinkIcon, onSelect: onOpen },
+        { label: "Xem chi tiết", icon: ExternalLinkIcon, onSelect: onOpen },
         ...(onEdit ? [{ label: "Đổi tên", icon: PencilEdit01Icon, onSelect: onEdit, disabledReason: editBlocked }] : []),
         ...(onShare ? [{ label: "Chia sẻ", icon: Share08Icon, onSelect: onShare, disabledReason: shareBlocked }] : []),
         ...(onDetach ? [{ label: "Gỡ liên kết", icon: Delete01Icon, onSelect: onDetach, destructive: true }] : []),
@@ -1835,7 +1835,7 @@ function AgentOwnKnowledgeView({ agentId, onBack }: { agentId: string; onBack: (
               <div className="flex items-center justify-end">
                 <KnowledgeItemRowMenu
                   onOpen={() => openItemOrEditFaq(item)}
-                  openLabel={item.kind === "faq" ? "Sửa" : "Mở"}
+                  openLabel={item.kind === "faq" ? "Sửa" : "Xem chi tiết"}
                   onShare={() => setShareTargets([item])}
                   onReprocess={() => setReprocessTarget(item)}
                   onDelete={() => setDeleteTarget(item)}
@@ -1936,7 +1936,7 @@ function AgentOwnKnowledgeView({ agentId, onBack }: { agentId: string; onBack: (
 const KNOWLEDGE_ITEM_ROW_MENU_WIDTH = 224; // w-56
 const KNOWLEDGE_ITEM_ROW_MENU_HEIGHT_ESTIMATE = 190; // 4 items + danger separator + padding
 
-function KnowledgeItemRowMenu({ onOpen, openLabel = "Mở", onShare, onReprocess, onDelete, reprocessDisabled, reprocessTooltip }: {
+function KnowledgeItemRowMenu({ onOpen, openLabel = "Xem chi tiết", onShare, onReprocess, onDelete, reprocessDisabled, reprocessTooltip }: {
   onOpen: () => void; openLabel?: string; onShare: () => void; onReprocess: () => void; onDelete: () => void;
   reprocessDisabled?: boolean; reprocessTooltip?: string;
 }) {
@@ -5201,7 +5201,7 @@ function SkillCardMenu({ onOpen, onEdit, onShare, onRemove, removeLabel }: {
   // this menu. The destructive item is "Xóa" for the Agent's own skill, "Gỡ liên kết" for a
   // linked one (unlinking never deletes the shared skill).
   const items: ActionMenuItem[] = [
-    ...(onOpen ? [{ label: "Mở skill", icon: ExternalLinkIcon, onSelect: onOpen }] : []),
+    ...(onOpen ? [{ label: "Xem chi tiết", icon: ExternalLinkIcon, onSelect: onOpen }] : []),
     ...(onEdit ? [{ label: "Chỉnh sửa", icon: PencilEdit01Icon, onSelect: onEdit }] : []),
     ...(onShare ? [{ label: "Chia sẻ", icon: Share08Icon, onSelect: onShare }] : []),
     { label: removeLabel, icon: Delete01Icon, onSelect: onRemove, destructive: true },
