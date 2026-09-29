@@ -6,7 +6,7 @@ export type FeatureGroup = { id: string; label: string; icon: any; section: Sect
 
 export const SECTIONS: { id: Section; label: string; desc: string }[] = [
   { id: "console", label: "Console", desc: "Viewing, publishing, managing, pausing, and deleting agents, knowledge, skills, guardrails, and connectors in the shared workspace." },
-  { id: "governance", label: "Governance", desc: "Managing roles and members across the organization." },
+  { id: "governance", label: "Governance", desc: "Managing roles, members, and publish-request reviews across the organization." },
   { id: "org-management", label: "Organization Management", desc: "Managing the unit structure and unit admins." },
 ];
 
@@ -74,6 +74,17 @@ export const featureGroups: FeatureGroup[] = [
       { id: "members.invite", name: "Invite members", desc: "Invite a new person to join the organization." },
       { id: "members.manage", name: "Manage members", desc: "Reassign a member's role, or move them between units." },
       { id: "members.remove", name: "Remove members", desc: "Remove a member from the organization." },
+    ],
+  },
+
+  {
+    id: "requests",
+    label: "Publish requests",
+    icon: Shield,
+    section: "governance",
+    permissions: [
+      { id: "requests.review-agents", name: "Review Agent publish requests", desc: "See the Agent Requests queue and approve, reject, or revoke an Agent's publish to users. Nobody can review a request they submitted themselves." },
+      { id: "requests.review-resources", name: "Review Resource sharing requests", desc: "See the Resource Requests queue and approve, reject, or revoke sharing a Knowledge, Skill, Guardrail or Connector into the Tenant Library." },
     ],
   },
 

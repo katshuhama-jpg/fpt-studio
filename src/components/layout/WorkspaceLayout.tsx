@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useOrg } from "@/pages/organization/orgStore";
 import { governanceStore } from "@/components/governance/governanceStore";
+import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import { TENANTS, getAllTenants, getCurrentTenantId, setCurrentTenantId } from "@/lib/spaceStore";
 
 const APP_VERSION = "0.58.5";
@@ -127,9 +128,14 @@ export default function WorkspaceLayout() {
   // now that they're separate pages.
   const pendingAgentRequestCount = governanceStore.pendingCount("agent");
   const pendingResourceRequestCount = governanceStore.pendingCount("resource");
+  // Review queues are only for roles that can review them (Roles → Publish requests).
+  const { can: canPerm } = useMyPermissions();
   const groupsWithBadges: Group[] = groups.map(g => g.id !== "governance" ? g : {
     ...g,
-    items: g.items.map(it => {
+    items: g.items.filter(it =>
+      (it.to !== "/governance/requests" || canPerm("requests.review-agents")) &&
+      (it.to !== "/governance/library-requests" || canPerm("requests.review-resources"))
+    ).map(it => {
       if (it.to === "/governance/requests" && pendingAgentRequestCount > 0) it = { ...it, badge: String(pendingAgentRequestCount) };
       if (it.to === "/governance/library-requests" && pendingResourceRequestCount > 0) it = { ...it, badge: String(pendingResourceRequestCount) };
       if ((it.to === "/members" || it.to === "/roles") && !orgConfigured) it = { ...it, locked: true, lockedReason: ORG_LOCKED_REASON };

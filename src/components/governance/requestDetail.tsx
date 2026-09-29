@@ -16,6 +16,7 @@ import { AgentContentSection, ResourceContentSection, ResourceUsageSection, test
 import { AgentTestPanel } from "@/components/governance/agentTestPanel";
 import { AgentDeploymentSection } from "@/components/governance/agentDeployment";
 import { CURRENT_USER } from "@/components/knowledge/knowledgeBaseStore";
+import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import { toast } from "sonner";
 
 type Dialog = "approve" | "reject" | "revoke" | "withdraw" | null;
@@ -36,6 +37,7 @@ const LIST_PATH: Record<Scope, string> = {
 export default function RequestDetailPage({ scope }: { scope: Scope }) {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { can } = useMyPermissions();
   const [tick, setTick] = useState(0);
   void tick;
   const refresh = () => setTick(t => t + 1);
@@ -95,12 +97,16 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
     toast.success(`Đã thu hồi "${req.resourceName}".`);
     closeDialog(); refresh();
   };
+  const isAgent = req.resourceType === "agent";
   // Requester mode: the person who submitted a request never decides it themselves (no
   // self-approval) — they see its status and can pull it back instead.
   const isRequester = req.requesterId === CURRENT_USER.id;
-  const canReview = req.status === "pending" && !isRequester;
+  // Role permission (Roles → Publish requests). Without it the page is read-only.
+  const hasReviewPerm = can(isAgent ? "requests.review-agents" : "requests.review-resources");
+  const canReview = req.status === "pending" && !isRequester && hasReviewPerm;
+  const canRevoke = req.status === "approved" && hasReviewPerm;
+  const readOnlyNote = !hasReviewPerm && !isRequester && (req.status === "pending" || req.status === "approved");
   const canWithdraw = req.status === "pending" && isRequester;
-  const isAgent = req.resourceType === "agent";
   const resourceType = req.resourceType as ResourceReqType;
   const drift = checkDrift(req);
   const changeState = mainChangeState(req);
@@ -326,7 +332,15 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
             </div>
           )}
 
-          {req.status === "approved" && (
+          {readOnlyNote && (
+            <div className="rounded-xl border border-border bg-surface-muted/40 p-3.5">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Bạn đang xem ở chế độ chỉ đọc. Chỉ vai trò có quyền “{isAgent ? "Review Agent publish requests" : "Review Resource sharing requests"}” mới duyệt được yêu cầu này.
+              </p>
+            </div>
+          )}
+
+          {canRevoke && (
             <div className="rounded-xl border border-border bg-surface p-3.5">
               <button
                 onClick={() => setDialog("revoke")}
