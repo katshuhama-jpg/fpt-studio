@@ -64,7 +64,6 @@ import UploadSkillModal from "@/components/configure/UploadSkillModal";
 import SkillOwnershipTag from "@/components/configure/SkillOwnershipTag";
 import SkillShareModal from "@/components/configure/SkillShareModal";
 import AttachConsoleSkillModal from "@/components/configure/AttachConsoleSkillModal";
-import PromoteSkillToConsoleDialog from "@/components/configure/PromoteSkillToConsoleDialog";
 import { chatOptimizationStore } from "@/components/configure/chatOptimizationStore";
 import { updateUser } from "@/lib/onboarding";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
@@ -5310,11 +5309,11 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
 }
 
 /** "..." menu on a skill card. Which items appear is driven purely by which handlers are
- * passed: an Agent-only skill gets Edit / Share / Promote / Delete, a connected workspace skill
+ * passed: an Agent-only skill gets Edit / Share / Delete, a connected workspace skill
  * only gets Open and Disconnect, and both get Activate/Deactivate — the card shows status but
  * no toggle, so this menu is where that switch lives. */
-function SkillCardMenu({ onOpen, onEdit, onShare, onPromote, isActive, onToggleActive, onRemove, removeLabel }: {
-  onOpen?: () => void; onEdit?: () => void; onShare?: () => void; onPromote?: () => void;
+function SkillCardMenu({ onOpen, onEdit, onShare, isActive, onToggleActive, onRemove, removeLabel }: {
+  onOpen?: () => void; onEdit?: () => void; onShare?: () => void;
   isActive: boolean; onToggleActive: () => void; onRemove: () => void; removeLabel: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -5363,7 +5362,6 @@ function SkillCardMenu({ onOpen, onEdit, onShare, onPromote, isActive, onToggleA
           {onOpen && item("Mở skill", ExternalLinkIcon, onOpen)}
           {onEdit && item("Chỉnh sửa", PencilEdit01Icon, onEdit)}
           {onShare && item("Chia sẻ", Share08Icon, onShare)}
-          {onPromote && item("Chuyển thành skill chung", Upload01Icon, onPromote)}
           {item(isActive ? "Tắt" : "Bật", isActive ? PauseIcon : PlayCircleIcon, onToggleActive)}
           <div className="mt-1 pt-1 border-t border-border">
             <button onClick={() => { setOpen(false); onRemove(); }} className="w-full flex items-center gap-2 text-left px-3 py-2 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">
@@ -5385,7 +5383,6 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
   const [showUpload, setShowUpload] = useState(false);
   const [editTarget, setEditTarget] = useState<Skill | null>(null);
   const [shareTarget, setShareTarget] = useState<Skill | null>(null);
-  const [promoteTarget, setPromoteTarget] = useState<Skill | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [detachTarget, setDetachTarget] = useState<{ id: string; name: string } | null>(null);
   const [detailTarget, setDetailTarget] = useState<AgentResourceRef | null>(null);
@@ -5485,7 +5482,6 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
                       onToggleActive={() => { agentSkillStore.setActive(agentId, s.id, !agentSkillStore.isActive(agentId, s.id)); refresh(); }}
                       onEdit={() => setEditTarget(s)}
                       onShare={() => setShareTarget(s)}
-                      onPromote={() => setPromoteTarget(s)}
                       onRemove={() => setDeleteTarget({ id: s.id, name: s.name })}
                       removeLabel="Delete"
                     />
@@ -5555,14 +5551,6 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
           sharing={shareTarget.sharing}
           onSave={sharing => { agentSkillStore.updateSharing(agentId, shareTarget.id, sharing); refresh(); }}
           onClose={() => setShareTarget(null)}
-        />
-      )}
-      {promoteTarget && (
-        <PromoteSkillToConsoleDialog
-          agentId={agentId}
-          item={promoteTarget}
-          currentUser={currentUser}
-          onClose={() => { setPromoteTarget(null); refresh(); }}
         />
       )}
       {detailTarget && (
@@ -7421,7 +7409,6 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
   const [showUpload, setShowUpload] = useState(false);
   const [editTarget, setEditTarget] = useState<Skill | null>(null);
   const [shareTarget, setShareTarget] = useState<Skill | null>(null);
-  const [promoteTarget, setPromoteTarget] = useState<Skill | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [detachTarget, setDetachTarget] = useState<{ id: string; name: string } | null>(null);
   // Built-in skills: turning one OFF asks first (it silently changes what the Agent can do),
@@ -7534,7 +7521,6 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
                 onToggleActive={() => toggleActive(s)}
                 onEdit={() => setEditTarget(s)}
                 onShare={() => setShareTarget(s)}
-                onPromote={() => setPromoteTarget(s)}
                 onRemove={() => setDeleteTarget({ id: s.id, name: s.name })}
                 removeLabel="Xóa"
               />
@@ -7656,14 +7642,6 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
           sharing={shareTarget.sharing}
           onSave={sharing => { agentSkillStore.updateSharing(agentId, shareTarget.id, sharing); refresh(); }}
           onClose={() => setShareTarget(null)}
-        />
-      )}
-      {promoteTarget && (
-        <PromoteSkillToConsoleDialog
-          agentId={agentId}
-          item={promoteTarget}
-          currentUser={currentUser}
-          onClose={() => { setPromoteTarget(null); refresh(); }}
         />
       )}
 
