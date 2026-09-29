@@ -29,8 +29,9 @@ const TONE: Record<Tone, { dot: string; text: string; hover: string; soft: strin
 
 /** Two visually different kinds of chip, because they answer two different questions:
  *  - "state"   — what the Agent IS right now (Live vY / Nháp). Quiet, soft-filled badge.
- *  - "request" — what's happening to a publish REQUEST (Chờ duyệt / Bị từ chối). Outlined,
- *    with an icon, the word "Yêu cầu" and a chevron, so it reads as "a request about a version",
+ *  - "request" — what's happening to a publish REQUEST (Chờ duyệt / Bị từ chối). A pill too (so
+ *    it never looks like the rectangular action buttons next to it), but with a tinted border, an
+ *    icon and the word "Yêu cầu", so it reads as "a request about a version",
  *    never as a second status of the Agent itself (e.g. "Nháp · Bị từ chối" must not read as
  *    "the draft is rejected"). They sit side by side with a gap, not inside one container. */
 function Segment({ tone, label, version, aria, variant = "state", icon, children }: {
@@ -40,7 +41,7 @@ function Segment({ tone, label, version, aria, variant = "state", icon, children
   const base = "h-8 flex items-center gap-1.5 text-xs font-medium whitespace-nowrap cursor-pointer transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 shrink-0";
   const cls = variant === "state"
     ? `${base} px-3 rounded-full ${t.soft}`
-    : `${base} pl-2.5 pr-2 rounded-lg border bg-white ${t.border} ${t.hover}`;
+    : `${base} px-3 rounded-full border ${t.border} ${t.soft}`;
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -53,7 +54,6 @@ function Segment({ tone, label, version, aria, variant = "state", icon, children
           {variant === "request" && <span className="text-muted-foreground" aria-hidden>·</span>}
           <span className={t.text}>{label}</span>
           {variant === "state" && version && <span className="font-mono text-[11px] text-foreground/70">{version}</span>}
-          {variant === "request" && <ChevronDown size={13} className="text-muted-foreground" aria-hidden />}
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" sideOffset={8} className="w-[340px] p-0 overflow-hidden rounded-xl shadow-lg">
