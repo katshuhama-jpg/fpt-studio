@@ -102,12 +102,13 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
     closeDialog(); refresh();
   };
   const isAgent = req.resourceType === "agent";
-  // Requester mode: the person who submitted a request never decides it themselves (no
-  // self-approval) — they see its status and can pull it back instead.
+  // Who can decide is governed purely by Role permission (Roles → Publish requests). The requester
+  // additionally gets "Rút yêu cầu"; if their role also holds the review permission they can decide
+  // their own request too (self-approval is a permission question, not a hard block).
   const isRequester = req.requesterId === CURRENT_USER.id;
   // Role permission (Roles → Publish requests). Without it the page is read-only.
   const hasReviewPerm = can(isAgent ? "requests.review-agents" : "requests.review-resources");
-  const canReview = req.status === "pending" && !isRequester && hasReviewPerm;
+  const canReview = req.status === "pending" && hasReviewPerm;
   const canRevoke = req.status === "approved" && hasReviewPerm;
   const readOnlyNote = !hasReviewPerm && !isRequester && (req.status === "pending" || req.status === "approved");
   const canWithdraw = req.status === "pending" && isRequester;
@@ -309,7 +310,7 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
           {canWithdraw && (
             <div className="rounded-xl border border-border bg-surface p-3.5">
               <p className="text-xs text-muted-foreground leading-relaxed mb-2.5">
-                Bạn là người gửi yêu cầu này — Org/Unit Admin khác sẽ duyệt. Bạn có thể rút lại khi còn chờ duyệt.
+                Bạn là người gửi yêu cầu này. Bạn có thể rút lại khi yêu cầu còn chờ duyệt.
               </p>
               <button
                 onClick={() => setDialog("withdraw")}
