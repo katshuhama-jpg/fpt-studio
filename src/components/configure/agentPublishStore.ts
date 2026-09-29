@@ -79,6 +79,8 @@ const SEED_RELEASES: Record<string, Omit<ReleaseEntry, "at">[]> = {
     { version: "v1.2.0", audience: "org", scopeSummary: "Phòng Vận hành (18 người)", channels: ["web"], via: "approved" },
     { version: "v1.3.0", audience: "org", scopeSummary: "FPT Smart Cloud (35 người)", channels: ["web", "api"], via: "approved" },
   ],
+  cskh: [{ version: "v2.0.0", audience: "org", scopeSummary: "Phòng Chăm sóc khách hàng (22 người)", channels: ["web", "zalo"], via: "approved" }],
+  "sales-quote": [{ version: "v1.0.0", audience: "org", scopeSummary: "Phòng Kinh doanh (48 người)", channels: [], via: "approved" }],
   "finance-check": [{ version: "v1.2.0", audience: "org", scopeSummary: "Phòng Tài chính (14 người)", channels: ["slack"], via: "approved" }],
   "legal-review": [{ version: "v1.1.0", audience: "org", scopeSummary: "Ban Pháp chế (14 người)", channels: ["slack"], via: "approved" }],
 };
@@ -96,6 +98,8 @@ const AUTO_PUBLISHED_SEED: Record<string, AgentPublishState> = {
   // live version/audience/channels match the approved requests there, so the Builder pill,
   // Deploy tab and review page all tell the same story.
   faq: { placement: "workspace", audience: "org", channels: ["web"], version: "v1.1.0", scopeSummary: "Toàn công ty" },
+  cskh: { placement: "workspace", audience: "org", channels: ["web", "zalo"], version: "v2.0.0", scopeSummary: "Phòng Chăm sóc khách hàng (22 người)" },
+  "sales-quote": { placement: "workspace", audience: "org", channels: [], version: "v1.0.0", scopeSummary: "Phòng Kinh doanh (48 người)" },
   ops: { placement: "workspace", audience: "org", channels: ["web", "api"], version: "v1.3.0", scopeSummary: "FPT Smart Cloud (35 người)" },
   "finance-check": { placement: "workspace", audience: "org", channels: ["slack"], version: "v1.2.0", scopeSummary: "Phòng Tài chính (14 người)" },
   "legal-review": { placement: "workspace", audience: "org", channels: ["slack"], version: "v1.1.0", scopeSummary: "Ban Pháp chế (14 người)" },

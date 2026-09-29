@@ -312,6 +312,7 @@ export default function AgentBuilder() {
             rejectBannerVisible={showRejectBanner}
             onChanged={() => setPublishTick(t => t + 1)}
             onOpenVersions={() => setParams({ tab: "build", section: "versions" })}
+            onOpenVersion={v => setParams({ tab: "build", section: "versions", v })}
             onPublish={() => canPublishAgent && setShowPublish(true)}
             onShowRejectBanner={() => { if (rejectedGovRequest) { governanceStore.restoreRejection(rejectedGovRequest.id); setRejectBannerTick(t => t + 1); } }}
           />
@@ -368,30 +369,44 @@ export default function AgentBuilder() {
           the way forward. Hidden with "Ẩn" (per session); clicking the red pill brings it back;
           disappears on its own once a newer request is sent. */}
       {rejectedGovRequest && showRejectBanner && (
-        <div className="border-b border-destructive/20 bg-destructive/5 px-4 py-3 flex items-start gap-3 shrink-0">
-          <HugeiconsIcon icon={Alert01Icon} size={16} className="text-destructive shrink-0 mt-0.5" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-foreground">Yêu cầu publish {rejectedGovRequest.version} bị từ chối</p>
-            {rejectedGovRequest.reviewNote && (
-              <p className="text-sm text-foreground/80 mt-0.5 leading-relaxed">“{rejectedGovRequest.reviewNote}”</p>
-            )}
-            <p className="text-xs text-muted-foreground mt-1">
-              {rejectedGovRequest.reviewerName ?? "Admin"} · {formatGovDateTime(rejectedGovRequest.updatedAt)} — sửa theo góp ý rồi gửi lại để được duyệt.
-            </p>
+        <div className="px-4 pt-3 shrink-0">
+          <div role="status" className="rounded-xl border border-destructive/20 bg-white shadow-soft flex items-start gap-3 pl-3 pr-2 py-2.5 border-l-[3px] border-l-destructive">
+            <span className="w-8 h-8 rounded-lg bg-destructive/10 text-destructive flex items-center justify-center shrink-0">
+              <HugeiconsIcon icon={Alert01Icon} size={16} />
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-foreground">
+                Bản <span className="font-mono">{rejectedGovRequest.version}</span> chưa được duyệt
+                <span className="font-normal text-muted-foreground"> · {rejectedGovRequest.reviewerName ?? "Admin"} góp ý lúc {formatGovDateTime(rejectedGovRequest.updatedAt)}</span>
+              </p>
+              {rejectedGovRequest.reviewNote && (
+                <p className="text-sm text-foreground/80 mt-0.5 leading-relaxed line-clamp-2" title={rejectedGovRequest.reviewNote}>“{rejectedGovRequest.reviewNote}”</p>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0 self-center">
+              <button
+                onClick={() => rejectedGovRequest.version && setParams({ tab: "build", section: "versions", v: rejectedGovRequest.version })}
+                className="h-8 px-3 rounded-lg text-xs font-medium text-foreground hover:bg-surface-muted transition-colors"
+              >
+                Xem chi tiết
+              </button>
+              <button
+                onClick={() => canPublishAgent && setShowPublish(true)}
+                disabled={!canPublishAgent}
+                className="h-8 px-3 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium transition-colors disabled:opacity-40"
+              >
+                Sửa &amp; gửi lại
+              </button>
+              <button
+                onClick={() => { governanceStore.dismissRejection(rejectedGovRequest.id); setRejectBannerTick(t => t + 1); }}
+                aria-label="Ẩn thông báo"
+                title="Ẩn thông báo"
+                className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-surface-muted flex items-center justify-center transition-colors"
+              >
+                <HugeiconsIcon icon={Cancel01Icon} size={15} />
+              </button>
+            </div>
           </div>
-          <button
-            onClick={() => { governanceStore.dismissRejection(rejectedGovRequest.id); setRejectBannerTick(t => t + 1); }}
-            className="btn-secondary h-8 px-3 text-xs shrink-0"
-          >
-            Ẩn
-          </button>
-          <button
-            onClick={() => canPublishAgent && setShowPublish(true)}
-            disabled={!canPublishAgent}
-            className="btn-primary h-8 px-3 text-xs shrink-0 disabled:opacity-40"
-          >
-            Sửa & gửi lại
-          </button>
         </div>
       )}
 

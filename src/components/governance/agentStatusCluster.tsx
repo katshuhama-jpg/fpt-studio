@@ -121,7 +121,9 @@ function scopeText(req: GovRequest): string {
   return t.map(x => x.name).join(", ") || req.scopeSummary || "—";
 }
 
-export function AgentStatusCluster({ publishState, isAutomation, pending, rejected, rejectBannerVisible, onChanged, onOpenVersions, onPublish, onShowRejectBanner }: {
+export function AgentStatusCluster({ publishState, isAutomation, pending, rejected, rejectBannerVisible, onChanged, onOpenVersions, onOpenVersion, onPublish, onShowRejectBanner }: {
+  /** Opens Build › Phiên bản with this version's detail sheet. */
+  onOpenVersion: (version: string) => void;
   rejectBannerVisible?: boolean;
   publishState: AgentPublishState;
   isAutomation: boolean;
@@ -165,9 +167,12 @@ export function AgentStatusCluster({ publishState, isAutomation, pending, reject
               <Row icon={<Users size={13} />} label="Workspace">{publishState.scopeSummary ?? "Chỉ mình tôi"}</Row>
               <Row icon={<Globe size={13} />} label="Kênh ngoài"><ChannelChips ids={publishState.channels} /></Row>
             </dl>
-            <div className="px-4 py-3 border-t border-border bg-surface-muted/40 flex justify-end">
-              <button onClick={onOpenVersions} className="h-8 px-3 rounded-lg border border-border bg-white hover:bg-surface-muted text-xs font-medium flex items-center gap-1.5 cursor-pointer transition-colors">
-                <History size={13} /> Xem tất cả phiên bản
+            <div className="px-4 py-3 border-t border-border bg-surface-muted/40 flex items-center justify-between gap-2">
+              <button onClick={onOpenVersions} className="h-8 px-2 rounded-lg text-xs font-medium text-muted-foreground hover:bg-surface-muted flex items-center gap-1.5 cursor-pointer transition-colors">
+                <History size={13} /> Tất cả phiên bản
+              </button>
+              <button onClick={() => onOpenVersion(publishState.version)} className="h-8 px-3 rounded-lg border border-border bg-white hover:bg-surface-muted text-xs font-medium cursor-pointer transition-colors">
+                Xem chi tiết {publishState.version}
               </button>
             </div>
           </Segment>
@@ -206,14 +211,12 @@ export function AgentStatusCluster({ publishState, isAutomation, pending, reject
               <Row icon={<Globe size={13} />} label="Kênh ngoài"><ChannelChips ids={pending.channels ?? []} /></Row>
             </dl>
             <div className="px-4 py-3 border-t border-border bg-surface-muted/40 flex items-center justify-between gap-2">
-              <Link
-                to={`/governance/requests/${pending.id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="h-8 px-3 rounded-lg border border-border bg-white hover:bg-surface-muted text-xs font-medium flex items-center gap-1.5 transition-colors"
+              <button
+                onClick={() => pending.version && onOpenVersion(pending.version)}
+                className="h-8 px-3 rounded-lg border border-border bg-white hover:bg-surface-muted text-xs font-medium cursor-pointer transition-colors"
               >
-                Xem chi tiết <ExternalLink size={12} />
-              </Link>
+                Xem chi tiết {pending.version}
+              </button>
               {isRequester && (
                 <button
                   type="button"
@@ -238,9 +241,12 @@ export function AgentStatusCluster({ publishState, isAutomation, pending, reject
               <p className="mx-4 mb-3 text-xs leading-relaxed rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2">“{rejected.reviewNote}”</p>
             )}
             <div className="px-4 py-3 border-t border-border bg-surface-muted/40 flex items-center justify-between gap-2">
-              {rejectBannerVisible ? <span /> : (
-                <button onClick={onShowRejectBanner} className="h-8 px-2 rounded-lg text-xs font-medium text-muted-foreground hover:bg-surface-muted cursor-pointer transition-colors">Hiện lại banner</button>
-              )}
+              <div className="flex items-center gap-1">
+                <button onClick={() => rejected.version && onOpenVersion(rejected.version)} className="h-8 px-3 rounded-lg border border-border bg-white hover:bg-surface-muted text-xs font-medium cursor-pointer transition-colors">Xem chi tiết</button>
+                {!rejectBannerVisible && (
+                  <button onClick={onShowRejectBanner} className="h-8 px-2 rounded-lg text-xs font-medium text-muted-foreground hover:bg-surface-muted cursor-pointer transition-colors">Hiện thông báo</button>
+                )}
+              </div>
               <button onClick={onPublish} className="h-8 px-3 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium flex items-center gap-1.5 cursor-pointer transition-colors">
                 <Pencil size={13} /> Sửa &amp; gửi lại
               </button>

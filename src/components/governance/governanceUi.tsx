@@ -6,6 +6,7 @@ import { Robot01Icon, BookOpen01Icon, PuzzleIcon, Shield01Icon, Plug01Icon } fro
 import type { GovResourceType, GovRequestStatus, GovChangeState, ResourceShareStatus } from "./governanceStore";
 import { RESOURCE_TYPE_LABEL, STATUS_LABEL, governanceStore } from "./governanceStore";
 import { getAgent } from "../configure/agentStore";
+import { agentPublishStore } from "../configure/agentPublishStore";
 
 export const RESOURCE_TYPE_ICON: Record<GovResourceType, any> = {
   agent: Robot01Icon, knowledge: BookOpen01Icon, skill: PuzzleIcon, guardrail: Shield01Icon, connector: Plug01Icon,
@@ -191,5 +192,32 @@ export function AgentGovBadge({ agentId }: { agentId: string }) {
       <span className={`w-1.5 h-1.5 rounded-full ${pending ? "bg-warning" : "bg-destructive"}`} />
       {pending ? "Chờ duyệt" : "Bị từ chối"}{g.version ? ` ${g.version}` : ""}
     </span>
+  );
+}
+
+/** App Store Connect–style version lines for an Agent card: one line for what users are on
+ * (Live vY, or Bản nháp) and — only when there is one — one line for the latest publish request
+ * (vX · Chờ duyệt / Bị từ chối). Two facts, two lines, same order everywhere, so "live on 1.0.0,
+ * 1.0.1 waiting for review" reads at a glance without implying the live version is in review. */
+export function AgentVersionLines({ agentId }: { agentId: string }) {
+  const pub = agentPublishStore.get(agentId);
+  const live = pub.placement !== null;
+  const g = agentGovState(agentId);
+  return (
+    <div className="flex flex-col gap-0.5 text-xs">
+      <span className="flex items-center gap-1.5 min-w-0">
+        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${live ? "bg-success" : "bg-muted-foreground/60"}`} aria-hidden />
+        {live
+          ? <><span className="font-medium text-success">Live</span><span className="font-mono text-[11px] text-foreground/80">{pub.version}</span></>
+          : <span className="text-muted-foreground">Bản nháp · chưa publish</span>}
+      </span>
+      {g && (
+        <span className="flex items-center gap-1.5 min-w-0">
+          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${g.state === "pending" ? "bg-warning" : "bg-destructive"}`} aria-hidden />
+          <span className="font-mono text-[11px] text-foreground/80">{g.version}</span>
+          <span className={`font-medium ${g.state === "pending" ? "text-warning" : "text-destructive"}`}>{g.state === "pending" ? "Chờ duyệt" : "Bị từ chối"}</span>
+        </span>
+      )}
+    </div>
   );
 }

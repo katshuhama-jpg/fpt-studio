@@ -7,15 +7,18 @@
 // external channels, taken from agentPublishStore's release log). Anything that isn't in that
 // log was never live, so it can't be "restored" and has to go through Publish like any change.
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { ExternalLink, Undo2, RotateCcw, Send, Pencil } from "lucide-react";
+import { Link, useSearchParams } from "react-router-dom";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { AgentDeploymentSection } from "./agentDeployment";
+import { AgentContentSection } from "./resourceContent";
+import { ExternalLink, Undo2, RotateCcw, Send, Pencil, ChevronRight, Clock, CheckCircle2, Circle, XCircle, Info } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { agentPublishStore, type ReleaseEntry, type PublishAudience } from "../configure/agentPublishStore";
-import { governanceStore, requestKind, channelLabel, type GovRequest } from "./governanceStore";
+import { governanceStore, requestKind, channelLabel, requestDiff, type GovRequest } from "./governanceStore";
 import { auditLogStore } from "./auditLogStore";
 import { formatDateTime } from "./governanceUi";
 import { getAgent } from "../configure/agentStore";
@@ -128,6 +131,11 @@ export function AgentVersionsPanel({ agentId, onPublish, onChanged }: {
   const [filter, setFilter] = useState<VersionStatus | "all">("all");
   const [rollback, setRollback] = useState<VersionRow | null>(null);
   const [withdrawRow, setWithdrawRow] = useState<VersionRow | null>(null);
+  // The version whose detail sheet is open — kept in the URL (?v=v1.2.0) so the status chips in
+  // the top bar and the rejection banner can deep-link straight to a version's detail.
+  const [params, setParams] = useSearchParams();
+  const openV = params.get("v");
+  const setOpenV = (v: string | null) => { const n = new URLSearchParams(params); if (v) n.set("v", v); else n.delete("v"); setParams(n, { replace: true }); };
   void tick;
   const rows = agentVersionRows(agentId);
   const pub = agentPublishStore.get(agentId);
@@ -159,15 +167,15 @@ export function AgentVersionsPanel({ agentId, onPublish, onChanged }: {
   };
 
   return (
-    <div className="max-w-[1040px] mx-auto px-8 py-8">
-      <div className="mb-5">
-        <h1 className="text-xl font-semibold">Phiên bản</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Tất cả phiên bản của Agent theo trạng thái. Người dùng đang dùng {liveRow ? <b className="text-foreground">{liveRow.version}</b> : "— (chưa publish)"}.
+    <div className="p-8 w-full space-y-6 animate-fade-up">
+      <div>
+        <h2 className="font-display text-xl font-semibold">Phiên bản</h2>
+        <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">
+          Mọi phiên bản của Agent theo trạng thái. Người dùng đang dùng {liveRow ? <b className="text-foreground font-mono">{liveRow.version}</b> : "— (chưa publish)"}. Bấm vào một phiên bản để xem chi tiết.
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-1.5 mb-4" role="tablist" aria-label="Lọc theo trạng thái">
+      <div className="flex flex-wrap items-center gap-1.5" role="tablist" aria-label="Lọc theo trạng thái">
         {FILTERS.map(f => (
           <button
             key={f}
@@ -204,7 +212,15 @@ export function AgentVersionsPanel({ agentId, onPublish, onChanged }: {
           const canWithdraw = r.status === "pending" && r.request?.requesterId === CURRENT_USER.id;
           const canRollback = r.status === "previous" && !!r.release;
           return (
-            <div key={r.version} className="px-4 py-3.5 flex items-start gap-4">
+            <div
+              key={r.version}
+              role="button"
+              tabIndex={0}
+              aria-label={`Xem chi tiết ${r.version}`}
+              onClick={() => setOpenV(r.version)}
+              onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpenV(r.version); } }}
+              className="px-4 py-3.5 flex items-start gap-4 cursor-pointer hover:bg-surface-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40"
+            >
               <div className="w-24 shrink-0 pt-0.5"><StatusPill status={r.status} /></div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-baseline gap-2 flex-wrap">
@@ -221,7 +237,7 @@ export function AgentVersionsPanel({ agentId, onPublish, onChanged }: {
                   </p>
                 )}
               </div>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-2 shrink-0" onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
                 {canWithdraw && (
                   <button onClick={() => setWithdrawRow(r)} className="h-8 px-3 rounded-lg border border-destructive/30 text-destructive bg-white hover:bg-destructive/5 text-xs font-medium flex items-center gap-1.5">
                     <Undo2 size={13} /> Rút yêu cầu
@@ -237,17 +253,24 @@ export function AgentVersionsPanel({ agentId, onPublish, onChanged }: {
                     <RotateCcw size={13} /> Khôi phục
                   </button>
                 )}
-                {r.request && (
-                  <Link to={`/governance/requests/${r.request.id}`} target="_blank" rel="noopener noreferrer"
-                    className="h-8 px-2.5 rounded-lg text-xs font-medium text-primary hover:bg-primary-soft flex items-center gap-1">
-                    Xem yêu cầu <ExternalLink size={11} />
-                  </Link>
-                )}
+                <button onClick={() => setOpenV(r.version)} aria-label={`Xem chi tiết ${r.version}`} className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-surface-muted flex items-center justify-center">
+                  <ChevronRight size={16} />
+                </button>
               </div>
             </div>
           );
         })}
       </div>
+
+      <VersionDetailSheet
+        row={rows.find(r => r.version === openV) ?? null}
+        liveVersion={liveRow?.version}
+        onClose={() => setOpenV(null)}
+        onPublish={() => { setOpenV(null); onPublish(); }}
+        onRollback={r => setRollback(r)}
+        onWithdraw={r => setWithdrawRow(r)}
+        isLatestRejected={r => r.status === "rejected" && latestPublishReq?.id === r.request?.id}
+      />
 
       <AlertDialog open={!!rollback} onOpenChange={o => !o && setRollback(null)}>
         <AlertDialogContent>
@@ -297,5 +320,127 @@ function StatusPill({ status }: { status: VersionStatus }) {
     <span className={`inline-flex items-center gap-1.5 text-xs font-medium rounded-full px-2.5 py-1 border whitespace-nowrap ${s.pill}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />{VERSION_STATUS_LABEL[status]}
     </span>
+  );
+}
+
+/** Full detail of one version — the Builder's equivalent of opening a version in App Store
+ * Connect: what exactly is (or was) in it, where it goes, and what happened to it. Reads the
+ * request's frozen snapshot, so a rejected or pending version shows what was actually sent. */
+function VersionDetailSheet({ row, liveVersion, onClose, onPublish, onRollback, onWithdraw, isLatestRejected }: {
+  row: VersionRow | null;
+  liveVersion?: string;
+  onClose: () => void;
+  onPublish: () => void;
+  onRollback: (r: VersionRow) => void;
+  onWithdraw: (r: VersionRow) => void;
+  isLatestRejected: (r: VersionRow) => boolean;
+}) {
+  const req = row?.request;
+  const diff = req ? requestDiff(req) : [];
+  const decided = req?.history.filter(h => h.action !== "submitted").slice(-1)[0];
+  return (
+    <Sheet open={!!row} onOpenChange={o => !o && onClose()}>
+      <SheetContent side="right" className="w-full sm:max-w-2xl p-0 flex flex-col">
+        {row && (
+          <>
+            <SheetHeader className="px-6 pt-6 pb-4 border-b border-border text-left space-y-2">
+              <div className="flex items-center gap-2">
+                <SheetTitle className="font-mono text-lg">{row.version}</SheetTitle>
+                <StatusPill status={row.status} />
+              </div>
+              <SheetDescription className="text-xs">
+                {row.status === "live" && "Người dùng đang dùng phiên bản này."}
+                {row.status === "pending" && <>Đang chờ Org/Unit Admin duyệt.{liveVersion ? <> Người dùng vẫn dùng <span className="font-mono">{liveVersion}</span> cho tới khi bản này được duyệt.</> : ""}</>}
+                {row.status === "rejected" && "Chưa được duyệt — sửa theo góp ý bên dưới rồi gửi lại."}
+                {row.status === "withdrawn" && "Yêu cầu đã được rút, bản này chưa từng tới người dùng."}
+                {row.status === "revoked" && "Đã bị thu hồi — người dùng không còn dùng bản này."}
+                {row.status === "previous" && "Bản cũ, từng được người dùng sử dụng. Có thể khôi phục ngay mà không cần duyệt lại."}
+              </SheetDescription>
+            </SheetHeader>
+
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+              {/* Timeline */}
+              {req && (
+                <ol className="space-y-2.5" aria-label="Lịch sử">
+                  {req.history.map(h => (
+                    <li key={h.id} className="flex items-start gap-2.5 text-sm">
+                      <span className={`mt-0.5 ${h.action === "approved" ? "text-success" : h.action === "rejected" ? "text-destructive" : h.action === "submitted" ? "text-primary" : "text-muted-foreground"}`}>
+                        {h.action === "approved" ? <CheckCircle2 size={15} /> : h.action === "rejected" ? <XCircle size={15} /> : h.action === "submitted" ? <Send size={14} /> : <Circle size={14} />}
+                      </span>
+                      <div className="min-w-0">
+                        <p><span className="font-medium">{h.actorName}</span> {h.action === "submitted" ? "đã gửi yêu cầu duyệt" : h.action === "approved" ? "đã duyệt" : h.action === "rejected" ? "đã từ chối" : h.action === "revoked" ? "đã thu hồi" : "đã rút yêu cầu"}</p>
+                        <p className="text-xs text-muted-foreground tabular-nums">{formatDateTime(h.at)}</p>
+                        {h.note && <p className={`text-sm mt-1.5 rounded-lg px-3 py-2 leading-relaxed ${h.action === "rejected" ? "bg-destructive/5 border border-destructive/20" : "bg-surface-muted"}`}>“{h.note}”</p>}
+                      </div>
+                    </li>
+                  ))}
+                  {row.status === "pending" && (
+                    <li className="flex items-start gap-2.5 text-sm text-warning"><Clock size={15} className="mt-0.5" /> Đang chờ Admin duyệt</li>
+                  )}
+                </ol>
+              )}
+              {!req && row.release && (
+                <p className="text-sm text-muted-foreground flex items-start gap-2"><Info size={15} className="mt-0.5 shrink-0" />
+                  {row.release.via === "rollback" ? `Được khôi phục lúc ${formatDateTime(row.release.at)}.` : `Publish trực tiếp lúc ${formatDateTime(row.release.at)} — phạm vi này không cần duyệt.`}
+                </p>
+              )}
+
+              {req?.note && (
+                <div>
+                  <p className="text-sm font-semibold mb-1.5">Ghi chú phát hành</p>
+                  <p className="text-sm text-muted-foreground rounded-lg border border-border px-3.5 py-3 leading-relaxed">{req.note}</p>
+                </div>
+              )}
+
+              {diff.length > 0 && (
+                <div>
+                  <p className="text-sm font-semibold mb-1.5">Thay đổi so với bản đã duyệt trước</p>
+                  <div className="rounded-lg border border-border divide-y divide-border">
+                    {diff.map(d => (
+                      <div key={d.key} className="px-3.5 py-2.5 text-sm">
+                        <p className="text-xs font-medium text-muted-foreground mb-1">{d.label}</p>
+                        {d.before && <p className="text-muted-foreground line-through line-clamp-2">{d.before}</p>}
+                        <p className="line-clamp-3">{d.after}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {req ? (
+                <>
+                  <AgentDeploymentSection req={req} />
+                  <AgentContentSection req={req} />
+                </>
+              ) : (
+                <div className="rounded-lg border border-border px-3.5 py-3 text-sm space-y-1">
+                  <p><span className="text-muted-foreground">Workspace:</span> {row.scope ?? "—"}</p>
+                  <p><span className="text-muted-foreground">Kênh ngoài:</span> {row.channels?.length ? row.channels.map(channelLabel).join(", ") : "Không"}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t border-border bg-surface-muted/40 flex items-center justify-between gap-2">
+              {req ? (
+                <Link to={`/governance/requests/${req.id}`} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-primary hover:underline flex items-center gap-1">
+                  Mở trang yêu cầu <ExternalLink size={11} />
+                </Link>
+              ) : <span />}
+              <div className="flex items-center gap-2">
+                {row.status === "pending" && req?.requesterId === CURRENT_USER.id && (
+                  <button onClick={() => onWithdraw(row)} className="h-9 px-3.5 rounded-lg border border-destructive/30 text-destructive bg-white hover:bg-destructive/5 text-sm font-medium flex items-center gap-1.5"><Undo2 size={14} /> Rút yêu cầu</button>
+                )}
+                {isLatestRejected(row) && (
+                  <button onClick={onPublish} className="h-9 px-3.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium flex items-center gap-1.5"><Pencil size={14} /> Sửa &amp; gửi lại</button>
+                )}
+                {row.status === "previous" && row.release && (
+                  <button onClick={() => onRollback(row)} className="h-9 px-3.5 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5"><RotateCcw size={14} /> Khôi phục</button>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+      </SheetContent>
+    </Sheet>
   );
 }

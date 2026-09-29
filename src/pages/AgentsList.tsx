@@ -16,7 +16,7 @@ import { AGENTS as agents } from "@/components/configure/agentStore";
 import { useOrg } from "@/pages/organization/orgStore";
 import { recheckAgentGroupPublish } from "@/components/configure/collabGroupStore";
 import { getChannelName } from "@/components/configure/channelCatalog";
-import { AgentGovBadge, agentGovState } from "@/components/governance/governanceUi";
+import { AgentVersionLines, agentGovState } from "@/components/governance/governanceUi";
 import { agentModelStore } from "@/components/configure/agentModelStore";
 
 /* ─── Data ─────────────────────────────────────────────────────────────── */
@@ -46,11 +46,10 @@ function relativeTime(ts: number): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
+/** Live state comes from agentPublishStore for every Agent — the same source the card's version
+ * lines and the Agent page use, so the "Published" tab never disagrees with what a card shows. */
 function agentTabStatus(a: typeof agents[number]): "Published" | "Draft" {
-  if (getAgentKind(a.id) === "automation") {
-    return agentPublishStore.isPublished(a.id) ? "Published" : "Draft";
-  }
-  return a.status as "Published" | "Draft";
+  return agentPublishStore.isPublished(a.id) ? "Published" : "Draft";
 }
 
 /* ─── Template data ─────────────────────────────────────────────────── */
@@ -237,17 +236,7 @@ function ConversationalCard({ a }: { a: typeof agents[number] }) {
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-sm truncate mb-0.5">{a.name}</h3>
-            <div className="flex items-center gap-1.5 text-xs">
-              <span className={`font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                a.status === "Published"
-                  ? "bg-primary-soft text-primary"
-                  : "bg-surface-muted text-muted-foreground"
-              }`}>
-                {a.status}
-              </span>
-              <AgentGovBadge agentId={a.id} />
-              <span className="text-muted-foreground truncate">· {agentModelStore.label(a.id)}</span>
-            </div>
+            <AgentVersionLines agentId={a.id} />
           </div>
           <button className="opacity-0 group-hover:opacity-100 transition-base text-muted-foreground hover:text-foreground p-1">
             <HugeiconsIcon icon={MoreVerticalIcon} size={14} />
@@ -275,6 +264,8 @@ function ConversationalCard({ a }: { a: typeof agents[number] }) {
 
         <div className="flex items-center gap-1.5 mt-3 text-xs text-muted-foreground">
           <span>Updated {a.updated}</span>
+          <span>·</span>
+          <span className="truncate">{agentModelStore.label(a.id)}</span>
           {a.channels.length > 0 && (
             <>
               <span>·</span>
@@ -311,13 +302,7 @@ function AutomationCard({ a }: { a: typeof agents[number] }) {
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-sm truncate mb-0.5">{a.name}</h3>
-            <div className="flex items-center gap-1.5 text-xs">
-              <span className={`font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${badgeClass}`}>
-                {badgeLabel}
-              </span>
-              <AgentGovBadge agentId={a.id} />
-              <span className="text-muted-foreground truncate">· {agentModelStore.label(a.id)}</span>
-            </div>
+            <AgentVersionLines agentId={a.id} />
           </div>
           <button className="opacity-0 group-hover:opacity-100 transition-base text-muted-foreground hover:text-foreground p-1">
             <HugeiconsIcon icon={MoreVerticalIcon} size={14} />
@@ -347,6 +332,8 @@ function AutomationCard({ a }: { a: typeof agents[number] }) {
 
         <div className="flex items-center gap-1.5 mt-3 text-xs text-muted-foreground flex-wrap">
           <span>Updated {a.updated}</span>
+          <span>·</span>
+          <span className="truncate">{agentModelStore.label(a.id)}</span>
           {types.length > 0 && (
             <>
               <span>·</span>
