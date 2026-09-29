@@ -525,7 +525,7 @@ export default function ExternalAgentDetail() {
 
               <div className="rounded-xl border border-border p-4">
                 <h3 className="text-lg font-semibold mb-2">Connection</h3>
-                <InfoRow label="Status">
+                <InfoRow label="Trạng thái">
                   <div className="space-y-1">
                     <StatusBadge status={agent.status} />
                     {latestStatusChange && (

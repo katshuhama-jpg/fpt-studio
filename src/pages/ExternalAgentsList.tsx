@@ -20,20 +20,20 @@ import { AgentVersionLines } from "@/components/governance/governanceUi";
 // RecentAgentCard (Home.tsx), distinct from the small formal StatusBadge used elsewhere (detail
 // page, "Edit connection" menu). "published" reads as "Live" to match that same convention.
 const STATUS_CHIP: Record<ExternalAgentStatus, { label: string; chipClass: string }> = {
-  draft: { label: "Draft", chipClass: "chip-muted" },
-  pending_approval: { label: "Pending approval", chipClass: "chip-warning" },
-  rejected: { label: "Rejected", chipClass: "chip-danger" },
-  published: { label: "Live", chipClass: "chip-success" },
-  paused: { label: "Paused", chipClass: "chip-muted" },
+  draft: { label: "Bản nháp", chipClass: "chip-muted" },
+  pending_approval: { label: "Chờ duyệt", chipClass: "chip-warning" },
+  rejected: { label: "Bị từ chối", chipClass: "chip-danger" },
+  published: { label: "Đang live", chipClass: "chip-success" },
+  paused: { label: "Tạm dừng", chipClass: "chip-muted" },
 };
 
 const TABS: { key: ExternalAgentStatus | "all"; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "draft", label: "Draft" },
-  { key: "pending_approval", label: "Pending approval" },
-  { key: "rejected", label: "Rejected" },
-  { key: "published", label: "Published" },
-  { key: "paused", label: "Paused" },
+  { key: "all", label: "Tất cả" },
+  { key: "draft", label: "Bản nháp" },
+  { key: "pending_approval", label: "Chờ duyệt" },
+  { key: "rejected", label: "Bị từ chối" },
+  { key: "published", label: "Đang live" },
+  { key: "paused", label: "Tạm dừng" },
 ];
 
 const ROW_MENU_WIDTH = 176; // w-44
