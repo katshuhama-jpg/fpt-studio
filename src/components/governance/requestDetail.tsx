@@ -18,7 +18,7 @@ import { AgentDeploymentSection } from "@/components/governance/agentDeployment"
 import { CURRENT_USER } from "@/components/knowledge/knowledgeBaseStore";
 import { toast } from "sonner";
 
-type Dialog = "approve" | "reject" | "revoke" | null;
+type Dialog = "approve" | "reject" | "revoke" | "withdraw" | null;
 type Scope = "agent" | "resource";
 
 const LIST_PATH: Record<Scope, string> = {
@@ -84,13 +84,22 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
     toast.success(`Đã từ chối "${req.resourceName}".`);
     closeDialog(); refresh();
   };
+  const doWithdraw = () => {
+    governanceStore.withdraw(req.id, CURRENT_USER.id, CURRENT_USER.name, "Người gửi đã rút yêu cầu.");
+    toast.success(`Đã rút yêu cầu "${req.resourceName}".`);
+    closeDialog(); refresh();
+  };
   const doRevoke = () => {
     if (!reason.trim()) { toast.error("Vui lòng nhập lý do thu hồi."); return; }
     governanceStore.revoke(req.id, CURRENT_USER.id, CURRENT_USER.name, reason.trim());
     toast.success(`Đã thu hồi "${req.resourceName}".`);
     closeDialog(); refresh();
   };
-  const canReview = req.status === "pending";
+  // Requester mode: the person who submitted a request never decides it themselves (no
+  // self-approval) — they see its status and can pull it back instead.
+  const isRequester = req.requesterId === CURRENT_USER.id;
+  const canReview = req.status === "pending" && !isRequester;
+  const canWithdraw = req.status === "pending" && isRequester;
   const isAgent = req.resourceType === "agent";
   const resourceType = req.resourceType as ResourceReqType;
   const drift = checkDrift(req);
@@ -303,6 +312,20 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
             </div>
           )}
 
+          {canWithdraw && (
+            <div className="rounded-xl border border-border bg-surface p-3.5">
+              <p className="text-xs text-muted-foreground leading-relaxed mb-2.5">
+                Bạn là người gửi yêu cầu này — Org/Unit Admin khác sẽ duyệt. Bạn có thể rút lại khi còn chờ duyệt.
+              </p>
+              <button
+                onClick={() => setDialog("withdraw")}
+                className="w-full h-9 rounded-lg border border-destructive/30 text-destructive bg-white hover:bg-destructive/5 text-sm font-medium flex items-center justify-center gap-1.5 transition-base"
+              >
+                <Undo2 size={14} /> Rút yêu cầu
+              </button>
+            </div>
+          )}
+
           {req.status === "approved" && (
             <div className="rounded-xl border border-border bg-surface p-3.5">
               <button
@@ -343,6 +366,7 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
             <h3 className="font-display text-lg font-semibold mb-1">
               {dialog === "approve" ? `Duyệt "${req.resourceName}"?`
                 : dialog === "reject" ? `Từ chối "${req.resourceName}"?`
+                : dialog === "withdraw" ? `Rút yêu cầu ${req.version ?? ""}?`
                 : `Thu hồi "${req.resourceName}"?`}
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
@@ -350,11 +374,12 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
                 ? "Sau khi duyệt, Agent này sẽ publish theo phạm vi đã chọn."
                 : "Sau khi duyệt, thành phần này sẽ xuất hiện trong Tenant Library để các Builder khác dùng chung.")}
               {dialog === "reject" && "Người gửi sẽ nhận được lý do từ chối và cần tạo yêu cầu mới nếu muốn gửi lại."}
+              {dialog === "withdraw" && "Admin sẽ không còn thấy yêu cầu này để duyệt. Agent giữ nguyên trạng thái hiện tại — bạn có thể gửi lại bất cứ lúc nào."}
               {dialog === "revoke" && (isAgent
                 ? "Agent sẽ ngừng publish ngay lập tức và cần được gửi duyệt lại từ đầu nếu muốn publish lại. Hành động này không thể hoàn tác."
                 : "Thành phần sẽ ngừng dùng chung ngay lập tức (các Agent đang dùng bản riêng của họ không bị ảnh hưởng) và cần được gửi duyệt lại từ đầu. Hành động này không thể hoàn tác.")}
             </p>
-            {dialog !== "approve" && (
+            {(dialog === "reject" || dialog === "revoke") && (
               <textarea
                 rows={3}
                 autoFocus
@@ -374,15 +399,15 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
               />
             )}
             <div className="flex items-center justify-end gap-2">
-              <button onClick={closeDialog} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Hủy</button>
+              <button onClick={closeDialog} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">{dialog === "withdraw" ? "Giữ yêu cầu" : "Hủy"}</button>
               <button
-                onClick={dialog === "approve" ? doApprove : dialog === "reject" ? doReject : doRevoke}
+                onClick={dialog === "approve" ? doApprove : dialog === "reject" ? doReject : dialog === "withdraw" ? doWithdraw : doRevoke}
                 className={`h-9 px-4 rounded-lg text-sm font-medium transition-base ${
-                  dialog === "reject" || dialog === "revoke" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  dialog === "reject" || dialog === "revoke" || dialog === "withdraw" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   : "bg-success text-white hover:opacity-90"
                 }`}
               >
-                {dialog === "approve" ? "Xác nhận duyệt" : dialog === "reject" ? "Xác nhận từ chối" : "Xác nhận thu hồi"}
+                {dialog === "approve" ? "Xác nhận duyệt" : dialog === "reject" ? "Xác nhận từ chối" : dialog === "withdraw" ? "Rút yêu cầu" : "Xác nhận thu hồi"}
               </button>
             </div>
           </div>

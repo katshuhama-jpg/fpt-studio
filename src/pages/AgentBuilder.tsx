@@ -75,6 +75,7 @@ import { knowledgeStore, OWN_KB_ID, type KnowledgeItem } from "@/components/know
 import { isAccessibleTo as isSkillAccessibleTo } from "@/components/configure/skillSharing";
 import { knowledgeBaseStore, CURRENT_USER as KB_CURRENT_USER, isViewOnly as isKbViewOnly, isAccessibleTo as isKbAccessibleTo, type KnowledgeBase } from "@/components/knowledge/knowledgeBaseStore";
 import { governanceStore, listAgentResourceRefs, agentEmoji } from "@/components/governance/governanceStore";
+import { PendingRequestPill } from "@/components/governance/agentRequestPill";
 import { collabGroupStore, overlapForGroup, recheckAgentGroupPublish, GROUP_APPROVAL_THRESHOLD, type CollabGroup } from "@/components/configure/collabGroupStore";
 import { resourceBlockStore } from "@/components/governance/resourceBlockStore";
 import { KnowledgeStatusPill } from "@/components/knowledge/knowledgeStatus";
@@ -289,13 +290,7 @@ export default function AgentBuilder() {
 
         <div className="flex items-center gap-2">
           {openGovRequest ? (
-            <Link
-              to={`/governance/requests/${openGovRequest.id}`}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium shrink-0 transition-base hover:opacity-80 bg-warning/10 border-warning/25 text-warning"
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-warning" />
-              Đang chờ duyệt · {openGovRequest.version}
-            </Link>
+            <PendingRequestPill req={openGovRequest} onChanged={() => setPublishTick(t => t + 1)} />
           ) : published ? (
             <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium shrink-0 ${
               kind === "automation"
