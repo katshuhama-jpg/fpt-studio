@@ -27,6 +27,7 @@ import { knowledgeFaqStore } from "@/components/knowledge/knowledgeFaqStore";
 import { knowledgeStore } from "@/components/knowledge/knowledgeStore";
 import CreateKnowledgeBaseModal from "@/components/knowledge/CreateKnowledgeBaseModal";
 import ShareKnowledgeBaseModal from "@/components/knowledge/ShareKnowledgeBaseModal";
+import ShareAgentItemModal from "@/components/knowledge/ShareAgentItemModal";
 
 /**
  * "Xem chi tiết resource ngay trong Instructions" — clicking a Skill / Guardrail / Kho tri thức /
@@ -414,11 +415,13 @@ function KnowledgeBaseDetail({ id, onClose, onChanged }: { id: string; onClose: 
 
 const KIND_LABEL = { doc: "Tài liệu", url: "Website", faq: "Câu hỏi thường gặp" } as const;
 
-function KnowledgeItemDetail({ agentId, id, onClose, onOpenFull }: { agentId: string; id: string; onClose: () => void; onOpenFull: () => void }) {
+function KnowledgeItemDetail({ agentId, id, onClose, onOpenFull, onChanged }: { agentId: string; id: string; onClose: () => void; onOpenFull: () => void; onChanged: () => void }) {
+  const [sharing, setSharing] = useState(false);
   const item = knowledgeStore.list(agentId).find(i => i.id === id);
   if (!item) return null;
+  if (sharing) return <ShareAgentItemModal agentId={agentId} items={[item]} onClose={() => { setSharing(false); onChanged(); }} />;
   return (
-    <Shell typeLabel={KIND_LABEL[item.kind].toLowerCase()} name={item.name} onClose={onClose} onEdit={onOpenFull}>
+    <Shell typeLabel={KIND_LABEL[item.kind].toLowerCase()} name={item.name} onClose={onClose} onEdit={onOpenFull} onShare={() => setSharing(true)}>
       <Meta rows={[
         { label: "Loại", value: `${KIND_LABEL[item.kind]} riêng của Agent` },
         ...(item.chunkCount != null ? [{ label: "Số đoạn", value: String(item.chunkCount) }] : []),
@@ -488,7 +491,7 @@ export default function AgentResourceDetailModal({ agentId, target, onClose, onC
     case "guardrail": return <ConsoleGuardrailDetail id={target.id} onClose={onClose} onChanged={changed} />;
     case "agentGuardrail": return <AgentGuardrailDetail agentId={agentId} id={target.id} onClose={onClose} onChanged={changed} />;
     case "knowledgeBase": return <KnowledgeBaseDetail id={target.id} onClose={onClose} onChanged={changed} />;
-    case "knowledgeItem": return <KnowledgeItemDetail agentId={agentId} id={target.id} onClose={onClose} onOpenFull={() => { onClose(); onOpenKnowledge?.(); }} />;
+    case "knowledgeItem": return <KnowledgeItemDetail agentId={agentId} id={target.id} onClose={onClose} onChanged={changed} onOpenFull={() => { onClose(); onOpenKnowledge?.(); }} />;
     case "connector": return <ConnectorDetail id={target.id} onClose={onClose} onChanged={changed} />;
   }
 }

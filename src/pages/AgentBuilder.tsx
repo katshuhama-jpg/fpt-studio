@@ -89,6 +89,8 @@ import { KnowledgeStatusPill } from "@/components/knowledge/knowledgeStatus";
 import AttachConsoleKnowledgeBaseModal from "@/components/knowledge/AttachConsoleKnowledgeBaseModal";
 import ShareKnowledgeBaseModal from "@/components/knowledge/ShareKnowledgeBaseModal";
 import ShareAgentItemModal from "@/components/knowledge/ShareAgentItemModal";
+import ActionMenu, { type ActionMenuItem } from "@/components/ui/ActionMenu";
+import GuardrailShareModal from "@/components/configure/GuardrailShareModal";
 import CreateKnowledgeBaseModal from "@/components/knowledge/CreateKnowledgeBaseModal";
 import DeleteKnowledgeBaseDialog from "@/components/knowledge/DeleteKnowledgeBaseDialog";
 import KnowledgeTypeIcon from "@/components/knowledge/KnowledgeTypeIcon";
@@ -1233,8 +1235,10 @@ function MoreLink({ count, onClick }: { count: number; onClick: () => void }) {
 const KNOWLEDGE_SOURCE_ROW_MENU_WIDTH = 176; // w-44
 const KNOWLEDGE_SOURCE_ROW_MENU_HEIGHT_ESTIMATE = 90; // 2 items + container padding
 
-function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, openLabel = "Mở nguồn tri thức", removeLabel = "Gỡ nguồn tri thức", disabled = false, disabledReason = "Nguồn tri thức đang được xử lý.", href, twoLine = false, hideOpen = false, toggle }: {
+function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, onShare, openLabel = "Mở nguồn tri thức", removeLabel = "Gỡ nguồn tri thức", disabled = false, disabledReason = "Nguồn tri thức đang được xử lý.", href, twoLine = false, hideOpen = false, toggle }: {
   icon: any; name: string; chip: React.ReactNode; onOpen: () => void; onRemove: () => void;
+  /** Owner-only "Chia sẻ" action (e.g. a knowledge item that exists only in this Agent). */
+  onShare?: () => void;
   openLabel?: string; removeLabel?: string; disabled?: boolean; disabledReason?: string;
   /** When set, opens in a new tab via a real anchor instead of calling onOpen in-place — used
    * for a linked Console knowledge group so it never navigates the Agent Builder away from
@@ -1254,61 +1258,9 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, openLabel = "M
    * activate/deactivate control without a separate row layout. */
   toggle?: { checked: boolean; onCheckedChange: (v: boolean) => void; tooltip?: string };
 }) {
-  const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  const openMenu = () => {
-    const r = btnRef.current?.getBoundingClientRect();
-    if (r) {
-      // Portal + flip-up, same convention as SubAgentRowMenu/KnowledgeItemRowMenu, so the menu
-      // is never clipped when this row sits near the bottom of the sidebar or page.
-      const openUpward = window.innerHeight - r.bottom < KNOWLEDGE_SOURCE_ROW_MENU_HEIGHT_ESTIMATE && r.top > KNOWLEDGE_SOURCE_ROW_MENU_HEIGHT_ESTIMATE;
-      const left = Math.min(Math.max(r.right - KNOWLEDGE_SOURCE_ROW_MENU_WIDTH, 8), window.innerWidth - KNOWLEDGE_SOURCE_ROW_MENU_WIDTH - 8);
-      setPos(openUpward ? { bottom: window.innerHeight - r.top + 4, left } : { top: r.bottom + 4, left });
-    }
-    setOpen(true);
-  };
-
-  useEffect(() => {
-    if (!open) return;
-    const h = (e: MouseEvent) => {
-      if (
-        menuRef.current && !menuRef.current.contains(e.target as Node) &&
-        btnRef.current && !btnRef.current.contains(e.target as Node)
-      ) setOpen(false);
-    };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, [open]);
-
   const rowClassName = `group flex ${twoLine ? "items-start" : "items-center"} gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
     disabled || hideOpen ? "cursor-default" : "hover:bg-surface-muted cursor-pointer"
   }`;
-
-  const menuBody = (
-    <div
-      ref={menuRef}
-      className="fixed z-[9999] w-44 rounded-lg border border-border bg-white shadow-elev py-1"
-      style={{ top: pos.top, bottom: pos.bottom, left: pos.left }}
-      onMouseDown={e => e.stopPropagation()}
-    >
-      {hideOpen ? null : disabled ? (
-        <Tooltip delayDuration={200}>
-          <TooltipTrigger asChild>
-            <span tabIndex={0} className="block w-full text-left px-3 py-1.5 text-sm text-muted-foreground/60 cursor-not-allowed outline-none">{openLabel}</span>
-          </TooltipTrigger>
-          <TooltipContent side="left">{disabledReason}</TooltipContent>
-        </Tooltip>
-      ) : href ? (
-        <a href={href} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-surface-muted transition-base">{openLabel}</a>
-      ) : (
-        <button onClick={() => { setOpen(false); onOpen(); }} className="w-full text-left px-3 py-1.5 text-sm hover:bg-surface-muted transition-base">{openLabel}</button>
-      )}
-      <button onClick={() => { setOpen(false); onRemove(); }} className="w-full text-left px-3 py-1.5 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">{removeLabel}</button>
-    </div>
-  );
 
   const toggleEl = toggle ? (
     <label
@@ -1321,18 +1273,19 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, openLabel = "M
     </label>
   ) : null;
 
+  const menuItems: ActionMenuItem[] = [
+    ...(hideOpen ? [] : [{
+      label: openLabel,
+      icon: href ? ExternalLinkIcon : EyeIcon,
+      onSelect: () => { if (href) window.open(href, "_blank", "noopener,noreferrer"); else onOpen(); },
+      disabledReason: disabled ? disabledReason : undefined,
+    }]),
+    ...(onShare ? [{ label: "Chia sẻ", icon: Share08Icon, onSelect: onShare }] : []),
+    { label: removeLabel, icon: Delete01Icon, onSelect: onRemove, destructive: true },
+  ];
   const actionsMenu = (
-    <div className={`relative shrink-0 ${twoLine ? "self-center" : ""}`} onClick={e => { e.preventDefault(); e.stopPropagation(); }}>
-      <button
-        ref={btnRef}
-        type="button"
-        onClick={() => (open ? setOpen(false) : openMenu())}
-        aria-label="Thao tác"
-        className="w-7 h-7 -m-2 rounded-md flex items-center justify-center text-foreground/60 hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <HugeiconsIcon icon={MoreHorizontalIcon} size={14} />
-      </button>
-      {open && createPortal(menuBody, document.body)}
+    <div className={`shrink-0 ${twoLine ? "self-center" : ""}`} onClick={e => { e.preventDefault(); e.stopPropagation(); }}>
+      <ActionMenu items={menuItems} triggerLabel={`Thao tác với ${name}`} />
     </div>
   );
 
@@ -1389,65 +1342,15 @@ function AgentKbCardMenu({ onOpen, onEdit, onShare, onDelete, editBlocked, share
   onOpen: () => void; onEdit?: () => void; onShare?: () => void; onDelete?: () => void;
   editBlocked?: string; shareBlocked?: string; deleteBlocked?: string; openOnly?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, [open]);
-
-  const safeItems: { label: string; onClick: () => void; blocked?: string }[] = openOnly
-    ? [{ label: "Mở", onClick: onOpen }]
+  const items: ActionMenuItem[] = openOnly
+    ? [{ label: "Mở", icon: ExternalLinkIcon, onSelect: onOpen }]
     : [
-        { label: "Mở", onClick: onOpen },
-        { label: "Đổi tên", onClick: onEdit!, blocked: editBlocked },
-        { label: "Chia sẻ", onClick: onShare!, blocked: shareBlocked },
+        { label: "Mở", icon: ExternalLinkIcon, onSelect: onOpen },
+        ...(onEdit ? [{ label: "Đổi tên", icon: PencilEdit01Icon, onSelect: onEdit, disabledReason: editBlocked }] : []),
+        ...(onShare ? [{ label: "Chia sẻ", icon: Share08Icon, onSelect: onShare, disabledReason: shareBlocked }] : []),
+        ...(onDelete ? [{ label: "Xóa", icon: Delete01Icon, onSelect: onDelete, disabledReason: deleteBlocked, destructive: true }] : []),
       ];
-
-  return (
-    <div ref={ref} className="relative shrink-0" onClick={e => e.stopPropagation()}>
-      <button
-        type="button"
-        onClick={() => setOpen(v => !v)}
-        aria-label="Thao tác với kho tri thức"
-        className="w-8 h-8 min-w-[44px] min-h-[44px] -m-2 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <HugeiconsIcon icon={MoreHorizontalIcon} size={15} />
-      </button>
-      {open && (
-        <div className="absolute right-0 top-full mt-1 z-20 min-w-48 max-w-xs rounded-lg border border-border bg-white shadow-elev py-1">
-          {safeItems.map(item => (
-            <button
-              key={item.label}
-              type="button"
-              disabled={!!item.blocked}
-              title={item.blocked}
-              onClick={() => { setOpen(false); item.onClick(); }}
-              className={`w-full text-left px-3 py-2 text-sm transition-base ${item.blocked ? "text-muted-foreground/50 cursor-not-allowed" : "hover:bg-surface-muted"}`}
-            >
-              {item.label}
-            </button>
-          ))}
-          {!openOnly && (
-            <div className="mt-1 pt-1 border-t border-border">
-              <button
-                type="button"
-                disabled={!!deleteBlocked}
-                title={deleteBlocked}
-                onClick={() => { setOpen(false); onDelete!(); }}
-                className={`w-full text-left px-3 py-2 text-sm transition-base ${deleteBlocked ? "text-muted-foreground/50 cursor-not-allowed" : "text-destructive hover:bg-[hsl(var(--destructive-soft))]"}`}
-              >
-                Xóa
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
+  return <ActionMenu items={items} triggerLabel="Thao tác với kho tri thức" />;
 }
 
 
@@ -2047,72 +1950,13 @@ function KnowledgeItemRowMenu({ onOpen, openLabel = "Mở", onShare, onReprocess
   onOpen: () => void; openLabel?: string; onShare: () => void; onReprocess: () => void; onDelete: () => void;
   reprocessDisabled?: boolean; reprocessTooltip?: string;
 }) {
-  const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  const openMenu = () => {
-    const r = btnRef.current?.getBoundingClientRect();
-    if (r) {
-      // Render in a portal, positioned from the button's own screen rect, and flip upward
-      // whenever there isn't room below — this is the fix for the menu rendering off-screen
-      // on short tables (same fix as the Console Knowledge documents table).
-      const openUpward = window.innerHeight - r.bottom < KNOWLEDGE_ITEM_ROW_MENU_HEIGHT_ESTIMATE && r.top > KNOWLEDGE_ITEM_ROW_MENU_HEIGHT_ESTIMATE;
-      const left = Math.min(Math.max(r.right - KNOWLEDGE_ITEM_ROW_MENU_WIDTH, 8), window.innerWidth - KNOWLEDGE_ITEM_ROW_MENU_WIDTH - 8);
-      setPos(openUpward ? { bottom: window.innerHeight - r.top + 4, left } : { top: r.bottom + 4, left });
-    }
-    setOpen(true);
-  };
-
-  useEffect(() => {
-    if (!open) return;
-    const h = (e: MouseEvent) => {
-      if (
-        menuRef.current && !menuRef.current.contains(e.target as Node) &&
-        btnRef.current && !btnRef.current.contains(e.target as Node)
-      ) setOpen(false);
-    };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, [open]);
-
-  return (
-    <div className="relative" onClick={e => e.stopPropagation()}>
-      <button ref={btnRef} onClick={() => (open ? setOpen(false) : openMenu())} aria-label="Thao tác" className="w-9 h-9 min-w-[44px] min-h-[44px] -m-1.5 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-        <HugeiconsIcon icon={MoreHorizontalIcon} size={15} />
-      </button>
-      {open && createPortal(
-        <div
-          ref={menuRef}
-          className="fixed z-[9999] w-56 rounded-lg border border-border bg-white shadow-elev py-1"
-          style={{ top: pos.top, bottom: pos.bottom, left: pos.left }}
-          onMouseDown={e => e.stopPropagation()}
-        >
-          <button onClick={() => { setOpen(false); onOpen(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">{openLabel}</button>
-          <button onClick={() => { setOpen(false); onShare(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">Chia sẻ & quyền truy cập</button>
-          <Tooltip delayDuration={200}>
-            <TooltipTrigger asChild>
-              <span>
-                <button
-                  disabled={reprocessDisabled}
-                  onClick={() => { if (reprocessDisabled) return; setOpen(false); onReprocess(); }}
-                  className={`w-full text-left px-3 py-2 text-sm transition-base ${reprocessDisabled ? "text-muted-foreground/50 cursor-not-allowed" : "hover:bg-surface-muted"}`}
-                >
-                  Xử lý lại
-                </button>
-              </span>
-            </TooltipTrigger>
-            {reprocessTooltip && <TooltipContent side="left" className="max-w-[240px]">{reprocessTooltip}</TooltipContent>}
-          </Tooltip>
-          <div className="mt-1 pt-1 border-t border-border">
-            <button onClick={() => { setOpen(false); onDelete(); }} className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">Xóa</button>
-          </div>
-        </div>,
-        document.body,
-      )}
-    </div>
-  );
+  const items: ActionMenuItem[] = [
+    { label: openLabel, icon: ExternalLinkIcon, onSelect: onOpen },
+    { label: "Chia sẻ", icon: Share08Icon, onSelect: onShare },
+    { label: "Xử lý lại", icon: CircleArrowReload01Icon, onSelect: onReprocess, disabledReason: reprocessDisabled ? (reprocessTooltip ?? "Chưa thể xử lý lại nguồn này.") : undefined },
+    { label: "Xóa", icon: Delete01Icon, onSelect: onDelete, destructive: true },
+  ];
+  return <ActionMenu items={items} triggerLabel="Thao tác với nguồn tri thức" width={224} />;
 }
 
 /* ============ TASKS LIST ============ */
@@ -5312,67 +5156,19 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
  * passed: an Agent-only skill gets Edit / Share / Delete, a connected workspace skill
  * only gets Open and Disconnect, and both get Activate/Deactivate — the card shows status but
  * no toggle, so this menu is where that switch lives. */
-function SkillCardMenu({ onOpen, onEdit, onShare, isActive, onToggleActive, onRemove, removeLabel }: {
-  onOpen?: () => void; onEdit?: () => void; onShare?: () => void;
-  isActive: boolean; onToggleActive: () => void; onRemove: () => void; removeLabel: string;
+function SkillCardMenu({ onOpen, onEdit, onShare, onRemove, removeLabel }: {
+  onOpen?: () => void; onEdit?: () => void; onShare?: () => void; onRemove: () => void; removeLabel: string;
 }) {
-  const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const MENU_WIDTH = 208;
-  const MENU_HEIGHT_ESTIMATE = 210;
-
-  const openMenu = () => {
-    const r = btnRef.current?.getBoundingClientRect();
-    if (r) {
-      const openUpward = window.innerHeight - r.bottom < MENU_HEIGHT_ESTIMATE && r.top > MENU_HEIGHT_ESTIMATE;
-      const left = Math.min(Math.max(r.right - MENU_WIDTH, 8), window.innerWidth - MENU_WIDTH - 8);
-      setPos(openUpward ? { bottom: window.innerHeight - r.top + 4, left } : { top: r.bottom + 4, left });
-    }
-    setOpen(true);
-  };
-
-  useEffect(() => {
-    if (!open) return;
-    const h = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node) && btnRef.current && !btnRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, [open]);
-
-  const item = (label: string, icon: any, onClick: () => void) => (
-    <button
-      key={label}
-      onClick={() => { setOpen(false); onClick(); }}
-      className="w-full flex items-center gap-2 text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base"
-    >
-      <HugeiconsIcon icon={icon} size={14} className="text-muted-foreground" /> {label}
-    </button>
-  );
-
-  return (
-    <div className="relative shrink-0" onClick={e => e.stopPropagation()}>
-      <button ref={btnRef} onClick={() => (open ? setOpen(false) : openMenu())} aria-label="Actions" className="w-7 h-7 -m-1 rounded-md flex items-center justify-center text-foreground/60 hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-        <HugeiconsIcon icon={MoreHorizontalIcon} size={14} />
-      </button>
-      {open && createPortal(
-        <div ref={menuRef} className="fixed z-[9999] w-52 rounded-lg border border-border bg-white shadow-elev py-1" style={{ top: pos.top, bottom: pos.bottom, left: pos.left }} onMouseDown={e => e.stopPropagation()}>
-          {onOpen && item("Mở skill", ExternalLinkIcon, onOpen)}
-          {onEdit && item("Chỉnh sửa", PencilEdit01Icon, onEdit)}
-          {onShare && item("Chia sẻ", Share08Icon, onShare)}
-          {item(isActive ? "Tắt" : "Bật", isActive ? PauseIcon : PlayCircleIcon, onToggleActive)}
-          <div className="mt-1 pt-1 border-t border-border">
-            <button onClick={() => { setOpen(false); onRemove(); }} className="w-full flex items-center gap-2 text-left px-3 py-2 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">
-              <HugeiconsIcon icon={Delete01Icon} size={14} /> {removeLabel}
-            </button>
-          </div>
-        </div>,
-        document.body,
-      )}
-    </div>
-  );
+  // No "Tắt/Bật" here any more — resources attached to an Agent aren't switched on/off from
+  // this menu. The destructive item is "Xóa" for the Agent's own skill, "Gỡ liên kết" for a
+  // linked one (unlinking never deletes the shared skill).
+  const items: ActionMenuItem[] = [
+    ...(onOpen ? [{ label: "Mở skill", icon: ExternalLinkIcon, onSelect: onOpen }] : []),
+    ...(onEdit ? [{ label: "Chỉnh sửa", icon: PencilEdit01Icon, onSelect: onEdit }] : []),
+    ...(onShare ? [{ label: "Chia sẻ", icon: Share08Icon, onSelect: onShare }] : []),
+    { label: removeLabel, icon: Delete01Icon, onSelect: onRemove, destructive: true },
+  ];
+  return <ActionMenu items={items} triggerLabel="Thao tác với skill" />;
 }
 
 function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAdd?: (fn: (pos:{top:number;left:number}) => void) => void }) {
@@ -5478,12 +5274,10 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
                       <div className="flex items-center gap-1 mt-1"><SkillOwnershipTag skill={s} userId={currentUser.id} /></div>
                     </div>
                     <SkillCardMenu
-                      isActive={agentSkillStore.isActive(agentId, s.id)}
-                      onToggleActive={() => { agentSkillStore.setActive(agentId, s.id, !agentSkillStore.isActive(agentId, s.id)); refresh(); }}
                       onEdit={() => setEditTarget(s)}
                       onShare={() => setShareTarget(s)}
                       onRemove={() => setDeleteTarget({ id: s.id, name: s.name })}
-                      removeLabel="Delete"
+                      removeLabel="Xóa"
                     />
                   </div>
                 ))}
@@ -5608,6 +5402,9 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
   const [detachTarget, setDetachTarget] = useState<{ id: string; name: string } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [detailTarget, setDetailTarget] = useState<AgentResourceRef | null>(null);
+  // Knowledge that exists only in this Agent is shared with the same "Chia sẻ" popup as the
+  // Agent's Knowledge screen.
+  const [shareItems, setShareItems] = useState<KnowledgeItem[] | null>(null);
   const refresh = () => setTick(t => t + 1);
   void tick;
 
@@ -5632,7 +5429,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
     .map(id => knowledgeBaseStore.get(id))
     .filter((kb): kb is NonNullable<typeof kb> => !!kb);
 
-  type Row = { key: string; name: string; icon: any; open: () => void; remove: () => void; chip: React.ReactNode; disabled?: boolean; disabledReason?: string; href?: string };
+  type Row = { key: string; name: string; icon: any; open: () => void; remove: () => void; share?: () => void; chip: React.ReactNode; disabled?: boolean; disabledReason?: string; href?: string };
   const rows: Row[] = [
     ...attachedKbs.map(kb => ({
       key: `kb-${kb.id}`,
@@ -5666,6 +5463,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
         icon: NoteIcon,
         open: () => setDetailTarget({ kind: "knowledgeItem", id: item.id }),
         remove: () => setDeleteTarget({ id: item.id, name: item.name }),
+        share: () => setShareItems([item]),
         chip: (
           <div className="flex items-center gap-1.5 shrink-0">
             {itemStatus !== "done" && <KnowledgeStatusPill status={itemStatus} compact />}
@@ -5717,6 +5515,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
               chip={row.chip}
               onOpen={row.open}
               onRemove={row.remove}
+              onShare={row.share}
               openLabel="Xem chi tiết"
               removeLabel={row.href ? "Gỡ liên kết" : "Xóa"}
               disabled={row.disabled}
@@ -5746,6 +5545,9 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
       )}
 
       {showAttach && <AttachConsoleKnowledgeBaseModal agentId={agentId} userId={KB_CURRENT_USER.id} onClose={() => { setShowAttach(false); refresh(); }} />}
+      {shareItems && shareItems.length > 0 && (
+        <ShareAgentItemModal agentId={agentId} items={shareItems} onClose={() => { setShareItems(null); refresh(); }} />
+      )}
       {detailTarget && (
         <AgentResourceDetailModal
           agentId={agentId}
@@ -7081,63 +6883,16 @@ function StarterPromptsInner({ onRegisterAdd }: { onRegisterAdd?: (fn: () => voi
  * edited from Console instead), Pause/Resume mirrors the card's own toggle so it's reachable
  * from the menu too, and the destructive action reads "Delete" for an owned guardrail or
  * "Detach" for a linked one since unlinking never destroys the shared Console record. */
-function GuardrailAgentItemRowMenu({ onView, onEdit, isActive, onTogglePause, onDelete, deleteLabel = "Xóa" }: {
-  onView: () => void; onEdit?: () => void; isActive: boolean; onTogglePause: () => void; onDelete: () => void; deleteLabel?: string;
+function GuardrailAgentItemRowMenu({ onView, onEdit, onShare, onDelete, deleteLabel = "Xóa" }: {
+  onView: () => void; onEdit?: () => void; onShare?: () => void; onDelete: () => void; deleteLabel?: string;
 }) {
-  const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
-  const btnRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const MENU_WIDTH = 200;
-  const MENU_HEIGHT_ESTIMATE = 190;
-
-  const openMenu = () => {
-    const r = btnRef.current?.getBoundingClientRect();
-    if (r) {
-      const openUpward = window.innerHeight - r.bottom < MENU_HEIGHT_ESTIMATE && r.top > MENU_HEIGHT_ESTIMATE;
-      const left = Math.min(Math.max(r.right - MENU_WIDTH, 8), window.innerWidth - MENU_WIDTH - 8);
-      setPos(openUpward ? { bottom: window.innerHeight - r.top + 4, left } : { top: r.bottom + 4, left });
-    }
-    setOpen(true);
-  };
-
-  useEffect(() => {
-    if (!open) return;
-    const h = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node) && btnRef.current && !btnRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, [open]);
-
-  return (
-    <div className="relative shrink-0" onClick={e => e.stopPropagation()}>
-      <button ref={btnRef} onClick={() => (open ? setOpen(false) : openMenu())} aria-label="Actions" className="w-9 h-9 min-w-[44px] min-h-[44px] -m-1.5 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-        <HugeiconsIcon icon={MoreHorizontalIcon} size={15} />
-      </button>
-      {open && createPortal(
-        <div ref={menuRef} className="fixed z-[9999] w-48 rounded-lg border border-border bg-white shadow-elev py-1" style={{ top: pos.top, bottom: pos.bottom, left: pos.left }} onMouseDown={e => e.stopPropagation()}>
-          <button onClick={() => { setOpen(false); onView(); }} className="w-full flex items-center gap-2 text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">
-            <HugeiconsIcon icon={EyeIcon} size={14} className="text-muted-foreground" /> Xem chi tiết
-          </button>
-          {onEdit && (
-            <button onClick={() => { setOpen(false); onEdit(); }} className="w-full flex items-center gap-2 text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">
-              <HugeiconsIcon icon={PencilEdit01Icon} size={14} className="text-muted-foreground" /> Chỉnh sửa
-            </button>
-          )}
-          <button onClick={() => { setOpen(false); onTogglePause(); }} className="w-full flex items-center gap-2 text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">
-            <HugeiconsIcon icon={isActive ? PauseIcon : PlayCircleIcon} size={14} className="text-muted-foreground" /> {isActive ? "Tạm dừng" : "Tiếp tục"}
-          </button>
-          <div className="mt-1 pt-1 border-t border-border">
-            <button onClick={() => { setOpen(false); onDelete(); }} className="w-full flex items-center gap-2 text-left px-3 py-2 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] transition-base">
-              <HugeiconsIcon icon={Delete01Icon} size={14} /> {deleteLabel}
-            </button>
-          </div>
-        </div>,
-        document.body,
-      )}
-    </div>
-  );
+  const items: ActionMenuItem[] = [
+    { label: "Xem chi tiết", icon: EyeIcon, onSelect: onView },
+    ...(onEdit ? [{ label: "Chỉnh sửa", icon: PencilEdit01Icon, onSelect: onEdit }] : []),
+    ...(onShare ? [{ label: "Chia sẻ", icon: Share08Icon, onSelect: onShare }] : []),
+    { label: deleteLabel, icon: Delete01Icon, onSelect: onDelete, destructive: true },
+  ];
+  return <ActionMenu items={items} triggerLabel="Thao tác với guardrail" />;
 }
 
 function GuardrailsAgentTab({ agentId }: { agentId: string }) {
@@ -7158,6 +6913,7 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
   const [viewTarget, setViewTarget] = useState<{ g: Guardrail; editable: boolean } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [detachTarget, setDetachTarget] = useState<{ id: string; name: string } | null>(null);
+  const [shareGuardrail, setShareGuardrail] = useState<Guardrail | null>(null);
 
   const items = agentGuardrailStore.list(agentId);
   const attachedGuardrails = agentGuardrailStore.listAttachedConsoleGuardrailIds(agentId)
@@ -7169,7 +6925,7 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
 
   /** One card, shared by both sections — only the destructive action (Delete vs Detach) and
    * whether Edit is offered differ, since a linked Console guardrail is edited from Console. */
-  const renderCard = (g: Guardrail, opts: { onEdit?: () => void; onDelete: () => void; deleteLabel: string }) => {
+  const renderCard = (g: Guardrail, opts: { onEdit?: () => void; onShare?: () => void; onDelete: () => void; deleteLabel: string }) => {
     const active = agentGuardrailStore.isActive(agentId, g.id);
     const openView = () => setViewTarget({ g, editable: !!opts.onEdit });
     return (
@@ -7198,8 +6954,7 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
           <GuardrailAgentItemRowMenu
             onView={openView}
             onEdit={opts.onEdit}
-            isActive={active}
-            onTogglePause={() => { agentGuardrailStore.setActive(agentId, g.id, !active); refresh(); }}
+            onShare={opts.onShare}
             onDelete={opts.onDelete}
             deleteLabel={opts.deleteLabel}
           />
@@ -7288,6 +7043,9 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {items.map(g => renderCard(g, {
               onEdit: () => setEditTarget(g),
+              // The Agent's own guardrail is shared with the same "Chia sẻ" action as everywhere
+              // else — owner only.
+              onShare: g.ownerId === currentUser.id ? () => setShareGuardrail(g) : undefined,
               onDelete: () => setDeleteTarget({ id: g.id, name: g.name }),
               deleteLabel: "Xóa",
             }))}
@@ -7317,6 +7075,16 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
       </div>
 
       {showAttach && <AttachConsoleGuardrailModal agentId={agentId} userId={currentUser.id} onClose={() => { setShowAttach(false); refresh(); }} />}
+      {shareGuardrail && (
+        <GuardrailShareModal
+          open
+          name={shareGuardrail.name}
+          ownerName={shareGuardrail.ownerName ?? currentUser.name}
+          sharing={shareGuardrail.sharing ?? { mode: "all", people: [] }}
+          onSave={sharing => { agentGuardrailStore.updateSharing(agentId, shareGuardrail.id, sharing); refresh(); }}
+          onClose={() => setShareGuardrail(null)}
+        />
+      )}
       {showCreate && (
         <CreateGuardrailModal
           onClose={() => setShowCreate(false)}
@@ -7517,8 +7285,6 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
           <div className={GRID}>
             {items.map(s => renderSkillCard(s, 1, (
               <SkillCardMenu
-                isActive={agentSkillStore.isActive(agentId, s.id)}
-                onToggleActive={() => toggleActive(s)}
                 onEdit={() => setEditTarget(s)}
                 onShare={() => setShareTarget(s)}
                 onRemove={() => setDeleteTarget({ id: s.id, name: s.name })}
@@ -7539,8 +7305,6 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
           <div className={GRID}>
             {attachedSkills.map(s => renderSkillCard(s, Math.max(1, s.attachedByAgentIds.length), (
               <SkillCardMenu
-                isActive={agentSkillStore.isActive(agentId, s.id)}
-                onToggleActive={() => toggleActive(s)}
                 onOpen={() => window.open(`/tools/${s.id}?viaAgent=${agentId}`, "_blank", "noopener")}
                 onRemove={() => setDetachTarget({ id: s.id, name: s.name })}
                 removeLabel="Gỡ liên kết"
