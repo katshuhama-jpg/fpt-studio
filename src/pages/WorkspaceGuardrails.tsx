@@ -37,12 +37,14 @@ function isGuardrailAccessible(g: Guardrail, userId: string): boolean {
 const NO_ROLE_PERMISSION = "Bạn không có quyền thực hiện thao tác này.";
 const NOT_OWNED_OR_SHARED = "Bạn chỉ có thể thao tác trên guardrail bạn tạo hoặc được chia sẻ.";
 const VIEW_ONLY = "Bạn chỉ có quyền xem guardrail này.";
+const SYSTEM_READ_ONLY = "Guardrail hệ thống luôn được áp dụng, chỉ xem được.";
 
 /** Same "can this viewer edit this guardrail" gate the row menu uses, factored out so the
  * "Sửa" shortcut inside GuardrailDetailModal (opened from Row Menu "Mở") enforces the exact
  * same permission matrix instead of drifting from it. Returns the block reason, or undefined
  * when editing is allowed. */
 function editBlockedFor(g: Guardrail, access: { userId: string; hasPermission: (a: string) => boolean; canAct: (a: string, accessible: boolean) => boolean }): string | undefined {
+  if (g.mandatory) return SYSTEM_READ_ONLY;
   const hasOwner = !g.mandatory && !!g.ownerId && !!g.sharing;
   const isOwner = hasOwner && g.ownerId === access.userId;
   const accessible = isGuardrailAccessible(g, access.userId);
@@ -213,10 +215,10 @@ export default function WorkspaceGuardrails() {
         <button
           onClick={() => canCreateGuardrail && setShowCreate(true)}
           disabled={!canCreateGuardrail}
-          title={!canCreateGuardrail ? "You don't have permission to create guardrails." : undefined}
+          title={!canCreateGuardrail ? "Vai trò của bạn chưa có quyền tạo guardrail." : undefined}
           className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 transition-base disabled:opacity-40 disabled:cursor-not-allowed shrink-0 whitespace-nowrap"
         >
-          <HugeiconsIcon icon={Add01Icon} size={14} /> Create guardrail
+          <HugeiconsIcon icon={Add01Icon} size={14} /> Tạo guardrail
         </button>
       </div>
 
@@ -229,7 +231,7 @@ export default function WorkspaceGuardrails() {
           <input
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Search guardrails"
+            placeholder="Tìm guardrail..."
             className="h-9 w-56 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
           />
         </div>
@@ -242,7 +244,8 @@ export default function WorkspaceGuardrails() {
           const hasOwner = !g.mandatory && !!g.ownerId && !!g.sharing;
           const isOwner = hasOwner && g.ownerId === access.userId;
           const accessible = isGuardrailAccessible(g, access.userId);
-          const canPause = access.canAct("pause", accessible);
+          // "Hệ thống" guardrails are view-only for everyone: no pause, edit or delete.
+          const canPause = !g.mandatory && access.canAct("pause", accessible);
 
           const editBlocked = editBlockedFor(g, access);
           const shareBlocked = !hasOwner ? undefined
@@ -251,7 +254,8 @@ export default function WorkspaceGuardrails() {
             : !access.hasPermission("publish") ? NO_ROLE_PERMISSION
             : !access.canAct("publish", accessible) ? NOT_OWNED_OR_SHARED
             : undefined;
-          const deleteBlocked = hasOwner && !isOwner ? "Chỉ chủ sở hữu mới có thể xóa guardrail này."
+          const deleteBlocked = g.mandatory ? SYSTEM_READ_ONLY
+            : hasOwner && !isOwner ? "Chỉ chủ sở hữu mới có thể xóa guardrail này."
             : !access.hasPermission("delete") ? NO_ROLE_PERMISSION
             : !access.canAct("delete", accessible) ? NOT_OWNED_OR_SHARED
             : undefined;
@@ -288,7 +292,7 @@ export default function WorkspaceGuardrails() {
                 checked={g.enabled}
                 onCheckedChange={() => canPause && toggleEnabled(g.id)}
                 disabled={!canPause}
-                title={!canPause ? "Bạn không có quyền tạm dừng guardrail này." : undefined}
+                title={g.mandatory ? SYSTEM_READ_ONLY : !canPause ? "Bạn không có quyền tạm dừng guardrail này." : undefined}
               />
             </div>
             <div className="flex items-center justify-end" onClick={e => e.stopPropagation()}>

@@ -1,31 +1,23 @@
 import { isAccessibleTo } from "./skillSharing";
 import { useGroupAccess } from "@/pages/organization/scopeAccess";
+import { ownershipTags, OwnershipTagList, isCreatorRedundant } from "@/components/governance/resourceOwnership";
 import type { Skill } from "./skillStore";
 
-/** Owner/sharing chip pair for a skill detail page or Agent sidebar — same pattern as
- * Knowledge's/Guardrails' equivalents. Used only where there's no ownership filter tab already
- * establishing that context (the Skills list has its own local, tab-aware chip instead — see
- * ShareStatusChip in Skills.tsx). */
+/** Ownership for a skill outside the Skills library (skill detail page, Agent sidebar/tabs) —
+ * the same Của tôi / Được chia sẻ pills as the library cards, plus the creator's name when the
+ * skill is someone else's. One exception keeps its own wording: a skill the viewer only sees
+ * because an Agent they work on uses it (not shared with them) — see agentContextAccess.tsx. */
 export default function SkillOwnershipTag({ skill, userId }: { skill: Skill; userId: string }) {
-  // Roles that see every skill in the Console (View = All in Console) aren't limited to
-  // Agent-context viewing, so only flag "Chỉ xem trong Agent" for Own & Shared viewers.
   const skillsAccess = useGroupAccess("skills");
-  const canSeeAll = skillsAccess.canSeeAll;
-  if (skill.ownerId === userId) {
-    return (
-      <>
-        <span className="chip chip-muted">Của tôi</span>
-        {skill.sharing.mode === "all" && <span className="chip chip-info">Dùng chung</span>}
-        {skill.sharing.mode === "specific" && skill.sharing.people.length > 0 && (
-          <span className="chip chip-info">Chia sẻ với {skill.sharing.people.length} người</span>
-        )}
-      </>
-    );
-  }
-  // Attached to an Agent the viewer works on but not shared with them: visible read-only in
-  // that Agent only (see agentContextAccess.tsx), so don't claim it was shared.
-  if (!canSeeAll && !isAccessibleTo(skill.sharing, skill.ownerId, userId)) {
+  const isOwner = skill.ownerId === userId;
+  if (!isOwner && !skillsAccess.canSeeAll && !isAccessibleTo(skill.sharing, skill.ownerId, userId)) {
     return <span className="chip chip-muted">{skillsAccess.hasPermission("manage") ? "Sửa được qua Agent này" : "Chỉ xem trong Agent"} · {skill.ownerName}</span>;
   }
-  return <span className="chip chip-muted">Được chia sẻ · {skill.ownerName}</span>;
+  const tags = ownershipTags({ ownerId: skill.ownerId, sharing: skill.sharing, userId });
+  return (
+    <span className="flex items-center gap-1.5 min-w-0">
+      <OwnershipTagList tags={tags} className="shrink-0 flex-nowrap" />
+      {!isCreatorRedundant(tags) && <span className="text-xs text-muted-foreground truncate">{skill.ownerName}</span>}
+    </span>
+  );
 }

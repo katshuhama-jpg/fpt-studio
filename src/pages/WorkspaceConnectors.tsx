@@ -18,6 +18,7 @@ import {
   CONNECTOR_TEMPLATES, connectorTemplateStore, type ConnectorTemplateDef,
 } from "@/components/configure/connectorTemplateStore";
 import { ConnectorTemplateConnectModal, ConnectorTemplateManageModal } from "@/components/configure/ConnectorTemplateModals";
+import AgentResourceDetailModal from "@/components/configure/AgentResourceDetailModal";
 import {
   ownershipTags, countByTab, matchesTab, OwnershipTabs, ResourceCard, ResourceIconTile, CardCreator, AgentCount,
   type OwnershipTab, type OwnershipTag,
@@ -150,6 +151,8 @@ export default function WorkspaceConnectors() {
   const [shareTarget, setShareTarget] = useState<CustomConnector | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CustomConnector | null>(null);
   const [customTab, setCustomTab] = useState<CustomTab>("all");
+  // Clicking a custom connector card shows its details (same popup as in an Agent's Instructions).
+  const [detailConnectorId, setDetailConnectorId] = useState<string | null>(null);
 
   // Connector Templates — internal FPT systems (FCI CRM/Member/Tickets) that moved out of
   // Marketplace into Custom Connectors as pre-built templates (see connectorTemplateStore.ts).
@@ -322,7 +325,7 @@ export default function WorkspaceConnectors() {
               <p className="text-sm text-muted-foreground">Thêm một MCP server để cấp công cụ của nó cho Agent của bạn.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {customFiltered.map(i => {
                 if (i.kind === "template") {
                   const t = i.t;
@@ -352,6 +355,7 @@ export default function WorkspaceConnectors() {
                     connector={c}
                     tags={i.tags}
                     isMine={isMine}
+                    onOpen={() => setDetailConnectorId(c.id)}
                     onEdit={isMine ? () => setEditTarget(c) : undefined}
                     onShare={isMine ? () => setShareTarget(c) : undefined}
                     onPublish={isMine ? () => setPublishTarget(c) : undefined}
@@ -362,6 +366,15 @@ export default function WorkspaceConnectors() {
             </div>
           )}
         </div>
+      )}
+
+      {detailConnectorId && (
+        <AgentResourceDetailModal
+          agentId=""
+          target={{ kind: "connector", id: detailConnectorId }}
+          onClose={() => setDetailConnectorId(null)}
+          onChanged={refresh}
+        />
       )}
 
       {showAddCustom && (
@@ -544,8 +557,8 @@ function CustomConnectorRowMenu({ onEdit, onShare, onPublish, onToggleBlock, isB
   );
 }
 
-function CustomConnectorCard({ connector: c, tags, isMine, onEdit, onShare, onPublish, onToggleBlock, onDelete }: {
-  connector: CustomConnector; tags: OwnershipTag[]; isMine: boolean; onEdit?: () => void; onShare?: () => void; onPublish?: () => void; onToggleBlock?: () => void; onDelete: () => void;
+function CustomConnectorCard({ connector: c, tags, isMine, onOpen, onEdit, onShare, onPublish, onToggleBlock, onDelete }: {
+  connector: CustomConnector; tags: OwnershipTag[]; isMine: boolean; onOpen: () => void; onEdit?: () => void; onShare?: () => void; onPublish?: () => void; onToggleBlock?: () => void; onDelete: () => void;
 }) {
   const openReq = governanceStore.getOpenRequestForResource("connector", c.id);
   const isApproved = governanceStore.isResourceApproved("connector", c.id);
@@ -557,6 +570,8 @@ function CustomConnectorCard({ connector: c, tags, isMine, onEdit, onShare, onPu
       tags={tags}
       menu={<CustomConnectorRowMenu onEdit={onEdit} onShare={onShare} onPublish={onPublish} onToggleBlock={onToggleBlock} isBlocked={isBlocked} onDelete={onDelete} />}
       description={c.url}
+      singleLineDescription
+      onOpen={onOpen}
       extra={
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs text-muted-foreground">{AUTH_LABEL[c.authType]}</span>

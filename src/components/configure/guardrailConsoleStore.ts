@@ -56,8 +56,16 @@ const SEEDED_KEY = "guardrail_console_store_seeded_v1";
 const store = loadMap<string, StoredGuardrail>(STORE_KEY);
 const persist = () => saveMap(STORE_KEY, store);
 
+/** Every non-system guardrail has a creator — "Legal and medical advice" used to be seeded
+ * without one, which left it with no ownership tag at all (not Của tôi / Được chia sẻ / Hệ thống). */
+const G5_OWNER = { ownerId: "m-fsoft-coo", ownerName: "Linh Phan", sharing: { mode: "all" as const, people: [] } };
+
 function seed() {
-  if (sessionStorage.getItem(SEEDED_KEY)) return;
+  if (sessionStorage.getItem(SEEDED_KEY)) {
+    const g5 = store.get("g-5");
+    if (g5 && !g5.ownerId) { store.set("g-5", { ...g5, ...G5_OWNER }); persist(); }
+    return;
+  }
   sessionStorage.setItem(SEEDED_KEY, "1");
   const now = Date.now();
   const DAY = 86_400_000;
@@ -73,7 +81,7 @@ function seed() {
     enabled: true, ownerId: "m-fsoft-ceo", ownerName: "Tran Nam", sharing: { mode: "all", people: [] },
     attachedByAgentIds: ["cskh"], createdAt: now - 20 * DAY, updatedAt: now - 2 * 3_600_000,
   });
-  put({ id: "g-5", name: "Legal and medical advice", desc: "Do not provide legal or medical advice — refer to a specialist.", action: "Custom response", mandatory: false, agents: [], allAgents: true, enabled: true, attachedByAgentIds: [], createdAt: now - 60 * DAY, updatedAt: now - 60 * DAY });
+  put({ id: "g-5", name: "Legal and medical advice", desc: "Do not provide legal or medical advice — refer to a specialist.", action: "Custom response", mandatory: false, agents: [], allAgents: true, enabled: true, ...G5_OWNER, attachedByAgentIds: [], createdAt: now - 60 * DAY, updatedAt: now - 60 * DAY });
   put({
     id: "g-6", name: "Escalate risky replies", desc: "Human approval for any commitments about future roadmap.",
     action: "Require approval", mandatory: false, agents: [{ name: "Sales Qualifier", color: "#d97706" }], enabled: false,

@@ -48,6 +48,7 @@ import { agentGuardrailStore } from "@/components/configure/agentGuardrailStore"
 import CreateGuardrailModal, { type CreateGuardrailData } from "@/components/configure/CreateGuardrailModal";
 import GuardrailDetailModal from "@/components/configure/GuardrailDetailModal";
 import AgentResourceDetailModal, { type AgentResourceRef } from "@/components/configure/AgentResourceDetailModal";
+import { ownershipTags, OwnershipTagList, isCreatorRedundant } from "@/components/governance/resourceOwnership";
 import GuardrailOwnershipTag from "@/components/configure/GuardrailOwnershipTag";
 import { isViewOnly as isGuardrailViewOnly, isAccessibleTo as isGuardrailAccessibleTo, type Sharing as GuardrailSharing, type SharingMode as GuardrailSharingMode } from "@/components/configure/guardrailSharing";
 import GuardrailMemberPicker from "@/components/configure/GuardrailMemberPicker";
@@ -5654,11 +5655,19 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
       remove: () => setDetachTarget({ id: kb.id, name: kb.name }),
       // Plain "Của tôi"/"Được chia sẻ" caption — no more granular Riêng tư/Chia sẻ · N/Dùng
       // chung pill, matching every other Knowledge screen in the product.
-      chip: (
-        <span className={`text-xs shrink-0 whitespace-nowrap ${kb.ownerId === KB_CURRENT_USER.id ? "text-muted-foreground" : "font-medium text-primary"}`}>
-          {kb.ownerId === KB_CURRENT_USER.id ? "Của tôi" : kbCanSeeAll || isKbAccessibleTo(kb, KB_CURRENT_USER.id) ? "Được chia sẻ" : kbAccess.hasPermission("manage") ? "Sửa được qua Agent này" : "Chỉ xem trong Agent"}
-        </span>
-      ),
+      // Same Của tôi / Được chia sẻ pills as the Kho tri thức library (+ creator for someone
+      // else's KB); a KB the viewer only reaches through this Agent keeps its own wording.
+      chip: kb.ownerId !== KB_CURRENT_USER.id && !kbCanSeeAll && !isKbAccessibleTo(kb, KB_CURRENT_USER.id) ? (
+        <span className="chip chip-muted">{kbAccess.hasPermission("manage") ? "Sửa được qua Agent này" : "Chỉ xem trong Agent"} · {kb.ownerName}</span>
+      ) : (() => {
+        const tags = ownershipTags({ ownerId: kb.ownerId, sharing: kb.sharing, userId: KB_CURRENT_USER.id });
+        return (
+          <span className="flex items-center gap-1.5 min-w-0">
+            <OwnershipTagList tags={tags} className="shrink-0 flex-nowrap" />
+            {!isCreatorRedundant(tags) && <span className="text-xs text-muted-foreground truncate">{kb.ownerName}</span>}
+          </span>
+        );
+      })(),
     })),
     ...items.map(item => {
       const itemStatus = item.status ?? "done";
@@ -5672,7 +5681,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
         chip: (
           <div className="flex items-center gap-1.5 shrink-0">
             {itemStatus !== "done" && <KnowledgeStatusPill status={itemStatus} compact />}
-            <span className="text-xs text-muted-foreground">Của tôi</span>
+            <OwnershipTagList tags={["mine"]} className="flex-nowrap" />
           </div>
         ),
         disabled: stillProcessing,

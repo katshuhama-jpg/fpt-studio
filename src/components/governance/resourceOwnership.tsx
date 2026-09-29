@@ -157,7 +157,7 @@ export function AgentCount(_: { count: number; all?: boolean }) {
  * creator — when worth showing — on the same single line, so the footer is never empty and
  * never wraps to a second line. Height is fixed so every card in the grid lines up, whatever
  * the number of tags or the length of the description/creator name. */
-export function ResourceCard({ icon, name, nameNode, tags, menu, description, creator, extra, onOpen, highlighted }: {
+export function ResourceCard({ icon, name, nameNode, tags, menu, description, singleLineDescription, creator, extra, onOpen, highlighted }: {
   icon: ReactNode;
   name: string;
   /** Optional replacement for the plain name (e.g. a Link) — `name` still labels the card. */
@@ -165,6 +165,9 @@ export function ResourceCard({ icon, name, nameNode, tags, menu, description, cr
   tags: OwnershipTag[];
   menu?: ReactNode;
   description?: string;
+  /** Show the description on one line with an ellipsis (URLs, identifiers) instead of wrapping
+   * it mid-word over two lines. */
+  singleLineDescription?: boolean;
   creator: ReactNode;
   /** @deprecated Agent-usage count is no longer shown on cards — kept so call sites building
    * it (e.g. via `AgentCount`) don't need to change; the value is accepted and ignored. */
@@ -193,7 +196,12 @@ export function ResourceCard({ icon, name, nameNode, tags, menu, description, cr
         </div>
         {menu && <div className="shrink-0 -mr-1 -mt-1" onClick={e => e.stopPropagation()}>{menu}</div>}
       </div>
-      <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 mt-3 min-h-[32px] [overflow-wrap:anywhere]">
+      {/* Always reserves two lines, so whatever sits below (e.g. "Cập nhật …") starts at the
+        * same height on every card whether the description is one line or two. */}
+      <p
+        title={singleLineDescription ? description : undefined}
+        className={`text-xs text-muted-foreground leading-relaxed mt-3 min-h-[3.25em] ${singleLineDescription ? "truncate" : "line-clamp-2 [overflow-wrap:anywhere]"}`}
+      >
         {description || <span className="italic">Chưa có mô tả</span>}
       </p>
       {extra && <div className="mt-2 overflow-hidden">{extra}</div>}

@@ -20,7 +20,7 @@ import SkillShareModal from "@/components/configure/SkillShareModal";
 import { VISIBLE_BUILTIN_SKILLS, type BuiltinSkill } from "@/components/configure/builtinSkillStore";
 import { SystemResourceDetailModal } from "@/components/configure/AgentResourceDetailModal";
 import {
-  ownershipTags, countByTab, matchesTab, OwnershipTabs, OwnershipTagList, ResourceCard, ResourceIconTile,
+  ownershipTags, countByTab, matchesTab, OwnershipTabs, OwnershipTagList, ResourceCard, ResourceIconTile, isCreatorRedundant,
   CardCreator, AgentCount, type OwnershipTab, type OwnershipTag,
 } from "@/components/governance/resourceOwnership";
 
@@ -188,14 +188,14 @@ export default function Skills() {
             <p className="text-sm text-muted-foreground">Skill dùng chung cho tất cả Agent trong workspace.</p>
           </div>
           <div className="flex items-center gap-2">
-            <button className="btn-secondary flex items-center gap-1.5"><BookOpen size={14} /> Browse Library</button>
+            <button className="btn-secondary flex items-center gap-1.5"><BookOpen size={14} /> Thư viện skill mẫu</button>
             <button
               onClick={() => canCreateSkill && setShowChoice(true)}
               disabled={!canCreateSkill}
-              title={!canCreateSkill ? "You don't have permission to create skills." : undefined}
+              title={!canCreateSkill ? "Vai trò của bạn chưa có quyền tạo skill." : undefined}
               className="btn-primary flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <Plus size={14} /> Create Skill
+              <Plus size={14} /> Tạo skill
             </button>
           </div>
         </div>
@@ -211,13 +211,13 @@ export default function Skills() {
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                placeholder="Search…"
+                placeholder="Tìm skill..."
                 className="h-9 w-56 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
               />
             </div>
             <div className="flex items-center gap-0.5 p-1 rounded-lg bg-surface border border-border">
-              <button onClick={() => setView("grid")} className={`p-1.5 rounded-md transition-base ${view === "grid" ? "bg-surface-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`} aria-label="Grid view"><LayoutGrid size={14} /></button>
-              <button onClick={() => setView("list")} className={`p-1.5 rounded-md transition-base ${view === "list" ? "bg-surface-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`} aria-label="List view"><List size={14} /></button>
+              <button onClick={() => setView("grid")} className={`p-1.5 rounded-md transition-base ${view === "grid" ? "bg-surface-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`} aria-label="Xem dạng lưới"><LayoutGrid size={14} /></button>
+              <button onClick={() => setView("list")} className={`p-1.5 rounded-md transition-base ${view === "list" ? "bg-surface-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`} aria-label="Xem dạng danh sách"><List size={14} /></button>
             </div>
           </div>
         </div>
@@ -233,24 +233,24 @@ export default function Skills() {
           <div className="w-16 h-16 rounded-2xl bg-primary-soft text-primary flex items-center justify-center mb-5 border border-primary/15">
             <Puzzle size={26} />
           </div>
-          <h2 className="font-display text-xl font-semibold mb-2">No skills yet</h2>
-          <p className="text-sm text-muted-foreground max-w-sm mb-6">Skills teach your agents how to handle specific tasks. Create your own, or browse pre-built templates from the skill library.</p>
+          <h2 className="font-display text-xl font-semibold mb-2">Chưa có skill nào</h2>
+          <p className="text-sm text-muted-foreground max-w-sm mb-6">Skill giúp Agent xử lý một việc cụ thể. Tạo skill của riêng bạn, hoặc bắt đầu từ thư viện skill mẫu.</p>
           <div className="flex items-center gap-3">
-            <button className="btn-secondary flex items-center gap-1.5"><BookOpen size={14} /> Browse Library</button>
+            <button className="btn-secondary flex items-center gap-1.5"><BookOpen size={14} /> Thư viện skill mẫu</button>
             <button
               onClick={() => canCreateSkill && setShowChoice(true)}
               disabled={!canCreateSkill}
-              title={!canCreateSkill ? "You don't have permission to create skills." : undefined}
+              title={!canCreateSkill ? "Vai trò của bạn chưa có quyền tạo skill." : undefined}
               className="btn-primary flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <Plus size={14} /> Create Skill
+              <Plus size={14} /> Tạo skill
             </button>
           </div>
         </div>
       ) : view === "grid" ? (
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-[1200px] mx-auto px-8 py-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {visible.map(i => i.kind === "system" ? (
                 <ResourceCard
                   key={`sys-${i.skill.id}`}
@@ -301,7 +301,7 @@ export default function Skills() {
                     <OwnershipTagList tags={i.tags} className="shrink-0 flex-nowrap" />
                   </div>
                   <div className="text-xs text-muted-foreground truncate mt-0.5">
-                    {sk.description} · Người tạo: {owner}
+                    {sk.description}{isCreatorRedundant(i.tags) ? "" : ` · Người tạo: ${owner}`}
                   </div>
                 </div>
                 <div className="text-xs shrink-0"><AgentCount count={system ? 0 : (sk as Skill).attachedByAgentIds.length} all={system} /></div>
