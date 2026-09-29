@@ -41,6 +41,7 @@ import { getAgent } from "../configure/agentStore";
 import { agentModelStore } from "../configure/agentModelStore";
 import { CHANNEL_CATALOG } from "../configure/channelCatalog";
 import { externalAgentStore } from "../external-agents/externalAgentStore";
+import { notificationStore, REVIEWERS, type AppNotification, type NotificationKind } from "../notifications/notificationStore";
 
 /** External Agents live under ids "ext-…" and go through the exact same Agent approval model. */
 export const isExternalAgentId = (id: string) => id.startsWith("ext-");
@@ -246,9 +247,9 @@ export interface GovRequest {
   history: GovHistoryEntry[];
 }
 
-const REQ_KEY = "governance_request_store_v12";
+const REQ_KEY = "governance_request_store_v13";
 const LIVE_KEY = "governance_live_snapshots_v9";
-const SEEDED_KEY = "governance_store_seeded_v12";
+const SEEDED_KEY = "governance_store_seeded_v13";
 const DISMISSED_KEY = "governance_dismissed_rejections_v1";
 
 const store = loadMap<string, GovRequest>(REQ_KEY);
@@ -643,12 +644,12 @@ function seed() {
       note: "Chia sẻ Agent chấm điểm lead cho community.",
       version: "v1.0.2", status: "rejected", submittedAt: t - 6 * DAY, updatedAt: t - 5 * DAY,
       resourceRefs: [{ type: "connector", resourceId: "cc-1", name: "internal-crm-mcp" }],
-      reviewerId: "m-fsoft-ceo", reviewerName: "Tran Nam",
+      reviewerId: "m-fsoft-coo", reviewerName: "Linh Phan",
       reviewNote: "Agent đang gọi CRM nội bộ — không phù hợp publish ra community. Vui lòng chọn phạm vi Công ty / phòng ban.",
     },
     [
       hAt("submitted", "m-fsoft-vn-1", "Duy Nguyen", t - 6 * DAY),
-      hAt("rejected", "m-fsoft-ceo", "Tran Nam", t - 5 * DAY, "Agent đang gọi CRM nội bộ — không phù hợp publish ra community. Vui lòng chọn phạm vi Công ty / phòng ban."),
+      hAt("rejected", "m-fsoft-coo", "Linh Phan", t - 5 * DAY, "Agent đang gọi CRM nội bộ — không phù hợp publish ra community. Vui lòng chọn phạm vi Công ty / phòng ban."),
     ],
   );
   // Channel request: turn on API for the Legal Agent's live v1.1.0 — external channels are their
@@ -677,9 +678,9 @@ function seed() {
       externalSnap: externalSnapOf("ext-seed-1"),
       note: "Trợ lý đặt vé công tác — đối tác ABC, đã ký NDA.",
       version: "v1.0.2", status: "approved", submittedAt: t - 9 * DAY, updatedAt: t - 8 * DAY,
-      reviewerId: "m-fsoft-ceo", reviewerName: "Tran Nam", reviewNote: "Đã test tìm và giữ chỗ chuyến bay nội địa — duyệt.",
+      reviewerId: "m-fsoft-coo", reviewerName: "Linh Phan", reviewNote: "Đã test tìm và giữ chỗ chuyến bay nội địa — duyệt.",
     },
-    [hAt("submitted", "m-plat-1", "Mai Hoang", t - 9 * DAY), hAt("approved", "m-fsoft-ceo", "Tran Nam", t - 8 * DAY, "Đã test tìm và giữ chỗ chuyến bay nội địa — duyệt.")],
+    [hAt("submitted", "m-plat-1", "Mai Hoang", t - 9 * DAY), hAt("approved", "m-fsoft-coo", "Linh Phan", t - 8 * DAY, "Đã test tìm và giữ chỗ chuyến bay nội địa — duyệt.")],
   );
   const extLegalReq = mk(
     {
@@ -702,9 +703,9 @@ function seed() {
       externalSnap: externalSnapOf("ext-seed-5"),
       note: "Tra tồn kho và gợi ý nhập hàng.",
       version: "v1.0.1", status: "rejected", submittedAt: t - 2 * DAY, updatedAt: t - 1 * DAY,
-      reviewerId: "m-fsoft-ceo", reviewerName: "Tran Nam", reviewNote: "Domain wh.partner.io chưa có trong danh sách đối tác được phê duyệt.",
+      reviewerId: "m-fsoft-coo", reviewerName: "Linh Phan", reviewNote: "Domain wh.partner.io chưa có trong danh sách đối tác được phê duyệt.",
     },
-    [hAt("submitted", "m-fsoft-vn-1", "Duy Nguyen", t - 2 * DAY), hAt("rejected", "m-fsoft-ceo", "Tran Nam", t - 1 * DAY, "Domain wh.partner.io chưa có trong danh sách đối tác được phê duyệt.")],
+    [hAt("submitted", "m-fsoft-vn-1", "Duy Nguyen", t - 2 * DAY), hAt("rejected", "m-fsoft-coo", "Linh Phan", t - 1 * DAY, "Domain wh.partner.io chưa có trong danh sách đối tác được phê duyệt.")],
   );
   // External Agent channel request: Flight Assistant (live v1.0.2 on Web widget + API) asks to add Slack.
   const extFlightSlackReq = mk(
@@ -763,6 +764,75 @@ function seed() {
       });
     }
   }
+
+  // Mirror the seed into notifications: pending Agent requests → reviewers; decisions →
+  // owner + shared-with members (see notificationStore).
+  const seeded: AppNotification[] = [];
+  for (const r of [agentReq, agentCleanReq, ...extraAgentReqs]) {
+    if (r.resourceType !== "agent") continue;
+    for (const h of r.history) {
+      const n = buildNotification(r, h.action, h.actorId, h.actorName, h.note);
+      if (!n) continue;
+      if (h.action === "submitted" && r.status !== "pending") continue;
+      seeded.push({ ...n, id: `ntf-seed-${r.id}-${h.action}`, at: h.at, readBy: t - h.at > (h.action === "submitted" ? DAY : 6 * DAY) ? ["m-fsoft-ceo"] : [] });
+    }
+  }
+  notificationStore.reset(seeded);
+}
+
+
+/* ───────────────────────── notifications ───────────────────────── */
+
+/** Owner + members the Agent is shared with + the requester. External Agents belong to the
+ * demo Space's owner in this prototype. */
+function agentAudience(r: GovRequest): string[] {
+  const a = getAgent(r.resourceId);
+  const owner = isExternalAgentId(r.resourceId) ? "m-fsoft-ceo" : a?.ownerId;
+  return [owner, ...(a?.sharedWith ?? []), r.requesterId].filter(Boolean) as string[];
+}
+
+function buildNotification(r: GovRequest, action: GovHistoryEntry["action"], actorId: string, actorName: string, note?: string):
+  Omit<AppNotification, "id" | "readBy" | "at"> | null {
+  if (r.resourceType !== "agent") return null;
+  const isCh = requestKind(r) === "channels";
+  const chs = (r.channelsAdded ?? []).map(channelLabel).join(", ");
+  const v = r.version ? ` ${r.version}` : "";
+  const path = resourcePath("agent", r.resourceId);
+  const quote = note ? `${actorName}: “${note}”` : actorName;
+  const base = { actorId, actorName, resourceIcon: r.resourceIcon, requestId: r.id };
+  let kind: NotificationKind; let title: string; let body: string | undefined; let href = path;
+  let recipients = agentAudience(r);
+  switch (action) {
+    case "submitted":
+      kind = "request_submitted"; recipients = [REVIEWERS]; href = `/governance/requests/${r.id}`;
+      title = isCh ? `${actorName} xin bật kênh ${chs} cho ${r.resourceName}` : `${actorName} gửi yêu cầu duyệt ${r.resourceName}${v}`;
+      body = isCh ? `Bản đang live${v} · phạm vi Workspace giữ nguyên.` : `Phạm vi: ${r.scopeSummary ?? AUDIENCE_LABEL[r.audience]}`;
+      break;
+    case "approved":
+      kind = isCh ? "channel_approved" : "request_approved";
+      title = isCh ? `Kênh ${chs} của ${r.resourceName} đã được bật` : `${r.resourceName}${v} đã được duyệt`;
+      body = isCh ? `${actorName} đã duyệt — Agent bắt đầu nhận tin nhắn từ kênh này.` : `${actorName} đã duyệt — đang live cho ${r.scopeSummary ?? AUDIENCE_LABEL[r.audience]}.`;
+      if (!isCh) href = `${path}?tab=build&section=versions`;
+      break;
+    case "rejected":
+      kind = isCh ? "channel_rejected" : "request_rejected";
+      title = isCh ? `Yêu cầu bật kênh ${chs} cho ${r.resourceName} chưa được duyệt` : `${r.resourceName}${v} chưa được duyệt`;
+      body = quote;
+      break;
+    case "revoked":
+      kind = isCh ? "channel_revoked" : "request_revoked";
+      title = isCh ? `Kênh ${chs} của ${r.resourceName} đã bị tắt` : `${r.resourceName} đã bị thu hồi`;
+      body = isCh ? quote : `${quote} Agent đã ngừng phục vụ người dùng.`;
+      break;
+    default:
+      return null;
+  }
+  return { ...base, kind, title, body, href, recipients };
+}
+
+function notify(r: GovRequest, action: GovHistoryEntry["action"], actorId: string, actorName: string, note?: string) {
+  const n = buildNotification(r, action, actorId, actorName, note);
+  if (n) notificationStore.push(n);
 }
 
 function seededOnce(): boolean {
@@ -953,6 +1023,7 @@ export const governanceStore = {
       resourceType: input.resourceType, resourceId: input.resourceId, resourceName: input.resourceName,
       requestId: id, at: t, detail: auditDetail(req),
     });
+    notify(req, "submitted", input.requesterId, input.requesterName);
     return req;
   },
 
@@ -996,6 +1067,7 @@ export const governanceStore = {
       agentPublishStore.setChannels(r.resourceId, nextChannels);
       if (isExternalAgentId(r.resourceId)) externalAgentStore.applyGovernance(r.resourceId, { channels: nextChannels }, `Đã duyệt bật kênh ${(r.channelsAdded ?? []).map(channelLabel).join(", ")}`);
       auditLogStore.log({ actorId: reviewerId, actorName: reviewerName, action: "approved", resourceType: r.resourceType, resourceId: r.resourceId, resourceName: r.resourceName, requestId: id, note, at: t, detail: auditDetail(r) });
+      notify(r, "approved", reviewerId, reviewerName, note);
       return r;
     }
 
@@ -1017,6 +1089,7 @@ export const governanceStore = {
     }
 
     auditLogStore.log({ actorId: reviewerId, actorName: reviewerName, action: "approved", resourceType: r.resourceType, resourceId: r.resourceId, resourceName: r.resourceName, requestId: id, note, at: t, detail: auditDetail(r) });
+    notify(r, "approved", reviewerId, reviewerName, note);
     return r;
   },
 
@@ -1036,6 +1109,7 @@ export const governanceStore = {
       externalAgentStore.applyGovernance(r.resourceId, { status: live ? "published" : "rejected", rejection: { at: t, by: reviewerName, reason } }, `${reviewerName} từ chối ${r.version ?? ""}`.trim(), reason);
     }
     auditLogStore.log({ actorId: reviewerId, actorName: reviewerName, action: "rejected", resourceType: r.resourceType, resourceId: r.resourceId, resourceName: r.resourceName, requestId: id, note: reason, at: t, detail: auditDetail(r) });
+    notify(r, "rejected", reviewerId, reviewerName, reason);
     return r;
   },
 
@@ -1067,6 +1141,7 @@ export const governanceStore = {
     }
 
     auditLogStore.log({ actorId: reviewerId, actorName: reviewerName, action: "revoked", resourceType: r.resourceType, resourceId: r.resourceId, resourceName: r.resourceName, requestId: id, note: reason, at: t, detail: auditDetail(r) });
+    notify(r, "revoked", reviewerId, reviewerName, reason);
     return r;
   },
 };

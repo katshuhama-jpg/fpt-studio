@@ -91,9 +91,9 @@ export interface HistoryEntry {
 // signingSecret/guardrail existed) would load stale objects missing the new fields, and the
 // page would crash on render with no error boundary — a blank white screen for anyone who had
 // the External Agents page open across a deploy that changed the data shape.
-const STORE_KEY = "external_agent_store_v10";
-const HISTORY_KEY = "external_agent_history_v10";
-const SEEDED_KEY = "external_agent_store_seeded_v10";
+const STORE_KEY = "external_agent_store_v11";
+const HISTORY_KEY = "external_agent_history_v11";
+const SEEDED_KEY = "external_agent_store_seeded_v11";
 const store = loadMap<string, ExternalAgent>(STORE_KEY);
 const history = loadMap<string, HistoryEntry[]>(HISTORY_KEY);
 const persistStore = () => saveMap(STORE_KEY, store);
@@ -140,7 +140,7 @@ function seedDefaultAgents() {
   });
   addHistory("ext-seed-1", { at: now - 20 * DAY, actor: CURRENT_USER, summary: "Connection created" });
   addHistory("ext-seed-1", { at: now - 19 * DAY, actor: CURRENT_USER, summary: "Submitted for approval" });
-  addHistory("ext-seed-1", { at: now - 18 * DAY, actor: CURRENT_USER, summary: "Approved by Tran Nam" });
+  addHistory("ext-seed-1", { at: now - 18 * DAY, actor: "Linh Phan", summary: "Approved by Linh Phan" });
 
   // 2 — HR Helpdesk (Published)
   put({
@@ -194,7 +194,7 @@ function seedDefaultAgents() {
     baseUrl: "https://wh.partner.io", authMethod: "bearer", hasToken: true, signingSecret: generateSigningSecret(),
     allowedAuthorizeHosts: ["auth.partner.io"], historyDelivery: { mode: "none" },
     guardrail: null, status: "rejected",
-    rejection: { at: now - 1 * DAY, by: CURRENT_USER, reason: "Domain wh.partner.io chưa có trong danh sách đối tác được phê duyệt." },
+    rejection: { at: now - 1 * DAY, by: "Linh Phan", reason: "Domain wh.partner.io chưa có trong danh sách đối tác được phê duyệt." },
     archived: false,
     createdAt: now - 3 * DAY, updatedAt: now - 1 * DAY,
     lastHealthCheckAt: now - 1 * DAY, lastHealthCheckOk: true, lastHealthyAt: now - 1 * DAY,
@@ -203,7 +203,7 @@ function seedDefaultAgents() {
   });
   addHistory("ext-seed-5", { at: now - 3 * DAY, actor: CURRENT_USER, summary: "Connection created" });
   addHistory("ext-seed-5", { at: now - 2 * DAY, actor: CURRENT_USER, summary: "Submitted for approval" });
-  addHistory("ext-seed-5", { at: now - 1 * DAY, actor: CURRENT_USER, summary: "Rejected by Tran Nam (Domain is not on the approved partner list.)" });
+  addHistory("ext-seed-5", { at: now - 1 * DAY, actor: "Linh Phan", summary: "Rejected by Linh Phan (Domain is not on the approved partner list.)" });
 
   // 6 — Marketing Copywriter (Paused, was published)
   put({

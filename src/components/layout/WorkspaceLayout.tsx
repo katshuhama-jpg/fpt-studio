@@ -10,6 +10,7 @@ import {
 import { useOrg } from "@/pages/organization/orgStore";
 import { governanceStore } from "@/components/governance/governanceStore";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
+import { NotificationBell } from "@/components/notifications/notificationUi";
 import { TENANTS, getAllTenants, getCurrentTenantId, setCurrentTenantId } from "@/lib/spaceStore";
 
 const APP_VERSION = "0.58.5";
@@ -161,7 +162,7 @@ export default function WorkspaceLayout() {
     );
   }
 
-  const BREADCRUMB_LABELS: Record<string, string> = { tools: "Skills" };
+  const BREADCRUMB_LABELS: Record<string, string> = { tools: "Skills", notifications: "Thông báo" };
   const ORG_BREADCRUMB_LABELS: Record<string, string> = { "": "General", structure: "Structure" };
   let breadcrumbLabel: string;
   if (inOrganization) {
@@ -301,9 +302,10 @@ export default function WorkspaceLayout() {
               </button>
             </div>
           )}
+          <div className={`flex ${collapsed ? "flex-col-reverse items-center gap-1" : "items-center gap-1"}`}>
           <button
             onClick={() => setUserMenu(v => !v)}
-            className="w-full flex items-center gap-2.5 px-1.5 py-1 rounded-md hover:bg-surface-muted transition-base"
+            className="flex-1 min-w-0 flex items-center gap-2.5 px-1.5 py-1 rounded-md hover:bg-surface-muted transition-base"
           >
             <div className="w-8 h-8 rounded-full bg-primary-soft flex items-center justify-center text-xs font-semibold text-primary shrink-0">
               TN
@@ -318,6 +320,8 @@ export default function WorkspaceLayout() {
               </>
             )}
           </button>
+          <NotificationBell collapsed={collapsed} />
+          </div>
           {!collapsed && (
             <button
               onClick={() => setCollapsed(true)}

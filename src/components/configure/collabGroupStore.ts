@@ -14,6 +14,7 @@
 // than a real background job, but the effect is the same: there is no safe moment to quietly
 // remove one person and dodge review, because the next time anyone is in the app, the check runs
 // again against the group's roster as it stands right now.
+import { notificationStore } from "@/components/notifications/notificationStore";
 import { loadMap, saveMap } from "@/lib/sessionPersist";
 import { collectMembers, collectUnits, type OrgUnit } from "@/pages/organization/orgData";
 import { agentPublishStore } from "./agentPublishStore";
@@ -157,5 +158,13 @@ export function recheckAgentGroupPublish(agentId: string, tree: OrgUnit) {
     note: `Tự động phát hiện: nhóm "${group.name}" hiện trùng ${overlapPctLabel}% với ${unitName}, vượt ngưỡng ${Math.round(GROUP_APPROVAL_THRESHOLD * 100)}% — hệ thống tự động gửi lại để Org/Unit Admin duyệt, đúng như publish theo Company / department.`,
     resourceRefs: listAgentResourceRefs(agentId),
     scopeSummary: `Nhóm cộng tác "${group.name}" (${group.memberIds.length} người, trùng ${overlapPctLabel}% với ${unitName})`,
+  });
+  const rec = getAgent(agentId) as { ownerId?: string; sharedWith?: string[] } | undefined;
+  notificationStore.push({
+    kind: "regovern_required", actorId: "system", actorName: "Hệ thống",
+    recipients: [rec?.ownerId ?? group.ownerId, ...(rec?.sharedWith ?? []), group.ownerId],
+    title: `${agent.name} tạm dừng để duyệt lại`,
+    body: `Nhóm cộng tác "${group.name}" hiện trùng ${overlapPctLabel}% với ${unitName} (ngưỡng ${Math.round(GROUP_APPROVAL_THRESHOLD * 100)}%). Hệ thống đã tự gửi yêu cầu duyệt tới Org/Unit Admin.`,
+    href: `/agents/${agentId}`, resourceIcon: agentEmoji(agentId),
   });
 }
