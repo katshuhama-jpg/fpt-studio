@@ -11,7 +11,9 @@ import { agentCapabilityStore } from "./agentCapabilityStore";
  * be decidable — too much for a 476px sidebar, where the rail instead shows just the on/total
  * count. Each capability is its own full-width bordered row rather than a multi-column grid
  * or one box split by divider rules, so the eye runs straight down the switches on the right.
- * Changes are written straight through, so there's nothing to save. */
+ * Toggling writes straight through to the store, but the footer still tracks a local "dirty"
+ * flag so the primary button only turns into an active Save (with a confirming toast) once
+ * something actually changed this time round — closing untouched is just closing. */
 export default function AgentCapabilitiesModal({ agentId, onClose, onChanged }: {
   agentId: string;
   onClose: () => void;
@@ -20,11 +22,17 @@ export default function AgentCapabilitiesModal({ agentId, onClose, onChanged }: 
 }) {
   const [tick, setTick] = useState(0);
   void tick;
+  const [dirty, setDirty] = useState(false);
   const capabilities = agentCapabilityStore.list();
   const onCount = agentCapabilityStore.onCount(agentId);
   const atDefault = agentCapabilityStore.isAtDefault(agentId);
 
   const refresh = () => { setTick(t => t + 1); onChanged(); };
+
+  const handleSave = () => {
+    if (dirty) toast.success("Đã lưu thay đổi.");
+    onClose();
+  };
 
   return createPortal(
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
@@ -59,7 +67,7 @@ export default function AgentCapabilitiesModal({ agentId, onClose, onChanged }: 
                   </div>
                   <Switch
                     checked={on}
-                    onCheckedChange={v => { agentCapabilityStore.setOn(agentId, cap.id, v); refresh(); }}
+                    onCheckedChange={v => { agentCapabilityStore.setOn(agentId, cap.id, v); setDirty(true); refresh(); }}
                     aria-label={`${on ? "Tắt" : "Bật"} ${cap.name}`}
                     className="shrink-0 mt-0.5"
                   />
@@ -73,6 +81,7 @@ export default function AgentCapabilitiesModal({ agentId, onClose, onChanged }: 
           <button
             onClick={() => {
               agentCapabilityStore.restoreDefaults(agentId);
+              setDirty(true);
               toast.success("Đã bật lại toàn bộ năng lực mặc định.");
               refresh();
             }}
@@ -83,10 +92,10 @@ export default function AgentCapabilitiesModal({ agentId, onClose, onChanged }: 
             <HugeiconsIcon icon={CircleArrowReload01Icon} size={14} /> Khôi phục mặc định
           </button>
           <button
-            onClick={onClose}
+            onClick={handleSave}
             className="h-9 px-5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium transition-colors"
           >
-            Xong
+            {dirty ? "Lưu thay đổi" : "Xong"}
           </button>
         </div>
       </div>
