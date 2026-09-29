@@ -13,6 +13,7 @@ import TriggerBlockedByConnectorNotice from "@/components/configure/TriggerBlock
 import DeleteTriggerDialog from "@/components/configure/DeleteTriggerDialog";
 import HistoryTab from "@/components/history/HistoryTab";
 import { AgentVersionsPanel } from "@/components/governance/agentVersionsPanel";
+import { AgentStatusCluster } from "@/components/governance/agentStatusCluster";
 import HistoryChatPanel from "@/components/history/HistoryChatPanel";
 import TriggerRunsTab from "@/components/configure/TriggerRunsTab";
 import ChatOptimizationTab from "@/components/configure/ChatOptimizationTab";
@@ -303,49 +304,17 @@ export default function AgentBuilder() {
         </div>
 
         <div className="flex items-center gap-2">
-          {rejectedGovRequest && (
-            <button
-              type="button"
-              onClick={() => { governanceStore.restoreRejection(rejectedGovRequest.id); setRejectBannerTick(t => t + 1); }}
-              title="Xem lý do từ chối"
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium shrink-0 transition-base hover:opacity-80 bg-destructive/10 border-destructive/20 text-destructive"
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-destructive" />
-              Bị từ chối · {rejectedGovRequest.version}
-            </button>
-          )}
-          {/* Pending request and the currently-live version are two separate facts — show them as
-              two separate pills so the Builder always sees what users are on right now (vY) and
-              what is waiting for review (vX), never one hiding the other. */}
-          {openGovRequest && (
-            <PendingRequestPill req={openGovRequest} onChanged={() => setPublishTick(t => t + 1)} />
-          )}
-          {published ? (
-            <button type="button" title="Xem tất cả phiên bản" onClick={() => setParams({ tab: "build", section: "versions" })} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium shrink-0 transition-base hover:opacity-80 ${
-              kind === "automation"
-                ? "bg-indigo-50 border-indigo-200 text-indigo-700"
-                : "bg-success/10 border-success/20 text-success"
-            }`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${kind === "automation" ? "bg-indigo-500" : "bg-success"}`} />
-              {kind === "automation"
-                ? "Automation"
-                : publishState.placement === "workspace"
-                  ? (publishState.audience === "org" ? "Live · Công ty / phòng ban"
-                    : publishState.audience === "community" ? "Live · Cộng đồng FPT AI Agent"
-                    : publishState.audience === "group" ? "Live · Nhóm cộng tác"
-                    : publishState.audience === "quick_share" ? "Live · Chia sẻ nhanh"
-                    : "Live · Chỉ mình tôi")
-                  : publishState.channels.length === 1
-                    ? `Live on ${getChannelName(publishState.channels[0])}`
-                    : publishState.channels.length > 1
-                      ? `Live on ${publishState.channels.length} channels`
-                      : "Live"} · {publishState.version}
-            </button>
-          ) : (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-muted border border-border text-muted-foreground text-xs font-medium shrink-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground" /> Draft
-            </div>
-          )}
+          <AgentStatusCluster
+            publishState={publishState}
+            isAutomation={kind === "automation"}
+            pending={openGovRequest}
+            rejected={rejectedGovRequest}
+            rejectBannerVisible={showRejectBanner}
+            onChanged={() => setPublishTick(t => t + 1)}
+            onOpenVersions={() => setParams({ tab: "build", section: "versions" })}
+            onPublish={() => canPublishAgent && setShowPublish(true)}
+            onShowRejectBanner={() => { if (rejectedGovRequest) { governanceStore.restoreRejection(rejectedGovRequest.id); setRejectBannerTick(t => t + 1); } }}
+          />
           <button
             onClick={() => canPublishAgent && setShowPublish(true)}
             disabled={!canPublishAgent}
