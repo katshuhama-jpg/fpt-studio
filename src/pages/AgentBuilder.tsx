@@ -311,9 +311,13 @@ export default function AgentBuilder() {
               Bị từ chối · {rejectedGovRequest.version}
             </button>
           )}
-          {openGovRequest ? (
+          {/* Pending request and the currently-live version are two separate facts — show them as
+              two separate pills so the Builder always sees what users are on right now (vY) and
+              what is waiting for review (vX), never one hiding the other. */}
+          {openGovRequest && (
             <PendingRequestPill req={openGovRequest} onChanged={() => setPublishTick(t => t + 1)} />
-          ) : published ? (
+          )}
+          {published ? (
             <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium shrink-0 ${
               kind === "automation"
                 ? "bg-indigo-50 border-indigo-200 text-indigo-700"
@@ -4245,7 +4249,7 @@ function OrgSharePicker({ tree, selection, onToggleUnit, onToggleMember }: {
           <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text" value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search companies, departments or people"
+            placeholder="Tìm công ty, phòng ban hoặc nhân viên"
             className="w-full pl-7 pr-2.5 py-1.5 rounded-md border border-border text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
           />
         </div>
