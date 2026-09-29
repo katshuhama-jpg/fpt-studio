@@ -150,6 +150,12 @@ export interface GovHistoryEntry {
  * own open request at the same time. */
 export type GovRequestKind = "publish" | "channels";
 export const requestKind = (r: GovRequest): GovRequestKind => r.kind ?? "publish";
+/** What a request is about, for the Audit Log line ("Bật kênh API" / "v1.2.0"). */
+export function auditDetail(r: GovRequest): string | undefined {
+  if (r.resourceType !== "agent") return undefined;
+  if (requestKind(r) === "channels") return `Bật kênh ${(r.channelsAdded ?? []).map(channelLabel).join(", ")}`;
+  return r.version;
+}
 
 export interface GovRequest {
   id: string;
@@ -209,9 +215,9 @@ export interface GovRequest {
   history: GovHistoryEntry[];
 }
 
-const REQ_KEY = "governance_request_store_v8";
-const LIVE_KEY = "governance_live_snapshots_v8";
-const SEEDED_KEY = "governance_store_seeded_v8";
+const REQ_KEY = "governance_request_store_v10";
+const LIVE_KEY = "governance_live_snapshots_v9";
+const SEEDED_KEY = "governance_store_seeded_v10";
 const DISMISSED_KEY = "governance_dismissed_rejections_v1";
 
 const store = loadMap<string, GovRequest>(REQ_KEY);
@@ -487,7 +493,9 @@ function seed() {
       id: "req-2001", resourceType: "agent", resourceId: "faq", resourceName: "Product FAQ Assistant",
       resourceIcon: "📦", requesterId: "m-fsoft-coo", requesterName: "Linh Phan",
       audience: "org", scopeSummary: "Phòng Chăm sóc khách hàng (22 người), Phòng Kinh doanh (48 người), Linh Phan, Tran Nam",
-      channels: ["web", "api"],
+      // A version request carries only the channels already live (web); new channels are their
+      // own "channels" request (see req-2008), never bundled into a version publish.
+      channels: ["web"],
       workspaceTargets: [
         { kind: "department", name: "Phòng Chăm sóc khách hàng", members: 22 },
         { kind: "department", name: "Phòng Kinh doanh", members: 48 },
@@ -598,7 +606,7 @@ function seed() {
     {
       id: "req-2006", changeStateAtSubmit: "new", resourceType: "agent", resourceId: "sales", resourceName: "Sales Lead Qualifier",
       resourceIcon: "🎯", requesterId: "m-fsoft-vn-1", requesterName: "Duy Nguyen",
-      audience: "community", channels: ["web"],
+      audience: "community", channels: [],
       workspaceTargets: [{ kind: "community", name: "Cộng đồng FPT AI Agent" }],
       note: "Chia sẻ Agent chấm điểm lead cho community.",
       version: "v1.0.2", status: "rejected", submittedAt: t - 6 * DAY, updatedAt: t - 5 * DAY,
@@ -664,7 +672,7 @@ function seed() {
       auditLogStore.log({
         actorId: h.actorId, actorName: h.actorName, action: h.action,
         resourceType: r.resourceType, resourceId: r.resourceId, resourceName: r.resourceName,
-        requestId: r.id, note: h.note, at: h.at,
+        requestId: r.id, note: h.note, at: h.at, detail: auditDetail(r),
       });
     }
   }
@@ -842,7 +850,7 @@ export const governanceStore = {
     auditLogStore.log({
       actorId: input.requesterId, actorName: input.requesterName, action: "submitted",
       resourceType: input.resourceType, resourceId: input.resourceId, resourceName: input.resourceName,
-      requestId: id, at: t,
+      requestId: id, at: t, detail: auditDetail(req),
     });
     return req;
   },
@@ -859,7 +867,7 @@ export const governanceStore = {
     r.history.push(historyEntry("withdrawn", actorId, actorName, note));
     store.set(id, r);
     persist();
-    auditLogStore.log({ actorId, actorName, action: "withdrawn", resourceType: r.resourceType, resourceId: r.resourceId, resourceName: r.resourceName, requestId: id, note, at: t });
+    auditLogStore.log({ actorId, actorName, action: "withdrawn", resourceType: r.resourceType, resourceId: r.resourceId, resourceName: r.resourceName, requestId: id, note, at: t, detail: auditDetail(r) });
     return r;
   },
 
@@ -879,7 +887,7 @@ export const governanceStore = {
       persist();
       const current = agentPublishStore.get(r.resourceId);
       agentPublishStore.setChannels(r.resourceId, [...new Set([...current.channels, ...(r.channelsAdded ?? [])])]);
-      auditLogStore.log({ actorId: reviewerId, actorName: reviewerName, action: "approved", resourceType: r.resourceType, resourceId: r.resourceId, resourceName: r.resourceName, requestId: id, note, at: t });
+      auditLogStore.log({ actorId: reviewerId, actorName: reviewerName, action: "approved", resourceType: r.resourceType, resourceId: r.resourceId, resourceName: r.resourceName, requestId: id, note, at: t, detail: auditDetail(r) });
       return r;
     }
 
@@ -899,7 +907,7 @@ export const governanceStore = {
       agentPublishStore.clearRegovernanceFlag(r.resourceId);
     }
 
-    auditLogStore.log({ actorId: reviewerId, actorName: reviewerName, action: "approved", resourceType: r.resourceType, resourceId: r.resourceId, resourceName: r.resourceName, requestId: id, note, at: t });
+    auditLogStore.log({ actorId: reviewerId, actorName: reviewerName, action: "approved", resourceType: r.resourceType, resourceId: r.resourceId, resourceName: r.resourceName, requestId: id, note, at: t, detail: auditDetail(r) });
     return r;
   },
 
@@ -914,7 +922,7 @@ export const governanceStore = {
     r.history.push(historyEntry("rejected", reviewerId, reviewerName, reason));
     store.set(id, r);
     persist();
-    auditLogStore.log({ actorId: reviewerId, actorName: reviewerName, action: "rejected", resourceType: r.resourceType, resourceId: r.resourceId, resourceName: r.resourceName, requestId: id, note: reason, at: t });
+    auditLogStore.log({ actorId: reviewerId, actorName: reviewerName, action: "rejected", resourceType: r.resourceType, resourceId: r.resourceId, resourceName: r.resourceName, requestId: id, note: reason, at: t, detail: auditDetail(r) });
     return r;
   },
 
@@ -944,7 +952,7 @@ export const governanceStore = {
       if (r.resourceType === "agent") agentPublishStore.unpublish(r.resourceId);
     }
 
-    auditLogStore.log({ actorId: reviewerId, actorName: reviewerName, action: "revoked", resourceType: r.resourceType, resourceId: r.resourceId, resourceName: r.resourceName, requestId: id, note: reason, at: t });
+    auditLogStore.log({ actorId: reviewerId, actorName: reviewerName, action: "revoked", resourceType: r.resourceType, resourceId: r.resourceId, resourceName: r.resourceName, requestId: id, note: reason, at: t, detail: auditDetail(r) });
     return r;
   },
 };

@@ -119,6 +119,7 @@ export default function GovernanceAuditLog() {
               <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${ACTION_DOT[e.action]}`} />
               <span className="truncate">
                 {ACTION_LABEL[e.action]}
+                {e.detail && <span className="font-medium"> · {e.detail}</span>}
                 {e.note && <span className="text-muted-foreground"> — "{e.note.length > 60 ? e.note.slice(0, 60) + "…" : e.note}"</span>}
               </span>
             </div>

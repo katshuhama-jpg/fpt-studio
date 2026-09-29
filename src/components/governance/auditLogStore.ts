@@ -18,9 +18,11 @@ export interface AuditEntry {
   resourceName: string;
   requestId?: string;
   note?: string;
+  /** What the action was about — "v1.2.0" or "Bật kênh API" (Agent requests). */
+  detail?: string;
 }
 
-const KEY = "governance_audit_log_v6";
+const KEY = "governance_audit_log_v7";
 const store = loadMap<string, AuditEntry>(KEY);
 const persist = () => saveMap(KEY, store);
 let seq = 1;

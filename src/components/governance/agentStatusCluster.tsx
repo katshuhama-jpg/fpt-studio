@@ -49,7 +49,7 @@ function Segment({ tone, label, version, aria, variant = "state", icon, children
           {variant === "state"
             ? <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${t.dot}`} aria-hidden />
             : <span className={t.text} aria-hidden>{icon}</span>}
-          {variant === "request" && <span className="text-muted-foreground">Yêu cầu</span>}
+          {variant === "request" && <span className="hidden xl:inline text-muted-foreground">Yêu cầu</span>}
           {variant === "request" && version && <span className="font-mono text-[11px] text-foreground">{version}</span>}
           {variant === "request" && <span className="text-muted-foreground" aria-hidden>·</span>}
           <span className={t.text}>{label}</span>

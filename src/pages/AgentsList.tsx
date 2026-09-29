@@ -22,6 +22,8 @@ import { agentModelStore } from "@/components/configure/agentModelStore";
 /* ─── Data ─────────────────────────────────────────────────────────────── */
 
 const tabs = ["All agents", "Published", "Draft", "Chờ duyệt", "Bị từ chối", "Shared with me"] as const;
+/** Display labels — "Published/Draft" read as "Đang live/Bản nháp" to match the card lines. */
+const TAB_LABEL: Partial<Record<typeof tabs[number], string>> = { Published: "Đang live", Draft: "Bản nháp" };
 const kindFilters = ["All", "Agents", "Automation Agents"] as const;
 
 const SUGGESTIONS = [
@@ -554,7 +556,7 @@ export default function AgentsList() {
                   : "text-muted-foreground hover:bg-surface-muted"
               }`}
             >
-              {t}
+              {TAB_LABEL[t] ?? t}
               {tabCounts[t] > 0 && (
                 <span className={`text-xs px-1.5 py-0.5 rounded-full ${
                   activeTab === t

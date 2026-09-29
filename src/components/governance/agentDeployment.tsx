@@ -7,7 +7,7 @@
 import { Building2, Network, UsersRound, User, Globe, Mail, LayoutGrid } from "lucide-react";
 import { CHANNEL_CATALOG, ChannelIcon } from "../configure/channelCatalog";
 import { agentPublishStore } from "../configure/agentPublishStore";
-import { workspaceTargetsOf, type GovRequest, type WorkspaceTargetKind } from "./governanceStore";
+import { workspaceTargetsOf, requestKind, type GovRequest, type WorkspaceTargetKind } from "./governanceStore";
 
 const KIND_META: Record<WorkspaceTargetKind, { label: string; icon: typeof Building2 }> = {
   company: { label: "Công ty", icon: Building2 },
@@ -75,7 +75,12 @@ export function AgentDeploymentSection({ req }: { req: GovRequest }) {
         {/* External channels */}
         <div className="p-4">
           <div className="flex items-baseline justify-between gap-3 mb-3">
-            <p className="text-sm font-semibold">Kênh ngoài</p>
+            <div>
+              <p className="text-sm font-semibold">Kênh ngoài</p>
+              {requestKind(req) !== "channels" && (
+                <p className="text-xs text-muted-foreground mt-0.5">Giữ nguyên các kênh đang live. Bật kênh mới cần một yêu cầu riêng.</p>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground tabular-nums">{channels.length} kênh</p>
           </div>
           {channels.length === 0 ? (

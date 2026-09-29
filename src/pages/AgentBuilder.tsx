@@ -274,9 +274,10 @@ export default function AgentBuilder() {
         <button onClick={() => navigate("/agents")} className="h-8 w-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0">
           <HugeiconsIcon icon={ChevronLeftIcon} size={16} />
         </button>
-        <Link to="/agents" className="text-xs text-muted-foreground hover:text-foreground transition-base shrink-0">Agents</Link>
-        <span className="text-xs text-muted-foreground/50 shrink-0">/</span>
-        <div className="flex items-center gap-2 min-w-0">
+        <Link to="/agents" className="hidden xl:inline text-xs text-muted-foreground hover:text-foreground transition-base shrink-0">Agents</Link>
+        <span className="hidden xl:inline text-xs text-muted-foreground/50 shrink-0">/</span>
+        {/* Name keeps a minimum width so it never gets squeezed out by the tabs/status on narrow screens (G12). */}
+        <div className="flex items-center gap-2 min-w-[140px] max-w-[260px] shrink">
           <div className="w-7 h-7 rounded-md bg-surface-muted border border-border flex items-center justify-center text-base shrink-0">{agent.emoji}</div>
           <span className="font-semibold text-sm truncate">{agent.name}</span>
           {kind === "automation" && (
@@ -295,12 +296,12 @@ export default function AgentBuilder() {
               { id: "channels", label: "Channels", Icon: GridViewIcon },
               { id: "insights", label: "Insights", Icon: Analytics01Icon },
             ] as const).map(({ id, label, Icon }) => (
-              <button key={id} onClick={() => setTab(id as Tab)}
+              <button key={id} onClick={() => setTab(id as Tab)} title={label} aria-label={label}
                 style={{ paddingLeft: "10px", paddingRight: "10px", height: "32px", gap: "10px" }}
                 className={`rounded-lg text-sm font-medium flex items-center transition-base ${
                   tab === id ? "bg-primary-soft text-primary" : "text-muted-foreground hover:text-foreground hover:bg-surface-muted"
                 }`}>
-                <HugeiconsIcon icon={Icon} size={18} className="shrink-0" /> <span>{label}</span>
+                <HugeiconsIcon icon={Icon} size={18} className="shrink-0" /> <span className="hidden xl:inline">{label}</span>
               </button>
             ))}
           </div>
@@ -3006,8 +3007,8 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish }: {
           <HugeiconsIcon icon={GridViewIcon} size={20} className="text-primary" />
         </div>
         <div>
-          <h1 className="text-xl font-semibold">Deploy channels</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Where this agent is live, and which version it's running.</p>
+          <h1 className="text-xl font-semibold">Kênh triển khai</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Agent đang chạy ở đâu và người dùng đang dùng phiên bản nào.</p>
         </div>
       </div>
 
@@ -3015,11 +3016,11 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish }: {
       <div className="rounded-xl border border-border bg-surface flex items-center justify-between px-5 py-4 mb-8">
         <div className="flex items-center gap-10">
           <div>
-            <p className="text-sm text-muted-foreground mb-1">Serving version</p>
+            <p className="text-sm text-muted-foreground mb-1">Phiên bản đang chạy</p>
             <p className="text-base font-semibold font-mono">{servingVersion}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground mb-1">Live channels</p>
+            <p className="text-sm text-muted-foreground mb-1">Kênh đang live</p>
             <p className="text-base font-semibold">{liveDestinationCount}</p>
           </div>
         </div>
@@ -3039,7 +3040,7 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish }: {
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-3">
             <h2 className="text-lg font-semibold">Automation</h2>
-            <span className="text-sm text-muted-foreground">Running on {agentTriggers.length} trigger{agentTriggers.length === 1 ? "" : "s"}</span>
+            <span className="text-sm text-muted-foreground">Đang chạy theo {agentTriggers.length} trigger</span>
           </div>
           <div className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-6">
             <div className="flex items-start gap-3">
@@ -3049,12 +3050,11 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish }: {
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-foreground mb-1">Automation</p>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  This agent runs on its own from the {agentTriggers.length} trigger{agentTriggers.length === 1 ? "" : "s"} set
-                  up in Console, for the whole organization. Nobody installs it to Workspace and nobody chats with it directly.
+                  Agent tự chạy theo {agentTriggers.length} trigger đã cài trong Console, cho cả tổ chức. Không ai cài Agent này vào Workspace hay chat trực tiếp với nó.
                 </p>
                 {onViewTriggers && (
                   <button type="button" onClick={onViewTriggers} className="text-sm font-semibold text-primary hover:underline mt-2">
-                    View triggers
+                    Xem trigger
                   </button>
                 )}
               </div>
@@ -3069,13 +3069,13 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish }: {
               <span className="text-sm text-muted-foreground">Đang live cho: <span className="text-foreground font-medium">{publishState.scopeSummary ?? "Chỉ mình tôi"}</span></span>
             ) : recipients.length > 0 ? (
               <>
-                <span className="text-sm text-muted-foreground">{recipients.length} recipient{recipients.length > 1 ? "s" : ""}</span>
+                <span className="text-sm text-muted-foreground">{recipients.length} người nhận</span>
                 <a href="#" className="text-sm font-medium text-primary hover:underline flex items-center gap-0.5 ml-auto">
-                  Open in workspace <HugeiconsIcon icon={ChevronRightIcon} size={12} />
+                  Mở trong Workspace <HugeiconsIcon icon={ChevronRightIcon} size={12} />
                 </a>
               </>
             ) : (
-              <span className="text-sm text-muted-foreground">Not open to anyone yet</span>
+              <span className="text-sm text-muted-foreground">Chưa mở cho ai</span>
             )}
           </div>
 
@@ -3086,7 +3086,7 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish }: {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold truncate">{publishState.scopeSummary ?? "Chỉ mình tôi"}</p>
-                <p className="text-xs text-muted-foreground">Bản {servingVersion} · đổi phạm vi bằng nút Publish (theo luật duyệt của phạm vi mới)</p>
+                <p className="text-xs text-success">Live {servingVersion}</p>
               </div>
               <button
                 onClick={() => canPublishAgent && (onOpenPublish ? onOpenPublish() : setShowPublish(true))}
@@ -3099,9 +3099,9 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish }: {
               <div className="w-12 h-12 rounded-xl bg-surface-muted flex items-center justify-center mb-4">
                 <HugeiconsIcon icon={Share08Icon} size={20} className="text-muted-foreground" />
               </div>
-              <h3 className="text-base font-semibold mb-1.5">No one has this agent yet</h3>
+              <h3 className="text-base font-semibold mb-1.5">Chưa ai dùng được Agent này</h3>
               <p className="text-sm text-muted-foreground max-w-sm mb-5 leading-relaxed">
-                Publish to open this agent to a small group first, then expand.
+                Publish cho một nhóm nhỏ trước, rồi mở rộng dần.
               </p>
               <button
                 onClick={() => canPublishAgent && (onOpenPublish ? onOpenPublish() : setShowPublish(true))}
@@ -3126,7 +3126,7 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish }: {
                   <button
                     onClick={() => setRecipients(prev => prev.filter(x => x.id !== r.id))}
                     className="w-8 h-8 rounded-lg flex items-center justify-center text-destructive hover:bg-destructive/10 transition-base shrink-0"
-                    title="Remove"
+                    title="Gỡ"
                   >
                     <HugeiconsIcon icon={Delete01Icon} size={16} />
                   </button>
@@ -3140,7 +3140,7 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish }: {
       {/* External channels — one shared list with the Publish modal, in CHANNEL_CATALOG's order. */}
       <div>
         <div className="flex items-baseline gap-2 mb-3">
-          <h2 className="text-lg font-semibold">External channels</h2>
+          <h2 className="text-lg font-semibold">Kênh ngoài</h2>
         </div>
         <div className="grid grid-cols-3 gap-3">
           {CHANNEL_CATALOG.map(c => {
@@ -4338,11 +4338,22 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
   const blockedToastMessage = (items: ReturnType<typeof listAgentResourceRefs>) =>
     `Không thể tiếp tục — Agent đang dùng ${items.length} thành phần đã bị chặn sử dụng trong agent mới: ${items.map(it => it.name).join(", ")}. Vui lòng gỡ thành phần này khỏi Agent trước khi publish.`;
 
+  // G10: a direct (no-review) publish while a request is still pending would let that older
+  // request get approved later and roll the Agent back — so it withdraws the pending one first.
+  const withdrawPendingForDirect = () => {
+    if (!pendingRequest) return;
+    governanceStore.withdraw(pendingRequest.id, KB_CURRENT_USER.id, KB_CURRENT_USER.name,
+      `Được thay bằng bản ${versionName} publish trực tiếp (phạm vi không cần duyệt).`);
+  };
   const doPublish = () => {
     if (effectiveAudience === "me") {
       if (publishToOpen) {
+        withdrawPendingForDirect();
+
         agentPublishStore.publish(agentId, "workspace", current.channels, versionName, audience, { scopeSummary: "Chỉ mình tôi", groupId: undefined });
       } else {
+        withdrawPendingForDirect();
+
         agentPublishStore.publish(agentId, current.placement, current.channels, versionName, current.audience);
       }
       toast.success(`Đã publish ${versionName}.`);
@@ -4351,6 +4362,16 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
       return;
     }
 
+    if (effectiveAudience === "quick_share" && !publishToOpen && current.placement !== null) {
+      // Keep the same hand-picked people (G9) — new version, same scope.
+      withdrawPendingForDirect();
+
+      agentPublishStore.publish(agentId, "workspace", current.channels, versionName, "quick_share", { scopeSummary: current.scopeSummary, groupId: undefined });
+      toast.success(`Đã publish ${versionName} cho ${current.scopeSummary ?? "những người đã chọn"}.`);
+      onPublished?.();
+      onClose();
+      return;
+    }
     if (effectiveAudience === "quick_share") {
       if (quickShareSelection.size === 0) {
         toast.error("Chọn ít nhất 1 người để Chia sẻ nhanh.");
@@ -4359,6 +4380,8 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
       const blocked = blockedResourceItems();
       if (blocked.length > 0) { toast.error(blockedToastMessage(blocked)); return; }
       const names = [...quickShareSelection].map(mid => findMember(orgTree, mid)?.name).filter((n): n is string => !!n);
+      withdrawPendingForDirect();
+
       agentPublishStore.publish(agentId, "workspace", current.channels, versionName, "quick_share", {
         groupId: undefined,
         scopeSummary: `${quickShareSelection.size} người: ${names.join(", ")}`,
@@ -4396,6 +4419,8 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
         });
         toast.success(`Nhóm này trùng ${overlapPctLabel}% với ${overlap.unit?.name ?? "một phòng ban"} — đã gửi yêu cầu duyệt như khi publish cho Công ty / phòng ban.`);
       } else {
+        withdrawPendingForDirect();
+
         agentPublishStore.publish(agentId, "workspace", current.channels, versionName, "group", { scopeSummary: summary, groupId: group.id });
         toast.success(`Đã publish ${versionName} cho ${summary}.`);
       }
@@ -4407,7 +4432,14 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
     // A Company/department request has to name a scope — "who exactly" is the whole point of
     // this gate (see PM's original report: publishing wide used to be a single click with no
     // statement of who'd see it). Community has no scope to pick, it's everyone by definition.
-    if (effectiveAudience === "org" && orgSelection.size === 0) {
+    // Not ticking "Publish tới" on a live Agent = send this new version to exactly the scope it's
+    // live at now (G9) — reuse that scope instead of forcing the Builder to re-pick every unit.
+    const keepScope = !publishToOpen && current.placement !== null;
+    const keptTargets = keepScope
+      ? governanceStore.listForResource("agent", agentId)
+          .find(r => (r.kind ?? "publish") === "publish" && r.status === "approved" && r.version === current.version)?.workspaceTargets
+      : undefined;
+    if (!keepScope && effectiveAudience === "org" && orgSelection.size === 0) {
       toast.error("Chọn công ty, phòng ban hoặc nhân viên cụ thể sẽ thấy được Agent này trước khi gửi duyệt.");
       return;
     }
@@ -4418,9 +4450,11 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
       requesterId: KB_CURRENT_USER.id, requesterName: KB_CURRENT_USER.name,
       audience: effectiveAudience, note: note.trim(), version: versionName,
       resourceRefs: listAgentResourceRefs(agentId),
-      scopeSummary: effectiveAudience === "org" ? orgReachSummary : undefined,
+      scopeSummary: keepScope ? current.scopeSummary : effectiveAudience === "org" ? orgReachSummary : undefined,
       ...requestSnapshot(),
-      workspaceTargets: effectiveAudience === "org"
+      workspaceTargets: keepScope && effectiveAudience !== "community"
+        ? (keptTargets ?? [{ kind: "company", name: current.scopeSummary ?? "Phạm vi đang live" }])
+        : effectiveAudience === "org"
         ? orgSelectionTargets(orgTree, orgSelection)
         : [{ kind: "community", name: "Cộng đồng FPT AI Agent" }],
     });
@@ -4451,6 +4485,14 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          {pendingRequest && !requiresReview && (
+            <div className="flex items-start gap-2.5 rounded-lg border border-warning/25 bg-warning/5 px-3.5 py-3">
+              <HugeiconsIcon icon={Clock01Icon} size={15} className="text-warning shrink-0 mt-0.5" />
+              <p className="text-sm text-foreground leading-relaxed">
+                Yêu cầu <span className="font-medium">{pendingRequest.version}</span> đang chờ duyệt. Publish {versionName} trực tiếp sẽ rút yêu cầu đó — Admin không cần duyệt bản cũ nữa.
+              </p>
+            </div>
+          )}
           {pendingRequest && requiresReview && (
             <div className="flex items-start gap-2.5 rounded-lg border border-warning/25 bg-warning/5 px-3.5 py-3">
               <HugeiconsIcon icon={Clock01Icon} size={15} className="text-warning shrink-0 mt-0.5" />
@@ -4587,6 +4629,13 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
               <span className="text-sm font-semibold">Publish tới</span>
               <AudiencePill audience={currentAudience} />
             </label>
+            {!publishToOpen && current.placement !== null && (
+              <p className="text-xs text-muted-foreground mt-2 ml-8 leading-relaxed">
+                Giữ phạm vi đang live: <span className="text-foreground font-medium">{current.scopeSummary ?? "Chỉ mình tôi"}</span>
+                {current.channels.length > 0 && <> · Kênh ngoài: <span className="text-foreground">{current.channels.map(getChannelName).join(", ")}</span></>}.
+                {" "}Tick để đổi phạm vi.
+              </p>
+            )}
 
             {publishToOpen && (
               <div className="mt-4 pt-4 border-t border-border space-y-4">
@@ -4767,8 +4816,8 @@ function PublishModal({ agentId, agentName, onClose, onPublished, onManageChanne
             className="h-9 px-5 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-2 transition-base disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary"
             onClick={doPublish}
             disabled={
-              (effectiveAudience === "org" && orgSelection.size === 0) ||
-              (effectiveAudience === "quick_share" && quickShareSelection.size === 0) ||
+              (publishToOpen && effectiveAudience === "org" && orgSelection.size === 0) ||
+              (publishToOpen && effectiveAudience === "quick_share" && quickShareSelection.size === 0) ||
               (effectiveAudience === "group" && !groupSelectionValid)
             }
           >
