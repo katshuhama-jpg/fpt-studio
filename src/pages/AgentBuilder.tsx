@@ -1236,7 +1236,7 @@ function MoreLink({ count, onClick }: { count: number; onClick: () => void }) {
 const KNOWLEDGE_SOURCE_ROW_MENU_WIDTH = 176; // w-44
 const KNOWLEDGE_SOURCE_ROW_MENU_HEIGHT_ESTIMATE = 90; // 2 items + container padding
 
-function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, onShare, openLabel = "Mở nguồn tri thức", removeLabel = "Gỡ nguồn tri thức", disabled = false, disabledReason = "Nguồn tri thức đang được xử lý.", href, twoLine = false, hideOpen = false, toggle }: {
+function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, onShare, openLabel = "Mở nguồn tri thức", removeLabel = "Gỡ nguồn tri thức", disabled = false, disabledReason = "Nguồn tri thức đang được xử lý.", href, twoLine = false, hideOpen = false }: {
   icon: any; name: string; chip: React.ReactNode; onOpen: () => void; onRemove: () => void;
   /** Owner-only "Chia sẻ" action (e.g. a knowledge item that exists only in this Agent). */
   onShare?: () => void;
@@ -1254,25 +1254,10 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, onShare, openL
    * the remove action remains. Viewing/editing content happens on the full Knowledge screen or
    * in Console. */
   hideOpen?: boolean;
-  /** Optional per-Agent "Kích hoạt" switch rendered next to the chip — mirrors the toggle on
-   * the Knowledge tab's AgentKbCard so Guardrails/Skills rows offer the same per-Agent
-   * activate/deactivate control without a separate row layout. */
-  toggle?: { checked: boolean; onCheckedChange: (v: boolean) => void; tooltip?: string };
 }) {
   const rowClassName = `group flex ${twoLine ? "items-start" : "items-center"} gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
     disabled || hideOpen ? "cursor-default" : "hover:bg-surface-muted cursor-pointer"
   }`;
-
-  const toggleEl = toggle ? (
-    <label
-      className="flex items-center gap-1 shrink-0 cursor-pointer"
-      onClick={e => e.stopPropagation()}
-      title={toggle.tooltip}
-    >
-      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Kích hoạt</span>
-      <Switch checked={toggle.checked} onCheckedChange={toggle.onCheckedChange} />
-    </label>
-  ) : null;
 
   const menuItems: ActionMenuItem[] = [
     ...(hideOpen ? [] : [{
@@ -1297,7 +1282,6 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, onShare, openL
         <div className={`text-sm font-medium truncate ${disabled ? "text-muted-foreground" : ""}`} title={name}>{name}</div>
         <div className="flex items-center gap-1 mt-1">{chip}</div>
       </div>
-      {toggleEl}
       {actionsMenu}
     </>
   ) : (
@@ -1305,7 +1289,6 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, onShare, openL
       <HugeiconsIcon icon={icon} size={13} className="text-muted-foreground shrink-0" />
       <span className={`text-sm font-medium flex-1 truncate ${disabled ? "text-muted-foreground" : ""}`} title={name}>{name}</span>
       <span className="shrink-0">{chip}</span>
-      {toggleEl}
       {actionsMenu}
     </>
   );
@@ -1337,11 +1320,11 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, onShare, openL
 /** Card "..." menu for section=knowledge's card grid (Round 6 Prompt K) — same action set as
  * Console's own /knowledge card menu (Mở / Đổi tên / Chia sẻ / Xóa), with `openOnly` for the
  * synthetic "Cá nhân" card, which isn't a real Knowledge Base record and so only ever offers
- * "Mở". No separate "Gỡ khỏi Agent" action here — the Kích hoạt toggle on the card covers that
- * without touching the KB's Console listing or its attachment to any other Agent. */
-function AgentKbCardMenu({ onOpen, onEdit, onShare, onDelete, editBlocked, shareBlocked, deleteBlocked, openOnly }: {
-  onOpen: () => void; onEdit?: () => void; onShare?: () => void; onDelete?: () => void;
-  editBlocked?: string; shareBlocked?: string; deleteBlocked?: string; openOnly?: boolean;
+ * "Mở". The destructive action is "Gỡ liên kết": it only detaches the KB from this Agent, without
+ * touching the KB's Console listing or its attachment to any other Agent. */
+function AgentKbCardMenu({ onOpen, onEdit, onShare, onDetach, editBlocked, shareBlocked, openOnly }: {
+  onOpen: () => void; onEdit?: () => void; onShare?: () => void; onDetach?: () => void;
+  editBlocked?: string; shareBlocked?: string; openOnly?: boolean;
 }) {
   const items: ActionMenuItem[] = openOnly
     ? [{ label: "Mở", icon: ExternalLinkIcon, onSelect: onOpen }]
@@ -1349,7 +1332,7 @@ function AgentKbCardMenu({ onOpen, onEdit, onShare, onDelete, editBlocked, share
         { label: "Mở", icon: ExternalLinkIcon, onSelect: onOpen },
         ...(onEdit ? [{ label: "Đổi tên", icon: PencilEdit01Icon, onSelect: onEdit, disabledReason: editBlocked }] : []),
         ...(onShare ? [{ label: "Chia sẻ", icon: Share08Icon, onSelect: onShare, disabledReason: shareBlocked }] : []),
-        ...(onDelete ? [{ label: "Xóa", icon: Delete01Icon, onSelect: onDelete, disabledReason: deleteBlocked, destructive: true }] : []),
+        ...(onDetach ? [{ label: "Gỡ liên kết", icon: Delete01Icon, onSelect: onDetach, destructive: true }] : []),
       ];
   return <ActionMenu items={items} triggerLabel="Thao tác với kho tri thức" />;
 }
@@ -1360,9 +1343,9 @@ function AgentKbCardMenu({ onOpen, onEdit, onShare, onDelete, editBlocked, share
  * "attached resource" grids in Agent Details read as one consistent card system. `icon` is a
  * fully-formed node (the same tinted tile Console uses — see KnowledgeTypeIcon) rather than a
  * bare glyph, so a real linked KB renders with the exact same color coding as its Console card. */
-function AgentKbCard({ icon, name, description, active, onToggleActive, onOpen, menu }: {
+function AgentKbCard({ icon, name, description, onOpen, menu }: {
   icon: React.ReactNode; name: string; description?: string;
-  active: boolean; onToggleActive: (v: boolean) => void; onOpen: () => void; menu: React.ReactNode;
+  onOpen: () => void; menu: React.ReactNode;
 }) {
   return (
     <div
@@ -1370,7 +1353,7 @@ function AgentKbCard({ icon, name, description, active, onToggleActive, onOpen, 
       tabIndex={0}
       onClick={onOpen}
       onKeyDown={e => { if (e.key === "Enter") onOpen(); }}
-      className={`flex flex-col gap-3 p-4 rounded-xl border border-border bg-white hover:border-primary/30 hover:shadow-soft transition-base cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${active ? "" : "opacity-60"}`}
+      className={`flex flex-col gap-3 p-4 rounded-xl border border-border bg-white hover:border-primary/30 hover:shadow-soft transition-base cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
     >
       <div className="flex items-start gap-3">
         {icon}
@@ -1381,10 +1364,7 @@ function AgentKbCard({ icon, name, description, active, onToggleActive, onOpen, 
       <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 flex-1">
         {description || <span className="italic">Chưa có mô tả</span>}
       </p>
-      <div className="flex items-center justify-between mt-1">
-        <div onClick={e => e.stopPropagation()} title="Bật/tắt: Agent này có dùng nội dung kho tri thức này để trả lời hay không.">
-          <Switch checked={active} onCheckedChange={onToggleActive} />
-        </div>
+      <div className="flex items-center justify-end mt-1">
         {menu}
       </div>
     </div>
@@ -1397,8 +1377,7 @@ function AgentKbCard({ icon, name, description, active, onToggleActive, onOpen, 
  * for KBs shared in from the workspace, and a "Kho tri thức riêng của Agent" section for the
  * Agent's own upload/website/FAQ bucket (one synthetic "Cá nhân" card, OWN_KB_ID) — instead of
  * merging both into one filtered/tabbed grid the way this screen used to. Still keeps its own
- * search box and the "Kích hoạt" toggle on every card, since neither has an equivalent on the
- * Skills/Guardrails tabs. */
+ * search box. No per-card on/off switch — detaching is done via "Gỡ liên kết" in the card menu. */
 function KnowledgeTab({ agentId }: { agentId: string }) {
   const [params, setParams] = useSearchParams();
   const view: "grid" | "own" = params.get("view") === "own" ? "own" : "grid";
@@ -1433,7 +1412,7 @@ function AgentKnowledgeGrid({ agentId, onOpenOwn }: { agentId: string; onOpenOwn
   const [showAddFaq, setShowAddFaq] = useState(false);
   const [editKbTarget, setEditKbTarget] = useState<KnowledgeBase | null>(null);
   const [shareKbTarget, setShareKbTarget] = useState<KnowledgeBase | null>(null);
-  const [deleteKbTarget, setDeleteKbTarget] = useState<KnowledgeBase | null>(null);
+  const [detachKbTarget, setDetachKbTarget] = useState<KnowledgeBase | null>(null);
   const addMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -1472,7 +1451,6 @@ function AgentKnowledgeGrid({ agentId, onOpenOwn }: { agentId: string; onOpenOwn
     const onOpen = () => { if (c.isOwn) onOpenOwn(); else window.open(`/knowledge/${c.id}?viaAgent=${agentId}`, "_blank", "noopener,noreferrer"); };
     const editBlocked = !c.isOwn && !isOwner ? "Chỉ chủ sở hữu mới có thể đổi tên kho tri thức này." : undefined;
     const shareBlocked = !c.isOwn && !isOwner ? "Chỉ chủ sở hữu mới có thể chia sẻ kho tri thức này." : undefined;
-    const deleteBlocked = !c.isOwn && !isOwner ? "Chỉ chủ sở hữu mới có thể xóa kho tri thức này." : undefined;
     // Same tinted tile Console's KbCard uses (KnowledgeTypeIcon: amber for nội bộ, blue for kết
     // nối ngoài) for a real KB, upsized to 40×40 to match the Skills/Guardrails card icon size;
     // the synthetic "Cá nhân" card gets its own tile in the app's primary/brand tint.
@@ -1485,8 +1463,6 @@ function AgentKnowledgeGrid({ agentId, onOpenOwn }: { agentId: string; onOpenOwn
         icon={icon}
         name={c.name}
         description={c.description}
-        active={c.active}
-        onToggleActive={v => { knowledgeStore.setKbActive(agentId, c.id, v); refresh(); }}
         onOpen={onOpen}
         menu={
           <AgentKbCardMenu
@@ -1494,10 +1470,9 @@ function AgentKnowledgeGrid({ agentId, onOpenOwn }: { agentId: string; onOpenOwn
             onOpen={onOpen}
             onEdit={c.kb ? () => setEditKbTarget(c.kb!) : undefined}
             onShare={c.kb ? () => setShareKbTarget(c.kb!) : undefined}
-            onDelete={c.kb ? () => setDeleteKbTarget(c.kb!) : undefined}
+            onDetach={c.kb ? () => setDetachKbTarget(c.kb!) : undefined}
             editBlocked={editBlocked}
             shareBlocked={shareBlocked}
-            deleteBlocked={deleteBlocked}
           />
         }
       />
@@ -1526,7 +1501,7 @@ function AgentKnowledgeGrid({ agentId, onOpenOwn }: { agentId: string; onOpenOwn
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h2 className="font-display text-xl font-semibold">Tri thức của Agent</h2>
-          <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">Kho tri thức Agent này dùng để tra cứu khi trả lời — cùng danh sách như Console, có thêm nút bật/tắt riêng cho Agent này.</p>
+          <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">Kho tri thức Agent này dùng để tra cứu khi trả lời. Gồm kho liên kết từ Space và tri thức riêng của Agent.</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button onClick={() => setShowAttach(true)} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base whitespace-nowrap">
@@ -1617,9 +1592,23 @@ function AgentKnowledgeGrid({ agentId, onOpenOwn }: { agentId: string; onOpenOwn
           onClose={() => { setShareKbTarget(null); refresh(); }}
         />
       )}
-      {deleteKbTarget && (
-        <DeleteKnowledgeBaseDialog open={!!deleteKbTarget} kb={deleteKbTarget} onClose={() => setDeleteKbTarget(null)} onDeleted={refresh} />
-      )}
+      <AlertDialog open={!!detachKbTarget} onOpenChange={v => !v && setDetachKbTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Gỡ liên kết kho tri thức?</AlertDialogTitle>
+            <AlertDialogDescription>Agent sẽ không còn tra cứu được nội dung trong kho này. Kho tri thức vẫn được giữ nguyên.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { if (detachKbTarget) knowledgeStore.detachConsoleKb(agentId, detachKbTarget.id); setDetachKbTarget(null); refresh(); }}
+            >
+              Gỡ liên kết
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -6975,7 +6964,6 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
   /** One card, shared by both sections — only the destructive action (Delete vs Detach) and
    * whether Edit is offered differ, since a linked Console guardrail is edited from Console. */
   const renderCard = (g: Guardrail, opts: { onEdit?: () => void; onShare?: () => void; onDelete: () => void; deleteLabel: string }) => {
-    const active = agentGuardrailStore.isActive(agentId, g.id);
     const openView = () => setViewTarget({ g, editable: !!opts.onEdit });
     return (
       <div
@@ -6984,7 +6972,7 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
         tabIndex={0}
         onClick={openView}
         onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openView(); } }}
-        className={`flex flex-col gap-3 p-4 rounded-xl border border-border bg-white cursor-pointer hover:border-primary/30 hover:shadow-soft transition-base ${active ? "" : "opacity-60"}`}
+        className={`flex flex-col gap-3 p-4 rounded-xl border border-border bg-white cursor-pointer hover:border-primary/30 hover:shadow-soft transition-base`}
       >
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl bg-primary-soft text-primary flex items-center justify-center shrink-0">
@@ -6996,10 +6984,7 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
           </div>
         </div>
         <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 flex-1">{g.desc}</p>
-        <div className="flex items-center justify-between mt-1">
-          <div onClick={e => e.stopPropagation()}>
-            <Switch checked={active} onCheckedChange={v => { agentGuardrailStore.setActive(agentId, g.id, v); refresh(); }} />
-          </div>
+        <div className="flex items-center justify-end mt-1">
           <GuardrailAgentItemRowMenu
             onView={openView}
             onEdit={opts.onEdit}
