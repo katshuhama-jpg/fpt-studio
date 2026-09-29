@@ -1,5 +1,5 @@
 import type { KeyboardEvent, ReactNode } from "react";
-import { Bot, ShieldCheck, User, Users } from "lucide-react";
+import { ShieldCheck, User, Users } from "lucide-react";
 
 /**
  * Ownership tags + the shared "Phương án A" resource card used by every Space resource library
@@ -130,13 +130,10 @@ export function CreatorLabel({ displayName, fullName, system }: { displayName: s
   );
 }
 
-export function AgentCount({ count, all }: { count: number; all?: boolean }) {
-  if (all || count === 0) return null;
-  return (
-    <span className="flex items-center gap-1 text-muted-foreground whitespace-nowrap" title="Số Agent đang dùng">
-      <Bot size={13} aria-hidden /> {count} Agent
-    </span>
-  );
+/** Agent-usage count is no longer shown on resource cards (moved to the detail popup) —
+ * kept as a no-op so call sites don't need to change if it comes back. */
+export function AgentCount(_: { count: number; all?: boolean }) {
+  return null;
 }
 
 /** "Phương án A" card: icon · name + tags · ⋮ / description / Người tạo ··· N Agent. */
