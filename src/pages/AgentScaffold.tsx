@@ -283,7 +283,7 @@ function DraftStage({
             Open in builder <ArrowRight size={13} />
           </button>
           <button onClick={() => setRefineOpen(true)} className="h-9 px-3 rounded-lg border border-primary/30 bg-primary-soft text-primary hover:bg-primary-soft/70 text-xs font-medium flex items-center gap-1.5 justify-center transition-base">
-            <Sparkles size={12} /> Refine with AI
+            <Sparkles size={12} /> Refine với AI
           </button>
           <button onClick={onRegenerate} className="h-8 px-3 rounded-lg hover:bg-surface-muted text-xs text-muted-foreground flex items-center gap-1.5 justify-center transition-base">
             <RefreshCw size={11} /> Regenerate

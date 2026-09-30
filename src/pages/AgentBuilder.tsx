@@ -738,7 +738,7 @@ function AiBuildSidebar({
           <HugeiconsIcon icon={SparklesIcon} size={13} className="text-primary-foreground" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold leading-tight">Refine with AI</div>
+          <div className="text-sm font-semibold leading-tight">Refine với AI</div>
           <div className="text-xs text-muted-foreground leading-tight">Chat to edit your agent</div>
         </div>
         <button onClick={onClose} className="h-8 w-8 rounded-md hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base">
@@ -1115,7 +1115,7 @@ function GeneralTab({ agentId, onRefineWithAI, onChatToTest, previewCollapsed, o
           {/* Action buttons */}
           <button onClick={() => onRefineWithAI?.()}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm text-foreground transition-base">
-            <HugeiconsIcon icon={SparklesIcon} size={13} className="text-primary" /> Refine with AI
+            <HugeiconsIcon icon={SparklesIcon} size={13} className="text-primary" /> Refine với AI
           </button>
           <button onClick={() => onChatToTest?.()}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm text-foreground transition-base">

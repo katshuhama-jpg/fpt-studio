@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, X, Wrench, ShieldAlert, UserCheck, XCircle, Clock, CheckCircle2, ChevronRight } from "lucide-react";
+import { Sparkles, X, Wrench, ShieldAlert, UserCheck, XCircle, Clock, CheckCircle2, ChevronRight, SendHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ConversationTrace } from "@/components/history/traceStore";
 import { detectTraceIssues, type TraceIssue, type TraceIssueKind } from "@/components/history/refineTraceStore";
@@ -32,7 +32,7 @@ const KIND_META: Record<TraceIssueKind, { label: string; icon: React.ComponentTy
 /** What the Builder already did in this panel, per conversation — kept outside the component so
  * closing and reopening the panel (which unmounts it) doesn't bring back a proposal they already
  * applied or dismissed. In-memory only, same lifetime as the rest of this prototype's stores. */
-const panelMemory = new Map<string, { mode: "manual" | "auto"; applied: Set<string>; dismissed: Set<string> }>();
+const panelMemory = new Map<string, { mode: "manual" | "auto"; applied: Set<string>; dismissed: Set<string>; chat: ChatMsg[] }>();
 
 function InstructionsFix({
   fix, applied, onApply, onDismiss,
@@ -163,6 +163,104 @@ function IssueGroup({
   );
 }
 
+/* ───────────── Chat: hỏi AI về conversation này ─────────────
+ * The scan above answers "what went wrong"; the chat covers what a fixed list can't — "why did
+ * Turn 3 fail", "fix Turn 1 for me" — the pattern LangSmith Polly, Arize Alyx and Braintrust Loop
+ * all use on their trace views. Answers stay inside the same boundary as the scan: they're built
+ * only from what the trace recorded, and any question about whether a reply is factually right is
+ * redirected (that's Evaluators). An Instructions change asked for in chat comes back as the same
+ * diff card with Áp dụng / Bỏ qua, and follows the Thủ công / Tự động toggle like the scan's does. */
+
+type ChatMsg =
+  | { role: "user"; text: string }
+  | { role: "ai"; text: string }
+  | { role: "ai-diff"; id: string; before: string; after: string };
+
+const CONTENT_JUDGEMENT = /(đúng không|có đúng|chính xác|sai sự thật|bịa|hallucin|trả lời sai|trả lời đúng)/i;
+const FIX_INTENT = /(sửa|fix|đề xuất|chỉnh|instructions)/i;
+
+function issueLine(i: TraceIssue) {
+  return `Turn ${i.turnIndex}: ${i.diagnosis}${i.detail ? ` — ${i.detail}` : ""}`;
+}
+
+/** Deterministic, trace-grounded reply for the prototype — stands in for the real model call. */
+function buildReply(text: string, trace: ConversationTrace, issues: TraceIssue[], appliedIds: Set<string>): ChatMsg[] {
+  const turnMatch = text.match(/turn\s*(\d+)/i);
+  const turnIndex = turnMatch ? Number(turnMatch[1]) : undefined;
+  const turn = turnIndex ? trace.turns.find(t => t.index === turnIndex) : undefined;
+  if (turnIndex && !turn) {
+    return [{ role: "ai", text: `Conversation này chỉ có ${trace.turns.length} turn, không có Turn ${turnIndex}.` }];
+  }
+  const scoped = turnIndex ? issues.filter(i => i.turnIndex === turnIndex) : issues;
+
+  if (CONTENT_JUDGEMENT.test(text)) {
+    const facts = scoped.length ? scoped.map(issueLine).join("\n") : "Không có tín hiệu kỹ thuật bất thường.";
+    return [{
+      role: "ai",
+      text: `Mình chỉ đọc được những gì trace ghi lại (tool call, Guardrail, HITL, trạng thái turn, latency), nên không kết luận được câu trả lời đúng hay sai về nội dung — phần đó sẽ do Evaluators chấm.\n\nTrace cho thấy${turnIndex ? ` ở Turn ${turnIndex}` : ""}:\n${facts}`,
+    }];
+  }
+
+  if (FIX_INTENT.test(text)) {
+    const target = scoped.find(i => i.fix.kind === "instructions_diff");
+    if (target && target.fix.kind === "instructions_diff") {
+      if (appliedIds.has(target.id)) {
+        return [{ role: "ai", text: `Đề xuất sửa Instructions cho Turn ${target.turnIndex} đã được áp dụng rồi.` }];
+      }
+      return [
+        { role: "ai", text: `Turn ${target.turnIndex} Failed vì: ${target.detail ?? target.diagnosis}\nMình đề xuất chỉnh Instructions như sau:` },
+        { role: "ai-diff", id: target.id, before: target.fix.before, after: target.fix.after },
+      ];
+    }
+    const others = scoped.filter(i => i.fix.kind === "deeplink");
+    return [{
+      role: "ai",
+      text: `Mình không thấy lỗi nào${turnIndex ? ` ở Turn ${turnIndex}` : ""} do Instructions gây ra, nên chưa có gì để đề xuất sửa Instructions.` +
+        (others.length ? `\n\nCần sửa tay ở màn cấu hình:\n${others.map(i => `${issueLine(i)} → ${i.fix.kind === "deeplink" ? i.fix.ctaLabel : ""}`).join("\n")}` : ""),
+    }];
+  }
+
+  if (turn) {
+    const steps = turn.agentMessages.reduce((n, m) => n + (m.toolCalls?.length ?? 0) + (m.guardrail ? 1 : 0) + (m.hitl ? 1 : 0), 0);
+    const head = `Turn ${turn.index}: ${turn.outcome === "failed" ? "Failed" : turn.outcome === "input_required" ? "đang chờ duyệt" : "hoàn tất"} · latency ${(turn.latencyMs / 1000).toFixed(2)}s · ${steps} bước.`;
+    return [{ role: "ai", text: scoped.length ? `${head}\n${scoped.map(issueLine).join("\n")}` : `${head}\nKhông có tín hiệu kỹ thuật bất thường ở turn này.` }];
+  }
+
+  return [{
+    role: "ai",
+    text: issues.length
+      ? `Conversation có ${trace.turns.length} turn, ${issues.length} điểm cần chú ý:\n${issues.map(issueLine).join("\n")}`
+      : `Conversation có ${trace.turns.length} turn và không có tín hiệu kỹ thuật bất thường nào.`,
+  }];
+}
+
+/** Renders "Turn N" inside an AI answer as a link that scrolls the trace to that turn. */
+function TurnLinkedText({ text, onScrollToTurn }: { text: string; onScrollToTurn: (n: number) => void }) {
+  const parts = text.split(/(Turn \d+)/g);
+  return (
+    <>
+      {parts.map((p, i) => {
+        const m = p.match(/^Turn (\d+)$/);
+        return m ? (
+          <button key={i} type="button" onClick={() => onScrollToTurn(Number(m[1]))} className="font-medium text-primary hover:underline">
+            {p}
+          </button>
+        ) : <span key={i}>{p}</span>;
+      })}
+    </>
+  );
+}
+
+function starterPrompts(issues: TraceIssue[]): string[] {
+  const out: string[] = [];
+  const instr = issues.find(i => i.fix.kind === "instructions_diff");
+  if (instr) out.push(`Đề xuất sửa Instructions cho Turn ${instr.turnIndex}`);
+  const other = issues.find(i => i.kind !== "turn_failed");
+  if (other) out.push(`Chuyện gì xảy ra ở Turn ${other.turnIndex}?`);
+  out.push("Tóm tắt các vấn đề của conversation này");
+  return out.slice(0, 3);
+}
+
 export function RefineWithAiTracePanel({
   agentId, conversationId, trace, onClose, onScrollToTurn,
 }: {
@@ -179,9 +277,18 @@ export function RefineWithAiTracePanel({
   const [appliedIds, setAppliedIds] = useState<Set<string>>(() => new Set(remembered?.applied));
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => new Set(remembered?.dismissed));
 
+  const [chat, setChat] = useState<ChatMsg[]>(remembered?.chat ?? []);
+  const [input, setInput] = useState("");
+  const [answering, setAnswering] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    panelMemory.set(memoryKey, { mode: approvalMode, applied: appliedIds, dismissed: dismissedIds });
-  }, [memoryKey, approvalMode, appliedIds, dismissedIds]);
+    panelMemory.set(memoryKey, { mode: approvalMode, applied: appliedIds, dismissed: dismissedIds, chat });
+  }, [memoryKey, approvalMode, appliedIds, dismissedIds, chat]);
+
+  useEffect(() => {
+    if (chat.length) bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [chat.length, answering]);
 
   const issues = useMemo(() => detectTraceIssues(trace), [trace]);
   const visibleIssues = issues.filter(i => !dismissedIds.has(i.id));
@@ -196,6 +303,23 @@ export function RefineWithAiTracePanel({
     const t = setTimeout(() => setScanning(false), 650);
     return () => clearTimeout(t);
   }, [trace]);
+
+  const send = (raw?: string) => {
+    const text = (raw ?? input).trim();
+    if (!text || answering || scanning) return;
+    setInput("");
+    setChat(c => [...c, { role: "user", text }]);
+    setAnswering(true);
+    setTimeout(() => {
+      const reply = buildReply(text, trace, issues, appliedIds);
+      setChat(c => [...c, ...reply]);
+      if (approvalMode === "auto") {
+        const diffIds = reply.flatMap(m => (m.role === "ai-diff" ? [m.id] : []));
+        if (diffIds.length) setAppliedIds(prev => new Set([...prev, ...diffIds]));
+      }
+      setAnswering(false);
+    }, 700);
+  };
 
   // "Tự động": Instructions fixes apply themselves as soon as they're found, exactly the same
   // as the Tự động behavior already on Instructions — no separate rule for Trace.
@@ -292,8 +416,80 @@ export function RefineWithAiTracePanel({
                 />
               ))
             )}
+
+            {chat.map((m, i) => {
+              if (m.role === "user") return (
+                <div key={i} className="flex justify-end">
+                  <div className="bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-3 py-2 text-xs max-w-[90%] leading-relaxed whitespace-pre-wrap">{m.text}</div>
+                </div>
+              );
+              if (m.role === "ai") return (
+                <div key={i} className="bg-surface-muted/60 border border-border rounded-2xl rounded-bl-sm px-3 py-2.5 text-xs leading-relaxed whitespace-pre-wrap">
+                  <TurnLinkedText text={m.text} onScrollToTurn={onScrollToTurn} />
+                </div>
+              );
+              if (dismissedIds.has(m.id)) return null;
+              return (
+                <InstructionsFix
+                  key={i}
+                  fix={{ kind: "instructions_diff", before: m.before, after: m.after }}
+                  applied={appliedIds.has(m.id)}
+                  onApply={() => setAppliedIds(prev => new Set(prev).add(m.id))}
+                  onDismiss={() => setDismissedIds(prev => new Set(prev).add(m.id))}
+                />
+              );
+            })}
+            {answering && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs w-fit border border-primary/30 bg-primary-soft text-primary">
+                <Sparkles size={11} className="animate-pulse" /> Đang đọc trace…
+              </div>
+            )}
+            <div ref={bottomRef} />
           </>
         )}
+      </div>
+
+      {/* Composer */}
+      <div className="border-t border-border p-2.5 shrink-0 bg-surface">
+        {!scanning && chat.length === 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {starterPrompts(visibleIssues).map(s => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => send(s)}
+                className="text-xs px-2 py-1 rounded-full bg-surface border border-border hover:bg-primary-soft hover:text-primary hover:border-primary/30 transition-base text-left"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="rounded-xl border border-border bg-surface focus-within:border-primary transition-base p-1.5">
+          <div className="flex items-end gap-1.5">
+            <label htmlFor="refine-trace-input" className="sr-only">Hỏi AI về conversation này</label>
+            <textarea
+              id="refine-trace-input"
+              rows={2}
+              value={input}
+              disabled={scanning}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+              placeholder="Hỏi về conversation này hoặc nói bạn muốn sửa gì…"
+              className="flex-1 resize-none bg-transparent text-sm placeholder:text-muted-foreground outline-none px-1 py-0.5 max-h-32 disabled:opacity-50"
+            />
+            <button
+              type="button"
+              onClick={() => send()}
+              disabled={!input.trim() || answering || scanning}
+              aria-label="Gửi"
+              className="h-7 w-7 rounded-md bg-primary text-primary-foreground hover:bg-primary-glow flex items-center justify-center transition-base shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <SendHorizontal size={13} />
+            </button>
+          </div>
+        </div>
+        <div className="text-xs text-muted-foreground mt-1.5 px-1">Enter để gửi · Shift+Enter xuống dòng</div>
       </div>
     </aside>
   );
