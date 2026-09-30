@@ -404,7 +404,7 @@ export default function ConversationTrace() {
           aria-pressed={refineOpen}
           title="Refine với AI (⌘I / Ctrl+I)"
           className={cn(
-            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm transition-base shrink-0",
+            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm transition-base shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
             refineOpen
               ? "border-primary/40 bg-primary-soft text-primary"
               : "border-border bg-surface hover:bg-surface-muted text-foreground",

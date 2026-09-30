@@ -36,6 +36,11 @@ const KIND_META: Record<TraceIssueKind, { label: string; icon: React.ComponentTy
 
 type Section = "instructions" | "guardrails";
 
+/** Visible keyboard focus for every control in the panel (uiux-pro-max: focus-states). */
+const FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
+const prefersReducedMotion = () =>
+  typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
 type ChatMsg =
   | { role: "user"; text: string }
   | { role: "steps"; steps: string[] }
@@ -76,10 +81,10 @@ function InstructionsFix({
         <div className="bg-success/10 text-success px-2 py-1 rounded">+ {fix.after}</div>
       </div>
       <div className="flex gap-1.5 mt-2">
-        <button type="button" onClick={onApply} className="h-7 px-2.5 rounded-md bg-primary text-primary-foreground text-xs font-medium">
+        <button type="button" onClick={onApply} className={cn("h-7 px-2.5 rounded-md bg-primary text-primary-foreground hover:bg-primary-glow text-xs font-medium transition-base", FOCUS)}>
           Áp dụng vào Instructions
         </button>
-        <button type="button" onClick={onDismiss} className="h-7 px-2.5 rounded-md hover:bg-surface-muted text-xs text-muted-foreground">
+        <button type="button" onClick={onDismiss} className={cn("h-7 px-2.5 rounded-md hover:bg-surface-muted text-xs text-muted-foreground transition-base", FOCUS)}>
           Bỏ qua
         </button>
       </div>
@@ -93,7 +98,7 @@ function DeepLinkButton({ agentId, section, label }: { agentId: string; section:
     <button
       type="button"
       onClick={() => navigate(`/agents/${agentId}?tab=build&section=${section}`)}
-      className="h-7 px-2.5 rounded-md border border-border bg-surface hover:bg-surface-muted text-xs font-medium text-foreground transition-base"
+      className={cn("h-7 px-2.5 rounded-md border border-border bg-surface hover:bg-surface-muted text-xs font-medium text-foreground transition-base", FOCUS)}
     >
       {label}
     </button>
@@ -113,7 +118,7 @@ function StepChips({ steps, running }: { steps: string[]; running?: boolean }) {
             running ? "border-primary/30 bg-primary-soft text-primary" : "border-success/30 bg-success/10 text-[hsl(var(--success-strong))]",
           )}
         >
-          {running ? <Loader2 size={11} className="animate-spin" /> : <CheckCircle2 size={11} />}
+          {running ? <Loader2 size={11} className="motion-safe:animate-spin" aria-hidden /> : <CheckCircle2 size={11} aria-hidden />}
           {s}
         </div>
       ))}
@@ -122,14 +127,15 @@ function StepChips({ steps, running }: { steps: string[]; running?: boolean }) {
 }
 
 /** Renders "Turn N" inside an answer as a link that scrolls the trace to that turn. */
-function TurnLinkedText({ text, onScrollToTurn }: { text: string; onScrollToTurn: (n: number) => void }) {
+function TurnLinkedText({ text, onScrollToTurn, turnCount }: { text: string; onScrollToTurn: (n: number) => void; turnCount: number }) {
   const parts = text.split(/(Turn \d+)/g);
   return (
     <>
       {parts.map((p, i) => {
         const m = p.match(/^Turn (\d+)$/);
-        return m ? (
-          <button key={i} type="button" onClick={() => onScrollToTurn(Number(m[1]))} className="font-medium text-primary hover:underline">
+        // Only turns that exist become links — "không có Turn 9" stays plain text.
+        return m && Number(m[1]) >= 1 && Number(m[1]) <= turnCount ? (
+          <button key={i} type="button" onClick={() => onScrollToTurn(Number(m[1]))} title={`Đi tới ${p}`} className={cn("font-medium text-primary hover:underline rounded-sm", FOCUS)}>
             {p}
           </button>
         ) : <span key={i}>{p}</span>;
@@ -196,9 +202,11 @@ function IssueGroup({
   const critical = items.some(i => i.severity === "critical");
   return (
     <details open={isFirst} className="group rounded-xl border border-border bg-surface overflow-hidden [&::-webkit-details-marker]:hidden">
-      <summary className="list-none cursor-pointer flex items-center gap-2 px-3 py-2.5 select-none">
-        <Icon size={14} className={critical ? "text-[hsl(var(--destructive-strong))]" : "text-[hsl(var(--warning-strong))]"} />
+      <summary className={cn("list-none cursor-pointer flex items-center gap-2 px-3 py-2.5 select-none rounded-xl", FOCUS)}>
+        <Icon size={14} aria-hidden className={critical ? "text-[hsl(var(--destructive-strong))]" : "text-[hsl(var(--warning-strong))]"} />
         <span className="text-sm font-semibold">{meta.label}</span>
+        {/* Colour alone shouldn't carry severity (uiux-pro-max: color is not the only indicator). */}
+        <span className="sr-only">{critical ? "— có mục Critical" : "— Warning"}</span>
         <span className="chip chip-muted !h-5 !text-[11px] ml-auto">{items.length}</span>
         <ChevronRight size={13} className="text-muted-foreground transition-transform group-open:rotate-90" />
       </summary>
@@ -432,7 +440,7 @@ export function RefineWithAiTracePanel({
   }, [scanning]);
 
   useEffect(() => {
-    if (chat.length || answering) bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    if (chat.length || answering) bottomRef.current?.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "end" });
   }, [chat.length, answering]);
 
   // "Tự động": Instructions fixes apply themselves as soon as they're found, the same as Tự động
@@ -505,22 +513,22 @@ export function RefineWithAiTracePanel({
             disabled={!chat.length}
             title="Cuộc trò chuyện mới (⌘⇧O / Ctrl+Shift+O)"
             aria-label="Cuộc trò chuyện mới"
-            className="h-8 w-8 rounded-md hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+            className={cn("h-8 w-8 rounded-md hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 disabled:opacity-40 disabled:cursor-not-allowed", FOCUS)}
           >
-            <SquarePen size={14} />
+            <SquarePen size={14} aria-hidden />
           </button>
           <button
             type="button"
             onClick={onClose}
             title="Đóng (⌘I / Ctrl+I)"
             aria-label="Đóng"
-            className="h-8 w-8 rounded-md hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0"
+            className={cn("h-8 w-8 rounded-md hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0", FOCUS)}
           >
-            <X size={15} />
+            <X size={15} aria-hidden />
           </button>
         </div>
 
-        <div className="flex items-center bg-surface-muted rounded-lg p-0.5 border border-border w-fit mt-2.5">
+        <div role="radiogroup" aria-label="Chế độ áp dụng đề xuất" className="flex items-center bg-surface-muted rounded-lg p-0.5 border border-border w-fit mt-2.5">
           {([
             { id: "manual", label: "Thủ công" },
             { id: "auto", label: "Tự động" },
@@ -528,9 +536,11 @@ export function RefineWithAiTracePanel({
             <button
               key={opt.id}
               type="button"
+              role="radio"
+              aria-checked={approvalMode === opt.id}
               onClick={() => setApprovalMode(opt.id)}
               className={cn(
-                "px-2.5 py-1 rounded-md text-xs font-medium transition-base",
+                "px-2.5 py-1 rounded-md text-xs font-medium transition-base", FOCUS,
                 approvalMode === opt.id ? "bg-white shadow-soft text-foreground" : "text-muted-foreground hover:text-foreground",
               )}
             >
@@ -544,7 +554,7 @@ export function RefineWithAiTracePanel({
       </div>
 
       {/* Thread */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
+      <div role="log" aria-live="polite" aria-label="Hội thoại với AI" className="flex-1 overflow-y-auto p-3 space-y-2.5">
         <StepChips steps={SCAN_STEPS(trace.turns.length)} running={scanning} />
 
         {!scanning && (
@@ -586,7 +596,7 @@ export function RefineWithAiTracePanel({
               if (m.role === "steps") return <StepChips key={i} steps={m.steps} />;
               if (m.role === "ai") return (
                 <div key={i} className="bg-surface-muted/60 border border-border rounded-2xl rounded-bl-sm px-3 py-2.5 text-xs leading-relaxed">
-                  <div className="whitespace-pre-wrap"><TurnLinkedText text={m.text} onScrollToTurn={onScrollToTurn} /></div>
+                  <div className="whitespace-pre-wrap"><TurnLinkedText text={m.text} onScrollToTurn={onScrollToTurn} turnCount={trace.turns.length} /></div>
                   {m.actions && m.actions.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       {m.actions.map(a => <DeepLinkButton key={a.section} agentId={agentId} section={a.section} label={a.label} />)}
@@ -621,7 +631,7 @@ export function RefineWithAiTracePanel({
                 key={s}
                 type="button"
                 onClick={() => send(s)}
-                className="text-xs px-2 py-1 rounded-full bg-surface border border-border hover:bg-primary-soft hover:text-primary hover:border-primary/30 transition-base text-left"
+                className={cn("text-xs px-2.5 py-1 rounded-full bg-surface border border-border hover:bg-primary-soft hover:text-primary hover:border-primary/30 transition-base text-left", FOCUS)}
               >
                 {s}
               </button>
@@ -647,9 +657,9 @@ export function RefineWithAiTracePanel({
               onClick={() => send()}
               disabled={!input.trim() || answering || scanning}
               aria-label="Gửi"
-              className="h-7 w-7 rounded-md bg-primary text-primary-foreground hover:bg-primary-glow flex items-center justify-center transition-base shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+              className={cn("h-8 w-8 rounded-md bg-primary text-primary-foreground hover:bg-primary-glow flex items-center justify-center transition-base shrink-0 disabled:opacity-40 disabled:cursor-not-allowed", FOCUS)}
             >
-              <SendHorizontal size={13} />
+              <SendHorizontal size={14} aria-hidden />
             </button>
           </div>
         </div>
