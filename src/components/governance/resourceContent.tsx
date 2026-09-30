@@ -171,9 +171,12 @@ export function ResourceContentSection({ type, id }: { type: ResourceReqType; id
  * where they expect it. Kỹ năng / Guardrails / Tri thức / Connector are the "Thành phần" section
  * further down the request page; where the Agent will be published is "Kênh triển khai". */
 export function AgentContentSection({ req }: { req: GovRequest }) {
-  const a = getAgent(req.resourceId);
+  // Show the content frozen when the request was sent — never the Builder's later edits.
+  const cur = getAgent(req.resourceId);
+  const snap = req.mainSnapshotAtSubmit?.fields;
+  const a = { desc: snap?.desc ?? cur.desc, instructions: snap?.instructions ?? cur.instructions };
   const [showAll, setShowAll] = useState(false);
-  const connections: AgentConnectionSnap[] = req.connections ?? agentConnectorStore.list(req.resourceId).map(c => {
+  const connections: AgentConnectionSnap[] = req.connections ?? (req.connectionsAtSubmit ?? agentConnectorStore.list(req.resourceId)).map(c => {
     const cat = CONNECTION_CATALOG.find(x => x.id === c.connectorId);
     return { name: cat?.name ?? c.connectorId, logoUrl: cat?.logo, scope: c.scope };
   });
@@ -185,7 +188,7 @@ export function AgentContentSection({ req }: { req: GovRequest }) {
   return (
     <ContentBlock type="agent">
       {a.desc && <Field label="Mô tả"><p className="leading-relaxed">{a.desc}</p></Field>}
-      <Field label="Model">{req.model ?? agentModelStore.label(req.resourceId)}</Field>
+      <Field label="Model">{req.model ?? snap?.model ?? agentModelStore.label(req.resourceId)}</Field>
 
       <Field label="Instructions">
         {instructions ? (

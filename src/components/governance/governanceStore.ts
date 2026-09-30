@@ -238,6 +238,8 @@ export interface GovRequest {
    * fields to detect "builder kept editing after submitting" (see checkDrift), and against its
    * last-approved live snapshot for the "Xem thay đổi" panel. */
   mainSnapshotAtSubmit?: ResourceSnapshot;
+  /** Agent connections frozen at submit (connector id + scope) — what the Admin reviews. */
+  connectionsAtSubmit?: { connectorId: string; scope: "shared" | "personal" }[];
   reviewerId?: string;
   reviewerName?: string;
   reviewNote?: string;
@@ -339,8 +341,9 @@ export function mainChangeState(req: GovRequest): GovChangeState | null {
   if (req.externalSnap) return req.changeStateAtSubmit ?? null;
   // Decided requests keep the state they were submitted with (null → unknown, chip hidden).
   if (req.status !== "pending") return req.changeStateAtSubmit ?? null;
+  // What is under review is the content frozen at submit, not whatever the Builder edited since.
   const live = liveSnapshots.get(snapshotKey(req.resourceType, req.resourceId));
-  const candidate = buildSnapshot(req.resourceType, req.resourceId) ?? req.mainSnapshotAtSubmit;
+  const candidate = req.mainSnapshotAtSubmit ?? buildSnapshot(req.resourceType, req.resourceId);
   return classifyChange(live, candidate);
 }
 
@@ -352,7 +355,7 @@ export function requestDiff(req: GovRequest): FieldDiff[] {
   if (requestKind(req) === "channels" || req.externalSnap) return req.diffAtSubmit ?? [];
   if (req.status !== "pending") return req.diffAtSubmit ?? [];
   const live = liveSnapshots.get(snapshotKey(req.resourceType, req.resourceId));
-  const candidate = buildSnapshot(req.resourceType, req.resourceId) ?? req.mainSnapshotAtSubmit;
+  const candidate = req.mainSnapshotAtSubmit ?? buildSnapshot(req.resourceType, req.resourceId);
   return diffSnapshots(live, candidate);
 }
 
@@ -984,6 +987,9 @@ export const governanceStore = {
       model: input.model, privateKnowledge: input.privateKnowledge,
       kind, channelsAdded, externalSnap: input.externalSnap,
       mainSnapshotAtSubmit: input.externalSnap ? undefined : buildSnapshot(input.resourceType, input.resourceId),
+      connectionsAtSubmit: input.resourceType === "agent" && !input.externalSnap && !input.connections
+        ? agentConnectorStore.list(input.resourceId).map(c => ({ connectorId: c.connectorId, scope: c.scope }))
+        : undefined,
       ...(kind === "channels" ? (() => {
         const before = input.channels ?? [];
         const after = [...new Set([...before, ...(channelsAdded ?? [])])];
@@ -1069,7 +1075,9 @@ export const governanceStore = {
     }
 
     // Promote the resource's current fields to "live" — the only thing an approval does.
-    const mainSnap = r.externalSnap ? undefined : buildSnapshot(r.resourceType, r.resourceId);
+    // Promote exactly what was reviewed (frozen at submit) — edits made after submitting are not
+    // part of this approval and stay in the Builder's draft.
+    const mainSnap = r.externalSnap ? undefined : (r.mainSnapshotAtSubmit ?? buildSnapshot(r.resourceType, r.resourceId));
     if (mainSnap) liveSnapshots.set(snapshotKey(r.resourceType, r.resourceId), mainSnap);
     persistLive();
     store.set(id, r);

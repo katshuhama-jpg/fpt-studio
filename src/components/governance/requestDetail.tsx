@@ -188,8 +188,8 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
             <div className="mb-6 flex items-start gap-2.5 rounded-lg border border-warning/25 bg-warning/5 px-3.5 py-3">
               <AlertTriangle size={15} className="text-warning shrink-0 mt-0.5" />
               <p className="text-sm text-warning leading-relaxed">
-                <span className="font-medium">{req.resourceName}</span> đã được chỉnh sửa tiếp sau khi gửi yêu cầu này{drift.at ? ` (lúc ${formatDateTime(drift.at)})` : ""} —
-                nội dung admin đang xem bên dưới có thể chưa phải bản mới nhất. Cân nhắc yêu cầu người gửi gửi lại trước khi duyệt.
+                <span className="font-medium">{req.resourceName}</span> đã được sửa tiếp sau khi gửi yêu cầu này. Bạn đang duyệt đúng nội dung lúc gửi {req.version ?? ""} —
+                các chỉnh sửa sau đó không nằm trong yêu cầu này và cần một yêu cầu mới.
               </p>
             </div>
           )}
