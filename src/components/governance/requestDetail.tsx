@@ -549,10 +549,10 @@ function MainDiffRows({ req }: { req: import("@/components/governance/governance
 
 const COMPONENT_TYPES = ["knowledge", "skill", "guardrail", "connector"] as const;
 
-/** What the Agent is built from, grouped by type. Tabs (only when the Agent uses more than one
- * type) let the reviewer look at, say, just the Guardrails; each row opens the component in a new
- * tab so the review isn't interrupted. The components' own Tenant-sharing status is deliberately
- * NOT shown here — it's a separate Tenant Admin decision and irrelevant to publishing this Agent. */
+/** Part of the Agent's own content: the resources assigned to it (Knowledge, Skills, Guardrails,
+ * Connectors), grouped by type, so the reviewer judges the whole Agent. Approving an Agent and
+ * approving a Resource for sharing on the Space are two unrelated decisions — no sharing status,
+ * no per-resource approval is shown or implied here. */
 const PRIVATE_KIND_LABEL = { doc: "Tài liệu", url: "URL", faq: "FAQ" } as const;
 
 function AgentComponents({ agentId, refs, privateKnowledge }: {
@@ -579,10 +579,10 @@ function AgentComponents({ agentId, refs, privateKnowledge }: {
   return (
     <div className="mb-6">
       <p className="text-sm font-semibold flex items-center gap-1.5 mb-3">
-        <Layers size={14} className="text-muted-foreground" /> Thành phần Agent này sử dụng ({rows.length})
+        <Layers size={14} className="text-muted-foreground" /> Tài nguyên gán với Agent ({rows.length})
       </p>
       {types.length > 1 && (
-        <div role="tablist" aria-label="Lọc thành phần theo loại" className="flex items-center gap-1 flex-wrap mb-3">
+        <div role="tablist" aria-label="Lọc tài nguyên theo loại" className="flex items-center gap-1 flex-wrap mb-3">
           {tabs.map(t => {
             const active = tab === t.key;
             return (
