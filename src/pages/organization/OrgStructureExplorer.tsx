@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
-import { Building2, ChevronRight, ChevronLeft, ChevronDown, Search, Users, Trash2, Plus, Pencil, Upload, X, FolderInput, UserPlus, Crown, Check, User, ShieldCheck, CornerDownRight } from "lucide-react";
+import { Building2, ChevronRight, ChevronLeft, ChevronDown, Search, Users, Trash2, Plus, Pencil, Upload, X, FolderInput, UserPlus, Crown, Check, User } from "lucide-react";
 import {
   OrgUnit, OrgMember,
   countAll, countDirect, findUnit, findPath, unitMatches, collectMembers, collectUnitsWithDepth,
@@ -519,6 +519,19 @@ export default function OrgStructureExplorer() {
       .filter((x): x is { member: OrgMember; sourceUnit: OrgUnit } => !!x.member)
   );
 
+  // Same data as `effectiveAdmins`, grouped by the unit that actually granted the standing —
+  // closest first (this unit's own admins, then its parent, then grandparent, ...) — so a table
+  // can show one "Trực tiếp tại X" / "Kế thừa từ Y" header per source instead of repeating the
+  // source name on every row.
+  const adminGroups = useMemo(() => {
+    return [...path].reverse().flatMap(u => {
+      const admins = (u.unitAdmins ?? [])
+        .map(grant => u.members.find(m => m.id === grant.memberId))
+        .filter((m): m is OrgMember => !!m);
+      return admins.length > 0 ? [{ sourceUnit: u, isDirect: u.id === selected.id, admins }] : [];
+    });
+  }, [path, selected]);
+
   const selectUnit = (id: string) => {
     setSelectedId(id);
     setMemberQuery("");
@@ -760,48 +773,61 @@ export default function OrgStructureExplorer() {
               Chưa có Unit Admin nào — gán ở trên.
             </div>
           ) : (
-            <div className="border border-border rounded-xl divide-y divide-border overflow-hidden">
-              {effectiveAdmins.map(({ member, sourceUnit }) => (
-                <div
-                  key={`${sourceUnit.id}-${member.id}`}
-                  className="flex items-center gap-3 px-3 py-2.5 hover:bg-surface-muted/60 transition-base"
-                >
-                  <div className="w-8 h-8 rounded-full bg-accent-soft text-accent flex items-center justify-center text-[11px] font-semibold shrink-0">
-                    {member.initials}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-baseline gap-1.5 min-w-0">
-                      <span className="text-sm font-medium truncate">{member.name}</span>
-                      {member.role && <span className="text-xs text-muted-foreground truncate">{member.role}</span>}
-                    </div>
-                    {member.email && <div className="text-xs text-muted-foreground truncate">{member.email}</div>}
-                  </div>
-                  {sourceUnit.id === selected.id ? (
-                    <span
-                      className="inline-flex items-center gap-1 text-xs text-muted-foreground shrink-0"
-                      title={`Được gán Unit Admin trực tiếp tại "${selected.name}".`}
-                    >
-                      <ShieldCheck size={13} /> Trực tiếp
-                    </span>
-                  ) : (
-                    <span
-                      className="inline-flex items-center gap-1 text-xs text-muted-foreground shrink-0"
-                      title={`Được gán Unit Admin tại "${sourceUnit.name}" — quyền duyệt publish được kế thừa xuống "${selected.name}".`}
-                    >
-                      <CornerDownRight size={13} /> Kế thừa từ {sourceUnit.name}
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setRemoveAdminTarget({ member, sourceUnit })}
-                    aria-label={`Gỡ ${member.name} khỏi Unit Admin`}
-                    title="Gỡ khỏi Unit Admin"
-                    className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-surface transition-base shrink-0"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              ))}
+            <div className="border border-border rounded-xl overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left text-overline font-semibold uppercase tracking-wider text-muted-foreground px-3 py-2">Quản trị viên</th>
+                    <th className="text-left text-overline font-semibold uppercase tracking-wider text-muted-foreground px-3 py-2">Chức danh</th>
+                    <th className="text-left text-overline font-semibold uppercase tracking-wider text-muted-foreground px-3 py-2">Email</th>
+                    <th className="w-9 px-3 py-2" aria-hidden="true" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {adminGroups.map(group => (
+                    <Fragment key={group.sourceUnit.id}>
+                      <tr className="bg-surface-muted">
+                        <td
+                          colSpan={4}
+                          className="px-3 py-1.5 text-overline font-semibold uppercase tracking-wider text-muted-foreground"
+                          title={
+                            group.isDirect
+                              ? `Được gán Unit Admin trực tiếp tại "${group.sourceUnit.name}".`
+                              : `Được gán Unit Admin tại "${group.sourceUnit.name}" — quyền duyệt publish được kế thừa xuống "${selected.name}".`
+                          }
+                        >
+                          {group.isDirect ? `Trực tiếp tại ${group.sourceUnit.name}` : `Kế thừa từ ${group.sourceUnit.name}`}
+                        </td>
+                      </tr>
+                      {group.admins.map(member => (
+                        <tr key={member.id} className="border-b border-border last:border-0 hover:bg-surface-muted/60 transition-base">
+                          <td className="px-3 py-2.5">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="w-7 h-7 rounded-full bg-accent-soft text-accent flex items-center justify-center text-[10px] font-semibold shrink-0">
+                                {member.initials}
+                              </div>
+                              <span className="text-sm font-medium truncate">{member.name}</span>
+                            </div>
+                          </td>
+                          <td className="px-3 py-2.5 text-muted-foreground truncate">{member.role}</td>
+                          <td className="px-3 py-2.5 text-muted-foreground truncate max-w-[220px]">{member.email}</td>
+                          <td className="px-3 py-2.5 text-right">
+                            <button
+                              type="button"
+                              onClick={() => setRemoveAdminTarget({ member, sourceUnit: group.sourceUnit })}
+                              aria-label={`Gỡ ${member.name} khỏi Unit Admin`}
+                              title="Gỡ khỏi Unit Admin"
+                              className="w-7 h-7 rounded-lg inline-flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-surface transition-base"
+                            >
+                              <X size={14} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </Fragment>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
