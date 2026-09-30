@@ -85,7 +85,7 @@ import { PendingRequestPill } from "@/components/governance/agentRequestPill";
 import { agentModelStore, modelName } from "@/components/configure/agentModelStore";
 import type { WorkspaceTarget } from "@/components/governance/governanceStore";
 import { formatDateTime as formatGovDateTime } from "@/components/governance/governanceUi";
-import { collabGroupStore, groupReviewers, recheckAgentGroupPublish, QUICK_SHARE_MAX, type CollabGroup, type GroupReviewers } from "@/components/configure/collabGroupStore";
+import { collabGroupStore, groupReviewers, recheckAgentGroupPublish, QUICK_SHARE_MAX, ORG_SHARE_REVIEW_MIN, type CollabGroup, type GroupReviewers } from "@/components/configure/collabGroupStore";
 import { resourceBlockStore } from "@/components/governance/resourceBlockStore";
 import { KnowledgeStatusPill } from "@/components/knowledge/knowledgeStatus";
 import AttachConsoleKnowledgeBaseModal from "@/components/knowledge/AttachConsoleKnowledgeBaseModal";
@@ -3982,7 +3982,7 @@ function AudienceRadioRow({ icon, title, description, selected, liveNow, liveLab
   selected: boolean; liveNow?: boolean; liveLabel?: string;
   /** Whether choosing this option publishes instantly or goes to Org/Unit Admin review —
    * shown up front so the Builder knows before picking, not only when the CTA changes. */
-  review?: "instant" | "required" | "maybe";
+  review?: "instant" | "required" | "maybe" | "threshold";
   disabled?: boolean; onClick: () => void;
   children?: React.ReactNode;
 }) {
@@ -4021,7 +4021,7 @@ function AudienceRadioRow({ icon, title, description, selected, liveNow, liveLab
                 : review === "required" ? "bg-warning/10 border-warning/25 text-warning"
                 : "bg-surface-muted border-border text-muted-foreground"
               }`}>
-                {review === "instant" ? "Publish ngay" : review === "required" ? "Cần duyệt" : "Có thể cần duyệt"}
+                {review === "instant" ? "Publish ngay" : review === "required" ? "Cần duyệt" : review === "threshold" ? `Từ ${ORG_SHARE_REVIEW_MIN} người cần duyệt` : "Có thể cần duyệt"}
               </span>
             )}
             {liveNow && <LiveDotChip label={liveLabel} />}
@@ -4075,6 +4075,56 @@ function orgSelectionTargets(tree: OrgUnit, selection: Set<string>): WorkspaceTa
   walk(tree, 0);
   if (people.length > 0) units.push({ kind: "people", name: people.join(", "), members: people.length });
   return units;
+}
+
+/** Every member id the current org selection reaches (a selected unit's whole subtree). */
+function orgSelectionMemberIds(tree: OrgUnit, selection: Set<string>): string[] {
+  const out = new Set<string>();
+  const all = (u: OrgUnit) => { u.members.forEach(m => out.add(m.id)); u.units.forEach(all); };
+  const walk = (u: OrgUnit) => {
+    if (selection.has(`u:${u.id}`)) { all(u); return; }
+    u.members.forEach(m => { if (selection.has(`m:${m.id}`)) out.add(m.id); });
+    u.units.forEach(walk);
+  };
+  walk(tree);
+  return [...out];
+}
+
+/** Live status under the Company / department picker: how many people will see the Agent, and
+ * whether that publishes now (< ORG_SHARE_REVIEW_MIN) or needs an Admin — and which one. */
+function OrgReachNotice({ count, summary, reviewers }: { count: number; summary: string; reviewers?: GroupReviewers }) {
+  if (count === 0) {
+    return <p className="mt-2 text-xs text-muted-foreground">Chọn công ty, phòng ban hoặc tìm người theo tên, email.</p>;
+  }
+  if (count < ORG_SHARE_REVIEW_MIN) {
+    return (
+      <div role="status" className="mt-2 flex items-start gap-2 rounded-lg border border-success/25 bg-success/5 px-3 py-2">
+        <HugeiconsIcon icon={CheckmarkCircle01Icon} size={14} className="text-success shrink-0 mt-0.5" />
+        <div className="min-w-0 text-xs leading-relaxed">
+          <p className="text-foreground"><b>Publish ngay cho {count} người</b> · không cần duyệt.</p>
+          <p className="text-muted-foreground truncate" title={summary}>{summary}</p>
+          <p className="text-muted-foreground">Chọn từ {ORG_SHARE_REVIEW_MIN} người trở lên sẽ cần Admin duyệt.</p>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div role="status" className="mt-2 flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2">
+      <HugeiconsIcon icon={Alert01Icon} size={14} className="text-warning shrink-0 mt-0.5" />
+      <div className="min-w-0 text-xs leading-relaxed">
+        <p className="text-foreground"><b>Cần Admin duyệt</b> · Agent sẽ hiển thị cho khoảng {count} người.</p>
+        <p className="text-muted-foreground truncate" title={summary}>{summary}</p>
+        {reviewers && (
+          <p className="text-foreground mt-0.5">
+            <span className="text-muted-foreground">Người duyệt: </span>
+            {reviewers.mode === "single"
+              ? <>Admin <b>{reviewers.units[0]?.name}</b> ({Math.round((reviewers.share ?? 0) * 100)}% người được chọn)</>
+              : <>Admin của <b>{reviewers.units.map(u => u.name).join(", ")}</b> — chỉ cần 1 người duyệt</>}
+          </p>
+        )}
+      </div>
+    </div>
+  );
 }
 
 /** Company/department scope picker for the Publish modal — same synced org tree as
@@ -4251,7 +4301,10 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
   // publish, since there's nothing to "keep unchanged" yet.
   const [publishToOpen, setPublishToOpen] = useState(current.placement === null);
   const [audience, setAudience] = useState<PublishAudience>(() => {
-    const initial = current.audience ?? "me";
+    // Chia sẻ nhanh / Nhóm cộng tác are retired (production model): people are picked inside
+    // Company / department. A live Agent still on one of those opens on Company / department.
+    const raw = current.audience ?? "me";
+    const initial: PublishAudience = raw === "quick_share" || raw === "group" ? "org" : raw;
     // Guard against stale/seeded state pointing at "org" from a personal Space — that
     // combination can no longer be chosen, so fall back to "Only me" rather than render a
     // selected-but-hidden option.
@@ -4286,6 +4339,9 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
   };
   const orgReachCount = orgSelectionReach(orgTree, orgSelection, false);
   const orgReachSummary = orgSelectionSummary(orgTree, orgSelection, false).join(", ");
+  // Who reviews a ≥ ORG_SHARE_REVIEW_MIN selection: same member-share rule as before (one unit
+  // holding ≥80% of the picked people → its Admin; otherwise any of their departments' Admins).
+  const orgReviewers = orgReachCount > 0 ? groupReviewers(orgSelectionMemberIds(orgTree, orgSelection), orgTree) : undefined;
 
   // Chia sẻ nhanh — up to 10 hand-picked people, instant, no review (see Vấn đề 2 in the
   // Governance solution note: this is the genuinely-small-ad-hoc case, split out from the
@@ -4336,7 +4392,10 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
   // whether each resource is shared for reuse by other builders is that resource's own,
   // independent request (see governanceStore.ts's module doc comment).
   const effectiveAudience: PublishAudience = publishToOpen ? audience : (current.audience ?? "me");
-  const requiresReview = effectiveAudience === "org" || effectiveAudience === "community" || effectiveAudience === "group";
+  const keepingLiveScope = !publishToOpen && current.placement !== null;
+  // Company / department: fewer than ORG_SHARE_REVIEW_MIN people → instant, like "Only me".
+  const orgNeedsReview = keepingLiveScope ? (current.reach ?? ORG_SHARE_REVIEW_MIN) >= ORG_SHARE_REVIEW_MIN : orgReachCount >= ORG_SHARE_REVIEW_MIN;
+  const requiresReview = (effectiveAudience === "org" && orgNeedsReview) || effectiveAudience === "community" || effectiveAudience === "group";
 
   const blockedResourceItems = () => {
     const refs = listAgentResourceRefs(agentId);
@@ -4440,6 +4499,26 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
     // statement of who'd see it). Community has no scope to pick, it's everyone by definition.
     // Not ticking "Publish tới" on a live Agent = send this new version to exactly the scope it's
     // live at now (G9) — reuse that scope instead of forcing the Builder to re-pick every unit.
+    if (effectiveAudience === "org" && !orgNeedsReview) {
+      const keep = !publishToOpen && current.placement !== null;
+      if (!keep && orgSelection.size === 0) {
+        toast.error("Chọn công ty, phòng ban hoặc người sẽ thấy Agent này.");
+        return;
+      }
+      const blockedNow = blockedResourceItems();
+      if (blockedNow.length > 0) { toast.error(blockedToastMessage(blockedNow)); return; }
+      withdrawPendingForDirect();
+      const reach = keep ? (current.reach ?? 0) : orgReachCount;
+      agentPublishStore.publish(agentId, "workspace", current.channels, versionName, "org", {
+        scopeSummary: keep ? current.scopeSummary : `${orgReachCount} người: ${orgReachSummary}`, groupId: undefined, reach,
+      });
+      syncExternalLive();
+      toast.success(`Đã publish ${versionName} cho ${reach} người.`);
+      onPublished?.();
+      onClose();
+      return;
+    }
+
     const keepScope = !publishToOpen && current.placement !== null;
     const keptTargets = keepScope
       ? governanceStore.listForResource("agent", agentId)
@@ -4463,6 +4542,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
         : effectiveAudience === "org"
         ? orgSelectionTargets(orgTree, orgSelection)
         : [{ kind: "community", name: "Cộng đồng FPT AI Agent" }],
+      ...(!keepScope && effectiveAudience === "org" && orgReviewers ? { reviewUnits: orgReviewers.units, reviewMode: orgReviewers.mode } : {}),
     });
     toast.success(`Đã gửi yêu cầu duyệt ${versionName}. Agent sẽ được publish khi Org/Unit Admin duyệt — theo dõi trạng thái ngay trên trang này.`);
     onPublished?.();
@@ -4673,94 +4753,14 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
                       liveLabel="Đang live"
                       onClick={() => setAudience("me")}
                     />
-                    <AudienceRadioRow
-                      icon={UserMultipleIcon}
-                      title="Chia sẻ nhanh"
-                      description={`Chọn tối đa ${QUICK_SHARE_MAX} người cụ thể, dành cho chia sẻ nhanh và tạm thời.`}
-                      review="instant"
-                      selected={audience === "quick_share"}
-                      liveNow={current.placement !== null && currentAudience === "quick_share"}
-                      liveLabel="Đang live"
-                      onClick={() => setAudience("quick_share")}
-                    >
-                      {audience === "quick_share" && (
-                        <div className="mt-2 pl-11">
-                          <MemberMultiSelect tree={orgTree} selection={quickShareSelection} onToggle={toggleQuickShareMember} cap={QUICK_SHARE_MAX} />
-                        </div>
-                      )}
-                    </AudienceRadioRow>
-                    <AudienceRadioRow
-                      icon={UserGroupIcon}
-                      title="Nhóm cộng tác"
-                      description="Nhóm có tên và danh sách thành viên, dùng lại được. Luôn cần Admin phòng ban duyệt."
-                      review="required"
-                      selected={audience === "group"}
-                      liveNow={current.placement !== null && currentAudience === "group"}
-                      liveLabel="Đang live"
-                      onClick={() => setAudience("group")}
-                    >
-                      {audience === "group" && (
-                        <div className="mt-2 pl-11 space-y-2.5">
-                          <div className="flex gap-2">
-                            <button
-                              type="button" onClick={() => setGroupMode("existing")}
-                              className={`h-7 px-2.5 rounded-md text-xs font-medium border transition-base ${groupMode === "existing" ? "border-primary bg-primary-soft text-primary" : "border-border bg-white text-foreground hover:bg-surface-muted"}`}
-                            >
-                              Chọn nhóm có sẵn
-                            </button>
-                            <button
-                              type="button" onClick={() => setGroupMode("new")}
-                              className={`h-7 px-2.5 rounded-md text-xs font-medium border transition-base ${groupMode === "new" ? "border-primary bg-primary-soft text-primary" : "border-border bg-white text-foreground hover:bg-surface-muted"}`}
-                            >
-                              + Tạo nhóm mới
-                            </button>
-                          </div>
-
-                          {groupMode === "existing" ? (
-                            existingGroups.length === 0 ? (
-                              <p className="text-xs text-muted-foreground">Chưa có Nhóm cộng tác nào — chọn "+ Tạo nhóm mới".</p>
-                            ) : (
-                              <select
-                                value={selectedGroupId}
-                                onChange={e => setSelectedGroupId(e.target.value)}
-                                className="w-full h-8 px-2 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary"
-                              >
-                                <option value="">— Chọn nhóm —</option>
-                                {existingGroups.map(g => <option key={g.id} value={g.id}>{g.name} ({g.memberIds.length} người)</option>)}
-                              </select>
-                            )
-                          ) : (
-                            <>
-                              <input
-                                value={newGroupName}
-                                onChange={e => setNewGroupName(e.target.value)}
-                                placeholder="Tên nhóm, ví dụ: Ra mắt sản phẩm Q4"
-                                className="w-full h-8 px-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary"
-                              />
-                              <MemberMultiSelect
-                                tree={orgTree}
-                                selection={newGroupMembers}
-                                onToggle={mid => setNewGroupMembers(prev => {
-                                  const next = new Set(prev);
-                                  if (next.has(mid)) next.delete(mid); else next.add(mid);
-                                  return next;
-                                })}
-                              />
-                            </>
-                          )}
-
-                          {groupReview && groupPreview && <GroupReviewersNotice reviewers={groupReview} />}
-                        </div>
-                      )}
-                    </AudienceRadioRow>
                     {/* Personal Space owns no company/department — showing this option there used to be
                         selectable and silently meaningless (the bug PM reported). Enterprise Space only. */}
                     {!personalSpace && (
                       <AudienceRadioRow
                         icon={Building02Icon}
                         title="Công ty / phòng ban"
-                        description="Chia sẻ cho cả công ty, một phòng ban hoặc nhân viên cụ thể."
-                        review="required"
+                        description="Chia sẻ cho cả công ty, phòng ban hoặc từng người — tìm theo tên, email."
+                        review={audience === "org" && orgReachCount > 0 ? (orgReachCount >= ORG_SHARE_REVIEW_MIN ? "required" : "instant") : "threshold"}
                         selected={audience === "org"}
                         liveNow={current.placement !== null && currentAudience === "org"}
                         liveLabel="Đang live"
@@ -4768,12 +4768,8 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
                       >
                         {audience === "org" && (
                           <div className="mt-2 pl-11">
-                            <p className={`text-xs mb-2 ${orgSelection.size === 0 ? "text-warning" : "text-warning font-medium"}`}>
-                              {orgSelection.size === 0
-                                ? "Chọn công ty, phòng ban hoặc nhân viên cụ thể bên dưới — Agent sẽ chỉ hiển thị cho người bạn chọn."
-                                : `Sẽ hiển thị cho khoảng ${orgReachCount} người: ${orgReachSummary}`}
-                            </p>
                             <OrgSharePicker tree={orgTree} selection={orgSelection} onToggleUnit={toggleOrgUnit} onToggleMember={toggleOrgMember} />
+                            <OrgReachNotice count={orgReachCount} summary={orgReachSummary} reviewers={orgReviewers} />
                           </div>
                         )}
                       </AudienceRadioRow>

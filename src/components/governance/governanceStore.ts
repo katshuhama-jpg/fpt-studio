@@ -261,9 +261,9 @@ export interface GovRequest {
   history: GovHistoryEntry[];
 }
 
-const REQ_KEY = "governance_request_store_v15";
+const REQ_KEY = "governance_request_store_v16";
 const LIVE_KEY = "governance_live_snapshots_v9";
-const SEEDED_KEY = "governance_store_seeded_v15";
+const SEEDED_KEY = "governance_store_seeded_v16";
 const DISMISSED_KEY = "governance_dismissed_rejections_v1";
 
 const store = loadMap<string, GovRequest>(REQ_KEY);

@@ -18,6 +18,8 @@ import { getAgent } from "./agentStore";
 
 /** Chia sẻ nhanh cap — above this, share through a Nhóm cộng tác (always reviewed). */
 export const QUICK_SHARE_MAX = 5;
+/** Company/department picker: sharing with this many people or more needs Admin review. */
+export const ORG_SHARE_REVIEW_MIN = 5;
 /** ≥ 80% of the group's members in one unit → that unit's Admin is the reviewer. */
 export const GROUP_REVIEWER_THRESHOLD = 0.8;
 /** @deprecated kept for older imports; same value as GROUP_REVIEWER_THRESHOLD. */
