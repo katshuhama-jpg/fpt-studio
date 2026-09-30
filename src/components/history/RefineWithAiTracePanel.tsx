@@ -44,7 +44,7 @@ const prefersReducedMotion = () =>
 type ChatMsg =
   | { role: "user"; text: string }
   | { role: "steps"; steps: string[] }
-  | { role: "ai"; text: string; actions?: { label: string; section: Section }[] }
+  | { role: "ai"; text: string; actions?: { label: string; section: Section }[]; followUps?: string[] }
   | { role: "ai-diff"; id: string; before: string; after: string };
 
 /** What the Builder already did in this panel, per conversation — kept outside the component so
@@ -121,6 +121,25 @@ function StepChips({ steps, running }: { steps: string[]; running?: boolean }) {
           {running ? <Loader2 size={11} className="motion-safe:animate-spin" aria-hidden /> : <CheckCircle2 size={11} aria-hidden />}
           {s}
         </div>
+      ))}
+    </div>
+  );
+}
+
+/** Clickable prompts — starter questions after the scan and follow-ups after an answer, so the
+ * Builder never has to retype a question the assistant just suggested. */
+function PromptChips({ prompts, onPick }: { prompts: string[]; onPick: (p: string) => void }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {prompts.map(p => (
+        <button
+          key={p}
+          type="button"
+          onClick={() => onPick(p)}
+          className={cn("text-xs px-2.5 py-1 rounded-full bg-surface border border-primary/30 text-primary hover:bg-primary-soft transition-base text-left", FOCUS)}
+        >
+          {p}
+        </button>
       ))}
     </div>
   );
@@ -334,6 +353,7 @@ export function buildReply(
         text: lines.length
           ? lines.join("\n")
           : `Không thấy điểm kém hiệu quả rõ rệt${turn ? ` ở Turn ${turn.index}` : ""}: dưới ngưỡng 3s, không có tool bị gọi lại.`,
+        followUps: !turn && slowest && slowest.latencyMs > 3000 ? [`Chuyện gì xảy ra ở Turn ${slowest.index}?`] : undefined,
       }],
     };
   }
@@ -352,7 +372,10 @@ export function buildReply(
     ].join("\n\n");
     return {
       steps: [`Đọc Turn ${turn.index}`, `Xem ${steps.length} bước`],
-      msgs: [{ role: "ai", text: `${head}\n\n${body}`, actions: linkActions(scoped) }],
+      msgs: [{
+        role: "ai", text: `${head}\n\n${body}`, actions: linkActions(scoped),
+        followUps: scoped.some(i => i.fix.kind === "instructions_diff" && !appliedIds.has(i.id)) ? [`Đề xuất sửa Instructions cho Turn ${turn.index}`] : undefined,
+      }],
     };
   }
 
@@ -363,7 +386,10 @@ export function buildReply(
     });
     return {
       steps: [`Đọc ${n} turn`],
-      msgs: [{ role: "ai", text: `Conversation có ${n} turn:\n${outline.join("\n")}` }],
+      msgs: [{
+        role: "ai", text: `Conversation có ${n} turn:\n${outline.join("\n")}`,
+        followUps: issues.length ? ["Chỗ nào agent chạy sai?"] : undefined,
+      }],
     };
   }
 
@@ -377,9 +403,13 @@ export function buildReply(
       role: "ai",
       text: ordered.length
         ? `${intro}${ordered.length} chỗ đáng chú ý, nặng nhất trước:\n${ordered.map(issueLine).join("\n")}` +
-          (instr ? `\n\nTurn ${instr.turnIndex} có thể sửa ngay bằng Instructions — hỏi "Đề xuất sửa Instructions cho Turn ${instr.turnIndex}".` : "")
+          (instr ? `\n\nTurn ${instr.turnIndex} có thể sửa ngay bằng Instructions.` : "")
         : `${intro}Mình không thấy chỗ nào agent chạy sai về mặt kỹ thuật trong ${n} turn này.`,
       actions: linkActions(ordered),
+      followUps: [
+        ...(instr ? [`Đề xuất sửa Instructions cho Turn ${instr.turnIndex}`] : []),
+        "Agent có làm gì kém hiệu quả không?",
+      ],
     }],
   };
 }
@@ -492,6 +522,7 @@ export function RefineWithAiTracePanel({
   const apply = (id: string) => setAppliedIds(prev => new Set(prev).add(id));
   const dismiss = (id: string) => setDismissedIds(prev => new Set(prev).add(id));
   const hasUserMessage = chat.some(m => m.role === "user");
+  const lastAiIndex = chat.reduce((last, m, i) => (m.role === "ai" ? i : last), -1);
 
   return (
     <aside className="w-[420px] border-r border-border flex flex-col shrink-0 h-full bg-surface">
@@ -587,6 +618,10 @@ export function RefineWithAiTracePanel({
               />
             ))}
 
+            {/* Starter questions sit in the thread (scrolling with it) instead of pinned above the
+                composer, where four wrapped chips took ~190px from the thread. */}
+            {!hasUserMessage && <PromptChips prompts={starterPrompts(visibleIssues, appliedIds)} onPick={send} />}
+
             {chat.map((m, i) => {
               if (m.role === "user") return (
                 <div key={i} className="flex justify-end pt-1">
@@ -601,6 +636,9 @@ export function RefineWithAiTracePanel({
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       {m.actions.map(a => <DeepLinkButton key={a.section} agentId={agentId} section={a.section} label={a.label} />)}
                     </div>
+                  )}
+                  {m.followUps && m.followUps.length > 0 && i === lastAiIndex && !answering && (
+                    <div className="mt-2.5"><PromptChips prompts={m.followUps} onPick={send} /></div>
                   )}
                 </div>
               );
@@ -624,20 +662,6 @@ export function RefineWithAiTracePanel({
 
       {/* Composer */}
       <div className="border-t border-border p-2.5 shrink-0 bg-surface">
-        {!scanning && !hasUserMessage && (
-          <div className="flex flex-wrap gap-1.5 mb-2">
-            {starterPrompts(visibleIssues, appliedIds).map(s => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => send(s)}
-                className={cn("text-xs px-2.5 py-1 rounded-full bg-surface border border-border hover:bg-primary-soft hover:text-primary hover:border-primary/30 transition-base text-left", FOCUS)}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        )}
         <div className="rounded-xl border border-border bg-surface focus-within:border-primary transition-base p-1.5">
           <div className="flex items-end gap-1.5">
             <label htmlFor="refine-trace-input" className="sr-only">Hỏi AI về conversation này</label>
