@@ -4,11 +4,12 @@ import { format } from "date-fns";
 import {
   ChevronLeft, ChevronDown, ChevronRight, Copy, Check, Clock, Wrench,
   Settings2, Waypoints, AlertTriangle, ShieldAlert, CheckCircle2, XCircle,
-  UserCheck, Hourglass,
+  UserCheck, Hourglass, Sparkles,
 } from "lucide-react";
 import { getAgent } from "@/components/configure/agentStore";
 import { historyStore } from "@/components/history/historyStore";
 import { buildTrace } from "@/components/history/traceStore";
+import { RefineWithAiTracePanel } from "@/components/history/RefineWithAiTracePanel";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuItem, DropdownMenuLabel,
   DropdownMenuSeparator, DropdownMenuTrigger,
@@ -300,6 +301,7 @@ export default function ConversationTrace() {
   const [showTokens, setShowTokens] = useState(true);
   const [collapsed, setCollapsed] = useState<Record<number, boolean>>({});
   const [activeTurn, setActiveTurn] = useState(1);
+  const [refineOpen, setRefineOpen] = useState(false);
   const mainRef = useRef<HTMLDivElement>(null);
 
   const record = useMemo(() => historyStore.get(agentId, conversationId), [agentId, conversationId]);
@@ -384,6 +386,13 @@ export default function ConversationTrace() {
           )}
         </div>
         <div className="flex-1" />
+        <button
+          type="button"
+          onClick={() => setRefineOpen(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm text-foreground transition-base shrink-0"
+        >
+          <Sparkles size={13} className="text-primary" /> Refine với AI
+        </button>
         <span className="text-xs text-muted-foreground shrink-0">
           Model: <span className="font-medium text-foreground">{trace.model}</span>
         </span>
@@ -391,6 +400,15 @@ export default function ConversationTrace() {
 
       {/* Body */}
       <div className="flex-1 flex overflow-hidden">
+        {refineOpen && (
+          <RefineWithAiTracePanel
+            agentId={agentId}
+            conversationId={trace.conversationId}
+            trace={trace}
+            onClose={() => setRefineOpen(false)}
+            onScrollToTurn={scrollToTurn}
+          />
+        )}
         {/* Left: Turns list */}
         <aside className="w-[248px] border-r border-border bg-surface flex flex-col shrink-0">
           <div className="h-10 px-3 flex items-center justify-between border-b border-border shrink-0">
