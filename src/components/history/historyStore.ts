@@ -114,6 +114,17 @@ export interface ConversationMessage {
     /** The person's actual decision / answer / edited value — the resumed run's real input. */
     answer?: string;
   };
+  /**
+   * Marks this reply as the point where its turn failed for a reason OTHER than a tool call —
+   * e.g. the agent ignored the answer format its Instructions require. Mirrors the real tracing
+   * spec's `run` span ending "failed" with no failed step under it. buildTrace() (traceStore.ts)
+   * reads this to mark the turn "failed"; before this field existed a turn could only ever fail
+   * through a failed tool call, which left Refine with AI's Instructions-fix path unreachable.
+   */
+  failure?: { reason: string };
+  /** Per-turn latency override for demo data — same idea as ConversationRecord.demoSlowMs, but
+   * for just the turn this message belongs to instead of every turn in the conversation. */
+  demoLatencyMs?: number;
 }
 
 export interface ConversationRecord {
@@ -196,6 +207,8 @@ function buildMessages(
     toolCalls?: Omit<ToolCallInfo, "callId">[];
     guardrail?: ConversationMessage["guardrail"];
     hitl?: ConversationMessage["hitl"];
+    failure?: ConversationMessage["failure"];
+    demoLatencyMs?: number;
   }[],
 ): ConversationMessage[] {
   const startAt = endedAt - turns.length * 2 * MIN;
@@ -207,6 +220,8 @@ function buildMessages(
     feedback: t.feedback,
     guardrail: t.guardrail,
     hitl: t.hitl,
+    failure: t.failure,
+    demoLatencyMs: t.demoLatencyMs,
     toolCalls: t.toolCalls?.map((tc, j) => ({ ...tc, callId: `call_${pseudoUlid(`${seedKey}-tool${i + 1}-${j + 1}`).slice(0, 18)}` })),
   }));
 }
@@ -774,6 +789,44 @@ function hrSeed(now: number): Omit<ConversationRecord, "agentId">[] {
             action: "replaced",
             rule: "Tiết lộ mức lương/băng lương cụ thể của nhân viên khác khi giải thích compensation band",
           },
+        },
+      ]),
+    },
+    // Refine with AI (Trace) demo: the three signals no other reachable seed conversation has —
+    // a turn that fails WITHOUT a tool failure (the agent ignored the answer format its
+    // Instructions require, the one case v1 proposes an Instructions diff for), a HITL reject,
+    // and a single slow turn. Dated days back so HR-2001 stays the agent's newest flagship.
+    {
+      id: pseudoUlid("HR-2002"),
+      channel: "slack",
+      username: "Tran Minh Duc",
+      email: "tran.minh.duc@fpt.com.vn",
+      startedAt: now - 3 * DAY - 10 * MIN,
+      endedAt: now - 3 * DAY,
+      messages: buildMessages("HR-2002", now - 3 * DAY, [
+        { role: "customer", content: "How many days of annual leave do I have left this year?" },
+        {
+          role: "agent",
+          content: "So annual leave works on a calendar-year basis and you started in March, which means your entitlement is prorated, and on top of that you carried over two days from last year that expire at the end of Q1, and you've already taken four days, so all things considered you have 9 days left, but keep in mind that public holidays don't count against that and sick leave is tracked separately.",
+          failure: { reason: "Câu trả lời không theo cấu trúc bắt buộc trong Instructions (Tóm tắt → Bước tiếp theo)." },
+        },
+        { role: "customer", content: "Can you book 3 days off for me next week, Wednesday to Friday?" },
+        {
+          role: "agent",
+          content: "Your manager declined this request — those dates overlap with the sprint release. Would you like to pick different dates?",
+          hitl: {
+            situation: "tool_approval",
+            action: "reject",
+            toolName: "submit_leave_request",
+            toolInput: { employeeId: "E-18720", from: "Wed", to: "Fri", days: 3 },
+            answer: "Quản lý (Nguyen Hoang Nam) từ chối: trùng lịch release sprint.",
+          },
+        },
+        { role: "customer", content: "OK, what about the same days the week after?" },
+        {
+          role: "agent",
+          content: "Done — your leave for next-next Wednesday to Friday is submitted and waiting for your manager's approval.",
+          demoLatencyMs: 5400,
         },
       ]),
     },

@@ -146,8 +146,11 @@ export function buildTrace(record: ConversationRecord): ConversationTrace {
     // "failed" only when the turn's own steps never recovered — the LAST tool-call attempt in
     // the turn still failed. A failed attempt followed by a successful retry (CV-1035) still
     // reads as "completed": the turn came through, even though one step stumbled on try 1.
+    // Also "failed" when a reply is explicitly marked as the turn's failure point for a reason
+    // that isn't a tool call (see ConversationMessage.failure in historyStore.ts).
     const outcome: TraceTurn["outcome"] =
-      toolCallsInOrder.length > 0 && toolCallsInOrder[toolCallsInOrder.length - 1].status === "failed"
+      (toolCallsInOrder.length > 0 && toolCallsInOrder[toolCallsInOrder.length - 1].status === "failed")
+        || agentMessages.some(m => m.failure)
         ? "failed"
         : "completed";
     const seed = `${record.id}-turn${turnIndex}`;
@@ -163,7 +166,8 @@ export function buildTrace(record: ConversationRecord): ConversationTrace {
     // A handful of seed conversations set this explicitly (see historyStore.ts) so the History
     // table's Latency column has a couple of obviously-red rows to point at, instead of relying
     // on the seeded hash to happen to land above the slow threshold.
-    const latencyMs = record.demoSlowMs ?? baseLatency + toolLatency;
+    // A per-message override (ConversationMessage.demoLatencyMs) slows just this one turn.
+    const latencyMs = agentMessages.find(m => m.demoLatencyMs)?.demoLatencyMs ?? record.demoSlowMs ?? baseLatency + toolLatency;
     const firstTokenMs = Math.round(latencyMs * (0.25 + seededInt(`${seed}-ftfrac`, 0, 20) / 100));
 
     turns.push({

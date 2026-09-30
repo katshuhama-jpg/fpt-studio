@@ -233,6 +233,9 @@ export function RefineWithAiTracePanel({
             </button>
           ))}
         </div>
+        {approvalMode === "auto" && (
+          <p className="text-xs text-muted-foreground mt-1.5">Đề xuất sửa Instructions sẽ được áp dụng ngay khi phát hiện.</p>
+        )}
       </div>
 
       {/* Body */}
@@ -245,11 +248,12 @@ export function RefineWithAiTracePanel({
         ) : (
           <>
             <div className="bg-surface-muted/60 border border-border rounded-xl px-3 py-2.5 text-xs text-muted-foreground leading-relaxed">
-              {visibleIssues.length > 0
-                ? <>Đã quét xong · <span className="text-foreground font-semibold">{groups.length}</span> nhóm vấn đề · <span className="text-foreground font-semibold">{visibleIssues.length}</span> điểm cần chú ý. </>
-                : null}
-              AI chỉ kiểm tra các tín hiệu kỹ thuật đã ghi nhận trong trace (tool call lỗi, bị Guardrail chặn,
-              HITL từ chối, turn Failed, latency cao) — không đánh giá độ chính xác nội dung câu trả lời.
+              {visibleIssues.length > 0 && (
+                <div className="mb-0.5">
+                  Đã quét xong · <span className="text-foreground font-semibold">{groups.length}</span> nhóm vấn đề · <span className="text-foreground font-semibold">{visibleIssues.length}</span> điểm cần chú ý
+                </div>
+              )}
+              Chỉ dựa trên tín hiệu kỹ thuật trong trace, không chấm nội dung câu trả lời.
             </div>
 
             {visibleIssues.length === 0 ? (

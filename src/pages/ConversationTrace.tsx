@@ -388,8 +388,14 @@ export default function ConversationTrace() {
         <div className="flex-1" />
         <button
           type="button"
-          onClick={() => setRefineOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm text-foreground transition-base shrink-0"
+          onClick={() => setRefineOpen(o => !o)}
+          aria-pressed={refineOpen}
+          className={cn(
+            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm transition-base shrink-0",
+            refineOpen
+              ? "border-primary/40 bg-primary-soft text-primary"
+              : "border-border bg-surface hover:bg-surface-muted text-foreground",
+          )}
         >
           <Sparkles size={13} className="text-primary" /> Refine với AI
         </button>
@@ -617,7 +623,11 @@ export default function ConversationTrace() {
           </div>
         </main>
 
-        {/* Right: Stats panel */}
+        {/* Right: Stats panel — hidden while Refine với AI is open. Panel (420) + Turns (248) +
+            Stats (300) left the turn feed's message column ~190px wide on a 1470px screen; same
+            idea as Production collapsing the nav while its Refine panel is open. The conversation
+            error it shows is still flagged by the topbar Error chip and the panel itself. */}
+        {!refineOpen && (
         <aside className="w-[300px] border-l border-border bg-surface p-4 overflow-y-auto shrink-0">
           {trace.error && (
             <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive-soft p-2.5">
@@ -656,6 +666,7 @@ export default function ConversationTrace() {
             </div>
           </div>
         </aside>
+        )}
       </div>
     </div>
   );

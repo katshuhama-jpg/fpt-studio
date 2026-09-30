@@ -48,29 +48,42 @@ export function detectTraceIssues(trace: ConversationTrace): TraceIssue[] {
   const issues: TraceIssue[] = [];
 
   for (const turn of trace.turns) {
-    for (const msg of turn.agentMessages) {
-      for (const tc of msg.toolCalls ?? []) {
-        if (tc.status === "failed") {
-          issues.push({
-            id: `${turn.index}-tool-${tc.callId}`,
-            turnIndex: turn.index,
-            kind: "tool_call",
-            severity: "critical",
-            diagnosis: `Tool ${tc.name} gọi thất bại`,
-            detail: tc.error ? tc.error : "Không có phản hồi hợp lệ từ connector.",
-            fix: { kind: "deeplink", ctaLabel: "Kiểm tra kết nối Tool", section: "skills" },
-          });
-        }
-      }
+    // Every tool-call attempt in the turn, in order — needed to tell a failure the run never
+    // recovered from (Critical) apart from one a later retry of the same tool fixed (Warning:
+    // the reply came through, but a connector that times out on the first try is still worth
+    // a look). Treating both as Critical flagged every retried-then-succeeded call as broken.
+    const turnCalls = turn.agentMessages.flatMap(m => m.toolCalls ?? []);
+    turnCalls.forEach((tc, i) => {
+      if (tc.status !== "failed") return;
+      const recovered = turnCalls.slice(i + 1).some(later => later.name === tc.name && (later.status ?? "success") === "success");
+      issues.push({
+        id: `${turn.index}-tool-${tc.callId}`,
+        turnIndex: turn.index,
+        kind: "tool_call",
+        severity: recovered ? "warning" : "critical",
+        diagnosis: recovered
+          ? `Tool ${tc.name} lỗi ở lần gọi đầu, đã tự thử lại thành công`
+          : `Tool ${tc.name} gọi thất bại`,
+        detail: tc.error ? tc.error : "Không có phản hồi hợp lệ từ connector.",
+        fix: { kind: "deeplink", ctaLabel: "Kiểm tra kết nối Tool", section: "skills" },
+      });
+    });
 
-      if (msg.guardrail && (msg.guardrail.action === "blocked" || msg.guardrail.action === "agent_refusal")) {
-        const isBlocked = msg.guardrail.action === "blocked";
+    for (const msg of turn.agentMessages) {
+
+      // "pass" is the only guardrail outcome that didn't intervene; "replaced" (first reply
+      // blocked, agent regenerated it) is still an intervention a Builder should see.
+      if (msg.guardrail && msg.guardrail.action !== "pass") {
+        const action = msg.guardrail.action;
         issues.push({
           id: `${turn.index}-guardrail-${msg.id}`,
           turnIndex: turn.index,
           kind: "guardrail",
           severity: "warning",
-          diagnosis: isBlocked ? "Bị Guardrail chặn" : "Agent từ chối trả lời do Guardrail",
+          diagnosis:
+            action === "blocked" ? "Bị Guardrail chặn"
+              : action === "replaced" ? "Guardrail đã chặn và thay câu trả lời"
+                : "Agent từ chối trả lời do Guardrail",
           detail: msg.guardrail.rule ? `Rule: "${msg.guardrail.rule}"` : undefined,
           fix: { kind: "deeplink", ctaLabel: "Mở cấu hình Guardrail", section: "guardrails" },
         });
@@ -83,7 +96,7 @@ export function detectTraceIssues(trace: ConversationTrace): TraceIssue[] {
           kind: "hitl",
           severity: "warning",
           diagnosis: "Human-in-the-loop: reviewer từ chối đề xuất",
-          detail: msg.hitl.situation === "tool_approval" ? `Tool: ${msg.hitl.toolName}` : undefined,
+          detail: msg.hitl.answer ?? (msg.hitl.situation === "tool_approval" ? `Tool: ${msg.hitl.toolName}` : undefined),
           fix: { kind: "none" },
         });
       }
@@ -96,7 +109,7 @@ export function detectTraceIssues(trace: ConversationTrace): TraceIssue[] {
         kind: "turn_failed",
         severity: "critical",
         diagnosis: "Turn kết thúc với trạng thái Failed",
-        detail: "Không tuân theo định dạng trả lời quy định trong Instructions.",
+        detail: turn.agentMessages.find(m => m.failure)?.failure?.reason ?? "Không tuân theo định dạng trả lời quy định trong Instructions.",
         fix: {
           kind: "instructions_diff",
           before: "Luôn trả lời bằng một đoạn văn ngắn gọn.",
