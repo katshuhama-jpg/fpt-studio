@@ -113,7 +113,15 @@ function updateMemberOwner(
 /** The Org profile fields collected by the setup wizard (Tổng quan / General beyond just the
  * tree's root name) — kept alongside the tree, per Space, rather than on the Tenant record in
  * spaceStore.ts, since these are Organization details, not Space/plan details. */
-export type OrgProfile = { description?: string; logoDataUrl?: string };
+export type OrgProfile = {
+  description?: string;
+  logoDataUrl?: string;
+  /** Segment after "app.fptai.com/" in the Org's sign-in URL — editable from General by an
+   * Org Admin or Space (Tenant) Admin, same as name/logo/description below. */
+  urlSlug?: string;
+  /** Default UI language shown to new members of this Org until they pick their own. */
+  defaultLanguage?: string;
+};
 
 /** One membership record: which unit, in which Org/Space (Tenant), a given email currently sits
  * in — used to surface "this person already exists elsewhere" across units and across orgs, now
@@ -158,6 +166,13 @@ type OrgContextValue = {
    * by hand from here on the Structure page (there is no Azure AD or other auto-sync option).
    */
   completeOrgSetup: (input: { name: string; description?: string; logoDataUrl?: string }) => void;
+  /**
+   * Edits the Organization's own profile from General — name (renames the root unit,
+   * unlike `renameUnit` which refuses the root), logo, description, URL slug and default
+   * language. Available to an Org Admin or Space (Tenant) Admin, seed Spaces included —
+   * General is no longer view-only for anyone.
+   */
+  updateOrgProfile: (input: { name: string; description?: string; logoDataUrl?: string; urlSlug?: string; defaultLanguage?: string }) => void;
   /**
    * Bulk-imports members from a CSV — used by ImportMembersModal. Each entry's `unitPath` is
    * relative to `anchorUnitId` (empty path = add directly into the anchor); any unit along that
@@ -215,7 +230,9 @@ export function OrgProvider({ children }: { children: ReactNode }) {
   // Local state wins once set this session; otherwise fall back to spaceStore's persisted flag
   // (true for every Space except the pending one, until its setup wizard completes).
   const isConfigured = configuredByTenant[tenantId] ?? isTenantOrgConfigured(tenantId);
-  const orgProfile = profilesByTenant[tenantId] ?? {};
+  const orgProfile: OrgProfile = profilesByTenant[tenantId] ?? (
+    isSeedTenant(tenantId) ? { urlSlug: "fpt-corp", defaultLanguage: "Vietnamese" } : {}
+  );
 
   const setTree = (updater: (prev: OrgUnit) => OrgUnit) => {
     setTreesByTenant(prev => {
@@ -331,6 +348,30 @@ export function OrgProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const updateOrgProfile = (input: { name: string; description?: string; logoDataUrl?: string; urlSlug?: string; defaultLanguage?: string }) => {
+    const trimmedName = input.name.trim();
+    const activeTenantId = tenantId;
+    // Rename the root unit directly — `renameUnit` refuses to touch the root on purpose (it's
+    // the "delete/rename a unit" affordance, not "rename my Org"), so General goes straight to
+    // the tree instead of routing through it.
+    if (trimmedName) {
+      setTreesByTenant(prev => {
+        const current = prev[activeTenantId] ?? initialTreeFor(activeTenantId);
+        return { ...prev, [activeTenantId]: { ...current, name: trimmedName } };
+      });
+    }
+    setProfilesByTenant(prev => ({
+      ...prev,
+      [activeTenantId]: {
+        ...prev[activeTenantId],
+        description: input.description?.trim() || undefined,
+        logoDataUrl: input.logoDataUrl,
+        urlSlug: input.urlSlug?.trim() || undefined,
+        defaultLanguage: input.defaultLanguage,
+      },
+    }));
+  };
+
   const completeOrgSetup = ({ name, description, logoDataUrl }: { name: string; description?: string; logoDataUrl?: string }) => {
     const trimmedName = name.trim() || "Tổ chức mới";
     const activeTenantId = tenantId;
@@ -409,7 +450,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
       value={{
         tree, rootId: tree.id, isConfigured, orgProfile,
         createUnit, renameUnit, deleteUnit, addMember, updateMember, assignRole, removeMember,
-        moveMember, setMemberInactive, setUnitAdmin, completeOrgSetup, importMembers,
+        moveMember, setMemberInactive, setUnitAdmin, completeOrgSetup, updateOrgProfile, importMembers,
         findMembershipsByEmail,
       }}
     >
