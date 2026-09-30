@@ -16,25 +16,15 @@ export type OrgMember = {
  * synced from the business's own system, via FPT Identity, into FPT AI Agent. */
 export const ORG_LAST_SYNCED_AT = "08:00, 13/08/2026";
 
-/**
- * The 4 resource types a Unit Admin can be granted approval rights over, independently.
- * This is unrelated to Console RBAC's per-resource Publish/Manage permissions (Agent
- * Console > Roles) — a person's Console permissions and their Unit Admin approval scope
- * don't depend on each other.
- */
-export type ApprovalResource = "agents" | "knowledge" | "skills" | "guardrails";
-export const APPROVAL_RESOURCES: { id: ApprovalResource; label: string }[] = [
-  { id: "agents", label: "Agents" },
-  { id: "knowledge", label: "Knowledge sources" },
-  { id: "skills", label: "Skills" },
-  { id: "guardrails", label: "Guardrails" },
-];
-/** A Unit Admin grant — who, and which of the 4 resource types they can approve. `scope` is
- * never empty; dropping the last resource type removes the grant entirely instead. */
-export type UnitAdminGrant = { memberId: string; scope: ApprovalResource[] };
-/** `unitAdmins` — Unit Admin grants (member + resource scope) owned by this unit's own
- * `members`. Inherited downward only — a Unit Admin here can also approve, with the same
- * scope, in every unit nested below, but not in units above. */
+/** A Unit Admin grant: `memberId` can approve Agent publish requests in this unit. There's
+ * only one thing a Unit Admin approves — Agent publishes — so there's no separate resource-type
+ * scope to grant (Knowledge/Skills/Guardrails aren't reviewed by Unit Admins at all). This is
+ * unrelated to Console RBAC's per-resource Publish/Manage permissions (Agent Console > Roles) —
+ * a person's Console permissions and their Unit Admin standing don't depend on each other. */
+export type UnitAdminGrant = { memberId: string };
+/** `unitAdmins` — Unit Admin grants owned by this unit's own `members`. Inherited downward
+ * only — a Unit Admin here can also approve Agent publishes in every unit nested below, but
+ * not in units above. */
 export type OrgUnit = { id: string; name: string; members: OrgMember[]; units: OrgUnit[]; unitAdmins?: UnitAdminGrant[] };
 
 /**

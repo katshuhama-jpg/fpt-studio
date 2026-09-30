@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { getUser } from "@/lib/onboarding";
-import { OrgUnit, OrgMember, ApprovalResource, findUnit, collectMembers, findMemberUnit, findPath, orgTree as SEED_TREE } from "./orgData";
+import { OrgUnit, OrgMember, findUnit, collectMembers, findMemberUnit, findPath, orgTree as SEED_TREE } from "./orgData";
 import { getCurrentTenantId, subscribeTenantChange, markOrgConfigured, isOrgConfigured as isTenantOrgConfigured, isSeedTenant, getAllTenants } from "@/lib/spaceStore";
 
 /** A brand-new Space starts with an empty Organization — a single root unit named after the
@@ -146,12 +146,11 @@ type OrgContextValue = {
   /** Marks a member Active/Inactive without removing them — used when Auto Sync no longer sees the person in the source system but an admin wants to keep the audit trail instead of hard-deleting. */
   setMemberInactive: (memberId: string, inactive: boolean) => void;
   /**
-   * Sets `memberId`'s Unit Admin approval scope on `unitId` (who must be a direct member of
-   * that unit) to exactly `scope` — replacing whatever scope they had before. Passing an empty
-   * array removes the grant entirely (demotes them back to a plain Member). Approval rights
-   * cascade down to every nested unit, never upward.
+   * Makes `memberId` (who must be a direct member of `unitId`) a Unit Admin there when
+   * `isAdmin` is true, or demotes them back to a plain Member when false. A Unit Admin can
+   * approve Agent publish requests in `unitId` and every unit nested below it, never upward.
    */
-  setUnitAdminScope: (unitId: string, memberId: string, scope: ApprovalResource[]) => void;
+  setUnitAdmin: (unitId: string, memberId: string, isAdmin: boolean) => void;
   /**
    * Completes the Organization setup wizard for the ACTIVE (new) Space: names the root unit
    * after the Org, stores its profile, and marks the Space configured. The tree is left at just
@@ -321,11 +320,11 @@ export function OrgProvider({ children }: { children: ReactNode }) {
     setTree(prev => updateMemberOwner(prev, memberId, members => members.map(m => (m.id === memberId ? { ...m, inactive } : m))));
   };
 
-  const setUnitAdminScope = (unitId: string, memberId: string, scope: ApprovalResource[]) => {
+  const setUnitAdmin = (unitId: string, memberId: string, isAdmin: boolean) => {
     setTree(prev => {
       const updated = updateUnit(prev, unitId, unit => {
         const withoutMember = (unit.unitAdmins ?? []).filter(a => a.memberId !== memberId);
-        const next = scope.length > 0 ? [...withoutMember, { memberId, scope }] : withoutMember;
+        const next = isAdmin ? [...withoutMember, { memberId }] : withoutMember;
         return { ...unit, unitAdmins: next };
       });
       return updated ?? prev;
@@ -410,7 +409,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
       value={{
         tree, rootId: tree.id, isConfigured, orgProfile,
         createUnit, renameUnit, deleteUnit, addMember, updateMember, assignRole, removeMember,
-        moveMember, setMemberInactive, setUnitAdminScope, completeOrgSetup, importMembers,
+        moveMember, setMemberInactive, setUnitAdmin, completeOrgSetup, importMembers,
         findMembershipsByEmail,
       }}
     >
