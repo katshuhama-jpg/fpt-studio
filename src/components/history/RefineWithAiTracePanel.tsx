@@ -1,23 +1,28 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, X, Wrench, ShieldAlert, UserCheck, XCircle, Clock, CheckCircle2, ChevronRight, SendHorizontal } from "lucide-react";
+import {
+  Sparkles, X, Wrench, ShieldAlert, UserCheck, XCircle, Clock, CheckCircle2, ChevronRight,
+  SendHorizontal, SquarePen, Loader2,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { ConversationTrace } from "@/components/history/traceStore";
+import type { ConversationTrace, TraceTurn } from "@/components/history/traceStore";
 import { detectTraceIssues, type TraceIssue, type TraceIssueKind } from "@/components/history/refineTraceStore";
 
-/** Left-side "Refine with AI" panel for the Trace page — same slide-in-from-the-left mechanic,
- * collapsed-nav feel and Thủ công/Tự động approval toggle verified against the real "Refine với
- * AI" panel on console-agents.fpt.ai (Agent Instructions). The content is new: it auto-scans the
- * whole conversation for structured/technical signals only (tool_call fail, guardrail
- * block/refusal, HITL reject, turn outcome=failed, high latency) — never a judgment of whether a
- * reply's content is correct, that's the separate Evaluators effort. Issues are grouped by kind
- * (Turn thất bại / Tool call lỗi / Guardrail chặn / HITL từ chối / Latency cao), each a
- * collapsible section with a count, so a long conversation with many repeats of the same signal
- * doesn't turn into one long scroll — only the first non-empty group opens by default. v1 fix
- * scope: only a turn-failed/Instructions mismatch gets an AI-proposed diff (reuses the existing
- * Apply/Discard mechanism); everything else is diagnose + deep-link to the right existing screen.
- * Knowledge is entirely out of scope for v1 (team capacity) — detectTraceIssues() never produces
- * a Knowledge issue. */
+/** Left-side "Refine với AI" panel for the Trace page, modelled on LangSmith's Polly: a chat
+ * assistant that already has the open trace as context, answers free-form questions about it
+ * ("Chỗ nào agent chạy sai?", "Agent có làm gì kém hiệu quả không?", "Chuyện gì xảy ra ở Turn 3?"),
+ * shows the steps it took to answer, and can change the agent's Instructions. Opening and the
+ * Thủ công/Tự động approval toggle follow the real "Refine với AI" panel on console-agents.fpt.ai.
+ *
+ * Its first message is an automatic scan of the conversation, grouped by kind (Turn thất bại /
+ * Tool call lỗi / Guardrail chặn / HITL từ chối / Latency cao). Everything it says — scan and chat
+ * — comes only from what the trace recorded; whether a reply is factually right is Evaluators'
+ * job and gets redirected there. Only an Instructions mismatch gets an AI-written diff (same
+ * Áp dụng / Bỏ qua mechanism as Instructions); Tool and Guardrail issues get a diagnosis plus a
+ * link to the right config screen. Knowledge is out of scope for this phase (team capacity).
+ *
+ * Replies are deterministic and built from the trace data — they stand in for the model call so
+ * the prototype behaves the same on every run. */
 
 const KIND_ORDER: TraceIssueKind[] = ["turn_failed", "tool_call", "guardrail", "hitl", "latency"];
 
@@ -29,15 +34,26 @@ const KIND_META: Record<TraceIssueKind, { label: string; icon: React.ComponentTy
   latency: { label: "Latency cao", icon: Clock },
 };
 
+type Section = "instructions" | "guardrails";
+
+type ChatMsg =
+  | { role: "user"; text: string }
+  | { role: "steps"; steps: string[] }
+  | { role: "ai"; text: string; actions?: { label: string; section: Section }[] }
+  | { role: "ai-diff"; id: string; before: string; after: string };
+
 /** What the Builder already did in this panel, per conversation — kept outside the component so
- * closing and reopening the panel (which unmounts it) doesn't bring back a proposal they already
- * applied or dismissed. In-memory only, same lifetime as the rest of this prototype's stores. */
+ * closing and reopening the panel (which unmounts it) keeps the chat and doesn't bring back a
+ * proposal they already applied or dismissed. In-memory only, same lifetime as the prototype's
+ * other stores. */
 const panelMemory = new Map<string, { mode: "manual" | "auto"; applied: Set<string>; dismissed: Set<string>; chat: ChatMsg[] }>();
+
+/* ───────────────────────── Shared pieces ───────────────────────── */
 
 function InstructionsFix({
   fix, applied, onApply, onDismiss,
 }: {
-  fix: Extract<TraceIssue["fix"], { kind: "instructions_diff" }>;
+  fix: { before: string; after: string };
   applied: boolean;
   onApply: () => void;
   onDismiss: () => void;
@@ -50,26 +66,75 @@ function InstructionsFix({
     );
   }
   return (
-    <div>
-      <div className="rounded-lg border border-primary/30 bg-primary-soft/40 p-2.5">
-        <div className="flex items-center gap-1.5 mb-2">
-          <Sparkles size={11} className="text-primary" />
-          <span className="text-xs font-semibold text-primary">Đề xuất chỉnh sửa · Instructions</span>
-        </div>
-        <div className="font-mono text-xs space-y-1">
-          <div className="bg-destructive/10 text-destructive px-2 py-1 rounded line-through">− {fix.before}</div>
-          <div className="bg-success/10 text-success px-2 py-1 rounded">+ {fix.after}</div>
-        </div>
-        <div className="flex gap-1.5 mt-2">
-          <button type="button" onClick={onApply} className="h-7 px-2.5 rounded-md bg-primary text-primary-foreground text-xs font-medium">
-            Áp dụng vào Instructions
-          </button>
-          <button type="button" onClick={onDismiss} className="h-7 px-2.5 rounded-md hover:bg-surface-muted text-xs text-muted-foreground">
-            Bỏ qua
-          </button>
-        </div>
+    <div className="rounded-lg border border-primary/30 bg-primary-soft/40 p-2.5">
+      <div className="flex items-center gap-1.5 mb-2">
+        <Sparkles size={11} className="text-primary" />
+        <span className="text-xs font-semibold text-primary">Đề xuất chỉnh sửa · Instructions</span>
+      </div>
+      <div className="font-mono text-xs space-y-1">
+        <div className="bg-destructive/10 text-destructive px-2 py-1 rounded line-through">− {fix.before}</div>
+        <div className="bg-success/10 text-success px-2 py-1 rounded">+ {fix.after}</div>
+      </div>
+      <div className="flex gap-1.5 mt-2">
+        <button type="button" onClick={onApply} className="h-7 px-2.5 rounded-md bg-primary text-primary-foreground text-xs font-medium">
+          Áp dụng vào Instructions
+        </button>
+        <button type="button" onClick={onDismiss} className="h-7 px-2.5 rounded-md hover:bg-surface-muted text-xs text-muted-foreground">
+          Bỏ qua
+        </button>
       </div>
     </div>
+  );
+}
+
+function DeepLinkButton({ agentId, section, label }: { agentId: string; section: Section; label: string }) {
+  const navigate = useNavigate();
+  return (
+    <button
+      type="button"
+      onClick={() => navigate(`/agents/${agentId}?tab=build&section=${section}`)}
+      className="h-7 px-2.5 rounded-md border border-border bg-surface hover:bg-surface-muted text-xs font-medium text-foreground transition-base"
+    >
+      {label}
+    </button>
+  );
+}
+
+/** The steps the assistant took to answer, shown like the tool-call chips in the Instructions
+ * "Refine với AI" chat — so the Builder can see what it actually looked at. */
+function StepChips({ steps, running }: { steps: string[]; running?: boolean }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {steps.map(s => (
+        <div
+          key={s}
+          className={cn(
+            "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs w-fit border",
+            running ? "border-primary/30 bg-primary-soft text-primary" : "border-success/30 bg-success/10 text-[hsl(var(--success-strong))]",
+          )}
+        >
+          {running ? <Loader2 size={11} className="animate-spin" /> : <CheckCircle2 size={11} />}
+          {s}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Renders "Turn N" inside an answer as a link that scrolls the trace to that turn. */
+function TurnLinkedText({ text, onScrollToTurn }: { text: string; onScrollToTurn: (n: number) => void }) {
+  const parts = text.split(/(Turn \d+)/g);
+  return (
+    <>
+      {parts.map((p, i) => {
+        const m = p.match(/^Turn (\d+)$/);
+        return m ? (
+          <button key={i} type="button" onClick={() => onScrollToTurn(Number(m[1]))} className="font-medium text-primary hover:underline">
+            {p}
+          </button>
+        ) : <span key={i}>{p}</span>;
+      })}
+    </>
   );
 }
 
@@ -83,7 +148,6 @@ function IssueRow({
   onApply: () => void;
   onDismiss: () => void;
 }) {
-  const navigate = useNavigate();
   const fix = issue.fix;
   return (
     <div className="border-t border-border first:border-t-0 pl-7 pr-3 py-2 space-y-2">
@@ -99,22 +163,14 @@ function IssueRow({
           {issue.detail && <span className="block text-muted-foreground mt-0.5">{issue.detail}</span>}
         </span>
       </button>
-
       {fix.kind === "instructions_diff" && (
         <div className="pl-2">
           <InstructionsFix fix={fix} applied={applied} onApply={onApply} onDismiss={onDismiss} />
         </div>
       )}
-
       {fix.kind === "deeplink" && (
         <div className="pl-2">
-          <button
-            type="button"
-            onClick={() => navigate(`/agents/${agentId}?tab=build&section=${fix.section}`)}
-            className="h-7 px-2.5 rounded-md border border-border bg-surface hover:bg-surface-muted text-xs font-medium text-foreground transition-base"
-          >
-            {fix.ctaLabel}
-          </button>
+          <DeepLinkButton agentId={agentId} section={fix.section} label={fix.ctaLabel} />
         </div>
       )}
     </div>
@@ -163,103 +219,174 @@ function IssueGroup({
   );
 }
 
-/* ───────────── Chat: hỏi AI về conversation này ─────────────
- * The scan above answers "what went wrong"; the chat covers what a fixed list can't — "why did
- * Turn 3 fail", "fix Turn 1 for me" — the pattern LangSmith Polly, Arize Alyx and Braintrust Loop
- * all use on their trace views. Answers stay inside the same boundary as the scan: they're built
- * only from what the trace recorded, and any question about whether a reply is factually right is
- * redirected (that's Evaluators). An Instructions change asked for in chat comes back as the same
- * diff card with Áp dụng / Bỏ qua, and follows the Thủ công / Tự động toggle like the scan's does. */
-
-type ChatMsg =
-  | { role: "user"; text: string }
-  | { role: "ai"; text: string }
-  | { role: "ai-diff"; id: string; before: string; after: string };
+/* ───────────────────────── Answering ───────────────────────── */
 
 const CONTENT_JUDGEMENT = /(đúng không|có đúng|chính xác|sai sự thật|bịa|hallucin|trả lời sai|trả lời đúng)/i;
 const FIX_INTENT = /(sửa|fix|đề xuất|chỉnh|instructions)/i;
+const EFFICIENCY_INTENT = /(hiệu quả|chậm|tối ưu|token|nhanh hơn|efficien|latency)/i;
+const WRONG_INTENT = /(sai|lỗi|vấn đề|hỏng|trục trặc|went wrong|bất thường)/i;
+const SUMMARY_INTENT = /(tóm tắt|chuyện gì|diễn ra|summar|tổng quan)/i;
 
-function issueLine(i: TraceIssue) {
-  return `Turn ${i.turnIndex}: ${i.diagnosis}${i.detail ? ` — ${i.detail}` : ""}`;
+const fmtS = (ms: number) => `${(ms / 1000).toFixed(2)}s`;
+const fmtK = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(2)}K` : `${n}`);
+const turnTokens = (t: TraceTurn) => t.tokensIn + t.tokensCacheRead + t.tokensOut + t.tokensReasoning;
+const clip = (s: string, n = 60) => (s.length > n ? `${s.slice(0, n).trimEnd()}…` : s);
+const issueLine = (i: TraceIssue) => `Turn ${i.turnIndex}: ${i.diagnosis}${i.detail ? ` — ${i.detail}` : ""}`;
+
+function linkActions(issues: TraceIssue[]): { label: string; section: Section }[] {
+  const seen = new Set<string>();
+  const out: { label: string; section: Section }[] = [];
+  for (const i of issues) {
+    if (i.fix.kind !== "deeplink" || seen.has(i.fix.section)) continue;
+    seen.add(i.fix.section);
+    out.push({ label: i.fix.ctaLabel, section: i.fix.section });
+  }
+  return out;
 }
 
-/** Deterministic, trace-grounded reply for the prototype — stands in for the real model call. */
-function buildReply(text: string, trace: ConversationTrace, issues: TraceIssue[], appliedIds: Set<string>): ChatMsg[] {
+function outcomeLabel(t: TraceTurn) {
+  return t.outcome === "failed" ? "Failed" : t.outcome === "input_required" ? "đang chờ duyệt" : "hoàn tất";
+}
+
+/** Deterministic, trace-grounded answer: which steps it "ran", then the messages to show. */
+export function buildReply(
+  text: string, trace: ConversationTrace, issues: TraceIssue[], appliedIds: Set<string>,
+): { steps: string[]; msgs: ChatMsg[] } {
+  const n = trace.turns.length;
   const turnMatch = text.match(/turn\s*(\d+)/i);
   const turnIndex = turnMatch ? Number(turnMatch[1]) : undefined;
   const turn = turnIndex ? trace.turns.find(t => t.index === turnIndex) : undefined;
   if (turnIndex && !turn) {
-    return [{ role: "ai", text: `Conversation này chỉ có ${trace.turns.length} turn, không có Turn ${turnIndex}.` }];
+    return { steps: [`Đọc ${n} turn`], msgs: [{ role: "ai", text: `Conversation này chỉ có ${n} turn, không có Turn ${turnIndex}.` }] };
   }
   const scoped = turnIndex ? issues.filter(i => i.turnIndex === turnIndex) : issues;
+  const readStep = turn ? `Đọc Turn ${turn.index}` : `Đọc ${n} turn`;
 
+  // Whether a reply is factually right is not something the trace records.
   if (CONTENT_JUDGEMENT.test(text)) {
     const facts = scoped.length ? scoped.map(issueLine).join("\n") : "Không có tín hiệu kỹ thuật bất thường.";
-    return [{
-      role: "ai",
-      text: `Mình chỉ đọc được những gì trace ghi lại (tool call, Guardrail, HITL, trạng thái turn, latency), nên không kết luận được câu trả lời đúng hay sai về nội dung — phần đó sẽ do Evaluators chấm.\n\nTrace cho thấy${turnIndex ? ` ở Turn ${turnIndex}` : ""}:\n${facts}`,
-    }];
+    return {
+      steps: [readStep],
+      msgs: [{
+        role: "ai",
+        text: `Mình chỉ đọc được những gì trace ghi lại (tool call, Guardrail, HITL, trạng thái turn, latency), nên không kết luận được câu trả lời đúng hay sai về nội dung — phần đó sẽ do Evaluators chấm.\n\nTrace cho thấy${turn ? ` ở Turn ${turn.index}` : ""}:\n${facts}`,
+      }],
+    };
   }
 
   if (FIX_INTENT.test(text)) {
     const target = scoped.find(i => i.fix.kind === "instructions_diff");
     if (target && target.fix.kind === "instructions_diff") {
       if (appliedIds.has(target.id)) {
-        return [{ role: "ai", text: `Đề xuất sửa Instructions cho Turn ${target.turnIndex} đã được áp dụng rồi.` }];
+        return { steps: [`Đọc Turn ${target.turnIndex}`], msgs: [{ role: "ai", text: `Đề xuất sửa Instructions cho Turn ${target.turnIndex} đã được áp dụng rồi.` }] };
       }
-      return [
-        { role: "ai", text: `Turn ${target.turnIndex} Failed vì: ${target.detail ?? target.diagnosis}\nMình đề xuất chỉnh Instructions như sau:` },
-        { role: "ai-diff", id: target.id, before: target.fix.before, after: target.fix.after },
-      ];
+      return {
+        steps: [`Đọc Turn ${target.turnIndex}`, "Đối chiếu với Instructions hiện tại"],
+        msgs: [
+          { role: "ai", text: `Turn ${target.turnIndex} Failed vì: ${target.detail ?? target.diagnosis}\nMình đề xuất chỉnh Instructions như sau:` },
+          { role: "ai-diff", id: target.id, before: target.fix.before, after: target.fix.after },
+        ],
+      };
     }
-    const others = scoped.filter(i => i.fix.kind === "deeplink");
-    return [{
-      role: "ai",
-      text: `Mình không thấy lỗi nào${turnIndex ? ` ở Turn ${turnIndex}` : ""} do Instructions gây ra, nên chưa có gì để đề xuất sửa Instructions.` +
-        (others.length ? `\n\nCần sửa tay ở màn cấu hình:\n${others.map(i => `${issueLine(i)} → ${i.fix.kind === "deeplink" ? i.fix.ctaLabel : ""}`).join("\n")}` : ""),
-    }];
+    const manual = scoped.filter(i => i.fix.kind === "deeplink");
+    return {
+      steps: [readStep, "Đối chiếu với Instructions hiện tại"],
+      msgs: [{
+        role: "ai",
+        text: `Mình không thấy lỗi nào${turn ? ` ở Turn ${turn.index}` : ""} do Instructions gây ra, nên chưa có gì để đề xuất sửa Instructions.` +
+          (manual.length ? `\n\nNhững chỗ cần sửa tay ở màn cấu hình:\n${manual.map(issueLine).join("\n")}` : ""),
+        actions: linkActions(manual),
+      }],
+    };
+  }
+
+  if (EFFICIENCY_INTENT.test(text)) {
+    const turns = turn ? [turn] : trace.turns;
+    const lines: string[] = [];
+    const slowest = [...turns].sort((a, b) => b.latencyMs - a.latencyMs)[0];
+    const p50 = trace.totals.p50LatencyMs;
+    if (slowest && slowest.latencyMs > 3000) {
+      lines.push(`Turn ${slowest.index} chậm nhất: ${fmtS(slowest.latencyMs)}, gấp ${(slowest.latencyMs / p50).toFixed(1)} lần P50 của conversation (${fmtS(p50)}).`);
+    }
+    for (const t of turns) {
+      const calls = t.agentMessages.flatMap(m => m.toolCalls ?? []);
+      const retried = calls.filter((c, i) => c.status === "failed" && calls.slice(i + 1).some(l => l.name === c.name && (l.status ?? "success") === "success"));
+      for (const c of retried) lines.push(`Turn ${t.index} phải gọi ${c.name} thêm một lần vì lần đầu lỗi${c.error ? ` (${c.error})` : ""}.`);
+    }
+    const heaviest = [...turns].sort((a, b) => turnTokens(b) - turnTokens(a))[0];
+    const totalTok = trace.totals.tokensIn + trace.totals.tokensCacheRead + trace.totals.tokensOut + trace.totals.tokensReasoning;
+    const cacheShare = totalTok ? Math.round((trace.totals.tokensCacheRead / totalTok) * 100) : 0;
+    if (!turn && heaviest) {
+      lines.push(`Turn ${heaviest.index} dùng nhiều token nhất (${fmtK(turnTokens(heaviest))}). ${cacheShare}% token của cả conversation là cache read — Instructions và Knowledge đang được tái sử dụng giữa các turn.`);
+    }
+    return {
+      steps: [`Đọc latency ${turns.length} turn`, "Đếm số lần gọi lại tool", "Xem token từng turn"],
+      msgs: [{
+        role: "ai",
+        text: lines.length
+          ? lines.join("\n")
+          : `Không thấy điểm kém hiệu quả rõ rệt${turn ? ` ở Turn ${turn.index}` : ""}: dưới ngưỡng 3s, không có tool bị gọi lại.`,
+      }],
+    };
   }
 
   if (turn) {
-    const steps = turn.agentMessages.reduce((n, m) => n + (m.toolCalls?.length ?? 0) + (m.guardrail ? 1 : 0) + (m.hitl ? 1 : 0), 0);
-    const head = `Turn ${turn.index}: ${turn.outcome === "failed" ? "Failed" : turn.outcome === "input_required" ? "đang chờ duyệt" : "hoàn tất"} · latency ${(turn.latencyMs / 1000).toFixed(2)}s · ${steps} bước.`;
-    return [{ role: "ai", text: scoped.length ? `${head}\n${scoped.map(issueLine).join("\n")}` : `${head}\nKhông có tín hiệu kỹ thuật bất thường ở turn này.` }];
+    const steps: string[] = [];
+    for (const m of turn.agentMessages) {
+      for (const c of m.toolCalls ?? []) steps.push(`Tool ${c.name} (${c.connector}) — ${(c.status ?? "success") === "failed" ? "lỗi" : "thành công"}`);
+      if (m.guardrail) steps.push(`Guardrail ${m.guardrail.name} — ${m.guardrail.action}`);
+      if (m.hitl) steps.push(`Human-in-the-loop — ${m.hitl.action}${m.hitl.answer ? `: ${m.hitl.answer}` : ""}`);
+    }
+    const head = `Turn ${turn.index} (${outcomeLabel(turn)} · ${fmtS(turn.latencyMs)})${turn.customer ? ` — khách hỏi: "${clip(turn.customer.content)}"` : ""}`;
+    const body = [
+      steps.length ? `Các bước agent đã chạy:\n${steps.map(s => `• ${s}`).join("\n")}` : "Agent trả lời trực tiếp, không qua bước tool / Guardrail / HITL nào.",
+      scoped.length ? `Điểm cần chú ý:\n${scoped.map(issueLine).join("\n")}` : "Không có tín hiệu kỹ thuật bất thường ở turn này.",
+    ].join("\n\n");
+    return {
+      steps: [`Đọc Turn ${turn.index}`, `Xem ${steps.length} bước`],
+      msgs: [{ role: "ai", text: `${head}\n\n${body}`, actions: linkActions(scoped) }],
+    };
   }
 
-  return [{
-    role: "ai",
-    text: issues.length
-      ? `Conversation có ${trace.turns.length} turn, ${issues.length} điểm cần chú ý:\n${issues.map(issueLine).join("\n")}`
-      : `Conversation có ${trace.turns.length} turn và không có tín hiệu kỹ thuật bất thường nào.`,
-  }];
+  if (SUMMARY_INTENT.test(text)) {
+    const outline = trace.turns.map(t => {
+      const own = issues.filter(i => i.turnIndex === t.index);
+      return `Turn ${t.index}${t.customer ? ` — "${clip(t.customer.content, 50)}"` : ""} → ${outcomeLabel(t)}${own.length ? ` (${own.map(i => i.diagnosis).join("; ")})` : ""}`;
+    });
+    return {
+      steps: [`Đọc ${n} turn`],
+      msgs: [{ role: "ai", text: `Conversation có ${n} turn:\n${outline.join("\n")}` }],
+    };
+  }
+
+  // "Chỗ nào sai?" — and the fallback for anything else: where it went wrong, worst first.
+  const ordered = [...issues].sort((a, b) => (a.severity === b.severity ? a.turnIndex - b.turnIndex : a.severity === "critical" ? -1 : 1));
+  const instr = ordered.find(i => i.fix.kind === "instructions_diff" && !appliedIds.has(i.id));
+  const intro = WRONG_INTENT.test(text) ? "" : "Mình hiểu câu hỏi là đang tìm chỗ agent chạy không ổn. ";
+  return {
+    steps: [`Quét ${n} turn`],
+    msgs: [{
+      role: "ai",
+      text: ordered.length
+        ? `${intro}${ordered.length} chỗ đáng chú ý, nặng nhất trước:\n${ordered.map(issueLine).join("\n")}` +
+          (instr ? `\n\nTurn ${instr.turnIndex} có thể sửa ngay bằng Instructions — hỏi "Đề xuất sửa Instructions cho Turn ${instr.turnIndex}".` : "")
+        : `${intro}Mình không thấy chỗ nào agent chạy sai về mặt kỹ thuật trong ${n} turn này.`,
+      actions: linkActions(ordered),
+    }],
+  };
 }
 
-/** Renders "Turn N" inside an AI answer as a link that scrolls the trace to that turn. */
-function TurnLinkedText({ text, onScrollToTurn }: { text: string; onScrollToTurn: (n: number) => void }) {
-  const parts = text.split(/(Turn \d+)/g);
-  return (
-    <>
-      {parts.map((p, i) => {
-        const m = p.match(/^Turn (\d+)$/);
-        return m ? (
-          <button key={i} type="button" onClick={() => onScrollToTurn(Number(m[1]))} className="font-medium text-primary hover:underline">
-            {p}
-          </button>
-        ) : <span key={i}>{p}</span>;
-      })}
-    </>
-  );
-}
-
-function starterPrompts(issues: TraceIssue[]): string[] {
+function starterPrompts(issues: TraceIssue[], appliedIds: Set<string>): string[] {
   const out: string[] = [];
-  const instr = issues.find(i => i.fix.kind === "instructions_diff");
+  const instr = issues.find(i => i.fix.kind === "instructions_diff" && !appliedIds.has(i.id));
   if (instr) out.push(`Đề xuất sửa Instructions cho Turn ${instr.turnIndex}`);
-  const other = issues.find(i => i.kind !== "turn_failed");
-  if (other) out.push(`Chuyện gì xảy ra ở Turn ${other.turnIndex}?`);
-  out.push("Tóm tắt các vấn đề của conversation này");
-  return out.slice(0, 3);
+  out.push("Chỗ nào agent chạy sai?", "Agent có làm gì kém hiệu quả không?", "Tóm tắt những gì đã xảy ra");
+  return out;
 }
+
+/* ───────────────────────── Panel ───────────────────────── */
+
+const SCAN_STEPS = (n: number) => [`Đọc trace · ${n} turn`, "Kiểm tra tool call, Guardrail, HITL, latency"];
 
 export function RefineWithAiTracePanel({
   agentId, conversationId, trace, onClose, onScrollToTurn,
@@ -272,57 +399,44 @@ export function RefineWithAiTracePanel({
 }) {
   const memoryKey = `${agentId}:${conversationId}`;
   const remembered = panelMemory.get(memoryKey);
-  const [scanning, setScanning] = useState(true);
+  const [scanning, setScanning] = useState(!remembered);
   const [approvalMode, setApprovalMode] = useState<"manual" | "auto">(remembered?.mode ?? "manual");
   const [appliedIds, setAppliedIds] = useState<Set<string>>(() => new Set(remembered?.applied));
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => new Set(remembered?.dismissed));
-
   const [chat, setChat] = useState<ChatMsg[]>(remembered?.chat ?? []);
   const [input, setInput] = useState("");
-  const [answering, setAnswering] = useState(false);
+  const [pendingSteps, setPendingSteps] = useState<string[] | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    panelMemory.set(memoryKey, { mode: approvalMode, applied: appliedIds, dismissed: dismissedIds, chat });
-  }, [memoryKey, approvalMode, appliedIds, dismissedIds, chat]);
-
-  useEffect(() => {
-    if (chat.length) bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [chat.length, answering]);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const issues = useMemo(() => detectTraceIssues(trace), [trace]);
   const visibleIssues = issues.filter(i => !dismissedIds.has(i.id));
   const groups = KIND_ORDER
     .map(kind => ({ kind, items: visibleIssues.filter(i => i.kind === kind) }))
     .filter(g => g.items.length > 0);
+  const answering = pendingSteps !== null;
 
-  // Auto-scan on open — the panel is meant to surface issues immediately, no extra click to
-  // trigger a scan. The brief delay is a deliberate "we actually checked" beat, same feel as
-  // the tool-call steps in the Instructions "Refine with AI" chat.
   useEffect(() => {
-    const t = setTimeout(() => setScanning(false), 650);
+    panelMemory.set(memoryKey, { mode: approvalMode, applied: appliedIds, dismissed: dismissedIds, chat });
+  }, [memoryKey, approvalMode, appliedIds, dismissedIds, chat]);
+
+  // The scan runs by itself the first time the panel opens on a conversation — no "Quét" button.
+  useEffect(() => {
+    if (!scanning) return;
+    const t = setTimeout(() => setScanning(false), 900);
     return () => clearTimeout(t);
-  }, [trace]);
+  }, [scanning]);
 
-  const send = (raw?: string) => {
-    const text = (raw ?? input).trim();
-    if (!text || answering || scanning) return;
-    setInput("");
-    setChat(c => [...c, { role: "user", text }]);
-    setAnswering(true);
-    setTimeout(() => {
-      const reply = buildReply(text, trace, issues, appliedIds);
-      setChat(c => [...c, ...reply]);
-      if (approvalMode === "auto") {
-        const diffIds = reply.flatMap(m => (m.role === "ai-diff" ? [m.id] : []));
-        if (diffIds.length) setAppliedIds(prev => new Set([...prev, ...diffIds]));
-      }
-      setAnswering(false);
-    }, 700);
-  };
+  useEffect(() => {
+    if (!scanning) inputRef.current?.focus();
+  }, [scanning]);
 
-  // "Tự động": Instructions fixes apply themselves as soon as they're found, exactly the same
-  // as the Tự động behavior already on Instructions — no separate rule for Trace.
+  useEffect(() => {
+    if (chat.length || answering) bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [chat.length, answering]);
+
+  // "Tự động": Instructions fixes apply themselves as soon as they're found, the same as Tự động
+  // on the Instructions panel — no separate rule for Trace.
   useEffect(() => {
     if (approvalMode !== "auto" || scanning) return;
     setAppliedIds(prev => {
@@ -331,6 +445,45 @@ export function RefineWithAiTracePanel({
       return next;
     });
   }, [approvalMode, scanning, issues]);
+
+  const newChat = () => {
+    setChat([]);
+    setInput("");
+    inputRef.current?.focus();
+  };
+
+  // ⌘⇧O / Ctrl+Shift+O starts a new conversation, same shortcut as Polly.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "o") {
+        e.preventDefault();
+        newChat();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const send = (raw?: string) => {
+    const text = (raw ?? input).trim();
+    if (!text || answering || scanning) return;
+    setInput("");
+    const reply = buildReply(text, trace, issues, appliedIds);
+    setChat(c => [...c, { role: "user", text }]);
+    setPendingSteps(reply.steps);
+    setTimeout(() => {
+      setChat(c => [...c, { role: "steps", steps: reply.steps }, ...reply.msgs]);
+      if (approvalMode === "auto") {
+        const diffIds = reply.msgs.flatMap(m => (m.role === "ai-diff" ? [m.id] : []));
+        if (diffIds.length) setAppliedIds(prev => new Set([...prev, ...diffIds]));
+      }
+      setPendingSteps(null);
+    }, 800);
+  };
+
+  const apply = (id: string) => setAppliedIds(prev => new Set(prev).add(id));
+  const dismiss = (id: string) => setDismissedIds(prev => new Set(prev).add(id));
+  const hasUserMessage = chat.some(m => m.role === "user");
 
   return (
     <aside className="w-[420px] border-r border-border flex flex-col shrink-0 h-full bg-surface">
@@ -348,9 +501,20 @@ export function RefineWithAiTracePanel({
           </div>
           <button
             type="button"
+            onClick={newChat}
+            disabled={!chat.length}
+            title="Cuộc trò chuyện mới (⌘⇧O / Ctrl+Shift+O)"
+            aria-label="Cuộc trò chuyện mới"
+            className="h-8 w-8 rounded-md hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <SquarePen size={14} />
+          </button>
+          <button
+            type="button"
             onClick={onClose}
-            className="h-8 w-8 rounded-md hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0"
+            title="Đóng (⌘I / Ctrl+I)"
             aria-label="Đóng"
+            className="h-8 w-8 rounded-md hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0"
           >
             <X size={15} />
           </button>
@@ -379,71 +543,70 @@ export function RefineWithAiTracePanel({
         )}
       </div>
 
-      {/* Body */}
+      {/* Thread */}
       <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
-        {scanning ? (
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs w-fit border border-primary/30 bg-primary-soft text-primary">
-            <Sparkles size={11} className="animate-pulse" />
-            Đang quét conversation…
-          </div>
-        ) : (
+        <StepChips steps={SCAN_STEPS(trace.turns.length)} running={scanning} />
+
+        {!scanning && (
           <>
-            <div className="bg-surface-muted/60 border border-border rounded-xl px-3 py-2.5 text-xs text-muted-foreground leading-relaxed">
-              {visibleIssues.length > 0 && (
-                <div className="mb-0.5">
-                  Đã quét xong · <span className="text-foreground font-semibold">{groups.length}</span> nhóm vấn đề · <span className="text-foreground font-semibold">{visibleIssues.length}</span> điểm cần chú ý
+            {/* First assistant message: the automatic scan */}
+            <div className="bg-surface-muted/60 border border-border rounded-2xl rounded-bl-sm px-3 py-2.5 text-xs text-muted-foreground leading-relaxed">
+              {visibleIssues.length > 0 ? (
+                <div className="text-foreground mb-0.5">
+                  Mình đã quét xong · <span className="font-semibold">{groups.length}</span> nhóm vấn đề · <span className="font-semibold">{visibleIssues.length}</span> điểm cần chú ý.
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 text-[hsl(var(--success-strong))] mb-0.5">
+                  <CheckCircle2 size={13} /> Không phát hiện vấn đề kỹ thuật nào trong conversation này.
                 </div>
               )}
-              Chỉ dựa trên tín hiệu kỹ thuật trong trace, không chấm nội dung câu trả lời.
+              Chỉ dựa trên tín hiệu kỹ thuật trong trace, không chấm nội dung câu trả lời. Hỏi mình bất cứ điều gì về conversation này.
             </div>
 
-            {visibleIssues.length === 0 ? (
-              <div className="flex items-center gap-1.5 text-xs text-[hsl(var(--success-strong))] px-1 py-1">
-                <CheckCircle2 size={13} /> Không phát hiện vấn đề kỹ thuật nào trong conversation này.
-              </div>
-            ) : (
-              groups.map((g, idx) => (
-                <IssueGroup
-                  key={g.kind}
-                  kind={g.kind}
-                  items={g.items}
-                  isFirst={idx === 0}
-                  agentId={agentId}
-                  onScrollToTurn={onScrollToTurn}
-                  appliedIds={appliedIds}
-                  onApply={id => setAppliedIds(prev => new Set(prev).add(id))}
-                  onDismiss={id => setDismissedIds(prev => new Set(prev).add(id))}
-                />
-              ))
-            )}
+            {groups.map((g, idx) => (
+              <IssueGroup
+                key={g.kind}
+                kind={g.kind}
+                items={g.items}
+                isFirst={idx === 0}
+                agentId={agentId}
+                onScrollToTurn={onScrollToTurn}
+                appliedIds={appliedIds}
+                onApply={apply}
+                onDismiss={dismiss}
+              />
+            ))}
 
             {chat.map((m, i) => {
               if (m.role === "user") return (
-                <div key={i} className="flex justify-end">
+                <div key={i} className="flex justify-end pt-1">
                   <div className="bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-3 py-2 text-xs max-w-[90%] leading-relaxed whitespace-pre-wrap">{m.text}</div>
                 </div>
               );
+              if (m.role === "steps") return <StepChips key={i} steps={m.steps} />;
               if (m.role === "ai") return (
-                <div key={i} className="bg-surface-muted/60 border border-border rounded-2xl rounded-bl-sm px-3 py-2.5 text-xs leading-relaxed whitespace-pre-wrap">
-                  <TurnLinkedText text={m.text} onScrollToTurn={onScrollToTurn} />
+                <div key={i} className="bg-surface-muted/60 border border-border rounded-2xl rounded-bl-sm px-3 py-2.5 text-xs leading-relaxed">
+                  <div className="whitespace-pre-wrap"><TurnLinkedText text={m.text} onScrollToTurn={onScrollToTurn} /></div>
+                  {m.actions && m.actions.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {m.actions.map(a => <DeepLinkButton key={a.section} agentId={agentId} section={a.section} label={a.label} />)}
+                    </div>
+                  )}
                 </div>
               );
               if (dismissedIds.has(m.id)) return null;
               return (
                 <InstructionsFix
                   key={i}
-                  fix={{ kind: "instructions_diff", before: m.before, after: m.after }}
+                  fix={m}
                   applied={appliedIds.has(m.id)}
-                  onApply={() => setAppliedIds(prev => new Set(prev).add(m.id))}
-                  onDismiss={() => setDismissedIds(prev => new Set(prev).add(m.id))}
+                  onApply={() => apply(m.id)}
+                  onDismiss={() => dismiss(m.id)}
                 />
               );
             })}
-            {answering && (
-              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs w-fit border border-primary/30 bg-primary-soft text-primary">
-                <Sparkles size={11} className="animate-pulse" /> Đang đọc trace…
-              </div>
-            )}
+
+            {pendingSteps && <StepChips steps={pendingSteps} running />}
             <div ref={bottomRef} />
           </>
         )}
@@ -451,9 +614,9 @@ export function RefineWithAiTracePanel({
 
       {/* Composer */}
       <div className="border-t border-border p-2.5 shrink-0 bg-surface">
-        {!scanning && chat.length === 0 && (
+        {!scanning && !hasUserMessage && (
           <div className="flex flex-wrap gap-1.5 mb-2">
-            {starterPrompts(visibleIssues).map(s => (
+            {starterPrompts(visibleIssues, appliedIds).map(s => (
               <button
                 key={s}
                 type="button"
@@ -470,6 +633,7 @@ export function RefineWithAiTracePanel({
             <label htmlFor="refine-trace-input" className="sr-only">Hỏi AI về conversation này</label>
             <textarea
               id="refine-trace-input"
+              ref={inputRef}
               rows={2}
               value={input}
               disabled={scanning}

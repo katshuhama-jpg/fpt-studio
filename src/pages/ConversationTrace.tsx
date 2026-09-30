@@ -330,6 +330,18 @@ export default function ConversationTrace() {
     return () => observer.disconnect();
   }, [trace]);
 
+  // ⌘I / Ctrl+I toggles Refine với AI — the same shortcut LangSmith uses for Polly.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === "i") {
+        e.preventDefault();
+        setRefineOpen(o => !o);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   const scrollToTurn = (index: number) => {
     setActiveTurn(index);
     document.getElementById(`turn-${index}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -390,6 +402,7 @@ export default function ConversationTrace() {
           type="button"
           onClick={() => setRefineOpen(o => !o)}
           aria-pressed={refineOpen}
+          title="Refine với AI (⌘I / Ctrl+I)"
           className={cn(
             "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm transition-base shrink-0",
             refineOpen
