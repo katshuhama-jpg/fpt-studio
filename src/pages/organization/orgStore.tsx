@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 import { getUser } from "@/lib/onboarding";
 import { OrgUnit, OrgMember, findUnit, collectMembers, findMemberUnit, findPath, orgTree as SEED_TREE } from "./orgData";
 import { getCurrentTenantId, subscribeTenantChange, markOrgConfigured, isOrgConfigured as isTenantOrgConfigured, isSeedTenant, getAllTenants, isPersonalSpace, PERSONAL_SPACE_MEMBER_CAP } from "@/lib/spaceStore";
+import { getConnectedOrgId, subscribeOrgConnectionChange } from "@/lib/orgConnectionStore";
 
 /** A brand-new Space starts with an empty Organization — a single root unit named after the
  * Space, no members, no sub-units — until its assigned Org Admin runs the Organization setup
@@ -15,6 +16,23 @@ function emptyOrgTreeFor(tenantId: string): OrgUnit {
  * keep their long-standing seeded tree (untouched); any newly-created Space starts empty. */
 function initialTreeFor(tenantId: string): OrgUnit {
   return isSeedTenant(tenantId) ? SEED_TREE : emptyOrgTreeFor(tenantId);
+}
+
+/**
+ * Resolves which key this Space's Organization content actually lives under (§10,
+ * BRAINSTORM_Governance_OrgTenantPublishScope.md — Space and Org are independent entities,
+ * connected only via an explicit Super Admin action):
+ * - A Personal Space always edits its own local member list under its own key — it can never
+ *   connect to an Org (§10.3 #2), so this is never "the Org", just that Space's own roster.
+ * - An enterprise Space resolves to the Org a Super Admin has connected it to. The 4 seed/
+ *   pending Spaces are auto-connected 1-1 to an Org sharing their own tenantId (§10.3 #4), so
+ *   this returns their own id and their existing tree content is picked up unchanged.
+ * - An enterprise Space with no connection yet resolves to a stable per-Space placeholder key
+ *   (never a real Org id) so it safely renders an empty tree instead of colliding with one.
+ */
+function resolveOrgKey(tenantId: string): string {
+  if (isPersonalSpace(tenantId)) return tenantId;
+  return getConnectedOrgId(tenantId) ?? `__unconnected__:${tenantId}`;
 }
 
 let idCounter = 0;
@@ -228,26 +246,38 @@ const OrgContext = createContext<OrgContextValue | null>(null);
 
 export function OrgProvider({ children }: { children: ReactNode }) {
   const [tenantId, setTenantId] = useState(getCurrentTenantId());
-  const [treesByTenant, setTreesByTenant] = useState<Record<string, OrgUnit>>({});
-  const [configuredByTenant, setConfiguredByTenant] = useState<Record<string, boolean>>({});
-  const [profilesByTenant, setProfilesByTenant] = useState<Record<string, OrgProfile>>({});
+  const [treesByOrgKey, setTreesByOrgKey] = useState<Record<string, OrgUnit>>({});
+  const [configuredByOrgKey, setConfiguredByOrgKey] = useState<Record<string, boolean>>({});
+  const [profilesByOrgKey, setProfilesByOrgKey] = useState<Record<string, OrgProfile>>({});
+  // Bumped to force a re-render when a Super Admin connects/disconnects a Space elsewhere in
+  // the app — orgKey below depends on that connection, so a stale render would keep showing
+  // whatever Org (or lack of one) was resolved before the change.
+  const [, forceUpdate] = useState(0);
 
   // Re-sync when the active Space changes — OrgProvider is mounted above the router, so it
   // can't rely on route props for this; spaceStore's tiny pub-sub fills that gap.
   useEffect(() => subscribeTenantChange(() => setTenantId(getCurrentTenantId())), []);
+  useEffect(() => subscribeOrgConnectionChange(() => forceUpdate(n => n + 1)), []);
 
-  const tree = treesByTenant[tenantId] ?? initialTreeFor(tenantId);
+  // §10: Space and Org are independent entities — orgKey is the Org actually connected to the
+  // active Space (or the Space's own key, for a Personal Space's local member list). hasOrg is
+  // false only for an enterprise Space no Super Admin has connected to an Org yet — Structure/
+  // Members/General show an empty, unconfigured state for it instead of a real Org's content.
+  const orgKey = resolveOrgKey(tenantId);
+  const hasOrg = isPersonalSpace(tenantId) || getConnectedOrgId(tenantId) !== null;
+
+  const tree = treesByOrgKey[orgKey] ?? initialTreeFor(orgKey);
   // Local state wins once set this session; otherwise fall back to spaceStore's persisted flag
   // (true for every Space except the pending one, until its setup wizard completes).
-  const isConfigured = configuredByTenant[tenantId] ?? isTenantOrgConfigured(tenantId);
-  const orgProfile: OrgProfile = profilesByTenant[tenantId] ?? (
-    isSeedTenant(tenantId) ? { urlSlug: "fpt-corp", defaultLanguage: "Vietnamese" } : {}
+  const isConfigured = hasOrg && (configuredByOrgKey[orgKey] ?? isTenantOrgConfigured(orgKey));
+  const orgProfile: OrgProfile = profilesByOrgKey[orgKey] ?? (
+    isSeedTenant(orgKey) ? { urlSlug: "fpt-corp", defaultLanguage: "Vietnamese" } : {}
   );
 
   const setTree = (updater: (prev: OrgUnit) => OrgUnit) => {
-    setTreesByTenant(prev => {
-      const current = prev[tenantId] ?? initialTreeFor(tenantId);
-      return { ...prev, [tenantId]: updater(current) };
+    setTreesByOrgKey(prev => {
+      const current = prev[orgKey] ?? initialTreeFor(orgKey);
+      return { ...prev, [orgKey]: updater(current) };
     });
   };
 
@@ -364,20 +394,20 @@ export function OrgProvider({ children }: { children: ReactNode }) {
 
   const updateOrgProfile = (input: { name: string; description?: string; logoDataUrl?: string; urlSlug?: string; defaultLanguage?: string }) => {
     const trimmedName = input.name.trim();
-    const activeTenantId = tenantId;
+    const activeOrgKey = orgKey;
     // Rename the root unit directly — `renameUnit` refuses to touch the root on purpose (it's
     // the "delete/rename a unit" affordance, not "rename my Org"), so General goes straight to
     // the tree instead of routing through it.
     if (trimmedName) {
-      setTreesByTenant(prev => {
-        const current = prev[activeTenantId] ?? initialTreeFor(activeTenantId);
-        return { ...prev, [activeTenantId]: { ...current, name: trimmedName } };
+      setTreesByOrgKey(prev => {
+        const current = prev[activeOrgKey] ?? initialTreeFor(activeOrgKey);
+        return { ...prev, [activeOrgKey]: { ...current, name: trimmedName } };
       });
     }
-    setProfilesByTenant(prev => ({
+    setProfilesByOrgKey(prev => ({
       ...prev,
-      [activeTenantId]: {
-        ...prev[activeTenantId],
+      [activeOrgKey]: {
+        ...prev[activeOrgKey],
         description: input.description?.trim() || undefined,
         logoDataUrl: input.logoDataUrl,
         urlSlug: input.urlSlug?.trim() || undefined,
@@ -388,15 +418,15 @@ export function OrgProvider({ children }: { children: ReactNode }) {
 
   const completeOrgSetup = ({ name, description, logoDataUrl }: { name: string; description?: string; logoDataUrl?: string }) => {
     const trimmedName = name.trim() || "Tổ chức mới";
-    const activeTenantId = tenantId;
-    setTreesByTenant(prev => {
-      const rootIdForTenant = `root-${activeTenantId}`;
-      const nextTree: OrgUnit = { id: rootIdForTenant, name: trimmedName, members: [], units: [] };
-      return { ...prev, [activeTenantId]: nextTree };
+    const activeOrgKey = orgKey;
+    setTreesByOrgKey(prev => {
+      const rootIdForOrg = `root-${activeOrgKey}`;
+      const nextTree: OrgUnit = { id: rootIdForOrg, name: trimmedName, members: [], units: [] };
+      return { ...prev, [activeOrgKey]: nextTree };
     });
-    setProfilesByTenant(prev => ({ ...prev, [activeTenantId]: { description, logoDataUrl } }));
-    setConfiguredByTenant(prev => ({ ...prev, [activeTenantId]: true }));
-    markOrgConfigured(activeTenantId);
+    setProfilesByOrgKey(prev => ({ ...prev, [activeOrgKey]: { description, logoDataUrl } }));
+    setConfiguredByOrgKey(prev => ({ ...prev, [activeOrgKey]: true }));
+    markOrgConfigured(activeOrgKey);
   };
 
   const importMembers = (anchorUnitId: string, entries: { name: string; email: string; unitPath: string[] }[]): { imported: number; skipped: number } => {
@@ -447,8 +477,15 @@ export function OrgProvider({ children }: { children: ReactNode }) {
     const normalized = email.trim().toLowerCase();
     if (!normalized) return [];
     const results: OrgMembershipRef[] = [];
+    // Dedupe by resolved Org key — once an Org connects to several Spaces (§10.3 #1, not yet
+    // exercised by any UI today but already possible in the data model), those Spaces would
+    // otherwise report the same membership twice.
+    const seenKeys = new Set<string>();
     for (const t of getAllTenants()) {
-      const tTree = treesByTenant[t.id] ?? initialTreeFor(t.id);
+      const key = resolveOrgKey(t.id);
+      if (seenKeys.has(key)) continue;
+      seenKeys.add(key);
+      const tTree = treesByOrgKey[key] ?? initialTreeFor(key);
       for (const m of collectMembers(tTree)) {
         if ((m.email ?? "").trim().toLowerCase() !== normalized) continue;
         const unit = findMemberUnit(tTree, m.id);

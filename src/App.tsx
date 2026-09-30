@@ -26,6 +26,7 @@ import OrgRoles from "./pages/organization/Roles";
 import { RolesProvider } from "./pages/organization/rolesStore";
 import { OrgProvider, useOrg } from "./pages/organization/orgStore";
 import OrgSetupWizard from "./pages/organization/OrgSetupWizard";
+import SuperAdminOrgs from "./pages/superadmin/SuperAdminOrgs";
 import { ConflictsProvider } from "./pages/organization/conflictsStore";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import KnowledgeList from "./pages/KnowledgeList";
@@ -149,6 +150,7 @@ const App = () => (
               <Route path="/roles" element={<RequireOrgConfigured><OrgRoles /></RequireOrgConfigured>} />
               <Route path="/organization" element={<RequireOrgConfigured><OrgGeneral /></RequireOrgConfigured>} />
               <Route path="/organization/structure" element={<RequireOrgConfigured><OrgStructure /></RequireOrgConfigured>} />
+              <Route path="/super-admin/organizations" element={<SuperAdminOrgs />} />
               <Route path="/connectors" element={<WorkspaceConnectors />} />
               <Route path="/tools" element={<Skills />} />
               <Route path="/tools/:id" element={<SkillDetail />} />

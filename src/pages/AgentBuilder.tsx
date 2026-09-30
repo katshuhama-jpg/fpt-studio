@@ -36,6 +36,7 @@ import { useGroupAccess, isOwnedOrShared } from "@/pages/organization/scopeAcces
 import { useOrg } from "@/pages/organization/orgStore";
 import { collectMembers, countAll, unitMatches, findMember, type OrgUnit, type OrgMember } from "@/pages/organization/orgData";
 import { getCurrentTenantId, isPersonalSpace } from "@/lib/spaceStore";
+import { isConnectedToOrg } from "@/lib/orgConnectionStore";
 import { CHANNEL_CATALOG, getChannelName, ChannelIcon, type ChannelCatalogEntry } from "@/components/configure/channelCatalog";
 import { connectedAccountStore } from "@/components/configure/connectedAccountStore";
 import { customConnectorStore, type CustomConnector, type ConnectorAuthType, type ConnectorHeader } from "@/components/configure/customConnectorStore";
@@ -4275,6 +4276,11 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
   // flagged — the option used to render for every user regardless of Space type).
   const { tree: orgTree } = useOrg();
   const personalSpace = isPersonalSpace(getCurrentTenantId());
+  // §10 (BRAINSTORM_Governance_OrgTenantPublishScope.md): Space and Org are independent
+  // entities — "Công ty / phòng ban" only makes sense once a Super Admin has connected this
+  // Space to an Org. A Personal Space can never be connected (isConnectedToOrg already returns
+  // false for it), so this one flag covers both gates the UI below used to check separately.
+  const canPublishToOrg = !personalSpace && isConnectedToOrg(getCurrentTenantId());
 
   const [versionType, setVersionType] = useState<"patch" | "minor" | "major">("patch");
   const newVersion = (() => {
@@ -4305,10 +4311,11 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
     // Company / department. A live Agent still on one of those opens on Company / department.
     const raw = current.audience ?? "me";
     const initial: PublishAudience = raw === "quick_share" || raw === "group" ? "org" : raw;
-    // Guard against stale/seeded state pointing at "org" from a personal Space — that
-    // combination can no longer be chosen, so fall back to "Only me" rather than render a
-    // selected-but-hidden option.
-    return personalSpace && initial === "org" ? "me" : initial;
+    // Guard against stale/seeded state pointing at "org" from a Space that (still, or now)
+    // can't publish there — personal, or not connected to any Org — that combination can no
+    // longer be chosen, so fall back to "Only me" rather than render a selected-but-hidden
+    // option.
+    return !canPublishToOrg && initial === "org" ? "me" : initial;
   });
   const currentAudience: PublishAudience = current.audience ?? "me";
 
@@ -4742,6 +4749,11 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
                       Bạn đang ở Space cá nhân nên không có công ty/phòng ban để publish tới — chuyển sang một Space doanh nghiệp để mở "Công ty / phòng ban".
                     </p>
                   )}
+                  {!personalSpace && !canPublishToOrg && (
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Space này chưa được kết nối với Org nào — liên hệ Super Admin để kết nối trước khi publish tới "Công ty / phòng ban".
+                    </p>
+                  )}
                   <div className="space-y-2">
                     <AudienceRadioRow
                       icon={UserIcon}
@@ -4754,8 +4766,10 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
                       onClick={() => setAudience("me")}
                     />
                     {/* Personal Space owns no company/department — showing this option there used to be
-                        selectable and silently meaningless (the bug PM reported). Enterprise Space only. */}
-                    {!personalSpace && (
+                        selectable and silently meaningless (the bug PM reported). Enterprise Space,
+                        AND connected to an Org by a Super Admin (§10) — otherwise there's no Org to
+                        pick from either. */}
+                    {canPublishToOrg && (
                       <AudienceRadioRow
                         icon={Building02Icon}
                         title="Công ty / phòng ban"

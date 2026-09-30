@@ -5,7 +5,7 @@ import {
   Puzzle, ChevronsLeft, ChevronsRight, Search, Bell, Plus,
   ChevronRight, LifeBuoy, KeyRound, LogOut, User, ChevronDown, ChevronsUpDown,
   Check, Building2, Sparkles, Shield, FileText, Rocket,
-  Network, Users, Cpu, UsersRound, ClipboardList, History, Lock, Library,
+  Network, Users, Cpu, UsersRound, ClipboardList, History, Lock, Library, ShieldCheck,
 } from "lucide-react";
 import { useOrg } from "@/pages/organization/orgStore";
 import { governanceStore } from "@/components/governance/governanceStore";
@@ -281,6 +281,19 @@ export default function WorkspaceLayout() {
               >
                 <Building2 size={14} className="text-muted-foreground shrink-0" />
                 <span className="flex-1 min-w-0 text-left truncate">Quản lý Org</span>
+                <ChevronRight size={12} className="text-muted-foreground shrink-0" />
+              </NavLink>
+              {/* Brand-new surface (§10, BRAINSTORM_Governance_OrgTenantPublishScope.md) — no
+                  Super Admin screen existed anywhere before this. Not gated by a real role
+                  check (this prototype doesn't model Super Admin as an actual permission),
+                  same looseness as the rest of this demo-mode nav. */}
+              <NavLink
+                to="/super-admin/organizations"
+                onClick={() => setUserMenu(false)}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-surface-muted transition-base"
+              >
+                <ShieldCheck size={14} className="text-muted-foreground shrink-0" />
+                <span className="flex-1 min-w-0 text-left truncate">Super Admin: Kết nối Org</span>
                 <ChevronRight size={12} className="text-muted-foreground shrink-0" />
               </NavLink>
               <NavLink
