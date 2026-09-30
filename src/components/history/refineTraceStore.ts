@@ -21,7 +21,7 @@ export type TraceIssueSeverity = "critical" | "warning";
  * out of scope for v1 entirely (team capacity), so no issue kind here ever targets it. */
 export type TraceIssueFix =
   | { kind: "instructions_diff"; before: string; after: string }
-  | { kind: "deeplink"; ctaLabel: string; section: "skills" | "guardrails" }
+  | { kind: "deeplink"; ctaLabel: string; section: "instructions" | "guardrails" }
   | { kind: "none" };
 
 export interface TraceIssue {
@@ -65,7 +65,9 @@ export function detectTraceIssues(trace: ConversationTrace): TraceIssue[] {
           ? `Tool ${tc.name} lỗi ở lần gọi đầu, đã tự thử lại thành công`
           : `Tool ${tc.name} gọi thất bại`,
         detail: tc.error ? tc.error : "Không có phản hồi hợp lệ từ connector.",
-        fix: { kind: "deeplink", ctaLabel: "Kiểm tra kết nối Tool", section: "skills" },
+        // Connectors (Google Calendar, BambooHR…) are configured in Instructions' Configuration
+        // panel, not in Skills — same target the publish checklist uses for "Đã cấu hình Kết nối".
+        fix: { kind: "deeplink", ctaLabel: "Kiểm tra kết nối Tool", section: "instructions" },
       });
     });
 

@@ -199,9 +199,13 @@ export function buildTrace(record: ConversationRecord): ConversationTrace {
   }
 
   const sortedLatency = turns.map(t => t.latencyMs).sort((a, b) => a - b);
-  const pct = (p: number) => (sortedLatency.length ? sortedLatency[Math.min(sortedLatency.length - 1, Math.floor((sortedLatency.length - 1) * p))] : 0);
+  // Nearest-rank percentile: the smallest value with at least p of the samples at or below it
+  // (index ceil(p·n) − 1). The earlier floor((n − 1)·p) rounded DOWN, so with only a few turns
+  // P99 landed on the second-slowest turn — a 3-turn trace with one 5.4s turn reported P99 2.06s.
+  const rank = (n: number, p: number) => Math.min(n - 1, Math.max(0, Math.ceil(p * n) - 1));
+  const pct = (p: number) => (sortedLatency.length ? sortedLatency[rank(sortedLatency.length, p)] : 0);
   const sortedFirstToken = turns.map(t => t.firstTokenMs).sort((a, b) => a - b);
-  const pctFirstToken = (p: number) => (sortedFirstToken.length ? sortedFirstToken[Math.min(sortedFirstToken.length - 1, Math.floor((sortedFirstToken.length - 1) * p))] : 0);
+  const pctFirstToken = (p: number) => (sortedFirstToken.length ? sortedFirstToken[rank(sortedFirstToken.length, p)] : 0);
 
   const totals = turns.reduce(
     (acc, t) => ({

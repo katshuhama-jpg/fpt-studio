@@ -830,6 +830,22 @@ function hrSeed(now: number): Omit<ConversationRecord, "agentId">[] {
         },
       ]),
     },
+    // A clean run — no failed step, no guardrail/HITL intervention, every turn under the 3s
+    // slow threshold — so Refine with AI's "nothing found" state is reachable in the demo.
+    {
+      id: pseudoUlid("HR-2003"),
+      channel: "workspace",
+      username: "Le Thu Trang",
+      email: "le.thu.trang@fpt.com.vn",
+      startedAt: now - 5 * DAY - 6 * MIN,
+      endedAt: now - 5 * DAY,
+      messages: buildMessages("HR-2003", now - 5 * DAY, [
+        { role: "customer", content: "Where can I find the company holiday calendar for this year?" },
+        { role: "agent", content: "Tóm tắt: the 2026 holiday calendar is on the HR portal under Policies → Holidays.\nBước tiếp theo: add it to your calendar with the \"Subscribe\" button on that page.", feedback: "up" },
+        { role: "customer", content: "Got it, thanks!" },
+        { role: "agent", content: "Tóm tắt: you're all set.\nBước tiếp theo: message me anytime if you need anything else." },
+      ]),
+    },
   ];
 }
 

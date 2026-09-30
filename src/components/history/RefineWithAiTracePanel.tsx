@@ -21,13 +21,18 @@ import { detectTraceIssues, type TraceIssue, type TraceIssueKind } from "@/compo
 
 const KIND_ORDER: TraceIssueKind[] = ["turn_failed", "tool_call", "guardrail", "hitl", "latency"];
 
-const KIND_META: Record<TraceIssueKind, { label: string; icon: React.ComponentType<{ size?: number; className?: string }>; tone: "critical" | "warning" }> = {
-  turn_failed: { label: "Turn thất bại", icon: XCircle, tone: "critical" },
-  tool_call: { label: "Tool call lỗi", icon: Wrench, tone: "critical" },
-  guardrail: { label: "Guardrail chặn", icon: ShieldAlert, tone: "warning" },
-  hitl: { label: "HITL từ chối", icon: UserCheck, tone: "warning" },
-  latency: { label: "Latency cao", icon: Clock, tone: "warning" },
+const KIND_META: Record<TraceIssueKind, { label: string; icon: React.ComponentType<{ size?: number; className?: string }> }> = {
+  turn_failed: { label: "Turn thất bại", icon: XCircle },
+  tool_call: { label: "Tool call lỗi", icon: Wrench },
+  guardrail: { label: "Guardrail chặn", icon: ShieldAlert },
+  hitl: { label: "HITL từ chối", icon: UserCheck },
+  latency: { label: "Latency cao", icon: Clock },
 };
+
+/** What the Builder already did in this panel, per conversation — kept outside the component so
+ * closing and reopening the panel (which unmounts it) doesn't bring back a proposal they already
+ * applied or dismissed. In-memory only, same lifetime as the rest of this prototype's stores. */
+const panelMemory = new Map<string, { mode: "manual" | "auto"; applied: Set<string>; dismissed: Set<string> }>();
 
 function InstructionsFix({
   fix, applied, onApply, onDismiss,
@@ -130,10 +135,13 @@ function IssueGroup({
 }) {
   const meta = KIND_META[kind];
   const Icon = meta.icon;
+  // The group's colour follows its worst item, not its kind — a group holding only a
+  // retried-then-succeeded tool call is a Warning, and a red icon there overstated it.
+  const critical = items.some(i => i.severity === "critical");
   return (
     <details open={isFirst} className="group rounded-xl border border-border bg-surface overflow-hidden [&::-webkit-details-marker]:hidden">
       <summary className="list-none cursor-pointer flex items-center gap-2 px-3 py-2.5 select-none">
-        <Icon size={14} className={meta.tone === "critical" ? "text-[hsl(var(--destructive-strong))]" : "text-[hsl(var(--warning-strong))]"} />
+        <Icon size={14} className={critical ? "text-[hsl(var(--destructive-strong))]" : "text-[hsl(var(--warning-strong))]"} />
         <span className="text-sm font-semibold">{meta.label}</span>
         <span className="chip chip-muted !h-5 !text-[11px] ml-auto">{items.length}</span>
         <ChevronRight size={13} className="text-muted-foreground transition-transform group-open:rotate-90" />
@@ -164,10 +172,16 @@ export function RefineWithAiTracePanel({
   onClose: () => void;
   onScrollToTurn: (turnIndex: number) => void;
 }) {
+  const memoryKey = `${agentId}:${conversationId}`;
+  const remembered = panelMemory.get(memoryKey);
   const [scanning, setScanning] = useState(true);
-  const [approvalMode, setApprovalMode] = useState<"manual" | "auto">("manual");
-  const [appliedIds, setAppliedIds] = useState<Set<string>>(new Set());
-  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+  const [approvalMode, setApprovalMode] = useState<"manual" | "auto">(remembered?.mode ?? "manual");
+  const [appliedIds, setAppliedIds] = useState<Set<string>>(() => new Set(remembered?.applied));
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => new Set(remembered?.dismissed));
+
+  useEffect(() => {
+    panelMemory.set(memoryKey, { mode: approvalMode, applied: appliedIds, dismissed: dismissedIds });
+  }, [memoryKey, approvalMode, appliedIds, dismissedIds]);
 
   const issues = useMemo(() => detectTraceIssues(trace), [trace]);
   const visibleIssues = issues.filter(i => !dismissedIds.has(i.id));

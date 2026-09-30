@@ -255,7 +255,7 @@ function StepRow({ kind, label, connector, callId, status, guardrailAction, hitl
         {kind === "tool_call" && <Wrench size={12} className="text-muted-foreground shrink-0" />}
         {kind === "guardrail" && <ShieldAlert size={12} className="text-muted-foreground shrink-0" />}
         {kind === "hitl" && <UserCheck size={12} className="text-muted-foreground shrink-0" />}
-        <span className="text-xs font-semibold shrink-0">{label}</span>
+        <span className="text-xs font-semibold truncate min-w-0" title={label}>{label}</span>
         {connector && <span className="chip chip-outline !h-5 !text-[11px] shrink-0">{connector}</span>}
         {actionMeta && <span className={cn("chip !h-5 !text-[11px] shrink-0", actionMeta.chipClass)}>{actionMeta.label}</span>}
         <span className="flex-1" />
