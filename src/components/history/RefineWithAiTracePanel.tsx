@@ -338,7 +338,8 @@ export function buildReply(
     for (const t of turns) {
       const calls = t.agentMessages.flatMap(m => m.toolCalls ?? []);
       const retried = calls.filter((c, i) => c.status === "failed" && calls.slice(i + 1).some(l => l.name === c.name && (l.status ?? "success") === "success"));
-      for (const c of retried) lines.push(`Turn ${t.index} phải gọi ${c.name} thêm một lần vì lần đầu lỗi${c.error ? ` (${c.error})` : ""}.`);
+      // Trim the error's own trailing period so the sentence doesn't end in ".)."
+      for (const c of retried) lines.push(`Turn ${t.index} phải gọi ${c.name} thêm một lần vì lần đầu lỗi${c.error ? ` (${c.error.replace(/\.\s*$/, "")})` : ""}.`);
     }
     const heaviest = [...turns].sort((a, b) => turnTokens(b) - turnTokens(a))[0];
     const totalTok = trace.totals.tokensIn + trace.totals.tokensCacheRead + trace.totals.tokensOut + trace.totals.tokensReasoning;
@@ -353,6 +354,8 @@ export function buildReply(
         text: lines.length
           ? lines.join("\n")
           : `Không thấy điểm kém hiệu quả rõ rệt${turn ? ` ở Turn ${turn.index}` : ""}: dưới ngưỡng 3s, không có tool bị gọi lại.`,
+        // A connector that needed a retry is worth checking — same CTA as the scan's Tool row.
+        actions: linkActions(issues.filter(i => i.kind === "tool_call" && turns.some(t => t.index === i.turnIndex))),
         followUps: !turn && slowest && slowest.latencyMs > 3000 ? [`Chuyện gì xảy ra ở Turn ${slowest.index}?`] : undefined,
       }],
     };
