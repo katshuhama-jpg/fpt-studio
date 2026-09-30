@@ -41,6 +41,9 @@ export interface AgentPublishState {
   /** Set only when audience is "group" — which collabGroupStore group this Agent is scoped to,
    * so the continuous overlap recheck knows which roster to re-evaluate. */
   groupId?: string;
+  /** Group roster that was approved for this live version — members added to the group later
+   * are not covered until a re-approval (collabGroupStore.recheckAgentGroupPublish). */
+  groupMemberIds?: string[];
   /** Set by collabGroupStore.recheckGroupPublishes when a live "group" Agent's roster overlap
    * has crossed the anti-bypass threshold since it was last approved — the Agent has been
    * pulled back to pending review (see that function) and this flags why, for the banner on
@@ -57,14 +60,15 @@ export interface ReleaseEntry {
   audience?: PublishAudience;
   scopeSummary?: string;
   groupId?: string;
+  groupMemberIds?: string[];
   channels: string[];
   via: "direct" | "approved" | "rollback";
   /** Who put it live this time (rollback / direct publish); approvals are attributed via the request. */
   byName?: string;
 }
 
-const STORE_KEY = "agent_publish_store_v4";
-const RELEASE_KEY = "agent_release_log_v1";
+const STORE_KEY = "agent_publish_store_v5";
+const RELEASE_KEY = "agent_release_log_v2";
 const releaseLog = loadMap<string, ReleaseEntry[]>(RELEASE_KEY);
 const persistReleases = () => saveMap(RELEASE_KEY, releaseLog);
 const DAY_MS = 86_400_000;
@@ -81,12 +85,12 @@ const SEED_RELEASES: Record<string, Omit<ReleaseEntry, "at">[]> = {
   ],
   "ext-seed-1": [{ version: "v1.0.2", audience: "org", scopeSummary: "Toàn công ty", channels: ["web", "api"], via: "approved" }],
   "ext-seed-2": [{ version: "v1.1.0", audience: "org", scopeSummary: "Phòng Nhân sự (36 người)", channels: ["web"], via: "approved" }],
-  cskh: [{ version: "v2.0.0", audience: "org", scopeSummary: "Phòng Chăm sóc khách hàng (22 người)", channels: ["web", "zalo"], via: "approved" }],
+  cskh: [{ version: "v2.0.0", audience: "group", scopeSummary: "Nhóm cộng tác \"Platform squad\" (4 người)", groupId: "grp-platform-squad", groupMemberIds: ["m-plat-1", "m-plat-2", "m-plat-3", "m-plat-4"], channels: ["web", "zalo"], via: "approved" }],
   "sales-quote": [{ version: "v1.0.0", audience: "org", scopeSummary: "Phòng Kinh doanh (48 người)", channels: [], via: "approved" }],
   "finance-check": [{ version: "v1.2.0", audience: "org", scopeSummary: "Phòng Tài chính (14 người)", channels: ["slack"], via: "approved" }],
   "legal-review": [{ version: "v1.1.0", audience: "org", scopeSummary: "Ban Pháp chế (14 người)", channels: ["slack"], via: "approved" }],
 };
-const SEEDED_KEY = "agent_publish_store_seeded_v4";
+const SEEDED_KEY = "agent_publish_store_seeded_v5";
 const store = loadMap<string, AgentPublishState>(STORE_KEY);
 const seededAgents = loadSet<string>(SEEDED_KEY);
 const persist = () => saveMap(STORE_KEY, store);
@@ -103,7 +107,9 @@ const AUTO_PUBLISHED_SEED: Record<string, AgentPublishState> = {
   // External Agents that are live (externalAgentStore seed) — same publish model as Agents.
   "ext-seed-1": { placement: "workspace", audience: "org", channels: ["web", "api"], version: "v1.0.2", scopeSummary: "Toàn công ty" },
   "ext-seed-2": { placement: "workspace", audience: "org", channels: ["web"], version: "v1.1.0", scopeSummary: "Phòng Nhân sự (36 người)" },
-  cskh: { placement: "workspace", audience: "org", channels: ["web", "zalo"], version: "v2.0.0", scopeSummary: "Phòng Chăm sóc khách hàng (22 người)" },
+  // Live for a Nhóm cộng tác approved with 4 members; the group has since grown to 6 (see
+  // collabGroupStore seed) → the recheck opens a re-approval request for the 2 new members.
+  cskh: { placement: "workspace", audience: "group", channels: ["web", "zalo"], version: "v2.0.0", scopeSummary: "Nhóm cộng tác \"Platform squad\" (4 người)", groupId: "grp-platform-squad", groupMemberIds: ["m-plat-1", "m-plat-2", "m-plat-3", "m-plat-4"] },
   "sales-quote": { placement: "workspace", audience: "org", channels: [], version: "v1.0.0", scopeSummary: "Phòng Kinh doanh (48 người)" },
   ops: { placement: "workspace", audience: "org", channels: ["web", "api"], version: "v1.3.0", scopeSummary: "FPT Smart Cloud (35 người)" },
   "finance-check": { placement: "workspace", audience: "org", channels: ["slack"], version: "v1.2.0", scopeSummary: "Phòng Tài chính (14 người)" },
@@ -135,23 +141,24 @@ export const agentPublishStore = {
     // added after some sessions had already persisted state without it.
     return {
       placement: s.placement, audience: s.audience, channels: s.channels ?? [], version: s.version ?? BASELINE_VERSION,
-      scopeSummary: s.scopeSummary, groupId: s.groupId, needsRegovernance: s.needsRegovernance,
+      scopeSummary: s.scopeSummary, groupId: s.groupId, groupMemberIds: s.groupMemberIds, needsRegovernance: s.needsRegovernance,
     };
   },
-  publish(agentId: string, placement: Placement, channels: string[], version: string, audience?: PublishAudience, extra?: { scopeSummary?: string; groupId?: string; via?: ReleaseEntry["via"]; byName?: string }) {
+  publish(agentId: string, placement: Placement, channels: string[], version: string, audience?: PublishAudience, extra?: { scopeSummary?: string; groupId?: string; groupMemberIds?: string[]; via?: ReleaseEntry["via"]; byName?: string }) {
     seedAgent(agentId);
     const cur = store.get(agentId);
     const next: AgentPublishState = {
       placement, audience: audience ?? cur?.audience, channels, version,
       scopeSummary: extra && "scopeSummary" in extra ? extra.scopeSummary : cur?.scopeSummary,
       groupId: extra && "groupId" in extra ? extra.groupId : cur?.groupId,
+      groupMemberIds: extra && "groupMemberIds" in extra ? extra.groupMemberIds : (audience === "group" || (!audience && cur?.audience === "group") ? cur?.groupMemberIds : undefined),
       needsRegovernance: undefined,
     };
     store.set(agentId, next);
     persist();
     if (placement !== null) {
       const log = (releaseLog.get(agentId) ?? []).filter(e => e.version !== version);
-      log.push({ version, at: Date.now(), audience: next.audience, scopeSummary: next.scopeSummary, groupId: next.groupId, channels: [...channels], via: extra?.via ?? "direct", byName: extra?.byName });
+      log.push({ version, at: Date.now(), audience: next.audience, scopeSummary: next.scopeSummary, groupId: next.groupId, groupMemberIds: next.groupMemberIds, channels: [...channels], via: extra?.via ?? "direct", byName: extra?.byName });
       releaseLog.set(agentId, log);
       persistReleases();
     }

@@ -256,6 +256,17 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Gửi lúc</p>
               <p className="text-sm font-medium text-foreground flex items-center gap-1.5"><Clock size={13} className="text-muted-foreground" /> <span className="tabular-nums">{formatDateTime(req.submittedAt)}</span></p>
             </div>
+            {req.reviewUnits?.length ? (
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Người duyệt</p>
+                <p className="text-sm font-medium text-foreground">
+                  {req.reviewMode === "single" ? `Admin ${req.reviewUnits[0].name}` : `Admin của ${req.reviewUnits.map(u => u.name).join(", ")}`}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {req.reviewMode === "single" ? "Đơn vị chiếm từ 80% thành viên nhóm." : "Không đơn vị nào chiếm từ 80% thành viên — 1 Admin duyệt là đủ."}
+                </p>
+              </div>
+            ) : null}
             {/* Agent: where it's published is the "Kênh triển khai" section in the main column.
                 Resource: the requested sharing scope stays here. */}
             {!isAgent && (

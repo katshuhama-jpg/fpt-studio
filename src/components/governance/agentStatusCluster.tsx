@@ -198,8 +198,12 @@ export function AgentStatusCluster({ publishState, isAutomation, pending, reject
             <Header
               icon={<Clock size={17} />}
               iconBox="bg-warning/10 text-warning"
-              title={<>Yêu cầu <span className="font-mono">{pending.version}</span> đang chờ duyệt</>}
-              sub={published
+              title={pending.addedMemberNames?.length
+                ? <>Duyệt thêm {pending.addedMemberNames.length} thành viên nhóm</>
+                : <>Yêu cầu <span className="font-mono">{pending.version}</span> đang chờ duyệt</>}
+              sub={pending.addedMemberNames?.length
+                ? <>Thành viên đã được duyệt vẫn dùng <span className="font-mono text-foreground">{publishState.version}</span>; {pending.addedMemberNames.join(", ")} chỉ dùng được sau khi duyệt.</>
+                : published
                 ? <>Người dùng vẫn dùng <span className="font-mono text-foreground">{publishState.version}</span> cho tới khi bản này được duyệt.</>
                 : "Agent sẽ tới người dùng khi Org/Unit Admin duyệt."}
             />
@@ -208,6 +212,9 @@ export function AgentStatusCluster({ publishState, isAutomation, pending, reject
               <Row icon={<Clock size={13} />} label="Gửi lúc"><span className="tabular-nums">{formatDateTime(pending.submittedAt)}</span></Row>
               <Row icon={<User size={13} />} label="Người gửi">{pending.requesterName}</Row>
               <Row icon={<Users size={13} />} label="Workspace">{scopeText(pending)}</Row>
+              {pending.reviewUnits?.length ? (
+                <Row icon={<User size={13} />} label="Người duyệt">{pending.reviewMode === "single" ? `Admin ${pending.reviewUnits[0].name}` : `Admin của ${pending.reviewUnits.map(u => u.name).join(", ")} (1 người là đủ)`}</Row>
+              ) : null}
               <Row icon={<Globe size={13} />} label="Kênh ngoài"><ChannelChips ids={pending.channels ?? []} /></Row>
             </dl>
             <div className="px-4 py-3 border-t border-border bg-surface-muted/40 flex items-center justify-between gap-2">

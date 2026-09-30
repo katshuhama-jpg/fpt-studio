@@ -238,6 +238,16 @@ export interface GovRequest {
    * fields to detect "builder kept editing after submitting" (see checkDrift), and against its
    * last-approved live snapshot for the "Xem thay đổi" panel. */
   mainSnapshotAtSubmit?: ResourceSnapshot;
+  /** Nhóm cộng tác publish: which group + the roster frozen at submit (what gets approved). */
+  groupId?: string;
+  groupMemberIds?: string[];
+  /** Who reviews a Nhóm cộng tác request: "single" = the smallest unit holding ≥80% of the group's
+   * members; "any" = every department that has members in the group — any one of their Admins
+   * deciding is enough. Shown on the request; permission still gates who can press the buttons. */
+  reviewUnits?: { id: string; name: string }[];
+  reviewMode?: "single" | "any";
+  /** Re-approval opened because members were added to an already-approved group. */
+  addedMemberNames?: string[];
   /** Agent connections frozen at submit (connector id + scope) — what the Admin reviews. */
   connectionsAtSubmit?: { connectorId: string; scope: "shared" | "personal" }[];
   reviewerId?: string;
@@ -251,9 +261,9 @@ export interface GovRequest {
   history: GovHistoryEntry[];
 }
 
-const REQ_KEY = "governance_request_store_v14";
+const REQ_KEY = "governance_request_store_v15";
 const LIVE_KEY = "governance_live_snapshots_v9";
-const SEEDED_KEY = "governance_store_seeded_v14";
+const SEEDED_KEY = "governance_store_seeded_v15";
 const DISMISSED_KEY = "governance_dismissed_rejections_v1";
 
 const store = loadMap<string, GovRequest>(REQ_KEY);
@@ -563,15 +573,16 @@ function seed() {
     {
       id: "req-2002", resourceType: "agent", resourceId: "legal-review", resourceName: "AI Agent Pháp chế — Điều khoản hợp đồng",
       resourceIcon: "⚖️", requesterId: "m-plat-1", requesterName: "Mai Hoang",
-      audience: "group", scopeSummary: "Nhóm cộng tác 'Pháp chế EOS' (12 người, trùng 85% với Ban Pháp chế)", channels: ["slack"],
-      workspaceTargets: [{ kind: "group", name: "Nhóm cộng tác 'Pháp chế EOS'", members: 12, detail: "Trùng 85% với Ban Pháp chế — vượt ngưỡng nên cần duyệt" }],
+      audience: "group", scopeSummary: "Nhóm cộng tác 'Pháp chế EOS' (12 người, 83% thuộc Ban Pháp chế)", channels: ["slack"],
+      workspaceTargets: [{ kind: "group", name: "Nhóm cộng tác 'Pháp chế EOS'", members: 12, detail: "10/12 thành viên (83%) thuộc Ban Pháp chế" }],
+      reviewUnits: [{ id: "corp-legal", name: "Ban Pháp chế" }], reviewMode: "single",
       connections: [conn("Microsoft Outlook", "outlook", "shared"), conn("Microsoft SharePoint", "sharepoint", "shared")],
       subAgents: [
         { name: "clause-matcher", description: "Đối chiếu điều khoản trong hợp đồng với thư viện điều khoản chuẩn.", model: "Claude 3.5", status: "active" },
         { name: "risk-scorer", description: "Chấm điểm rủi ro hợp đồng theo checklist pháp chế.", model: "Claude 3.5", status: "paused" },
       ],
       starterPrompts: ["Có hợp đồng nào đang chờ Legal duyệt không?", "Tóm tắt rủi ro của hợp đồng mới nhất"],
-      note: "Nhóm cộng tác đã vượt ngưỡng trùng lặp với Ban Pháp chế — gửi duyệt theo quy định.",
+      note: "Mở Agent cho nhóm Pháp chế EOS dùng thử trước khi mở rộng.",
       version: "v1.2.0", status: "pending", submittedAt: t - 5 * HOUR, updatedAt: t - 5 * HOUR,
       resourceRefs: [
         { type: "knowledge", resourceId: "kb-6", name: "Cổng tri thức pháp lý" },
@@ -963,6 +974,7 @@ export const governanceStore = {
     connections?: AgentConnectionSnap[]; subAgents?: SubAgentSnap[]; starterPrompts?: string[];
     model?: string; privateKnowledge?: { name: string; kind: "doc" | "url" | "faq" }[];
     kind?: GovRequestKind; channelsAdded?: string[]; externalSnap?: ExternalAgentSnap;
+    groupId?: string; groupMemberIds?: string[]; reviewUnits?: { id: string; name: string }[]; reviewMode?: "single" | "any"; addedMemberNames?: string[];
   }): GovRequest {
     seed();
     const kind = input.kind ?? "publish";
@@ -986,6 +998,7 @@ export const governanceStore = {
       connections: input.connections, subAgents: input.subAgents, starterPrompts: input.starterPrompts,
       model: input.model, privateKnowledge: input.privateKnowledge,
       kind, channelsAdded, externalSnap: input.externalSnap,
+      groupId: input.groupId, groupMemberIds: input.groupMemberIds, reviewUnits: input.reviewUnits, reviewMode: input.reviewMode, addedMemberNames: input.addedMemberNames,
       mainSnapshotAtSubmit: input.externalSnap ? undefined : buildSnapshot(input.resourceType, input.resourceId),
       connectionsAtSubmit: input.resourceType === "agent" && !input.externalSnap && !input.connections
         ? agentConnectorStore.list(input.resourceId).map(c => ({ connectorId: c.connectorId, scope: c.scope }))
@@ -1088,7 +1101,9 @@ export const governanceStore = {
     if (r.resourceType === "agent") {
       const current = agentPublishStore.get(r.resourceId);
       agentPublishStore.publish(r.resourceId, "workspace", current.channels, r.version ?? current.version, r.audience === "group" ? "group" : r.audience === "community" ? "community" : "org",
-        { scopeSummary: r.scopeSummary ?? (r.audience === "community" ? "Cộng đồng FPT AI Agent" : current.scopeSummary), groupId: current.groupId, via: "approved" });
+        { scopeSummary: r.scopeSummary ?? (r.audience === "community" ? "Cộng đồng FPT AI Agent" : current.scopeSummary),
+          groupId: r.groupId ?? (r.audience === "group" ? current.groupId : undefined),
+          groupMemberIds: r.groupMemberIds ?? (r.audience === "group" ? current.groupMemberIds : undefined), via: "approved" });
       agentPublishStore.clearRegovernanceFlag(r.resourceId);
       if (isExternalAgentId(r.resourceId)) externalAgentStore.applyGovernance(r.resourceId, { status: "published", version: r.version ?? current.version, rejection: null, channels: current.channels }, `Đã được duyệt ${r.version ?? ""} bởi ${reviewerName}`.trim(), note);
     }
@@ -1154,7 +1169,7 @@ export const governanceStore = {
       store.set(id, r);
       persist();
       agentPublishStore.publish(r.resourceId, "workspace", fallback.channels, fallback.version, fallback.audience,
-        { scopeSummary: fallback.scopeSummary, groupId: fallback.groupId, via: "rollback", byName: reviewerName });
+        { scopeSummary: fallback.scopeSummary, groupId: fallback.groupId, groupMemberIds: fallback.groupMemberIds, via: "rollback", byName: reviewerName });
       if (isExternalAgentId(r.resourceId)) externalAgentStore.applyGovernance(r.resourceId, { status: "published", version: fallback.version, channels: fallback.channels }, `${reviewerName} thu hồi ${r.version ?? ""}, quay về ${fallback.version}`.trim(), reason);
     } else {
       liveSnapshots.delete(snapshotKey(r.resourceType, r.resourceId));

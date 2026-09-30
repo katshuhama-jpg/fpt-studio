@@ -85,7 +85,7 @@ import { PendingRequestPill } from "@/components/governance/agentRequestPill";
 import { agentModelStore, modelName } from "@/components/configure/agentModelStore";
 import type { WorkspaceTarget } from "@/components/governance/governanceStore";
 import { formatDateTime as formatGovDateTime } from "@/components/governance/governanceUi";
-import { collabGroupStore, overlapForGroup, recheckAgentGroupPublish, GROUP_APPROVAL_THRESHOLD, type CollabGroup } from "@/components/configure/collabGroupStore";
+import { collabGroupStore, groupReviewers, recheckAgentGroupPublish, QUICK_SHARE_MAX, type CollabGroup, type GroupReviewers } from "@/components/configure/collabGroupStore";
 import { resourceBlockStore } from "@/components/governance/resourceBlockStore";
 import { KnowledgeStatusPill } from "@/components/knowledge/knowledgeStatus";
 import AttachConsoleKnowledgeBaseModal from "@/components/knowledge/AttachConsoleKnowledgeBaseModal";
@@ -4294,7 +4294,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
   const toggleQuickShareMember = (id: string) => setQuickShareSelection(prev => {
     const next = new Set(prev);
     if (next.has(id)) next.delete(id);
-    else if (next.size < 10) next.add(id);
+    else if (next.size < QUICK_SHARE_MAX) next.add(id);
     return next;
   });
 
@@ -4314,8 +4314,8 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
     : newGroupMembers.size > 0
       ? { id: "draft", name: newGroupName.trim() || "(nhóm mới)", ownerId: KB_CURRENT_USER.id, ownerName: KB_CURRENT_USER.name, memberIds: [...newGroupMembers], createdAt: Date.now() }
       : undefined;
-  const groupOverlap = groupPreview ? overlapForGroup(groupPreview, orgTree) : undefined;
-  const groupWillNeedReview = !!groupOverlap && groupOverlap.pct >= GROUP_APPROVAL_THRESHOLD;
+  // Nhóm cộng tác always goes through review; this only decides WHO reviews (collabGroupStore).
+  const groupReview = groupPreview ? groupReviewers(groupPreview.memberIds, orgTree) : undefined;
   const groupSelectionValid = groupMode === "existing" ? !!selectedGroupId : (newGroupName.trim().length > 0 && newGroupMembers.size > 0);
 
   const draftNoteFromChanges = () => {
@@ -4336,7 +4336,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
   // whether each resource is shared for reuse by other builders is that resource's own,
   // independent request (see governanceStore.ts's module doc comment).
   const effectiveAudience: PublishAudience = publishToOpen ? audience : (current.audience ?? "me");
-  const requiresReview = effectiveAudience === "org" || effectiveAudience === "community" || (effectiveAudience === "group" && groupWillNeedReview);
+  const requiresReview = effectiveAudience === "org" || effectiveAudience === "community" || effectiveAudience === "group";
 
   const blockedResourceItems = () => {
     const refs = listAgentResourceRefs(agentId);
@@ -4414,28 +4414,22 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
       const group = groupMode === "existing"
         ? existingGroups.find(g => g.id === selectedGroupId)!
         : collabGroupStore.create({ name: newGroupName.trim(), ownerId: KB_CURRENT_USER.id, ownerName: KB_CURRENT_USER.name, memberIds: [...newGroupMembers] });
-      const overlap = overlapForGroup(group, orgTree);
-      const overlapPctLabel = Math.round(overlap.pct * 100);
-      const summary = `Nhóm cộng tác "${group.name}" (${group.memberIds.length} người${overlap.unit ? `, trùng ${overlapPctLabel}% với ${overlap.unit.name}` : ""})`;
-
-      if (overlap.pct >= GROUP_APPROVAL_THRESHOLD) {
-        governanceStore.submit({
-          resourceType: "agent", resourceId: agentId, resourceName: agentName, resourceIcon: (external?.emoji ?? agentEmoji(agentId)),
-          requesterId: KB_CURRENT_USER.id, requesterName: KB_CURRENT_USER.name,
-          audience: "group", note: note.trim(), version: versionName,
-          resourceRefs: listAgentResourceRefs(agentId),
-          scopeSummary: summary,
-          ...requestSnapshot(),
-          workspaceTargets: [{ kind: "group", name: group.name, members: group.memberIds.length, detail: overlap.unit ? `Trùng ${overlapPctLabel}% với ${overlap.unit.name} — vượt ngưỡng nên cần duyệt` : undefined }],
-        });
-        toast.success(`Nhóm này trùng ${overlapPctLabel}% với ${overlap.unit?.name ?? "một phòng ban"} — đã gửi yêu cầu duyệt như khi publish cho Công ty / phòng ban.`);
-      } else {
-        withdrawPendingForDirect();
-
-        agentPublishStore.publish(agentId, "workspace", current.channels, versionName, "group", { scopeSummary: summary, groupId: group.id });
-        syncExternalLive();
-        toast.success(`Đã publish ${versionName} cho ${summary}.`);
-      }
+      const reviewers = groupReviewers(group.memberIds, orgTree);
+      const summary = `Nhóm cộng tác "${group.name}" (${group.memberIds.length} người)`;
+      governanceStore.submit({
+        resourceType: "agent", resourceId: agentId, resourceName: agentName, resourceIcon: (external?.emoji ?? agentEmoji(agentId)),
+        requesterId: KB_CURRENT_USER.id, requesterName: KB_CURRENT_USER.name,
+        audience: "group", note: note.trim(), version: versionName,
+        resourceRefs: listAgentResourceRefs(agentId),
+        scopeSummary: summary,
+        ...requestSnapshot(),
+        workspaceTargets: [{ kind: "group", name: group.name, members: group.memberIds.length }],
+        groupId: group.id, groupMemberIds: [...group.memberIds],
+        reviewUnits: reviewers.units, reviewMode: reviewers.mode,
+      });
+      toast.success(reviewers.mode === "single"
+        ? `Đã gửi yêu cầu duyệt ${versionName} tới Admin ${reviewers.units[0].name}.`
+        : `Đã gửi yêu cầu duyệt ${versionName} tới Admin của ${reviewers.units.length} phòng ban — chỉ cần 1 người duyệt.`);
       onPublished?.();
       onClose();
       return;
@@ -4682,7 +4676,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
                     <AudienceRadioRow
                       icon={UserMultipleIcon}
                       title="Chia sẻ nhanh"
-                      description="Chọn tối đa 10 người cụ thể, dành cho chia sẻ nhanh và tạm thời."
+                      description={`Chọn tối đa ${QUICK_SHARE_MAX} người cụ thể, dành cho chia sẻ nhanh và tạm thời.`}
                       review="instant"
                       selected={audience === "quick_share"}
                       liveNow={current.placement !== null && currentAudience === "quick_share"}
@@ -4691,15 +4685,15 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
                     >
                       {audience === "quick_share" && (
                         <div className="mt-2 pl-11">
-                          <MemberMultiSelect tree={orgTree} selection={quickShareSelection} onToggle={toggleQuickShareMember} cap={10} />
+                          <MemberMultiSelect tree={orgTree} selection={quickShareSelection} onToggle={toggleQuickShareMember} cap={QUICK_SHARE_MAX} />
                         </div>
                       )}
                     </AudienceRadioRow>
                     <AudienceRadioRow
                       icon={UserGroupIcon}
                       title="Nhóm cộng tác"
-                      description="Nhóm có tên và danh sách thành viên, dùng lại được. Cần duyệt nếu nhóm trùng từ 80% trở lên với một phòng ban."
-                      review="maybe"
+                      description="Nhóm có tên và danh sách thành viên, dùng lại được. Luôn cần Admin phòng ban duyệt."
+                      review="required"
                       selected={audience === "group"}
                       liveNow={current.placement !== null && currentAudience === "group"}
                       liveLabel="Đang live"
@@ -4755,9 +4749,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
                             </>
                           )}
 
-                          {groupOverlap && groupPreview && (
-                            <GroupOverlapNotice overlap={groupOverlap} threshold={GROUP_APPROVAL_THRESHOLD} />
-                          )}
+                          {groupReview && groupPreview && <GroupReviewersNotice reviewers={groupReview} />}
                         </div>
                       )}
                     </AudienceRadioRow>
@@ -4885,21 +4877,14 @@ function MemberMultiSelect({ tree, selection, onToggle, cap }: {
   );
 }
 
-/** Live "would this need Org/Unit Admin review" preview while picking/building a Nhóm cộng tác —
- * see collabGroupStore.overlapForGroup. Recomputed on every keystroke/checkbox toggle, same
- * function the continuous background re-check uses, so what the Builder sees here is exactly
- * the rule that gets enforced later too. */
-function GroupOverlapNotice({ overlap, threshold }: { overlap: ReturnType<typeof overlapForGroup>; threshold: number }) {
-  const pctLabel = Math.round(overlap.pct * 100);
-  const needsApproval = overlap.pct >= threshold;
-  if (!overlap.unit || overlap.pct === 0) {
-    return <p className="text-xs text-muted-foreground">Nhóm này chưa trùng đáng kể với phòng ban nào — publish ngay, không cần duyệt.</p>;
-  }
+/** Who will review this Nhóm cộng tác publish — see collabGroupStore.groupReviewers. */
+function GroupReviewersNotice({ reviewers }: { reviewers: GroupReviewers }) {
   return (
-    <p className={`text-xs leading-relaxed ${needsApproval ? "text-warning font-medium" : "text-muted-foreground"}`}>
-      Trùng {pctLabel}% với {overlap.unit.name}{needsApproval
-        ? ` — vượt ngưỡng ${Math.round(threshold * 100)}%, sẽ cần Org/Unit Admin duyệt như Company / department (và tiếp tục được kiểm tra lại sau này).`
-        : ` — dưới ngưỡng ${Math.round(threshold * 100)}%, publish ngay không cần duyệt.`}
+    <p className="text-xs leading-relaxed text-muted-foreground">
+      <span className="font-medium text-foreground">Người duyệt: </span>
+      {reviewers.mode === "single"
+        ? <>Admin <b className="text-foreground">{reviewers.units[0]?.name}</b> — {Math.round((reviewers.share ?? 0) * 100)}% thành viên nhóm thuộc đơn vị này.</>
+        : <>Không đơn vị nào chiếm từ 80% thành viên — Admin của <b className="text-foreground">{reviewers.units.map(u => u.name).join(", ")}</b> đều duyệt được, chỉ cần 1 người duyệt.</>}
     </p>
   );
 }

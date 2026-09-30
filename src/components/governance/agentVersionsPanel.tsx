@@ -156,7 +156,7 @@ export function AgentVersionsPanel({ agentId, agentName, onPublish, onChanged }:
     // once approved, so restoring withdraws it first (the dialog warned about it).
     const pendingReq = governanceStore.getOpenRequestForResource("agent", agentId);
     if (pendingReq) governanceStore.withdraw(pendingReq.id, CURRENT_USER.id, CURRENT_USER.name, `Tự rút vì ${CURRENT_USER.name} khôi phục ${rel.version}.`);
-    agentPublishStore.publish(agentId, "workspace", rel.channels, rel.version, rel.audience, { scopeSummary: rel.scopeSummary, groupId: rel.groupId, via: "rollback", byName: CURRENT_USER.name });
+    agentPublishStore.publish(agentId, "workspace", rel.channels, rel.version, rel.audience, { scopeSummary: rel.scopeSummary, groupId: rel.groupId, groupMemberIds: rel.groupMemberIds, via: "rollback", byName: CURRENT_USER.name });
     auditLogStore.log({
       actorId: CURRENT_USER.id, actorName: CURRENT_USER.name, action: "rolled_back",
       resourceType: "agent", resourceId: agentId, resourceName: agentName ?? getAgent(agentId).name,
