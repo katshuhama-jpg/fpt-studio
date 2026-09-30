@@ -107,6 +107,17 @@ export function isPersonalSpace(tenantId: string): boolean {
   return (t ?? TENANTS[0]).plan === "Free";
 }
 
+/**
+ * Max members (owner included) a Personal Space can hold before it must upgrade to an
+ * enterprise plan — decided in BRAINSTORM_Governance_OrgTenantPublishScope.md §8 (30/09/2026):
+ * a Personal Space is meant for one person or a small group, never a stand-in for a whole
+ * company/department, so it stays capped instead of silently growing into one. Enforcement is
+ * soft warning as this is approached, hard block once reached (see orgStore.tsx's `addMember` /
+ * `importMembers`). Existing Personal Spaces already over this cap when the rule shipped are
+ * grandfathered — left as-is, only NEW additions are blocked.
+ */
+export const PERSONAL_SPACE_MEMBER_CAP = 5;
+
 /** Whether `tenantId` is one of FPT's own long-standing reference Spaces — seeded up front with
  * a large, realistic Organization tree — rather than a customer Space provisioned through the
  * (Super Admin-only) Tenant + Org creation flow. Seed Spaces' Organization profile and structure

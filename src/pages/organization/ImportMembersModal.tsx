@@ -107,7 +107,7 @@ function UnitStatusChip({ willCreate }: { willCreate: boolean }) {
 }
 
 export default function ImportMembersModal({
-  existingMembers, tree, defaultUnitId, findOtherOrgMemberships, onClose, onConfirm,
+  existingMembers, tree, defaultUnitId, findOtherOrgMemberships, onClose, onConfirm, personalSpaceRemainingSlots,
 }: {
   existingMembers: OrgMember[];
   /** Org tree the "Đơn vị" column is resolved against. */
@@ -119,6 +119,13 @@ export default function ImportMembersModal({
   onClose: () => void;
   /** Every imported member gets the default "viewer" role — promote them afterward from Members/Structure. */
   onConfirm: (rows: { name: string; email: string; unitPath: string[] }[]) => void;
+  /**
+   * How many more members this Personal Space can still take before
+   * `PERSONAL_SPACE_MEMBER_CAP` (see spaceStore.ts) — `undefined` when the active Space isn't a
+   * Personal Space (no cap applies). Shown here as an early warning before Confirm, since
+   * `importMembers` itself will silently cap the rows it actually imports.
+   */
+  personalSpaceRemainingSlots?: number;
 }) {
   const [step, setStep] = useState<"upload" | "preview" | "done">("upload");
   const [dragActive, setDragActive] = useState(false);
@@ -350,6 +357,17 @@ export default function ImportMembersModal({
                 <span className="text-foreground font-medium">{validRows.length}</span> sẽ được nhập
                 {skippedRows.length > 0 && <> · <span className="text-foreground font-medium">{skippedRows.length}</span> sẽ bị bỏ qua</>}
               </div>
+
+              {personalSpaceRemainingSlots !== undefined && validRows.length > personalSpaceRemainingSlots && (
+                <div className="flex items-start gap-2.5 rounded-xl border border-warning/25 bg-[hsl(var(--warning-soft))] px-3.5 py-3">
+                  <AlertTriangle size={15} className="text-warning shrink-0 mt-0.5" />
+                  <p className="text-xs text-warning leading-relaxed">
+                    Personal Space chỉ còn <span className="font-medium">{Math.max(0, personalSpaceRemainingSlots)}</span> chỗ trống. Chỉ{" "}
+                    <span className="font-medium">{Math.max(0, personalSpaceRemainingSlots)}/{validRows.length}</span> dòng hợp lệ sẽ được nhập —
+                    phần còn lại sẽ bị bỏ qua. Nâng cấp lên gói doanh nghiệp để nhập toàn bộ.
+                  </p>
+                </div>
+              )}
 
               {unitsToCreate.length > 0 && (
                 <div className="flex items-start gap-2.5 rounded-xl border border-primary/20 bg-primary-soft px-3.5 py-3">

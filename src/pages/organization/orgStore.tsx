@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { getUser } from "@/lib/onboarding";
 import { OrgUnit, OrgMember, findUnit, collectMembers, findMemberUnit, findPath, orgTree as SEED_TREE } from "./orgData";
-import { getCurrentTenantId, subscribeTenantChange, markOrgConfigured, isOrgConfigured as isTenantOrgConfigured, isSeedTenant, getAllTenants } from "@/lib/spaceStore";
+import { getCurrentTenantId, subscribeTenantChange, markOrgConfigured, isOrgConfigured as isTenantOrgConfigured, isSeedTenant, getAllTenants, isPersonalSpace, PERSONAL_SPACE_MEMBER_CAP } from "@/lib/spaceStore";
 
 /** A brand-new Space starts with an empty Organization — a single root unit named after the
  * Space, no members, no sub-units — until its assigned Org Admin runs the Organization setup
@@ -145,7 +145,13 @@ type OrgContextValue = {
   createUnit: (parentId: string, name: string) => void;
   renameUnit: (unitId: string, name: string) => void;
   deleteUnit: (unitId: string) => void;
-  addMember: (unitId: string, name: string, email: string, roleId?: string) => void;
+  /**
+   * Adds one member directly into `unitId`. A Personal Space stops accepting new members once
+   * it holds `PERSONAL_SPACE_MEMBER_CAP` — returns `{ ok: false, reason: "personal_space_cap" }`
+   * instead of adding anyone past that (existing over-cap Personal Spaces are grandfathered:
+   * this only blocks going higher from here, see spaceStore.ts).
+   */
+  addMember: (unitId: string, name: string, email: string, roleId?: string) => { ok: boolean; reason?: "personal_space_cap" };
   updateMember: (memberId: string, name: string, email: string, roleId?: string) => void;
   assignRole: (memberId: string, roleId: string | undefined) => void;
   removeMember: (memberId: string) => void;
@@ -180,8 +186,12 @@ type OrgContextValue = {
    * entries sharing a not-yet-created path land in one new unit rather than each creating their
    * own copy. Everyone imported gets the "viewer" role — promote them afterward from
    * Members/Structure like any other member.
+   *
+   * In a Personal Space, only imports up to `PERSONAL_SPACE_MEMBER_CAP` total — any entries
+   * past that are skipped (not partially created), and the returned `skipped` count tells the
+   * caller how many to report back to the person importing.
    */
-  importMembers: (anchorUnitId: string, entries: { name: string; email: string; unitPath: string[] }[]) => void;
+  importMembers: (anchorUnitId: string, entries: { name: string; email: string; unitPath: string[] }[]) => { imported: number; skipped: number };
   /**
    * Every membership record for `email` (case-insensitive) across EVERY Space/Org this prototype
    * knows about, current org included — one member can now sit in several units within the same
@@ -275,9 +285,12 @@ export function OrgProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const addMember = (unitId: string, name: string, email: string, roleId?: string) => {
+  const addMember = (unitId: string, name: string, email: string, roleId?: string): { ok: boolean; reason?: "personal_space_cap" } => {
     const trimmedName = name.trim();
-    if (!trimmedName) return;
+    if (!trimmedName) return { ok: false };
+    if (isPersonalSpace(tenantId) && collectMembers(tree).length >= PERSONAL_SPACE_MEMBER_CAP) {
+      return { ok: false, reason: "personal_space_cap" };
+    }
     const trimmedEmail = email.trim();
     const invitedBy = { name: "Tran Nam", email: getUser()?.email || "tran.nam@fpt.com" };
     setTree(prev => {
@@ -299,6 +312,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
       }));
       return updated ?? prev;
     });
+    return { ok: true };
   };
 
   const updateMember = (memberId: string, name: string, email: string, roleId?: string) => {
@@ -385,11 +399,17 @@ export function OrgProvider({ children }: { children: ReactNode }) {
     markOrgConfigured(activeTenantId);
   };
 
-  const importMembers = (anchorUnitId: string, entries: { name: string; email: string; unitPath: string[] }[]) => {
+  const importMembers = (anchorUnitId: string, entries: { name: string; email: string; unitPath: string[] }[]): { imported: number; skipped: number } => {
     const invitedBy = { name: "Tran Nam", email: getUser()?.email || "tran.nam@fpt.com" };
+    // Personal Space: only take as many entries as still fit under the cap — the rest are
+    // skipped outright rather than partially imported, so the caller can report one clear count.
+    const capApplies = isPersonalSpace(tenantId);
+    const remainingSlots = capApplies ? Math.max(0, PERSONAL_SPACE_MEMBER_CAP - collectMembers(tree).length) : entries.length;
+    const entriesToImport = capApplies ? entries.slice(0, remainingSlots) : entries;
+    const skipped = entries.length - entriesToImport.length;
     setTree(prev => {
       let working = prev;
-      for (const entry of entries) {
+      for (const entry of entriesToImport) {
         const trimmedName = entry.name.trim();
         if (!trimmedName) continue;
         let targetId = anchorUnitId;
@@ -420,6 +440,7 @@ export function OrgProvider({ children }: { children: ReactNode }) {
       }
       return working;
     });
+    return { imported: entriesToImport.length, skipped };
   };
 
   const findMembershipsByEmail = (email: string): OrgMembershipRef[] => {

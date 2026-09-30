@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
-import { Building2, ChevronRight, ChevronLeft, ChevronDown, Search, Users, Trash2, Plus, Pencil, Upload, X, FolderInput, UserPlus, Crown, Check, User } from "lucide-react";
+import { Building2, ChevronRight, ChevronLeft, ChevronDown, Search, Users, Trash2, Plus, Pencil, Upload, X, FolderInput, UserPlus, Crown, Check, User, AlertTriangle } from "lucide-react";
 import {
   OrgUnit, OrgMember,
   countAll, countDirect, findUnit, findPath, unitMatches, collectMembers, collectUnitsWithDepth,
@@ -10,7 +10,7 @@ import { useOrg, deriveNameFromEmail, OrgMembershipRef } from "./orgStore";
 import { useRoles, RoleDef } from "./rolesStore";
 import { MoveMemberModal } from "./MoveMemberModal";
 import ImportMembersModal from "./ImportMembersModal";
-import { getCurrentTenantId, isSeedTenant } from "@/lib/spaceStore";
+import { getCurrentTenantId, isSeedTenant, isPersonalSpace, PERSONAL_SPACE_MEMBER_CAP } from "@/lib/spaceStore";
 
 function TreeRow({
   unit, depth, selectedId, expanded, onToggle, onSelect, query,
@@ -504,6 +504,15 @@ export default function OrgStructureExplorer() {
   const [deletingUnit, setDeletingUnit] = useState(false);
 
   const allOrgMembers = useMemo(() => collectMembers(tree), [tree]);
+  // Personal Space member cap (BRAINSTORM_Governance_OrgTenantPublishScope.md §8): applies to
+  // the whole Space, not per-unit, so it's derived from allOrgMembers regardless of which unit
+  // is selected below. Soft warning with one slot left, hard block (disabled buttons) once the
+  // cap is reached — existing over-cap Personal Spaces are grandfathered, this only stops NEW
+  // additions from here on.
+  const personalSpaceCap = isPersonalSpace(getCurrentTenantId()) ? PERSONAL_SPACE_MEMBER_CAP : null;
+  const memberCount = allOrgMembers.length;
+  const atMemberCap = personalSpaceCap !== null && memberCount >= personalSpaceCap;
+  const nearMemberCap = personalSpaceCap !== null && !atMemberCap && memberCount >= personalSpaceCap - 1;
   const path = useMemo(() => findPath(tree, selectedId) ?? [tree], [tree, selectedId]);
   const selected = path[path.length - 1];
   const deleteTargetMember = deleteConfirmMemberId ? selected.members.find(m => m.id === deleteConfirmMemberId) ?? null : null;
@@ -573,7 +582,12 @@ export default function OrgStructureExplorer() {
           roles={roles}
           submitLabel="Invite member"
           onClose={() => setShowAddMember(false)}
-          onSave={(name, email, roleId, unitId) => addMember(unitId, name, email, roleId)}
+          onSave={(name, email, roleId, unitId) => {
+            const result = addMember(unitId, name, email, roleId);
+            if (!result.ok && result.reason === "personal_space_cap") {
+              toast.error(`Personal Space đã đạt giới hạn ${PERSONAL_SPACE_MEMBER_CAP} thành viên. Nâng cấp lên gói doanh nghiệp để mời thêm người.`);
+            }
+          }}
           tree={tree}
           defaultUnitId={selected.id}
           findOtherOrgMemberships={findOtherOrgMemberships}
@@ -585,10 +599,18 @@ export default function OrgStructureExplorer() {
           tree={tree}
           defaultUnitId={selected.id}
           findOtherOrgMemberships={findOtherOrgMemberships}
+          personalSpaceRemainingSlots={personalSpaceCap !== null ? Math.max(0, personalSpaceCap - memberCount) : undefined}
           onClose={() => setShowImportUnit(false)}
           onConfirm={validRows => {
-            importMembers(selected.id, validRows);
-            toast.success(`Imported ${validRows.length} member${validRows.length === 1 ? "" : "s"}.`);
+            const result = importMembers(selected.id, validRows);
+            if (result.imported > 0) {
+              toast.success(`Imported ${result.imported} member${result.imported === 1 ? "" : "s"}.`);
+            }
+            if (result.skipped > 0) {
+              toast.error(
+                `${result.skipped} thành viên chưa được import — Personal Space đã đạt giới hạn ${PERSONAL_SPACE_MEMBER_CAP} thành viên. Nâng cấp lên gói doanh nghiệp để thêm.`
+              );
+            }
           }}
         />
       )}
@@ -742,10 +764,22 @@ export default function OrgStructureExplorer() {
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <button type="button" onClick={() => setShowImportUnit(true)} className="btn-secondary h-8 px-3 text-xs">
+            <button
+              type="button"
+              onClick={() => setShowImportUnit(true)}
+              disabled={atMemberCap}
+              title={atMemberCap ? `Personal Space đã đạt giới hạn ${PERSONAL_SPACE_MEMBER_CAP} thành viên` : undefined}
+              className="btn-secondary h-8 px-3 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               <Upload size={13} /> Import CSV
             </button>
-            <button type="button" onClick={() => setShowAddMember(true)} className="btn-primary h-8 px-3 text-xs">
+            <button
+              type="button"
+              onClick={() => setShowAddMember(true)}
+              disabled={atMemberCap}
+              title={atMemberCap ? `Personal Space đã đạt giới hạn ${PERSONAL_SPACE_MEMBER_CAP} thành viên` : undefined}
+              className="btn-primary h-8 px-3 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               <Plus size={13} /> Invite member
             </button>
             <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-full bg-surface-muted border border-border text-muted-foreground shrink-0">
@@ -753,6 +787,21 @@ export default function OrgStructureExplorer() {
             </span>
           </div>
         </div>
+
+        {personalSpaceCap !== null && (nearMemberCap || atMemberCap) && (
+          <div
+            className={`flex items-start gap-2 mb-4 p-3 rounded-lg border ${
+              atMemberCap ? "bg-[hsl(var(--destructive-soft))] border-destructive/25" : "bg-[hsl(var(--warning-soft))] border-warning/25"
+            }`}
+          >
+            <AlertTriangle size={14} className={`shrink-0 mt-0.5 ${atMemberCap ? "text-destructive" : "text-warning"}`} />
+            <p className={`text-xs ${atMemberCap ? "text-destructive" : "text-warning"}`}>
+              {atMemberCap
+                ? `Personal Space đã đạt giới hạn ${PERSONAL_SPACE_MEMBER_CAP} thành viên (${memberCount}/${PERSONAL_SPACE_MEMBER_CAP}). Nâng cấp lên gói doanh nghiệp để mời thêm người.`
+                : `Personal Space sắp đạt giới hạn ${PERSONAL_SPACE_MEMBER_CAP} thành viên (${memberCount}/${PERSONAL_SPACE_MEMBER_CAP}). Cân nhắc nâng cấp lên gói doanh nghiệp nếu cần mời thêm người.`}
+            </p>
+          </div>
+        )}
 
         {/* Unit Admins — who can currently approve publishes into this unit, direct + inherited */}
         <div className="mb-8">
