@@ -39,13 +39,13 @@ function InstructionsFix({
 }) {
   if (applied) {
     return (
-      <div className="flex items-center gap-1.5 text-xs text-[hsl(var(--success-strong))] px-3 pb-2.5 pt-0.5">
+      <div className="flex items-center gap-1.5 text-xs text-[hsl(var(--success-strong))]">
         <CheckCircle2 size={12} /> Đã áp dụng vào Instructions
       </div>
     );
   }
   return (
-    <div className="px-3 pb-2.5 pt-0.5">
+    <div>
       <div className="rounded-lg border border-primary/30 bg-primary-soft/40 p-2.5">
         <div className="flex items-center gap-1.5 mb-2">
           <Sparkles size={11} className="text-primary" />
@@ -81,11 +81,12 @@ function IssueRow({
   const navigate = useNavigate();
   const fix = issue.fix;
   return (
-    <div className="border-t border-border first:border-t-0">
+    <div className="border-t border-border first:border-t-0 pl-7 pr-3 py-2 space-y-2">
       <button
         type="button"
         onClick={() => onScrollToTurn(issue.turnIndex)}
-        className="w-full flex items-start gap-2 pl-9 pr-3 py-2 text-left hover:bg-surface-muted transition-base"
+        title={`Đi tới Turn ${issue.turnIndex}`}
+        className="w-full flex items-start gap-2 rounded-md px-2 py-1.5 text-left hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 transition-base"
       >
         <span className="text-xs font-mono text-muted-foreground shrink-0 mt-px">Turn {issue.turnIndex}</span>
         <span className="text-xs text-foreground flex-1 min-w-0">
@@ -95,11 +96,13 @@ function IssueRow({
       </button>
 
       {fix.kind === "instructions_diff" && (
-        <InstructionsFix fix={fix} applied={applied} onApply={onApply} onDismiss={onDismiss} />
+        <div className="pl-2">
+          <InstructionsFix fix={fix} applied={applied} onApply={onApply} onDismiss={onDismiss} />
+        </div>
       )}
 
       {fix.kind === "deeplink" && (
-        <div className="pl-9 pr-3 pb-2.5 -mt-0.5">
+        <div className="pl-2">
           <button
             type="button"
             onClick={() => navigate(`/agents/${agentId}?tab=build&section=${fix.section}`)}
