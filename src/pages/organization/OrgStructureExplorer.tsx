@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
-import { Building2, ChevronRight, ChevronLeft, ChevronDown, Search, Users, Trash2, Plus, Pencil, Upload, X, FolderInput, UserPlus, Crown, Check, User } from "lucide-react";
+import { Building2, ChevronRight, ChevronLeft, ChevronDown, Search, Users, Trash2, Plus, Pencil, Upload, X, FolderInput, UserPlus, Crown, Check, User, ShieldCheck, CornerDownRight } from "lucide-react";
 import {
   OrgUnit, OrgMember,
   countAll, countDirect, findUnit, findPath, unitMatches, collectMembers, collectUnitsWithDepth,
@@ -760,29 +760,45 @@ export default function OrgStructureExplorer() {
               Chưa có Unit Admin nào — gán ở trên.
             </div>
           ) : (
-            <div className="flex flex-wrap gap-2">
+            <div className="border border-border rounded-xl divide-y divide-border overflow-hidden">
               {effectiveAdmins.map(({ member, sourceUnit }) => (
                 <div
                   key={`${sourceUnit.id}-${member.id}`}
-                  className="inline-flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full bg-[hsl(var(--warning-soft))] ring-1 ring-warning/20"
+                  className="flex items-center gap-3 px-3 py-2.5 hover:bg-surface-muted/60 transition-base"
                 >
-                  <div className="w-6 h-6 rounded-full bg-white ring-1 ring-warning/25 text-warning flex items-center justify-center text-[9px] font-semibold shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-accent-soft text-accent flex items-center justify-center text-[11px] font-semibold shrink-0">
                     {member.initials}
                   </div>
-                  <div className="min-w-0">
-                    <div className="text-xs font-medium text-foreground truncate leading-tight">{member.name}</div>
-                    {sourceUnit.id !== selected.id && (
-                      <div className="text-[10px] text-muted-foreground truncate leading-tight">Qua {sourceUnit.name}</div>
-                    )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline gap-1.5 min-w-0">
+                      <span className="text-sm font-medium truncate">{member.name}</span>
+                      {member.role && <span className="text-xs text-muted-foreground truncate">{member.role}</span>}
+                    </div>
+                    {member.email && <div className="text-xs text-muted-foreground truncate">{member.email}</div>}
                   </div>
+                  {sourceUnit.id === selected.id ? (
+                    <span
+                      className="inline-flex items-center gap-1 text-xs text-muted-foreground shrink-0"
+                      title={`Được gán Unit Admin trực tiếp tại "${selected.name}".`}
+                    >
+                      <ShieldCheck size={13} /> Trực tiếp
+                    </span>
+                  ) : (
+                    <span
+                      className="inline-flex items-center gap-1 text-xs text-muted-foreground shrink-0"
+                      title={`Được gán Unit Admin tại "${sourceUnit.name}" — quyền duyệt publish được kế thừa xuống "${selected.name}".`}
+                    >
+                      <CornerDownRight size={13} /> Kế thừa từ {sourceUnit.name}
+                    </span>
+                  )}
                   <button
                     type="button"
                     onClick={() => setRemoveAdminTarget({ member, sourceUnit })}
                     aria-label={`Gỡ ${member.name} khỏi Unit Admin`}
                     title="Gỡ khỏi Unit Admin"
-                    className="w-5 h-5 rounded-full flex items-center justify-center text-warning/70 hover:text-destructive hover:bg-white/70 transition-base shrink-0"
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-surface transition-base shrink-0"
                   >
-                    <X size={12} />
+                    <X size={14} />
                   </button>
                 </div>
               ))}
