@@ -166,7 +166,7 @@ export default function UploadDocumentsModal({ open, kbId, agentId, initialFolde
             setTimeout(() => knowledgeStore.updateStatus(agentId, id, "processing"), 400);
             setTimeout(() => knowledgeStore.updateStatus(agentId, id, "done", { chunkCount }), 1600);
           } else {
-            const item = knowledgeStore.add(agentId, { name: s.displayName, kind: "doc", description: "", sizeBytes: s.file.size, sharing });
+            const item = knowledgeStore.add(agentId, { name: s.displayName, kind: "doc", description: "", sizeBytes: s.file.size }); // Agent item: not shared by default ("Chỉ Agent này")
             setTimeout(() => knowledgeStore.updateStatus(agentId, item.id, "processing"), 400);
             setTimeout(() => knowledgeStore.updateStatus(agentId, item.id, "done", { chunkCount }), 1600);
           }

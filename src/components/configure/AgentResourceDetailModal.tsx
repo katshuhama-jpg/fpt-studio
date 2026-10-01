@@ -61,7 +61,8 @@ function useCurrentUser(userId: string) {
 
 function sharingLabel(sharing?: { mode: string; people: unknown[] }): string {
   if (sharing?.mode === "specific") return `${sharing.people.length} người cụ thể`;
-  return "Tất cả người dùng trong Space";
+  if (sharing?.mode === "all") return "Tất cả người dùng trong Space";
+  return "Chỉ Agent này (không chia sẻ)";
 }
 
 function usedByLabel(ids?: string[]): string {
@@ -147,7 +148,7 @@ const VIEW_ONLY_SHARE = "Chủ sở hữu chỉ chia sẻ quyền xem cho bạn.
 
 /* ------------------------------- Skill ------------------------------- */
 
-function ConsoleSkillDetail({ id, onClose, onChanged }: { id: string; onClose: () => void; onChanged: () => void }) {
+function ConsoleSkillDetail({ agentId, id, onClose, onChanged }: { agentId: string; id: string; onClose: () => void; onChanged: () => void }) {
   const access = useGroupAccess("skills");
   const currentUser = useCurrentUser(access.userId);
   const [sub, setSub] = useState<Sub>(null);
@@ -175,8 +176,12 @@ function ConsoleSkillDetail({ id, onClose, onChanged }: { id: string; onClose: (
   if (sub === "share") return (
     <SkillShareModal
       open name={skill.name} ownerName={skill.ownerName} sharing={skill.sharing}
-      resourceOwnerId={skill.ownerId} attachedAgentIds={skill.attachedByAgentIds}
-      onSave={sharing => { skillStore.updateSharing(skill.id, sharing); refresh(); }}
+      resourceOwnerId={skill.ownerId} attachedAgentIds={skill.attachedByAgentIds} agentOnlyFor={agentId}
+      onSave={sharing => {
+        // "Chỉ Agent này" moves the skill back into this Agent (off the Space library).
+        if (sharing.mode === "private") { agentSkillStore.demoteToAgent(agentId, skill.id); onChanged(); onClose(); return; }
+        skillStore.updateSharing(skill.id, sharing); refresh();
+      }}
       onClose={() => setSub(null)}
     />
   );
@@ -221,8 +226,13 @@ function AgentSkillDetail({ agentId, id, onClose, onChanged }: { agentId: string
   );
   if (sub === "share") return (
     <SkillShareModal
-      open name={skill.name} ownerName={skill.ownerName} sharing={skill.sharing}
-      onSave={sharing => { agentSkillStore.updateSharing(agentId, skill.id, sharing); refresh(); }}
+      open name={skill.name} ownerName={skill.ownerName} sharing={skill.sharing ?? { mode: "private", people: [] }}
+      agentOnlyFor={agentId}
+      onSave={sharing => {
+        // Sharing an Agent-only skill moves it into the Space library (still linked here).
+        if (sharing.mode === "private") { agentSkillStore.updateSharing(agentId, skill.id, sharing); refresh(); return; }
+        agentSkillStore.promoteToConsole(agentId, skill.id, sharing); onChanged(); onClose();
+      }}
       onClose={() => setSub(null)}
     />
   );
@@ -259,7 +269,7 @@ function GuardrailBody({ g, meta }: { g: Guardrail; meta: { label: string; value
   );
 }
 
-function ConsoleGuardrailDetail({ id, onClose, onChanged }: { id: string; onClose: () => void; onChanged: () => void }) {
+function ConsoleGuardrailDetail({ agentId, id, onClose, onChanged }: { agentId: string; id: string; onClose: () => void; onChanged: () => void }) {
   const access = useGroupAccess("guardrails");
   const currentUser = useCurrentUser(access.userId);
   const [sub, setSub] = useState<Sub>(null);
@@ -285,8 +295,11 @@ function ConsoleGuardrailDetail({ id, onClose, onChanged }: { id: string; onClos
   if (sub === "share") return (
     <GuardrailShareModal
       open name={g.name} ownerName={g.ownerName ?? currentUser.name} sharing={g.sharing ?? { mode: "all", people: [] }}
-      resourceOwnerId={g.ownerId} attachedAgentIds={g.attachedByAgentIds}
-      onSave={sharing => { guardrailConsoleStore.updateSharing(g.id, sharing); refresh(); }}
+      resourceOwnerId={g.ownerId} attachedAgentIds={g.attachedByAgentIds} agentOnlyFor={agentId}
+      onSave={sharing => {
+        if (sharing.mode === "private") { agentGuardrailStore.demoteToAgent(agentId, g.id); onChanged(); onClose(); return; }
+        guardrailConsoleStore.updateSharing(g.id, sharing); refresh();
+      }}
       onClose={() => setSub(null)}
     />
   );
@@ -319,7 +332,7 @@ function AgentGuardrailDetail({ agentId, id, onClose, onChanged }: { agentId: st
   if (sub === "edit") return (
     <CreateGuardrailModal
       onClose={() => setSub(null)}
-      onSubmit={data => { agentGuardrailStore.update(agentId, g.id, data); setSub(null); refresh(); }}
+      onSubmit={data => { agentGuardrailStore.update(agentId, g.id, { ...data, sharing: g.sharing }); setSub(null); refresh(); }}
       initialData={g}
       currentUser={currentUser}
       allowApplyAll={false}
@@ -327,8 +340,12 @@ function AgentGuardrailDetail({ agentId, id, onClose, onChanged }: { agentId: st
   );
   if (sub === "share") return (
     <GuardrailShareModal
-      open name={g.name} ownerName={g.ownerName ?? currentUser.name} sharing={g.sharing ?? { mode: "all", people: [] }}
-      onSave={sharing => { agentGuardrailStore.updateSharing(agentId, g.id, sharing); refresh(); }}
+      open name={g.name} ownerName={g.ownerName ?? currentUser.name} sharing={g.sharing ?? { mode: "private", people: [] }}
+      agentOnlyFor={agentId}
+      onSave={sharing => {
+        if (sharing.mode === "private") { agentGuardrailStore.updateSharing(agentId, g.id, sharing); refresh(); return; }
+        agentGuardrailStore.promoteToConsole(agentId, g.id, sharing); onChanged(); onClose();
+      }}
       onClose={() => setSub(null)}
     />
   );
@@ -434,7 +451,7 @@ function KnowledgeItemDetail({ agentId, id, onClose, onOpenFull, onChanged }: { 
 
 /* ------------------------------ Connector ----------------------------- */
 
-function ConnectorDetail({ id, onClose, onChanged }: { id: string; onClose: () => void; onChanged: () => void }) {
+function ConnectorDetail({ agentId, id, onClose, onChanged }: { agentId: string; id: string; onClose: () => void; onChanged: () => void }) {
   const access = useGroupAccess("connectors");
   const [sub, setSub] = useState<Sub>(null);
   const [, setTick] = useState(0);
@@ -450,7 +467,7 @@ function ConnectorDetail({ id, onClose, onChanged }: { id: string; onClose: () =
   if (sub === "share") return (
     <CustomConnectorShareModal
       open name={c.name} ownerName={c.ownerName} sharing={c.sharing}
-      resourceOwnerId={c.ownerId} attachedAgentIds={c.attachedByAgentIds}
+      resourceOwnerId={c.ownerId} attachedAgentIds={c.attachedByAgentIds} agentOnlyFor={agentId}
       onSave={sharing => { customConnectorStore.updateSharing(c.id, sharing); refresh(); }}
       onClose={() => setSub(null)}
     />
@@ -486,13 +503,13 @@ export default function AgentResourceDetailModal({ agentId, target, onClose, onC
 }) {
   const changed = onChanged ?? (() => {});
   switch (target.kind) {
-    case "skill": return <ConsoleSkillDetail id={target.id} onClose={onClose} onChanged={changed} />;
+    case "skill": return <ConsoleSkillDetail agentId={agentId} id={target.id} onClose={onClose} onChanged={changed} />;
     case "agentSkill": return <AgentSkillDetail agentId={agentId} id={target.id} onClose={onClose} onChanged={changed} />;
-    case "guardrail": return <ConsoleGuardrailDetail id={target.id} onClose={onClose} onChanged={changed} />;
+    case "guardrail": return <ConsoleGuardrailDetail agentId={agentId} id={target.id} onClose={onClose} onChanged={changed} />;
     case "agentGuardrail": return <AgentGuardrailDetail agentId={agentId} id={target.id} onClose={onClose} onChanged={changed} />;
     case "knowledgeBase": return <KnowledgeBaseDetail id={target.id} onClose={onClose} onChanged={changed} />;
     case "knowledgeItem": return <KnowledgeItemDetail agentId={agentId} id={target.id} onClose={onClose} onChanged={changed} onOpenFull={() => { onClose(); onOpenKnowledge?.(); }} />;
-    case "connector": return <ConnectorDetail id={target.id} onClose={onClose} onChanged={changed} />;
+    case "connector": return <ConnectorDetail agentId={agentId} id={target.id} onClose={onClose} onChanged={changed} />;
   }
 }
 

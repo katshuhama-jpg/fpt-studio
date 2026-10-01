@@ -60,7 +60,16 @@ export const agentSkillStore = {
   update(agentId: string, id: string, patch: Partial<Pick<Skill, "name" | "description" | "body">>) {
     const cur = store.get(k(agentId, id));
     if (!cur) return;
-    store.set(k(agentId, id), { ...cur, ...patch, updatedAt: Date.now() });
+    // Only content fields — the edit form also carries a sharing value, which must not
+    // overwrite the skill's real sharing.
+    const { name, description, body } = patch;
+    store.set(k(agentId, id), {
+      ...cur,
+      ...(name !== undefined ? { name } : {}),
+      ...(description !== undefined ? { description } : {}),
+      ...(body !== undefined ? { body } : {}),
+      updatedAt: Date.now(),
+    });
     persist();
   },
   updateSharing(agentId: string, id: string, sharing: Sharing) {
@@ -114,5 +123,21 @@ export const agentSkillStore = {
     this.remove(agentId, itemId);
     this.attachConsoleSkill(agentId, created.id);
     return { skillId: created.id };
+  },
+
+  /** Reverse of promoteToConsole — "Tắt chia sẻ" on a skill this Agent shared: moves it back
+   * into this Agent as a private skill and removes it from the Space library. Callers must make
+   * sure no other Agent uses it (SkillShareModal blocks that case). */
+  demoteToAgent(agentId: string, skillId: string): Skill | null {
+    const src = skillStore.get(skillId);
+    if (!src) return null;
+    const created = this.create(agentId, {
+      name: src.name, description: src.description, body: src.body,
+      ownerId: src.ownerId ?? "", ownerName: src.ownerName ?? "",
+      sharing: { mode: "private", people: [] },
+    });
+    this.detachConsoleSkill(agentId, skillId);
+    skillStore.remove(skillId);
+    return created;
   },
 };

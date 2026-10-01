@@ -49,7 +49,7 @@ import { agentGuardrailStore } from "@/components/configure/agentGuardrailStore"
 import CreateGuardrailModal, { type CreateGuardrailData } from "@/components/configure/CreateGuardrailModal";
 import GuardrailDetailModal from "@/components/configure/GuardrailDetailModal";
 import AgentResourceDetailModal, { type AgentResourceRef } from "@/components/configure/AgentResourceDetailModal";
-import { ownershipTags, OwnershipTagList, isCreatorRedundant } from "@/components/governance/resourceOwnership";
+import { ownershipTags, OwnershipTagList, isCreatorRedundant, isShared } from "@/components/governance/resourceOwnership";
 import GuardrailOwnershipTag from "@/components/configure/GuardrailOwnershipTag";
 import { isViewOnly as isGuardrailViewOnly, isAccessibleTo as isGuardrailAccessibleTo, type Sharing as GuardrailSharing, type SharingMode as GuardrailSharingMode } from "@/components/configure/guardrailSharing";
 import GuardrailMemberPicker from "@/components/configure/GuardrailMemberPicker";
@@ -76,7 +76,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { knowledgeStore, OWN_KB_ID, type KnowledgeItem } from "@/components/knowledge/knowledgeStore";
-import { isAccessibleTo as isSkillAccessibleTo } from "@/components/configure/skillSharing";
+import { isAccessibleTo as isSkillAccessibleTo, type Sharing as SkillSharing } from "@/components/configure/skillSharing";
 import { knowledgeBaseStore, CURRENT_USER as KB_CURRENT_USER, isViewOnly as isKbViewOnly, isAccessibleTo as isKbAccessibleTo, type KnowledgeBase } from "@/components/knowledge/knowledgeBaseStore";
 import { governanceStore, listAgentResourceRefs, agentEmoji, externalSnapOf } from "@/components/governance/governanceStore";
 import { externalAgentStore, type ExternalAgent } from "@/components/external-agents/externalAgentStore";
@@ -5193,6 +5193,7 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
           sharing={shareTarget.sharing}
           resourceOwnerId={shareTarget.ownerId}
           attachedAgentIds={shareTarget.attachedByAgentIds}
+          agentOnlyFor={agentId}
           onSave={sharing => { customConnectorStore.updateSharing(shareTarget.id, sharing); setTick(t => t + 1); onChange?.(); }}
           onClose={() => setShareTarget(null)}
         />
@@ -5228,6 +5229,28 @@ function SkillCardMenu({ onOpen, onEdit, onShare, onRemove, removeLabel }: {
   return <ActionMenu items={items} triggerLabel="Thao tác với skill" />;
 }
 
+/** Sharing for a resource created inside an Agent: not shared, only that Agent uses it. */
+const AGENT_ONLY_SHARING = { mode: "private" as const, people: [] };
+
+/** "Chia sẻ" target in an Agent: `own` = the Agent's own (private) skill, otherwise a Space
+ * skill this user owns that the Agent links. */
+type SkillShareTarget = { skill: Skill; own: boolean };
+
+/** Applies a new sharing value from inside an Agent. Sharing an Agent-only skill moves it into
+ * the Space library (still linked to this Agent); turning sharing off ("Chỉ Agent này") on a
+ * shared one moves it back into this Agent. The modal already blocked the case where another
+ * Agent still uses it. */
+function applySkillSharing(agentId: string, target: SkillShareTarget, sharing: SkillSharing) {
+  if (target.own) {
+    if (sharing.mode === "private") agentSkillStore.updateSharing(agentId, target.skill.id, sharing);
+    else agentSkillStore.promoteToConsole(agentId, target.skill.id, sharing);
+  } else if (sharing.mode === "private") {
+    agentSkillStore.demoteToAgent(agentId, target.skill.id);
+  } else {
+    skillStore.updateSharing(target.skill.id, sharing);
+  }
+}
+
 function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAdd?: (fn: (pos:{top:number;left:number}) => void) => void }) {
   const [showMenu, setShowMenu] = useState(false);
   const [menuPos, setMenuPos] = useState<{top:number;left:number}>({top:0,left:0});
@@ -5235,7 +5258,7 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
   const [showCreate, setShowCreate] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [editTarget, setEditTarget] = useState<Skill | null>(null);
-  const [shareTarget, setShareTarget] = useState<Skill | null>(null);
+  const [shareTarget, setShareTarget] = useState<SkillShareTarget | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [detachTarget, setDetachTarget] = useState<{ id: string; name: string } | null>(null);
   const [detailTarget, setDetailTarget] = useState<AgentResourceRef | null>(null);
@@ -5302,6 +5325,7 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
                     chip={<div className="flex items-center gap-1 shrink-0"><SkillOwnershipTag skill={s} userId={currentUser.id} /></div>}
                     onOpen={() => setDetailTarget({ kind: "skill", id: s.id })}
                     onRemove={() => setDetachTarget({ id: s.id, name: s.name })}
+                    onShare={s.ownerId === currentUser.id ? () => setShareTarget({ skill: s, own: false }) : undefined}
                     openLabel="Xem chi tiết"
                     removeLabel="Gỡ liên kết"
                     twoLine
@@ -5332,7 +5356,7 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
                     </div>
                     <SkillCardMenu
                       onEdit={() => setEditTarget(s)}
-                      onShare={() => setShareTarget(s)}
+                      onShare={() => setShareTarget({ skill: s, own: true })}
                       onRemove={() => setDeleteTarget({ id: s.id, name: s.name })}
                       removeLabel="Xóa"
                     />
@@ -5371,7 +5395,7 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
       {showCreate && (
         <CreateSkillModal
           onClose={() => setShowCreate(false)}
-          onSubmit={(data: SkillFormData) => { agentSkillStore.create(agentId, { ...data, ownerId: currentUser.id, ownerName: currentUser.name }); refresh(); }}
+          onSubmit={(data: SkillFormData) => { agentSkillStore.create(agentId, { ...data, ownerId: currentUser.id, ownerName: currentUser.name, sharing: AGENT_ONLY_SHARING }); refresh(); }}
           currentUser={currentUser}
           isDuplicateName={name => agentSkillStore.list(agentId).some(s => s.name.trim().toLowerCase() === name.trim().toLowerCase())}
         />
@@ -5380,7 +5404,7 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
       {showUpload && (
         <UploadSkillModal
           onClose={() => setShowUpload(false)}
-          onSubmit={(data: SkillFormData) => { agentSkillStore.create(agentId, { ...data, ownerId: currentUser.id, ownerName: currentUser.name }); refresh(); }}
+          onSubmit={(data: SkillFormData) => { agentSkillStore.create(agentId, { ...data, ownerId: currentUser.id, ownerName: currentUser.name, sharing: AGENT_ONLY_SHARING }); refresh(); }}
           currentUser={currentUser}
           isDuplicateName={name => agentSkillStore.list(agentId).some(s => s.name.trim().toLowerCase() === name.trim().toLowerCase())}
         />
@@ -5397,10 +5421,13 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
       {shareTarget && (
         <SkillShareModal
           open
-          name={shareTarget.name}
-          ownerName={shareTarget.ownerName}
-          sharing={shareTarget.sharing}
-          onSave={sharing => { agentSkillStore.updateSharing(agentId, shareTarget.id, sharing); refresh(); }}
+          name={shareTarget.skill.name}
+          ownerName={shareTarget.skill.ownerName}
+          sharing={shareTarget.skill.sharing ?? { mode: "private", people: [] }}
+          agentOnlyFor={agentId}
+          resourceOwnerId={shareTarget.skill.ownerId}
+          attachedAgentIds={shareTarget.own ? [] : shareTarget.skill.attachedByAgentIds}
+          onSave={sharing => { applySkillSharing(agentId, shareTarget, sharing); refresh(); }}
           onClose={() => setShareTarget(null)}
         />
       )}
@@ -5524,7 +5551,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
         chip: (
           <div className="flex items-center gap-1.5 shrink-0">
             {itemStatus !== "done" && <KnowledgeStatusPill status={itemStatus} compact />}
-            <OwnershipTagList tags={["mine"]} className="flex-nowrap" />
+            <OwnershipTagList tags={isShared(item.sharing) ? ["mine", "shared"] : ["mine"]} className="flex-nowrap" />
           </div>
         ),
         disabled: stillProcessing,
@@ -5828,10 +5855,9 @@ function AddCustomMcpModal({ onClose, onCreated }: { onClose: () => void; onCrea
 
   const submit = () => {
     if (!canSubmit) return;
-    // Quick-add from inside the Agent Builder doesn't ask about sharing. "Chỉ mình tôi" no longer
-    // exists, so the new custom connector starts shared with the whole Space; the owner can
-    // narrow it to specific people later from the Console's Connectors page.
-    const sharing: CustomConnectorSharingShape = { mode: "all", people: [] };
+    // Quick-add from inside the Agent Builder doesn't ask about sharing.
+    // Created inside an Agent: not shared until the owner uses "Chia sẻ" ("Chỉ Agent này").
+    const sharing: CustomConnectorSharingShape = { mode: "private", people: [] };
     const connector = customConnectorStore.create({
       name: name.trim(), url: url.trim(), authType,
       headers: headers.filter(h => h.key.trim()), sharing,
@@ -6952,6 +6978,40 @@ function GuardrailAgentItemRowMenu({ onView, onEdit, onShare, onDelete, deleteLa
   return <ActionMenu items={items} triggerLabel="Thao tác với guardrail" />;
 }
 
+/** "Chia sẻ" target in an Agent for a guardrail — see SkillShareTarget. */
+type GuardrailShareTarget = { g: Guardrail; own: boolean };
+
+/** Same moves as applySkillSharing, for guardrails. */
+function applyGuardrailSharing(agentId: string, target: GuardrailShareTarget, sharing: GuardrailSharing) {
+  if (target.own) {
+    if (sharing.mode === "private") agentGuardrailStore.updateSharing(agentId, target.g.id, sharing);
+    else agentGuardrailStore.promoteToConsole(agentId, target.g.id, sharing);
+  } else if (sharing.mode === "private") {
+    agentGuardrailStore.demoteToAgent(agentId, target.g.id);
+  } else {
+    guardrailConsoleStore.updateSharing(target.g.id, sharing);
+  }
+}
+
+/** One share modal for both guardrail views in an Agent. */
+function AgentGuardrailShareModal({ agentId, target, fallbackOwnerName, onClose, onSaved }: {
+  agentId: string; target: GuardrailShareTarget; fallbackOwnerName: string; onClose: () => void; onSaved: () => void;
+}) {
+  return (
+    <GuardrailShareModal
+      open
+      name={target.g.name}
+      ownerName={target.g.ownerName ?? fallbackOwnerName}
+      sharing={target.g.sharing ?? { mode: "private", people: [] }}
+      agentOnlyFor={agentId}
+      resourceOwnerId={target.g.ownerId}
+      attachedAgentIds={target.own ? [] : target.g.attachedByAgentIds}
+      onSave={sharing => { applyGuardrailSharing(agentId, target, sharing); onSaved(); }}
+      onClose={onClose}
+    />
+  );
+}
+
 function GuardrailsAgentTab({ agentId }: { agentId: string }) {
   const { tree } = useOrg();
   const members = useMemo(() => collectMembers(tree), [tree]);
@@ -6970,7 +7030,7 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
   const [viewTarget, setViewTarget] = useState<{ g: Guardrail; editable: boolean } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [detachTarget, setDetachTarget] = useState<{ id: string; name: string } | null>(null);
-  const [shareGuardrail, setShareGuardrail] = useState<Guardrail | null>(null);
+  const [shareGuardrail, setShareGuardrail] = useState<GuardrailShareTarget | null>(null);
 
   const items = agentGuardrailStore.list(agentId);
   const attachedGuardrails = agentGuardrailStore.listAttachedConsoleGuardrailIds(agentId)
@@ -7098,7 +7158,7 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
               onEdit: () => setEditTarget(g),
               // The Agent's own guardrail is shared with the same "Chia sẻ" action as everywhere
               // else — owner only.
-              onShare: g.ownerId === currentUser.id ? () => setShareGuardrail(g) : undefined,
+              onShare: g.ownerId === currentUser.id ? () => setShareGuardrail({ g, own: true }) : undefined,
               onDelete: () => setDeleteTarget({ id: g.id, name: g.name }),
               deleteLabel: "Xóa",
             }))}
@@ -7120,6 +7180,8 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {attachedGuardrails.map(g => renderCard(g, {
+              // A Space guardrail this user owns can be re-shared here, incl. "Chỉ Agent này".
+              onShare: g.ownerId === currentUser.id ? () => setShareGuardrail({ g, own: false }) : undefined,
               onDelete: () => setDetachTarget({ id: g.id, name: g.name }),
               deleteLabel: "Gỡ liên kết",
             }))}
@@ -7129,14 +7191,7 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
 
       {showAttach && <AttachConsoleGuardrailModal agentId={agentId} userId={currentUser.id} onClose={() => { setShowAttach(false); refresh(); }} />}
       {shareGuardrail && (
-        <GuardrailShareModal
-          open
-          name={shareGuardrail.name}
-          ownerName={shareGuardrail.ownerName ?? currentUser.name}
-          sharing={shareGuardrail.sharing ?? { mode: "all", people: [] }}
-          onSave={sharing => { agentGuardrailStore.updateSharing(agentId, shareGuardrail.id, sharing); refresh(); }}
-          onClose={() => setShareGuardrail(null)}
-        />
+        <AgentGuardrailShareModal agentId={agentId} target={shareGuardrail} fallbackOwnerName={currentUser.name} onClose={() => setShareGuardrail(null)} onSaved={refresh} />
       )}
       {showCreate && (
         <CreateGuardrailModal
@@ -7146,7 +7201,7 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
             // Console library (not as this Agent's private one) and shows up read-only in every
             // Agent's "Áp dụng cho mọi Agent" section, this one included.
             if (g.allAgents) { guardrailConsoleStore.create(g); toast.success("Đã tạo guardrail và áp dụng cho mọi Agent."); }
-            else agentGuardrailStore.create(agentId, g);
+            else agentGuardrailStore.create(agentId, { ...g, sharing: AGENT_ONLY_SHARING });
             refresh();
           }}
           currentUser={currentUser}
@@ -7155,7 +7210,7 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
       {editTarget && (
         <CreateGuardrailModal
           onClose={() => setEditTarget(null)}
-          onSubmit={g => { agentGuardrailStore.update(agentId, editTarget.id, g); setEditTarget(null); refresh(); }}
+          onSubmit={g => { agentGuardrailStore.update(agentId, editTarget.id, { ...g, sharing: editTarget.sharing }); setEditTarget(null); refresh(); }}
           initialData={editTarget}
           currentUser={currentUser}
           allowApplyAll={false}
@@ -7229,7 +7284,7 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
   const [showChoice, setShowChoice] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [editTarget, setEditTarget] = useState<Skill | null>(null);
-  const [shareTarget, setShareTarget] = useState<Skill | null>(null);
+  const [shareTarget, setShareTarget] = useState<SkillShareTarget | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [detachTarget, setDetachTarget] = useState<{ id: string; name: string } | null>(null);
   // Built-in skills: turning one OFF asks first (it silently changes what the Agent can do),
@@ -7339,7 +7394,7 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
             {items.map(s => renderSkillCard(s, 1, (
               <SkillCardMenu
                 onEdit={() => setEditTarget(s)}
-                onShare={() => setShareTarget(s)}
+                onShare={() => setShareTarget({ skill: s, own: true })}
                 onRemove={() => setDeleteTarget({ id: s.id, name: s.name })}
                 removeLabel="Xóa"
               />
@@ -7359,6 +7414,7 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
             {attachedSkills.map(s => renderSkillCard(s, Math.max(1, s.attachedByAgentIds.length), (
               <SkillCardMenu
                 onOpen={() => window.open(`/tools/${s.id}?viaAgent=${agentId}`, "_blank", "noopener")}
+                onShare={s.ownerId === accessUserId ? () => setShareTarget({ skill: s, own: false }) : undefined}
                 onRemove={() => setDetachTarget({ id: s.id, name: s.name })}
                 removeLabel="Gỡ liên kết"
               />
@@ -7428,7 +7484,7 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
       {showCreate && (
         <CreateSkillModal
           onClose={() => setShowCreate(false)}
-          onSubmit={(data: SkillFormData) => { agentSkillStore.create(agentId, { ...data, ownerId: currentUser.id, ownerName: currentUser.name }); refresh(); }}
+          onSubmit={(data: SkillFormData) => { agentSkillStore.create(agentId, { ...data, ownerId: currentUser.id, ownerName: currentUser.name, sharing: AGENT_ONLY_SHARING }); refresh(); }}
           currentUser={currentUser}
           isDuplicateName={name => agentSkillStore.list(agentId).some(s => s.name.trim().toLowerCase() === name.trim().toLowerCase())}
         />
@@ -7437,7 +7493,7 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
       {showUpload && (
         <UploadSkillModal
           onClose={() => setShowUpload(false)}
-          onSubmit={(data: SkillFormData) => { agentSkillStore.create(agentId, { ...data, ownerId: currentUser.id, ownerName: currentUser.name }); refresh(); }}
+          onSubmit={(data: SkillFormData) => { agentSkillStore.create(agentId, { ...data, ownerId: currentUser.id, ownerName: currentUser.name, sharing: AGENT_ONLY_SHARING }); refresh(); }}
           currentUser={currentUser}
           isDuplicateName={name => agentSkillStore.list(agentId).some(s => s.name.trim().toLowerCase() === name.trim().toLowerCase())}
         />
@@ -7454,10 +7510,13 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
       {shareTarget && (
         <SkillShareModal
           open
-          name={shareTarget.name}
-          ownerName={shareTarget.ownerName}
-          sharing={shareTarget.sharing}
-          onSave={sharing => { agentSkillStore.updateSharing(agentId, shareTarget.id, sharing); refresh(); }}
+          name={shareTarget.skill.name}
+          ownerName={shareTarget.skill.ownerName}
+          sharing={shareTarget.skill.sharing ?? { mode: "private", people: [] }}
+          agentOnlyFor={agentId}
+          resourceOwnerId={shareTarget.skill.ownerId}
+          attachedAgentIds={shareTarget.own ? [] : shareTarget.skill.attachedByAgentIds}
+          onSave={sharing => { applySkillSharing(agentId, shareTarget, sharing); refresh(); }}
           onClose={() => setShareTarget(null)}
         />
       )}
@@ -7554,6 +7613,7 @@ function GuardrailsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
   const [detailTarget, setDetailTarget] = useState<AgentResourceRef | null>(null);
   const [detachTarget, setDetachTarget] = useState<{ id: string; name: string } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [shareTarget, setShareTarget] = useState<GuardrailShareTarget | null>(null);
   const refresh = () => setTick(t => t + 1);
   void tick;
 
@@ -7581,7 +7641,7 @@ function GuardrailsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
     .map(id => guardrailConsoleStore.get(id))
     .filter((g): g is Guardrail => !!g);
 
-  type Row = { key: string; name: string; icon: any; open: () => void; remove: () => void; chip: React.ReactNode; href?: string };
+  type Row = { key: string; name: string; icon: any; open: () => void; remove: () => void; share?: () => void; chip: React.ReactNode; href?: string };
   const rows: Row[] = [
     ...attachedGuardrails.map(g => ({
       key: `g-${g.id}`,
@@ -7589,6 +7649,7 @@ function GuardrailsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
       icon: Shield01Icon,
       open: () => setDetailTarget({ kind: "guardrail", id: g.id }),
       remove: () => setDetachTarget({ id: g.id, name: g.name }),
+      share: g.ownerId === currentUser.id && !g.allAgents && !g.mandatory ? () => setShareTarget({ g, own: false }) : undefined,
       chip: <GuardrailOwnershipTag g={g} userId={currentUser.id} />,
     })),
     ...items.map(item => ({
@@ -7597,6 +7658,7 @@ function GuardrailsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
       icon: Shield01Icon,
       open: () => setDetailTarget({ kind: "agentGuardrail", id: item.id }),
       remove: () => setDeleteTarget({ id: item.id, name: item.name }),
+      share: item.ownerId === currentUser.id ? () => setShareTarget({ g: item, own: true }) : undefined,
       chip: <GuardrailOwnershipTag g={item} userId={currentUser.id} />,
     })),
   ];
@@ -7623,7 +7685,7 @@ function GuardrailsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
       ) : (
         <div className="flex flex-col gap-1.5">
           {shown.map(row => (
-            <KnowledgeSourceRow key={row.key} icon={row.icon} name={row.name} chip={row.chip} onOpen={row.open} onRemove={row.remove} openLabel="Xem chi tiết" removeLabel="Gỡ guardrail" twoLine />
+            <KnowledgeSourceRow key={row.key} icon={row.icon} name={row.name} chip={row.chip} onOpen={row.open} onRemove={row.remove} onShare={row.share} openLabel="Xem chi tiết" removeLabel="Gỡ guardrail" twoLine />
           ))}
           {rows.length > 4 && (
             <button onClick={() => setParams({ tab: "build", section: "guardrails" })} className="text-xs text-primary hover:underline text-left mt-0.5">
@@ -7651,6 +7713,9 @@ function GuardrailsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
       )}
 
       {showAttach && <AttachConsoleGuardrailModal agentId={agentId} userId={currentUser.id} onClose={() => { setShowAttach(false); refresh(); }} />}
+      {shareTarget && (
+        <AgentGuardrailShareModal agentId={agentId} target={shareTarget} fallbackOwnerName={currentUser.name} onClose={() => setShareTarget(null)} onSaved={refresh} />
+      )}
       {showCreate && (
         <CreateGuardrailModal
           onClose={() => setShowCreate(false)}
@@ -7659,7 +7724,7 @@ function GuardrailsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
             // Console library (not as this Agent's private one) and shows up read-only in every
             // Agent's "Áp dụng cho mọi Agent" section, this one included.
             if (g.allAgents) { guardrailConsoleStore.create(g); toast.success("Đã tạo guardrail và áp dụng cho mọi Agent."); }
-            else agentGuardrailStore.create(agentId, g);
+            else agentGuardrailStore.create(agentId, { ...g, sharing: AGENT_ONLY_SHARING });
             refresh();
           }}
           currentUser={currentUser}

@@ -16,6 +16,7 @@ import QueryScopeSection, { RadioCard, isQueryScopeValid } from "./QueryScopeSec
 import { knowledgeStore, type KnowledgeItem } from "./knowledgeStore";
 
 const BUILD_ACCESS_OPTIONS: { value: SharingMode; label: string; helper?: string }[] = [
+  { value: "private", label: "Chỉ Agent này", helper: "Không chia sẻ. Chỉ Agent đang mở dùng được." },
   { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi thành viên trong Space đều dùng lại được." },
   { value: "specific", label: "Người dùng cụ thể", helper: "Chỉ những người bạn chọn mới dùng lại được." },
 ];
@@ -46,8 +47,8 @@ export default function ShareAgentItemModal({ agentId, items, onClose }: {
   const initialSharing: Sharing = single?.sharing ?? { mode: "private", people: [] };
   const initialQuerySharing: QuerySharing = single?.querySharing ?? DEFAULT_QUERY_SHARING;
 
-  // "Chỉ mình tôi" no longer exists — an item never shared before opens as "Tất cả".
-  const [buildMode, setBuildMode] = useState<SharingMode>(initialSharing.mode === "private" ? "all" : initialSharing.mode);
+  // An item created in the Agent is not shared by default ("private" = "Chỉ Agent này").
+  const [buildMode, setBuildMode] = useState<SharingMode>(initialSharing.mode);
   const [buildPeople, setBuildPeople] = useState(initialSharing.people);
   const [querySharing, setQuerySharing] = useState<QuerySharing>(initialQuerySharing);
   const [showRevokeConfirm, setShowRevokeConfirm] = useState(false);
@@ -60,7 +61,8 @@ export default function ShareAgentItemModal({ agentId, items, onClose }: {
   // Downgrading Console-wide build access away from "all" is the one change worth an explicit
   // confirm — it can silently cut off other builders mid-project. The new query-scope axis has
   // no equivalent history to downgrade from (it's brand new), so it never triggers this.
-  const downgrading = initialSharing.mode === "all" && buildMode !== "all";
+  const downgrading = (initialSharing.mode === "all" && buildMode !== "all") ||
+    (initialSharing.mode !== "private" && buildMode === "private");
 
   const applySave = () => {
     const sharing: Sharing = { mode: buildMode, people: buildMode === "specific" ? buildPeople : [] };
@@ -126,12 +128,14 @@ export default function ShareAgentItemModal({ agentId, items, onClose }: {
       <AlertDialog open={showRevokeConfirm} onOpenChange={setShowRevokeConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Thu hồi quyền truy cập?</AlertDialogTitle>
-            <AlertDialogDescription>Những người khác đang dùng nội dung này để xây Agent sẽ không còn thấy được nữa.</AlertDialogDescription>
+            <AlertDialogTitle>{buildMode === "private" ? "Tắt chia sẻ?" : "Thu hồi quyền truy cập?"}</AlertDialogTitle>
+            <AlertDialogDescription>{buildMode === "private"
+              ? "Chỉ Agent này dùng được nội dung này. Người khác sẽ không tìm thấy để dùng lại cho Agent của họ."
+              : "Những người khác đang dùng nội dung này để xây Agent sẽ không còn thấy được nữa."}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { setShowRevokeConfirm(false); applySave(); }}>Thu hồi quyền</AlertDialogAction>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { setShowRevokeConfirm(false); applySave(); }}>{buildMode === "private" ? "Tắt chia sẻ" : "Thu hồi quyền"}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

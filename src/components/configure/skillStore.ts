@@ -321,7 +321,15 @@ export const skillStore = {
   update(id: string, patch: Partial<Pick<Skill, "name" | "description" | "body">>) {
     const cur = store.get(id);
     if (!cur) return;
-    store.set(id, { ...cur, ...patch, updatedAt: Date.now() });
+    // Only content fields — never let an edit form's sharing value overwrite the real sharing.
+    const { name, description, body } = patch;
+    store.set(id, {
+      ...cur,
+      ...(name !== undefined ? { name } : {}),
+      ...(description !== undefined ? { description } : {}),
+      ...(body !== undefined ? { body } : {}),
+      updatedAt: Date.now(),
+    });
     persist();
   },
   updateSharing(id: string, sharing: Sharing) {

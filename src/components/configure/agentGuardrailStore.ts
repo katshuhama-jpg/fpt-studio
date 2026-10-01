@@ -130,4 +130,20 @@ export const agentGuardrailStore = {
     this.attachConsoleGuardrail(agentId, created.id);
     return { guardrailId: created.id };
   },
+
+  /** Reverse of promoteToConsole — "Tắt chia sẻ" on a guardrail this Agent shared: moves it back
+   * into this Agent as a private guardrail and removes it from the Space library. Callers must
+   * make sure no other Agent uses it (GuardrailShareModal blocks that case). */
+  demoteToAgent(agentId: string, guardrailId: string): Guardrail | null {
+    const src = guardrailConsoleStore.get(guardrailId);
+    if (!src || src.mandatory || src.allAgents) return null;
+    const created = this.create(agentId, {
+      name: src.name, desc: src.desc, action: src.action, enabled: src.enabled,
+      ownerId: src.ownerId ?? "", ownerName: src.ownerName ?? "",
+      sharing: { mode: "private", people: [] },
+    });
+    this.detachConsoleGuardrail(agentId, guardrailId);
+    guardrailConsoleStore.remove(guardrailId);
+    return created;
+  },
 };

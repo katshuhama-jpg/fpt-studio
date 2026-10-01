@@ -110,7 +110,7 @@ export default function AddEditFaqModal({ open, kbId, agentId, editingFaq, editi
         knowledgeStore.update(agentId, editingItem.id, { name: question.trim(), description: answer.trim(), categories });
         toast.success("Đã lưu câu hỏi.");
       } else if (!isEdit) {
-        const item = knowledgeStore.add(agentId, { name: question.trim(), kind: "faq", description: answer.trim(), categories, sharing });
+        const item = knowledgeStore.add(agentId, { name: question.trim(), kind: "faq", description: answer.trim(), categories }); // Agent item: not shared by default ("Chỉ Agent này")
         toast.success("Đã lưu câu hỏi.");
         runLifecycle((status, chunkCount) => knowledgeStore.updateStatus(agentId, item.id, status, chunkCount !== undefined ? { chunkCount } : undefined));
       }
