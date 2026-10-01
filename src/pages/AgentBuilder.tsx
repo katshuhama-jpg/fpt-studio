@@ -1020,6 +1020,83 @@ function GeneralTab({ agentId, onRefineWithAI, onChatToTest, previewCollapsed, o
 
   const defaultInstructions = initialPrompt || agent.instructions;
 
+  // "/" quick-insert menu — Instructions (markdown mode) only, never the chat/test box. Typing
+  // "/" at the start of a line or after whitespace opens a searchable list of this Agent's
+  // Skills and Connectors; picking one inserts "@Name" at the cursor instead of the Builder
+  // having to remember and type the exact tool name by hand.
+  const instructionsRef = useRef<HTMLTextAreaElement>(null);
+  const [mentionOpen, setMentionOpen] = useState(false);
+  const [mentionStart, setMentionStart] = useState(0); // index right after the triggering "/"
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionIndex, setMentionIndex] = useState(0);
+  const [mentionPos, setMentionPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const mentionItems = mentionOpen
+    ? getAgentMentionItems(agentId).filter(item => item.label.toLowerCase().includes(mentionQuery.toLowerCase()))
+    : [];
+
+  useEffect(() => {
+    if (!mentionOpen) return;
+    const close = () => setMentionOpen(false);
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [mentionOpen]);
+
+  const insertMention = (item: MentionItem) => {
+    const t = instructionsRef.current;
+    if (!t) return;
+    const val = t.value;
+    const cursor = mentionStart + mentionQuery.length;
+    const refText = `@${item.label}`;
+    const next = val.slice(0, mentionStart - 1) + refText + " " + val.slice(cursor);
+    t.value = next;
+    setInstructions(next);
+    setMentionOpen(false);
+    const pos = mentionStart - 1 + refText.length + 1;
+    t.focus();
+    t.setSelectionRange(pos, pos);
+    t.style.height = "auto"; t.style.height = t.scrollHeight + "px";
+  };
+
+  const handleInstructionsInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
+    const t = e.currentTarget;
+    t.style.height = "auto"; t.style.height = t.scrollHeight + "px";
+    const val = t.value;
+    setInstructions(val);
+    const cursor = t.selectionStart ?? val.length;
+    if (mentionOpen) {
+      if (cursor < mentionStart || /\s/.test(val.slice(mentionStart, cursor))) {
+        setMentionOpen(false);
+      } else {
+        setMentionQuery(val.slice(mentionStart, cursor));
+        setMentionIndex(0);
+      }
+      return;
+    }
+    if (cursor > 0 && val[cursor - 1] === "/") {
+      const before = val[cursor - 2];
+      if (before === undefined || /\s/.test(before)) {
+        setMentionStart(cursor);
+        setMentionQuery("");
+        setMentionIndex(0);
+        setMentionOpen(true);
+        const rect = getCaretViewportRect(t, cursor);
+        setMentionPos({ top: rect.top + rect.height + 4, left: rect.left });
+      }
+    }
+  };
+
+  const handleInstructionsKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (!mentionOpen) return;
+    if (e.key === "ArrowDown") { e.preventDefault(); setMentionIndex(i => Math.min(i + 1, Math.max(mentionItems.length - 1, 0))); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setMentionIndex(i => Math.max(i - 1, 0)); }
+    else if (e.key === "Enter" || e.key === "Tab") {
+      if (mentionItems.length) { e.preventDefault(); insertMention(mentionItems[Math.min(mentionIndex, mentionItems.length - 1)]); }
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setMentionOpen(false);
+    }
+  };
+
   return (
     <div className="w-full animate-fade-up">
       {/* ── Sticky header ── */}
@@ -1141,12 +1218,51 @@ function GeneralTab({ agentId, onRefineWithAI, onChatToTest, previewCollapsed, o
         )}
         {viewMode === "markdown" && (
           <textarea
-            ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
-            onInput={(e) => { const t = e.currentTarget; t.style.height = "auto"; t.style.height = t.scrollHeight + "px"; setInstructions(e.currentTarget.value); }}
+            ref={(el) => { instructionsRef.current = el; if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
+            onInput={handleInstructionsInput}
+            onKeyDown={handleInstructionsKeyDown}
             className="w-full resize-none bg-transparent border border-transparent rounded-xl px-3 py-3 -mx-3 text-sm leading-relaxed outline-none hover:border-border hover:bg-surface focus:border-ring focus:bg-surface transition-base font-sans overflow-hidden"
             defaultValue={defaultInstructions}
-            placeholder="Write your agent instructions here…"
+            placeholder="Write your agent instructions here… Type / to insert a Skill or Connector."
           />
+        )}
+        {mentionOpen && createPortal(
+          <div
+            className="fixed z-[9999]"
+            style={{ top: mentionPos.top, left: mentionPos.left }}
+            onMouseDown={e => e.stopPropagation()}
+          >
+            <div className="bg-white rounded-xl border border-border shadow-elev p-1.5 w-64 max-h-72 overflow-y-auto animate-fade-up">
+              {mentionItems.length === 0 ? (
+                <div className="px-2.5 py-3 text-center text-xs text-muted-foreground">
+                  Agent này chưa có Skill/Connector nào khớp.
+                </div>
+              ) : (
+                mentionItems.map((item, i) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onMouseEnter={() => setMentionIndex(i)}
+                    onClick={() => insertMention(item)}
+                    className={`w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-base ${
+                      i === mentionIndex ? "bg-surface-muted" : "hover:bg-surface-muted"
+                    }`}
+                  >
+                    {item.type === "skill" ? (
+                      <span className="w-7 h-7 rounded-lg flex items-center justify-center text-sm shrink-0" style={{ background: item.iconBg }}>{item.icon}</span>
+                    ) : (
+                      <span className="w-7 h-7 rounded-lg bg-surface-muted border border-border flex items-center justify-center text-[9px] font-bold shrink-0">{item.icon}</span>
+                    )}
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-medium text-foreground truncate">{item.label}</span>
+                      <span className="block text-[11px] text-muted-foreground">{item.sub}</span>
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>,
+          document.body,
         )}
         {(viewMode === "ai" || viewMode === "chat") && (
           <div className="prose prose-sm max-w-none text-foreground opacity-50 select-none pointer-events-none">
@@ -5674,6 +5790,79 @@ const SUB_AGENT_CONNECTORS = [
   { id: "github",   name: "GitHub",       logo: "Gh", category: "Nhà phát triển",  connected: false },
   { id: "exa",      name: "Exa",          logo: "Ex", category: "Nghiên cứu",      connected: false },
 ];
+
+interface MentionItem {
+  id: string;
+  type: "skill" | "connector";
+  label: string;
+  sub: string;
+  icon: string;
+  iconBg?: string;
+}
+
+/** Everything the Instructions editor's "/" quick-insert menu can reference: this Agent's own
+ * Skills, any Console Skill it has linked, and every Connector (Shared or per-user) it has
+ * attached — the same resources shown in the Skills and Connectors tabs, flattened into one
+ * searchable list so a Builder never has to switch tabs to recall an exact name. Built-in
+ * Skills are deliberately excluded: they're a default every Agent ships with, not something
+ * that was "attached". */
+function getAgentMentionItems(agentId: string): MentionItem[] {
+  const ownSkills: MentionItem[] = agentSkillStore.list(agentId).map(s => (
+    { id: `skill:${s.id}`, type: "skill", label: s.name, sub: "Skill", icon: s.icon, iconBg: s.iconBg }
+  ));
+  const linkedSkills: MentionItem[] = agentSkillStore.listAttachedConsoleSkillIds(agentId)
+    .map(id => skillStore.get(id))
+    .filter((s): s is Skill => !!s)
+    .map(s => ({ id: `skill:${s.id}`, type: "skill", label: s.name, sub: "Skill", icon: s.icon, iconBg: s.iconBg }));
+  const connectors: MentionItem[] = agentConnectorStore.list(agentId).map(c => {
+    const builtin = SUB_AGENT_CONNECTORS.find(x => x.id === c.connectorId);
+    if (builtin) return { id: `connector:${c.connectorId}`, type: "connector", label: builtin.name, sub: "Connector", icon: builtin.logo };
+    if (c.connectorId.startsWith(CUSTOM_CONNECTOR_PREFIX)) {
+      const custom = customConnectorStore.get(c.connectorId.slice(CUSTOM_CONNECTOR_PREFIX.length));
+      if (custom) return { id: `connector:${c.connectorId}`, type: "connector", label: custom.name, sub: "Connector", icon: "🔌" };
+    }
+    return { id: `connector:${c.connectorId}`, type: "connector", label: c.connectorId, sub: "Connector", icon: "🔌" };
+  });
+  const seen = new Set<string>();
+  return [...ownSkills, ...linkedSkills, ...connectors].filter(item => (seen.has(item.id) ? false : (seen.add(item.id), true)));
+}
+
+/** Viewport position of a textarea's caret, via the standard mirror-div technique (a textarea
+ * has no native API for this). Used to anchor the "/" mention menu right under the cursor
+ * rather than at a fixed corner of the editor. */
+function getCaretViewportRect(el: HTMLTextAreaElement, index: number): { top: number; left: number; height: number } {
+  const div = document.createElement("div");
+  const computed = window.getComputedStyle(el);
+  const props = [
+    "boxSizing", "width", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft",
+    "borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth",
+    "fontStyle", "fontVariant", "fontWeight", "fontSize", "lineHeight", "fontFamily",
+    "textAlign", "textTransform", "textIndent", "letterSpacing", "wordSpacing",
+  ] as const;
+  div.style.position = "absolute";
+  div.style.visibility = "hidden";
+  div.style.whiteSpace = "pre-wrap";
+  div.style.wordWrap = "break-word";
+  div.style.overflow = "hidden";
+  props.forEach(p => { (div.style as any)[p] = computed[p as any]; });
+  document.body.appendChild(div);
+  div.textContent = el.value.slice(0, index);
+  const span = document.createElement("span");
+  span.textContent = el.value.slice(index) || ".";
+  div.appendChild(span);
+  const spanTop = span.offsetTop;
+  const spanLeft = span.offsetLeft;
+  const lineHeight = parseInt(computed.lineHeight, 10) || parseInt(computed.fontSize, 10) * 1.2;
+  document.body.removeChild(div);
+  const elRect = el.getBoundingClientRect();
+  const borderTop = parseInt(computed.borderTopWidth, 10) || 0;
+  const borderLeft = parseInt(computed.borderLeftWidth, 10) || 0;
+  return {
+    top: elRect.top + borderTop + spanTop - el.scrollTop,
+    left: elRect.left + borderLeft + spanLeft - el.scrollLeft,
+    height: lineHeight,
+  };
+}
 
 interface SubAgent {
   id: number;
