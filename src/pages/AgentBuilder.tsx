@@ -7334,9 +7334,9 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
         </div>
         <div className="flex items-center justify-between gap-2">
           {/* No on/off state any more — the footer shows ownership/sharing tags and usage. */}
-          <span className="flex items-center gap-1.5 text-sm whitespace-nowrap min-w-0">
+          <span className="flex items-center flex-wrap gap-x-1.5 gap-y-1 text-sm min-w-0">
             <SkillOwnershipTag skill={s} userId={accessUserId} />
-            <span className="flex items-center gap-1 text-muted-foreground truncate">
+            <span className="flex items-center gap-1 text-muted-foreground whitespace-nowrap">
               <HugeiconsIcon icon={UserIcon} size={13} className="shrink-0" />
               {agentCount} Agent
             </span>
