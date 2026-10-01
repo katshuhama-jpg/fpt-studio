@@ -7312,9 +7312,8 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
     .map(id => skillStore.get(id))
     .filter((s): s is Skill => !!s);
 
-  /** One skill card. `agentCount` is how many Agents use the skill — always this one for an
-   * Agent-only skill, the Console record's own tally for a connected workspace skill. */
-  const renderSkillCard = (s: Skill, agentCount: number, menu: React.ReactNode) => {
+  /** One skill card (Agent-only or connected workspace skill). */
+  const renderSkillCard = (s: Skill, menu: React.ReactNode) => {
     return (
       <div
         key={s.id}
@@ -7333,13 +7332,9 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
           )}
         </div>
         <div className="flex items-center justify-between gap-2">
-          {/* No on/off state any more — the footer shows ownership/sharing tags and usage. */}
+          {/* No on/off state and no "N Agent" usage count in lists — the footer shows ownership/sharing tags only. */}
           <span className="flex items-center flex-wrap gap-x-1.5 gap-y-1 text-sm min-w-0">
             <SkillOwnershipTag skill={s} userId={accessUserId} />
-            <span className="flex items-center gap-1 text-muted-foreground whitespace-nowrap">
-              <HugeiconsIcon icon={UserIcon} size={13} className="shrink-0" />
-              {agentCount} Agent
-            </span>
           </span>
           {menu}
         </div>
@@ -7389,7 +7384,7 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
           emptyBox("Agent này chưa có kỹ năng riêng nào", "Tạo một kỹ năng để trang bị thêm năng lực cho Agent này.")
         ) : (
           <div className={GRID}>
-            {items.map(s => renderSkillCard(s, 1, (
+            {items.map(s => renderSkillCard(s, (
               <SkillCardMenu
                 onEdit={() => setEditTarget(s)}
                 onShare={() => setShareTarget({ skill: s, own: true })}
@@ -7409,7 +7404,7 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
           emptyBox("Chưa có skill nào được liên kết", "Liên kết một skill có sẵn trong workspace để dùng lại ở đây.")
         ) : (
           <div className={GRID}>
-            {attachedSkills.map(s => renderSkillCard(s, Math.max(1, s.attachedByAgentIds.length), (
+            {attachedSkills.map(s => renderSkillCard(s, (
               <SkillCardMenu
                 onOpen={() => window.open(`/tools/${s.id}?viaAgent=${agentId}`, "_blank", "noopener")}
                 onShare={s.ownerId === accessUserId ? () => setShareTarget({ skill: s, own: false }) : undefined}

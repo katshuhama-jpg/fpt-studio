@@ -239,7 +239,7 @@ export default function WorkspaceGuardrails() {
 
       {/* Table — all guardrails */}
       <Table>
-        <THead cols="1fr 200px 1fr 72px 64px" cells={["Guardrail", "Response action", "Assigned agents", "Status", "Actions"]} lastRight />
+        <THead cols="1fr 200px 72px 64px" cells={["Guardrail", "Response action", "Status", "Actions"]} lastRight />
         {filtered.length === 0 ? <EmptyRow /> : filtered.map(g => {
           const hasOwner = !g.mandatory && !!g.ownerId && !!g.sharing;
           const isOwner = hasOwner && g.ownerId === access.userId;
@@ -261,10 +261,15 @@ export default function WorkspaceGuardrails() {
             : undefined;
 
           return (
-          <TRow key={g.id} cols="1fr 200px 1fr 72px 64px" onClick={() => setViewItem(g)}>
+          <TRow key={g.id} cols="1fr 200px 72px 64px" onClick={() => setViewItem(g)}>
             <div className="min-w-0">
               <div className="text-sm font-medium">{g.name}</div>
               <OwnershipTagList tags={tagsOf(g)} className="mt-1.5" />
+              {/* The list doesn't show how many Agents use a guardrail (see its detail popup);
+                * it only flags the ones that run on every Agent. */}
+              {g.allAgents && !g.mandatory && (
+                <span className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-primary">Áp dụng cho mọi Agent</span>
+              )}
               <div className="text-xs text-muted-foreground mt-1.5 leading-relaxed line-clamp-2">{g.desc}</div>
               <div className="text-xs mt-2">
                 {isCreatorRedundant(tagsOf(g))
@@ -275,18 +280,6 @@ export default function WorkspaceGuardrails() {
               </div>
             </div>
             <div><ActionPill>{actionLabelVi(g.action)}</ActionPill></div>
-            <div className="flex items-center">
-              {g.mandatory || g.allAgents ? (
-                <span className="flex items-center gap-1.5 text-xs font-medium text-foreground">
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="7" fill="#22c55e"/><path d="M4 7l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  Tất cả Agent
-                </span>
-              ) : g.attachedByAgentIds.length > 0 ? (
-                <span className="text-xs font-medium text-foreground">{g.attachedByAgentIds.length} Agent</span>
-              ) : (
-                <span className="text-xs text-muted-foreground">—</span>
-              )}
-            </div>
             <div className="flex items-center" onClick={e => e.stopPropagation()}>
               <Switch
                 checked={g.enabled}
