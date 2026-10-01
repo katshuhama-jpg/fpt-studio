@@ -67,10 +67,18 @@ export default function ShareAgentItemModal({ agentId, items, onClose }: {
   const applySave = () => {
     const sharing: Sharing = { mode: buildMode, people: buildMode === "specific" ? buildPeople : [] };
     for (const item of items) {
-      knowledgeStore.updateSharing(agentId, item.id, sharing);
-      knowledgeStore.updateQuerySharing(agentId, item.id, querySharing);
+      if (buildMode === "private") {
+        knowledgeStore.updateSharing(agentId, item.id, sharing);
+        knowledgeStore.updateQuerySharing(agentId, item.id, querySharing);
+      } else {
+        // Shared: the item becomes a Space knowledge base this Agent links, so other Agents
+        // can find and link it too.
+        knowledgeStore.shareItem(agentId, item.id, sharing, querySharing);
+      }
     }
-    toast.success("Đã cập nhật quyền chia sẻ.");
+    toast.success(buildMode === "private"
+      ? "Đã cập nhật quyền chia sẻ."
+      : items.length > 1 ? `Đã chia sẻ ${items.length} mục thành kho tri thức trong Space.` : "Đã chia sẻ thành kho tri thức trong Space.");
     onClose();
   };
 
@@ -93,7 +101,7 @@ export default function ShareAgentItemModal({ agentId, items, onClose }: {
           <div className="space-y-6 py-1">
             <div>
               <label className="text-sm font-medium mb-1 block">Chia sẻ tới</label>
-              <p className="text-xs text-muted-foreground mb-3">Chia sẻ để người khác dùng lại tài liệu này cho Agent của họ.</p>
+              <p className="text-xs text-muted-foreground mb-3">Chia sẻ để người khác dùng lại tài liệu này cho Agent của họ. Khi chia sẻ, mỗi mục trở thành một kho tri thức trong Space, Agent này vẫn dùng như cũ.</p>
               <div className="space-y-2">
                 {BUILD_ACCESS_OPTIONS.map(opt => (
                   <RadioCard key={opt.value} selected={buildMode === opt.value} onSelect={() => setBuildMode(opt.value)} label={opt.label} helper={opt.helper}>

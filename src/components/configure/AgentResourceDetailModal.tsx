@@ -377,7 +377,7 @@ function ListPreview<T>({ items, render, empty }: { items: T[]; render: (t: T) =
   );
 }
 
-function KnowledgeBaseDetail({ id, onClose, onChanged }: { id: string; onClose: () => void; onChanged: () => void }) {
+function KnowledgeBaseDetail({ agentId, id, onClose, onChanged }: { agentId: string; id: string; onClose: () => void; onChanged: () => void }) {
   const access = useGroupAccess("knowledge");
   const [sub, setSub] = useState<Sub>(null);
   const [, setTick] = useState(0);
@@ -395,8 +395,11 @@ function KnowledgeBaseDetail({ id, onClose, onChanged }: { id: string; onClose: 
   if (sub === "share") return (
     <ShareKnowledgeBaseModal
       open name={kb.name} ownerName={kb.ownerName} sharing={kb.sharing}
-      resourceOwnerId={kb.ownerId} attachedAgentIds={kb.attachedByAgentIds}
-      onSave={sharing => knowledgeBaseStore.updateSharing(kb.id, sharing)}
+      resourceOwnerId={kb.ownerId} attachedAgentIds={kb.attachedByAgentIds} agentOnlyFor={agentId}
+      onSave={sharing => {
+        if (sharing.mode === "private") { knowledgeStore.unshareKb(agentId, kb.id); onChanged(); onClose(); return; }
+        knowledgeBaseStore.updateSharing(kb.id, sharing);
+      }}
       onClose={() => { setSub(null); refresh(); }}
     />
   );
@@ -507,7 +510,7 @@ export default function AgentResourceDetailModal({ agentId, target, onClose, onC
     case "agentSkill": return <AgentSkillDetail agentId={agentId} id={target.id} onClose={onClose} onChanged={changed} />;
     case "guardrail": return <ConsoleGuardrailDetail agentId={agentId} id={target.id} onClose={onClose} onChanged={changed} />;
     case "agentGuardrail": return <AgentGuardrailDetail agentId={agentId} id={target.id} onClose={onClose} onChanged={changed} />;
-    case "knowledgeBase": return <KnowledgeBaseDetail id={target.id} onClose={onClose} onChanged={changed} />;
+    case "knowledgeBase": return <KnowledgeBaseDetail agentId={agentId} id={target.id} onClose={onClose} onChanged={changed} />;
     case "knowledgeItem": return <KnowledgeItemDetail agentId={agentId} id={target.id} onClose={onClose} onChanged={changed} onOpenFull={() => { onClose(); onOpenKnowledge?.(); }} />;
     case "connector": return <ConnectorDetail agentId={agentId} id={target.id} onClose={onClose} onChanged={changed} />;
   }

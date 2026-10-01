@@ -26,7 +26,7 @@ export interface SkillFormData {
  * Used for creating a Console skill, creating an Agent-private skill, and editing an
  * Agent-private one (Quyền truy cập is create-only, matching CreateKnowledgeBaseModal.tsx's own
  * convention — an existing item's sharing is changed via its own "Chia sẻ" action instead). */
-export default function CreateSkillModal({ onClose, onSubmit, initialData, currentUser, isDuplicateName, title = "Create Skill" }: {
+export default function CreateSkillModal({ onClose, onSubmit, initialData, currentUser, isDuplicateName, title = "Tạo skill" }: {
   onClose: () => void;
   onSubmit: (data: SkillFormData) => void;
   initialData?: { name: string; description: string; body: string };
@@ -82,13 +82,13 @@ export default function CreateSkillModal({ onClose, onSubmit, initialData, curre
       <Dialog open onOpenChange={v => { if (!v) requestClose(); }}>
         <DialogContent className="sm:max-w-[560px] max-h-[88vh] overflow-y-auto" onOpenAutoFocus={e => e.preventDefault()}>
           <DialogHeader>
-            <DialogTitle>{isEdit ? "Sửa Skill" : title}</DialogTitle>
+            <DialogTitle>{isEdit ? "Sửa skill" : title}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-5 py-1">
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-sm font-medium">Name <span className="text-destructive">*</span></label>
+                <label className="text-sm font-medium">Tên <span className="text-destructive">*</span></label>
                 <span className="text-xs text-muted-foreground">{name.length}/{NAME_MAX}</span>
               </div>
               <input
@@ -97,7 +97,7 @@ export default function CreateSkillModal({ onClose, onSubmit, initialData, curre
                 maxLength={NAME_MAX}
                 onChange={e => setName(e.target.value)}
                 onBlur={() => setNameTouched(true)}
-                placeholder="e.g. account-briefing"
+                placeholder="Ví dụ: account-briefing"
                 className={`w-full h-10 px-3 rounded-lg border bg-white text-sm outline-none focus:ring-2 transition-base ${
                   nameError ? "border-destructive focus:ring-destructive/20" : "border-border focus:border-primary focus:ring-primary/20"
                 }`}
@@ -107,7 +107,7 @@ export default function CreateSkillModal({ onClose, onSubmit, initialData, curre
 
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-sm font-medium">Description</label>
+                <label className="text-sm font-medium">Mô tả</label>
                 <span className="text-xs text-muted-foreground">{description.length}/{DESC_MAX}</span>
               </div>
               <textarea
@@ -121,7 +121,7 @@ export default function CreateSkillModal({ onClose, onSubmit, initialData, curre
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-1.5 block">Source</label>
+              <label className="text-sm font-medium mb-1.5 block">Nội dung</label>
               <textarea
                 rows={8}
                 value={body}

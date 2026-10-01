@@ -67,7 +67,14 @@ const k = (a: string, id: string) => `${a}:${id}`;
 const persist = () => saveMap(STORE_KEY, store);
 const persistAttached = () => saveMap(ATTACHED_KEY, attached);
 const persistActive = () => saveMap(ACTIVE_KEY, activeMap);
-const normalize = (i: KnowledgeItem): KnowledgeItem => (i.createdAt && i.updatedBy ? i : { ...i, createdAt: i.createdAt ?? i.updatedAt, updatedBy: i.updatedBy ?? CURRENT_USER.name });
+// An Agent's own item is always "Chỉ Agent này": sharing it turns it into a Space knowledge
+// base (shareItem), so any older shared value on an item is read as not shared.
+const normalize = (i: KnowledgeItem): KnowledgeItem => ({
+  ...i,
+  createdAt: i.createdAt ?? i.updatedAt,
+  updatedBy: i.updatedBy ?? CURRENT_USER.name,
+  sharing: undefined,
+});
 
 const DAY = 86_400_000;
 
@@ -287,6 +294,47 @@ export const knowledgeStore = {
     this.remove(agentId, itemId);
     this.attachConsoleKb(agentId, kb.id);
     return { kbId: kb.id };
+  },
+
+  /** "Chia sẻ" on an Agent's own item: the item becomes a Space knowledge base (named after
+   * the item) that this Agent links, so other Agents can find and link it too. */
+  shareItem(agentId: string, itemId: string, sharing: Sharing, querySharing?: QuerySharing): { kbId: string } | null {
+    const item = store.get(k(agentId, itemId));
+    if (!item) return null;
+    const name = (item.kind === "url" ? (item.title || item.name) : item.name).slice(0, 50);
+    const res = this.promoteToConsole(agentId, itemId, name, sharing);
+    if (res && (querySharing ?? item.querySharing)) knowledgeBaseStore.updateQuerySharing(res.kbId, (querySharing ?? item.querySharing)!);
+    return res;
+  },
+
+  /** Reverse of shareItem — "Chỉ Agent này" on a Space knowledge base this Agent links: its
+   * documents / websites / FAQs come back as this Agent's own items and the knowledge base is
+   * removed from the Space library. Callers make sure no other Agent uses it. */
+  unshareKb(agentId: string, kbId: string): boolean {
+    const kb = knowledgeBaseStore.get(kbId);
+    if (!kb) return false;
+    const docs = knowledgeDocumentStore.list(kbId).filter(d => !d.isFolder);
+    const urls = knowledgeUrlStore.list(kbId).filter(u => !u.isFolder);
+    const faqs = knowledgeFaqStore.list(kbId);
+    const base = { sharing: { mode: "private" as const, people: [] }, querySharing: kb.querySharing };
+    for (const d of docs) {
+      const it = this.add(agentId, { name: d.name, kind: "doc", description: "", sizeBytes: d.sizeBytes, ...base });
+      this.updateStatus(agentId, it.id, d.status, { chunkCount: d.chunkCount });
+    }
+    for (const u of urls) {
+      const it = this.add(agentId, { name: u.url ?? u.name, title: u.title ?? u.name, kind: "url", description: "", ...base });
+      this.updateStatus(agentId, it.id, u.status, { chunkCount: u.chunkCount });
+    }
+    for (const f of faqs) {
+      const it = this.add(agentId, { name: f.question, kind: "faq", description: f.answer, categories: f.categories, ...base });
+      this.updateStatus(agentId, it.id, f.status, { chunkCount: f.chunkCount });
+    }
+    this.detachConsoleKb(agentId, kbId);
+    if (docs.length) knowledgeDocumentStore.removeMany(docs.map(d => d.id));
+    if (urls.length) knowledgeUrlStore.removeMany(urls.map(u => u.id));
+    if (faqs.length) knowledgeFaqStore.removeMany(faqs.map(f => f.id));
+    knowledgeBaseStore.remove(kbId);
+    return true;
   },
 };
 

@@ -1591,7 +1591,12 @@ function AgentKnowledgeGrid({ agentId, onOpenOwn }: { agentId: string; onOpenOwn
           sharing={shareKbTarget.sharing}
           resourceOwnerId={shareKbTarget.ownerId}
           attachedAgentIds={shareKbTarget.attachedByAgentIds}
-          onSave={sharing => knowledgeBaseStore.updateSharing(shareKbTarget.id, sharing)}
+          agentOnlyFor={agentId}
+          onSave={sharing => {
+            // "Chỉ Agent này": the knowledge base comes back into this Agent as its own items.
+            if (sharing.mode === "private") knowledgeStore.unshareKb(agentId, shareKbTarget.id);
+            else knowledgeBaseStore.updateSharing(shareKbTarget.id, sharing);
+          }}
           onClose={() => { setShareKbTarget(null); refresh(); }}
         />
       )}
@@ -5292,8 +5297,8 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
 
   const menuItems = [
     { icon: LayerAddIcon, label: "Liên kết skill có sẵn", onClick: () => setShowAttach(true) },
-    { icon: Add01Icon,    label: "Create new skill", onClick: () => setShowCreate(true) },
-    { icon: Upload01Icon, label: "Upload a skill", onClick: () => setShowUpload(true) },
+    { icon: Add01Icon,    label: "Viết hướng dẫn kỹ năng", onClick: () => setShowCreate(true) },
+    { icon: Upload01Icon, label: "Tải lên kỹ năng", onClick: () => setShowUpload(true) },
   ];
 
   const total = attachedSkills.length + items.length;
@@ -5303,8 +5308,8 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
       {total === 0 ? (
         <EmptyStateBox
           icon={PuzzleIcon}
-          description="Reusable abilities you've taught it."
-          addLabel="Add Skill"
+          description="Năng lực Agent dùng lại được khi làm việc."
+          addLabel="Thêm kỹ năng"
           onAdd={e => {
             const r = e.currentTarget.getBoundingClientRect();
             setMenuPos({ top: r.bottom + 4, left: r.right });
@@ -7307,19 +7312,13 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
     .map(id => skillStore.get(id))
     .filter((s): s is Skill => !!s);
 
-  const toggleActive = (s: Skill) => {
-    agentSkillStore.setActive(agentId, s.id, !agentSkillStore.isActive(agentId, s.id));
-    refresh();
-  };
-
   /** One skill card. `agentCount` is how many Agents use the skill — always this one for an
    * Agent-only skill, the Console record's own tally for a connected workspace skill. */
   const renderSkillCard = (s: Skill, agentCount: number, menu: React.ReactNode) => {
-    const active = agentSkillStore.isActive(agentId, s.id);
     return (
       <div
         key={s.id}
-        className={`flex flex-col gap-3 p-4 rounded-xl border border-border bg-white transition-base ${active ? "" : "opacity-60"}`}
+        className="flex flex-col gap-3 p-4 rounded-xl border border-border bg-white transition-base"
       >
         <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0" style={{ background: s.iconBg }}>{s.icon}</div>
         <div className="flex-1 min-w-0">
@@ -7334,13 +7333,12 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
           )}
         </div>
         <div className="flex items-center justify-between gap-2">
+          {/* No on/off state any more — the footer shows ownership/sharing tags and usage. */}
           <span className="flex items-center gap-1.5 text-sm whitespace-nowrap min-w-0">
-            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${active ? "bg-success" : "bg-muted-foreground"}`} />
-            <span className={`font-medium ${active ? "text-success" : "text-muted-foreground"}`}>{active ? "Đang bật" : "Đã tắt"}</span>
-            <span className="text-muted-foreground">·</span>
+            <SkillOwnershipTag skill={s} userId={accessUserId} />
             <span className="flex items-center gap-1 text-muted-foreground truncate">
               <HugeiconsIcon icon={UserIcon} size={13} className="shrink-0" />
-              {agentCount} agent
+              {agentCount} Agent
             </span>
           </span>
           {menu}
@@ -7674,8 +7672,8 @@ function GuardrailsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
       {rows.length === 0 ? (
         <EmptyStateBox
           icon={Shield01Icon}
-          description="Boundaries that keep your agent acting safely."
-          addLabel="Add Guardrails"
+          description="Giới hạn giúp Agent trả lời an toàn."
+          addLabel="Thêm guardrail"
           onAdd={e => {
             const r = e.currentTarget.getBoundingClientRect();
             setMenuPos({ top: r.bottom + 4, left: r.right });

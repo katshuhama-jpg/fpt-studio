@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { agentsBlockingUnshare, ResourceInUseDialog } from "@/components/governance/resourceInUseGuard";
+import { agentsBlockingUnshare, agentsUsing, ResourceInUseDialog } from "@/components/governance/resourceInUseGuard";
 import type { AgentRecord } from "@/components/configure/agentStore";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -17,11 +17,17 @@ const SHARING_OPTIONS: { value: SharingMode; label: string; helper?: string }[] 
   { value: "specific", label: "Người dùng cụ thể", helper: "Chỉ những người bạn chọn mới dùng lại được." },
 ];
 
+/** Extra first option when the modal is opened inside an Agent for a resource that Agent owns:
+ * "not shared" — only that Agent uses it. Stored as mode "private". */
+const AGENT_ONLY_OPTION: { value: SharingMode; label: string; helper?: string } = {
+  value: "private", label: "Chỉ Agent này", helper: "Không chia sẻ. Chỉ Agent đang mở dùng được.",
+};
+
 /** Generic "Chia sẻ" modal — reused for a Console KB (S4) and for an individual Agent
  * Knowledge item's "Quyền" (S14), so both share the exact same sharing UI and copy instead of
  * drifting into two pickers. The caller owns persistence via onSave. */
 export default function ShareKnowledgeBaseModal({
-  open, onClose, name, ownerName, sharing: initialSharing, onSave, resourceOwnerId, attachedAgentIds, title = "Chia sẻ kho tri thức",
+  open, onClose, name, ownerName, sharing: initialSharing, onSave, resourceOwnerId, attachedAgentIds, title = "Chia sẻ kho tri thức", agentOnlyFor,
 }: {
   open: boolean;
   onClose: () => void;
@@ -35,8 +41,12 @@ export default function ShareKnowledgeBaseModal({
   resourceOwnerId?: string;
   attachedAgentIds?: string[];
   title?: string;
+  /** Agent id when opened inside an Agent for a resource that Agent owns — adds the
+   * "Chỉ Agent này" option (turning sharing off). */
+  agentOnlyFor?: string;
 }) {
-  const [mode, setMode] = useState<SharingMode>(initialSharing.mode === "private" ? "all" : initialSharing.mode);
+  const options = agentOnlyFor ? [AGENT_ONLY_OPTION, ...SHARING_OPTIONS] : SHARING_OPTIONS;
+  const [mode, setMode] = useState<SharingMode>(initialSharing.mode === "private" && !agentOnlyFor ? "all" : initialSharing.mode);
   const [people, setPeople] = useState(initialSharing.people);
   const [blockingAgents, setBlockingAgents] = useState<AgentRecord[]>([]);
   const [showRevokeConfirm, setShowRevokeConfirm] = useState(false);
@@ -69,6 +79,14 @@ export default function ShareKnowledgeBaseModal({
   const save = () => {
     setSubmitAttempted(true);
     if (!canSubmit) return;
+    if (mode === "private") {
+      // Turning sharing off: blocked while any OTHER Agent still uses this resource.
+      const others = agentsUsing((attachedAgentIds ?? []).filter(id => id !== agentOnlyFor));
+      if (others.length > 0) { setBlockingAgents(others); return; }
+      if (initialSharing.mode !== "private") { setShowRevokeConfirm(true); return; }
+      applySave();
+      return;
+    }
     const blockers = agentsBlockingUnshare(attachedAgentIds, resourceOwnerId, { mode, people: mode === "specific" ? people : [] });
     if (blockers.length > 0) { setBlockingAgents(blockers); return; }
     const downgrading = initialSharing.mode === "all" && mode !== "all";
@@ -93,7 +111,7 @@ export default function ShareKnowledgeBaseModal({
               <label className="text-sm font-medium mb-1 block">Chia sẻ tới</label>
               <p className="text-xs text-muted-foreground mb-3">Chia sẻ để người khác dùng lại kho tri thức này cho Agent của họ.</p>
               <div className="space-y-2">
-                {SHARING_OPTIONS.map(opt => {
+                {options.map(opt => {
                   const selected = mode === opt.value;
                   return (
                     <div key={opt.value}>
@@ -138,20 +156,29 @@ export default function ShareKnowledgeBaseModal({
       <AlertDialog open={showRevokeConfirm} onOpenChange={setShowRevokeConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Thu hồi quyền truy cập?</AlertDialogTitle>
-            <AlertDialogDescription>{revokedCount} người sẽ không còn xem được kho tri thức này.</AlertDialogDescription>
+            {mode === "private" ? (
+              <>
+                <AlertDialogTitle>Tắt chia sẻ?</AlertDialogTitle>
+                <AlertDialogDescription>Chỉ Agent này dùng được kho tri thức này. Người khác sẽ không tìm thấy để dùng lại cho Agent của họ.</AlertDialogDescription>
+              </>
+            ) : (
+              <>
+                <AlertDialogTitle>Thu hồi quyền truy cập?</AlertDialogTitle>
+                <AlertDialogDescription>{revokedCount} người sẽ không còn xem được kho tri thức này.</AlertDialogDescription>
+              </>
+            )}
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { setShowRevokeConfirm(false); applySave(); }}>Thu hồi quyền</AlertDialogAction>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { setShowRevokeConfirm(false); applySave(); }}>{mode === "private" ? "Tắt chia sẻ" : "Thu hồi quyền"}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
       <ResourceInUseDialog
         open={blockingAgents.length > 0}
         onClose={() => setBlockingAgents([])}
-        title="Chưa thể thu hẹp chia sẻ"
-        description={"Những người dưới đây sẽ mất quyền truy cập trong khi Agent của họ vẫn đang dùng kho tri thức này. Nhờ họ gỡ kho tri thức khỏi Agent trước, rồi đổi chia sẻ."}
+        title={mode === "private" ? "Chưa thể tắt chia sẻ" : "Chưa thể thu hẹp chia sẻ"}
+        description={mode === "private" ? "Các Agent dưới đây đang dùng kho tri thức này. Gỡ kho tri thức khỏi các Agent đó trước, rồi tắt chia sẻ." : "Những người dưới đây sẽ mất quyền truy cập trong khi Agent của họ vẫn đang dùng kho tri thức này. Nhờ họ gỡ kho tri thức khỏi Agent trước, rồi đổi chia sẻ."}
         agents={blockingAgents}
       />
     </>
