@@ -120,20 +120,20 @@ export default function ShareKnowledgeBaseModal({
             {mode === "private" ? (
               <>
                 <AlertDialogTitle>Tắt chia sẻ?</AlertDialogTitle>
-                <AlertDialogDescription>Chỉ Agent này dùng được kho này. Agent khác sẽ không liên kết được nữa.</AlertDialogDescription>
+                <AlertDialogDescription>Chỉ Agent này dùng được kho này. Người khác sẽ không liên kết được kho vào Agent của họ nữa.</AlertDialogDescription>
               </>
             ) : (
               <>
                 <AlertDialogTitle>Thu hẹp quyền truy cập?</AlertDialogTitle>
                 <AlertDialogDescription>{initialSharing.mode === "all"
-                  ? "Người không có trong danh sách sẽ không liên kết được kho này vào Agent nữa."
+                  ? "Chỉ người trong danh sách còn liên kết được kho này vào Agent."
                   : `${revokedCount} người sẽ không liên kết được kho này vào Agent nữa.`}</AlertDialogDescription>
               </>
             )}
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { setShowRevokeConfirm(false); applySave(); }}>{mode === "private" ? "Tắt chia sẻ" : "Thu hẹp quyền"}</AlertDialogAction>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { setShowRevokeConfirm(false); applySave(); }}>{mode === "private" ? "Tắt chia sẻ" : "Thu hẹp quyền truy cập"}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

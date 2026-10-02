@@ -117,28 +117,28 @@ function DepartmentPicker({ value, onChange }: { value: string[]; onChange: (nex
  * popups) reads these constants so the wording never drifts. */
 export const ACCESS_COPY = {
   title: "Quyền truy cập",
-  description: "Ai được dùng kho này khi xây dựng Agent. Người có quyền sẽ thấy kho trong thư viện và liên kết được vào Agent của họ.",
-  agentDescription: "Ai được dùng tri thức này khi xây dựng Agent. Khi chia sẻ, mỗi mục trở thành một kho trong Space để Agent khác liên kết.",
+  description: "Quyết định ai được liên kết kho này vào Agent khi xây dựng. Người có quyền sẽ thấy kho trong thư viện của Space.",
+  agentDescription: "Quyết định ai được dùng lại tri thức này khi xây dựng Agent. Khi chia sẻ, mỗi mục trở thành một kho trong Space.",
   toast: "Đã cập nhật quyền truy cập.",
 };
 export const RETRIEVAL_COPY = {
   title: "Quyền truy xuất",
-  description: "Ai được nhận câu trả lời dựa trên nội dung kho này khi trò chuyện với Agent.",
+  description: "Quyết định ai nhận được câu trả lời từ nội dung kho này khi trò chuyện với Agent.",
   toast: "Đã cập nhật quyền truy xuất.",
 };
 
 export const ACCESS_OPTIONS: { value: SharingMode; label: string; helper: string; icon: LucideIcon }[] = [
-  { value: "all", label: "Cả Space", helper: "Mọi thành viên trong Space đều liên kết được kho này vào Agent.", icon: Users },
-  { value: "specific", label: "Người cụ thể", helper: "Chỉ những người bạn chọn mới liên kết được kho này vào Agent.", icon: UserCheck },
+  { value: "all", label: "Cả Space", helper: "Mọi thành viên Space đều liên kết được kho này vào Agent.", icon: Users },
+  { value: "specific", label: "Người cụ thể", helper: "Chỉ người bạn chọn mới liên kết được kho này vào Agent.", icon: UserCheck },
 ];
 /** Extra first option inside an Agent, for knowledge that Agent owns. Stored as mode "private". */
 export const AGENT_ONLY_ACCESS_OPTION: { value: SharingMode; label: string; helper: string; icon: LucideIcon } = {
-  value: "private", label: "Chỉ Agent này", helper: "Không chia sẻ. Chỉ Agent đang mở dùng được.", icon: Bot,
+  value: "private", label: "Chỉ Agent này", helper: "Không chia sẻ. Chỉ Agent bạn đang chỉnh sửa dùng được tri thức này.", icon: Bot,
 };
 
 export const QUERY_SCOPE_OPTIONS: { value: QueryScopeMode; label: string; helper: string; icon: LucideIcon }[] = [
   { value: "all_org", label: "Cả tổ chức", helper: "Agent trả lời từ kho này cho mọi người trong tổ chức.", icon: Building2 },
-  { value: "department", label: "Phòng ban", helper: "Agent chỉ trả lời từ kho này cho người thuộc phòng ban đã chọn.", icon: Network },
+  { value: "department", label: "Phòng ban", helper: "Agent chỉ trả lời từ kho này cho người thuộc phòng ban bạn chọn.", icon: Network },
 ];
 
 /** Older data may still carry "private"/"specific" retrieval modes — both read as "Cả tổ chức"

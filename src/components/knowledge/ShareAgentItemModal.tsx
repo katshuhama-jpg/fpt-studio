@@ -125,14 +125,14 @@ export default function ShareAgentItemModal({ agentId, items, onClose }: {
           <AlertDialogHeader>
             <AlertDialogTitle>{!downgrading ? "Thu hẹp quyền truy xuất?" : buildMode === "private" ? "Tắt chia sẻ?" : "Thu hẹp quyền truy cập?"}</AlertDialogTitle>
             <AlertDialogDescription>{!downgrading
-              ? "Agent sẽ ngừng trả lời từ nội dung này cho người ngoài các phòng ban đã chọn."
+              ? "Agent sẽ ngừng trả lời từ tri thức này cho người ngoài các phòng ban bạn chọn."
               : buildMode === "private"
-                ? "Chỉ Agent này dùng được nội dung này. Agent khác sẽ không liên kết được nữa."
-                : "Người không có trong danh sách sẽ không liên kết được nội dung này vào Agent nữa."}</AlertDialogDescription>
+                ? "Chỉ Agent này dùng được tri thức này. Người khác sẽ không liên kết được vào Agent của họ nữa."
+                : "Chỉ người trong danh sách còn liên kết được tri thức này vào Agent."}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { setShowRevokeConfirm(false); applySave(); }}>{downgrading && buildMode === "private" ? "Tắt chia sẻ" : "Thu hẹp quyền"}</AlertDialogAction>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { setShowRevokeConfirm(false); applySave(); }}>{downgrading && buildMode === "private" ? "Tắt chia sẻ" : !downgrading ? "Thu hẹp quyền truy xuất" : "Thu hẹp quyền truy cập"}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
