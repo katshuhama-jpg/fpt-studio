@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { agentsUsing, ResourceInUseDialog } from "@/components/governance/resourceInUseGuard";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
-import { Search, CheckCircle2, ChevronRight, Plug, MoreVertical, AlertTriangle, X, Rocket } from "lucide-react";
+import { Search, CheckCircle2, ChevronRight, Plug, MoreVertical, AlertTriangle, X, Rocket, Globe } from "lucide-react";
 import RequestPublishModal from "@/components/governance/RequestPublishModal";
 import { governanceStore } from "@/components/governance/governanceStore";
 import { StatusBadge } from "@/components/governance/governanceUi";
@@ -13,6 +13,8 @@ import { customConnectorStore, type CustomConnector } from "@/components/configu
 import { isAccessibleTo as isCustomConnectorAccessibleTo } from "@/components/configure/customConnectorSharing";
 import AddCustomConnectorModal from "@/components/configure/AddCustomConnectorModal";
 import CustomConnectorShareModal from "@/components/configure/CustomConnectorShareModal";
+import { customApiToolStore, AUTH_TYPE_LABEL, type CustomApiTool, type HttpMethod } from "@/components/configure/customApiToolStore";
+import AddCustomApiToolModal from "@/components/configure/AddCustomApiToolModal";
 import { getAgent } from "@/components/configure/agentStore";
 import {
   CONNECTOR_TEMPLATES, connectorTemplateStore, type ConnectorTemplateDef,
@@ -150,6 +152,12 @@ export default function WorkspaceConnectors() {
   const [editTarget, setEditTarget] = useState<CustomConnector | null>(null);
   const [shareTarget, setShareTarget] = useState<CustomConnector | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CustomConnector | null>(null);
+  // API Tool — a separate "Custom Tool" kind (a single REST endpoint definition) alongside
+  // Custom MCP connectors above. No sharing/publish/block yet (see customApiToolStore.ts), so
+  // it only needs create/edit/delete state, not the fuller set MCP connectors carry.
+  const [showAddApiTool, setShowAddApiTool] = useState(false);
+  const [editApiToolTarget, setEditApiToolTarget] = useState<CustomApiTool | null>(null);
+  const [deleteApiToolTarget, setDeleteApiToolTarget] = useState<CustomApiTool | null>(null);
   const [customTab, setCustomTab] = useState<CustomTab>("all");
   // Clicking a custom connector card shows its details (same popup as in an Agent's Instructions).
   const [detailConnectorId, setDetailConnectorId] = useState<string | null>(null);
@@ -173,10 +181,17 @@ export default function WorkspaceConnectors() {
   const accessibleCustomConnectors = customConnectors.filter(c => isCustomConnectorAccessibleTo(c.sharing, c.ownerId, CURRENT_USER.id));
   // Custom section = FPT's internal connector templates (tagged Hệ thống) + MCP connectors people
   // added (Của tôi / Được chia sẻ). Tabs filter by tag.
-  type CustomItem = { kind: "template"; t: ConnectorTemplateDef; tags: OwnershipTag[] } | { kind: "custom"; c: CustomConnector; tags: OwnershipTag[] };
+  type CustomItem =
+    | { kind: "template"; t: ConnectorTemplateDef; tags: OwnershipTag[] }
+    | { kind: "custom"; c: CustomConnector; tags: OwnershipTag[] }
+    | { kind: "apitool"; a: CustomApiTool; tags: OwnershipTag[] };
+  const customApiTools = customApiToolStore.list();
   const customItems: CustomItem[] = [
     ...CONNECTOR_TEMPLATES.map(t => ({ kind: "template" as const, t, tags: ["system"] as OwnershipTag[] })),
     ...accessibleCustomConnectors.map(c => ({ kind: "custom" as const, c, tags: ownershipTags({ ownerId: c.ownerId, sharing: c.sharing, userId: CURRENT_USER.id }) })),
+    // customApiToolStore.list() already only returns the current user's own tools (no sharing
+    // model yet — see its doc comment), so this always tags "mine".
+    ...customApiTools.map(a => ({ kind: "apitool" as const, a, tags: ownershipTags({ ownerId: a.ownerId, userId: CURRENT_USER.id }) })),
   ];
   const customTabCounts = countByTab(customItems, i => i.tags);
   const customFiltered = customItems.filter(i => matchesTab(i.tags, customTab));
@@ -305,13 +320,21 @@ export default function WorkspaceConnectors() {
       {section === "custom" && (
         <div>
           <div className="flex items-center justify-between gap-3 mb-5">
-            <p className="text-sm text-muted-foreground">Connector hệ thống nội bộ FPT dựng sẵn, hoặc thêm một MCP server để cấp công cụ của nó cho Agent của bạn.</p>
-            <button
-              onClick={() => setShowAddCustom(true)}
-              className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium transition-base shrink-0"
-            >
-              + Thêm MCP tùy chỉnh
-            </button>
+            <p className="text-sm text-muted-foreground">Connector hệ thống nội bộ FPT dựng sẵn, thêm một MCP server, hoặc định nghĩa một API Tool để cấp công cụ cho Agent của bạn.</p>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => setShowAddApiTool(true)}
+                className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base"
+              >
+                + Thêm API Tool
+              </button>
+              <button
+                onClick={() => setShowAddCustom(true)}
+                className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium transition-base"
+              >
+                + Thêm MCP tùy chỉnh
+              </button>
+            </div>
           </div>
 
           <div className="mb-5">
@@ -322,7 +345,7 @@ export default function WorkspaceConnectors() {
             <div className="rounded-2xl border border-dashed border-border bg-gradient-soft p-12 text-center">
               <Plug size={22} className="mx-auto mb-3 text-muted-foreground" />
               <p className="text-sm font-medium mb-1">{customTab === "mine" ? "Bạn chưa thêm custom connector nào" : customTab === "shared" ? "Chưa có custom connector nào được chia sẻ" : "Chưa có custom connector nào"}</p>
-              <p className="text-sm text-muted-foreground">Thêm một MCP server để cấp công cụ của nó cho Agent của bạn.</p>
+              <p className="text-sm text-muted-foreground">Thêm một MCP server hoặc một API Tool để cấp công cụ cho Agent của bạn.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -344,6 +367,19 @@ export default function WorkspaceConnectors() {
                       creator={<CardCreator displayName="FPT AI Agents" system />}
                       highlighted={connected}
                       onOpen={open}
+                    />
+                  );
+                }
+                if (i.kind === "apitool") {
+                  const a = i.a;
+                  return (
+                    <CustomApiToolCard
+                      key={a.id}
+                      tool={a}
+                      tags={i.tags}
+                      onOpen={() => setEditApiToolTarget(a)}
+                      onEdit={() => setEditApiToolTarget(a)}
+                      onDelete={() => setDeleteApiToolTarget(a)}
                     />
                   );
                 }
@@ -381,6 +417,21 @@ export default function WorkspaceConnectors() {
         <AddCustomConnectorModal
           onClose={() => setShowAddCustom(false)}
           onCreated={() => { setShowAddCustom(false); refresh(); }}
+        />
+      )}
+
+      {showAddApiTool && (
+        <AddCustomApiToolModal
+          onClose={() => setShowAddApiTool(false)}
+          onCreated={() => { setShowAddApiTool(false); refresh(); }}
+        />
+      )}
+
+      {editApiToolTarget && (
+        <AddCustomApiToolModal
+          editing={editApiToolTarget}
+          onClose={() => setEditApiToolTarget(null)}
+          onUpdated={() => { setEditApiToolTarget(null); toast.success("Đã lưu thay đổi."); refresh(); }}
         />
       )}
 
@@ -438,6 +489,24 @@ export default function WorkspaceConnectors() {
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => { if (deleteTarget) { customConnectorStore.remove(deleteTarget.id); refresh(); } setDeleteTarget(null); }}
+            >
+              Xóa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deleteApiToolTarget} onOpenChange={v => !v && setDeleteApiToolTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xóa API Tool "{deleteApiToolTarget?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>API Tool sẽ bị xóa vĩnh viễn khỏi workspace. Hành động này không thể hoàn tác.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy bỏ</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { if (deleteApiToolTarget) { customApiToolStore.remove(deleteApiToolTarget.id); refresh(); } setDeleteApiToolTarget(null); }}
             >
               Xóa
             </AlertDialogAction>
@@ -580,6 +649,40 @@ function CustomConnectorCard({ connector: c, tags, isMine, onOpen, onEdit, onSha
       }
       creator={<CardCreator displayName={isMine ? "Bạn" : c.ownerName} fullName={c.ownerName} />}
       agents={<AgentCount count={c.attachedByAgentIds.length} />}
+    />
+  );
+}
+
+const API_METHOD_CLASS: Record<HttpMethod, string> = {
+  GET: "bg-[hsl(var(--success-soft))] text-[hsl(var(--success-strong))]",
+  POST: "bg-primary-soft text-primary",
+  PUT: "bg-amber-100 text-amber-700",
+  PATCH: "bg-purple-100 text-purple-700",
+  DELETE: "bg-destructive/10 text-destructive",
+};
+
+/** API Tool card — same "Phương án A" ResourceCard shell as a Custom Connector card, with a
+ * method badge in place of the plug icon's usual role and the auth type where a Custom
+ * Connector card shows its own AUTH_LABEL. No Share/Publish/Block menu items yet since API Tool
+ * has no sharing model in this first version (see customApiToolStore.ts). */
+function CustomApiToolCard({ tool: a, tags, onOpen, onEdit, onDelete }: {
+  tool: CustomApiTool; tags: OwnershipTag[]; onOpen: () => void; onEdit: () => void; onDelete: () => void;
+}) {
+  return (
+    <ResourceCard
+      icon={<ResourceIconTile><Globe size={16} /></ResourceIconTile>}
+      name={a.name}
+      tags={tags}
+      menu={<CustomConnectorRowMenu onEdit={onEdit} onDelete={onDelete} />}
+      description={a.description}
+      onOpen={onOpen}
+      extra={
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${API_METHOD_CLASS[a.method]}`}>{a.method}</span>
+          <span className="text-xs text-muted-foreground truncate">{AUTH_TYPE_LABEL[a.auth.type]}</span>
+        </div>
+      }
+      creator={<CardCreator displayName="Bạn" fullName={a.ownerName} />}
     />
   );
 }
