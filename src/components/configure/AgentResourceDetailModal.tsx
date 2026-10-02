@@ -30,6 +30,8 @@ import { knowledgeStore } from "@/components/knowledge/knowledgeStore";
 import CreateKnowledgeBaseModal from "@/components/knowledge/CreateKnowledgeBaseModal";
 import ShareKnowledgeBaseModal from "@/components/knowledge/ShareKnowledgeBaseModal";
 import ShareAgentItemModal from "@/components/knowledge/ShareAgentItemModal";
+import RetrievalScopeModal from "@/components/knowledge/RetrievalScopeModal";
+import { ACCESS_COPY, RETRIEVAL_COPY, accessLabel, retrievalLabel } from "@/components/knowledge/QueryScopeSection";
 
 /**
  * "Xem chi tiết resource ngay trong Instructions" — clicking a Skill / Guardrail / Kho tri thức /
@@ -53,7 +55,7 @@ export type AgentResourceRef =
   | { kind: "apiTool"; id: string }
   | { kind: "connector"; id: string };
 
-type Sub = null | "edit" | "share";
+type Sub = null | "edit" | "share" | "retrieval";
 
 function useCurrentUser(userId: string) {
   const { tree } = useOrg();
@@ -97,12 +99,16 @@ function Meta({ rows }: { rows: { label: string; value: ReactNode }[] }) {
   );
 }
 
-function Shell({ typeLabel, name, onClose, onEdit, onShare, note, children }: {
+function Shell({ typeLabel, name, onClose, onEdit, onShare, shareLabel = "Chia sẻ", onRetrieval, note, children }: {
   typeLabel: string;
   name: string;
   onClose: () => void;
   onEdit?: () => void;
   onShare?: () => void;
+  /** Button label for onShare — Knowledge uses "Quyền truy cập". */
+  shareLabel?: string;
+  /** Knowledge only: opens the "Quyền truy xuất" popup. */
+  onRetrieval?: () => void;
   /** Shown in the footer when the viewer can't edit, so a missing "Sửa" isn't a mystery. */
   note?: string;
   children: ReactNode;
@@ -130,7 +136,10 @@ function Shell({ typeLabel, name, onClose, onEdit, onShare, note, children }: {
           <p className="text-xs text-muted-foreground min-w-0">{note}</p>
           <div className="flex items-center gap-2 shrink-0">
             {onShare && (
-              <button onClick={onShare} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Chia sẻ</button>
+              <button onClick={onShare} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">{shareLabel}</button>
+            )}
+            {onRetrieval && (
+              <button onClick={onRetrieval} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">{RETRIEVAL_COPY.title}</button>
             )}
             {onEdit ? (
               <button onClick={onEdit} className="h-9 px-5 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium transition-base">Sửa</button>
@@ -395,6 +404,14 @@ function KnowledgeBaseDetail({ agentId, id, onClose, onChanged }: { agentId: str
   const canShare = isOwner && access.canAct("publish", true);
 
   if (sub === "edit") return <CreateKnowledgeBaseModal open editingKb={kb} onClose={() => setSub(null)} onCreated={refresh} />;
+  if (sub === "retrieval") return (
+    <RetrievalScopeModal
+      name={kb.name}
+      value={kb.querySharing}
+      onSave={q => knowledgeBaseStore.updateQuerySharing(kb.id, q)}
+      onClose={() => { setSub(null); refresh(); }}
+    />
+  );
   if (sub === "share") return (
     <ShareKnowledgeBaseModal
       open name={kb.name} ownerName={kb.ownerName} sharing={kb.sharing}
@@ -414,12 +431,15 @@ function KnowledgeBaseDetail({ agentId, id, onClose, onChanged }: { agentId: str
       typeLabel="kho tri thức" name={kb.name} onClose={onClose}
       onEdit={canEdit ? () => setSub("edit") : undefined}
       onShare={canShare ? () => setSub("share") : undefined}
+      shareLabel={ACCESS_COPY.title}
+      onRetrieval={canShare ? () => setSub("retrieval") : undefined}
       note={canEdit ? undefined : viewOnly ? VIEW_ONLY_SHARE : NO_EDIT_ROLE}
     >
       <Meta rows={[
         { label: "Loại", value: kb.type === "external_api" ? "Kết nối kho tri thức ngoài" : "Kho tri thức nội bộ" },
         { label: "Người tạo", value: isOwner ? "Bạn" : kb.ownerName },
-        ...(isOwner ? [{ label: "Chia sẻ tới", value: sharingLabel(kb.sharing) }] : []),
+        ...(isOwner ? [{ label: ACCESS_COPY.title, value: accessLabel(kb.sharing.mode, kb.sharing.people.length, "Chỉ Agent này") }] : []),
+        { label: RETRIEVAL_COPY.title, value: retrievalLabel(kb.querySharing) },
         { label: "Đang dùng trong", value: usedByLabel(kb.attachedByAgentIds) },
       ]} />
       <Field label="Mô tả"><p className="whitespace-pre-wrap">{kb.description || "Chưa có mô tả"}</p></Field>
@@ -444,9 +464,11 @@ function KnowledgeItemDetail({ agentId, id, onClose, onOpenFull, onChanged }: { 
   if (!item) return null;
   if (sharing) return <ShareAgentItemModal agentId={agentId} items={[item]} onClose={() => { setSharing(false); onChanged(); }} />;
   return (
-    <Shell typeLabel={KIND_LABEL[item.kind].toLowerCase()} name={item.name} onClose={onClose} onEdit={onOpenFull} onShare={() => setSharing(true)}>
+    <Shell typeLabel={KIND_LABEL[item.kind].toLowerCase()} name={item.name} onClose={onClose} onEdit={onOpenFull} onShare={() => setSharing(true)} shareLabel="Quyền truy cập & truy xuất">
       <Meta rows={[
         { label: "Loại", value: `${KIND_LABEL[item.kind]} riêng của Agent` },
+        { label: ACCESS_COPY.title, value: "Chỉ Agent này" },
+        { label: RETRIEVAL_COPY.title, value: retrievalLabel(item.querySharing) },
         ...(item.chunkCount != null ? [{ label: "Số đoạn", value: String(item.chunkCount) }] : []),
       ]} />
       {item.title && <Field label={item.kind === "faq" ? "Câu hỏi" : "Tiêu đề"}><p className="whitespace-pre-wrap">{item.title}</p></Field>}

@@ -46,7 +46,7 @@ export interface QuerySharing {
   people: SharedPerson[];
 }
 
-export const DEFAULT_QUERY_SHARING: QuerySharing = { mode: "private", departmentIds: [], people: [] };
+export const DEFAULT_QUERY_SHARING: QuerySharing = { mode: "all_org", departmentIds: [], people: [] };
 
 export interface KnowledgeBaseStats {
   docs: number;

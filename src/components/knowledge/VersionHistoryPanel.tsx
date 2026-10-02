@@ -10,6 +10,7 @@ import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
 import { knowledgeUrlStore } from "./knowledgeUrlStore";
 import { knowledgeStore } from "./knowledgeStore";
 import { knowledgeChunkStore, type ChunkSourceType } from "./knowledgeChunkStore";
+import { formatVersion } from "./formatVersion";
 
 /** Common shape for a KnowledgeDocument, a KnowledgeUrl, or an Agent-owned KnowledgeItem — the
  * version-history drawer opens from any of their "v3" badges, so it doesn't need the full
@@ -81,7 +82,7 @@ export default function VersionHistoryPanel({ source: doc, onClose, viewOnly }: 
       <Sheet open onOpenChange={v => !v && onClose()}>
         <SheetContent className="w-full sm:max-w-[480px] flex flex-col">
           <SheetHeader>
-            <SheetTitle>Nội dung phiên bản v{viewing.version}</SheetTitle>
+            <SheetTitle>Nội dung phiên bản {formatVersion(viewing.version)}</SheetTitle>
           </SheetHeader>
           <button onClick={() => setViewingVersion(null)} className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline mb-3 w-fit">
             <ChevronLeft size={12} /> Quay lại lịch sử
@@ -140,7 +141,7 @@ export default function VersionHistoryPanel({ source: doc, onClose, viewOnly }: 
                   <span className={`absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full ${v.isCurrent ? "bg-primary" : "bg-border"}`} />
                   <div className={`rounded-lg border px-3.5 py-3 ${v.isCurrent ? "border-primary/30 bg-primary-soft/30" : "border-border"}`}>
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="chip chip-muted">v{v.version}</span>
+                      <span className="chip chip-muted">{formatVersion(v.version)}</span>
                       {v.isCurrent && <span className="text-xs font-semibold uppercase tracking-wider text-primary">Hiện tại</span>}
                     </div>
                     <p className="text-sm font-medium">{CAUSE_LABEL[v.cause]}</p>
@@ -163,7 +164,7 @@ export default function VersionHistoryPanel({ source: doc, onClose, viewOnly }: 
       <AlertDialog open={restoreVersion !== null} onOpenChange={v => !v && setRestoreVersion(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Khôi phục về phiên bản v{restoreVersion}?</AlertDialogTitle>
+            <AlertDialogTitle>Khôi phục về phiên bản {formatVersion(restoreVersion ?? 1)}?</AlertDialogTitle>
             <AlertDialogDescription>Nội dung hiện tại sẽ được lưu thành một phiên bản mới trước khi khôi phục, nên bạn luôn quay lại được.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

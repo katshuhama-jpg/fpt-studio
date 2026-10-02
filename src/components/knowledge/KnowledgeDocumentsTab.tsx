@@ -13,10 +13,9 @@ import { toast } from "sonner";
 import { knowledgeDocumentStore, type KnowledgeDocument } from "./knowledgeDocumentStore";
 import { KnowledgeStatusPill, type KnowledgeProcessingStatus } from "./knowledgeStatus";
 import { formatFileSize } from "./formatFileSize";
-import KnowledgeSharingChip from "./KnowledgeSharingChip";
+import { formatVersion } from "./formatVersion";
 import FileTypeIcon from "./FileTypeIcon";
 import UploadDocumentsModal from "./UploadDocumentsModal";
-import ShareKnowledgeBaseModal from "./ShareKnowledgeBaseModal";
 import ChunkViewerModal from "./ChunkViewerModal";
 import VersionHistoryPanel from "./VersionHistoryPanel";
 import CreateFolderModal from "./CreateFolderModal";
@@ -45,7 +44,6 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
   const [renaming, setRenaming] = useState<KnowledgeDocument | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [reprocessTarget, setReprocessTarget] = useState<KnowledgeDocument | null>(null);
-  const [shareTargets, setShareTargets] = useState<KnowledgeDocument[] | null>(null);
   const [deleteTargets, setDeleteTargets] = useState<KnowledgeDocument[] | null>(null);
   const [versionTarget, setVersionTarget] = useState<KnowledgeDocument | null>(null);
   const [showCreateFolder, setShowCreateFolder] = useState(false);
@@ -168,9 +166,6 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
           <button onClick={() => setMoveTargets(all.filter(d => selected.has(d.id)))} className="text-xs font-semibold text-primary hover:underline">
             Di chuyển
           </button>
-          <button onClick={() => setShareTargets(all.filter(d => selected.has(d.id)))} className="text-xs font-semibold text-primary hover:underline">
-            Chia sẻ
-          </button>
           <button onClick={() => setDeleteTargets(all.filter(d => selected.has(d.id)))} className="text-xs font-semibold text-destructive hover:underline">
             Xóa
           </button>
@@ -220,7 +215,6 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                 <th className="text-left px-2 py-2.5 kb-table-header">Phiên bản</th>
                 <th className="text-left px-2 py-2.5 kb-table-header">Cập nhật</th>
                 <th className="text-left px-2 py-2.5 kb-table-header min-w-[120px]">Cập nhật bởi</th>
-                <th className="text-left px-2 py-2.5 kb-table-header min-w-[120px]">Quyền</th>
                 {!viewOnly && <th className="px-4 py-2.5 w-12" />}
               </tr>
             </thead>
@@ -278,7 +272,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                             aria-label="Xem lịch sử phiên bản"
                             className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] -m-2.5 rounded-lg text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-base"
                           >
-                            <span className="chip chip-muted pointer-events-none">v{d.version}</span>
+                            <span className="chip chip-muted pointer-events-none">{formatVersion(d.version)}</span>
                           </button>
                         </TooltipTrigger>
                         <TooltipContent>Xem lịch sử phiên bản</TooltipContent>
@@ -287,7 +281,6 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                   </td>
                   <td className="px-2 py-3 text-xs text-muted-foreground whitespace-nowrap">{new Date(d.updatedAt).toLocaleDateString("vi-VN")}</td>
                   <td className="px-2 py-3 text-xs text-muted-foreground truncate">{d.updatedBy}</td>
-                  <td className="px-2 py-3">{!d.isFolder && <KnowledgeSharingChip sharing={d.sharing} />}</td>
                   {!viewOnly && (
                     <td className="px-4 py-3 text-right">
                       {d.isFolder ? (
@@ -301,7 +294,6 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                         <RowMenu
                           canOpen={openable}
                           onOpen={() => openDocument(d.id)}
-                          onShare={() => setShareTargets([d])}
                           onReprocess={() => setReprocessTarget(d)}
                           onRename={() => { setRenaming(d); setRenameValue(d.name); }}
                           onMove={() => setMoveTargets([d])}
@@ -326,18 +318,6 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
           source={{ id: versionTarget.id, kbId: versionTarget.kbId, name: versionTarget.name, sourceType: "document", version: versionTarget.version, updatedAt: versionTarget.updatedAt, updatedBy: versionTarget.updatedBy }}
           onClose={() => setVersionTarget(null)}
           viewOnly={viewOnly}
-        />
-      )}
-
-      {shareTargets && shareTargets.length > 0 && (
-        <ShareKnowledgeBaseModal
-          open
-          title={shareTargets.length === 1 ? "Chia sẻ tài liệu" : `Chia sẻ ${shareTargets.length} tài liệu`}
-          name={shareTargets.length === 1 ? shareTargets[0].name : undefined}
-          ownerName="Tran Nam"
-          sharing={shareTargets.length === 1 ? (shareTargets[0].sharing ?? { mode: "private", people: [] }) : { mode: "private", people: [] }}
-          onSave={sharing => { for (const t of shareTargets) knowledgeDocumentStore.updateSharing(t.id, sharing); setSelected(new Set()); }}
-          onClose={() => { setShareTargets(null); refresh(); }}
         />
       )}
 
@@ -460,11 +440,11 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
 // Worst-case rendered height (7 items, one danger separator, container padding) — used only to
 // decide whether the menu should flip upward; the actual box still sizes to its real content.
 const ROW_MENU_WIDTH = 224; // w-56
-const ROW_MENU_HEIGHT_ESTIMATE = 296;
+const ROW_MENU_HEIGHT_ESTIMATE = 256;
 const FOLDER_ROW_MENU_HEIGHT_ESTIMATE = 190;
 
-function RowMenu({ canOpen, onOpen, onShare, onReprocess, onRename, onMove, onDelete }: {
-  canOpen: boolean; onOpen: () => void; onShare: () => void; onReprocess: () => void; onRename: () => void; onMove: () => void; onDelete: () => void;
+function RowMenu({ canOpen, onOpen, onReprocess, onRename, onMove, onDelete }: {
+  canOpen: boolean; onOpen: () => void; onReprocess: () => void; onRename: () => void; onMove: () => void; onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
@@ -499,7 +479,6 @@ function RowMenu({ canOpen, onOpen, onShare, onReprocess, onRename, onMove, onDe
 
   const items: { label: string; onClick: () => void; danger?: boolean; disabled?: boolean; disabledTooltip?: string }[] = [
     { label: "Xem chi tiết", onClick: onOpen, disabled: !canOpen, disabledTooltip: "Tài liệu chưa xử lý xong nên chưa xem được nội dung." },
-    { label: "Chia sẻ", onClick: onShare },
     { label: "Xử lý lại", onClick: onReprocess },
     { label: "Đổi tên", onClick: onRename },
     { label: "Di chuyển", onClick: onMove },

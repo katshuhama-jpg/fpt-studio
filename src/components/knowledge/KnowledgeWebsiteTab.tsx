@@ -20,6 +20,7 @@ import VersionHistoryPanel from "./VersionHistoryPanel";
 import SyncSettingsModal from "./SyncSettingsModal";
 import ManageSitemapsModal from "./ManageSitemapsModal";
 import { knowledgeSitemapStore } from "./knowledgeSitemapStore";
+import { formatVersion } from "./formatVersion";
 
 const STATUS_OPTIONS: { value: KnowledgeProcessingStatus | "all"; label: string }[] = [
   { value: "all", label: "Tất cả" },
@@ -294,7 +295,7 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
                             aria-label="Xem lịch sử phiên bản"
                             className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] -m-2.5 rounded-lg text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-base"
                           >
-                            <span className="chip chip-muted pointer-events-none">v{u.version}</span>
+                            <span className="chip chip-muted pointer-events-none">{formatVersion(u.version)}</span>
                           </button>
                         </TooltipTrigger>
                         <TooltipContent>Xem lịch sử phiên bản</TooltipContent>

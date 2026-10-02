@@ -20,10 +20,9 @@ import KnowledgeTypeIcon from "@/components/knowledge/KnowledgeTypeIcon";
 import CreateKnowledgeBaseModal from "@/components/knowledge/CreateKnowledgeBaseModal";
 import ShareKnowledgeBaseModal from "@/components/knowledge/ShareKnowledgeBaseModal";
 import DeleteKnowledgeBaseDialog from "@/components/knowledge/DeleteKnowledgeBaseDialog";
-import RequestPublishModal from "@/components/governance/RequestPublishModal";
-import { governanceStore } from "@/components/governance/governanceStore";
-import { StatusBadge } from "@/components/governance/governanceUi";
-import { Rocket } from "lucide-react";
+import RetrievalScopeModal from "@/components/knowledge/RetrievalScopeModal";
+import { ACCESS_COPY, RETRIEVAL_COPY, accessLabel, retrievalLabel } from "@/components/knowledge/QueryScopeSection";
+import { Users, MessageSquareText, ChevronDown } from "lucide-react";
 import KnowledgeDocumentsTab from "@/components/knowledge/KnowledgeDocumentsTab";
 import KnowledgeWebsiteTab from "@/components/knowledge/KnowledgeWebsiteTab";
 import KnowledgeFaqTab from "@/components/knowledge/KnowledgeFaqTab";
@@ -54,19 +53,51 @@ function ClearContentDialog({ open, kbName, onClose, onConfirm }: { open: boolea
   );
 }
 
-function OwnershipChips({ kb }: { kb: KnowledgeBase }) {
-  if (kb.ownerId === CURRENT_USER.id) {
-    return (
-      <>
-        <span className="chip chip-muted">Của tôi</span>
-        {kb.sharing.mode === "all" && <span className="chip chip-info">Dùng chung</span>}
-        {kb.sharing.mode === "specific" && kb.sharing.people.length > 0 && (
-          <span className="chip chip-info">Chia sẻ với {kb.sharing.people.length} người</span>
-        )}
-      </>
-    );
-  }
-  return <span className="chip chip-muted">Được chia sẻ · {kb.ownerName}</span>;
+/** Owner chip + the two permission chips ("Truy cập: …", "Truy xuất: …"). For the owner who
+ * may change permissions, each permission chip is a button that opens its popup; for everyone
+ * else it is a static chip with a tooltip explaining what it means. */
+function PermissionChips({ kb, canManage, onOpenAccess, onOpenRetrieval }: {
+  kb: KnowledgeBase; canManage: boolean; onOpenAccess: () => void; onOpenRetrieval: () => void;
+}) {
+  const isOwner = kb.ownerId === CURRENT_USER.id;
+  const chips = [
+    { key: "access", Icon: Users, prefix: "Truy cập", value: accessLabel(kb.sharing.mode, kb.sharing.people.length), tip: ACCESS_COPY.title, onClick: onOpenAccess },
+    { key: "retrieval", Icon: MessageSquareText, prefix: "Truy xuất", value: retrievalLabel(kb.querySharing), tip: RETRIEVAL_COPY.title, onClick: onOpenRetrieval },
+  ];
+  return (
+    <>
+      <span className="chip chip-muted">{isOwner ? "Của tôi" : `Được chia sẻ · ${kb.ownerName}`}</span>
+      {chips.map(({ key, Icon, prefix, value, tip, onClick }) => {
+        const body = (
+          <>
+            <Icon size={13} className="shrink-0 text-muted-foreground" />
+            <span className="text-muted-foreground">{prefix}:</span>
+            <span className="font-medium text-foreground">{value}</span>
+          </>
+        );
+        return canManage ? (
+          <button
+            key={key}
+            type="button"
+            onClick={onClick}
+            aria-label={`Đổi ${tip.toLowerCase()} (hiện tại: ${value})`}
+            title={`Đổi ${tip.toLowerCase()}`}
+            className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-border bg-white text-xs hover:bg-surface-muted hover:border-primary/40 transition-base cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {body}
+            <ChevronDown size={12} className="text-muted-foreground" />
+          </button>
+        ) : (
+          <Tooltip key={key} delayDuration={200}>
+            <TooltipTrigger asChild>
+              <span className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-border bg-surface-muted text-xs cursor-default">{body}</span>
+            </TooltipTrigger>
+            <TooltipContent>{tip}</TooltipContent>
+          </Tooltip>
+        );
+      })}
+    </>
+  );
 }
 
 export default function KnowledgeDetail() {
@@ -86,7 +117,7 @@ export default function KnowledgeDetail() {
   const [showMenu, setShowMenu] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showShare, setShowShare] = useState(false);
-  const [showPublish, setShowPublish] = useState(false);
+  const [showRetrieval, setShowRetrieval] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [showClearContent, setShowClearContent] = useState(false);
   const [editingName, setEditingName] = useState(false);
@@ -231,22 +262,7 @@ export default function KnowledgeDetail() {
           </div>
 
           <div className="flex items-center gap-1.5 flex-wrap shrink-0">
-            <OwnershipChips kb={kb} />
-            {(() => {
-              const openReq = governanceStore.getOpenRequestForResource("knowledge", kb.id);
-              const approved = governanceStore.isResourceApproved("knowledge", kb.id);
-              if (openReq) return <StatusBadge status={openReq.status} />;
-              if (approved) return <StatusBadge status="approved" />;
-              return null;
-            })()}
-            {canShare && (
-              <button
-                onClick={() => setShowPublish(true)}
-                className="h-9 px-3.5 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base"
-              >
-                <Rocket size={14} /> Publish
-              </button>
-            )}
+            <PermissionChips kb={kb} canManage={canShare} onOpenAccess={() => setShowShare(true)} onOpenRetrieval={() => setShowRetrieval(true)} />
             <div className="relative">
               <button
                 onClick={() => setShowMenu(v => !v)}
@@ -270,11 +286,21 @@ export default function KnowledgeDetail() {
                     {isOwner && (
                       <button
                         disabled={!canShare}
-                        title={!canShare ? "Bạn không có quyền chia sẻ kho tri thức này." : undefined}
+                        title={!canShare ? "Bạn không có quyền đổi quyền truy cập của kho tri thức này." : undefined}
                         onClick={() => { setShowShare(true); setShowMenu(false); }}
                         className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted disabled:text-muted-foreground/50 disabled:cursor-not-allowed transition-base"
                       >
-                        Chia sẻ
+                        {ACCESS_COPY.title}
+                      </button>
+                    )}
+                    {isOwner && (
+                      <button
+                        disabled={!canShare}
+                        title={!canShare ? "Bạn không có quyền đổi quyền truy xuất của kho tri thức này." : undefined}
+                        onClick={() => { setShowRetrieval(true); setShowMenu(false); }}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted disabled:text-muted-foreground/50 disabled:cursor-not-allowed transition-base"
+                      >
+                        {RETRIEVAL_COPY.title}
                       </button>
                     )}
                     <div className="mt-1 pt-1 border-t border-border">
@@ -365,10 +391,12 @@ export default function KnowledgeDetail() {
         />
       )}
       {showDelete && <DeleteKnowledgeBaseDialog open={showDelete} kb={kb} onClose={() => setShowDelete(false)} onDeleted={() => navigate("/knowledge")} />}
-      {showPublish && (
-        <RequestPublishModal
-          resourceType="knowledge" resourceId={kb.id} resourceName={kb.name}
-          onClose={() => setShowPublish(false)}
+      {showRetrieval && (
+        <RetrievalScopeModal
+          name={kb.name}
+          value={kb.querySharing}
+          onSave={q => knowledgeBaseStore.updateQuerySharing(kb.id, q)}
+          onClose={() => { setShowRetrieval(false); refresh(); }}
         />
       )}
       <ClearContentDialog

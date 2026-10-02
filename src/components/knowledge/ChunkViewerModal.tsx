@@ -14,6 +14,7 @@ import { KnowledgeStatusPill, type KnowledgeFaqStatus } from "./knowledgeStatus"
 import FileTypeIcon from "./FileTypeIcon";
 import DocumentPreviewPane from "./DocumentPreviewPane";
 import HtmlTableEditor from "./HtmlTableEditor";
+import { formatVersion } from "./formatVersion";
 
 const MOCK_CHUNK_SEED = [
   { title: "Phạm vi áp dụng", content: "Chính sách này áp dụng cho toàn bộ khiếu nại liên quan đến sản phẩm, dịch vụ của ngân hàng ABC." },
@@ -265,7 +266,7 @@ export default function ChunkViewerModal({
         <div className="flex items-center gap-3 px-4 py-2 border-b border-border bg-surface-muted/40 text-xs text-muted-foreground shrink-0 flex-wrap">
           <span className="font-mono truncate max-w-[420px]" title={urlMeta.url}>{urlMeta.url}</span>
           <span className="chip chip-muted">{URL_SOURCE_LABEL[urlMeta.source]}</span>
-          <span className="chip chip-muted">v{urlMeta.version}</span>
+          <span className="chip chip-muted">{formatVersion(urlMeta.version)}</span>
           <span>{urlMeta.lastSyncAt ? `Đồng bộ lần cuối: ${relativeTime(urlMeta.lastSyncAt)}` : "Chưa đồng bộ"}</span>
         </div>
       )}

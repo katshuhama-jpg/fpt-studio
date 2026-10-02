@@ -9,15 +9,10 @@ import {
   type Sharing, type SharingMode, type QuerySharing,
 } from "./knowledgeBaseStore";
 import MemberPicker from "./MemberPicker";
-import QueryScopeSection, { RadioCard, isQueryScopeValid } from "./QueryScopeSection";
+import QueryScopeSection, { AccessScopeSection, isQueryScopeValid } from "./QueryScopeSection";
 
 const NAME_MAX = 50;
 const DESC_MAX = 256;
-
-const SHARING_OPTIONS: { value: SharingMode; label: string; helper?: string }[] = [
-  { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi thành viên trong Space đều dùng lại được." },
-  { value: "specific", label: "Người dùng cụ thể", helper: "Chỉ những người bạn chọn mới dùng lại được." },
-];
 
 type TestState = "idle" | "testing" | "success" | "failure";
 
@@ -155,6 +150,16 @@ export default function ConnectExternalKnowledgeBaseModal({ open, onClose }: { o
             </div>
           </div>
 
+          <div className="border-t border-border pt-5">
+            <AccessScopeSection
+              mode={sharingMode}
+              people={people}
+              onModeChange={setSharingMode}
+              onPeopleChange={setPeople}
+              submitAttempted={submitAttempted}
+              ownerRow={{ name: CURRENT_USER.name, email: CURRENT_USER.email }}
+            />
+          </div>
           <div className="border-t border-border pt-5">
             <QueryScopeSection
               value={querySharing}

@@ -95,6 +95,7 @@ import { KnowledgeStatusPill } from "@/components/knowledge/knowledgeStatus";
 import AttachConsoleKnowledgeBaseModal from "@/components/knowledge/AttachConsoleKnowledgeBaseModal";
 import ShareKnowledgeBaseModal from "@/components/knowledge/ShareKnowledgeBaseModal";
 import ShareAgentItemModal from "@/components/knowledge/ShareAgentItemModal";
+import RetrievalScopeModal from "@/components/knowledge/RetrievalScopeModal";
 import ActionMenu, { type ActionMenuItem } from "@/components/ui/ActionMenu";
 import GuardrailShareModal from "@/components/configure/GuardrailShareModal";
 import CreateKnowledgeBaseModal from "@/components/knowledge/CreateKnowledgeBaseModal";
@@ -108,6 +109,7 @@ import VersionHistoryPanel from "@/components/knowledge/VersionHistoryPanel";
 import FileTypeIcon from "@/components/knowledge/FileTypeIcon";
 import { formatFileSize } from "@/components/knowledge/formatFileSize";
 import KnowledgeSharingChip from "@/components/knowledge/KnowledgeSharingChip";
+import { formatVersion } from "@/components/knowledge/formatVersion";
 import { CategoryChips } from "@/components/knowledge/FaqCellDisplays";
 import { Switch } from "@/components/ui/switch";
 import SyncSettingsModal from "@/components/knowledge/SyncSettingsModal";
@@ -1424,10 +1426,11 @@ function MoreLink({ count, onClick }: { count: number; onClick: () => void }) {
 const KNOWLEDGE_SOURCE_ROW_MENU_WIDTH = 176; // w-44
 const KNOWLEDGE_SOURCE_ROW_MENU_HEIGHT_ESTIMATE = 90; // 2 items + container padding
 
-function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, onShare, openLabel = "Xem chi tiết", removeLabel = "Gỡ nguồn tri thức", disabled = false, disabledReason = "Nguồn tri thức đang được xử lý.", href, twoLine = false, hideOpen = false }: {
+function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, onShare, shareLabel = "Chia sẻ", openLabel = "Xem chi tiết", removeLabel = "Gỡ nguồn tri thức", disabled = false, disabledReason = "Nguồn tri thức đang được xử lý.", href, twoLine = false, hideOpen = false }: {
   icon: any; name: string; chip: React.ReactNode; onOpen: () => void; onRemove: () => void;
   /** Owner-only "Chia sẻ" action (e.g. a knowledge item that exists only in this Agent). */
   onShare?: () => void;
+  shareLabel?: string;
   openLabel?: string; removeLabel?: string; disabled?: boolean; disabledReason?: string;
   /** When set, opens in a new tab via a real anchor instead of calling onOpen in-place — used
    * for a linked Console knowledge group so it never navigates the Agent Builder away from
@@ -1454,7 +1457,7 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, onShare, openL
       onSelect: () => { if (href) window.open(href, "_blank", "noopener,noreferrer"); else onOpen(); },
       disabledReason: disabled ? disabledReason : undefined,
     }]),
-    ...(onShare ? [{ label: "Chia sẻ", icon: Share08Icon, onSelect: onShare }] : []),
+    ...(onShare ? [{ label: shareLabel, icon: Share08Icon, onSelect: onShare }] : []),
     { label: removeLabel, icon: Delete01Icon, onSelect: onRemove, destructive: true },
   ];
   const actionsMenu = (
@@ -1510,8 +1513,8 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, onShare, openL
  * synthetic "Cá nhân" card, which isn't a real Knowledge Base record and so only ever offers
  * "Mở". The destructive action is "Gỡ liên kết": it only detaches the KB from this Agent, without
  * touching the KB's Console listing or its attachment to any other Agent. */
-function AgentKbCardMenu({ onOpen, onEdit, onShare, onDetach, editBlocked, shareBlocked, openOnly }: {
-  onOpen: () => void; onEdit?: () => void; onShare?: () => void; onDetach?: () => void;
+function AgentKbCardMenu({ onOpen, onEdit, onShare, onRetrieval, onDetach, editBlocked, shareBlocked, openOnly }: {
+  onOpen: () => void; onEdit?: () => void; onShare?: () => void; onRetrieval?: () => void; onDetach?: () => void;
   editBlocked?: string; shareBlocked?: string; openOnly?: boolean;
 }) {
   const items: ActionMenuItem[] = openOnly
@@ -1519,7 +1522,8 @@ function AgentKbCardMenu({ onOpen, onEdit, onShare, onDetach, editBlocked, share
     : [
         { label: "Xem chi tiết", icon: ExternalLinkIcon, onSelect: onOpen },
         ...(onEdit ? [{ label: "Đổi tên", icon: PencilEdit01Icon, onSelect: onEdit, disabledReason: editBlocked }] : []),
-        ...(onShare ? [{ label: "Chia sẻ", icon: Share08Icon, onSelect: onShare, disabledReason: shareBlocked }] : []),
+        ...(onShare ? [{ label: "Quyền truy cập", icon: Share08Icon, onSelect: onShare, disabledReason: shareBlocked }] : []),
+        ...(onRetrieval ? [{ label: "Quyền truy xuất", icon: Share08Icon, onSelect: onRetrieval, disabledReason: shareBlocked }] : []),
         ...(onDetach ? [{ label: "Gỡ liên kết", icon: Delete01Icon, onSelect: onDetach, destructive: true }] : []),
       ];
   return <ActionMenu items={items} triggerLabel="Thao tác với kho tri thức" />;
@@ -1600,6 +1604,7 @@ function AgentKnowledgeGrid({ agentId, onOpenOwn }: { agentId: string; onOpenOwn
   const [showAddFaq, setShowAddFaq] = useState(false);
   const [editKbTarget, setEditKbTarget] = useState<KnowledgeBase | null>(null);
   const [shareKbTarget, setShareKbTarget] = useState<KnowledgeBase | null>(null);
+  const [retrievalKbTarget, setRetrievalKbTarget] = useState<KnowledgeBase | null>(null);
   const [detachKbTarget, setDetachKbTarget] = useState<KnowledgeBase | null>(null);
   const addMenuRef = useRef<HTMLDivElement>(null);
 
@@ -1638,7 +1643,7 @@ function AgentKnowledgeGrid({ agentId, onOpenOwn }: { agentId: string; onOpenOwn
     // Console detail never silently discards unsaved Instructions edits.
     const onOpen = () => { if (c.isOwn) onOpenOwn(); else window.open(`/knowledge/${c.id}?viaAgent=${agentId}`, "_blank", "noopener,noreferrer"); };
     const editBlocked = !c.isOwn && !isOwner ? "Chỉ chủ sở hữu mới có thể đổi tên kho tri thức này." : undefined;
-    const shareBlocked = !c.isOwn && !isOwner ? "Chỉ chủ sở hữu mới có thể chia sẻ kho tri thức này." : undefined;
+    const shareBlocked = !c.isOwn && !isOwner ? "Chỉ chủ sở hữu mới đổi được quyền của kho tri thức này." : undefined;
     // Same tinted tile Console's KbCard uses (KnowledgeTypeIcon: amber for nội bộ, blue for kết
     // nối ngoài) for a real KB, upsized to 40×40 to match the Skills/Guardrails card icon size;
     // the synthetic "Cá nhân" card gets its own tile in the app's primary/brand tint.
@@ -1658,6 +1663,7 @@ function AgentKnowledgeGrid({ agentId, onOpenOwn }: { agentId: string; onOpenOwn
             onOpen={onOpen}
             onEdit={c.kb ? () => setEditKbTarget(c.kb!) : undefined}
             onShare={c.kb ? () => setShareKbTarget(c.kb!) : undefined}
+            onRetrieval={c.kb ? () => setRetrievalKbTarget(c.kb!) : undefined}
             onDetach={c.kb ? () => setDetachKbTarget(c.kb!) : undefined}
             editBlocked={editBlocked}
             shareBlocked={shareBlocked}
@@ -1733,7 +1739,7 @@ function AgentKnowledgeGrid({ agentId, onOpenOwn }: { agentId: string; onOpenOwn
       <div>
         {sectionHeader("Kho tri thức đã liên kết", filteredAttached.length)}
         {attachedCards.length === 0 ? (
-          emptyBox("Chưa có kho tri thức nào được liên kết", "Liên kết một kho tri thức có sẵn trong workspace để dùng lại ở đây.")
+          emptyBox("Chưa có kho tri thức nào được liên kết", "Liên kết một kho tri thức có sẵn trong Space để dùng lại ở đây.")
         ) : filteredAttached.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-6">Không tìm thấy kho tri thức phù hợp.</p>
         ) : (
@@ -1767,6 +1773,14 @@ function AgentKnowledgeGrid({ agentId, onOpenOwn }: { agentId: string; onOpenOwn
       {showAddFaq && <AddEditFaqModal open={showAddFaq} agentId={agentId} onClose={() => { setShowAddFaq(false); refresh(); }} />}
       {editKbTarget && (
         <CreateKnowledgeBaseModal open={!!editKbTarget} editingKb={editKbTarget} onClose={() => setEditKbTarget(null)} onCreated={refresh} />
+      )}
+      {retrievalKbTarget && (
+        <RetrievalScopeModal
+          name={retrievalKbTarget.name}
+          value={retrievalKbTarget.querySharing}
+          onSave={q => knowledgeBaseStore.updateQuerySharing(retrievalKbTarget.id, q)}
+          onClose={() => { setRetrievalKbTarget(null); refresh(); }}
+        />
       )}
       {shareKbTarget && (
         <ShareKnowledgeBaseModal
@@ -1895,7 +1909,7 @@ function AgentOwnKnowledgeView({ agentId, onBack }: { agentId: string; onBack: (
           <HugeiconsIcon icon={ChevronLeftIcon} size={14} /> Tri thức của Agent
         </button>
         <h2 className="font-display text-xl font-semibold">Cá nhân</h2>
-        <p className="text-xs text-muted-foreground mt-0.5">Tài liệu, website và FAQ bạn tạo trực tiếp trong Agent này — nếu muốn dùng cho nhiều Agent, hãy chia sẻ với Console.</p>
+        <p className="text-xs text-muted-foreground mt-0.5">Tài liệu, website và FAQ bạn tạo trực tiếp trong Agent này. Mặc định chỉ Agent này dùng; muốn dùng cho nhiều Agent, hãy đổi quyền truy cập sang Cả Space hoặc Người cụ thể.</p>
       </div>
 
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -1963,7 +1977,7 @@ function AgentOwnKnowledgeView({ agentId, onBack }: { agentId: string; onBack: (
         <div className="flex items-center gap-3 px-3 h-10 rounded-lg bg-primary-soft border border-primary/15">
           <span className="text-sm font-medium text-primary">Đã chọn {selected.size} mục</span>
           <button onClick={() => setShareTargets(items.filter(i => selected.has(i.id)))} className="text-xs font-semibold text-primary hover:underline">
-            Chia sẻ
+            Quyền truy cập & truy xuất
           </button>
           <button onClick={() => setSelected(new Set())} className="text-xs font-semibold text-muted-foreground hover:underline ml-auto">
             Bỏ chọn
@@ -2001,7 +2015,7 @@ function AgentOwnKnowledgeView({ agentId, onBack }: { agentId: string; onBack: (
                       aria-label="Xem lịch sử phiên bản"
                       className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] -m-2.5 rounded-lg text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-base"
                     >
-                      <span className="chip chip-muted pointer-events-none text-xs">v{item.version ?? 1}</span>
+                      <span className="chip chip-muted pointer-events-none text-xs">{formatVersion(item.version)}</span>
                     </button>
                   </TooltipTrigger>
                   <TooltipContent>Xem lịch sử phiên bản</TooltipContent>
@@ -2135,7 +2149,7 @@ function KnowledgeItemRowMenu({ onOpen, openLabel = "Xem chi tiết", onShare, o
 }) {
   const items: ActionMenuItem[] = [
     { label: openLabel, icon: ExternalLinkIcon, onSelect: onOpen },
-    { label: "Chia sẻ", icon: Share08Icon, onSelect: onShare },
+    { label: "Quyền truy cập & truy xuất", icon: Share08Icon, onSelect: onShare },
     { label: "Xử lý lại", icon: CircleArrowReload01Icon, onSelect: onReprocess, disabledReason: reprocessDisabled ? (reprocessTooltip ?? "Chưa thể xử lý lại nguồn này.") : undefined },
     { label: "Xóa", icon: Delete01Icon, onSelect: onDelete, destructive: true },
   ];
@@ -5845,6 +5859,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
               onOpen={row.open}
               onRemove={row.remove}
               onShare={row.share}
+              shareLabel="Quyền truy cập & truy xuất"
               openLabel="Xem chi tiết"
               removeLabel={row.href ? "Gỡ liên kết" : "Xóa"}
               disabled={row.disabled}

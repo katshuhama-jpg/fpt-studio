@@ -11,6 +11,8 @@ import KnowledgeTypeIcon from "@/components/knowledge/KnowledgeTypeIcon";
 import CreateKnowledgeBaseModal from "@/components/knowledge/CreateKnowledgeBaseModal";
 import ConnectExternalKnowledgeBaseModal from "@/components/knowledge/ConnectExternalKnowledgeBaseModal";
 import ShareKnowledgeBaseModal from "@/components/knowledge/ShareKnowledgeBaseModal";
+import RetrievalScopeModal from "@/components/knowledge/RetrievalScopeModal";
+import { ACCESS_COPY, RETRIEVAL_COPY } from "@/components/knowledge/QueryScopeSection";
 import DeleteKnowledgeBaseDialog from "@/components/knowledge/DeleteKnowledgeBaseDialog";
 import { useGroupAccess } from "@/pages/organization/scopeAccess";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
@@ -32,9 +34,9 @@ function relativeTime(ts: number): string {
   return `Cập nhật ${days} ngày trước`;
 }
 
-function RowMenu({ kb, onOpen, onEdit, onShare, onDelete, editBlocked, shareBlocked, deleteBlocked }: {
+function RowMenu({ kb, onOpen, onEdit, onShare, onRetrieval, onDelete, editBlocked, shareBlocked, deleteBlocked }: {
   kb: KnowledgeBase;
-  onOpen: () => void; onEdit: () => void; onShare: () => void; onDelete: () => void;
+  onOpen: () => void; onEdit: () => void; onShare: () => void; onRetrieval: () => void; onDelete: () => void;
   /** Set (with the reason to show as a tooltip) when the action is blocked — either by the
    * per-person sharing access level, or by the signed-in role's Scope for this permission. */
   editBlocked?: string; shareBlocked?: string; deleteBlocked?: string;
@@ -52,7 +54,8 @@ function RowMenu({ kb, onOpen, onEdit, onShare, onDelete, editBlocked, shareBloc
   const safeItems: { label: string; onClick: () => void; blocked?: string }[] = [
     { label: "Xem chi tiết", onClick: onOpen },
     { label: "Chỉnh sửa", onClick: onEdit, blocked: editBlocked },
-    { label: "Chia sẻ", onClick: onShare, blocked: shareBlocked },
+    { label: ACCESS_COPY.title, onClick: onShare, blocked: shareBlocked },
+    { label: RETRIEVAL_COPY.title, onClick: onRetrieval, blocked: shareBlocked },
   ];
 
   const renderItem = (item: { label: string; onClick: () => void; blocked?: string }, danger?: boolean) => (
@@ -93,9 +96,9 @@ function RowMenu({ kb, onOpen, onEdit, onShare, onDelete, editBlocked, shareBloc
   );
 }
 
-function KbCard({ kb, userId, access, onOpen, onEdit, onShare, onDelete }: {
+function KbCard({ kb, userId, access, onOpen, onEdit, onShare, onRetrieval, onDelete }: {
   kb: KnowledgeBase; userId: string; access: ReturnType<typeof useGroupAccess>;
-  onOpen: () => void; onEdit: () => void; onShare: () => void; onDelete: () => void;
+  onOpen: () => void; onEdit: () => void; onShare: () => void; onRetrieval: () => void; onDelete: () => void;
 }) {
   const viewOnly = isViewOnly(kb, userId);
   const accessible = isAccessibleTo(kb, userId);
@@ -108,7 +111,7 @@ function KbCard({ kb, userId, access, onOpen, onEdit, onShare, onDelete }: {
     : viewOnly ? VIEW_ONLY : undefined;
   // Sharing (like deleting the KB itself) is reserved for the owner — an editor can change
   // content but not the KB's own access list, matching KnowledgeDetail.tsx's header menu.
-  const shareBlocked = !isOwner ? "Chỉ chủ sở hữu mới có thể chia sẻ kho tri thức này."
+  const shareBlocked = !isOwner ? "Chỉ chủ sở hữu mới đổi được quyền của kho tri thức này."
     : !access.hasPermission("publish") ? NO_ROLE_PERMISSION
     : !access.canAct("publish", accessible) ? NOT_OWNED_OR_SHARED
     : undefined;
@@ -130,7 +133,7 @@ function KbCard({ kb, userId, access, onOpen, onEdit, onShare, onDelete }: {
         </Link>
       }
       tags={ownershipTags({ ownerId: kb.ownerId, sharing: kb.sharing, userId })}
-      menu={<RowMenu kb={kb} onOpen={onOpen} onEdit={onEdit} onShare={onShare} onDelete={onDelete} editBlocked={editBlocked} shareBlocked={shareBlocked} deleteBlocked={deleteBlocked} />}
+      menu={<RowMenu kb={kb} onOpen={onOpen} onEdit={onEdit} onShare={onShare} onRetrieval={onRetrieval} onDelete={onDelete} editBlocked={editBlocked} shareBlocked={shareBlocked} deleteBlocked={deleteBlocked} />}
       description={kb.description}
       extra={<p className="text-xs text-muted-foreground">{relativeTime(kb.updatedAt)}</p>}
       creator={<CardCreator displayName={isOwner ? "Bạn" : kb.ownerName} fullName={kb.ownerName} />}
@@ -163,6 +166,7 @@ export default function KnowledgeList() {
   const [showConnect, setShowConnect] = useState(false);
   const [editTarget, setEditTarget] = useState<KnowledgeBase | null>(null);
   const [shareTarget, setShareTarget] = useState<KnowledgeBase | null>(null);
+  const [retrievalTarget, setRetrievalTarget] = useState<KnowledgeBase | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<KnowledgeBase | null>(null);
   const addMenuRef = useRef<HTMLDivElement>(null);
 
@@ -236,7 +240,7 @@ export default function KnowledgeList() {
       <div className="mb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div className="min-w-0">
           <h1 className="font-display text-xl font-semibold tracking-tight mb-1">Kho tri thức</h1>
-          <p className="text-sm text-muted-foreground">Nguồn tri thức dùng chung cho các Agent trong workspace.</p>
+          <p className="text-sm text-muted-foreground">Tri thức dùng chung cho cả Space. Thêm tài liệu một lần, gắn vào nhiều Agent để cùng trả lời từ một nguồn.</p>
         </div>
         <div className="relative shrink-0" ref={addMenuRef}>
           <button
@@ -334,7 +338,7 @@ export default function KnowledgeList() {
           </div>
           <h3 className="font-display text-base font-semibold mb-1">Chưa có kho tri thức nào</h3>
           <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">
-            Tạo kho tri thức đầu tiên để Agent của bạn có thể tra cứu tài liệu, website và FAQ.
+            Tạo kho tri thức đầu tiên để các Agent trong Space cùng tra cứu tài liệu, website và FAQ.
           </p>
           <button onClick={() => canCreateKb && setShowCreate(true)} disabled={!canCreateKb} title={!canCreateKb ? NO_CREATE_KB : undefined} className="btn-primary h-9 mx-auto disabled:opacity-50 disabled:cursor-not-allowed">Tạo kho tri thức</button>
         </div>
@@ -370,6 +374,7 @@ export default function KnowledgeList() {
               onOpen={() => navigate(`/knowledge/${kb.id}`)}
               onEdit={() => setEditTarget(kb)}
               onShare={() => setShareTarget(kb)}
+              onRetrieval={() => setRetrievalTarget(kb)}
               onDelete={() => setDeleteTarget(kb)}
             />
           ))}
@@ -391,6 +396,14 @@ export default function KnowledgeList() {
           attachedAgentIds={shareTarget.attachedByAgentIds}
           onSave={sharing => knowledgeBaseStore.updateSharing(shareTarget.id, sharing)}
           onClose={() => { setShareTarget(null); refresh(); }}
+        />
+      )}
+      {retrievalTarget && (
+        <RetrievalScopeModal
+          name={retrievalTarget.name}
+          value={retrievalTarget.querySharing}
+          onSave={q => knowledgeBaseStore.updateQuerySharing(retrievalTarget.id, q)}
+          onClose={() => { setRetrievalTarget(null); refresh(); }}
         />
       )}
       {deleteTarget && (

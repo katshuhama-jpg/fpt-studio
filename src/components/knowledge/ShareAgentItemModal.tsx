@@ -11,15 +11,8 @@ import {
   CURRENT_USER, DEFAULT_QUERY_SHARING,
   type Sharing, type SharingMode, type QuerySharing,
 } from "./knowledgeBaseStore";
-import MemberPicker from "./MemberPicker";
-import QueryScopeSection, { RadioCard, isQueryScopeValid } from "./QueryScopeSection";
+import QueryScopeSection, { AccessScopeSection, isQueryScopeValid, isRetrievalNarrowing, normalizeQuerySharing } from "./QueryScopeSection";
 import { knowledgeStore, type KnowledgeItem } from "./knowledgeStore";
-
-const BUILD_ACCESS_OPTIONS: { value: SharingMode; label: string; helper?: string }[] = [
-  { value: "private", label: "Chỉ Agent này", helper: "Không chia sẻ. Chỉ Agent đang mở dùng được." },
-  { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi thành viên trong Space đều dùng lại được." },
-  { value: "specific", label: "Người dùng cụ thể", helper: "Chỉ những người bạn chọn mới dùng lại được." },
-];
 
 /** Merged "Chia sẻ" dialog for an Agent's own Knowledge item (doc/url/FAQ in the "Cá nhân"
  * bucket) — replaces what used to be two separate row actions ("Chia sẻ" and "Chuyển thành kho
@@ -45,7 +38,7 @@ export default function ShareAgentItemModal({ agentId, items, onClose }: {
 }) {
   const single = items.length === 1 ? items[0] : undefined;
   const initialSharing: Sharing = single?.sharing ?? { mode: "private", people: [] };
-  const initialQuerySharing: QuerySharing = single?.querySharing ?? DEFAULT_QUERY_SHARING;
+  const initialQuerySharing: QuerySharing = normalizeQuerySharing(single?.querySharing ?? DEFAULT_QUERY_SHARING);
 
   // An item created in the Agent is not shared by default ("private" = "Chỉ Agent này").
   const [buildMode, setBuildMode] = useState<SharingMode>(initialSharing.mode);
@@ -63,6 +56,7 @@ export default function ShareAgentItemModal({ agentId, items, onClose }: {
   // no equivalent history to downgrade from (it's brand new), so it never triggers this.
   const downgrading = (initialSharing.mode === "all" && buildMode !== "all") ||
     (initialSharing.mode !== "private" && buildMode === "private");
+  const retrievalNarrowing = !!single && isRetrievalNarrowing(initialQuerySharing, querySharing);
 
   const applySave = () => {
     const sharing: Sharing = { mode: buildMode, people: buildMode === "specific" ? buildPeople : [] };
@@ -77,7 +71,7 @@ export default function ShareAgentItemModal({ agentId, items, onClose }: {
       }
     }
     toast.success(buildMode === "private"
-      ? "Đã cập nhật quyền chia sẻ."
+      ? "Đã cập nhật quyền truy cập và truy xuất."
       : items.length > 1 ? `Đã chia sẻ ${items.length} mục thành kho tri thức trong Space.` : "Đã chia sẻ thành kho tri thức trong Space.");
     onClose();
   };
@@ -85,7 +79,7 @@ export default function ShareAgentItemModal({ agentId, items, onClose }: {
   const save = () => {
     setSubmitAttempted(true);
     if (!canSubmit) return;
-    if (downgrading) { setShowRevokeConfirm(true); return; }
+    if (downgrading || retrievalNarrowing) { setShowRevokeConfirm(true); return; }
     applySave();
   };
 
@@ -94,27 +88,20 @@ export default function ShareAgentItemModal({ agentId, items, onClose }: {
       <Dialog open onOpenChange={v => !v && onClose()}>
         <DialogContent className="sm:max-w-[560px] max-h-[85vh] overflow-y-auto" onOpenAutoFocus={e => e.preventDefault()}>
           <DialogHeader>
-            <DialogTitle>Chia sẻ & quyền truy cập</DialogTitle>
+            <DialogTitle>Quyền truy cập & truy xuất</DialogTitle>
             {single ? <DialogDescription>{single.name}</DialogDescription> : <DialogDescription>{items.length} mục đã chọn</DialogDescription>}
           </DialogHeader>
 
           <div className="space-y-6 py-1">
-            <div>
-              <label className="text-sm font-medium mb-1 block">Chia sẻ tới</label>
-              <p className="text-xs text-muted-foreground mb-3">Chia sẻ để người khác dùng lại tài liệu này cho Agent của họ. Khi chia sẻ, mỗi mục trở thành một kho tri thức trong Space, Agent này vẫn dùng như cũ.</p>
-              <div className="space-y-2">
-                {BUILD_ACCESS_OPTIONS.map(opt => (
-                  <RadioCard key={opt.value} selected={buildMode === opt.value} onSelect={() => setBuildMode(opt.value)} label={opt.label} helper={opt.helper}>
-                    {opt.value === "specific" && (
-                      <>
-                        <MemberPicker value={buildPeople} onChange={setBuildPeople} ownerRow={{ name: CURRENT_USER.name, email: CURRENT_USER.email }} />
-                        {submitAttempted && buildPeople.length === 0 && <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người để chia sẻ.</p>}
-                      </>
-                    )}
-                  </RadioCard>
-                ))}
-              </div>
-            </div>
+            <AccessScopeSection
+              mode={buildMode}
+              people={buildPeople}
+              onModeChange={setBuildMode}
+              onPeopleChange={setBuildPeople}
+              submitAttempted={submitAttempted}
+              ownerRow={{ name: CURRENT_USER.name, email: CURRENT_USER.email }}
+              agentOnly
+            />
 
             <div className="border-t border-border pt-5">
               <QueryScopeSection
@@ -136,14 +123,16 @@ export default function ShareAgentItemModal({ agentId, items, onClose }: {
       <AlertDialog open={showRevokeConfirm} onOpenChange={setShowRevokeConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{buildMode === "private" ? "Tắt chia sẻ?" : "Thu hồi quyền truy cập?"}</AlertDialogTitle>
-            <AlertDialogDescription>{buildMode === "private"
-              ? "Chỉ Agent này dùng được nội dung này. Người khác sẽ không tìm thấy để dùng lại cho Agent của họ."
-              : "Những người khác đang dùng nội dung này để xây Agent sẽ không còn thấy được nữa."}</AlertDialogDescription>
+            <AlertDialogTitle>{!downgrading ? "Thu hẹp quyền truy xuất?" : buildMode === "private" ? "Tắt chia sẻ?" : "Thu hẹp quyền truy cập?"}</AlertDialogTitle>
+            <AlertDialogDescription>{!downgrading
+              ? "Agent sẽ ngừng trả lời bằng nội dung này cho người ngoài các phòng ban đã chọn."
+              : buildMode === "private"
+                ? "Chỉ Agent này dùng được nội dung này. Người khác sẽ không còn dùng được cho Agent của họ."
+                : "Thành viên không có trong danh sách sẽ không còn dùng được nội dung này khi xây dựng Agent."}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { setShowRevokeConfirm(false); applySave(); }}>{buildMode === "private" ? "Tắt chia sẻ" : "Thu hồi quyền"}</AlertDialogAction>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { setShowRevokeConfirm(false); applySave(); }}>{downgrading && buildMode === "private" ? "Tắt chia sẻ" : "Thu hẹp quyền"}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
