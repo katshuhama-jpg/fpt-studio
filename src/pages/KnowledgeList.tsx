@@ -240,7 +240,7 @@ export default function KnowledgeList() {
       <div className="mb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div className="min-w-0">
           <h1 className="font-display text-xl font-semibold tracking-tight mb-1">Kho tri thức</h1>
-          <p className="text-sm text-muted-foreground">Tri thức dùng chung cho cả Space. Thêm tài liệu một lần, gắn vào nhiều Agent để cùng trả lời từ một nguồn.</p>
+          <p className="text-sm text-muted-foreground">Tri thức dùng chung cho cả Space, gắn được vào nhiều Agent.</p>
         </div>
         <div className="relative shrink-0" ref={addMenuRef}>
           <button

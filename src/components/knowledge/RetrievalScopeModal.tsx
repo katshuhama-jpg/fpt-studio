@@ -57,7 +57,7 @@ export default function RetrievalScopeModal({ name, value, onSave, onClose }: {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Thu hẹp quyền truy xuất?</AlertDialogTitle>
-            <AlertDialogDescription>Agent sẽ ngừng trả lời bằng nội dung này cho người ngoài các phòng ban đã chọn.</AlertDialogDescription>
+            <AlertDialogDescription>Agent sẽ ngừng trả lời cho người ngoài các phòng ban đã chọn.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>

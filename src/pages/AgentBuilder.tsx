@@ -1909,7 +1909,7 @@ function AgentOwnKnowledgeView({ agentId, onBack }: { agentId: string; onBack: (
           <HugeiconsIcon icon={ChevronLeftIcon} size={14} /> Tri thức của Agent
         </button>
         <h2 className="font-display text-xl font-semibold">Cá nhân</h2>
-        <p className="text-xs text-muted-foreground mt-0.5">Tài liệu, website và FAQ bạn tạo trực tiếp trong Agent này. Mặc định chỉ Agent này dùng; muốn dùng cho nhiều Agent, hãy đổi quyền truy cập sang Cả Space hoặc Người cụ thể.</p>
+        <p className="text-xs text-muted-foreground mt-0.5">Tài liệu, website và FAQ chỉ Agent này dùng. Muốn dùng cho Agent khác, hãy đổi quyền truy cập.</p>
       </div>
 
       <div className="flex items-center justify-between gap-3 flex-wrap">
