@@ -7463,6 +7463,10 @@ function AgentGuardrailShareModal({ agentId, target, fallbackOwnerName, onClose,
 }
 
 function GuardrailsAgentTab({ agentId }: { agentId: string }) {
+  // Ticking "Áp dụng cho mọi Agent" creates the guardrail in the Space library, so only a Role
+  // with "Create" on Guardrails gets that option (Builder creates Agent-only guardrails).
+  const { can } = useMyPermissions();
+  const canCreateInSpace = can("guardrails.create");
   const { tree } = useOrg();
   const members = useMemo(() => collectMembers(tree), [tree]);
   const accessUserId = useGroupAccess("guardrails").userId;
@@ -7655,6 +7659,7 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
             refresh();
           }}
           currentUser={currentUser}
+          allowApplyAll={canCreateInSpace}
         />
       )}
       {editTarget && (
@@ -8042,6 +8047,10 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
 }
 
 function GuardrailsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAdd?: (fn: (pos:{top:number;left:number}) => void) => void }) {
+  // Ticking "Áp dụng cho mọi Agent" creates the guardrail in the Space library, so only a Role
+  // with "Create" on Guardrails gets that option (Builder creates Agent-only guardrails).
+  const { can } = useMyPermissions();
+  const canCreateInSpace = can("guardrails.create");
   const [, setParams] = useSearchParams();
   const [tick, setTick] = useState(0);
   const [showMenu, setShowMenu] = useState(false);
@@ -8166,6 +8175,7 @@ function GuardrailsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
             refresh();
           }}
           currentUser={currentUser}
+          allowApplyAll={canCreateInSpace}
         />
       )}
       {detailTarget && (

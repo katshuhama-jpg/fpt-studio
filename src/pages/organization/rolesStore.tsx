@@ -35,12 +35,15 @@ export type RoleDef = {
 };
 
 const ADMIN_IDS = new Set(ALL_PERMISSION_IDS);
+/** Builder builds Agents, but never creates resources straight in the Space (tenant) libraries —
+ * it creates them inside an Agent (Chỉ Agent này) and shares them up. In the libraries it only
+ * sees and edits what was shared with it, so the 4 resource groups carry no "create". */
 const BUILDER_IDS = new Set([
   "agents.create", "agents.publish", "agents.manage", "agents.pause", "agents.delete",
-  "knowledge.create", "knowledge.publish", "knowledge.manage", "knowledge.pause", "knowledge.delete",
-  "skills.create", "skills.publish", "skills.manage", "skills.pause", "skills.delete",
-  "guardrails.create", "guardrails.publish", "guardrails.manage", "guardrails.pause", "guardrails.delete",
-  "connectors.create", "connectors.publish", "connectors.manage", "connectors.pause", "connectors.delete",
+  "knowledge.view", "knowledge.publish", "knowledge.manage", "knowledge.pause", "knowledge.delete",
+  "skills.view", "skills.publish", "skills.manage", "skills.pause", "skills.delete",
+  "guardrails.view", "guardrails.publish", "guardrails.manage", "guardrails.pause", "guardrails.delete",
+  "connectors.view", "connectors.publish", "connectors.manage", "connectors.pause", "connectors.delete",
   "members.view",
 ]);
 const VIEWER_IDS = new Set([
@@ -55,6 +58,7 @@ const VIEWER_IDS = new Set([
  * never every resource in the Console — across all 5 publishable groups. Create has no Scope. */
 const BUILDER_SCOPE: ScopeMap = {
   ...defaultScope(),
+  "knowledge.view": "own_shared", "skills.view": "own_shared", "guardrails.view": "own_shared", "connectors.view": "own_shared",
   "agents.publish": "own_shared", "agents.manage": "own_shared", "agents.pause": "own_shared", "agents.delete": "own_shared",
   "knowledge.publish": "own_shared", "knowledge.manage": "own_shared", "knowledge.pause": "own_shared", "knowledge.delete": "own_shared",
   "skills.publish": "own_shared", "skills.manage": "own_shared", "skills.pause": "own_shared", "skills.delete": "own_shared",

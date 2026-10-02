@@ -42,7 +42,7 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
   const [topic, setTopic]       = useState(initialData?.name ?? "");
   const [desc, setDesc]         = useState(initialData?.desc ?? "");
   const [samples, setSamples]   = useState("");
-  const [response, setResponse] = useState<ResponseKind>(actionToResponse(initialData?.action));
+  const [response, setResponse] = useState<ResponseKind>(actionToResponse(initialData?.action) ?? "auto");
   const [fixedText, setFixedText] = useState("");
   const [allAgents, setAllAgents] = useState(initialData?.allAgents ?? false);
   const [sharingMode, setSharingMode] = useState<SharingMode>(!initialData?.sharing || initialData.sharing.mode === "private" ? "all" : initialData.sharing.mode);
@@ -57,7 +57,24 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
 
   const effectiveMode: SharingMode = allAgents ? "all" : sharingMode;
   const peopleError = !allAgents && sharingMode === "specific" && people.length === 0;
-  const canSubmit = !!topic.trim() && !peopleError;
+  // Same rules as console-agents.fpt.ai: the field takes any length so people see the counter
+  // go over, and the limit error shows under the field right away; "required" errors show once
+  // "Tạo guardrail" has been pressed.
+  const LIMITS = { topic: 100, desc: 800, samples: 2000, fixed: 300 };
+  const errors = {
+    topic: topic.length > LIMITS.topic ? `Chủ đề không được vượt quá ${LIMITS.topic} ký tự.` : submitAttempted && !topic.trim() ? "Vui lòng nhập chủ đề." : "",
+    desc: desc.length > LIMITS.desc ? `Mô tả không được vượt quá ${LIMITS.desc} ký tự.` : submitAttempted && !desc.trim() ? "Vui lòng nhập mô tả." : "",
+    samples: samples.length > LIMITS.samples ? `Ví dụ mẫu không được vượt quá ${LIMITS.samples} ký tự.` : "",
+    fixed: response !== "fixed" ? "" : fixedText.length > LIMITS.fixed ? `Nội dung trả lời không được vượt quá ${LIMITS.fixed} ký tự.` : submitAttempted && !fixedText.trim() ? "Vui lòng nhập nội dung Agent sẽ trả lời." : "",
+  };
+  const fieldsValid =
+    !!topic.trim() && topic.length <= LIMITS.topic &&
+    !!desc.trim() && desc.length <= LIMITS.desc &&
+    samples.length <= LIMITS.samples &&
+    (response !== "fixed" || (!!fixedText.trim() && fixedText.length <= LIMITS.fixed));
+  const canSubmit = fieldsValid && !peopleError;
+  const errCls = (e: string) => (e ? "border-destructive focus:border-destructive focus:ring-destructive/20" : "border-border focus:border-primary focus:ring-primary/20");
+  const ErrorText = ({ msg }: { msg: string }) => (msg ? <p role="alert" className="text-xs text-destructive mt-1">{msg}</p> : null);
 
   const submit = () => {
     setSubmitAttempted(true);
@@ -101,51 +118,57 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-sm font-medium">Chủ đề <span className="text-destructive">*</span></label>
-                  <span className="text-xs text-muted-foreground">{topic.length}/100</span>
+                  <span className={`text-xs ${topic.length > 100 ? "text-destructive" : "text-muted-foreground"}`}>{topic.length}/100</span>
                 </div>
                 <input
                   autoFocus={!readOnly}
                   disabled={readOnly}
-                  maxLength={100}
-                  className="w-full h-10 px-3 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base disabled:bg-surface-muted disabled:text-muted-foreground"
+                  placeholder="VD: Giá sản phẩm, Tư vấn pháp lý, Chính sách hoàn tiền"
+                  aria-invalid={!!errors.topic}
+                  className={`w-full h-10 px-3 rounded-lg border bg-white text-sm outline-none focus:ring-2 transition-base disabled:bg-surface-muted disabled:text-muted-foreground ${errCls(errors.topic)}`}
                   value={topic}
                   onChange={e => setTopic(e.target.value)}
                 />
+                <ErrorText msg={errors.topic} />
               </div>
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-sm font-medium">Mô tả <span className="text-destructive">*</span></label>
-                  <span className="text-xs text-muted-foreground">{desc.length}/800</span>
+                  <span className={`text-xs ${desc.length > 800 ? "text-destructive" : "text-muted-foreground"}`}>{desc.length}/800</span>
                 </div>
                 <textarea
                   disabled={readOnly}
-                  maxLength={800}
                   rows={3}
-                  className="w-full px-3 py-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none disabled:bg-surface-muted disabled:text-muted-foreground"
+                  placeholder="Giải thích vì sao Agent không được đề cập chủ đề này."
+                  aria-invalid={!!errors.desc}
+                  className={`w-full px-3 py-2.5 rounded-lg border bg-white text-sm outline-none focus:ring-2 transition-base resize-none disabled:bg-surface-muted disabled:text-muted-foreground ${errCls(errors.desc)}`}
                   value={desc}
                   onChange={e => setDesc(e.target.value)}
                 />
+                <ErrorText msg={errors.desc} />
               </div>
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-sm font-medium">Ví dụ mẫu</label>
-                  <span className="text-xs text-muted-foreground">{samples.length}/2000</span>
+                  <span className={`text-xs ${samples.length > 2000 ? "text-destructive" : "text-muted-foreground"}`}>{samples.length}/2000</span>
                 </div>
                 <p className="text-xs text-primary mb-1.5 italic">Mẹo: mỗi ví dụ nằm trên một dòng riêng.</p>
                 <textarea
                   disabled={readOnly}
-                  maxLength={2000}
                   rows={4}
-                  className="w-full px-3 py-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none disabled:bg-surface-muted disabled:text-muted-foreground"
+                  placeholder="VD: Gói doanh nghiệp giá bao nhiêu?"
+                  aria-invalid={!!errors.samples}
+                  className={`w-full px-3 py-2.5 rounded-lg border bg-white text-sm outline-none focus:ring-2 transition-base resize-none disabled:bg-surface-muted disabled:text-muted-foreground ${errCls(errors.samples)}`}
                   value={samples}
                   onChange={e => setSamples(e.target.value)}
                 />
+                <ErrorText msg={errors.samples} />
               </div>
             </div>
           </div>
 
           <div>
-            <h3 className="text-sm font-semibold mb-1">Phản hồi</h3>
+            <h3 className="text-sm font-semibold mb-1">Phản hồi <span className="text-destructive">*</span></h3>
             <p className="text-xs text-muted-foreground mb-4">Chọn Agent sẽ làm gì khi rule này được kích hoạt.</p>
             <div className="space-y-3">
               {responseOptions.map(opt => {
@@ -173,15 +196,16 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
                             <textarea
                               disabled={readOnly}
                               rows={4}
-                              maxLength={300}
                               placeholder="Nhập nguyên văn câu trả lời Agent sẽ gửi."
-                              className="w-full px-3 py-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-base resize-none disabled:bg-surface-muted disabled:text-muted-foreground"
+                              aria-invalid={!!errors.fixed}
+                              className={`w-full px-3 py-2.5 rounded-lg border bg-white text-sm outline-none focus:ring-2 transition-base resize-none disabled:bg-surface-muted disabled:text-muted-foreground ${errCls(errors.fixed)}`}
                               value={fixedText}
                               onChange={e => { e.stopPropagation(); setFixedText(e.target.value); }}
                               onClick={e => e.stopPropagation()}
                             />
-                            <span className="absolute bottom-2 right-3 text-[10px] text-muted-foreground">{fixedText.length}/300</span>
+                            <span className={`absolute bottom-2 right-3 text-[10px] ${fixedText.length > 300 ? "text-destructive" : "text-muted-foreground"}`}>{fixedText.length}/300</span>
                           </div>
+                          <ErrorText msg={errors.fixed} />
                         </div>
                       )}
                     </div>
@@ -215,7 +239,7 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
           ) : (
             <>
               <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Hủy</button>
-              <button onClick={submit} disabled={!topic.trim()} className="h-9 px-6 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium transition-base disabled:opacity-40 disabled:cursor-not-allowed">
+              <button onClick={submit} className="h-9 px-6 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium transition-base disabled:opacity-40 disabled:cursor-not-allowed">
                 {isEdit ? "Lưu thay đổi" : "Tạo guardrail"}
               </button>
             </>
