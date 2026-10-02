@@ -208,7 +208,7 @@ function seed() {
   // was explicitly given access to). Proves the restriction actually hides something.
   put({
     id: "kb-7", name: "Lộ trình sản phẩm nội bộ",
-    description: "Kế hoạch phát triển sản phẩm quý tới — chỉ dành cho đội ngũ vận hành nền tảng.",
+    description: "Kế hoạch phát triển sản phẩm quý tới - Chỉ dành cho đội ngũ vận hành nền tảng.",
     type: "internal", ownerId: "m-fsoft-vn-1", ownerName: "Duy Nguyen",
     sharing: { mode: "all", people: [] },
     querySharing: DEFAULT_QUERY_SHARING,

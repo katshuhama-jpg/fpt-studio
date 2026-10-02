@@ -557,7 +557,7 @@ export default function ExternalAgentDetail() {
                       ))}
                     </div>
                   ) : (
-                    <span className="text-muted-foreground">—</span>
+                    <span className="text-muted-foreground">-</span>
                   )}
                 </InfoRow>
               </div>
@@ -581,8 +581,8 @@ export default function ExternalAgentDetail() {
                           const ok = externalAgentStore.runHealthCheck(agent.id);
                           setCheckingHealth(false);
                           refresh();
-                          if (ok) toast.success("Kết nối ổn — các endpoint bắt buộc đều phản hồi.");
-                          else toast.error("Không kết nối được — Agent không phản hồi. Xem trạng thái endpoint bên dưới.");
+                          if (ok) toast.success("Kết nối ổn - Các endpoint bắt buộc đều phản hồi.");
+                          else toast.error("Không kết nối được - Agent không phản hồi. Xem trạng thái endpoint bên dưới.");
                         }, 700);
                       }}
                       className="h-7 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base disabled:opacity-50 flex items-center gap-1.5"

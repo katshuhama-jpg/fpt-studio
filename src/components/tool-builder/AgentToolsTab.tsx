@@ -87,7 +87,7 @@ export default function AgentToolsTab({ agentId }: { agentId: string }) {
         <div className="flex-1 min-w-0">
           <h3 className="font-display font-semibold text-sm">Tools</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Browse the Tool Store, install built-in plugins or build your own — your agent can call any tool here.
+            Browse the Tool Store, install built-in plugins or build your own - Your agent can call any tool here.
           </p>
         </div>
 
@@ -109,10 +109,10 @@ export default function AgentToolsTab({ agentId }: { agentId: string }) {
               <Code2 size={14} className="mr-2" /> New IDE (Python) tool
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => toast("Import — available in next phase")}>
+            <DropdownMenuItem onClick={() => toast("Import - Available in next phase")}>
               <Upload size={14} className="mr-2" /> Import JSON
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => toast("MCP — available in next phase")}>
+            <DropdownMenuItem onClick={() => toast("MCP - Available in next phase")}>
               <Server size={14} className="mr-2" /> Connect MCP server
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -241,7 +241,7 @@ export default function AgentToolsTab({ agentId }: { agentId: string }) {
         <div className="flex items-baseline justify-between mb-3">
           <div>
             <h4 className="font-display font-semibold text-sm">Tool Store</h4>
-            <p className="text-[11px] text-muted-foreground">Vetted plugins maintained by the platform — install with one click.</p>
+            <p className="text-[11px] text-muted-foreground">Vetted plugins maintained by the platform - Install with one click.</p>
           </div>
           <span className="text-[11px] text-muted-foreground">{storeFiltered.length} available</span>
         </div>
@@ -453,7 +453,7 @@ function DetailsDialog({
                     <AccordionTrigger className="text-left">
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="font-mono text-[12px] font-semibold">{t.name}</span>
-                        <span className="text-[11px] text-muted-foreground truncate">— {t.description}</span>
+                        <span className="text-[11px] text-muted-foreground truncate"> - {t.description}</span>
                       </div>
                     </AccordionTrigger>
                     <AccordionContent>

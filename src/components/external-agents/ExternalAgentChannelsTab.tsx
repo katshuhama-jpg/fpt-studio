@@ -72,7 +72,7 @@ export default function ExternalAgentChannelsTab({ agent, onRefresh, onViewVersi
           <div className="flex items-center gap-10 flex-wrap">
             <div>
               <p className="text-sm text-muted-foreground mb-1">Phiên bản đang chạy</p>
-              <p className="text-base font-semibold font-mono">{isLive ? pub.version : "—"}</p>
+              <p className="text-base font-semibold font-mono">{isLive ? pub.version : "-"}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground mb-1">Workspace</p>

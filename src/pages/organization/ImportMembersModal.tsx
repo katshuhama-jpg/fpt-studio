@@ -193,7 +193,7 @@ export default function ImportMembersModal({
         else if (!EMAIL_RE.test(emailRaw)) { status = "skipped"; reason = "Sai định dạng email"; }
         else if (seenInFile.has(emailLower)) { status = "skipped"; reason = "Email bị trùng trong file"; }
         else if (alreadyInTargetUnit) { status = "skipped"; reason = "Đã là thành viên của đơn vị này"; }
-        else if (existingEmailsOrgWide.has(emailLower)) { note = "Đã có ở một đơn vị khác trong tổ chức — sẽ thêm vào đây nữa."; }
+        else if (existingEmailsOrgWide.has(emailLower)) { note = "Đã có ở một đơn vị khác trong tổ chức - Sẽ thêm vào đây nữa."; }
         else if (otherOrgHits.length > 0) { note = `Đã có ở tổ chức khác (${otherOrgHits[0].tenantName}).`; }
         if (status === "valid") seenInFile.add(emailLower);
 
@@ -203,7 +203,7 @@ export default function ImportMembersModal({
       setRows(builtRows);
       setStep("preview");
     } catch {
-      setParseError("Không đọc được file này. Hãy đảm bảo đây là file .csv có các cột Name, Email và Đơn vị — Email là bắt buộc.");
+      setParseError("Không đọc được file này. Hãy đảm bảo đây là file .csv có các cột Name, Email và Đơn vị - Email là bắt buộc.");
     } finally {
       setIsParsing(false);
     }
@@ -234,7 +234,7 @@ export default function ImportMembersModal({
           <div>
             <h2 className="text-base font-semibold">Nhập thành viên từ Excel</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {step === "upload" && "Tải lên một file bảng tính để thêm nhiều thành viên — và đơn vị của họ — cùng lúc."}
+              {step === "upload" && "Tải lên một file bảng tính để thêm nhiều thành viên - Và đơn vị của họ - Cùng lúc."}
               {step === "preview" && "Xem lại trước khi nhập."}
               {step === "done" && "Đã nhập xong."}
             </p>
@@ -284,7 +284,7 @@ export default function ImportMembersModal({
                   <>
                     <UploadCloud size={28} className="text-muted-foreground" />
                     <div className="text-sm font-medium">Kéo thả file vào đây</div>
-                    <div className="text-xs text-muted-foreground">File .csv xuất từ Excel — cần có cột Name, Email, Đơn vị</div>
+                    <div className="text-xs text-muted-foreground">File .csv xuất từ Excel - Cần có cột Name, Email, Đơn vị</div>
                     <button
                       type="button"
                       onClick={e => { e.stopPropagation(); fileInputRef.current?.click(); }}
@@ -310,7 +310,7 @@ export default function ImportMembersModal({
               <div className="flex items-start gap-2.5 rounded-xl border border-primary/20 bg-primary-soft px-3.5 py-3">
                 <FolderPlus size={15} className="text-primary shrink-0 mt-0.5" />
                 <p className="text-xs text-foreground leading-relaxed">
-                  Tên đơn vị chưa tồn tại — ở bất kỳ đâu trong đường dẫn — sẽ được tự động tạo, lồng đúng như đã viết (ví dụ: <span className="font-mono">Sales/Team North</span> sẽ tạo "Sales" trước nếu chưa có, rồi tạo "Team North" bên trong). Đơn vị đã có sẵn thì dùng lại, không tạo trùng. Mọi người được nhập vào đều bắt đầu với vai trò Viewer; có thể nâng quyền sau tại Members hoặc Structure.
+                  Tên đơn vị chưa tồn tại - Ở bất kỳ đâu trong đường dẫn - Sẽ được tự động tạo, lồng đúng như đã viết (ví dụ: <span className="font-mono">Sales/Team North</span> sẽ tạo "Sales" trước nếu chưa có, rồi tạo "Team North" bên trong). Đơn vị đã có sẵn thì dùng lại, không tạo trùng. Mọi người được nhập vào đều bắt đầu với vai trò Viewer; có thể nâng quyền sau tại Members hoặc Structure.
                 </p>
               </div>
 
@@ -363,8 +363,8 @@ export default function ImportMembersModal({
                   <AlertTriangle size={15} className="text-warning shrink-0 mt-0.5" />
                   <p className="text-xs text-warning leading-relaxed">
                     Personal Space chỉ còn <span className="font-medium">{Math.max(0, personalSpaceRemainingSlots)}</span> chỗ trống. Chỉ{" "}
-                    <span className="font-medium">{Math.max(0, personalSpaceRemainingSlots)}/{validRows.length}</span> dòng hợp lệ sẽ được nhập —
-                    phần còn lại sẽ bị bỏ qua. Nâng cấp lên gói doanh nghiệp để nhập toàn bộ.
+                    <span className="font-medium">{Math.max(0, personalSpaceRemainingSlots)}/{validRows.length}</span> dòng hợp lệ sẽ được nhập - 
+                    Phần còn lại sẽ bị bỏ qua. Nâng cấp lên gói doanh nghiệp để nhập toàn bộ.
                   </p>
                 </div>
               )}
@@ -385,8 +385,8 @@ export default function ImportMembersModal({
                 <div className="divide-y divide-border max-h-64 overflow-y-auto">
                   {rows.map(r => (
                     <div key={r.rowNumber} className="grid grid-cols-[1fr,1fr,1.4fr,150px] gap-3 px-4 py-2.5 items-center text-sm">
-                      <div className="truncate">{r.name || <span className="text-muted-foreground italic">—</span>}</div>
-                      <div className="truncate text-muted-foreground">{r.email || <span className="italic">—</span>}</div>
+                      <div className="truncate">{r.name || <span className="text-muted-foreground italic">-</span>}</div>
+                      <div className="truncate text-muted-foreground">{r.email || <span className="italic">-</span>}</div>
                       <div className="flex items-center gap-1.5 min-w-0">
                         <span className="truncate text-xs text-muted-foreground" title={r.unitLabel}>{r.unitLabel}</span>
                         {r.status === "valid" && <UnitStatusChip willCreate={r.willCreateUnit} />}
@@ -415,7 +415,7 @@ export default function ImportMembersModal({
                 <div className="text-sm text-foreground">
                   Đã nhập <span className="font-medium">{imported.length}</span> thành viên
                   {unitsToCreate.length > 0 && <> · đã tạo <span className="font-medium">{unitsToCreate.length}</span> đơn vị mới</>}
-                  {skippedRows.length > 0 && <> — {skippedRows.length} dòng bị bỏ qua.</>}
+                  {skippedRows.length > 0 && <> - {skippedRows.length} dòng bị bỏ qua.</>}
                 </div>
               </div>
 

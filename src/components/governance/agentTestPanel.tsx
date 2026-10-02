@@ -40,7 +40,7 @@ export function AgentTestPanel({ agentId, open, onOpenChange }: {
     // Mock reply, same fidelity as AgentBuilder's own PreviewPanel test chat — this prototype
     // doesn't wire either test surface to a real model call yet.
     setTimeout(() => {
-      setMessages(m => [...m, { role: "agent", text: `Đây là phản hồi demo cho "${text}" — bản test này chưa kết nối model thật.` }]);
+      setMessages(m => [...m, { role: "agent", text: `Đây là phản hồi demo cho "${text}" - Bản test này chưa kết nối model thật.` }]);
     }, 700);
   };
 

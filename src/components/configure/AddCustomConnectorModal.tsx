@@ -203,7 +203,7 @@ export default function AddCustomConnectorModal({ editing, onClose, onCreated, o
                 <span className="text-sm font-medium">OAuth 2.1 (Thủ công) · Sắp có</span>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-2">Dùng Static Headers (vd: một API key) để xác thực. OAuth 2.1 sẽ sớm ra mắt.</p>
+            <p className="text-xs text-muted-foreground mt-2">Dùng Static Headers (vd: Một API key) để xác thực. OAuth 2.1 sẽ sớm ra mắt.</p>
           </div>
         </div>
 

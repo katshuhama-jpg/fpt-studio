@@ -44,7 +44,7 @@ export default function ErrorHandlingSection({ spec, cfg, set }: Props) {
 
       {mode === "branch" && (
         <p className="mt-2 text-[11px] text-muted-foreground">
-          An <span className="font-mono text-warning">error</span> handle will appear on the node — wire it to a fail-path.
+          An <span className="font-mono text-warning">error</span> handle will appear on the node - Wire it to a fail-path.
         </p>
       )}
 

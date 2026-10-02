@@ -64,7 +64,7 @@ export function MoveMemberModal({
               {mode === "add" ? `Thêm ${member.name} vào đơn vị khác` : `Chuyển ${member.name} sang đơn vị khác`}
             </h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {mode === "add" ? `Vẫn giữ nguyên ở: ${currentLabel} — chọn thêm một đơn vị nữa bên dưới.` : `Hiện đang ở: ${currentLabel}`}
+              {mode === "add" ? `Vẫn giữ nguyên ở: ${currentLabel} - Chọn thêm một đơn vị nữa bên dưới.` : `Hiện đang ở: ${currentLabel}`}
             </p>
           </div>
           <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground ml-4 shrink-0">

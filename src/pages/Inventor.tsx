@@ -95,7 +95,7 @@ type AgentDraft = {
 const emptyDraft: AgentDraft = {
   name: "Untitled agent",
   emoji: "✨",
-  persona: "—",
+  persona: "-",
   description: "Describe what you want and Inventor will draft a full configuration.",
   expertise: [],
   bps: [],
@@ -120,7 +120,7 @@ const reportDraft: AgentDraft = {
     "Citation & source verification",
   ],
   bps: [
-    { name: "others", description: "Default fallback — answer general questions from knowledge.", strategy: "ReAct", isDefault: true },
+    { name: "others", description: "Default fallback - Answer general questions from knowledge.", strategy: "ReAct", isDefault: true },
     { name: "weekly_report", description: "Generate the weekly executive report on schedule.", strategy: "Predefined Plan", toolNames: ["Google Search", "Python code", "Google Docs"] },
     { name: "research_brief", description: "Run focused research on a topic and produce a brief.", strategy: "ReAct", toolNames: ["Google Search", "Perplexity", "Firecrawl"], taskNames: ["collect_topic_brief", "synthesize_findings"] },
     { name: "publish_report", description: "Format and publish the finished report to Google Docs.", strategy: "Tool Execution", toolNames: ["Google Docs", "Google Sheets"] },
@@ -159,7 +159,7 @@ const careDraft: AgentDraft = {
     "Empathetic escalation handoff",
   ],
   bps: [
-    { name: "others", description: "Default fallback — answer general questions from knowledge.", strategy: "ReAct", isDefault: true },
+    { name: "others", description: "Default fallback - Answer general questions from knowledge.", strategy: "ReAct", isDefault: true },
     { name: "verify_customer", description: "Verify the customer by phone before any sensitive action.", strategy: "Predefined Plan", toolNames: ["verify_customer"], taskNames: ["collect_customer_info"] },
     { name: "lock_card", description: "Lock a card after identity check.", strategy: "Predefined Plan", toolNames: ["verify_customer", "lock_card"] },
     { name: "book_appointment", description: "Book a consultation slot with an advisor.", strategy: "ReAct", toolNames: ["calendar_create_event", "send_sms"], taskNames: ["confirm_booking"] },
@@ -175,7 +175,7 @@ const careDraft: AgentDraft = {
     { name: "send_sms", desc: "Send a transactional SMS confirmation.", icon: Send, tint: "bg-accent-soft text-accent" },
   ],
   knowledge: [
-    { name: "FAQ — Card policy", type: "faq", description: "Top 30 FAQs about card products & limits." },
+    { name: "FAQ - Card policy", type: "faq", description: "Top 30 FAQs about card products & limits." },
     { name: "Booking guide", type: "doc", description: "Branch list, slots and required documents." },
   ],
   trigger: "Manual",
@@ -269,7 +269,7 @@ export default function Inventor() {
       id: crypto.randomUUID(),
       role: "ai",
       kind: "text",
-      text: "Cảm ơn — mình sẽ dùng các thông tin trên để thiết kế agent.",
+      text: "Cảm ơn - Mình sẽ dùng các thông tin trên để thiết kế agent.",
     });
     await wait(300);
     await runMainFlow(merged);
@@ -283,7 +283,7 @@ export default function Inventor() {
       id: crypto.randomUUID(),
       role: "ai",
       kind: "text",
-      text: `Got it — I'll design **${guessAgentName(userPrompt)}**. Let me draft a plan first.`,
+      text: `Got it - I'll design **${guessAgentName(userPrompt)}**. Let me draft a plan first.`,
     });
     await wait(500);
 
@@ -318,7 +318,7 @@ export default function Inventor() {
       role: "ai",
       kind: "text",
       text:
-        "Based on your prompt I've inferred the relevant report families and a sensible trigger schedule. Review below — you can refine anything afterwards.",
+        "Based on your prompt I've inferred the relevant report families and a sensible trigger schedule. Review below - You can refine anything afterwards.",
     });
     await wait(400);
     pushMsg({
@@ -420,7 +420,7 @@ export default function Inventor() {
     pushMsg({
       id: crypto.randomUUID(), role: "ai", kind: "text",
       text:
-        "All set. You can keep chatting to refine — e.g. *“add a SLA business process”* or *“use a more formal tone”*.",
+        "All set. You can keep chatting to refine - E.g. *“add a SLA business process”* or *“use a more formal tone”*.",
     });
     setThinking(false);
   }
@@ -438,7 +438,7 @@ export default function Inventor() {
         id: crypto.randomUUID(),
         role: "ai",
         kind: "text",
-        text: "Added a **Slack delivery step** to the right panel — it will fire after the report is written.",
+        text: "Added a **Slack delivery step** to the right panel - It will fire after the report is written.",
       });
     } else if (t.includes("formal") || t.includes("trang trọng")) {
       setDraft(d => ({ ...d, tone: "Formal" }));
@@ -456,7 +456,7 @@ export default function Inventor() {
         id: crypto.randomUUID(),
         role: "ai",
         kind: "text",
-        text: "Noted — I've folded that into the configuration. Anything else?",
+        text: "Noted - I've folded that into the configuration. Anything else?",
       });
     }
     setThinking(false);
@@ -575,7 +575,7 @@ export default function Inventor() {
                   }
                 }}
                 rows={2}
-                placeholder={pendingClarify ? "Trả lời các câu hỏi bên trên để tiếp tục…" : (messages.length === 0 ? "Ask Inventor to build anything..." : "Refine the agent — e.g. add Slack, change tone…")}
+                placeholder={pendingClarify ? "Trả lời các câu hỏi bên trên để tiếp tục…" : (messages.length === 0 ? "Ask Inventor to build anything..." : "Refine the agent - E.g. add Slack, change tone…")}
                 className="w-full resize-none bg-transparent text-sm placeholder:text-muted-foreground outline-none px-2.5 py-2 max-h-32"
               />
               <div className="flex items-center gap-1 px-1.5 pb-0.5">
@@ -830,7 +830,7 @@ function ConfigPanel({ draft, applied }: { draft: AgentDraft; applied: boolean }
       {/* Core expertise */}
       <Section icon={BookOpen} title="Core expertise">
         {draft.expertise.length === 0 ? (
-          <EmptyHint label="No skills yet — Inventor will populate this after you approve the plan." />
+          <EmptyHint label="No skills yet - Inventor will populate this after you approve the plan." />
         ) : (
           <ul className="grid sm:grid-cols-2 gap-1.5">
             {draft.expertise.map(e => (
@@ -1134,7 +1134,7 @@ function ClarifyingCard({
         </button>
       ) : (
         <div className="flex items-center gap-1.5 text-[11px] text-primary font-medium">
-          <Check size={11} /> Cảm ơn — đang tiếp tục thiết kế agent…
+          <Check size={11} /> Cảm ơn - Đang tiếp tục thiết kế agent…
         </div>
       )}
     </div>

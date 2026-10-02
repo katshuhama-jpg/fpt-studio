@@ -78,7 +78,7 @@ export function ResourceContentSection({ type, id }: { type: ResourceReqType; id
           {c.authType === "none" ? (
             <span className="inline-flex items-center gap-1.5 text-muted-foreground"><Globe size={13} /> Không cần xác thực</span>
           ) : (
-            <span className="inline-flex items-center gap-1.5"><KeyRound size={13} className="text-warning" /> Header tĩnh (static headers) — có secret đi kèm</span>
+            <span className="inline-flex items-center gap-1.5"><KeyRound size={13} className="text-warning" /> Header tĩnh (static headers) - Có secret đi kèm</span>
           )}
         </Field>
         {c.authType === "static_headers" && c.headers.length > 0 && (
@@ -103,7 +103,7 @@ export function ResourceContentSection({ type, id }: { type: ResourceReqType; id
     return (
       <ContentBlock type={type}>
         <Field label="Loại">
-          {kb.type === "internal" ? "Nội bộ — tài liệu / URL / FAQ tải lên Console" : "Kết nối API ngoài"}
+          {kb.type === "internal" ? "Nội bộ - Tài liệu / URL / FAQ tải lên Console" : "Kết nối API ngoài"}
         </Field>
         {kb.type === "internal" ? (
           <Field label="Quy mô nội dung">
@@ -281,7 +281,7 @@ export function ResourceUsageSection({ type, id }: { type: ResourceReqType; id: 
             </button>
           </TooltipTrigger>
           <TooltipContent side="right" sideOffset={6} className="max-w-xs">
-            Đây là phạm vi ảnh hưởng nếu bạn từ chối — các Agent đã Published vẫn tiếp tục chạy bình thường với bản riêng của mình, không bị gỡ.
+            Đây là phạm vi ảnh hưởng nếu bạn từ chối - Các Agent đã Published vẫn tiếp tục chạy bình thường với bản riêng của mình, không bị gỡ.
           </TooltipContent>
         </Tooltip>
       </div>
@@ -357,13 +357,13 @@ export function ExternalAgentContentSection({ req }: { req: GovRequest }) {
       <Field label="Trạng thái kết nối">
         {x.endpointsOk === null ? <span className="text-muted-foreground">Chưa kiểm tra</span>
           : x.endpointsOk ? <span className="text-success">Endpoint bắt buộc đang hoạt động</span>
-          : <span className="text-destructive">Không kết nối được — cần kiểm tra trước khi duyệt</span>}
+          : <span className="text-destructive">Không kết nối được - Cần kiểm tra trước khi duyệt</span>}
       </Field>
       <Field label="Lịch sử hội thoại gửi kèm mỗi lượt">{x.historyDelivery}</Field>
       <Field label="Host được phép cho đăng nhập người dùng">
         {x.authorizeHosts.length ? <span className="flex flex-wrap gap-1">{x.authorizeHosts.map(h => <code key={h} className="text-xs font-mono bg-surface-muted border border-border/70 rounded px-1.5 py-0.5">{h}</code>)}</span> : <span className="text-muted-foreground">Không có</span>}
       </Field>
-      <Field label="Guardrail">{x.guardrail ?? <span className="text-muted-foreground">Chưa gắn — vẫn áp dụng Guardrail hệ thống và doanh nghiệp</span>}</Field>
+      <Field label="Guardrail">{x.guardrail ?? <span className="text-muted-foreground">Chưa gắn - Vẫn áp dụng Guardrail hệ thống và doanh nghiệp</span>}</Field>
     </ContentBlock>
   );
 }

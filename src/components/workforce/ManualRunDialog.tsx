@@ -78,7 +78,7 @@ export default function ManualRunDialog({
             Chạy Workforce
           </h3>
           <p className="text-[12.5px] mt-1" style={{ color: "var(--wf-muted)" }}>
-            Gõ yêu cầu — Workforce chạy thật ngay lập tức
+            Gõ yêu cầu - Workforce chạy thật ngay lập tức
           </p>
         </div>
 
@@ -98,7 +98,7 @@ export default function ManualRunDialog({
                       type="button"
                       onClick={() => setSelectedId(o.nodeId)}
                       aria-pressed={on}
-                      title={`${o.name} — ${o.agentName}`}
+                      title={`${o.name} - ${o.agentName}`}
                       className="text-[12px] font-bold rounded-[8px] transition-base"
                       style={{
                         padding: "9px 12px",
@@ -144,7 +144,7 @@ export default function ManualRunDialog({
               onKeyDown={e => {
                 if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); start(); }
               }}
-              placeholder="Mô tả yêu cầu của bạn — Workforce sẽ bắt đầu chạy từ đây."
+              placeholder="Mô tả yêu cầu của bạn - Workforce sẽ bắt đầu chạy từ đây."
               className="w-full px-3.5 py-3 rounded-[12px] text-sm outline-none resize-none transition-base placeholder:opacity-60"
               style={{ background: "var(--wf-surface)", border: "1.5px solid var(--wf-accent)", color: "var(--wf-text)", boxShadow: "0 0 0 4px rgba(70, 80, 214, 0.10)" }}
             />

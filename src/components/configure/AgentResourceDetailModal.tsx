@@ -273,7 +273,7 @@ function GuardrailBody({ g, meta }: { g: Guardrail; meta: { label: string; value
   return (
     <>
       <Meta rows={meta} />
-      <Field label="Mô tả"><p className="whitespace-pre-wrap">{g.desc || "—"}</p></Field>
+      <Field label="Mô tả"><p className="whitespace-pre-wrap">{g.desc || "-"}</p></Field>
       <Field label="Phản hồi">
         <span className="inline-flex px-2.5 py-1 rounded-full border border-border bg-surface-muted text-sm">{actionLabelVi(g.action)}</span>
       </Field>
@@ -369,7 +369,7 @@ function AgentGuardrailDetail({ agentId, id, onClose, onChanged }: { agentId: st
     >
       <GuardrailBody g={g} meta={[
         { label: "Loại", value: "Guardrail riêng của Agent" },
-        { label: "Người tạo", value: isOwner ? "Bạn" : g.ownerName ?? "—" },
+        { label: "Người tạo", value: isOwner ? "Bạn" : g.ownerName ?? "-" },
         ...(isOwner ? [{ label: "Chia sẻ tới", value: sharingLabel(g.sharing) }] : []),
       ]} />
     </Shell>
@@ -444,7 +444,7 @@ function KnowledgeBaseDetail({ agentId, id, onClose, onChanged }: { agentId: str
       ]} />
       <Field label="Mô tả"><p className="whitespace-pre-wrap">{kb.description || "Chưa có mô tả"}</p></Field>
       {kb.type === "external_api" ? (
-        <Field label="API endpoint"><p className="font-mono text-xs break-all">{kb.apiEndpoint || "—"}</p></Field>
+        <Field label="API endpoint"><p className="font-mono text-xs break-all">{kb.apiEndpoint || "-"}</p></Field>
       ) : (
         <>
           <Field label={`Tài liệu (${docs.length})`}><ListPreview items={docs} render={d => d.name} empty="Chưa có tài liệu." /></Field>
@@ -472,7 +472,7 @@ function KnowledgeItemDetail({ agentId, id, onClose, onOpenFull, onChanged }: { 
         ...(item.chunkCount != null ? [{ label: "Số đoạn", value: String(item.chunkCount) }] : []),
       ]} />
       {item.title && <Field label={item.kind === "faq" ? "Câu hỏi" : "Tiêu đề"}><p className="whitespace-pre-wrap">{item.title}</p></Field>}
-      <Field label={item.kind === "faq" ? "Câu trả lời" : "Mô tả"}><p className="whitespace-pre-wrap">{item.description || "—"}</p></Field>
+      <Field label={item.kind === "faq" ? "Câu trả lời" : "Mô tả"}><p className="whitespace-pre-wrap">{item.description || "-"}</p></Field>
     </Shell>
   );
 }

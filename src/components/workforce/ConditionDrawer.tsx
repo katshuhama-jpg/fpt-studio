@@ -33,7 +33,7 @@ function ruleVariableType(r: ConditionRule): "text" | "number" {
 
 const APPROVAL_MODE_META: { value: ApprovalMode; label: string; desc: string }[] = [
   { value: "required", label: "Bắt buộc người duyệt", desc: "Luồng dừng lại, chờ người được chọn Duyệt hoặc Từ chối trước khi tiếp tục." },
-  { value: "agent-decide", label: "Để Agent tự quyết", desc: "Agent tự đánh giá — chỉ dừng chờ người duyệt khi Agent không đủ tự tin." },
+  { value: "agent-decide", label: "Để Agent tự quyết", desc: "Agent tự đánh giá - Chỉ dừng chờ người duyệt khi Agent không đủ tự tin." },
 ];
 
 export default function ConditionDrawer({
@@ -123,11 +123,11 @@ export default function ConditionDrawer({
               value={llmText}
               maxLength={LLM_MAX}
               onChange={e => setLlmText(e.target.value)}
-              placeholder="Ví dụ: ưu tiên nhánh này khi ngữ cảnh không khớp rõ với các nhánh khác."
+              placeholder="Ví dụ: Ưu tiên nhánh này khi ngữ cảnh không khớp rõ với các nhánh khác."
               className="ds-textarea"
             />
             <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-              Không có tiêu chí cố định — Agent nguồn tự quyết định có chuyển sang nhánh này hay không dựa trên ngữ cảnh và độ tự tin của chính nó, giống "AI connection" của Relevance AI thay vì một điều kiện tường minh.
+              Không có tiêu chí cố định - Agent nguồn tự quyết định có chuyển sang nhánh này hay không dựa trên ngữ cảnh và độ tự tin của chính nó, giống "AI connection" của Relevance AI thay vì một điều kiện tường minh.
             </p>
 
             {destinationKind === "agent" && (
@@ -148,7 +148,7 @@ export default function ConditionDrawer({
               value={llmText}
               maxLength={LLM_MAX}
               onChange={e => setLlmText(e.target.value)}
-              placeholder="Ví dụ: khách hàng hỏi ngoài phạm vi sản phẩm, hoặc khách hàng yêu cầu rõ ràng được nói chuyện với người thật."
+              placeholder="Ví dụ: Khách hàng hỏi ngoài phạm vi sản phẩm, hoặc khách hàng yêu cầu rõ ràng được nói chuyện với người thật."
               className="ds-textarea"
             />
             <p className="text-xs text-muted-foreground mt-2 leading-relaxed">

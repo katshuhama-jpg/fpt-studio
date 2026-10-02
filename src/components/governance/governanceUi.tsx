@@ -112,7 +112,7 @@ const SHARE_STATUS_STYLE: Record<ResourceShareStatus, string> = {
 const SHARE_STATUS_LABEL: Record<ResourceShareStatus, string> = {
   shared: "Đã dùng chung trong Tenant Library",
   pending_review: "Đang chờ Tenant Admin duyệt dùng chung",
-  private: "Riêng tư — chỉ dùng trong Agent này",
+  private: "Riêng tư - Chỉ dùng trong Agent này",
 };
 
 export function ResourceShareStatusBadge({ status }: { status: ResourceShareStatus }) {

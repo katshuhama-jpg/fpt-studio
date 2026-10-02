@@ -83,7 +83,7 @@ export default function RunHistoryTab({ workforceId, runs }: { workforceId: stri
               </span>
               <span className="text-[12.5px] tabular-nums" style={{ color: "var(--wf-muted)", fontFamily: "var(--wf-font-body)" }}>{r.steps.length}</span>
               <span className="text-[12px] truncate" style={{ color: "var(--wf-muted)", fontFamily: "var(--wf-font-body)" }} title={r.errorReason ?? r.contextMessage ?? undefined}>
-                {r.errorReason ?? r.contextMessage ?? "—"}
+                {r.errorReason ?? r.contextMessage ?? "-"}
               </span>
               <button
                 type="button"

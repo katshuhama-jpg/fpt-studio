@@ -27,23 +27,23 @@ export interface BuiltinSkill {
 export const BUILTIN_SKILLS: BuiltinSkill[] = [
   {
     id: "pptx", name: "pptx", version: "1.0.0", icon: "📊", visible: true,
-    description: "Work with PowerPoint files (.pptx, .potx): build decks, read and extract slide text, edit existing presentations, merge or split files, and handle templates, layouts, speaker notes and comments.",
+    description: "Work with PowerPoint files (.pptx, .potx): Build decks, read and extract slide text, edit existing presentations, merge or split files, and handle templates, layouts, speaker notes and comments.",
   },
   {
     id: "xlsx", name: "xlsx", version: "1.0.0", icon: "📗", visible: true,
-    description: "Work with spreadsheets (.xlsx, .xls, .csv): read and extract data, create files, manage sheets, format cells, build charts, apply formulas, and convert between CSV and XLSX.",
+    description: "Work with spreadsheets (.xlsx, .xls, .csv): Read and extract data, create files, manage sheets, format cells, build charts, apply formulas, and convert between CSV and XLSX.",
   },
   {
     id: "pdf", name: "pdf", version: "1.0.0", icon: "📕", visible: true,
-    description: "Work with PDF files: read and extract text or tables, merge and split, rotate pages, add watermarks, create PDFs, fill forms, encrypt or decrypt, extract images, and OCR scanned files.",
+    description: "Work with PDF files: Read and extract text or tables, merge and split, rotate pages, add watermarks, create PDFs, fill forms, encrypt or decrypt, extract images, and OCR scanned files.",
   },
   {
     id: "docx", name: "docx", version: "1.0.0", icon: "📘", visible: true,
-    description: "Work with Word files (.docx, .doc): read and extract text, tables and images, create documents, apply styles and page layout, and generate reports from templates.",
+    description: "Work with Word files (.docx, .doc): Read and extract text, tables and images, create documents, apply styles and page layout, and generate reports from templates.",
   },
   {
     id: "frontend-design", name: "frontend-design", version: "1.0.0", icon: "🎨", visible: true,
-    description: "Design guidance when building new UI, generating HTML or reworking an existing interface — direction on aesthetics, typography and layout.",
+    description: "Design guidance when building new UI, generating HTML or reworking an existing interface - Direction on aesthetics, typography and layout.",
   },
 
   // Core group — hidden from the UI, always on.

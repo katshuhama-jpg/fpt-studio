@@ -60,7 +60,7 @@ export default function AgentConfigDrawer({
             </p>
           </div>
         ) : (
-          <p className="text-xs text-muted-foreground italic">Agent nguồn — chưa có cấu hình bổ sung.</p>
+          <p className="text-xs text-muted-foreground italic">Agent nguồn - Chưa có cấu hình bổ sung.</p>
         )}
       </div>
     </aside>

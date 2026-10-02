@@ -10,7 +10,7 @@ export default function PlaceholderPage({ title }: { title: string }) {
       <h2 className="font-display text-2xl font-semibold mb-2">{title}</h2>
       <p className="text-sm text-muted-foreground max-w-md mb-6">
         This screen is part of the v2 expansion (15+ screens from HDSD v6.3). Design system,
-        navigation and tokens are ready — coming in the next batch.
+        navigation and tokens are ready - Coming in the next batch.
       </p>
       <Link to="/" className="btn-secondary">
         Back to Home <ArrowRight size={14} />

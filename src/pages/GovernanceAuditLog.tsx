@@ -61,7 +61,7 @@ export default function GovernanceAuditLog() {
       <div className="mb-6">
         <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">Audit Log</h1>
         <p className="text-sm text-muted-foreground">
-          Lịch sử toàn bộ hành động duyệt/từ chối/yêu cầu cập nhật — theo người thực hiện, theo resource, lọc theo thời gian.
+          Lịch sử toàn bộ hành động duyệt/từ chối/yêu cầu cập nhật - Theo người thực hiện, theo resource, lọc theo thời gian.
         </p>
       </div>
 
@@ -120,7 +120,7 @@ export default function GovernanceAuditLog() {
               <span className="truncate">
                 {ACTION_LABEL[e.action]}
                 {e.detail && <span className="font-medium"> · {e.detail}</span>}
-                {e.note && <span className="text-muted-foreground"> — "{e.note.length > 60 ? e.note.slice(0, 60) + "…" : e.note}"</span>}
+                {e.note && <span className="text-muted-foreground"> - "{e.note.length > 60 ? e.note.slice(0, 60) + "…" : e.note}"</span>}
               </span>
             </div>
             <div className="text-sm text-muted-foreground flex items-center gap-1.5">

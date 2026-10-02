@@ -280,7 +280,7 @@ export default function ExternalAgentHistoryTab({ agentId }: { agentId: string }
                   </div>
                   <div className="min-w-0">
                     <div className="text-sm truncate">{c.username}</div>
-                    <div className="text-sm text-muted-foreground truncate">{c.email ?? "—"}</div>
+                    <div className="text-sm text-muted-foreground truncate">{c.email ?? "-"}</div>
                   </div>
                   <div className="text-sm text-muted-foreground text-right">{c.messages.length}</div>
                 </button>

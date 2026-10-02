@@ -63,7 +63,7 @@ export function describeSchedule(s: ScheduleConfig): string {
   const next = nextRun(s);
   const nextLabel = next
     ? next.toLocaleDateString("vi-VN") + " " + next.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
-    : "—";
+    : "-";
   return `Đồng bộ ${freqLabel} lúc ${s.time} (GMT+7). Lần chạy kế tiếp: ${nextLabel}.`;
 }
 

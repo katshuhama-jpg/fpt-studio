@@ -163,7 +163,7 @@ function PromptStage({
         />
         <div className="flex items-center justify-between px-2 pb-1">
           <div className="text-[10px] text-muted-foreground">
-            Tip: include audience, tone, top 3 things the agent must do.
+            Tip: Include audience, tone, top 3 things the agent must do.
           </div>
           <button
             onClick={onGenerate}

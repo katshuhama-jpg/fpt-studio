@@ -403,7 +403,7 @@ function IterationForm({ cfg, set }: any) {
     <>
       <Row><Label required>Input</Label><TextInput value={cfg.input} onChange={(v: string) => set({ input: v })} placeholder="@list_variable" /></Row>
       <Row><Label required>Output</Label><TextInput value={cfg.output} onChange={(v: string) => set({ output: v })} /></Row>
-      <p className="text-[11px] text-muted-foreground">Iteration body: add nodes inside this group on the canvas.</p>
+      <p className="text-[11px] text-muted-foreground">Iteration body: Add nodes inside this group on the canvas.</p>
     </>
   );
 }

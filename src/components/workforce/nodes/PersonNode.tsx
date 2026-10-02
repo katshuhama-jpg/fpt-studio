@@ -59,7 +59,7 @@ export default function PersonNode({ id, data, selected }: NodeProps<PersonNodeD
             {member?.name ?? "Chưa chọn người nhận"}
           </p>
           <p className="text-[12px] leading-[1.45] truncate mt-[3px] mb-0" style={{ color: "var(--wf-muted)", fontFamily: "var(--wf-font-body)" }}>
-            {member?.email ?? "—"}
+            {member?.email ?? "-"}
           </p>
         </div>
       </div>

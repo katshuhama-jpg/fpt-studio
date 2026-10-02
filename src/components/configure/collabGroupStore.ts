@@ -139,7 +139,7 @@ export function groupReviewers(memberIds: string[], tree: OrgUnit): GroupReviewe
 
 export function reviewersLabel(r: GroupReviewers): string {
   if (r.mode === "single") return `Admin ${r.units[0]?.name} (${Math.round((r.share ?? 0) * 100)}% thành viên)`;
-  return `Admin của ${r.units.map(u => u.name).join(", ")} — 1 người duyệt là đủ`;
+  return `Admin của ${r.units.map(u => u.name).join(", ")} - 1 người duyệt là đủ`;
 }
 
 export const collabGroupStore = {

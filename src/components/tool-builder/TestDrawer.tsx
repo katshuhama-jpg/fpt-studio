@@ -129,7 +129,7 @@ function mockOutput(n: ToolNode): string {
   switch (n.data.kind) {
     case "trigger": return "input received";
     case "http": return `${n.data.config?.method || "GET"} ${n.data.config?.url || "(url)"} → 200 OK`;
-    case "if": return `condition (${n.data.config?.condition || "—"}) → true`;
+    case "if": return `condition (${n.data.config?.condition || "-"}) → true`;
     case "knowledge": return `retrieved ${n.data.config?.topK || 4} chunks`;
     case "llm": return "model returned 142 tokens";
     case "extract": return "{ name: 'Nguyen V.', amount: 1500000 }";

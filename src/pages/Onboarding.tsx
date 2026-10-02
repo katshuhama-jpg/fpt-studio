@@ -284,7 +284,7 @@ function PersonalizingStep({ onDone }: { onDone: () => void }) {
         <HugeiconsIcon icon={Loading01Icon} size={22} className="animate-spin" />
       </div>
       <h2 className="font-display text-2xl font-semibold mb-2">Personalizing your workspace</h2>
-      <p className="text-sm text-muted-foreground mb-6">Just a moment — almost ready.</p>
+      <p className="text-sm text-muted-foreground mb-6">Just a moment - Almost ready.</p>
       <ul className="text-sm space-y-2 text-left max-w-sm mx-auto">
         {messages.map((m, idx) => (
           <li key={m} className="flex items-center gap-2.5">

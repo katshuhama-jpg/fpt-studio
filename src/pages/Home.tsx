@@ -29,7 +29,7 @@ const templates = [
   { id: 3, emoji: "🎯", bg: "bg-amber-50", name: "Sales lead qualifier",  cat: "Sales",
     connectors: ["hubspot","gmail","calendar"],
     desc: "BANT scoring, objection handling, and CRM handoff",
-    systemPrompt: `# Sales Lead Qualifier Agent\n\nYou qualify inbound leads using the BANT framework (Budget, Authority, Need, Timeline) and hand off hot leads to the sales team.\n\n## Tone & Style\n- Consultative and curious — ask one question at a time\n- Friendly but efficient; respect the prospect's time\n\n## Qualification Flow\n1. Greet and understand the prospect's role and company\n2. Identify the core business need or pain point\n3. Explore budget range and decision-making authority\n4. Confirm purchase timeline\n5. Score the lead (Hot / Warm / Cold) and route accordingly\n\n## Limits\n- Do not quote specific pricing — route to sales rep\n- Do not make commitments on behalf of the sales team` },
+    systemPrompt: `# Sales Lead Qualifier Agent\n\nYou qualify inbound leads using the BANT framework (Budget, Authority, Need, Timeline) and hand off hot leads to the sales team.\n\n## Tone & Style\n- Consultative and curious - Ask one question at a time\n- Friendly but efficient; respect the prospect's time\n\n## Qualification Flow\n1. Greet and understand the prospect's role and company\n2. Identify the core business need or pain point\n3. Explore budget range and decision-making authority\n4. Confirm purchase timeline\n5. Score the lead (Hot / Warm / Cold) and route accordingly\n\n## Limits\n- Do not quote specific pricing - Route to sales rep\n- Do not make commitments on behalf of the sales team` },
   { id: 4, emoji: "🤝", bg: "bg-pink-50",  name: "HR onboarding bot",     cat: "HR & Internal",
     connectors: ["calendar","slack","drive"],
     desc: "New-joiner flows, policy lookup, meeting scheduling",
@@ -372,7 +372,7 @@ export default function Home() {
       <div className="px-6 pt-6 mb-6">
         <h1 className="font-display text-xl font-semibold tracking-tight mb-1">Home</h1>
         <p className="text-sm text-muted-foreground">
-          Workspace overview — pick up a recent agent or create a new one.
+          Workspace overview - Pick up a recent agent or create a new one.
         </p>
       </div>
 

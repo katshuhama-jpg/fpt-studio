@@ -562,10 +562,10 @@ export default function ConversationTrace() {
                                     kind="hitl"
                                     label={
                                       m.hitl.situation === "tool_approval"
-                                        ? `Human-in-the-loop — duyệt công cụ: ${m.hitl.toolName}`
+                                        ? `Human-in-the-loop - Duyệt công cụ: ${m.hitl.toolName}`
                                         : m.hitl.situation === "question"
-                                          ? "Human-in-the-loop — câu hỏi cho khách hàng"
-                                          : `Human-in-the-loop — kết nối tài khoản: ${m.hitl.provider}`
+                                          ? "Human-in-the-loop - Câu hỏi cho khách hàng"
+                                          : `Human-in-the-loop - Kết nối tài khoản: ${m.hitl.provider}`
                                     }
                                     hitlAction={m.hitl.action}
                                     input={
@@ -585,7 +585,7 @@ export default function ConversationTrace() {
                                 <div className="px-3.5 pt-3">
                                   <StepRow
                                     kind="guardrail"
-                                    label={m.guardrail.name === "output" ? "Guardrail — kiểm tra output" : "Guardrail — kiểm tra input"}
+                                    label={m.guardrail.name === "output" ? "Guardrail - Kiểm tra output" : "Guardrail - Kiểm tra input"}
                                     guardrailAction={m.guardrail.action}
                                     input={m.guardrail.rule ? { rule: m.guardrail.rule } : undefined}
                                   />
@@ -609,7 +609,7 @@ export default function ConversationTrace() {
                             </div>
                           ))}
                           {turn.agentMessages.length === 0 && (
-                            <p className="px-3.5 py-3 text-sm text-muted-foreground">Cuộc hội thoại kết thúc — chưa có phản hồi từ agent.</p>
+                            <p className="px-3.5 py-3 text-sm text-muted-foreground">Cuộc hội thoại kết thúc - Chưa có phản hồi từ agent.</p>
                           )}
                         </div>
                       </div>

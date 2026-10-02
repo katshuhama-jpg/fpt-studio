@@ -99,7 +99,7 @@ export function ConnectorTemplateConnectModal({ template, onClose, onConnected }
             </div>
           ))}
 
-          <p className="text-[11px] text-muted-foreground leading-relaxed">Giá trị header là thông tin bí mật — được lưu trữ an toàn và không chia sẻ với Agent.</p>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">Giá trị header là thông tin bí mật - Được lưu trữ an toàn và không chia sẻ với Agent.</p>
         </div>
 
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border shrink-0">

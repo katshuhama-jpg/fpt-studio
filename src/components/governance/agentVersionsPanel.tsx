@@ -180,7 +180,7 @@ export function AgentVersionsPanel({ agentId, agentName, onPublish, onChanged }:
       <div>
         <h2 className="font-display text-xl font-semibold">Phiên bản</h2>
         <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">
-          Mọi phiên bản của Agent theo trạng thái. Người dùng đang dùng {liveRow ? <b className="text-foreground font-mono">{liveRow.version}</b> : "— (chưa publish)"}. Bấm vào một phiên bản để xem chi tiết.
+          Mọi phiên bản của Agent theo trạng thái. Người dùng đang dùng {liveRow ? <b className="text-foreground font-mono">{liveRow.version}</b> : " - (chưa publish)"}. Bấm vào một phiên bản để xem chi tiết.
         </p>
       </div>
 
@@ -237,7 +237,7 @@ export function AgentVersionsPanel({ agentId, agentName, onPublish, onChanged }:
                   <p className="text-xs text-muted-foreground tabular-nums">{formatDateTime(r.at)}{r.byline ? ` · ${r.byline}` : ""}</p>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {r.scope ? <>Workspace: <span className="text-foreground">{r.scope}</span></> : "Workspace: —"}
+                  {r.scope ? <>Workspace: <span className="text-foreground">{r.scope}</span></> : "Workspace: - "}
                   {" · "}Kênh ngoài: <span className="text-foreground">{r.channels && r.channels.length ? r.channels.map(channelLabel).join(", ") : "Không"}</span>
                 </p>
                 {r.reason && (
@@ -292,12 +292,12 @@ export function AgentVersionsPanel({ agentId, agentName, onPublish, onChanged }:
                   Bản này đã từng được duyệt nên không cần gửi duyệt lại.
                 </p>
                 <p>
-                  Phạm vi và kênh cũng quay về như lúc {rollback?.version} đang live — Workspace: <b className="text-foreground">{rollback?.scope ?? "—"}</b>;
+                  Phạm vi và kênh cũng quay về như lúc {rollback?.version} đang live - Workspace: <b className="text-foreground">{rollback?.scope ?? "-"}</b>;
                   Kênh ngoài: <b className="text-foreground">{rollback?.channels?.length ? rollback.channels.map(channelLabel).join(", ") : "Không"}</b>.
                 </p>
                 {pendingForRollback && (
                   <p className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-foreground">
-                    Yêu cầu <b>{pendingForRollback.version}</b> đang chờ duyệt sẽ được rút — nếu không, khi được duyệt nó sẽ thay bản bạn vừa khôi phục.
+                    Yêu cầu <b>{pendingForRollback.version}</b> đang chờ duyệt sẽ được rút - Nếu không, khi được duyệt nó sẽ thay bản bạn vừa khôi phục.
                   </p>
                 )}
               </div>
@@ -315,7 +315,7 @@ export function AgentVersionsPanel({ agentId, agentName, onPublish, onChanged }:
           <AlertDialogHeader>
             <AlertDialogTitle>Rút yêu cầu {withdrawRow?.version}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Admin sẽ không còn thấy yêu cầu này để duyệt. Agent giữ nguyên trạng thái hiện tại — bạn có thể gửi lại bất cứ lúc nào.
+              Admin sẽ không còn thấy yêu cầu này để duyệt. Agent giữ nguyên trạng thái hiện tại - Bạn có thể gửi lại bất cứ lúc nào.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -365,9 +365,9 @@ function VersionDetailSheet({ row, liveVersion, onClose, onPublish, onRollback, 
               <SheetDescription className="text-xs">
                 {row.status === "live" && "Người dùng đang dùng phiên bản này."}
                 {row.status === "pending" && <>Đang chờ Org/Unit Admin duyệt.{liveVersion ? <> Người dùng vẫn dùng <span className="font-mono">{liveVersion}</span> cho tới khi bản này được duyệt.</> : ""}</>}
-                {row.status === "rejected" && "Chưa được duyệt — sửa theo góp ý bên dưới rồi gửi lại."}
+                {row.status === "rejected" && "Chưa được duyệt - Sửa theo góp ý bên dưới rồi gửi lại."}
                 {row.status === "withdrawn" && "Yêu cầu đã được rút, bản này chưa từng tới người dùng."}
-                {row.status === "revoked" && "Đã bị thu hồi — người dùng không còn dùng bản này."}
+                {row.status === "revoked" && "Đã bị thu hồi - Người dùng không còn dùng bản này."}
                 {row.status === "previous" && "Bản cũ, từng được người dùng sử dụng. Có thể khôi phục ngay mà không cần duyệt lại."}
               </SheetDescription>
             </SheetHeader>
@@ -395,7 +395,7 @@ function VersionDetailSheet({ row, liveVersion, onClose, onPublish, onRollback, 
               )}
               {!req && row.release && (
                 <p className="text-sm text-muted-foreground flex items-start gap-2"><Info size={15} className="mt-0.5 shrink-0" />
-                  {row.release.via === "rollback" ? `Được khôi phục lúc ${formatDateTime(row.release.at)}.` : `Publish trực tiếp lúc ${formatDateTime(row.release.at)} — phạm vi này không cần duyệt.`}
+                  {row.release.via === "rollback" ? `Được khôi phục lúc ${formatDateTime(row.release.at)}.` : `Publish trực tiếp lúc ${formatDateTime(row.release.at)} - Phạm vi này không cần duyệt.`}
                 </p>
               )}
 
@@ -428,7 +428,7 @@ function VersionDetailSheet({ row, liveVersion, onClose, onPublish, onRollback, 
                 </>
               ) : (
                 <div className="rounded-lg border border-border px-3.5 py-3 text-sm space-y-1">
-                  <p><span className="text-muted-foreground">Workspace:</span> {row.scope ?? "—"}</p>
+                  <p><span className="text-muted-foreground">Workspace:</span> {row.scope ?? "-"}</p>
                   <p><span className="text-muted-foreground">Kênh ngoài:</span> {row.channels?.length ? row.channels.map(channelLabel).join(", ") : "Không"}</p>
                 </div>
               )}

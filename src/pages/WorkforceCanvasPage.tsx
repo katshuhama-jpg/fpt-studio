@@ -165,22 +165,22 @@ export default function WorkforceCanvasPage() {
     }
     const unreachable = getNodesUnreachableFromTrigger(nodes as any, edges);
     if (unreachable.size > 0) {
-      toast.error("Một số node không có Trigger nào dẫn tới, sẽ không bao giờ chạy — vui lòng nối Trigger hoặc xoá trước khi publish");
+      toast.error("Một số node không có Trigger nào dẫn tới, sẽ không bao giờ chạy - Vui lòng nối Trigger hoặc xoá trước khi publish");
       return;
     }
     const hasUnconfiguredTrigger = nodes.some(n => n.data.kind === "trigger" && edges.some(e => e.source === n.id) && !n.data.triggerId);
     if (hasUnconfiguredTrigger) {
-      toast.error("Một số Trigger chưa chọn trigger thật — vui lòng chọn hoặc tạo trigger trước khi publish");
+      toast.error("Một số Trigger chưa chọn trigger thật - Vui lòng chọn hoặc tạo trigger trước khi publish");
       return;
     }
     const hasUnconfiguredTool = nodes.some(n => n.data.kind === "tool" && !n.data.ref);
     if (hasUnconfiguredTool) {
-      toast.error("Một số node Tool chưa chọn tool hoặc integration — vui lòng chọn trước khi publish");
+      toast.error("Một số node Tool chưa chọn tool hoặc integration - Vui lòng chọn trước khi publish");
       return;
     }
     const hasUnconfiguredSubProcess = nodes.some(n => n.data.kind === "subprocess" && !n.data.workforceId);
     if (hasUnconfiguredSubProcess) {
-      toast.error("Một số node Sub-process chưa chọn Workforce để gọi — vui lòng chọn trước khi publish");
+      toast.error("Một số node Sub-process chưa chọn Workforce để gọi - Vui lòng chọn trước khi publish");
       return;
     }
     workforceStore.publish(id);
@@ -215,7 +215,7 @@ export default function WorkforceCanvasPage() {
   // purpose, just generalized to every routable node kind instead of only a route's two ends.
   const describeRunNode = (nodeId: string): string => {
     const n = nodes.find(nn => nn.id === nodeId);
-    if (!n) return "—";
+    if (!n) return "-";
     switch (n.data.kind) {
       case "agent": return AGENTS.find(a => a.id === n.data.agentId)?.name ?? "Agent";
       case "omni": return "Omni Supports";
@@ -226,7 +226,7 @@ export default function WorkforceCanvasPage() {
         const record = agentId && n.data.triggerId ? triggerStore.get(agentId, n.data.triggerId) : undefined;
         return record?.name ?? "Trigger";
       }
-      default: return "—";
+      default: return "-";
     }
   };
 
@@ -256,7 +256,7 @@ export default function WorkforceCanvasPage() {
       steps: s.steps,
       edgeIds: [...s.edgeIds],
       conditionChoices,
-      errorReason: s.endReason === "unwired" ? `Trigger "${s.steps[0] ? describeRunNode(s.steps[0]) : "này"}" chưa kết nối tới Agent nào — dừng ngay từ bước đầu.`
+      errorReason: s.endReason === "unwired" ? `Trigger "${s.steps[0] ? describeRunNode(s.steps[0]) : "này"}" chưa kết nối tới Agent nào - Dừng ngay từ bước đầu.`
         : s.endReason === "rejected" ? `${rejectedBy?.name ?? "Người duyệt"} đã từ chối.`
         : null,
     });
@@ -479,7 +479,7 @@ export default function WorkforceCanvasPage() {
                 </button>
               </span>
             </TooltipTrigger>
-            <TooltipContent side="bottom">Bắt đầu một lượt chạy thật, bằng cách gõ yêu cầu — giống người dùng thật sẽ làm</TooltipContent>
+            <TooltipContent side="bottom">Bắt đầu một lượt chạy thật, bằng cách gõ yêu cầu - Giống người dùng thật sẽ làm</TooltipContent>
           </Tooltip>
         )}
         <button onClick={handleSave} className="wf-btn-sec shrink-0">Save</button>
@@ -606,7 +606,7 @@ export default function WorkforceCanvasPage() {
           <PersonConfigDrawer
             key={configuringNode.id}
             name={member?.name ?? "Chưa chọn người nhận"}
-            email={member?.email ?? "—"}
+            email={member?.email ?? "-"}
             initials={member?.initials ?? "?"}
             taskKind={data.taskKind}
             onChangeTaskKind={value => {
@@ -622,7 +622,7 @@ export default function WorkforceCanvasPage() {
                 for (const cid of conditionIds) ({ nodes: n, edges: e } = removeRouteByConditionId(cid as string, n, e));
                 setNodes(n.map((nn: any) => (nn.id === configuringNode.id ? { ...nn, data: { ...nn.data, taskKind: value } } : nn)));
                 setEdges(e);
-                toast(`Đã xoá ${conditionIds.size} route ra khỏi node — "Thông báo" không tiếp tục luồng`);
+                toast(`Đã xoá ${conditionIds.size} route ra khỏi node - "Thông báo" không tiếp tục luồng`);
               } else {
                 setNodes(ns => ns.map(n => (n.id === configuringNode.id ? { ...n, data: { ...n.data, taskKind: value } } : n)));
               }
@@ -700,15 +700,15 @@ export default function WorkforceCanvasPage() {
           source?.data.kind === "agent" ? AGENTS.find(a => a.id === source.data.agentId)?.name ?? "Agent" :
           source?.data.kind === "person" ? members.find(m => m.id === source.data.memberId)?.name ?? "Người trong tổ chức" :
           source?.data.kind === "subprocess" ? (source.data.workforceId ? workforceStore.get(source.data.workforceId)?.name : undefined) ?? "Sub-process" :
-          "—";
+          "-";
         const destinationKind: "agent" | "omni" | "person" = destination?.data.kind === "agent" || destination?.data.kind === "person"
           ? destination.data.kind
           : "omni";
-        const destinationLabel = !destination ? "—" :
+        const destinationLabel = !destination ? "-" :
           destination.data.kind === "agent" ? AGENTS.find(a => a.id === destination.data.agentId)?.name ?? "Agent" :
           destination.data.kind === "omni" ? "Omni Supports" :
           destination.data.kind === "person" ? members.find(m => m.id === destination.data.memberId)?.name ?? "Người trong tổ chức" :
-          destination.data.kind === "subprocess" ? (destination.data.workforceId ? workforceStore.get(destination.data.workforceId)?.name : undefined) ?? "Sub-process" : "—";
+          destination.data.kind === "subprocess" ? (destination.data.workforceId ? workforceStore.get(destination.data.workforceId)?.name : undefined) ?? "Sub-process" : "-";
         const destAgentKeepContext = destination?.data.kind === "agent" ? destination.data.keepContext : undefined;
         const approvalAssignee = configuringNode.data.kind === "condition" && configuringNode.data.approval?.assigneeId
           ? members.find(m => m.id === configuringNode.data.approval!.assigneeId)

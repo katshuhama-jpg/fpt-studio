@@ -638,7 +638,7 @@ function AiBuildSidebar({
 }) {
   const initMessages = (): AiMsg[] => {
     const base: AiMsg[] = [
-      { kind: "text", role: "ai", text: `Hi Nam — I'm focused on @${contextLabel}. Tell me what to change and I'll propose edits you can review.` },
+      { kind: "text", role: "ai", text: `Hi Nam - I'm focused on @${contextLabel}. Tell me what to change and I'll propose edits you can review.` },
     ];
     if (seedPrompt) {
       base.push({ kind: "text", role: "user", text: seedPrompt });
@@ -705,7 +705,7 @@ function AiBuildSidebar({
     await runTool(`analyze_request("${msg.slice(0, 22)}…")`);
     push({
       kind: "clarify",
-      question: `"${msg.slice(0, 32)}${msg.length > 32 ? "…" : ""}" — how should the agent handle this?`,
+      question: `"${msg.slice(0, 32)}${msg.length > 32 ? "…" : ""}" - How should the agent handle this?`,
       options: [
         { icon: "bolt", title: "Fully autonomous", desc: "Agent decides on its own, no need to ask further" },
         { icon: "eye", title: "Propose, you approve", desc: "Agent drafts a proposal, you approve before it's applied" },
@@ -718,11 +718,11 @@ function AiBuildSidebar({
     setMessages(m => m.map((x, i) => i === msgIdx && x.kind === "clarify" ? { ...x, answered: answer } : x));
     await new Promise(r => setTimeout(r, 400));
     const replies = [
-      "Got it — fully autonomous mode. Updating instructions:",
-      "Understood — the agent will draft proposals before applying them:",
-      "OK — the agent will wait for instructions, no autonomy:",
+      "Got it - Fully autonomous mode. Updating instructions:",
+      "Understood - The agent will draft proposals before applying them:",
+      "OK - The agent will wait for instructions, no autonomy:",
     ];
-    streamAi(idx === -1 ? `Got it — "${answer.slice(0, 55)}". I'll configure this based on your request:` : replies[idx]);
+    streamAi(idx === -1 ? `Got it - "${answer.slice(0, 55)}". I'll configure this based on your request:` : replies[idx]);
     await new Promise(r => setTimeout(r, 600));
     push({ kind: "diff", before: "Current agent behavior.", after: idx === -1 ? answer.slice(0, 80) : ["Act autonomously without confirmation.", "Always draft a proposal for user review before applying.", "Only act when explicitly instructed."][idx] });
   };
@@ -2006,7 +2006,7 @@ function AgentOwnKnowledgeView({ agentId, onBack }: { agentId: string; onBack: (
                 <FileTypeIcon kind={item.kind === "url" ? "url" : item.kind === "faq" ? "faq" : undefined} name={item.kind === "doc" ? item.name : undefined} />
                 <span className="truncate">{item.name}</span>
               </button>
-              <div className="text-xs text-muted-foreground">{item.sizeBytes ? formatFileSize(item.sizeBytes) : "—"}</div>
+              <div className="text-xs text-muted-foreground">{item.sizeBytes ? formatFileSize(item.sizeBytes) : "-"}</div>
               <div>
                 <Tooltip delayDuration={200}>
                   <TooltipTrigger asChild>
@@ -2037,7 +2037,7 @@ function AgentOwnKnowledgeView({ agentId, onBack }: { agentId: string; onBack: (
               <div className="min-w-0">
                 {item.kind === "faq"
                   ? <CategoryChips categories={item.categories ?? []} />
-                  : <span className="text-xs text-muted-foreground">—</span>}
+                  : <span className="text-xs text-muted-foreground">-</span>}
               </div>
               <div className="flex items-center justify-end">
                 <KnowledgeItemRowMenu
@@ -2327,7 +2327,7 @@ function PublishAgentModal({ onClose, onPublish }: {
     },
     {
       id: "me" as const, icon: UserIcon, label: "Only me",
-      desc: "Only you can use it — the agent goes straight to My Agents in the Workspace.",
+      desc: "Only you can use it - The agent goes straight to My Agents in the Workspace.",
     },
   ];
 
@@ -3414,7 +3414,7 @@ function TestTabNotBuilt() {
       </div>
       <h3 className="font-display text-xl font-semibold mb-2">Test</h3>
       <p className="text-sm text-muted-foreground max-w-sm">
-        This tab isn't built yet — check back soon.
+        This tab isn't built yet - Check back soon.
       </p>
     </div>
   );
@@ -3536,7 +3536,7 @@ function RightConfigPanel({ embedded, model, onModelChange }: { embedded?: boole
       <GuardrailsConfigSection />
       {/* Schedules */}
       <ConfigSection icon={Clock01Icon} title="Schedules" badge={<span className="text-xs text-warning font-medium mr-1">Not set</span>}>
-        <p className="text-xs text-muted-foreground mb-2 leading-relaxed">Run this agent automatically — like a daily summary.</p>
+        <p className="text-xs text-muted-foreground mb-2 leading-relaxed">Run this agent automatically - Like a daily summary.</p>
         <button className="flex items-center gap-1 text-xs text-primary hover:underline"><HugeiconsIcon icon={Add01Icon} size={12} /> Add</button>
       </ConfigSection>
       {/* Sub-Agents */}
@@ -3659,7 +3659,7 @@ function SchedulesCard() {
       </button>
       {open && (
         <div className="border-t border-border px-3 pb-2">
-          <p className="text-xs text-muted-foreground mt-2 mb-1 leading-relaxed">No schedules yet. Add one to run this agent automatically — like a daily summary.</p>
+          <p className="text-xs text-muted-foreground mt-2 mb-1 leading-relaxed">No schedules yet. Add one to run this agent automatically - Like a daily summary.</p>
           <button className="flex items-center gap-1 text-xs text-primary mt-1 hover:underline">
             <HugeiconsIcon icon={Add01Icon} size={12} /> Add
           </button>
@@ -3953,7 +3953,7 @@ function PreviewPanel({ agentId, view, onViewChange, onConnectionsChange, onClos
           <div className="px-4 py-3 border-b border-border flex items-center gap-2.5 shrink-0">
             <div className="w-8 h-8 rounded-lg bg-primary-soft flex items-center justify-center text-lg shrink-0">🏦</div>
             <div>
-              <div className="text-sm font-semibold leading-tight">Banking ABC — Customer Care</div>
+              <div className="text-sm font-semibold leading-tight">Banking ABC - Customer Care</div>
               <div className="flex items-center gap-1 mt-0.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-success" />
                 <span className="text-xs text-muted-foreground">Test mode</span>
@@ -4324,7 +4324,7 @@ function OrgReachNotice({ count, summary, reviewers }: { count: number; summary:
             <span className="text-muted-foreground">Người duyệt: </span>
             {reviewers.mode === "single"
               ? <>Admin <b>{reviewers.units[0]?.name}</b> ({Math.round((reviewers.share ?? 0) * 100)}% người được chọn)</>
-              : <>Admin của <b>{reviewers.units.map(u => u.name).join(", ")}</b> — chỉ cần 1 người duyệt</>}
+              : <>Admin của <b>{reviewers.units.map(u => u.name).join(", ")}</b> - Chỉ cần 1 người duyệt</>}
           </p>
         )}
       </div>
@@ -4613,7 +4613,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
     return refs.filter(it => (it.type === "guardrail" || it.type === "connector") && resourceBlockStore.isBlocked(it.type, it.resourceId));
   };
   const blockedToastMessage = (items: ReturnType<typeof listAgentResourceRefs>) =>
-    `Không thể tiếp tục — Agent đang dùng ${items.length} thành phần đã bị chặn sử dụng trong agent mới: ${items.map(it => it.name).join(", ")}. Vui lòng gỡ thành phần này khỏi Agent trước khi publish.`;
+    `Không thể tiếp tục - Agent đang dùng ${items.length} thành phần đã bị chặn sử dụng trong agent mới: ${items.map(it => it.name).join(", ")}. Vui lòng gỡ thành phần này khỏi Agent trước khi publish.`;
 
   // G10: a direct (no-review) publish while a request is still pending would let that older
   // request get approved later and roll the Agent back — so it withdraws the pending one first.
@@ -4699,7 +4699,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
       });
       toast.success(reviewers.mode === "single"
         ? `Đã gửi yêu cầu duyệt ${versionName} tới Admin ${reviewers.units[0].name}.`
-        : `Đã gửi yêu cầu duyệt ${versionName} tới Admin của ${reviewers.units.length} phòng ban — chỉ cần 1 người duyệt.`);
+        : `Đã gửi yêu cầu duyệt ${versionName} tới Admin của ${reviewers.units.length} phòng ban - Chỉ cần 1 người duyệt.`);
       onPublished?.();
       onClose();
       return;
@@ -4755,7 +4755,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
         : [{ kind: "community", name: "Cộng đồng FPT AI Agent" }],
       ...(!keepScope && effectiveAudience === "org" && orgReviewers ? { reviewUnits: orgReviewers.units, reviewMode: orgReviewers.mode } : {}),
     });
-    toast.success(`Đã gửi yêu cầu duyệt ${versionName}. Agent sẽ được publish khi Org/Unit Admin duyệt — theo dõi trạng thái ngay trên trang này.`);
+    toast.success(`Đã gửi yêu cầu duyệt ${versionName}. Agent sẽ được publish khi Org/Unit Admin duyệt - Theo dõi trạng thái ngay trên trang này.`);
     onPublished?.();
     onClose();
   };
@@ -4786,7 +4786,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
             <div className="flex items-start gap-2.5 rounded-lg border border-warning/25 bg-warning/5 px-3.5 py-3">
               <HugeiconsIcon icon={Clock01Icon} size={15} className="text-warning shrink-0 mt-0.5" />
               <p className="text-sm text-foreground leading-relaxed">
-                Yêu cầu <span className="font-medium">{pendingRequest.version}</span> đang chờ duyệt. Publish {versionName} trực tiếp sẽ rút yêu cầu đó — Admin không cần duyệt bản cũ nữa.
+                Yêu cầu <span className="font-medium">{pendingRequest.version}</span> đang chờ duyệt. Publish {versionName} trực tiếp sẽ rút yêu cầu đó - Admin không cần duyệt bản cũ nữa.
               </p>
             </div>
           )}
@@ -4794,7 +4794,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
             <div className="flex items-start gap-2.5 rounded-lg border border-warning/25 bg-warning/5 px-3.5 py-3">
               <HugeiconsIcon icon={Clock01Icon} size={15} className="text-warning shrink-0 mt-0.5" />
               <p className="text-sm text-foreground leading-relaxed">
-                Yêu cầu <span className="font-medium">{pendingRequest.version}</span> đang chờ duyệt. Gửi bản {versionName} sẽ thay thế yêu cầu đó — Admin chỉ cần duyệt bản mới nhất.
+                Yêu cầu <span className="font-medium">{pendingRequest.version}</span> đang chờ duyệt. Gửi bản {versionName} sẽ thay thế yêu cầu đó - Admin chỉ cần duyệt bản mới nhất.
               </p>
             </div>
           )}
@@ -4887,7 +4887,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
               ))}
             </div>
             <p className="text-sm text-muted-foreground">
-              {versionType === "patch" && "Sửa lỗi nhỏ — các tính năng hiện có giữ nguyên."}
+              {versionType === "patch" && "Sửa lỗi nhỏ - Các tính năng hiện có giữ nguyên."}
               {versionType === "minor" && "Thêm tính năng mới, không thay đổi cách Agent đang hoạt động."}
               {versionType === "major" && "Thay đổi lớn, có thể không tương thích với bản trước."}
             </p>
@@ -4950,12 +4950,12 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
                   )}
                   {personalSpace && (
                     <p className="text-xs text-muted-foreground mb-2">
-                      Bạn đang ở Space cá nhân nên không có công ty/phòng ban để publish tới — chuyển sang một Space doanh nghiệp để mở "Công ty / phòng ban".
+                      Bạn đang ở Space cá nhân nên không có công ty/phòng ban để publish tới - Chuyển sang một Space doanh nghiệp để mở "Công ty / phòng ban".
                     </p>
                   )}
                   {!personalSpace && !canPublishToOrg && (
                     <p className="text-xs text-muted-foreground mb-2">
-                      Space này chưa được kết nối với Org nào — liên hệ Super Admin để kết nối trước khi publish tới "Công ty / phòng ban".
+                      Space này chưa được kết nối với Org nào - Liên hệ Super Admin để kết nối trước khi publish tới "Công ty / phòng ban".
                     </p>
                   )}
                   <div className="space-y-2">
@@ -4977,7 +4977,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
                       <AudienceRadioRow
                         icon={Building02Icon}
                         title="Công ty / phòng ban"
-                        description="Chia sẻ cho cả công ty, phòng ban hoặc từng người — tìm theo tên, email."
+                        description="Chia sẻ cho cả công ty, phòng ban hoặc từng người - Tìm theo tên, email."
                         review={audience === "org" && orgReachCount > 0 ? (orgReachCount >= ORG_SHARE_REVIEW_MIN ? "required" : "instant") : "threshold"}
                         selected={audience === "org"}
                         liveNow={current.placement !== null && currentAudience === "org"}
@@ -5011,7 +5011,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
 
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-1">Kênh ngoài</p>
-                  <p className="text-xs text-muted-foreground mb-2">Bản mới giữ nguyên các kênh đang live. Bật kênh mới ở tab Channels — cần một yêu cầu duyệt riêng.</p>
+                  <p className="text-xs text-muted-foreground mb-2">Bản mới giữ nguyên các kênh đang live. Bật kênh mới ở tab Channels - Cần một yêu cầu duyệt riêng.</p>
                   <div className="grid grid-cols-2 gap-2">
                     {CHANNEL_CATALOG.map(ch => (
                       <PublishChannelStatusRow key={ch.id} ch={ch} live={current.placement !== null && current.channels.includes(ch.id)} />
@@ -5085,7 +5085,7 @@ function MemberMultiSelect({ tree, selection, onToggle, cap }: {
         {filtered.length === 0 && <p className="px-2.5 py-2 text-xs text-muted-foreground">Không tìm thấy.</p>}
       </div>
       <p className={`text-xs mt-1.5 ${atCap ? "text-warning font-medium" : "text-muted-foreground"}`}>
-        {selection.size}{cap ? `/${cap}` : ""} người đã chọn{atCap ? " — đã đạt giới hạn Chia sẻ nhanh" : ""}.
+        {selection.size}{cap ? `/${cap}` : ""} người đã chọn{atCap ? " - Đã đạt giới hạn Chia sẻ nhanh" : ""}.
       </p>
     </div>
   );
@@ -5097,8 +5097,8 @@ function GroupReviewersNotice({ reviewers }: { reviewers: GroupReviewers }) {
     <p className="text-xs leading-relaxed text-muted-foreground">
       <span className="font-medium text-foreground">Người duyệt: </span>
       {reviewers.mode === "single"
-        ? <>Admin <b className="text-foreground">{reviewers.units[0]?.name}</b> — {Math.round((reviewers.share ?? 0) * 100)}% thành viên nhóm thuộc đơn vị này.</>
-        : <>Không đơn vị nào chiếm từ 80% thành viên — Admin của <b className="text-foreground">{reviewers.units.map(u => u.name).join(", ")}</b> đều duyệt được, chỉ cần 1 người duyệt.</>}
+        ? <>Admin <b className="text-foreground">{reviewers.units[0]?.name}</b> - {Math.round((reviewers.share ?? 0) * 100)}% thành viên nhóm thuộc đơn vị này.</>
+        : <>Không đơn vị nào chiếm từ 80% thành viên - Admin của <b className="text-foreground">{reviewers.units.map(u => u.name).join(", ")}</b> đều duyệt được, chỉ cần 1 người duyệt.</>}
     </p>
   );
 }
@@ -7148,7 +7148,7 @@ function generateStarterPrompts(sourcePrompt: string): StarterPrompt[] {
   return [
     { id: 1, title: "What can you help with?", prompt: `Hi! Can you introduce yourself and list what you can help me with?` },
     { id: 2, title: "Walk me through an example", prompt: `Can you walk me through a typical example of how you'd help with: ${brief}?` },
-    { id: 3, title: "Get started", prompt: `I'd like to get started — based on what you do, what's the first thing you need from me?` },
+    { id: 3, title: "Get started", prompt: `I'd like to get started - Based on what you do, what's the first thing you need from me?` },
   ];
 }
 
@@ -7550,7 +7550,7 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h2 className="font-display text-xl font-semibold">Guardrail của Agent</h2>
-          <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">Giới hạn những điều Agent không được làm — chặn chủ đề nhạy cảm, bảo vệ dữ liệu và giữ lại các hành động rủi ro để duyệt trước.</p>
+          <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">Giới hạn những điều Agent không được làm - Chặn chủ đề nhạy cảm, bảo vệ dữ liệu và giữ lại các hành động rủi ro để duyệt trước.</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button onClick={() => setShowAttach(true)} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base">
@@ -8486,7 +8486,7 @@ function TriggerRowMenu({ enabled, needsSetup, duplicateBlocked, enableBlocked, 
                   Bật trigger
                 </span>
               </TooltipTrigger>
-              <TooltipContent side="left" sideOffset={8} align="center">Agent đang dùng kết nối riêng — xử lý việc này trước khi bật trigger.</TooltipContent>
+              <TooltipContent side="left" sideOffset={8} align="center">Agent đang dùng kết nối riêng - Xử lý việc này trước khi bật trigger.</TooltipContent>
             </Tooltip>
           ) : (
             <button type="button" onClick={() => { onToggle(); setOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs hover:bg-surface-muted transition-base">

@@ -61,7 +61,7 @@ const SEED_CONFLICTS: Conflict[] = [
     type: "duplicate_unit_name",
     status: "open",
     detectedAt: "08:00, 13/08/2026",
-    reason: 'FPT Identity sent back a unit with the same name but under a different branch of the org — could be two different teams that happen to share a name, or the same team declared in two places.',
+    reason: 'FPT Identity sent back a unit with the same name but under a different branch of the org - Could be two different teams that happen to share a name, or the same team declared in two places.',
     existingUnitId: "fsc-infra",
     incomingUnitName: "Cloud Infrastructure",
     incomingParentUnitId: "ftel-it",

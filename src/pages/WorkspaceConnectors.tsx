@@ -283,7 +283,7 @@ export default function WorkspaceConnectors() {
                   <ConnectorCard
                     key={c.id}
                     connector={c}
-                    onOpen={() => (c.connected ? setDetailTarget(c) : toast.info(`Tích hợp ${c.name} sắp ra mắt — theo dõi để cập nhật khi có nhé.`))}
+                    onOpen={() => (c.connected ? setDetailTarget(c) : toast.info(`Tích hợp ${c.name} sắp ra mắt - Theo dõi để cập nhật khi có nhé.`))}
                   />
                 ))}
               </div>
@@ -305,7 +305,7 @@ export default function WorkspaceConnectors() {
                     <ConnectorCard
                       key={c.id}
                       connector={c}
-                      onOpen={() => (c.connected ? setDetailTarget(c) : toast.info(`Tích hợp ${c.name} sắp ra mắt — theo dõi để cập nhật khi có nhé.`))}
+                      onOpen={() => (c.connected ? setDetailTarget(c) : toast.info(`Tích hợp ${c.name} sắp ra mắt - Theo dõi để cập nhật khi có nhé.`))}
                     />
                   ))}
                 </div>

@@ -292,7 +292,7 @@ function cskhSeed(now: number): Omit<ConversationRecord, "agentId">[] {
         { role: "customer", content: "I lost my credit card, can you lock it right now?" },
         {
           role: "agent",
-          content: "I'm sorry to hear that — let me pull up your account first.",
+          content: "I'm sorry to hear that - Let me pull up your account first.",
           toolCalls: [{
             name: "lookup_customer",
             connector: "Core Banking",
@@ -302,7 +302,7 @@ function cskhSeed(now: number): Omit<ConversationRecord, "agentId">[] {
         },
         {
           role: "agent",
-          content: "I've located your Visa card ending in 4821 — locking it now.",
+          content: "I've located your Visa card ending in 4821 - Locking it now.",
           toolCalls: [{
             name: "lock_card",
             connector: "Core Banking",
@@ -328,7 +328,7 @@ function cskhSeed(now: number): Omit<ConversationRecord, "agentId">[] {
         { role: "customer", content: "Thank you, that was fast. Can you also send me a replacement card?" },
         {
           role: "agent",
-          content: "Of course — I've ordered a replacement Visa card, mailed to your address on file.",
+          content: "Of course - I've ordered a replacement Visa card, mailed to your address on file.",
           toolCalls: [{
             name: "order_replacement_card",
             connector: "Core Banking",
@@ -337,7 +337,7 @@ function cskhSeed(now: number): Omit<ConversationRecord, "agentId">[] {
           }],
         },
         { role: "customer", content: "Great, thank you for your help!" },
-        { role: "agent", content: "You're very welcome — glad it's all sorted. Have a great day!" },
+        { role: "agent", content: "You're very welcome - Glad it's all sorted. Have a great day!" },
       ]),
     },
     {
@@ -363,9 +363,9 @@ function cskhSeed(now: number): Omit<ConversationRecord, "agentId">[] {
       endedAt: now - DAY,
       messages: buildMessages("CV-1038", now - DAY, [
         { role: "customer", content: "I can't log into online banking, it says my password is wrong." },
-        { role: "agent", content: "Let's reset it. I'll send a one-time code to the phone number on file — can you confirm the last 3 digits?" },
+        { role: "agent", content: "Let's reset it. I'll send a one-time code to the phone number on file - Can you confirm the last 3 digits?" },
         { role: "customer", content: "089" },
-        { role: "agent", content: "Confirmed. Code sent — enter it on the reset screen and choose a new password." },
+        { role: "agent", content: "Confirmed. Code sent - Enter it on the reset screen and choose a new password." },
         { role: "agent", content: "Let me know if the code doesn't arrive within a couple minutes.", feedback: "up" },
       ]),
     },
@@ -381,7 +381,7 @@ function cskhSeed(now: number): Omit<ConversationRecord, "agentId">[] {
         { role: "customer", content: "My wallet was stolen this morning, I need to report my debit card lost." },
         {
           role: "agent",
-          content: "Understood — I've locked debit card ending in 7734 immediately.",
+          content: "Understood - I've locked debit card ending in 7734 immediately.",
           toolCalls: [
             {
               name: "lock_card",
@@ -404,7 +404,7 @@ function cskhSeed(now: number): Omit<ConversationRecord, "agentId">[] {
         { role: "customer", content: "Mail is fine." },
         {
           role: "agent",
-          content: "Done — a replacement will arrive within 5-7 business days.",
+          content: "Done - A replacement will arrive within 5-7 business days.",
           // Demonstrates the hitl "question" situation — the agent posed a question with two
           // concrete options rather than asking for open-ended approval, and the customer picked
           // one by typing a short reply rather than selecting a button. This was already present
@@ -432,7 +432,7 @@ function cskhSeed(now: number): Omit<ConversationRecord, "agentId">[] {
       endedAt: now - 4 * DAY,
       messages: buildMessages("CV-1030", now - 4 * DAY, [
         { role: "customer", content: "I'd like to book a consultation with a financial advisor." },
-        { role: "agent", content: "Sure — I have openings this Thursday at 10:00 or Friday at 14:00. Which works better?" },
+        { role: "agent", content: "Sure - I have openings this Thursday at 10:00 or Friday at 14:00. Which works better?" },
         { role: "customer", content: "Friday at 2pm please." },
         { role: "agent", content: "Booked for Friday, 14:00 at your home branch. You'll get a reminder the day before.", feedback: "up" },
       ]),
@@ -446,10 +446,10 @@ function cskhSeed(now: number): Omit<ConversationRecord, "agentId">[] {
       endedAt: now - 6 * DAY,
       demoSlowMs: 6400,
       messages: buildMessages("CV-1027", now - 6 * DAY, [
-        { role: "customer", content: "There's a charge on my statement I don't recognize — 1,200,000 VND to \"QRPAY MERCHANT 88\"." },
+        { role: "customer", content: "There's a charge on my statement I don't recognize - 1,200,000 VND to \"QRPAY MERCHANT 88\"." },
         {
           role: "agent",
-          content: "I see that charge from yesterday. I've opened a dispute case — reference #DP-5567.",
+          content: "I see that charge from yesterday. I've opened a dispute case - Reference #DP-5567.",
           hitl: {
             situation: "tool_approval",
             toolName: "open_dispute",
@@ -468,7 +468,7 @@ function cskhSeed(now: number): Omit<ConversationRecord, "agentId">[] {
         },
         { role: "agent", content: "The disputed amount is temporarily credited back while we investigate. This usually takes 5-10 business days." },
         { role: "customer", content: "Okay, thank you for looking into it." },
-        { role: "agent", content: "Of course — we'll keep you posted on the case." },
+        { role: "agent", content: "Of course - We'll keep you posted on the case." },
       ]),
     },
     {
@@ -479,7 +479,7 @@ function cskhSeed(now: number): Omit<ConversationRecord, "agentId">[] {
       endedAt: now - 10 * DAY,
       messages: buildMessages("CV-1021", now - 10 * DAY, [
         { role: "customer", content: "Has my international wire transfer to Singapore gone through yet?" },
-        { role: "agent", content: "Your transfer of 25,000,000 VND initiated on the 3rd is showing as completed — it arrived at the recipient bank yesterday." },
+        { role: "agent", content: "Your transfer of 25,000,000 VND initiated on the 3rd is showing as completed - It arrived at the recipient bank yesterday." },
         { role: "customer", content: "Great, appreciate it." },
         { role: "agent", content: "You're welcome! Let us know if you need anything else." },
       ]),
@@ -495,9 +495,9 @@ function cskhSeed(now: number): Omit<ConversationRecord, "agentId">[] {
         { role: "customer", content: "Can you send me my loan repayment schedule?" },
         { role: "agent", content: "Your home loan has 18 payments remaining, 8,500,000 VND due on the 5th of each month." },
         { role: "customer", content: "Can I make an extra payment this month to reduce the principal?" },
-        { role: "agent", content: "Yes — extra payments are applied directly to principal. You can submit one from the Loans tab, or I can start it here." },
+        { role: "agent", content: "Yes - Extra payments are applied directly to principal. You can submit one from the Loans tab, or I can start it here." },
         { role: "customer", content: "I'll do it from the app, thanks." },
-        { role: "agent", content: "Sounds good — we're here if you need a hand along the way." },
+        { role: "agent", content: "Sounds good - We're here if you need a hand along the way." },
       ]),
     },
     {
@@ -512,7 +512,7 @@ function cskhSeed(now: number): Omit<ConversationRecord, "agentId">[] {
         { role: "agent", content: "Our 6-month term deposit is currently 4.8% p.a., and 12-month is 5.5% p.a." },
         { role: "agent", content: "Would you like me to start opening one for you now?" },
         { role: "customer", content: "Not yet, just checking rates." },
-        { role: "agent", content: "No problem — happy to help whenever you're ready." },
+        { role: "agent", content: "No problem - Happy to help whenever you're ready." },
       ]),
     },
     {
@@ -522,12 +522,12 @@ function cskhSeed(now: number): Omit<ConversationRecord, "agentId">[] {
       email: "dang.thi.hoa@gmail.com",
       startedAt: now - 28 * DAY - 4 * MIN,
       endedAt: now - 28 * DAY,
-      error: "Guardrail: phản hồi đầu tiên bị chặn vì tiết lộ số dư tài khoản chưa xác thực danh tính, agent đã sinh lại câu trả lời.",
+      error: "Guardrail: Phản hồi đầu tiên bị chặn vì tiết lộ số dư tài khoản chưa xác thực danh tính, agent đã sinh lại câu trả lời.",
       messages: buildMessages("CV-1004", now - 28 * DAY, [
         { role: "customer", content: "Why was I charged a 50,000 VND monthly fee? I thought my account was fee-free." },
         {
           role: "agent",
-          content: "Your account is fee-free with a minimum balance of 5,000,000 VND — last month it dropped below that for a few days.",
+          content: "Your account is fee-free with a minimum balance of 5,000,000 VND - Last month it dropped below that for a few days.",
           guardrail: {
             name: "output",
             action: "replaced",
@@ -535,7 +535,7 @@ function cskhSeed(now: number): Omit<ConversationRecord, "agentId">[] {
           },
         },
         { role: "customer", content: "That's annoying, nobody told me." },
-        { role: "agent", content: "I understand the frustration — I've waived this month's fee as a one-time courtesy and enabled low-balance alerts for you.", feedback: "down" },
+        { role: "agent", content: "I understand the frustration - I've waived this month's fee as a one-time courtesy and enabled low-balance alerts for you.", feedback: "down" },
       ]),
     },
     {
@@ -547,7 +547,7 @@ function cskhSeed(now: number): Omit<ConversationRecord, "agentId">[] {
       endedAt: now - 45 * DAY,
       messages: buildMessages("CV-0988", now - 45 * DAY, [
         { role: "customer", content: "I need to update the phone number on my account." },
-        { role: "agent", content: "Sure — please share the new number and I'll send a verification code to it." },
+        { role: "agent", content: "Sure - Please share the new number and I'll send a verification code to it." },
         { role: "customer", content: "0912 345 678" },
         { role: "agent", content: "Code sent. Once verified, your account will use this number for all future OTPs.", feedback: "up" },
       ]),
@@ -629,7 +629,7 @@ function cskhSeed(now: number): Omit<ConversationRecord, "agentId">[] {
         },
         {
           role: "agent",
-          content: "Đã liên kết ví MoMo thành công — ưu đãi hoàn tiền sẽ được áp dụng sau khi hạn mức thẻ được cập nhật.",
+          content: "Đã liên kết ví MoMo thành công - Ưu đãi hoàn tiền sẽ được áp dụng sau khi hạn mức thẻ được cập nhật.",
           toolCalls: [{
             name: "link_wallet",
             connector: "MoMo",
@@ -642,7 +642,7 @@ function cskhSeed(now: number): Omit<ConversationRecord, "agentId">[] {
         { role: "customer", content: "80 triệu nhé." },
         {
           role: "agent",
-          content: "Được rồi — 80,000,000 VND vượt hạn mức tự động (trên 50,000,000 VND/lần) nên mình cần trình duyệt nội bộ trước khi áp dụng, mình sẽ báo lại ngay khi có kết quả.",
+          content: "Được rồi - 80,000,000 VND vượt hạn mức tự động (trên 50,000,000 VND/lần) nên mình cần trình duyệt nội bộ trước khi áp dụng, mình sẽ báo lại ngay khi có kết quả.",
           hitl: {
             situation: "question",
             action: "respond",
@@ -653,7 +653,7 @@ function cskhSeed(now: number): Omit<ConversationRecord, "agentId">[] {
         },
         {
           role: "agent",
-          content: "Yêu cầu đã được duyệt — hạn mức thẻ của bạn hiện đã là 80,000,000 VND.",
+          content: "Yêu cầu đã được duyệt - Hạn mức thẻ của bạn hiện đã là 80,000,000 VND.",
           hitl: {
             situation: "tool_approval",
             action: "approve",
@@ -713,7 +713,7 @@ function hrSeed(now: number): Omit<ConversationRecord, "agentId">[] {
       endedAt: now - 15_000,
       error: "Timeout: Google Calendar API không phản hồi sau 15s khi đặt lịch 1:1 với quản lý (đã tự động thử lại và thành công ở lần 2).",
       messages: buildMessages("HR-2001", now - 15_000, [
-        { role: "customer", content: "Hi! It's my first day — what do I need to get set up?" },
+        { role: "customer", content: "Hi! It's my first day - What do I need to get set up?" },
         {
           role: "agent",
           content: "Welcome aboard! Let me pull up your onboarding checklist.",
@@ -739,7 +739,7 @@ function hrSeed(now: number): Omit<ConversationRecord, "agentId">[] {
         { role: "customer", content: "I'll pick it up at the office." },
         {
           role: "agent",
-          content: "Got it — your laptop will be ready at the front desk on Day 1.",
+          content: "Got it - Your laptop will be ready at the front desk on Day 1.",
           hitl: {
             situation: "question",
             action: "respond",
@@ -769,10 +769,10 @@ function hrSeed(now: number): Omit<ConversationRecord, "agentId">[] {
             },
           ],
         },
-        { role: "customer", content: "One more thing — can I get my equipment a few days early? I'd like to set it up before my start date." },
+        { role: "customer", content: "One more thing - Can I get my equipment a few days early? I'd like to set it up before my start date." },
         {
           role: "agent",
-          content: "That's approved — IT will have your laptop and access badge ready two days early.",
+          content: "That's approved - IT will have your laptop and access badge ready two days early.",
           hitl: {
             situation: "tool_approval",
             action: "approve",
@@ -783,7 +783,7 @@ function hrSeed(now: number): Omit<ConversationRecord, "agentId">[] {
         },
         {
           role: "agent",
-          content: "One last thing — your compensation band for this role is in the standard mid-level range; your HR Business Partner will walk you through the exact figures during your Week 1 meeting.",
+          content: "One last thing - Your compensation band for this role is in the standard mid-level range; your HR Business Partner will walk you through the exact figures during your Week 1 meeting.",
           guardrail: {
             name: "output",
             action: "replaced",
@@ -813,19 +813,19 @@ function hrSeed(now: number): Omit<ConversationRecord, "agentId">[] {
         { role: "customer", content: "Can you book 3 days off for me next week, Wednesday to Friday?" },
         {
           role: "agent",
-          content: "Your manager declined this request — those dates overlap with the sprint release. Would you like to pick different dates?",
+          content: "Your manager declined this request - Those dates overlap with the sprint release. Would you like to pick different dates?",
           hitl: {
             situation: "tool_approval",
             action: "reject",
             toolName: "submit_leave_request",
             toolInput: { employeeId: "E-18720", from: "Wed", to: "Fri", days: 3 },
-            answer: "Quản lý (Nguyen Hoang Nam) từ chối: trùng lịch release sprint.",
+            answer: "Quản lý (Nguyen Hoang Nam) từ chối: Trùng lịch release sprint.",
           },
         },
         { role: "customer", content: "OK, what about the same days the week after?" },
         {
           role: "agent",
-          content: "Done — your leave for next-next Wednesday to Friday is submitted and waiting for your manager's approval.",
+          content: "Done - Your leave for next-next Wednesday to Friday is submitted and waiting for your manager's approval.",
           demoLatencyMs: 5400,
         },
       ]),
@@ -841,9 +841,9 @@ function hrSeed(now: number): Omit<ConversationRecord, "agentId">[] {
       endedAt: now - 5 * DAY,
       messages: buildMessages("HR-2003", now - 5 * DAY, [
         { role: "customer", content: "Where can I find the company holiday calendar for this year?" },
-        { role: "agent", content: "Tóm tắt: the 2026 holiday calendar is on the HR portal under Policies → Holidays.\nBước tiếp theo: add it to your calendar with the \"Subscribe\" button on that page.", feedback: "up" },
+        { role: "agent", content: "Tóm tắt: The 2026 holiday calendar is on the HR portal under Policies → Holidays.\nBước tiếp theo: Add it to your calendar with the \"Subscribe\" button on that page.", feedback: "up" },
         { role: "customer", content: "Got it, thanks!" },
-        { role: "agent", content: "Tóm tắt: you're all set.\nBước tiếp theo: message me anytime if you need anything else." },
+        { role: "agent", content: "Tóm tắt: You're all set.\nBước tiếp theo: Message me anytime if you need anything else." },
       ]),
     },
   ];
@@ -894,7 +894,7 @@ function faqSeed(now: number): Omit<ConversationRecord, "agentId">[] {
         { role: "customer", content: "Express is fine." },
         {
           role: "agent",
-          content: "Confirmed — I'll get an express replacement part sent your way.",
+          content: "Confirmed - I'll get an express replacement part sent your way.",
           hitl: {
             situation: "question",
             action: "respond",
@@ -927,7 +927,7 @@ function faqSeed(now: number): Omit<ConversationRecord, "agentId">[] {
         { role: "customer", content: "Great, thank you!" },
         {
           role: "agent",
-          content: "Approved — since the motor assembly is a higher-cost part, this needed a quick sign-off, but it's confirmed and shipping express at no charge.",
+          content: "Approved - Since the motor assembly is a higher-cost part, this needed a quick sign-off, but it's confirmed and shipping express at no charge.",
           hitl: {
             situation: "tool_approval",
             action: "approve",
@@ -982,7 +982,7 @@ function opsSeed(now: number): Omit<ConversationRecord, "agentId">[] {
         },
         {
           role: "agent",
-          content: "While we're at it, I'd recommend setting up an authenticator app for MFA instead of SMS codes — I need your permission to link it to your account.",
+          content: "While we're at it, I'd recommend setting up an authenticator app for MFA instead of SMS codes - I need your permission to link it to your account.",
           hitl: {
             situation: "connect_account",
             action: "authorized",
@@ -995,7 +995,7 @@ function opsSeed(now: number): Omit<ConversationRecord, "agentId">[] {
         { role: "customer", content: "Authenticator app, please." },
         {
           role: "agent",
-          content: "Done — check your authenticator app for the reset link.",
+          content: "Done - Check your authenticator app for the reset link.",
           hitl: {
             situation: "question",
             action: "respond",
@@ -1028,7 +1028,7 @@ function opsSeed(now: number): Omit<ConversationRecord, "agentId">[] {
         { role: "customer", content: "Thanks. Also, can I get access to the Finance shared drive? My manager said it's fine." },
         {
           role: "agent",
-          content: "Approved by IT Security — you now have read access to the Finance shared drive.",
+          content: "Approved by IT Security - You now have read access to the Finance shared drive.",
           hitl: {
             situation: "tool_approval",
             action: "approve",
@@ -1039,7 +1039,7 @@ function opsSeed(now: number): Omit<ConversationRecord, "agentId">[] {
         },
         {
           role: "agent",
-          content: "Your VPN is reset — use the temporary password sent to your registered email, not this chat, to sign in.",
+          content: "Your VPN is reset - Use the temporary password sent to your registered email, not this chat, to sign in.",
           guardrail: {
             name: "output",
             action: "replaced",
@@ -1071,7 +1071,7 @@ function financeSeed(now: number): Omit<ConversationRecord, "agentId">[] {
       endedAt: now - 15_000,
       error: "Timeout: Credit Bureau API did not respond within 15s while checking the customer's credit limit (auto-retried and succeeded on attempt 2).",
       messages: buildMessages("FIN-5001", now - 15_000, [
-        { role: "customer", content: "I need to submit a 22% discount for the ABC Corp deal — that's above our standard 15% cap." },
+        { role: "customer", content: "I need to submit a 22% discount for the ABC Corp deal - That's above our standard 15% cap." },
         {
           role: "agent",
           content: "Let me check that against the current discount policy.",
@@ -1097,7 +1097,7 @@ function financeSeed(now: number): Omit<ConversationRecord, "agentId">[] {
         { role: "customer", content: "Just the first year." },
         {
           role: "agent",
-          content: "Noted — first-year only. Preparing the approval brief now.",
+          content: "Noted - First-year only. Preparing the approval brief now.",
           hitl: {
             situation: "question",
             action: "respond",
@@ -1127,10 +1127,10 @@ function financeSeed(now: number): Omit<ConversationRecord, "agentId">[] {
             },
           ],
         },
-        { role: "customer", content: "Great — so are we good to send this to the customer?" },
+        { role: "customer", content: "Great - So are we good to send this to the customer?" },
         {
           role: "agent",
-          content: "Approved — the 22% first-year discount is signed off and ready to include in the quote.",
+          content: "Approved - The 22% first-year discount is signed off and ready to include in the quote.",
           hitl: {
             situation: "tool_approval",
             action: "approve",
@@ -1141,7 +1141,7 @@ function financeSeed(now: number): Omit<ConversationRecord, "agentId">[] {
         },
         {
           role: "agent",
-          content: "One note — the customer's credit limit is on file with Finance; loop in your manager if you need the exact figure for the contract.",
+          content: "One note - The customer's credit limit is on file with Finance; loop in your manager if you need the exact figure for the contract.",
           guardrail: {
             name: "output",
             action: "replaced",
@@ -1173,7 +1173,7 @@ function legalSeed(now: number): Omit<ConversationRecord, "agentId">[] {
       endedAt: now - 15_000,
       error: "Timeout: Legal Knowledge Portal did not respond within 15s while checking clause compliance (auto-retried and succeeded on attempt 2).",
       messages: buildMessages("LGL-6001", now - 15_000, [
-        { role: "customer", content: "I need clauses attached for the XYZ Corp contract — they're asking for a liability cap above our standard." },
+        { role: "customer", content: "I need clauses attached for the XYZ Corp contract - They're asking for a liability cap above our standard." },
         {
           role: "agent",
           content: "Let me pull the standard clause set first.",
@@ -1195,15 +1195,15 @@ function legalSeed(now: number): Omit<ConversationRecord, "agentId">[] {
           },
         },
         { role: "customer", content: "Sure, go ahead." },
-        { role: "agent", content: "Which governing law applies to this contract — Vietnam or Singapore?" },
+        { role: "agent", content: "Which governing law applies to this contract - Vietnam or Singapore?" },
         { role: "customer", content: "Singapore." },
         {
           role: "agent",
-          content: "Noted — using the Singapore-law clause variant.",
+          content: "Noted - Using the Singapore-law clause variant.",
           hitl: {
             situation: "question",
             action: "respond",
-            question: "Which governing law applies to this contract — Vietnam or Singapore?",
+            question: "Which governing law applies to this contract - Vietnam or Singapore?",
             options: ["Vietnam law", "Singapore law"],
             answer: "Singapore.",
           },
@@ -1232,7 +1232,7 @@ function legalSeed(now: number): Omit<ConversationRecord, "agentId">[] {
         { role: "customer", content: "Are we clear to send the contract with that cap?" },
         {
           role: "agent",
-          content: "Approved — Legal has signed off on the 2x liability cap for this deal.",
+          content: "Approved - Legal has signed off on the 2x liability cap for this deal.",
           hitl: {
             situation: "tool_approval",
             action: "approve",
@@ -1243,7 +1243,7 @@ function legalSeed(now: number): Omit<ConversationRecord, "agentId">[] {
         },
         {
           role: "agent",
-          content: "The contract package is ready — the exact negotiated cap figure is recorded with Legal; check with them directly if you need it for the customer-facing summary.",
+          content: "The contract package is ready - The exact negotiated cap figure is recorded with Legal; check with them directly if you need it for the customer-facing summary.",
           guardrail: {
             name: "output",
             action: "replaced",

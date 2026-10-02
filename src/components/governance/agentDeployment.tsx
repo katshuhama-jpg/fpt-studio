@@ -84,7 +84,7 @@ export function AgentDeploymentSection({ req }: { req: GovRequest }) {
             <p className="text-xs text-muted-foreground tabular-nums">{channels.length} kênh</p>
           </div>
           {channels.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Không publish ra kênh ngoài — chỉ dùng trong Agent Workspace.</p>
+            <p className="text-sm text-muted-foreground">Không publish ra kênh ngoài - Chỉ dùng trong Agent Workspace.</p>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {channels.map(id => {

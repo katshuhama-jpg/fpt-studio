@@ -211,7 +211,7 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
                   </div>
                   <div className="relative text-sm text-muted-foreground tabular-nums pointer-events-none">{fmtCount(stats.tokens)}</div>
                   <div className="relative text-sm truncate pointer-events-none" title={c.error}>
-                    {c.error ? <span className="text-destructive">{c.error}</span> : <span className="text-muted-foreground">—</span>}
+                    {c.error ? <span className="text-destructive">{c.error}</span> : <span className="text-muted-foreground">-</span>}
                   </div>
                   <div className="relative flex items-center justify-center">
                     <button

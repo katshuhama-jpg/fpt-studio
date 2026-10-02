@@ -43,7 +43,7 @@ export default function OmniNode({ id, selected }: NodeProps<OmniNodeData>) {
             Omni Supports
           </p>
           <p className="text-[12px] leading-[1.45] mt-[3px] mb-0" style={{ color: "var(--wf-muted)", fontFamily: "var(--wf-font-body)" }}>
-            Tư vấn viên tiếp nhận từ hệ thống Omni — hệ thống Omni tự phân bổ, Workforce không chọn người cụ thể.
+            Tư vấn viên tiếp nhận từ hệ thống Omni - Hệ thống Omni tự phân bổ, Workforce không chọn người cụ thể.
           </p>
         </div>
       </div>

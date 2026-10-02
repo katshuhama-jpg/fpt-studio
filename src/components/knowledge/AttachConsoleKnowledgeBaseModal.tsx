@@ -50,7 +50,7 @@ export default function AttachConsoleKnowledgeBaseModal({ agentId, userId, onClo
         <DialogHeader>
           <DialogTitle>Liên kết kho tri thức</DialogTitle>
         </DialogHeader>
-        <p className="text-sm text-muted-foreground -mt-2">Agent sẽ tra cứu trực tiếp từ kho tri thức Console — nội dung không được sao chép.</p>
+        <p className="text-sm text-muted-foreground -mt-2">Agent sẽ tra cứu trực tiếp từ kho tri thức Console - Nội dung không được sao chép.</p>
 
         {all.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">Không có kho tri thức nào để liên kết.</p>

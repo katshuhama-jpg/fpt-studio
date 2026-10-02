@@ -41,7 +41,7 @@ export interface WorkforceRunRecord {
 /** Same three-line summary ConditionNode.tsx and RunTracePanel.tsx already duplicate — kept as
  * a third copy for the same reason they give: presentation-only, not worth a shared import. */
 function conditionSummary(node: WorkforceNode | undefined): string {
-  if (!node || node.data.kind !== "condition") return "—";
+  if (!node || node.data.kind !== "condition") return "-";
   const data = node.data as ConditionNodeData;
   if (data.type === "llm") return data.llmText.trim() || "Chưa cấu hình điều kiện";
   if (data.type === "agent-judgment") return data.llmText.trim() || "Agent tự quyết định";
@@ -66,7 +66,7 @@ export function buildConditionChoices(
     out.push({
       conditionId: id,
       conditionLabel: conditionSummary(node),
-      targetLabel: destEdge ? describeNode(destEdge.target) : "—",
+      targetLabel: destEdge ? describeNode(destEdge.target) : "-",
     });
   }
   return out;
@@ -144,7 +144,7 @@ function seedRuns(): WorkforceRunRecord[] {
       steps: ["trigger-cskh"],
       edgeIds: [],
       conditionChoices: [],
-      errorReason: "Trigger này chưa kết nối tới Agent nào — dừng ngay từ bước đầu.",
+      errorReason: "Trigger này chưa kết nối tới Agent nào - Dừng ngay từ bước đầu.",
     }),
   ];
 }
@@ -161,7 +161,7 @@ function seedSalesQuoteRuns(): WorkforceRunRecord[] {
       workforceId: wfId,
       source: "trigger",
       triggerLabel: "Yêu cầu báo giá từ Workspace",
-      contextMessage: "Báo giá ACME Corp — gói Enterprise, chiết khấu đề xuất 8%.",
+      contextMessage: "Báo giá ACME Corp - Gói Enterprise, chiết khấu đề xuất 8%.",
       startedAt: Date.now() - 3 * HOUR,
       endedAt: Date.now() - 3 * HOUR + 2_600,
       status: "success",
@@ -169,8 +169,8 @@ function seedSalesQuoteRuns(): WorkforceRunRecord[] {
       edgeIds: ["e-trigger-quote", "e-sales-cond-auto", "e-cond-auto-legal"],
       conditionChoices: [{
         conditionId: "cond-auto",
-        conditionLabel: "Mức chiết khấu Agent đề xuất trong báo giá ở mức 10% trở xuống — nằm trong thẩm quyền tự phê duyệt của Sales theo chính sách EOS.",
-        targetLabel: "AI Agent Pháp chế — Điều khoản hợp đồng",
+        conditionLabel: "Mức chiết khấu Agent đề xuất trong báo giá ở mức 10% trở xuống - Nằm trong thẩm quyền tự phê duyệt của Sales theo chính sách EOS.",
+        targetLabel: "AI Agent Pháp chế - Điều khoản hợp đồng",
       }],
     }),
     // >10% — Finance checks, then Phan My Ngan approves the connection into Legal directly (no
@@ -180,7 +180,7 @@ function seedSalesQuoteRuns(): WorkforceRunRecord[] {
       workforceId: wfId,
       source: "trigger",
       triggerLabel: "Yêu cầu báo giá từ Workspace",
-      contextMessage: "Báo giá ACME Corp — gói Enterprise, chiết khấu đề xuất 12%.",
+      contextMessage: "Báo giá ACME Corp - Gói Enterprise, chiết khấu đề xuất 12%.",
       startedAt: Date.now() - 45 * 60_000,
       endedAt: Date.now() - 45 * 60_000 + 4_100,
       status: "success",
@@ -192,13 +192,13 @@ function seedSalesQuoteRuns(): WorkforceRunRecord[] {
       conditionChoices: [
         {
           conditionId: "cond-escalate",
-          conditionLabel: "Mức chiết khấu Agent đề xuất trong báo giá vượt quá 10% — ngoài thẩm quyền tự phê duyệt, cần Tài chính kiểm tra và Quản lý phê duyệt.",
-          targetLabel: "AI Agent Tài chính — Kiểm duyệt chiết khấu",
+          conditionLabel: "Mức chiết khấu Agent đề xuất trong báo giá vượt quá 10% - Ngoài thẩm quyền tự phê duyệt, cần Tài chính kiểm tra và Quản lý phê duyệt.",
+          targetLabel: "AI Agent Tài chính - Kiểm duyệt chiết khấu",
         },
         {
           conditionId: "cond-to-approval",
-          conditionLabel: "Tài chính đã kiểm tra xong mức chiết khấu — chuyển cho Quản lý Tài chính phê duyệt.",
-          targetLabel: "AI Agent Pháp chế — Điều khoản hợp đồng",
+          conditionLabel: "Tài chính đã kiểm tra xong mức chiết khấu - Chuyển cho Quản lý Tài chính phê duyệt.",
+          targetLabel: "AI Agent Pháp chế - Điều khoản hợp đồng",
         },
       ],
     }),
@@ -210,7 +210,7 @@ function seedSalesQuoteRuns(): WorkforceRunRecord[] {
       workforceId: wfId,
       source: "trigger",
       triggerLabel: "Yêu cầu báo giá từ Workspace",
-      contextMessage: "Báo giá ACME Corp — gói Enterprise, chiết khấu đề xuất 22%.",
+      contextMessage: "Báo giá ACME Corp - Gói Enterprise, chiết khấu đề xuất 22%.",
       startedAt: Date.now() - 3 * HOUR,
       endedAt: Date.now() - 3 * HOUR + 3_200,
       status: "rejected",
@@ -218,10 +218,10 @@ function seedSalesQuoteRuns(): WorkforceRunRecord[] {
       edgeIds: ["e-trigger-quote", "e-sales-cond-escalate", "e-cond-escalate-finance"],
       conditionChoices: [{
         conditionId: "cond-escalate",
-        conditionLabel: "Mức chiết khấu Agent đề xuất trong báo giá vượt quá 10% — ngoài thẩm quyền tự phê duyệt, cần Tài chính kiểm tra và Quản lý phê duyệt.",
-        targetLabel: "AI Agent Tài chính — Kiểm duyệt chiết khấu",
+        conditionLabel: "Mức chiết khấu Agent đề xuất trong báo giá vượt quá 10% - Ngoài thẩm quyền tự phê duyệt, cần Tài chính kiểm tra và Quản lý phê duyệt.",
+        targetLabel: "AI Agent Tài chính - Kiểm duyệt chiết khấu",
       }],
-      errorReason: "Phan My Ngan đã từ chối — mức 22% vượt quá khẩu vị rủi ro cho phép trong quý này.",
+      errorReason: "Phan My Ngan đã từ chối - Mức 22% vượt quá khẩu vị rủi ro cho phép trong quý này.",
     }),
   ];
 }

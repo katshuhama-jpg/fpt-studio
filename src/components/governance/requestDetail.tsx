@@ -188,8 +188,8 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
             <div className="mb-6 flex items-start gap-2.5 rounded-lg border border-warning/25 bg-warning/5 px-3.5 py-3">
               <AlertTriangle size={15} className="text-warning shrink-0 mt-0.5" />
               <p className="text-sm text-warning leading-relaxed">
-                <span className="font-medium">{req.resourceName}</span> đã được sửa tiếp sau khi gửi yêu cầu này. Bạn đang duyệt đúng nội dung lúc gửi {req.version ?? ""} —
-                các chỉnh sửa sau đó không nằm trong yêu cầu này và cần một yêu cầu mới.
+                <span className="font-medium">{req.resourceName}</span> đã được sửa tiếp sau khi gửi yêu cầu này. Bạn đang duyệt đúng nội dung lúc gửi {req.version ?? ""} - 
+                Các chỉnh sửa sau đó không nằm trong yêu cầu này và cần một yêu cầu mới.
               </p>
             </div>
           )}
@@ -263,7 +263,7 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
                   {req.reviewMode === "single" ? `Admin ${req.reviewUnits[0].name}` : `Admin của ${req.reviewUnits.map(u => u.name).join(", ")}`}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {req.reviewMode === "single" ? "Đơn vị chiếm từ 80% thành viên nhóm." : "Không đơn vị nào chiếm từ 80% thành viên — 1 Admin duyệt là đủ."}
+                  {req.reviewMode === "single" ? "Đơn vị chiếm từ 80% thành viên nhóm." : "Không đơn vị nào chiếm từ 80% thành viên - 1 Admin duyệt là đủ."}
                 </p>
               </div>
             ) : null}
@@ -359,7 +359,7 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
               </button>
               <p className="text-xs text-muted-foreground leading-relaxed mt-2">
                 {isAgent
-                  ? (revokeFallback ? `Ngừng phục vụ ${req.version ?? "bản này"} ngay — bạn chọn quay về ${revokeFallback.version} hoặc ngừng hẳn Agent.` : "Agent ngừng phục vụ người dùng ngay lập tức. Muốn publish lại cần gửi yêu cầu mới.")
+                  ? (revokeFallback ? `Ngừng phục vụ ${req.version ?? "bản này"} ngay - Bạn chọn quay về ${revokeFallback.version} hoặc ngừng hẳn Agent.` : "Agent ngừng phục vụ người dùng ngay lập tức. Muốn publish lại cần gửi yêu cầu mới.")
                   : "Thành phần ngừng dùng chung trong Tenant Library ngay lập tức. Muốn dùng chung lại cần gửi yêu cầu mới."}
               </p>
             </div>
@@ -407,7 +407,7 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
                   })()
                 : "Sau khi duyệt, thành phần này sẽ xuất hiện trong Tenant Library để các Builder khác dùng chung.")}
               {dialog === "reject" && "Người gửi sẽ nhận được lý do từ chối và cần tạo yêu cầu mới nếu muốn gửi lại."}
-              {dialog === "withdraw" && "Admin sẽ không còn thấy yêu cầu này để duyệt. Agent giữ nguyên trạng thái hiện tại — bạn có thể gửi lại bất cứ lúc nào."}
+              {dialog === "withdraw" && "Admin sẽ không còn thấy yêu cầu này để duyệt. Agent giữ nguyên trạng thái hiện tại - Bạn có thể gửi lại bất cứ lúc nào."}
               {dialog === "revoke" && (isChannelReq
                 ? `Agent sẽ ngừng hoạt động trên ${(req.channelsAdded ?? []).map(channelLabel).join(", ")} ngay lập tức. Bản live trong Agent Workspace không bị ảnh hưởng.`
                 : isAgent
@@ -418,7 +418,7 @@ export default function RequestDetailPage({ scope }: { scope: Scope }) {
               <fieldset className="mb-4 space-y-2">
                 <legend className="sr-only">Sau khi thu hồi</legend>
                 {([
-                  ["previous", `Quay về ${revokeFallback.version}`, `Người dùng dùng lại ${revokeFallback.version} — bản đã được duyệt trước đó (${revokeFallback.scopeSummary ?? "phạm vi cũ"}).`],
+                  ["previous", `Quay về ${revokeFallback.version}`, `Người dùng dùng lại ${revokeFallback.version} - Bản đã được duyệt trước đó (${revokeFallback.scopeSummary ?? "phạm vi cũ"}).`],
                   ["stop", "Ngừng phục vụ hoàn toàn", "Agent về Bản nháp. Muốn publish lại cần gửi yêu cầu mới."],
                 ] as const).map(([v, t, d]) => (
                   <label key={v} className={`flex items-start gap-2.5 rounded-lg border px-3 py-2.5 cursor-pointer transition-colors ${revokeMode === v ? "border-primary bg-primary-soft/40" : "border-border hover:bg-surface-muted"}`}>
@@ -506,10 +506,10 @@ function OutcomeBanner({ req, isAgent, isChannelReq }: { req: import("@/componen
   const last = [...req.history].reverse().find(h => h.action !== "submitted");
   const meta = {
     approved: { box: "border-success/25 bg-success/5", icon: CheckCircle2, iconCls: "text-success",
-      title: isChannelReq ? `Đã duyệt — đã bật ${(req.channelsAdded ?? []).map(channelLabel).join(", ")}` : isAgent ? `Đã duyệt — ${req.version ?? "bản này"} đã được publish` : "Đã duyệt — đã có trong Tenant Library" },
+      title: isChannelReq ? `Đã duyệt - Đã bật ${(req.channelsAdded ?? []).map(channelLabel).join(", ")}` : isAgent ? `Đã duyệt - ${req.version ?? "bản này"} đã được publish` : "Đã duyệt - Đã có trong Tenant Library" },
     rejected: { box: "border-destructive/25 bg-destructive/5", icon: XCircle, iconCls: "text-destructive", title: "Đã từ chối" },
     revoked: { box: "border-destructive/25 bg-destructive/5", icon: Undo2, iconCls: "text-destructive",
-      title: isChannelReq ? `Đã thu hồi — đã tắt ${(req.channelsAdded ?? []).map(channelLabel).join(", ")}` : isAgent ? (req.revokedToVersion ? `Đã thu hồi — người dùng quay về ${req.revokedToVersion}` : "Đã thu hồi — Agent đã ngừng publish") : "Đã thu hồi — đã gỡ khỏi Tenant Library" },
+      title: isChannelReq ? `Đã thu hồi - Đã tắt ${(req.channelsAdded ?? []).map(channelLabel).join(", ")}` : isAgent ? (req.revokedToVersion ? `Đã thu hồi - Người dùng quay về ${req.revokedToVersion}` : "Đã thu hồi - Agent đã ngừng publish") : "Đã thu hồi - Đã gỡ khỏi Tenant Library" },
     withdrawn: { box: "border-border bg-surface-muted/50", icon: Undo2, iconCls: "text-muted-foreground", title: "Đã rút yêu cầu" },
     pending: { box: "", icon: Info, iconCls: "", title: "" },
   }[req.status];

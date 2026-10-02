@@ -148,7 +148,7 @@ export default function ToolConfigDrawer({
         )}
 
         <p className="text-xs text-muted-foreground mt-4 leading-relaxed">
-          Node Tool đánh dấu một tool hoặc integration mà Workforce này có thể dùng — dùng chung danh mục với trang Tools và Connectors của Agent.
+          Node Tool đánh dấu một tool hoặc integration mà Workforce này có thể dùng - Dùng chung danh mục với trang Tools và Connectors của Agent.
         </p>
       </div>
     </aside>

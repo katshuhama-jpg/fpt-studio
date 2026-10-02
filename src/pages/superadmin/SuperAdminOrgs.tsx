@@ -68,12 +68,12 @@ export default function SuperAdminOrgs() {
     <div className="px-8 py-8 max-w-[1280px] mx-auto animate-fade-up space-y-6">
       <PageHeader
         title="Super Admin: Kết nối Org"
-        desc='Org và Space là 2 thực thể độc lập — chỉ khi được connect ở đây, Builder trên Space mới thấy "Công ty / phòng ban" khi Publish.'
+        desc='Org và Space là 2 thực thể độc lập - Chỉ khi được connect ở đây, Builder trên Space mới thấy "Công ty / phòng ban" khi Publish.'
       />
 
       <Card
         title="Organizations"
-        desc="Tạo Org mới — độc lập với mọi Space, chưa gắn với ai cho tới khi được connect ở bảng bên dưới."
+        desc="Tạo Org mới - Độc lập với mọi Space, chưa gắn với ai cho tới khi được connect ở bảng bên dưới."
         action={
           <div className="flex items-center gap-2">
             <input
@@ -102,13 +102,13 @@ export default function SuperAdminOrgs() {
               <span className="text-xs text-muted-foreground">{spacesConnectedLabel(org.id, spaces)}</span>
             </div>
           ))}
-          {orgs.length === 0 && <p className="text-xs text-muted-foreground">Chưa có Org nào — tạo Org đầu tiên ở trên.</p>}
+          {orgs.length === 0 && <p className="text-xs text-muted-foreground">Chưa có Org nào - Tạo Org đầu tiên ở trên.</p>}
         </div>
       </Card>
 
       <Card
         title="Spaces"
-        desc='Personal Space không hiện ở đây — vĩnh viễn không connect được Org nào (khớp giới hạn 5 thành viên của Personal Space).'
+        desc='Personal Space không hiện ở đây - Vĩnh viễn không connect được Org nào (khớp giới hạn 5 thành viên của Personal Space).'
       >
         <div className="space-y-2">
           {spaces.map(sp => {

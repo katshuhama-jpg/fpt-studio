@@ -225,7 +225,7 @@ function IssueGroup({
         <Icon size={14} aria-hidden className={critical ? "text-[hsl(var(--destructive-strong))]" : "text-[hsl(var(--warning-strong))]"} />
         <span className="text-sm font-semibold">{meta.label}</span>
         {/* Colour alone shouldn't carry severity (uiux-pro-max: color is not the only indicator). */}
-        <span className="sr-only">{critical ? "— có mục Critical" : "— Warning"}</span>
+        <span className="sr-only">{critical ? " - Có mục Critical" : " - Warning"}</span>
         <span className="chip chip-muted !h-5 !text-[11px] ml-auto">{items.length}</span>
         <ChevronRight size={13} className="text-muted-foreground transition-transform group-open:rotate-90" />
       </summary>
@@ -258,7 +258,7 @@ const fmtS = (ms: number) => `${(ms / 1000).toFixed(2)}s`;
 const fmtK = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(2)}K` : `${n}`);
 const turnTokens = (t: TraceTurn) => t.tokensIn + t.tokensCacheRead + t.tokensOut + t.tokensReasoning;
 const clip = (s: string, n = 60) => (s.length > n ? `${s.slice(0, n).trimEnd()}…` : s);
-const issueLine = (i: TraceIssue) => `Turn ${i.turnIndex}: ${i.diagnosis}${i.detail ? ` — ${i.detail}` : ""}`;
+const issueLine = (i: TraceIssue) => `Turn ${i.turnIndex}: ${i.diagnosis}${i.detail ? ` - ${i.detail}` : ""}`;
 
 function linkActions(issues: TraceIssue[]): { label: string; section: Section }[] {
   const seen = new Set<string>();
@@ -296,7 +296,7 @@ export function buildReply(
       steps: [readStep],
       msgs: [{
         role: "ai",
-        text: `Mình chỉ đọc được những gì trace ghi lại (tool call, Guardrail, HITL, trạng thái turn, latency), nên không kết luận được câu trả lời đúng hay sai về nội dung — phần đó sẽ do Evaluators chấm.\n\nTrace cho thấy${turn ? ` ở Turn ${turn.index}` : ""}:\n${facts}`,
+        text: `Mình chỉ đọc được những gì trace ghi lại (tool call, Guardrail, HITL, trạng thái turn, latency), nên không kết luận được câu trả lời đúng hay sai về nội dung - Phần đó sẽ do Evaluators chấm.\n\nTrace cho thấy${turn ? ` ở Turn ${turn.index}` : ""}:\n${facts}`,
       }],
     };
   }
@@ -345,7 +345,7 @@ export function buildReply(
     const totalTok = trace.totals.tokensIn + trace.totals.tokensCacheRead + trace.totals.tokensOut + trace.totals.tokensReasoning;
     const cacheShare = totalTok ? Math.round((trace.totals.tokensCacheRead / totalTok) * 100) : 0;
     if (!turn && heaviest) {
-      lines.push(`Turn ${heaviest.index} dùng nhiều token nhất (${fmtK(turnTokens(heaviest))}). ${cacheShare}% token của cả conversation là cache read — Instructions và Knowledge đang được tái sử dụng giữa các turn.`);
+      lines.push(`Turn ${heaviest.index} dùng nhiều token nhất (${fmtK(turnTokens(heaviest))}). ${cacheShare}% token của cả conversation là cache read - Instructions và Knowledge đang được tái sử dụng giữa các turn.`);
     }
     return {
       steps: [`Đọc latency ${turns.length} turn`, "Đếm số lần gọi lại tool", "Xem token từng turn"],
@@ -364,11 +364,11 @@ export function buildReply(
   if (turn) {
     const steps: string[] = [];
     for (const m of turn.agentMessages) {
-      for (const c of m.toolCalls ?? []) steps.push(`Tool ${c.name} (${c.connector}) — ${(c.status ?? "success") === "failed" ? "lỗi" : "thành công"}`);
-      if (m.guardrail) steps.push(`Guardrail ${m.guardrail.name} — ${m.guardrail.action}`);
-      if (m.hitl) steps.push(`Human-in-the-loop — ${m.hitl.action}${m.hitl.answer ? `: ${m.hitl.answer}` : ""}`);
+      for (const c of m.toolCalls ?? []) steps.push(`Tool ${c.name} (${c.connector}) - ${(c.status ?? "success") === "failed" ? "lỗi" : "thành công"}`);
+      if (m.guardrail) steps.push(`Guardrail ${m.guardrail.name} - ${m.guardrail.action}`);
+      if (m.hitl) steps.push(`Human-in-the-loop - ${m.hitl.action}${m.hitl.answer ? `: ${m.hitl.answer}` : ""}`);
     }
-    const head = `Turn ${turn.index} (${outcomeLabel(turn)} · ${fmtS(turn.latencyMs)})${turn.customer ? ` — khách hỏi: "${clip(turn.customer.content)}"` : ""}`;
+    const head = `Turn ${turn.index} (${outcomeLabel(turn)} · ${fmtS(turn.latencyMs)})${turn.customer ? ` - Khách hỏi: "${clip(turn.customer.content)}"` : ""}`;
     const body = [
       steps.length ? `Các bước agent đã chạy:\n${steps.map(s => `• ${s}`).join("\n")}` : "Agent trả lời trực tiếp, không qua bước tool / Guardrail / HITL nào.",
       scoped.length ? `Điểm cần chú ý:\n${scoped.map(issueLine).join("\n")}` : "Không có tín hiệu kỹ thuật bất thường ở turn này.",
@@ -385,7 +385,7 @@ export function buildReply(
   if (SUMMARY_INTENT.test(text)) {
     const outline = trace.turns.map(t => {
       const own = issues.filter(i => i.turnIndex === t.index);
-      return `Turn ${t.index}${t.customer ? ` — "${clip(t.customer.content, 50)}"` : ""} → ${outcomeLabel(t)}${own.length ? ` (${own.map(i => i.diagnosis).join("; ")})` : ""}`;
+      return `Turn ${t.index}${t.customer ? ` - "${clip(t.customer.content, 50)}"` : ""} → ${outcomeLabel(t)}${own.length ? ` (${own.map(i => i.diagnosis).join("; ")})` : ""}`;
     });
     return {
       steps: [`Đọc ${n} turn`],

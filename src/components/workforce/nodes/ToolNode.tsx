@@ -54,7 +54,7 @@ export default function ToolNode({ id, data, selected }: NodeProps<ToolNodeData>
           </p>
         </div>
       </div>
-      {notConfigured && <MissingTriggerNotice text="Chưa chọn tool — chưa sẵn sàng dùng" />}
+      {notConfigured && <MissingTriggerNotice text="Chưa chọn tool - Chưa sẵn sàng dùng" />}
     </div>
   );
 }

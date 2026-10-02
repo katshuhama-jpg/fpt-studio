@@ -42,7 +42,7 @@ function PerformanceSubTab({ agentId }: { agentId: string }) {
         <div className="surface-card p-4">
           <div className="text-sm text-muted-foreground mb-1">Avg. response time</div>
           <div className="font-display text-2xl font-semibold tracking-tight">
-            {stats.avgResponseMs != null ? `${(stats.avgResponseMs / 1000).toFixed(1)}s` : "—"}
+            {stats.avgResponseMs != null ? `${(stats.avgResponseMs / 1000).toFixed(1)}s` : "-"}
           </div>
         </div>
       </div>

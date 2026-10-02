@@ -93,7 +93,7 @@ function seedWorkforces(): Workforce[] {
   // by "Lịch sử chạy" (S-gap-8), matching the diagram's "mọi bước được ghi lại".
   const salesQuoteAcme: Workforce = {
     id: "wf-sales-quote-acme",
-    name: "Báo giá ACME — Chiết khấu & Phê duyệt",
+    name: "Báo giá ACME - Chiết khấu & Phê duyệt",
     status: "published",
     createdAt: Date.now() - 6 * HOUR,
     updatedAt: Date.now() - 25 * 60_000,
@@ -112,14 +112,14 @@ function seedWorkforces(): Workforce[] {
       { id: "cond-auto", type: "condition", position: { x: 380, y: -20 }, data: {
         kind: "condition", type: "rule", ruleMatch: "all", approval: null,
         rules: [{ id: "r-auto", variable: "discount_percent", operator: "nhỏ hơn hoặc bằng", value: "10", numeric: true }],
-        llmText: "Mức chiết khấu Agent đề xuất trong báo giá ở mức 10% trở xuống — nằm trong thẩm quyền tự phê duyệt của Sales theo chính sách EOS.",
+        llmText: "Mức chiết khấu Agent đề xuất trong báo giá ở mức 10% trở xuống - Nằm trong thẩm quyền tự phê duyệt của Sales theo chính sách EOS.",
       } },
 
       // Above the threshold — needs Finance's policy check, then a human approval.
       { id: "cond-escalate", type: "condition", position: { x: 380, y: 300 }, data: {
         kind: "condition", type: "rule", ruleMatch: "all", approval: null,
         rules: [{ id: "r-escalate", variable: "discount_percent", operator: "lớn hơn", value: "10", numeric: true }],
-        llmText: "Mức chiết khấu Agent đề xuất trong báo giá vượt quá 10% — ngoài thẩm quyền tự phê duyệt, cần Tài chính kiểm tra và Quản lý phê duyệt.",
+        llmText: "Mức chiết khấu Agent đề xuất trong báo giá vượt quá 10% - Ngoài thẩm quyền tự phê duyệt, cần Tài chính kiểm tra và Quản lý phê duyệt.",
       } },
       { id: "finance-check", type: "agent", position: { x: 660, y: 300 }, data: { kind: "agent", agentId: "finance-check", keepContext: true } },
       // Approval now lives here, on the Condition/edge leading to Legal, instead of a separate
@@ -128,7 +128,7 @@ function seedWorkforces(): Workforce[] {
       // connection can require a human to approve before it fires, no dedicated node needed).
       { id: "cond-to-approval", type: "condition", position: { x: 940, y: 300 }, data: {
         kind: "condition", type: "llm", ruleMatch: "all", rules: [],
-        llmText: "Tài chính đã kiểm tra xong mức chiết khấu — chuyển cho Quản lý Tài chính phê duyệt.",
+        llmText: "Tài chính đã kiểm tra xong mức chiết khấu - Chuyển cho Quản lý Tài chính phê duyệt.",
         approval: { mode: "required", assigneeId: "corp-finance-1" },
       } },
 

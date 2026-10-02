@@ -72,7 +72,7 @@ export default function PersonPickerPopover({
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-medium truncate">{m.name}</div>
-                  <div className="text-xs text-muted-foreground truncate">{m.email ?? "—"}</div>
+                  <div className="text-xs text-muted-foreground truncate">{m.email ?? "-"}</div>
                 </div>
               </button>
             ))

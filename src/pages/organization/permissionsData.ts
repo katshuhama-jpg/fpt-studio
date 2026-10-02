@@ -43,8 +43,8 @@ export const featureGroups: FeatureGroup[] = [
     const permissions: Permission[] = [
       { id: `${id}.view`, name: `View ${thing}`, desc: `See every live ${singular} across the whole workspace, including ones not shared with you. Not required to publish or manage your own ${thing}.` },
       { id: `${id}.create`, name: `Create ${thing}`, desc: `Create a new ${singular}, including one only for personal use.` },
-      { id: `${id}.publish`, name: `Publish ${thing}`, desc: `Make a personal ${singular} available to the whole workspace, or share it with specific teammates. Doesn't require "View ${thing}" — you can always publish your own.` },
-      { id: `${id}.manage`, name: `Build ${thing}`, desc: `Edit a live ${singular}'s configuration in the workspace. Doesn't require "View ${thing}" — you can always manage your own.` },
+      { id: `${id}.publish`, name: `Publish ${thing}`, desc: `Make a personal ${singular} available to the whole workspace, or share it with specific teammates. Doesn't require "View ${thing}" - You can always publish your own.` },
+      { id: `${id}.manage`, name: `Build ${thing}`, desc: `Edit a live ${singular}'s configuration in the workspace. Doesn't require "View ${thing}" - You can always manage your own.` },
       { id: `${id}.pause`, name: `Pause ${thing}`, desc: `Pause or resume a live ${singular} in the workspace without deleting it.` },
     ];
     permissions.push({ id: `${id}.delete`, name: `Delete ${thing}`, desc: `Permanently delete a live ${singular} from the workspace.` });

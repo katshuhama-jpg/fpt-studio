@@ -76,14 +76,14 @@ export function needsClarification(
     if (matches.length > 1 && !/\b(before|after)\s+\S+\s+\S+/.test(p)) {
       qs.push({
         id: "target",
-        question: "I found multiple matching nodes — which one is the target?",
+        question: "I found multiple matching nodes - Which one is the target?",
         options: matches.slice(0, 4).map(n => n.data.label || n.id),
       });
     }
     if (/delete|remove|overwrite/.test(p)) {
       qs.push({
         id: "confirm_destructive",
-        question: "This change overwrites existing config — proceed?",
+        question: "This change overwrites existing config - Proceed?",
         options: ["Yes, overwrite", "No, abort"],
       });
     }
@@ -95,7 +95,7 @@ export function needsClarification(
     if (issues.length > 1) {
       return [{
         id: "which_issue",
-        question: "I see multiple potential issues — which should I fix first?",
+        question: "I see multiple potential issues - Which should I fix first?",
         options: issues.slice(0, 4).map(i => i.label),
       }];
     }
@@ -203,7 +203,7 @@ export function buildProposal(
   if (intent === "fix") {
     const issues = computeIssues(graph);
     if (issues.length === 0) {
-      return { intent, summary: "I didn't find any issues — your flow looks healthy.", ops: [] };
+      return { intent, summary: "I didn't find any issues - Your flow looks healthy.", ops: [] };
     }
     const iss = issues[0];
     const ops: ChangeOp[] = [{
@@ -243,7 +243,7 @@ export function buildProposal(
 function mockOutput(kind: NodeKind) {
   switch (kind) {
     case "knowledge": return { documents: [{ title: "FAQ.pdf", score: 0.87 }] };
-    case "llm": return { text: "Sure — here is the answer." };
+    case "llm": return { text: "Sure - Here is the answer." };
     case "if": return { branch: "IF" };
     case "http": return { status_code: 200, body: { ok: true } };
     case "output": return { final_answer: "Done." };

@@ -111,7 +111,7 @@ function seedAgent(agentId: string) {
     markChunksSeeded("agent-item", "kn-cskh-8");
     const seededChunk = knowledgeChunkStore.list(agentId, "agent-item", "kn-cskh-8")[0];
     if (seededChunk) {
-      knowledgeChunkStore.update(seededChunk.id, { content: "Có, trong vòng 7 ngày kể từ ngày đăng ký nếu chưa sử dụng dịch vụ — đã làm rõ thêm điều kiện áp dụng theo phản hồi của đội vận hành." });
+      knowledgeChunkStore.update(seededChunk.id, { content: "Có, trong vòng 7 ngày kể từ ngày đăng ký nếu chưa sử dụng dịch vụ - Đã làm rõ thêm điều kiện áp dụng theo phản hồi của đội vận hành." });
       knowledgeChunkStore.updateStatus(seededChunk.id, "done");
     }
 

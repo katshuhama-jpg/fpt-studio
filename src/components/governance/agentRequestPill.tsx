@@ -85,7 +85,7 @@ export function PendingRequestPill({ req, onChanged }: { req: GovRequest; onChan
           <AlertDialogHeader>
             <AlertDialogTitle>Rút yêu cầu {req.version}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Admin sẽ không còn thấy yêu cầu này để duyệt. Agent giữ nguyên trạng thái hiện tại — bạn có thể gửi lại bất cứ lúc nào.
+              Admin sẽ không còn thấy yêu cầu này để duyệt. Agent giữ nguyên trạng thái hiện tại - Bạn có thể gửi lại bất cứ lúc nào.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -74,7 +74,7 @@ const templates = [
   { id: 3, emoji: "🎯", bg: "bg-amber-50", name: "Sales lead qualifier",  cat: "Sales", popular: true,
     connectors: ["hubspot","gmail","calendar"],
     desc: "BANT scoring, objection handling, and CRM handoff",
-    systemPrompt: `# Sales Lead Qualifier Agent\n\nYou qualify inbound leads using the BANT framework (Budget, Authority, Need, Timeline) and hand off hot leads to the sales team.\n\n## Tone & Style\n- Consultative and curious — ask one question at a time\n- Friendly but efficient; respect the prospect's time\n\n## Qualification Flow\n1. Greet and understand the prospect's role and company\n2. Identify the core business need or pain point\n3. Explore budget range and decision-making authority\n4. Confirm purchase timeline\n5. Score the lead (Hot / Warm / Cold) and route accordingly\n\n## Limits\n- Do not quote specific pricing — route to sales rep\n- Do not make commitments on behalf of the sales team` },
+    systemPrompt: `# Sales Lead Qualifier Agent\n\nYou qualify inbound leads using the BANT framework (Budget, Authority, Need, Timeline) and hand off hot leads to the sales team.\n\n## Tone & Style\n- Consultative and curious - Ask one question at a time\n- Friendly but efficient; respect the prospect's time\n\n## Qualification Flow\n1. Greet and understand the prospect's role and company\n2. Identify the core business need or pain point\n3. Explore budget range and decision-making authority\n4. Confirm purchase timeline\n5. Score the lead (Hot / Warm / Cold) and route accordingly\n\n## Limits\n- Do not quote specific pricing - Route to sales rep\n- Do not make commitments on behalf of the sales team` },
   { id: 4, emoji: "🤝", bg: "bg-pink-50",  name: "HR onboarding bot",     cat: "HR & Internal", popular: true,
     connectors: ["calendar","slack","drive"],
     desc: "New-joiner flows, policy lookup, meeting scheduling",
@@ -328,7 +328,7 @@ function AutomationCard({ a }: { a: typeof agents[number] }) {
           <div className="flex items-center gap-1.5">
             <HugeiconsIcon icon={TimeScheduleIcon} size={12} className="text-muted-foreground" />
             <span className="text-xs text-muted-foreground truncate">
-              {!published ? "Not run yet" : lastRun ? `Last run: ${relativeTime(lastRun)}` : "Last run: never"}
+              {!published ? "Not run yet" : lastRun ? `Last run: ${relativeTime(lastRun)}` : "Last run: Never"}
             </span>
           </div>
         </div>
@@ -469,7 +469,7 @@ export default function AgentsList() {
       <div className="mb-6">
         <h1 className="font-display text-xl font-semibold tracking-tight mb-1">Agents</h1>
         <p className="text-sm text-muted-foreground">
-          Manage every agent in this workspace — build, test, deploy and monitor.
+          Manage every agent in this workspace - Build, test, deploy and monitor.
         </p>
       </div>
 
@@ -494,7 +494,7 @@ export default function AgentsList() {
         />
         <div className="flex items-center justify-between mt-3">
           <p className="text-xs text-muted-foreground">
-            The more specific, the closer the draft — at least 20 characters.
+            The more specific, the closer the draft - At least 20 characters.
           </p>
 
           {/* Right actions */}
@@ -615,7 +615,7 @@ export default function AgentsList() {
           {conversationalAgents.length === 0 ? (
             <GroupEmptyState
               message={allConversationalCount === 0
-                ? "No agents yet — build one above and it will appear here."
+                ? "No agents yet - Build one above and it will appear here."
                 : "No agents match your search"}
               onShowAll={allConversationalCount > 0 ? clearFilters : undefined}
             />
@@ -638,7 +638,7 @@ export default function AgentsList() {
           {automationAgents.length === 0 ? (
             <GroupEmptyState
               message={allAutomationCount === 0
-                ? "No automation agents yet — add a trigger to an agent in Console and it will appear here."
+                ? "No automation agents yet - Add a trigger to an agent in Console and it will appear here."
                 : "No agents match your search"}
               onShowAll={allAutomationCount > 0 ? clearFilters : undefined}
             />

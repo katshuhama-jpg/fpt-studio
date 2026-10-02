@@ -9,8 +9,8 @@ const SECTIONS: { id: string; label: string }[] = [
   { id: "auth", label: "Authentication and signing" },
   { id: "identifiers", label: "Identifiers" },
   { id: "limits", label: "Limits" },
-  { id: "runs-request", label: "POST /runs — the request" },
-  { id: "runs-stream", label: "POST /runs — the response stream" },
+  { id: "runs-request", label: "POST /runs - The request" },
+  { id: "runs-stream", label: "POST /runs - The response stream" },
   { id: "frames", label: "Frame reference" },
   { id: "interrupts", label: "Asking the user a question" },
   { id: "health", label: "GET /health" },
@@ -85,7 +85,7 @@ const LEVEL_CLASS: Record<string, string> = { MUST: "chip-danger", SHOULD: "chip
 
 const FRAMES: { name: string; note?: string; fields: FrameField[]; example: object }[] = [
   { name: "TEXT_MESSAGE_START", fields: [
-    { name: "messageId", level: "MUST", desc: "Stable id for this message — must be closed by a matching END before the run finishes." },
+    { name: "messageId", level: "MUST", desc: "Stable id for this message - Must be closed by a matching END before the run finishes." },
     { name: "role", level: "MUST", desc: "Always \"assistant\"." },
   ], example: { event_id: "e1", type: "TEXT_MESSAGE_START", run_id: "r1", timestamp: 1735689600, messageId: "m1", role: "assistant" } },
   { name: "TEXT_MESSAGE_CONTENT", fields: [
@@ -96,15 +96,15 @@ const FRAMES: { name: string; note?: string; fields: FrameField[]; example: obje
     { name: "messageId", level: "MUST", desc: "Closes the message opened by TEXT_MESSAGE_START." },
   ], example: { event_id: "e3", type: "TEXT_MESSAGE_END", run_id: "r1", timestamp: 1735689602, messageId: "m1" } },
   { name: "TOOL_CALL_START", fields: [
-    { name: "toolCallId", level: "MUST", desc: "Stable id for this call — closed by a matching END." },
+    { name: "toolCallId", level: "MUST", desc: "Stable id for this call - Closed by a matching END." },
     { name: "toolName", level: "MUST", desc: "Name of the tool being invoked." },
   ], example: { event_id: "e4", type: "TOOL_CALL_START", run_id: "r1", timestamp: 1735689603, toolCallId: "t1", toolName: "search_flights" } },
-  { name: "TOOL_CALL_ARGS", note: "delta is a STRING fragment of JSON, not an object — concatenate fragments, then JSON.parse the result once the call ends.", fields: [
+  { name: "TOOL_CALL_ARGS", note: "delta is a STRING fragment of JSON, not an object - Concatenate fragments, then JSON.parse the result once the call ends.", fields: [
     { name: "toolCallId", level: "MUST", desc: "Matches the open TOOL_CALL_START." },
     { name: "delta", level: "MUST", desc: "A string fragment of the arguments JSON, not a parsed object." },
   ], example: { event_id: "e5", type: "TOOL_CALL_ARGS", run_id: "r1", timestamp: 1735689604, toolCallId: "t1", delta: "{\"from\":\"HAN\"" } },
   { name: "TOOL_CALL_END", fields: [
-    { name: "toolCallId", level: "MUST", desc: "Closes the call — arguments should now be complete, valid JSON once concatenated." },
+    { name: "toolCallId", level: "MUST", desc: "Closes the call - Arguments should now be complete, valid JSON once concatenated." },
   ], example: { event_id: "e6", type: "TOOL_CALL_END", run_id: "r1", timestamp: 1735689605, toolCallId: "t1" } },
   { name: "TOOL_CALL_RESULT", fields: [
     { name: "toolCallId", level: "MUST", desc: "Which call this result belongs to." },
@@ -120,22 +120,22 @@ const FRAMES: { name: string; note?: string; fields: FrameField[]; example: obje
     { name: "messageId", level: "MAY", desc: "Closes the reasoning block." },
   ], example: { event_id: "e10", type: "REASONING_MESSAGE_END", run_id: "r1", timestamp: 1735689609, messageId: "rs1" } },
   { name: "STEP_STARTED", fields: [
-    { name: "stepId", level: "SHOULD", desc: "Stable id for a named step — must be closed by a matching STEP_FINISHED before the terminal frame." },
+    { name: "stepId", level: "SHOULD", desc: "Stable id for a named step - Must be closed by a matching STEP_FINISHED before the terminal frame." },
     { name: "name", level: "SHOULD", desc: "Human-readable step label shown in the UI." },
   ], example: { event_id: "e11", type: "STEP_STARTED", run_id: "r1", timestamp: 1735689610, stepId: "s1", name: "Searching flights" } },
   { name: "STEP_FINISHED", fields: [
     { name: "stepId", level: "SHOULD", desc: "Closes the step opened by STEP_STARTED." },
   ], example: { event_id: "e12", type: "STEP_FINISHED", run_id: "r1", timestamp: 1735689611, stepId: "s1" } },
   { name: "ACTIVITY_SNAPSHOT", fields: [
-    { name: "activity", level: "MAY", desc: "The full current activity object — a lightweight progress feed distinct from conversation state." },
+    { name: "activity", level: "MAY", desc: "The full current activity object - A lightweight progress feed distinct from conversation state." },
   ], example: { event_id: "e13", type: "ACTIVITY_SNAPSHOT", run_id: "r1", timestamp: 1735689612, activity: { step: "searching", progress: 0.2 } } },
-  { name: "ACTIVITY_DELTA", note: "Uses a field named \"patch\" (RFC 6902 JSON Patch) against the last ACTIVITY_SNAPSHOT — not \"delta\".", fields: [
+  { name: "ACTIVITY_DELTA", note: "Uses a field named \"patch\" (RFC 6902 JSON Patch) against the last ACTIVITY_SNAPSHOT - Not \"delta\".", fields: [
     { name: "patch", level: "MAY", desc: "An RFC 6902 JSON Patch array to apply to the last activity snapshot." },
   ], example: { event_id: "e14", type: "ACTIVITY_DELTA", run_id: "r1", timestamp: 1735689613, patch: [{ op: "replace", path: "/progress", value: 0.6 }] } },
   { name: "STATE_SNAPSHOT", fields: [
     { name: "state", level: "MAY", desc: "The full current conversation state your agent wants the platform to know about (e.g. artifacts/files)." },
   ], example: { event_id: "e15", type: "STATE_SNAPSHOT", run_id: "r1", timestamp: 1735689614, state: { artifacts: [] } } },
-  { name: "STATE_DELTA", note: "Uses a field named \"delta\" (RFC 6902 JSON Patch) against the last STATE_SNAPSHOT — not \"patch\".", fields: [
+  { name: "STATE_DELTA", note: "Uses a field named \"delta\" (RFC 6902 JSON Patch) against the last STATE_SNAPSHOT - Not \"patch\".", fields: [
     { name: "delta", level: "MAY", desc: "An RFC 6902 JSON Patch array to apply to the last state snapshot." },
   ], example: { event_id: "e16", type: "STATE_DELTA", run_id: "r1", timestamp: 1735689615, delta: [{ op: "add", path: "/artifacts/-", value: { name: "report.pdf" } }] } },
   { name: "CUSTOM", fields: [
@@ -214,7 +214,7 @@ export default function ExternalAgentIntegrationGuide() {
             <p className="text-sm text-foreground leading-relaxed">
               The FPT Agent Platform is the <strong>client</strong>; your external agent is the <strong>server</strong>. The platform publishes
               the agent, gives it a chat surface across channels, logs every conversation, and calls <Code>POST /runs</Code> once per turn.
-              Your business logic, runtime, model calls, tools, and all conversation state live on your own infrastructure — the platform keeps none of it.
+              Your business logic, runtime, model calls, tools, and all conversation state live on your own infrastructure - The platform keeps none of it.
             </p>
             <Table
               head={["FPT Agent Platform does", "You must do"]}
@@ -227,8 +227,8 @@ export default function ExternalAgentIntegrationGuide() {
               ]}
             />
             <Callout>
-              Two things people get wrong: frames are for <strong>display</strong>, not storage — the platform does not persist your
-              agent's state for you. And one turn = one request — there is no side channel to push extra messages outside a /runs call.
+              Two things people get wrong: Frames are for <strong>display</strong>, not storage - The platform does not persist your
+              agent's state for you. And one turn = one request - There is no side channel to push extra messages outside a /runs call.
             </Callout>
           </Section>
 
@@ -249,7 +249,7 @@ export default function ExternalAgentIntegrationGuide() {
             />
             <p className="text-sm text-muted-foreground leading-relaxed">
               Returning <Code>404</Code> or <Code>501</Code> from <Code>GET /tools</Code> tells the platform your agent has no
-              per-user credential needs — it will never call the other two endpoints or ask a user to connect anything.
+              per-user credential needs - It will never call the other two endpoints or ask a user to connect anything.
             </p>
           </Section>
 
@@ -257,11 +257,11 @@ export default function ExternalAgentIntegrationGuide() {
             <Table
               head={["Endpoint", "Authorization", "X-FPT-Signature", "Content-Type", "Accept", "If-None-Match"]}
               rows={[
-                ["POST /runs", "Bearer token, or omitted if auth is none", "Required", "application/json", "text/event-stream", "—"],
-                ["GET /health", "—", "Not required", "—", "application/json", "Optional"],
-                ["GET /tools", "Bearer token, or omitted", "Required", "—", "application/json", "Optional"],
-                ["POST /credentials", "Bearer token, or omitted", "Required", "application/json", "application/json", "—"],
-                ["POST /credentials/revoke", "Bearer token, or omitted", "Required", "application/json", "application/json", "—"],
+                ["POST /runs", "Bearer token, or omitted if auth is none", "Required", "application/json", "text/event-stream", "-"],
+                ["GET /health", "-", "Not required", "-", "application/json", "Optional"],
+                ["GET /tools", "Bearer token, or omitted", "Required", "-", "application/json", "Optional"],
+                ["POST /credentials", "Bearer token, or omitted", "Required", "application/json", "application/json", "-"],
+                ["POST /credentials/revoke", "Bearer token, or omitted", "Required", "application/json", "application/json", "-"],
               ]}
             />
             <div>
@@ -269,12 +269,12 @@ export default function ExternalAgentIntegrationGuide() {
               <CopyBlock code={`X-FPT-Signature: t=<epoch second>,v1=<lowercase hex hmac-sha256>\n\nv1 = hmac_sha256(signing_secret, t + "." + sha256_hex(raw_body))`} />
             </div>
             <ul className="space-y-1.5 list-disc pl-4">
-              <li className="text-sm text-foreground leading-relaxed">Signature verification is <strong>mandatory even when auth is "none"</strong> — it's the only thing proving a request came from the platform.</li>
+              <li className="text-sm text-foreground leading-relaxed">Signature verification is <strong>mandatory even when auth is "none"</strong> - It's the only thing proving a request came from the platform.</li>
               <li className="text-sm text-foreground leading-relaxed">Reject any request where <Code>t</Code> is more than <strong>300 seconds</strong> off from your clock, with <Code>401</Code>.</li>
-              <li className="text-sm text-foreground leading-relaxed">Compare digests in constant time (<Code>hmac.compare_digest</Code> / <Code>crypto.timingSafeEqual</Code>) — never with <Code>==</Code>, which leaks timing information one byte at a time.</li>
-              <li className="text-sm text-foreground leading-relaxed"><Code>raw_body</Code> is the exact bytes received — re-serializing the parsed JSON before hashing changes the digest and fails verification.</li>
+              <li className="text-sm text-foreground leading-relaxed">Compare digests in constant time (<Code>hmac.compare_digest</Code> / <Code>crypto.timingSafeEqual</Code>) - Never with <Code>==</Code>, which leaks timing information one byte at a time.</li>
+              <li className="text-sm text-foreground leading-relaxed"><Code>raw_body</Code> is the exact bytes received - Re-serializing the parsed JSON before hashing changes the digest and fails verification.</li>
               <li className="text-sm text-foreground leading-relaxed">An empty body hashes to <span className="font-mono text-[11px] break-all">e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855</span>.</li>
-              <li className="text-sm text-foreground leading-relaxed">The signing secret is <strong>separate</strong> from the bearer token — rotating one never affects the other.</li>
+              <li className="text-sm text-foreground leading-relaxed">The signing secret is <strong>separate</strong> from the bearer token - Rotating one never affects the other.</li>
             </ul>
             <div className="grid md:grid-cols-2 gap-3">
               <div>
@@ -296,13 +296,13 @@ export default function ExternalAgentIntegrationGuide() {
                 ["userId", "String, may be absent", "RunRequest", "Stable per platform user", "Per-user credentials and personalization"],
                 ["workspaceId", "String", "Every request", "Stable for the life of the workspace", "Tenant isolation"],
                 ["threadId", "String", "RunRequest", "Stable for the life of the conversation", "Your agent's own conversation state"],
-                ["runId", "String", "RunRequest", "New per turn, including resumes", "Idempotency — re-running must return the cached result"],
+                ["runId", "String", "RunRequest", "New per turn, including resumes", "Idempotency - re-running must return the cached result"],
               ]}
             />
             <Callout>
-              All ids are sent as <strong>strings</strong> and must never be parsed as numbers — 63-bit values exceed
+              All ids are sent as <strong>strings</strong> and must never be parsed as numbers - 63-bit values exceed
               JavaScript's safe integer range (2^53), and <Code>JSON.parse</Code> silently rounds them, which can collapse two
-              different ids into one. A missing <Code>userId</Code> means there is no real person behind the turn — never
+              different ids into one. A missing <Code>userId</Code> means there is no real person behind the turn - Never
               substitute a placeholder value for it.
             </Callout>
           </Section>
@@ -312,15 +312,15 @@ export default function ExternalAgentIntegrationGuide() {
               head={["Limit", "Value"]}
               rows={[
                 ["Total run duration", "30 minutes"],
-                ["Idle gap before disconnect", "30 seconds from the first frame — reset by a \": ping\" comment, which is why you should ping at least every 15s"],
-                ["History received", "Up to the 500 most recent turns — a payload cap, not a conversation cap"],
+                ["Idle gap before disconnect", "30 seconds from the first frame - Reset by a \": ping\" comment, which is why you should ping at least every 15s"],
+                ["History received", "Up to the 500 most recent turns - A payload cap, not a conversation cap"],
                 ["Attachment URL validity", "7 days from first upload"],
                 ["Signature timestamp skew", "300 seconds"],
               ]}
             />
           </Section>
 
-          <Section id="runs-request" title="POST /runs — the request">
+          <Section id="runs-request" title="POST /runs - The request">
             <Table
               head={["Field", "Required", "Description"]}
               rows={[
@@ -363,12 +363,12 @@ export default function ExternalAgentIntegrationGuide() {
               }, null, 2)} />
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              <Code>runId</Code> is your idempotency key: if a <Code>runId</Code> has already completed, return the earlier
-              result instead of running it again — the platform retries at the transport level, not at the business level.
+              <Code>runId</Code> is your idempotency key: If a <Code>runId</Code> has already completed, return the earlier
+              result instead of running it again - the platform retries at the transport level, not at the business level.
             </p>
           </Section>
 
-          <Section id="runs-stream" title="POST /runs — the response stream">
+          <Section id="runs-stream" title="POST /runs - The response stream">
             <Table
               head={["Envelope field", "Description"]}
               rows={[
@@ -381,7 +381,7 @@ export default function ExternalAgentIntegrationGuide() {
             />
             <p className="text-sm text-muted-foreground leading-relaxed">
               Envelope fields are <strong>snake_case</strong>; type-specific fields are <strong>camelCase</strong>. Never send{" "}
-              <Code>RUN_STARTED</Code> — the platform already emits it the moment it opens the connection to your agent.
+              <Code>RUN_STARTED</Code> - The platform already emits it the moment it opens the connection to your agent.
             </p>
             <div>
               <p className="text-sm font-medium text-muted-foreground mb-1.5">Minimal working stream</p>
@@ -413,15 +413,15 @@ export default function ExternalAgentIntegrationGuide() {
             </div>
             <Callout>
               Two easy mistakes: <Code>TOOL_CALL_ARGS.delta</Code> is a <strong>string</strong> fragment of JSON, not an
-              object — concatenate before parsing. And <Code>ACTIVITY_DELTA</Code> uses a field named <Code>patch</Code> while{" "}
-              <Code>STATE_DELTA</Code> uses one named <Code>delta</Code> — both are RFC 6902 JSON Patch, just under different field names.
+              object - Concatenate before parsing. And <Code>ACTIVITY_DELTA</Code> uses a field named <Code>patch</Code> while{" "}
+              <Code>STATE_DELTA</Code> uses one named <Code>delta</Code> - Both are RFC 6902 JSON Patch, just under different field names.
             </Callout>
           </Section>
 
           <Section id="interrupts" title="Asking the user a question">
             <p className="text-sm text-foreground leading-relaxed">
               A turn pauses by ending with <Code>RUN_FINISHED</Code> and <Code>outcome.type: "interrupt"</Code>. The platform
-              only ever reads <Code>interrupts[0]</Code> — to ask several things at once, use a single <strong>review</strong>{" "}
+              only ever reads <Code>interrupts[0]</Code> - To ask several things at once, use a single <strong>review</strong>{" "}
               interrupt with several items rather than multiple interrupts.
             </p>
             <Table
@@ -443,7 +443,7 @@ export default function ExternalAgentIntegrationGuide() {
             </Callout>
             <p className="text-sm text-muted-foreground leading-relaxed">
               For a <Code>review</Code> interrupt, the edit form is derived from the <strong>types</strong> of the values in{" "}
-              <Code>args</Code> — a string renders a text field, a number a numeric field, a boolean a toggle — so the shape of{" "}
+              <Code>args</Code> - A string renders a text field, a number a numeric field, a boolean a toggle - So the shape of{" "}
               <Code>args</Code> determines the shape of the form your user sees.
             </p>
           </Section>
@@ -460,7 +460,7 @@ export default function ExternalAgentIntegrationGuide() {
             />
             <CopyBlock code={JSON.stringify({ status: "ok", protocolVersions: ["1"], name: "Flight Assistant", version: "2.3.1" }, null, 2)} />
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Not HMAC-signed, and polled every 30 seconds — keep it cheap: no model call, no database query, just a liveness check.
+              Not HMAC-signed, and polled every 30 seconds - Keep it cheap: No model call, no database query, just a liveness check.
             </p>
           </Section>
 
@@ -468,10 +468,10 @@ export default function ExternalAgentIntegrationGuide() {
             <div>
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Inbound</p>
               <ul className="space-y-1.5 list-disc pl-4">
-                <li className="text-sm text-foreground leading-relaxed">Download <Code>attachments[].url</Code> before <Code>urlExpiresAt</Code> — it will 403 afterward and is never reissued.</li>
-                <li className="text-sm text-foreground leading-relaxed">Dedupe on <Code>id</Code>, never on <Code>url</Code> or <Code>name</Code> — those can repeat across turns.</li>
-                <li className="text-sm text-foreground leading-relaxed">The URL needs no <Code>Authorization</Code> header — never log or forward it, treat it as a bearer credential in itself.</li>
-                <li className="text-sm text-foreground leading-relaxed">Never trust the declared name or mime type — sanitize the name before writing to disk and sniff the content yourself.</li>
+                <li className="text-sm text-foreground leading-relaxed">Download <Code>attachments[].url</Code> before <Code>urlExpiresAt</Code> - It will 403 afterward and is never reissued.</li>
+                <li className="text-sm text-foreground leading-relaxed">Dedupe on <Code>id</Code>, never on <Code>url</Code> or <Code>name</Code> - Those can repeat across turns.</li>
+                <li className="text-sm text-foreground leading-relaxed">The URL needs no <Code>Authorization</Code> header - Never log or forward it, treat it as a bearer credential in itself.</li>
+                <li className="text-sm text-foreground leading-relaxed">Never trust the declared name or mime type - Sanitize the name before writing to disk and sniff the content yourself.</li>
               </ul>
             </div>
             <div>
@@ -479,7 +479,7 @@ export default function ExternalAgentIntegrationGuide() {
               <ul className="space-y-1.5 list-disc pl-4">
                 <li className="text-sm text-foreground leading-relaxed">Your agent hosts its own generated files and returns a browser-reachable URL via a <Code>STATE_SNAPSHOT</Code> <Code>artifacts</Code>/<Code>files</Code> field, or a <Code>CUSTOM</Code> <span className="font-mono">"file"</span> frame.</li>
                 <li className="text-sm text-foreground leading-relaxed">Write both <Code>artifacts</Code> and <Code>files</Code> for it to show up in both the conversation timeline and the Files tab.</li>
-                <li className="text-sm text-foreground leading-relaxed">Only binary files belong there — text output should stream through <Code>TEXT_MESSAGE_CONTENT</Code> instead.</li>
+                <li className="text-sm text-foreground leading-relaxed">Only binary files belong there - Text output should stream through <Code>TEXT_MESSAGE_CONTENT</Code> instead.</li>
               </ul>
             </div>
           </Section>
@@ -491,7 +491,7 @@ export default function ExternalAgentIntegrationGuide() {
                 ["401 on every request", "Clock skew over 300s, or the body was re-serialized before hashing", "Sync your server clock; hash the exact raw bytes received"],
                 ["Run is cut off around 30s", "No \": ping\" sent while idle", "Send a \": ping\" comment at least every 15 seconds"],
                 ["Reply never renders", "Stream closed without RUN_FINISHED or RUN_ERROR", "Always terminate with one of the two before closing the connection"],
-                ["Duplicated or corrupted output", "RUN_STARTED was sent", "Never emit RUN_STARTED — the platform already did"],
+                ["Duplicated or corrupted output", "RUN_STARTED was sent", "Never emit RUN_STARTED - The platform already did"],
                 ["Two users' conversations bleed together", "Ids were parsed as numbers and collided", "Keep all ids as strings end to end"],
                 ["Interrupt card fails to render", "An unknown kind, or an authorizeUrl that breaks the allowlist rules", "Use one of the five documented kinds; check the authorizeUrl constraints"],
                 ["Attachments return 403", "The URL expired and was never reissued", "Download attachments immediately, before urlExpiresAt"],

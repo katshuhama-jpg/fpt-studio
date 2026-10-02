@@ -345,7 +345,7 @@ export default function TaskEditor() {
           disabled={isViewMode}
         />
         <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-          <Sparkles size={10} /> tip: describe the user intent and outcome
+          <Sparkles size={10} /> tip: Describe the user intent and outcome
         </span>
       </div>
 

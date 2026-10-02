@@ -92,7 +92,7 @@ function ScopeSummaryBanner({ summary }: { summary: NonNullable<ReturnType<typeo
         {summary.ownShared.map((row, i) => (
           <div key={i} className="flex items-baseline gap-2.5 py-1.5 text-[13.5px] leading-snug border-t border-dashed border-border first:border-t-0 first:pt-0">
             <span className="scope-summary-chip scope-summary-chip--shared">Own &amp; Shared</span>
-            <span className="text-muted-foreground">{row.verbs} — <b className="text-foreground font-semibold">{row.groups}</b></span>
+            <span className="text-muted-foreground">{row.verbs} - <b className="text-foreground font-semibold">{row.groups}</b></span>
           </div>
         ))}
         {summary.noPermissionGroups.length > 0 && (
@@ -185,7 +185,7 @@ function RoleModal({
             <h2 className="text-base font-semibold">{title}</h2>
             <p className="text-xs text-muted-foreground mt-0.5">
               {readOnly
-                ? "This is a built-in system role — view only, can't be edited."
+                ? "This is a built-in system role - View only, can't be edited."
                 : "Choose exactly what this role can do, permission by permission."}
             </p>
           </div>
@@ -218,7 +218,7 @@ function RoleModal({
               placeholder="e.g. Support Team Lead"
             />
             {isDuplicateName && (
-              <p className="text-xs text-destructive mt-1.5">This role name is already in use — please choose another.</p>
+              <p className="text-xs text-destructive mt-1.5">This role name is already in use - Please choose another.</p>
             )}
           </div>
 
@@ -452,7 +452,7 @@ function PermissionsModal({ onClose }: { onClose: () => void }) {
         <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-border shrink-0">
           <div>
             <h2 className="text-base font-semibold">Permissions</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">A read-only reference — what each permission actually allows.</p>
+            <p className="text-xs text-muted-foreground mt-0.5">A read-only reference - What each permission actually allows.</p>
           </div>
           <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground ml-4 shrink-0">
             <X size={14} />
@@ -466,7 +466,7 @@ function PermissionsModal({ onClose }: { onClose: () => void }) {
               <Info size={15} />
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Using what you already have is always free. Creating something new — even just for yourself — now requires Create permission; publishing, editing, or deleting shared workspace resources requires the permissions below.
+              Using what you already have is always free. Creating something new - Even just for yourself - Now requires Create permission; publishing, editing, or deleting shared workspace resources requires the permissions below.
             </p>
           </div>
 
@@ -605,7 +605,7 @@ export default function Roles() {
       )}
 
       <div className="flex items-start justify-between gap-4">
-        <PageHeader title="Roles" desc="The default roles are ready to use — create a custom role when you need finer-grained control." />
+        <PageHeader title="Roles" desc="The default roles are ready to use - Create a custom role when you need finer-grained control." />
         <div className="flex items-center gap-2 shrink-0">
           <button onClick={() => setShowPermissions(true)} className="btn-secondary">
             <Lock size={14} /> View permissions

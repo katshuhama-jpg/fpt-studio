@@ -412,8 +412,8 @@ export default function ImportFaqModal({ open, kbId, onClose, onRefresh, onViewI
                       {visibleRows.map(r => (
                         <tr key={r.rowNumber} className="border-t border-border">
                           <td className="px-2.5 py-2 text-muted-foreground">{r.rowNumber}</td>
-                          <td className="px-2.5 py-2 max-w-[160px]"><TruncatedText text={r.question || "—"} className="text-xs" /></td>
-                          <td className="px-2.5 py-2 max-w-[200px]"><TruncatedText text={r.answer || "—"} className="text-xs text-muted-foreground" /></td>
+                          <td className="px-2.5 py-2 max-w-[160px]"><TruncatedText text={r.question || "-"} className="text-xs" /></td>
+                          <td className="px-2.5 py-2 max-w-[200px]"><TruncatedText text={r.answer || "-"} className="text-xs text-muted-foreground" /></td>
                           <td className="px-2.5 py-2 max-w-[140px]"><CategoryChips categories={r.categories} /></td>
                           <td className="px-2.5 py-2">
                             {r.result === "valid" && (

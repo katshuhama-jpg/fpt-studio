@@ -27,12 +27,12 @@ function mockReply(agent: ExternalAgent, userText: string): { content: string; o
   const t = userText.toLowerCase();
   const durationMs = 400 + (Math.abs(hashString(userText)) % 1600);
   if (t.includes("error") || t.includes("fail")) {
-    return { content: `${agent.name} couldn't complete that request — the upstream system returned an error.`, outcome: "error", durationMs };
+    return { content: `${agent.name} couldn't complete that request - The upstream system returned an error.`, outcome: "error", durationMs };
   }
   if (t.includes("interrupt") || t.includes("approve")) {
     return { content: `Before I continue, can you confirm you'd like to proceed with this action?`, outcome: "interrupt", durationMs };
   }
-  return { content: `Got it — here's a test response from ${agent.name} for: "${userText}"`, outcome: "success", durationMs };
+  return { content: `Got it - Here's a test response from ${agent.name} for: "${userText}"`, outcome: "success", durationMs };
 }
 
 function hashString(s: string): number {
@@ -96,7 +96,7 @@ export default function ExternalAgentTestTab({ agent }: { agent: ExternalAgent }
         {messages.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border bg-gradient-soft p-10 text-center">
             <p className="text-sm text-muted-foreground max-w-md mx-auto">
-              Send a message below to try this agent — each turn is one call to /runs, just like a real conversation.
+              Send a message below to try this agent - Each turn is one call to /runs, just like a real conversation.
             </p>
           </div>
         ) : (

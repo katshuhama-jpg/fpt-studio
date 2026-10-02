@@ -118,7 +118,7 @@ function ReviewSteps() {
 
 function scopeText(req: GovRequest): string {
   const t = workspaceTargetsOf(req);
-  return t.map(x => x.name).join(", ") || req.scopeSummary || "—";
+  return t.map(x => x.name).join(", ") || req.scopeSummary || "-";
 }
 
 export function AgentStatusCluster({ publishState, isAutomation, pending, rejected, rejectBannerVisible, onChanged, onOpenVersions, onOpenVersion, onPublish, onShowRejectBanner }: {
@@ -182,7 +182,7 @@ export function AgentStatusCluster({ publishState, isAutomation, pending, reject
               icon={<Pencil size={16} />}
               iconBox="bg-surface-muted text-muted-foreground"
               title="Agent chưa publish"
-              sub="Chưa ai dùng được Agent này. Publish để chia sẻ — phạm vi rộng sẽ cần Org/Unit Admin duyệt."
+              sub="Chưa ai dùng được Agent này. Publish để chia sẻ - Phạm vi rộng sẽ cần Org/Unit Admin duyệt."
             />
             <div className="px-4 py-3 border-t border-border bg-surface-muted/40 flex justify-end">
               <button onClick={onPublish} className="h-8 px-3 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium flex items-center gap-1.5 cursor-pointer transition-colors">
@@ -267,7 +267,7 @@ export function AgentStatusCluster({ publishState, isAutomation, pending, reject
           <AlertDialogHeader>
             <AlertDialogTitle>Rút yêu cầu {pending?.version}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Admin sẽ không còn thấy yêu cầu này để duyệt. Agent giữ nguyên trạng thái hiện tại — bạn có thể gửi lại bất cứ lúc nào.
+              Admin sẽ không còn thấy yêu cầu này để duyệt. Agent giữ nguyên trạng thái hiện tại - Bạn có thể gửi lại bất cứ lúc nào.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

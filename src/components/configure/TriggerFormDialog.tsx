@@ -27,7 +27,7 @@ const DESC_MAX = 200;
 const INSTRUCTIONS_MAX = 300;
 
 const CATEGORY_OPTIONS: { value: TriggerType; label: string; icon: any; desc: string }[] = [
-  { value: "manual", label: "Chạy thủ công", icon: MessageSquare, desc: "Người dùng tự bắt đầu bằng cách gõ yêu cầu — từ nút Chạy hoặc từ khung chat." },
+  { value: "manual", label: "Chạy thủ công", icon: MessageSquare, desc: "Người dùng tự bắt đầu bằng cách gõ yêu cầu - Từ nút Chạy hoặc từ khung chat." },
   { value: "scheduled", label: "Lịch", icon: Clock, desc: "Chạy agent tự động theo lịch lặp lại." },
   { value: "developer", label: "Webhook", icon: Webhook, desc: "Nhận một URL để hệ thống bên ngoài gọi (POST) và kích hoạt agent." },
   { value: "external", label: "Ứng dụng bên ngoài", icon: Globe, desc: "Kích hoạt agent khi có sự kiện ở ứng dụng khác." },
@@ -432,8 +432,8 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
   const primaryLabel =
     step === "app-config"
       ? (mode === "create"
-          ? (qwhEnabled ? "Tạo trigger" : "Tạo — xử lý sự kiện ngay khi đến")
-          : (qwhEnabled ? "Lưu trigger" : "Lưu — xử lý sự kiện ngay khi đến"))
+          ? (qwhEnabled ? "Tạo trigger" : "Tạo - Xử lý sự kiện ngay khi đến")
+          : (qwhEnabled ? "Lưu trigger" : "Lưu - Xử lý sự kiện ngay khi đến"))
       : step === "details" ? (mode === "create" ? "Tạo" : "Lưu") : "Tiếp tục";
 
   const connectedAccounts = connectedAccountStore.list(app);
@@ -490,7 +490,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
             {step === "main" ? (mode === "create" ? "Tạo Trigger mới" : "Chỉnh sửa trigger")
               : step === "details" ? categoryHeading
               : step === "app" ? "Chọn ứng dụng"
-              : step === "app-config" ? `${EXTERNAL_APP_META[app].label} — Sự kiện & điều kiện`
+              : step === "app-config" ? `${EXTERNAL_APP_META[app].label} - Sự kiện & điều kiện`
               : EXTERNAL_APP_META[app].label}
             {step === "details" && category === "scheduled" && customUnit === "cron" && (
               <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded chip-accent">CRON</span>
@@ -645,7 +645,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                     <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
                       className="w-full h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base" />
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                      Lịch được tính từ giờ bắt đầu. Ví dụ: giờ bắt đầu 10:00, mỗi 15 phút → 10:00, 10:15, 10:30…
+                      Lịch được tính từ giờ bắt đầu. Ví dụ: Giờ bắt đầu 10:00, mỗi 15 phút → 10:00, 10:15, 10:30…
                     </p>
                   </div>
                 </>
@@ -671,7 +671,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                     <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
                       className="w-full h-9 px-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base" />
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                      Lịch được tính từ giờ bắt đầu. Ví dụ: giờ bắt đầu 10:00, mỗi 2 giờ → 10:00, 12:00, 14:00…
+                      Lịch được tính từ giờ bắt đầu. Ví dụ: Giờ bắt đầu 10:00, mỗi 2 giờ → 10:00, 12:00, 14:00…
                     </p>
                   </div>
                 </>
@@ -822,7 +822,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                       errors.schedule ? "border-destructive" : "border-border focus:border-primary"
                     }`}
                   />
-                  <p className="mt-1 text-[10px] text-muted-foreground">Định dạng cron chuẩn: phút · giờ · ngày · tháng · thứ</p>
+                  <p className="mt-1 text-[10px] text-muted-foreground">Định dạng cron chuẩn: Phút · giờ · ngày · tháng · thứ</p>
                   {errors.schedule ? (
                     <p className="mt-1 text-[11px] text-destructive">{errors.schedule}</p>
                   ) : cronCheck.valid && !cronCheck.tooFrequent && (
@@ -849,10 +849,10 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                   rows={3}
                   maxLength={INSTRUCTIONS_MAX}
                   onChange={e => setScheduleInstructions(e.target.value)}
-                  placeholder="Ngữ cảnh riêng cho mỗi lần chạy — khác với Mô tả ở trên (chỉ là nhãn tĩnh của trigger)."
+                  placeholder="Ngữ cảnh riêng cho mỗi lần chạy - Khác với Mô tả ở trên (chỉ là nhãn tĩnh của trigger)."
                   className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm outline-none resize-none transition-base focus:border-primary"
                 />
-                <p className="mt-1 text-[11px] text-muted-foreground">Tuỳ chọn — đưa thêm hướng dẫn/ngữ cảnh vào mỗi lần trigger này tự chạy.</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">Tuỳ chọn - Đưa thêm hướng dẫn/ngữ cảnh vào mỗi lần trigger này tự chạy.</p>
               </div>
             </div>
           )}
@@ -862,7 +862,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
               <div className="flex items-start gap-2.5 p-2.5 rounded-lg bg-surface-muted/60">
                 <Info size={14} className="text-muted-foreground shrink-0 mt-0.5" />
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  Không cần cấu hình lịch, webhook hay kết nối ứng dụng nào — bất kỳ ai chạy Workforce này (từ nút "Chạy Workforce" hoặc khung chat) đều kích hoạt agent ngay khi gõ yêu cầu.
+                  Không cần cấu hình lịch, webhook hay kết nối ứng dụng nào - Bất kỳ ai chạy Workforce này (từ nút "Chạy Workforce" hoặc khung chat) đều kích hoạt agent ngay khi gõ yêu cầu.
                 </p>
               </div>
               <div>
@@ -875,7 +875,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                   rows={4}
                   maxLength={INSTRUCTIONS_MAX}
                   onChange={e => setInstructions(e.target.value)}
-                  placeholder='Ví dụ: "Mô tả ngắn gọn giao dịch hoặc câu hỏi của khách hàng — agent sẽ tự xử lý hoặc chuyển tiếp phù hợp."'
+                  placeholder='Ví dụ: "Mô tả ngắn gọn giao dịch hoặc câu hỏi của khách hàng - Agent sẽ tự xử lý hoặc chuyển tiếp phù hợp."'
                   className="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm outline-none resize-none transition-base focus:border-primary"
                 />
                 <p className="mt-1 text-[11px] text-muted-foreground">
@@ -983,7 +983,7 @@ export default function TriggerFormDialog({ open, onOpenChange, mode, agentId, t
                   value={requiredFields}
                   onChange={e => { setRequiredFields(e.target.value); if (errors.requiredFields) setErrors(er => ({ ...er, requiredFields: undefined })); }}
                   onBlur={() => setErrors(er => ({ ...er, requiredFields: validateDetails().requiredFields }))}
-                  placeholder="ví dụ: event, order_id"
+                  placeholder="ví dụ: Event, order_id"
                   className={`w-full h-9 px-3 rounded-lg border bg-surface text-sm outline-none transition-base ${
                     errors.requiredFields ? "border-destructive" : "border-border focus:border-primary"
                   }`}
@@ -1360,7 +1360,7 @@ function QueueWorkHoursAccordion({
           </label>
           {!enabled && (
             <p className="text-[11px] text-muted-foreground -mt-2">
-              Chưa bật — agent sẽ xử lý mọi sự kiện ngay khi nhận được.
+              Chưa bật - Agent sẽ xử lý mọi sự kiện ngay khi nhận được.
             </p>
           )}
           <div className={`space-y-4 transition-base ${enabled ? "" : "opacity-40"}`}>

@@ -132,7 +132,7 @@ export default function OrgSetupWizard() {
         <div className="flex items-start gap-2.5 rounded-xl border border-border bg-surface-muted/60 px-3.5 py-3 mt-4">
           <Building2 size={15} className="text-muted-foreground shrink-0 mt-0.5" />
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Sau khi hoàn tất, bạn sẽ vào <span className="font-medium text-foreground">Cấu trúc tổ chức</span> — nơi tự tạo chi nhánh, phòng ban và nhóm, rồi thêm thành viên thủ công hoặc bằng file CSV.
+            Sau khi hoàn tất, bạn sẽ vào <span className="font-medium text-foreground">Cấu trúc tổ chức</span> - Nơi tự tạo chi nhánh, phòng ban và nhóm, rồi thêm thành viên thủ công hoặc bằng file CSV.
           </p>
         </div>
 

@@ -36,8 +36,8 @@ export const AGENT_CAPABILITIES: AgentCapability[] = [
   },
   {
     id: "file-write",
-    name: "Hệ thống file ảo — ghi file",
-    description: "Cho phép Agent thao tác với hệ thống file — thêm, sửa, xóa.",
+    name: "Hệ thống file ảo - Ghi file",
+    description: "Cho phép Agent thao tác với hệ thống file - Thêm, sửa, xóa.",
     note: "Chỉ ghi được trong /memories/ và /artifacts/; các file cấu hình luôn bị từ chối.",
   },
   {
@@ -50,13 +50,13 @@ export const AGENT_CAPABILITIES: AgentCapability[] = [
     id: "ask-user",
     name: "Hỏi lại người dùng (HITL)",
     description: "Cho phép Agent sinh ra khung chat chứa câu hỏi và lựa chọn khi hỏi lại người dùng.",
-    note: "Một số kênh không hiển thị được khung câu hỏi — tắt nếu kênh triển khai không hỗ trợ.",
+    note: "Một số kênh không hiển thị được khung câu hỏi - Tắt nếu kênh triển khai không hỗ trợ.",
   },
   {
     id: "rich-carousel",
     name: "Tin nhắn dạng Carousel",
     description: "Cho phép Agent sinh ra định dạng Carousel.",
-    note: "Một số kênh không hiển thị được ảnh/tiêu đề dạng khung — tắt nếu kênh không hỗ trợ.",
+    note: "Một số kênh không hiển thị được ảnh/tiêu đề dạng khung - Tắt nếu kênh không hỗ trợ.",
   },
   {
     id: "sub-agent-delegation",

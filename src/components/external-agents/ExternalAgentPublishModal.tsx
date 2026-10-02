@@ -133,7 +133,7 @@ export default function ExternalAgentPublishModal({ agent, open, onClose, onPubl
       <DialogContent className="sm:max-w-xl p-0 gap-0 flex flex-col max-h-[90vh] overflow-hidden">
         <DialogHeader className="px-6 pt-5 pb-4 border-b border-border shrink-0">
           <DialogTitle className="font-display">Lưu phiên bản</DialogTitle>
-          <p className="text-sm text-muted-foreground mt-0.5">Tạo {versionName} — chọn nơi triển khai.</p>
+          <p className="text-sm text-muted-foreground mt-0.5">Tạo {versionName} - Chọn nơi triển khai.</p>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">

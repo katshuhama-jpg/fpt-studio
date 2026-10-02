@@ -4,7 +4,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
  * listing the rest, and wraps instead of forcing the row wider than the table. Shared by the
  * FAQ table and the import-preview results table so both look identical. */
 export function CategoryChips({ categories }: { categories: string[] }) {
-  if (categories.length === 0) return <span className="text-xs text-muted-foreground">—</span>;
+  if (categories.length === 0) return <span className="text-xs text-muted-foreground">-</span>;
   const shown = categories.slice(0, 3);
   const rest = categories.slice(3);
   return (

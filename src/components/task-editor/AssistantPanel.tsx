@@ -143,7 +143,7 @@ export default function AssistantPanel({ open, onClose, nodes, edges, setGraph }
             value={input}
             onChange={e => onInputChange(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }}
-            placeholder='Ask in natural language — type "/" or "@" to mention a node'
+            placeholder='Ask in natural language - Type "/" or "@" to mention a node'
             className="flex-1 px-2 py-1.5 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary resize-none"
           />
           <button onClick={() => submit()} disabled={!input.trim()}

@@ -161,7 +161,7 @@ export default function TriggersTab({ agentId, onChange }: {
         <div>
           <h2 className="font-display text-xl font-semibold">Trigger</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Trigger giúp agent tự chạy — theo lịch, qua webhook, hoặc theo sự kiện từ ứng dụng bên ngoài.
+            Trigger giúp agent tự chạy - Theo lịch, qua webhook, hoặc theo sự kiện từ ứng dụng bên ngoài.
           </p>
           {isDraft && !isEmpty && (
             <p className="text-xs text-muted-foreground mt-1">Trigger sẽ bắt đầu chạy sau khi bạn publish agent này.</p>
@@ -427,7 +427,7 @@ function RowMenu({ enabled, needsSetup, duplicateBlocked, enableBlocked, onToggl
                   Bật trigger
                 </span>
               </TooltipTrigger>
-              <TooltipContent side="left" sideOffset={8} align="center">Agent đang dùng kết nối riêng — xử lý việc này trước khi bật trigger.</TooltipContent>
+              <TooltipContent side="left" sideOffset={8} align="center">Agent đang dùng kết nối riêng - Xử lý việc này trước khi bật trigger.</TooltipContent>
             </Tooltip>
           ) : (
             <button

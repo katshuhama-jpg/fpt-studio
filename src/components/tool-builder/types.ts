@@ -196,7 +196,7 @@ export const builtinCatalog: BuiltinToolSet[] = [
   {
     setId: "web-search",
     name: "Web Search",
-    description: "Search the web and fetch page contents — no setup required.",
+    description: "Search the web and fetch page contents - No setup required.",
     category: "Web",
     pluginAvatar: "🌐",
     toolCount: 2,

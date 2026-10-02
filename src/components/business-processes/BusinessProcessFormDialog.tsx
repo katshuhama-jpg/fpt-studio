@@ -235,7 +235,7 @@ export default function BusinessProcessFormDialog({ open, onOpenChange, mode, ag
             label="Instruction"
             required
             error={errors.instruction}
-            hint="Tip: describe instructions clearly using sequence numbers or bullet points."
+            hint="Tip: Describe instructions clearly using sequence numbers or bullet points."
           >
             <textarea
               value={instruction}

@@ -66,7 +66,7 @@ export default function TriggerConfigDrawer({
             </div>
             <p className="text-sm font-medium mb-1">Chưa kết nối tới Agent</p>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Kéo một đường nối từ Trigger này sang một Agent để chọn trigger thật của Agent đó — trigger được cấu hình theo từng Agent, giống như ở trang Agent Builder.
+              Kéo một đường nối từ Trigger này sang một Agent để chọn trigger thật của Agent đó - Trigger được cấu hình theo từng Agent, giống như ở trang Agent Builder.
             </p>
           </div>
         ) : (
@@ -80,7 +80,7 @@ export default function TriggerConfigDrawer({
               <div className="rounded-xl border border-dashed border-border p-5 text-center mb-3">
                 <p className="text-sm font-medium mb-1">Agent này chưa có trigger nào</p>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Tạo trigger đầu tiên — theo lịch, webhook, hoặc sự kiện từ ứng dụng bên ngoài.
+                  Tạo trigger đầu tiên - Theo lịch, webhook, hoặc sự kiện từ ứng dụng bên ngoài.
                 </p>
               </div>
             ) : (
@@ -135,7 +135,7 @@ export default function TriggerConfigDrawer({
             </button>
 
             <p className="text-xs text-muted-foreground mt-4 leading-relaxed">
-              Trigger là điểm bắt đầu của Workforce này — dùng chung danh sách trigger với trang Agent Builder của {agent?.name ?? "agent này"}. Chọn hoặc tạo một trigger để Workforce có thể chạy.
+              Trigger là điểm bắt đầu của Workforce này - Dùng chung danh sách trigger với trang Agent Builder của {agent?.name ?? "agent này"}. Chọn hoặc tạo một trigger để Workforce có thể chạy.
             </p>
           </>
         )}

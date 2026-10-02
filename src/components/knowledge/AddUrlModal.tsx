@@ -260,7 +260,7 @@ export default function AddUrlModal({ open, kbId, agentId, defaultFolderId, onCl
                     {invalidCount > 0 && (
                       <div className="mt-1.5 space-y-1">
                         {urlChips.filter(c => c.error).map((c, i) => (
-                          <p key={i} className="text-xs text-destructive leading-relaxed">{c.value} — {c.error}</p>
+                          <p key={i} className="text-xs text-destructive leading-relaxed">{c.value} - {c.error}</p>
                         ))}
                       </div>
                     )}

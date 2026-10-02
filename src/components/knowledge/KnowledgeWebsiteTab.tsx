@@ -303,7 +303,7 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
                     )}
                   </td>
                   <td className="px-2 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                    {u.isFolder ? "—" : u.lastSyncAt ? (
+                    {u.isFolder ? "-" : u.lastSyncAt ? (
                       <span className="flex items-center gap-1.5">
                         {u.lastSyncOk === false && (
                           <Tooltip delayDuration={200}>

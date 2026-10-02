@@ -17,7 +17,7 @@ import { AlertTriangle } from "lucide-react";
  * Also reused by TriggerNode.tsx itself (with a different `text`) for its own two "won't fire"
  * states — not connected to an Agent yet, or connected but no real trigger picked — so every
  * "this node can't run" signal on the canvas shares one look. */
-export default function MissingTriggerNotice({ text = "Không có Trigger nào dẫn tới — sẽ không chạy" }: { text?: string }) {
+export default function MissingTriggerNotice({ text = "Không có Trigger nào dẫn tới - Sẽ không chạy" }: { text?: string }) {
   return (
     <div
       className="flex items-center gap-[6px]"

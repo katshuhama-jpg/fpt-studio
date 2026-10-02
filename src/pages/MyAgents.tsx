@@ -104,9 +104,9 @@ export default function MyAgents() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-w-2xl mx-auto text-left">
                 {[
                   { icon: MessageSquare, label: "Summarize this customer call transcript" },
-                  { icon: Bot, label: "@HR Onboarding — what's the leave policy?" },
+                  { icon: Bot, label: "@HR Onboarding - What's the leave policy?" },
                   { icon: Sparkles, label: "Draft a release note from these commits" },
-                  { icon: AtSign, label: "@Banking ABC — how do I lock my card?" },
+                  { icon: AtSign, label: "@Banking ABC - How do I lock my card?" },
                 ].map((s, i) => (
                   <button
                     key={i}

@@ -258,7 +258,7 @@ function AddUserToRoleModal({
               <div className="text-xs text-foreground leading-relaxed">
                 {alreadyAssigned.map(({ member, roleName }, i) => (
                   <span key={member.id}>
-                    <span className="font-medium">{member.name}</span> — currently <span className="font-medium">{roleName}</span>
+                    <span className="font-medium">{member.name}</span> - Currently <span className="font-medium">{roleName}</span>
                     {i < alreadyAssigned.length - 1 ? ", " : ". "}
                   </span>
                 ))}
@@ -280,7 +280,7 @@ function AddUserToRoleModal({
               <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             </div>
             <p className="text-xs text-muted-foreground mt-1.5">
-              This role's permissions only apply within each selected person's current unit — not the whole organization or other units.
+              This role's permissions only apply within each selected person's current unit - Not the whole organization or other units.
             </p>
           </div>
         </div>
@@ -482,11 +482,11 @@ export default function Members() {
                         onAssign={assignRole}
                       />
                       <div className="min-w-0">
-                        <div className="text-sm truncate">{m.invitedBy?.name ?? "—"}</div>
+                        <div className="text-sm truncate">{m.invitedBy?.name ?? "-"}</div>
                         {m.invitedBy?.email && <div className="text-xs text-muted-foreground truncate">{m.invitedBy.email}</div>}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {m.joinedAt ? format(new Date(m.joinedAt), "dd/MM/yyyy - HH:mm") : "—"}
+                        {m.joinedAt ? format(new Date(m.joinedAt), "dd/MM/yyyy - HH:mm") : "-"}
                       </div>
                       <button
                         type="button"

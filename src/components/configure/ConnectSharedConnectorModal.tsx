@@ -405,7 +405,7 @@ export default function ConnectSharedConnectorModal({
                 ))}
               </div>
               <p className="text-xs text-muted-foreground mt-2.5 leading-relaxed">
-                Auto: agent tự chạy. Ask: hỏi người dùng trước khi chạy. Block: không cho chạy action này.
+                Auto: Agent tự chạy. Ask: Hỏi người dùng trước khi chạy. Block: Không cho chạy action này.
               </p>
             </div>
             <div className="flex items-center justify-between gap-2 px-6 py-4 border-t shrink-0">

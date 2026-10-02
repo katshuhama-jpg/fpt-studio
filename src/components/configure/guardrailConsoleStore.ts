@@ -71,7 +71,7 @@ function seed() {
   const DAY = 86_400_000;
   const put = (g: StoredGuardrail) => store.set(g.id, g);
 
-  put({ id: "g-1", name: "PII protection",            desc: "Never expose personal identifiers — CCID, passport, phone — in any response.",          action: "Autogenerate response", mandatory: true,  agents: [], enabled: true, attachedByAgentIds: [], createdAt: now - 90 * DAY, updatedAt: now - 90 * DAY });
+  put({ id: "g-1", name: "PII protection",            desc: "Never expose personal identifiers - CCID, passport, phone - In any response.",          action: "Autogenerate response", mandatory: true,  agents: [], enabled: true, attachedByAgentIds: [], createdAt: now - 90 * DAY, updatedAt: now - 90 * DAY });
   put({ id: "g-2", name: "Prohibited content filter", desc: "Block violent, adult, or discriminatory content across all channels.",                    action: "Autogenerate response", mandatory: true,  agents: [], enabled: true, attachedByAgentIds: [], createdAt: now - 90 * DAY, updatedAt: now - 90 * DAY });
   put({ id: "g-3", name: "Compliance disclaimer",     desc: "Append regulatory disclaimer to all financial and legal responses.",                      action: "Custom response",       mandatory: true,  agents: [], enabled: true, attachedByAgentIds: [], createdAt: now - 90 * DAY, updatedAt: now - 90 * DAY });
   put({
@@ -81,7 +81,7 @@ function seed() {
     enabled: true, ownerId: "m-fsoft-ceo", ownerName: "Tran Nam", sharing: { mode: "all", people: [] },
     attachedByAgentIds: ["cskh"], createdAt: now - 20 * DAY, updatedAt: now - 2 * 3_600_000,
   });
-  put({ id: "g-5", name: "Legal and medical advice", desc: "Do not provide legal or medical advice — refer to a specialist.", action: "Custom response", mandatory: false, agents: [], allAgents: true, enabled: true, ...G5_OWNER, attachedByAgentIds: [], createdAt: now - 60 * DAY, updatedAt: now - 60 * DAY });
+  put({ id: "g-5", name: "Legal and medical advice", desc: "Do not provide legal or medical advice - Refer to a specialist.", action: "Custom response", mandatory: false, agents: [], allAgents: true, enabled: true, ...G5_OWNER, attachedByAgentIds: [], createdAt: now - 60 * DAY, updatedAt: now - 60 * DAY });
   put({
     id: "g-6", name: "Escalate risky replies", desc: "Human approval for any commitments about future roadmap.",
     action: "Require approval", mandatory: false, agents: [{ name: "Sales Qualifier", color: "#d97706" }], enabled: false,
@@ -103,7 +103,7 @@ function seed() {
     attachedByAgentIds: [], createdAt: now - 10 * DAY, updatedAt: now - 10 * DAY,
   });
   put({
-    id: "g-9", name: "Vendor pricing disclosure", desc: "Never quote vendor cost prices — only publicly listed retail prices.",
+    id: "g-9", name: "Vendor pricing disclosure", desc: "Never quote vendor cost prices - Only publicly listed retail prices.",
     action: "Custom response", mandatory: false, agents: [],
     enabled: true, ownerId: "m-plat-1", ownerName: "Mai Hoang",
     sharing: { mode: "specific", people: [{ userId: "m-fsoft-ceo", name: "Tran Nam", email: "tran.nam@fpt.com", access: "view" }] },

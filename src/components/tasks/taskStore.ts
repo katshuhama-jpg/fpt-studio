@@ -55,7 +55,7 @@ function seedAgent(agentId: string) {
     {
       id: "sys-generate-knowledge-response",
       name: "Generate Knowledge Response",
-      purpose: "Default system task. 15-node flow that handles 3 cases: file on MyAgent, KB answer, other.",
+      purpose: "Default system task. 15-node flow that handles 3 cases: File on MyAgent, KB answer, other.",
       kind: "system",
       updatedAt: now - 86_400_000 * 7,
       publishedAt: now - 86_400_000 * 7,

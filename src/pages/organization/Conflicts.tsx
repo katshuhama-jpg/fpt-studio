@@ -67,9 +67,9 @@ function ResolveModal({ conflict, onClose }: { conflict: Conflict; onClose: () =
         </p>
         <CompareRow
           leftLabel="Currently in Agent Console"
-          leftValue={currentUnit ? unitPathLabel(tree, currentUnit.id) : "—"}
+          leftValue={currentUnit ? unitPathLabel(tree, currentUnit.id) : "-"}
           rightLabel="From Auto Sync (FPT Identity)"
-          rightValue={syncedUnit ? unitPathLabel(tree, syncedUnit.id) : "—"}
+          rightValue={syncedUnit ? unitPathLabel(tree, syncedUnit.id) : "-"}
         />
       </>
     );
@@ -89,7 +89,7 @@ function ResolveModal({ conflict, onClose }: { conflict: Conflict; onClose: () =
         <button
           type="button"
           onClick={() =>
-            apply(`Kept ${member?.name ?? conflict.memberId} in "${currentUnit?.name ?? conflict.currentUnitId}" per the manual decision — ignoring this Auto Sync suggestion for now.`)
+            apply(`Kept ${member?.name ?? conflict.memberId} in "${currentUnit?.name ?? conflict.currentUnitId}" per the manual decision - Ignoring this Auto Sync suggestion for now.`)
           }
           className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base"
         >
@@ -103,11 +103,11 @@ function ResolveModal({ conflict, onClose }: { conflict: Conflict; onClose: () =
     body = (
       <>
         <p className="text-sm text-muted-foreground mb-4">
-          Auto Sync is proposing a unit named <span className="font-semibold text-foreground">"{conflict.incomingUnitName}"</span> — matching the name of a unit that already exists in Agent Console, but under a different branch of the organization.
+          Auto Sync is proposing a unit named <span className="font-semibold text-foreground">"{conflict.incomingUnitName}"</span> - Matching the name of a unit that already exists in Agent Console, but under a different branch of the organization.
         </p>
         <CompareRow
           leftLabel="Already in Agent Console"
-          leftValue={existingUnit ? unitPathLabel(tree, existingUnit.id) : "—"}
+          leftValue={existingUnit ? unitPathLabel(tree, existingUnit.id) : "-"}
           rightLabel="Proposed by Auto Sync"
           rightValue={incomingParent ? `${unitPathLabel(tree, incomingParent.id)} › ${conflict.incomingUnitName}` : conflict.incomingUnitName}
         />
@@ -119,7 +119,7 @@ function ResolveModal({ conflict, onClose }: { conflict: Conflict; onClose: () =
           type="button"
           onClick={() =>
             apply(
-              `Created "${conflict.incomingUnitName}" as a separate unit under "${incomingParent?.name ?? conflict.incomingParentUnitId}" — not merged with "${existingUnit?.name ?? conflict.existingUnitId}".`,
+              `Created "${conflict.incomingUnitName}" as a separate unit under "${incomingParent?.name ?? conflict.incomingParentUnitId}" - Not merged with "${existingUnit?.name ?? conflict.existingUnitId}".`,
               () => createUnit(conflict.incomingParentUnitId, conflict.incomingUnitName)
             )
           }
@@ -131,12 +131,12 @@ function ResolveModal({ conflict, onClose }: { conflict: Conflict; onClose: () =
           type="button"
           onClick={() =>
             apply(
-              `Treated "${conflict.incomingUnitName}" (Auto Sync) and "${existingUnit?.name ?? conflict.existingUnitId}" as the same unit — no new unit created; future Auto Sync members for this unit will be placed into "${existingUnit?.name ?? conflict.existingUnitId}".`
+              `Treated "${conflict.incomingUnitName}" (Auto Sync) and "${existingUnit?.name ?? conflict.existingUnitId}" as the same unit - No new unit created; future Auto Sync members for this unit will be placed into "${existingUnit?.name ?? conflict.existingUnitId}".`
             )
           }
           className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base"
         >
-          Same unit — don't create new
+          Same unit - Don't create new
         </button>
       </>
     );
@@ -149,7 +149,7 @@ function ResolveModal({ conflict, onClose }: { conflict: Conflict; onClose: () =
         </p>
         <div className="rounded-lg border border-destructive/30 bg-destructive-soft/40 p-3">
           <div className="text-[11px] font-semibold uppercase tracking-wider text-destructive mb-1">Current status</div>
-          <div className="text-sm font-medium">Active — still has a role and workspace access</div>
+          <div className="text-sm font-medium">Active - Still has a role and workspace access</div>
         </div>
       </>
     );
@@ -158,7 +158,7 @@ function ResolveModal({ conflict, onClose }: { conflict: Conflict; onClose: () =
         <button
           type="button"
           onClick={() =>
-            apply(`Marked ${member?.name ?? conflict.memberId} as Inactive per Auto Sync — role/permissions kept for reference, no data deleted.`, () =>
+            apply(`Marked ${member?.name ?? conflict.memberId} as Inactive per Auto Sync - Role/permissions kept for reference, no data deleted.`, () =>
               setMemberInactive(conflict.memberId, true)
             )
           }
@@ -169,7 +169,7 @@ function ResolveModal({ conflict, onClose }: { conflict: Conflict; onClose: () =
         <button
           type="button"
           onClick={() =>
-            apply(`Kept ${member?.name ?? conflict.memberId} as Active — could be a temporary sync glitch from FPT Identity, will re-check on the next sync.`)
+            apply(`Kept ${member?.name ?? conflict.memberId} as Active - Could be a temporary sync glitch from FPT Identity, will re-check on the next sync.`)
           }
           className="h-9 px-4 rounded-xl border border-border text-sm font-medium hover:bg-surface-muted transition-base"
         >
@@ -189,7 +189,7 @@ function ResolveModal({ conflict, onClose }: { conflict: Conflict; onClose: () =
               <meta.icon size={16} />
             </div>
             <div>
-              <h2 className="text-base font-semibold">Resolve conflict — {meta.label}</h2>
+              <h2 className="text-base font-semibold">Resolve conflict - {meta.label}</h2>
               <p className="text-xs text-muted-foreground mt-0.5">{conflict.reason}</p>
             </div>
           </div>

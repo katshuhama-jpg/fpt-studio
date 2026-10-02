@@ -62,7 +62,7 @@ export default function WorkforceTracePage() {
 
   const describeRunNode = (nodeId: string): string => {
     const n = nodes.find(nn => nn.id === nodeId);
-    if (!n) return "—";
+    if (!n) return "-";
     switch (n.data.kind) {
       case "agent": return AGENTS.find(a => a.id === n.data.agentId)?.name ?? "Agent";
       case "omni": return "Omni Supports";
@@ -73,7 +73,7 @@ export default function WorkforceTracePage() {
         const record = agentId && n.data.triggerId ? triggerStore.get(agentId, n.data.triggerId) : undefined;
         return record?.name ?? "Trigger";
       }
-      default: return "—";
+      default: return "-";
     }
   };
 

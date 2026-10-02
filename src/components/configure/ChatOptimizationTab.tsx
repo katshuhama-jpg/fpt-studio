@@ -37,7 +37,7 @@ export default function ChatOptimizationTab({ agentId }: { agentId: string }) {
       <div className="mb-5">
         <h2 className="font-display text-xl font-semibold">Chat optimization</h2>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Tune how the agent presents responses — citations, openers, buttons, rich media, and follow-ups.
+          Tune how the agent presents responses - Citations, openers, buttons, rich media, and follow-ups.
         </p>
       </div>
 

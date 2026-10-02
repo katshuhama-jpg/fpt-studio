@@ -152,7 +152,7 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
                   <label className="text-sm font-medium">Ví dụ mẫu</label>
                   <span className={`text-xs ${samples.length > 2000 ? "text-destructive" : "text-muted-foreground"}`}>{samples.length}/2000</span>
                 </div>
-                <p className="text-xs text-primary mb-1.5 italic">Mẹo: mỗi ví dụ nằm trên một dòng riêng.</p>
+                <p className="text-xs text-primary mb-1.5 italic">Mẹo: Mỗi ví dụ nằm trên một dòng riêng.</p>
                 <textarea
                   disabled={readOnly}
                   rows={4}

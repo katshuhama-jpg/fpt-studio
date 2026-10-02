@@ -159,10 +159,10 @@ function MemberModal({
             ) : otherOrgMemberships.length > 0 ? (
               <p className="text-xs text-muted-foreground mt-1.5">
                 Email này đã có mặt ở <span className="font-medium text-foreground">{otherOrgMemberships[0].tenantName}</span>
-                {otherOrgMemberships.length > 1 ? ` và ${otherOrgMemberships.length - 1} tổ chức khác` : ""} — vẫn có thể thêm vào đây, với vai trò riêng.
+                {otherOrgMemberships.length > 1 ? ` và ${otherOrgMemberships.length - 1} tổ chức khác` : ""} - Vẫn có thể thêm vào đây, với vai trò riêng.
               </p>
             ) : sameOrgElsewhere ? (
-              <p className="text-xs text-muted-foreground mt-1.5">Email này đã có mặt ở một đơn vị khác trong tổ chức — sẽ có mặt ở cả hai nơi sau khi thêm.</p>
+              <p className="text-xs text-muted-foreground mt-1.5">Email này đã có mặt ở một đơn vị khác trong tổ chức - Sẽ có mặt ở cả hai nơi sau khi thêm.</p>
             ) : !isEdit && (
               <p className="text-xs text-muted-foreground mt-1.5">Their name will be picked up automatically once they accept the invite.</p>
             )}
@@ -203,7 +203,7 @@ function MemberModal({
                 <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               </div>
               <p className="text-xs text-muted-foreground mt-1.5">
-                This role's permissions only apply within {selectedUnitName ?? "the current unit"} — not other units. If the member moves to a different unit, the scope moves with them.
+                This role's permissions only apply within {selectedUnitName ?? "the current unit"} - Not other units. If the member moves to a different unit, the scope moves with them.
                 Making someone a Unit Admin is separate, and lets you choose exactly which resource types they approve.
               </p>
             </div>
@@ -431,7 +431,7 @@ function AssignAdminPopover({
         title={
           candidates.length === 0
             ? "Mọi thành viên trong đơn vị này đã là Unit Admin"
-            : "Thêm vào Unit Admins — có thể đổi lại cho từng người ngay trong danh sách bên dưới."
+            : "Thêm vào Unit Admins - Có thể đổi lại cho từng người ngay trong danh sách bên dưới."
         }
         className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-glow transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-primary shrink-0"
       >
@@ -608,7 +608,7 @@ export default function OrgStructureExplorer() {
             }
             if (result.skipped > 0) {
               toast.error(
-                `${result.skipped} thành viên chưa được import — Personal Space đã đạt giới hạn ${PERSONAL_SPACE_MEMBER_CAP} thành viên. Nâng cấp lên gói doanh nghiệp để thêm.`
+                `${result.skipped} thành viên chưa được import - Personal Space đã đạt giới hạn ${PERSONAL_SPACE_MEMBER_CAP} thành viên. Nâng cấp lên gói doanh nghiệp để thêm.`
               );
             }
           }}
@@ -819,7 +819,7 @@ export default function OrgStructureExplorer() {
           </p>
           {effectiveAdmins.length === 0 ? (
             <div className="text-sm text-muted-foreground border border-dashed border-border rounded-lg py-4 text-center">
-              Chưa có Unit Admin nào — gán ở trên.
+              Chưa có Unit Admin nào - Gán ở trên.
             </div>
           ) : (
             <div className="border border-border rounded-xl overflow-hidden">
@@ -842,7 +842,7 @@ export default function OrgStructureExplorer() {
                           title={
                             group.isDirect
                               ? `Được gán Unit Admin trực tiếp tại "${group.sourceUnit.name}".`
-                              : `Được gán Unit Admin tại "${group.sourceUnit.name}" — quyền duyệt publish được kế thừa xuống "${selected.name}".`
+                              : `Được gán Unit Admin tại "${group.sourceUnit.name}" - Quyền duyệt publish được kế thừa xuống "${selected.name}".`
                           }
                         >
                           {group.isDirect ? `Trực tiếp tại ${group.sourceUnit.name}` : `Kế thừa từ ${group.sourceUnit.name}`}

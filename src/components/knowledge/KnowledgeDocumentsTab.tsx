@@ -255,14 +255,14 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                               </span>
                             </TooltipTrigger>
                             <TooltipContent className="max-w-[260px]">
-                              {d.statusReason || "Không thể xử lý — tệp có thể bị hỏng hoặc vượt quá 30MB. Vui lòng kiểm tra và tải lại."}
+                              {d.statusReason || "Không thể xử lý - Tệp có thể bị hỏng hoặc vượt quá 30MB. Vui lòng kiểm tra và tải lại."}
                             </TooltipContent>
                           </Tooltip>
                         )}
                       </div>
                     )}
                   </td>
-                  <td className="px-2 py-3 text-xs text-muted-foreground whitespace-nowrap">{d.isFolder ? "—" : formatFileSize(d.sizeBytes)}</td>
+                  <td className="px-2 py-3 text-xs text-muted-foreground whitespace-nowrap">{d.isFolder ? "-" : formatFileSize(d.sizeBytes)}</td>
                   <td className="px-2 py-3">
                     {!d.isFolder && (
                       <Tooltip delayDuration={200}>

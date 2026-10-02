@@ -99,12 +99,12 @@ export interface TriggerRecord {
 }
 
 export const TIMEZONE_OPTIONS: { value: string; label: string }[] = [
-  { value: "GMT+07:00", label: "GMT+07:00 — Vietnam, Bangkok, Jakarta" },
-  { value: "GMT+08:00", label: "GMT+08:00 — Singapore, Hong Kong, Manila" },
-  { value: "GMT+09:00", label: "GMT+09:00 — Tokyo, Seoul" },
-  { value: "GMT+00:00", label: "GMT+00:00 — UTC" },
-  { value: "GMT-05:00", label: "GMT-05:00 — US Eastern" },
-  { value: "GMT-08:00", label: "GMT-08:00 — US Pacific" },
+  { value: "GMT+07:00", label: "GMT+07:00 - Vietnam, Bangkok, Jakarta" },
+  { value: "GMT+08:00", label: "GMT+08:00 - Singapore, Hong Kong, Manila" },
+  { value: "GMT+09:00", label: "GMT+09:00 - Tokyo, Seoul" },
+  { value: "GMT+00:00", label: "GMT+00:00 - UTC" },
+  { value: "GMT-05:00", label: "GMT-05:00 - US Eastern" },
+  { value: "GMT-08:00", label: "GMT-08:00 - US Pacific" },
 ];
 
 /** Ordered list driving the app picker grid — extend here to add a new app. */
@@ -192,8 +192,8 @@ export const TASKS_PERIOD_UNIT_OPTIONS: { value: "hour" | "day" | "week"; label:
 
 export const DRIVE_OPTIONS: { value: string; label: string }[] = [
   { value: "my-drive", label: "My Drive" },
-  { value: "shared-sales", label: "Shared Drive — Sales" },
-  { value: "shared-support", label: "Shared Drive — Support" },
+  { value: "shared-sales", label: "Shared Drive - Sales" },
+  { value: "shared-support", label: "Shared Drive - Support" },
 ];
 
 export const DRIVE_FOLDER_OPTIONS: { value: string; label: string }[] = [
@@ -244,7 +244,7 @@ function seedSalesQuoteTrigger() {
     name: "Yêu cầu báo giá từ Workspace",
     type: "manual",
     enabled: true,
-    description: "Nhân viên Kinh doanh gõ yêu cầu báo giá trực tiếp trong Workspace — bắt đầu Workforce này.",
+    description: "Nhân viên Kinh doanh gõ yêu cầu báo giá trực tiếp trong Workspace - Bắt đầu Workforce này.",
     config: { manual: { instructions: "Nhập tên khách hàng, sản phẩm/dịch vụ và mức chiết khấu đề xuất." } },
     lastFiredAt: now - 2 * 3_600_000,
     createdAt: now - 86_400_000 * 6,
@@ -265,7 +265,7 @@ function seedCskhWebhookTrigger() {
     name: "Nhận tin nhắn từ khách hàng",
     type: "developer",
     enabled: true,
-    description: "Từ kênh chat hoặc API — bắt đầu Workforce này.",
+    description: "Từ kênh chat hoặc API - Bắt đầu Workforce này.",
     config: {
       developer: {
         webhookUrl: "https://agents.fpt.ai/console/api/webhooks/triggers/01M0CSKHWEBHOOK0000000000",

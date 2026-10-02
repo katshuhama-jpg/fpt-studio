@@ -7,8 +7,8 @@ import type { HumanTaskKind } from "./types";
 // matching Relevance AI's model instead of a Person node whose Duyệt/Từ chối outcome had to be
 // routed via a Condition rule on a variable (`outcome`) that never actually existed.
 const TASK_KIND_OPTIONS: { value: HumanTaskKind; label: string; desc: string; icon: typeof ListChecks }[] = [
-  { value: "do", label: "Cần thực hiện", desc: "Một việc được giao — luồng tiếp tục sau khi hoàn thành.", icon: ListChecks },
-  { value: "notify", label: "Thông báo", desc: "Chỉ báo cho người này biết — không cần phản hồi, kết thúc ở đây.", icon: UserIcon },
+  { value: "do", label: "Cần thực hiện", desc: "Một việc được giao - Luồng tiếp tục sau khi hoàn thành.", icon: ListChecks },
+  { value: "notify", label: "Thông báo", desc: "Chỉ báo cho người này biết - Không cần phản hồi, kết thúc ở đây.", icon: UserIcon },
 ];
 
 const SLA_PRESETS = [15, 30, 60, 240, 1440];

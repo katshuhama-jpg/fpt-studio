@@ -29,7 +29,7 @@ export default function CreateSkillChoiceModal({ onClose, onChooseManual, onChoo
             <span className="w-8 h-8 rounded-lg bg-primary-soft text-primary flex items-center justify-center shrink-0"><PencilLine size={15} /></span>
             <span className="min-w-0 flex-1">
               <span className="block text-sm font-medium">Viết hướng dẫn kỹ năng</span>
-              <span className="block text-xs text-muted-foreground mt-0.5">Soạn kỹ năng trực tiếp — mô tả bằng AI hoặc điền form thủ công.</span>
+              <span className="block text-xs text-muted-foreground mt-0.5">Soạn kỹ năng trực tiếp - Mô tả bằng AI hoặc điền form thủ công.</span>
             </span>
             <ChevronRight size={16} className="text-muted-foreground shrink-0 mt-1" />
           </button>

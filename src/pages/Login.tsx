@@ -41,7 +41,7 @@ export default function Login() {
             Build AI agents <br /> for your team.
           </h1>
           <p className="text-base text-muted-foreground max-w-md">
-            Automate workflows, connect your tools, and create reusable AI assistants — all in one workspace.
+            Automate workflows, connect your tools, and create reusable AI assistants - All in one workspace.
           </p>
 
           <div className="mt-12 grid gap-3 max-w-sm">

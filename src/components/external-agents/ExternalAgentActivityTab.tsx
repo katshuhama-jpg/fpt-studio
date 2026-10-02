@@ -44,7 +44,7 @@ export default function ExternalAgentActivityTab({ agentId }: { agentId: string 
     <div className="flex-1 overflow-y-auto p-8">
       <div className="mb-4">
         <h2 className="font-display text-xl font-semibold">Activity</h2>
-        <p className="text-sm text-muted-foreground mt-0.5">Every connection lifecycle event — created, updated, submitted, approved, rejected, published, unpublished, paused, resumed.</p>
+        <p className="text-sm text-muted-foreground mt-0.5">Every connection lifecycle event - Created, updated, submitted, approved, rejected, published, unpublished, paused, resumed.</p>
       </div>
 
       <div className="relative mb-2.5">
@@ -94,7 +94,7 @@ export default function ExternalAgentActivityTab({ agentId }: { agentId: string 
                     </div>
                   </td>
                   <td className="px-4 py-2.5 text-sm text-muted-foreground whitespace-nowrap">{e.actor}</td>
-                  <td className="px-4 py-2.5 text-sm text-muted-foreground truncate max-w-[320px]" title={e.detail}>{e.detail ?? "—"}</td>
+                  <td className="px-4 py-2.5 text-sm text-muted-foreground truncate max-w-[320px]" title={e.detail}>{e.detail ?? "-"}</td>
                 </tr>
               ))}
             </tbody>

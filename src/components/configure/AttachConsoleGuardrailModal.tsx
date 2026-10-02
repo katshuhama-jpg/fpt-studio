@@ -52,7 +52,7 @@ export default function AttachConsoleGuardrailModal({ agentId, userId, onClose }
         <DialogHeader>
           <DialogTitle>Liên kết guardrail</DialogTitle>
         </DialogHeader>
-        <p className="text-sm text-muted-foreground -mt-2">Agent sẽ dùng guardrail trực tiếp từ Console — nội dung không được sao chép.</p>
+        <p className="text-sm text-muted-foreground -mt-2">Agent sẽ dùng guardrail trực tiếp từ Console - Nội dung không được sao chép.</p>
 
         {all.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">Không có guardrail nào để liên kết.</p>

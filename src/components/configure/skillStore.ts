@@ -57,13 +57,13 @@ You are a sales intelligence analyst. Before important meetings, you prepare a c
 
 **Research:**
 
-- \`exa_web_search\` — Company and industry research
-- \`exa_linkedin_search\` — Attendee background
-- \`read_url_content\` — Deep-read specific pages
+- \`exa_web_search\` - Company and industry research
+- \`exa_linkedin_search\` - Attendee background
+- \`read_url_content\` - Deep-read specific pages
 
 **Delivery:**
 
-- \`slack_send_channel_message\` or \`slack_write_private_message\` — Deliver the brief
+- \`slack_send_channel_message\` or \`slack_write_private_message\` - Deliver the brief
 
 ## Workflow
 
@@ -81,7 +81,7 @@ Filter to external meetings:
 For each external attendee:
 
 - Extract their name and email domain
-- Use \`exa_linkedin_search\` to find: title, company, tenure, recent activity
+- Use \`exa_linkedin_search\` to find: Title, company, tenure, recent activity
 - Determine who is the decision-maker, who is technical, who is new to the relationship
 
 ## Step 3: Research the Account (Last 90 Days)
@@ -99,10 +99,10 @@ Use \`gmail_read_emails\` (or \`outlook_read_emails\`) with a query for the atte
 ## Step 5: Produce the Brief
 
 \`\`\`
-## Meeting: [title] — [date] [time]
+## Meeting: [title] - [date] [time]
 
 ## Attendees
-- [Name] — [Title] at [Company]
+- [Name] - [Title] at [Company]
   Key context: [relevant LinkedIn insight]
 
 ## Account Snapshot
@@ -143,7 +143,7 @@ This skill works best with Calendar + Email + Slack all connected, but adapts:
   // Tran Nam isn't in the sharing list but still sees it read-only inside that Agent.
   put({
     id: "debt-lookup", icon: "💳", iconBg: "hsl(210 60% 93%)", name: "debt-lookup",
-    description: "Use when a customer asks about an outstanding balance, due date, or payment history — look it up and answer in plain language.",
+    description: "Use when a customer asks about an outstanding balance, due date, or payment history - Look it up and answer in plain language.",
     ownerId: "m-fsoft-coo", ownerName: "Linh Phan",
     sharing: { mode: "specific", people: [{ userId: "m-fsoft-vn-1", name: "Duy Nguyen", email: "duy.nguyen@fpt.com", access: "view" }] },
     attachedByAgentIds: ["faq"],
@@ -157,7 +157,7 @@ Look up the customer's outstanding balance before answering any payment question
 3. Answer in one short paragraph; never quote internal penalty rates.
 
 ## Don't
-- Don't promise a due-date extension — hand off to a human instead.`,
+- Don't promise a due-date extension - Hand off to a human instead.`,
     createdAt: now - 12 * DAY, updatedAt: now - 3 * DAY,
   });
 
@@ -173,9 +173,9 @@ You are a market research analyst. Gather, synthesize, and deliver a competitive
 
 ## Tools You Use
 
-- \`exa_web_search\` — Company and industry research
-- \`exa_linkedin_search\` — Leadership and hiring signals
-- \`read_url_content\` — Deep-read product and pricing pages
+- \`exa_web_search\` - Company and industry research
+- \`exa_linkedin_search\` - Leadership and hiring signals
+- \`read_url_content\` - Deep-read product and pricing pages
 
 ## Workflow
 
@@ -220,7 +220,7 @@ Fetch last 3 messages in the thread if available.
 
 ## Step 3: Draft and Save
 
-Write the email and save as a draft — never send without user confirmation.`,
+Write the email and save as a draft - Never send without user confirmation.`,
     createdAt: now - 45 * DAY, updatedAt: now - 45 * DAY,
   });
 
@@ -262,12 +262,12 @@ Format digest and send via Slack or email to the configured channel.`,
     attachedByAgentIds: [],
     body: `# Vendor Pricing Lookup
 
-You look up publicly listed retail prices for a named vendor or product tier and summarize them for the user — never quote internal cost prices.
+You look up publicly listed retail prices for a named vendor or product tier and summarize them for the user - Never quote internal cost prices.
 
 ## Tools You Use
 
-- \`exa_web_search\` — Vendor pricing pages
-- \`read_url_content\` — Deep-read the pricing page
+- \`exa_web_search\` - Vendor pricing pages
+- \`read_url_content\` - Deep-read the pricing page
 
 ## Workflow
 
@@ -281,7 +281,7 @@ Search the vendor's official pricing page and read it directly.
 
 ## Step 3: Summarize
 
-Present the publicly listed price, billing period, and any notable limits — flag if pricing wasn't publicly listed.`,
+Present the publicly listed price, billing period, and any notable limits - Flag if pricing wasn't publicly listed.`,
     createdAt: now - 5 * DAY, updatedAt: now - 5 * DAY,
   });
 

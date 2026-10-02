@@ -34,7 +34,7 @@ export default function GuardrailDetailModal({ guardrail, onClose, onEdit }: {
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Mô tả</p>
-            <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{guardrail.desc || "—"}</p>
+            <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{guardrail.desc || "-"}</p>
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Phản hồi</p>

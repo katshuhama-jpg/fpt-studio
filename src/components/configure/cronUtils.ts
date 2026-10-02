@@ -114,5 +114,5 @@ export function describeCronVN(expr: string): string {
     if (month !== "*") parts.push(`(tháng ${month})`);
     return `Chạy lúc ${timePart} ${parts.join(" ")}`.trim();
   }
-  return `Chạy theo lịch: phút ${minute}, giờ ${hour}, ngày ${dom}, tháng ${month}, thứ ${dow}`;
+  return `Chạy theo lịch: Phút ${minute}, giờ ${hour}, ngày ${dom}, tháng ${month}, thứ ${dow}`;
 }

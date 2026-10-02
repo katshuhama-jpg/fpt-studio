@@ -68,7 +68,7 @@ export default function SubProcessNode({ id, data, selected }: NodeProps<SubProc
           </button>
         )}
       </div>
-      {notConfigured && <MissingTriggerNotice text="Chưa chọn Workforce — chưa sẵn sàng dùng" />}
+      {notConfigured && <MissingTriggerNotice text="Chưa chọn Workforce - Chưa sẵn sàng dùng" />}
       {missingTrigger && <MissingTriggerNotice />}
       <Handle type="source" position={Position.Right} className={HANDLE_CLASS} />
     </div>

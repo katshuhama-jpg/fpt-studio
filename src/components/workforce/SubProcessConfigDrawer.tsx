@@ -98,7 +98,7 @@ export default function SubProcessConfigDrawer({
         )}
 
         <p className="text-xs text-muted-foreground mt-4 leading-relaxed">
-          Node Sub-process gọi toàn bộ một Workforce khác làm một bước trong Workforce này — dùng để tái sử dụng một quy trình con thay vì xây lại từ đầu.
+          Node Sub-process gọi toàn bộ một Workforce khác làm một bước trong Workforce này - Dùng để tái sử dụng một quy trình con thay vì xây lại từ đầu.
         </p>
       </div>
     </aside>

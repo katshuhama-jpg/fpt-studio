@@ -210,7 +210,7 @@ export default function WorkspaceGuardrails() {
       <div className="mb-6 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div className="min-w-0">
           <h1 className="font-display text-xl font-semibold tracking-tight mb-1">Guardrails</h1>
-          <p className="text-sm text-muted-foreground truncate">Chính sách an toàn dùng chung, áp dụng được cho mọi Agent — giới hạn nội dung, bảo vệ dữ liệu, luồng phê duyệt và quy tắc tùy chỉnh.</p>
+          <p className="text-sm text-muted-foreground truncate">Chính sách an toàn dùng chung, áp dụng được cho mọi Agent - Giới hạn nội dung, bảo vệ dữ liệu, luồng phê duyệt và quy tắc tùy chỉnh.</p>
         </div>
         <button
           onClick={() => canCreateGuardrail && setShowCreate(true)}
@@ -275,7 +275,7 @@ export default function WorkspaceGuardrails() {
                 {isCreatorRedundant(tagsOf(g))
                   ? null
                   : hasOwner
-                    ? <CreatorLabel displayName={isOwner ? "Bạn" : (g.ownerName ?? "—")} fullName={g.ownerName} />
+                    ? <CreatorLabel displayName={isOwner ? "Bạn" : (g.ownerName ?? "-")} fullName={g.ownerName} />
                     : null}
               </div>
             </div>

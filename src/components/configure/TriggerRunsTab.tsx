@@ -147,7 +147,7 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
   const sharedAccountId = triggers.find(t => t.type === "external" && t.config.external?.accountId)?.config.external?.accountId;
   const sharedAccount = sharedAccountId ? connectedAccountStore.get(sharedAccountId) : undefined;
   const sharedConnectionLabel = sharedAccount
-    ? `${EXTERNAL_APP_META[sharedAccount.app].label} — ${sharedAccount.email}`
+    ? `${EXTERNAL_APP_META[sharedAccount.app].label} - ${sharedAccount.email}`
     : "Chưa có";
   const automationId = mockAutomationId(agentId);
   const isDraft = !agentPublishStore.isPublished(agentId);
@@ -303,7 +303,7 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
           <p className="text-sm text-muted-foreground max-w-md mx-auto">
             {isDraft
               ? "Chưa có lần chạy nào."
-              : "Chưa có lần chạy nào — agent sẽ xuất hiện ở đây khi trigger chạy lần đầu."}
+              : "Chưa có lần chạy nào - Agent sẽ xuất hiện ở đây khi trigger chạy lần đầu."}
           </p>
           {isDraft && (
             <p className="text-sm text-muted-foreground max-w-md mx-auto mt-1">
@@ -408,7 +408,7 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
                   {detailRun.triggerType === "scheduled" ? (
                     <p className="text-xs text-muted-foreground">Trigger loại Lịch không có payload đầu vào.</p>
                   ) : (
-                    <pre className="text-[11px] font-mono bg-surface-muted rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-all">{detailRun.payload ?? "—"}</pre>
+                    <pre className="text-[11px] font-mono bg-surface-muted rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-all">{detailRun.payload ?? "-"}</pre>
                   )}
                 </div>
 
@@ -423,7 +423,7 @@ export default function TriggerRunsTab({ agentId }: { agentId: string }) {
                   <div className="rounded-lg border border-border bg-surface-muted p-3">
                     <h4 className="text-xs font-semibold text-foreground mb-1">Hội thoại liên quan</h4>
                     <p className="text-xs text-muted-foreground mb-2">
-                      Lần chạy này xử lý một hội thoại khách hàng — xem đầy đủ các bước tool call, human-in-the-loop và guardrail trong Trace chi tiết.
+                      Lần chạy này xử lý một hội thoại khách hàng - Xem đầy đủ các bước tool call, human-in-the-loop và guardrail trong Trace chi tiết.
                     </p>
                     <button
                       type="button"

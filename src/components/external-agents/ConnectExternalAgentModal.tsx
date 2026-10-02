@@ -533,7 +533,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
                       </button>
                     </div>
                     <p className="mt-1.5 text-[11px] text-muted-foreground leading-relaxed">
-                      Header values are secrets — stored securely and never shared with the agent.
+                      Header values are secrets - Stored securely and never shared with the agent.
                     </p>
                   </div>
                 )}
@@ -586,7 +586,7 @@ export default function ConnectExternalAgentModal({ open, onClose, existing, onS
                     ? "The bearer token is used to authenticate requests to your agent. It is stored encrypted and never shown again after saving."
                     : authMethod === "headers"
                     ? "Custom headers are sent with every request to your agent. Values are stored encrypted and never shown again after saving."
-                    : "No bearer token is used for this agent — every request is authenticated with the signing secret above."}
+                    : "No bearer token is used for this agent - Every request is authenticated with the signing secret above."}
                 </p>
               </div>
             ) : (
