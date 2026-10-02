@@ -23,7 +23,7 @@ import { triggerStore, triggerNeedsSetup, TRIGGER_LIMIT, EXTERNAL_APP_META, type
 import { agentConnectorStore, type ConnectorScope } from "@/components/configure/agentConnectorStore";
 import ConnectSharedConnectorModal from "@/components/configure/ConnectSharedConnectorModal";
 import { sharedConnectorAccountStore } from "@/components/configure/sharedConnectorAccountStore";
-import { connectorActionStore } from "@/components/configure/connectorActionStore";
+import { connectorActionStore, actionsForConnector } from "@/components/configure/connectorActionStore";
 import { hasTriggers, perUserConnector } from "@/components/configure/agentAutomationGuard";
 import {
   agentPublishStore,
@@ -76,6 +76,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { knowledgeStore, OWN_KB_ID, type KnowledgeItem } from "@/components/knowledge/knowledgeStore";
+import { knowledgeDocumentStore, type KnowledgeDocument } from "@/components/knowledge/knowledgeDocumentStore";
 import { isAccessibleTo as isSkillAccessibleTo, type Sharing as SkillSharing } from "@/components/configure/skillSharing";
 import { knowledgeBaseStore, CURRENT_USER as KB_CURRENT_USER, isViewOnly as isKbViewOnly, isAccessibleTo as isKbAccessibleTo, type KnowledgeBase } from "@/components/knowledge/knowledgeBaseStore";
 import { governanceStore, listAgentResourceRefs, agentEmoji, externalSnapOf } from "@/components/governance/governanceStore";
@@ -1020,6 +1021,107 @@ function GeneralTab({ agentId, onRefineWithAI, onChatToTest, previewCollapsed, o
 
   const defaultInstructions = initialPrompt || agent.instructions;
 
+  // "/" quick-insert menu — Instructions (markdown mode) only, never the chat/test box. Typing
+  // "/" at the start of a line or after whitespace opens the menu at its root: three grouped
+  // sections (Skills / Tools / Knowledge). With no filter typed, clicking a Connector or a
+  // Knowledge Base drills one level down (actions; folders/files) instead of dumping everything
+  // flat — a Connector can have many actions and a Knowledge Base can be deeply nested. Typing a
+  // filter searches every leaf at once (skills, individual tool actions, individual files)
+  // regardless of where it sits in the tree, since a Builder who already knows the name they
+  // want shouldn't have to browse down to it. Picking a leaf inserts "@Name" (or, for a tool
+  // action, "@Connector – Action") at the cursor.
+  const instructionsRef = useRef<HTMLTextAreaElement>(null);
+  const [mentionOpen, setMentionOpen] = useState(false);
+  const [mentionStart, setMentionStart] = useState(0); // index right after the triggering "/"
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionIndex, setMentionIndex] = useState(0);
+  const [mentionPos, setMentionPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [mentionPath, setMentionPath] = useState<MentionPath>({ view: "root" });
+
+  const mentionItems: MentionNode[] = !mentionOpen ? [] : mentionQuery
+    ? (mentionPath.view === "root" ? allMentionLeaves(agentId) : getMentionLevel(agentId, mentionPath))
+        .filter(n => n.label.toLowerCase().includes(mentionQuery.toLowerCase()))
+    : getMentionLevel(agentId, mentionPath);
+
+  useEffect(() => {
+    if (!mentionOpen) return;
+    const close = () => setMentionOpen(false);
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [mentionOpen]);
+
+  const closeMentionMenu = () => { setMentionOpen(false); setMentionPath({ view: "root" }); };
+
+  const insertMention = (item: MentionNode) => {
+    const t = instructionsRef.current;
+    if (!t || !item.insertText) return;
+    const val = t.value;
+    const cursor = mentionStart + mentionQuery.length;
+    const refText = item.insertText;
+    const next = val.slice(0, mentionStart - 1) + refText + " " + val.slice(cursor);
+    t.value = next;
+    setInstructions(next);
+    closeMentionMenu();
+    const pos = mentionStart - 1 + refText.length + 1;
+    t.focus();
+    t.setSelectionRange(pos, pos);
+    t.style.height = "auto"; t.style.height = t.scrollHeight + "px";
+  };
+
+  /** Selecting a branch node (Connector, Knowledge Base, folder) drills in: it resets the typed
+   * filter rather than inserting anything, same as clicking into a folder in a file browser. */
+  const selectMentionNode = (item: MentionNode) => {
+    if (item.leaf) { insertMention(item); return; }
+    if (item.path) { setMentionPath(item.path); setMentionQuery(""); setMentionIndex(0); }
+  };
+
+  const handleInstructionsInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
+    const t = e.currentTarget;
+    t.style.height = "auto"; t.style.height = t.scrollHeight + "px";
+    const val = t.value;
+    setInstructions(val);
+    const cursor = t.selectionStart ?? val.length;
+    if (mentionOpen) {
+      if (cursor < mentionStart || /\s/.test(val.slice(mentionStart, cursor))) {
+        closeMentionMenu();
+      } else {
+        setMentionQuery(val.slice(mentionStart, cursor));
+        setMentionIndex(0);
+      }
+      return;
+    }
+    if (cursor > 0 && val[cursor - 1] === "/") {
+      const before = val[cursor - 2];
+      if (before === undefined || /\s/.test(before)) {
+        setMentionStart(cursor);
+        setMentionQuery("");
+        setMentionIndex(0);
+        setMentionPath({ view: "root" });
+        setMentionOpen(true);
+        const rect = getCaretViewportRect(t, cursor);
+        setMentionPos({ top: rect.top + rect.height + 4, left: rect.left });
+      }
+    }
+  };
+
+  const handleInstructionsKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (!mentionOpen) return;
+    if (e.key === "ArrowDown") { e.preventDefault(); setMentionIndex(i => Math.min(i + 1, Math.max(mentionItems.length - 1, 0))); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setMentionIndex(i => Math.max(i - 1, 0)); }
+    else if (e.key === "Enter" || e.key === "Tab") {
+      if (mentionItems.length) { e.preventDefault(); selectMentionNode(mentionItems[Math.min(mentionIndex, mentionItems.length - 1)]); }
+    } else if (e.key === "Backspace" && mentionQuery === "" && mentionPath.view !== "root") {
+      // Mirrors a file browser: Backspace with nothing typed steps back up a level instead of
+      // deleting into the "/" trigger itself.
+      e.preventDefault();
+      setMentionPath({ view: "root" });
+      setMentionIndex(0);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      closeMentionMenu();
+    }
+  };
+
   return (
     <div className="w-full animate-fade-up">
       {/* ── Sticky header ── */}
@@ -1141,12 +1243,93 @@ function GeneralTab({ agentId, onRefineWithAI, onChatToTest, previewCollapsed, o
         )}
         {viewMode === "markdown" && (
           <textarea
-            ref={(el) => { if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
-            onInput={(e) => { const t = e.currentTarget; t.style.height = "auto"; t.style.height = t.scrollHeight + "px"; setInstructions(e.currentTarget.value); }}
+            ref={(el) => { instructionsRef.current = el; if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; } }}
+            onInput={handleInstructionsInput}
+            onKeyDown={handleInstructionsKeyDown}
             className="w-full resize-none bg-transparent border border-transparent rounded-xl px-3 py-3 -mx-3 text-sm leading-relaxed outline-none hover:border-border hover:bg-surface focus:border-ring focus:bg-surface transition-base font-sans overflow-hidden"
             defaultValue={defaultInstructions}
-            placeholder="Write your agent instructions here…"
+            placeholder="Write your agent instructions here… Type / to insert a Skill, Tool, or Knowledge file."
           />
+        )}
+        {mentionOpen && createPortal(
+          <div
+            className="fixed z-[9999]"
+            style={{ top: mentionPos.top, left: mentionPos.left }}
+            onMouseDown={e => e.stopPropagation()}
+          >
+            <div className="bg-white rounded-xl border border-border shadow-elev p-1.5 w-72 max-h-80 overflow-y-auto animate-fade-up">
+              {mentionPath.view !== "root" && (
+                <button
+                  type="button"
+                  onClick={() => { setMentionPath({ view: "root" }); setMentionQuery(""); setMentionIndex(0); }}
+                  className="w-full flex items-center gap-1.5 px-2 py-1.5 mb-1 rounded-lg text-xs font-medium text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base"
+                >
+                  <HugeiconsIcon icon={ChevronLeftIcon} size={12} />
+                  {mentionPath.view === "connector" ? mentionPath.connectorLabel
+                    : mentionPath.view === "own" ? "Cá nhân"
+                    : mentionPath.crumbs.join(" / ")}
+                </button>
+              )}
+              {mentionItems.length === 0 ? (
+                <div className="px-2.5 py-3 text-center text-xs text-muted-foreground">
+                  {mentionPath.view === "root" ? "Agent này chưa có Skill/Connector/Tri thức nào khớp." : "Không có mục nào ở đây."}
+                </div>
+              ) : mentionPath.view === "root" && mentionQuery === "" ? (
+                (["skill", "tool", "knowledge"] as const).map(group => {
+                  const groupItems = mentionItems.filter(it => it.group === group);
+                  if (!groupItems.length) return null;
+                  return (
+                    <div key={group} className="mb-1 last:mb-0">
+                      <div className="px-2 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">
+                        {group === "skill" ? "Skills" : group === "tool" ? "Tools" : "Knowledge"}
+                      </div>
+                      {groupItems.map(item => {
+                        const i = mentionItems.indexOf(item);
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onMouseEnter={() => setMentionIndex(i)}
+                            onClick={() => selectMentionNode(item)}
+                            className={`w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-base ${
+                              i === mentionIndex ? "bg-surface-muted" : "hover:bg-surface-muted"
+                            }`}
+                          >
+                            {item.icon}
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-sm font-medium text-foreground truncate">{item.label}</span>
+                              {item.sub && <span className="block text-[11px] text-muted-foreground truncate">{item.sub}</span>}
+                            </span>
+                            {!item.leaf && <HugeiconsIcon icon={ChevronRightIcon} size={12} className="text-muted-foreground/60 shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })
+              ) : (
+                mentionItems.map((item, i) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onMouseEnter={() => setMentionIndex(i)}
+                    onClick={() => selectMentionNode(item)}
+                    className={`w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-base ${
+                      i === mentionIndex ? "bg-surface-muted" : "hover:bg-surface-muted"
+                    }`}
+                  >
+                    {item.icon}
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-medium text-foreground truncate">{item.label}</span>
+                      {item.sub && <span className="block text-[11px] text-muted-foreground truncate">{item.sub}</span>}
+                    </span>
+                    {!item.leaf && <HugeiconsIcon icon={ChevronRightIcon} size={12} className="text-muted-foreground/60 shrink-0" />}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>,
+          document.body,
         )}
         {(viewMode === "ai" || viewMode === "chat") && (
           <div className="prose prose-sm max-w-none text-foreground opacity-50 select-none pointer-events-none">
@@ -5706,6 +5889,186 @@ const SUB_AGENT_CONNECTORS = [
   { id: "github",   name: "GitHub",       logo: "Gh", category: "Nhà phát triển",  connected: false },
   { id: "exa",      name: "Exa",          logo: "Ex", category: "Nghiên cứu",      connected: false },
 ];
+
+/** One row in the Instructions editor's "/" menu. `leaf: true` means selecting it inserts a
+ * reference; `leaf: false` means it drills into a deeper level (see MentionPath/getMentionLevel
+ * below) — a Connector with several actions, a Knowledge Base, or a folder inside one. */
+interface MentionNode {
+  id: string;
+  group: "skill" | "tool" | "knowledge";
+  label: string;
+  sub?: string;
+  icon: React.ReactNode;
+  leaf: boolean;
+  /** What picking this node inserts into Instructions — only set on leaves. */
+  insertText?: string;
+  /** Where picking this node navigates to — only set on non-leaves. */
+  path?: MentionPath;
+}
+
+/** Where the "/" menu currently is. "root" shows the three grouped sections; drilling into a
+ * Connector shows its actions; drilling into a Knowledge Base (or a folder inside one) shows
+ * that level's folders/files, breadcrumb-style — mirrors the real Documents tab's own nesting
+ * (knowledgeDocumentStore's folderId chain) instead of flattening every file into one list. */
+type MentionPath =
+  | { view: "root" }
+  | { view: "connector"; connectorId: string; connectorLabel: string }
+  | { view: "own" } // the Agent's personal "Cá nhân" knowledge bucket — flat, no folders
+  | { view: "kb"; kbId: string; kbLabel: string; folderId: string | null; crumbs: string[] };
+
+function mentionConnectorMeta(connectorId: string): { name: string; logo: string } {
+  const builtin = SUB_AGENT_CONNECTORS.find(x => x.id === connectorId);
+  if (builtin) return { name: builtin.name, logo: builtin.logo };
+  if (connectorId.startsWith(CUSTOM_CONNECTOR_PREFIX)) {
+    const custom = customConnectorStore.get(connectorId.slice(CUSTOM_CONNECTOR_PREFIX.length));
+    if (custom) return { name: custom.name, logo: "🔌" };
+  }
+  return { name: connectorId, logo: "🔌" };
+}
+
+function connectorBadge(logo: string): React.ReactNode {
+  return <span className="w-7 h-7 rounded-lg bg-surface-muted border border-border flex items-center justify-center text-[9px] font-bold shrink-0">{logo}</span>;
+}
+function skillBadge(icon: string, bg?: string): React.ReactNode {
+  return <span className="w-7 h-7 rounded-lg flex items-center justify-center text-sm shrink-0" style={{ background: bg }}>{icon}</span>;
+}
+function fileBadge(kind: Parameters<typeof FileTypeIcon>[0]["kind"], name?: string): React.ReactNode {
+  return <span className="w-7 h-7 rounded-lg bg-surface-muted border border-border flex items-center justify-center shrink-0"><FileTypeIcon kind={kind} name={name} size={13} /></span>;
+}
+
+function agentSkillNodes(agentId: string): MentionNode[] {
+  const own = agentSkillStore.list(agentId).map(s => (
+    { id: `skill:${s.id}`, group: "skill" as const, label: s.name, sub: "Skill", icon: skillBadge(s.icon, s.iconBg), leaf: true, insertText: `@${s.name}` }
+  ));
+  const linked = agentSkillStore.listAttachedConsoleSkillIds(agentId)
+    .map(id => skillStore.get(id))
+    .filter((s): s is Skill => !!s)
+    .map(s => ({ id: `skill:${s.id}`, group: "skill" as const, label: s.name, sub: "Skill", icon: skillBadge(s.icon, s.iconBg), leaf: true, insertText: `@${s.name}` }));
+  const seen = new Set<string>();
+  return [...own, ...linked].filter(n => (seen.has(n.id) ? false : (seen.add(n.id), true)));
+}
+
+function agentConnectorNodes(agentId: string): MentionNode[] {
+  return agentConnectorStore.list(agentId).map(c => {
+    const meta = mentionConnectorMeta(c.connectorId);
+    return {
+      id: `connector:${c.connectorId}`, group: "tool" as const, label: meta.name, sub: "Connector",
+      icon: connectorBadge(meta.logo), leaf: false,
+      path: { view: "connector", connectorId: c.connectorId, connectorLabel: meta.name },
+    };
+  });
+}
+
+function agentKnowledgeRootNodes(agentId: string): MentionNode[] {
+  const nodes: MentionNode[] = [];
+  if (knowledgeStore.list(agentId).length > 0) {
+    nodes.push({ id: "kb:own", group: "knowledge", label: "Cá nhân", sub: "Tri thức riêng của Agent", icon: fileBadge("folder"), leaf: false, path: { view: "own" } });
+  }
+  for (const kbId of knowledgeStore.listAttachedConsoleKbIds(agentId)) {
+    const kb = knowledgeBaseStore.get(kbId);
+    if (!kb) continue;
+    nodes.push({ id: `kb:${kb.id}`, group: "knowledge", label: kb.name, sub: "Kho tri thức", icon: fileBadge("folder"), leaf: false, path: { view: "kb", kbId: kb.id, kbLabel: kb.name, folderId: null, crumbs: [kb.name] } });
+  }
+  return nodes;
+}
+
+/** Every leaf (insertable) item anywhere in this Agent's Skill/Tool/Knowledge tree, used only
+ * while the Builder is typing a filter at the menu's root — browsing without a query instead
+ * drills level by level so a Knowledge Base with many files doesn't dump everything at once. */
+function allMentionLeaves(agentId: string): MentionNode[] {
+  const skills = agentSkillNodes(agentId);
+  const tools = agentConnectorStore.list(agentId).flatMap(c => {
+    const meta = mentionConnectorMeta(c.connectorId);
+    return actionsForConnector(c.connectorId).map(action => ({
+      id: `tool:${c.connectorId}:${action}`, group: "tool" as const, label: action, sub: meta.name,
+      icon: connectorBadge(meta.logo), leaf: true, insertText: `@${meta.name} – ${action}`,
+    }));
+  });
+  const own: MentionNode[] = knowledgeStore.list(agentId).map(item => ({
+    id: `own:${item.id}`, group: "knowledge" as const,
+    label: item.kind === "url" ? (item.title || item.name) : item.name, sub: "Cá nhân",
+    icon: fileBadge(item.kind === "url" ? "url" : item.kind === "faq" ? "faq" : undefined, item.kind === "doc" ? item.name : undefined),
+    leaf: true, insertText: `@${item.kind === "url" ? (item.title || item.name) : item.name}`,
+  }));
+  const kbFiles: MentionNode[] = knowledgeStore.listAttachedConsoleKbIds(agentId).flatMap(kbId => {
+    const kb = knowledgeBaseStore.get(kbId);
+    if (!kb) return [];
+    return knowledgeDocumentStore.list(kbId).filter(d => !d.isFolder).map(d => ({
+      id: `kbdoc:${kbId}:${d.id}`, group: "knowledge" as const, label: d.name, sub: kb.name,
+      icon: fileBadge(undefined, d.name), leaf: true, insertText: `@${d.name}`,
+    }));
+  });
+  return [...skills, ...tools, ...own, ...kbFiles];
+}
+
+/** Resolves one level of the "/" menu tree for a given path — root's three grouped sections, a
+ * Connector's actions, the Agent's personal knowledge bucket, or one folder inside a linked
+ * Knowledge Base. Pure/stateless so it can be recomputed on every keystroke without caching. */
+function getMentionLevel(agentId: string, path: MentionPath): MentionNode[] {
+  if (path.view === "root") {
+    return [...agentSkillNodes(agentId), ...agentConnectorNodes(agentId), ...agentKnowledgeRootNodes(agentId)];
+  }
+  if (path.view === "connector") {
+    const meta = mentionConnectorMeta(path.connectorId);
+    return actionsForConnector(path.connectorId).map(action => ({
+      id: `tool:${path.connectorId}:${action}`, group: "tool", label: action, sub: meta.name,
+      icon: connectorBadge(meta.logo), leaf: true, insertText: `@${meta.name} – ${action}`,
+    }));
+  }
+  if (path.view === "own") {
+    return knowledgeStore.list(agentId).map(item => ({
+      id: `own:${item.id}`, group: "knowledge",
+      label: item.kind === "url" ? (item.title || item.name) : item.name,
+      icon: fileBadge(item.kind === "url" ? "url" : item.kind === "faq" ? "faq" : undefined, item.kind === "doc" ? item.name : undefined),
+      leaf: true, insertText: `@${item.kind === "url" ? (item.title || item.name) : item.name}`,
+    }));
+  }
+  // path.view === "kb"
+  const docs = knowledgeDocumentStore.list(path.kbId).filter(d => d.folderId === path.folderId);
+  return docs
+    .sort((a, b) => (a.isFolder === b.isFolder ? a.name.localeCompare(b.name) : a.isFolder ? -1 : 1))
+    .map(d => d.isFolder
+      ? { id: `kbfolder:${path.kbId}:${d.id}`, group: "knowledge" as const, label: d.name, icon: fileBadge("folder"), leaf: false,
+          path: { view: "kb" as const, kbId: path.kbId, kbLabel: path.kbLabel, folderId: d.id, crumbs: [...path.crumbs, d.name] } }
+      : { id: `kbdoc:${path.kbId}:${d.id}`, group: "knowledge" as const, label: d.name, icon: fileBadge(undefined, d.name), leaf: true, insertText: `@${d.name}` });
+}
+
+/** Viewport position of a textarea's caret, via the standard mirror-div technique (a textarea
+ * has no native API for this). Used to anchor the "/" mention menu right under the cursor
+ * rather than at a fixed corner of the editor. */
+function getCaretViewportRect(el: HTMLTextAreaElement, index: number): { top: number; left: number; height: number } {
+  const div = document.createElement("div");
+  const computed = window.getComputedStyle(el);
+  const props = [
+    "boxSizing", "width", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft",
+    "borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth",
+    "fontStyle", "fontVariant", "fontWeight", "fontSize", "lineHeight", "fontFamily",
+    "textAlign", "textTransform", "textIndent", "letterSpacing", "wordSpacing",
+  ] as const;
+  div.style.position = "absolute";
+  div.style.visibility = "hidden";
+  div.style.whiteSpace = "pre-wrap";
+  div.style.wordWrap = "break-word";
+  div.style.overflow = "hidden";
+  props.forEach(p => { (div.style as any)[p] = computed[p as any]; });
+  document.body.appendChild(div);
+  div.textContent = el.value.slice(0, index);
+  const span = document.createElement("span");
+  span.textContent = el.value.slice(index) || ".";
+  div.appendChild(span);
+  const spanTop = span.offsetTop;
+  const spanLeft = span.offsetLeft;
+  const lineHeight = parseInt(computed.lineHeight, 10) || parseInt(computed.fontSize, 10) * 1.2;
+  document.body.removeChild(div);
+  const elRect = el.getBoundingClientRect();
+  const borderTop = parseInt(computed.borderTopWidth, 10) || 0;
+  const borderLeft = parseInt(computed.borderLeftWidth, 10) || 0;
+  return {
+    top: elRect.top + borderTop + spanTop - el.scrollTop,
+    left: elRect.left + borderLeft + spanLeft - el.scrollLeft,
+    height: lineHeight,
+  };
+}
 
 interface SubAgent {
   id: number;

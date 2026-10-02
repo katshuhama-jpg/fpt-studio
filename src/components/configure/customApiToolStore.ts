@@ -1,0 +1,179 @@
+// sessionStorage-backed CONSOLE-level Custom API Tool store — a "Custom Tool" built from a plain
+// REST API definition (as opposed to a Custom Connector/MCP server — customConnectorStore.ts —
+// which points an Agent at an existing MCP endpoint). Deliberately kept to the fields a Builder
+// actually needs to call an API end-to-end: no sharing/ownership model yet (every tool here is
+// private to its creator, shown only to them — "bản đơn giản" per the approved scope), no
+// response-mapping/retry/rate-limit/cache/mTLS (explicitly deferred to a later phase).
+import { loadMap, saveMap } from "@/lib/sessionPersist";
+import { CURRENT_USER } from "@/components/knowledge/knowledgeBaseStore";
+
+export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+export type ApiAuthType = "none" | "api_key" | "bearer" | "basic" | "oauth2";
+export type ApiParamLocation = "query" | "path" | "body";
+export type ApiParamType = "string" | "number" | "boolean" | "object" | "array";
+
+export interface ApiHeader {
+  key: string;
+  value: string;
+}
+
+export interface ApiParam {
+  name: string;
+  type: ApiParamType;
+  location: ApiParamLocation;
+  required: boolean;
+  description: string;
+}
+
+/** One shape per auth type so each only carries the fields it needs — a `type: "basic"` tool
+ * can never end up with a stray `apiKey` field left over from switching auth types in the form. */
+export type ApiAuthConfig =
+  | { type: "none" }
+  | { type: "api_key"; headerName: string; apiKey: string }
+  | { type: "bearer"; token: string }
+  | { type: "basic"; username: string; password: string }
+  | { type: "oauth2"; clientId: string; clientSecret: string; tokenUrl: string };
+
+export interface CustomApiTool {
+  id: string;
+  name: string;
+  description: string;
+  method: HttpMethod;
+  url: string;
+  auth: ApiAuthConfig;
+  headers: ApiHeader[];
+  params: ApiParam[];
+  /** Seconds. Defaults to 30 at creation — see DEFAULT_TIMEOUT_SEC. */
+  timeoutSec: number;
+  ownerId: string;
+  ownerName: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export const DEFAULT_TIMEOUT_SEC = 30;
+
+export const AUTH_TYPE_LABEL: Record<ApiAuthType, string> = {
+  none: "Không có",
+  api_key: "API Key",
+  bearer: "Bearer Token",
+  basic: "Basic Auth",
+  oauth2: "OAuth 2.0",
+};
+
+export function defaultAuthConfig(type: ApiAuthType): ApiAuthConfig {
+  switch (type) {
+    case "api_key": return { type, headerName: "X-API-Key", apiKey: "" };
+    case "bearer": return { type, token: "" };
+    case "basic": return { type, username: "", password: "" };
+    case "oauth2": return { type, clientId: "", clientSecret: "", tokenUrl: "" };
+    default: return { type: "none" };
+  }
+}
+
+const STORE_KEY = "custom_api_tool_store_v1";
+const SEEDED_KEY = "custom_api_tool_store_seeded_v1";
+const store = loadMap<string, CustomApiTool>(STORE_KEY);
+const persist = () => saveMap(STORE_KEY, store);
+
+function seed() {
+  if (sessionStorage.getItem(SEEDED_KEY)) return;
+  sessionStorage.setItem(SEEDED_KEY, "1");
+  const now = Date.now();
+  const DAY = 86_400_000;
+  const put = (t: CustomApiTool) => store.set(t.id, t);
+
+  put({
+    id: "api-1",
+    name: "Tra cứu đơn hàng",
+    description: "Lấy trạng thái và chi tiết một đơn hàng theo mã đơn. Agent gọi khi khách hỏi \"đơn của tôi tới đâu rồi\".",
+    method: "GET",
+    url: "https://api.client.com/orders/{order_id}",
+    auth: { type: "api_key", headerName: "X-API-Key", apiKey: "sk_live_••••••••••••cd42" },
+    headers: [{ key: "Accept", value: "application/json" }],
+    params: [
+      { name: "order_id", type: "string", location: "path", required: true, description: "Mã đơn hàng, ví dụ ORD-20394." },
+    ],
+    timeoutSec: 30,
+    ownerId: CURRENT_USER.id, ownerName: CURRENT_USER.name,
+    createdAt: now - 6 * DAY, updatedAt: now - DAY,
+  });
+
+  put({
+    id: "api-2",
+    name: "Tạo ticket hỗ trợ",
+    description: "Tạo một ticket khiếu nại/hỗ trợ mới trong hệ thống CSKH. Agent gọi khi không tự xử lý được yêu cầu của khách và cần chuyển cho nhân viên.",
+    method: "POST",
+    url: "https://api.client.com/tickets",
+    auth: { type: "bearer", token: "••••••••••••••••" },
+    headers: [{ key: "Content-Type", value: "application/json" }],
+    params: [
+      { name: "subject", type: "string", location: "body", required: true, description: "Tiêu đề ngắn gọn của ticket." },
+      { name: "priority", type: "string", location: "body", required: false, description: "low | normal | high." },
+    ],
+    timeoutSec: 30,
+    ownerId: CURRENT_USER.id, ownerName: CURRENT_USER.name,
+    createdAt: now - 3 * DAY, updatedAt: now - 3 * DAY,
+  });
+
+  persist();
+}
+
+export const customApiToolStore = {
+  /** Every tool here is private to its creator (no sharing model yet), so "list" already is
+   * "my tools" — callers don't need to filter by ownerId themselves. */
+  list(): CustomApiTool[] {
+    seed();
+    return [...store.values()]
+      .filter(t => t.ownerId === CURRENT_USER.id)
+      .sort((a, b) => b.updatedAt - a.updatedAt);
+  },
+  get(id: string): CustomApiTool | undefined {
+    seed();
+    return store.get(id);
+  },
+  isDuplicateName(name: string, excludeId?: string): boolean {
+    const n = name.trim().toLowerCase();
+    return this.list().some(t => t.id !== excludeId && t.name.trim().toLowerCase() === n);
+  },
+  create(data: {
+    name: string; description: string; method: HttpMethod; url: string; auth: ApiAuthConfig;
+    headers: ApiHeader[]; params: ApiParam[]; timeoutSec: number;
+  }): CustomApiTool {
+    const id = `api-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+    const now = Date.now();
+    const t: CustomApiTool = {
+      id, name: data.name.trim(), description: data.description.trim(),
+      method: data.method, url: data.url.trim(), auth: data.auth,
+      headers: data.headers.filter(h => h.key.trim()),
+      params: data.params.filter(p => p.name.trim()),
+      timeoutSec: data.timeoutSec > 0 ? data.timeoutSec : DEFAULT_TIMEOUT_SEC,
+      ownerId: CURRENT_USER.id, ownerName: CURRENT_USER.name,
+      createdAt: now, updatedAt: now,
+    };
+    store.set(id, t);
+    persist();
+    return t;
+  },
+  update(id: string, data: {
+    name: string; description: string; method: HttpMethod; url: string; auth: ApiAuthConfig;
+    headers: ApiHeader[]; params: ApiParam[]; timeoutSec: number;
+  }) {
+    const cur = store.get(id);
+    if (!cur) return;
+    store.set(id, {
+      ...cur,
+      name: data.name.trim(), description: data.description.trim(),
+      method: data.method, url: data.url.trim(), auth: data.auth,
+      headers: data.headers.filter(h => h.key.trim()),
+      params: data.params.filter(p => p.name.trim()),
+      timeoutSec: data.timeoutSec > 0 ? data.timeoutSec : DEFAULT_TIMEOUT_SEC,
+      updatedAt: Date.now(),
+    });
+    persist();
+  },
+  remove(id: string) {
+    store.delete(id);
+    persist();
+  },
+};
