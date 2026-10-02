@@ -13,6 +13,7 @@ import ConnectExternalKnowledgeBaseModal from "@/components/knowledge/ConnectExt
 import ShareKnowledgeBaseModal from "@/components/knowledge/ShareKnowledgeBaseModal";
 import DeleteKnowledgeBaseDialog from "@/components/knowledge/DeleteKnowledgeBaseDialog";
 import { useGroupAccess } from "@/pages/organization/scopeAccess";
+import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import {
   ownershipTags, countByTab, matchesTab, OwnershipTabs, ResourceCard, CardCreator, AgentCount, type OwnershipTab,
 } from "@/components/governance/resourceOwnership";
@@ -153,6 +154,11 @@ export default function KnowledgeList() {
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [showAddMenu, setShowAddMenu] = useState(false);
+  // Creating straight in the Space library needs the Role's "Create" permission (Builders create
+  // knowledge inside an Agent instead). The button stays visible but locked, with the reason.
+  const { can } = useMyPermissions();
+  const canCreateKb = can("knowledge.create");
+  const NO_CREATE_KB = "Vai trò của bạn chưa có quyền tạo kho tri thức.";
   const [showCreate, setShowCreate] = useState(params.get("new") === "1");
   const [showConnect, setShowConnect] = useState(false);
   const [editTarget, setEditTarget] = useState<KnowledgeBase | null>(null);
@@ -234,8 +240,10 @@ export default function KnowledgeList() {
         </div>
         <div className="relative shrink-0" ref={addMenuRef}>
           <button
-            onClick={() => setShowAddMenu(v => !v)}
-            className="btn-primary h-9 whitespace-nowrap"
+            onClick={() => canCreateKb && setShowAddMenu(v => !v)}
+            disabled={!canCreateKb}
+            title={!canCreateKb ? NO_CREATE_KB : undefined}
+            className="btn-primary h-9 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus size={14} /> Thêm kho tri thức <ChevronDown size={13} className={`transition-base ${showAddMenu ? "rotate-180" : ""}`} />
           </button>
@@ -328,7 +336,7 @@ export default function KnowledgeList() {
           <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">
             Tạo kho tri thức đầu tiên để Agent của bạn có thể tra cứu tài liệu, website và FAQ.
           </p>
-          <button onClick={() => setShowCreate(true)} className="btn-primary h-9 mx-auto">Tạo kho tri thức</button>
+          <button onClick={() => canCreateKb && setShowCreate(true)} disabled={!canCreateKb} title={!canCreateKb ? NO_CREATE_KB : undefined} className="btn-primary h-9 mx-auto disabled:opacity-50 disabled:cursor-not-allowed">Tạo kho tri thức</button>
         </div>
       )}
 

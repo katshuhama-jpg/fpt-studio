@@ -1,11 +1,13 @@
 // sessionStorage-backed CONSOLE-level Custom API Tool store — a "Custom Tool" built from a plain
 // REST API definition (as opposed to a Custom Connector/MCP server — customConnectorStore.ts —
 // which points an Agent at an existing MCP endpoint). Deliberately kept to the fields a Builder
-// actually needs to call an API end-to-end: no sharing/ownership model yet (every tool here is
-// private to its creator, shown only to them — "bản đơn giản" per the approved scope), no
+// actually needs to call an API end-to-end. Sharing works like every other resource: a tool
+// created in the Space library starts shared with the whole Space, one quick-added inside an
+// Agent starts "Chỉ Agent này" (private); `attachedByAgentIds` tracks which Agents use it. No
 // response-mapping/retry/rate-limit/cache/mTLS (explicitly deferred to a later phase).
 import { loadMap, saveMap } from "@/lib/sessionPersist";
 import { CURRENT_USER } from "@/components/knowledge/knowledgeBaseStore";
+import { isAccessibleTo, type Sharing } from "./customConnectorSharing";
 
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 export type ApiAuthType = "none" | "api_key" | "bearer" | "basic" | "oauth2";
@@ -47,6 +49,9 @@ export interface CustomApiTool {
   timeoutSec: number;
   ownerId: string;
   ownerName: string;
+  sharing: Sharing;
+  /** Agents currently using this tool (mirror of the Agent-side connector records). */
+  attachedByAgentIds: string[];
   createdAt: number;
   updatedAt: number;
 }
@@ -75,6 +80,12 @@ const STORE_KEY = "custom_api_tool_store_v1";
 const SEEDED_KEY = "custom_api_tool_store_seeded_v1";
 const store = loadMap<string, CustomApiTool>(STORE_KEY);
 const persist = () => saveMap(STORE_KEY, store);
+/** Older session records predate sharing/attachments — read them as a Space-library tool. */
+const normalize = (t: CustomApiTool): CustomApiTool => ({
+  ...t,
+  sharing: t.sharing ?? { mode: "all", people: [] },
+  attachedByAgentIds: t.attachedByAgentIds ?? [],
+});
 
 function seed() {
   if (sessionStorage.getItem(SEEDED_KEY)) return;
@@ -96,6 +107,7 @@ function seed() {
     ],
     timeoutSec: 30,
     ownerId: CURRENT_USER.id, ownerName: CURRENT_USER.name,
+    sharing: { mode: "all", people: [] }, attachedByAgentIds: [],
     createdAt: now - 6 * DAY, updatedAt: now - DAY,
   });
 
@@ -113,6 +125,7 @@ function seed() {
     ],
     timeoutSec: 30,
     ownerId: CURRENT_USER.id, ownerName: CURRENT_USER.name,
+    sharing: { mode: "all", people: [] }, attachedByAgentIds: [],
     createdAt: now - 3 * DAY, updatedAt: now - 3 * DAY,
   });
 
@@ -120,17 +133,19 @@ function seed() {
 }
 
 export const customApiToolStore = {
-  /** Every tool here is private to its creator (no sharing model yet), so "list" already is
-   * "my tools" — callers don't need to filter by ownerId themselves. */
+  /** Every tool in the Space (callers filter by access with listAccessible). */
   list(): CustomApiTool[] {
     seed();
-    return [...store.values()]
-      .filter(t => t.ownerId === CURRENT_USER.id)
-      .sort((a, b) => b.updatedAt - a.updatedAt);
+    return [...store.values()].map(normalize).sort((a, b) => b.updatedAt - a.updatedAt);
+  },
+  /** Tools this user may see in the library / attach to an Agent: own + shared to them. */
+  listAccessible(userId: string): CustomApiTool[] {
+    return this.list().filter(t => isAccessibleTo(t.sharing, t.ownerId, userId));
   },
   get(id: string): CustomApiTool | undefined {
     seed();
-    return store.get(id);
+    const t = store.get(id);
+    return t ? normalize(t) : undefined;
   },
   isDuplicateName(name: string, excludeId?: string): boolean {
     const n = name.trim().toLowerCase();
@@ -139,6 +154,8 @@ export const customApiToolStore = {
   create(data: {
     name: string; description: string; method: HttpMethod; url: string; auth: ApiAuthConfig;
     headers: ApiHeader[]; params: ApiParam[]; timeoutSec: number;
+    /** Space library → "Tất cả người dùng trong Space"; quick-add inside an Agent → private. */
+    sharing?: Sharing;
   }): CustomApiTool {
     const id = `api-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
     const now = Date.now();
@@ -149,6 +166,7 @@ export const customApiToolStore = {
       params: data.params.filter(p => p.name.trim()),
       timeoutSec: data.timeoutSec > 0 ? data.timeoutSec : DEFAULT_TIMEOUT_SEC,
       ownerId: CURRENT_USER.id, ownerName: CURRENT_USER.name,
+      sharing: data.sharing ?? { mode: "all", people: [] }, attachedByAgentIds: [],
       createdAt: now, updatedAt: now,
     };
     store.set(id, t);
@@ -170,6 +188,27 @@ export const customApiToolStore = {
       timeoutSec: data.timeoutSec > 0 ? data.timeoutSec : DEFAULT_TIMEOUT_SEC,
       updatedAt: Date.now(),
     });
+    persist();
+  },
+  updateSharing(id: string, sharing: Sharing) {
+    const cur = store.get(id);
+    if (!cur) return;
+    store.set(id, { ...normalize(cur), sharing, updatedAt: Date.now() });
+    persist();
+  },
+  addAttachingAgent(id: string, agentId: string) {
+    const cur = store.get(id);
+    if (!cur) return;
+    const t = normalize(cur);
+    if (t.attachedByAgentIds.includes(agentId)) return;
+    store.set(id, { ...t, attachedByAgentIds: [...t.attachedByAgentIds, agentId] });
+    persist();
+  },
+  removeAttachingAgent(id: string, agentId: string) {
+    const cur = store.get(id);
+    if (!cur) return;
+    const t = normalize(cur);
+    store.set(id, { ...t, attachedByAgentIds: t.attachedByAgentIds.filter(a => a !== agentId) });
     persist();
   },
   remove(id: string) {

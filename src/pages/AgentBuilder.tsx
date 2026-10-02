@@ -64,6 +64,8 @@ import CreateSkillChoiceModal from "@/components/configure/CreateSkillChoiceModa
 import UploadSkillModal from "@/components/configure/UploadSkillModal";
 import SkillOwnershipTag from "@/components/configure/SkillOwnershipTag";
 import SkillShareModal from "@/components/configure/SkillShareModal";
+import { customApiToolStore, type CustomApiTool } from "@/components/configure/customApiToolStore";
+import AddCustomApiToolModal from "@/components/configure/AddCustomApiToolModal";
 import AttachConsoleSkillModal from "@/components/configure/AttachConsoleSkillModal";
 import { chatOptimizationStore } from "@/components/configure/chatOptimizationStore";
 import { updateUser } from "@/lib/onboarding";
@@ -5117,6 +5119,9 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
   // Row-level "Chia sẻ" target — lets a user share a Custom Connector they attached via quick-add
   // (which no longer asks about sharing up front) right from this list, without leaving the agent.
   const [shareTarget, setShareTarget] = useState<CustomConnector | null>(null);
+  const [shareApiTool, setShareApiTool] = useState<CustomApiTool | null>(null);
+  // "Gỡ liên kết" on a row always asks first (same as every other resource in the Agent).
+  const [detachConnTarget, setDetachConnTarget] = useState<{ id: string; name: string } | null>(null);
   // Clicking a Custom Connector row shows its details in a popup, without leaving the Agent.
   const [detailTarget, setDetailTarget] = useState<AgentResourceRef | null>(null);
   const connected = agentConnectorStore.list(agentId).map(c => ({ id: c.connectorId, mode: c.scope, accountId: c.accountId }));
@@ -5124,9 +5129,14 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
   // Custom Connectors ("Custom MCP") this user can see — same ownership-aware filtering as the
   // Console Connectors page's "Custom Connectors" tab.
   const accessibleCustomConnectors = customConnectorStore.list().filter(c => isCustomConnectorAccessibleTo(c.sharing, c.ownerId, KB_CURRENT_USER.id));
+  const accessibleApiTools = customApiToolStore.listAccessible(KB_CURRENT_USER.id);
   const resolveMeta = (connectorId: string): { name: string; logo: string } | undefined => {
     const builtin = SUB_AGENT_CONNECTORS.find(x => x.id === connectorId);
     if (builtin) return { name: builtin.name, logo: builtin.logo };
+    if (connectorId.startsWith(API_TOOL_PREFIX)) {
+      const tool = customApiToolStore.get(connectorId.slice(API_TOOL_PREFIX.length));
+      if (tool) return { name: tool.name, logo: "🌐" };
+    }
     if (connectorId.startsWith(CUSTOM_CONNECTOR_PREFIX)) {
       const custom = customConnectorStore.get(connectorId.slice(CUSTOM_CONNECTOR_PREFIX.length));
       if (custom) return { name: custom.name, logo: "🔌" };
@@ -5157,12 +5167,14 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
   const connectedIds = connected.map(c => c.id);
   const toggleConnector = (id: string) => {
     const isCustom = id.startsWith(CUSTOM_CONNECTOR_PREFIX);
+    const isApiTool = id.startsWith(API_TOOL_PREFIX);
     if (agentConnectorStore.list(agentId).some(c => c.connectorId === id)) {
       agentConnectorStore.remove(agentId, id);
       // Drop the per-action Auto/Ask/Block overrides too — re-adding the connector later should
       // start from the defaults rather than silently inheriting decisions no longer on screen.
       connectorActionStore.clear(agentId, id);
       if (isCustom) customConnectorStore.removeAttachingAgent(id.slice(CUSTOM_CONNECTOR_PREFIX.length), agentId);
+      if (isApiTool) customApiToolStore.removeAttachingAgent(id.slice(API_TOOL_PREFIX.length), agentId);
     } else {
       const ok = agentConnectorStore.add(agentId, id, pickerMode);
       if (!ok) {
@@ -5170,6 +5182,7 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
         return;
       }
       if (isCustom) customConnectorStore.addAttachingAgent(id.slice(CUSTOM_CONNECTOR_PREFIX.length), agentId);
+      if (isApiTool) customApiToolStore.addAttachingAgent(id.slice(API_TOOL_PREFIX.length), agentId);
     }
     setTick(t => t + 1);
     onChange?.();
@@ -5193,7 +5206,15 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
     const customConnector = c.id.startsWith(CUSTOM_CONNECTOR_PREFIX)
       ? customConnectorStore.get(c.id.slice(CUSTOM_CONNECTOR_PREFIX.length))
       : undefined;
-    const canShare = !!customConnector && customConnector.ownerId === KB_CURRENT_USER.id;
+    const apiTool = c.id.startsWith(API_TOOL_PREFIX)
+      ? customApiToolStore.get(c.id.slice(API_TOOL_PREFIX.length))
+      : undefined;
+    const canShare = (!!customConnector && customConnector.ownerId === KB_CURRENT_USER.id)
+      || (!!apiTool && apiTool.ownerId === KB_CURRENT_USER.id);
+    const detailRef: AgentResourceRef | undefined = customConnector
+      ? { kind: "connector", id: customConnector.id }
+      : apiTool ? { kind: "apiTool", id: apiTool.id } : undefined;
+    const rowName = meta?.name ?? c.id;
     // Which workspace account a Shared connector runs as is part of what the connection IS, so
     // it sits on the row itself rather than behind a click.
     const account = c.accountId ? sharedConnectorAccountStore.get(c.accountId) : undefined;
@@ -5201,12 +5222,12 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
     return (
       <div
         key={c.id}
-        role={customConnector ? "button" : undefined}
-        tabIndex={customConnector ? 0 : undefined}
-        aria-label={customConnector ? `Xem chi tiết ${customConnector.name}` : undefined}
-        onClick={customConnector ? () => setDetailTarget({ kind: "connector", id: customConnector.id }) : undefined}
-        onKeyDown={customConnector ? (e => { if (e.key === "Enter") setDetailTarget({ kind: "connector", id: customConnector.id }); }) : undefined}
-        className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${customConnector ? "cursor-pointer" : ""}`}
+        role={detailRef ? "button" : undefined}
+        tabIndex={detailRef ? 0 : undefined}
+        aria-label={detailRef ? `Xem chi tiết ${rowName}` : undefined}
+        onClick={detailRef ? () => setDetailTarget(detailRef) : undefined}
+        onKeyDown={detailRef ? (e => { if (e.target === e.currentTarget && e.key === "Enter") setDetailTarget(detailRef); }) : undefined}
+        className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${detailRef ? "cursor-pointer" : ""}`}
       >
         <span className="w-6 h-6 rounded bg-surface-muted border border-border flex items-center justify-center text-[9px] font-bold shrink-0">{meta?.logo ?? "?"}</span>
         <span className="flex-1 min-w-0">
@@ -5218,22 +5239,19 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
             <span className="block text-[11px] text-muted-foreground truncate">{restricted} action bị giới hạn</span>
           )}
         </span>
-        {canShare && (
-          <button
-            onClick={e => { e.stopPropagation(); setShareTarget(customConnector); }}
-            title="Chia sẻ custom connector"
-            className="w-6 h-6 rounded-md flex items-center justify-center text-foreground/60 hover:text-primary hover:bg-surface-muted transition-base shrink-0">
-            <HugeiconsIcon icon={Share08Icon} size={12} />
-          </button>
-        )}
-        <button
-          // Route through toggleConnector (not a bare agentConnectorStore.remove) so detaching a
-          // Custom Connector here also clears this agent from its attachedByAgentIds — otherwise
-          // the connector's "N Agent đang dùng" count and delete-warning list go stale.
-          onClick={e => { e.stopPropagation(); toggleConnector(c.id); }}
-          className="w-6 h-6 rounded-md flex items-center justify-center text-foreground/60 hover:text-destructive hover:bg-surface-muted transition-base shrink-0">
-          <HugeiconsIcon icon={Delete01Icon} size={12} />
-        </button>
+        {/* Same "…" menu as every other resource row in the Agent: Xem chi tiết / Chia sẻ (owner)
+          * / Gỡ liên kết (with a confirm). Detaching routes through toggleConnector so the
+          * resource's attachedByAgentIds stays in sync. */}
+        <div className="shrink-0" onClick={e => e.stopPropagation()}>
+          <ActionMenu
+            triggerLabel={`Thao tác với ${rowName}`}
+            items={[
+              ...(detailRef ? [{ label: "Xem chi tiết", icon: EyeIcon, onSelect: () => setDetailTarget(detailRef) }] : []),
+              ...(canShare ? [{ label: "Chia sẻ", icon: Share08Icon, onSelect: () => { if (customConnector) setShareTarget(customConnector); else if (apiTool) setShareApiTool(apiTool); } }] : []),
+              { label: "Gỡ liên kết", icon: Delete01Icon, onSelect: () => setDetachConnTarget({ id: c.id, name: rowName }), destructive: true },
+            ]}
+          />
+        </div>
       </div>
     );
   };
@@ -5342,6 +5360,7 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
           connectors={[
             ...SUB_AGENT_CONNECTORS.map(c => ({ id: c.id, name: c.name, logo: c.logo, category: c.category })),
             ...accessibleCustomConnectors.map(c => ({ id: `${CUSTOM_CONNECTOR_PREFIX}${c.id}`, name: c.name, logo: "🔌", category: "Khác" })),
+            ...accessibleApiTools.map(a => ({ id: `${API_TOOL_PREFIX}${a.id}`, name: a.name, logo: "🌐", category: "Khác" })),
           ]}
           alreadyConnectedIds={connectedIds}
           agentId={agentId}
@@ -5352,6 +5371,9 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
             agentConnectorStore.add(agentId, connectorId, "shared", accountId);
             if (connectorId.startsWith(CUSTOM_CONNECTOR_PREFIX)) {
               customConnectorStore.addAttachingAgent(connectorId.slice(CUSTOM_CONNECTOR_PREFIX.length), agentId);
+            }
+            if (connectorId.startsWith(API_TOOL_PREFIX)) {
+              customApiToolStore.addAttachingAgent(connectorId.slice(API_TOOL_PREFIX.length), agentId);
             }
             setActiveScope("shared");
             setTick(t => t + 1);
@@ -5364,14 +5386,49 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
         <ConnectorPickerModal
           connectors={SUB_AGENT_CONNECTORS}
           customConnectors={accessibleCustomConnectors}
+          apiTools={accessibleApiTools}
           added={connectedIds}
           onToggle={toggleConnector}
           onClose={() => setShowPicker(false)}
           mode={pickerMode}
           onChangeMode={() => { setShowPicker(false); setShowMenu(true); }}
           onCreatedCustom={connector => toggleConnector(`${CUSTOM_CONNECTOR_PREFIX}${connector.id}`)}
+          onCreatedApiTool={tool => toggleConnector(`${API_TOOL_PREFIX}${tool.id}`)}
         />
       )}
+
+      {shareApiTool && (
+        <CustomConnectorShareModal
+          open
+          title="Chia sẻ API Tool" noun="API Tool"
+          name={shareApiTool.name}
+          ownerName={shareApiTool.ownerName}
+          sharing={shareApiTool.sharing}
+          resourceOwnerId={shareApiTool.ownerId}
+          attachedAgentIds={shareApiTool.attachedByAgentIds}
+          agentOnlyFor={agentId}
+          onSave={sharing => { customApiToolStore.updateSharing(shareApiTool.id, sharing); setTick(t => t + 1); onChange?.(); }}
+          onClose={() => setShareApiTool(null)}
+        />
+      )}
+
+      <AlertDialog open={!!detachConnTarget} onOpenChange={v => !v && setDetachConnTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Gỡ liên kết "{detachConnTarget?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>Agent sẽ không còn dùng kết nối này. Kết nối vẫn được giữ nguyên trong thư viện Connectors.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { if (detachConnTarget) toggleConnector(detachConnTarget.id); setDetachConnTarget(null); }}
+            >
+              Gỡ liên kết
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {shareTarget && (
         <CustomConnectorShareModal
@@ -5878,6 +5935,9 @@ const CONNECTOR_CATEGORIES = ["Tất cả tích hợp", "Giao tiếp", "Năng su
  * Connectors are managed at the Agent level, now that the standalone "Connections" nav tab
  * is gone) and ConnectorPickerModal. */
 const CUSTOM_CONNECTOR_PREFIX = "custom:";
+/** API Tools (a single REST endpoint, customApiToolStore) attach to an Agent the same way as
+ * Custom Connectors, under their own id prefix. */
+const API_TOOL_PREFIX = "apitool:";
 
 const SUB_AGENT_CONNECTORS = [
   { id: "drive",    name: "Google Drive", logo: "D",  category: "Năng suất",       connected: true  },
@@ -6351,13 +6411,15 @@ function AddCustomMcpModal({ onClose, onCreated }: { onClose: () => void; onCrea
   );
 }
 
-function ConnectorPickerModal({ connectors, customConnectors, added, onToggle, onClose, mode, onChangeMode, onCreatedCustom }: {
+function ConnectorPickerModal({ connectors, customConnectors, apiTools, added, onToggle, onClose, mode, onChangeMode, onCreatedCustom, onCreatedApiTool }: {
   connectors: { id: string; name: string; logo: string; category: string; connected: boolean }[];
   /** Console Custom Connectors this user can see — merged into the grid below so a builder can
    * attach one without leaving this picker, same list the Console Connectors page's "Custom
    * Connectors" tab shows. Omitted by callers that don't offer Custom Connectors yet (e.g. the
    * Sub-Agents picker). */
   customConnectors?: CustomConnector[];
+  /** API Tools this user can see (own + shared) — merged into the grid like Custom Connectors. */
+  apiTools?: CustomApiTool[];
   added: string[];
   onToggle: (id: string) => void;
   onClose: () => void;
@@ -6368,16 +6430,20 @@ function ConnectorPickerModal({ connectors, customConnectors, added, onToggle, o
   /** Fired after "Thêm MCP tuỳ chỉnh" actually creates a Console Custom Connector — the caller
    * decides whether/how to attach it (e.g. toggling it on for this agent). */
   onCreatedCustom?: (connector: CustomConnector) => void;
+  /** Fired after "Thêm API Tool" creates a tool here (starts "Chỉ Agent này"). Omit to hide the button. */
+  onCreatedApiTool?: (tool: CustomApiTool) => void;
 }) {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("Tất cả tích hợp");
   const [catOpen, setCatOpen] = useState(false);
   const [showCustomMcp, setShowCustomMcp] = useState(false);
+  const [showApiTool, setShowApiTool] = useState(false);
   const catRef = useRef<HTMLDivElement>(null);
   const allConnectors = useMemo(() => [
     ...connectors,
     ...(customConnectors ?? []).map(c => ({ id: `${CUSTOM_CONNECTOR_PREFIX}${c.id}`, name: c.name, logo: "🔌", category: "Khác", connected: false })),
-  ], [connectors, customConnectors]);
+    ...(apiTools ?? []).map(a => ({ id: `${API_TOOL_PREFIX}${a.id}`, name: a.name, logo: "🌐", category: "Khác", connected: false })),
+  ], [connectors, customConnectors, apiTools]);
   const allSelected = allConnectors.length > 0 && allConnectors.every(c => added.includes(c.id));
   const toggleAll = () => {
     if (allSelected) { allConnectors.forEach(c => { if (added.includes(c.id)) onToggle(c.id); }); }
@@ -6511,6 +6577,15 @@ function ConnectorPickerModal({ connectors, customConnectors, added, onToggle, o
           >
             <HugeiconsIcon icon={Add01Icon} size={14} /> Thêm MCP tuỳ chỉnh
           </button>
+          {onCreatedApiTool && (
+            <button
+              type="button"
+              onClick={() => setShowApiTool(true)}
+              className="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-border text-sm font-medium text-foreground hover:bg-surface-muted transition-base mr-auto"
+            >
+              <HugeiconsIcon icon={Add01Icon} size={14} /> Thêm API Tool
+            </button>
+          )}
           <button onClick={onClose} className="btn-primary">Xong</button>
         </div>
       </div>
@@ -6519,6 +6594,13 @@ function ConnectorPickerModal({ connectors, customConnectors, added, onToggle, o
         <AddCustomMcpModal
           onClose={() => setShowCustomMcp(false)}
           onCreated={connector => { setShowCustomMcp(false); onCreatedCustom?.(connector); }}
+        />
+      )}
+      {showApiTool && (
+        <AddCustomApiToolModal
+          sharing={{ mode: "private", people: [] }}
+          onClose={() => setShowApiTool(false)}
+          onCreated={tool => { setShowApiTool(false); onCreatedApiTool?.(tool); }}
         />
       )}
     </div>,

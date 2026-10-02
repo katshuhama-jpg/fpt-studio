@@ -28,7 +28,7 @@ const AGENT_ONLY_OPTION: { value: SharingMode; label: string; helper?: string } 
  * GuardrailShareModal.tsx / Knowledge's ShareKnowledgeBaseModal.tsx so the sharing UI never
  * drifts across modules. */
 export default function CustomConnectorShareModal({
-  open, onClose, name, ownerName, sharing: initialSharing, onSave, resourceOwnerId, attachedAgentIds, agentOnlyFor,
+  open, onClose, name, ownerName, sharing: initialSharing, onSave, resourceOwnerId, attachedAgentIds, agentOnlyFor, title = "Chia sẻ custom connector", noun = "connector",
 }: {
   open: boolean;
   onClose: () => void;
@@ -43,6 +43,10 @@ export default function CustomConnectorShareModal({
   /** Agent id when opened inside an Agent for a resource that Agent owns — adds the
    * "Chỉ Agent này" option (turning sharing off). */
   agentOnlyFor?: string;
+  /** Dialog title — "Chia sẻ API Tool" when reused for an API Tool. */
+  title?: string;
+  /** What the resource is called in the copy ("connector" / "API Tool"). */
+  noun?: string;
 }) {
   const options = agentOnlyFor ? [AGENT_ONLY_OPTION, ...SHARING_OPTIONS] : SHARING_OPTIONS;
   const [mode, setMode] = useState<SharingMode>(initialSharing.mode === "private" && !agentOnlyFor ? "all" : initialSharing.mode);
@@ -100,14 +104,14 @@ export default function CustomConnectorShareModal({
       <Dialog open={open} onOpenChange={v => !v && onClose()}>
         <DialogContent className="sm:max-w-[520px]" onOpenAutoFocus={e => e.preventDefault()}>
           <DialogHeader>
-            <DialogTitle>Chia sẻ custom connector</DialogTitle>
+            <DialogTitle>{title}</DialogTitle>
             <DialogDescription>{name}</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-5 py-1">
             <div>
               <label className="text-sm font-medium mb-1 block">Chia sẻ tới</label>
-              <p className="text-xs text-muted-foreground mb-3">Chia sẻ để người khác dùng lại connector này cho Agent của họ.</p>
+              <p className="text-xs text-muted-foreground mb-3">Chia sẻ để người khác dùng lại {noun} này cho Agent của họ.</p>
               <div className="space-y-2">
                 {options.map(opt => {
                   const selected = mode === opt.value;
@@ -153,12 +157,12 @@ export default function CustomConnectorShareModal({
             {mode === "private" ? (
               <>
                 <AlertDialogTitle>Tắt chia sẻ?</AlertDialogTitle>
-                <AlertDialogDescription>Chỉ Agent này dùng được connector này. Người khác sẽ không tìm thấy để dùng lại cho Agent của họ.</AlertDialogDescription>
+                <AlertDialogDescription>Chỉ Agent này dùng được {noun} này. Người khác sẽ không tìm thấy để dùng lại cho Agent của họ.</AlertDialogDescription>
               </>
             ) : (
               <>
                 <AlertDialogTitle>Thu hồi quyền truy cập?</AlertDialogTitle>
-                <AlertDialogDescription>{revokedCount} người sẽ không còn xem được custom connector này.</AlertDialogDescription>
+                <AlertDialogDescription>{revokedCount} người sẽ không còn xem được {noun} này.</AlertDialogDescription>
               </>
             )}
           </AlertDialogHeader>
@@ -172,7 +176,7 @@ export default function CustomConnectorShareModal({
         open={blockingAgents.length > 0}
         onClose={() => setBlockingAgents([])}
         title={mode === "private" ? "Chưa thể tắt chia sẻ" : "Chưa thể thu hẹp chia sẻ"}
-        description={mode === "private" ? "Các Agent dưới đây đang dùng connector này. Gỡ connector khỏi các Agent đó trước, rồi tắt chia sẻ." : "Những người dưới đây sẽ mất quyền truy cập trong khi Agent của họ vẫn đang dùng connector này. Nhờ họ gỡ connector khỏi Agent trước, rồi đổi chia sẻ."}
+        description={mode === "private" ? `Các Agent dưới đây đang dùng ${noun} này. Gỡ ${noun} khỏi các Agent đó trước, rồi tắt chia sẻ.` : `Những người dưới đây sẽ mất quyền truy cập trong khi Agent của họ vẫn đang dùng ${noun} này. Nhờ họ gỡ ${noun} khỏi Agent trước, rồi đổi chia sẻ.`}
         agents={blockingAgents}
       />
     </>

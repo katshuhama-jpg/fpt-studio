@@ -20,6 +20,8 @@ import { customConnectorStore } from "@/components/configure/customConnectorStor
 import { isAccessibleTo as isConnectorAccessible, isViewOnly as isConnectorViewOnly } from "@/components/configure/customConnectorSharing";
 import AddCustomConnectorModal from "@/components/configure/AddCustomConnectorModal";
 import CustomConnectorShareModal from "@/components/configure/CustomConnectorShareModal";
+import { customApiToolStore, AUTH_TYPE_LABEL } from "@/components/configure/customApiToolStore";
+import AddCustomApiToolModal from "@/components/configure/AddCustomApiToolModal";
 import { knowledgeBaseStore, isAccessibleTo as isKbAccessibleTo, isViewOnly as isKbViewOnly } from "@/components/knowledge/knowledgeBaseStore";
 import { knowledgeDocumentStore } from "@/components/knowledge/knowledgeDocumentStore";
 import { knowledgeUrlStore } from "@/components/knowledge/knowledgeUrlStore";
@@ -48,6 +50,7 @@ export type AgentResourceRef =
   | { kind: "agentGuardrail"; id: string }
   | { kind: "knowledgeBase"; id: string }
   | { kind: "knowledgeItem"; id: string }
+  | { kind: "apiTool"; id: string }
   | { kind: "connector"; id: string };
 
 type Sub = null | "edit" | "share";
@@ -493,6 +496,48 @@ function ConnectorDetail({ agentId, id, onClose, onChanged }: { agentId: string;
   );
 }
 
+function ApiToolDetail({ agentId, id, onClose, onChanged }: { agentId: string; id: string; onClose: () => void; onChanged: () => void }) {
+  const access = useGroupAccess("connectors");
+  const [sub, setSub] = useState<Sub>(null);
+  const [, setTick] = useState(0);
+  const refresh = () => { setTick(t => t + 1); onChanged(); };
+  const a = customApiToolStore.get(id);
+  if (!a) return null;
+  const isOwner = a.ownerId === access.userId;
+  const viewOnly = !isOwner && isConnectorAccessible(a.sharing, a.ownerId, access.userId) && isConnectorViewOnly(a.sharing, a.ownerId, access.userId);
+  const canEdit = access.canAct("manage", true) && !viewOnly;
+  const canShare = isOwner && access.canAct("publish", true);
+
+  if (sub === "edit") return <AddCustomApiToolModal editing={a} onClose={() => setSub(null)} onUpdated={() => { setSub(null); refresh(); }} />;
+  if (sub === "share") return (
+    <CustomConnectorShareModal
+      open title="Chia sẻ API Tool" noun="API Tool" name={a.name} ownerName={a.ownerName} sharing={a.sharing}
+      resourceOwnerId={a.ownerId} attachedAgentIds={a.attachedByAgentIds} agentOnlyFor={agentId}
+      onSave={sharing => { customApiToolStore.updateSharing(a.id, sharing); refresh(); }}
+      onClose={() => setSub(null)}
+    />
+  );
+  return (
+    <Shell
+      typeLabel="API Tool" name={a.name} onClose={onClose}
+      onEdit={canEdit ? () => setSub("edit") : undefined}
+      onShare={canShare ? () => setSub("share") : undefined}
+      note={canEdit ? undefined : viewOnly ? VIEW_ONLY_SHARE : NO_EDIT_ROLE}
+    >
+      <Meta rows={[
+        { label: "Người tạo", value: isOwner ? "Bạn" : a.ownerName },
+        ...(isOwner ? [{ label: "Chia sẻ tới", value: sharingLabel(a.sharing) }] : []),
+        { label: "Đang dùng trong", value: usedByLabel(a.attachedByAgentIds) },
+      ]} />
+      <Field label="Mô tả"><p className="whitespace-pre-wrap">{a.description || "Chưa có mô tả"}</p></Field>
+      <Field label="Endpoint"><p className="font-mono text-xs break-all"><span className="font-semibold">{a.method}</span> {a.url}</p></Field>
+      <Field label="Xác thực">{AUTH_TYPE_LABEL[a.auth.type]}</Field>
+      <Field label="Tham số">{a.params.length ? a.params.map(p => `${p.name}${p.required ? " *" : ""}`).join(", ") : "Không có"}</Field>
+      <Field label="Timeout">{a.timeoutSec} giây</Field>
+    </Shell>
+  );
+}
+
 /* ------------------------------- Entry -------------------------------- */
 
 export default function AgentResourceDetailModal({ agentId, target, onClose, onChanged, onOpenKnowledge }: {
@@ -512,6 +557,7 @@ export default function AgentResourceDetailModal({ agentId, target, onClose, onC
     case "agentGuardrail": return <AgentGuardrailDetail agentId={agentId} id={target.id} onClose={onClose} onChanged={changed} />;
     case "knowledgeBase": return <KnowledgeBaseDetail agentId={agentId} id={target.id} onClose={onClose} onChanged={changed} />;
     case "knowledgeItem": return <KnowledgeItemDetail agentId={agentId} id={target.id} onClose={onClose} onChanged={changed} onOpenFull={() => { onClose(); onOpenKnowledge?.(); }} />;
+    case "apiTool": return <ApiToolDetail agentId={agentId} id={target.id} onClose={onClose} onChanged={changed} />;
     case "connector": return <ConnectorDetail agentId={agentId} id={target.id} onClose={onClose} onChanged={changed} />;
   }
 }

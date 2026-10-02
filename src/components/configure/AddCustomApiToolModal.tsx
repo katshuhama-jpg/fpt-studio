@@ -1,3 +1,4 @@
+import type { Sharing } from "./customConnectorSharing";
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -59,13 +60,16 @@ function previewUrl(url: string, params: ApiParam[]): string {
 
 /** "Thêm API Tool" — create/edit form for a Custom API Tool (a plain REST endpoint an Agent can
  * call), separate from "Thêm MCP tùy chỉnh" (customConnectorStore.ts) which points at an
- * existing MCP server instead of describing a single API call. Simple version per the approved
- * scope: no sharing (every tool is private to its creator), no response mapping / retry / rate
- * limit / cache / mTLS — those are explicitly a later phase. Test only ever simulates a call
+ * existing MCP server instead of describing a single API call. No sharing step in the form (same
+ * as every create popup): the caller passes the starting sharing — Space library = whole Space,
+ * quick-add inside an Agent = "Chỉ Agent này". No response mapping / retry / rate limit / cache /
+ * mTLS — those are explicitly a later phase. Test only ever simulates a call
  * (this whole app has no real backend), same convention as ToolBuilder's and
  * ConnectSharedConnectorModal's mocked flows. */
-export default function AddCustomApiToolModal({ editing, onClose, onCreated, onUpdated }: {
+export default function AddCustomApiToolModal({ editing, onClose, onCreated, onUpdated, sharing }: {
   editing?: CustomApiTool;
+  /** Starting sharing for a NEW tool (ignored when editing). */
+  sharing?: Sharing;
   onClose: () => void;
   onCreated?: (tool: CustomApiTool) => void;
   onUpdated?: (tool: CustomApiTool) => void;
@@ -121,7 +125,7 @@ export default function AddCustomApiToolModal({ editing, onClose, onCreated, onU
       onUpdated?.(customApiToolStore.get(editing.id)!);
       return;
     }
-    onCreated?.(customApiToolStore.create(buildData()));
+    onCreated?.(customApiToolStore.create({ ...buildData(), sharing }));
   };
 
   const runTest = async () => {
@@ -146,7 +150,7 @@ export default function AddCustomApiToolModal({ editing, onClose, onCreated, onU
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[10002] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative w-full max-w-[640px] bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh] animate-fade-up">
         <div className="flex items-start justify-between px-6 py-5 border-b border-border shrink-0">
