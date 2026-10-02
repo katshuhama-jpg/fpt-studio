@@ -117,13 +117,13 @@ function DepartmentPicker({ value, onChange }: { value: string[]; onChange: (nex
  * popups) reads these constants so the wording never drifts. */
 export const ACCESS_COPY = {
   title: "Quyền truy cập",
-  description: "Quyết định ai được liên kết kho này vào Agent khi xây dựng. Người có quyền sẽ thấy kho trong thư viện của Space.",
-  agentDescription: "Quyết định ai được dùng lại tri thức này khi xây dựng Agent. Khi chia sẻ, mỗi mục trở thành một kho trong Space.",
+  description: "Ai được liên kết kho này vào Agent khi xây dựng.",
+  agentDescription: "Ai được dùng lại tri thức này khi xây dựng Agent khác.",
   toast: "Đã cập nhật quyền truy cập.",
 };
 export const RETRIEVAL_COPY = {
   title: "Quyền truy xuất",
-  description: "Quyết định ai nhận được câu trả lời từ nội dung kho này khi trò chuyện với Agent.",
+  description: "Ai nhận được câu trả lời từ kho này khi trò chuyện với Agent.",
   toast: "Đã cập nhật quyền truy xuất.",
 };
 
