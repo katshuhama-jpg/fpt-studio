@@ -120,14 +120,14 @@ export default function ShareKnowledgeBaseModal({
             {mode === "private" ? (
               <>
                 <AlertDialogTitle>Tắt chia sẻ?</AlertDialogTitle>
-                <AlertDialogDescription>Chỉ Agent này dùng được kho này nữa.</AlertDialogDescription>
+                <AlertDialogDescription>Chỉ Agent này dùng được kho này. Agent khác sẽ không liên kết được nữa.</AlertDialogDescription>
               </>
             ) : (
               <>
                 <AlertDialogTitle>Thu hẹp quyền truy cập?</AlertDialogTitle>
                 <AlertDialogDescription>{initialSharing.mode === "all"
-                  ? "Người không có trong danh sách sẽ không dùng được kho này nữa."
-                  : `${revokedCount} người sẽ không dùng được kho này nữa.`}</AlertDialogDescription>
+                  ? "Người không có trong danh sách sẽ không liên kết được kho này vào Agent nữa."
+                  : `${revokedCount} người sẽ không liên kết được kho này vào Agent nữa.`}</AlertDialogDescription>
               </>
             )}
           </AlertDialogHeader>

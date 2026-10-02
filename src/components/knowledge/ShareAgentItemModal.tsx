@@ -125,10 +125,10 @@ export default function ShareAgentItemModal({ agentId, items, onClose }: {
           <AlertDialogHeader>
             <AlertDialogTitle>{!downgrading ? "Thu hẹp quyền truy xuất?" : buildMode === "private" ? "Tắt chia sẻ?" : "Thu hẹp quyền truy cập?"}</AlertDialogTitle>
             <AlertDialogDescription>{!downgrading
-              ? "Agent sẽ ngừng trả lời cho người ngoài các phòng ban đã chọn."
+              ? "Agent sẽ ngừng trả lời từ nội dung này cho người ngoài các phòng ban đã chọn."
               : buildMode === "private"
-                ? "Chỉ Agent này dùng được nội dung này nữa."
-                : "Người không có trong danh sách sẽ không dùng được nội dung này nữa."}</AlertDialogDescription>
+                ? "Chỉ Agent này dùng được nội dung này. Agent khác sẽ không liên kết được nữa."
+                : "Người không có trong danh sách sẽ không liên kết được nội dung này vào Agent nữa."}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
