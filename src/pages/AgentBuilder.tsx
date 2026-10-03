@@ -1467,8 +1467,8 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, removeBlocked,
       disabledReason: disabled ? disabledReason : undefined,
     }]),
     ...(onScope ? [{ label: "Đổi phạm vi liên kết", icon: ConnectIcon, onSelect: onScope }] : []),
-    ...(onShare ? [{ label: shareLabel, icon: Share08Icon, onSelect: onShare }] : []),
-    ...(onRetrieval ? [{ label: RETRIEVAL_COPY.menu, icon: Share08Icon, onSelect: onRetrieval }] : []),
+    ...(onShare ? [{ label: shareLabel, icon: UserMultipleIcon, onSelect: onShare }] : []),
+    ...(onRetrieval ? [{ label: RETRIEVAL_COPY.menu, icon: Chat01Icon, onSelect: onRetrieval }] : []),
     { label: removeLabel, icon: Delete01Icon, onSelect: onRemove, destructive: true, disabledReason: removeBlocked },
   ];
   const actionsMenu = (
@@ -1534,8 +1534,8 @@ function AgentKbCardMenu({ onOpen, onEdit, onScope, onShare, onRetrieval, onDeta
         { label: "Xem chi tiết", icon: ExternalLinkIcon, onSelect: onOpen },
         ...(onEdit ? [{ label: "Đổi tên", icon: PencilEdit01Icon, onSelect: onEdit, disabledReason: editBlocked }] : []),
         ...(onScope ? [{ label: "Đổi phạm vi liên kết", icon: ConnectIcon, onSelect: onScope, disabledReason: removeBlocked }] : []),
-        ...(onShare ? [{ label: ACCESS_COPY.menu, icon: Share08Icon, onSelect: onShare, disabledReason: shareBlocked }] : []),
-        ...(onRetrieval ? [{ label: RETRIEVAL_COPY.menu, icon: Share08Icon, onSelect: onRetrieval, disabledReason: shareBlocked }] : []),
+        ...(onShare ? [{ label: ACCESS_COPY.menu, icon: UserMultipleIcon, onSelect: onShare, disabledReason: shareBlocked }] : []),
+        ...(onRetrieval ? [{ label: RETRIEVAL_COPY.menu, icon: Chat01Icon, onSelect: onRetrieval, disabledReason: shareBlocked }] : []),
         ...(onDetach ? [{ label: "Gỡ liên kết", icon: Delete01Icon, onSelect: onDetach, destructive: true, disabledReason: removeBlocked }] : []),
         ...(onDelete ? [{ label: "Xóa", icon: Delete01Icon, onSelect: onDelete, destructive: true, disabledReason: removeBlocked }] : []),
       ];
@@ -1846,8 +1846,8 @@ function KnowledgeItemRowMenu({ onOpen, openLabel = "Xem chi tiết", onShare, o
 }) {
   const items: ActionMenuItem[] = [
     { label: openLabel, icon: ExternalLinkIcon, onSelect: onOpen },
-    { label: ACCESS_COPY.menu, icon: Share08Icon, onSelect: onShare },
-    { label: RETRIEVAL_COPY.menu, icon: Share08Icon, onSelect: onRetrieval },
+    { label: ACCESS_COPY.menu, icon: UserMultipleIcon, onSelect: onShare },
+    { label: RETRIEVAL_COPY.menu, icon: Chat01Icon, onSelect: onRetrieval },
     { label: "Xử lý lại", icon: CircleArrowReload01Icon, onSelect: onReprocess, disabledReason: reprocessDisabled ? (reprocessTooltip ?? "Chưa thể xử lý lại nguồn này.") : undefined },
     { label: "Xóa", icon: Delete01Icon, onSelect: onDelete, destructive: true },
   ];
@@ -4867,7 +4867,7 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
             triggerLabel={`Thao tác với ${rowName}`}
             items={[
               ...(detailRef ? [{ label: "Xem chi tiết", icon: EyeIcon, onSelect: () => setDetailTarget(detailRef) }] : []),
-              ...(canShare ? [{ label: ACCESS_COPY.menu, icon: Share08Icon, onSelect: () => { if (customConnector) setShareTarget(customConnector); else if (apiTool) setShareApiTool(apiTool); } }] : []),
+              ...(canShare ? [{ label: ACCESS_COPY.menu, icon: UserMultipleIcon, onSelect: () => { if (customConnector) setShareTarget(customConnector); else if (apiTool) setShareApiTool(apiTool); } }] : []),
               { label: "Gỡ liên kết", icon: Delete01Icon, onSelect: () => setDetachConnTarget({ id: c.id, name: rowName }), destructive: true },
             ]}
           />
@@ -5088,7 +5088,7 @@ function SkillCardMenu({ onOpen, onEdit, onShare, onRemove, removeLabel }: {
   const items: ActionMenuItem[] = [
     ...(onOpen ? [{ label: "Xem chi tiết", icon: ExternalLinkIcon, onSelect: onOpen }] : []),
     ...(onEdit ? [{ label: "Chỉnh sửa", icon: PencilEdit01Icon, onSelect: onEdit }] : []),
-    ...(onShare ? [{ label: ACCESS_COPY.menu, icon: Share08Icon, onSelect: onShare }] : []),
+    ...(onShare ? [{ label: ACCESS_COPY.menu, icon: UserMultipleIcon, onSelect: onShare }] : []),
     { label: removeLabel, icon: Delete01Icon, onSelect: onRemove, destructive: true },
   ];
   return <ActionMenu items={items} triggerLabel="Thao tác với skill" />;
@@ -7089,7 +7089,7 @@ function GuardrailAgentItemRowMenu({ onView, onEdit, onShare, onDelete, deleteLa
   const items: ActionMenuItem[] = [
     { label: "Xem chi tiết", icon: EyeIcon, onSelect: onView },
     ...(onEdit ? [{ label: "Chỉnh sửa", icon: PencilEdit01Icon, onSelect: onEdit }] : []),
-    ...(onShare ? [{ label: ACCESS_COPY.menu, icon: Share08Icon, onSelect: onShare }] : []),
+    ...(onShare ? [{ label: ACCESS_COPY.menu, icon: UserMultipleIcon, onSelect: onShare }] : []),
     { label: deleteLabel, icon: Delete01Icon, onSelect: onDelete, destructive: true },
   ];
   return <ActionMenu items={items} triggerLabel="Thao tác với guardrail" />;

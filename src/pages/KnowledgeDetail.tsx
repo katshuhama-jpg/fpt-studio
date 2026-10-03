@@ -49,17 +49,17 @@ function PermissionChips({ kb, canManage, onOpenAccess, onOpenRetrieval }: {
     <>
       <span className="chip chip-muted">{isOwner ? "Của tôi" : `Được chia sẻ · ${kb.ownerName}`}</span>
       {chips.map(({ key, Icon, prefix, value, tip, onClick, badge }) => {
-        // Folders/documents with their own "Agent trả lời cho ai" show as a small lock + count
+        // Folders/documents with their own "Agent trả lời cho ai" show as a short "N mục riêng"
         // badge, so the chip keeps its main value short; the tooltip spells it out.
-        const badgeText = badge > 0 ? `${badge} thư mục hoặc tài liệu có cài đặt riêng` : "";
+        const badgeText = badge > 0 ? `${badge} thư mục hoặc tài liệu có cài đặt "Agent trả lời cho ai" riêng` : "";
         const body = (
           <>
             <Icon size={13} className="shrink-0 text-muted-foreground" />
             <span className="text-muted-foreground">{prefix}:</span>
             <span className="font-medium text-foreground">{value}</span>
             {badge > 0 && (
-              <span className="inline-flex items-center gap-0.5 rounded-full bg-primary-soft text-primary px-1.5 py-px text-[11px] font-semibold leading-4">
-                <Lock size={10} aria-hidden />{badge}
+              <span className="inline-flex items-center rounded-full bg-primary-soft text-primary px-2 py-px text-[11px] font-semibold leading-4 whitespace-nowrap">
+                {badge} mục riêng
               </span>
             )}
           </>

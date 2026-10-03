@@ -5,7 +5,7 @@ import {
 import { agentsUsing, ResourceInUseDialog } from "@/components/governance/resourceInUseGuard";
 import { useSearchParams } from "react-router-dom";
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Add01Icon, Delete01Icon, MoreVerticalIcon, PencilEdit01Icon, Search01Icon, Share08Icon, EyeIcon } from "@hugeicons/core-free-icons";
+import { Add01Icon, Delete01Icon, MoreVerticalIcon, PencilEdit01Icon, Search01Icon, Share08Icon, EyeIcon, UserMultipleIcon } from "@hugeicons/core-free-icons";
 import { Switch } from "@/components/ui/switch";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import { useGroupAccess } from "@/pages/organization/scopeAccess";
@@ -403,7 +403,7 @@ function RowMenu({
               onClick={() => { setOpen(false); onShare(); }}
               className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface-muted transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
             >
-              <HugeiconsIcon icon={Share08Icon} size={13} className="text-muted-foreground" /> Ai được dùng
+              <HugeiconsIcon icon={UserMultipleIcon} size={13} className="text-muted-foreground" /> Ai được dùng
             </button>
           )}
           <button
