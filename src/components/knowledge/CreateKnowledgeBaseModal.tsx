@@ -19,17 +19,19 @@ const NAME_MAX = 50;
 const DESC_MAX = 256;
 
 export default function CreateKnowledgeBaseModal({
-  open, onClose, onCreated, editingKb,
+  open, onClose, onCreated, editingKb, agentOnlyFor,
 }: {
   open: boolean;
   onClose: () => void;
   onCreated?: (kb: KnowledgeBase) => void;
   editingKb?: KnowledgeBase;
+  /** Created from inside an Agent: adds "Chỉ Agent này" (the default) to "Ai được dùng". */
+  agentOnlyFor?: string;
 }) {
   const isEdit = !!editingKb;
   const [name, setName] = useState(editingKb?.name ?? "");
   const [description, setDescription] = useState(editingKb?.description ?? "");
-  const [sharingMode, setSharingMode] = useState<SharingMode>(!editingKb || editingKb.sharing.mode === "private" ? "all" : editingKb.sharing.mode);
+  const [sharingMode, setSharingMode] = useState<SharingMode>(!editingKb ? (agentOnlyFor ? "private" : "all") : editingKb.sharing.mode === "private" && !editingKb.agentOnlyFor ? "all" : editingKb.sharing.mode);
   const [people, setPeople] = useState(editingKb?.sharing.people ?? []);
   const [querySharing, setQuerySharing] = useState<QuerySharing>(editingKb?.querySharing ?? DEFAULT_QUERY_SHARING);
   const [nameTouched, setNameTouched] = useState(false);
@@ -40,11 +42,13 @@ export default function CreateKnowledgeBaseModal({
   const nameRef = useRef<HTMLInputElement>(null);
 
   const trimmedName = name.trim();
+  // Names are unique within the Space library, or within one Agent's own knowledge bases.
+  const nameScope = isEdit ? editingKb.agentOnlyFor : sharingMode === "private" ? agentOnlyFor : undefined;
   const showNameError = nameTouched || submitAttempted;
   const nameError = showNameError
     ? trimmedName.length === 0
       ? "Vui lòng nhập tên kho tri thức."
-      : knowledgeBaseStore.isDuplicateName(trimmedName, editingKb?.id)
+      : knowledgeBaseStore.isDuplicateName(trimmedName, editingKb?.id, nameScope)
         ? "Tên kho tri thức đã tồn tại. Vui lòng chọn tên khác."
         : null
     : null;
@@ -64,10 +68,10 @@ export default function CreateKnowledgeBaseModal({
     setSubmitAttempted(true);
     setNameTouched(true);
     if (!canSubmit) {
-      if (trimmedName.length === 0 || knowledgeBaseStore.isDuplicateName(trimmedName, editingKb?.id)) nameRef.current?.focus();
+      if (trimmedName.length === 0 || knowledgeBaseStore.isDuplicateName(trimmedName, editingKb?.id, nameScope)) nameRef.current?.focus();
       return;
     }
-    if (knowledgeBaseStore.isDuplicateName(trimmedName, editingKb?.id)) return;
+    if (knowledgeBaseStore.isDuplicateName(trimmedName, editingKb?.id, nameScope)) return;
     setSubmitting(true);
     setSubmitError(null);
     const sharing: Sharing = { mode: sharingMode, people: sharingMode === "specific" ? people : [] };
@@ -78,7 +82,7 @@ export default function CreateKnowledgeBaseModal({
           toast.success(`Đã lưu kho tri thức "${trimmedName}".`);
           onCreated?.(knowledgeBaseStore.get(editingKb.id)!);
         } else {
-          const kb = knowledgeBaseStore.create({ name: trimmedName, description: description.trim(), type: "internal", sharing, querySharing });
+          const kb = knowledgeBaseStore.create({ name: trimmedName, description: description.trim(), type: "internal", sharing, querySharing, agentOnlyFor: sharingMode === "private" ? agentOnlyFor : undefined });
           toast.success(`Đã tạo kho tri thức "${trimmedName}".`);
           onCreated?.(kb);
         }
@@ -151,6 +155,7 @@ export default function CreateKnowledgeBaseModal({
                     onPeopleChange={setPeople}
                     submitAttempted={submitAttempted}
                     ownerRow={{ name: CURRENT_USER.name, email: CURRENT_USER.email }}
+                    agentOnly={!!agentOnlyFor}
                   />
                 </div>
                 <div className="border-t border-border pt-5">

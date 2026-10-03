@@ -5,6 +5,7 @@ import { AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { knowledgeBaseStore, type KnowledgeBase } from "./knowledgeBaseStore";
 import { getAgent } from "@/components/configure/agentStore";
+import { knowledgeStore } from "./knowledgeStore";
 
 export default function DeleteKnowledgeBaseDialog({
   open, onClose, kb, onDeleted,
@@ -16,11 +17,15 @@ export default function DeleteKnowledgeBaseDialog({
 }) {
   const [typed, setTyped] = useState("");
   const matches = typed.trim() === kb.name;
-  const attachedAgentNames = kb.attachedByAgentIds.map(id => getAgent(id).name);
+  // An Agent's own knowledge base is used by that Agent only - deleting it there is expected,
+  // so only other Agents block the delete.
+  const blockingIds = kb.attachedByAgentIds.filter(id => id !== kb.agentOnlyFor);
+  const attachedAgentNames = blockingIds.map(id => getAgent(id).name);
 
   const confirmDelete = () => {
     if (!matches) return;
-    knowledgeBaseStore.remove(kb.id);
+    if (kb.agentOnlyFor) knowledgeStore.deleteOwnKb(kb.agentOnlyFor, kb.id);
+    else knowledgeBaseStore.remove(kb.id);
     onClose();
     onDeleted?.();
     toast.success(`Đã xóa kho tri thức "${kb.name}".`, {
@@ -29,14 +34,14 @@ export default function DeleteKnowledgeBaseDialog({
     });
   };
 
-  if (kb.attachedByAgentIds.length > 0) {
+  if (blockingIds.length > 0) {
     return (
       <ResourceInUseDialog
         open={open}
         onClose={onClose}
         title="Chưa thể xóa kho tri thức"
         description={"Kho tri thức vẫn đang được các Agent dưới đây sử dụng. Chủ sở hữu cần gỡ kho tri thức khỏi Agent trước, sau đó bạn mới xóa được."}
-        agents={agentsUsing(kb.attachedByAgentIds)}
+        agents={agentsUsing(blockingIds)}
       />
     );
   }

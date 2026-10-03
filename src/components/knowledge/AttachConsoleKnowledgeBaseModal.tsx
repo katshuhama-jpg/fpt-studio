@@ -27,7 +27,7 @@ export default function AttachConsoleKnowledgeBaseModal(props: Props) {
 function AttachWholeKb({ agentId, userId, onClose }: Props) {
   const linked = useMemo(() => new Set(knowledgeStore.listAttachedConsoleKbIds(agentId)), [agentId]);
   const all = useMemo(() => {
-    const list = knowledgeBaseStore.list().filter(kb => isAccessibleTo(kb, userId) || linked.has(kb.id));
+    const list = knowledgeBaseStore.listSpace().filter(kb => isAccessibleTo(kb, userId) || linked.has(kb.id));
     return [...list.filter(kb => linked.has(kb.id)), ...list.filter(kb => !linked.has(kb.id))];
   }, [userId, linked]);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
@@ -140,7 +140,7 @@ function AttachWithScope({ agentId, userId, onClose, initialFocusKbId }: Props) 
   const linkedIds = useMemo(() => knowledgeStore.listAttachedConsoleKbIds(agentId), [agentId]);
   const linked = useMemo(() => new Set(linkedIds), [linkedIds]);
   const all = useMemo(() => {
-    const list = knowledgeBaseStore.list().filter(kb => isAccessibleTo(kb, userId) || linked.has(kb.id));
+    const list = knowledgeBaseStore.listSpace().filter(kb => isAccessibleTo(kb, userId) || linked.has(kb.id));
     // Linked first, so the knowledge bases this Agent already uses are easy to find.
     return [...list.filter(kb => linked.has(kb.id)), ...list.filter(kb => !linked.has(kb.id))];
   }, [userId, linked]);

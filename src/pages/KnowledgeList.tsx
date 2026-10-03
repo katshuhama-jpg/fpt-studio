@@ -174,7 +174,7 @@ export default function KnowledgeList() {
     setLoadState("loading");
     const t = setTimeout(() => {
       try {
-        setKbs(knowledgeBaseStore.list());
+        setKbs(knowledgeBaseStore.listSpace());
         setLoadState("ready");
       } catch {
         setLoadState("error");

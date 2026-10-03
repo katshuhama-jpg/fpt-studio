@@ -65,7 +65,7 @@ function PermissionChips({ kb, canManage, onOpenAccess, onOpenRetrieval }: {
   const isOwner = kb.ownerId === CURRENT_USER.id;
   const restrictedCount = knowledgeDocumentStore.countRestricted(kb.id);
   const chips = [
-    { key: "access", Icon: Users, prefix: ACCESS_COPY.chip, value: accessLabel(kb.sharing.mode, kb.sharing.people.length), tip: ACCESS_COPY.title, onClick: onOpenAccess, badge: 0 },
+    { key: "access", Icon: Users, prefix: ACCESS_COPY.chip, value: accessLabel(kb.sharing.mode, kb.sharing.people.length, kb.agentOnlyFor ? "Chỉ Agent này" : undefined), tip: ACCESS_COPY.title, onClick: onOpenAccess, badge: 0 },
     { key: "retrieval", Icon: MessageSquareText, prefix: RETRIEVAL_COPY.chip, value: retrievalLabel(kb.querySharing), tip: RETRIEVAL_COPY.title, onClick: onOpenRetrieval, badge: restrictedCount },
   ];
   return (
@@ -233,6 +233,10 @@ export default function KnowledgeDetail() {
     knowledgeFaqStore.list(kb.id).some(f => busy(f.status))
   );
 
+  // An Agent's own knowledge base isn't in the Space library - it belongs under that Agent.
+  const backHref = kb.agentOnlyFor ? `/agents/${kb.agentOnlyFor}?tab=build&section=knowledge` : "/knowledge";
+  const backLabel = kb.agentOnlyFor ? `Tri thức của ${getAgent(kb.agentOnlyFor).name}` : "Kho tri thức";
+
   const commitName = () => {
     const trimmed = nameDraft.trim();
     if (trimmed && trimmed !== kb.name) knowledgeBaseStore.update(kb.id, { name: trimmed });
@@ -250,10 +254,10 @@ export default function KnowledgeDetail() {
     <div className="flex flex-col h-full bg-background">
       <div className="border-b border-border bg-surface px-4 sm:px-6 pt-4 pb-0 shrink-0">
         <div className="flex items-center gap-2 mb-3">
-          <button onClick={() => navigate("/knowledge")} className="h-8 w-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0">
+          <button onClick={() => navigate(backHref)} aria-label={`Về ${backLabel}`} className="h-8 w-8 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base shrink-0">
             <ChevronLeft size={16} />
           </button>
-          <Link to="/knowledge" className="text-sm text-muted-foreground hover:text-foreground transition-base">Kho tri thức</Link>
+          <Link to={backHref} className="text-sm text-muted-foreground hover:text-foreground transition-base">{backLabel}</Link>
           <span className="text-sm text-muted-foreground/50">/</span>
           <span className="text-sm text-foreground font-medium truncate">{kb.name}</span>
         </div>
@@ -429,11 +433,12 @@ export default function KnowledgeDetail() {
           sharing={kb.sharing}
           resourceOwnerId={kb.ownerId}
           attachedAgentIds={kb.attachedByAgentIds}
+          agentOnlyFor={kb.agentOnlyFor}
           onSave={sharing => knowledgeBaseStore.updateSharing(kb.id, sharing)}
           onClose={() => { setShowShare(false); refresh(); }}
         />
       )}
-      {showDelete && <DeleteKnowledgeBaseDialog open={showDelete} kb={kb} onClose={() => setShowDelete(false)} onDeleted={() => navigate("/knowledge")} />}
+      {showDelete && <DeleteKnowledgeBaseDialog open={showDelete} kb={kb} onClose={() => setShowDelete(false)} onDeleted={() => navigate(backHref)} />}
       {showRetrieval && (
         <RetrievalScopeModal
           name={kb.name}

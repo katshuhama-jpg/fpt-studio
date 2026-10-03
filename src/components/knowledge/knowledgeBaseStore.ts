@@ -76,6 +76,10 @@ export interface KnowledgeBase {
   /** Agent ids currently attaching this KB by reference — drives the Delete-KB warning
    * ("N Agent đang dùng kho tri thức này..."). */
   attachedByAgentIds: string[];
+  /** Set when this KB belongs to one Agent only ("Chỉ Agent này") - it lives in that Agent's
+   * "Kho tri thức riêng của Agent" section and is hidden from the Space library and the
+   * "Liên kết kho tri thức" popup. Cleared once "Ai được dùng" opens it to the Space. */
+  agentOnlyFor?: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -229,9 +233,26 @@ export const knowledgeBaseStore = {
     const kb = store.get(id);
     return kb ? withStats(kb) : undefined;
   },
-  isDuplicateName(name: string, excludeId?: string): boolean {
+  /** Names are unique within one place: the Space library, or one Agent's own knowledge bases
+   * (`agentId`). Two Agents may each have a "Tri thức riêng". */
+  isDuplicateName(name: string, excludeId?: string, agentId?: string): boolean {
     const n = name.trim().toLowerCase();
-    return this.list().some(kb => kb.id !== excludeId && kb.name.trim().toLowerCase() === n);
+    return this.list().some(kb => kb.id !== excludeId && (kb.agentOnlyFor ?? undefined) === agentId && kb.name.trim().toLowerCase() === n);
+  },
+  /** Knowledge bases shown in the Space library - everything except Agent-only ones. */
+  listSpace(): KnowledgeBase[] {
+    return this.list().filter(kb => !kb.agentOnlyFor);
+  },
+  /** One Agent's own knowledge bases. */
+  listAgentOnly(agentId: string): KnowledgeBase[] {
+    return this.list().filter(kb => kb.agentOnlyFor === agentId);
+  },
+  /** "Chỉ Agent này" on a KB: it leaves the Space library and becomes this Agent's own. */
+  setAgentOnly(id: string, agentId: string) {
+    const cur = store.get(id);
+    if (!cur) return;
+    store.set(id, { ...cur, agentOnlyFor: agentId, sharing: { mode: "private", people: [] }, updatedAt: Date.now() });
+    persist();
   },
   create(data: {
     name: string; description: string; type: KnowledgeBaseType; sharing: Sharing;
@@ -239,15 +260,16 @@ export const knowledgeBaseStore = {
      * this default only covers older/internal call sites that predate this field. */
     querySharing?: QuerySharing;
     apiEndpoint?: string; hasApiKey?: boolean;
+    agentOnlyFor?: string;
   }): KnowledgeBase {
-    const id = `kb-${Date.now().toString(36)}`;
+    const id = `kb-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
     const now = Date.now();
     const kb: StoredKnowledgeBase = {
       id, name: data.name.trim(), description: data.description.trim(), type: data.type,
       ownerId: CURRENT_USER.id, ownerName: CURRENT_USER.name, sharing: data.sharing,
       querySharing: data.querySharing ?? DEFAULT_QUERY_SHARING,
       apiEndpoint: data.apiEndpoint, hasApiKey: data.hasApiKey,
-      attachedByAgentIds: [], createdAt: now, updatedAt: now,
+      attachedByAgentIds: [], agentOnlyFor: data.agentOnlyFor, createdAt: now, updatedAt: now,
     };
     store.set(id, kb);
     persist();
@@ -262,7 +284,9 @@ export const knowledgeBaseStore = {
   updateSharing(id: string, sharing: Sharing) {
     const cur = store.get(id);
     if (!cur) return;
-    store.set(id, { ...cur, sharing, updatedAt: Date.now() });
+    // Opening an Agent-only KB to people in the Space moves it into the Space library.
+    const agentOnlyFor = sharing.mode === "private" ? cur.agentOnlyFor : undefined;
+    store.set(id, { ...cur, sharing, agentOnlyFor, updatedAt: Date.now() });
     persist();
   },
   updateQuerySharing(id: string, querySharing: QuerySharing) {

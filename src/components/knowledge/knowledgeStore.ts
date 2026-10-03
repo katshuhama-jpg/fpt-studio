@@ -8,7 +8,7 @@ import { knowledgeDocumentStore } from "./knowledgeDocumentStore";
 import { knowledgeUrlStore } from "./knowledgeUrlStore";
 import { knowledgeFaqStore, type CategoryOption } from "./knowledgeFaqStore";
 import { knowledgeChunkStore, markChunksSeeded } from "./knowledgeChunkStore";
-import type { KnowledgeFaqStatus } from "./knowledgeStatus";
+import type { KnowledgeFaqStatus, KnowledgeProcessingStatus } from "./knowledgeStatus";
 import { FULL_SCOPE, PARTIAL_LINK_ENABLED, type KbLinkScope } from "./kbLinkScope";
 
 export type KnowledgeKind = "doc" | "url" | "faq";
@@ -135,11 +135,57 @@ function seedAgent(agentId: string) {
   persist();
 }
 
+/** Copies one Agent item into a knowledge base as a document / website / FAQ. */
+function copyItemIntoKb(kbId: string, item: KnowledgeItem) {
+  // Keep the item's processing status; documents/websites have no "invalid" state, so that
+  // one reads as "failed" with its reason.
+  const status = item.status ?? "done";
+  const procStatus = (status === "invalid" ? "failed" : status) as KnowledgeProcessingStatus;
+  const reason = item.statusReason ? { statusReason: item.statusReason } : {};
+  if (item.kind === "faq") {
+    const faq = knowledgeFaqStore.create(kbId, { question: item.name, answer: item.description, categories: item.categories ?? [] });
+    if (status !== "pending") knowledgeFaqStore.updateStatus(faq.id, status, { chunkCount: item.chunkCount ?? (status === "done" ? 1 : 0) });
+  } else if (item.kind === "doc") {
+    const doc = knowledgeDocumentStore.addDocument(kbId, { name: item.name, sizeBytes: item.sizeBytes ?? 0, folderId: null });
+    if (status !== "pending") knowledgeDocumentStore.updateStatus(doc.id, procStatus, { chunkCount: item.chunkCount ?? 0, ...reason });
+  } else if (item.kind === "url") {
+    const url = knowledgeUrlStore.addUrl(kbId, { url: item.name, source: "specified", folderId: null });
+    if (status !== "pending") knowledgeUrlStore.updateStatus(url.id, procStatus, { chunkCount: item.chunkCount ?? 0 });
+  }
+}
+
+/** An Agent's own knowledge now lives in its own knowledge bases ("Chỉ Agent này"), managed
+ * exactly like a Space knowledge base. Older loose items (the former "Cá nhân" bucket) are
+ * moved once into one own knowledge base named "Tri thức riêng". */
+const OWN_KB_NAME = "Tri thức riêng";
+function migrateLooseItems(agentId: string) {
+  const loose = [...store.values()].filter(i => i.agentId === agentId);
+  if (loose.length === 0) return;
+  const kb = knowledgeBaseStore.listAgentOnly(agentId).find(x => x.name === OWN_KB_NAME) ?? knowledgeBaseStore.create({
+    name: OWN_KB_NAME,
+    description: "Tài liệu, website và câu hỏi thường gặp riêng của Agent này.",
+    type: "internal",
+    sharing: { mode: "private", people: [] },
+    agentOnlyFor: agentId,
+  });
+  for (const item of loose) {
+    copyItemIntoKb(kb.id, item);
+    store.delete(k(agentId, item.id));
+  }
+  persist();
+  const cur = new Set(attached.get(agentId) ?? []);
+  cur.add(kb.id);
+  attached.set(agentId, [...cur]);
+  persistAttached();
+  knowledgeBaseStore.addAttachingAgent(kb.id, agentId);
+}
+
 const MOCK_BODY = "Nội dung chi tiết được trích xuất tự động từ tài liệu gốc, mô tả các quy định và hướng dẫn liên quan đến mục này.";
 
 export const knowledgeStore = {
   list(agentId: string): KnowledgeItem[] {
     seedAgent(agentId);
+    migrateLooseItems(agentId);
     return [...store.values()]
       .filter(i => i.agentId === agentId)
       .sort((a, b) => b.updatedAt - a.updatedAt)
@@ -249,6 +295,8 @@ export const knowledgeStore = {
 
   // --- Linked Console Knowledge Bases (read-only reference, never copies data) ---
   listAttachedConsoleKbIds(agentId: string): string[] {
+    seedAgent(agentId);
+    migrateLooseItems(agentId);
     return attached.get(agentId) ?? [];
   },
   getLinkScope(agentId: string, kbId: string): KbLinkScope {
@@ -274,6 +322,23 @@ export const knowledgeStore = {
     persistAttached();
     if (linkScopes.delete(k(agentId, kbId))) persistLinkScopes();
     knowledgeBaseStore.removeAttachingAgent(kbId, agentId);
+  },
+
+  /** This Agent's own knowledge bases ("Chỉ Agent này"). */
+  listOwnKbs(agentId: string) {
+    this.listAttachedConsoleKbIds(agentId);
+    return knowledgeBaseStore.listAgentOnly(agentId);
+  },
+  /** Deletes one of this Agent's own knowledge bases together with its content. */
+  deleteOwnKb(agentId: string, kbId: string) {
+    this.detachConsoleKb(agentId, kbId);
+    const docs = knowledgeDocumentStore.list(kbId);
+    const urls = knowledgeUrlStore.list(kbId);
+    const faqs = knowledgeFaqStore.list(kbId);
+    if (docs.length) knowledgeDocumentStore.removeMany(docs.map(d => d.id));
+    if (urls.length) knowledgeUrlStore.removeMany(urls.map(u => u.id));
+    if (faqs.length) knowledgeFaqStore.removeMany(faqs.map(f => f.id));
+    knowledgeBaseStore.remove(kbId);
   },
 
   // --- Per-Agent "Kích hoạt" toggle (Round 6 Prompt K) ---
