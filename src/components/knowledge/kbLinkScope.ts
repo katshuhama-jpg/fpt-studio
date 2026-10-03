@@ -14,6 +14,11 @@ export interface KbLinkScope {
   faqCategories: string[];
 }
 
+/** LATER: linking only some folders, documents, websites or FAQ categories of a Space knowledge
+ * base. Off for now - an Agent links whole knowledge bases only, and any stored partial scope is
+ * read as the whole knowledge base. The scope code stays so turning this on brings it back. */
+export const PARTIAL_LINK_ENABLED = false;
+
 export const UNCATEGORIZED_FAQ = "__none__";
 export const UNCATEGORIZED_FAQ_LABEL = "Chưa có danh mục";
 export const FULL_SCOPE: KbLinkScope = { mode: "all", docIds: [], urlIds: [], faqCategories: [] };

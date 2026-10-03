@@ -32,7 +32,7 @@ import ShareKnowledgeBaseModal from "@/components/knowledge/ShareKnowledgeBaseMo
 import ShareAgentItemModal from "@/components/knowledge/ShareAgentItemModal";
 import RetrievalScopeModal from "@/components/knowledge/RetrievalScopeModal";
 import { ACCESS_COPY, RETRIEVAL_COPY, accessLabel, retrievalLabel } from "@/components/knowledge/QueryScopeSection";
-import { scopeLabel, isDocInScope, isUrlInScope, isFaqInScope } from "@/components/knowledge/kbLinkScope";
+import { scopeLabel, isDocInScope, isUrlInScope, isFaqInScope, PARTIAL_LINK_ENABLED } from "@/components/knowledge/kbLinkScope";
 
 /**
  * "Xem chi tiết resource ngay trong Instructions" — clicking a Skill / Guardrail / Kho tri thức /
@@ -444,7 +444,7 @@ function KnowledgeBaseDetail({ agentId, id, onClose, onChanged }: { agentId: str
         { label: "Người tạo", value: isOwner ? "Bạn" : kb.ownerName },
         ...(isOwner ? [{ label: ACCESS_COPY.title, value: accessLabel(kb.sharing.mode, kb.sharing.people.length, "Chỉ Agent này") }] : []),
         { label: RETRIEVAL_COPY.title, value: retrievalLabel(kb.querySharing) },
-        { label: "Phạm vi liên kết", value: scopeLabel(kb.id, linkScope).label },
+        ...(PARTIAL_LINK_ENABLED ? [{ label: "Phạm vi liên kết", value: scopeLabel(kb.id, linkScope).label }] : []),
         { label: "Đang dùng trong", value: usedByLabel(kb.attachedByAgentIds) },
       ]} />
       <Field label="Mô tả"><p className="whitespace-pre-wrap">{kb.description || "Chưa có mô tả"}</p></Field>

@@ -78,7 +78,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { knowledgeStore, OWN_KB_ID, type KnowledgeItem } from "@/components/knowledge/knowledgeStore";
-import { scopeLabel, isDocInScope, isDocFolderVisible } from "@/components/knowledge/kbLinkScope";
+import { scopeLabel, isDocInScope, isDocFolderVisible, PARTIAL_LINK_ENABLED } from "@/components/knowledge/kbLinkScope";
 import { knowledgeDocumentStore, type KnowledgeDocument } from "@/components/knowledge/knowledgeDocumentStore";
 import { isAccessibleTo as isSkillAccessibleTo, type Sharing as SkillSharing } from "@/components/configure/skillSharing";
 import { knowledgeBaseStore, CURRENT_USER as KB_CURRENT_USER, isViewOnly as isKbViewOnly, isAccessibleTo as isKbAccessibleTo, type KnowledgeBase } from "@/components/knowledge/knowledgeBaseStore";
@@ -1677,13 +1677,13 @@ function AgentKnowledgeGrid({ agentId, onOpenOwn }: { agentId: string; onOpenOwn
         name={c.name}
         description={c.description}
         onOpen={onOpen}
-        scope={c.kb ? scopeLabel(c.kb.id, knowledgeStore.getLinkScope(agentId, c.kb.id)) : undefined}
+        scope={c.kb && PARTIAL_LINK_ENABLED ? scopeLabel(c.kb.id, knowledgeStore.getLinkScope(agentId, c.kb.id)) : undefined}
         menu={
           <AgentKbCardMenu
             openOnly={c.isOwn}
             onOpen={onOpen}
             onEdit={c.kb ? () => setEditKbTarget(c.kb!) : undefined}
-            onScope={c.kb && c.kb.type === "internal" ? () => setScopeKbId(c.kb!.id) : undefined}
+            onScope={c.kb && c.kb.type === "internal" && PARTIAL_LINK_ENABLED ? () => setScopeKbId(c.kb!.id) : undefined}
             onShare={c.kb ? () => setShareKbTarget(c.kb!) : undefined}
             onRetrieval={c.kb ? () => setRetrievalKbTarget(c.kb!) : undefined}
             onDetach={c.kb ? () => setDetachKbTarget(c.kb!) : undefined}
@@ -5811,7 +5811,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
       href: `/knowledge/${kb.id}?viaAgent=${agentId}`,
       // Only a partial link shows its scope here; "Toàn bộ kho" is the normal case.
       scope: knowledgeStore.getLinkScope(agentId, kb.id).mode === "partial" ? scopeLabel(kb.id, knowledgeStore.getLinkScope(agentId, kb.id)) : undefined,
-      changeScope: kb.type === "internal" ? () => setScopeKbId(kb.id) : undefined,
+      changeScope: kb.type === "internal" && PARTIAL_LINK_ENABLED ? () => setScopeKbId(kb.id) : undefined,
       open: () => setDetailTarget({ kind: "knowledgeBase", id: kb.id }),
       remove: () => setDetachTarget({ id: kb.id, name: kb.name }),
       // Plain "Của tôi"/"Được chia sẻ" caption — no more granular Riêng tư/Chia sẻ · N/Dùng

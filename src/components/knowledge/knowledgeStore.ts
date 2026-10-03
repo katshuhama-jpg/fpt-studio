@@ -9,7 +9,7 @@ import { knowledgeUrlStore } from "./knowledgeUrlStore";
 import { knowledgeFaqStore, type CategoryOption } from "./knowledgeFaqStore";
 import { knowledgeChunkStore, markChunksSeeded } from "./knowledgeChunkStore";
 import type { KnowledgeFaqStatus } from "./knowledgeStatus";
-import { FULL_SCOPE, type KbLinkScope } from "./kbLinkScope";
+import { FULL_SCOPE, PARTIAL_LINK_ENABLED, type KbLinkScope } from "./kbLinkScope";
 
 export type KnowledgeKind = "doc" | "url" | "faq";
 
@@ -252,6 +252,7 @@ export const knowledgeStore = {
     return attached.get(agentId) ?? [];
   },
   getLinkScope(agentId: string, kbId: string): KbLinkScope {
+    if (!PARTIAL_LINK_ENABLED) return FULL_SCOPE;
     return linkScopes.get(k(agentId, kbId)) ?? FULL_SCOPE;
   },
   setLinkScope(agentId: string, kbId: string, scope: KbLinkScope) {

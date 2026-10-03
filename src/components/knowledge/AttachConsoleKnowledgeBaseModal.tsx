@@ -7,7 +7,7 @@ import { knowledgeBaseStore, isAccessibleTo, type KnowledgeBase } from "./knowle
 import { knowledgeStore } from "./knowledgeStore";
 import KnowledgeTypeIcon from "./KnowledgeTypeIcon";
 import KbScopePicker from "./KbScopePicker";
-import { FULL_SCOPE, pruneScope, scopeItemCount, scopeLabel, type KbLinkScope } from "./kbLinkScope";
+import { FULL_SCOPE, PARTIAL_LINK_ENABLED, pruneScope, scopeItemCount, scopeLabel, type KbLinkScope } from "./kbLinkScope";
 
 const sameScope = (a: KbLinkScope, b: KbLinkScope) => JSON.stringify(a) === JSON.stringify(b);
 const isEmptyPartial = (kbId: string, s: KbLinkScope) => s.mode === "partial" && scopeItemCount(pruneScope(kbId, s)) === 0;
@@ -16,9 +16,127 @@ const isEmptyPartial = (kbId: string, s: KbLinkScope) => s.mode === "partial" &&
  * choose "Toàn bộ kho" or only some folders, documents, websites and FAQ categories on the right.
  * Already linked knowledge bases stay ticked here so their scope can be changed; unlinking stays
  * on the card's "Gỡ liên kết". Only knowledge bases this user can access are listed. */
-export default function AttachConsoleKnowledgeBaseModal({ agentId, userId, onClose, initialFocusKbId }: {
-  agentId: string; userId: string; onClose: () => void; initialFocusKbId?: string;
-}) {
+type Props = { agentId: string; userId: string; onClose: () => void; initialFocusKbId?: string };
+
+export default function AttachConsoleKnowledgeBaseModal(props: Props) {
+  return PARTIAL_LINK_ENABLED ? <AttachWithScope {...props} /> : <AttachWholeKb {...props} />;
+}
+
+/** Current version: pick one or more Space knowledge bases; the Agent uses each one in full.
+ * Already linked knowledge bases stay ticked and locked (unlink from the card's "Gỡ liên kết"). */
+function AttachWholeKb({ agentId, userId, onClose }: Props) {
+  const linked = useMemo(() => new Set(knowledgeStore.listAttachedConsoleKbIds(agentId)), [agentId]);
+  const all = useMemo(() => {
+    const list = knowledgeBaseStore.list().filter(kb => isAccessibleTo(kb, userId) || linked.has(kb.id));
+    return [...list.filter(kb => linked.has(kb.id)), ...list.filter(kb => !linked.has(kb.id))];
+  }, [userId, linked]);
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(query), 300);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  const toggle = (id: string) => {
+    if (linked.has(id)) return;
+    setSelected(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  };
+  const submit = () => {
+    for (const id of selected) knowledgeStore.attachConsoleKb(agentId, id);
+    toast.success(`Đã liên kết ${selected.size} kho tri thức.`);
+    onClose();
+  };
+
+  const q = debouncedQuery.trim().toLowerCase();
+  const visible = all.filter(kb => selected.has(kb.id) || !q || kb.name.toLowerCase().includes(q) || kb.description.toLowerCase().includes(q));
+
+  return (
+    <Dialog open onOpenChange={v => !v && onClose()}>
+      <DialogContent className="sm:max-w-[560px] p-0 gap-0 overflow-hidden" onOpenAutoFocus={e => e.preventDefault()}>
+        <DialogHeader className="px-6 pt-6 pb-4">
+          <DialogTitle>Liên kết kho tri thức</DialogTitle>
+          <DialogDescription>Chọn một hoặc nhiều kho tri thức trong Space. Agent tra cứu toàn bộ nội dung của kho đã liên kết.</DialogDescription>
+        </DialogHeader>
+
+        {all.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-12 border-t border-border px-6">Chưa có kho tri thức nào bạn được dùng. Tạo kho mới hoặc nhờ chủ sở hữu mở quyền truy cập.</p>
+        ) : (
+          <div className="border-t border-border">
+            <div className="px-6 pt-4 pb-2 space-y-2">
+              <div className="relative">
+                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  placeholder="Tìm kho tri thức..."
+                  aria-label="Tìm kho tri thức"
+                  className="h-9 w-full pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">Đã chọn {selected.size} kho</p>
+            </div>
+            <div className="max-h-[420px] overflow-y-auto px-6 pb-4 space-y-1.5">
+              {visible.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">Không tìm thấy kho tri thức phù hợp.</p>
+              ) : visible.map(kb => {
+                const isLinked = linked.has(kb.id);
+                const checked = isLinked || selected.has(kb.id);
+                const row = (
+                  <label
+                    key={kb.id}
+                    className={`flex items-start gap-3 px-3 py-2.5 rounded-lg border transition-base ${
+                      isLinked ? "border-border bg-surface-muted/50 cursor-not-allowed"
+                        : checked ? "border-primary bg-primary-soft/40 cursor-pointer" : "border-border hover:bg-surface-muted/60 cursor-pointer"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={isLinked}
+                      onChange={() => toggle(kb.id)}
+                      aria-label={`Chọn ${kb.name}`}
+                      className="w-4 h-4 accent-primary mt-1 shrink-0 cursor-pointer disabled:cursor-not-allowed"
+                    />
+                    <KnowledgeTypeIcon type={kb.type} className="w-8 h-8 rounded-lg shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-sm font-medium truncate">{kb.name}</span>
+                        {isLinked && <span className="chip chip-muted px-1.5 py-0.5 shrink-0">Đã liên kết</span>}
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {kb.type === "external_api" ? "Kết nối kho tri thức ngoài" : `${kb.stats.docs} tài liệu · ${kb.stats.urls} website · ${kb.stats.faqs} câu hỏi`}
+                        {` · ${kb.ownerId === userId ? "Của tôi" : kb.ownerName}`}
+                      </div>
+                    </div>
+                  </label>
+                );
+                return isLinked ? (
+                  <Tooltip key={kb.id} delayDuration={200}>
+                    <TooltipTrigger asChild><div>{row}</div></TooltipTrigger>
+                    <TooltipContent>Kho đã liên kết. Để gỡ, dùng Gỡ liên kết ở thẻ kho.</TooltipContent>
+                  </Tooltip>
+                ) : row;
+              })}
+            </div>
+          </div>
+        )}
+
+        <DialogFooter className="px-6 py-4 border-t border-border">
+          <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Hủy bỏ</button>
+          <button onClick={submit} disabled={selected.size === 0} className="btn-primary h-9 disabled:opacity-40 disabled:pointer-events-none">
+            {selected.size > 0 ? `Liên kết (${selected.size})` : "Liên kết"}
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** LATER (PARTIAL_LINK_ENABLED): pick knowledge bases on the left and, for each one, the whole
+ * knowledge base or only some folders, documents, websites and FAQ categories on the right. */
+function AttachWithScope({ agentId, userId, onClose, initialFocusKbId }: Props) {
   const linkedIds = useMemo(() => knowledgeStore.listAttachedConsoleKbIds(agentId), [agentId]);
   const linked = useMemo(() => new Set(linkedIds), [linkedIds]);
   const all = useMemo(() => {
