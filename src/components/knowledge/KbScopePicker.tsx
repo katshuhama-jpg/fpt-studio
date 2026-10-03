@@ -168,46 +168,54 @@ export default function KbScopePicker({ kbId, value, onChange, showError }: {
   const [tab, setTab] = useState<Tab>("docs");
   const docs: TreeNode[] = knowledgeDocumentStore.list(kbId).map(d => ({ id: d.id, name: d.name, isFolder: d.isFolder, folderId: d.folderId, status: d.status }));
   const urls: TreeNode[] = knowledgeUrlStore.list(kbId).map(u => ({ id: u.id, name: u.isFolder ? u.name : (u.title || u.url || u.name), isFolder: u.isFolder, folderId: u.folderId, status: u.status, kind: u.isFolder ? undefined : "url" as const }));
+  const faqCats = [...new Set(knowledgeFaqStore.list(kbId).flatMap(f => (f.categories.length ? f.categories : [UNCATEGORIZED_FAQ])))];
+  const usableRoots = (nodes: TreeNode[]) => nodes.filter(n => n.folderId === null && !(n.status === "failed" || n.status === "cancelled")).map(n => n.id);
+
+  // The list is always shown. "Toàn bộ kho" shows everything ticked; changing any tick
+  // switches to "Chọn một phần" starting from that full selection.
+  const isAll = value.mode === "all";
+  const effective: KbLinkScope = isAll
+    ? { mode: "all", docIds: usableRoots(docs), urlIds: usableRoots(urls), faqCategories: faqCats }
+    : value;
+  const change = (patch: Partial<KbLinkScope>) => onChange({ ...effective, ...patch, mode: "partial" });
   const count = scopeItemCount(value);
-  const tabs: { key: Tab; label: string; picked: number }[] = [
-    { key: "docs", label: "Tài liệu", picked: value.docIds.length },
-    { key: "urls", label: "Website", picked: value.urlIds.length },
-    { key: "faqs", label: "Câu hỏi thường gặp", picked: value.faqCategories.length },
+  const tabs: { key: Tab; label: string; picked: number; total: number }[] = [
+    { key: "docs", label: "Tài liệu", picked: effective.docIds.length, total: docs.filter(d => !d.isFolder).length },
+    { key: "urls", label: "Website", picked: effective.urlIds.length, total: urls.filter(u => !u.isFolder).length },
+    { key: "faqs", label: "Câu hỏi thường gặp", picked: effective.faqCategories.length, total: faqCats.length },
   ];
 
   return (
-    <div className="space-y-2">
-      <div role="radiogroup" aria-label="Phạm vi liên kết" className="grid grid-cols-1 lg:grid-cols-2 gap-2">
-        <RadioCard selected={value.mode === "all"} onSelect={() => onChange({ ...value, mode: "all" })} label={SCOPE_COPY.allLabel} helper={SCOPE_COPY.allHelper} icon={Layers} />
-        <RadioCard selected={value.mode === "partial"} onSelect={() => onChange({ ...value, mode: "partial" })} label={SCOPE_COPY.partLabel} helper={SCOPE_COPY.partHelper} icon={ListChecks} />
+    <div className="space-y-3">
+      <div role="radiogroup" aria-label="Phạm vi liên kết" className="space-y-2">
+        <RadioCard selected={isAll} onSelect={() => onChange({ ...value, mode: "all" })} label={SCOPE_COPY.allLabel} helper={SCOPE_COPY.allHelper} icon={Layers} />
+        <RadioCard selected={!isAll} onSelect={() => onChange(scopeItemCount(value) === 0 ? { ...effective, mode: "partial" } : { ...value, mode: "partial" })} label={SCOPE_COPY.partLabel} helper={SCOPE_COPY.partHelper} icon={ListChecks} />
       </div>
 
-      {value.mode === "partial" && (
-        <div className="rounded-xl border border-border">
-          <div role="tablist" className="flex items-center gap-1 px-2 pt-2 border-b border-border">
-            {tabs.map(t => (
-              <button
-                key={t.key}
-                role="tab"
-                aria-selected={tab === t.key}
-                onClick={() => setTab(t.key)}
-                className={`h-9 px-3 -mb-px text-sm border-b-2 transition-base ${tab === t.key ? "border-primary text-primary font-medium" : "border-transparent text-muted-foreground hover:text-foreground"}`}
-              >
-                {t.label}{t.picked > 0 && <span className="ml-1.5 text-[11px] font-semibold rounded-full bg-primary-soft text-primary px-1.5 py-0.5">{t.picked}</span>}
-              </button>
-            ))}
-          </div>
-          <div className="p-2 max-h-[300px] overflow-y-auto">
-            {tab === "docs" && <ScopeTree nodes={docs} selected={value.docIds} onChange={docIds => onChange({ ...value, docIds })} emptyText="Kho chưa có tài liệu." />}
-            {tab === "urls" && <ScopeTree nodes={urls} selected={value.urlIds} onChange={urlIds => onChange({ ...value, urlIds })} emptyText="Kho chưa có website." />}
-            {tab === "faqs" && <FaqCategoryList kbId={kbId} selected={value.faqCategories} onChange={faqCategories => onChange({ ...value, faqCategories })} />}
-          </div>
-          <div className="px-3 py-2 border-t border-border text-xs text-muted-foreground">
-            Đã chọn {count} mục
-          </div>
+      <div className="rounded-xl border border-border">
+        <div role="tablist" className="flex items-center gap-1 px-2 pt-2 border-b border-border">
+          {tabs.map(t => (
+            <button
+              key={t.key}
+              role="tab"
+              aria-selected={tab === t.key}
+              onClick={() => setTab(t.key)}
+              className={`h-9 px-3 -mb-px text-sm border-b-2 transition-base ${tab === t.key ? "border-primary text-primary font-medium" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+            >
+              {t.label}{!isAll && t.picked > 0 && <span className="ml-1.5 text-[11px] font-semibold rounded-full bg-primary-soft text-primary px-1.5 py-0.5">{t.picked}</span>}
+            </button>
+          ))}
         </div>
-      )}
-      {showError && value.mode === "partial" && count === 0 && (
+        <div className="p-2 max-h-[300px] overflow-y-auto">
+          {tab === "docs" && <ScopeTree nodes={docs} selected={effective.docIds} onChange={docIds => change({ docIds })} emptyText="Kho chưa có tài liệu." />}
+          {tab === "urls" && <ScopeTree nodes={urls} selected={effective.urlIds} onChange={urlIds => change({ urlIds })} emptyText="Kho chưa có website." />}
+          {tab === "faqs" && <FaqCategoryList kbId={kbId} selected={effective.faqCategories} onChange={faqCategories => change({ faqCategories })} />}
+        </div>
+        <div className="px-3 py-2 border-t border-border text-xs text-muted-foreground">
+          {isAll ? "Đang dùng toàn bộ kho. Bỏ chọn một mục để chỉ dùng phần còn lại." : `Đã chọn ${count} mục`}
+        </div>
+      </div>
+      {showError && !isAll && count === 0 && (
         <p role="alert" className="text-xs text-destructive">{SCOPE_COPY.emptyError}</p>
       )}
     </div>

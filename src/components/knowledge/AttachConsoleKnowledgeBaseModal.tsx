@@ -168,19 +168,18 @@ export default function AttachConsoleKnowledgeBaseModal({ agentId, userId, onClo
                       <div className="text-xs text-muted-foreground truncate">{focused.ownerId === userId ? "Của tôi" : focused.ownerName}{focused.description ? ` · ${focused.description}` : ""}</div>
                     </div>
                   </div>
-                  {!selected.has(focused.id) ? (
-                    <div className="rounded-xl border border-dashed border-border p-6 text-center space-y-3">
-                      <p className="text-sm text-muted-foreground">Kho này chưa được chọn.</p>
-                      <button onClick={() => toggle(focused.id)} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Chọn kho này</button>
-                    </div>
-                  ) : focused.type === "external_api" ? (
+                  {focused.type === "external_api" ? (
                     <p className="text-sm text-muted-foreground rounded-xl border border-border p-4">Kho kết nối ngoài luôn được liên kết toàn bộ, vì nội dung nằm ở hệ thống bên ngoài.</p>
                   ) : (
                     <KbScopePicker
                       key={focused.id}
                       kbId={focused.id}
                       value={scopeOf(focused.id)}
-                      onChange={s => setScope(focused.id, s)}
+                      onChange={s => {
+                        // Choosing a scope for a knowledge base that isn't ticked yet also ticks it.
+                        setScope(focused.id, s);
+                        if (!selected.has(focused.id)) setSelected(prev => new Set(prev).add(focused.id));
+                      }}
                       showError={submitAttempted}
                     />
                   )}
