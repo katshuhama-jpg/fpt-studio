@@ -5513,8 +5513,6 @@ function SkillCardMenu({ onOpen, onEdit, onShare, onRemove, removeLabel }: {
 }
 
 /** Sharing for a resource created inside an Agent: not shared, only that Agent uses it. */
-const AGENT_ONLY_SHARING = { mode: "private" as const, people: [] };
-
 /** "Chia sẻ" target in an Agent: `own` = the Agent's own (private) skill, otherwise a Space
  * skill this user owns that the Agent links. */
 type SkillShareTarget = { skill: Skill; own: boolean };
@@ -5678,8 +5676,9 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
       {showCreate && (
         <CreateSkillModal
           onClose={() => setShowCreate(false)}
-          onSubmit={(data: SkillFormData) => { agentSkillStore.create(agentId, { ...data, ownerId: currentUser.id, ownerName: currentUser.name, sharing: AGENT_ONLY_SHARING }); refresh(); }}
+          onSubmit={(data: SkillFormData) => { agentSkillStore.create(agentId, { ...data, ownerId: currentUser.id, ownerName: currentUser.name }); refresh(); }}
           currentUser={currentUser}
+          agentOnly
           isDuplicateName={name => agentSkillStore.list(agentId).some(s => s.name.trim().toLowerCase() === name.trim().toLowerCase())}
         />
       )}
@@ -5687,8 +5686,9 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
       {showUpload && (
         <UploadSkillModal
           onClose={() => setShowUpload(false)}
-          onSubmit={(data: SkillFormData) => { agentSkillStore.create(agentId, { ...data, ownerId: currentUser.id, ownerName: currentUser.name, sharing: AGENT_ONLY_SHARING }); refresh(); }}
+          onSubmit={(data: SkillFormData) => { agentSkillStore.create(agentId, { ...data, ownerId: currentUser.id, ownerName: currentUser.name }); refresh(); }}
           currentUser={currentUser}
+          agentOnly
           isDuplicateName={name => agentSkillStore.list(agentId).some(s => s.name.trim().toLowerCase() === name.trim().toLowerCase())}
         />
       )}
@@ -7700,11 +7700,12 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
             // Console library (not as this Agent's private one) and shows up read-only in every
             // Agent's "Áp dụng cho mọi Agent" section, this one included.
             if (g.allAgents) { guardrailConsoleStore.create(g); toast.success("Đã tạo guardrail và áp dụng cho mọi Agent."); }
-            else agentGuardrailStore.create(agentId, { ...g, sharing: AGENT_ONLY_SHARING });
+            else agentGuardrailStore.create(agentId, g);
             refresh();
           }}
           currentUser={currentUser}
           allowApplyAll={canCreateInSpace}
+          agentOnly
         />
       )}
       {editTarget && (
@@ -7972,8 +7973,9 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
       {showCreate && (
         <CreateSkillModal
           onClose={() => setShowCreate(false)}
-          onSubmit={(data: SkillFormData) => { agentSkillStore.create(agentId, { ...data, ownerId: currentUser.id, ownerName: currentUser.name, sharing: AGENT_ONLY_SHARING }); refresh(); }}
+          onSubmit={(data: SkillFormData) => { agentSkillStore.create(agentId, { ...data, ownerId: currentUser.id, ownerName: currentUser.name }); refresh(); }}
           currentUser={currentUser}
+          agentOnly
           isDuplicateName={name => agentSkillStore.list(agentId).some(s => s.name.trim().toLowerCase() === name.trim().toLowerCase())}
         />
       )}
@@ -7981,8 +7983,9 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
       {showUpload && (
         <UploadSkillModal
           onClose={() => setShowUpload(false)}
-          onSubmit={(data: SkillFormData) => { agentSkillStore.create(agentId, { ...data, ownerId: currentUser.id, ownerName: currentUser.name, sharing: AGENT_ONLY_SHARING }); refresh(); }}
+          onSubmit={(data: SkillFormData) => { agentSkillStore.create(agentId, { ...data, ownerId: currentUser.id, ownerName: currentUser.name }); refresh(); }}
           currentUser={currentUser}
+          agentOnly
           isDuplicateName={name => agentSkillStore.list(agentId).some(s => s.name.trim().toLowerCase() === name.trim().toLowerCase())}
         />
       )}
@@ -8216,11 +8219,12 @@ function GuardrailsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
             // Console library (not as this Agent's private one) and shows up read-only in every
             // Agent's "Áp dụng cho mọi Agent" section, this one included.
             if (g.allAgents) { guardrailConsoleStore.create(g); toast.success("Đã tạo guardrail và áp dụng cho mọi Agent."); }
-            else agentGuardrailStore.create(agentId, { ...g, sharing: AGENT_ONLY_SHARING });
+            else agentGuardrailStore.create(agentId, g);
             refresh();
           }}
           currentUser={currentUser}
           allowApplyAll={canCreateInSpace}
+          agentOnly
         />
       )}
       {detailTarget && (

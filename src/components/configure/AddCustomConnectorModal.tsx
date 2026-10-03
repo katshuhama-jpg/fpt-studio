@@ -5,11 +5,8 @@ import { CURRENT_USER } from "@/components/knowledge/knowledgeBaseStore";
 import { customConnectorStore, type ConnectorAuthType, type ConnectorHeader, type CustomConnector } from "./customConnectorStore";
 import { type SharingMode, type SharedPerson, type Sharing } from "./customConnectorSharing";
 import CustomConnectorMemberPicker from "./CustomConnectorMemberPicker";
+import { AccessScopeSection, resourceAccessCopy } from "@/components/knowledge/QueryScopeSection";
 
-const SHARING_OPTIONS: { value: SharingMode; label: string; helper?: string }[] = [
-  { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi thành viên trong Space đều dùng lại được." },
-  { value: "specific", label: "Người dùng cụ thể", helper: "Chỉ những người bạn chọn mới dùng lại được." },
-];
 
 const AUTH_OPTIONS: { value: ConnectorAuthType; label: string }[] = [
   { value: "none", label: "Không xác thực" },
@@ -205,11 +202,21 @@ export default function AddCustomConnectorModal({ editing, onClose, onCreated, o
             </div>
             <p className="text-xs text-muted-foreground mt-2">Dùng Static Headers (vd: Một API key) để xác thực. OAuth 2.1 sẽ sớm ra mắt.</p>
           </div>
+          {!isEditing && (
+            <div className="border-t border-border pt-5">
+              <AccessScopeSection
+                mode={sharingMode} people={people} onModeChange={setSharingMode} onPeopleChange={setPeople}
+                submitAttempted={submitAttempted} ownerRow={{ name: CURRENT_USER.name, email: CURRENT_USER.email }} agentOnly={false}
+                copy={resourceAccessCopy("kết nối này")}
+                picker={<CustomConnectorMemberPicker value={people} onChange={setPeople} ownerRow={{ name: CURRENT_USER.name, email: CURRENT_USER.email }} />}
+              />
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border shrink-0">
           <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Hủy</button>
-          <button onClick={submit} disabled={!canSubmit} className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium transition-base disabled:opacity-40 disabled:cursor-not-allowed">
+          <button onClick={submit} disabled={!canSubmit && !peopleError} className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium transition-base disabled:opacity-40 disabled:cursor-not-allowed">
             {isEditing ? "Lưu thay đổi" : "Lưu server"}
           </button>
         </div>

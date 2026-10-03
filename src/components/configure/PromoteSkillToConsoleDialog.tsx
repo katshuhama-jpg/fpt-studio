@@ -5,12 +5,9 @@ import { agentSkillStore } from "./agentSkillStore";
 import type { Skill } from "./skillStore";
 import { type Sharing, type SharingMode } from "./skillSharing";
 import SkillMemberPicker from "./SkillMemberPicker";
+import { AccessScopeSection, resourceAccessCopy } from "@/components/knowledge/QueryScopeSection";
 
 const NAME_MAX = 60;
-const SHARING_OPTIONS: { value: SharingMode; label: string; helper?: string }[] = [
-  { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi thành viên trong Space đều dùng lại được." },
-  { value: "specific", label: "Người dùng cụ thể", helper: "Chỉ những người bạn chọn mới dùng lại được." },
-];
 
 /** "Chuyển thành skill chung" — promotes an Agent-private skill into the Console list,
  * re-linking this Agent to the new Console record. Field-for-field port of
@@ -62,38 +59,13 @@ export default function PromoteSkillToConsoleDialog({ agentId, item, currentUser
           />
         </div>
 
-        <div>
-          <label className="text-sm font-medium mb-1 block">Chia sẻ tới</label>
-          <p className="text-xs text-muted-foreground mb-3">Chia sẻ để người khác dùng lại skill này cho Agent của họ sau khi đưa lên Console.</p>
-          <div className="space-y-2">
-            {SHARING_OPTIONS.map(opt => {
-              const selected = mode === opt.value;
-              return (
-                <div key={opt.value}>
-                  <div
-                    onClick={() => setMode(opt.value)}
-                    className={`flex items-start gap-3 px-3.5 py-3 rounded-xl border cursor-pointer transition-base ${
-                      selected ? "border-primary bg-primary/5" : "border-border bg-white hover:bg-surface-muted"
-                    }`}
-                  >
-                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${selected ? "border-primary" : "border-border"}`}>
-                      {selected && <div className="w-2 h-2 rounded-full bg-primary" />}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium">{opt.label}</div>
-                      {opt.helper && <div className="text-xs text-muted-foreground mt-0.5">{opt.helper}</div>}
-                    </div>
-                  </div>
-                  {selected && opt.value === "specific" && (
-                    <div className="mt-2 pl-3.5">
-                      <SkillMemberPicker value={people} onChange={setPeople} ownerRow={{ name: currentUser.name, email: currentUser.email }} />
-                      {submitAttempted && people.length === 0 && <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người để chia sẻ.</p>}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+        <div className="border-t border-border pt-5">
+          <AccessScopeSection
+            mode={mode} people={people} onModeChange={setMode} onPeopleChange={setPeople}
+            submitAttempted={submitAttempted} ownerRow={{ name: currentUser.name, email: currentUser.email }}
+            copy={resourceAccessCopy("skill này")}
+            picker={<SkillMemberPicker value={people} onChange={setPeople} ownerRow={{ name: currentUser.name, email: currentUser.email }} />}
+          />
         </div>
 
         <DialogFooter>

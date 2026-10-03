@@ -5,14 +5,11 @@ import FileTypeIcon from "@/components/knowledge/FileTypeIcon";
 import { formatFileSize } from "@/components/knowledge/formatFileSize";
 import { type SharingMode, type SharedPerson } from "./skillSharing";
 import SkillMemberPicker from "./SkillMemberPicker";
+import { AccessScopeSection, resourceAccessCopy } from "@/components/knowledge/QueryScopeSection";
 import type { SkillFormData } from "./CreateSkillModal";
 
 const ALLOWED_EXT = ["md", "zip", "skill"];
 const ACCEPT_ATTR = ALLOWED_EXT.map(e => `.${e}`).join(",");
-const SHARING_OPTIONS: { value: SharingMode; label: string; helper?: string }[] = [
-  { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi thành viên trong Space đều dùng lại được." },
-  { value: "specific", label: "Người dùng cụ thể", helper: "Chỉ những người bạn chọn mới dùng lại được." },
-];
 
 function extOf(name: string): string {
   return name.split(".").pop()?.toLowerCase() ?? "";
@@ -48,16 +45,18 @@ interface Staged {
  * either way it hands back the same SkillFormData the manual form produces, so all three
  * call sites (Console Skills, Agent Skills tab, Instructions "Kết nối" widget) can reuse
  * whatever onSubmit they already wired up for CreateSkillModal. */
-export default function UploadSkillModal({ onClose, onSubmit, currentUser, isDuplicateName }: {
+export default function UploadSkillModal({ onClose, onSubmit, currentUser, isDuplicateName, agentOnly = false }: {
   onClose: () => void;
   onSubmit: (data: SkillFormData) => void;
   currentUser: { id: string; name: string; email: string };
   isDuplicateName?: (name: string) => boolean;
+  /** Uploaded inside an Agent - adds "Chỉ Agent này" and selects it by default. */
+  agentOnly?: boolean;
 }) {
   const [staged, setStaged] = useState<Staged | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [sharingMode, setSharingMode] = useState<SharingMode>("all");
+  const [sharingMode, setSharingMode] = useState<SharingMode>(agentOnly ? "private" : "all");
   const [people, setPeople] = useState<SharedPerson[]>([]);
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -176,9 +175,20 @@ export default function UploadSkillModal({ onClose, onSubmit, currentUser, isDup
           </ul>
         </div>
 
+        {(
+          <div className="border-t border-border pt-5">
+            <AccessScopeSection
+              mode={sharingMode} people={people} onModeChange={setSharingMode} onPeopleChange={setPeople}
+              submitAttempted={submitAttempted} ownerRow={{ name: currentUser.name, email: currentUser.email }} agentOnly={agentOnly}
+              copy={resourceAccessCopy("skill này")}
+              picker={<SkillMemberPicker value={people} onChange={setPeople} ownerRow={{ name: currentUser.name, email: currentUser.email }} />}
+            />
+          </div>
+        )}
+
         <DialogFooter>
           <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Hủy</button>
-          <button onClick={submit} disabled={!canSubmit} className="btn-primary h-9 disabled:opacity-40 disabled:pointer-events-none">
+          <button onClick={submit} disabled={!canSubmit && !peopleError} className="btn-primary h-9 disabled:opacity-40 disabled:pointer-events-none">
             {submitting ? "Đang xử lý…" : "Tạo kỹ năng"}
           </button>
         </DialogFooter>

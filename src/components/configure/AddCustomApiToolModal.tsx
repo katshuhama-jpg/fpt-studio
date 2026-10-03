@@ -1,4 +1,7 @@
-import type { Sharing } from "./customConnectorSharing";
+import type { Sharing, SharingMode, SharedPerson } from "./customConnectorSharing";
+import CustomConnectorMemberPicker from "./CustomConnectorMemberPicker";
+import { CURRENT_USER } from "@/components/knowledge/knowledgeBaseStore";
+import { AccessScopeSection, resourceAccessCopy } from "@/components/knowledge/QueryScopeSection";
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -60,15 +63,16 @@ function previewUrl(url: string, params: ApiParam[]): string {
 
 /** "Thêm API Tool" — create/edit form for a Custom API Tool (a plain REST endpoint an Agent can
  * call), separate from "Thêm MCP tùy chỉnh" (customConnectorStore.ts) which points at an
- * existing MCP server instead of describing a single API call. No sharing step in the form (same
- * as every create popup): the caller passes the starting sharing — Space library = whole Space,
- * quick-add inside an Agent = "Chỉ Agent này". No response mapping / retry / rate limit / cache /
+ * existing MCP server instead of describing a single API call. A new tool ends with the same
+ * "Quyền truy cập" step as every create popup; the caller passes the starting choice — Space
+ * library = whole Space, quick-add inside an Agent = "Chỉ Agent này" (also adds that option). No response mapping / retry / rate limit / cache /
  * mTLS — those are explicitly a later phase. Test only ever simulates a call
  * (this whole app has no real backend), same convention as ToolBuilder's and
  * ConnectSharedConnectorModal's mocked flows. */
 export default function AddCustomApiToolModal({ editing, onClose, onCreated, onUpdated, sharing }: {
   editing?: CustomApiTool;
-  /** Starting sharing for a NEW tool (ignored when editing). */
+  /** Starting "Quyền truy cập" for a NEW tool (ignored when editing). "private" means it is
+   * created inside an Agent, which adds the "Chỉ Agent này" option. */
   sharing?: Sharing;
   onClose: () => void;
   onCreated?: (tool: CustomApiTool) => void;
@@ -85,6 +89,9 @@ export default function AddCustomApiToolModal({ editing, onClose, onCreated, onU
   const [params, setParams] = useState<ApiParam[]>(editing?.params.map(p => ({ ...p })) ?? []);
   const [timeoutSec, setTimeoutSec] = useState(editing?.timeoutSec ?? DEFAULT_TIMEOUT_SEC);
   const [submitAttempted, setSubmitAttempted] = useState(false);
+  const agentOnly = sharing?.mode === "private";
+  const [sharingMode, setSharingMode] = useState<SharingMode>(sharing?.mode ?? "all");
+  const [people, setPeople] = useState<SharedPerson[]>(sharing?.people ?? []);
   const [urlTouched, setUrlTouched] = useState(false);
 
   const [testing, setTesting] = useState(false);
@@ -103,7 +110,8 @@ export default function AddCustomApiToolModal({ editing, onClose, onCreated, onU
     }
   };
   const urlError = url.trim() !== "" && !isValidUrl(url);
-  const canSubmit = !!name.trim() && !!description.trim() && !!url.trim() && !duplicateName && !urlError;
+  const peopleError = !isEditing && sharingMode === "specific" && people.length === 0;
+  const canSubmit = !!name.trim() && !!description.trim() && !!url.trim() && !duplicateName && !urlError && !peopleError;
 
   const changeAuthType = (t: ApiAuthType) => { setAuthType(t); setAuth(defaultAuthConfig(t)); };
   const setHeaderField = (i: number, field: "key" | "value", v: string) => setHeaders(hs => hs.map((h, idx) => (idx === i ? { ...h, [field]: v } : h)));
@@ -125,7 +133,7 @@ export default function AddCustomApiToolModal({ editing, onClose, onCreated, onU
       onUpdated?.(customApiToolStore.get(editing.id)!);
       return;
     }
-    onCreated?.(customApiToolStore.create({ ...buildData(), sharing }));
+    onCreated?.(customApiToolStore.create({ ...buildData(), sharing: { mode: sharingMode, people: sharingMode === "specific" ? people : [] } }));
   };
 
   const runTest = async () => {
@@ -370,11 +378,21 @@ export default function AddCustomApiToolModal({ editing, onClose, onCreated, onU
               </div>
             )}
           </div>
+          {!isEditing && (
+            <div className="border-t border-border pt-5">
+              <AccessScopeSection
+                mode={sharingMode} people={people} onModeChange={setSharingMode} onPeopleChange={setPeople}
+                submitAttempted={submitAttempted} ownerRow={{ name: CURRENT_USER.name, email: CURRENT_USER.email }} agentOnly={agentOnly}
+                copy={resourceAccessCopy("API Tool này")}
+                picker={<CustomConnectorMemberPicker value={people} onChange={setPeople} ownerRow={{ name: CURRENT_USER.name, email: CURRENT_USER.email }} />}
+              />
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border shrink-0">
           <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Hủy</button>
-          <button onClick={submit} disabled={!canSubmit} className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium transition-base disabled:opacity-40 disabled:cursor-not-allowed">
+          <button onClick={submit} disabled={!canSubmit && !peopleError} className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium transition-base disabled:opacity-40 disabled:cursor-not-allowed">
             {isEditing ? "Lưu thay đổi" : "Lưu API Tool"}
           </button>
         </div>

@@ -8,13 +8,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { type SharingMode, type SharedPerson } from "./skillSharing";
 import SkillMemberPicker from "./SkillMemberPicker";
+import { AccessScopeSection, resourceAccessCopy } from "@/components/knowledge/QueryScopeSection";
 
 const NAME_MAX = 60;
 const DESC_MAX = 400;
-const SHARING_OPTIONS: { value: SharingMode; label: string; helper?: string }[] = [
-  { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi thành viên trong Space đều dùng lại được." },
-  { value: "specific", label: "Người dùng cụ thể", helper: "Chỉ những người bạn chọn mới dùng lại được." },
-];
 
 export interface SkillFormData {
   name: string; description: string; body: string;
@@ -25,20 +22,22 @@ export interface SkillFormData {
  * Console detail drawer), ending with the same "Quyền truy cập" step as Knowledge/Guardrails.
  * Used for creating a Console skill, creating an Agent-private skill, and editing an
  * Agent-private one (Quyền truy cập is create-only, matching CreateKnowledgeBaseModal.tsx's own
- * convention — an existing item's sharing is changed via its own "Chia sẻ" action instead). */
-export default function CreateSkillModal({ onClose, onSubmit, initialData, currentUser, isDuplicateName, title = "Tạo skill" }: {
+ * convention — an existing item's sharing is changed via its own "Quyền truy cập" action instead). */
+export default function CreateSkillModal({ onClose, onSubmit, initialData, currentUser, isDuplicateName, title = "Tạo skill", agentOnly = false }: {
   onClose: () => void;
   onSubmit: (data: SkillFormData) => void;
   initialData?: { name: string; description: string; body: string };
   currentUser: { id: string; name: string; email: string };
   isDuplicateName?: (name: string, excludeName?: string) => boolean;
   title?: string;
+  /** Created inside an Agent - adds "Chỉ Agent này" and selects it by default. */
+  agentOnly?: boolean;
 }) {
   const isEdit = !!initialData;
   const [name, setName] = useState(initialData?.name ?? "");
   const [description, setDescription] = useState(initialData?.description ?? "");
   const [body, setBody] = useState(initialData?.body ?? "");
-  const [sharingMode, setSharingMode] = useState<SharingMode>("all");
+  const [sharingMode, setSharingMode] = useState<SharingMode>(agentOnly ? "private" : "all");
   const [people, setPeople] = useState<SharedPerson[]>([]);
   const [nameTouched, setNameTouched] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
@@ -131,11 +130,21 @@ export default function CreateSkillModal({ onClose, onSubmit, initialData, curre
                 spellCheck={false}
               />
             </div>
+            {!isEdit && (
+              <div className="border-t border-border pt-5">
+                <AccessScopeSection
+                  mode={sharingMode} people={people} onModeChange={setSharingMode} onPeopleChange={setPeople}
+                  submitAttempted={submitAttempted} ownerRow={{ name: currentUser.name, email: currentUser.email }} agentOnly={agentOnly}
+                  copy={resourceAccessCopy("skill này")}
+                  picker={<SkillMemberPicker value={people} onChange={setPeople} ownerRow={{ name: currentUser.name, email: currentUser.email }} />}
+                />
+              </div>
+            )}
           </div>
 
           <DialogFooter>
             <button onClick={requestClose} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Hủy bỏ</button>
-            <button onClick={submit} disabled={!canSubmit} className="btn-primary h-9 disabled:opacity-40 disabled:pointer-events-none">{isEdit ? "Lưu" : "Tạo"}</button>
+            <button onClick={submit} disabled={!canSubmit && !peopleError} className="btn-primary h-9 disabled:opacity-40 disabled:pointer-events-none">{isEdit ? "Lưu" : "Tạo"}</button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

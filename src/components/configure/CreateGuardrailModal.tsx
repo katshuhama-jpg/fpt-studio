@@ -5,11 +5,8 @@ import { Cancel01Icon } from "@hugeicons/core-free-icons";
 import type { ActionKind, Guardrail } from "./guardrailConsoleStore";
 import { type SharingMode, type SharedPerson } from "./guardrailSharing";
 import GuardrailMemberPicker from "./GuardrailMemberPicker";
+import { AccessScopeSection, resourceAccessCopy } from "@/components/knowledge/QueryScopeSection";
 
-const SHARING_OPTIONS: { value: SharingMode; label: string; helper?: string }[] = [
-  { value: "all", label: "Tất cả người dùng trong Space", helper: "Mọi thành viên trong Space đều dùng lại được." },
-  { value: "specific", label: "Người dùng cụ thể", helper: "Chỉ những người bạn chọn mới dùng lại được." },
-];
 
 type ResponseKind = "auto" | "fixed" | null;
 
@@ -21,7 +18,7 @@ export interface CreateGuardrailData {
 /** THE ONE guardrail creation/edit/view form product-wide — used by the Console /guardrails
  * page and every Agent's Guardrails tab, so there is exactly one guardrail data model and one
  * creation form anywhere a guardrail gets created or edited. */
-export default function CreateGuardrailModal({ onClose, onSubmit, initialData, currentUser, readOnly, allowApplyAll = true }: {
+export default function CreateGuardrailModal({ onClose, onSubmit, initialData, currentUser, readOnly, allowApplyAll = true, agentOnly = false }: {
   onClose: () => void;
   onSubmit: (g: CreateGuardrailData) => void;
   initialData?: Guardrail;
@@ -32,6 +29,8 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
   /** Show the "Áp dụng cho mọi Agent" option — off only when editing an Agent's own private
    * guardrail, which can't become Space-wide from its edit form. */
   allowApplyAll?: boolean;
+  /** Created inside an Agent - adds "Chỉ Agent này" and selects it by default. */
+  agentOnly?: boolean;
 }) {
   const isEdit = !!initialData;
   const actionToResponse = (a?: ActionKind): ResponseKind => {
@@ -45,7 +44,7 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
   const [response, setResponse] = useState<ResponseKind>(actionToResponse(initialData?.action) ?? "auto");
   const [fixedText, setFixedText] = useState("");
   const [allAgents, setAllAgents] = useState(initialData?.allAgents ?? false);
-  const [sharingMode, setSharingMode] = useState<SharingMode>(!initialData?.sharing || initialData.sharing.mode === "private" ? "all" : initialData.sharing.mode);
+  const [sharingMode, setSharingMode] = useState<SharingMode>(!initialData ? (agentOnly ? "private" : "all") : initialData.sharing.mode === "private" ? "all" : initialData.sharing.mode);
   const [people, setPeople] = useState<SharedPerson[]>(initialData?.sharing?.people ?? []);
   const [submitAttempted, setSubmitAttempted] = useState(false);
 
@@ -230,6 +229,16 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
                 <p className="text-xs text-muted-foreground mt-0.5">Guardrail sẽ tự động chạy trên tất cả Agent trong Space.</p>
               </div>
             </label>
+          )}
+          {!isEdit && !readOnly && !allAgents && (
+            <div className="border-t border-border pt-5">
+              <AccessScopeSection
+                mode={sharingMode} people={people} onModeChange={setSharingMode} onPeopleChange={setPeople}
+                submitAttempted={submitAttempted} ownerRow={{ name: currentUser.name, email: currentUser.email }} agentOnly={agentOnly}
+                copy={resourceAccessCopy("guardrail này")}
+                picker={<GuardrailMemberPicker value={people} onChange={setPeople} ownerRow={{ name: currentUser.name, email: currentUser.email }} />}
+              />
+            </div>
           )}
         </div>
 
