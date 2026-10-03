@@ -24,7 +24,7 @@ export default function RetrievalScopeModal({ name, value, onSave, onClose }: {
   const [confirmNarrow, setConfirmNarrow] = useState(false);
 
   const apply = () => {
-    onSave({ ...draft, people: [], departmentIds: draft.mode === "department" ? draft.departmentIds : [] });
+    onSave({ ...draft, people: draft.mode === "department" ? draft.people : [], departmentIds: draft.mode === "department" ? draft.departmentIds : [] });
     toast.success(RETRIEVAL_COPY.toast);
     onClose();
   };

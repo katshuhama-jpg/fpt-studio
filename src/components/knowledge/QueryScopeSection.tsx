@@ -1,7 +1,8 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Check, Network, Users, UserCheck, Bot, Hammer, MessageCircle, ChevronDown, UsersRound, type LucideIcon } from "lucide-react";
 import { useOrg } from "@/pages/organization/orgStore";
-import { collectUnitsWithDepth, collectUnits } from "@/pages/organization/orgData";
+import { collectMembers } from "@/pages/organization/orgData";
+import OrgSharePicker, { toggleUnitIn, toggleMemberIn } from "@/components/governance/OrgSharePicker";
 import MemberPicker from "./MemberPicker";
 import { type QuerySharing, type QueryScopeMode, type SharedPerson, type SharingMode } from "./knowledgeBaseStore";
 
@@ -67,63 +68,26 @@ export function PermissionHeading({ title, description, hideTitle = false, audie
   );
 }
 
-/** "Chọn phòng ban" picker for QuerySharing's department mode — a simple checklist over the org
- * tree's units (flattened, indented by depth), since this prototype has no separate
- * department/team entity distinct from OrgUnit.
- *
- * Checking a parent unit also checks every unit nested under it (and unchecking it clears them
- * too) — picking "Vietnam Delivery" should cover "Platform Engineering", "AI/ML", etc. without
- * making the person hunt down and tick each child individually. A child can still be
- * checked/unchecked on its own afterwards; a row's own checkmark reflects whether it AND every
- * unit under it are selected — unticking just one descendant turns its ancestors' checkmarks into
- * a dash rather than leaving them looking fully (and misleadingly) checked. */
-function DepartmentPicker({ value, onChange }: { value: string[]; onChange: (next: string[]) => void }) {
+/** "Công ty / phòng ban" picker for "Agent trả lời cho ai" - the same org tree, search and
+ * checkboxes as the Publish Agent popup: pick a whole company, a department, or individual
+ * people found by name or email. Units are stored in departmentIds, people in people. */
+function AnswerAudiencePicker({ value, onChange }: { value: QuerySharing; onChange: (next: QuerySharing) => void }) {
   const { tree } = useOrg();
-  const units = useMemo(() => collectUnitsWithDepth(tree), [tree]);
-  const unitsById = useMemo(() => new Map(units.map(({ unit }) => [unit.id, unit])), [units]);
-  const selected = useMemo(() => new Set(value), [value]);
-  const coverage = (id: string) => {
-    const unit = unitsById.get(id);
-    return unit ? [id, ...collectUnits(unit).map(u => u.id)] : [id];
-  };
-
-  const toggle = (id: string) => {
-    const affected = coverage(id);
-    const isFullyChecked = affected.every(v => selected.has(v));
-    if (isFullyChecked) {
-      onChange(value.filter(v => !affected.includes(v)));
-    } else {
-      // Unchecked or only partially checked — clicking always completes the selection
-      // (fills in every missing descendant) rather than clearing it, so a dash never
-      // toggles the "wrong" direction from what its checkmark-in-waiting implies.
-      onChange(Array.from(new Set([...value, ...affected])));
+  const selection = useMemo(() => new Set([...value.departmentIds.map(id => `u:${id}`), ...value.people.map(p => `m:${p.userId}`)]), [value]);
+  const members = useMemo(() => new Map(collectMembers(tree).map(m => [m.id, m])), [tree]);
+  const apply = (next: Set<string>) => {
+    const departmentIds: string[] = [];
+    const people: SharedPerson[] = [];
+    for (const key of next) {
+      if (key.startsWith("u:")) departmentIds.push(key.slice(2));
+      else {
+        const m = members.get(key.slice(2));
+        if (m) people.push({ userId: m.id, name: m.name, email: m.email ?? "", access: "view" });
+      }
     }
+    onChange({ ...value, departmentIds, people });
   };
-
-  return (
-    <div className="max-h-56 overflow-y-auto rounded-lg border border-border bg-white divide-y divide-border">
-      {units.map(({ unit, depth }) => {
-        const coverageIds = coverage(unit.id);
-        const checked = coverageIds.every(id => selected.has(id));
-        const partiallyChecked = !checked && coverageIds.some(id => selected.has(id));
-        return (
-          <button
-            key={unit.id}
-            type="button"
-            onClick={() => toggle(unit.id)}
-            style={{ paddingLeft: `${12 + (depth - 1) * 16}px` }}
-            className="w-full flex items-center gap-2.5 pr-3 py-2 text-left hover:bg-surface-muted transition-base"
-          >
-            <div className={`w-4 h-4 rounded shrink-0 border-2 flex items-center justify-center ${checked || partiallyChecked ? "bg-primary border-primary" : "border-border"}`}>
-              {checked && <Check size={11} className="text-primary-foreground" />}
-              {partiallyChecked && <div className="w-2 h-0.5 rounded-full bg-primary-foreground" />}
-            </div>
-            <span className="text-sm truncate">{unit.name}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
+  return <OrgSharePicker tree={tree} selection={selection} onToggleUnit={u => apply(toggleUnitIn(selection, u))} onToggleMember={m => apply(toggleMemberIn(selection, m))} />;
 }
 
 /* ─── Copy for the two permission dimensions ─────────────────────────────────────────────
@@ -149,7 +113,7 @@ export const RETRIEVAL_COPY = {
   chip: "Trả lời",
   description: "Chọn người được Agent lấy thông tin từ kho này để trả lời. Ai dùng được Agent do bước Publish Agent quyết định.",
   narrowTitle: "Thu hẹp người được trả lời?",
-  narrowBody: "Agent sẽ ngừng lấy thông tin từ kho này để trả lời người ngoài các phòng ban bạn chọn.",
+  narrowBody: "Agent sẽ ngừng lấy thông tin từ kho này để trả lời người ngoài phạm vi bạn chọn.",
   narrowAction: "Thu hẹp",
   toast: "Đã lưu thay đổi.",
 };
@@ -165,20 +129,22 @@ export const AGENT_ONLY_ACCESS_OPTION: { value: SharingMode; label: string; help
 
 export const QUERY_SCOPE_OPTIONS: { value: QueryScopeMode; label: string; helper: string; icon: LucideIcon }[] = [
   { value: "all_org", label: "Mọi người dùng Agent", helper: "Ai trò chuyện với Agent cũng nhận được câu trả lời từ kho này.", icon: UsersRound },
-  { value: "department", label: "Một số phòng ban", helper: "Người ngoài các phòng ban này vẫn dùng được Agent, nhưng Agent không lấy thông tin từ kho này để trả lời họ.", icon: Network },
+  { value: "department", label: "Công ty / phòng ban", helper: "Chỉ trả lời cả công ty, phòng ban hoặc từng người bạn chọn. Người khác vẫn dùng được Agent, nhưng Agent không lấy thông tin từ kho này để trả lời họ.", icon: Network },
 ];
 
 /** Older data may still carry "private"/"specific" retrieval modes — both read as "Cả tổ chức"
  * now that only the two org-level options exist. */
 export function normalizeQuerySharing(v: QuerySharing | undefined): QuerySharing {
   if (!v || (v.mode !== "all_org" && v.mode !== "department")) return { mode: "all_org", departmentIds: [], people: [] };
-  return v;
+  return { ...v, departmentIds: v.departmentIds ?? [], people: v.people ?? [] };
 }
 
 /** Short label for chips/detail rows, e.g. "Mọi người dùng Agent" or "2 phòng ban". */
 export function retrievalLabel(v: QuerySharing | undefined): string {
   const q = normalizeQuerySharing(v);
-  return q.mode === "department" ? `${q.departmentIds.length} phòng ban` : "Mọi người dùng Agent";
+  if (q.mode !== "department") return "Mọi người dùng Agent";
+  const parts = [q.departmentIds.length ? `${q.departmentIds.length} đơn vị` : "", q.people.length ? `${q.people.length} người` : ""].filter(Boolean);
+  return parts.join(", ") || "Chưa chọn ai";
 }
 /** Short label for the access dimension, e.g. "Cả Space", "3 người", "Chỉ Agent này". */
 export function accessLabel(mode: SharingMode, peopleCount: number, privateLabel = "Chỉ mình tôi"): string {
@@ -193,13 +159,13 @@ export function isRetrievalNarrowing(before: QuerySharing | undefined, after: Qu
   const b = normalizeQuerySharing(before);
   if (b.mode === "all_org") return after.mode === "department";
   if (after.mode === "all_org") return false;
-  return b.departmentIds.some(id => !after.departmentIds.includes(id));
+  return b.departmentIds.some(id => !after.departmentIds.includes(id)) || b.people.some(p => !after.people.some(n => n.userId === p.userId));
 }
 
 /** True once a `QuerySharing` value is complete enough to submit — "department" needs at least
  * one unit picked. */
 export function isQueryScopeValid(v: QuerySharing): boolean {
-  return v.mode !== "department" || v.departmentIds.length > 0;
+  return v.mode !== "department" || v.departmentIds.length > 0 || v.people.length > 0;
 }
 
 /** Quyền truy cập copy for any resource, e.g. noun = "skill này" / "guardrail này" / "kết nối
@@ -276,7 +242,6 @@ export default function QueryScopeSection({
 }) {
   const v = normalizeQuerySharing(value);
   const setMode = (mode: QueryScopeMode) => onChange({ ...v, mode });
-  const setDepartmentIds = (departmentIds: string[]) => onChange({ ...v, departmentIds });
   const [expanded, setExpanded] = useState(!collapsible);
 
   if (!expanded) {
@@ -309,8 +274,8 @@ export default function QueryScopeSection({
           <RadioCard key={opt.value} selected={v.mode === opt.value} onSelect={() => setMode(opt.value)} label={opt.label} helper={opt.helper} icon={opt.icon}>
             {opt.value === "department" && (
               <>
-                <DepartmentPicker value={v.departmentIds} onChange={setDepartmentIds} />
-                {submitAttempted && v.departmentIds.length === 0 && <p className="text-xs text-destructive mt-1.5">Chọn ít nhất một phòng ban.</p>}
+                <AnswerAudiencePicker value={v} onChange={onChange} />
+                {submitAttempted && !isQueryScopeValid(v) && <p className="text-xs text-destructive mt-1.5">Chọn ít nhất một công ty, phòng ban hoặc người.</p>}
               </>
             )}
           </RadioCard>
