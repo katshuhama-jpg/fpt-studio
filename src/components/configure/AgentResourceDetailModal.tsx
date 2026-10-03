@@ -66,9 +66,9 @@ function useCurrentUser(userId: string) {
 }
 
 function sharingLabel(sharing?: { mode: string; people: unknown[] }): string {
-  if (sharing?.mode === "specific") return `${sharing.people.length} người cụ thể`;
-  if (sharing?.mode === "all") return "Tất cả người dùng trong Space";
-  return "Chỉ Agent này (không chia sẻ)";
+  if (sharing?.mode === "specific") return `${sharing.people.length} người`;
+  if (sharing?.mode === "all") return "Cả Space";
+  return "Chỉ Agent này";
 }
 
 function usedByLabel(ids?: string[]): string {
@@ -100,7 +100,7 @@ function Meta({ rows }: { rows: { label: string; value: ReactNode }[] }) {
   );
 }
 
-function Shell({ typeLabel, name, onClose, onEdit, onShare, shareLabel = "Chia sẻ", onRetrieval, note, children }: {
+function Shell({ typeLabel, name, onClose, onEdit, onShare, shareLabel = "Quyền truy cập", onRetrieval, note, children }: {
   typeLabel: string;
   name: string;
   onClose: () => void;
@@ -207,7 +207,7 @@ function ConsoleSkillDetail({ agentId, id, onClose, onChanged }: { agentId: stri
     >
       <Meta rows={[
         { label: "Người tạo", value: isOwner ? "Bạn" : skill.ownerName },
-        ...(isOwner ? [{ label: "Chia sẻ tới", value: sharingLabel(skill.sharing) }] : []),
+        ...(isOwner ? [{ label: "Quyền truy cập", value: sharingLabel(skill.sharing) }] : []),
         { label: "Đang dùng trong", value: usedByLabel(skill.attachedByAgentIds) },
       ]} />
       <Field label="Mô tả"><p className="whitespace-pre-wrap">{skill.description || "Chưa có mô tả"}</p></Field>
@@ -258,7 +258,7 @@ function AgentSkillDetail({ agentId, id, onClose, onChanged }: { agentId: string
       <Meta rows={[
         { label: "Loại", value: "Skill riêng của Agent" },
         { label: "Người tạo", value: isOwner ? "Bạn" : skill.ownerName },
-        ...(isOwner ? [{ label: "Chia sẻ tới", value: sharingLabel(skill.sharing) }] : []),
+        ...(isOwner ? [{ label: "Quyền truy cập", value: sharingLabel(skill.sharing) }] : []),
       ]} />
       <Field label="Mô tả"><p className="whitespace-pre-wrap">{skill.description || "Chưa có mô tả"}</p></Field>
       <Field label="Nội dung">
@@ -325,7 +325,7 @@ function ConsoleGuardrailDetail({ agentId, id, onClose, onChanged }: { agentId: 
     >
       <GuardrailBody g={g} meta={[
         { label: "Người tạo", value: !hasOwner ? "Hệ thống" : isOwner ? "Bạn" : g.ownerName },
-        ...(isOwner ? [{ label: "Chia sẻ tới", value: sharingLabel(g.sharing) }] : []),
+        ...(isOwner ? [{ label: "Quyền truy cập", value: sharingLabel(g.sharing) }] : []),
         { label: "Đang dùng trong", value: g.allAgents ? "Mọi Agent trong Space" : usedByLabel(g.attachedByAgentIds) },
       ]} />
     </Shell>
@@ -371,7 +371,7 @@ function AgentGuardrailDetail({ agentId, id, onClose, onChanged }: { agentId: st
       <GuardrailBody g={g} meta={[
         { label: "Loại", value: "Guardrail riêng của Agent" },
         { label: "Người tạo", value: isOwner ? "Bạn" : g.ownerName ?? "-" },
-        ...(isOwner ? [{ label: "Chia sẻ tới", value: sharingLabel(g.sharing) }] : []),
+        ...(isOwner ? [{ label: "Quyền truy cập", value: sharingLabel(g.sharing) }] : []),
       ]} />
     </Shell>
   );
@@ -514,7 +514,7 @@ function ConnectorDetail({ agentId, id, onClose, onChanged }: { agentId: string;
     >
       <Meta rows={[
         { label: "Người tạo", value: isOwner ? "Bạn" : c.ownerName },
-        ...(isOwner ? [{ label: "Chia sẻ tới", value: sharingLabel(c.sharing) }] : []),
+        ...(isOwner ? [{ label: "Quyền truy cập", value: sharingLabel(c.sharing) }] : []),
         { label: "Đang dùng trong", value: usedByLabel(c.attachedByAgentIds) },
       ]} />
       <Field label="URL"><p className="font-mono text-xs break-all">{c.url}</p></Field>
@@ -538,7 +538,7 @@ function ApiToolDetail({ agentId, id, onClose, onChanged }: { agentId: string; i
   if (sub === "edit") return <AddCustomApiToolModal editing={a} onClose={() => setSub(null)} onUpdated={() => { setSub(null); refresh(); }} />;
   if (sub === "share") return (
     <CustomConnectorShareModal
-      open title="Chia sẻ API Tool" noun="API Tool" name={a.name} ownerName={a.ownerName} sharing={a.sharing}
+      open noun="API Tool" name={a.name} ownerName={a.ownerName} sharing={a.sharing}
       resourceOwnerId={a.ownerId} attachedAgentIds={a.attachedByAgentIds} agentOnlyFor={agentId}
       onSave={sharing => { customApiToolStore.updateSharing(a.id, sharing); refresh(); }}
       onClose={() => setSub(null)}
@@ -553,7 +553,7 @@ function ApiToolDetail({ agentId, id, onClose, onChanged }: { agentId: string; i
     >
       <Meta rows={[
         { label: "Người tạo", value: isOwner ? "Bạn" : a.ownerName },
-        ...(isOwner ? [{ label: "Chia sẻ tới", value: sharingLabel(a.sharing) }] : []),
+        ...(isOwner ? [{ label: "Quyền truy cập", value: sharingLabel(a.sharing) }] : []),
         { label: "Đang dùng trong", value: usedByLabel(a.attachedByAgentIds) },
       ]} />
       <Field label="Mô tả"><p className="whitespace-pre-wrap">{a.description || "Chưa có mô tả"}</p></Field>

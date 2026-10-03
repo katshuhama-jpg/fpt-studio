@@ -175,8 +175,25 @@ export function isQueryScopeValid(v: QuerySharing): boolean {
   return v.mode !== "department" || v.departmentIds.length > 0;
 }
 
-/** "Quyền truy cập" block — title, description, option cards and the member picker. */
-export function AccessScopeSection({ mode, people, onModeChange, onPeopleChange, submitAttempted, ownerRow, agentOnly = false, hideTitle = false }: {
+/** Quyền truy cập copy for any resource, e.g. noun = "skill này" / "guardrail này" / "kết nối
+ * này". Same sentences as Knowledge so every library reads the same way. */
+export interface AccessCopy {
+  description: string; agentDescription: string;
+  allHelper: string; specificHelper: string; privateHelper: string;
+}
+export function resourceAccessCopy(noun: string): AccessCopy {
+  return {
+    description: `Ai được liên kết ${noun} vào Agent khi xây dựng.`,
+    agentDescription: `Ai được dùng lại ${noun} khi xây dựng Agent khác.`,
+    allHelper: `Mọi thành viên Space đều liên kết được ${noun} vào Agent.`,
+    specificHelper: `Chỉ người bạn chọn mới liên kết được ${noun} vào Agent.`,
+    privateHelper: `Không chia sẻ. Chỉ Agent bạn đang chỉnh sửa dùng được ${noun}.`,
+  };
+}
+
+/** "Quyền truy cập" block — title, description, option cards and the member picker. Knowledge
+ * copy by default; other resources pass `copy` (see resourceAccessCopy) and their own `picker`. */
+export function AccessScopeSection({ mode, people, onModeChange, onPeopleChange, submitAttempted, ownerRow, agentOnly = false, hideTitle = false, copy, picker }: {
   mode: SharingMode;
   people: SharedPerson[];
   onModeChange: (m: SharingMode) => void;
@@ -187,17 +204,24 @@ export function AccessScopeSection({ mode, people, onModeChange, onPeopleChange,
   agentOnly?: boolean;
   /** Set inside a popup whose own title already says "Quyền truy cập". */
   hideTitle?: boolean;
+  copy?: AccessCopy;
+  /** Member picker for "Người cụ thể" — defaults to Knowledge's MemberPicker. */
+  picker?: ReactNode;
 }) {
-  const options = agentOnly ? [AGENT_ONLY_ACCESS_OPTION, ...ACCESS_OPTIONS] : ACCESS_OPTIONS;
+  const base = agentOnly ? [AGENT_ONLY_ACCESS_OPTION, ...ACCESS_OPTIONS] : ACCESS_OPTIONS;
+  const options = copy
+    ? base.map(o => ({ ...o, helper: o.value === "all" ? copy.allHelper : o.value === "specific" ? copy.specificHelper : copy.privateHelper }))
+    : base;
+  const description = copy ? (agentOnly ? copy.agentDescription : copy.description) : (agentOnly ? ACCESS_COPY.agentDescription : ACCESS_COPY.description);
   return (
     <div role="radiogroup" aria-label={ACCESS_COPY.title}>
-      <PermissionHeading title={ACCESS_COPY.title} description={agentOnly ? ACCESS_COPY.agentDescription : ACCESS_COPY.description} hideTitle={hideTitle} />
+      <PermissionHeading title={ACCESS_COPY.title} description={description} hideTitle={hideTitle} />
       <div className="space-y-2">
         {options.map(opt => (
           <RadioCard key={opt.value} selected={mode === opt.value} onSelect={() => onModeChange(opt.value)} label={opt.label} helper={opt.helper} icon={opt.icon}>
             {opt.value === "specific" && (
               <>
-                <MemberPicker value={people} onChange={onPeopleChange} ownerRow={ownerRow} />
+                {picker ?? <MemberPicker value={people} onChange={onPeopleChange} ownerRow={ownerRow} />}
                 {submitAttempted && people.length === 0 && <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người.</p>}
               </>
             )}

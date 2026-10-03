@@ -1427,7 +1427,7 @@ function MoreLink({ count, onClick }: { count: number; onClick: () => void }) {
 const KNOWLEDGE_SOURCE_ROW_MENU_WIDTH = 176; // w-44
 const KNOWLEDGE_SOURCE_ROW_MENU_HEIGHT_ESTIMATE = 90; // 2 items + container padding
 
-function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, onShare, shareLabel = "Chia sẻ", openLabel = "Xem chi tiết", removeLabel = "Gỡ nguồn tri thức", disabled = false, disabledReason = "Nguồn tri thức đang được xử lý.", href, twoLine = false, hideOpen = false }: {
+function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, onShare, shareLabel = "Quyền truy cập", openLabel = "Xem chi tiết", removeLabel = "Gỡ nguồn tri thức", disabled = false, disabledReason = "Nguồn tri thức đang được xử lý.", href, twoLine = false, hideOpen = false }: {
   icon: any; name: string; chip: React.ReactNode; onOpen: () => void; onRemove: () => void;
   /** Owner-only "Chia sẻ" action (e.g. a knowledge item that exists only in this Agent). */
   onShare?: () => void;
@@ -5285,7 +5285,7 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
             triggerLabel={`Thao tác với ${rowName}`}
             items={[
               ...(detailRef ? [{ label: "Xem chi tiết", icon: EyeIcon, onSelect: () => setDetailTarget(detailRef) }] : []),
-              ...(canShare ? [{ label: "Chia sẻ", icon: Share08Icon, onSelect: () => { if (customConnector) setShareTarget(customConnector); else if (apiTool) setShareApiTool(apiTool); } }] : []),
+              ...(canShare ? [{ label: "Quyền truy cập", icon: Share08Icon, onSelect: () => { if (customConnector) setShareTarget(customConnector); else if (apiTool) setShareApiTool(apiTool); } }] : []),
               { label: "Gỡ liên kết", icon: Delete01Icon, onSelect: () => setDetachConnTarget({ id: c.id, name: rowName }), destructive: true },
             ]}
           />
@@ -5438,7 +5438,7 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
       {shareApiTool && (
         <CustomConnectorShareModal
           open
-          title="Chia sẻ API Tool" noun="API Tool"
+          noun="API Tool"
           name={shareApiTool.name}
           ownerName={shareApiTool.ownerName}
           sharing={shareApiTool.sharing}
@@ -5506,7 +5506,7 @@ function SkillCardMenu({ onOpen, onEdit, onShare, onRemove, removeLabel }: {
   const items: ActionMenuItem[] = [
     ...(onOpen ? [{ label: "Xem chi tiết", icon: ExternalLinkIcon, onSelect: onOpen }] : []),
     ...(onEdit ? [{ label: "Chỉnh sửa", icon: PencilEdit01Icon, onSelect: onEdit }] : []),
-    ...(onShare ? [{ label: "Chia sẻ", icon: Share08Icon, onSelect: onShare }] : []),
+    ...(onShare ? [{ label: "Quyền truy cập", icon: Share08Icon, onSelect: onShare }] : []),
     { label: removeLabel, icon: Delete01Icon, onSelect: onRemove, destructive: true },
   ];
   return <ActionMenu items={items} triggerLabel="Thao tác với skill" />;
@@ -7467,7 +7467,7 @@ function GuardrailAgentItemRowMenu({ onView, onEdit, onShare, onDelete, deleteLa
   const items: ActionMenuItem[] = [
     { label: "Xem chi tiết", icon: EyeIcon, onSelect: onView },
     ...(onEdit ? [{ label: "Chỉnh sửa", icon: PencilEdit01Icon, onSelect: onEdit }] : []),
-    ...(onShare ? [{ label: "Chia sẻ", icon: Share08Icon, onSelect: onShare }] : []),
+    ...(onShare ? [{ label: "Quyền truy cập", icon: Share08Icon, onSelect: onShare }] : []),
     { label: deleteLabel, icon: Delete01Icon, onSelect: onDelete, destructive: true },
   ];
   return <ActionMenu items={items} triggerLabel="Thao tác với guardrail" />;

@@ -249,8 +249,8 @@ export default function WorkspaceGuardrails() {
 
           const editBlocked = editBlockedFor(g, access);
           const shareBlocked = !hasOwner ? undefined
-            : g.allAgents ? "Guardrail đang áp dụng cho mọi Agent nên mọi người trong Space đều xem được. Bỏ \"Áp dụng cho mọi Agent\" trong Chỉnh sửa để đổi chia sẻ."
-            : !isOwner ? "Chỉ chủ sở hữu mới có thể chia sẻ guardrail này."
+            : g.allAgents ? "Guardrail đang áp dụng cho mọi Agent nên mọi người trong Space đều xem được. Bỏ \"Áp dụng cho mọi Agent\" trong Chỉnh sửa để đổi quyền truy cập."
+            : !isOwner ? "Chỉ chủ sở hữu mới đổi được quyền truy cập của guardrail này."
             : !access.hasPermission("publish") ? NO_ROLE_PERMISSION
             : !access.canAct("publish", accessible) ? NOT_OWNED_OR_SHARED
             : undefined;
@@ -403,7 +403,7 @@ function RowMenu({
               onClick={() => { setOpen(false); onShare(); }}
               className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface-muted transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
             >
-              <HugeiconsIcon icon={Share08Icon} size={13} className="text-muted-foreground" /> Chia sẻ
+              <HugeiconsIcon icon={Share08Icon} size={13} className="text-muted-foreground" /> Quyền truy cập
             </button>
           )}
           <button

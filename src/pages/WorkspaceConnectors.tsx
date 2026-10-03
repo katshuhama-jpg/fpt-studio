@@ -432,7 +432,7 @@ export default function WorkspaceConnectors() {
       {shareApiToolTarget && (
         <CustomConnectorShareModal
           open
-          title="Chia sẻ API Tool" noun="API Tool"
+          noun="API Tool"
           name={shareApiToolTarget.name}
           ownerName={shareApiToolTarget.ownerName}
           sharing={shareApiToolTarget.sharing}
@@ -646,7 +646,7 @@ function CustomConnectorRowMenu({ onView, onEdit, onShare, onPublish, onToggleBl
           )}
           {onShare && (
             <button onClick={() => { setOpen(false); onShare(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">
-              Chia sẻ
+              Quyền truy cập
             </button>
           )}
           {onPublish && (
