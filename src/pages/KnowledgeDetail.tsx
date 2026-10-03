@@ -63,9 +63,10 @@ function PermissionChips({ kb, canManage, onOpenAccess, onOpenRetrieval }: {
   kb: KnowledgeBase; canManage: boolean; onOpenAccess: () => void; onOpenRetrieval: () => void;
 }) {
   const isOwner = kb.ownerId === CURRENT_USER.id;
+  const restrictedCount = knowledgeDocumentStore.countRestricted(kb.id);
   const chips = [
     { key: "access", Icon: Users, prefix: ACCESS_COPY.chip, value: accessLabel(kb.sharing.mode, kb.sharing.people.length), tip: ACCESS_COPY.title, onClick: onOpenAccess },
-    { key: "retrieval", Icon: MessageSquareText, prefix: RETRIEVAL_COPY.chip, value: retrievalLabel(kb.querySharing), tip: RETRIEVAL_COPY.title, onClick: onOpenRetrieval },
+    { key: "retrieval", Icon: MessageSquareText, prefix: RETRIEVAL_COPY.chip, value: retrievalLabel(kb.querySharing) + (restrictedCount > 0 ? ` · ${restrictedCount} mục giới hạn riêng` : ""), tip: RETRIEVAL_COPY.title, onClick: onOpenRetrieval },
   ];
   return (
     <>
@@ -400,7 +401,7 @@ export default function KnowledgeDetail() {
       )}
 
       <div className="flex-1 overflow-hidden">
-        {tab === "documents" && <KnowledgeDocumentsTab kbId={kb.id} viewOnly={viewOnly} />}
+        {tab === "documents" && <KnowledgeDocumentsTab kbId={kb.id} viewOnly={viewOnly} retrieval={{ kbName: kb.name, kbQuery: kb.querySharing, canManage: canShare, onChange: refresh }} />}
         {tab === "website" && <KnowledgeWebsiteTab kbId={kb.id} viewOnly={viewOnly} />}
         {tab === "faq" && <KnowledgeFaqTab kbId={kb.id} viewOnly={viewOnly} />}
       </div>

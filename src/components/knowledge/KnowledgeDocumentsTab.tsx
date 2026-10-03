@@ -20,6 +20,9 @@ import ChunkViewerModal from "./ChunkViewerModal";
 import VersionHistoryPanel from "./VersionHistoryPanel";
 import CreateFolderModal from "./CreateFolderModal";
 import MoveToFolderModal from "./MoveToFolderModal";
+import RetrievalScopeModal from "./RetrievalScopeModal";
+import { RETRIEVAL_COPY, normalizeQuerySharing } from "./QueryScopeSection";
+import type { QuerySharing } from "./knowledgeBaseStore";
 
 const STATUS_OPTIONS: { value: KnowledgeProcessingStatus | "all"; label: string }[] = [
   { value: "all", label: "Tất cả" },
@@ -32,7 +35,11 @@ const STATUS_OPTIONS: { value: KnowledgeProcessingStatus | "all"; label: string 
 
 const SUPPORTED_FORMATS_LINE = "Hỗ trợ TXT, MD, PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX · Tối đa 10 tệp mỗi lần · 30MB mỗi tệp";
 
-export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string; viewOnly: boolean }) {
+/** Folder / document level "Agent trả lời cho ai" (Google Drive style). Only passed on Space
+ * Knowledge Bases; `canManage` follows who may change the KB's own setting. */
+export interface DocRetrievalProps { kbName: string; kbQuery: QuerySharing | undefined; canManage: boolean; onChange?: () => void }
+
+export default function KnowledgeDocumentsTab({ kbId, viewOnly, retrieval }: { kbId: string; viewOnly: boolean; retrieval?: DocRetrievalProps }) {
   const [params, setParams] = useSearchParams();
   const [tick, setTick] = useState(0);
   const [query, setQuery] = useState("");
@@ -50,6 +57,9 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
   const [moveTargets, setMoveTargets] = useState<KnowledgeDocument[] | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [folderFilter, setFolderFilter] = useState<string | null>(null);
+  const [retrievalTarget, setRetrievalTarget] = useState<KnowledgeDocument | null>(null);
+  const canManageRetrieval = !viewOnly && !!retrieval?.canManage;
+  const openRetrieval = canManageRetrieval ? (d: KnowledgeDocument) => setRetrievalTarget(d) : undefined;
   const createMenuRef = useRef<HTMLDivElement>(null);
 
   const openId = params.get("docId");
@@ -288,6 +298,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                           onOpen={() => setFolderFilter(d.id)}
                           onRename={() => { setRenaming(d); setRenameValue(d.name); }}
                           onMove={() => setMoveTargets([d])}
+                          onRetrieval={openRetrieval && (() => openRetrieval(d))}
                           onDelete={() => setDeleteTargets([d])}
                         />
                       ) : (
@@ -297,6 +308,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                           onReprocess={() => setReprocessTarget(d)}
                           onRename={() => { setRenaming(d); setRenameValue(d.name); }}
                           onMove={() => setMoveTargets([d])}
+                          onRetrieval={openRetrieval && (() => openRetrieval(d))}
                           onDelete={() => setDeleteTargets([d])}
                         />
                       )}
@@ -308,6 +320,27 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
             </tbody>
           </table>
         </div>
+      )}
+
+      {retrievalTarget && retrieval && (
+        (() => {
+          // Same popup as the KB's own. A folder/document without its own setting opens on what it
+          // follows today (nearest limited folder, else the KB). Saving that same value - or
+          // "Mọi người dùng Agent", which can't widen past the levels above - clears its own setting.
+          const parentLimit = knowledgeDocumentStore.ancestors(kbId, retrievalTarget.id).find(a => a.querySharing?.mode === "department")?.querySharing;
+          const inherited = normalizeQuerySharing(parentLimit ?? retrieval.kbQuery);
+          const same = (a: QuerySharing, b: QuerySharing) => a.mode === b.mode
+            && [...a.departmentIds].sort().join() === [...b.departmentIds].sort().join()
+            && a.people.map(p => p.userId).sort().join() === b.people.map(p => p.userId).sort().join();
+          return (
+            <RetrievalScopeModal
+              name={retrievalTarget.name}
+              value={retrievalTarget.querySharing ?? inherited}
+              onSave={q => knowledgeDocumentStore.updateQuerySharing(retrievalTarget.id, q.mode === "department" && !same(q, inherited) ? q : undefined)}
+              onClose={() => { setRetrievalTarget(null); refresh(); retrieval.onChange?.(); }}
+            />
+          );
+        })()
       )}
 
       <UploadDocumentsModal open={showUpload} kbId={kbId} onClose={() => { setShowUpload(false); refresh(); }} />
@@ -440,11 +473,11 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
 // Worst-case rendered height (7 items, one danger separator, container padding) — used only to
 // decide whether the menu should flip upward; the actual box still sizes to its real content.
 const ROW_MENU_WIDTH = 224; // w-56
-const ROW_MENU_HEIGHT_ESTIMATE = 256;
-const FOLDER_ROW_MENU_HEIGHT_ESTIMATE = 190;
+const ROW_MENU_HEIGHT_ESTIMATE = 290;
+const FOLDER_ROW_MENU_HEIGHT_ESTIMATE = 224;
 
-function RowMenu({ canOpen, onOpen, onReprocess, onRename, onMove, onDelete }: {
-  canOpen: boolean; onOpen: () => void; onReprocess: () => void; onRename: () => void; onMove: () => void; onDelete: () => void;
+function RowMenu({ canOpen, onOpen, onReprocess, onRename, onMove, onRetrieval, onDelete }: {
+  canOpen: boolean; onOpen: () => void; onReprocess: () => void; onRename: () => void; onMove: () => void; onRetrieval?: () => void; onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
@@ -482,6 +515,7 @@ function RowMenu({ canOpen, onOpen, onReprocess, onRename, onMove, onDelete }: {
     { label: "Xử lý lại", onClick: onReprocess },
     { label: "Đổi tên", onClick: onRename },
     { label: "Di chuyển", onClick: onMove },
+    ...(onRetrieval ? [{ label: RETRIEVAL_COPY.menu, onClick: onRetrieval }] : []),
     { label: "Xóa", onClick: onDelete, danger: true },
   ];
 
@@ -527,8 +561,8 @@ function RowMenu({ canOpen, onOpen, onReprocess, onRename, onMove, onDelete }: {
   );
 }
 
-function FolderRowMenu({ onOpen, onRename, onMove, onDelete }: {
-  onOpen: () => void; onRename: () => void; onMove: () => void; onDelete: () => void;
+function FolderRowMenu({ onOpen, onRename, onMove, onRetrieval, onDelete }: {
+  onOpen: () => void; onRename: () => void; onMove: () => void; onRetrieval?: () => void; onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
@@ -561,6 +595,7 @@ function FolderRowMenu({ onOpen, onRename, onMove, onDelete }: {
     { label: "Xem chi tiết", onClick: onOpen },
     { label: "Đổi tên", onClick: onRename },
     { label: "Di chuyển", onClick: onMove },
+    ...(onRetrieval ? [{ label: RETRIEVAL_COPY.menu, onClick: onRetrieval }] : []),
     { label: "Xóa", onClick: onDelete, danger: true },
   ];
 

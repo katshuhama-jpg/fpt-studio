@@ -71,7 +71,7 @@ export function PermissionHeading({ title, description, hideTitle = false, audie
 /** "Công ty / phòng ban" picker for "Agent trả lời cho ai" - the same org tree, search and
  * checkboxes as the Publish Agent popup: pick a whole company, a department, or individual
  * people found by name or email. Units are stored in departmentIds, people in people. */
-function AnswerAudiencePicker({ value, onChange }: { value: QuerySharing; onChange: (next: QuerySharing) => void }) {
+export function AnswerAudiencePicker({ value, onChange, noun = "kho này" }: { value: QuerySharing; onChange: (next: QuerySharing) => void; noun?: string }) {
   const { tree } = useOrg();
   const selection = useMemo(() => new Set([...value.departmentIds.map(id => `u:${id}`), ...value.people.map(p => `m:${p.userId}`)]), [value]);
   const members = useMemo(() => new Map(collectMembers(tree).map(m => [m.id, m])), [tree]);
@@ -92,7 +92,7 @@ function AnswerAudiencePicker({ value, onChange }: { value: QuerySharing; onChan
     <>
       <OrgSharePicker tree={tree} selection={selection} onToggleUnit={u => apply(toggleUnitIn(selection, u))} onToggleMember={m => apply(toggleMemberIn(selection, m))} />
       <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
-        {names.length === 0 ? "Chọn công ty, phòng ban hoặc tìm người theo tên, email." : <>Nhận câu trả lời từ kho này: <span className="text-foreground font-medium">{names.join(", ")}</span></>}
+        {names.length === 0 ? "Chọn công ty, phòng ban hoặc tìm người theo tên, email." : <>Nhận câu trả lời từ {noun}: <span className="text-foreground font-medium">{names.join(", ")}</span></>}
       </p>
     </>
   );

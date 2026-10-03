@@ -1,7 +1,7 @@
 // sessionStorage-backed Documents store for a Console Knowledge Base's "Tài liệu" tab.
 import { loadMap, saveMap } from "@/lib/sessionPersist";
 import type { KnowledgeProcessingStatus } from "./knowledgeStatus";
-import type { Sharing } from "./knowledgeBaseStore";
+import type { QuerySharing, Sharing } from "./knowledgeBaseStore";
 
 export interface KnowledgeDocument {
   id: string;
@@ -17,6 +17,10 @@ export interface KnowledgeDocument {
   /** Per-document access level chosen at upload time (defaults to "Chỉ mình tôi" when unset —
    * same convention as an Agent Knowledge item's sharing). Folders don't carry one. */
   sharing?: Sharing;
+  /** "Agent trả lời cho ai" set on this folder or document itself. Unset = follows the folder
+   * it sits in, up to the Knowledge Base (like Google Drive). A value here can only narrow:
+   * a person must pass the KB and every restricted folder above to get answers from it. */
+  querySharing?: QuerySharing;
   createdAt: number;
   updatedAt: number;
   updatedBy: string;
@@ -201,6 +205,31 @@ export const knowledgeDocumentStore = {
     if (!cur) return;
     store.set(id, { ...cur, sharing, updatedAt: Date.now() });
     persist();
+  },
+  /** Sets (or clears, with undefined) a folder's / document's own "Agent trả lời cho ai". */
+  updateQuerySharing(id: string, querySharing: QuerySharing | undefined) {
+    const cur = store.get(id);
+    if (!cur) return;
+    store.set(id, { ...cur, querySharing, updatedAt: Date.now() });
+    persist();
+  },
+  /** Folders above `id`, nearest first. */
+  ancestors(kbId: string, id: string): KnowledgeDocument[] {
+    const out: KnowledgeDocument[] = [];
+    let cur = this.get(kbId, id);
+    const seen = new Set<string>();
+    while (cur?.folderId && !seen.has(cur.folderId)) {
+      seen.add(cur.folderId);
+      const parent = this.get(kbId, cur.folderId);
+      if (!parent) break;
+      out.push(parent);
+      cur = parent;
+    }
+    return out;
+  },
+  /** How many folders/documents in this KB carry their own "Agent trả lời cho ai". */
+  countRestricted(kbId: string): number {
+    return this.list(kbId).filter(d => d.querySharing?.mode === "department").length;
   },
   /** Restoring an older version creates a new version on top (standard versioning behavior —
    * history is never rewritten). */
