@@ -92,7 +92,7 @@ function AnswerAudiencePicker({ value, onChange }: { value: QuerySharing; onChan
     <>
       <OrgSharePicker tree={tree} selection={selection} onToggleUnit={u => apply(toggleUnitIn(selection, u))} onToggleMember={m => apply(toggleMemberIn(selection, m))} />
       <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
-        {names.length === 0 ? "Chọn công ty, phòng ban hoặc tìm người theo tên, email." : <>Agent trả lời từ kho này cho: <span className="text-foreground font-medium">{names.join(", ")}</span></>}
+        {names.length === 0 ? "Chọn công ty, phòng ban hoặc tìm người theo tên, email." : <>Nhận câu trả lời từ kho này: <span className="text-foreground font-medium">{names.join(", ")}</span></>}
       </p>
     </>
   );
@@ -119,9 +119,9 @@ export const RETRIEVAL_COPY = {
   title: "Agent trả lời cho ai",
   menu: "Agent trả lời cho ai",
   chip: "Trả lời",
-  description: "Chọn người được Agent lấy thông tin từ kho này để trả lời. Ai dùng được Agent do bước Publish Agent quyết định.",
+  description: "Chọn ai được nhận câu trả lời từ kho này. Còn ai được trò chuyện với Agent thì do bước Publish quyết định.",
   narrowTitle: "Thu hẹp người được trả lời?",
-  narrowBody: "Agent sẽ ngừng lấy thông tin từ kho này để trả lời người ngoài phạm vi bạn chọn.",
+  narrowBody: "Những người không có trong danh sách sẽ không còn nhận được câu trả lời từ kho này.",
   narrowAction: "Thu hẹp",
   toast: "Đã lưu thay đổi.",
 };
@@ -137,7 +137,7 @@ export const AGENT_ONLY_ACCESS_OPTION: { value: SharingMode; label: string; help
 
 export const QUERY_SCOPE_OPTIONS: { value: QueryScopeMode; label: string; helper: string; icon: LucideIcon }[] = [
   { value: "all_org", label: "Mọi người dùng Agent", helper: "Ai trò chuyện với Agent cũng nhận được câu trả lời từ kho này.", icon: UsersRound },
-  { value: "department", label: "Công ty / phòng ban", helper: "Chỉ trả lời cả công ty, phòng ban hoặc từng người bạn chọn. Người khác vẫn dùng được Agent, nhưng Agent không lấy thông tin từ kho này để trả lời họ.", icon: Network },
+  { value: "department", label: "Công ty / phòng ban", helper: "Chỉ những người bạn chọn mới nhận được câu trả lời từ kho này. Người khác vẫn trò chuyện với Agent như bình thường.", icon: Network },
 ];
 
 /** Older data may still carry "private"/"specific" retrieval modes — both read as "Cả tổ chức"

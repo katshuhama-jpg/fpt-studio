@@ -134,7 +134,7 @@ export default function ShareAgentItemModal({ agentId, items, onClose, section }
           <AlertDialogHeader>
             <AlertDialogTitle>{!downgrading ? RETRIEVAL_COPY.narrowTitle : buildMode === "private" ? "Tắt chia sẻ?" : ACCESS_COPY.narrowTitle}</AlertDialogTitle>
             <AlertDialogDescription>{!downgrading
-              ? "Agent sẽ ngừng lấy thông tin từ tri thức này để trả lời người ngoài các phòng ban bạn chọn."
+              ? "Những người không có trong danh sách sẽ không còn nhận được câu trả lời từ tri thức này."
               : buildMode === "private"
                 ? "Chỉ Agent này dùng được tri thức này. Người khác sẽ không liên kết được vào Agent của họ nữa."
                 : "Chỉ người trong danh sách còn liên kết được tri thức này vào Agent."}</AlertDialogDescription>
