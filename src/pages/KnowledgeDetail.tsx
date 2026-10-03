@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ChevronLeft, MoreHorizontal, FileText, Globe, HelpCircle, Database,
-  BarChart3, AlertTriangle,
+  Loader2, AlertTriangle,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -207,7 +207,13 @@ export default function KnowledgeDetail() {
   const canShare = isOwner && access.canAct("publish", accessible);
   const canClearContent = access.canAct("manage", accessible) && !viewOnly;
   const canDeleteKb = isOwner && access.canAct("delete", accessible);
-  const indexedPct = kb.stats.chunks === 0 ? 100 : Math.round((kb.stats.chunks / Math.max(kb.stats.chunks, 1)) * 98);
+  // Only say whether something is still being processed — no chunk counts or "% indexed".
+  const busy = (s: string) => s === "pending" || s === "processing";
+  const isProcessing = kb.type === "internal" && (
+    knowledgeDocumentStore.list(kb.id).some(d => !d.isFolder && busy(d.status)) ||
+    knowledgeUrlStore.list(kb.id).some(u => !u.isFolder && busy(u.status)) ||
+    knowledgeFaqStore.list(kb.id).some(f => busy(f.status))
+  );
 
   const commitName = () => {
     const trimmed = nameDraft.trim();
@@ -354,14 +360,16 @@ export default function KnowledgeDetail() {
             </Tooltip>
           </div>
 
-          <Tooltip delayDuration={300}>
-            <TooltipTrigger asChild>
-              <span tabIndex={0} className="flex items-center gap-1.5 text-xs text-muted-foreground pb-2 outline-none">
-                <BarChart3 size={13} /> {kb.stats.chunks} chunk · {indexedPct}% đã lập chỉ mục
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="left">Số đoạn tri thức đã xử lý và tỷ lệ sẵn sàng cho tra cứu.</TooltipContent>
-          </Tooltip>
+          {isProcessing && (
+            <Tooltip delayDuration={300}>
+              <TooltipTrigger asChild>
+                <span tabIndex={0} className="flex items-center gap-1.5 text-xs text-muted-foreground pb-2 outline-none">
+                  <Loader2 size={13} className="animate-spin" /> Đang xử lý
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="left">Agent dùng được nội dung mới sau khi xử lý xong.</TooltipContent>
+            </Tooltip>
+          )}
         </div>
       </div>
 

@@ -199,7 +199,7 @@ export default function ImportFaqModal({ open, kbId, onClose, onRefresh, onViewI
       ids.forEach(id => {
         const faq = knowledgeFaqStore.get(kbId, id);
         if (faq && faq.answer.trim().length < 20) {
-          knowledgeFaqStore.updateStatus(id, "invalid", { statusReason: "Câu trả lời quá ngắn để lập chỉ mục." });
+          knowledgeFaqStore.updateStatus(id, "invalid", { statusReason: "Câu trả lời quá ngắn nên Agent chưa dùng được." });
           invalidIds.push(id);
         } else {
           knowledgeFaqStore.updateStatus(id, "done", { chunkCount: 1 });
