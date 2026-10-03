@@ -33,29 +33,6 @@ import { getAgent } from "@/components/configure/agentStore";
 type Tab = "documents" | "website" | "faq";
 const VALID_TABS: Tab[] = ["documents", "website", "faq"];
 
-function ClearContentDialog({ open, kbName, onClose, onConfirm }: { open: boolean; kbName: string; onClose: () => void; onConfirm: () => void }) {
-  const [typed, setTyped] = useState("");
-  const matches = typed.trim() === kbName;
-  return (
-    <Dialog open={open} onOpenChange={v => { if (!v) { setTyped(""); onClose(); } }}>
-      <DialogContent className="sm:max-w-[460px]">
-        <DialogHeader><DialogTitle>Xóa toàn bộ nội dung?</DialogTitle></DialogHeader>
-        <div className="space-y-4 py-1">
-          <p className="text-sm text-muted-foreground leading-relaxed">Toàn bộ tài liệu, website, câu hỏi thường gặp và các đoạn đã xử lý trong kho tri thức "{kbName}" sẽ bị xóa vĩnh viễn. Kho tri thức vẫn tồn tại nhưng sẽ trống hoàn toàn. Hành động này không thể hoàn tác.</p>
-          <div>
-            <label className="text-sm font-medium mb-1.5 block">Nhập tên kho tri thức để xác nhận</label>
-            <input value={typed} onChange={e => setTyped(e.target.value)} placeholder={kbName} className="w-full h-10 px-3 rounded-lg border border-border bg-white text-sm outline-none focus:border-destructive focus:ring-2 focus:ring-destructive/20 transition-base" />
-          </div>
-        </div>
-        <DialogFooter>
-          <button onClick={onClose} className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium transition-base">Hủy bỏ</button>
-          <button onClick={() => { onConfirm(); setTyped(""); }} disabled={!matches} className="h-9 px-4 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 text-sm font-medium transition-base disabled:opacity-40 disabled:pointer-events-none">Xác nhận và xóa</button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 /** Owner chip + the two permission chips ("Truy cập: …", "Truy xuất: …"). For the owner who
  * may change permissions, each permission chip is a button that opens its popup; for everyone
  * else it is a static chip with a tooltip explaining what it means. */
@@ -137,7 +114,6 @@ export default function KnowledgeDetail() {
   const [showShare, setShowShare] = useState(false);
   const [showRetrieval, setShowRetrieval] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
-  const [showClearContent, setShowClearContent] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
 
@@ -227,7 +203,6 @@ export default function KnowledgeDetail() {
   const accessible = isAccessibleTo(kb, access.userId) || ((viaAgentOnly || viaOwningAgent) && agentCtx.allowed);
   const canEdit = access.canAct("manage", accessible) && !viewOnly;
   const canShare = isOwner && access.canAct("publish", accessible);
-  const canClearContent = access.canAct("manage", accessible) && !viewOnly;
   const canDeleteKb = isOwner && access.canAct("delete", accessible);
   // Only say whether something is still being processed — no chunk counts or "% indexed".
   const busy = (s: string) => s === "pending" || s === "processing";
@@ -335,15 +310,7 @@ export default function KnowledgeDetail() {
                         {RETRIEVAL_COPY.menu}
                       </button>
                     )}
-                    <div className="mt-1 pt-1 border-t border-border">
-                      <button
-                        disabled={!canClearContent}
-                        title={!canClearContent ? (viewOnly ? "Bạn chỉ có quyền xem kho tri thức này." : "Bạn không có quyền xóa nội dung kho tri thức này.") : undefined}
-                        onClick={() => { setShowClearContent(true); setShowMenu(false); }}
-                        className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] disabled:text-muted-foreground/50 disabled:cursor-not-allowed transition-base"
-                      >
-                        Xóa toàn bộ nội dung
-                      </button>
+                    {isOwner && <div className="mt-1 pt-1 border-t border-border">
                       {isOwner && (
                         <button
                           disabled={!canDeleteKb}
@@ -354,7 +321,7 @@ export default function KnowledgeDetail() {
                           Xóa
                         </button>
                       )}
-                    </div>
+                    </div>}
                   </div>
                 </>
               )}
@@ -456,19 +423,6 @@ export default function KnowledgeDetail() {
           onClose={() => { setShowRetrieval(false); refresh(); }}
         />
       )}
-      <ClearContentDialog
-        open={showClearContent}
-        kbName={kb.name}
-        onClose={() => setShowClearContent(false)}
-        onConfirm={() => {
-          knowledgeDocumentStore.removeMany(knowledgeDocumentStore.list(kb.id).map(d => d.id));
-          knowledgeUrlStore.removeMany(knowledgeUrlStore.list(kb.id).map(u => u.id));
-          knowledgeFaqStore.removeMany(knowledgeFaqStore.list(kb.id).map(f => f.id));
-          toast.success(`Đã xóa toàn bộ nội dung của "${kb.name}".`);
-          setShowClearContent(false);
-          hardRefresh();
-        }}
-      />
     </div>
   );
 }
