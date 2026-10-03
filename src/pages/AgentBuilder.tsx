@@ -1427,10 +1427,12 @@ function MoreLink({ count, onClick }: { count: number; onClick: () => void }) {
 const KNOWLEDGE_SOURCE_ROW_MENU_WIDTH = 176; // w-44
 const KNOWLEDGE_SOURCE_ROW_MENU_HEIGHT_ESTIMATE = 90; // 2 items + container padding
 
-function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, onShare, shareLabel = "Quyền truy cập", openLabel = "Xem chi tiết", removeLabel = "Gỡ nguồn tri thức", disabled = false, disabledReason = "Nguồn tri thức đang được xử lý.", href, twoLine = false, hideOpen = false }: {
+function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, onShare, onScope, shareLabel = "Quyền truy cập", openLabel = "Xem chi tiết", removeLabel = "Gỡ nguồn tri thức", disabled = false, disabledReason = "Nguồn tri thức đang được xử lý.", href, twoLine = false, hideOpen = false }: {
   icon: any; name: string; chip: React.ReactNode; onOpen: () => void; onRemove: () => void;
   /** Owner-only "Chia sẻ" action (e.g. a knowledge item that exists only in this Agent). */
   onShare?: () => void;
+  /** Linked Space knowledge base only: "Đổi phạm vi liên kết" (whole knowledge base or some items). */
+  onScope?: () => void;
   shareLabel?: string;
   openLabel?: string; removeLabel?: string; disabled?: boolean; disabledReason?: string;
   /** When set, opens in a new tab via a real anchor instead of calling onOpen in-place — used
@@ -1458,6 +1460,7 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, onShare, share
       onSelect: () => { if (href) window.open(href, "_blank", "noopener,noreferrer"); else onOpen(); },
       disabledReason: disabled ? disabledReason : undefined,
     }]),
+    ...(onScope ? [{ label: "Đổi phạm vi liên kết", icon: ConnectIcon, onSelect: onScope }] : []),
     ...(onShare ? [{ label: shareLabel, icon: Share08Icon, onSelect: onShare }] : []),
     { label: removeLabel, icon: Delete01Icon, onSelect: onRemove, destructive: true },
   ];
@@ -1656,7 +1659,9 @@ function AgentKnowledgeGrid({ agentId, onOpenOwn }: { agentId: string; onOpenOwn
     // Real Console KBs open in a new tab instead of navigating this one away from the
     // Agent Builder — matching the sidebar's own pattern — so switching to a shared KB's
     // Console detail never silently discards unsaved Instructions edits.
-    const onOpen = () => { if (c.isOwn) onOpenOwn(); else window.open(`/knowledge/${c.id}?viaAgent=${agentId}`, "_blank", "noopener,noreferrer"); };
+    // Opened without "noopener" so the new tab gets a copy of this session's data (links, scope),
+    // then cut the opener link right away.
+    const onOpen = () => { if (c.isOwn) onOpenOwn(); else { const w = window.open(`/knowledge/${c.id}?viaAgent=${agentId}`, "_blank"); if (w) w.opener = null; } };
     const editBlocked = !c.isOwn && !isOwner ? "Chỉ chủ sở hữu mới có thể đổi tên kho tri thức này." : undefined;
     const shareBlocked = !c.isOwn && !isOwner ? "Chỉ chủ sở hữu mới đổi được quyền của kho tri thức này." : undefined;
     // Same tinted tile Console's KbCard uses (KnowledgeTypeIcon: amber for nội bộ, blue for kết
@@ -5766,6 +5771,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
   const [showMenu, setShowMenu] = useState(false);
   const [menuPos, setMenuPos] = useState<{top:number;left:number}>({top:0,left:0});
   const [showAttach, setShowAttach] = useState(false);
+  const [scopeKbId, setScopeKbId] = useState<string | null>(null);
   const [detachTarget, setDetachTarget] = useState<{ id: string; name: string } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [detailTarget, setDetailTarget] = useState<AgentResourceRef | null>(null);
@@ -5796,7 +5802,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
     .map(id => knowledgeBaseStore.get(id))
     .filter((kb): kb is NonNullable<typeof kb> => !!kb);
 
-  type Row = { key: string; name: string; icon: any; open: () => void; remove: () => void; share?: () => void; chip: React.ReactNode; disabled?: boolean; disabledReason?: string; href?: string; scope?: string };
+  type Row = { key: string; name: string; icon: any; open: () => void; remove: () => void; share?: () => void; changeScope?: () => void; chip: React.ReactNode; disabled?: boolean; disabledReason?: string; href?: string; scope?: { label: string; empty: boolean } };
   const rows: Row[] = [
     ...attachedKbs.map(kb => ({
       key: `kb-${kb.id}`,
@@ -5804,7 +5810,8 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
       icon: ConnectIcon,
       href: `/knowledge/${kb.id}?viaAgent=${agentId}`,
       // Only a partial link shows its scope here; "Toàn bộ kho" is the normal case.
-      scope: knowledgeStore.getLinkScope(agentId, kb.id).mode === "partial" ? scopeLabel(kb.id, knowledgeStore.getLinkScope(agentId, kb.id)).label : undefined,
+      scope: knowledgeStore.getLinkScope(agentId, kb.id).mode === "partial" ? scopeLabel(kb.id, knowledgeStore.getLinkScope(agentId, kb.id)) : undefined,
+      changeScope: kb.type === "internal" ? () => setScopeKbId(kb.id) : undefined,
       open: () => setDetailTarget({ kind: "knowledgeBase", id: kb.id }),
       remove: () => setDetachTarget({ id: kb.id, name: kb.name }),
       // Plain "Của tôi"/"Được chia sẻ" caption — no more granular Riêng tư/Chia sẻ · N/Dùng
@@ -5881,10 +5888,11 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
               key={row.key}
               icon={row.icon}
               name={row.name}
-              chip={row.scope ? <span className="flex items-center gap-1.5 min-w-0 flex-wrap">{row.chip}<span className="chip chip-muted shrink-0">{row.scope}</span></span> : row.chip}
+              chip={row.scope ? <span className="flex items-center gap-1.5 min-w-0 flex-wrap">{row.chip}<span className={`chip shrink-0 ${row.scope.empty ? "chip-warning" : "chip-muted"}`} title={row.scope.empty ? "Các mục đã chọn không còn trong kho. Chọn lại phạm vi để Agent tiếp tục tra cứu." : undefined}>{row.scope.label}</span></span> : row.chip}
               onOpen={row.open}
               onRemove={row.remove}
               onShare={row.share}
+              onScope={row.changeScope}
               shareLabel="Quyền truy cập & truy xuất"
               openLabel="Xem chi tiết"
               removeLabel={row.href ? "Gỡ liên kết" : "Xóa"}
@@ -5914,7 +5922,14 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
         document.body,
       )}
 
-      {showAttach && <AttachConsoleKnowledgeBaseModal agentId={agentId} userId={KB_CURRENT_USER.id} onClose={() => { setShowAttach(false); refresh(); }} />}
+      {(showAttach || scopeKbId) && (
+        <AttachConsoleKnowledgeBaseModal
+          agentId={agentId}
+          userId={KB_CURRENT_USER.id}
+          initialFocusKbId={scopeKbId ?? undefined}
+          onClose={() => { setShowAttach(false); setScopeKbId(null); refresh(); }}
+        />
+      )}
       {shareItems && shareItems.length > 0 && (
         <ShareAgentItemModal agentId={agentId} items={shareItems} onClose={() => { setShareItems(null); refresh(); }} />
       )}

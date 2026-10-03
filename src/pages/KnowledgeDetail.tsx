@@ -26,6 +26,9 @@ import { Users, MessageSquareText, ChevronDown } from "lucide-react";
 import KnowledgeDocumentsTab from "@/components/knowledge/KnowledgeDocumentsTab";
 import KnowledgeWebsiteTab from "@/components/knowledge/KnowledgeWebsiteTab";
 import KnowledgeFaqTab from "@/components/knowledge/KnowledgeFaqTab";
+import { knowledgeStore } from "@/components/knowledge/knowledgeStore";
+import { scopeLabel } from "@/components/knowledge/kbLinkScope";
+import { getAgent } from "@/components/configure/agentStore";
 
 type Tab = "documents" | "website" | "faq";
 const VALID_TABS: Tab[] = ["documents", "website", "faq"];
@@ -372,6 +375,23 @@ export default function KnowledgeDetail() {
           )}
         </div>
       </div>
+
+      {(() => {
+        // Opened from an Agent that links only part of this knowledge base: say so, since the
+        // lists below show the whole knowledge base.
+        const viaAgent = params.get("viaAgent");
+        if (!viaAgent || !knowledgeStore.listAttachedConsoleKbIds(viaAgent).includes(kb.id)) return null;
+        const scope = knowledgeStore.getLinkScope(viaAgent, kb.id);
+        if (scope.mode !== "partial") return null;
+        const { label, empty } = scopeLabel(kb.id, scope);
+        return (
+          <div className="px-4 sm:px-6 py-2.5 bg-primary-soft/40 border-b border-border text-xs text-foreground shrink-0">
+            {empty
+              ? `Agent ${getAgent(viaAgent).name} chưa tra cứu mục nào trong kho này vì các mục đã chọn không còn. Chọn lại phạm vi trong Agent.`
+              : `Agent ${getAgent(viaAgent).name} chỉ tra cứu ${label} trong kho này. Đổi phạm vi trong Agent nếu cần.`}
+          </div>
+        );
+      })()}
 
       {viewOnly && (
         <div className="px-4 sm:px-6 py-2.5 bg-surface-muted border-b border-border text-xs text-muted-foreground shrink-0">
