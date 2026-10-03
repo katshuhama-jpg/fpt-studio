@@ -22,7 +22,7 @@ import ShareKnowledgeBaseModal from "@/components/knowledge/ShareKnowledgeBaseMo
 import DeleteKnowledgeBaseDialog from "@/components/knowledge/DeleteKnowledgeBaseDialog";
 import RetrievalScopeModal from "@/components/knowledge/RetrievalScopeModal";
 import { ACCESS_COPY, RETRIEVAL_COPY, accessLabel, retrievalLabel } from "@/components/knowledge/QueryScopeSection";
-import { Users, MessageSquareText, ChevronDown } from "lucide-react";
+import { Users, MessageSquareText, ChevronDown, Lock } from "lucide-react";
 import KnowledgeDocumentsTab from "@/components/knowledge/KnowledgeDocumentsTab";
 import KnowledgeWebsiteTab from "@/components/knowledge/KnowledgeWebsiteTab";
 import KnowledgeFaqTab from "@/components/knowledge/KnowledgeFaqTab";
@@ -65,38 +65,52 @@ function PermissionChips({ kb, canManage, onOpenAccess, onOpenRetrieval }: {
   const isOwner = kb.ownerId === CURRENT_USER.id;
   const restrictedCount = knowledgeDocumentStore.countRestricted(kb.id);
   const chips = [
-    { key: "access", Icon: Users, prefix: ACCESS_COPY.chip, value: accessLabel(kb.sharing.mode, kb.sharing.people.length), tip: ACCESS_COPY.title, onClick: onOpenAccess },
-    { key: "retrieval", Icon: MessageSquareText, prefix: RETRIEVAL_COPY.chip, value: retrievalLabel(kb.querySharing) + (restrictedCount > 0 ? ` · ${restrictedCount} mục giới hạn riêng` : ""), tip: RETRIEVAL_COPY.title, onClick: onOpenRetrieval },
+    { key: "access", Icon: Users, prefix: ACCESS_COPY.chip, value: accessLabel(kb.sharing.mode, kb.sharing.people.length), tip: ACCESS_COPY.title, onClick: onOpenAccess, badge: 0 },
+    { key: "retrieval", Icon: MessageSquareText, prefix: RETRIEVAL_COPY.chip, value: retrievalLabel(kb.querySharing), tip: RETRIEVAL_COPY.title, onClick: onOpenRetrieval, badge: restrictedCount },
   ];
   return (
     <>
       <span className="chip chip-muted">{isOwner ? "Của tôi" : `Được chia sẻ · ${kb.ownerName}`}</span>
-      {chips.map(({ key, Icon, prefix, value, tip, onClick }) => {
+      {chips.map(({ key, Icon, prefix, value, tip, onClick, badge }) => {
+        // Folders/documents with their own "Agent trả lời cho ai" show as a small lock + count
+        // badge, so the chip keeps its main value short; the tooltip spells it out.
+        const badgeText = badge > 0 ? `${badge} thư mục hoặc tài liệu có cài đặt riêng` : "";
         const body = (
           <>
             <Icon size={13} className="shrink-0 text-muted-foreground" />
             <span className="text-muted-foreground">{prefix}:</span>
             <span className="font-medium text-foreground">{value}</span>
+            {badge > 0 && (
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-primary-soft text-primary px-1.5 py-px text-[11px] font-semibold leading-4">
+                <Lock size={10} aria-hidden />{badge}
+              </span>
+            )}
           </>
         );
-        return canManage ? (
-          <button
-            key={key}
-            type="button"
-            onClick={onClick}
-            aria-label={`Đổi ${tip.toLowerCase()} (hiện tại: ${value})`}
-            title={`Đổi ${tip.toLowerCase()}`}
-            className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-border bg-white text-xs hover:bg-surface-muted hover:border-primary/40 transition-base cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {body}
-            <ChevronDown size={12} className="text-muted-foreground" />
-          </button>
-        ) : (
+        const tipBody = (
+          <>
+            <span className="block">{canManage ? `Đổi ${tip.toLowerCase()}` : tip}</span>
+            {badgeText && <span className="block text-white/75">{badgeText}</span>}
+          </>
+        );
+        return (
           <Tooltip key={key} delayDuration={200}>
             <TooltipTrigger asChild>
-              <span className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-border bg-surface-muted text-xs cursor-default">{body}</span>
+              {canManage ? (
+                <button
+                  type="button"
+                  onClick={onClick}
+                  aria-label={`Đổi ${tip.toLowerCase()} (hiện tại: ${value}${badgeText ? `, ${badgeText}` : ""})`}
+                  className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-border bg-white text-xs hover:bg-surface-muted hover:border-primary/40 transition-base cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {body}
+                  <ChevronDown size={12} className="text-muted-foreground" />
+                </button>
+              ) : (
+                <span tabIndex={0} className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-border bg-surface-muted text-xs cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{body}</span>
+              )}
             </TooltipTrigger>
-            <TooltipContent>{tip}</TooltipContent>
+            <TooltipContent>{tipBody}</TooltipContent>
           </Tooltip>
         );
       })}
