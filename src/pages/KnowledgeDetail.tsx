@@ -38,7 +38,7 @@ function ClearContentDialog({ open, kbName, onClose, onConfirm }: { open: boolea
       <DialogContent className="sm:max-w-[460px]">
         <DialogHeader><DialogTitle>Xóa toàn bộ nội dung?</DialogTitle></DialogHeader>
         <div className="space-y-4 py-1">
-          <p className="text-sm text-muted-foreground leading-relaxed">Toàn bộ tài liệu, URL, FAQ và chunk trong kho tri thức "{kbName}" sẽ bị xóa vĩnh viễn. Kho tri thức vẫn tồn tại nhưng sẽ trống hoàn toàn. Hành động này không thể hoàn tác.</p>
+          <p className="text-sm text-muted-foreground leading-relaxed">Toàn bộ tài liệu, website, câu hỏi thường gặp và các đoạn đã xử lý trong kho tri thức "{kbName}" sẽ bị xóa vĩnh viễn. Kho tri thức vẫn tồn tại nhưng sẽ trống hoàn toàn. Hành động này không thể hoàn tác.</p>
           <div>
             <label className="text-sm font-medium mb-1.5 block">Nhập tên kho tri thức để xác nhận</label>
             <input value={typed} onChange={e => setTyped(e.target.value)} placeholder={kbName} className="w-full h-10 px-3 rounded-lg border border-border bg-white text-sm outline-none focus:border-destructive focus:ring-2 focus:ring-destructive/20 transition-base" />

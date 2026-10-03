@@ -364,8 +364,8 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
       <AlertDialog open={!!reprocessTarget} onOpenChange={v => !v && setReprocessTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Xử lý lại toàn bộ chunk?</AlertDialogTitle>
-            <AlertDialogDescription>Hệ thống sẽ tạo lại chunk từ tài liệu gốc. Các chunk bạn đã chỉnh sửa thủ công sẽ được giữ nguyên và đánh dấu.</AlertDialogDescription>
+            <AlertDialogTitle>Xử lý lại toàn bộ tài liệu?</AlertDialogTitle>
+            <AlertDialogDescription>Hệ thống sẽ chia lại các đoạn từ tài liệu gốc. Các đoạn bạn đã chỉnh sửa thủ công sẽ được giữ nguyên và đánh dấu.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
@@ -404,7 +404,7 @@ export default function KnowledgeDocumentsTab({ kbId, viewOnly }: { kbId: string
                       </>
                     ) : (
                       <>
-                        Nội dung và toàn bộ chunk liên quan sẽ bị xóa vĩnh viễn khỏi kho tri thức.
+                        Nội dung cùng các đoạn đã xử lý sẽ bị xóa vĩnh viễn khỏi kho tri thức.
                         {folderTargets.length > 0 && <><br /><br />Các thư mục đã chọn đang chứa {cascadeDocCount} tài liệu.</>}
                       </>
                     )}

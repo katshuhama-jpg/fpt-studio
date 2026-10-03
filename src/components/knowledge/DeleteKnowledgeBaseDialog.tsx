@@ -50,7 +50,7 @@ export default function DeleteKnowledgeBaseDialog({
 
         <div className="space-y-4 py-1">
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Kho tri thức "{kb.name}" cùng toàn bộ tài liệu, URL, FAQ và chunk bên trong sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác.
+            Kho tri thức "{kb.name}" cùng toàn bộ tài liệu, website, câu hỏi thường gặp và các đoạn đã xử lý bên trong sẽ bị xóa vĩnh viễn. Hành động này không thể hoàn tác.
           </p>
 
           {attachedAgentNames.length > 0 && (

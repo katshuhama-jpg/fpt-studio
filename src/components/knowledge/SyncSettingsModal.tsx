@@ -172,7 +172,7 @@ export default function SyncSettingsModal({ kbId, viewOnly, onClose, onSaved }: 
                 <div>
                   <p className="text-sm font-medium">Tự động đồng bộ nội dung từ URL hiện có</p>
                   <p className="text-xs text-muted-foreground mt-0.5">Tự động cập nhật nội dung của các URL đã thêm khi phát hiện thay đổi.</p>
-                  {draft.syncExistingUrls && <p className="text-xs text-warning mt-1.5">Các chunk bạn đã chỉnh sửa thủ công được giữ nguyên và không bị ghi đè.</p>}
+                  {draft.syncExistingUrls && <p className="text-xs text-warning mt-1.5">Các đoạn bạn đã chỉnh sửa thủ công được giữ nguyên và không bị ghi đè.</p>}
                 </div>
                 <Toggle enabled={draft.syncExistingUrls} disabled={viewOnly} onChange={() => setDraft(d => ({ ...d, syncExistingUrls: !d.syncExistingUrls }))} />
               </div>

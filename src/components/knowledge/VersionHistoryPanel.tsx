@@ -31,7 +31,7 @@ const CAUSE_LABEL: Record<Cause, string> = {
   auto_sync: "Đồng bộ tự động",
   manual_reprocess: "Xử lý lại thủ công",
   new_upload: "Tải lên bản mới",
-  chunk_edit: "Chỉnh sửa chunk",
+  chunk_edit: "Chỉnh sửa đoạn",
 };
 
 interface VersionEntry {
@@ -97,7 +97,7 @@ export default function VersionHistoryPanel({ source: doc, onClose, viewOnly }: 
 
           <div className="flex-1 overflow-y-auto space-y-2">
             {chunks.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">Tài liệu chưa có chunk nào.</p>
+              <p className="text-sm text-muted-foreground text-center py-8">Tài liệu chưa có đoạn nào.</p>
             ) : chunks.map((c, i) => {
               // Deterministic mock highlight (no real historical diff exists) — a stand-in for
               // which chunks changed between v{viewing.version} and the current version.
@@ -146,7 +146,7 @@ export default function VersionHistoryPanel({ source: doc, onClose, viewOnly }: 
                     </div>
                     <p className="text-sm font-medium">{CAUSE_LABEL[v.cause]}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">{new Date(v.at).toLocaleString("vi-VN")} · {v.actor}</p>
-                    <p className="text-xs text-muted-foreground mt-1">+{v.added} chunk · −{v.removed} chunk · {v.changed} chunk thay đổi</p>
+                    <p className="text-xs text-muted-foreground mt-1">+{v.added} đoạn · −{v.removed} đoạn · {v.changed} đoạn thay đổi</p>
                     <div className="flex items-center gap-3 mt-2">
                       <button onClick={() => setViewingVersion(v.version)} className="text-xs font-semibold text-primary hover:underline">Xem nội dung</button>
                       {!v.isCurrent && !viewOnly && (

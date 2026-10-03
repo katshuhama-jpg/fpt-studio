@@ -254,7 +254,7 @@ export default function DocumentPreviewPane({
                       isSelected ? "bg-primary text-primary-foreground" : "bg-white/95 border border-border text-muted-foreground"
                     }`}
                   >
-                    Chunk {c.index}{c.manuallyEdited ? " •" : ""}
+                    Đoạn {c.index}{c.manuallyEdited ? " •" : ""}
                   </span>
                 </div>
                 {isSelected && !viewOnly && onResizeChunk && HANDLES.map(h => (
@@ -310,7 +310,7 @@ export default function DocumentPreviewPane({
             className="absolute -translate-x-1/2 flex items-center gap-1 h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-medium shadow-elev z-10"
             onClick={e => { e.stopPropagation(); onSelectText(selectionBtn.text); setSelectionBtn(null); window.getSelection()?.removeAllRanges(); }}
           >
-            <Plus size={12} /> Thêm chunk
+            <Plus size={12} /> Thêm đoạn
           </button>
         )}
 
@@ -326,7 +326,7 @@ export default function DocumentPreviewPane({
             <button onClick={() => inertTool("Bình luận")} aria-label="Bình luận" title="Bình luận" className="w-8 h-8 flex items-center justify-center rounded-lg text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               <MessageSquare size={15} />
             </button>
-            <button onClick={() => { setDrawMode(true); setContextMenu(null); }} aria-label="Vẽ vùng chọn" title="Vẽ vùng chọn (tạo chunk mới)" className="w-8 h-8 flex items-center justify-center rounded-lg text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <button onClick={() => { setDrawMode(true); setContextMenu(null); }} aria-label="Vẽ vùng chọn" title="Vẽ vùng chọn (tạo đoạn mới)" className="w-8 h-8 flex items-center justify-center rounded-lg text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               <Square size={15} />
             </button>
             <button onClick={() => inertTool("Vẽ tự do")} aria-label="Vẽ tự do" title="Vẽ tự do" className="w-8 h-8 flex items-center justify-center rounded-lg text-foreground hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">

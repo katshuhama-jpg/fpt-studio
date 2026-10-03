@@ -433,7 +433,7 @@ export default function KnowledgeWebsiteTab({ kbId, viewOnly }: { kbId: string; 
                       </>
                     ) : (
                       <>
-                        Nội dung và toàn bộ chunk liên quan sẽ bị xóa vĩnh viễn khỏi kho tri thức.
+                        Nội dung cùng các đoạn đã xử lý sẽ bị xóa vĩnh viễn khỏi kho tri thức.
                         {folderTargets.length > 0 && <><br /><br />Các thư mục đã chọn đang chứa {cascadeCount} URL.</>}
                       </>
                     )}

@@ -77,7 +77,7 @@ export default function AdvancedConfigSection({ value, onChange }: { value: Adva
             <input type="checkbox" checked={value.captureImageCaptions} onChange={e => onChange({ ...value, captureImageCaptions: e.target.checked })} className="w-4 h-4 accent-primary mt-0.5 shrink-0" />
             <div>
               <span className="text-sm font-medium">Bật chú thích hình ảnh</span>
-              <p className="text-xs text-muted-foreground mt-0.5">Trích xuất phần chú thích đi kèm hình ảnh vào nội dung chunk.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Trích xuất phần chú thích đi kèm hình ảnh vào nội dung các đoạn.</p>
             </div>
           </label>
         </AccordionContent>

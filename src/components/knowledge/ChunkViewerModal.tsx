@@ -158,7 +158,7 @@ export default function ChunkViewerModal({
     refresh();
   };
   const onCreateChunkFromBox = (bbox: ChunkBBox) => {
-    const chunk = knowledgeChunkStore.add(kbId, sourceType, sourceId, { title: "Chunk mới", content: "", bbox });
+    const chunk = knowledgeChunkStore.add(kbId, sourceType, sourceId, { title: "Đoạn mới", content: "", bbox });
     refresh();
     startEdit({ ...chunk });
   };
@@ -301,15 +301,15 @@ export default function ChunkViewerModal({
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border shrink-0">
             <h2 className="text-sm font-semibold flex items-center gap-1.5">
-              Chunk <span className="chip chip-muted">{chunks.length}</span>
+              Đoạn <span className="chip chip-muted">{chunks.length}</span>
               <Tooltip delayDuration={200}>
                 <TooltipTrigger asChild>
-                  <button type="button" aria-label="Chunk là gì?" className="text-muted-foreground hover:text-foreground transition-base">
+                  <button type="button" aria-label="Đoạn là gì?" className="text-muted-foreground hover:text-foreground transition-base">
                     <Info size={13} />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className="max-w-64 text-xs leading-relaxed">
-                  Hệ thống tự động chia tài liệu thành các đoạn nhỏ (chunk) để AI tra cứu chính xác hơn khi trả lời. Bạn có thể sửa nội dung hoặc vùng chọn nếu thấy AI chia chưa đúng.
+                  Hệ thống tự động chia tài liệu thành các đoạn nhỏ để AI tra cứu chính xác hơn khi trả lời. Bạn có thể sửa nội dung hoặc vùng chọn nếu thấy AI chia chưa đúng.
                 </TooltipContent>
               </Tooltip>
             </h2>
@@ -318,7 +318,7 @@ export default function ChunkViewerModal({
               <input
                 value={query}
                 onChange={e => setQuery(e.target.value)}
-                placeholder="Tìm trong chunk..."
+                placeholder="Tìm trong đoạn..."
                 className="h-8 w-52 pl-7 pr-3 rounded-lg bg-surface-muted border border-border text-xs placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
               />
             </div>
@@ -327,7 +327,7 @@ export default function ChunkViewerModal({
           {keptBanner !== null && (
             <div className="flex items-start gap-2 px-4 py-2.5 bg-primary-soft/50 border-b border-border text-xs text-primary shrink-0">
               <Info size={13} className="shrink-0 mt-0.5" />
-              <span>Đã giữ nguyên {keptBanner} chunk bạn chỉnh sửa thủ công. Bấm vào chip để xem.</span>
+              <span>Đã giữ nguyên {keptBanner} đoạn bạn chỉnh sửa thủ công. Bấm vào chip để xem.</span>
               <button onClick={() => setKeptBanner(null)} className="ml-auto text-primary/70 hover:text-primary"><X size={12} /></button>
             </div>
           )}
@@ -347,12 +347,12 @@ export default function ChunkViewerModal({
             ) : chunks.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border bg-surface/50 p-8 text-center">
                 <p className="text-sm text-muted-foreground">
-                  {viewOnly ? "Chưa có chunk nào." : "Chưa có chunk nào. Bấm \"Xử lý kết quả\" để hệ thống phân tích tài liệu."}
+                  {viewOnly ? "Chưa có đoạn nào." : "Chưa có đoạn nào. Bấm \"Xử lý kết quả\" để hệ thống phân tích tài liệu."}
                 </p>
               </div>
             ) : filteredChunks.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border bg-surface/50 p-8 text-center">
-                <p className="text-sm text-muted-foreground">Không có chunk phù hợp với tìm kiếm.</p>
+                <p className="text-sm text-muted-foreground">Không có đoạn phù hợp với tìm kiếm.</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -366,7 +366,7 @@ export default function ChunkViewerModal({
                     }`}
                   >
                     <div className="absolute -top-3 left-3 flex items-center gap-1 bg-white border border-border rounded-md pl-2 pr-1 py-1 shadow-soft">
-                      <span className="text-xs font-semibold whitespace-nowrap">Chunk {c.index}</span>
+                      <span className="text-xs font-semibold whitespace-nowrap">Đoạn {c.index}</span>
                       {c.manuallyEdited && (
                         <button
                           onClick={e => { e.stopPropagation(); setRevealUpdateFor(prev => { const n = new Set(prev); n.has(c.id) ? n.delete(c.id) : n.add(c.id); return n; }); }}
@@ -486,8 +486,8 @@ export default function ChunkViewerModal({
       <AlertDialog open={reprocessConfirm} onOpenChange={setReprocessConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Xử lý lại toàn bộ chunk?</AlertDialogTitle>
-            <AlertDialogDescription>Hệ thống sẽ tạo lại chunk từ tài liệu gốc. Các chunk bạn đã chỉnh sửa thủ công sẽ được giữ nguyên và đánh dấu.</AlertDialogDescription>
+            <AlertDialogTitle>Xử lý lại toàn bộ tài liệu?</AlertDialogTitle>
+            <AlertDialogDescription>Hệ thống sẽ chia lại các đoạn từ tài liệu gốc. Các đoạn bạn đã chỉnh sửa thủ công sẽ được giữ nguyên và đánh dấu.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
@@ -517,8 +517,8 @@ export default function ChunkViewerModal({
       <AlertDialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Xóa chunk này?</AlertDialogTitle>
-            <AlertDialogDescription>Nội dung của chunk sẽ bị xóa vĩnh viễn khỏi kho tri thức và Agent sẽ không còn tra cứu được.</AlertDialogDescription>
+            <AlertDialogTitle>Xóa đoạn này?</AlertDialogTitle>
+            <AlertDialogDescription>Nội dung của đoạn sẽ bị xóa vĩnh viễn khỏi kho tri thức và Agent sẽ không còn tra cứu được.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>

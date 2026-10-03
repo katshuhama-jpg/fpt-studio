@@ -2121,7 +2121,7 @@ function AgentOwnKnowledgeView({ agentId, onBack }: { agentId: string; onBack: (
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Xử lý lại "{reprocessTarget?.name}"?</AlertDialogTitle>
-            <AlertDialogDescription>Hệ thống sẽ phân tích lại nội dung và tạo mới các chunk liên quan.</AlertDialogDescription>
+            <AlertDialogDescription>Hệ thống sẽ phân tích lại nội dung và tạo mới các đoạn liên quan.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
@@ -2147,7 +2147,7 @@ function AgentOwnKnowledgeView({ agentId, onBack }: { agentId: string; onBack: (
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Xóa nguồn tri thức này?</AlertDialogTitle>
-            <AlertDialogDescription>Nội dung và toàn bộ chunk sẽ bị xóa vĩnh viễn khỏi Agent. Hành động này không thể hoàn tác.</AlertDialogDescription>
+            <AlertDialogDescription>Nội dung cùng các đoạn đã xử lý sẽ bị xóa vĩnh viễn khỏi Agent. Hành động này không thể hoàn tác.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
@@ -5950,7 +5950,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Xóa nguồn tri thức này?</AlertDialogTitle>
-            <AlertDialogDescription>Nội dung và toàn bộ chunk sẽ bị xóa vĩnh viễn khỏi Agent. Hành động này không thể hoàn tác.</AlertDialogDescription>
+            <AlertDialogDescription>Nội dung cùng các đoạn đã xử lý sẽ bị xóa vĩnh viễn khỏi Agent. Hành động này không thể hoàn tác.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
