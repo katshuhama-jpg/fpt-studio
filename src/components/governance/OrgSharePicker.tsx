@@ -101,3 +101,15 @@ export function toggleMemberIn(selection: Set<string>, member: OrgMember): Set<s
   if (next.has(key)) next.delete(key); else next.add(key);
   return next;
 }
+
+/** Human-readable names for what's currently selected — used in the inline reach warning and
+ * as the scope shown to the Admin reviewing the governance request. */
+export function orgSelectionSummary(unit: OrgUnit, selection: Set<string>, ancestorSelected: boolean): string[] {
+  const selfSelected = ancestorSelected || selection.has(`u:${unit.id}`);
+  if (selfSelected) return ancestorSelected ? [] : [`${unit.name} (${countAll(unit)} người)`];
+  const out: string[] = [];
+  for (const m of unit.members) if (selection.has(`m:${m.id}`)) out.push(m.name);
+  for (const child of unit.units) out.push(...orgSelectionSummary(child, selection, false));
+  return out;
+}
+

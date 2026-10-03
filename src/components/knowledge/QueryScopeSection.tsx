@@ -1,8 +1,8 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Check, Network, Users, UserCheck, Bot, Hammer, MessageCircle, ChevronDown, UsersRound, type LucideIcon } from "lucide-react";
 import { useOrg } from "@/pages/organization/orgStore";
-import { collectMembers } from "@/pages/organization/orgData";
-import OrgSharePicker, { toggleUnitIn, toggleMemberIn } from "@/components/governance/OrgSharePicker";
+import { collectMembers, orgTree as SEED_ORG_TREE, type OrgUnit } from "@/pages/organization/orgData";
+import OrgSharePicker, { toggleUnitIn, toggleMemberIn, orgSelectionSummary } from "@/components/governance/OrgSharePicker";
 import MemberPicker from "./MemberPicker";
 import { type QuerySharing, type QueryScopeMode, type SharedPerson, type SharingMode } from "./knowledgeBaseStore";
 
@@ -87,7 +87,15 @@ function AnswerAudiencePicker({ value, onChange }: { value: QuerySharing; onChan
     }
     onChange({ ...value, departmentIds, people });
   };
-  return <OrgSharePicker tree={tree} selection={selection} onToggleUnit={u => apply(toggleUnitIn(selection, u))} onToggleMember={m => apply(toggleMemberIn(selection, m))} />;
+  const names = answerAudienceNames(value, tree);
+  return (
+    <>
+      <OrgSharePicker tree={tree} selection={selection} onToggleUnit={u => apply(toggleUnitIn(selection, u))} onToggleMember={m => apply(toggleMemberIn(selection, m))} />
+      <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
+        {names.length === 0 ? "Chọn công ty, phòng ban hoặc tìm người theo tên, email." : <>Agent trả lời từ kho này cho: <span className="text-foreground font-medium">{names.join(", ")}</span></>}
+      </p>
+    </>
+  );
 }
 
 /* ─── Copy for the two permission dimensions ─────────────────────────────────────────────
@@ -139,12 +147,23 @@ export function normalizeQuerySharing(v: QuerySharing | undefined): QuerySharing
   return { ...v, departmentIds: v.departmentIds ?? [], people: v.people ?? [] };
 }
 
-/** Short label for chips/detail rows, e.g. "Mọi người dùng Agent" or "2 phòng ban". */
+/** Names of what "Công ty / phòng ban" covers - same wording as the Channels tab's
+ * "Đang live cho: …", e.g. "FPT Smart Cloud (35 người), Linh Phan". */
+function answerAudienceNames(q: QuerySharing, tree: OrgUnit = SEED_ORG_TREE): string[] {
+  const selection = new Set([...q.departmentIds.map(id => `u:${id}`), ...q.people.map(p => `m:${p.userId}`)]);
+  const names = orgSelectionSummary(tree, selection, false);
+  // People picked who aren't in the org tree (older data) still show by name.
+  for (const p of q.people) if (!names.includes(p.name) && !collectMembers(tree).some(m => m.id === p.userId)) names.push(p.name);
+  return names;
+}
+
+/** Short label for chips/detail rows, e.g. "Mọi người dùng Agent" or "FPT Smart Cloud (35 người)". */
 export function retrievalLabel(v: QuerySharing | undefined): string {
   const q = normalizeQuerySharing(v);
   if (q.mode !== "department") return "Mọi người dùng Agent";
-  const parts = [q.departmentIds.length ? `${q.departmentIds.length} đơn vị` : "", q.people.length ? `${q.people.length} người` : ""].filter(Boolean);
-  return parts.join(", ") || "Chưa chọn ai";
+  const names = answerAudienceNames(q);
+  if (names.length === 0) return "Chưa chọn ai";
+  return names.length <= 2 ? names.join(", ") : `${names.slice(0, 2).join(", ")} +${names.length - 2}`;
 }
 /** Short label for the access dimension, e.g. "Cả Space", "3 người", "Chỉ Agent này". */
 export function accessLabel(mode: SharingMode, peopleCount: number, privateLabel = "Chỉ mình tôi"): string {

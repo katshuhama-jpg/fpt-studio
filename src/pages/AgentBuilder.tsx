@@ -96,7 +96,7 @@ import { KnowledgeStatusPill } from "@/components/knowledge/knowledgeStatus";
 import AttachConsoleKnowledgeBaseModal from "@/components/knowledge/AttachConsoleKnowledgeBaseModal";
 import ShareKnowledgeBaseModal from "@/components/knowledge/ShareKnowledgeBaseModal";
 import ShareAgentItemModal from "@/components/knowledge/ShareAgentItemModal";
-import OrgSharePicker from "@/components/governance/OrgSharePicker";
+import OrgSharePicker, { orgSelectionSummary } from "@/components/governance/OrgSharePicker";
 import { ACCESS_COPY, RETRIEVAL_COPY } from "@/components/knowledge/QueryScopeSection";
 import RetrievalScopeModal from "@/components/knowledge/RetrievalScopeModal";
 import ActionMenu, { type ActionMenuItem } from "@/components/ui/ActionMenu";
@@ -4289,17 +4289,6 @@ function orgSelectionReach(unit: OrgUnit, selection: Set<string>, ancestorSelect
   for (const m of unit.members) if (selection.has(`m:${m.id}`)) total += 1;
   for (const child of unit.units) total += orgSelectionReach(child, selection, false);
   return total;
-}
-
-/** Human-readable names for what's currently selected — used in the inline reach warning and
- * as the scope shown to the Admin reviewing the governance request. */
-function orgSelectionSummary(unit: OrgUnit, selection: Set<string>, ancestorSelected: boolean): string[] {
-  const selfSelected = ancestorSelected || selection.has(`u:${unit.id}`);
-  if (selfSelected) return ancestorSelected ? [] : [`${unit.name} (${countAll(unit)} người)`];
-  const out: string[] = [];
-  for (const m of unit.members) if (selection.has(`m:${m.id}`)) out.push(m.name);
-  for (const child of unit.units) out.push(...orgSelectionSummary(child, selection, false));
-  return out;
 }
 
 /** Structured version of orgSelectionSummary for the governance request's "Kênh triển khai"
