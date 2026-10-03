@@ -1429,8 +1429,10 @@ function MoreLink({ count, onClick }: { count: number; onClick: () => void }) {
 const KNOWLEDGE_SOURCE_ROW_MENU_WIDTH = 176; // w-44
 const KNOWLEDGE_SOURCE_ROW_MENU_HEIGHT_ESTIMATE = 90; // 2 items + container padding
 
-function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, onShare, onRetrieval, onScope, shareLabel = ACCESS_COPY.menu, openLabel = "Xem chi tiết", removeLabel = "Gỡ nguồn tri thức", disabled = false, disabledReason = "Nguồn tri thức đang được xử lý.", href, twoLine = false, hideOpen = false }: {
+function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, removeBlocked, onShare, onRetrieval, onScope, shareLabel = ACCESS_COPY.menu, openLabel = "Xem chi tiết", removeLabel = "Gỡ nguồn tri thức", disabled = false, disabledReason = "Nguồn tri thức đang được xử lý.", href, twoLine = false, hideOpen = false }: {
   icon: any; name: string; chip: React.ReactNode; onOpen: () => void; onRemove: () => void;
+  /** Why the remove action is unavailable for this user (shown as a disabled item). */
+  removeBlocked?: string;
   /** Owner-only "Chia sẻ" action (e.g. a knowledge item that exists only in this Agent). */
   onShare?: () => void;
   /** Agent's own knowledge only: "Agent trả lời cho ai". */
@@ -1467,7 +1469,7 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, onShare, onRet
     ...(onScope ? [{ label: "Đổi phạm vi liên kết", icon: ConnectIcon, onSelect: onScope }] : []),
     ...(onShare ? [{ label: shareLabel, icon: Share08Icon, onSelect: onShare }] : []),
     ...(onRetrieval ? [{ label: RETRIEVAL_COPY.menu, icon: Share08Icon, onSelect: onRetrieval }] : []),
-    { label: removeLabel, icon: Delete01Icon, onSelect: onRemove, destructive: true },
+    { label: removeLabel, icon: Delete01Icon, onSelect: onRemove, destructive: true, disabledReason: removeBlocked },
   ];
   const actionsMenu = (
     <div className={`shrink-0 ${twoLine ? "self-center" : ""}`} onClick={e => { e.preventDefault(); e.stopPropagation(); }}>
@@ -1522,20 +1524,20 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, onShare, onRet
  * synthetic "Cá nhân" card, which isn't a real Knowledge Base record and so only ever offers
  * "Mở". The destructive action is "Gỡ liên kết": it only detaches the KB from this Agent, without
  * touching the KB's Console listing or its attachment to any other Agent. */
-function AgentKbCardMenu({ onOpen, onEdit, onScope, onShare, onRetrieval, onDetach, onDelete, editBlocked, shareBlocked, openOnly }: {
+function AgentKbCardMenu({ onOpen, onEdit, onScope, onShare, onRetrieval, onDetach, onDelete, editBlocked, shareBlocked, removeBlocked, openOnly }: {
   onOpen: () => void; onEdit?: () => void; onScope?: () => void; onShare?: () => void; onRetrieval?: () => void; onDetach?: () => void; onDelete?: () => void;
-  editBlocked?: string; shareBlocked?: string; openOnly?: boolean;
+  editBlocked?: string; shareBlocked?: string; removeBlocked?: string; openOnly?: boolean;
 }) {
   const items: ActionMenuItem[] = openOnly
     ? [{ label: "Xem chi tiết", icon: ExternalLinkIcon, onSelect: onOpen }]
     : [
         { label: "Xem chi tiết", icon: ExternalLinkIcon, onSelect: onOpen },
         ...(onEdit ? [{ label: "Đổi tên", icon: PencilEdit01Icon, onSelect: onEdit, disabledReason: editBlocked }] : []),
-        ...(onScope ? [{ label: "Đổi phạm vi liên kết", icon: ConnectIcon, onSelect: onScope }] : []),
+        ...(onScope ? [{ label: "Đổi phạm vi liên kết", icon: ConnectIcon, onSelect: onScope, disabledReason: removeBlocked }] : []),
         ...(onShare ? [{ label: ACCESS_COPY.menu, icon: Share08Icon, onSelect: onShare, disabledReason: shareBlocked }] : []),
         ...(onRetrieval ? [{ label: RETRIEVAL_COPY.menu, icon: Share08Icon, onSelect: onRetrieval, disabledReason: shareBlocked }] : []),
-        ...(onDetach ? [{ label: "Gỡ liên kết", icon: Delete01Icon, onSelect: onDetach, destructive: true }] : []),
-        ...(onDelete ? [{ label: "Xóa", icon: Delete01Icon, onSelect: onDelete, destructive: true }] : []),
+        ...(onDetach ? [{ label: "Gỡ liên kết", icon: Delete01Icon, onSelect: onDetach, destructive: true, disabledReason: removeBlocked }] : []),
+        ...(onDelete ? [{ label: "Xóa", icon: Delete01Icon, onSelect: onDelete, destructive: true, disabledReason: removeBlocked }] : []),
       ];
   return <ActionMenu items={items} triggerLabel="Thao tác với kho tri thức" />;
 }
@@ -1604,7 +1606,29 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
   return <AgentKnowledgeGrid agentId={agentId} />;
 }
 
+/** Who may do what with knowledge inside an Agent (same rule as useAgentContextAccess):
+ * - Change the Agent's knowledge (create own KB, link, unlink): whoever can build this Agent.
+ * - Rename / "Ai được dùng" / "Agent trả lời cho ai" / delete a KB: its owner, and only if
+ *   their Role has Build / Publish / Delete for Knowledge.
+ * Messages explain which of the two is missing. */
+const NO_AGENT_BUILD = "Bạn chưa có quyền chỉnh sửa Agent này.";
+function kbActionBlocks(kb: { ownerId: string }, kbAccess: ReturnType<typeof useGroupAccess>) {
+  const isOwner = kb.ownerId === KB_CURRENT_USER.id;
+  return {
+    edit: !isOwner ? "Chỉ chủ sở hữu mới có thể đổi tên kho tri thức này." : !kbAccess.hasPermission("manage") ? "Vai trò của bạn chưa có quyền sửa kho tri thức." : undefined,
+    share: !isOwner ? "Chỉ chủ sở hữu mới đổi được quyền của kho tri thức này." : !kbAccess.hasPermission("publish") ? "Vai trò của bạn chưa có quyền đổi quyền kho tri thức." : undefined,
+    del: !isOwner ? "Chỉ chủ sở hữu mới xóa được kho tri thức này." : !kbAccess.hasPermission("delete") ? "Vai trò của bạn chưa có quyền xóa kho tri thức." : undefined,
+  };
+}
+function useCanBuildAgent(agentId: string) {
+  const agentAccess = useGroupAccess("agents");
+  const rec = AGENTS.find(a => a.id === agentId);
+  return !rec || agentAccess.canAct("manage", isOwnedOrShared(rec, agentAccess.userId));
+}
+
 function AgentKnowledgeGrid({ agentId }: { agentId: string }) {
+  const kbAccess = useGroupAccess("knowledge");
+  const canBuildAgent = useCanBuildAgent(agentId);
   const [tick, setTick] = useState(0);
   const refresh = () => setTick(t => t + 1);
   void tick;
@@ -1633,13 +1657,11 @@ function AgentKnowledgeGrid({ agentId }: { agentId: string }) {
 
   const renderCardFor = (kb: KnowledgeBase) => {
     const isOwn = kb.agentOnlyFor === agentId;
-    const isOwner = kb.ownerId === KB_CURRENT_USER.id;
+    const blocks = kbActionBlocks(kb, kbAccess);
     // Knowledge bases open in a new tab instead of navigating this one away from the Agent
     // Builder, so opening one never silently discards unsaved Instructions edits. Opened without
     // "noopener" so the new tab gets a copy of this session's data, then cut the opener link.
     const onOpen = () => { const w = window.open(`/knowledge/${kb.id}?viaAgent=${agentId}`, "_blank"); if (w) w.opener = null; };
-    const editBlocked = !isOwner ? "Chỉ chủ sở hữu mới có thể đổi tên kho tri thức này." : undefined;
-    const shareBlocked = !isOwner ? "Chỉ chủ sở hữu mới đổi được quyền của kho tri thức này." : undefined;
     return (
       <AgentKbCard
         key={kb.id}
@@ -1657,8 +1679,9 @@ function AgentKnowledgeGrid({ agentId }: { agentId: string }) {
             onRetrieval={() => setRetrievalKbTarget(kb)}
             onDetach={isOwn ? undefined : () => setDetachKbTarget(kb)}
             onDelete={isOwn ? () => setDeleteKbTarget(kb) : undefined}
-            editBlocked={editBlocked}
-            shareBlocked={shareBlocked}
+            editBlocked={blocks.edit}
+            shareBlocked={blocks.share}
+            removeBlocked={isOwn ? blocks.del : !canBuildAgent ? NO_AGENT_BUILD : undefined}
           />
         }
       />
@@ -1691,10 +1714,10 @@ function AgentKnowledgeGrid({ agentId }: { agentId: string }) {
           <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">Kho tri thức Agent này dùng để tra cứu khi trả lời. Gồm kho riêng của Agent và kho liên kết từ Space.</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <button onClick={() => setShowAttach(true)} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base whitespace-nowrap">
+          <button onClick={() => canBuildAgent && setShowAttach(true)} disabled={!canBuildAgent} title={!canBuildAgent ? NO_AGENT_BUILD : undefined} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed">
             <HugeiconsIcon icon={ConnectIcon} size={14} /> Liên kết kho tri thức có sẵn
           </button>
-          <button onClick={() => setShowCreateKb(true)} className="btn-primary h-9 whitespace-nowrap">
+          <button onClick={() => canBuildAgent && setShowCreateKb(true)} disabled={!canBuildAgent} title={!canBuildAgent ? NO_AGENT_BUILD : undefined} className="btn-primary h-9 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed">
             <HugeiconsIcon icon={Add01Icon} size={14} /> Tạo kho tri thức
           </button>
         </div>
@@ -5321,6 +5344,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
   const [, setParams] = useSearchParams();
   const kbAccess = useGroupAccess("knowledge");
   const kbCanSeeAll = kbAccess.canSeeAll;
+  const canBuildAgent = useCanBuildAgent(agentId);
   const [tick, setTick] = useState(0);
   const [showMenu, setShowMenu] = useState(false);
   const [menuPos, setMenuPos] = useState<{top:number;left:number}>({top:0,left:0});
@@ -5358,7 +5382,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
     .filter((kb): kb is NonNullable<typeof kb> => !!kb);
   const detachIsOwn = !!detachTarget && knowledgeBaseStore.get(detachTarget.id)?.agentOnlyFor === agentId;
 
-  type Row = { key: string; name: string; icon: any; open: () => void; remove: () => void; share?: () => void; retrieval?: () => void; changeScope?: () => void; chip: React.ReactNode; disabled?: boolean; disabledReason?: string; href?: string; scope?: { label: string; empty: boolean } };
+  type Row = { key: string; name: string; icon: any; open: () => void; remove: () => void; removeLabel?: string; removeBlocked?: string; share?: () => void; retrieval?: () => void; changeScope?: () => void; chip: React.ReactNode; disabled?: boolean; disabledReason?: string; href?: string; scope?: { label: string; empty: boolean } };
   const rows: Row[] = [
     ...attachedKbs.map(kb => ({
       key: `kb-${kb.id}`,
@@ -5370,6 +5394,9 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
       changeScope: kb.type === "internal" && PARTIAL_LINK_ENABLED ? () => setScopeKbId(kb.id) : undefined,
       open: () => setDetailTarget({ kind: "knowledgeBase", id: kb.id }),
       remove: () => setDetachTarget({ id: kb.id, name: kb.name }),
+      // Own knowledge base: removing deletes it (owner + Delete). Linked: unlinking (Agent build).
+      removeLabel: kb.agentOnlyFor === agentId ? "Xóa kho tri thức" : "Gỡ liên kết",
+      removeBlocked: kb.agentOnlyFor === agentId ? kbActionBlocks(kb, kbAccess).del : !canBuildAgent ? NO_AGENT_BUILD : undefined,
       // Plain "Của tôi"/"Được chia sẻ" caption — no more granular Riêng tư/Chia sẻ · N/Dùng
       // chung pill, matching every other Knowledge screen in the product.
       // Same Của tôi / Được chia sẻ pills as the Kho tri thức library (+ creator for someone
@@ -5452,7 +5479,8 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
               onRetrieval={row.retrieval}
               onScope={row.changeScope}
               openLabel="Xem chi tiết"
-              removeLabel={row.href ? "Gỡ liên kết" : "Xóa"}
+              removeLabel={row.removeLabel ?? (row.href ? "Gỡ liên kết" : "Xóa")}
+              removeBlocked={row.removeBlocked}
               disabled={row.disabled}
               disabledReason={row.disabledReason}
               twoLine
@@ -5467,11 +5495,13 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
             {menuItems.map(item => (
               <button
                 key={item.label}
-                className="w-full flex flex-col items-start gap-0.5 px-3.5 py-2.5 text-sm text-foreground hover:bg-surface-muted transition-base text-left"
-                onClick={() => { setShowMenu(false); item.onClick(); }}
+                aria-disabled={!canBuildAgent}
+                title={!canBuildAgent ? NO_AGENT_BUILD : undefined}
+                className={`w-full flex flex-col items-start gap-0.5 px-3.5 py-2.5 text-sm text-foreground transition-base text-left ${canBuildAgent ? "hover:bg-surface-muted" : "opacity-50 cursor-not-allowed"}`}
+                onClick={() => { if (!canBuildAgent) return; setShowMenu(false); item.onClick(); }}
               >
                 <span className="font-medium">{item.label}</span>
-                <span className="text-xs text-muted-foreground">{item.description}</span>
+                <span className="text-xs text-muted-foreground">{!canBuildAgent ? NO_AGENT_BUILD : item.description}</span>
               </button>
             ))}
           </div>

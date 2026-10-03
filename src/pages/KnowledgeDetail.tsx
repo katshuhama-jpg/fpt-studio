@@ -216,11 +216,15 @@ export default function KnowledgeDetail() {
   }
 
   // Via an Agent that uses it: Role's "Build knowledge" decides editing, not per-person share access.
-  const viewOnly = !viaAgentOnly && isViewOnly(kb, access.userId);
+  // An Agent's own knowledge base opened from that Agent: anyone who can open the Agent may work
+  // on it per their Role (View = read, Build = edit), like any resource attached to the Agent -
+  // its "Chỉ Agent này" sharing must not lock out the Agent's other builders or an Admin.
+  const viaOwningAgent = !!kb.agentOnlyFor && agentCtx.allowed && agentCtx.agent?.id === kb.agentOnlyFor;
+  const viewOnly = !viaAgentOnly && !viaOwningAgent && isViewOnly(kb, access.userId);
   // Sharing, deleting, and the inline click-to-rename title are reserved for the owner — an
   // editor (or anyone on a "Dùng chung" KB) can edit content but not the KB's own access/lifecycle.
   const isOwner = kb.ownerId === CURRENT_USER.id;
-  const accessible = isAccessibleTo(kb, access.userId) || (viaAgentOnly && agentCtx.allowed);
+  const accessible = isAccessibleTo(kb, access.userId) || ((viaAgentOnly || viaOwningAgent) && agentCtx.allowed);
   const canEdit = access.canAct("manage", accessible) && !viewOnly;
   const canShare = isOwner && access.canAct("publish", accessible);
   const canClearContent = access.canAct("manage", accessible) && !viewOnly;
@@ -417,11 +421,16 @@ export default function KnowledgeDetail() {
           Bạn đang xem kho tri thức được chia sẻ. Liên hệ {kb.ownerName} nếu cần quyền chỉnh sửa.
         </div>
       )}
+      {!viewOnly && !canEdit && (
+        <div className="px-4 sm:px-6 py-2.5 bg-surface-muted border-b border-border text-xs text-muted-foreground shrink-0">
+          Vai trò của bạn chỉ xem được kho tri thức này. Liên hệ Admin nếu cần quyền chỉnh sửa.
+        </div>
+      )}
 
       <div className="flex-1 overflow-hidden">
-        {tab === "documents" && <KnowledgeDocumentsTab kbId={kb.id} viewOnly={viewOnly} retrieval={{ kbName: kb.name, kbQuery: kb.querySharing, canManage: canShare, onChange: refresh }} />}
-        {tab === "website" && <KnowledgeWebsiteTab kbId={kb.id} viewOnly={viewOnly} />}
-        {tab === "faq" && <KnowledgeFaqTab kbId={kb.id} viewOnly={viewOnly} />}
+        {tab === "documents" && <KnowledgeDocumentsTab kbId={kb.id} viewOnly={!canEdit} retrieval={{ kbName: kb.name, kbQuery: kb.querySharing, canManage: canShare, onChange: refresh }} />}
+        {tab === "website" && <KnowledgeWebsiteTab kbId={kb.id} viewOnly={!canEdit} />}
+        {tab === "faq" && <KnowledgeFaqTab kbId={kb.id} viewOnly={!canEdit} />}
       </div>
 
       {showEdit && <CreateKnowledgeBaseModal open={showEdit} editingKb={kb} onClose={() => setShowEdit(false)} onCreated={refresh} />}
