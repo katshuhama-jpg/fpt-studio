@@ -148,11 +148,11 @@ export default function SkillDetail() {
                     {isOwner && (
                       <button
                         disabled={!canShare}
-                        title={!canShare ? "Bạn không có quyền đổi quyền truy cập của skill này." : undefined}
+                        title={!canShare ? "Chỉ chủ sở hữu mới đổi được ai được dùng skill này." : undefined}
                         onClick={() => { setShowShare(true); setShowMenu(false); }}
                         className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted disabled:text-muted-foreground/50 disabled:cursor-not-allowed transition-base"
                       >
-                        Quyền truy cập
+                        Ai được dùng
                       </button>
                     )}
                     {isOwner && (
@@ -192,8 +192,8 @@ export default function SkillDetail() {
             * sees the skill because an Agent they work on uses it. */}
           {!viaAgentOnly && (
           <div className="rounded-xl border border-border bg-surface p-5">
-            <div className="text-sm font-semibold mb-1">Quyền truy cập</div>
-            <p className="text-xs text-muted-foreground mb-3">Ai được liên kết skill này vào Agent khi xây dựng.</p>
+            <div className="text-sm font-semibold mb-1">Ai được dùng skill này</div>
+            <p className="text-xs text-muted-foreground mb-3">Người trong Space được liên kết skill này vào Agent khi xây dựng.</p>
             <p className="text-sm text-muted-foreground">
               {skill.sharing.mode === "private" && "Chỉ mình tôi"}
               {skill.sharing.mode === "all" && "Cả Space"}

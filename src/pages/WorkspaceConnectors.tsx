@@ -646,7 +646,7 @@ function CustomConnectorRowMenu({ onView, onEdit, onShare, onPublish, onToggleBl
           )}
           {onShare && (
             <button onClick={() => { setOpen(false); onShare(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">
-              Quyền truy cập
+              Ai được dùng
             </button>
           )}
           {onPublish && (

@@ -155,6 +155,7 @@ export default function CreateKnowledgeBaseModal({
                 </div>
                 <div className="border-t border-border pt-5">
                   <QueryScopeSection
+                    collapsible
                     value={querySharing}
                     onChange={setQuerySharing}
                     submitAttempted={submitAttempted}

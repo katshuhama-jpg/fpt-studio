@@ -55,7 +55,7 @@ function SkillRowMenu({ skill, onOpen, onEdit, onShare, onDelete, editBlocked, s
   const safeItems: { label: string; onClick: () => void; blocked?: string }[] = [
     { label: "Xem chi tiết", onClick: onOpen },
     { label: "Chỉnh sửa", onClick: onEdit, blocked: editBlocked },
-    { label: "Quyền truy cập", onClick: onShare, blocked: shareBlocked },
+    { label: "Ai được dùng", onClick: onShare, blocked: shareBlocked },
   ];
 
   const renderItem = (item: { label: string; onClick: () => void; blocked?: string }, danger?: boolean) => (
@@ -156,7 +156,7 @@ export default function Skills() {
     const editBlocked = !access.hasPermission("manage") ? NO_ROLE_PERMISSION
       : !access.canAct("manage", accessible) ? NOT_OWNED_OR_SHARED
       : viewOnly ? VIEW_ONLY : undefined;
-    const shareBlocked = !isOwner ? "Chỉ chủ sở hữu mới đổi được quyền truy cập của skill này."
+    const shareBlocked = !isOwner ? "Chỉ chủ sở hữu mới đổi được ai được dùng skill này."
       : !access.hasPermission("publish") ? NO_ROLE_PERMISSION
       : !access.canAct("publish", accessible) ? NOT_OWNED_OR_SHARED
       : undefined;

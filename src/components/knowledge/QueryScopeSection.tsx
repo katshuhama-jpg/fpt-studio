@@ -1,5 +1,5 @@
-import { useMemo, type ReactNode } from "react";
-import { Check, Building2, Network, Users, UserCheck, Bot, type LucideIcon } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
+import { Check, Network, Users, UserCheck, Bot, Hammer, MessageCircle, ChevronDown, UsersRound, type LucideIcon } from "lucide-react";
 import { useOrg } from "@/pages/organization/orgStore";
 import { collectUnitsWithDepth, collectUnits } from "@/pages/organization/orgData";
 import MemberPicker from "./MemberPicker";
@@ -40,12 +40,29 @@ export function RadioCard({ selected, onSelect, label, helper, icon: Icon, child
   );
 }
 
-/** Title + description block shared by both permission sections. */
-export function PermissionHeading({ title, description, hideTitle = false }: { title: string; description: string; hideTitle?: boolean }) {
+/** Who a permission block is about. The two blocks look alike, so each one names its audience
+ * with its own icon - people building Agents vs people chatting with an Agent. */
+export type PermissionAudience = "builders" | "askers";
+const AUDIENCE_META: Record<PermissionAudience, { label: string; icon: LucideIcon }> = {
+  builders: { label: "Người xây Agent", icon: Hammer },
+  askers: { label: "Người trò chuyện với Agent", icon: MessageCircle },
+};
+export function AudienceTag({ audience }: { audience: PermissionAudience }) {
+  const { label, icon: Icon } = AUDIENCE_META[audience];
+  return (
+    <span className="inline-flex items-center gap-1 rounded-md bg-surface-muted px-1.5 py-0.5 text-[11px] font-medium text-foreground/70 whitespace-nowrap">
+      <Icon size={11} aria-hidden /> Áp dụng cho: {label}
+    </span>
+  );
+}
+
+/** Title + audience + description block shared by both permission sections. */
+export function PermissionHeading({ title, description, hideTitle = false, audience }: { title: string; description: string; hideTitle?: boolean; audience?: PermissionAudience }) {
   return (
     <div className="mb-3">
       {!hideTitle && <h3 className="text-sm font-semibold text-foreground">{title}</h3>}
-      <p className={`text-xs text-muted-foreground leading-relaxed ${hideTitle ? "" : "mt-0.5"}`}>{description}</p>
+      {audience && <div className={hideTitle ? "" : "mt-1"}><AudienceTag audience={audience} /></div>}
+      <p className={`text-xs text-muted-foreground leading-relaxed ${hideTitle && !audience ? "" : "mt-1"}`}>{description}</p>
     </div>
   );
 }
@@ -110,21 +127,31 @@ function DepartmentPicker({ value, onChange }: { value: string[]; onChange: (nex
 }
 
 /* ─── Copy for the two permission dimensions ─────────────────────────────────────────────
- * Quyền truy cập: which members can use this knowledge when building Agents (what each one can
- * view/edit/delete still follows their own permissions).
- * Quyền truy xuất: which end users can receive information from this knowledge through an Agent.
- * Every caller (Space creation, Space share popups, Agent share popup, header chips, detail
- * popups) reads these constants so the wording never drifts. */
+ * The two used to be "Quyền truy cập" / "Quyền truy xuất" - one word apart, and easy to mix up
+ * although they are about different people. They are now named by the question they answer:
+ * "Ai được dùng" (Build Access): which Space members can use this when building Agents.
+ * "Agent trả lời cho ai" (Usage Access): which people chatting with an Agent get answers from it.
+ * Every caller reads these constants so the wording never drifts. */
 export const ACCESS_COPY = {
-  title: "Quyền truy cập",
-  description: "Ai được liên kết kho này vào Agent khi xây dựng.",
-  agentDescription: "Ai được dùng lại tri thức này khi xây dựng Agent khác.",
-  toast: "Đã cập nhật quyền truy cập.",
+  title: "Ai được dùng kho này",
+  /** Short label for menus, buttons and detail rows. */
+  menu: "Ai được dùng",
+  chip: "Dùng",
+  description: "Người trong Space được liên kết kho này vào Agent khi xây dựng.",
+  agentDescription: "Người trong Space được dùng lại tri thức này khi xây Agent khác.",
+  narrowTitle: "Thu hẹp người được dùng?",
+  narrowAction: "Thu hẹp",
+  toast: "Đã lưu thay đổi.",
 };
 export const RETRIEVAL_COPY = {
-  title: "Quyền truy xuất",
-  description: "Ai nhận được câu trả lời từ kho này khi trò chuyện với Agent.",
-  toast: "Đã cập nhật quyền truy xuất.",
+  title: "Agent trả lời cho ai",
+  menu: "Agent trả lời cho ai",
+  chip: "Trả lời",
+  description: "Chọn người được Agent lấy thông tin từ kho này để trả lời. Ai dùng được Agent do bước Publish Agent quyết định.",
+  narrowTitle: "Thu hẹp người được trả lời?",
+  narrowBody: "Agent sẽ ngừng lấy thông tin từ kho này để trả lời người ngoài các phòng ban bạn chọn.",
+  narrowAction: "Thu hẹp",
+  toast: "Đã lưu thay đổi.",
 };
 
 export const ACCESS_OPTIONS: { value: SharingMode; label: string; helper: string; icon: LucideIcon }[] = [
@@ -137,8 +164,8 @@ export const AGENT_ONLY_ACCESS_OPTION: { value: SharingMode; label: string; help
 };
 
 export const QUERY_SCOPE_OPTIONS: { value: QueryScopeMode; label: string; helper: string; icon: LucideIcon }[] = [
-  { value: "all_org", label: "Cả tổ chức", helper: "Agent trả lời từ kho này cho mọi người trong tổ chức.", icon: Building2 },
-  { value: "department", label: "Phòng ban", helper: "Agent chỉ trả lời từ kho này cho người thuộc phòng ban bạn chọn.", icon: Network },
+  { value: "all_org", label: "Mọi người dùng Agent", helper: "Ai trò chuyện với Agent cũng nhận được câu trả lời từ kho này.", icon: UsersRound },
+  { value: "department", label: "Một số phòng ban", helper: "Người ngoài các phòng ban này vẫn dùng được Agent, nhưng Agent không lấy thông tin từ kho này để trả lời họ.", icon: Network },
 ];
 
 /** Older data may still carry "private"/"specific" retrieval modes — both read as "Cả tổ chức"
@@ -148,10 +175,10 @@ export function normalizeQuerySharing(v: QuerySharing | undefined): QuerySharing
   return v;
 }
 
-/** Short label for chips/detail rows, e.g. "Cả tổ chức" or "2 phòng ban". */
+/** Short label for chips/detail rows, e.g. "Mọi người dùng Agent" or "2 phòng ban". */
 export function retrievalLabel(v: QuerySharing | undefined): string {
   const q = normalizeQuerySharing(v);
-  return q.mode === "department" ? `${q.departmentIds.length} phòng ban` : "Cả tổ chức";
+  return q.mode === "department" ? `${q.departmentIds.length} phòng ban` : "Mọi người dùng Agent";
 }
 /** Short label for the access dimension, e.g. "Cả Space", "3 người", "Chỉ Agent này". */
 export function accessLabel(mode: SharingMode, peopleCount: number, privateLabel = "Chỉ mình tôi"): string {
@@ -178,13 +205,14 @@ export function isQueryScopeValid(v: QuerySharing): boolean {
 /** Quyền truy cập copy for any resource, e.g. noun = "skill này" / "guardrail này" / "kết nối
  * này". Same sentences as Knowledge so every library reads the same way. */
 export interface AccessCopy {
-  description: string; agentDescription: string;
+  title: string; description: string; agentDescription: string;
   allHelper: string; specificHelper: string; privateHelper: string;
 }
 export function resourceAccessCopy(noun: string): AccessCopy {
   return {
-    description: `Ai được liên kết ${noun} vào Agent khi xây dựng.`,
-    agentDescription: `Ai được dùng lại ${noun} khi xây dựng Agent khác.`,
+    title: `Ai được dùng ${noun}`,
+    description: `Người trong Space được liên kết ${noun} vào Agent khi xây dựng.`,
+    agentDescription: `Người trong Space được dùng lại ${noun} khi xây Agent khác.`,
     allHelper: `Mọi thành viên Space đều liên kết được ${noun} vào Agent.`,
     specificHelper: `Chỉ người bạn chọn mới liên kết được ${noun} vào Agent.`,
     privateHelper: `Không chia sẻ. Chỉ Agent bạn đang chỉnh sửa dùng được ${noun}.`,
@@ -214,8 +242,8 @@ export function AccessScopeSection({ mode, people, onModeChange, onPeopleChange,
     : base;
   const description = copy ? (agentOnly ? copy.agentDescription : copy.description) : (agentOnly ? ACCESS_COPY.agentDescription : ACCESS_COPY.description);
   return (
-    <div role="radiogroup" aria-label={ACCESS_COPY.title}>
-      <PermissionHeading title={ACCESS_COPY.title} description={description} hideTitle={hideTitle} />
+    <div role="radiogroup" aria-label={copy?.title ?? ACCESS_COPY.title}>
+      <PermissionHeading title={copy?.title ?? ACCESS_COPY.title} description={description} hideTitle={hideTitle} audience="builders" />
       <div className="space-y-2">
         {options.map(opt => (
           <RadioCard key={opt.value} selected={mode === opt.value} onSelect={() => onModeChange(opt.value)} label={opt.label} helper={opt.helper} icon={opt.icon}>
@@ -235,21 +263,47 @@ export function AccessScopeSection({ mode, people, onModeChange, onPeopleChange,
 /** "Quyền truy xuất" block — title, description, the 2 option cards and the department picker.
  * Controlled via a single `QuerySharing` value. */
 export default function QueryScopeSection({
-  value, onChange, submitAttempted, hideTitle = false,
+  value, onChange, submitAttempted, hideTitle = false, collapsible = false,
 }: {
   value: QuerySharing;
   onChange: (next: QuerySharing) => void;
   submitAttempted: boolean;
   ownerRow?: { name: string; email: string };
   hideTitle?: boolean;
+  /** Create popups: start as a one-line summary with "Đổi", since most people keep the
+   * default - keeps the two permission blocks from sitting side by side as look-alikes. */
+  collapsible?: boolean;
 }) {
   const v = normalizeQuerySharing(value);
   const setMode = (mode: QueryScopeMode) => onChange({ ...v, mode });
   const setDepartmentIds = (departmentIds: string[]) => onChange({ ...v, departmentIds });
+  const [expanded, setExpanded] = useState(!collapsible);
+
+  if (!expanded) {
+    return (
+      <div>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold text-foreground">{RETRIEVAL_COPY.title}</h3>
+            <div className="mt-1"><AudienceTag audience="askers" /></div>
+            <p className="text-sm text-foreground mt-2">{retrievalLabel(v)}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setExpanded(true)}
+            aria-expanded={false}
+            className="h-8 px-3 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium inline-flex items-center gap-1 shrink-0 cursor-pointer transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Đổi <ChevronDown size={14} aria-hidden />
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div role="radiogroup" aria-label={RETRIEVAL_COPY.title}>
-      <PermissionHeading title={RETRIEVAL_COPY.title} description={RETRIEVAL_COPY.description} hideTitle={hideTitle} />
+      <PermissionHeading title={RETRIEVAL_COPY.title} description={RETRIEVAL_COPY.description} hideTitle={hideTitle} audience="askers" />
       <div className="space-y-2">
         {QUERY_SCOPE_OPTIONS.map(opt => (
           <RadioCard key={opt.value} selected={v.mode === opt.value} onSelect={() => setMode(opt.value)} label={opt.label} helper={opt.helper} icon={opt.icon}>

@@ -100,7 +100,7 @@ function Meta({ rows }: { rows: { label: string; value: ReactNode }[] }) {
   );
 }
 
-function Shell({ typeLabel, name, onClose, onEdit, onShare, shareLabel = "Quyền truy cập", onRetrieval, note, children }: {
+function Shell({ typeLabel, name, onClose, onEdit, onShare, shareLabel = ACCESS_COPY.menu, onRetrieval, note, children }: {
   typeLabel: string;
   name: string;
   onClose: () => void;
@@ -140,7 +140,7 @@ function Shell({ typeLabel, name, onClose, onEdit, onShare, shareLabel = "Quyề
               <button onClick={onShare} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">{shareLabel}</button>
             )}
             {onRetrieval && (
-              <button onClick={onRetrieval} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">{RETRIEVAL_COPY.title}</button>
+              <button onClick={onRetrieval} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">{RETRIEVAL_COPY.menu}</button>
             )}
             {onEdit ? (
               <button onClick={onEdit} className="h-9 px-5 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium transition-base">Sửa</button>
@@ -207,7 +207,7 @@ function ConsoleSkillDetail({ agentId, id, onClose, onChanged }: { agentId: stri
     >
       <Meta rows={[
         { label: "Người tạo", value: isOwner ? "Bạn" : skill.ownerName },
-        ...(isOwner ? [{ label: "Quyền truy cập", value: sharingLabel(skill.sharing) }] : []),
+        ...(isOwner ? [{ label: ACCESS_COPY.menu, value: sharingLabel(skill.sharing) }] : []),
         { label: "Đang dùng trong", value: usedByLabel(skill.attachedByAgentIds) },
       ]} />
       <Field label="Mô tả"><p className="whitespace-pre-wrap">{skill.description || "Chưa có mô tả"}</p></Field>
@@ -258,7 +258,7 @@ function AgentSkillDetail({ agentId, id, onClose, onChanged }: { agentId: string
       <Meta rows={[
         { label: "Loại", value: "Skill riêng của Agent" },
         { label: "Người tạo", value: isOwner ? "Bạn" : skill.ownerName },
-        ...(isOwner ? [{ label: "Quyền truy cập", value: sharingLabel(skill.sharing) }] : []),
+        ...(isOwner ? [{ label: ACCESS_COPY.menu, value: sharingLabel(skill.sharing) }] : []),
       ]} />
       <Field label="Mô tả"><p className="whitespace-pre-wrap">{skill.description || "Chưa có mô tả"}</p></Field>
       <Field label="Nội dung">
@@ -325,7 +325,7 @@ function ConsoleGuardrailDetail({ agentId, id, onClose, onChanged }: { agentId: 
     >
       <GuardrailBody g={g} meta={[
         { label: "Người tạo", value: !hasOwner ? "Hệ thống" : isOwner ? "Bạn" : g.ownerName },
-        ...(isOwner ? [{ label: "Quyền truy cập", value: sharingLabel(g.sharing) }] : []),
+        ...(isOwner ? [{ label: ACCESS_COPY.menu, value: sharingLabel(g.sharing) }] : []),
         { label: "Đang dùng trong", value: g.allAgents ? "Mọi Agent trong Space" : usedByLabel(g.attachedByAgentIds) },
       ]} />
     </Shell>
@@ -371,7 +371,7 @@ function AgentGuardrailDetail({ agentId, id, onClose, onChanged }: { agentId: st
       <GuardrailBody g={g} meta={[
         { label: "Loại", value: "Guardrail riêng của Agent" },
         { label: "Người tạo", value: isOwner ? "Bạn" : g.ownerName ?? "-" },
-        ...(isOwner ? [{ label: "Quyền truy cập", value: sharingLabel(g.sharing) }] : []),
+        ...(isOwner ? [{ label: ACCESS_COPY.menu, value: sharingLabel(g.sharing) }] : []),
       ]} />
     </Shell>
   );
@@ -435,15 +435,15 @@ function KnowledgeBaseDetail({ agentId, id, onClose, onChanged }: { agentId: str
       typeLabel="kho tri thức" name={kb.name} onClose={onClose}
       onEdit={canEdit ? () => setSub("edit") : undefined}
       onShare={canShare ? () => setSub("share") : undefined}
-      shareLabel={ACCESS_COPY.title}
+      shareLabel={ACCESS_COPY.menu}
       onRetrieval={canShare ? () => setSub("retrieval") : undefined}
       note={canEdit ? undefined : viewOnly ? VIEW_ONLY_SHARE : NO_EDIT_ROLE}
     >
       <Meta rows={[
         { label: "Loại", value: kb.type === "external_api" ? "Kết nối kho tri thức ngoài" : "Kho tri thức nội bộ" },
         { label: "Người tạo", value: isOwner ? "Bạn" : kb.ownerName },
-        ...(isOwner ? [{ label: ACCESS_COPY.title, value: accessLabel(kb.sharing.mode, kb.sharing.people.length, "Chỉ Agent này") }] : []),
-        { label: RETRIEVAL_COPY.title, value: retrievalLabel(kb.querySharing) },
+        ...(isOwner ? [{ label: ACCESS_COPY.menu, value: accessLabel(kb.sharing.mode, kb.sharing.people.length, "Chỉ Agent này") }] : []),
+        { label: RETRIEVAL_COPY.menu, value: retrievalLabel(kb.querySharing) },
         ...(PARTIAL_LINK_ENABLED ? [{ label: "Phạm vi liên kết", value: scopeLabel(kb.id, linkScope).label }] : []),
         { label: "Đang dùng trong", value: usedByLabel(kb.attachedByAgentIds) },
       ]} />
@@ -464,16 +464,16 @@ function KnowledgeBaseDetail({ agentId, id, onClose, onChanged }: { agentId: str
 const KIND_LABEL = { doc: "Tài liệu", url: "Website", faq: "Câu hỏi thường gặp" } as const;
 
 function KnowledgeItemDetail({ agentId, id, onClose, onOpenFull, onChanged }: { agentId: string; id: string; onClose: () => void; onOpenFull: () => void; onChanged: () => void }) {
-  const [sharing, setSharing] = useState(false);
+  const [sharing, setSharing] = useState<"access" | "retrieval" | null>(null);
   const item = knowledgeStore.list(agentId).find(i => i.id === id);
   if (!item) return null;
-  if (sharing) return <ShareAgentItemModal agentId={agentId} items={[item]} onClose={() => { setSharing(false); onChanged(); }} />;
+  if (sharing) return <ShareAgentItemModal agentId={agentId} items={[item]} section={sharing} onClose={() => { setSharing(null); onChanged(); }} />;
   return (
-    <Shell typeLabel={KIND_LABEL[item.kind].toLowerCase()} name={item.name} onClose={onClose} onEdit={onOpenFull} onShare={() => setSharing(true)} shareLabel="Quyền truy cập & truy xuất">
+    <Shell typeLabel={KIND_LABEL[item.kind].toLowerCase()} name={item.name} onClose={onClose} onEdit={onOpenFull} onShare={() => setSharing("access")} onRetrieval={() => setSharing("retrieval")}>
       <Meta rows={[
         { label: "Loại", value: `${KIND_LABEL[item.kind]} riêng của Agent` },
-        { label: ACCESS_COPY.title, value: "Chỉ Agent này" },
-        { label: RETRIEVAL_COPY.title, value: retrievalLabel(item.querySharing) },
+        { label: ACCESS_COPY.menu, value: "Chỉ Agent này" },
+        { label: RETRIEVAL_COPY.menu, value: retrievalLabel(item.querySharing) },
         ...(item.chunkCount != null ? [{ label: "Số đoạn", value: String(item.chunkCount) }] : []),
       ]} />
       {item.title && <Field label={item.kind === "faq" ? "Câu hỏi" : "Tiêu đề"}><p className="whitespace-pre-wrap">{item.title}</p></Field>}
@@ -514,7 +514,7 @@ function ConnectorDetail({ agentId, id, onClose, onChanged }: { agentId: string;
     >
       <Meta rows={[
         { label: "Người tạo", value: isOwner ? "Bạn" : c.ownerName },
-        ...(isOwner ? [{ label: "Quyền truy cập", value: sharingLabel(c.sharing) }] : []),
+        ...(isOwner ? [{ label: ACCESS_COPY.menu, value: sharingLabel(c.sharing) }] : []),
         { label: "Đang dùng trong", value: usedByLabel(c.attachedByAgentIds) },
       ]} />
       <Field label="URL"><p className="font-mono text-xs break-all">{c.url}</p></Field>
@@ -553,7 +553,7 @@ function ApiToolDetail({ agentId, id, onClose, onChanged }: { agentId: string; i
     >
       <Meta rows={[
         { label: "Người tạo", value: isOwner ? "Bạn" : a.ownerName },
-        ...(isOwner ? [{ label: "Quyền truy cập", value: sharingLabel(a.sharing) }] : []),
+        ...(isOwner ? [{ label: ACCESS_COPY.menu, value: sharingLabel(a.sharing) }] : []),
         { label: "Đang dùng trong", value: usedByLabel(a.attachedByAgentIds) },
       ]} />
       <Field label="Mô tả"><p className="whitespace-pre-wrap">{a.description || "Chưa có mô tả"}</p></Field>

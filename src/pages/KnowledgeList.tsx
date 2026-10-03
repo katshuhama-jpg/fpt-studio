@@ -54,8 +54,8 @@ function RowMenu({ kb, onOpen, onEdit, onShare, onRetrieval, onDelete, editBlock
   const safeItems: { label: string; onClick: () => void; blocked?: string }[] = [
     { label: "Xem chi tiết", onClick: onOpen },
     { label: "Chỉnh sửa", onClick: onEdit, blocked: editBlocked },
-    { label: ACCESS_COPY.title, onClick: onShare, blocked: shareBlocked },
-    { label: RETRIEVAL_COPY.title, onClick: onRetrieval, blocked: shareBlocked },
+    { label: ACCESS_COPY.menu, onClick: onShare, blocked: shareBlocked },
+    { label: RETRIEVAL_COPY.menu, onClick: onRetrieval, blocked: shareBlocked },
   ];
 
   const renderItem = (item: { label: string; onClick: () => void; blocked?: string }, danger?: boolean) => (

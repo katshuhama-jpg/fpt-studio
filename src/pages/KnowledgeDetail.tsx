@@ -64,8 +64,8 @@ function PermissionChips({ kb, canManage, onOpenAccess, onOpenRetrieval }: {
 }) {
   const isOwner = kb.ownerId === CURRENT_USER.id;
   const chips = [
-    { key: "access", Icon: Users, prefix: "Truy cập", value: accessLabel(kb.sharing.mode, kb.sharing.people.length), tip: ACCESS_COPY.title, onClick: onOpenAccess },
-    { key: "retrieval", Icon: MessageSquareText, prefix: "Truy xuất", value: retrievalLabel(kb.querySharing), tip: RETRIEVAL_COPY.title, onClick: onOpenRetrieval },
+    { key: "access", Icon: Users, prefix: ACCESS_COPY.chip, value: accessLabel(kb.sharing.mode, kb.sharing.people.length), tip: ACCESS_COPY.title, onClick: onOpenAccess },
+    { key: "retrieval", Icon: MessageSquareText, prefix: RETRIEVAL_COPY.chip, value: retrievalLabel(kb.querySharing), tip: RETRIEVAL_COPY.title, onClick: onOpenRetrieval },
   ];
   return (
     <>
@@ -295,21 +295,21 @@ export default function KnowledgeDetail() {
                     {isOwner && (
                       <button
                         disabled={!canShare}
-                        title={!canShare ? "Bạn không có quyền đổi quyền truy cập của kho tri thức này." : undefined}
+                        title={!canShare ? "Chỉ chủ sở hữu mới đổi được ai được dùng kho này." : undefined}
                         onClick={() => { setShowShare(true); setShowMenu(false); }}
                         className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted disabled:text-muted-foreground/50 disabled:cursor-not-allowed transition-base"
                       >
-                        {ACCESS_COPY.title}
+                        {ACCESS_COPY.menu}
                       </button>
                     )}
                     {isOwner && (
                       <button
                         disabled={!canShare}
-                        title={!canShare ? "Bạn không có quyền đổi quyền truy xuất của kho tri thức này." : undefined}
+                        title={!canShare ? "Chỉ chủ sở hữu mới đổi được Agent trả lời cho ai." : undefined}
                         onClick={() => { setShowRetrieval(true); setShowMenu(false); }}
                         className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted disabled:text-muted-foreground/50 disabled:cursor-not-allowed transition-base"
                       >
-                        {RETRIEVAL_COPY.title}
+                        {RETRIEVAL_COPY.menu}
                       </button>
                     )}
                     <div className="mt-1 pt-1 border-t border-border">

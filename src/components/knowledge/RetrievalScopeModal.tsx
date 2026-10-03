@@ -56,12 +56,12 @@ export default function RetrievalScopeModal({ name, value, onSave, onClose }: {
       <AlertDialog open={confirmNarrow} onOpenChange={setConfirmNarrow}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Thu hẹp quyền truy xuất?</AlertDialogTitle>
-            <AlertDialogDescription>Agent sẽ ngừng trả lời từ kho này cho người ngoài các phòng ban bạn chọn.</AlertDialogDescription>
+            <AlertDialogTitle>{RETRIEVAL_COPY.narrowTitle}</AlertDialogTitle>
+            <AlertDialogDescription>{RETRIEVAL_COPY.narrowBody}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { setConfirmNarrow(false); apply(); }}>Thu hẹp quyền truy xuất</AlertDialogAction>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { setConfirmNarrow(false); apply(); }}>{RETRIEVAL_COPY.narrowAction}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

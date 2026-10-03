@@ -82,7 +82,7 @@ export default function ResourceAccessModal({
       <Dialog open={open} onOpenChange={v => !v && onClose()}>
         <DialogContent className="sm:max-w-[520px] max-h-[85vh] overflow-y-auto" onOpenAutoFocus={e => e.preventDefault()}>
           <DialogHeader>
-            <DialogTitle>{ACCESS_COPY.title}</DialogTitle>
+            <DialogTitle>{resourceAccessCopy(it).title}</DialogTitle>
             <DialogDescription>{name}</DialogDescription>
           </DialogHeader>
           <div className="py-1">
@@ -116,7 +116,7 @@ export default function ResourceAccessModal({
               </>
             ) : (
               <>
-                <AlertDialogTitle>Thu hẹp quyền truy cập?</AlertDialogTitle>
+                <AlertDialogTitle>{ACCESS_COPY.narrowTitle}</AlertDialogTitle>
                 <AlertDialogDescription>{narrowingFromAll
                   ? `Chỉ người trong danh sách còn liên kết được ${it} vào Agent.`
                   : `${revokedCount} người sẽ không liên kết được ${it} vào Agent nữa.`}</AlertDialogDescription>
@@ -126,7 +126,7 @@ export default function ResourceAccessModal({
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
             <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { setShowRevokeConfirm(false); applySave(); }}>
-              {mode === "private" ? "Tắt chia sẻ" : "Thu hẹp quyền truy cập"}
+              {mode === "private" ? "Tắt chia sẻ" : ACCESS_COPY.narrowAction}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -134,10 +134,10 @@ export default function ResourceAccessModal({
       <ResourceInUseDialog
         open={blockingAgents.length > 0}
         onClose={() => setBlockingAgents([])}
-        title={mode === "private" ? "Chưa thể tắt chia sẻ" : "Chưa thể thu hẹp quyền truy cập"}
+        title={mode === "private" ? "Chưa thể tắt chia sẻ" : "Chưa thể thu hẹp người được dùng"}
         description={mode === "private"
           ? `Các Agent dưới đây đang dùng ${it}. Gỡ ${noun} khỏi các Agent đó trước, rồi tắt chia sẻ.`
-          : `Những người dưới đây sẽ không liên kết được ${it} nữa trong khi Agent của họ vẫn đang dùng. Nhờ họ gỡ ${noun} khỏi Agent trước, rồi đổi quyền truy cập.`}
+          : `Những người dưới đây sẽ không liên kết được ${it} nữa trong khi Agent của họ vẫn đang dùng. Nhờ họ gỡ ${noun} khỏi Agent trước, rồi thu hẹp.`}
         agents={blockingAgents}
       />
     </>

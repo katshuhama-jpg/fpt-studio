@@ -11,7 +11,7 @@ import {
   CURRENT_USER, DEFAULT_QUERY_SHARING,
   type Sharing, type SharingMode, type QuerySharing,
 } from "./knowledgeBaseStore";
-import QueryScopeSection, { AccessScopeSection, isQueryScopeValid, isRetrievalNarrowing, normalizeQuerySharing } from "./QueryScopeSection";
+import QueryScopeSection, { AccessScopeSection, ACCESS_COPY, RETRIEVAL_COPY, isQueryScopeValid, isRetrievalNarrowing, normalizeQuerySharing } from "./QueryScopeSection";
 import { knowledgeStore, type KnowledgeItem } from "./knowledgeStore";
 
 /** Merged "Chia sẻ" dialog for an Agent's own Knowledge item (doc/url/FAQ in the "Cá nhân"
@@ -33,9 +33,13 @@ import { knowledgeStore, type KnowledgeItem } from "./knowledgeStore";
  * There's no more "promote to a newly-named Console KB" step: the item stays exactly where it
  * is, and both permissions are just metadata on it, matching how `sharing` already worked before
  * this merge. */
-export default function ShareAgentItemModal({ agentId, items, onClose }: {
+export default function ShareAgentItemModal({ agentId, items, onClose, section }: {
   agentId: string; items: KnowledgeItem[]; onClose: () => void;
+  /** Which question this popup answers - "access" (Ai được dùng) or "retrieval" (Agent trả lời
+   * cho ai). The two are separate popups so they are never read as one setting. */
+  section: "access" | "retrieval";
 }) {
+  const isAccess = section === "access";
   const single = items.length === 1 ? items[0] : undefined;
   const initialSharing: Sharing = single?.sharing ?? { mode: "private", people: [] };
   const initialQuerySharing: QuerySharing = normalizeQuerySharing(single?.querySharing ?? DEFAULT_QUERY_SHARING);
@@ -47,31 +51,34 @@ export default function ShareAgentItemModal({ agentId, items, onClose }: {
   const [showRevokeConfirm, setShowRevokeConfirm] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
 
-  const canSubmit =
-    (buildMode !== "specific" || buildPeople.length > 0) &&
-    isQueryScopeValid(querySharing);
+  const canSubmit = isAccess ? (buildMode !== "specific" || buildPeople.length > 0) : isQueryScopeValid(querySharing);
 
   // Downgrading Console-wide build access away from "all" is the one change worth an explicit
   // confirm — it can silently cut off other builders mid-project. The new query-scope axis has
   // no equivalent history to downgrade from (it's brand new), so it never triggers this.
-  const downgrading = (initialSharing.mode === "all" && buildMode !== "all") ||
-    (initialSharing.mode !== "private" && buildMode === "private");
-  const retrievalNarrowing = !!single && isRetrievalNarrowing(initialQuerySharing, querySharing);
+  const downgrading = isAccess && ((initialSharing.mode === "all" && buildMode !== "all") ||
+    (initialSharing.mode !== "private" && buildMode === "private"));
+  const retrievalNarrowing = !isAccess && !!single && isRetrievalNarrowing(initialQuerySharing, querySharing);
 
   const applySave = () => {
+    if (!isAccess) {
+      for (const item of items) knowledgeStore.updateQuerySharing(agentId, item.id, querySharing);
+      toast.success(RETRIEVAL_COPY.toast);
+      onClose();
+      return;
+    }
     const sharing: Sharing = { mode: buildMode, people: buildMode === "specific" ? buildPeople : [] };
     for (const item of items) {
       if (buildMode === "private") {
         knowledgeStore.updateSharing(agentId, item.id, sharing);
-        knowledgeStore.updateQuerySharing(agentId, item.id, querySharing);
       } else {
         // Shared: the item becomes a Space knowledge base this Agent links, so other Agents
-        // can find and link it too.
-        knowledgeStore.shareItem(agentId, item.id, sharing, querySharing);
+        // can find and link it too. It keeps its own "Agent trả lời cho ai" setting.
+        knowledgeStore.shareItem(agentId, item.id, sharing, normalizeQuerySharing(item.querySharing ?? DEFAULT_QUERY_SHARING));
       }
     }
     toast.success(buildMode === "private"
-      ? "Đã cập nhật quyền truy cập và truy xuất."
+      ? ACCESS_COPY.toast
       : items.length > 1 ? `Đã chia sẻ ${items.length} mục thành kho tri thức trong Space.` : "Đã chia sẻ thành kho tri thức trong Space.");
     onClose();
   };
@@ -88,29 +95,31 @@ export default function ShareAgentItemModal({ agentId, items, onClose }: {
       <Dialog open onOpenChange={v => !v && onClose()}>
         <DialogContent className="sm:max-w-[560px] max-h-[85vh] overflow-y-auto" onOpenAutoFocus={e => e.preventDefault()}>
           <DialogHeader>
-            <DialogTitle>Quyền truy cập & truy xuất</DialogTitle>
+            <DialogTitle>{isAccess ? "Ai được dùng tri thức này" : RETRIEVAL_COPY.title}</DialogTitle>
             {single ? <DialogDescription>{single.name}</DialogDescription> : <DialogDescription>{items.length} mục đã chọn</DialogDescription>}
           </DialogHeader>
 
-          <div className="space-y-6 py-1">
-            <AccessScopeSection
-              mode={buildMode}
-              people={buildPeople}
-              onModeChange={setBuildMode}
-              onPeopleChange={setBuildPeople}
-              submitAttempted={submitAttempted}
-              ownerRow={{ name: CURRENT_USER.name, email: CURRENT_USER.email }}
-              agentOnly
-            />
-
-            <div className="border-t border-border pt-5">
+          <div className="py-1">
+            {isAccess ? (
+              <AccessScopeSection
+                mode={buildMode}
+                people={buildPeople}
+                onModeChange={setBuildMode}
+                onPeopleChange={setBuildPeople}
+                submitAttempted={submitAttempted}
+                ownerRow={{ name: CURRENT_USER.name, email: CURRENT_USER.email }}
+                agentOnly
+                hideTitle
+              />
+            ) : (
               <QueryScopeSection
                 value={querySharing}
                 onChange={setQuerySharing}
                 submitAttempted={submitAttempted}
                 ownerRow={{ name: CURRENT_USER.name, email: CURRENT_USER.email }}
+                hideTitle
               />
-            </div>
+            )}
           </div>
 
           <DialogFooter>
@@ -123,16 +132,16 @@ export default function ShareAgentItemModal({ agentId, items, onClose }: {
       <AlertDialog open={showRevokeConfirm} onOpenChange={setShowRevokeConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{!downgrading ? "Thu hẹp quyền truy xuất?" : buildMode === "private" ? "Tắt chia sẻ?" : "Thu hẹp quyền truy cập?"}</AlertDialogTitle>
+            <AlertDialogTitle>{!downgrading ? RETRIEVAL_COPY.narrowTitle : buildMode === "private" ? "Tắt chia sẻ?" : ACCESS_COPY.narrowTitle}</AlertDialogTitle>
             <AlertDialogDescription>{!downgrading
-              ? "Agent sẽ ngừng trả lời từ tri thức này cho người ngoài các phòng ban bạn chọn."
+              ? "Agent sẽ ngừng lấy thông tin từ tri thức này để trả lời người ngoài các phòng ban bạn chọn."
               : buildMode === "private"
                 ? "Chỉ Agent này dùng được tri thức này. Người khác sẽ không liên kết được vào Agent của họ nữa."
                 : "Chỉ người trong danh sách còn liên kết được tri thức này vào Agent."}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { setShowRevokeConfirm(false); applySave(); }}>{downgrading && buildMode === "private" ? "Tắt chia sẻ" : !downgrading ? "Thu hẹp quyền truy xuất" : "Thu hẹp quyền truy cập"}</AlertDialogAction>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { setShowRevokeConfirm(false); applySave(); }}>{downgrading && buildMode === "private" ? "Tắt chia sẻ" : "Thu hẹp"}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -61,7 +61,7 @@ function AttachWholeKb({ agentId, userId, onClose }: Props) {
         </DialogHeader>
 
         {all.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-12 border-t border-border px-6">Chưa có kho tri thức nào bạn được dùng. Tạo kho mới hoặc nhờ chủ sở hữu mở quyền truy cập.</p>
+          <p className="text-sm text-muted-foreground text-center py-12 border-t border-border px-6">Chưa có kho tri thức nào bạn được dùng. Tạo kho mới hoặc nhờ chủ sở hữu cho bạn dùng.</p>
         ) : (
           <div className="border-t border-border">
             <div className="px-6 pt-4 pb-2 space-y-2">
@@ -208,7 +208,7 @@ function AttachWithScope({ agentId, userId, onClose, initialFocusKbId }: Props) 
         </DialogHeader>
 
         {all.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-12 border-t border-border">Chưa có kho tri thức nào bạn được dùng. Tạo kho mới hoặc nhờ chủ sở hữu mở quyền truy cập.</p>
+          <p className="text-sm text-muted-foreground text-center py-12 border-t border-border">Chưa có kho tri thức nào bạn được dùng. Tạo kho mới hoặc nhờ chủ sở hữu cho bạn dùng.</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-[320px_1fr] border-t border-border md:h-[520px]">
             {/* Left: knowledge bases */}

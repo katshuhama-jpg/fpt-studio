@@ -96,6 +96,7 @@ import { KnowledgeStatusPill } from "@/components/knowledge/knowledgeStatus";
 import AttachConsoleKnowledgeBaseModal from "@/components/knowledge/AttachConsoleKnowledgeBaseModal";
 import ShareKnowledgeBaseModal from "@/components/knowledge/ShareKnowledgeBaseModal";
 import ShareAgentItemModal from "@/components/knowledge/ShareAgentItemModal";
+import { ACCESS_COPY, RETRIEVAL_COPY } from "@/components/knowledge/QueryScopeSection";
 import RetrievalScopeModal from "@/components/knowledge/RetrievalScopeModal";
 import ActionMenu, { type ActionMenuItem } from "@/components/ui/ActionMenu";
 import GuardrailShareModal from "@/components/configure/GuardrailShareModal";
@@ -1427,10 +1428,12 @@ function MoreLink({ count, onClick }: { count: number; onClick: () => void }) {
 const KNOWLEDGE_SOURCE_ROW_MENU_WIDTH = 176; // w-44
 const KNOWLEDGE_SOURCE_ROW_MENU_HEIGHT_ESTIMATE = 90; // 2 items + container padding
 
-function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, onShare, onScope, shareLabel = "Quyền truy cập", openLabel = "Xem chi tiết", removeLabel = "Gỡ nguồn tri thức", disabled = false, disabledReason = "Nguồn tri thức đang được xử lý.", href, twoLine = false, hideOpen = false }: {
+function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, onShare, onRetrieval, onScope, shareLabel = ACCESS_COPY.menu, openLabel = "Xem chi tiết", removeLabel = "Gỡ nguồn tri thức", disabled = false, disabledReason = "Nguồn tri thức đang được xử lý.", href, twoLine = false, hideOpen = false }: {
   icon: any; name: string; chip: React.ReactNode; onOpen: () => void; onRemove: () => void;
   /** Owner-only "Chia sẻ" action (e.g. a knowledge item that exists only in this Agent). */
   onShare?: () => void;
+  /** Agent's own knowledge only: "Agent trả lời cho ai". */
+  onRetrieval?: () => void;
   /** Linked Space knowledge base only: "Đổi phạm vi liên kết" (whole knowledge base or some items). */
   onScope?: () => void;
   shareLabel?: string;
@@ -1462,6 +1465,7 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, onShare, onSco
     }]),
     ...(onScope ? [{ label: "Đổi phạm vi liên kết", icon: ConnectIcon, onSelect: onScope }] : []),
     ...(onShare ? [{ label: shareLabel, icon: Share08Icon, onSelect: onShare }] : []),
+    ...(onRetrieval ? [{ label: RETRIEVAL_COPY.menu, icon: Share08Icon, onSelect: onRetrieval }] : []),
     { label: removeLabel, icon: Delete01Icon, onSelect: onRemove, destructive: true },
   ];
   const actionsMenu = (
@@ -1527,8 +1531,8 @@ function AgentKbCardMenu({ onOpen, onEdit, onScope, onShare, onRetrieval, onDeta
         { label: "Xem chi tiết", icon: ExternalLinkIcon, onSelect: onOpen },
         ...(onEdit ? [{ label: "Đổi tên", icon: PencilEdit01Icon, onSelect: onEdit, disabledReason: editBlocked }] : []),
         ...(onScope ? [{ label: "Đổi phạm vi liên kết", icon: ConnectIcon, onSelect: onScope }] : []),
-        ...(onShare ? [{ label: "Quyền truy cập", icon: Share08Icon, onSelect: onShare, disabledReason: shareBlocked }] : []),
-        ...(onRetrieval ? [{ label: "Quyền truy xuất", icon: Share08Icon, onSelect: onRetrieval, disabledReason: shareBlocked }] : []),
+        ...(onShare ? [{ label: ACCESS_COPY.menu, icon: Share08Icon, onSelect: onShare, disabledReason: shareBlocked }] : []),
+        ...(onRetrieval ? [{ label: RETRIEVAL_COPY.menu, icon: Share08Icon, onSelect: onRetrieval, disabledReason: shareBlocked }] : []),
         ...(onDetach ? [{ label: "Gỡ liên kết", icon: Delete01Icon, onSelect: onDetach, destructive: true }] : []),
       ];
   return <ActionMenu items={items} triggerLabel="Thao tác với kho tri thức" />;
@@ -1876,7 +1880,7 @@ function AgentOwnKnowledgeView({ agentId, onBack }: { agentId: string; onBack: (
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, [showAddMenu]);
-  const [shareTargets, setShareTargets] = useState<KnowledgeItem[] | null>(null);
+  const [shareTargets, setShareTargets] = useState<{ items: KnowledgeItem[]; section: "access" | "retrieval" } | null>(null);
   const [reprocessTarget, setReprocessTarget] = useState<KnowledgeItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<KnowledgeItem | null>(null);
   const [versionTarget, setVersionTarget] = useState<KnowledgeItem | null>(null);
@@ -1938,7 +1942,7 @@ function AgentOwnKnowledgeView({ agentId, onBack }: { agentId: string; onBack: (
           <HugeiconsIcon icon={ChevronLeftIcon} size={14} /> Tri thức của Agent
         </button>
         <h2 className="font-display text-xl font-semibold">Cá nhân</h2>
-        <p className="text-xs text-muted-foreground mt-0.5">Tài liệu, website và FAQ riêng của Agent này. Mở quyền truy cập để người khác dùng lại.</p>
+        <p className="text-xs text-muted-foreground mt-0.5">Tài liệu, website và FAQ riêng của Agent này. Đổi "Ai được dùng" để người khác dùng lại.</p>
       </div>
 
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -2005,8 +2009,11 @@ function AgentOwnKnowledgeView({ agentId, onBack }: { agentId: string; onBack: (
       {selected.size > 0 && (
         <div className="flex items-center gap-3 px-3 h-10 rounded-lg bg-primary-soft border border-primary/15">
           <span className="text-sm font-medium text-primary">Đã chọn {selected.size} mục</span>
-          <button onClick={() => setShareTargets(items.filter(i => selected.has(i.id)))} className="text-xs font-semibold text-primary hover:underline">
-            Quyền truy cập & truy xuất
+          <button onClick={() => setShareTargets({ items: items.filter(i => selected.has(i.id)), section: "access" })} className="text-xs font-semibold text-primary hover:underline">
+            {ACCESS_COPY.menu}
+          </button>
+          <button onClick={() => setShareTargets({ items: items.filter(i => selected.has(i.id)), section: "retrieval" })} className="text-xs font-semibold text-primary hover:underline">
+            {RETRIEVAL_COPY.menu}
           </button>
           <button onClick={() => setSelected(new Set())} className="text-xs font-semibold text-muted-foreground hover:underline ml-auto">
             Bỏ chọn
@@ -2072,7 +2079,8 @@ function AgentOwnKnowledgeView({ agentId, onBack }: { agentId: string; onBack: (
                 <KnowledgeItemRowMenu
                   onOpen={() => openItemOrEditFaq(item)}
                   openLabel={item.kind === "faq" ? "Sửa" : "Xem chi tiết"}
-                  onShare={() => setShareTargets([item])}
+                  onShare={() => setShareTargets({ items: [item], section: "access" })}
+                  onRetrieval={() => setShareTargets({ items: [item], section: "retrieval" })}
                   onReprocess={() => setReprocessTarget(item)}
                   onDelete={() => setDeleteTarget(item)}
                   reprocessDisabled={(item.kind === "faq" || item.kind === "doc") && item.status !== "failed"}
@@ -2108,10 +2116,11 @@ function AgentOwnKnowledgeView({ agentId, onBack }: { agentId: string; onBack: (
           onClose={() => { setVersionTarget(null); refresh(); }}
         />
       )}
-      {shareTargets && shareTargets.length > 0 && (
+      {shareTargets && shareTargets.items.length > 0 && (
         <ShareAgentItemModal
           agentId={agentId}
-          items={shareTargets}
+          items={shareTargets.items}
+          section={shareTargets.section}
           onClose={() => { setShareTargets(null); setSelected(new Set()); refresh(); }}
         />
       )}
@@ -2172,13 +2181,14 @@ function AgentOwnKnowledgeView({ agentId, onBack }: { agentId: string; onBack: (
 const KNOWLEDGE_ITEM_ROW_MENU_WIDTH = 224; // w-56
 const KNOWLEDGE_ITEM_ROW_MENU_HEIGHT_ESTIMATE = 190; // 4 items + danger separator + padding
 
-function KnowledgeItemRowMenu({ onOpen, openLabel = "Xem chi tiết", onShare, onReprocess, onDelete, reprocessDisabled, reprocessTooltip }: {
-  onOpen: () => void; openLabel?: string; onShare: () => void; onReprocess: () => void; onDelete: () => void;
+function KnowledgeItemRowMenu({ onOpen, openLabel = "Xem chi tiết", onShare, onRetrieval, onReprocess, onDelete, reprocessDisabled, reprocessTooltip }: {
+  onOpen: () => void; openLabel?: string; onShare: () => void; onRetrieval: () => void; onReprocess: () => void; onDelete: () => void;
   reprocessDisabled?: boolean; reprocessTooltip?: string;
 }) {
   const items: ActionMenuItem[] = [
     { label: openLabel, icon: ExternalLinkIcon, onSelect: onOpen },
-    { label: "Quyền truy cập & truy xuất", icon: Share08Icon, onSelect: onShare },
+    { label: ACCESS_COPY.menu, icon: Share08Icon, onSelect: onShare },
+    { label: RETRIEVAL_COPY.menu, icon: Share08Icon, onSelect: onRetrieval },
     { label: "Xử lý lại", icon: CircleArrowReload01Icon, onSelect: onReprocess, disabledReason: reprocessDisabled ? (reprocessTooltip ?? "Chưa thể xử lý lại nguồn này.") : undefined },
     { label: "Xóa", icon: Delete01Icon, onSelect: onDelete, destructive: true },
   ];
@@ -5290,7 +5300,7 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
             triggerLabel={`Thao tác với ${rowName}`}
             items={[
               ...(detailRef ? [{ label: "Xem chi tiết", icon: EyeIcon, onSelect: () => setDetailTarget(detailRef) }] : []),
-              ...(canShare ? [{ label: "Quyền truy cập", icon: Share08Icon, onSelect: () => { if (customConnector) setShareTarget(customConnector); else if (apiTool) setShareApiTool(apiTool); } }] : []),
+              ...(canShare ? [{ label: ACCESS_COPY.menu, icon: Share08Icon, onSelect: () => { if (customConnector) setShareTarget(customConnector); else if (apiTool) setShareApiTool(apiTool); } }] : []),
               { label: "Gỡ liên kết", icon: Delete01Icon, onSelect: () => setDetachConnTarget({ id: c.id, name: rowName }), destructive: true },
             ]}
           />
@@ -5511,7 +5521,7 @@ function SkillCardMenu({ onOpen, onEdit, onShare, onRemove, removeLabel }: {
   const items: ActionMenuItem[] = [
     ...(onOpen ? [{ label: "Xem chi tiết", icon: ExternalLinkIcon, onSelect: onOpen }] : []),
     ...(onEdit ? [{ label: "Chỉnh sửa", icon: PencilEdit01Icon, onSelect: onEdit }] : []),
-    ...(onShare ? [{ label: "Quyền truy cập", icon: Share08Icon, onSelect: onShare }] : []),
+    ...(onShare ? [{ label: ACCESS_COPY.menu, icon: Share08Icon, onSelect: onShare }] : []),
     { label: removeLabel, icon: Delete01Icon, onSelect: onRemove, destructive: true },
   ];
   return <ActionMenu items={items} triggerLabel="Thao tác với skill" />;
@@ -5777,7 +5787,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
   const [detailTarget, setDetailTarget] = useState<AgentResourceRef | null>(null);
   // Knowledge that exists only in this Agent is shared with the same "Chia sẻ" popup as the
   // Agent's Knowledge screen.
-  const [shareItems, setShareItems] = useState<KnowledgeItem[] | null>(null);
+  const [shareItems, setShareItems] = useState<{ items: KnowledgeItem[]; section: "access" | "retrieval" } | null>(null);
   const refresh = () => setTick(t => t + 1);
   void tick;
 
@@ -5802,7 +5812,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
     .map(id => knowledgeBaseStore.get(id))
     .filter((kb): kb is NonNullable<typeof kb> => !!kb);
 
-  type Row = { key: string; name: string; icon: any; open: () => void; remove: () => void; share?: () => void; changeScope?: () => void; chip: React.ReactNode; disabled?: boolean; disabledReason?: string; href?: string; scope?: { label: string; empty: boolean } };
+  type Row = { key: string; name: string; icon: any; open: () => void; remove: () => void; share?: () => void; retrieval?: () => void; changeScope?: () => void; chip: React.ReactNode; disabled?: boolean; disabledReason?: string; href?: string; scope?: { label: string; empty: boolean } };
   const rows: Row[] = [
     ...attachedKbs.map(kb => ({
       key: `kb-${kb.id}`,
@@ -5839,7 +5849,8 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
         icon: NoteIcon,
         open: () => setDetailTarget({ kind: "knowledgeItem", id: item.id }),
         remove: () => setDeleteTarget({ id: item.id, name: item.name }),
-        share: () => setShareItems([item]),
+        share: () => setShareItems({ items: [item], section: "access" }),
+        retrieval: () => setShareItems({ items: [item], section: "retrieval" }),
         chip: (
           <div className="flex items-center gap-1.5 shrink-0">
             {itemStatus !== "done" && <KnowledgeStatusPill status={itemStatus} compact />}
@@ -5892,8 +5903,8 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
               onOpen={row.open}
               onRemove={row.remove}
               onShare={row.share}
+              onRetrieval={row.retrieval}
               onScope={row.changeScope}
-              shareLabel="Quyền truy cập & truy xuất"
               openLabel="Xem chi tiết"
               removeLabel={row.href ? "Gỡ liên kết" : "Xóa"}
               disabled={row.disabled}
@@ -5930,8 +5941,8 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
           onClose={() => { setShowAttach(false); setScopeKbId(null); refresh(); }}
         />
       )}
-      {shareItems && shareItems.length > 0 && (
-        <ShareAgentItemModal agentId={agentId} items={shareItems} onClose={() => { setShareItems(null); refresh(); }} />
+      {shareItems && shareItems.items.length > 0 && (
+        <ShareAgentItemModal agentId={agentId} items={shareItems.items} section={shareItems.section} onClose={() => { setShareItems(null); refresh(); }} />
       )}
       {detailTarget && (
         <AgentResourceDetailModal
@@ -7482,7 +7493,7 @@ function GuardrailAgentItemRowMenu({ onView, onEdit, onShare, onDelete, deleteLa
   const items: ActionMenuItem[] = [
     { label: "Xem chi tiết", icon: EyeIcon, onSelect: onView },
     ...(onEdit ? [{ label: "Chỉnh sửa", icon: PencilEdit01Icon, onSelect: onEdit }] : []),
-    ...(onShare ? [{ label: "Quyền truy cập", icon: Share08Icon, onSelect: onShare }] : []),
+    ...(onShare ? [{ label: ACCESS_COPY.menu, icon: Share08Icon, onSelect: onShare }] : []),
     { label: deleteLabel, icon: Delete01Icon, onSelect: onDelete, destructive: true },
   ];
   return <ActionMenu items={items} triggerLabel="Thao tác với guardrail" />;

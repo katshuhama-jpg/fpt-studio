@@ -124,7 +124,7 @@ export default function ShareKnowledgeBaseModal({
               </>
             ) : (
               <>
-                <AlertDialogTitle>Thu hẹp quyền truy cập?</AlertDialogTitle>
+                <AlertDialogTitle>{ACCESS_COPY.narrowTitle}</AlertDialogTitle>
                 <AlertDialogDescription>{initialSharing.mode === "all"
                   ? "Chỉ người trong danh sách còn liên kết được kho này vào Agent."
                   : `${revokedCount} người sẽ không liên kết được kho này vào Agent nữa.`}</AlertDialogDescription>
@@ -133,15 +133,15 @@ export default function ShareKnowledgeBaseModal({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { setShowRevokeConfirm(false); applySave(); }}>{mode === "private" ? "Tắt chia sẻ" : "Thu hẹp quyền truy cập"}</AlertDialogAction>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { setShowRevokeConfirm(false); applySave(); }}>{mode === "private" ? "Tắt chia sẻ" : ACCESS_COPY.narrowAction}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
       <ResourceInUseDialog
         open={blockingAgents.length > 0}
         onClose={() => setBlockingAgents([])}
-        title={mode === "private" ? "Chưa thể tắt chia sẻ" : "Chưa thể thu hẹp quyền truy cập"}
-        description={mode === "private" ? "Các Agent dưới đây đang dùng kho tri thức này. Gỡ kho tri thức khỏi các Agent đó trước, rồi tắt chia sẻ." : "Những người dưới đây sẽ mất quyền truy cập trong khi Agent của họ vẫn đang dùng kho tri thức này. Nhờ họ gỡ kho tri thức khỏi Agent trước, rồi đổi quyền truy cập."}
+        title={mode === "private" ? "Chưa thể tắt chia sẻ" : "Chưa thể thu hẹp người được dùng"}
+        description={mode === "private" ? "Các Agent dưới đây đang dùng kho tri thức này. Gỡ kho tri thức khỏi các Agent đó trước, rồi tắt chia sẻ." : "Những người dưới đây sẽ không dùng được kho này nữa trong khi Agent của họ vẫn đang dùng. Nhờ họ gỡ kho tri thức khỏi Agent trước, rồi thu hẹp."}
         agents={blockingAgents}
       />
     </>
