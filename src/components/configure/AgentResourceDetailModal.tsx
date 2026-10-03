@@ -32,6 +32,7 @@ import ShareKnowledgeBaseModal from "@/components/knowledge/ShareKnowledgeBaseMo
 import ShareAgentItemModal from "@/components/knowledge/ShareAgentItemModal";
 import RetrievalScopeModal from "@/components/knowledge/RetrievalScopeModal";
 import { ACCESS_COPY, RETRIEVAL_COPY, accessLabel, retrievalLabel } from "@/components/knowledge/QueryScopeSection";
+import { scopeLabel, isDocInScope, isUrlInScope, isFaqInScope } from "@/components/knowledge/kbLinkScope";
 
 /**
  * "Xem chi tiết resource ngay trong Instructions" — clicking a Skill / Guardrail / Kho tri thức /
@@ -423,9 +424,12 @@ function KnowledgeBaseDetail({ agentId, id, onClose, onChanged }: { agentId: str
       onClose={() => { setSub(null); refresh(); }}
     />
   );
-  const docs = kb.type === "internal" ? knowledgeDocumentStore.list(kb.id).filter(d => !d.isFolder) : [];
-  const urls = kb.type === "internal" ? knowledgeUrlStore.list(kb.id).filter(u => !u.isFolder) : [];
-  const faqs = kb.type === "internal" ? knowledgeFaqStore.list(kb.id) : [];
+  // Only what this Agent's link covers ("Toàn bộ kho" or the chosen folders, documents,
+  // websites and FAQ categories).
+  const linkScope = knowledgeStore.getLinkScope(agentId, kb.id);
+  const docs = kb.type === "internal" ? knowledgeDocumentStore.list(kb.id).filter(d => !d.isFolder && isDocInScope(kb.id, linkScope, d.id)) : [];
+  const urls = kb.type === "internal" ? knowledgeUrlStore.list(kb.id).filter(u => !u.isFolder && isUrlInScope(kb.id, linkScope, u.id)) : [];
+  const faqs = kb.type === "internal" ? knowledgeFaqStore.list(kb.id).filter(f => isFaqInScope(linkScope, f.categories)) : [];
   return (
     <Shell
       typeLabel="kho tri thức" name={kb.name} onClose={onClose}
@@ -440,6 +444,7 @@ function KnowledgeBaseDetail({ agentId, id, onClose, onChanged }: { agentId: str
         { label: "Người tạo", value: isOwner ? "Bạn" : kb.ownerName },
         ...(isOwner ? [{ label: ACCESS_COPY.title, value: accessLabel(kb.sharing.mode, kb.sharing.people.length, "Chỉ Agent này") }] : []),
         { label: RETRIEVAL_COPY.title, value: retrievalLabel(kb.querySharing) },
+        { label: "Phạm vi liên kết", value: scopeLabel(kb.id, linkScope).label },
         { label: "Đang dùng trong", value: usedByLabel(kb.attachedByAgentIds) },
       ]} />
       <Field label="Mô tả"><p className="whitespace-pre-wrap">{kb.description || "Chưa có mô tả"}</p></Field>
@@ -447,9 +452,9 @@ function KnowledgeBaseDetail({ agentId, id, onClose, onChanged }: { agentId: str
         <Field label="API endpoint"><p className="font-mono text-xs break-all">{kb.apiEndpoint || "-"}</p></Field>
       ) : (
         <>
-          <Field label={`Tài liệu (${docs.length})`}><ListPreview items={docs} render={d => d.name} empty="Chưa có tài liệu." /></Field>
-          <Field label={`Website (${urls.length})`}><ListPreview items={urls} render={u => u.title || u.url || u.name} empty="Chưa có website." /></Field>
-          <Field label={`Câu hỏi thường gặp (${faqs.length})`}><ListPreview items={faqs} render={f => f.question} empty="Chưa có câu hỏi." /></Field>
+          <Field label={`Tài liệu (${docs.length})`}><ListPreview items={docs} render={d => d.name} empty={linkScope.mode === "partial" ? "Không có tài liệu trong phạm vi liên kết." : "Chưa có tài liệu."} /></Field>
+          <Field label={`Website (${urls.length})`}><ListPreview items={urls} render={u => u.title || u.url || u.name} empty={linkScope.mode === "partial" ? "Không có website trong phạm vi liên kết." : "Chưa có website."} /></Field>
+          <Field label={`Câu hỏi thường gặp (${faqs.length})`}><ListPreview items={faqs} render={f => f.question} empty={linkScope.mode === "partial" ? "Không có câu hỏi trong phạm vi liên kết." : "Chưa có câu hỏi."} /></Field>
         </>
       )}
     </Shell>

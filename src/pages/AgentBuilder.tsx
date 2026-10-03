@@ -78,6 +78,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { knowledgeStore, OWN_KB_ID, type KnowledgeItem } from "@/components/knowledge/knowledgeStore";
+import { scopeLabel, isDocInScope, isDocFolderVisible } from "@/components/knowledge/kbLinkScope";
 import { knowledgeDocumentStore, type KnowledgeDocument } from "@/components/knowledge/knowledgeDocumentStore";
 import { isAccessibleTo as isSkillAccessibleTo, type Sharing as SkillSharing } from "@/components/configure/skillSharing";
 import { knowledgeBaseStore, CURRENT_USER as KB_CURRENT_USER, isViewOnly as isKbViewOnly, isAccessibleTo as isKbAccessibleTo, type KnowledgeBase } from "@/components/knowledge/knowledgeBaseStore";
@@ -1513,8 +1514,8 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, onShare, share
  * synthetic "Cá nhân" card, which isn't a real Knowledge Base record and so only ever offers
  * "Mở". The destructive action is "Gỡ liên kết": it only detaches the KB from this Agent, without
  * touching the KB's Console listing or its attachment to any other Agent. */
-function AgentKbCardMenu({ onOpen, onEdit, onShare, onRetrieval, onDetach, editBlocked, shareBlocked, openOnly }: {
-  onOpen: () => void; onEdit?: () => void; onShare?: () => void; onRetrieval?: () => void; onDetach?: () => void;
+function AgentKbCardMenu({ onOpen, onEdit, onScope, onShare, onRetrieval, onDetach, editBlocked, shareBlocked, openOnly }: {
+  onOpen: () => void; onEdit?: () => void; onScope?: () => void; onShare?: () => void; onRetrieval?: () => void; onDetach?: () => void;
   editBlocked?: string; shareBlocked?: string; openOnly?: boolean;
 }) {
   const items: ActionMenuItem[] = openOnly
@@ -1522,6 +1523,7 @@ function AgentKbCardMenu({ onOpen, onEdit, onShare, onRetrieval, onDetach, editB
     : [
         { label: "Xem chi tiết", icon: ExternalLinkIcon, onSelect: onOpen },
         ...(onEdit ? [{ label: "Đổi tên", icon: PencilEdit01Icon, onSelect: onEdit, disabledReason: editBlocked }] : []),
+        ...(onScope ? [{ label: "Đổi phạm vi liên kết", icon: ConnectIcon, onSelect: onScope }] : []),
         ...(onShare ? [{ label: "Quyền truy cập", icon: Share08Icon, onSelect: onShare, disabledReason: shareBlocked }] : []),
         ...(onRetrieval ? [{ label: "Quyền truy xuất", icon: Share08Icon, onSelect: onRetrieval, disabledReason: shareBlocked }] : []),
         ...(onDetach ? [{ label: "Gỡ liên kết", icon: Delete01Icon, onSelect: onDetach, destructive: true }] : []),
@@ -1535,9 +1537,12 @@ function AgentKbCardMenu({ onOpen, onEdit, onShare, onRetrieval, onDetach, editB
  * "attached resource" grids in Agent Details read as one consistent card system. `icon` is a
  * fully-formed node (the same tinted tile Console uses — see KnowledgeTypeIcon) rather than a
  * bare glyph, so a real linked KB renders with the exact same color coding as its Console card. */
-function AgentKbCard({ icon, name, description, onOpen, menu }: {
+function AgentKbCard({ icon, name, description, onOpen, menu, scope }: {
   icon: React.ReactNode; name: string; description?: string;
   onOpen: () => void; menu: React.ReactNode;
+  /** Linked knowledge bases only: "Toàn bộ kho" / "8 mục được chọn", or a warning when the
+   * chosen items are gone from the knowledge base. */
+  scope?: { label: string; empty: boolean };
 }) {
   return (
     <div
@@ -1556,7 +1561,15 @@ function AgentKbCard({ icon, name, description, onOpen, menu }: {
       <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 flex-1">
         {description || <span className="italic">Chưa có mô tả</span>}
       </p>
-      <div className="flex items-center justify-end mt-1">
+      <div className={`flex items-center gap-2 mt-1 ${scope ? "justify-between" : "justify-end"}`}>
+        {scope && (
+          scope.empty ? (
+            <Tooltip delayDuration={200}>
+              <TooltipTrigger asChild><span className="chip chip-warning min-w-0 truncate">Chưa chọn mục nào</span></TooltipTrigger>
+              <TooltipContent className="max-w-xs">Các mục đã chọn không còn trong kho. Chọn lại phạm vi để Agent tiếp tục tra cứu.</TooltipContent>
+            </Tooltip>
+          ) : <span className="chip chip-muted min-w-0 truncate">{scope.label}</span>
+        )}
         {menu}
       </div>
     </div>
@@ -1606,6 +1619,8 @@ function AgentKnowledgeGrid({ agentId, onOpenOwn }: { agentId: string; onOpenOwn
   const [shareKbTarget, setShareKbTarget] = useState<KnowledgeBase | null>(null);
   const [retrievalKbTarget, setRetrievalKbTarget] = useState<KnowledgeBase | null>(null);
   const [detachKbTarget, setDetachKbTarget] = useState<KnowledgeBase | null>(null);
+  // "Đổi phạm vi liên kết" reopens the link popup focused on that knowledge base.
+  const [scopeKbId, setScopeKbId] = useState<string | null>(null);
   const addMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -1657,11 +1672,13 @@ function AgentKnowledgeGrid({ agentId, onOpenOwn }: { agentId: string; onOpenOwn
         name={c.name}
         description={c.description}
         onOpen={onOpen}
+        scope={c.kb ? scopeLabel(c.kb.id, knowledgeStore.getLinkScope(agentId, c.kb.id)) : undefined}
         menu={
           <AgentKbCardMenu
             openOnly={c.isOwn}
             onOpen={onOpen}
             onEdit={c.kb ? () => setEditKbTarget(c.kb!) : undefined}
+            onScope={c.kb && c.kb.type === "internal" ? () => setScopeKbId(c.kb!.id) : undefined}
             onShare={c.kb ? () => setShareKbTarget(c.kb!) : undefined}
             onRetrieval={c.kb ? () => setRetrievalKbTarget(c.kb!) : undefined}
             onDetach={c.kb ? () => setDetachKbTarget(c.kb!) : undefined}
@@ -1760,7 +1777,14 @@ function AgentKnowledgeGrid({ agentId, onOpenOwn }: { agentId: string; onOpenOwn
         )}
       </div>
 
-      {showAttach && <AttachConsoleKnowledgeBaseModal agentId={agentId} userId={KB_CURRENT_USER.id} onClose={() => { setShowAttach(false); refresh(); }} />}
+      {(showAttach || scopeKbId) && (
+        <AttachConsoleKnowledgeBaseModal
+          agentId={agentId}
+          userId={KB_CURRENT_USER.id}
+          initialFocusKbId={scopeKbId ?? undefined}
+          onClose={() => { setShowAttach(false); setScopeKbId(null); refresh(); }}
+        />
+      )}
       {showCreateKb && (
         <CreateKnowledgeBaseModal
           open={showCreateKb}
@@ -5772,13 +5796,15 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
     .map(id => knowledgeBaseStore.get(id))
     .filter((kb): kb is NonNullable<typeof kb> => !!kb);
 
-  type Row = { key: string; name: string; icon: any; open: () => void; remove: () => void; share?: () => void; chip: React.ReactNode; disabled?: boolean; disabledReason?: string; href?: string };
+  type Row = { key: string; name: string; icon: any; open: () => void; remove: () => void; share?: () => void; chip: React.ReactNode; disabled?: boolean; disabledReason?: string; href?: string; scope?: string };
   const rows: Row[] = [
     ...attachedKbs.map(kb => ({
       key: `kb-${kb.id}`,
       name: kb.name,
       icon: ConnectIcon,
       href: `/knowledge/${kb.id}?viaAgent=${agentId}`,
+      // Only a partial link shows its scope here; "Toàn bộ kho" is the normal case.
+      scope: knowledgeStore.getLinkScope(agentId, kb.id).mode === "partial" ? scopeLabel(kb.id, knowledgeStore.getLinkScope(agentId, kb.id)).label : undefined,
       open: () => setDetailTarget({ kind: "knowledgeBase", id: kb.id }),
       remove: () => setDetachTarget({ id: kb.id, name: kb.name }),
       // Plain "Của tôi"/"Được chia sẻ" caption — no more granular Riêng tư/Chia sẻ · N/Dùng
@@ -5855,7 +5881,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
               key={row.key}
               icon={row.icon}
               name={row.name}
-              chip={row.chip}
+              chip={row.scope ? <span className="flex items-center gap-1.5 min-w-0 flex-wrap">{row.chip}<span className="chip chip-muted shrink-0">{row.scope}</span></span> : row.chip}
               onOpen={row.open}
               onRemove={row.remove}
               onShare={row.share}
@@ -6068,7 +6094,8 @@ function allMentionLeaves(agentId: string): MentionNode[] {
   const kbFiles: MentionNode[] = knowledgeStore.listAttachedConsoleKbIds(agentId).flatMap(kbId => {
     const kb = knowledgeBaseStore.get(kbId);
     if (!kb) return [];
-    return knowledgeDocumentStore.list(kbId).filter(d => !d.isFolder).map(d => ({
+    const scope = knowledgeStore.getLinkScope(agentId, kbId);
+    return knowledgeDocumentStore.list(kbId).filter(d => !d.isFolder && isDocInScope(kbId, scope, d.id)).map(d => ({
       id: `kbdoc:${kbId}:${d.id}`, group: "knowledge" as const, label: d.name, sub: kb.name,
       icon: fileBadge(undefined, d.name), leaf: true, insertText: `@${d.name}`,
     }));
@@ -6099,7 +6126,10 @@ function getMentionLevel(agentId: string, path: MentionPath): MentionNode[] {
     }));
   }
   // path.view === "kb"
-  const docs = knowledgeDocumentStore.list(path.kbId).filter(d => d.folderId === path.folderId);
+  // Only what the Agent's link scope covers ("Toàn bộ kho" or the chosen folders/documents).
+  const scope = knowledgeStore.getLinkScope(agentId, path.kbId);
+  const docs = knowledgeDocumentStore.list(path.kbId).filter(d => d.folderId === path.folderId)
+    .filter(d => (d.isFolder ? isDocFolderVisible(path.kbId, scope, d.id) : isDocInScope(path.kbId, scope, d.id)));
   return docs
     .sort((a, b) => (a.isFolder === b.isFolder ? a.name.localeCompare(b.name) : a.isFolder ? -1 : 1))
     .map(d => d.isFolder

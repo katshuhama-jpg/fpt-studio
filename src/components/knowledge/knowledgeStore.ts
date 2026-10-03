@@ -9,6 +9,7 @@ import { knowledgeUrlStore } from "./knowledgeUrlStore";
 import { knowledgeFaqStore, type CategoryOption } from "./knowledgeFaqStore";
 import { knowledgeChunkStore, markChunksSeeded } from "./knowledgeChunkStore";
 import type { KnowledgeFaqStatus } from "./knowledgeStatus";
+import { FULL_SCOPE, type KbLinkScope } from "./kbLinkScope";
 
 export type KnowledgeKind = "doc" | "url" | "faq";
 
@@ -66,6 +67,11 @@ const activeMap = loadMap<string, boolean>(ACTIVE_KEY);
 const k = (a: string, id: string) => `${a}:${id}`;
 const persist = () => saveMap(STORE_KEY, store);
 const persistAttached = () => saveMap(ATTACHED_KEY, attached);
+// Which part of each linked knowledge base the Agent uses, keyed `${agentId}:${kbId}`.
+// No entry = "Toàn bộ kho", so links made before this existed keep using the whole KB.
+const LINK_SCOPE_KEY = "agent_kb_link_scope_v1";
+const linkScopes = loadMap<string, KbLinkScope>(LINK_SCOPE_KEY);
+const persistLinkScopes = () => saveMap(LINK_SCOPE_KEY, linkScopes);
 const persistActive = () => saveMap(ACTIVE_KEY, activeMap);
 // An Agent's own item is always "Chỉ Agent này": sharing it turns it into a Space knowledge
 // base (shareItem), so any older shared value on an item is read as not shared.
@@ -245,7 +251,16 @@ export const knowledgeStore = {
   listAttachedConsoleKbIds(agentId: string): string[] {
     return attached.get(agentId) ?? [];
   },
-  attachConsoleKb(agentId: string, kbId: string) {
+  getLinkScope(agentId: string, kbId: string): KbLinkScope {
+    return linkScopes.get(k(agentId, kbId)) ?? FULL_SCOPE;
+  },
+  setLinkScope(agentId: string, kbId: string, scope: KbLinkScope) {
+    if (scope.mode === "all") linkScopes.delete(k(agentId, kbId));
+    else linkScopes.set(k(agentId, kbId), scope);
+    persistLinkScopes();
+  },
+  attachConsoleKb(agentId: string, kbId: string, scope?: KbLinkScope) {
+    if (scope) this.setLinkScope(agentId, kbId, scope);
     const cur = new Set(attached.get(agentId) ?? []);
     cur.add(kbId);
     attached.set(agentId, [...cur]);
@@ -256,6 +271,7 @@ export const knowledgeStore = {
     const cur = (attached.get(agentId) ?? []).filter(id => id !== kbId);
     attached.set(agentId, cur);
     persistAttached();
+    if (linkScopes.delete(k(agentId, kbId))) persistLinkScopes();
     knowledgeBaseStore.removeAttachingAgent(kbId, agentId);
   },
 
