@@ -119,7 +119,7 @@ export const RETRIEVAL_COPY = {
   title: "Agent trả lời cho ai",
   menu: "Agent trả lời cho ai",
   chip: "Trả lời",
-  description: "Chọn ai được nhận câu trả lời từ kho này. Còn ai được trò chuyện với Agent thì do bước Publish quyết định.",
+  description: "Agent chỉ dùng kho này khi trả lời những người bạn chọn.",
   narrowTitle: "Thu hẹp người được trả lời?",
   narrowBody: "Những người không có trong danh sách sẽ không còn nhận được câu trả lời từ kho này.",
   narrowAction: "Thu hẹp",
