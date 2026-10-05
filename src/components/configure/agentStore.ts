@@ -214,6 +214,31 @@ You are an L1 IT support agent that handles common technical issues, resets cred
 - Escalate to L2/L3 for infrastructure, security incidents, or data loss`,
   },
   {
+    // Clean "approved & live" example: both of its publish requests were approved (req-1007 →
+    // v1.0.0 for Phòng Nhân sự, req-1008 → v1.1.0 for the whole company) and nothing is pending,
+    // so the card shows only "Live v1.1.0" — no Chờ duyệt / Bị từ chối line.
+    id: "policy-assistant", name: "Trợ lý Nội quy & Phúc lợi", emoji: "📘", bg: "bg-primary-soft", accent: "bg-primary",
+    status: "Published", desc: "Giải đáp nội quy, chế độ nghỉ phép, bảo hiểm và phúc lợi cho nhân viên dựa trên Sổ tay nhân viên.",
+    ownerId: "m-fsoft-coo",
+    model: "DeepSeek V4 Flash", convs: 1532, success: 93, channels: ["Web widget"], updated: "5d ago",
+    instructions: `# Trợ lý Nội quy & Phúc lợi
+
+Bạn là trợ lý nội bộ giúp nhân viên tra cứu nội quy công ty, chế độ nghỉ phép, bảo hiểm và phúc lợi.
+
+## Giọng điệu
+- Thân thiện, ngắn gọn, xưng "mình" - gọi người hỏi là "bạn"
+- Luôn trích dẫn mục tương ứng trong Sổ tay nhân viên
+
+## Khả năng
+- Giải đáp số ngày phép năm, phép ốm, nghỉ thai sản theo thâm niên
+- Hướng dẫn thủ tục đăng ký nghỉ phép, thanh toán bảo hiểm sức khỏe
+- Tóm tắt các gói phúc lợi (khám sức khỏe, du lịch, hỗ trợ học tập)
+
+## Giới hạn
+- Không tiết lộ thông tin lương, thưởng hay hồ sơ cá nhân của người khác
+- Trường hợp đặc thù (kỷ luật, tranh chấp) → chuyển cho HRBP phụ trách`,
+  },
+  {
     id: "nightly-report", name: "Nightly Sales Report", emoji: "📊", bg: "bg-indigo-50", accent: "bg-indigo-500",
     status: "Draft",
     ownerId: "m-fsoft-ceo",

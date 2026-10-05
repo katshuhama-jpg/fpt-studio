@@ -405,6 +405,7 @@ export function workspaceTargetsOf(req: GovRequest): WorkspaceTarget[] {
 /* ───────────────────────── seed ───────────────────────── */
 
 function seed() {
+  seedPolicyAssistant();
   if (seededOnce()) return;
   markSeeded();
   const t = now();
@@ -796,6 +797,64 @@ function seed() {
   notificationStore.reset(seeded);
 }
 
+
+/** "Trợ lý Nội quy & Phúc lợi" — a clean approved & live Agent: v1.0.0 approved for Phòng Nhân sự,
+ * then v1.1.0 approved for the whole company, nothing pending or rejected. Seeded under its own
+ * flag (not the main SEEDED_KEY) so sessions that were already seeded pick it up without
+ * re-running the whole seed and duplicating audit-log entries. */
+const POLICY_SEEDED_KEY = "governance_seed_policy_assistant_v1";
+function seedPolicyAssistant() {
+  try { if (sessionStorage.getItem(POLICY_SEEDED_KEY) === "1") return; sessionStorage.setItem(POLICY_SEEDED_KEY, "1"); } catch { return; }
+  const t = now();
+  const hAt = (action: GovHistoryEntry["action"], actorId: string, actorName: string, at: number, note?: string): GovHistoryEntry =>
+    ({ id: `h-${seq++}`, at, action, actorId, actorName, note });
+  const base = {
+    resourceType: "agent" as const, resourceId: "policy-assistant", resourceName: "Trợ lý Nội quy & Phúc lợi",
+    resourceIcon: "📘", requesterId: "m-fsoft-coo", requesterName: "Linh Phan",
+    audience: "org" as const, channels: ["web"], subAgents: [],
+    starterPrompts: ["Mình còn bao nhiêu ngày phép năm nay?", "Thủ tục thanh toán bảo hiểm sức khỏe?", "Công ty có hỗ trợ học phí không?"],
+    privateKnowledge: [{ name: "So_tay_nhan_vien_2026.pdf", kind: "doc" as const }, { name: "FAQ phúc lợi", kind: "faq" as const }],
+    reviewerId: "m-fsoft-ceo", reviewerName: "Tran Nam",
+  };
+  const v100: GovRequest = {
+    ...base, id: "req-1007", changeStateAtSubmit: "new", version: "v1.0.0",
+    scopeSummary: "Phòng Nhân sự (36 người)",
+    workspaceTargets: [{ kind: "department", name: "Phòng Nhân sự", members: 36 }],
+    note: "Chạy thử với phòng Nhân sự trước khi mở cho toàn công ty.",
+    status: "approved", submittedAt: t - 21 * DAY, updatedAt: t - 20 * DAY,
+    reviewNote: "Câu trả lời trích dẫn đúng Sổ tay - Duyệt cho phòng Nhân sự chạy thử.",
+    history: [
+      hAt("submitted", "m-fsoft-coo", "Linh Phan", t - 21 * DAY),
+      hAt("approved", "m-fsoft-ceo", "Tran Nam", t - 20 * DAY, "Câu trả lời trích dẫn đúng Sổ tay - Duyệt cho phòng Nhân sự chạy thử."),
+    ],
+  };
+  const v110: GovRequest = {
+    ...base, id: "req-1008", version: "v1.1.0",
+    scopeSummary: "FPT Smart Cloud (35 người)",
+    workspaceTargets: [{ kind: "company", name: "FPT Smart Cloud", members: 35 }],
+    note: "Sau 2 tuần chạy thử ở phòng Nhân sự (93% câu hỏi được giải quyết) - Đề xuất mở cho toàn công ty.",
+    status: "approved", submittedAt: t - 6 * DAY, updatedAt: t - 5 * DAY,
+    reviewNote: "Kết quả chạy thử tốt, đã có chuyển tiếp cho HRBP với ca đặc thù - Duyệt mở toàn công ty.",
+    history: [
+      hAt("submitted", "m-fsoft-coo", "Linh Phan", t - 6 * DAY),
+      hAt("approved", "m-fsoft-ceo", "Tran Nam", t - 5 * DAY, "Kết quả chạy thử tốt, đã có chuyển tiếp cho HRBP với ca đặc thù - Duyệt mở toàn công ty."),
+    ],
+  };
+  for (const r of [v100, v110]) {
+    store.set(r.id, r);
+    for (const h of r.history) {
+      auditLogStore.log({
+        actorId: h.actorId, actorName: h.actorName, action: h.action,
+        resourceType: r.resourceType, resourceId: r.resourceId, resourceName: r.resourceName,
+        requestId: r.id, note: h.note, at: h.at, detail: auditDetail(r),
+      });
+    }
+  }
+  persist();
+  // Live config = what was approved → a new publish without edits reads "Không thay đổi".
+  const snap = buildSnapshot("agent", "policy-assistant");
+  if (snap) { liveSnapshots.set(snapshotKey("agent", "policy-assistant"), { ...snap, capturedAt: t - 5 * DAY }); persistLive(); }
+}
 
 /* ───────────────────────── notifications ───────────────────────── */
 

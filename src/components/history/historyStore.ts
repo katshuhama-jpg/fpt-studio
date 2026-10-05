@@ -266,6 +266,7 @@ const SEED_FN_BY_AGENT: Record<string, (now: number) => Omit<ConversationRecord,
   ops: opsSeed,
   "finance-check": financeSeed,
   "legal-review": legalSeed,
+  "policy-assistant": policySeed,
 };
 
 function seedAgent(agentId: string) {
@@ -1162,6 +1163,62 @@ function financeSeed(now: number): Omit<ConversationRecord, "agentId">[] {
  * for the non-standard liability cap), and a guardrail replace (masking the exact negotiated
  * cap figure before it goes back over a general channel).
  */
+/** Trợ lý Nội quy & Phúc lợi — the clean approved & live Agent (see governanceStore
+ * seedPolicyAssistant). Plain, healthy conversations: a lookup with a tool call, a hand-off
+ * to HRBP for a special case, and a quick answer with positive feedback. */
+function policySeed(now: number): Omit<ConversationRecord, "agentId">[] {
+  return [
+    {
+      id: pseudoUlid("POL-7001"),
+      channel: "web",
+      username: "Pham Thu Ha",
+      email: "pham.thu.ha@fpt.com.vn",
+      startedAt: now - 25 * MIN,
+      endedAt: now - 18 * MIN,
+      messages: buildMessages("POL-7001", now - 18 * MIN, [
+        { role: "customer", content: "Mình còn bao nhiêu ngày phép năm nay?" },
+        {
+          role: "agent",
+          content: "Để mình kiểm tra số ngày phép của bạn.",
+          toolCalls: [{
+            name: "get_leave_balance",
+            connector: "HRM",
+            input: { email: "pham.thu.ha@fpt.com.vn", year: "2026" },
+            output: { entitled: "14", used: "6", remaining: "8" },
+          }],
+        },
+        { role: "agent", content: "Bạn còn 8/14 ngày phép năm 2026 (theo mục 4.2 Sổ tay nhân viên, thâm niên 3 năm được 14 ngày). Phép chưa dùng được chuyển sang tối đa đến hết 31/03/2027.", feedback: "up" },
+      ]),
+    },
+    {
+      id: pseudoUlid("POL-7002"),
+      channel: "web",
+      username: "Le Quang Minh",
+      email: "le.quang.minh@fpt.com.vn",
+      startedAt: now - 180 * MIN,
+      endedAt: now - 180 * MIN + 6 * MIN,
+      messages: buildMessages("POL-7002", now - 180 * MIN + 6 * MIN, [
+        { role: "customer", content: "Vợ mình sắp sinh, mình được nghỉ mấy ngày?" },
+        { role: "agent", content: "Theo mục 4.6 Sổ tay nhân viên, nhân viên nam được nghỉ 5 ngày làm việc khi vợ sinh thường, 7 ngày nếu sinh phẫu thuật, và 10 ngày nếu sinh đôi. Bạn đăng ký trên HRM, mục Nghỉ phép > Chế độ thai sản." },
+        { role: "customer", content: "Nếu mình muốn nghỉ thêm 2 tuần không lương thì sao?" },
+        { role: "agent", content: "Nghỉ không lương trên 5 ngày cần quản lý trực tiếp và HRBP phê duyệt riêng - Mình đã chuyển yêu cầu của bạn cho HRBP Nguyễn Thị Lan, chị ấy sẽ liên hệ trong hôm nay." },
+      ]),
+    },
+    {
+      id: pseudoUlid("POL-7003"),
+      channel: "workspace",
+      username: "Tran Bao Ngoc",
+      email: "tran.bao.ngoc@fpt.com.vn",
+      startedAt: now - 1 * DAY,
+      endedAt: now - 1 * DAY + 3 * MIN,
+      messages: buildMessages("POL-7003", now - 1 * DAY + 3 * MIN, [
+        { role: "customer", content: "Công ty có hỗ trợ học phí chứng chỉ AWS không?" },
+        { role: "agent", content: "Có - Theo mục 7.3, công ty hỗ trợ 100% lệ phí thi chứng chỉ chuyên môn liên quan đến công việc (tối đa 10 triệu đồng/năm) nếu bạn đạt chứng chỉ. Nộp hóa đơn và chứng chỉ qua HRM > Phúc lợi > Hỗ trợ học tập.", feedback: "up" },
+      ]),
+    },
+  ];
+}
+
 function legalSeed(now: number): Omit<ConversationRecord, "agentId">[] {
   return [
     {
