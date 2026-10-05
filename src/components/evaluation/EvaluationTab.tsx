@@ -3,7 +3,6 @@ import { TestSetsSection } from "./TestSetsSection";
 import { RunsSection } from "./RunsSection";
 import { MetricsSection } from "./MetricsSection";
 import { PublishGateSection } from "./PublishGateSection";
-import { MonitorSection } from "./MonitorSection";
 import type { EvalSection } from "./shared";
 
 export { EVAL_SUBTABS } from "./shared";
@@ -19,6 +18,5 @@ export default function EvaluationTab({ agentId, agentName, section, onRefineWit
   if (section === "runs") return <RunsSection agentId={agentId} onRefineWithAI={onRefineWithAI} />;
   if (section === "metrics") return <MetricsSection agentId={agentId} />;
   if (section === "publish") return <PublishGateSection agentId={agentId} />;
-  if (section === "monitor") return <MonitorSection agentId={agentId} />;
   return <TestSetsSection agentId={agentId} agentName={agentName} />;
 }

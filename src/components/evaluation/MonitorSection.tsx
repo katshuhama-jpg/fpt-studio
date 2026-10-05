@@ -25,7 +25,9 @@ const FAILED = [
   { id: "cv-8701", time: "20:33, 04/10", channel: "Zalo", q: "Ok bạn ơi hủy giúp mình đơn bảo hành", metric: "Style", label: "Sai văn phong", reason: "Xưng \"bạn\", trái quy định xưng \"Anh/Chị\"." },
 ];
 
+/** Agent details → Insights → Quality: chấm chất lượng trên hội thoại thật bằng các chỉ số của Evaluate. */
 export function MonitorSection({ agentId }: { agentId: string }) {
+  evaluationStore.ensure(agentId);
   useEvaluationStore();
   const cfg = evaluationStore.monitor(agentId);
   const [editing, setEditing] = useState(false);
@@ -35,7 +37,7 @@ export function MonitorSection({ agentId }: { agentId: string }) {
     return (
       <div className="p-8 w-full space-y-5 animate-fade-up">
         <div>
-          <h2 className="font-display text-xl font-semibold">Monitor</h2>
+          <h2 className="font-display text-xl font-semibold">Quality</h2>
           <p className="text-sm text-muted-foreground mt-1">Chấm chất lượng trên hội thoại thật sau khi Agent đã publish.</p>
         </div>
         <EmptyState icon={Activity01Icon} title="Phát hiện sớm khi Agent trả lời kém đi"
@@ -56,7 +58,7 @@ export function MonitorSection({ agentId }: { agentId: string }) {
     <div className="p-8 w-full space-y-5 animate-fade-up">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="font-display text-xl font-semibold">{cfg.name || "Monitor"}</h2>
+          <h2 className="font-display text-xl font-semibold">{cfg.name || "Quality"}</h2>
           <p className="text-sm text-muted-foreground mt-1">Lấy mẫu {cfg.sampleRate}% hội thoại {STATUS_FILTERS.find(f => f.id === (cfg.statusFilter ?? "all"))!.short} trên {cfg.channels.join(", ")} · {metrics.length} chỉ số · 30 ngày gần nhất</p>
         </div>
         <button className="btn-secondary shrink-0" onClick={() => setEditing(true)}><HugeiconsIcon icon={Settings02Icon} size={14} /> Cài đặt</button>

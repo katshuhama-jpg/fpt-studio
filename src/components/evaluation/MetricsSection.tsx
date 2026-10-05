@@ -48,7 +48,7 @@ export function MetricsSection({ agentId }: { agentId: string }) {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="font-display text-xl font-semibold">Chỉ số đánh giá</h2>
-          <p className="text-sm text-muted-foreground mt-1">Tiêu chí để chấm câu trả lời của Agent. Tạo một lần, dùng lại cho nhiều bộ test và cho Monitor.</p>
+          <p className="text-sm text-muted-foreground mt-1">Tiêu chí để chấm câu trả lời của Agent. Tạo một lần, dùng lại cho nhiều bộ test và cho Insights → Quality.</p>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild><button className="btn-primary shrink-0"><HugeiconsIcon icon={Add01Icon} size={14} /> Tạo chỉ số <HugeiconsIcon icon={ArrowDown01Icon} size={14} /></button></DropdownMenuTrigger>
@@ -117,7 +117,7 @@ export function MetricsSection({ agentId }: { agentId: string }) {
                       <td className="px-4 py-3">{METRIC_GROUP_LABEL[m.group]}</td>
                       <td className="px-4 py-3 text-muted-foreground text-xs">{passRuleText(m)}</td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">{m.needs.length ? m.needs.map(n => NEED_LABEL[n]).join(", ") : "-"}</td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground">{[sets.length ? `${sets.length} bộ test` : "", mon ? "Monitor" : ""].filter(Boolean).join(" · ") || "Chưa dùng"}</td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground">{[sets.length ? `${sets.length} bộ test` : "", mon ? "Quality" : ""].filter(Boolean).join(" · ") || "Chưa dùng"}</td>
                       <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                         <button className="btn-ghost !px-2" aria-label={`Xóa chỉ số ${m.name}`} onClick={() => setToDelete(m)}><HugeiconsIcon icon={Delete02Icon} size={14} /></button>
                       </td>
@@ -359,7 +359,7 @@ export function MetricEditor({ agentId, metric, onClose, onSaved, stacked }: { a
               if (m.prompt.includes("{{guardrails}}")) n.add(NEED_LABEL.guardrails);
               return n.size ? [...n].join(", ") : "Chỉ cần câu hỏi và câu trả lời";
             })()}</div>
-            <div><b className="text-foreground">Dùng cho Monitor:</b> {isMonitorable({ ...m, needs: m.prompt.includes("{{reference_output}}") ? ["reference"] : m.prompt.includes("{{expected_tools}}") ? ["expectedTools"] : [] }) ? "Có - Không cần đáp án mẫu nên chấm được hội thoại thật" : "Không - Hội thoại thật không có đáp án mẫu hoặc tool mong đợi"}</div>
+            <div><b className="text-foreground">Dùng cho Quality (Insights):</b> {isMonitorable({ ...m, needs: m.prompt.includes("{{reference_output}}") ? ["reference"] : m.prompt.includes("{{expected_tools}}") ? ["expectedTools"] : [] }) ? "Có - Không cần đáp án mẫu nên chấm được hội thoại thật" : "Không - Hội thoại thật không có đáp án mẫu hoặc tool mong đợi"}</div>
           </section>
 
           <section className="surface-card p-4">

@@ -74,6 +74,7 @@ import BusinessProcessTree from "@/components/general/BusinessProcessTree";
 import { toast } from "sonner";
 import EvaluationTab, { EVAL_SUBTABS, evaluationStore, type EvalSection } from "@/components/evaluation/EvaluationTab";
 import { PublishEvalCheck } from "@/components/evaluation/PublishGateSection";
+import { MonitorSection } from "@/components/evaluation/MonitorSection";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -145,12 +146,13 @@ const developNav = [
 
 const INSIGHTS_SUBTABS = [
   { id: "performance", label: "Performance", icon: Analytics01Icon },
+  { id: "quality", label: "Quality", icon: Activity01Icon },
   { id: "history", label: "History", icon: HistoryIcon },
 ];
 
 const BUILD_SECTIONS = ["instructions", "knowledge", "guardrails", "skills", "triggers", "connectors", "versions"];
 const INSIGHTS_SECTIONS = INSIGHTS_SUBTABS.map(s => s.id);
-const EVAL_ICONS: Record<string, any> = { "test-sets": FlaskConicalIcon, runs: PlayCircleIcon, metrics: CheckListIcon, publish: Rocket01Icon, monitor: Activity01Icon };
+const EVAL_ICONS: Record<string, any> = { "test-sets": FlaskConicalIcon, runs: PlayCircleIcon, metrics: CheckListIcon, publish: Rocket01Icon };
 
 // Sections that moved out of Build during the v2 nav restructure — audited against the old
 // developNav list (see git history), "history" (→ Insights) is the only one with a real new
@@ -193,13 +195,15 @@ export default function AgentBuilder() {
   // ?tab=test (old "Test" tab, now "Evaluate") still lands on the new tab.
   const rawTab = params.get("tab") === "test" ? "evaluate" : params.get("tab");
   const rawSection = params.get("section");
-  const isLegacyBuildSection = rawTab === "build" && rawSection != null && rawSection in LEGACY_BUILD_TO_INSIGHTS;
+  // Monitor moved from Evaluate to Insights → Quality; old links still land there.
+  const isLegacyBuildSection = (rawTab === "build" && rawSection != null && rawSection in LEGACY_BUILD_TO_INSIGHTS)
+    || (rawTab === "evaluate" && rawSection === "monitor");
 
   const tab: Tab = isLegacyBuildSection
     ? "insights"
     : VALID_TABS.includes(rawTab as Tab) ? (rawTab as Tab) : "build";
   const section = isLegacyBuildSection
-    ? LEGACY_BUILD_TO_INSIGHTS[rawSection!]
+    ? (rawSection === "monitor" ? "quality" : LEGACY_BUILD_TO_INSIGHTS[rawSection!])
     : tab === "insights"
       ? (INSIGHTS_SECTIONS.includes(rawSection ?? "") ? rawSection! : "performance")
       : tab === "evaluate"
@@ -213,7 +217,7 @@ export default function AgentBuilder() {
     if (!isLegacyBuildSection) return;
     const next = new URLSearchParams(params);
     next.set("tab", "insights");
-    next.set("section", LEGACY_BUILD_TO_INSIGHTS[rawSection!]);
+    next.set("section", rawSection === "monitor" ? "quality" : LEGACY_BUILD_TO_INSIGHTS[rawSection!]);
     setParams(next, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLegacyBuildSection]);
@@ -657,6 +661,7 @@ export default function AgentBuilder() {
               {tab === "evaluate" && <EvaluationTab agentId={id ?? "new"} agentName={agent.name} section={section as EvalSection} onRefineWithAI={() => setParams({ tab: "build", section: "instructions", buildMode: "ai" })} />}
               {tab === "channels" && <DeployTab agentId={id} onViewTriggers={() => setParams({ tab: "build", section: "triggers" })} onViewVersions={() => setParams({ tab: "build", section: "versions" })} onOpenPublish={() => canPublishAgent && requestPublish()} />}
               {tab === "insights" && section === "performance" && <PerformanceTab />}
+              {tab === "insights" && section === "quality" && <MonitorSection agentId={id ?? "new"} />}
               {tab === "insights" && section === "history" && (
                 kind === "automation"
                   ? <div className="p-8"><TriggerRunsTab agentId={id ?? "new"} /></div>

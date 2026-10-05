@@ -3,14 +3,13 @@ import { Tick02Icon, Cancel01Icon, Alert02Icon } from "@hugeicons/core-free-icon
 import { useSearchParams } from "react-router-dom";
 import type { CellStatus } from "./evaluationStore";
 
-export type EvalSection = "test-sets" | "runs" | "metrics" | "publish" | "monitor";
+export type EvalSection = "test-sets" | "runs" | "metrics" | "publish";
 
 export const EVAL_SUBTABS: { id: EvalSection; label: string; desc: string }[] = [
   { id: "test-sets", label: "Bộ test", desc: "Test case theo nghiệp vụ" },
   { id: "runs", label: "Lượt chạy", desc: "Kết quả các lần chạy test" },
   { id: "metrics", label: "Chỉ số đánh giá", desc: "Tiêu chí chấm dùng lại được" },
   { id: "publish", label: "Điều kiện publish", desc: "Bộ test phải đạt để publish" },
-  { id: "monitor", label: "Monitor", desc: "Chất lượng trên hội thoại thật" },
 ];
 
 /** Navigation inside the Evaluation tab — keeps tab/section in the URL plus an optional item id. */
