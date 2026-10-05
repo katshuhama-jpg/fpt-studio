@@ -1,18 +1,31 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Add01Icon, Delete02Icon, CheckListIcon, PlayIcon, Loading03Icon, ArrowDown01Icon, Search01Icon } from "@hugeicons/core-free-icons";
+import { Add01Icon, Delete02Icon, CheckListIcon, PlayIcon, Loading03Icon, ArrowDown01Icon, Search01Icon, ArrowLeft01Icon } from "@hugeicons/core-free-icons";
+import { agentConnectorStore } from "@/components/configure/agentConnectorStore";
+import { agentSkillStore } from "@/components/configure/agentSkillStore";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import {
   evaluationStore, useEvaluationStore, TEMPLATE_METRICS, METRIC_GROUP_LABEL, METRIC_SOURCE_LABEL, NEED_LABEL, VARIABLES, JUDGE_MODELS,
-  isMonitorable, passRuleText, type Metric, type MetricGroup, type ResponseFormat, type ScaleLevel,
+  isMonitorable, passRuleText, KIND_LABEL, TOOL_RULE_LABEL, CONDITION_OP_LABEL, type Metric, type MetricGroup, type MetricKind, type ResponseFormat, type ScaleLevel, type ToolRule, type ConditionOp,
 } from "./evaluationStore";
 import { EmptyState } from "./shared";
 
 const GROUPS: MetricGroup[] = ["quality", "safety", "behavior"];
+const KIND_HINT: Record<MetricKind, string> = {
+  judge: "AI Judge - AI chấm câu trả lời theo tiêu chí bạn viết",
+  contains: "Phải chứa - Kiểm tra cụm từ, không dùng LLM",
+  equals: "Khớp chính xác - So nguyên văn, không dùng LLM",
+  tool: "Dùng tool - Kiểm tra Agent gọi Skill/Connector, không dùng LLM",
+};
+/** Skills + Connectors of the Agent, plus tool names already used as "Tool mong đợi" in its tests. */
+export function agentToolNames(agentId: string): string[] {
+  const fromCases = evaluationStore.sets(agentId).flatMap(s => evaluationStore.cases(s.id)).map(c => c.expectedTool?.split("(")[0]).filter(Boolean) as string[];
+  return Array.from(new Set([...agentConnectorStore.list(agentId).map(c => c.connectorId), ...agentSkillStore.list(agentId).map(s => s.name), ...fromCases]));
+}
 
 export function MetricsSection({ agentId }: { agentId: string }) {
   useEvaluationStore();
@@ -20,9 +33,10 @@ export function MetricsSection({ agentId }: { agentId: string }) {
   const [editing, setEditing] = useState<Metric | null>(null);
   const [toDelete, setToDelete] = useState<Metric | null>(null);
   const [q, setQ] = useState("");
+  const savedRef = useRef(false);
   const metrics = evaluationStore.agentMetrics(agentId);
 
-  const create = (kind: "judge" | "contains") => setEditing(evaluationStore.createMetric(agentId, kind));
+  const create = (kind: MetricKind) => setEditing(evaluationStore.createMetric(agentId, kind));
   const applyTemplate = (tplId: string) => {
     const m = evaluationStore.addFromTemplate(agentId, tplId);
     setView("agent"); setEditing(m);
@@ -44,6 +58,12 @@ export function MetricsSection({ agentId }: { agentId: string }) {
             </DropdownMenuItem>
             <DropdownMenuItem className="items-start py-2" onClick={() => create("contains")}>
               <div><div className="font-medium">Phải chứa</div><div className="text-xs text-muted-foreground">Kiểm tra câu trả lời có cụm từ bắt buộc - Không tốn token</div></div>
+            </DropdownMenuItem>
+            <DropdownMenuItem className="items-start py-2" onClick={() => create("equals")}>
+              <div><div className="font-medium">Khớp chính xác</div><div className="text-xs text-muted-foreground">Câu trả lời phải giống hệt nội dung mong đợi - Không tốn token</div></div>
+            </DropdownMenuItem>
+            <DropdownMenuItem className="items-start py-2" onClick={() => create("tool")}>
+              <div><div className="font-medium">Dùng tool</div><div className="text-xs text-muted-foreground">Agent có gọi đúng Skill/Connector, đúng số lần, đúng tham số - Không tốn token</div></div>
             </DropdownMenuItem>
             <DropdownMenuItem className="items-start py-2" onClick={() => setView("library")}>
               <div><div className="font-medium">Dùng template</div><div className="text-xs text-muted-foreground">Chọn từ thư viện chỉ số có sẵn</div></div>
@@ -91,7 +111,7 @@ export function MetricsSection({ agentId }: { agentId: string }) {
                   return (
                     <tr key={m.id} onClick={() => setEditing(m)} className="border-t border-border hover:bg-surface-muted/50 cursor-pointer transition-base">
                       <td className="px-4 py-3">
-                        <div className="font-medium">{m.name} <span className="chip chip-outline !py-0 !text-[10px] ml-1">{m.kind === "contains" ? "Phải chứa" : "AI Judge"}</span></div>
+                        <div className="font-medium">{m.name} <span className="chip chip-outline !py-0 !text-[10px] ml-1">{KIND_LABEL[m.kind]}</span></div>
                         <div className="text-xs text-muted-foreground">{m.vnName || m.description}</div>
                       </td>
                       <td className="px-4 py-3">{METRIC_GROUP_LABEL[m.group]}</td>
@@ -144,7 +164,7 @@ export function MetricsSection({ agentId }: { agentId: string }) {
         </div>
       )}
 
-      <MetricEditor agentId={agentId} metric={editing} onClose={() => setEditing(null)} />
+      <MetricEditor agentId={agentId} metric={editing} onClose={() => { if (editing && editing.name === "Chỉ số mới" && !savedRef.current && !evaluationStore.setsUsingMetric(editing.id).length) evaluationStore.deleteMetric(editing.id); savedRef.current = false; setEditing(null); }} onSaved={() => { savedRef.current = true; }} />
       <AlertDialog open={!!toDelete} onOpenChange={o => !o && setToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -167,7 +187,9 @@ export function MetricsSection({ agentId }: { agentId: string }) {
 
 /* ------------------------------------------------------------------ editor (LangSmith "Configure Evaluator", no code) */
 
-function MetricEditor({ agentId, metric, onClose }: { agentId: string; metric: Metric | null; onClose: () => void }) {
+/** LangSmith-style "Configure Evaluator". `stacked` renders it as a panel on top of another drawer
+ * (Relevance pattern: New check slides over Add test, with ← back). */
+export function MetricEditor({ agentId, metric, onClose, onSaved, stacked }: { agentId: string; metric: Metric | null; onClose: () => void; onSaved?: (m: Metric) => void; stacked?: boolean }) {
   const [m, setM] = useState<Metric | null>(metric);
   const [preview, setPreview] = useState<"idle" | "running" | "done">("idle");
   const [caseId, setCaseId] = useState("");
@@ -192,7 +214,9 @@ function MetricEditor({ agentId, metric, onClose }: { agentId: string; metric: M
   };
   const save = () => {
     if (!m.name.trim()) { toast.error("Nhập tên chỉ số"); return; }
-    evaluationStore.saveMetric(m); toast.success("Đã lưu chỉ số"); onClose();
+    if (m.kind === "tool" && !m.toolName) { toast.error("Chọn tool cần kiểm tra"); return; }
+    if (m.kind === "equals" && !m.expectedValue?.trim()) { toast.error("Nhập nội dung mong đợi"); return; }
+    evaluationStore.saveMetric(m); toast.success("Đã lưu chỉ số"); onSaved?.(m); onClose();
   };
   const sample = cases.find(c => c.id === caseId);
   const used = evaluationStore.setsUsingMetric(m.id);
@@ -201,8 +225,11 @@ function MetricEditor({ agentId, metric, onClose }: { agentId: string; metric: M
     <Sheet open={!!metric} onOpenChange={o => !o && onClose()}>
       <SheetContent side="right" className="w-full sm:max-w-3xl flex flex-col gap-0 p-0">
         <SheetHeader className="px-6 py-4 border-b border-border text-left">
-          <SheetTitle>Cấu hình chỉ số</SheetTitle>
-          <SheetDescription>{m.kind === "contains" ? "Phải chứa - Kiểm tra cụm từ, không dùng LLM" : "AI Judge - AI chấm câu trả lời theo tiêu chí bạn viết"}{used.length ? ` · Đang dùng trong ${used.map(s => s.name).join(", ")}` : ""}</SheetDescription>
+          <SheetTitle className="flex items-center gap-2">
+            {stacked && <button type="button" onClick={onClose} aria-label="Quay lại" className="btn-ghost !px-1.5 !h-7 -ml-1.5"><HugeiconsIcon icon={ArrowLeft01Icon} size={16} /></button>}
+            Cấu hình chỉ số
+          </SheetTitle>
+          <SheetDescription>{KIND_HINT[m.kind]}{used.length ? ` · Đang dùng trong ${used.map(s => s.name).join(", ")}` : ""}</SheetDescription>
         </SheetHeader>
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
           <section className="grid sm:grid-cols-2 gap-3">
@@ -231,6 +258,51 @@ function MetricEditor({ agentId, metric, onClose }: { agentId: string; metric: M
                 ))}
               </div>
               <p className="text-xs text-muted-foreground">Không phân biệt chữ hoa, chữ thường.</p>
+            </section>
+          ) : m.kind === "equals" ? (
+            <section className="space-y-2">
+              <h3 className="font-display text-sm font-semibold">Nội dung mong đợi</h3>
+              <textarea className="ds-textarea" rows={4} value={m.expectedValue ?? ""} onChange={e => patch({ expectedValue: e.target.value })} placeholder="Ví dụ: Xin chào! Mình là trợ lý bảo hành của AquaPure. Mình có thể giúp gì cho Anh/Chị?" />
+              <p className="text-xs text-muted-foreground">Pass khi câu trả lời giống hệt nội dung trên, bỏ qua khoảng trắng thừa ở đầu và cuối. Dùng cho câu chào, câu từ chối hoặc thông báo cố định.</p>
+            </section>
+          ) : m.kind === "tool" ? (
+            <section className="space-y-4">
+              <h3 className="font-display text-sm font-semibold">Điều kiện gọi tool</h3>
+              <div className="grid sm:grid-cols-[1fr_160px_100px] gap-3 items-end">
+                <label className="block"><span className="text-sm font-medium">Tool</span>
+                  <select className="ds-input mt-1.5" value={m.toolName ?? ""} onChange={e => patch({ toolName: e.target.value })}>
+                    <option value="">Chọn Skill hoặc Connector</option>
+                    {agentToolNames(agentId).map(t => <option key={t} value={t}>{t}</option>)}
+                  </select></label>
+                <label className="block"><span className="text-sm font-medium">Agent phải gọi</span>
+                  <select className="ds-input mt-1.5" value={m.toolRule ?? "atLeast"} onChange={e => patch({ toolRule: e.target.value as ToolRule })}>
+                    {(Object.keys(TOOL_RULE_LABEL) as ToolRule[]).map(r => <option key={r} value={r}>{TOOL_RULE_LABEL[r]}</option>)}
+                  </select></label>
+                {["atLeast", "atMost", "exactly"].includes(m.toolRule ?? "atLeast") && (
+                  <label className="block"><span className="text-sm font-medium">Số lần</span>
+                    <input type="number" min={0} max={20} className="ds-input mt-1.5" value={m.toolCount ?? 1} onChange={e => patch({ toolCount: Math.max(0, Math.min(20, Number(e.target.value) || 0)) })} /></label>
+                )}
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-sm font-medium">Điều kiện tham số <span className="text-xs text-muted-foreground font-normal">- Tùy chọn</span></span>
+                  <button type="button" className="btn-ghost !h-7 text-xs" onClick={() => patch({ toolConditions: [...(m.toolConditions ?? []), { param: "", op: "equals", value: "" }] })}><HugeiconsIcon icon={Add01Icon} size={12} /> Thêm điều kiện</button>
+                </div>
+                {(m.toolConditions ?? []).length === 0 ? <p className="text-xs text-muted-foreground">Chưa có điều kiện - Chỉ kiểm tra tool có được gọi hay không.</p> : (
+                  <div className="space-y-2">
+                    {(m.toolConditions ?? []).map((c, i) => (
+                      <div key={i} className="grid grid-cols-[1fr_130px_1fr_32px] gap-2 items-center">
+                        <input className="ds-input !h-8 font-mono text-xs" placeholder="Tham số, ví dụ: address" value={c.param} aria-label="Tham số" onChange={e => patch({ toolConditions: m.toolConditions!.map((x, j) => (j === i ? { ...x, param: e.target.value } : x)) })} />
+                        <select className="ds-input !h-8 text-xs" value={c.op} aria-label="Phép so sánh" onChange={e => patch({ toolConditions: m.toolConditions!.map((x, j) => (j === i ? { ...x, op: e.target.value as ConditionOp } : x)) })}>
+                          {(Object.keys(CONDITION_OP_LABEL) as ConditionOp[]).map(o => <option key={o} value={o}>{CONDITION_OP_LABEL[o]}</option>)}
+                        </select>
+                        <input className="ds-input !h-8 text-xs" placeholder={c.op === "hasValue" ? "Không cần nhập" : "Giá trị"} disabled={c.op === "hasValue"} value={c.value} aria-label="Giá trị" onChange={e => patch({ toolConditions: m.toolConditions!.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)) })} />
+                        <button type="button" className="btn-ghost !px-2 !h-8" aria-label="Xóa điều kiện" onClick={() => patch({ toolConditions: m.toolConditions!.filter((_, j) => j !== i) })}><HugeiconsIcon icon={Delete02Icon} size={14} /></button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </section>
           ) : (
             <>

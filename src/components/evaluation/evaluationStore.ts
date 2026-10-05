@@ -6,7 +6,11 @@
 import { useSyncExternalStore } from "react";
 
 export type MetricGroup = "quality" | "safety" | "behavior";
-export type MetricKind = "judge" | "contains";
+export type MetricKind = "judge" | "contains" | "equals" | "tool";
+export type ToolRule = "atLeast" | "atMost" | "exactly" | "first" | "last";
+export type ConditionOp = "equals" | "contains" | "hasValue" | "matches";
+export interface ToolCondition { param: string; op: ConditionOp; value: string }
+export type ApprovalMode = "auto" | "approve" | "reject";
 export type ResponseFormat = "boolean" | "scale" | "category";
 export type MetricNeed = "reference" | "context" | "expectedTools" | "guardrails";
 export type MetricSource = "wiki" | "langsmith" | "custom";
@@ -33,6 +37,13 @@ export interface Metric {
   includeReasoning: boolean;
   containsValues?: string[];
   containsMode?: "all" | "any";
+  /** kind "equals" - the exact message the Agent must send. */
+  expectedValue?: string;
+  /** kind "tool" - Relevance "Tool Usage" check. */
+  toolName?: string;
+  toolRule?: ToolRule;
+  toolCount?: number;
+  toolConditions?: ToolCondition[];
 }
 
 export type CaseGroup = "Trích xuất đơn" | "So sánh" | "Tổng hợp" | "Ngoài phạm vi" | "Edge case";
@@ -53,6 +64,15 @@ export interface TestCase {
   source: CaseSource;
   /** false = AI-generated and not yet checked by the Builder. Undefined counts as reviewed. */
   reviewed?: boolean;
+  /** Optional display name; the question is shown when empty. */
+  name?: string;
+  /** Persona/situation for the simulated user (Relevance "Scenario"). */
+  scenario?: string;
+  /** Per-test overrides of the set defaults (Relevance: every test carries its own config). */
+  metrics?: SetMetric[];
+  runsPerCase?: number;
+  toolModes?: Record<string, ToolMode>;
+  approval?: ApprovalMode;
 }
 
 export interface SetMetric { metricId: string; required: boolean }
@@ -71,8 +91,10 @@ export interface TestSet {
 }
 
 export interface CellResult {
-  /** How many of runsPerCase repetitions passed. */
+  /** How many repetitions passed. */
   passCount: number;
+  /** Repetitions for this case when it overrides the run default. */
+  total?: number;
   /** Level label for a non-full pass (e.g. "Thiếu thông tin"). */
   label?: string;
   reason?: string;
@@ -96,15 +118,23 @@ export interface Run {
   tokens: number;
   runsPerCase: number;
   metrics: SetMetric[];
+  /** Cases with their own metric list (override of `metrics`). */
+  caseMetrics?: Record<string, SetMetric[]>;
+  /** Metrics added only for this run (Relevance "Additional options"). */
+  extraMetricIds?: string[];
+  name?: string;
   caseIds: string[];
   /** caseId → metricId → result */
   results: Record<string, Record<string, CellResult>>;
 }
 
 export interface PublishGate { setId: string; enabled: boolean; minPass: number; blocks: boolean }
+export type MonitorStatusFilter = "all" | "completed" | "failed" | "handoff";
 
 export interface MonitorConfig {
   agentId: string;
+  name?: string;
+  statusFilter?: MonitorStatusFilter;
   metricIds: string[];
   sampleRate: number;
   channels: string[];
@@ -234,8 +264,28 @@ export const TEMPLATE_METRICS: Metric[] = [
     format: "boolean", levels: BOOL("Có đủ", "Thiếu cụm từ"),
     needs: [], model: "", includeReasoning: false, prompt: "", containsValues: ["1900 638 399"], containsMode: "all",
   },
+  {
+    id: "tpl-equals", name: "Khớp chính xác", vnName: "Đúng nguyên văn", group: "quality", kind: "equals", source: "custom", agentId: "template",
+    description: "Câu trả lời phải giống hệt nội dung mong đợi, dùng cho câu chào hoặc thông báo cố định. Không tốn token.",
+    format: "boolean", levels: BOOL("Khớp", "Không khớp"),
+    needs: [], model: "", includeReasoning: false, prompt: "", expectedValue: "",
+  },
+  {
+    id: "tpl-tooluse", name: "Dùng tool", vnName: "Gọi tool đúng cách", group: "behavior", kind: "tool", source: "custom", agentId: "template",
+    description: "Kiểm tra Agent có gọi một Skill/Connector cụ thể: số lần, thứ tự và tham số truyền vào. Không tốn token.",
+    format: "boolean", levels: BOOL("Gọi đúng", "Gọi sai"),
+    needs: [], model: "", includeReasoning: false, prompt: "", toolName: "", toolRule: "atLeast", toolCount: 1, toolConditions: [],
+  },
 ];
 
+export const TOOL_RULE_LABEL: Record<ToolRule, string> = { atLeast: "Ít nhất", atMost: "Nhiều nhất", exactly: "Đúng", first: "Gọi đầu tiên", last: "Gọi cuối cùng" };
+export const CONDITION_OP_LABEL: Record<ConditionOp, string> = { equals: "Bằng", contains: "Chứa", hasValue: "Có giá trị", matches: "Khớp mẫu" };
+export const APPROVAL_LABEL: Record<ApprovalMode, { label: string; desc: string }> = {
+  auto: { label: "Tự động", desc: "AI duyệt hoặc từ chối như người dùng thật trong tình huống này" },
+  approve: { label: "Duyệt hết", desc: "Mọi yêu cầu duyệt đều được chấp nhận" },
+  reject: { label: "Từ chối hết", desc: "Mọi yêu cầu duyệt đều bị từ chối" },
+};
+export const KIND_LABEL: Record<MetricKind, string> = { judge: "AI Judge", contains: "Phải chứa", equals: "Khớp chính xác", tool: "Dùng tool" };
 export const METRIC_GROUP_LABEL: Record<MetricGroup, string> = { quality: "Chất lượng", safety: "An toàn", behavior: "Hành vi" };
 export const METRIC_SOURCE_LABEL: Record<MetricSource, string> = { wiki: "Chuẩn FPT", langsmith: "Thư viện mở rộng", custom: "Tùy chỉnh" };
 export const NEED_LABEL: Record<MetricNeed, string> = {
@@ -258,6 +308,8 @@ export const isMonitorable = (m: Metric) => !m.needs.includes("reference") && !m
 export const passLevels = (m: Metric) => m.levels.filter(l => l.pass);
 export function passRuleText(m: Metric): string {
   if (m.kind === "contains") return m.containsMode === "any" ? "Có ít nhất 1 cụm từ" : "Có đủ mọi cụm từ";
+  if (m.kind === "equals") return "Khớp nguyên văn";
+  if (m.kind === "tool") return `${m.toolName || "Tool"} · ${TOOL_RULE_LABEL[m.toolRule ?? "atLeast"]}${["atLeast", "atMost", "exactly"].includes(m.toolRule ?? "atLeast") ? ` ${m.toolCount ?? 1} lần` : ""}`;
   if (m.format === "boolean") return "Pass = 1";
   if (m.format === "scale") { const min = Math.min(...passLevels(m).map(l => l.value)); return `Thang 1-5 · Pass ≥ ${min}`; }
   return `Phân loại · Pass: ${passLevels(m).map(l => l.label).join(", ")}`;
@@ -424,6 +476,7 @@ function seed(agentId: string) {
   });
   state.monitors.push({
     agentId, metricIds: metrics.filter(isMonitorable).filter(m => ["faithfulness", "safety", "style", "relevance", "pii"].some(k => m.id.endsWith(k))).map(m => m.id),
+    name: "Chất lượng trả lời trên Web và Zalo", statusFilter: "all",
     sampleRate: 10, channels: ["Web", "Zalo"], createdAt: "2026-09-20T09:00:00",
   });
 }
@@ -449,8 +502,9 @@ export const evaluationStore = {
     state.metrics.push(m); commit(); return m;
   },
   createMetric(agentId: string, kind: MetricKind): Metric {
-    const m: Metric = kind === "contains"
-      ? { ...TEMPLATE_METRICS.find(t => t.id === "tpl-contains")!, id: uid("metric"), agentId, name: "Chỉ số mới", vnName: "", description: "", source: "custom", containsValues: [], templateId: undefined }
+    const base = kind === "contains" ? "tpl-contains" : kind === "equals" ? "tpl-equals" : kind === "tool" ? "tpl-tooluse" : null;
+    const m: Metric = base
+      ? { ...TEMPLATE_METRICS.find(t => t.id === base)!, id: uid("metric"), agentId, name: "Chỉ số mới", vnName: "", description: "", source: "custom", containsValues: [], toolConditions: [], templateId: undefined }
       : { id: uid("metric"), agentId, name: "Chỉ số mới", vnName: "", description: "", group: "quality", kind: "judge", source: "custom", format: "boolean", levels: BOOL("Đạt", "Không đạt"), needs: [], model: JUDGE_MODELS[0], includeReasoning: true, prompt: `${JUDGE_HEAD}\n\n<Câu hỏi>{{input}}</Câu hỏi>\n<Câu trả lời>{{output}}</Câu trả lời>` };
     state.metrics.push(m); commit(); return m;
   },
@@ -460,7 +514,7 @@ export const evaluationStore = {
     if (m.prompt.includes("{{context}}")) needs.add("context");
     if (m.prompt.includes("{{expected_tools}}")) needs.add("expectedTools");
     if (m.prompt.includes("{{guardrails}}")) needs.add("guardrails");
-    const next = { ...m, needs: m.kind === "contains" ? [] : [...needs] };
+    const next = { ...m, needs: m.kind === "judge" ? [...needs] : [] };
     state.metrics = state.metrics.map(x => (x.id === m.id ? next : x)); commit();
   },
   deleteMetric(id: string) {
@@ -482,6 +536,15 @@ export const evaluationStore = {
     commit(); return s;
   },
   updateSet(id: string, patch: Partial<TestSet>) { state.sets = state.sets.map(s => (s.id === id ? { ...s, ...patch, updatedAt: nowIso() } : s)); commit(); },
+  duplicateSet(id: string): TestSet | undefined {
+    const src = state.sets.find(s => s.id === id);
+    if (!src) return;
+    const copy: TestSet = { ...src, id: uid("set"), name: `${src.name} (bản sao)`, createdAt: nowIso(), updatedAt: nowIso() };
+    state.sets.push(copy);
+    state.cases.push(...state.cases.filter(c => c.setId === id).map(c => ({ ...c, id: uid("case"), setId: copy.id })));
+    state.gates.push({ ...this.gate(id), setId: copy.id, enabled: false });
+    commit(); return copy;
+  },
   deleteSet(id: string) {
     state.sets = state.sets.filter(s => s.id !== id);
     state.cases = state.cases.filter(c => c.setId !== id);
@@ -502,13 +565,20 @@ export const evaluationStore = {
   run: (id: string) => state.runs.find(r => r.id === id),
   latestRun: (setId: string, version?: string) => state.runs.filter(r => r.setId === setId && r.status === "done" && (!version || r.version === version)).sort((a, b) => b.number - a.number)[0],
   previousRun: (run: Run) => state.runs.filter(r => r.setId === run.setId && r.status === "done" && r.number < run.number).sort((a, b) => b.number - a.number)[0],
-  startRun(setId: string, versionLabel: string, by: string): Run {
+  /** Relevance-style run: pick tests (default all), a version, optional extra checks for this run only. */
+  startRun(setId: string, versionLabel: string, by: string, opts: { name?: string; caseIds?: string[]; extraMetricIds?: string[] } = {}): Run {
     const set = state.sets.find(s => s.id === setId)!;
-    const cases = state.cases.filter(c => c.setId === setId);
+    const cases = state.cases.filter(c => c.setId === setId && (!opts.caseIds || opts.caseIds.includes(c.id)));
     const number = Math.max(0, ...state.runs.filter(r => r.agentId === set.agentId).map(r => r.number)) + 1;
+    const extra: SetMetric[] = (opts.extraMetricIds ?? []).filter(id => !set.metrics.some(m => m.metricId === id)).map(metricId => ({ metricId, required: false }));
+    const caseMetrics: Record<string, SetMetric[]> = {};
+    cases.forEach(c => { if (c.metrics) caseMetrics[c.id] = [...c.metrics, ...extra.filter(e => !c.metrics!.some(m => m.metricId === e.metricId))]; });
+    const allMetrics = [...set.metrics, ...extra];
+    Object.values(caseMetrics).flat().forEach(sm => { if (!allMetrics.some(m => m.metricId === sm.metricId)) allMetrics.push(sm); });
     const run: Run = {
       id: uid("run"), number, agentId: set.agentId, setId, setName: set.name, version: versionLabel, status: "running", progress: 0,
-      createdAt: nowIso(), by, durationSec: 0, tokens: 0, runsPerCase: set.runsPerCase, metrics: set.metrics, caseIds: cases.map(c => c.id), results: {},
+      createdAt: nowIso(), by, durationSec: 0, tokens: 0, runsPerCase: set.runsPerCase, metrics: allMetrics, caseMetrics, extraMetricIds: opts.extraMetricIds,
+      name: opts.name, caseIds: cases.map(c => c.id), results: {},
     };
     state.runs.push(run); commit();
     const tick = setInterval(() => {
@@ -521,26 +591,30 @@ export const evaluationStore = {
       // re-runs look stable; a few random flips keep it from being identical.
       const prev = state.runs.filter(x => x.setId === setId && x.status === "done").sort((a, b) => b.number - a.number)[0];
       const results: Run["results"] = {};
+      let calls = 0;
       cases.forEach(c => {
         results[c.id] = {};
-        set.metrics.forEach(sm => {
+        const n = c.runsPerCase ?? set.runsPerCase;
+        calls += n;
+        (caseMetrics[c.id] ?? [...set.metrics, ...extra]).forEach(sm => {
           const m = state.metrics.find(x => x.id === sm.metricId);
           if (!m) return;
           if (m.needs.includes("expectedTools") && !c.expectedTool) return;
           if (m.needs.includes("reference") && !c.reference) return;
           const old = prev?.results[c.id]?.[sm.metricId];
           const failLevel = m.levels.find(l => !l.pass);
-          let cell: CellResult = old ? { ...old } : { passCount: set.runsPerCase };
+          let cell: CellResult = old ? { ...old, passCount: Math.round((old.passCount / (old.total ?? prev!.runsPerCase)) * n) } : { passCount: n };
           if (Math.random() < 0.1) {
-            cell = cell.passCount === set.runsPerCase
-              ? { passCount: Math.max(0, set.runsPerCase - 1), label: failLevel?.label ?? "Không đạt", reason: `1/${set.runsPerCase} lần chạy không đạt tiêu chí "${m.vnName || m.name}".` }
-              : { passCount: set.runsPerCase };
+            cell = cell.passCount === n
+              ? { passCount: Math.max(0, n - 1), label: failLevel?.label ?? "Không đạt", reason: `1/${n} lần chạy không đạt tiêu chí "${m.vnName || m.name}".` }
+              : { passCount: n };
           }
-          if (cell.passCount > set.runsPerCase) cell.passCount = set.runsPerCase;
+          cell.passCount = Math.min(cell.passCount, n);
+          if (n !== set.runsPerCase) cell.total = n;
           results[c.id][sm.metricId] = cell;
         });
       });
-      state.runs = state.runs.map(x => (x.id === run.id ? { ...x, status: "done", progress: 100, results, durationSec: Math.max(1, Math.round((Date.now() - new Date(run.createdAt).getTime()) / 1000)), tokens: cases.length * set.runsPerCase * 380 } : x));
+      state.runs = state.runs.map(x => (x.id === run.id ? { ...x, status: "done", progress: 100, results, durationSec: Math.max(1, Math.round((Date.now() - new Date(run.createdAt).getTime()) / 1000)), tokens: calls * 380 } : x));
       commit();
     }, 700);
     return run;
@@ -588,13 +662,22 @@ export const evaluationStore = {
 
 export type CellStatus = "pass" | "fail" | "unstable" | "na";
 export const cellStatus = (c: CellResult | undefined, n: number): CellStatus =>
-  !c ? "na" : c.passCount >= n ? "pass" : c.passCount === 0 ? "fail" : "unstable";
+  !c ? "na" : c.passCount >= (c.total ?? n) ? "pass" : c.passCount === 0 ? "fail" : "unstable";
+/** Repetitions used for one case (a test can override the run default). */
+export const casesRuns = (run: Run, caseId: string) => Object.values(run.results[caseId] ?? {})[0]?.total ?? run.runsPerCase;
 
 export function caseStatus(run: Run, caseId: string): CellStatus {
   const r = run.results[caseId];
   if (!r) return "na";
-  const ss = run.metrics.filter(m => m.required).map(m => cellStatus(r[m.metricId], run.runsPerCase)).filter(s => s !== "na");
+  const ss = (run.caseMetrics?.[caseId] ?? run.metrics).filter(m => m.required).map(m => cellStatus(r[m.metricId], run.runsPerCase)).filter(s => s !== "na");
   return ss.includes("fail") ? "fail" : ss.includes("unstable") ? "unstable" : "pass";
+}
+
+/** Relevance "Score": share of the case's metrics (all repetitions) that passed. */
+export function caseScore(run: Run, caseId: string) {
+  const cells = Object.values(run.results[caseId] ?? {});
+  const passed = cells.filter(c => cellStatus(c, run.runsPerCase) === "pass").length;
+  return { passed, total: cells.length, pct: cells.length ? Math.round((passed / cells.length) * 100) : 0 };
 }
 
 export function runStats(run: Run) {

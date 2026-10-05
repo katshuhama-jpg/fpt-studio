@@ -5,10 +5,18 @@ import { Activity01Icon, Settings02Icon, Add01Icon, Route01Icon } from "@hugeico
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { evaluationStore, useEvaluationStore, isMonitorable, monitorSeries, METRIC_GROUP_LABEL, type MonitorConfig, type CaseGroup } from "./evaluationStore";
+import { evaluationStore, useEvaluationStore, isMonitorable, monitorSeries, METRIC_GROUP_LABEL, type MonitorConfig, type MonitorStatusFilter, type CaseGroup } from "./evaluationStore";
 import { EmptyState, ThresholdBar, Delta } from "./shared";
 
 const CHANNELS = ["Web", "Zalo", "API", "Agent Workspace"];
+const STATUS_FILTERS: { id: MonitorStatusFilter; label: string; short: string }[] = [
+  { id: "all", label: "Tất cả", short: "" },
+  { id: "completed", label: "Hoàn thành", short: "đã hoàn thành" },
+  { id: "failed", label: "Có lỗi", short: "có lỗi" },
+  { id: "handoff", label: "Chuyển nhân viên", short: "được chuyển nhân viên" },
+];
+/** Publish / Knowledge events drawn on the timeline so score changes can be matched to a change. */
+const VERSION_MARKERS = [{ day: "18/9", label: "v1.1.0" }, { day: "28/9", label: "Cập nhật Knowledge" }];
 
 const FAILED = [
   { id: "cv-8812", time: "14:05, 05/10", channel: "Zalo", q: "Lõi lọc của tôi mua 8 tháng thì còn bảo hành không?", metric: "Faithfulness", label: "Bịa thông tin", reason: "Khẳng định lõi lọc bảo hành 12 tháng, tài liệu ghi 6 tháng." },
@@ -48,8 +56,8 @@ export function MonitorSection({ agentId }: { agentId: string }) {
     <div className="p-8 w-full space-y-5 animate-fade-up">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="font-display text-xl font-semibold">Monitor</h2>
-          <p className="text-sm text-muted-foreground mt-1">Lấy mẫu {cfg.sampleRate}% hội thoại trên {cfg.channels.join(", ")} · {metrics.length} chỉ số · 30 ngày gần nhất</p>
+          <h2 className="font-display text-xl font-semibold">{cfg.name || "Monitor"}</h2>
+          <p className="text-sm text-muted-foreground mt-1">Lấy mẫu {cfg.sampleRate}% hội thoại {STATUS_FILTERS.find(f => f.id === (cfg.statusFilter ?? "all"))!.short} trên {cfg.channels.join(", ")} · {metrics.length} chỉ số · 30 ngày gần nhất</p>
         </div>
         <button className="btn-secondary shrink-0" onClick={() => setEditing(true)}><HugeiconsIcon icon={Settings02Icon} size={14} /> Cài đặt</button>
       </div>
@@ -70,7 +78,7 @@ export function MonitorSection({ agentId }: { agentId: string }) {
       <div className="surface-card p-5">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-display text-sm font-semibold">Điểm tổng theo ngày</h3>
-          <span className="text-xs text-muted-foreground">Vạch ngang: Ngưỡng 90%</span>
+          <span className="text-xs text-muted-foreground">Vạch ngang: Ngưỡng 90% · Vạch dọc: Lần publish hoặc cập nhật Knowledge</span>
         </div>
         <div className="h-56" role="img" aria-label={`Điểm tổng 30 ngày, hiện tại ${last}%`}>
           <ResponsiveContainer width="100%" height="100%">
@@ -80,7 +88,11 @@ export function MonitorSection({ agentId }: { agentId: string }) {
               <YAxis domain={[60, 100]} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
               <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid hsl(var(--border))", fontSize: 12 }} formatter={(v: number) => [`${v}%`, "Điểm tổng"]} />
               <ReferenceLine y={90} stroke="hsl(var(--foreground))" strokeDasharray="4 4" strokeOpacity={0.5} />
-              <Line type="monotone" dataKey="overall" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+              {VERSION_MARKERS.map(v => (
+                <ReferenceLine key={v.day} x={v.day} stroke="hsl(var(--primary))" strokeOpacity={0.6}
+                  label={{ value: v.label, position: "insideTopLeft", fontSize: 11, fill: "hsl(var(--primary))" }} />
+              ))}
+              <Line type="monotone" dataKey="overall" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} isAnimationActive={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -99,7 +111,15 @@ export function MonitorSection({ agentId }: { agentId: string }) {
                     <span><b>{m!.name}</b> <span className="text-xs text-muted-foreground">· {METRIC_GROUP_LABEL[m!.group]}</span></span>
                     <span className="flex items-center gap-2"><b className={v >= 90 ? "text-success" : "text-destructive"}>{v}%</b><Delta cur={v} prev={p} /></span>
                   </div>
-                  <ThresholdBar value={v} threshold={90} tone={v >= 90 ? "pass" : "fail"} />
+                  <div className="h-10" role="img" aria-label={`${m!.name} 30 ngày, hiện tại ${v}%`}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={series} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
+                        <YAxis hide domain={[60, 100]} />
+                        <ReferenceLine y={90} stroke="hsl(var(--foreground))" strokeDasharray="3 3" strokeOpacity={0.35} />
+                        <Line type="monotone" dataKey={m!.id} stroke={v >= 90 ? "hsl(var(--success))" : "hsl(var(--destructive))"} strokeWidth={1.75} dot={false} isAnimationActive={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
               );
             })}
@@ -142,16 +162,21 @@ function MonitorConfigSheet({ agentId, open, onOpenChange, existing }: { agentId
   const [ids, setIds] = useState<string[]>([]);
   const [rate, setRate] = useState(10);
   const [channels, setChannels] = useState<string[]>(["Web"]);
+  const [name, setName] = useState("");
+  const [statusFilter, setStatusFilter] = useState<MonitorStatusFilter>("all");
   useEffect(() => {
     if (!open) return;
     setIds(existing?.metricIds ?? metrics.map(m => m.id));
     setRate(existing?.sampleRate ?? 10);
     setChannels(existing?.channels ?? ["Web"]);
+    setName(existing?.name ?? "Chất lượng trả lời");
+    setStatusFilter(existing?.statusFilter ?? "all");
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   const toggle = <T,>(arr: T[], v: T) => (arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v]);
   const save = () => {
     if (ids.length === 0) { toast.error("Chọn ít nhất 1 chỉ số"); return; }
-    evaluationStore.saveMonitor({ agentId, metricIds: ids, sampleRate: rate, channels, createdAt: existing?.createdAt ?? new Date().toISOString() });
+    if (!name.trim()) { toast.error("Nhập tên dashboard"); return; }
+    evaluationStore.saveMonitor({ agentId, name: name.trim(), statusFilter, metricIds: ids, sampleRate: rate, channels, createdAt: existing?.createdAt ?? new Date().toISOString() });
     toast.success(existing ? "Đã lưu cài đặt Monitor" : "Đã bật Monitor - Dữ liệu đầu tiên có sau khoảng 1 giờ");
     onOpenChange(false);
   };
@@ -165,6 +190,10 @@ function MonitorConfigSheet({ agentId, open, onOpenChange, existing }: { agentId
           <SheetDescription>Monitor chỉ dùng được chỉ số không cần đáp án mẫu, vì hội thoại thật không có đáp án mẫu.</SheetDescription>
         </SheetHeader>
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+          <label className="block">
+            <span className="text-sm font-medium">Tên dashboard <span className="text-destructive">*</span></span>
+            <input className="ds-input mt-1.5" value={name} onChange={e => setName(e.target.value)} placeholder="Ví dụ: Chất lượng trả lời trên Zalo" />
+          </label>
           <fieldset>
             <legend className="text-sm font-medium mb-2">Chỉ số</legend>
             {metrics.length === 0 ? <p className="text-sm text-muted-foreground">Agent chưa có chỉ số phù hợp - Thêm Faithfulness, Safety hoặc Style trong mục Chỉ số đánh giá.</p> : (
@@ -188,6 +217,15 @@ function MonitorConfigSheet({ agentId, open, onOpenChange, existing }: { agentId
             <div className="flex flex-wrap gap-1.5">
               {CHANNELS.map(c => (
                 <button key={c} onClick={() => setChannels(toggle(channels, c))} aria-pressed={channels.includes(c)} className={`chip cursor-pointer ${channels.includes(c) ? "chip-primary" : "chip-outline hover:bg-surface-muted"}`}>{c}</button>
+              ))}
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend className="text-sm font-medium mb-1">Lọc hội thoại</legend>
+            <p className="text-xs text-muted-foreground mb-2">Chỉ chấm các hội thoại có trạng thái này.</p>
+            <div className="flex flex-wrap gap-1.5">
+              {STATUS_FILTERS.map(f => (
+                <button key={f.id} type="button" onClick={() => setStatusFilter(f.id)} aria-pressed={statusFilter === f.id} className={`chip cursor-pointer ${statusFilter === f.id ? "chip-primary" : "chip-outline hover:bg-surface-muted"}`}>{f.label}</button>
               ))}
             </div>
           </fieldset>

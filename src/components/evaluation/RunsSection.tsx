@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowLeft01Icon, PlayIcon, Download04Icon, Loading03Icon, Alert02Icon, AiMagicIcon, Edit02Icon, Route01Icon } from "@hugeicons/core-free-icons";
+import { ArrowLeft01Icon, PlayIcon, Download04Icon, Loading03Icon, Alert02Icon, AiMagicIcon, Edit02Icon, Route01Icon, UserIcon, Robot01Icon } from "@hugeicons/core-free-icons";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import {
   evaluationStore, useEvaluationStore, runStats, metricStats, cellStatus, caseStatus, METRIC_GROUP_LABEL, passRuleText,
-  CASE_GROUPS, OK_ANSWER, type Run, type Metric, type MetricGroup,
+  CASE_GROUPS, OK_ANSWER, caseScore, casesRuns, type Run, type Metric, type MetricGroup, type CellStatus,
 } from "./evaluationStore";
 import { EmptyState, ResultCell, StatusText, ThresholdBar, Delta, RequiredBadge, useEvalNav, fmtDateTime, fmtDuration, fmtNumber, TONE } from "./shared";
 import { RunDialog } from "./RunDialog";
@@ -120,6 +120,8 @@ function RunDetail({ run, agentId, onRefineWithAI }: { run: Run; agentId: string
   const [compare, setCompare] = useState(params.get("compare") === "1");
   const [label, setLabel] = useState<string | null>(null);
   const [openCase, setOpenCase] = useState<{ caseId: string; metricId: string } | null>(null);
+  const [view, setView] = useState<"metric" | "test">(params.get("view") === "test" ? "test" : "metric");
+  const [conv, setConv] = useState<string | null>(null);
   useEffect(() => { setLabel(null); }, [metricId]);
 
   const prev = evaluationStore.previousRun(run);
@@ -155,7 +157,7 @@ function RunDetail({ run, agentId, onRefineWithAI }: { run: Run; agentId: string
       <button onClick={() => go("runs")} className="btn-ghost -ml-2"><HugeiconsIcon icon={ArrowLeft01Icon} size={14} /> Lượt chạy</button>
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <div className="text-xs text-muted-foreground mb-1">Lượt chạy #{run.number}</div>
+          <div className="text-xs text-muted-foreground mb-1">Lượt chạy #{run.number}{run.name ? ` · ${run.name}` : ""}{run.extraMetricIds?.length ? ` · Thêm ${run.extraMetricIds.length} chỉ số cho lượt này` : ""}</div>
           <h2 className="font-display text-xl font-semibold">{run.setName} - {run.version}</h2>
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground mt-1.5">
             <span>{st.total} test × {run.runsPerCase} lần</span>
@@ -193,6 +195,17 @@ function RunDetail({ run, agentId, onRefineWithAI }: { run: Run; agentId: string
         <div><div className="text-xs text-muted-foreground">{prev ? `So với #${prev.number} (${prev.version})` : "Lượt trước"}</div><div><Delta cur={st.rate} prev={prevSt?.rate} /></div></div>
       </div>
 
+      <div className="flex items-center gap-3">
+        <div className="flex gap-1 rounded-lg bg-surface-muted p-0.5" role="tablist" aria-label="Cách xem kết quả">
+          {([["metric", "Theo chỉ số"], ["test", `Theo test (${st.total})`]] as const).map(([id, label]) => (
+            <button key={id} role="tab" aria-selected={view === id} onClick={() => setView(id)}
+              className={`px-3 h-8 rounded-md text-sm font-medium transition-base cursor-pointer ${view === id ? "bg-surface shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>{label}</button>
+          ))}
+        </div>
+        <span className="text-xs text-muted-foreground">{view === "metric" ? "Chỉ số nào yếu, sai kiểu gì" : "Từng test đạt bao nhiêu chỉ số - Bấm để xem hội thoại"}</span>
+      </div>
+
+      {view === "test" ? <TestView run={run} onOpen={setConv} /> : (
       <div className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-4 items-start">
         {/* Metric rail */}
         <div className="surface-card overflow-hidden lg:sticky lg:top-4">
@@ -260,6 +273,9 @@ function RunDetail({ run, agentId, onRefineWithAI }: { run: Run; agentId: string
           {current && <MetricPanel run={run} metric={current.m} label={label} setLabel={setLabel} threshold={gate.enabled ? gate.minPass : 90} onOpen={caseId => setOpenCase({ caseId, metricId: current.m.id })} />}
         </div>
       </div>
+      )}
+
+      <ConversationDrawer run={run} caseId={conv} onClose={() => setConv(null)} onEditCase={() => go("test-sets", run.setId)} onRefineWithAI={onRefineWithAI} />
 
       <CaseDrawer run={run} open={openCase} onChange={setOpenCase} onEditCase={() => go("test-sets", run.setId)} onRefineWithAI={onRefineWithAI} />
       <RunDialog agentId={agentId} open={runAgain} onOpenChange={setRunAgain} presetSetId={run.setId} onStarted={id => go("runs", id)} />
@@ -468,6 +484,154 @@ function CaseDrawer({ run, open, onChange, onEditCase, onRefineWithAI }: {
               <button className="btn-secondary" onClick={() => { onChange(null); onEditCase(); }}><HugeiconsIcon icon={Edit02Icon} size={14} /> Sửa test case</button>
               <button className="btn-secondary" onClick={() => toast("Mở Trace của lần chạy này")}><HugeiconsIcon icon={Route01Icon} size={14} /> Xem trace</button>
               <button className="btn-primary" onClick={() => { onChange(null); onRefineWithAI(); }}><HugeiconsIcon icon={AiMagicIcon} size={14} /> Refine với AI</button>
+            </div>
+          </>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+/* ------------------------------------------------------------------ "Theo test" (Relevance run results) */
+
+function TestView({ run, onOpen }: { run: Run; onOpen: (caseId: string) => void }) {
+  const [filter, setFilter] = useState<"all" | CellStatus>("all");
+  const cases = evaluationStore.cases(run.setId);
+  const ids = run.caseIds.filter(id => run.results[id]);
+  const rows = ids.map(id => ({ id, c: cases.find(x => x.id === id), status: caseStatus(run, id), score: caseScore(run, id), n: casesRuns(run, id) }))
+    .filter(r => filter === "all" || r.status === filter)
+    .sort((a, b) => a.score.pct - b.score.pct);
+  const count = (s: CellStatus) => ids.filter(id => caseStatus(run, id) === s).length;
+  const perCall = ids.length ? Math.round(run.tokens / Math.max(1, ids.reduce((a, id) => a + casesRuns(run, id), 0))) : 0;
+  return (
+    <div className="surface-card overflow-hidden">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-border flex-wrap">
+        {([["all", `Tất cả (${ids.length})`], ["fail", `Fail (${count("fail")})`], ["unstable", `Không ổn định (${count("unstable")})`], ["pass", `Pass (${count("pass")})`]] as const).map(([id, label]) => (
+          <button key={id} onClick={() => setFilter(id)} aria-pressed={filter === id} className={`chip cursor-pointer ${filter === id ? "chip-primary" : "chip-outline hover:bg-surface-muted"}`}>{label}</button>
+        ))}
+        <span className="ml-auto text-xs text-muted-foreground">Điểm = Tỷ lệ chỉ số đạt của test, sắp xếp thấp lên trước</span>
+      </div>
+      <table className="w-full text-sm">
+        <thead className="bg-surface-muted/60 text-xs text-muted-foreground">
+          <tr>
+            <th className="text-left font-medium px-4 py-2.5">Kết quả</th>
+            <th className="text-left font-medium px-4 py-2.5 w-[40%]">Test</th>
+            <th className="text-left font-medium px-4 py-2.5 w-[180px]">Điểm</th>
+            <th className="text-left font-medium px-4 py-2.5">Chỉ số</th>
+            <th className="text-left font-medium px-4 py-2.5">Chi phí</th>
+            <th className="px-4 py-2.5" />
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(r => (
+            <tr key={r.id} onClick={() => onOpen(r.id)} className="border-t border-border hover:bg-surface-muted/50 cursor-pointer transition-base">
+              <td className="px-4 py-3"><StatusText status={r.status} /></td>
+              <td className="px-4 py-3">
+                {r.c?.name && <div className="text-xs font-semibold text-muted-foreground">{r.c.name}</div>}
+                <div className="leading-snug">{r.c?.question ?? "Test đã bị xóa"}</div>
+                <div className="text-xs text-muted-foreground">{r.c?.group}{r.n > 1 ? ` · ${r.n} lần chạy` : ""}</div>
+              </td>
+              <td className="px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <b className="w-10 text-xs">{r.score.pct}%</b>
+                  <ThresholdBar value={r.score.pct} tone={r.status === "pass" ? "pass" : r.status === "fail" ? "fail" : "warn"} width="w-24" />
+                </div>
+              </td>
+              <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{r.score.passed}/{r.score.total} đạt</td>
+              <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">~{fmtNumber(perCall * r.n)} token</td>
+              <td className="px-4 py-3 text-right"><span className="text-xs font-semibold text-primary">Xem hội thoại</span></td>
+            </tr>
+          ))}
+          {rows.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">Không có test nào</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** Relevance "View Conversation": the exchange plus every check's verdict and reason. */
+function ConversationDrawer({ run, caseId, onClose, onEditCase, onRefineWithAI }: { run: Run; caseId: string | null; onClose: () => void; onEditCase: () => void; onRefineWithAI: () => void }) {
+  const [rep, setRep] = useState(0);
+  useEffect(() => { setRep(0); }, [caseId]);
+  const c = caseId ? evaluationStore.cases(run.setId).find(x => x.id === caseId) : undefined;
+  const cells = caseId ? Object.entries(run.results[caseId] ?? {}) : [];
+  const n = caseId ? casesRuns(run, caseId) : 1;
+  const failing = cells.find(([, cell]) => cellStatus(cell, run.runsPerCase) !== "pass");
+  // In the failed repetitions the Agent gave the failing answer; the others match the reference.
+  const failedReps = failing ? n - failing[1].passCount : 0;
+  const repFailed = rep >= n - failedReps;
+  const answer = repFailed && failing?.[1].answer ? failing[1].answer : (c?.reference ?? OK_ANSWER);
+  const toolCall = cells.map(([, cell]) => cell.toolCall).find(Boolean) ?? c?.expectedTool;
+  const set = evaluationStore.set(run.setId);
+  return (
+    <Sheet open={!!caseId} onOpenChange={o => !o && onClose()}>
+      <SheetContent side="right" className="w-full sm:max-w-xl flex flex-col gap-0 p-0">
+        {c && caseId && (
+          <>
+            <SheetHeader className="px-6 py-4 border-b border-border text-left">
+              <SheetDescription>Hội thoại · {c.group}{c.name ? ` · ${c.name}` : ""}</SheetDescription>
+              <SheetTitle className="leading-snug flex items-center gap-2">{c.question}</SheetTitle>
+              <div className="flex items-center gap-3 pt-1"><StatusText status={caseStatus(run, caseId)} /><span className="text-xs text-muted-foreground">{caseScore(run, caseId).passed}/{caseScore(run, caseId).total} chỉ số đạt</span></div>
+            </SheetHeader>
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+              {n > 1 && (
+                <div className="flex gap-1.5" role="tablist" aria-label="Lần chạy">
+                  {Array.from({ length: n }, (_, i) => {
+                    const ok = i < n - failedReps;
+                    return (
+                      <button key={i} role="tab" aria-selected={rep === i} onClick={() => setRep(i)}
+                        className={`h-7 px-2.5 rounded-md border text-xs font-medium cursor-pointer transition-base ${rep === i ? "border-primary bg-primary-soft text-primary" : "border-border hover:bg-surface-muted"}`}>
+                        Lần {i + 1} <span className={ok ? "text-success" : "text-destructive"}>{ok ? "Pass" : "Fail"}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {c.scenario && <div className="rounded-lg bg-surface-muted px-3 py-2 text-xs text-muted-foreground"><b className="text-foreground">Kịch bản:</b> {c.scenario}</div>}
+              <div className="space-y-3">
+                <div className="flex gap-2.5">
+                  <span className="w-7 h-7 rounded-full bg-surface-muted flex items-center justify-center shrink-0"><HugeiconsIcon icon={UserIcon} size={14} /></span>
+                  <div className="rounded-xl rounded-tl-sm bg-surface-muted px-3 py-2 text-sm max-w-[85%]">{c.question}</div>
+                </div>
+                {toolCall && (
+                  <div className="ml-9 flex items-center gap-2 text-xs">
+                    <code className="rounded-md border border-border px-2 py-1">{toolCall}</code>
+                    <span className={`chip !py-0.5 !text-[11px] ${(set?.toolModes[toolCall.split("(")[0]] ?? "live") === "simulated" ? "chip-accent" : "chip-info"}`}>{(set?.toolModes[toolCall.split("(")[0]] ?? "live") === "simulated" ? "Simulated" : "Live"}</span>
+                  </div>
+                )}
+                <div className="flex gap-2.5">
+                  <span className="w-7 h-7 rounded-full bg-primary-soft text-primary flex items-center justify-center shrink-0"><HugeiconsIcon icon={Robot01Icon} size={14} /></span>
+                  <div className="rounded-xl rounded-tl-sm border border-border px-3 py-2 text-sm max-w-[85%]">{answer}</div>
+                </div>
+              </div>
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">Kết quả chấm</div>
+                <div className="space-y-2">
+                  {cells.map(([metricId, cell]) => {
+                    const m = evaluationStore.metric(metricId);
+                    const st = cellStatus(cell, run.runsPerCase);
+                    const failedHere = repFailed && st !== "pass";
+                    const required = (run.caseMetrics?.[caseId] ?? run.metrics).find(x => x.metricId === metricId)?.required;
+                    return (
+                      <div key={metricId} className="rounded-lg border border-border px-3 py-2.5">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <b className="text-sm">{m?.name}</b>
+                          <RequiredBadge required={!!required} />
+                          <span className="ml-auto"><ResultCell status={st} pass={cell.passCount} total={cell.total ?? run.runsPerCase} /></span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                          {failedHere ? <>{cell.label && <b className="text-foreground">{cell.label}: </b>}{cell.reason ?? "Câu trả lời không đạt tiêu chí."}</> : `Lần chạy này đạt tiêu chí "${m?.vnName || m?.name}".`}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-3 border-t border-border flex justify-end gap-2">
+              <button className="btn-secondary" onClick={() => { onClose(); onEditCase(); }}><HugeiconsIcon icon={Edit02Icon} size={14} /> Sửa test</button>
+              <button className="btn-secondary" onClick={() => toast("Mở Trace của lần chạy này")}><HugeiconsIcon icon={Route01Icon} size={14} /> Xem trace</button>
+              <button className="btn-primary" onClick={() => { onClose(); onRefineWithAI(); }}><HugeiconsIcon icon={AiMagicIcon} size={14} /> Refine với AI</button>
             </div>
           </>
         )}

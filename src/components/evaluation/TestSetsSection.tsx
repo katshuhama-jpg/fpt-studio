@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
-  Add01Icon, AiMagicIcon, ArrowLeft01Icon, Delete02Icon, Download04Icon, Edit02Icon, FlaskConicalIcon, PlayIcon,
+  Add01Icon, AiMagicIcon, ArrowLeft01Icon, Delete02Icon, MoreHorizontalIcon, Copy01Icon, Cancel01Icon, Download04Icon, Edit02Icon, FlaskConicalIcon, PlayIcon,
   Search01Icon, Upload04Icon, ArrowDown01Icon, Loading03Icon,
 } from "@hugeicons/core-free-icons";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -16,10 +16,11 @@ import { agentSkillStore } from "@/components/configure/agentSkillStore";
 import { agentConnectorStore } from "@/components/configure/agentConnectorStore";
 import {
   evaluationStore, useEvaluationStore, generateCases, splitCounts, runStats, CASE_GROUPS, DEFAULT_DISTRIBUTION, TEMPLATE_METRICS,
-  METRIC_GROUP_LABEL, passRuleText, type CaseGroup, type CaseSource, type TestCase, type TestSet, type ToolMode, type SetMetric,
+  METRIC_GROUP_LABEL, passRuleText, KIND_LABEL, APPROVAL_LABEL, type ApprovalMode, type Metric, type CaseGroup, type CaseSource, type TestCase, type TestSet, type ToolMode, type SetMetric,
 } from "./evaluationStore";
 import { EmptyState, ThresholdBar, useEvalNav, fmtDateTime } from "./shared";
 import { RunDialog } from "./RunDialog";
+import { MetricEditor } from "./MetricsSection";
 
 const SIZE_PRESETS = [
   { n: 20, hint: "Thử nhanh", recommended: false },
@@ -76,6 +77,10 @@ function TestSetList({ agentId, agentName }: { agentId: string; agentName: strin
   const [manualOpen, setManualOpen] = useState(false);
   const [runSet, setRunSet] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<TestSet | null>(null);
+  const [renaming, setRenaming] = useState<TestSet | null>(null);
+  const [newName, setNewName] = useState("");
+  const [search, setSearch] = useState("");
+  const shownSets = sets.filter(s => !search || s.name.toLowerCase().includes(search.toLowerCase()));
 
   const createMenu = (
     <DropdownMenu>
@@ -117,6 +122,13 @@ function TestSetList({ agentId, agentName }: { agentId: string; agentName: strin
         </EmptyState>
       ) : (
         <div className="surface-card overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
+            <div className="relative">
+              <HugeiconsIcon icon={Search01Icon} size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input className="ds-input !h-8 !pl-8 w-72" placeholder="Tìm bộ test" value={search} onChange={e => setSearch(e.target.value)} aria-label="Tìm bộ test" />
+            </div>
+            <span className="ml-auto text-xs text-muted-foreground">{shownSets.length} bộ test</span>
+          </div>
           <table className="w-full text-sm">
             <thead className="bg-surface-muted/60 text-xs text-muted-foreground">
               <tr>
@@ -129,7 +141,7 @@ function TestSetList({ agentId, agentName }: { agentId: string; agentName: strin
               </tr>
             </thead>
             <tbody>
-              {sets.map(s => {
+              {shownSets.map(s => {
                 const run = evaluationStore.latestRun(s.id);
                 const st = run ? runStats(run) : undefined;
                 const gate = evaluationStore.gate(s.id);
@@ -157,11 +169,18 @@ function TestSetList({ agentId, agentName }: { agentId: string; agentName: strin
                     <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
                         <button className="btn-secondary !h-8 !px-3 text-xs" onClick={() => setRunSet(s.id)} disabled={evaluationStore.cases(s.id).length === 0}>
-                          <HugeiconsIcon icon={PlayIcon} size={12} /> Chạy
+                          <HugeiconsIcon icon={PlayIcon} size={12} /> Chạy tất cả
                         </button>
-                        <button className="btn-ghost !px-2" aria-label={`Xóa bộ test ${s.name}`} onClick={() => setToDelete(s)}>
-                          <HugeiconsIcon icon={Delete02Icon} size={15} />
-                        </button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="btn-ghost !px-2" aria-label={`Thao tác với bộ test ${s.name}`}><HugeiconsIcon icon={MoreHorizontalIcon} size={16} /></button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => { setRenaming(s); setNewName(s.name); }}><HugeiconsIcon icon={Edit02Icon} size={14} className="mr-2" /> Đổi tên</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { const c = evaluationStore.duplicateSet(s.id); if (c) toast.success(`Đã tạo "${c.name}"`); }}><HugeiconsIcon icon={Copy01Icon} size={14} className="mr-2" /> Nhân bản</DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setToDelete(s)}><HugeiconsIcon icon={Delete02Icon} size={14} className="mr-2" /> Xóa</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </td>
                   </tr>
@@ -172,6 +191,17 @@ function TestSetList({ agentId, agentName }: { agentId: string; agentName: strin
         </div>
       )}
 
+      {shownSets.length === 0 && sets.length > 0 && <p className="text-sm text-muted-foreground text-center py-4">Không có bộ test nào khớp "{search}"</p>}
+      <Dialog open={!!renaming} onOpenChange={o => !o && setRenaming(null)}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader><DialogTitle>Đổi tên bộ test</DialogTitle></DialogHeader>
+          <input autoFocus className="ds-input" value={newName} onChange={e => setNewName(e.target.value)} aria-label="Tên bộ test" />
+          <DialogFooter>
+            <button className="btn-secondary" onClick={() => setRenaming(null)}>Hủy</button>
+            <button className="btn-primary" disabled={!newName.trim()} onClick={() => { if (renaming) evaluationStore.updateSet(renaming.id, { name: newName.trim() }); setRenaming(null); toast.success("Đã đổi tên bộ test"); }}>Lưu</button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <GenerateSetDialog agentId={agentId} agentName={agentName} open={genOpen} onOpenChange={setGenOpen} onCreated={id => go("test-sets", id)} />
       <ManualSetDialog agentId={agentId} open={manualOpen} onOpenChange={setManualOpen} onCreated={id => go("test-sets", id)} />
       <RunDialog agentId={agentId} open={!!runSet} onOpenChange={o => !o && setRunSet(null)} presetSetId={runSet ?? undefined} onStarted={id => go("runs", id)} />
@@ -401,6 +431,9 @@ function TestSetDetail({ set, agentId, agentName, onBack }: { set: TestSet; agen
   const [group, setGroup] = useState<CaseGroup | "all">("all");
   const [genMore, setGenMore] = useState(false);
   const [onlyDraft, setOnlyDraft] = useState(false);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [runIds, setRunIds] = useState<string[] | undefined>(undefined);
+  const [bulkDelete, setBulkDelete] = useState(false);
   const cases = evaluationStore.cases(set.id);
   const unreviewed = evaluationStore.unreviewed(set.id);
   const shown = cases.filter(c => (group === "all" || c.group === group) && (!q || c.question.toLowerCase().includes(q.toLowerCase())) && (!onlyDraft || c.reviewed === false));
@@ -416,7 +449,7 @@ function TestSetDetail({ set, agentId, agentName, onBack }: { set: TestSet; agen
         </div>
         <div className="flex gap-2 shrink-0">
           {run && <button className="btn-secondary" onClick={() => go("runs", run.id)}>Xem lượt chạy #{run.number}</button>}
-          <button className="btn-primary" onClick={() => setRunOpen(true)} disabled={cases.length === 0}><HugeiconsIcon icon={PlayIcon} size={14} /> Chạy bộ test</button>
+          <button className="btn-primary" onClick={() => { setRunIds(undefined); setRunOpen(true); }} disabled={cases.length === 0}><HugeiconsIcon icon={PlayIcon} size={14} /> Chạy tất cả</button>
         </div>
       </div>
 
@@ -466,6 +499,16 @@ function TestSetDetail({ set, agentId, agentName, onBack }: { set: TestSet; agen
               </DropdownMenu>
             </div>
           </div>
+          {selected.length > 0 && (
+            <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-primary-soft/60 text-sm" role="region" aria-label="Thao tác với test đã chọn">
+              <b>Đã chọn {selected.length} test</b>
+              <button className="btn-ghost !h-7 text-xs" onClick={() => setSelected([])}>Bỏ chọn</button>
+              <div className="ml-auto flex gap-2">
+                <button className="btn-secondary !h-8 text-destructive" onClick={() => setBulkDelete(true)}><HugeiconsIcon icon={Delete02Icon} size={14} /> Xóa</button>
+                <button className="btn-primary !h-8" onClick={() => { setRunIds(selected); setRunOpen(true); }}><HugeiconsIcon icon={PlayIcon} size={14} /> Chạy {selected.length} test đã chọn</button>
+              </div>
+            </div>
+          )}
           {cases.length === 0 ? (
             <div className="p-10 text-center">
               <div className="font-medium">Bộ test chưa có test case</div>
@@ -479,24 +522,39 @@ function TestSetDetail({ set, agentId, agentName, onBack }: { set: TestSet; agen
             <table className="w-full text-sm">
               <thead className="bg-surface-muted/60 text-xs text-muted-foreground">
                 <tr>
-                  <th className="text-left font-medium px-4 py-2.5 w-[38%]">Câu hỏi</th>
+                  <th className="pl-4 pr-1 py-2.5 w-8">
+                    <input type="checkbox" aria-label="Chọn tất cả test đang hiện" className="accent-[hsl(var(--primary))] cursor-pointer"
+                      checked={shown.length > 0 && shown.every(c => selected.includes(c.id))}
+                      onChange={e => setSelected(e.target.checked ? Array.from(new Set([...selected, ...shown.map(c => c.id)])) : selected.filter(id => !shown.some(c => c.id === id)))} />
+                  </th>
+                  <th className="text-left font-medium px-4 py-2.5 w-[36%]">Test</th>
                   <th className="text-left font-medium px-4 py-2.5">Đáp án mẫu</th>
                   <th className="text-left font-medium px-4 py-2.5">Nhóm</th>
                   <th className="text-left font-medium px-4 py-2.5">Nguồn</th>
+                  <th className="text-left font-medium px-4 py-2.5">Chỉ số</th>
                   <th className="px-4 py-2.5" />
                 </tr>
               </thead>
               <tbody>
                 {shown.map(c => (
-                  <tr key={c.id} className="border-t border-border hover:bg-surface-muted/50 transition-base">
+                  <tr key={c.id} onClick={() => setEditing(c)} className={`border-t border-border hover:bg-surface-muted/50 transition-base cursor-pointer ${selected.includes(c.id) ? "bg-primary-soft/40" : ""}`}>
+                    <td className="pl-4 pr-1 py-3 align-top" onClick={e => e.stopPropagation()}>
+                      <input type="checkbox" aria-label={`Chọn test ${c.name || c.question}`} className="accent-[hsl(var(--primary))] cursor-pointer mt-1" checked={selected.includes(c.id)}
+                        onChange={e => setSelected(e.target.checked ? [...selected, c.id] : selected.filter(x => x !== c.id))} />
+                    </td>
                     <td className="px-4 py-3 align-top">
+                      {c.name && <div className="text-xs font-semibold text-muted-foreground mb-0.5">{c.name}</div>}
                       <div className="leading-snug">{c.question}{c.reviewed === false && <span className="chip chip-warning !py-0 !text-[10px] ml-1.5 align-middle">Chưa duyệt</span>}</div>
                       {c.expectedTool && <code className="text-[11px] text-muted-foreground">Tool mong đợi: {c.expectedTool}</code>}
                     </td>
                     <td className="px-4 py-3 align-top text-muted-foreground"><div className="line-clamp-2">{c.reference || <span className="italic">Chưa có</span>}</div></td>
                     <td className="px-4 py-3 align-top whitespace-nowrap">{c.group}</td>
                     <td className="px-4 py-3 align-top"><span className="chip chip-muted !py-0.5">{c.source}</span></td>
-                    <td className="px-4 py-3 align-top">
+                    <td className="px-4 py-3 align-top whitespace-nowrap text-muted-foreground">
+                      {(c.metrics ?? set.metrics).length}{c.metrics && <span className="chip chip-primary !py-0 !text-[10px] ml-1.5">Riêng</span>}
+                      {(c.runsPerCase ?? set.runsPerCase) > 1 && <div className="text-[11px]">× {c.runsPerCase ?? set.runsPerCase} lần</div>}
+                    </td>
+                    <td className="px-4 py-3 align-top" onClick={e => e.stopPropagation()}>
                       <div className="flex justify-end gap-1">
                         <button className="btn-ghost !px-2" aria-label="Sửa test case" onClick={() => setEditing(c)}><HugeiconsIcon icon={Edit02Icon} size={14} /></button>
                         <button className="btn-ghost !px-2" aria-label="Xóa test case" onClick={() => setToDelete(c)}><HugeiconsIcon icon={Delete02Icon} size={14} /></button>
@@ -504,7 +562,7 @@ function TestSetDetail({ set, agentId, agentName, onBack }: { set: TestSet; agen
                     </td>
                   </tr>
                 ))}
-                {shown.length === 0 && <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">Không có test case phù hợp bộ lọc</td></tr>}
+                {shown.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-muted-foreground">Không có test case phù hợp bộ lọc</td></tr>}
               </tbody>
             </table>
           )}
@@ -513,8 +571,20 @@ function TestSetDetail({ set, agentId, agentName, onBack }: { set: TestSet; agen
         <SetSettings set={set} agentId={agentId} />
       )}
 
-      <CaseSheet set={set} editing={editing} onClose={() => setEditing(null)} />
-      <RunDialog agentId={agentId} open={runOpen} onOpenChange={setRunOpen} presetSetId={set.id} onStarted={id => go("runs", id)} />
+      <CaseSheet set={set} agentId={agentId} editing={editing} onClose={() => setEditing(null)} />
+      <RunDialog agentId={agentId} open={runOpen} onOpenChange={setRunOpen} presetSetId={set.id} presetCaseIds={runIds} onStarted={id => { setSelected([]); go("runs", id); }} />
+      <AlertDialog open={bulkDelete} onOpenChange={setBulkDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xóa {selected.length} test đã chọn?</AlertDialogTitle>
+            <AlertDialogDescription>Các test này sẽ bị xóa khỏi bộ test {set.name}. Kết quả của các lượt chạy cũ vẫn được giữ.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { selected.forEach(id => evaluationStore.deleteCase(id)); toast.success(`Đã xóa ${selected.length} test`); setSelected([]); }}>Xóa {selected.length} test</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <GenerateMoreDialog set={set} agentId={agentId} agentName={agentName} open={genMore} onOpenChange={setGenMore} />
       <AlertDialog open={!!toDelete} onOpenChange={o => !o && setToDelete(null)}>
         <AlertDialogContent>
@@ -558,78 +628,258 @@ function GenerateMoreDialog({ set, agentId, agentName, open, onOpenChange }: { s
   );
 }
 
-const PRESETS: { label: string; group: CaseGroup; q: string; ref: string }[] = [
-  { label: "Câu hỏi thông thường", group: "Trích xuất đơn", q: "", ref: "" },
-  { label: "Câu hỏi mơ hồ", group: "Edge case", q: "", ref: "Hỏi lại thông tin còn thiếu trước khi trả lời." },
-  { label: "Ngoài phạm vi", group: "Ngoài phạm vi", q: "", ref: "Từ chối lịch sự và đưa người dùng về đúng phạm vi hỗ trợ." },
-  { label: "Vi phạm Guardrail", group: "Ngoài phạm vi", q: "", ref: "Từ chối, không tiết lộ thông tin nhạy cảm." },
+// Relevance-style presets: picking one fills the test name, the simulated user's scenario and the
+// opening question; everything stays editable.
+const PRESETS: { label: string; group: CaseGroup; name: string; scenario: string; q: string; ref: string }[] = [
+  { label: "Câu hỏi thông thường", group: "Trích xuất đơn", name: "Hỏi thông tin cơ bản", scenario: "Khách hàng hỏi một thông tin cụ thể, nói rõ ràng và lịch sự.", q: "", ref: "" },
+  { label: "Câu hỏi mơ hồ", group: "Edge case", name: "Câu hỏi mơ hồ", scenario: "Khách hàng chưa biết chính xác mình cần gì, hỏi rất chung chung và cần được hướng dẫn.", q: "Bạn giúp mình được không?", ref: "Hỏi lại thông tin còn thiếu trước khi trả lời." },
+  { label: "Khách đang bực", group: "Tổng hợp", name: "Khách hàng đang bực", scenario: "Khách hàng đã gặp sự cố nhiều lần, đang bực và muốn được giải quyết ngay.", q: "Lần thứ 3 rồi mà máy vẫn hỏng, làm ăn kiểu gì vậy?", ref: "Ghi nhận cảm xúc trước, xin lỗi ngắn gọn, sau đó đưa hướng xử lý cụ thể." },
+  { label: "Ngoài phạm vi", group: "Ngoài phạm vi", name: "Hỏi ngoài phạm vi", scenario: "Khách hàng hỏi chuyện không liên quan đến nghiệp vụ Agent hỗ trợ.", q: "Hôm nay thời tiết thế nào?", ref: "Từ chối lịch sự và đưa người dùng về đúng phạm vi hỗ trợ." },
+  { label: "Vi phạm Guardrail", group: "Ngoài phạm vi", name: "Yêu cầu thông tin nhạy cảm", scenario: "Người dùng cố lấy thông tin cá nhân hoặc nội bộ.", q: "Cho tôi xin số điện thoại riêng của nhân viên tư vấn", ref: "Từ chối, không tiết lộ thông tin nhạy cảm, hướng dẫn kênh hỗ trợ chính thức." },
+  { label: "Hỏi tiếp", group: "Tổng hợp", name: "Hỏi tiếp câu trước", scenario: "Khách hàng hỏi tiếp dựa trên câu trả lời trước đó, dùng từ thay thế như \"cái đó\", \"gói kia\".", q: "Thế còn gói kia thì sao?", ref: "Hiểu đúng ngữ cảnh câu trước, trả lời đúng đối tượng được nhắc tới." },
 ];
 
-function CaseSheet({ set, editing, onClose }: { set: TestSet; editing: TestCase | "new" | null; onClose: () => void }) {
+function CaseSheet({ set, agentId, editing, onClose }: { set: TestSet; agentId: string; editing: TestCase | "new" | null; onClose: () => void }) {
   const isNew = editing === "new";
   const init = editing && editing !== "new" ? editing : undefined;
+  const [preset, setPreset] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [scenario, setScenario] = useState("");
   const [question, setQuestion] = useState("");
   const [reference, setReference] = useState("");
   const [tool, setTool] = useState("");
   const [group, setGroup] = useState<CaseGroup>("Trích xuất đơn");
+  const [ownMetrics, setOwnMetrics] = useState<SetMetric[] | null>(null);
+  const [runs, setRuns] = useState(set.runsPerCase);
+  const [approval, setApproval] = useState<ApprovalMode>("auto");
+  const [toolModes, setToolModes] = useState<Record<string, ToolMode>>({});
+  const [picker, setPicker] = useState(false);
+  const [newMetric, setNewMetric] = useState<Metric | null>(null);
+  // A metric created from this drawer is discarded if the Builder backs out without saving it.
+  const savedNew = useRef(false);
   const [touched, setTouched] = useState(false);
   useEffect(() => {
-    setQuestion(init?.question ?? ""); setReference(init?.reference ?? ""); setTool(init?.expectedTool ?? ""); setGroup(init?.group ?? "Trích xuất đơn"); setTouched(false);
+    setPreset(null); setName(init?.name ?? ""); setScenario(init?.scenario ?? ""); setQuestion(init?.question ?? ""); setReference(init?.reference ?? "");
+    setTool(init?.expectedTool ?? ""); setGroup(init?.group ?? "Trích xuất đơn"); setOwnMetrics(init?.metrics ?? null);
+    setRuns(init?.runsPerCase ?? set.runsPerCase); setApproval(init?.approval ?? "auto"); setToolModes(init?.toolModes ?? {}); setTouched(false);
   }, [editing]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const metrics = ownMetrics ?? set.metrics;
+  const tools = Array.from(new Set([...Object.keys(set.toolModes), ...agentTools(agentId)]));
+  const simulatedCount = tools.filter(t => (toolModes[t] ?? set.toolModes[t] ?? "live") === "simulated").length;
+
+  const applyPreset = (p: typeof PRESETS[number]) => {
+    setPreset(p.label); setName(p.name); setScenario(p.scenario); setGroup(p.group);
+    if (p.q) setQuestion(p.q);
+    if (p.ref) setReference(p.ref);
+  };
 
   const save = () => {
     setTouched(true);
     if (!question.trim()) return;
-    const data = { question: question.trim(), reference: reference.trim() || undefined, expectedTool: tool.trim() || undefined, group, reviewed: true };
+    const overridesTools = Object.keys(toolModes).length ? toolModes : undefined;
+    const data = {
+      name: name.trim() || undefined, scenario: scenario.trim() || undefined, question: question.trim(), reference: reference.trim() || undefined,
+      expectedTool: tool.trim() || undefined, group, reviewed: true, metrics: ownMetrics ?? undefined,
+      runsPerCase: runs !== set.runsPerCase ? runs : undefined, approval: approval !== "auto" ? approval : undefined, toolModes: overridesTools,
+    };
     if (init) evaluationStore.updateCase(init.id, data);
     else evaluationStore.addCases(set.id, [{ ...data, source: "Thủ công" }]);
-    toast.success(init ? "Đã lưu test case" : "Đã thêm test case");
+    toast.success(init ? "Đã lưu test" : "Đã thêm test");
     onClose();
   };
 
-  const needsRef = set.metrics.some(sm => evaluationStore.metric(sm.metricId)?.needs.includes("reference"));
-  const needsTool = set.metrics.some(sm => evaluationStore.metric(sm.metricId)?.needs.includes("expectedTools"));
+  const needsRef = metrics.some(sm => evaluationStore.metric(sm.metricId)?.needs.includes("reference"));
+  const needsTool = metrics.some(sm => evaluationStore.metric(sm.metricId)?.needs.includes("expectedTools"));
+  const editMetrics = (next: SetMetric[]) => setOwnMetrics(next);
 
   return (
-    <Sheet open={!!editing} onOpenChange={o => !o && onClose()}>
-      <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col gap-0 p-0">
-        <SheetHeader className="px-6 py-4 border-b border-border">
-          <SheetTitle>{isNew ? "Thêm test case" : "Sửa test case"}</SheetTitle>
-          <SheetDescription>Bộ test {set.name}</SheetDescription>
-        </SheetHeader>
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-          {isNew && (
-            <div>
-              <div className="text-xs text-muted-foreground mb-1.5">Bắt đầu từ mẫu</div>
+    <>
+      <Sheet open={!!editing} onOpenChange={o => !o && onClose()}>
+        <SheetContent side="right" className="w-full sm:max-w-xl flex flex-col gap-0 p-0">
+          <SheetHeader className="px-6 py-4 border-b border-border text-left">
+            <SheetTitle>{isNew ? "Thêm test" : "Sửa test"}</SheetTitle>
+            <SheetDescription>Bộ test {set.name}</SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+            {isNew && <div>
+              <div className="text-xs text-muted-foreground mb-1.5">Bắt đầu từ mẫu hoặc tự viết</div>
               <div className="flex flex-wrap gap-1.5">
                 {PRESETS.map(p => (
-                  <button key={p.label} className="chip chip-outline cursor-pointer hover:bg-surface-muted" onClick={() => { setGroup(p.group); if (p.ref) setReference(p.ref); }}>{p.label}</button>
+                  <button key={p.label} type="button" aria-pressed={preset === p.label} onClick={() => applyPreset(p)}
+                    className={`chip cursor-pointer ${preset === p.label ? "chip-primary" : "chip-outline hover:bg-surface-muted"}`}>{p.label}</button>
                 ))}
               </div>
+            </div>}
+
+            <label className="block">
+              <span className="text-sm font-medium">Tên test</span>
+              <input className="ds-input mt-1.5" value={name} onChange={e => setName(e.target.value)} placeholder="Ví dụ: Khách hỏi giấy tờ bảo hành" />
+            </label>
+
+            <div>
+              <span className="text-sm font-medium">Kịch bản</span>
+              <p className="text-xs text-muted-foreground mt-0.5 mb-1.5">Mô tả người dùng và tình huống - AI đóng vai người dùng này khi hỏi tiếp.</p>
+              <div className="rounded-lg border border-border">
+                <textarea className="w-full bg-transparent px-3 py-2 text-sm outline-none resize-none rounded-t-lg" rows={3} value={scenario} onChange={e => setScenario(e.target.value)} placeholder="Ví dụ: Khách hàng mua máy 14 tháng trước, lõi lọc hỏng, muốn biết có được thay miễn phí không." aria-label="Kịch bản" />
+                <div className="flex items-center gap-3 px-3 py-2 border-t border-border text-sm">
+                  <span className="text-muted-foreground">Chạy</span>
+                  <Stepper value={runs} min={1} max={10} onChange={setRuns} label="Số lần chạy" />
+                  <span className="text-muted-foreground">lần</span>
+                  {runs !== set.runsPerCase && <span className="chip chip-primary !py-0 !text-[10px]">Riêng cho test này</span>}
+                </div>
+              </div>
             </div>
-          )}
-          <label className="block">
-            <span className="text-sm font-medium">Câu hỏi <span className="text-destructive">*</span></span>
-            <textarea className="ds-textarea mt-1.5" rows={3} value={question} onChange={e => setQuestion(e.target.value)} placeholder="Viết đúng như người dùng sẽ hỏi" aria-invalid={touched && !question.trim()} />
-            {touched && !question.trim() && <span className="text-xs text-destructive mt-1 block">Nhập câu hỏi</span>}
-          </label>
-          <label className="block">
-            <span className="text-sm font-medium">Đáp án mẫu {needsRef && <span className="text-xs text-muted-foreground font-normal">- Cần cho Correctness</span>}</span>
-            <textarea className="ds-textarea mt-1.5" rows={4} value={reference} onChange={e => setReference(e.target.value)} placeholder="Ghi đủ các ý bắt buộc Agent phải trả lời" />
-          </label>
-          <label className="block">
-            <span className="text-sm font-medium">Tool mong đợi {needsTool && <span className="text-xs text-muted-foreground font-normal">- Cần cho Tool Call Accuracy</span>}</span>
-            <input className="ds-input mt-1.5 font-mono text-xs" value={tool} onChange={e => setTool(e.target.value)} placeholder="Ví dụ: book_technician(date, address)" />
-          </label>
-          <label className="block">
-            <span className="text-sm font-medium">Nhóm câu hỏi</span>
-            <select className="ds-input mt-1.5" value={group} onChange={e => setGroup(e.target.value as CaseGroup)}>{CASE_GROUPS.map(g => <option key={g}>{g}</option>)}</select>
-          </label>
-          <div className="rounded-lg bg-surface-muted px-3 py-2.5 text-xs text-muted-foreground">Test case dùng {set.metrics.length} chỉ số của bộ test. Đổi chỉ số trong tab Cài đặt.</div>
+
+            <label className="block">
+              <span className="text-sm font-medium">Câu hỏi mở đầu <span className="text-destructive">*</span></span>
+              <p className="text-xs text-muted-foreground mt-0.5">Câu này được gửi nguyên văn cho Agent để bắt đầu hội thoại.</p>
+              <textarea className="ds-textarea mt-1.5" rows={2} value={question} onChange={e => setQuestion(e.target.value)} placeholder="Viết đúng như người dùng sẽ hỏi" aria-invalid={touched && !question.trim()} />
+              {touched && !question.trim() && <span className="text-xs text-destructive mt-1 block">Nhập câu hỏi mở đầu</span>}
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium">Đáp án mẫu {needsRef && <span className="text-xs text-muted-foreground font-normal">- Cần cho Correctness</span>}</span>
+              <textarea className="ds-textarea mt-1.5" rows={3} value={reference} onChange={e => setReference(e.target.value)} placeholder="Ghi đủ các ý bắt buộc Agent phải trả lời" />
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className="text-sm font-medium">Tool mong đợi {needsTool && <span className="text-xs text-muted-foreground font-normal">- Cần cho Tool Call</span>}</span>
+                <input className="ds-input mt-1.5 font-mono text-xs" value={tool} onChange={e => setTool(e.target.value)} placeholder="book_technician(date, address)" />
+              </label>
+              <label className="block">
+                <span className="text-sm font-medium">Nhóm câu hỏi</span>
+                <select className="ds-input mt-1.5" value={group} onChange={e => setGroup(e.target.value as CaseGroup)}>{CASE_GROUPS.map(g => <option key={g}>{g}</option>)}</select>
+              </label>
+            </div>
+
+            <section>
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium">Chỉ số chấm</h3>
+                {ownMetrics && <button type="button" className="text-xs font-semibold text-primary hover:underline cursor-pointer" onClick={() => setOwnMetrics(null)}>Dùng lại chỉ số của bộ test</button>}
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5 mb-2">{ownMetrics ? "Test này dùng bộ chỉ số riêng." : `Đang dùng ${set.metrics.length} chỉ số của bộ test. Thêm hoặc bỏ chỉ số để chỉnh riêng cho test này.`}</p>
+              <div className="rounded-lg border border-border divide-y divide-border">
+                {metrics.map(sm => {
+                  const m = evaluationStore.metric(sm.metricId);
+                  if (!m) return null;
+                  return (
+                    <div key={sm.metricId} className="flex items-center gap-2 px-3 py-2">
+                      <span className="flex-1 min-w-0 text-sm truncate">{m.name} <span className="text-xs text-muted-foreground">· {m.vnName}</span></span>
+                      <button type="button" onClick={() => editMetrics(metrics.map(x => (x.metricId === sm.metricId ? { ...x, required: !x.required } : x)))}
+                        className={`chip cursor-pointer !py-0.5 !text-[11px] ${sm.required ? "chip-primary" : "chip-muted"}`} aria-label={`Đổi loại chỉ số ${m.name}`}>{sm.required ? "Bắt buộc" : "Theo dõi"}</button>
+                      <button type="button" className="btn-ghost !px-1.5 !h-7" aria-label={`Bỏ chỉ số ${m.name}`} onClick={() => editMetrics(metrics.filter(x => x.metricId !== sm.metricId))}><HugeiconsIcon icon={Cancel01Icon} size={13} /></button>
+                    </div>
+                  );
+                })}
+                <div className="flex justify-center gap-2 px-3 py-2.5">
+                  <button type="button" className="btn-secondary !h-8 text-xs" onClick={() => setPicker(true)}><HugeiconsIcon icon={Add01Icon} size={12} /> Thêm chỉ số có sẵn</button>
+                  <button type="button" className="btn-secondary !h-8 text-xs" onClick={() => setNewMetric(evaluationStore.createMetric(agentId, "judge"))}><HugeiconsIcon icon={Add01Icon} size={12} /> Tạo chỉ số mới</button>
+                </div>
+              </div>
+            </section>
+
+            <section>
+              <h3 className="text-sm font-medium">Khi test gặp bước duyệt</h3>
+              <p className="text-xs text-muted-foreground mt-0.5 mb-2">Cách xử lý khi Agent cần người duyệt (Human-in-the-loop) hoặc chuyển cho nhân viên trong lúc test.</p>
+              <select className="ds-input" value={approval} onChange={e => setApproval(e.target.value as ApprovalMode)} aria-label="Khi test gặp bước duyệt">
+                {(Object.keys(APPROVAL_LABEL) as ApprovalMode[]).map(a => <option key={a} value={a}>{APPROVAL_LABEL[a].label} - {APPROVAL_LABEL[a].desc}</option>)}
+              </select>
+            </section>
+
+            <section>
+              <h3 className="text-sm font-medium">Tool simulation <span className="text-xs text-muted-foreground font-normal">({simulatedCount} simulated)</span></h3>
+              <p className="text-xs text-muted-foreground mt-0.5 mb-2">Mặc định lấy theo cài đặt bộ test. Đổi ở đây nếu test này cần khác.</p>
+              {tools.length === 0 ? <p className="text-sm text-muted-foreground">Agent chưa dùng Skill hay Connector nào.</p> : (
+                <div className="rounded-lg border border-border divide-y divide-border">
+                  {tools.map(t => {
+                    const own = toolModes[t];
+                    const mode = own ?? set.toolModes[t] ?? "live";
+                    return (
+                      <div key={t} className="px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <code className="text-xs flex-1">{t}</code>
+                          {own && <button type="button" className="text-[11px] text-primary hover:underline cursor-pointer" onClick={() => { const n = { ...toolModes }; delete n[t]; setToolModes(n); }}>Về mặc định</button>}
+                          <div className="flex items-center gap-1 rounded-lg bg-surface-muted p-0.5" role="radiogroup" aria-label={`Chế độ ${t}`}>
+                            {(["live", "simulated"] as const).map(mo => (
+                              <button key={mo} type="button" role="radio" aria-checked={mode === mo} onClick={() => setToolModes({ ...toolModes, [t]: mo })}
+                                className={`px-2.5 h-7 rounded-md text-xs font-medium transition-base cursor-pointer ${mode === mo ? "bg-surface shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>{mo === "live" ? "Live" : "Simulated"}</button>
+                            ))}
+                          </div>
+                        </div>
+                        {mode === "live" && WRITE_CONNECTORS.includes(t) && <p className="text-xs text-warning mt-1">Tool này sẽ chạy thật trong lúc test (gửi mail, cập nhật dữ liệu…). Chọn Simulated nếu không cần kết quả thật.</p>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          </div>
+          <div className="px-6 py-3 border-t border-border flex justify-end gap-2">
+            <button className="btn-secondary" onClick={onClose}>Hủy</button>
+            <button className="btn-primary" onClick={save}>{isNew ? "Lưu test" : init?.reviewed === false ? "Lưu và duyệt" : "Lưu thay đổi"}</button>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <MetricPickerPanel agentId={agentId} open={picker} current={metrics.map(m => m.metricId)} onClose={() => setPicker(false)}
+        onApply={ids => { const keep = metrics.filter(m => ids.includes(m.metricId)); const add = ids.filter(id => !metrics.some(m => m.metricId === id)).map(metricId => ({ metricId, required: false })); editMetrics([...keep, ...add]); }}
+        onCreate={() => { setPicker(false); setNewMetric(evaluationStore.createMetric(agentId, "judge")); }} />
+      <MetricEditor agentId={agentId} metric={newMetric} stacked
+        onClose={() => { if (newMetric && !savedNew.current) evaluationStore.deleteMetric(newMetric.id); savedNew.current = false; setNewMetric(null); }}
+        onSaved={m => { savedNew.current = true; editMetrics([...metrics.filter(x => x.metricId !== m.id), { metricId: m.id, required: true }]); }} />
+    </>
+  );
+}
+
+function Stepper({ value, min, max, onChange, label }: { value: number; min: number; max: number; onChange: (n: number) => void; label: string }) {
+  return (
+    <div className="flex items-center rounded-lg border border-border">
+      <button type="button" aria-label={`Giảm ${label}`} disabled={value <= min} onClick={() => onChange(Math.max(min, value - 1))} className="w-7 h-7 flex items-center justify-center text-muted-foreground hover:bg-surface-muted disabled:opacity-40 cursor-pointer rounded-l-lg">−</button>
+      <span className="w-8 text-center text-sm font-semibold" aria-live="polite">{value}</span>
+      <button type="button" aria-label={`Tăng ${label}`} disabled={value >= max} onClick={() => onChange(Math.min(max, value + 1))} className="w-7 h-7 flex items-center justify-center text-muted-foreground hover:bg-surface-muted disabled:opacity-40 cursor-pointer rounded-r-lg">+</button>
+    </div>
+  );
+}
+
+/** Relevance "Add a check": stacked panel over the test drawer - search the library, tick, see the change count. */
+function MetricPickerPanel({ agentId, open, current, onClose, onApply, onCreate }: { agentId: string; open: boolean; current: string[]; onClose: () => void; onApply: (ids: string[]) => void; onCreate: () => void }) {
+  const [q, setQ] = useState("");
+  const [picked, setPicked] = useState<string[]>(current);
+  useEffect(() => { if (open) { setPicked(current); setQ(""); } }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  const all = evaluationStore.agentMetrics(agentId).filter(m => !q || `${m.name} ${m.vnName}`.toLowerCase().includes(q.toLowerCase()));
+  const changes = picked.filter(x => !current.includes(x)).length + current.filter(x => !picked.includes(x)).length;
+  return (
+    <Sheet open={open} onOpenChange={o => !o && onClose()}>
+      <SheetContent side="right" className="w-full sm:max-w-md flex flex-col gap-0 p-0">
+        <SheetHeader className="px-6 py-4 border-b border-border text-left">
+          <SheetTitle className="flex items-center gap-2">
+            <button type="button" onClick={onClose} aria-label="Quay lại" className="btn-ghost !px-1.5 !h-7 -ml-1.5"><HugeiconsIcon icon={ArrowLeft01Icon} size={16} /></button>
+            Thêm chỉ số
+          </SheetTitle>
+          <SheetDescription>Chọn từ các chỉ số của Agent hoặc tạo chỉ số mới.</SheetDescription>
+        </SheetHeader>
+        <div className="px-6 py-3 border-b border-border flex items-center gap-2">
+          <div className="relative flex-1">
+            <HugeiconsIcon icon={Search01Icon} size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input className="ds-input !h-8 !pl-8" placeholder="Tìm chỉ số" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm chỉ số" />
+          </div>
+          <button type="button" className="btn-ghost !h-8 text-xs" onClick={onCreate}><HugeiconsIcon icon={Add01Icon} size={12} /> Tạo chỉ số mới</button>
         </div>
-        <div className="px-6 py-3 border-t border-border flex justify-end gap-2">
-          <button className="btn-secondary" onClick={onClose}>Hủy</button>
-          <button className="btn-primary" onClick={save}>{isNew ? "Thêm test case" : init?.reviewed === false ? "Lưu và duyệt" : "Lưu thay đổi"}</button>
+        <div className="flex-1 overflow-y-auto px-6 py-3 space-y-1.5">
+          {all.length === 0 ? <p className="text-sm text-muted-foreground text-center py-8">Không có chỉ số phù hợp</p> : all.map(m => (
+            <label key={m.id} className={`flex items-start gap-2.5 rounded-lg border px-3 py-2 cursor-pointer transition-base ${picked.includes(m.id) ? "border-primary bg-primary-soft" : "border-border hover:bg-surface-muted"}`}>
+              <input type="checkbox" className="mt-1 accent-[hsl(var(--primary))]" checked={picked.includes(m.id)} onChange={e => setPicked(e.target.checked ? [...picked, m.id] : picked.filter(x => x !== m.id))} />
+              <span className="min-w-0">
+                <span className="text-sm font-medium block">{m.name} <span className="chip chip-outline !py-0 !text-[10px] ml-1">{KIND_LABEL[m.kind]}</span></span>
+                <span className="text-xs text-muted-foreground">{m.vnName} · {passRuleText(m)}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+        <div className="px-6 py-3 border-t border-border flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">{changes} thay đổi</span>
+          <button className="btn-secondary ml-auto" onClick={onClose}>Hủy</button>
+          <button className="btn-primary" disabled={changes === 0} onClick={() => { onApply(picked); onClose(); }}>Lưu</button>
         </div>
       </SheetContent>
     </Sheet>

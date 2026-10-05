@@ -73,6 +73,7 @@ import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import BusinessProcessTree from "@/components/general/BusinessProcessTree";
 import { toast } from "sonner";
 import EvaluationTab, { EVAL_SUBTABS, evaluationStore, type EvalSection } from "@/components/evaluation/EvaluationTab";
+import { PublishEvalCheck } from "@/components/evaluation/PublishGateSection";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -4248,7 +4249,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
     onClose();
   };
 
-  const evalBlockers = external ? [] : evaluationStore.publishBlockers(agentId);
+  const [evalStatus, setEvalStatus] = useState<"none" | "running" | "passed" | "warn" | "blocked">("none");
   const navigateToEval = () => { const u = new URL(window.location.href); u.searchParams.set("tab", "evaluate"); u.searchParams.set("section", "publish"); u.searchParams.delete("item"); window.history.pushState({}, "", u); window.dispatchEvent(new PopStateEvent("popstate")); };
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
@@ -4518,15 +4519,10 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
           </div>
         </div>
 
-        {/* Evaluate gate - test sets marked "Chặn publish" must reach Min. pass on their latest run */}
-        {evalBlockers.length > 0 && (
-          <div className="mx-6 mt-3 flex gap-2.5 rounded-lg border border-[hsl(var(--destructive)/0.25)] bg-[hsl(var(--destructive-soft))] px-3 py-2.5 text-sm shrink-0" role="alert">
-            <HugeiconsIcon icon={Alert01Icon} size={16} className="text-destructive shrink-0 mt-0.5" />
-            <div>
-              <div className="font-semibold text-destructive">Chưa đạt bộ test bắt buộc</div>
-              <div className="text-foreground/80 mt-0.5">{evalBlockers.map(b => b.rate === undefined ? `${b.set.name}: Chưa chạy` : `${b.set.name}: ${b.rate}% (cần ${b.gate.minPass}%)`).join(" · ")}</div>
-              <button type="button" onClick={() => { onClose(); navigateToEval(); }} className="text-primary font-semibold hover:underline mt-1">Xem kết quả Evaluate</button>
-            </div>
+        {/* Evaluate gate - Relevance-style: test sets marked for publish run automatically on the Draft */}
+        {!external && (
+          <div className="mx-6 mt-3 shrink-0">
+            <PublishEvalCheck agentId={agentId} onStatus={setEvalStatus} onOpenEvaluate={() => { onClose(); navigateToEval(); }} />
           </div>
         )}
 
@@ -4537,7 +4533,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
             className="h-9 px-5 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-2 transition-base disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary"
             onClick={doPublish}
             disabled={
-              evalBlockers.length > 0 ||
+              evalStatus === "running" || evalStatus === "blocked" ||
               (publishToOpen && effectiveAudience === "org" && orgSelection.size === 0) ||
               (publishToOpen && effectiveAudience === "quick_share" && quickShareSelection.size === 0) ||
               (effectiveAudience === "group" && !groupSelectionValid)
