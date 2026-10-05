@@ -282,6 +282,32 @@ You track shipment status changes from the logistics webhook and post delivery u
 - Do not contact customers directly - Internal channel only
 - Do not modify shipment records`,
   },
+  {
+    // Demo agent for the Instructions "/" menu: carries EVERY resource kind and state the menu
+    // has to render — see the seeds keyed "slash-demo" in agentSkillStore, agentConnectorStore
+    // and knowledgeStore. Left as Draft so the publish-time reference check can be tried too.
+    id: "slash-demo", name: "Demo – Gọi tài nguyên bằng /", emoji: "🧪", bg: "bg-primary-soft", accent: "bg-primary",
+    status: "Draft", ownerId: "m-fsoft-ceo",
+    desc: "Agent mẫu có đủ Skill, Connector và Knowledge (kể cả trạng thái tắt/chưa kết nối/đang xử lý) để thử menu \"/\" trong Instructions.",
+    model: "Gemini 1.5 Pro", convs: 0, success: 0, channels: [], updated: "Just now",
+    instructions: `# Demo – Gọi tài nguyên bằng /
+
+Bạn là trợ lý chăm sóc khách hàng của ABC Bank. Gõ "/" ở bất kỳ dòng nào để chèn Skill, Tool hoặc Knowledge.
+
+## Quy trình
+1. Khi khách hỏi về dư nợ, dùng @debt-lookup để tra cứu trước khi trả lời.
+2. Soạn email phản hồi bằng @email-drafter, rồi gửi qua @Gmail – Send email.
+3. Câu hỏi về biểu phí: đối chiếu @Biểu lãi suất tiết kiệm 2026.pdf.
+4. Khiếu nại phức tạp: ghi nhận vào Sheets bằng @Sheets – Append row.
+
+## Tham chiếu lỗi (để thử cảnh báo khi publish)
+- Skill đã bị gỡ: @legacy-crm-sync
+- Kết nối đã bị gỡ: @Notion – Create page
+
+## Giới hạn
+- Chỉ trả lời trong phạm vi sản phẩm của ABC Bank.
+- Nếu không chắc, chuyển cho nhân viên.`,
+  },
 ];
 
 import { externalAgentStore } from "../external-agents/externalAgentStore";

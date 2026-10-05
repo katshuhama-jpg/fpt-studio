@@ -126,6 +126,17 @@ function seedAgent(agentId: string) {
     knowledgeStore.attachConsoleKb(agentId, "kb-2");
   }
 
+  if (agentId === "slash-demo") {
+    // Own ("Cá nhân") items across statuses, plus two linked Console KBs: kb-1 has a folder and
+    // files that are done / processing / failed / pending, and kb-2 is switched off ("Đang tắt").
+    put({ id: "kn-slash-1", agentId, kind: "doc", name: "Chính sách HR.pdf", description: "Chính sách nhân sự nội bộ.", status: "done", chunkCount: 14, sizeBytes: 620_000, version: 1, createdAt: now - 9 * DAY, updatedAt: now - 3 * DAY, updatedBy: "Tran Nam" });
+    put({ id: "kn-slash-2", agentId, kind: "doc", name: "Quy trình hoàn tiền.docx", description: "Các bước hoàn tiền cho khách.", status: "processing", chunkCount: 0, sizeBytes: 310_000, version: 1, createdAt: now - 20 * 60_000, updatedAt: now - 20 * 60_000, updatedBy: "Tran Nam" });
+    put({ id: "kn-slash-3", agentId, kind: "faq", name: "Phí chuyển khoản liên ngân hàng là bao nhiêu?", description: "Miễn phí với giao dịch dưới 500.000đ qua kênh số.", status: "done", chunkCount: 1, version: 1, createdAt: now - 6 * DAY, updatedAt: now - 5 * DAY, updatedBy: "Tran Nam" });
+    knowledgeStore.attachConsoleKb(agentId, "kb-1");
+    knowledgeStore.attachConsoleKb(agentId, "kb-2");
+    knowledgeStore.setKbActive(agentId, "kb-2", false);
+  }
+
   if (agentId === "hr") {
     put({ id: "kn-hr-1", agentId, kind: "doc", name: "Checklist ngày đầu tiên.pdf", description: "Danh sách việc cần làm cho nhân viên mới trong ngày đầu tiên.", status: "done", chunkCount: 6, sizeBytes: 150_000, version: 1, createdAt: now - 12 * DAY, updatedAt: now - 9 * DAY, updatedBy: "Tran Nam" });
     put({ id: "kn-hr-2", agentId, kind: "url", name: "https://intranet.abc.com/hr/quy-dinh-nghi-phep", title: "Quy định nghỉ phép", description: "", status: "done", chunkCount: 4, version: 1, sharing: { mode: "all", people: [] }, createdAt: now - 7 * DAY, updatedAt: now - 3 * DAY, updatedBy: "Tran Nam" });

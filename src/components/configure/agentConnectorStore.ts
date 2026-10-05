@@ -29,6 +29,16 @@ const AUTO_SEED: Record<string, AgentConnector[]> = {
   // agents show a real "Connected as ..." line instead of an unattributed connection.
   cskh: [{ connectorId: "gmail", scope: "shared", accountId: "sa-gmail-1" }],
   "shipping-alerts": [{ connectorId: "gmail", scope: "shared", accountId: "sa-gmail-1" }],
+  // "slash-demo" covers every connector state the "/" menu shows: connected Shared accounts
+  // (Gmail, Slack), a Shared connector with no account picked yet = "Chưa kết nối" (Sheets), a
+  // per-user connector (HubSpot) and a Custom MCP connector (cc-1).
+  "slash-demo": [
+    { connectorId: "gmail", scope: "shared", accountId: "sa-gmail-1" },
+    { connectorId: "slack", scope: "shared", accountId: "sa-slack-1" },
+    { connectorId: "sheets", scope: "shared" },
+    { connectorId: "hubspot", scope: "personal" },
+    { connectorId: "custom:cc-1", scope: "shared" },
+  ],
 };
 
 function seedAgent(agentId: string) {
