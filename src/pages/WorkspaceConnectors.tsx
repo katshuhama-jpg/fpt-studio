@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { agentsUsing, ResourceInUseDialog } from "@/components/governance/resourceInUseGuard";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
-import { Search, CheckCircle2, ChevronRight, Plug, MoreVertical, AlertTriangle, X, Rocket, Globe } from "lucide-react";
+import { Search, CheckCircle2, ChevronRight, ChevronDown, Plug, MoreVertical, AlertTriangle, X, Rocket, Globe } from "lucide-react";
 import RequestPublishModal from "@/components/governance/RequestPublishModal";
 import { governanceStore } from "@/components/governance/governanceStore";
 import { StatusBadge } from "@/components/governance/governanceUi";
@@ -323,24 +323,12 @@ export default function WorkspaceConnectors() {
         <div>
           <div className="flex items-center justify-between gap-3 mb-5">
             <p className="text-sm text-muted-foreground">Connector hệ thống nội bộ FPT dựng sẵn, thêm một MCP server, hoặc định nghĩa một API Tool để cấp công cụ cho Agent của bạn.</p>
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={() => canCreateConnector && setShowAddApiTool(true)}
-                disabled={!canCreateConnector}
-                title={!canCreateConnector ? "Vai trò của bạn chưa có quyền tạo connector." : undefined}
-                className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                + Thêm API Tool
-              </button>
-              <button
-                onClick={() => canCreateConnector && setShowAddCustom(true)}
-                disabled={!canCreateConnector}
-                title={!canCreateConnector ? "Vai trò của bạn chưa có quyền tạo connector." : undefined}
-                className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium transition-base disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                + Thêm MCP tùy chỉnh
-              </button>
-            </div>
+            <AddCustomConnectorMenu
+              disabled={!canCreateConnector}
+              disabledReason="Vai trò của bạn chưa có quyền tạo connector."
+              onPickMcp={() => canCreateConnector && setShowAddCustom(true)}
+              onPickApiTool={() => canCreateConnector && setShowAddApiTool(true)}
+            />
           </div>
 
           <div className="mb-5">
@@ -692,6 +680,57 @@ function CustomConnectorCard({ connector: c, tags, isMine, onOpen, onEdit, onSha
       creator={<CardCreator displayName={isMine ? "Bạn" : c.ownerName} fullName={c.ownerName} />}
       agents={<AgentCount count={c.attachedByAgentIds.length} />}
     />
+  );
+}
+
+/** One "+ Thêm custom connector" button that asks which kind to add — MCP server or API Tool —
+ * instead of two sibling buttons that read as unrelated actions. */
+function AddCustomConnectorMenu({ onPickMcp, onPickApiTool, disabled, disabledReason }: {
+  onPickMcp: () => void; onPickApiTool: () => void; disabled?: boolean; disabledReason?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const options = [
+    { icon: Plug, label: "MCP server", sub: "Kết nối một MCP server có sẵn để cấp công cụ của nó cho Agent.", onPick: onPickMcp },
+    { icon: Globe, label: "API Tool", sub: "Định nghĩa một REST API (URL, method, xác thực, tham số) để Agent gọi.", onPick: onPickApiTool },
+  ];
+  return (
+    <div className="relative shrink-0" onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false); }}>
+      <button
+        type="button"
+        onClick={() => !disabled && setOpen(v => !v)}
+        disabled={disabled}
+        title={disabled ? disabledReason : undefined}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium transition-base flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        + Thêm custom connector
+        <ChevronDown size={14} className={`transition-base ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div role="menu" className="absolute right-0 top-[calc(100%+6px)] z-30 w-80 bg-white rounded-2xl border border-border shadow-elev p-1.5 animate-fade-up">
+          {options.map((o, i) => (
+            <div key={o.label}>
+              {i > 0 && <div className="h-px bg-border mx-2.5 my-1" />}
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => { setOpen(false); o.onPick(); }}
+                className="w-full flex items-start gap-3 rounded-xl px-2.5 py-2.5 text-left hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <span className="w-8 h-8 rounded-lg bg-primary-soft text-primary flex items-center justify-center shrink-0">
+                  <o.icon size={16} />
+                </span>
+                <span className="min-w-0 pt-0.5">
+                  <span className="block text-sm font-semibold text-foreground">{o.label}</span>
+                  <span className="block text-xs leading-relaxed text-muted-foreground mt-0.5">{o.sub}</span>
+                </span>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
