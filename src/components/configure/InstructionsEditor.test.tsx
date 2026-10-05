@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeAll } from "vitest";
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import { useState } from "react";
 import InstructionsEditor from "./InstructionsEditor";
+import { RefChipTooltip } from "./refChip";
 
 const A = "slash-demo";
 
@@ -41,7 +42,8 @@ describe("InstructionsEditor", () => {
     expect(chips[0].textContent).toBe("account-briefing");
     expect(chips[0].contentEditable).toBe("false");
     expect(chips[1].dataset.refError).toBe("true");
-    expect(chips[1].title).toBe("Tài nguyên này không còn gắn với Agent.");
+    expect(JSON.parse(chips[1].dataset.refTip!)).toMatchObject({ status: "Đã bị gỡ", detail: "Tài nguyên này không còn gắn với Agent." });
+    expect(chips[0].tabIndex).toBe(0);
   });
 
   it("opens on '/' at line start or after a space, but not mid-word, in a URL or in code", async () => {
@@ -113,5 +115,33 @@ describe("InstructionsEditor", () => {
     fireEvent.paste(root, { clipboardData: { getData: () => "x {{ref:skill:account-briefing|a}}\ny" } });
     expect(root.querySelectorAll("[data-ref-token]")).toHaveLength(1);
     expect(seen[seen.length - 1]).toBe("x {{ref:skill:account-briefing|a}}\ny");
+  });
+});
+
+describe("chip tooltip", () => {
+  const mount = () => render(<><Harness initial={"{{ref:file:kb-1::doc-1-3|x}} {{ref:skill:account-briefing|x}} {{ref:skill:ghost|Skill cũ}}"} /><RefChipTooltip /></>);
+
+  it("shows loại · tên · đường dẫn · trạng thái on hover and hides on leave", async () => {
+    mount();
+    const [file, , ghost] = Array.from(editor().querySelectorAll<HTMLElement>("[data-ref-token]"));
+    fireEvent.mouseOver(file);
+    const tip = await screen.findByRole("tooltip");
+    expect(tip.textContent).toContain("File");
+    expect(tip.textContent).toContain("Quy trình mở thẻ tín dụng.pdf");
+    expect(tip.textContent).toContain("Knowledge › Chính sách ngân hàng ABC");
+    expect(tip.textContent).toContain("Hợp lệ · Đang xử lý");
+    fireEvent.mouseOver(editor());
+    expect(screen.queryByRole("tooltip")).toBeNull();
+    fireEvent.mouseOver(ghost);
+    expect((await screen.findByRole("tooltip")).textContent).toContain("Đã bị gỡ");
+  });
+
+  it("also opens on keyboard focus and closes on Escape", async () => {
+    mount();
+    const ok = editor().querySelectorAll<HTMLElement>("[data-ref-token]")[1];
+    act(() => ok.focus());
+    expect((await screen.findByRole("tooltip")).textContent).toContain("Hợp lệ");
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("tooltip")).toBeNull();
   });
 });

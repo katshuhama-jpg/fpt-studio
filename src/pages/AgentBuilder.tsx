@@ -81,7 +81,7 @@ import { knowledgeStore, OWN_KB_ID, type KnowledgeItem } from "@/components/know
 import { scopeLabel, isDocInScope, isDocFolderVisible, PARTIAL_LINK_ENABLED } from "@/components/knowledge/kbLinkScope";
 import InstructionsEditor from "@/components/configure/InstructionsEditor";
 import BrokenRefsDialog from "@/components/configure/BrokenRefsDialog";
-import { RefChip } from "@/components/configure/refChip";
+import { RefChip, RefChipTooltip } from "@/components/configure/refChip";
 import { instructionDraftStore } from "@/components/configure/instructionDraftStore";
 import { findBrokenRefs, splitByRefs, type BrokenRef, type Category } from "@/components/configure/instructionRefs";
 import { isAccessibleTo as isSkillAccessibleTo, type Sharing as SkillSharing } from "@/components/configure/skillSharing";
@@ -381,6 +381,8 @@ export default function AgentBuilder() {
           </div>
         </div>
       </div>
+
+      <RefChipTooltip />
 
       {brokenRefs && (
         <BrokenRefsDialog
