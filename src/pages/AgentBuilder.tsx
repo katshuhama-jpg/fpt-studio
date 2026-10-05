@@ -72,6 +72,7 @@ import { updateUser } from "@/lib/onboarding";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import BusinessProcessTree from "@/components/general/BusinessProcessTree";
 import { toast } from "sonner";
+import EvaluationTab, { EVAL_SUBTABS, evaluationStore, type EvalSection } from "@/components/evaluation/EvaluationTab";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -120,7 +121,7 @@ import ManageSitemapsModal from "@/components/knowledge/ManageSitemapsModal";
 import { knowledgeSettingsStore, shortCadenceMulti } from "@/components/knowledge/knowledgeSettingsStore";
 import { knowledgeSitemapStore } from "@/components/knowledge/knowledgeSitemapStore";
 
-type Tab = "build" | "test" | "channels" | "insights";
+type Tab = "build" | "evaluate" | "channels" | "insights";
 
 // Every section is always visible for every agent — kind is derived from trigger count,
 // not a fixed mode, so hiding a section would force a jarring layout change the moment a
@@ -144,6 +145,7 @@ const INSIGHTS_SUBTABS = [
 
 const BUILD_SECTIONS = ["instructions", "knowledge", "guardrails", "skills", "triggers", "connectors", "versions"];
 const INSIGHTS_SECTIONS = INSIGHTS_SUBTABS.map(s => s.id);
+const EVAL_ICONS: Record<string, any> = { "test-sets": FlaskConicalIcon, runs: PlayCircleIcon, metrics: CheckListIcon, publish: Rocket01Icon, monitor: Activity01Icon };
 
 // Sections that moved out of Build during the v2 nav restructure — audited against the old
 // developNav list (see git history), "history" (→ Insights) is the only one with a real new
@@ -182,8 +184,9 @@ export default function AgentBuilder() {
     if (id !== "new") recheckAgentGroupPublish(id, agentBuilderOrgTree);
   }, [id, agentBuilderOrgTree]);
   const [params, setParams] = useSearchParams();
-  const VALID_TABS: Tab[] = ["build", "test", "channels", "insights"];
-  const rawTab = params.get("tab");
+  const VALID_TABS: Tab[] = ["build", "evaluate", "channels", "insights"];
+  // ?tab=test (old "Test" tab, now "Evaluate") still lands on the new tab.
+  const rawTab = params.get("tab") === "test" ? "evaluate" : params.get("tab");
   const rawSection = params.get("section");
   const isLegacyBuildSection = rawTab === "build" && rawSection != null && rawSection in LEGACY_BUILD_TO_INSIGHTS;
 
@@ -194,6 +197,8 @@ export default function AgentBuilder() {
     ? LEGACY_BUILD_TO_INSIGHTS[rawSection!]
     : tab === "insights"
       ? (INSIGHTS_SECTIONS.includes(rawSection ?? "") ? rawSection! : "performance")
+      : tab === "evaluate"
+      ? (EVAL_SUBTABS.some(s => s.id === rawSection) ? rawSection! : "test-sets")
       : (BUILD_SECTIONS.includes(rawSection ?? "") ? rawSection! : "instructions");
 
   // A bookmarked/shared ?tab=build&section=history (or any other slug moved to Insights in
@@ -244,7 +249,7 @@ export default function AgentBuilder() {
     setParams(p, { replace: true });
   };
 
-  const setTab = (t: Tab) => setParams({ tab: t, section: t === "insights" ? "performance" : "instructions" });
+  const setTab = (t: Tab) => setParams({ tab: t, section: t === "insights" ? "performance" : t === "evaluate" ? "test-sets" : "instructions" });
   const setSection = (s: string) => setParams({ tab, section: s });
 
   const nav = developNav.filter((it: any) => !it.hidden);
@@ -303,7 +308,7 @@ export default function AgentBuilder() {
           <div className="flex items-center gap-1">
             {([
               { id: "build",    label: "Build",    Icon: PencilEdit01Icon },
-              { id: "test",     label: "Test",     Icon: FlaskConicalIcon },
+              { id: "evaluate", label: "Evaluate", Icon: FlaskConicalIcon },
               { id: "channels", label: "Channels", Icon: GridViewIcon },
               { id: "insights", label: "Insights", Icon: Analytics01Icon },
             ] as const).map(({ id, label, Icon }) => (
@@ -454,8 +459,8 @@ export default function AgentBuilder() {
           className="border-r border-border overflow-hidden shrink-0 flex flex-col h-full"
           style={{
             background:"hsl(var(--card))",
-            width: ((buildMode === "manual" && tab === "build") || tab === "insights") ? "240px" : "0px",
-            opacity: ((buildMode === "manual" && tab === "build") || tab === "insights") ? 1 : 0,
+            width: ((buildMode === "manual" && tab === "build") || tab === "insights" || tab === "evaluate") ? "240px" : "0px",
+            opacity: ((buildMode === "manual" && tab === "build") || tab === "insights" || tab === "evaluate") ? 1 : 0,
             transition: "width 320ms cubic-bezier(0.4,0,0.2,1), opacity 280ms ease",
             minWidth: 0,
           }}
@@ -483,6 +488,22 @@ export default function AgentBuilder() {
                 {it.comingSoon && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-surface border border-border text-muted-foreground shrink-0 whitespace-nowrap">Coming soon</span>
                 )}
+              </button>
+            ))}
+            {tab === "evaluate" && EVAL_SUBTABS.map(s => (
+              <button
+                key={s.id}
+                onClick={() => setSection(s.id)}
+                aria-current={section === s.id ? "page" : undefined}
+                className={`w-full flex items-start gap-2.5 rounded-lg px-2.5 py-2 transition-base shrink-0 text-left cursor-pointer ${
+                  section === s.id ? "bg-primary-soft text-primary" : "text-foreground hover:bg-surface-muted"
+                }`}
+              >
+                <HugeiconsIcon icon={EVAL_ICONS[s.id]} size={18} className="shrink-0 mt-0.5" />
+                <span className="min-w-0">
+                  <span className={`block text-sm truncate ${section === s.id ? "font-medium" : ""}`}>{s.label}</span>
+                  <span className="block text-xs text-muted-foreground truncate">{s.desc}</span>
+                </span>
               </button>
             ))}
             {tab === "insights" && INSIGHTS_SUBTABS.map(s => (
@@ -517,7 +538,7 @@ export default function AgentBuilder() {
                   ...(agentTriggers.length > 0
                     ? [{ label: "Đã cấu hình Trigger", done: !agentTriggers.some(triggerNeedsSetup), section: "triggers" }]
                     : []),
-                  { label: "Đã thử agent",              done: true,  section: null },
+                  { label: "Đã chạy Evaluate",          done: evaluationStore.runs(id ?? "new").some(r => r.status === "done"), section: null as string | null, evaluation: true },
                 ];
                 const doneCount = checklist.filter(i => i.done).length;
                 return (
@@ -535,7 +556,12 @@ export default function AgentBuilder() {
                           {item.done
                             ? <HugeiconsIcon icon={CheckmarkCircle01Icon} size={11} className="text-primary shrink-0" />
                             : <span className="w-3 h-3 rounded-full border-2 border-muted-foreground shrink-0 inline-block" />}
-                          {item.done && item.section ? (
+                          {(item as any).evaluation ? (
+                            <button
+                              onClick={() => setParams({ tab: "evaluate", section: "runs" })}
+                              className={`${item.done ? "text-primary" : "text-muted-foreground"} hover:underline text-left`}
+                            >{item.label}</button>
+                          ) : item.done && item.section ? (
                             <button
                               onClick={() => setSection(item.section!)}
                               className="text-primary hover:underline text-left"
@@ -597,7 +623,7 @@ export default function AgentBuilder() {
               {tab === "build" && section === "triggers" && (
                 <TriggersTab agentId={id ?? "new"} onChange={() => setTriggerTick(t => t + 1)} />
               )}
-              {tab === "test" && <TestTabNotBuilt />}
+              {tab === "evaluate" && <EvaluationTab agentId={id ?? "new"} agentName={agent.name} section={section as EvalSection} onRefineWithAI={() => setParams({ tab: "build", section: "instructions", buildMode: "ai" })} />}
               {tab === "channels" && <DeployTab agentId={id} onViewTriggers={() => setParams({ tab: "build", section: "triggers" })} onViewVersions={() => setParams({ tab: "build", section: "versions" })} onOpenPublish={() => canPublishAgent && setShowPublish(true)} />}
               {tab === "insights" && section === "performance" && <PerformanceTab />}
               {tab === "insights" && section === "history" && (
@@ -3104,20 +3130,6 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish }: {
   );
 }
 
-function TestTabNotBuilt() {
-  return (
-    <div className="h-full flex flex-col items-center justify-center text-center p-10 animate-fade-up">
-      <div className="w-16 h-16 rounded-2xl bg-primary-soft flex items-center justify-center mb-4">
-        <HugeiconsIcon icon={SlidersHorizontalIcon} size={26} className="text-primary" />
-      </div>
-      <h3 className="font-display text-xl font-semibold mb-2">Test</h3>
-      <p className="text-sm text-muted-foreground max-w-sm">
-        This tab isn't built yet - Check back soon.
-      </p>
-    </div>
-  );
-}
-
 /* ============ PREVIEW PANEL — clearly distinct (device frame) ============ */
 /* ============ RIGHT CONFIG PANEL ============ */
 function ConfigSection({ icon: Icon, title, badge, children }: {
@@ -3590,14 +3602,22 @@ function NewConfigPanel({ agentId, model, onModelChange, onConnectionsChange }: 
   );
 }
 
+const PREVIEW_SUGGESTIONS: Record<string, string[]> = {
+  cskh: ["Lock my credit card", "Loan interest rates", "Open an account"],
+  faq: ["Bảo hành máy lọc nước bao lâu?", "Đổi trả trong bao nhiêu ngày?", "Đặt lịch kỹ thuật viên"],
+};
+
 function PreviewPanel({ agentId, view, onViewChange, onConnectionsChange, onClose }: { agentId: string; view: "config" | "chat"; onViewChange: (v: "config" | "chat") => void; onConnectionsChange?: () => void; onClose?: () => void }) {
   const setView = onViewChange;
   // Persisted per Agent (agentModelStore) — the list card, Publish diff and governance request
   // all read this same value, so the Agent never shows a different model in different places.
   const [selectedModel, setSelectedModelState] = useState(() => agentModelStore.get(agentId));
   const setSelectedModel = (id: string) => { agentModelStore.set(agentId, id); setSelectedModelState(id); };
+  // Test run greets as the Agent actually open in the builder (was hard-coded to Banking ABC).
+  const previewAgent = getAgent(agentId);
+  const greeting = `Xin chào! Mình là ${previewAgent.name}. Mình có thể giúp gì cho bạn?`;
   const [messages, setMessages] = useState<{ role: "user" | "agent"; text: string }[]>([
-    { role: "agent", text: "Hello! I'm Banking ABC Customer Care. How can I help you today?" },
+    { role: "agent", text: greeting },
   ]);
   const [input, setInput] = useState("");
 
@@ -3649,16 +3669,16 @@ function PreviewPanel({ agentId, view, onViewChange, onConnectionsChange, onClos
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Agent header */}
           <div className="px-4 py-3 border-b border-border flex items-center gap-2.5 shrink-0">
-            <div className="w-8 h-8 rounded-lg bg-primary-soft flex items-center justify-center text-lg shrink-0">🏦</div>
+            <div className="w-8 h-8 rounded-lg bg-primary-soft flex items-center justify-center text-lg shrink-0">{previewAgent.emoji}</div>
             <div>
-              <div className="text-sm font-semibold leading-tight">Banking ABC - Customer Care</div>
+              <div className="text-sm font-semibold leading-tight">{previewAgent.name}</div>
               <div className="flex items-center gap-1 mt-0.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-success" />
                 <span className="text-xs text-muted-foreground">Test mode</span>
               </div>
             </div>
             <button
-              onClick={() => setMessages([{ role: "agent", text: "Hello! I'm Banking ABC Customer Care. How can I help you today?" }])}
+              onClick={() => setMessages([{ role: "agent", text: greeting }])}
               className="ml-auto text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-base"
             >
               <HugeiconsIcon icon={HistoryIcon} size={11} /> Reset
@@ -3670,7 +3690,7 @@ function PreviewPanel({ agentId, view, onViewChange, onConnectionsChange, onClos
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                 {m.role === "agent" && (
-                  <div className="w-6 h-6 rounded-full bg-primary-soft flex items-center justify-center text-sm mr-2 shrink-0 mt-0.5">🏦</div>
+                  <div className="w-6 h-6 rounded-full bg-primary-soft flex items-center justify-center text-sm mr-2 shrink-0 mt-0.5">{previewAgent.emoji}</div>
                 )}
                 <div
                   className={`max-w-[82%] text-xs leading-relaxed rounded-2xl px-3 py-2 ${
@@ -3687,7 +3707,7 @@ function PreviewPanel({ agentId, view, onViewChange, onConnectionsChange, onClos
 
           {/* Quick replies */}
           <div className="px-3 pb-2 flex gap-1.5 flex-wrap shrink-0">
-            {["Lock my credit card", "Loan interest rates", "Open an account"].map(q => (
+            {(PREVIEW_SUGGESTIONS[agentId] ?? ["Bạn làm được những gì?", "Hướng dẫn mình bắt đầu", "Liên hệ hỗ trợ"]).map(q => (
               <button
                 key={q}
                 onClick={() => { setInput(q); }}
@@ -4366,6 +4386,8 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
     onClose();
   };
 
+  const evalBlockers = external ? [] : evaluationStore.publishBlockers(agentId);
+  const navigateToEval = () => { const u = new URL(window.location.href); u.searchParams.set("tab", "evaluate"); u.searchParams.set("section", "publish"); u.searchParams.delete("item"); window.history.pushState({}, "", u); window.dispatchEvent(new PopStateEvent("popstate")); };
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{position:"fixed",top:0,left:0,right:0,bottom:0}}>
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
@@ -4634,6 +4656,18 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
           </div>
         </div>
 
+        {/* Evaluate gate - test sets marked "Chặn publish" must reach Min. pass on their latest run */}
+        {evalBlockers.length > 0 && (
+          <div className="mx-6 mt-3 flex gap-2.5 rounded-lg border border-[hsl(var(--destructive)/0.25)] bg-[hsl(var(--destructive-soft))] px-3 py-2.5 text-sm shrink-0" role="alert">
+            <HugeiconsIcon icon={Alert01Icon} size={16} className="text-destructive shrink-0 mt-0.5" />
+            <div>
+              <div className="font-semibold text-destructive">Chưa đạt bộ test bắt buộc</div>
+              <div className="text-foreground/80 mt-0.5">{evalBlockers.map(b => b.rate === undefined ? `${b.set.name}: Chưa chạy` : `${b.set.name}: ${b.rate}% (cần ${b.gate.minPass}%)`).join(" · ")}</div>
+              <button type="button" onClick={() => { onClose(); navigateToEval(); }} className="text-primary font-semibold hover:underline mt-1">Xem kết quả Evaluate</button>
+            </div>
+          </div>
+        )}
+
         {/* Footer */}
         <div className="flex items-center justify-end gap-2 px-6 py-4 shrink-0">
           <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base">Hủy</button>
@@ -4641,6 +4675,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
             className="h-9 px-5 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-2 transition-base disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary"
             onClick={doPublish}
             disabled={
+              evalBlockers.length > 0 ||
               (publishToOpen && effectiveAudience === "org" && orgSelection.size === 0) ||
               (publishToOpen && effectiveAudience === "quick_share" && quickShareSelection.size === 0) ||
               (effectiveAudience === "group" && !groupSelectionValid)
