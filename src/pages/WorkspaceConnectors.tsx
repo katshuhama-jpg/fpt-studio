@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { agentsUsing, ResourceInUseDialog } from "@/components/governance/resourceInUseGuard";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
-import { Search, CheckCircle2, ChevronRight, Plug, MoreVertical, AlertTriangle, X, Rocket, Globe } from "lucide-react";
+import { Search, CheckCircle2, ChevronRight, ChevronDown, Plug, MoreVertical, AlertTriangle, X, Rocket, Globe, BarChart3, type LucideIcon } from "lucide-react";
 import RequestPublishModal from "@/components/governance/RequestPublishModal";
 import { governanceStore } from "@/components/governance/governanceStore";
 import { StatusBadge } from "@/components/governance/governanceUi";
@@ -30,6 +30,8 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
 
 /* ─── Types ─────────────────────────────────────────── */
 type Tab = "all" | "connected" | "available";
@@ -47,22 +49,32 @@ interface Connector {
   id: string;
   name: string;
   desc: string;
-  logo: string;
+  /** Plain display tag shown on the card footer (e.g. "Analytics", "Productivity") per the
+   * Oct 2026 Marketplace redesign — the flat 3-col grid has no category grouping anymore, so
+   * this is no longer matched against a CATEGORIES lookup. */
+  category: string;
   connected: boolean;
   soon: boolean;
   requestedBy?: string[];
-  category: string;
   /** Only meaningful once `connected` — who set up this workspace connection, and who else it
    * was explicitly shared with. An unconnected catalog entry isn't anyone's resource yet, so
    * it's never restricted by Scope; only established connections are. */
   ownerId?: string;
   sharedWith?: string[];
+  /** How to render the card's logo tile: a real brand image, the shared FPT 3-color mark (for
+   * the internal FCI toolkits, which have no public logo), or a Lucide icon placeholder. */
+  logoKind: "image" | "fpt" | "icon";
+  logo?: string;
+  icon?: LucideIcon;
+  iconBg?: string;
+  iconColor?: string;
 }
 
 /* ─── Logo URLs ──────────────────────────────────────── */
 const LOGO: Record<string, string> = {
   outlook:    "https://upload.wikimedia.org/wikipedia/commons/d/df/Microsoft_Office_Outlook_%282018%E2%80%93present%29.svg",
   sharepoint: "https://upload.wikimedia.org/wikipedia/commons/e/e1/Microsoft_Office_SharePoint_%282018%E2%80%93present%29.svg",
+  onedrive:   "https://upload.wikimedia.org/wikipedia/commons/3/3c/Microsoft_Office_OneDrive_%282019%E2%80%93present%29.svg",
   gmail:      "https://upload.wikimedia.org/wikipedia/commons/7/7e/Gmail_icon_%282020%29.svg",
   slack:      "https://upload.wikimedia.org/wikipedia/commons/d/d5/Slack_icon_2019.svg",
   notion:     "https://upload.wikimedia.org/wikipedia/commons/4/45/Notion_app_logo.png",
@@ -88,41 +100,51 @@ const LOGO: Record<string, string> = {
   gcalendar:  "https://upload.wikimedia.org/wikipedia/commons/a/a5/Google_Calendar_icon_%282020%29.svg",
 };
 
-/* ─── Seed data ──────────────────────────────────────── */
+/* ─── Seed data (Marketplace Connectors) ─────────────── */
 const CONNECTORS: Connector[] = [
-  { id:"outlook",    name:"Microsoft Outlook",   desc:"Tìm kiếm email và sự kiện lịch, gửi email thay bạn.",                     logo:LOGO.outlook,    connected:true,  soon:false, requestedBy:["You Need A Hug","meo meo"], category:"requested", ownerId: "m-fsoft-coo" },
-  { id:"sharepoint", name:"Microsoft SharePoint",desc:"Đọc file, thư viện tài liệu và site trên SharePoint của bạn.",              logo:LOGO.sharepoint, connected:true,  soon:false, requestedBy:["meo meo"],                 category:"requested", ownerId: "m-fsoft-ceo" },
-  { id:"gmail",      name:"Gmail",               desc:"Tìm kiếm, tạo và quản lý email cùng sự kiện lịch của bạn.",                    logo:LOGO.gmail,      connected:false, soon:true,  category:"popular" },
-  { id:"slack",      name:"Slack",               desc:"Đọc kênh, gửi tin nhắn và tìm kiếm hội thoại.",                        logo:LOGO.slack,      connected:false, soon:true,  category:"popular" },
-  { id:"notion",     name:"Notion",              desc:"Đọc, tạo và cập nhật trang cùng cơ sở dữ liệu trong workspace của bạn.",            logo:LOGO.notion,     connected:false, soon:true,  category:"popular" },
-  { id:"github",     name:"GitHub",              desc:"Đọc repository, issue và pull request; tìm kiếm code và commit.",         logo:LOGO.github,     connected:false, soon:true,  category:"popular" },
-  { id:"figma",      name:"Figma",               desc:"Quản lý file, dự án và nhóm; đọc thiết kế từ workspace của bạn.",          logo:LOGO.figma,      connected:false, soon:true,  category:"popular" },
-  { id:"linear",     name:"Linear",              desc:"Tạo và cập nhật issue, theo dõi dự án và tìm kiếm roadmap của nhóm.",      logo:LOGO.linear,     connected:false, soon:true,  category:"new" },
-  { id:"supabase",   name:"Supabase",            desc:"Xây dựng và quản lý database, auth và storage cho ứng dụng của bạn.",                      logo:LOGO.supabase,   connected:false, soon:true,  category:"new" },
-  { id:"vercel",     name:"Vercel",              desc:"Quản lý team, dự án và deployment; tìm kiếm tài liệu.",                 logo:LOGO.vercel,     connected:false, soon:true,  category:"new" },
-  { id:"openai",     name:"OpenAI",              desc:"Truy cập model, file và assistant trong tổ chức OpenAI của bạn.",         logo:LOGO.openai,     connected:false, soon:true,  category:"new" },
-  { id:"discord",    name:"Discord",             desc:"Đọc kênh, gửi tin nhắn và quản lý thành viên trên các server của bạn.",         logo:LOGO.discord,    connected:false, soon:true,  category:"communication" },
-  { id:"zoom",       name:"Zoom",                desc:"Quản lý cuộc họp và bản ghi, lấy transcript.",                     logo:LOGO.zoom,       connected:false, soon:true,  category:"communication" },
-  { id:"telegram",   name:"Telegram",            desc:"Gửi tin nhắn và file, đọc cập nhật qua bot của bạn.",                   logo:LOGO.telegram,   connected:false, soon:true,  category:"communication" },
-  { id:"teams",      name:"Microsoft Teams",     desc:"Đọc kênh và đoạn chat, gửi tin nhắn và lên lịch cuộc họp.",               logo:LOGO.teams,      connected:false, soon:true,  category:"communication" },
-  { id:"twilio",     name:"Twilio",              desc:"Gửi SMS và tin nhắn, lấy trạng thái gửi và log.",                logo:LOGO.twilio,     connected:false, soon:true,  category:"communication" },
-  { id:"sheets",     name:"Google Sheets",       desc:"Đọc và ghi dòng, vùng dữ liệu và công thức trong spreadsheet của bạn.",          logo:LOGO.sheets,     connected:false, soon:true,  category:"data" },
-  { id:"stripe",     name:"Stripe",              desc:"Lấy dữ liệu khách hàng, thanh toán và subscription; đọc báo cáo tài chính.",      logo:LOGO.stripe,     connected:false, soon:true,  category:"data" },
-  { id:"salesforce", name:"Salesforce",          desc:"Truy vấn và cập nhật lead, cơ hội bán hàng và tài khoản trong CRM của bạn.",         logo:LOGO.salesforce, connected:false, soon:true,  category:"data" },
-  { id:"clickup",    name:"ClickUp",             desc:"Quản lý task, tài liệu và mục tiêu; tự động hoá workflow trong các space.",             logo:LOGO.clickup,    connected:false, soon:true,  category:"productivity" },
-  { id:"trello",     name:"Trello",              desc:"Quản lý board, list và card; di chuyển công việc và thêm bình luận.",                 logo:LOGO.trello,     connected:false, soon:true,  category:"productivity" },
-  { id:"dropbox",    name:"Dropbox",             desc:"Tìm kiếm, tải lên và lấy file, thư mục từ tài khoản của bạn.",            logo:LOGO.dropbox,    connected:false, soon:true,  category:"productivity" },
-  { id:"gdrive",     name:"Google Drive",        desc:"Tìm kiếm và lấy file, thư mục từ Drive của bạn.",                       logo:LOGO.gdrive,     connected:false, soon:true,  category:"productivity" },
-  { id:"gitlab",     name:"GitLab",              desc:"Đọc dự án, issue và merge request; quản lý pipeline và code.",         logo:LOGO.gitlab,     connected:false, soon:true,  category:"productivity" },
-  { id:"gcalendar",  name:"Google Calendar",     desc:"Tìm kiếm, tạo mới và lấy sự kiện lịch, cuộc họp.",                   logo:LOGO.gcalendar,  connected:false, soon:true,  category:"productivity" },
-];
-
-const CATEGORIES = [
-  { key:"popular",      label:"Phổ biến",           icon:"🔥" },
-  { key:"new",          label:"Mới",                icon:"✨" },
-  { key:"communication",label:"Giao tiếp",          icon:"💬" },
-  { key:"data",         label:"Dữ liệu & phân tích",icon:"📊" },
-  { key:"productivity", label:"Năng suất",          icon:"⚡" },
+  {
+    id: "datasuite", name: "DataSuite", category: "Analytics",
+    desc: "FPT Cloud DataSuite BI: quản lý dataset, xây dựng và đọc dashboard, trang và biểu đồ, chạy truy vấn OLAP cube, sao chép hoặc dùng mẫu báo cáo. Kết nối bằng session token của DataSuite (Authorization: Bearer <JWT>).",
+    connected: false, soon: false,
+    logoKind: "icon", icon: BarChart3, iconBg: "bg-blue-50 border-blue-200", iconColor: "text-blue-600",
+  },
+  {
+    id: "fci-crm", name: "FCI CRM", category: "Productivity",
+    desc: "Đọc dữ liệu khách hàng/CRM từ hệ thống FCI CRM (vtiger): liệt kê module, mô tả field và chạy truy vấn SQL chỉ-đọc. Là 1 trong 3 toolkit FCI ĐỘC LẬP, dùng credential username + access-key riêng.",
+    connected: false, soon: false, logoKind: "fpt",
+  },
+  {
+    id: "fci-member", name: "FCI Member", category: "Productivity",
+    desc: "Onboarding thành viên (nhân viên/cộng tác viên) trong hệ thống FCI HR: tạo member và kiểm tra trạng thái member. Là 1 trong 3 toolkit FCI ĐỘC LẬP, dùng credential api-key riêng.",
+    connected: false, soon: false, logoKind: "fpt",
+  },
+  {
+    id: "fci-tickets", name: "FCI Tickets", category: "Ticketing",
+    desc: "Phiếu yêu cầu dịch vụ và quy trình duyệt trong FCI (FPT SMS): tạo, hủy và tra cứu ticket. Là 1 trong 3 toolkit FCI ĐỘC LẬP, dùng credential S-Token riêng.",
+    connected: false, soon: false, logoKind: "fpt",
+  },
+  {
+    id: "onedrive", name: "OneDrive", category: "Documents",
+    desc: "Duyệt, tải xuống, chỉnh sửa và chia sẻ file trên Microsoft OneDrive.",
+    connected: false, soon: false, logoKind: "image", logo: LOGO.onedrive,
+  },
+  {
+    id: "outlook", name: "Outlook", category: "Email",
+    desc: "Đọc, tìm kiếm và gửi email từ hộp thư Microsoft 365 Outlook của bạn.",
+    connected: false, soon: false, logoKind: "image", logo: LOGO.outlook,
+  },
+  {
+    id: "sharepoint", name: "SharePoint", category: "Documents",
+    desc: "Duyệt, tìm kiếm và đọc file cùng dữ liệu Excel trên Microsoft 365 SharePoint / OneDrive của bạn.",
+    connected: true, soon: false, ownerId: CURRENT_USER.id,
+    logoKind: "image", logo: LOGO.sharepoint,
+  },
+  {
+    id: "tavily", name: "Tavily", category: "Web Search",
+    desc: "Tìm kiếm web và crawl site bằng Tavily, dùng API key Tavily riêng của tenant (toàn bộ chi phí tính vào key đó). Kết nối bằng Tavily API key (tvly-…).",
+    connected: false, soon: false,
+    logoKind: "icon", icon: Globe, iconBg: "bg-teal-50 border-teal-200", iconColor: "text-teal-600",
+  },
 ];
 
 const AUTH_LABEL: Record<CustomConnector["authType"], string> = {
@@ -171,15 +193,16 @@ export default function WorkspaceConnectors() {
   const [connectTemplate, setConnectTemplate] = useState<ConnectorTemplateDef | null>(null);
   const [manageTemplate, setManageTemplate] = useState<ConnectorTemplateDef | null>(null);
 
-  // Marketplace connector cards used to be dead clicks (cursor-pointer + chevron with no
-  // onClick at all). `disconnected` is a session-local override so "Ngắt kết nối" from the
-  // detail modal below actually does something, without standing up a full persisted store
-  // for a static seed array.
+  // Marketplace connector cards — `connectedIds` is a session-local override on top of the
+  // static seed array so "Kết nối" / "Ngắt kết nối" (from the detail modal) actually do
+  // something, without standing up a full persisted store for a static seed array.
   const [detailTarget, setDetailTarget] = useState<Connector | null>(null);
-  const [disconnected, setDisconnected] = useState<Set<string>>(new Set());
+  const [connectedIds, setConnectedIds] = useState<Set<string>>(
+    () => new Set(CONNECTORS.filter(c => c.connected).map(c => c.id)),
+  );
   const effectiveConnectors = useMemo(
-    () => CONNECTORS.map(c => (disconnected.has(c.id) ? { ...c, connected: false } : c)),
-    [disconnected],
+    () => CONNECTORS.map(c => ({ ...c, connected: connectedIds.has(c.id) })),
+    [connectedIds],
   );
   const customConnectors = customConnectorStore.list();
   const accessibleCustomConnectors = customConnectors.filter(c => isCustomConnectorAccessibleTo(c.sharing, c.ownerId, CURRENT_USER.id));
@@ -205,115 +228,109 @@ export default function WorkspaceConnectors() {
   const isConnectorVisible = (c: Connector) =>
     !c.connected || access.canSeeAll || isOwnedOrShared(c, access.userId);
 
-  const requested = effectiveConnectors.filter(c => c.category === "requested" && isConnectorVisible(c));
+  const visibleConnectors = useMemo(
+    () => effectiveConnectors.filter(isConnectorVisible),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [effectiveConnectors, access.canSeeAll, access.userId],
+  );
+  const tabCounts: Record<Tab, number> = {
+    all: visibleConnectors.length,
+    connected: visibleConnectors.filter(c => c.connected).length,
+    available: visibleConnectors.filter(c => !c.connected).length,
+  };
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
-    return effectiveConnectors.filter(c => {
-      if (c.category === "requested") return false;
-      if (!isConnectorVisible(c)) return false;
+    return visibleConnectors.filter(c => {
       if (tab === "connected" && !c.connected) return false;
       if (tab === "available" && c.connected) return false;
       if (q && !c.name.toLowerCase().includes(q) && !c.desc.toLowerCase().includes(q)) return false;
       return true;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, query, access.canSeeAll, access.userId, effectiveConnectors]);
+  }, [tab, query, visibleConnectors]);
+
+  const handleConnect = (c: Connector) => {
+    setConnectedIds(prev => new Set(prev).add(c.id));
+    toast.success(`Đã kết nối ${c.name}.`);
+  };
 
   return (
     <div className="px-8 py-8 max-w-[1200px] mx-auto animate-fade-up">
-      <div className="mb-6">
-        <h1 className="font-display text-xl font-semibold tracking-tight mb-1">Connectors</h1>
-        <p className="text-sm text-muted-foreground">Kết nối các dịch vụ để Agent có thể truy cập và thao tác trên dữ liệu của bạn.</p>
+      {/* Page header */}
+      <div className="flex items-start gap-4 mb-6">
+        <div className="w-11 h-11 rounded-xl bg-primary-soft border border-primary/20 flex items-center justify-center shrink-0">
+          <Plug size={20} className="text-primary" />
+        </div>
+        <div className="min-w-0">
+          <h1 className="font-display text-2xl font-semibold tracking-tight mb-1">Kết nối</h1>
+          <p className="text-sm text-muted-foreground line-clamp-2 max-w-2xl">
+            Kết nối Agent với Marketplace Connectors, Custom Connectors và các hệ thống bên ngoài để truy vấn dữ liệu và thực thi hành động.
+          </p>
+        </div>
       </div>
 
-      {/* Marketplace / Custom split */}
-      <div className="flex items-center gap-1 mb-6 border-b border-border">
-        {([
-          { key: "marketplace" as Section, label: "Marketplace Connectors" },
-          { key: "custom" as Section, label: "Custom Connectors" },
-        ]).map(s => (
-          <button
-            key={s.key}
-            onClick={() => setSection(s.key)}
-            className={`px-3 pb-3 text-sm font-medium border-b-2 -mb-px transition-base ${
-              section === s.key ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
+      {/* Marketplace / Custom split — segmented control */}
+      <Tabs value={section} onValueChange={v => setSection(v as Section)} className="mb-6">
+        <TabsList className="h-auto p-1 rounded-xl bg-surface-muted">
+          <TabsTrigger
+            value="marketplace"
+            className="rounded-lg px-4 h-8 text-sm font-medium text-muted-foreground data-[state=active]:bg-white data-[state=active]:text-foreground data-[state=active]:shadow-sm"
           >
-            {s.label}
-          </button>
-        ))}
-      </div>
+            Marketplace Connectors
+          </TabsTrigger>
+          <TabsTrigger
+            value="custom"
+            className="rounded-lg px-4 h-8 text-sm font-medium text-muted-foreground data-[state=active]:bg-white data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+          >
+            Custom Connectors
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {section === "marketplace" && (
         <>
-          {/* Toolbar */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6 border-b border-border pb-3">
-            <div className="flex items-center gap-1">
-              {MARKETPLACE_TABS.map(t => (
-                <button key={t.key} onClick={() => setTab(t.key)}
-                  className={`px-3 h-8 rounded-lg text-sm font-medium transition-base ${
-                    tab === t.key ? "bg-primary-soft text-primary" : "text-muted-foreground hover:bg-surface-muted"
-                  }`}
-                >{t.label}</button>
-              ))}
+          {/* Toolbar: search (left) + status filter pills (right) */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-5">
+            <div className="relative w-full md:w-[360px]">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Tìm Marketplace Connectors…"
+                className="h-10 w-full pl-9 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+              />
             </div>
-            <div className="relative">
-              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm connector…"
-                className="h-9 w-56 pl-8 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30" />
+            <div className="flex items-center gap-2">
+              {MARKETPLACE_TABS.map(t => (
+                <button
+                  key={t.key}
+                  onClick={() => setTab(t.key)}
+                  className={`h-8 pl-3 pr-2 rounded-full border text-sm font-medium flex items-center gap-1.5 transition-base ${
+                    tab === t.key ? "bg-primary-soft border-primary/30 text-primary" : "border-border text-muted-foreground hover:bg-surface-muted"
+                  }`}
+                >
+                  {t.label}
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${tab === t.key ? "bg-primary/10" : "bg-surface-sunken"}`}>
+                    {tabCounts[t.key]}
+                  </span>
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Requested connections — these are always already-connected connectors (see seed
-           * data), so they belong on both "Tất cả" and "Đã kết nối"; only "Chưa kết nối" should
-           * hide them. Gap fix: this used to read `tab !== "connected"`, which meant the "Đã kết
-           * nối" filter excluded every requested-category connector (Outlook, SharePoint) on top
-           * of `filtered` already excluding them (see the `filtered` useMemo below) — the tab
-           * rendered fully blank with no empty state at all, even though 2 connectors really are
-           * connected. */}
-          {tab !== "available" && requested.length > 0 && (
-            <div className="mb-8">
-              <div className="flex items-center gap-1.5 mb-3 text-xs font-semibold text-primary">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                Agent đang yêu cầu kết nối
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {requested.map(c => (
-                  <ConnectorCard
-                    key={c.id}
-                    connector={c}
-                    onOpen={() => (c.connected ? setDetailTarget(c) : toast.info(`Tích hợp ${c.name} sắp ra mắt - Theo dõi để cập nhật khi có nhé.`))}
-                  />
-                ))}
-              </div>
-              <div className="mt-6 mb-2 border-t border-border" />
+          {/* Card grid */}
+          {filtered.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {filtered.map(c => (
+                <MarketplaceConnectorCard
+                  key={c.id}
+                  connector={c}
+                  onConnect={() => handleConnect(c)}
+                  onManage={() => setDetailTarget(c)}
+                />
+              ))}
             </div>
-          )}
-
-          {/* Category sections */}
-          {CATEGORIES.map(cat => {
-            const items = filtered.filter(c => c.category === cat.key);
-            if (!items.length) return null;
-            return (
-              <div key={cat.key} className="mb-8">
-                <div className="flex items-center gap-2 mb-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  <span>{cat.icon}</span>{cat.label}
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {items.map(c => (
-                    <ConnectorCard
-                      key={c.id}
-                      connector={c}
-                      onOpen={() => (c.connected ? setDetailTarget(c) : toast.info(`Tích hợp ${c.name} sắp ra mắt - Theo dõi để cập nhật khi có nhé.`))}
-                    />
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-
-          {filtered.length === 0 && !requested.length && (
+          ) : (
             <div className="py-20 text-center text-muted-foreground text-sm">Không tìm thấy connector nào.</div>
           )}
         </>
@@ -323,24 +340,12 @@ export default function WorkspaceConnectors() {
         <div>
           <div className="flex items-center justify-between gap-3 mb-5">
             <p className="text-sm text-muted-foreground">Connector hệ thống nội bộ FPT dựng sẵn, thêm một MCP server, hoặc định nghĩa một API Tool để cấp công cụ cho Agent của bạn.</p>
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={() => canCreateConnector && setShowAddApiTool(true)}
-                disabled={!canCreateConnector}
-                title={!canCreateConnector ? "Vai trò của bạn chưa có quyền tạo connector." : undefined}
-                className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium transition-base disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                + Thêm API Tool
-              </button>
-              <button
-                onClick={() => canCreateConnector && setShowAddCustom(true)}
-                disabled={!canCreateConnector}
-                title={!canCreateConnector ? "Vai trò của bạn chưa có quyền tạo connector." : undefined}
-                className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium transition-base disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                + Thêm MCP tùy chỉnh
-              </button>
-            </div>
+            <AddCustomConnectorMenu
+              disabled={!canCreateConnector}
+              disabledReason="Vai trò của bạn chưa có quyền tạo connector."
+              onPickMcp={() => canCreateConnector && setShowAddCustom(true)}
+              onPickApiTool={() => canCreateConnector && setShowAddApiTool(true)}
+            />
           </div>
 
           <div className="mb-5">
@@ -556,7 +561,7 @@ export default function WorkspaceConnectors() {
           connector={detailTarget}
           onClose={() => setDetailTarget(null)}
           onDisconnect={() => {
-            setDisconnected(prev => new Set(prev).add(detailTarget.id));
+            setConnectedIds(prev => { const next = new Set(prev); next.delete(detailTarget.id); return next; });
             toast.success(`Đã ngắt kết nối ${detailTarget.name}.`);
             setDetailTarget(null);
           }}
@@ -583,33 +588,70 @@ export default function WorkspaceConnectors() {
 }
 
 /* ─── Connector card (Marketplace) ───────────────────── */
-function ConnectorCard({ connector: c, onOpen }: { connector: Connector; onOpen: () => void }) {
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={e => { if (e.key === "Enter") onOpen(); }}
-      className={`flex items-start gap-3 p-4 rounded-xl border bg-surface transition-base cursor-pointer hover:border-primary/40 hover:bg-primary-soft/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-      c.connected ? "border-primary/30" : "border-border"
-    }`}>
-      <div className="w-10 h-10 rounded-xl border border-border bg-white flex items-center justify-center shrink-0 overflow-hidden p-1">
-        <img src={c.logo} alt={c.name} className="w-full h-full object-contain" onError={e => { (e.target as HTMLImageElement).style.display='none'; }} />
+function ConnectorLogo({ connector: c }: { connector: Connector }) {
+  if (c.logoKind === "fpt") {
+    return (
+      <div className="w-11 h-11 rounded-xl border border-border bg-white flex items-center justify-center shrink-0 overflow-hidden">
+        <FptMark />
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-0.5">
-          <span className="text-sm font-medium">{c.name}</span>
-          {c.connected && <CheckCircle2 size={13} className="text-success shrink-0" />}
-          {c.soon && !c.connected && (
-            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded border border-border bg-surface-muted text-muted-foreground shrink-0">Sắp ra mắt</span>
-          )}
-        </div>
-        <p className="text-xs text-muted-foreground leading-relaxed">{c.desc}</p>
-        {c.requestedBy && (
-          <p className="text-[11px] text-muted-foreground mt-1">Được yêu cầu bởi: {c.requestedBy.join(", ")}</p>
+    );
+  }
+  if (c.logoKind === "icon" && c.icon) {
+    const Icon = c.icon;
+    return (
+      <div className={`w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 ${c.iconBg ?? "bg-surface-muted border-border"}`}>
+        <Icon size={20} className={c.iconColor ?? "text-muted-foreground"} />
+      </div>
+    );
+  }
+  return (
+    <div className="w-11 h-11 rounded-xl border border-border bg-white flex items-center justify-center shrink-0 overflow-hidden p-1.5">
+      <img
+        src={c.logo}
+        alt={c.name}
+        className="w-full h-full object-contain"
+        onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+      />
+    </div>
+  );
+}
+
+/** Placeholder brand mark for the 3 internal FCI toolkits (FCI CRM / Member / Tickets) — FPT's
+ * 3-brand-color motif, drawn inline since these internal systems have no public logo asset. */
+function FptMark() {
+  return (
+    <svg width="26" height="26" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="1" y="1" width="7" height="24" rx="2" fill="#F36F21" />
+      <rect x="9.5" y="1" width="7" height="24" rx="2" fill="#00A651" />
+      <rect x="18" y="1" width="7" height="24" rx="2" fill="#0071BC" />
+    </svg>
+  );
+}
+
+function MarketplaceConnectorCard({ connector: c, onConnect, onManage }: {
+  connector: Connector; onConnect: () => void; onManage: () => void;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-white p-[18px] flex flex-col">
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <ConnectorLogo connector={c} />
+        {c.connected ? (
+          <span className="chip chip-success shrink-0"><CheckCircle2 size={12} /> Đã kết nối</span>
+        ) : (
+          <span className="chip chip-muted shrink-0"><span className="w-1.5 h-1.5 rounded-full bg-current" /> Chưa kết nối</span>
         )}
       </div>
-      <ChevronRight size={14} className="text-muted-foreground shrink-0 mt-0.5" />
+      <p className="text-sm font-semibold mb-1">{c.name}</p>
+      <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 min-h-[32px] mb-3 flex-1">{c.desc}</p>
+      <Separator className="mb-3" />
+      <div className="flex items-center justify-between gap-2">
+        <span className="chip chip-muted text-[11px] px-2 py-0.5 shrink-0">{c.category}</span>
+        {c.connected ? (
+          <button onClick={onManage} className="btn-secondary shrink-0">Quản lý</button>
+        ) : (
+          <button onClick={onConnect} className="btn-primary shrink-0"><Plug size={13} /> Kết nối</button>
+        )}
+      </div>
     </div>
   );
 }
@@ -695,6 +737,57 @@ function CustomConnectorCard({ connector: c, tags, isMine, onOpen, onEdit, onSha
   );
 }
 
+/** One "+ Thêm custom connector" button that asks which kind to add — MCP server or API Tool —
+ * instead of two sibling buttons that read as unrelated actions. */
+function AddCustomConnectorMenu({ onPickMcp, onPickApiTool, disabled, disabledReason }: {
+  onPickMcp: () => void; onPickApiTool: () => void; disabled?: boolean; disabledReason?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const options = [
+    { icon: Plug, label: "MCP server", sub: "Kết nối một MCP server có sẵn để cấp công cụ của nó cho Agent.", onPick: onPickMcp },
+    { icon: Globe, label: "API Tool", sub: "Định nghĩa một REST API (URL, method, xác thực, tham số) để Agent gọi.", onPick: onPickApiTool },
+  ];
+  return (
+    <div className="relative shrink-0" onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false); }}>
+      <button
+        type="button"
+        onClick={() => !disabled && setOpen(v => !v)}
+        disabled={disabled}
+        title={disabled ? disabledReason : undefined}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium transition-base flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        + Thêm custom connector
+        <ChevronDown size={14} className={`transition-base ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div role="menu" className="absolute right-0 top-[calc(100%+6px)] z-30 w-80 bg-white rounded-2xl border border-border shadow-elev p-1.5 animate-fade-up">
+          {options.map((o, i) => (
+            <div key={o.label}>
+              {i > 0 && <div className="h-px bg-border mx-2.5 my-1" />}
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => { setOpen(false); o.onPick(); }}
+                className="w-full flex items-start gap-3 rounded-xl px-2.5 py-2.5 text-left hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <span className="w-8 h-8 rounded-lg bg-primary-soft text-primary flex items-center justify-center shrink-0">
+                  <o.icon size={16} />
+                </span>
+                <span className="min-w-0 pt-0.5">
+                  <span className="block text-sm font-semibold text-foreground">{o.label}</span>
+                  <span className="block text-xs leading-relaxed text-muted-foreground mt-0.5">{o.sub}</span>
+                </span>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const API_METHOD_CLASS: Record<HttpMethod, string> = {
   GET: "bg-[hsl(var(--success-soft))] text-[hsl(var(--success-strong))]",
   POST: "bg-primary-soft text-primary",
@@ -741,9 +834,7 @@ function ConnectorDetailModal({ connector, onClose, onDisconnect }: {
       <div className="relative w-full max-w-[480px] bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh] animate-fade-up">
         <div className="flex items-start justify-between px-6 py-5 border-b border-border shrink-0">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-xl border border-border bg-white flex items-center justify-center shrink-0 overflow-hidden p-1">
-              <img src={connector.logo} alt={connector.name} className="w-full h-full object-contain" />
-            </div>
+            <ConnectorLogo connector={connector} />
             <div className="min-w-0">
               <h2 className="font-display text-lg font-semibold truncate">{connector.name}</h2>
               <p className="text-xs text-success font-medium flex items-center gap-1 mt-0.5"><CheckCircle2 size={12} /> Đã kết nối</p>
