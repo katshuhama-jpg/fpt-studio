@@ -363,7 +363,7 @@ function GenerateSetDialog({ agentId, agentName, open, onOpenChange, onCreated }
                     ))}
                     <div className="flex items-center justify-between pt-1 text-xs">
                       <span className="text-muted-foreground">{(counts["Ngoài phạm vi"] + counts["Edge case"]) * 100 < total * 5 ? <span className="text-warning">Nên có ít nhất 5% câu ngoài phạm vi và câu mơ hồ để kiểm tra Guardrail</span> : "Tổng số test tự cộng theo từng nhóm"}</span>
-                      <button type="button" className="font-semibold text-primary hover:underline cursor-pointer" onClick={() => setCounts(splitCounts(total || 50))}>Về tỷ lệ chuẩn FPT</button>
+                      <button type="button" className="font-semibold text-primary hover:underline cursor-pointer" onClick={() => setCounts(splitCounts(total || 50))}>Về mặc định</button>
                     </div>
                   </div>
                 )}
@@ -372,7 +372,7 @@ function GenerateSetDialog({ agentId, agentName, open, onOpenChange, onCreated }
             </fieldset>
             <label className="block">
               <span className="text-sm font-medium">Ngôn ngữ</span>
-              <select className="ds-input mt-1.5 !w-56 block" value={lang} onChange={e => setLang(e.target.value)}>
+              <select className="ds-input mt-1.5 w-full block" value={lang} onChange={e => setLang(e.target.value)}>
                 <option>Tiếng Việt</option><option>English</option><option>Tiếng Việt + English</option>
               </select>
             </label>
