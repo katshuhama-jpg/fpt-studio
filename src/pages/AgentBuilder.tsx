@@ -525,16 +525,15 @@ export default function AgentBuilder() {
               <button
                 key={s.id}
                 onClick={() => setSection(s.id)}
+                title={s.desc}
                 aria-current={section === s.id ? "page" : undefined}
-                className={`w-full flex items-start gap-2.5 rounded-lg px-2.5 py-2 transition-base shrink-0 text-left cursor-pointer ${
-                  section === s.id ? "bg-primary-soft text-primary" : "text-foreground hover:bg-surface-muted"
+                style={{ height: "36px", fontSize: "14px" }}
+                className={`w-full flex items-center rounded-lg px-2.5 transition-base shrink-0 ${
+                  section === s.id ? "bg-primary-soft text-primary font-medium" : "text-foreground hover:bg-surface-muted"
                 }`}
               >
-                <HugeiconsIcon icon={EVAL_ICONS[s.id]} size={18} className="shrink-0 mt-0.5" />
-                <span className="min-w-0">
-                  <span className={`block text-sm truncate ${section === s.id ? "font-medium" : ""}`}>{s.label}</span>
-                  <span className="block text-xs text-muted-foreground truncate">{s.desc}</span>
-                </span>
+                <HugeiconsIcon icon={EVAL_ICONS[s.id]} size={18} className="shrink-0" />
+                <span className="flex-1 text-left truncate ml-2.5">{s.label}</span>
               </button>
             ))}
             {tab === "insights" && INSIGHTS_SUBTABS.map(s => (
@@ -569,7 +568,7 @@ export default function AgentBuilder() {
                   ...(agentTriggers.length > 0
                     ? [{ label: "Đã cấu hình Trigger", done: !agentTriggers.some(triggerNeedsSetup), section: "triggers" }]
                     : []),
-                  { label: "Đã chạy Evaluate",          done: evaluationStore.runs(id ?? "new").some(r => r.status === "done"), section: null as string | null, evaluation: true },
+                  { ...(() => { const r = evaluationStore.readiness(id ?? "new"); return { label: r === "failed" ? "Evaluate chưa đạt" : r === "passed" ? "Đã đạt Evaluate" : "Đã chạy Evaluate", done: r === "passed", failed: r === "failed" }; })(), section: null as string | null, evaluation: true },
                 ];
                 const doneCount = checklist.filter(i => i.done).length;
                 return (
@@ -590,7 +589,7 @@ export default function AgentBuilder() {
                           {(item as any).evaluation ? (
                             <button
                               onClick={() => setParams({ tab: "evaluate", section: "runs" })}
-                              className={`${item.done ? "text-primary" : "text-muted-foreground"} hover:underline text-left`}
+                              className={`${item.done ? "text-primary" : (item as any).failed ? "text-destructive" : "text-muted-foreground"} hover:underline text-left`}
                             >{item.label}</button>
                           ) : item.done && item.section ? (
                             <button

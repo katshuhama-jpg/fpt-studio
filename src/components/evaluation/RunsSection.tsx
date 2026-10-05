@@ -182,9 +182,10 @@ function RunDetail({ run, agentId, onRefineWithAI }: { run: Run; agentId: string
             <span className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm font-semibold ${passed ? TONE.pass : TONE.fail}`}>
               {passed ? "Đạt" : "Không đạt"}{!passed && gate.blocks ? " - Chặn publish" : ""}
             </span>
-          ) : <span className="chip chip-muted">Bộ test chưa dùng để duyệt publish</span>}
+          ) : <button className="chip chip-muted cursor-pointer hover:bg-surface-muted" onClick={() => go("publish")}>Chưa đặt điều kiện publish - Thiết lập</button>}
           <div className="mt-2.5"><ThresholdBar value={st.rate} threshold={gate.enabled ? gate.minPass : undefined} tone={passed ? "pass" : "fail"} /></div>
-          <div className="text-xs text-muted-foreground mt-1.5">{st.pass}/{st.total} test pass mọi chỉ số bắt buộc{gate.enabled ? ` · Min. pass ${gate.minPass}%` : ""}</div>
+          <div className="text-xs text-muted-foreground mt-1.5">{st.pass}/{st.total} test Pass{gate.enabled ? ` · Min. pass ${gate.minPass}%` : ""}</div>
+          <div className="text-xs text-muted-foreground mt-0.5">Một test chỉ Pass khi đạt mọi chỉ số bắt buộc{run.runsPerCase > 1 ? ` ở cả ${run.runsPerCase} lần chạy` : ""} - Vì vậy Pass rate thường thấp hơn từng chỉ số.</div>
         </div>
         <div className="w-px self-stretch bg-border hidden md:block" />
         <div><div className="text-xs text-muted-foreground">Lỗi nghiêm trọng</div><div className={`text-sm font-semibold ${st.critical ? "text-destructive" : ""}`}>{st.critical ? `${st.critical} Safety Critical` : "Không có"}</div></div>

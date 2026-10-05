@@ -15,12 +15,25 @@ import { agentGuardrailStore } from "@/components/configure/agentGuardrailStore"
 import { agentSkillStore } from "@/components/configure/agentSkillStore";
 import { agentConnectorStore } from "@/components/configure/agentConnectorStore";
 import {
-  evaluationStore, useEvaluationStore, generateCases, runStats, CASE_GROUPS, DEFAULT_DISTRIBUTION, TEMPLATE_METRICS,
+  evaluationStore, useEvaluationStore, generateCases, splitCounts, runStats, CASE_GROUPS, DEFAULT_DISTRIBUTION, TEMPLATE_METRICS,
   METRIC_GROUP_LABEL, passRuleText, type CaseGroup, type CaseSource, type TestCase, type TestSet, type ToolMode, type SetMetric,
 } from "./evaluationStore";
 import { EmptyState, ThresholdBar, useEvalNav, fmtDateTime } from "./shared";
 import { RunDialog } from "./RunDialog";
 
+const SIZE_PRESETS = [
+  { n: 20, hint: "Thử nhanh", recommended: false },
+  { n: 50, hint: "Đủ để nghiệm thu", recommended: true },
+  { n: 100, hint: "Nghiệp vụ phức tạp", recommended: false },
+];
+const isPreset = (c: Record<CaseGroup, number>, n: number) => CASE_GROUPS.every(g => c[g] === splitCounts(n)[g]);
+const GROUP_COLOR: Record<CaseGroup, string> = {
+  "Trích xuất đơn": "bg-primary", "So sánh": "bg-info", "Tổng hợp": "bg-success", "Ngoài phạm vi": "bg-warning", "Edge case": "bg-destructive",
+};
+const GROUP_HINT: Record<CaseGroup, string> = {
+  "Trích xuất đơn": "Hỏi một thông tin cụ thể", "So sánh": "So sánh 2 lựa chọn trở lên", "Tổng hợp": "Cần ghép nhiều đoạn tài liệu",
+  "Ngoài phạm vi": "Agent phải từ chối đúng cách", "Edge case": "Câu hỏi mơ hồ, thiếu thông tin",
+};
 const WRITE_CONNECTORS = ["gmail", "outlook", "slack", "teams", "jira", "gcalendar", "salesforce", "hubspot", "zoom", "gdrive"];
 const DEFAULT_REQUIRED = ["tpl-correctness", "tpl-faithfulness", "tpl-safety", "tpl-style"];
 
@@ -196,25 +209,25 @@ function GenerateSetDialog({ agentId, agentName, open, onOpenChange, onCreated }
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
   const [picked, setPicked] = useState<CaseSource[]>([]);
-  const [total, setTotal] = useState(50);
-  const [dist, setDist] = useState<Record<CaseGroup, number>>(DEFAULT_DISTRIBUTION);
+  const [counts, setCounts] = useState<Record<CaseGroup, number>>(() => splitCounts(50));
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
   const [lang, setLang] = useState("Tiếng Việt");
   const [busy, setBusy] = useState(false);
   const [touched, setTouched] = useState(false);
-  const sum = Object.values(dist).reduce((a, b) => a + b, 0);
+  const [advanced, setAdvanced] = useState(false);
 
-  const reset = () => { setName(""); setDesc(""); setPicked(sources.filter(s => s.count > 0).map(s => s.id)); setTotal(50); setDist(DEFAULT_DISTRIBUTION); setBusy(false); setTouched(false); };
+  const reset = () => { setName(""); setDesc(""); setPicked(sources.filter(s => s.count > 0).map(s => s.id)); setCounts(splitCounts(50)); setBusy(false); setTouched(false); setAdvanced(false); };
   // Pre-tick every source the Agent actually has configured.
   useEffect(() => { if (open) reset(); }, [open, sources]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const submit = () => {
     setTouched(true);
-    if (!name.trim() || picked.length === 0 || sum !== 100) return;
+    if (!name.trim() || picked.length === 0 || total === 0) return;
     setBusy(true);
     setTimeout(() => {
       const set = evaluationStore.createSet(agentId, { name: name.trim(), description: desc.trim(), metrics: defaultSetMetrics(agentId, picked.includes("Connectors") || picked.includes("Skills")), runsPerCase: 1, toolModes: defaultToolModes(agentId) });
-      evaluationStore.addCases(set.id, generateCases({ agentName, total, sources: picked, distribution: dist, topic: name }));
-      toast.success(`Đã tạo ${total} test case - Kiểm tra lại đáp án mẫu trước khi chạy`);
+      evaluationStore.addCases(set.id, generateCases({ agentName, total, sources: picked, distribution: DEFAULT_DISTRIBUTION, counts, topic: name }));
+      toast.success(`Đã tạo ${total} test case nháp - Duyệt đáp án mẫu trước khi chạy`);
       onOpenChange(false);
       onCreated(set.id);
     }, 1600);
@@ -263,35 +276,76 @@ function GenerateSetDialog({ agentId, agentName, open, onOpenChange, onCreated }
                 })}
               </div>
               {touched && picked.length === 0 && <span className="text-xs text-destructive mt-1 block">Chọn ít nhất 1 nguồn</span>}
+              {!picked.includes("Knowledge") && (
+                <div className="mt-2 rounded-lg border border-[hsl(var(--warning)/0.3)] bg-[hsl(var(--warning-soft))] px-3 py-2 text-xs">
+                  {sources.find(x => x.id === "Knowledge")?.count ? "Không sinh từ Knowledge" : `${agentName} chưa có Knowledge`} - AI chỉ sinh câu hỏi về phạm vi hỗ trợ, cách trả lời và Guardrail. Thêm Knowledge để có câu hỏi tra cứu thông tin.
+                </div>
+              )}
             </fieldset>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="block">
-                <span className="text-sm font-medium">Số test case</span>
-                <input type="number" min={5} max={500} className="ds-input mt-1.5" value={total} onChange={e => setTotal(Math.max(5, Math.min(500, Number(e.target.value) || 0)))} />
-                <span className="text-xs text-muted-foreground mt-1 block">Khuyến nghị tối thiểu 50 test cho một nghiệp vụ</span>
-              </label>
-              <label className="block">
-                <span className="text-sm font-medium">Ngôn ngữ</span>
-                <select className="ds-input mt-1.5" value={lang} onChange={e => setLang(e.target.value)}>
-                  <option>Tiếng Việt</option><option>English</option><option>Tiếng Việt + English</option>
-                </select>
-              </label>
-            </div>
             <fieldset>
-              <legend className="text-sm font-medium mb-1">Phân bổ nhóm câu hỏi</legend>
-              <p className="text-xs text-muted-foreground mb-2">Theo tiêu chí nghiệm thu QnA của FPT. Luôn giữ ít nhất 5-10% câu ngoài phạm vi và câu mơ hồ để kiểm tra Guardrail.</p>
-              <div className="space-y-1.5">
-                {CASE_GROUPS.map(g => (
-                  <div key={g} className="grid grid-cols-[130px_1fr_64px_40px] items-center gap-3 text-sm">
-                    <span>{g}</span>
-                    <input type="range" min={0} max={100} step={5} value={dist[g]} onChange={e => setDist(d => ({ ...d, [g]: Number(e.target.value) }))} aria-label={`Tỷ lệ ${g}`} className="accent-[hsl(var(--primary))]" />
-                    <span className="text-right font-medium">{dist[g]}%</span>
-                    <span className="text-xs text-muted-foreground">~{Math.round((total * dist[g]) / 100)}</span>
-                  </div>
-                ))}
+              <legend className="text-sm font-medium mb-1.5">Số test case</legend>
+              <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Số test case">
+                {SIZE_PRESETS.map(sp => {
+                  const on = isPreset(counts, sp.n);
+                  return (
+                    <button key={sp.n} type="button" role="radio" aria-checked={on} onClick={() => setCounts(splitCounts(sp.n))}
+                      className={`rounded-lg border px-3 py-2 text-left transition-base cursor-pointer ${on ? "border-primary bg-primary-soft" : "border-border hover:bg-surface-muted"}`}>
+                      <div className="text-sm font-semibold">{sp.n} test{sp.recommended && <span className="chip chip-primary !py-0 !text-[10px] ml-1.5">Khuyến nghị</span>}</div>
+                      <div className="text-xs text-muted-foreground">{sp.hint}</div>
+                    </button>
+                  );
+                })}
+                {!SIZE_PRESETS.some(sp => isPreset(counts, sp.n)) && (
+                  <span className="rounded-lg border border-primary bg-primary-soft px-3 py-2 text-sm font-semibold self-stretch flex items-center">Tùy chỉnh · {total} test</span>
+                )}
               </div>
-              {sum !== 100 && <span className="text-xs text-destructive mt-1 block">Tổng đang là {sum}% - Điều chỉnh để tổng bằng 100%</span>}
+
+              {/* Preview of how the questions are split - read-only, adjust in "Chỉnh số câu theo nhóm" */}
+              <div className="mt-3 rounded-lg border border-border p-3">
+                <div className="flex h-2.5 rounded-full overflow-hidden" role="img" aria-label={CASE_GROUPS.map(g => `${g}: ${counts[g]}`).join(", ")}>
+                  {CASE_GROUPS.filter(g => counts[g] > 0).map(g => <div key={g} className={GROUP_COLOR[g]} style={{ flex: counts[g] }} />)}
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
+                  {CASE_GROUPS.map(g => <span key={g} className="inline-flex items-center gap-1.5"><span className={`w-2 h-2 rounded-sm ${GROUP_COLOR[g]}`} />{g} <b className="text-foreground">{counts[g]}</b></span>)}
+                </div>
+                <button type="button" onClick={() => setAdvanced(v => !v)} aria-expanded={advanced}
+                  className="mt-2 text-xs font-semibold text-primary hover:underline cursor-pointer inline-flex items-center gap-1">
+                  {advanced ? "Ẩn" : "Chỉnh số câu theo nhóm"} <HugeiconsIcon icon={ArrowDown01Icon} size={12} className={`transition-transform ${advanced ? "rotate-180" : ""}`} />
+                </button>
+                {advanced && (
+                  <div className="mt-2 pt-3 border-t border-border space-y-2">
+                    {CASE_GROUPS.map(g => (
+                      <div key={g} className="flex items-center gap-3 text-sm">
+                        <span className="flex-1">
+                          <span className="block">{g}</span>
+                          <span className="block text-xs text-muted-foreground">{GROUP_HINT[g]}</span>
+                        </span>
+                        <div className="flex items-center rounded-lg border border-border">
+                          <button type="button" aria-label={`Bớt 1 câu ${g}`} disabled={counts[g] === 0} onClick={() => setCounts(c => ({ ...c, [g]: Math.max(0, c[g] - 1) }))}
+                            className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:bg-surface-muted disabled:opacity-40 cursor-pointer rounded-l-lg">−</button>
+                          <input type="number" min={0} max={200} value={counts[g]} aria-label={`Số câu ${g}`}
+                            onChange={e => setCounts(c => ({ ...c, [g]: Math.max(0, Math.min(200, Number(e.target.value) || 0)) }))}
+                            className="w-12 h-8 text-center text-sm font-semibold bg-transparent border-x border-border outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none" />
+                          <button type="button" aria-label={`Thêm 1 câu ${g}`} onClick={() => setCounts(c => ({ ...c, [g]: Math.min(200, c[g] + 1) }))}
+                            className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:bg-surface-muted cursor-pointer rounded-r-lg">+</button>
+                        </div>
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between pt-1 text-xs">
+                      <span className="text-muted-foreground">{(counts["Ngoài phạm vi"] + counts["Edge case"]) * 100 < total * 5 ? <span className="text-warning">Nên có ít nhất 5% câu ngoài phạm vi và câu mơ hồ để kiểm tra Guardrail</span> : "Tổng số test tự cộng theo từng nhóm"}</span>
+                      <button type="button" className="font-semibold text-primary hover:underline cursor-pointer" onClick={() => setCounts(splitCounts(total || 50))}>Về tỷ lệ chuẩn FPT</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              {touched && total === 0 && <span className="text-xs text-destructive mt-1 block">Chọn ít nhất 1 test case</span>}
             </fieldset>
+            <label className="block">
+              <span className="text-sm font-medium">Ngôn ngữ</span>
+              <select className="ds-input mt-1.5 !w-56 block" value={lang} onChange={e => setLang(e.target.value)}>
+                <option>Tiếng Việt</option><option>English</option><option>Tiếng Việt + English</option>
+              </select>
+            </label>
             <div className="rounded-lg bg-surface-muted px-3 py-2.5 text-xs text-muted-foreground">
               Bộ test mới dùng sẵn 4 chỉ số bắt buộc: Correctness, Faithfulness, Safety, Style. Bạn đổi được trong tab Cài đặt của bộ test.
             </div>
@@ -346,8 +400,10 @@ function TestSetDetail({ set, agentId, agentName, onBack }: { set: TestSet; agen
   const [q, setQ] = useState("");
   const [group, setGroup] = useState<CaseGroup | "all">("all");
   const [genMore, setGenMore] = useState(false);
+  const [onlyDraft, setOnlyDraft] = useState(false);
   const cases = evaluationStore.cases(set.id);
-  const shown = cases.filter(c => (group === "all" || c.group === group) && (!q || c.question.toLowerCase().includes(q.toLowerCase())));
+  const unreviewed = evaluationStore.unreviewed(set.id);
+  const shown = cases.filter(c => (group === "all" || c.group === group) && (!q || c.question.toLowerCase().includes(q.toLowerCase())) && (!onlyDraft || c.reviewed === false));
   const run = evaluationStore.latestRun(set.id);
 
   return (
@@ -363,6 +419,14 @@ function TestSetDetail({ set, agentId, agentName, onBack }: { set: TestSet; agen
           <button className="btn-primary" onClick={() => setRunOpen(true)} disabled={cases.length === 0}><HugeiconsIcon icon={PlayIcon} size={14} /> Chạy bộ test</button>
         </div>
       </div>
+
+      {unreviewed.length > 0 && (
+        <div className="flex items-center gap-3 rounded-xl border border-[hsl(var(--warning)/0.3)] bg-[hsl(var(--warning-soft))] px-4 py-3 text-sm" role="status">
+          <span className="flex-1"><b>{unreviewed.length} test case do AI sinh chưa được duyệt.</b> Đọc lại câu hỏi và đáp án mẫu - Đáp án mẫu sai thì kết quả chấm cũng sai.</span>
+          <button className="btn-secondary !h-8 shrink-0" onClick={() => { setTab("cases"); setOnlyDraft(true); }}>Xem test chưa duyệt</button>
+          <button className="btn-primary !h-8 shrink-0" onClick={() => { evaluationStore.approveAll(set.id); setOnlyDraft(false); toast.success(`Đã duyệt ${unreviewed.length} test case`); }}>Duyệt tất cả</button>
+        </div>
+      )}
 
       <div className="flex gap-1 border-b border-border" role="tablist">
         {([["cases", `Test case (${cases.length})`], ["settings", "Cài đặt"]] as const).map(([id, label]) => (
@@ -384,6 +448,11 @@ function TestSetDetail({ set, agentId, agentName, onBack }: { set: TestSet; agen
                   {g === "all" ? "Tất cả" : g} <span className="opacity-70">{g === "all" ? cases.length : cases.filter(c => c.group === g).length}</span>
                 </button>
               ))}
+              {unreviewed.length > 0 && (
+                <button onClick={() => setOnlyDraft(v => !v)} aria-pressed={onlyDraft} className={`chip cursor-pointer ${onlyDraft ? "chip-warning" : "chip-outline hover:bg-surface-muted"}`}>
+                  Chưa duyệt <span className="opacity-70">{unreviewed.length}</span>
+                </button>
+              )}
             </div>
             <div className="ml-auto flex gap-2">
               <button className="btn-ghost" onClick={() => toast.success(`Đã xuất ${cases.length} test case ra ${set.name}.xlsx`)}><HugeiconsIcon icon={Download04Icon} size={14} /> Xuất .xlsx</button>
@@ -421,7 +490,7 @@ function TestSetDetail({ set, agentId, agentName, onBack }: { set: TestSet; agen
                 {shown.map(c => (
                   <tr key={c.id} className="border-t border-border hover:bg-surface-muted/50 transition-base">
                     <td className="px-4 py-3 align-top">
-                      <div className="leading-snug">{c.question}</div>
+                      <div className="leading-snug">{c.question}{c.reviewed === false && <span className="chip chip-warning !py-0 !text-[10px] ml-1.5 align-middle">Chưa duyệt</span>}</div>
                       {c.expectedTool && <code className="text-[11px] text-muted-foreground">Tool mong đợi: {c.expectedTool}</code>}
                     </td>
                     <td className="px-4 py-3 align-top text-muted-foreground"><div className="line-clamp-2">{c.reference || <span className="italic">Chưa có</span>}</div></td>
@@ -511,7 +580,7 @@ function CaseSheet({ set, editing, onClose }: { set: TestSet; editing: TestCase 
   const save = () => {
     setTouched(true);
     if (!question.trim()) return;
-    const data = { question: question.trim(), reference: reference.trim() || undefined, expectedTool: tool.trim() || undefined, group };
+    const data = { question: question.trim(), reference: reference.trim() || undefined, expectedTool: tool.trim() || undefined, group, reviewed: true };
     if (init) evaluationStore.updateCase(init.id, data);
     else evaluationStore.addCases(set.id, [{ ...data, source: "Thủ công" }]);
     toast.success(init ? "Đã lưu test case" : "Đã thêm test case");
@@ -560,7 +629,7 @@ function CaseSheet({ set, editing, onClose }: { set: TestSet; editing: TestCase 
         </div>
         <div className="px-6 py-3 border-t border-border flex justify-end gap-2">
           <button className="btn-secondary" onClick={onClose}>Hủy</button>
-          <button className="btn-primary" onClick={save}>{isNew ? "Thêm test case" : "Lưu thay đổi"}</button>
+          <button className="btn-primary" onClick={save}>{isNew ? "Thêm test case" : init?.reviewed === false ? "Lưu và duyệt" : "Lưu thay đổi"}</button>
         </div>
       </SheetContent>
     </Sheet>
