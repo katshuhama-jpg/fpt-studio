@@ -20,7 +20,7 @@ import SkillShareModal from "@/components/configure/SkillShareModal";
 import { VISIBLE_BUILTIN_SKILLS, type BuiltinSkill } from "@/components/configure/builtinSkillStore";
 import { SystemResourceDetailModal } from "@/components/configure/AgentResourceDetailModal";
 import {
-  ownershipTags, countByTab, matchesTab, OwnershipTabs, OwnershipTagList, ResourceCard, ResourceIconTile, isCreatorRedundant,
+  ownershipTags, countByTab, matchesTab, OwnershipTabs, ownershipEmptyCopy, OwnershipTagList, ResourceCard, ResourceIconTile, isCreatorRedundant,
   CardCreator, AgentCount, type OwnershipTab, type OwnershipTag,
 } from "@/components/governance/resourceOwnership";
 
@@ -185,7 +185,7 @@ export default function Skills() {
         <div className="max-w-[1200px] mx-auto px-8 py-5 flex items-center justify-between">
           <div>
             <h1 className="font-display text-xl font-semibold tracking-tight mb-1">Skills</h1>
-            <p className="text-sm text-muted-foreground">Skill dùng chung cho tất cả Agent trong workspace.</p>
+            <p className="text-sm text-muted-foreground">Skill dùng chung trong Space. Liên kết vào Agent nào cũng được.</p>
           </div>
           <div className="flex items-center gap-2">
             <button className="btn-secondary flex items-center gap-1.5"><BookOpen size={14} /> Thư viện skill mẫu</button>
@@ -204,7 +204,7 @@ export default function Skills() {
       {/* Ownership tabs + search + view toggle */}
       <div className="border-b border-border bg-background shrink-0">
         <div className="max-w-[1200px] mx-auto px-8 py-3 flex items-center justify-between gap-3 flex-wrap">
-          <OwnershipTabs tab={tab} onChange={setTab} counts={counts} />
+          <OwnershipTabs tab={tab} onChange={setTab} counts={counts} noun="skill" />
           <div className="flex items-center gap-2 flex-wrap">
             <div className="relative">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -226,7 +226,12 @@ export default function Skills() {
       {/* Cards */}
       {visible.length === 0 && (tab !== "all" || q) ? (
         <div className="flex-1 flex items-center justify-center text-center p-10 text-sm text-muted-foreground">
-          {q ? "Không tìm thấy skill nào phù hợp." : tab === "mine" ? "Bạn chưa tạo skill nào." : tab === "shared" ? "Chưa có skill nào được chia sẻ." : "Chưa có skill hệ thống nào."}
+          {q ? "Không tìm thấy skill nào phù hợp." : ownershipEmptyCopy(tab, "skill") ? (
+            <div className="max-w-md">
+              <p className="font-medium text-foreground mb-1">{ownershipEmptyCopy(tab, "skill")!.title}</p>
+              <p>{ownershipEmptyCopy(tab, "skill")!.body}</p>
+            </div>
+          ) : "Chưa có skill hệ thống nào."}
         </div>
       ) : visible.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center p-10 animate-fade-up">

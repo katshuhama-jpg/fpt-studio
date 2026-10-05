@@ -1,5 +1,5 @@
 import type { KeyboardEvent, ReactNode } from "react";
-import { ShieldCheck, User, Users } from "lucide-react";
+import { Info, ShieldCheck, User, Users } from "lucide-react";
 
 /**
  * Ownership tags + the shared "Phương án A" resource card used by every Space resource library
@@ -12,11 +12,17 @@ import { ShieldCheck, User, Users } from "lucide-react";
  *                      viewer can see it. So "Của tôi" + "Được chia sẻ" together is normal.
  *   - "Hệ thống"     — shipped by the platform (built-in skills, mandatory guardrails, internal
  *                      connector templates); never owned by a person, never combined.
- * The library tabs (Tất cả / Của tôi / Được chia sẻ / Hệ thống) filter by exactly these tags.
+ * The Space library is the company's shared place: it lists only what is shared (to the whole
+ * Space or to specific people) plus the platform's own items. Something kept for one Agent
+ * ("Chỉ Agent này") lives in that Agent, not here. Tabs filter by sharing, not by creator:
+ *   - "Tôi chia sẻ"     — the viewer created it and shared it.
+ *   - "Chia sẻ với tôi" — someone else shared it with the whole Space or with the viewer.
+ * "Của tôi" keeps meaning "the viewer created it" (card chips, inside an Agent).
  */
 
-export type OwnershipTag = "mine" | "shared" | "system";
-export type OwnershipTab = "all" | OwnershipTag;
+/** "withMe" is filter-only (shared by someone else to the Space or to the viewer) - no chip. */
+export type OwnershipTag = "mine" | "shared" | "system" | "withMe";
+export type OwnershipTab = "all" | "mine" | "shared" | "system";
 
 type SharingLike = { mode: string; people?: unknown[] } | undefined;
 
@@ -31,8 +37,13 @@ export function ownershipTags({ system, ownerId, sharing, userId }: {
 }): OwnershipTag[] {
   if (system) return ["system"];
   const tags: OwnershipTag[] = [];
-  if (ownerId && ownerId === userId) tags.push("mine");
-  if (isShared(sharing)) tags.push("shared");
+  const mine = !!ownerId && ownerId === userId;
+  if (mine) tags.push("mine");
+  if (isShared(sharing)) {
+    tags.push("shared");
+    const people = (sharing?.people ?? []) as { userId?: string }[];
+    if (!mine && (sharing?.mode === "all" || people.some(p => p?.userId === userId))) tags.push("withMe");
+  }
   return tags;
 }
 
@@ -46,24 +57,50 @@ export function isCreatorRedundant(tags: OwnershipTag[]): boolean {
 
 export const OWNERSHIP_TABS: { key: OwnershipTab; label: string }[] = [
   { key: "all", label: "Tất cả" },
-  { key: "mine", label: "Của tôi" },
-  { key: "shared", label: "Được chia sẻ" },
+  { key: "mine", label: "Tôi chia sẻ" },
+  { key: "shared", label: "Chia sẻ với tôi" },
   { key: "system", label: "Hệ thống" },
 ];
 
+/** In the Space library at all: shared, or shipped by the platform. */
+function inSpace(tags: OwnershipTag[]): boolean {
+  return tags.includes("shared") || tags.includes("system");
+}
+
 export function matchesTab(tags: OwnershipTag[], tab: OwnershipTab): boolean {
-  return tab === "all" || tags.includes(tab);
+  if (!inSpace(tags)) return false;
+  if (tab === "all") return true;
+  if (tab === "mine") return tags.includes("mine") && tags.includes("shared");
+  if (tab === "shared") return !tags.includes("mine") && tags.includes("shared");
+  return tags.includes("system");
 }
 
 export function countByTab<T>(items: T[], tagsOf: (t: T) => OwnershipTag[]): Record<OwnershipTab, number> {
-  const c: Record<OwnershipTab, number> = { all: items.length, mine: 0, shared: 0, system: 0 };
-  for (const it of items) for (const t of tagsOf(it)) c[t] += 1;
+  const c: Record<OwnershipTab, number> = { all: 0, mine: 0, shared: 0, system: 0 };
+  for (const it of items) {
+    const tags = tagsOf(it);
+    for (const tab of ["all", "mine", "shared", "system"] as OwnershipTab[]) if (matchesTab(tags, tab)) c[tab] += 1;
+  }
   return c;
 }
 
-const TAG_META: Record<OwnershipTag, { label: string; icon: typeof User; cls: string }> = {
+/** Empty-state copy per tab. `noun` is lower case, e.g. "skill", "kho tri thức". */
+export function ownershipEmptyCopy(tab: OwnershipTab, noun: string): { title: string; body: string } | null {
+  if (tab === "mine") return {
+    title: `Bạn chưa chia sẻ ${noun} nào lên Space`,
+    body: `${cap(noun)} bạn tạo trong Agent mặc định chỉ Agent đó dùng. Mở "Ai được dùng" của ${noun} để chia sẻ cho cả Space.`,
+  };
+  if (tab === "shared") return {
+    title: `Chưa có ai chia sẻ ${noun} cho bạn`,
+    body: `${cap(noun)} người khác chia sẻ cho cả Space hoặc cho riêng bạn sẽ hiện ở đây.`,
+  };
+  return null;
+}
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+const TAG_META: Partial<Record<OwnershipTag, { label: string; icon: typeof User; cls: string }>> = {
   mine: { label: "Của tôi", icon: User, cls: "bg-primary-soft text-primary-strong" },
-  shared: { label: "Được chia sẻ", icon: Users, cls: "bg-[hsl(var(--success-soft))] text-[hsl(var(--success-strong))]" },
+  shared: { label: "Đã chia sẻ", icon: Users, cls: "bg-[hsl(var(--success-soft))] text-[hsl(var(--success-strong))]" },
   system: { label: "Hệ thống", icon: ShieldCheck, cls: "bg-surface-sunken text-foreground/75" },
 };
 
@@ -71,8 +108,8 @@ export function OwnershipTagList({ tags, className = "" }: { tags: OwnershipTag[
   if (tags.length === 0) return null;
   return (
     <div className={`flex flex-wrap items-center gap-1.5 ${className}`}>
-      {tags.map(t => {
-        const m = TAG_META[t];
+      {tags.filter(t => TAG_META[t]).map(t => {
+        const m = TAG_META[t]!;
         const Icon = m.icon;
         return (
           <span key={t} className={`inline-flex items-center gap-1 rounded-full px-2 py-[3px] text-xs font-medium leading-none whitespace-nowrap ${m.cls}`}>
@@ -85,10 +122,13 @@ export function OwnershipTagList({ tags, className = "" }: { tags: OwnershipTag[
 }
 
 /** Tab bar shared by the libraries — same look as the old Tất cả/Của tôi/Được chia sẻ tabs. */
-export function OwnershipTabs({ tab, onChange, counts }: {
+export function OwnershipTabs({ tab, onChange, counts, noun }: {
   tab: OwnershipTab; onChange: (t: OwnershipTab) => void; counts: Record<OwnershipTab, number>;
+  /** Lower-case resource noun for the "Tôi chia sẻ" hint, e.g. "skill", "kho tri thức". */
+  noun?: string;
 }) {
   return (
+    <div className="flex flex-col gap-2 min-w-0">
     <div className="flex items-center gap-1 flex-wrap" role="tablist">
       {OWNERSHIP_TABS.map(t => (
         <button
@@ -106,6 +146,13 @@ export function OwnershipTabs({ tab, onChange, counts }: {
           </span>
         </button>
       ))}
+    </div>
+    {tab === "mine" && noun && (
+      <p className="flex items-start gap-1.5 text-xs text-muted-foreground leading-relaxed">
+        <Info size={13} className="shrink-0 mt-0.5" aria-hidden />
+        <span>{cap(noun)} bạn đã chia sẻ lên Space. {cap(noun)} chỉ dùng trong một Agent không hiện ở đây.</span>
+      </p>
+    )}
     </div>
   );
 }

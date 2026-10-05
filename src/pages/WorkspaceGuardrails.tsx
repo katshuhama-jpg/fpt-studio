@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import {
-  ownershipTags, countByTab, matchesTab, OwnershipTabs, OwnershipTagList, CreatorLabel, isCreatorRedundant, type OwnershipTab,
+  ownershipTags, countByTab, matchesTab, OwnershipTabs, ownershipEmptyCopy, OwnershipTagList, CreatorLabel, isCreatorRedundant, type OwnershipTab,
 } from "@/components/governance/resourceOwnership";
 import { agentsUsing, ResourceInUseDialog } from "@/components/governance/resourceInUseGuard";
 import { useSearchParams } from "react-router-dom";
@@ -225,7 +225,7 @@ export default function WorkspaceGuardrails() {
       {/* Ownership tabs (left) + search (right) share one row with a bottom border, exactly
           like Knowledge's tab/search bar. */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-5 border-b border-border pb-3">
-        <OwnershipTabs tab={tab} onChange={setTab} counts={counts} />
+        <OwnershipTabs tab={tab} onChange={setTab} counts={counts} noun="guardrail" />
         <div className="relative">
           <HugeiconsIcon icon={Search01Icon} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -240,7 +240,7 @@ export default function WorkspaceGuardrails() {
       {/* Table — all guardrails */}
       <Table>
         <THead cols="1fr 200px 72px 64px" cells={["Guardrail", "Response action", "Status", "Actions"]} lastRight />
-        {filtered.length === 0 ? <EmptyRow /> : filtered.map(g => {
+        {filtered.length === 0 ? <EmptyRow copy={!query.trim() ? ownershipEmptyCopy(tab, "guardrail") : null} /> : filtered.map(g => {
           const hasOwner = !g.mandatory && !!g.ownerId && !!g.sharing;
           const isOwner = hasOwner && g.ownerId === access.userId;
           const accessible = isGuardrailAccessible(g, access.userId);
@@ -336,8 +336,12 @@ function TRow({ cols, children, onClick }: { cols: string; children: React.React
   );
 }
 
-function EmptyRow() {
-  return <div className="px-5 py-6 text-sm text-muted-foreground text-center">No guardrails found.</div>;
+function EmptyRow({ copy }: { copy?: { title: string; body: string } | null }) {
+  return (
+    <div className="px-5 py-6 text-sm text-muted-foreground text-center">
+      {copy ? <><p className="font-medium text-foreground mb-1">{copy.title}</p><p>{copy.body}</p></> : "Không tìm thấy guardrail phù hợp."}
+    </div>
+  );
 }
 
 function ActionPill({ children }: { children: React.ReactNode }) {

@@ -23,7 +23,7 @@ import {
 import { ConnectorTemplateConnectModal, ConnectorTemplateManageModal } from "@/components/configure/ConnectorTemplateModals";
 import AgentResourceDetailModal from "@/components/configure/AgentResourceDetailModal";
 import {
-  ownershipTags, countByTab, matchesTab, OwnershipTabs, ResourceCard, ResourceIconTile, CardCreator, AgentCount,
+  ownershipTags, countByTab, matchesTab, OwnershipTabs, ownershipEmptyCopy, ResourceCard, ResourceIconTile, CardCreator, AgentCount,
   type OwnershipTab, type OwnershipTag,
 } from "@/components/governance/resourceOwnership";
 import {
@@ -344,14 +344,14 @@ export default function WorkspaceConnectors() {
           </div>
 
           <div className="mb-5">
-            <OwnershipTabs tab={customTab} onChange={setCustomTab} counts={customTabCounts} />
+            <OwnershipTabs tab={customTab} onChange={setCustomTab} counts={customTabCounts} noun="kết nối" />
           </div>
 
           {customFiltered.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border bg-gradient-soft p-12 text-center">
               <Plug size={22} className="mx-auto mb-3 text-muted-foreground" />
-              <p className="text-sm font-medium mb-1">{customTab === "mine" ? "Bạn chưa thêm custom connector nào" : customTab === "shared" ? "Chưa có custom connector nào được chia sẻ" : "Chưa có custom connector nào"}</p>
-              <p className="text-sm text-muted-foreground">Thêm một MCP server hoặc một API Tool để cấp công cụ cho Agent của bạn.</p>
+              <p className="text-sm font-medium mb-1">{ownershipEmptyCopy(customTab, "kết nối")?.title ?? "Chưa có custom connector nào"}</p>
+              <p className="text-sm text-muted-foreground">{ownershipEmptyCopy(customTab, "kết nối")?.body ?? "Thêm một MCP server hoặc một API Tool để cấp công cụ cho Agent của bạn."}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

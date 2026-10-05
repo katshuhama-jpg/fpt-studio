@@ -17,7 +17,7 @@ import DeleteKnowledgeBaseDialog from "@/components/knowledge/DeleteKnowledgeBas
 import { useGroupAccess } from "@/pages/organization/scopeAccess";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import {
-  ownershipTags, countByTab, matchesTab, OwnershipTabs, ResourceCard, CardCreator, AgentCount, type OwnershipTab,
+  ownershipTags, countByTab, matchesTab, OwnershipTabs, ownershipEmptyCopy, ResourceCard, CardCreator, AgentCount, type OwnershipTab,
 } from "@/components/governance/resourceOwnership";
 
 type MainTab = OwnershipTab;
@@ -272,7 +272,7 @@ export default function KnowledgeList() {
 
       {loadState === "ready" && hasAnyKb && (
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-5 border-b border-border pb-3">
-          <OwnershipTabs tab={tab} onChange={setTab} counts={counts} />
+          <OwnershipTabs tab={tab} onChange={setTab} counts={counts} noun="kho tri thức" />
           <div className="flex items-center gap-2 flex-wrap">
             <div className="relative">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -353,8 +353,13 @@ export default function KnowledgeList() {
 
       {loadState === "ready" && hasAnyKb && filtered.length === 0 && !(tab === "system" && !q && typeFilter === "all") && (
         <div className="rounded-2xl border border-dashed border-border bg-gradient-soft p-12 text-center">
+          {(() => { const ec = !q && typeFilter === "all" ? ownershipEmptyCopy(tab, "kho tri thức") : null; return ec ? (<>
+          <h3 className="font-display text-base font-semibold mb-1">{ec.title}</h3>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">{ec.body}</p>
+          </>) : (<>
           <h3 className="font-display text-base font-semibold mb-1">Không tìm thấy kho tri thức phù hợp</h3>
           <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">Thử đổi từ khóa hoặc bỏ bớt bộ lọc.</p>
+          </>); })()}
           {hasActiveFilters && (
             <button onClick={clearFilters} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">
               Xóa bộ lọc
