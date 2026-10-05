@@ -288,6 +288,8 @@ You track shipment status changes from the logistics webhook and post delivery u
     // and knowledgeStore. Left as Draft so the publish-time reference check can be tried too.
     id: "slash-demo", name: "Demo – Gọi tài nguyên bằng /", emoji: "🧪", bg: "bg-primary-soft", accent: "bg-primary",
     status: "Draft", ownerId: "m-fsoft-ceo",
+    // Shared with the other demo persona too, so the agent is visible whichever one is signed in.
+    sharedWith: ["m-fsoft-coo"],
     desc: "Agent mẫu có đủ Skill, Connector và Knowledge (kể cả trạng thái tắt/chưa kết nối/đang xử lý) để thử menu \"/\" trong Instructions.",
     model: "Gemini 1.5 Pro", convs: 0, success: 0, channels: [], updated: "Just now",
     instructions: `# Demo – Gọi tài nguyên bằng /
