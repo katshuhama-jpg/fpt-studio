@@ -131,7 +131,7 @@ function seedKb(kbId: string) {
     put({ id: "faq-1-5", kbId, question: "Lãi suất tiết kiệm kỳ hạn 12 tháng hiện nay là bao nhiêu?", answer: "Lãi suất tiết kiệm kỳ hạn 12 tháng hiện là 5.5%/năm đối với hình thức lĩnh lãi cuối kỳ, có thể thay đổi theo từng thời điểm công bố của ngân hàng.", categories: ["Tiết kiệm"], status: "processing", chunkCount: 0, updatedAt: now - 8 * 60_000, updatedBy: "Tran Nam" });
   }
 
-  // kb-4 "Chính sách nhân sự" — shared to Tran Nam by Linh Phan with "Có thể xem" access.
+  // kb-4 "Chính sách nhân sự" — shared to Tran Nam by Linh Phan.
   if (kbId === "kb-4") {
     put({ id: "faq-4-1", kbId, question: "Nhân viên mới được nghỉ phép từ khi nào?", answer: "Nhân viên mới được cộng dồn ngày phép ngay từ tháng đầu tiên làm việc, theo tỷ lệ tương ứng với số tháng đã làm trong năm.", categories: ["Nghỉ phép"], status: "done", chunkCount: 1, updatedAt: now - 6 * DAY, updatedBy: "Linh Phan" });
     put({ id: "faq-4-2", kbId, question: "Bảo hiểm y tế bắt đầu áp dụng từ lúc nào?", answer: "Bảo hiểm y tế được kích hoạt từ ngày ký hợp đồng chính thức, sau khi kết thúc thời gian thử việc.", categories: ["Bảo hiểm"], status: "done", chunkCount: 1, updatedAt: now - 9 * DAY, updatedBy: "Linh Phan" });
@@ -139,7 +139,7 @@ function seedKb(kbId: string) {
     put({ id: "faq-4-4", kbId, question: "Chính sách làm việc từ xa được áp dụng như thế nào?", answer: "Nhân viên có thể làm việc từ xa tối đa 2 ngày/tuần sau khi được quản lý trực tiếp đồng ý, riêng vị trí yêu cầu có mặt tại văn phòng không áp dụng.", categories: ["Làm việc từ xa"], status: "processing", chunkCount: 0, updatedAt: now - 18 * 60_000, updatedBy: "Linh Phan" });
   }
 
-  // kb-5 "Kịch bản bán hàng" — shared to Tran Nam by Mai Hoang with "Có thể chỉnh sửa" access.
+  // kb-5 "Kịch bản bán hàng" — shared to Tran Nam by Mai Hoang.
   if (kbId === "kb-5") {
     put({ id: "faq-5-1", kbId, question: "Khách hàng từ chối vì giá cao thì nên phản hồi thế nào?", answer: "Tập trung làm rõ giá trị và lợi ích lâu dài của sản phẩm thay vì tranh luận về giá, đồng thời gợi ý các gói hoặc ưu đãi phù hợp với ngân sách khách hàng.", categories: ["Từ chối"], status: "done", chunkCount: 1, updatedAt: now - 3 * DAY, updatedBy: "Mai Hoang" });
     put({ id: "faq-5-2", kbId, question: "Làm sao để mở đầu cuộc gọi tư vấn hiệu quả?", answer: "Giới thiệu ngắn gọn bản thân và mục đích cuộc gọi, xác nhận đây là thời điểm thuận tiện để trao đổi, sau đó đặt câu hỏi mở để hiểu nhu cầu khách hàng.", categories: ["Mở đầu"], status: "done", chunkCount: 1, updatedAt: now - 7 * DAY, updatedBy: "Mai Hoang" });

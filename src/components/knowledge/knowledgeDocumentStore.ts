@@ -64,7 +64,7 @@ function seedKb(kbId: string) {
     put({ id: "doc-3-3", kbId, name: "Runbook triển khai phiên bản mới.md", isFolder: false, folderId: null, status: "done", sizeBytes: 120_000, chunkCount: 31, version: 5, createdAt: now - 15 * DAY, updatedAt: now - DAY, updatedBy: "Duy Nguyen" });
   }
 
-  // kb-4 "Chính sách nhân sự" — shared to Tran Nam by Linh Phan with "Có thể xem" (view-only)
+  // kb-4 "Chính sách nhân sự" — shared to Tran Nam by Linh Phan
   // access, used to verify the read-only Documents table state.
   if (kbId === "kb-4") {
     put({ id: "doc-4-1", kbId, name: "Chính sách nghỉ phép 2026.pdf", isFolder: false, folderId: null, status: "done", sizeBytes: 410_000, chunkCount: 28, version: 2, createdAt: now - 20 * DAY, updatedAt: now - 3 * DAY, updatedBy: "Linh Phan" });
@@ -74,7 +74,7 @@ function seedKb(kbId: string) {
     put({ id: "doc-4-5", kbId, name: "Mẫu đơn xin nghỉ phép.docx", isFolder: false, folderId: null, status: "failed", statusReason: "Không đọc được nội dung tệp. Thử tải lại hoặc dùng bản PDF.", sizeBytes: 45_000, chunkCount: 0, version: 1, createdAt: now - 2 * DAY, updatedAt: now - 2 * DAY, updatedBy: "Linh Phan" });
   }
 
-  // kb-5 "Kịch bản bán hàng" — shared to Tran Nam by Mai Hoang with "Có thể chỉnh sửa" (edit)
+  // kb-5 "Kịch bản bán hàng" — shared to Tran Nam by Mai Hoang
   // access, used to verify the shared-edit Documents table state.
   if (kbId === "kb-5") {
     put({ id: "doc-5-1", kbId, name: "Kịch bản tư vấn khách hàng mới.docx", isFolder: false, folderId: null, status: "done", sizeBytes: 130_000, chunkCount: 16, version: 1, createdAt: now - 10 * DAY, updatedAt: now - 4 * DAY, updatedBy: "Mai Hoang" });

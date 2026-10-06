@@ -157,7 +157,7 @@ function Shell({ typeLabel, name, onClose, onEdit, onShare, shareLabel = ACCESS_
 }
 
 const NO_EDIT_ROLE = "Bạn chỉ xem được theo quyền trong Role.";
-const VIEW_ONLY_SHARE = "Chủ sở hữu chỉ chia sẻ quyền xem cho bạn.";
+const VIEW_ONLY_SHARE = "Tài nguyên này chưa được chia sẻ với bạn, bạn chỉ xem được.";
 
 /* ------------------------------- Skill ------------------------------- */
 

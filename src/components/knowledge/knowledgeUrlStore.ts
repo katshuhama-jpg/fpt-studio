@@ -53,7 +53,7 @@ function seedKb(kbId: string) {
     put({ id: "url-1-4", kbId, name: "Câu hỏi thường gặp", isFolder: false, folderId: null, url: "https://abcbank.com/faq", title: "Câu hỏi thường gặp - ABC Bank", source: "crawled_child", status: "processing", chunkCount: 0, version: 1, lastSyncAt: null, lastSyncOk: null, createdAt: now - 5 * 60_000, updatedAt: now - 5 * 60_000, updatedBy: "Tran Nam" });
   }
 
-  // kb-4 "Chính sách nhân sự" — shared to Tran Nam by Linh Phan with "Có thể xem" access.
+  // kb-4 "Chính sách nhân sự" — shared to Tran Nam by Linh Phan.
   if (kbId === "kb-4") {
     put({ id: "url-4-1", kbId, name: "Chính sách nghỉ phép", isFolder: false, folderId: null, url: "https://intranet.abc.com/hr/chinh-sach-nghi-phep", title: "Chính sách nghỉ phép", source: "specified", status: "done", chunkCount: 9, version: 1, lastSyncAt: now - 4 * HOUR, lastSyncOk: true, createdAt: now - 12 * DAY, updatedAt: now - 4 * HOUR, updatedBy: "Linh Phan" });
     put({ id: "url-4-2", kbId, name: "Phúc lợi nhân viên", isFolder: false, folderId: null, url: "https://intranet.abc.com/hr/phuc-loi-nhan-vien", title: "Phúc lợi nhân viên", source: "specified", status: "processing", chunkCount: 0, version: 1, lastSyncAt: null, lastSyncOk: null, createdAt: now - 12 * 60_000, updatedAt: now - 12 * 60_000, updatedBy: "Linh Phan" });

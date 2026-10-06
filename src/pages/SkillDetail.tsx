@@ -204,7 +204,6 @@ export default function SkillDetail() {
                 {skill.sharing.people.map(p => (
                   <li key={p.userId} className="flex items-center justify-between gap-3 text-sm">
                     <span className="min-w-0 truncate">{p.name} <span className="text-muted-foreground">· {p.email}</span></span>
-                    <span className="chip chip-info shrink-0">{p.access === "edit" ? "Có thể chỉnh sửa" : "Có thể xem"}</span>
                   </li>
                 ))}
               </ul>

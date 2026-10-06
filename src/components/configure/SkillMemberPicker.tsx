@@ -1,13 +1,8 @@
 import { useMemo, useState } from "react";
-import { Search, X, ChevronDown, Check } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { useOrg } from "@/pages/organization/orgStore";
 import { collectMembers } from "@/pages/organization/orgData";
-import type { SharedPerson, SharingAccess } from "./skillSharing";
-
-const ACCESS_OPTIONS: { value: SharingAccess; label: string }[] = [
-  { value: "view", label: "Có thể xem" },
-  { value: "edit", label: "Có thể chỉnh sửa" },
-];
+import type { SharedPerson } from "./skillSharing";
 
 function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -18,38 +13,6 @@ function Avatar({ name }: { name: string }) {
   return (
     <div className="w-8 h-8 rounded-full bg-primary-soft text-primary text-xs font-semibold flex items-center justify-center shrink-0">
       {initialsOf(name).toUpperCase()}
-    </div>
-  );
-}
-
-function AccessDropdown({ value, onChange }: { value: SharingAccess; onChange: (v: SharingAccess) => void }) {
-  const [open, setOpen] = useState(false);
-  const label = ACCESS_OPTIONS.find(o => o.value === value)?.label ?? value;
-  return (
-    <div className="relative shrink-0" onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false); }}>
-      <button
-        type="button"
-        onClick={() => setOpen(v => !v)}
-        className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg border border-border bg-surface text-sm font-medium hover:bg-surface-muted transition-base"
-      >
-        {label}
-        <ChevronDown size={11} className={`text-muted-foreground transition-base ${open ? "rotate-180" : ""}`} />
-      </button>
-      {open && (
-        <div className="absolute right-0 top-[calc(100%+4px)] min-w-52 max-w-xs bg-white rounded-lg ring-1 ring-border shadow-elev z-30 p-1">
-          {ACCESS_OPTIONS.map(o => (
-            <button
-              key={o.value}
-              type="button"
-              onClick={() => { onChange(o.value); setOpen(false); }}
-              className={`w-full flex items-center justify-between gap-2 text-left px-2.5 py-2 rounded-md text-sm transition-base hover:bg-surface-muted ${value === o.value ? "text-primary font-medium bg-primary-soft" : "text-foreground"}`}
-            >
-              {o.label}
-              {value === o.value && <Check size={12} className="text-primary shrink-0" />}
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -83,8 +46,6 @@ export default function SkillMemberPicker({
     setQuery("");
   };
   const removePerson = (userId: string) => onChange(value.filter(p => p.userId !== userId));
-  const setAccess = (userId: string, access: SharingAccess) =>
-    onChange(value.map(p => (p.userId === userId ? { ...p, access } : p)));
 
   return (
     <div className="space-y-3">
@@ -137,7 +98,6 @@ export default function SkillMemberPicker({
                 <div className="text-sm font-medium truncate">{p.name}</div>
                 <div className="text-xs text-muted-foreground truncate">{p.email}</div>
               </div>
-              <AccessDropdown value={p.access} onChange={v => setAccess(p.userId, v)} />
               <button
                 type="button"
                 onClick={() => removePerson(p.userId)}

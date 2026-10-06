@@ -26,11 +26,12 @@ export function isAccessibleTo(sharing: Sharing, ownerId: string, userId: string
   return sharing.people.some(p => p.userId === userId);
 }
 
-/** True when `userId` can only view (not edit/share/delete) — the owner and anyone with "edit"
- * access (or a resource shared to "all") can manage it; a "view"-only shared person cannot. */
+/** True when the user is neither owner nor shared on this resource (read-only via the Space).
+ * Being shared no longer carries a view/edit level: what a shared person can do (sửa, chia sẻ, xóa)
+ * follows their Role permissions, checked by the caller with useGroupAccess. */
 export function isViewOnly(sharing: Sharing, ownerId: string, userId: string): boolean {
   if (ownerId === userId) return false;
   if (sharing.mode === "all") return false;
   const person = sharing.people.find(p => p.userId === userId);
-  return !person || person.access === "view";
+  return !person;
 }

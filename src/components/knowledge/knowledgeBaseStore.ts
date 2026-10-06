@@ -313,14 +313,14 @@ export const knowledgeBaseStore = {
   },
 };
 
-/** True when the given user can only view (not edit/share/delete) a KB — the owner and
- * anyone with "edit" access (or a KB shared to "all") can manage it; a "view"-only shared
- * person cannot. */
+/** True when the user is neither owner nor shared on this resource (read-only via the Space).
+ * Being shared no longer carries a view/edit level: what a shared person can do (sửa, chia sẻ, xóa)
+ * follows their Role permissions, checked by the caller with useGroupAccess. */
 export function isViewOnly(kb: KnowledgeBase, userId: string = CURRENT_USER.id): boolean {
   if (kb.ownerId === userId) return false;
   if (kb.sharing.mode === "all") return false;
   const person = kb.sharing.people.find(p => p.userId === userId);
-  return !person || person.access === "view";
+  return !person;
 }
 
 /** True when `userId` created this KB, it's shared with every Console user, or they're one of

@@ -1,13 +1,8 @@
 import { useMemo, useState } from "react";
-import { Search, X, ChevronDown, Check } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { useOrg } from "@/pages/organization/orgStore";
 import { collectMembers } from "@/pages/organization/orgData";
-import type { SharedPerson, SharingAccess } from "./guardrailSharing";
-
-const ACCESS_OPTIONS: { value: SharingAccess; label: string }[] = [
-  { value: "view", label: "Có thể xem" },
-  { value: "edit", label: "Có thể chỉnh sửa" },
-];
+import type { SharedPerson } from "./guardrailSharing";
 
 function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -22,40 +17,8 @@ function Avatar({ name }: { name: string }) {
   );
 }
 
-function AccessDropdown({ value, onChange }: { value: SharingAccess; onChange: (v: SharingAccess) => void }) {
-  const [open, setOpen] = useState(false);
-  const label = ACCESS_OPTIONS.find(o => o.value === value)?.label ?? value;
-  return (
-    <div className="relative shrink-0" onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false); }}>
-      <button
-        type="button"
-        onClick={() => setOpen(v => !v)}
-        className="inline-flex items-center gap-1 h-8 px-2.5 rounded-lg border border-border bg-surface text-sm font-medium hover:bg-surface-muted transition-base"
-      >
-        {label}
-        <ChevronDown size={11} className={`text-muted-foreground transition-base ${open ? "rotate-180" : ""}`} />
-      </button>
-      {open && (
-        <div className="absolute right-0 top-[calc(100%+4px)] min-w-52 max-w-xs bg-white rounded-lg ring-1 ring-border shadow-elev z-30 p-1">
-          {ACCESS_OPTIONS.map(o => (
-            <button
-              key={o.value}
-              type="button"
-              onClick={() => { onChange(o.value); setOpen(false); }}
-              className={`w-full flex items-center justify-between gap-2 text-left px-2.5 py-2 rounded-md text-sm transition-base hover:bg-surface-muted ${value === o.value ? "text-primary font-medium bg-primary-soft" : "text-foreground"}`}
-            >
-              {o.label}
-              {value === o.value && <Check size={12} className="text-primary shrink-0" />}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** "Người dùng cụ thể" picker for Guardrails — search+chip console-member picker with a
- * per-person "Có thể xem"/"Có thể chỉnh sửa" access dropdown. Field-for-field port of Knowledge's
+/** "Người dùng cụ thể" picker for Guardrails — search+chip console-member picker without a
+ * per-person access level (what a shared person can do follows their Role). Field-for-field port of Knowledge's
  * MemberPicker (src/components/knowledge/MemberPicker.tsx) so the two modules' sharing UI never
  * drifts, without cross-importing between the Knowledge and Guardrails feature folders. */
 export default function GuardrailMemberPicker({
@@ -84,8 +47,6 @@ export default function GuardrailMemberPicker({
     setQuery("");
   };
   const removePerson = (userId: string) => onChange(value.filter(p => p.userId !== userId));
-  const setAccess = (userId: string, access: SharingAccess) =>
-    onChange(value.map(p => (p.userId === userId ? { ...p, access } : p)));
 
   return (
     <div className="space-y-3">
@@ -138,7 +99,6 @@ export default function GuardrailMemberPicker({
                 <div className="text-sm font-medium truncate">{p.name}</div>
                 <div className="text-xs text-muted-foreground truncate">{p.email}</div>
               </div>
-              <AccessDropdown value={p.access} onChange={v => setAccess(p.userId, v)} />
               <button
                 type="button"
                 onClick={() => removePerson(p.userId)}
