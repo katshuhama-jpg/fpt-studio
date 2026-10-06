@@ -1,5 +1,6 @@
-import { useMemo, useState, type ReactNode } from "react";
-import { Check, Network, Users, UserCheck, Bot, Hammer, MessageCircle, ChevronDown, UsersRound, type LucideIcon } from "lucide-react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
+import { Switch } from "@/components/ui/switch";
+import { Check, Network, Users, UserCheck, Hammer, MessageCircle, ChevronDown, UsersRound, type LucideIcon } from "lucide-react";
 import { useOrg } from "@/pages/organization/orgStore";
 import { collectMembers, orgTree as SEED_ORG_TREE, type OrgUnit } from "@/pages/organization/orgData";
 import OrgSharePicker, { toggleUnitIn, toggleMemberIn, orgSelectionSummary } from "@/components/governance/OrgSharePicker";
@@ -130,10 +131,6 @@ export const ACCESS_OPTIONS: { value: SharingMode; label: string; helper: string
   { value: "all", label: "Cả Space", helper: "Mọi thành viên Space đều liên kết được kho này vào Agent.", icon: Users },
   { value: "specific", label: "Người cụ thể", helper: "Chỉ người bạn chọn mới liên kết được kho này vào Agent.", icon: UserCheck },
 ];
-/** Extra first option inside an Agent, for knowledge that Agent owns. Stored as mode "private". */
-export const AGENT_ONLY_ACCESS_OPTION: { value: SharingMode; label: string; helper: string; icon: LucideIcon } = {
-  value: "private", label: "Chỉ Agent này", helper: "Không chia sẻ. Chỉ Agent bạn đang chỉnh sửa dùng được tri thức này.", icon: Bot,
-};
 
 export const QUERY_SCOPE_OPTIONS: { value: QueryScopeMode; label: string; helper: string; icon: LucideIcon }[] = [
   { value: "all_org", label: "Mọi người dùng Agent", helper: "Ai trò chuyện với Agent cũng nhận được câu trả lời từ kho này.", icon: UsersRound },
@@ -192,7 +189,12 @@ export function isQueryScopeValid(v: QuerySharing): boolean {
 export interface AccessCopy {
   title: string; description: string; agentDescription: string;
   allHelper: string; specificHelper: string; privateHelper: string;
+  /** Inside an Agent: helper under the "Chia sẻ lên Space" switch while it is off. */
+  shareOffHelper: string;
 }
+/** Label of the switch that turns Space sharing on for a resource created inside an Agent. */
+export const SHARE_TO_SPACE_LABEL = "Chia sẻ lên Space";
+const SHARE_ON_HELPER = "Đang bật - Chọn ai trong Space được dùng.";
 export function resourceAccessCopy(noun: string): AccessCopy {
   return {
     title: `Ai được dùng ${noun}`,
@@ -201,6 +203,7 @@ export function resourceAccessCopy(noun: string): AccessCopy {
     allHelper: `Mọi thành viên Space đều liên kết được ${noun} vào Agent.`,
     specificHelper: `Chỉ người bạn chọn mới liên kết được ${noun} vào Agent.`,
     privateHelper: `Không chia sẻ. Chỉ Agent bạn đang chỉnh sửa dùng được ${noun}.`,
+    shareOffHelper: `Đang tắt - Chỉ Agent này dùng được ${noun}.`,
   };
 }
 
@@ -221,26 +224,46 @@ export function AccessScopeSection({ mode, people, onModeChange, onPeopleChange,
   /** Member picker for "Người cụ thể" — defaults to Knowledge's MemberPicker. */
   picker?: ReactNode;
 }) {
-  const base = agentOnly ? [AGENT_ONLY_ACCESS_OPTION, ...ACCESS_OPTIONS] : ACCESS_OPTIONS;
   const options = copy
-    ? base.map(o => ({ ...o, helper: o.value === "all" ? copy.allHelper : o.value === "specific" ? copy.specificHelper : copy.privateHelper }))
-    : base;
+    ? ACCESS_OPTIONS.map(o => ({ ...o, helper: o.value === "all" ? copy.allHelper : copy.specificHelper }))
+    : ACCESS_OPTIONS;
   const description = copy ? (agentOnly ? copy.agentDescription : copy.description) : (agentOnly ? ACCESS_COPY.agentDescription : ACCESS_COPY.description);
+  // Inside an Agent: sharing is a switch. Off = "private" (only this Agent uses it). On = the two
+  // Space options; switching off then on again brings back the option picked before.
+  const shared = !agentOnly || mode !== "private";
+  const lastShared = useRef<SharingMode>(mode === "private" ? "all" : mode);
+  if (mode !== "private") lastShared.current = mode;
+  const offHelper = copy?.shareOffHelper ?? "Đang tắt - Chỉ Agent này dùng được kho này.";
   return (
-    <div role="radiogroup" aria-label={copy?.title ?? ACCESS_COPY.title}>
+    <div>
       <PermissionHeading title={copy?.title ?? ACCESS_COPY.title} description={description} hideTitle={hideTitle} audience="builders" />
-      <div className="space-y-2">
-        {options.map(opt => (
-          <RadioCard key={opt.value} selected={mode === opt.value} onSelect={() => onModeChange(opt.value)} label={opt.label} helper={opt.helper} icon={opt.icon}>
-            {opt.value === "specific" && (
-              <>
-                {picker ?? <MemberPicker value={people} onChange={onPeopleChange} ownerRow={ownerRow} />}
-                {submitAttempted && people.length === 0 && <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người.</p>}
-              </>
-            )}
-          </RadioCard>
-        ))}
-      </div>
+      {agentOnly && (
+        <label className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-3.5 py-3 mb-2 cursor-pointer">
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold text-foreground">{SHARE_TO_SPACE_LABEL}</span>
+            <span className="block text-xs text-muted-foreground mt-0.5">{shared ? SHARE_ON_HELPER : offHelper}</span>
+          </span>
+          <Switch
+            checked={shared}
+            onCheckedChange={v => onModeChange(v ? lastShared.current : "private")}
+            aria-label={SHARE_TO_SPACE_LABEL}
+          />
+        </label>
+      )}
+      {shared && (
+        <div role="radiogroup" aria-label={copy?.title ?? ACCESS_COPY.title} className="space-y-2">
+          {options.map(opt => (
+            <RadioCard key={opt.value} selected={mode === opt.value} onSelect={() => onModeChange(opt.value)} label={opt.label} helper={opt.helper} icon={opt.icon}>
+              {opt.value === "specific" && (
+                <>
+                  {picker ?? <MemberPicker value={people} onChange={onPeopleChange} ownerRow={ownerRow} />}
+                  {submitAttempted && people.length === 0 && <p className="text-xs text-destructive mt-1.5">Thêm ít nhất một người.</p>}
+                </>
+              )}
+            </RadioCard>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

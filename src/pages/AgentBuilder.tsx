@@ -9,7 +9,10 @@ import TasksGrid from "@/components/tasks/TasksGrid";
 import BusinessProcessesGrid from "@/components/business-processes/BusinessProcessesGrid";
 import TriggersTab from "@/components/configure/TriggersTab";
 import TriggerFormDialog from "@/components/configure/TriggerFormDialog";
+import { AlertTriangle } from "lucide-react";
 import TriggerBlockedByConnectorNotice from "@/components/configure/TriggerBlockedByConnectorNotice";
+import { RevokedChip, RevokedDot, RevokedBanner, REVOKED_ROW_CLASS, useRevokedResources } from "@/components/governance/RevokedBadge";
+import { isResourceRevoked, listRevokedResources, REVOKED_COPY, type RevocableType } from "@/components/governance/revokedResources";
 import DeleteTriggerDialog from "@/components/configure/DeleteTriggerDialog";
 import HistoryTab from "@/components/history/HistoryTab";
 import { AgentVersionsPanel } from "@/components/governance/agentVersionsPanel";
@@ -231,8 +234,15 @@ export default function AgentBuilder() {
   // Publish first checks the Instructions for references that no longer resolve (see
   // instructionRefs.ts); the Builder may still publish anyway.
   const [brokenRefs, setBrokenRefs] = useState<BrokenRef[] | null>(null);
+  // Space resources whose owner revoked this Agent's access - block publishing until detached.
+  const revokedAll = useRevokedResources(id ?? "new");
+  const revokedCountFor = (sectionId: string) => revokedAll.filter(r =>
+    sectionId === "skills" ? r.type === "skill" : sectionId === "knowledge" ? r.type === "knowledge" : sectionId === "guardrails" ? r.type === "guardrail"
+    : sectionId === "instructions" ? r.type === "connector" || r.type === "apiTool" : false).length;
   const requestPublish = () => {
     const aid = id ?? "new";
+    const revokedNow = listRevokedResources(aid);
+    if (revokedNow.length > 0) { toast.error(REVOKED_COPY.publishBlocked(revokedNow)); return; }
     const text = instructionDraftStore.get(aid) ?? (params.get("agentPrompt") || getAgent(aid).instructions);
     const broken = findBrokenRefs(aid, text);
     if (broken.length > 0) setBrokenRefs(broken); else setShowPublish(true);
@@ -356,8 +366,8 @@ export default function AgentBuilder() {
           />
           <button
             onClick={() => canPublishAgent && requestPublish()}
-            disabled={!canPublishAgent}
-            title={!canPublishAgent ? "Bạn không có quyền publish agent này." : undefined}
+            disabled={!canPublishAgent || revokedAll.length > 0}
+            title={!canPublishAgent ? "Bạn không có quyền publish agent này." : revokedAll.length > 0 ? REVOKED_COPY.publishBlocked(revokedAll) : undefined}
             className="btn-primary h-9 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <HugeiconsIcon icon={Rocket01Icon} size={13} /> Publish
@@ -521,6 +531,7 @@ export default function AgentBuilder() {
               >
                 <HugeiconsIcon icon={it.icon} size={18} className="shrink-0" />
                 <span className="flex-1 text-left truncate ml-2.5">{it.label}</span>
+                <RevokedDot count={revokedCountFor(it.id)} />
                 {it.comingSoon && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-surface border border-border text-muted-foreground shrink-0 whitespace-nowrap">Coming soon</span>
                 )}
@@ -573,6 +584,9 @@ export default function AgentBuilder() {
                   ...(agentTriggers.length > 0
                     ? [{ label: "Đã cấu hình Trigger", done: !agentTriggers.some(triggerNeedsSetup), section: "triggers" }]
                     : []),
+                  ...(revokedAll.length > 0
+                    ? [{ label: REVOKED_COPY.checklist(revokedAll.length), done: false, failed: true, revoked: true, section: revokedAll[0].type === "skill" ? "skills" : revokedAll[0].type === "knowledge" ? "knowledge" : revokedAll[0].type === "guardrail" ? "guardrails" : "instructions" }]
+                    : []),
                   { ...(() => { const r = evaluationStore.readiness(id ?? "new"); return { label: r === "failed" ? "Evaluate chưa đạt" : r === "passed" ? "Đã đạt Evaluate" : "Đã chạy Evaluate", done: r === "passed", failed: r === "failed" }; })(), section: null as string | null, evaluation: true },
                 ];
                 const doneCount = checklist.filter(i => i.done).length;
@@ -590,8 +604,11 @@ export default function AgentBuilder() {
                         <div key={item.label} className="flex items-center gap-1.5 text-sm">
                           {item.done
                             ? <HugeiconsIcon icon={CheckmarkCircle01Icon} size={11} className="text-primary shrink-0" />
+                            : (item as any).revoked ? <AlertTriangle size={11} className="text-destructive shrink-0" aria-hidden />
                             : <span className="w-3 h-3 rounded-full border-2 border-muted-foreground shrink-0 inline-block" />}
-                          {(item as any).evaluation ? (
+                          {(item as any).revoked ? (
+                            <button onClick={() => setSection(item.section!)} className="text-destructive font-medium hover:underline text-left">{item.label}</button>
+                          ) : (item as any).evaluation ? (
                             <button
                               onClick={() => setParams({ tab: "evaluate", section: "runs" })}
                               className={`${item.done ? "text-primary" : (item as any).failed ? "text-destructive" : "text-muted-foreground"} hover:underline text-left`}
@@ -1323,8 +1340,11 @@ function MoreLink({ count, onClick }: { count: number; onClick: () => void }) {
 const KNOWLEDGE_SOURCE_ROW_MENU_WIDTH = 176; // w-44
 const KNOWLEDGE_SOURCE_ROW_MENU_HEIGHT_ESTIMATE = 90; // 2 items + container padding
 
-function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, removeBlocked, onShare, onRetrieval, onScope, shareLabel = ACCESS_COPY.menu, openLabel = "Xem chi tiết", removeLabel = "Gỡ nguồn tri thức", disabled = false, disabledReason = "Nguồn tri thức đang được xử lý.", href, twoLine = false, hideOpen = false }: {
+function KnowledgeSourceRow({ icon, name, chip, revoked, onOpen, onRemove, removeBlocked, onShare, onRetrieval, onScope, shareLabel = ACCESS_COPY.menu, openLabel = "Xem chi tiết", removeLabel = "Gỡ nguồn tri thức", disabled = false, disabledReason = "Nguồn tri thức đang được xử lý.", href, twoLine = false, hideOpen = false }: {
   icon: any; name: string; chip: React.ReactNode; onOpen: () => void; onRemove: () => void;
+  /** Set when the resource's owner revoked this Agent's access: red row + "Đã bị thu hồi" chip,
+   * and the menu keeps only open + remove (sharing actions no longer apply). */
+  revoked?: { ownerName: string; type: RevocableType };
   /** Why the remove action is unavailable for this user (shown as a disabled item). */
   removeBlocked?: string;
   /** Owner-only "Chia sẻ" action (e.g. a knowledge item that exists only in this Agent). */
@@ -1349,7 +1369,8 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, removeBlocked,
    * in Console. */
   hideOpen?: boolean;
 }) {
-  const rowClassName = `group flex ${twoLine ? "items-start" : "items-center"} gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+  if (revoked) { onScope = undefined; onShare = undefined; onRetrieval = undefined; chip = <RevokedChip ownerName={revoked.ownerName} type={revoked.type} />; }
+  const rowClassName = `group flex ${twoLine ? "items-start" : "items-center"} gap-2 px-2.5 py-1.5 rounded-lg border ${revoked ? REVOKED_ROW_CLASS : "border-border bg-surface"} transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
     disabled || hideOpen ? "cursor-default" : "hover:bg-surface-muted cursor-pointer"
   }`;
 
@@ -1373,7 +1394,7 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, removeBlocked,
 
   const rowInner = twoLine ? (
     <>
-      <HugeiconsIcon icon={icon} size={13} className="text-muted-foreground shrink-0 mt-0.5" />
+      <HugeiconsIcon icon={icon} size={13} className={`${revoked ? "text-destructive" : "text-muted-foreground"} shrink-0 mt-0.5`} />
       <div className="min-w-0 flex-1">
         <div className={`text-sm font-medium truncate ${disabled ? "text-muted-foreground" : ""}`} title={name}>{name}</div>
         <div className="flex items-center gap-1 mt-1">{chip}</div>
@@ -1382,7 +1403,7 @@ function KnowledgeSourceRow({ icon, name, chip, onOpen, onRemove, removeBlocked,
     </>
   ) : (
     <>
-      <HugeiconsIcon icon={icon} size={13} className="text-muted-foreground shrink-0" />
+      <HugeiconsIcon icon={icon} size={13} className={`${revoked ? "text-destructive" : "text-muted-foreground"} shrink-0`} />
       <span className={`text-sm font-medium flex-1 truncate ${disabled ? "text-muted-foreground" : ""}`} title={name}>{name}</span>
       <span className="shrink-0">{chip}</span>
       {actionsMenu}
@@ -1442,12 +1463,14 @@ function AgentKbCardMenu({ onOpen, onEdit, onScope, onShare, onRetrieval, onDeta
  * "attached resource" grids in Agent Details read as one consistent card system. `icon` is a
  * fully-formed node (the same tinted tile Console uses — see KnowledgeTypeIcon) rather than a
  * bare glyph, so a real linked KB renders with the exact same color coding as its Console card. */
-function AgentKbCard({ icon, name, description, onOpen, menu, scope }: {
+function AgentKbCard({ icon, name, description, onOpen, menu, scope, revoked }: {
   icon: React.ReactNode; name: string; description?: string;
   onOpen: () => void; menu: React.ReactNode;
   /** Linked knowledge bases only: "Toàn bộ kho" / "8 mục được chọn", or a warning when the
    * chosen items are gone from the knowledge base. */
   scope?: { label: string; empty: boolean };
+  /** Linked knowledge base whose owner revoked this Agent's access. */
+  revoked?: { ownerName: string };
 }) {
   return (
     <div
@@ -1455,7 +1478,7 @@ function AgentKbCard({ icon, name, description, onOpen, menu, scope }: {
       tabIndex={0}
       onClick={onOpen}
       onKeyDown={e => { if (e.key === "Enter") onOpen(); }}
-      className={`flex flex-col gap-3 p-4 rounded-xl border border-border bg-white hover:border-primary/30 hover:shadow-soft transition-base cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
+      className={`flex flex-col gap-3 p-4 rounded-xl border ${revoked ? REVOKED_ROW_CLASS : "border-border bg-white hover:border-primary/30"} hover:shadow-soft transition-base cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
     >
       <div className="flex items-start gap-3">
         {icon}
@@ -1466,8 +1489,9 @@ function AgentKbCard({ icon, name, description, onOpen, menu, scope }: {
       <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 flex-1">
         {description || <span className="italic">Chưa có mô tả</span>}
       </p>
-      <div className={`flex items-center gap-2 mt-1 ${scope ? "justify-between" : "justify-end"}`}>
-        {scope && (
+      <div className={`flex items-center gap-2 mt-1 ${scope || revoked ? "justify-between" : "justify-end"}`}>
+        {revoked && <span onClick={e => e.stopPropagation()}><RevokedChip ownerName={revoked.ownerName} type="knowledge" /></span>}
+        {!revoked && scope && (
           scope.empty ? (
             <Tooltip delayDuration={200}>
               <TooltipTrigger asChild><span className="chip chip-warning min-w-0 truncate">Chưa chọn mục nào</span></TooltipTrigger>
@@ -1542,7 +1566,9 @@ function AgentKnowledgeGrid({ agentId }: { agentId: string }) {
     .map(kid => knowledgeBaseStore.get(kid))
     .filter((kb): kb is KnowledgeBase => !!kb);
   const ownKbs = attachedKbs.filter(kb => kb.agentOnlyFor === agentId);
-  const linkedKbs = attachedKbs.filter(kb => kb.agentOnlyFor !== agentId);
+  const linkedKbs = attachedKbs.filter(kb => kb.agentOnlyFor !== agentId)
+    .sort((a, b) => Number(isResourceRevoked(agentId, "knowledge", b.id)) - Number(isResourceRevoked(agentId, "knowledge", a.id)));
+  const revokedKbCount = linkedKbs.filter(kb => isResourceRevoked(agentId, "knowledge", kb.id)).length;
 
   const q = searchInput.trim().toLowerCase();
   const matches = (kb: KnowledgeBase) => !q || kb.name.toLowerCase().includes(q);
@@ -1563,14 +1589,15 @@ function AgentKnowledgeGrid({ agentId }: { agentId: string }) {
         name={kb.name}
         description={kb.description}
         onOpen={onOpen}
+        revoked={!isOwn && isResourceRevoked(agentId, "knowledge", kb.id) ? { ownerName: kb.ownerName } : undefined}
         scope={!isOwn && PARTIAL_LINK_ENABLED ? scopeLabel(kb.id, knowledgeStore.getLinkScope(agentId, kb.id)) : undefined}
         menu={
           <AgentKbCardMenu
             onOpen={onOpen}
             onEdit={() => setEditKbTarget(kb)}
-            onScope={!isOwn && kb.type === "internal" && PARTIAL_LINK_ENABLED ? () => setScopeKbId(kb.id) : undefined}
-            onShare={() => setShareKbTarget(kb)}
-            onRetrieval={() => setRetrievalKbTarget(kb)}
+            onScope={!isOwn && kb.type === "internal" && PARTIAL_LINK_ENABLED && !isResourceRevoked(agentId, "knowledge", kb.id) ? () => setScopeKbId(kb.id) : undefined}
+            onShare={isResourceRevoked(agentId, "knowledge", kb.id) ? undefined : () => setShareKbTarget(kb)}
+            onRetrieval={isResourceRevoked(agentId, "knowledge", kb.id) ? undefined : () => setRetrievalKbTarget(kb)}
             onDetach={isOwn ? undefined : () => setDetachKbTarget(kb)}
             onDelete={isOwn ? () => setDeleteKbTarget(kb) : undefined}
             editBlocked={blocks.edit}
@@ -1606,6 +1633,7 @@ function AgentKnowledgeGrid({ agentId }: { agentId: string }) {
         <div>
           <h2 className="font-display text-xl font-semibold">Tri thức của Agent</h2>
           <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">Kho tri thức Agent này dùng để tra cứu khi trả lời. Gồm kho riêng của Agent và kho liên kết từ Space.</p>
+          {revokedKbCount > 0 && <div className="mt-3 max-w-2xl"><RevokedBanner count={revokedKbCount} /></div>}
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button onClick={() => canBuildAgent && setShowAttach(true)} disabled={!canBuildAgent} title={!canBuildAgent ? NO_AGENT_BUILD : undefined} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed">
@@ -3331,6 +3359,9 @@ function NewConfigPanel({ agentId, model, onModelChange, onConnectionsChange }: 
   const starterPromptsAddRef = useRef<(() => void) | null>(null);
   const connectorsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
   const triggersAddRef = useRef<(() => void) | null>(null);
+  const revokedAll = useRevokedResources(agentId);
+  const revokedIn = (types: RevocableType[]) => revokedAll.filter(r => types.includes(r.type)).length;
+  const REVOKED_BY_SECTION: Record<string, RevocableType[]> = { connectors: ["connector", "apiTool"], skills: ["skill"], knowledge: ["knowledge"], guardrails: ["guardrail"] };
 
   const sections = [
     {
@@ -3403,6 +3434,9 @@ function NewConfigPanel({ agentId, model, onModelChange, onConnectionsChange }: 
         <span className="text-sm font-medium flex-1">Model</span>
         <ModelDropdown value={model} onChange={onModelChange} />
       </div>
+      {revokedAll.length > 0 && (
+        <div className="px-4 pt-3"><RevokedBanner count={revokedAll.length} /></div>
+      )}
 
       {/* Accordion sections */}
       {sections.map((s: any) => {
@@ -3421,7 +3455,7 @@ function NewConfigPanel({ agentId, model, onModelChange, onConnectionsChange }: 
                 <HugeiconsIcon icon={s.icon} size={16} className="group-hover:opacity-0 transition-opacity" />
                 <HugeiconsIcon icon={ChevronUpIcon} size={14} className="absolute opacity-0 group-hover:opacity-100 transition-opacity" />
               </button>
-              <span className="text-sm font-medium flex-1 text-left">{s.label}</span>
+              <span className="text-sm font-medium flex-1 text-left flex items-center gap-1.5">{s.label}<RevokedDot count={revokedIn(REVOKED_BY_SECTION[s.id] ?? [])} /></span>
               {s.comingSoon
                 ? <span className="text-xs px-2 py-0.5 rounded-full bg-surface-muted border border-border text-muted-foreground">Coming soon</span>
                 : <button
@@ -4106,6 +4140,8 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
     const refs = listAgentResourceRefs(agentId);
     return refs.filter(it => (it.type === "guardrail" || it.type === "connector") && resourceBlockStore.isBlocked(it.type, it.resourceId));
   };
+  // Also refuse while a linked Space resource has been revoked (its owner took access away).
+  const revokedAtPublish = () => listRevokedResources(agentId);
   const blockedToastMessage = (items: ReturnType<typeof listAgentResourceRefs>) =>
     `Không thể tiếp tục - Agent đang dùng ${items.length} thành phần đã bị chặn sử dụng trong agent mới: ${items.map(it => it.name).join(", ")}. Vui lòng gỡ thành phần này khỏi Agent trước khi publish.`;
 
@@ -4151,6 +4187,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
         toast.error("Chọn ít nhất 1 người để Chia sẻ nhanh.");
         return;
       }
+      { const rv = revokedAtPublish(); if (rv.length > 0) { toast.error(REVOKED_COPY.publishBlocked(rv)); return; } }
       const blocked = blockedResourceItems();
       if (blocked.length > 0) { toast.error(blockedToastMessage(blocked)); return; }
       const names = [...quickShareSelection].map(mid => findMember(orgTree, mid)?.name).filter((n): n is string => !!n);
@@ -4172,6 +4209,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
         toast.error(groupMode === "existing" ? "Chọn một Nhóm cộng tác." : "Đặt tên nhóm và chọn ít nhất 1 thành viên.");
         return;
       }
+      { const rv = revokedAtPublish(); if (rv.length > 0) { toast.error(REVOKED_COPY.publishBlocked(rv)); return; } }
       const blocked = blockedResourceItems();
       if (blocked.length > 0) { toast.error(blockedToastMessage(blocked)); return; }
 
@@ -4210,6 +4248,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
         toast.error("Chọn công ty, phòng ban hoặc người sẽ thấy Agent này.");
         return;
       }
+      { const rv = revokedAtPublish(); if (rv.length > 0) { toast.error(REVOKED_COPY.publishBlocked(rv)); return; } }
       const blockedNow = blockedResourceItems();
       if (blockedNow.length > 0) { toast.error(blockedToastMessage(blockedNow)); return; }
       withdrawPendingForDirect();
@@ -4233,6 +4272,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
       toast.error("Chọn công ty, phòng ban hoặc nhân viên cụ thể sẽ thấy được Agent này trước khi gửi duyệt.");
       return;
     }
+    { const rv = revokedAtPublish(); if (rv.length > 0) { toast.error(REVOKED_COPY.publishBlocked(rv)); return; } }
     const blocked = blockedResourceItems();
     if (blocked.length > 0) { toast.error(blockedToastMessage(blocked)); return; }
     governanceStore.submit({
@@ -4737,6 +4777,8 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
     // it sits on the row itself rather than behind a click.
     const account = c.accountId ? sharedConnectorAccountStore.get(c.accountId) : undefined;
     const restricted = connectorActionStore.restrictedCount(agentId, c.id);
+    const revokedRes = customConnector && isResourceRevoked(agentId, "connector", customConnector.id) ? { ownerName: customConnector.ownerName, type: "connector" as const }
+      : apiTool && isResourceRevoked(agentId, "apiTool", apiTool.id) ? { ownerName: apiTool.ownerName, type: "apiTool" as const } : undefined;
     return (
       <div
         key={c.id}
@@ -4745,7 +4787,7 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
         aria-label={detailRef ? `Xem chi tiết ${rowName}` : undefined}
         onClick={detailRef ? () => setDetailTarget(detailRef) : undefined}
         onKeyDown={detailRef ? (e => { if (e.target === e.currentTarget && e.key === "Enter") setDetailTarget(detailRef); }) : undefined}
-        className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${detailRef ? "cursor-pointer" : ""}`}
+        className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border ${revokedRes ? REVOKED_ROW_CLASS : "border-border bg-surface hover:bg-surface-muted"} transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${detailRef ? "cursor-pointer" : ""}`}
       >
         <span className="w-6 h-6 rounded bg-surface-muted border border-border flex items-center justify-center text-[9px] font-bold shrink-0">{meta?.logo ?? "?"}</span>
         <span className="flex-1 min-w-0">
@@ -4756,6 +4798,7 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
           {restricted > 0 && (
             <span className="block text-[11px] text-muted-foreground truncate">{restricted} action bị giới hạn</span>
           )}
+          {revokedRes && <span className="block mt-1" onClick={e => e.stopPropagation()}><RevokedChip ownerName={revokedRes.ownerName} type={revokedRes.type} /></span>}
         </span>
         {/* Same "…" menu as every other resource row in the Agent: Xem chi tiết / Chia sẻ (owner)
           * / Gỡ liên kết (with a confirm). Detaching routes through toggleConnector so the
@@ -4765,7 +4808,7 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
             triggerLabel={`Thao tác với ${rowName}`}
             items={[
               ...(detailRef ? [{ label: "Xem chi tiết", icon: EyeIcon, onSelect: () => setDetailTarget(detailRef) }] : []),
-              ...(canShare ? [{ label: ACCESS_COPY.menu, icon: UserMultipleIcon, onSelect: () => { if (customConnector) setShareTarget(customConnector); else if (apiTool) setShareApiTool(apiTool); } }] : []),
+              ...(canShare && !revokedRes ? [{ label: ACCESS_COPY.menu, icon: UserMultipleIcon, onSelect: () => { if (customConnector) setShareTarget(customConnector); else if (apiTool) setShareApiTool(apiTool); } }] : []),
               { label: "Gỡ liên kết", icon: Delete01Icon, onSelect: () => setDetachConnTarget({ id: c.id, name: rowName }), destructive: true },
             ]}
           />
@@ -5005,9 +5048,11 @@ function applySkillSharing(agentId: string, target: SkillShareTarget, sharing: S
   if (target.own) {
     if (sharing.mode === "private") agentSkillStore.updateSharing(agentId, target.skill.id, sharing);
     else agentSkillStore.promoteToConsole(agentId, target.skill.id, sharing);
-  } else if (sharing.mode === "private") {
+  } else if (sharing.mode === "private" && !target.skill.attachedByAgentIds.some(id => id !== agentId)) {
     agentSkillStore.demoteToAgent(agentId, target.skill.id);
   } else {
+    // Still linked by other Agents: keep the Space record (their link stays, shown as "Đã bị thu hồi"
+    // for Agents whose owner lost access) and only change who may use it.
     skillStore.updateSharing(target.skill.id, sharing);
   }
 }
@@ -5078,11 +5123,12 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
             <div>
               <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Skills đã liên kết</div>
               <div className="flex flex-col gap-1.5">
-                {attachedSkills.map(s => (
+                {[...attachedSkills].sort((a, b) => Number(isResourceRevoked(agentId, "skill", b.id)) - Number(isResourceRevoked(agentId, "skill", a.id))).map(s => (
                   <KnowledgeSourceRow
                     key={s.id}
                     icon={PuzzleIcon}
                     name={s.name}
+                    revoked={isResourceRevoked(agentId, "skill", s.id) ? { ownerName: s.ownerName, type: "skill" } : undefined}
                     chip={<div className="flex items-center gap-1 shrink-0"><SkillOwnershipTag skill={s} userId={currentUser.id} /></div>}
                     onOpen={() => setDetailTarget({ kind: "skill", id: s.id })}
                     onRemove={() => setDetachTarget({ id: s.id, name: s.name })}
@@ -5280,12 +5326,13 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
     .filter((kb): kb is NonNullable<typeof kb> => !!kb);
   const detachIsOwn = !!detachTarget && knowledgeBaseStore.get(detachTarget.id)?.agentOnlyFor === agentId;
 
-  type Row = { key: string; name: string; icon: any; open: () => void; remove: () => void; removeLabel?: string; removeBlocked?: string; share?: () => void; retrieval?: () => void; changeScope?: () => void; chip: React.ReactNode; disabled?: boolean; disabledReason?: string; href?: string; scope?: { label: string; empty: boolean } };
+  type Row = { key: string; name: string; icon: any; revoked?: { ownerName: string; type: RevocableType }; open: () => void; remove: () => void; removeLabel?: string; removeBlocked?: string; share?: () => void; retrieval?: () => void; changeScope?: () => void; chip: React.ReactNode; disabled?: boolean; disabledReason?: string; href?: string; scope?: { label: string; empty: boolean } };
   const rows: Row[] = [
     ...attachedKbs.map(kb => ({
       key: `kb-${kb.id}`,
       name: kb.name,
       icon: ConnectIcon,
+      revoked: isResourceRevoked(agentId, "knowledge", kb.id) ? { ownerName: kb.ownerName, type: "knowledge" as const } : undefined,
       href: `/knowledge/${kb.id}?viaAgent=${agentId}`,
       // Only a partial link shows its scope here; "Toàn bộ kho" is the normal case.
       scope: knowledgeStore.getLinkScope(agentId, kb.id).mode === "partial" ? scopeLabel(kb.id, knowledgeStore.getLinkScope(agentId, kb.id)) : undefined,
@@ -5370,6 +5417,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
               key={row.key}
               icon={row.icon}
               name={row.name}
+              revoked={row.revoked}
               chip={row.scope ? <span className="flex items-center gap-1.5 min-w-0 flex-wrap">{row.chip}<span className={`chip shrink-0 ${row.scope.empty ? "chip-warning" : "chip-muted"}`} title={row.scope.empty ? "Các mục đã chọn không còn trong kho. Chọn lại phạm vi để Agent tiếp tục tra cứu." : undefined}>{row.scope.label}</span></span> : row.chip}
               onOpen={row.open}
               onRemove={row.remove}
@@ -6817,7 +6865,7 @@ function applyGuardrailSharing(agentId: string, target: GuardrailShareTarget, sh
   if (target.own) {
     if (sharing.mode === "private") agentGuardrailStore.updateSharing(agentId, target.g.id, sharing);
     else agentGuardrailStore.promoteToConsole(agentId, target.g.id, sharing);
-  } else if (sharing.mode === "private") {
+  } else if (sharing.mode === "private" && !(target.g.attachedByAgentIds ?? []).some(id => id !== agentId)) {
     agentGuardrailStore.demoteToAgent(agentId, target.g.id);
   } else {
     guardrailConsoleStore.updateSharing(target.g.id, sharing);
@@ -6870,15 +6918,18 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
   const items = agentGuardrailStore.list(agentId);
   const attachedGuardrails = agentGuardrailStore.listAttachedConsoleGuardrailIds(agentId)
     .map(id => guardrailConsoleStore.get(id))
-    .filter((g): g is Guardrail => !!g && !g.mandatory && !g.allAgents);
+    .filter((g): g is Guardrail => !!g && !g.mandatory && !g.allAgents)
+    .sort((a, b) => Number(isResourceRevoked(agentId, "guardrail", b.id)) - Number(isResourceRevoked(agentId, "guardrail", a.id)));
+  const revokedGuardrailCount = attachedGuardrails.filter(g => isResourceRevoked(agentId, "guardrail", g.id)).length;
   // Guardrails applied to every Agent from Console. They always run on this Agent, so the
   // Builder sees them here read-only (regardless of "Chia sẻ tới") — no toggle, no unlink.
   const appliedAllGuardrails = guardrailConsoleStore.list().filter(g => g.mandatory || g.allAgents);
 
   /** One card, shared by both sections — only the destructive action (Delete vs Detach) and
    * whether Edit is offered differ, since a linked Console guardrail is edited from Console. */
-  const renderCard = (g: Guardrail, opts: { onEdit?: () => void; onShare?: () => void; onDelete: () => void; deleteLabel: string }) => {
+  const renderCard = (g: Guardrail, opts: { onEdit?: () => void; onShare?: () => void; onDelete: () => void; deleteLabel: string; linked?: boolean }) => {
     const openView = () => setViewTarget({ g, editable: !!opts.onEdit });
+    const revoked = !!opts.linked && isResourceRevoked(agentId, "guardrail", g.id);
     return (
       <div
         key={g.id}
@@ -6886,7 +6937,7 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
         tabIndex={0}
         onClick={openView}
         onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openView(); } }}
-        className={`flex flex-col gap-3 p-4 rounded-xl border border-border bg-white cursor-pointer hover:border-primary/30 hover:shadow-soft transition-base`}
+        className={`flex flex-col gap-3 p-4 rounded-xl border ${revoked ? REVOKED_ROW_CLASS : "border-border bg-white hover:border-primary/30"} cursor-pointer hover:shadow-soft transition-base`}
       >
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl bg-primary-soft text-primary flex items-center justify-center shrink-0">
@@ -6898,11 +6949,12 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
           </div>
         </div>
         <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 flex-1">{g.desc}</p>
-        <div className="flex items-center justify-end mt-1">
+        <div className="flex items-center justify-end gap-2 mt-1">
+          {revoked && <span className="mr-auto" onClick={e => e.stopPropagation()}><RevokedChip ownerName={g.ownerName ?? "Chủ sở hữu"} type="guardrail" /></span>}
           <GuardrailAgentItemRowMenu
             onView={openView}
             onEdit={opts.onEdit}
-            onShare={opts.onShare}
+            onShare={revoked ? undefined : opts.onShare}
             onDelete={opts.onDelete}
             deleteLabel={opts.deleteLabel}
           />
@@ -6917,6 +6969,7 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
         <div>
           <h2 className="font-display text-xl font-semibold">Guardrail của Agent</h2>
           <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">Giới hạn những điều Agent không được làm - Chặn chủ đề nhạy cảm, bảo vệ dữ liệu và giữ lại các hành động rủi ro để duyệt trước.</p>
+          {revokedGuardrailCount > 0 && <div className="mt-3 max-w-2xl"><RevokedBanner count={revokedGuardrailCount} /></div>}
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button onClick={() => setShowAttach(true)} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base">
@@ -7019,6 +7072,7 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
               onShare: g.ownerId === currentUser.id ? () => setShareGuardrail({ g, own: false }) : undefined,
               onDelete: () => setDetachTarget({ id: g.id, name: g.name }),
               deleteLabel: "Gỡ liên kết",
+              linked: true,
             }))}
           </div>
         )}
@@ -7144,12 +7198,16 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
     .map(id => skillStore.get(id))
     .filter((s): s is Skill => !!s);
 
+  attachedSkills.sort((a, b) => Number(isResourceRevoked(agentId, "skill", b.id)) - Number(isResourceRevoked(agentId, "skill", a.id)));
+  const revokedSkillCount = attachedSkills.filter(s => isResourceRevoked(agentId, "skill", s.id)).length;
+
   /** One skill card (Agent-only or connected workspace skill). */
-  const renderSkillCard = (s: Skill, menu: React.ReactNode) => {
+  const renderSkillCard = (s: Skill, menu: React.ReactNode, linked = false) => {
+    const revoked = linked && isResourceRevoked(agentId, "skill", s.id);
     return (
       <div
         key={s.id}
-        className="flex flex-col gap-3 p-4 rounded-xl border border-border bg-white transition-base"
+        className={`flex flex-col gap-3 p-4 rounded-xl border ${revoked ? REVOKED_ROW_CLASS : "border-border bg-white"} transition-base`}
       >
         <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0" style={{ background: s.iconBg }}>{s.icon}</div>
         <div className="flex-1 min-w-0">
@@ -7157,7 +7215,7 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
           <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 mt-1">{s.description}</p>
           {/* Attached to this Agent but not shared with the viewer: they see it read-only here
             * only (see agentContextAccess.tsx) — say so, and whose it is. */}
-          {s.ownerId && s.sharing && s.ownerId !== accessUserId && !skillsAccess.canSeeAll && !isSkillAccessibleTo(s.sharing, s.ownerId, accessUserId) && (
+          {!revoked && s.ownerId && s.sharing && s.ownerId !== accessUserId && !skillsAccess.canSeeAll && !isSkillAccessibleTo(s.sharing, s.ownerId, accessUserId) && (
             <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
               <HugeiconsIcon icon={EyeIcon} size={12} className="shrink-0" /> {skillsAccess.hasPermission("manage") ? "Sửa được qua Agent này" : "Chỉ xem trong Agent"} · {s.ownerName}
             </p>
@@ -7166,7 +7224,7 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
         <div className="flex items-center justify-between gap-2">
           {/* No on/off state and no "N Agent" usage count in lists — the footer shows ownership/sharing tags only. */}
           <span className="flex items-center flex-wrap gap-x-1.5 gap-y-1 text-sm min-w-0">
-            <SkillOwnershipTag skill={s} userId={accessUserId} />
+            {revoked ? <RevokedChip ownerName={s.ownerName} type="skill" /> : <SkillOwnershipTag skill={s} userId={accessUserId} />}
           </span>
           {menu}
         </div>
@@ -7198,6 +7256,7 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
         <div>
           <h2 className="font-display text-xl font-semibold">Kỹ năng của Agent</h2>
           <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">Tập hợp hướng dẫn, tài nguyên và mã thực thi mà Agent tải khi cần.</p>
+          {revokedSkillCount > 0 && <div className="mt-3 max-w-2xl"><RevokedBanner count={revokedSkillCount} /></div>}
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button onClick={() => setShowAttach(true)} className="h-9 px-4 rounded-lg border border-border bg-white hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base">
@@ -7239,11 +7298,11 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
             {attachedSkills.map(s => renderSkillCard(s, (
               <SkillCardMenu
                 onOpen={() => window.open(`/tools/${s.id}?viaAgent=${agentId}`, "_blank", "noopener")}
-                onShare={s.ownerId === accessUserId ? () => setShareTarget({ skill: s, own: false }) : undefined}
+                onShare={s.ownerId === accessUserId && !isResourceRevoked(agentId, "skill", s.id) ? () => setShareTarget({ skill: s, own: false }) : undefined}
                 onRemove={() => setDetachTarget({ id: s.id, name: s.name })}
                 removeLabel="Gỡ liên kết"
               />
-            )))}
+            ), true))}
           </div>
         )}
       </div>
@@ -7472,12 +7531,13 @@ function GuardrailsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
     .map(id => guardrailConsoleStore.get(id))
     .filter((g): g is Guardrail => !!g);
 
-  type Row = { key: string; name: string; icon: any; open: () => void; remove: () => void; share?: () => void; chip: React.ReactNode; href?: string };
+  type Row = { key: string; name: string; icon: any; revoked?: { ownerName: string; type: RevocableType }; open: () => void; remove: () => void; share?: () => void; chip: React.ReactNode; href?: string };
   const rows: Row[] = [
     ...attachedGuardrails.map(g => ({
       key: `g-${g.id}`,
       name: g.name,
       icon: Shield01Icon,
+      revoked: isResourceRevoked(agentId, "guardrail", g.id) ? { ownerName: g.ownerName ?? "Chủ sở hữu", type: "guardrail" as const } : undefined,
       open: () => setDetailTarget({ kind: "guardrail", id: g.id }),
       remove: () => setDetachTarget({ id: g.id, name: g.name }),
       share: g.ownerId === currentUser.id && !g.allAgents && !g.mandatory ? () => setShareTarget({ g, own: false }) : undefined,
@@ -7493,6 +7553,8 @@ function GuardrailsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
       chip: <GuardrailOwnershipTag g={item} userId={currentUser.id} />,
     })),
   ];
+  // Revoked links first, so they're never hidden behind "Xem tất cả".
+  rows.sort((a, b) => Number(!!b.revoked) - Number(!!a.revoked));
   const shown = rows.slice(0, 4);
 
   const menuItems = [
@@ -7516,7 +7578,7 @@ function GuardrailsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
       ) : (
         <div className="flex flex-col gap-1.5">
           {shown.map(row => (
-            <KnowledgeSourceRow key={row.key} icon={row.icon} name={row.name} chip={row.chip} onOpen={row.open} onRemove={row.remove} onShare={row.share} openLabel="Xem chi tiết" removeLabel="Gỡ guardrail" twoLine />
+            <KnowledgeSourceRow key={row.key} icon={row.icon} name={row.name} revoked={row.revoked} chip={row.chip} onOpen={row.open} onRemove={row.remove} onShare={row.share} openLabel="Xem chi tiết" removeLabel="Gỡ guardrail" twoLine />
           ))}
           {rows.length > 4 && (
             <button onClick={() => setParams({ tab: "build", section: "guardrails" })} className="text-xs text-primary hover:underline text-left mt-0.5">

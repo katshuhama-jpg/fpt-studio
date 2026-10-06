@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { SparklesIcon, Wrench01Icon, Folder01Icon, File01Icon, Alert01Icon, SquareLock01Icon } from "@hugeicons/core-free-icons";
 import { resolveRef, type ParsedRef, type ResolvedRef, type RefGlyph } from "./instructionRefs";
+import { REVOKED_COPY } from "@/components/governance/revokedResources";
 
 type IconData = readonly (readonly [string, Record<string, string | number>])[];
 
@@ -45,15 +46,19 @@ export interface ChipParts {
  * so a reference looks identical in the editor, the preview and the publish dialog. */
 export function chipParts(r: ResolvedRef): ChipParts {
   const error = r.status !== "ok";
-  const icon = r.status === "missing" ? Alert01Icon : r.status === "restricted" ? SquareLock01Icon : GLYPH_ICON[r.glyph];
-  const iconColor = r.status === "missing" ? "text-destructive" : "text-muted-foreground";
+  const revoked = r.status === "revoked";
+  const icon = r.status === "missing" || revoked ? Alert01Icon : r.status === "restricted" ? SquareLock01Icon : GLYPH_ICON[r.glyph];
+  const iconColor = r.status === "missing" || revoked ? "text-destructive" : "text-muted-foreground";
   const className = [
     "inline-flex items-center gap-1 align-baseline rounded-[6px] border px-1.5 py-px mx-px",
     "text-[0.92em] leading-snug whitespace-nowrap select-none max-w-full",
     "data-[selected=true]:ring-2 data-[selected=true]:ring-primary",
-    error ? "border-destructive bg-destructive/5 text-muted-foreground" : "border-transparent bg-muted text-foreground",
+    revoked ? "border-destructive bg-destructive/10 text-destructive font-medium"
+      : error ? "border-destructive bg-destructive/5 text-muted-foreground" : "border-transparent bg-muted text-foreground",
   ].join(" ");
-  const tip: ChipTip = r.status === "missing"
+  const tip: ChipTip = revoked
+    ? { type: r.typeLabel, name: r.label, detail: REVOKED_COPY.tooltip(r.revokedBy ?? "Chủ sở hữu", r.revokedType ?? "skill"), status: REVOKED_COPY.chip, tone: "removed" }
+    : r.status === "missing"
     ? { type: r.typeLabel, name: r.label, detail: "Tài nguyên này không còn gắn với Agent.", status: "Đã bị gỡ", tone: "removed" }
     : r.status === "restricted"
       ? { type: r.typeLabel, name: r.label, detail: "Bạn không có quyền xem tài nguyên này.", status: "Không có quyền truy cập", tone: "restricted" }

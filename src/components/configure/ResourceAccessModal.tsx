@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { agentsBlockingUnshare, agentsUsing, ResourceInUseDialog } from "@/components/governance/resourceInUseGuard";
+import { agentsBlockingUnshare, ResourceInUseDialog } from "@/components/governance/resourceInUseGuard";
 import type { AgentRecord } from "@/components/configure/agentStore";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -9,6 +9,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { REVOKED_COPY } from "@/components/governance/revokedResources";
 import { AccessScopeSection, ACCESS_COPY, resourceAccessCopy } from "@/components/knowledge/QueryScopeSection";
 
 type SharingMode = "private" | "all" | "specific";
@@ -30,7 +31,7 @@ export default function ResourceAccessModal({
   sharing: Sharing;
   onSave: (sharing: Sharing) => void;
   /** Owner + Agents using this resource — narrowing so one of those Agents' owners loses
-   * access is blocked (see resourceInUseGuard.tsx). */
+   * access asks for confirmation first (see resourceInUseGuard.tsx). */
   resourceOwnerId?: string;
   attachedAgentIds?: string[];
   /** Agent id when opened inside an Agent that owns the resource — adds "Chỉ Agent này". */
@@ -62,9 +63,9 @@ export default function ResourceAccessModal({
     setSubmitAttempted(true);
     if (!canSubmit) return;
     if (mode === "private") {
-      // Turning sharing off: blocked while any OTHER Agent still uses this resource.
-      const others = agentsUsing((attachedAgentIds ?? []).filter(id => id !== agentOnlyFor));
-      if (others.length > 0) { setBlockingAgents(others); return; }
+      // Turning sharing off: allowed, but confirm when other people's Agents lose the resource.
+      const losing = agentsBlockingUnshare((attachedAgentIds ?? []).filter(id => id !== agentOnlyFor), resourceOwnerId, { mode, people: [] });
+      if (losing.length > 0) { setBlockingAgents(losing); return; }
       if (initialSharing.mode !== "private") { setShowRevokeConfirm(true); return; }
       applySave();
       return;
@@ -134,11 +135,11 @@ export default function ResourceAccessModal({
       <ResourceInUseDialog
         open={blockingAgents.length > 0}
         onClose={() => setBlockingAgents([])}
-        title={mode === "private" ? "Chưa thể tắt chia sẻ" : "Chưa thể thu hẹp người được dùng"}
-        description={mode === "private"
-          ? `Các Agent dưới đây đang dùng ${it}. Gỡ ${noun} khỏi các Agent đó trước, rồi tắt chia sẻ.`
-          : `Những người dưới đây sẽ không liên kết được ${it} nữa trong khi Agent của họ vẫn đang dùng. Nhờ họ gỡ ${noun} khỏi Agent trước, rồi thu hẹp.`}
+        title={REVOKED_COPY.confirmTitle(it)}
+        description={REVOKED_COPY.confirmBody(blockingAgents.length, it, noun)}
         agents={blockingAgents}
+        onConfirm={() => { setBlockingAgents([]); applySave(); }}
+        confirmLabel={REVOKED_COPY.confirmAction}
       />
     </>
   );

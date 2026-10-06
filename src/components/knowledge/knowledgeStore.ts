@@ -137,6 +137,13 @@ function seedAgent(agentId: string) {
     knowledgeStore.setKbActive(agentId, "kb-2", false);
   }
 
+  if (agentId === "ops") {
+    // IT Helpdesk (Duy Nguyen) links Tran Nam's "FAQ chăm sóc khách hàng" (kb-2 already lists
+    // "ops" in attachedByAgentIds) - if Tran Nam narrows "Ai được dùng" without Duy, this Agent
+    // shows the knowledge base as "Đã bị thu hồi".
+    knowledgeStore.attachConsoleKb(agentId, "kb-2");
+  }
+
   if (agentId === "hr") {
     put({ id: "kn-hr-1", agentId, kind: "doc", name: "Checklist ngày đầu tiên.pdf", description: "Danh sách việc cần làm cho nhân viên mới trong ngày đầu tiên.", status: "done", chunkCount: 6, sizeBytes: 150_000, version: 1, createdAt: now - 12 * DAY, updatedAt: now - 9 * DAY, updatedBy: "Tran Nam" });
     put({ id: "kn-hr-2", agentId, kind: "url", name: "https://intranet.abc.com/hr/quy-dinh-nghi-phep", title: "Quy định nghỉ phép", description: "", status: "done", chunkCount: 4, version: 1, sharing: { mode: "all", people: [] }, createdAt: now - 7 * DAY, updatedAt: now - 3 * DAY, updatedBy: "Tran Nam" });

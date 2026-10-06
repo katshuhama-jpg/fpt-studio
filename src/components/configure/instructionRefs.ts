@@ -16,6 +16,7 @@ import { agentCapabilityStore, AGENT_CAPABILITIES } from "./agentCapabilityStore
 import { knowledgeStore, OWN_KB_ID } from "@/components/knowledge/knowledgeStore";
 import { knowledgeBaseStore, CURRENT_USER, isAccessibleTo as isKbAccessibleTo } from "@/components/knowledge/knowledgeBaseStore";
 import { knowledgeDocumentStore, type KnowledgeDocument } from "@/components/knowledge/knowledgeDocumentStore";
+import { isResourceRevoked, type RevocableType } from "@/components/governance/revokedResources";
 
 /* ───────────────────────── tokens ───────────────────────── */
 
@@ -80,6 +81,14 @@ function connectorName(connectorId: string): string {
 
 interface ConnectorEntry { id: string; name: string; unconnected: boolean; restricted: boolean }
 
+/** Owner name when a linked Space connector was revoked for this Agent, else undefined. */
+function connectorRevokedBy(agentId: string, connectorId: string): string | undefined {
+  if (!connectorId.startsWith(CUSTOM_PREFIX)) return undefined;
+  const id = connectorId.slice(CUSTOM_PREFIX.length);
+  const cc = customConnectorStore.get(id);
+  return cc && isResourceRevoked(agentId, "connector", id) ? cc.ownerName : undefined;
+}
+
 function connectorEntry(agentId: string, connectorId: string): ConnectorEntry | undefined {
   const attachedConn = agentConnectorStore.list(agentId).find(c => c.connectorId === connectorId);
   if (!attachedConn) return undefined;
@@ -123,7 +132,11 @@ export type RefGlyph = "skill" | "tool" | "folder" | "file";
 export interface ResolvedRef {
   token: string;
   kind: RefKind;
-  status: "ok" | "missing" | "restricted";
+  /** "revoked": still linked, but the resource's owner took this Agent's access away. */
+  status: "ok" | "missing" | "restricted" | "revoked";
+  /** status "revoked" only: who revoked it, and which kind of resource (for the tooltip). */
+  revokedBy?: string;
+  revokedType?: RevocableType;
   /** Chip text. "Tài nguyên bị hạn chế" when the viewer may not see the resource. */
   label: string;
   typeLabel: string;
@@ -147,9 +160,14 @@ export function resolveRef(agentId: string, ref: ParsedRef): ResolvedRef {
   const missing = (): ResolvedRef => ({ ...base, status: "missing", label: fallbackLabel });
   const restricted = (): ResolvedRef => ({ ...base, status: "restricted", label: "Tài nguyên bị hạn chế" });
   const ok = (label: string, extra: Partial<ResolvedRef> = {}): ResolvedRef => ({ ...base, status: "ok", label, ...extra });
+  const revoked = (label: string, by: string, type: RevocableType): ResolvedRef => ({ ...base, status: "revoked", label, revokedBy: by, revokedType: type });
 
   switch (ref.kind) {
     case "skill": {
+      const linked = skillStore.get(ref.payload);
+      if (linked && agentSkillStore.listAttachedConsoleSkillIds(agentId).includes(linked.id) && isResourceRevoked(agentId, "skill", linked.id)) {
+        return revoked(linked.name, linked.ownerName, "skill");
+      }
       const e = skillEntries(agentId).find(x => x.skill.id === ref.payload);
       if (e) return ok(e.skill.name, { detail: e.skill.description, state: e.off ? "Đang tắt" : undefined });
       const raw = skillStore.get(ref.payload);
@@ -165,6 +183,8 @@ export function resolveRef(agentId: string, ref: ParsedRef): ResolvedRef {
     case "connector": {
       const c = connectorEntry(agentId, ref.payload);
       if (!c) return missing();
+      const rc = connectorRevokedBy(agentId, c.id);
+      if (rc) return revoked(c.name, rc, "connector");
       if (c.restricted) return restricted();
       return ok(c.name, { detail: `${actionsForConnector(c.id).length} tool`, state: c.unconnected ? "Chưa kết nối" : undefined });
     }
@@ -172,12 +192,15 @@ export function resolveRef(agentId: string, ref: ParsedRef): ResolvedRef {
       const [connectorId, action] = ref.payload.split("::");
       const c = connectorEntry(agentId, connectorId);
       if (!c || !action || !actionsForConnector(connectorId).includes(action)) return missing();
+      const rc = connectorRevokedBy(agentId, c.id);
+      if (rc) return revoked(`${c.name} › ${action}`, rc, "connector");
       if (c.restricted) return restricted();
       return ok(`${c.name} › ${action}`, { detail: `Tool của ${c.name}`, state: c.unconnected ? "Chưa kết nối" : undefined });
     }
     case "kb": {
       if (ref.payload === OWN_KB_ID) return ok("Cá nhân", { detail: "Tri thức riêng của Agent này" });
       const kb = knowledgeBaseStore.get(ref.payload);
+      if (kb && knowledgeStore.listAttachedConsoleKbIds(agentId).includes(kb.id) && isResourceRevoked(agentId, "knowledge", kb.id)) return revoked(kb.name, kb.ownerName, "knowledge");
       if (kb && !isKbAccessibleTo(kb, CURRENT_USER.id)) return restricted();
       if (!kb || !knowledgeStore.listAttachedConsoleKbIds(agentId).includes(kb.id)) return missing();
       return ok(kb.name, { detail: kb.description, state: knowledgeStore.isKbActive(agentId, kb.id) ? undefined : "Đang tắt" });
@@ -186,6 +209,10 @@ export function resolveRef(agentId: string, ref: ParsedRef): ResolvedRef {
     case "file": {
       const [kbId, docId] = ref.payload.split("::");
       const kb = knowledgeBaseStore.get(kbId);
+      if (kb && knowledgeStore.listAttachedConsoleKbIds(agentId).includes(kbId) && isResourceRevoked(agentId, "knowledge", kbId)) {
+        const d = knowledgeDocumentStore.list(kbId).find(x => x.id === docId);
+        return revoked(d?.name ?? fallbackLabel, kb.ownerName, "knowledge");
+      }
       if (kb && !isKbAccessibleTo(kb, CURRENT_USER.id)) return restricted();
       if (!kb || !knowledgeStore.listAttachedConsoleKbIds(agentId).includes(kbId)) return missing();
       const all = knowledgeDocumentStore.list(kbId);
@@ -212,6 +239,7 @@ export function findBrokenRefs(agentId: string, text: string): BrokenRef[] {
     const r = resolveRef(agentId, seg.ref);
     if (r.status === "missing") out.push({ ref: r, reason: "Không còn gắn với Agent" });
     else if (r.status === "restricted") out.push({ ref: r, reason: "Không có quyền truy cập" });
+    else if (r.status === "revoked") out.push({ ref: r, reason: "Đã bị thu hồi quyền dùng" });
   }
   return out;
 }

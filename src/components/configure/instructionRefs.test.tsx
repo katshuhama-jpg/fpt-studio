@@ -20,7 +20,8 @@ describe("references in Instructions", () => {
 
   it("resolves every state the spec lists", () => {
     expect(r("{{ref:skill:account-briefing}}")).toMatchObject({ status: "ok", label: "account-briefing" });
-    expect(r("{{ref:skill:debt-lookup}}")).toMatchObject({ status: "restricted", label: "Tài nguyên bị hạn chế" });
+    // Linked, but its owner (Linh Phan) never shared it with this Agent's owner: "Đã bị thu hồi".
+    expect(r("{{ref:skill:debt-lookup}}")).toMatchObject({ status: "revoked", label: "debt-lookup", revokedBy: "Linh Phan" });
     expect(r("{{ref:skill:email-drafter}}")).toMatchObject({ status: "ok", state: "Đang tắt" });
     expect(r("{{ref:tool:gmail::Send email}}")).toMatchObject({ status: "ok", label: "Gmail › Send email" });
     expect(r("{{ref:tool:sheets::Append row}}")).toMatchObject({ status: "ok", state: "Chưa kết nối" });
@@ -31,7 +32,7 @@ describe("references in Instructions", () => {
   });
 
   it("collects the broken references for the publish warning", () => {
-    expect(findBrokenRefs(A, demo.instructions).map(b => b.ref.label)).toEqual(["legacy-crm-sync", "Notion › Create page", "Tài nguyên bị hạn chế"]);
+    expect(findBrokenRefs(A, demo.instructions).map(b => b.ref.label)).toEqual(["legacy-crm-sync", "Notion › Create page", "debt-lookup"]);
     expect(findBrokenRefs(A, "no refs here")).toEqual([]);
   });
 });

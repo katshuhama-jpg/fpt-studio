@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { getAgent, type AgentRecord } from "@/components/configure/agentStore";
@@ -13,11 +13,12 @@ import { useMyPermissions } from "@/pages/organization/useMyPermissions";
  * "Resource đang được Agent dùng" guard, shared by Skill / Guardrail / Connector / Knowledge.
  *
  * Product rule: a shared resource is a live reference, not a copy — an Agent that attached it
- * keeps calling the owner's original. So the owner may NOT
- *   - narrow sharing so that someone whose Agent uses the resource loses access, or
- *   - delete the resource while any Agent still uses it,
- * until those Agents are detached. Widening sharing is never blocked, and Agents belonging to
- * the resource owner (or to people who keep access) never block a sharing change.
+ * keeps calling the owner's original. So the owner may NOT delete the resource while any Agent
+ * still uses it, until those Agents are detached.
+ * Narrowing sharing (or turning it off) IS allowed since 06/10: the owner confirms, and every
+ * Agent whose owner loses access shows the resource as "Đã bị thu hồi" and can't be published
+ * until it is detached (see revokedResources.ts). Agents belonging to the resource owner (or to
+ * people who keep access) are never affected.
  * Admins can still manage every Agent, which is the escape hatch — no force-detach here.
  */
 
@@ -54,13 +55,17 @@ export function agentsUsing(attachedAgentIds: string[] | undefined): AgentRecord
 /** Blocking notice: lists the Agents (and who owns each) that must detach the resource first.
  * One button only — there is nothing to confirm, the action simply isn't allowed yet. */
 export function ResourceInUseDialog({
-  open, onClose, title, description, agents,
+  open, onClose, title, description, agents, onConfirm, confirmLabel,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   description: string;
   agents: AgentRecord[];
+  /** Turns the notice into a confirmation (Hủy bỏ + destructive action) - used when narrowing
+   * sharing takes the resource away from the listed Agents. */
+  onConfirm?: () => void;
+  confirmLabel?: string;
 }) {
   const { tree } = useOrg();
   const members = useMemo(() => collectMembers(tree), [tree]);
@@ -142,7 +147,14 @@ export function ResourceInUseDialog({
           </div>
         )}
         <AlertDialogFooter>
-          <AlertDialogAction onClick={onClose}>Đã hiểu</AlertDialogAction>
+          {onConfirm ? (
+            <>
+              <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={onClose}>Hủy bỏ</AlertDialogCancel>
+              <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={onConfirm}>{confirmLabel}</AlertDialogAction>
+            </>
+          ) : (
+            <AlertDialogAction onClick={onClose}>Đã hiểu</AlertDialogAction>
+          )}
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

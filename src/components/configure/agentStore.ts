@@ -332,7 +332,7 @@ Bạn là trợ lý chăm sóc khách hàng của ABC Bank. Gõ "/" ở bất k�
 ## Tham chiếu lỗi (để thử cảnh báo khi publish)
 - Skill đã bị gỡ: {{ref:skill:legacy-crm-sync|legacy-crm-sync}}
 - Kết nối đã bị gỡ: {{ref:tool:notion::Create page|Notion › Create page}}
-- Skill bạn không có quyền xem: {{ref:skill:debt-lookup|debt-lookup}}
+- Skill đã bị thu hồi quyền dùng: {{ref:skill:debt-lookup|debt-lookup}}
 
 ## Giới hạn
 - Chỉ trả lời trong phạm vi sản phẩm của ABC Bank.

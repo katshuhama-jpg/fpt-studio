@@ -11,6 +11,7 @@ import {
 import { toast } from "sonner";
 import { type Sharing, type SharingMode } from "./knowledgeBaseStore";
 import { AccessScopeSection, ACCESS_COPY } from "./QueryScopeSection";
+import { REVOKED_COPY } from "@/components/governance/revokedResources";
 
 /** Generic "Chia sẻ" modal — reused for a Console KB (S4) and for an individual Agent
  * Knowledge item's "Quyền" (S14), so both share the exact same sharing UI and copy instead of
@@ -68,7 +69,8 @@ export default function ShareKnowledgeBaseModal({
     setSubmitAttempted(true);
     if (!canSubmit) return;
     if (mode === "private") {
-      // Turning sharing off: blocked while any OTHER Agent still uses this resource.
+      // Turning sharing off: allowed, but every OTHER Agent using the knowledge base loses it -
+      // confirm first (they show it as "Đã bị thu hồi").
       const others = agentsUsing((attachedAgentIds ?? []).filter(id => id !== agentOnlyFor));
       if (others.length > 0) { setBlockingAgents(others); return; }
       if (initialSharing.mode !== "private") { setShowRevokeConfirm(true); return; }
@@ -140,9 +142,11 @@ export default function ShareKnowledgeBaseModal({
       <ResourceInUseDialog
         open={blockingAgents.length > 0}
         onClose={() => setBlockingAgents([])}
-        title={mode === "private" ? "Chưa thể tắt chia sẻ" : "Chưa thể thu hẹp người được dùng"}
-        description={mode === "private" ? "Các Agent dưới đây đang dùng kho tri thức này. Gỡ kho tri thức khỏi các Agent đó trước, rồi tắt chia sẻ." : "Những người dưới đây sẽ không dùng được kho này nữa trong khi Agent của họ vẫn đang dùng. Nhờ họ gỡ kho tri thức khỏi Agent trước, rồi thu hẹp."}
+        title={REVOKED_COPY.confirmTitle("kho tri thức này")}
+        description={REVOKED_COPY.confirmBody(blockingAgents.length, "kho tri thức này", "kho tri thức")}
         agents={blockingAgents}
+        onConfirm={() => { setBlockingAgents([]); applySave(); }}
+        confirmLabel={REVOKED_COPY.confirmAction}
       />
     </>
   );
