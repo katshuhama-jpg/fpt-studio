@@ -5,7 +5,7 @@ import {
   Puzzle, ChevronsLeft, ChevronsRight, Search, Bell, Plus,
   ChevronRight, LifeBuoy, KeyRound, LogOut, User, ChevronDown, ChevronsUpDown,
   Check, Building2, Sparkles, Shield, FileText, Rocket,
-  Network, Users, Cpu, UsersRound, ClipboardList, History, Lock, Library, ShieldCheck,
+  Network, Workflow, Users, Cpu, UsersRound, ClipboardList, History, Lock, Library, ShieldCheck,
 } from "lucide-react";
 import { useOrg } from "@/pages/organization/orgStore";
 import { governanceStore } from "@/components/governance/governanceStore";
@@ -80,6 +80,7 @@ const utilityItems: Item[] = [
 const orgItemsBase: Item[] = [
   { to: "/organization", label: "General", icon: Building2 },
   { to: "/organization/structure", label: "Structure", icon: Network },
+  { to: "/organization/chart", label: "Org chart", icon: Workflow },
 ];
 
 const NARROW_QUERY = "(max-width: 767px)";
@@ -121,7 +122,7 @@ export default function WorkspaceLayout() {
   const { isConfigured: orgConfigured } = useOrg();
   const ORG_LOCKED_REASON = "Hoàn tất thông tin doanh nghiệp/tổ chức để sử dụng tính năng này.";
   const orgItems: Item[] = orgItemsBase.map(it =>
-    it.to === "/organization/structure" && !orgConfigured
+    (it.to === "/organization/structure" || it.to === "/organization/chart") && !orgConfigured
       ? { ...it, locked: true, lockedReason: ORG_LOCKED_REASON }
       : it
   );

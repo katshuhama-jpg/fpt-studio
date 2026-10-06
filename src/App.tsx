@@ -21,6 +21,7 @@ import ToolBuilder from "./pages/ToolBuilder";
 import ConversationTrace from "./pages/ConversationTrace";
 import OrgGeneral from "./pages/organization/General";
 import OrgStructure from "./pages/organization/Structure";
+import OrgChart from "./pages/organization/OrgChart";
 import OrgMembers from "./pages/organization/Members";
 import OrgRoles from "./pages/organization/Roles";
 import { RolesProvider } from "./pages/organization/rolesStore";
@@ -150,6 +151,7 @@ const App = () => (
               <Route path="/roles" element={<RequireOrgConfigured><OrgRoles /></RequireOrgConfigured>} />
               <Route path="/organization" element={<RequireOrgConfigured><OrgGeneral /></RequireOrgConfigured>} />
               <Route path="/organization/structure" element={<RequireOrgConfigured><OrgStructure /></RequireOrgConfigured>} />
+              <Route path="/organization/chart" element={<RequireOrgConfigured><OrgChart /></RequireOrgConfigured>} />
               <Route path="/super-admin/organizations" element={<SuperAdminOrgs />} />
               <Route path="/connectors" element={<WorkspaceConnectors />} />
               <Route path="/tools" element={<Skills />} />

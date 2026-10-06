@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { Building2, ChevronRight, ChevronLeft, ChevronDown, Search, Users, Trash2, Plus, Pencil, Upload, X, FolderInput, UserPlus, Crown, Check, User, AlertTriangle } from "lucide-react";
 import {
@@ -481,8 +482,15 @@ function AssignAdminPopover({
 export default function OrgStructureExplorer() {
   const { tree, rootId, addMember, removeMember, setUnitAdmin, createUnit, renameUnit, deleteUnit, importMembers, findMembershipsByEmail } = useOrg();
   const { roles } = useRoles();
-  const [selectedId, setSelectedId] = useState(rootId);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set([tree.id, ...tree.units.map(u => u.id)]));
+  // `?unit=<id>` lets the Org chart tab deep-link straight to a unit (falls back to the root if
+  // the id isn't in this org's tree).
+  const [searchParams] = useSearchParams();
+  const requestedUnitId = searchParams.get("unit");
+  const initialUnitId = requestedUnitId && findUnit(tree, requestedUnitId) ? requestedUnitId : rootId;
+  const [selectedId, setSelectedId] = useState(initialUnitId);
+  const [expanded, setExpanded] = useState<Set<string>>(
+    () => new Set([tree.id, ...tree.units.map(u => u.id), ...(findPath(tree, initialUnitId) ?? []).map(u => u.id)])
+  );
   const [treeQuery, setTreeQuery] = useState("");
   const [memberQuery, setMemberQuery] = useState("");
   const [memberPage, setMemberPage] = useState(1);
