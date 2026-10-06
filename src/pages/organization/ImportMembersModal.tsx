@@ -177,7 +177,17 @@ export default function ImportMembersModal({
         const nameRaw = nameIdx !== -1 ? (cells[nameIdx] ?? "").trim() : "";
         const unitRaw = unitIdx !== -1 ? (cells[unitIdx] ?? "").trim() : "";
         const name = nameRaw || (EMAIL_RE.test(emailRaw) ? deriveNameFromEmail(emailRaw) : "");
-        const unitPath = unitRaw.split("/").map(s => s.trim()).filter(Boolean);
+        let unitPath = unitRaw.split("/").map(s => s.trim()).filter(Boolean);
+        // The file may spell the full path starting from the top unit ("FPT Corporation/FPT Software/…").
+        // If the first segment is the anchor unit itself (and the anchor has no child of that name),
+        // drop it so it isn't created as a unit nested inside itself.
+        if (
+          unitPath.length > 0 &&
+          unitPath[0].toLowerCase() === anchorUnit.name.trim().toLowerCase() &&
+          !anchorUnit.units.some(u => u.name.trim().toLowerCase() === unitPath[0].toLowerCase())
+        ) {
+          unitPath = unitPath.slice(1);
+        }
         const willCreateUnit = unitPath.length > 0 && !pathFullyExists(anchorUnit, unitPath);
         const unitLabel = unitPath.length === 0 ? anchorUnit.name : unitPath.join(" / ");
         // A brand-new unit can never already contain anyone; only resolve/check an existing one.
@@ -310,7 +320,7 @@ export default function ImportMembersModal({
               <div className="flex items-start gap-2.5 rounded-xl border border-primary/20 bg-primary-soft px-3.5 py-3">
                 <FolderPlus size={15} className="text-primary shrink-0 mt-0.5" />
                 <p className="text-xs text-foreground leading-relaxed">
-                  Tên đơn vị chưa tồn tại - Ở bất kỳ đâu trong đường dẫn - Sẽ được tự động tạo, lồng đúng như đã viết (ví dụ: <span className="font-mono">Sales/Team North</span> sẽ tạo "Sales" trước nếu chưa có, rồi tạo "Team North" bên trong). Đơn vị đã có sẵn thì dùng lại, không tạo trùng. Mọi người được nhập vào đều bắt đầu với vai trò Viewer; có thể nâng quyền sau tại Members hoặc Structure.
+                  Tên đơn vị chưa tồn tại - Ở bất kỳ đâu trong đường dẫn - Sẽ được tự động tạo, lồng đúng như đã viết (ví dụ: <span className="font-mono">Sales/Team North</span> sẽ tạo "Sales" trước nếu chưa có, rồi tạo "Team North" bên trong). Đơn vị đã có sẵn thì dùng lại, không tạo trùng. Có thể viết đường dẫn bắt đầu từ đơn vị gốc (ví dụ <span className="font-mono">FPT Corporation/Sales</span>) - phần tên đơn vị gốc sẽ được bỏ qua. Mọi người được nhập vào đều bắt đầu với vai trò Viewer; có thể nâng quyền sau tại Members hoặc Structure.
                 </p>
               </div>
 
