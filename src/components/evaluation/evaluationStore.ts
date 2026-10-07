@@ -12,7 +12,7 @@ export type ConditionOp = "equals" | "contains" | "hasValue" | "matches";
 export interface ToolCondition { param: string; op: ConditionOp; value: string }
 export type ApprovalMode = "auto" | "approve" | "reject";
 export type ResponseFormat = "boolean" | "scale" | "category";
-export type MetricNeed = "reference" | "context" | "expectedTools" | "guardrails";
+export type MetricNeed = "reference" | "context" | "expectedTools" | "guardrails" | "turns";
 export type MetricSource = "wiki" | "langsmith" | "custom";
 
 export interface ScaleLevel { value: number; label: string; pass: boolean }
@@ -54,6 +54,19 @@ export const DEFAULT_DISTRIBUTION: Record<CaseGroup, number> = {
 
 export type CaseSource = "Instructions" | "Knowledge" | "Guardrails" | "Skills" | "Nhân sự số con" | "Connectors" | "Thủ công" | "Monitor";
 
+/** qna = one question, one answer · multiturn = scripted follow-up turns the Agent must keep context across. */
+export type TestType = "qna" | "multiturn";
+export const TEST_TYPES: TestType[] = ["qna", "multiturn"];
+export const TEST_TYPE_LABEL: Record<TestType, { label: string; short: string; desc: string }> = {
+  qna: { label: "Hỏi đáp 1 lượt", short: "Hỏi đáp", desc: "Một câu hỏi, chấm câu trả lời" },
+  multiturn: { label: "Hội thoại nhiều lượt", short: "Nhiều lượt", desc: "Người dùng hỏi tiếp, đổi ý, sửa thông tin - Nhân sự số phải nhớ ngữ cảnh" },
+};
+/** A follow-up user message and what the Agent must do at that turn. */
+export interface Turn { user: string; expect?: string }
+/** `summary` = a built transcript that shows what the Agent's reply had to contain, not its words. */
+export interface Msg { role: "user" | "agent"; text: string; summary?: boolean }
+export const caseType = (c: { type?: TestType }): TestType => c.type ?? "qna";
+
 export interface TestCase {
   id: string;
   setId: string;
@@ -73,6 +86,10 @@ export interface TestCase {
   runsPerCase?: number;
   toolModes?: Record<string, ToolMode>;
   approval?: ApprovalMode;
+  /** Undefined = "qna". */
+  type?: TestType;
+  /** multiturn: follow-up user turns after `question`. */
+  turns?: Turn[];
 }
 
 export interface SetMetric { metricId: string; required: boolean }
@@ -101,6 +118,8 @@ export interface CellResult {
   answer?: string;
   context?: string;
   toolCall?: string;
+  /** Transcript of the failing repetition (multi-turn). */
+  transcript?: Msg[];
 }
 
 export interface Run {
@@ -210,6 +229,13 @@ export const TEMPLATE_METRICS: Metric[] = [
     prompt: `${JUDGE_HEAD}\n\nSo sánh tool Nhân sự số đã gọi với tool mong đợi, kiểm tra cả tên tool và tham số.\n\n<Tool mong đợi>{{expected_tools}}</Tool mong đợi>\n<Tool đã gọi>{{tool_calls}}</Tool đã gọi>`,
   },
   {
+    id: "tpl-retention", name: "Knowledge Retention", vnName: "Nhớ ngữ cảnh hội thoại", group: "quality", kind: "judge", source: "wiki", agentId: "template",
+    description: "Ở mỗi lượt, Nhân sự số nhớ thông tin người dùng đã nói và xử lý đúng khi người dùng hỏi tiếp, đổi ý hoặc sửa thông tin.",
+    format: "boolean", levels: BOOL("Nhớ đúng", "Quên ngữ cảnh"),
+    needs: ["turns"], model: "GPT-4.1 mini", includeReasoning: true,
+    prompt: `${JUDGE_HEAD}\n\nĐọc toàn bộ hội thoại. Trả về 0 nếu ở bất kỳ lượt nào Nhân sự số quên thông tin đã có, hỏi lại điều người dùng đã nói, hoặc không xử lý đúng khi người dùng đổi ý.\n\n<Hội thoại>{{conversation}}</Hội thoại>\n<Yêu cầu từng lượt>{{turn_expectations}}</Yêu cầu từng lượt>`,
+  },
+  {
     id: "tpl-relevance", name: "Answer Relevance", vnName: "Trả lời đúng trọng tâm", group: "quality", kind: "judge", source: "langsmith", agentId: "template",
     description: "Câu trả lời có liên quan và đi thẳng vào câu hỏi.",
     format: "boolean", levels: BOOL("Đúng trọng tâm", "Lạc trọng tâm"),
@@ -290,6 +316,7 @@ export const METRIC_GROUP_LABEL: Record<MetricGroup, string> = { quality: "Chấ
 export const METRIC_SOURCE_LABEL: Record<MetricSource, string> = { wiki: "Chuẩn FPT", langsmith: "Thư viện mở rộng", custom: "Tùy chỉnh" };
 export const NEED_LABEL: Record<MetricNeed, string> = {
   reference: "Đáp án mẫu", context: "Knowledge đã truy xuất", expectedTools: "Tool mong đợi", guardrails: "Guardrail của Nhân sự số",
+  turns: "Các lượt hội thoại",
 };
 export const VARIABLES = [
   { key: "{{input}}", label: "Câu hỏi" },
@@ -300,6 +327,8 @@ export const VARIABLES = [
   { key: "{{expected_tools}}", label: "Tool mong đợi" },
   { key: "{{instructions}}", label: "Instructions" },
   { key: "{{guardrails}}", label: "Guardrail" },
+  { key: "{{conversation}}", label: "Toàn bộ hội thoại" },
+  { key: "{{turn_expectations}}", label: "Yêu cầu từng lượt" },
 ];
 export const JUDGE_MODELS = ["GPT-4.1 mini", "GPT-4.1", "DeepSeek V4 Flash", "Gemini 2.5 Flash"];
 
@@ -329,7 +358,7 @@ interface State {
   seeded: string[];
 }
 
-const KEY = "evaluation_store_v1";
+const KEY = "evaluation_store_v3";
 let state: State = load();
 let version = 0;
 const listeners = new Set<() => void>();
@@ -425,6 +454,7 @@ const FAQ_METRICS: { tpl: string; required: boolean }[] = [
 function seed(agentId: string) {
   if (state.seeded.includes(agentId)) return;
   state.seeded.push(agentId);
+  if (agentId === "cskh") { seedCskh(agentId); return; }
   if (agentId !== "faq") return;
   const metrics = FAQ_METRICS.map(m => cloneTemplate(agentId, m.tpl));
   state.metrics.push(...metrics);
@@ -474,11 +504,89 @@ function seed(agentId: string) {
     ...base, id: "run-faq-12", number: 12, version: "v1.2.0 (Draft)", createdAt: "2026-10-05T14:32:00", by: "Linh Phan", durationSec: 252, tokens: 18420,
     results: build((i, s) => FAQ_RUN12[i]?.[s] ?? P()),
   });
+  // A multi-turn test added after run #12, so it is "new" (not run yet).
+  const extra = ["tpl-retention"].map(t => cloneTemplate(agentId, t));
+  state.metrics.push(...extra);
+  state.sets = state.sets.map(s => (s.id === setId ? { ...s, metrics: [...s.metrics, ...extra.map(m => ({ metricId: m.id, required: true }))] } : s));
+  state.cases.push(
+    { id: "case-faq-18", setId, type: "multiturn", name: "Hỏi tiếp về dòng máy khác", question: "Máy X2 bảo hành bao lâu?",
+      turns: [{ user: "Thế còn X5?", expect: "Hiểu là hỏi thời hạn bảo hành của X5, trả lời 36 tháng thân máy, 12 tháng lõi lọc" }, { user: "Vậy cái nào bảo hành tại nhà?", expect: "So sánh đúng 2 dòng đã nhắc: chỉ X5 có bảo hành tại nhà" }],
+      reference: "24 tháng thân máy, 6 tháng lõi lọc.", group: "So sánh", source: "Knowledge" },
+  );
   state.monitors.push({
     agentId, metricIds: metrics.filter(isMonitorable).filter(m => ["faithfulness", "safety", "style", "relevance", "pii"].some(k => m.id.endsWith(k))).map(m => m.id),
     name: "Chất lượng trả lời trên Web và Zalo", statusFilter: "all",
     sampleRate: 10, channels: ["Web", "Zalo"], createdAt: "2026-09-20T09:00:00",
   });
+}
+
+function seedCskh(agentId: string) {
+  const tpls: { tpl: string; required: boolean }[] = [
+    { tpl: "tpl-retention", required: true }, { tpl: "tpl-safety", required: true }, { tpl: "tpl-style", required: true }, { tpl: "tpl-pii", required: false },
+  ];
+  const metrics = tpls.map(t => cloneTemplate(agentId, t.tpl));
+  state.metrics.push(...metrics);
+  const setMetrics: SetMetric[] = metrics.map((m, i) => ({ metricId: m.id, required: tpls[i].required }));
+  const setId = "set-cskh-card";
+  state.sets.push({
+    id: setId, agentId, name: "Dịch vụ thẻ", description: "Phí, hạn mức và xử lý sự cố thẻ - Có hội thoại nhiều lượt để kiểm tra Nhân sự số nhớ ngữ cảnh.",
+    createdAt: "2026-10-06T09:00:00", updatedAt: "2026-10-07T10:30:00", metrics: setMetrics, runsPerCase: 1, toolModes: {},
+  });
+  const cases: TestCase[] = [
+    { id: "case-cskh-1", setId, type: "multiturn", name: "Hỏi phí rồi hỏi tiếp", question: "Đóng thẻ tín dụng có mất phí không?",
+      turns: [{ user: "Thế còn thẻ ghi nợ thì sao?", expect: "Hiểu là hỏi phí đóng thẻ ghi nợ, trả lời đúng loại thẻ" }, { user: "Vậy đóng xong bao lâu thì mở lại được?", expect: "Trả lời cho thẻ ghi nợ: thẻ đã đóng không mở lại được, cần làm thẻ mới" }],
+      reference: "Đóng thẻ tín dụng miễn phí nếu đã thanh toán hết dư nợ.", group: "Tổng hợp", source: "Knowledge" },
+    { id: "case-cskh-2", setId, type: "multiturn", name: "Khách sửa lại số thẻ", question: "Hạn mức thẻ đuôi 7730 của mình là bao nhiêu?",
+      turns: [{ user: "À nhầm, thẻ đuôi 4821", expect: "Dùng thẻ 4821, không trả lời theo thẻ 7730" }],
+      reference: "Hỏi xác thực rồi báo hạn mức của đúng thẻ khách đang hỏi.", group: "Edge case", source: "Instructions" },
+    { id: "case-cskh-3", setId, type: "multiturn", name: "Đổi ý giữa chừng", question: "Mình muốn hỏi thủ tục mở thẻ tín dụng",
+      turns: [{ user: "À khoan, cho mình hỏi phí thường niên trước", expect: "Trả lời phí thường niên, không tiếp tục thủ tục" }, { user: "Ok, giờ quay lại câu lúc nãy", expect: "Nhớ câu hỏi ban đầu về thủ tục mở thẻ và trả lời tiếp" }],
+      reference: "Hướng dẫn thủ tục mở thẻ tín dụng.", group: "Edge case", source: "Knowledge" },
+    { id: "case-cskh-4", setId, question: "Thẻ bị nuốt ở cây ATM thì làm gì?", reference: "Gọi hotline để khóa thẻ, liên hệ chi nhánh quản lý ATM trong 3 ngày làm việc để nhận lại thẻ.", group: "Trích xuất đơn", source: "Knowledge" },
+    { id: "case-cskh-5", setId, question: "Phí thường niên thẻ Visa Platinum là bao nhiêu?", reference: "Nêu đúng mức phí theo biểu phí hiện hành.", group: "Trích xuất đơn", source: "Knowledge" },
+  ];
+  state.cases.push(...cases);
+  state.gates.push({ setId, enabled: true, minPass: 90, blocks: true });
+
+  const id = (tpl: string) => `${agentId}-${tpl.replace("tpl-", "")}`;
+  const results: Run["results"] = Object.fromEntries(cases.map(c => {
+    const r: Record<string, CellResult> = { [id("tpl-safety")]: { passCount: 1 }, [id("tpl-style")]: { passCount: 1 }, [id("tpl-pii")]: { passCount: 1 } };
+    if (c.turns?.length) r[id("tpl-retention")] = { passCount: 1 };
+    return [c.id, r];
+  }));
+  results["case-cskh-1"][id("tpl-retention")] = {
+    passCount: 0, label: "Quên ngữ cảnh", reason: "Ở lượt 3, Nhân sự số trả lời theo thẻ tín dụng dù khách đang hỏi về thẻ ghi nợ.",
+    transcript: [
+      { role: "user", text: "Đóng thẻ tín dụng có mất phí không?" },
+      { role: "agent", text: "Dạ, đóng thẻ tín dụng hoàn toàn miễn phí nếu Anh/Chị đã thanh toán hết dư nợ ạ." },
+      { role: "user", text: "Thế còn thẻ ghi nợ thì sao?" },
+      { role: "agent", text: "Đóng thẻ ghi nợ cũng miễn phí ạ, số dư sẽ được chuyển về tài khoản thanh toán." },
+      { role: "user", text: "Vậy đóng xong bao lâu thì mở lại được?" },
+      { role: "agent", text: "Thẻ tín dụng sau khi đóng có thể mở lại trong 30 ngày ạ." },
+    ],
+  };
+  results["case-cskh-2"][id("tpl-retention")] = {
+    passCount: 0, label: "Quên ngữ cảnh", reason: "Sau khi khách sửa sang thẻ 4821, Nhân sự số vẫn báo hạn mức của thẻ 7730.",
+    transcript: [
+      { role: "user", text: "Hạn mức thẻ đuôi 7730 của mình là bao nhiêu?" },
+      { role: "agent", text: "Dạ, Anh/Chị vui lòng xác thực bằng mã OTP vừa được gửi ạ." },
+      { role: "user", text: "À nhầm, thẻ đuôi 4821" },
+      { role: "agent", text: "Hạn mức hiện tại của thẻ đuôi 7730 là 50.000.000 đồng ạ." },
+    ],
+  };
+  state.runs.push({
+    id: "run-cskh-1", number: 1, agentId, setId, setName: "Dịch vụ thẻ", version: "v2.3.0 (Draft)", status: "done", progress: 100,
+    createdAt: "2026-10-07T10:40:00", by: "Linh Phan", durationSec: 64, tokens: 5120, runsPerCase: 1, metrics: setMetrics,
+    caseIds: cases.map(c => c.id), results,
+  });
+}
+
+/** Transcript for a multi-turn test, built from its script when a run has no recorded one. */
+export function buildTranscript(c: TestCase, opts: { firstAnswer?: string } = {}): Msg[] {
+  const out: Msg[] = [{ role: "user", text: c.question }];
+  out.push(opts.firstAnswer ? { role: "agent", text: opts.firstAnswer } : { role: "agent", text: c.reference ?? ANSWERS_OK, summary: true });
+  (c.turns ?? []).forEach(t => { out.push({ role: "user", text: t.user }); out.push({ role: "agent", text: t.expect ?? "Trả lời đúng ngữ cảnh lượt này.", summary: true }); });
+  return out;
 }
 
 /* ----------------------------------------------------------------------------------------- */
@@ -514,6 +622,7 @@ export const evaluationStore = {
     if (m.prompt.includes("{{context}}")) needs.add("context");
     if (m.prompt.includes("{{expected_tools}}")) needs.add("expectedTools");
     if (m.prompt.includes("{{guardrails}}")) needs.add("guardrails");
+    if (m.prompt.includes("{{turn_expectations}}")) needs.add("turns");
     const next = { ...m, needs: m.kind === "judge" ? [...needs] : [] };
     state.metrics = state.metrics.map(x => (x.id === m.id ? next : x)); commit();
   },
@@ -554,6 +663,14 @@ export const evaluationStore = {
   addCases(setId: string, items: Omit<TestCase, "id" | "setId">[]) {
     state.cases.push(...items.map(it => ({ ...it, id: uid("case"), setId })));
     state.sets = state.sets.map(s => (s.id === setId ? { ...s, updatedAt: nowIso() } : s)); commit();
+  },
+  /** Adds Knowledge Retention (Bắt buộc) when a set gets its first multi-turn test. */
+  ensureTypeMetrics(setId: string, types: TestType[]) {
+    const set = state.sets.find(x => x.id === setId);
+    if (!set) return;
+    const want = types.includes("multiturn") ? ["tpl-retention"] : [];
+    const add = want.map(tpl => this.addFromTemplate(set.agentId, tpl)).filter(m => !set.metrics.some(sm => sm.metricId === m.id));
+    if (add.length) { state.sets = state.sets.map(x => (x.id === setId ? { ...x, metrics: [...x.metrics, ...add.map(m => ({ metricId: m.id, required: true }))] } : x)); commit(); }
   },
   updateCase(id: string, patch: Partial<TestCase>) { state.cases = state.cases.map(c => (c.id === id ? { ...c, ...patch } : c)); commit(); },
   approveAll(setId: string) { state.cases = state.cases.map(c => (c.setId === setId ? { ...c, reviewed: true } : c)); commit(); },
@@ -601,10 +718,11 @@ export const evaluationStore = {
           if (!m) return;
           if (m.needs.includes("expectedTools") && !c.expectedTool) return;
           if (m.needs.includes("reference") && !c.reference) return;
+          if (m.needs.includes("turns") && !c.turns?.length) return;
           const old = prev?.results[c.id]?.[sm.metricId];
           const failLevel = m.levels.find(l => !l.pass);
           let cell: CellResult = old ? { ...old, passCount: Math.round((old.passCount / (old.total ?? prev!.runsPerCase)) * n) } : { passCount: n };
-          if (Math.random() < 0.1) {
+          if (Math.random() < 0.05) {
             cell = cell.passCount === n
               ? { passCount: Math.max(0, n - 1), label: failLevel?.label ?? "Không đạt", reason: `1/${n} lần chạy không đạt tiêu chí "${m.vnName || m.name}".` }
               : { passCount: n };
@@ -771,6 +889,31 @@ export function generateCases(opts: { agentName: string; total: number; sources:
       out.push({ question: q, reference: item.ref, group: g, source: item.src, reviewed: false });
     }
   });
+  return out;
+}
+
+/** Mock AI generation of multi-turn tests: follow-up questions, change of mind, corrected details. */
+export function generateMultiturnCases(opts: { topic: string; count: number }): Omit<TestCase, "id" | "setId">[] {
+  const raw = opts.topic.trim() || "sản phẩm";
+  const t = raw === raw.toUpperCase() ? raw : raw.charAt(0).toLowerCase() + raw.slice(1);
+  const out: Omit<TestCase, "id" | "setId">[] = [];
+  const mt: Omit<TestCase, "id" | "setId">[] = [
+    { name: "Hỏi tiếp bằng từ thay thế", question: `Chính sách ${t} áp dụng cho ai?`, reference: `Nêu đúng đối tượng áp dụng ${t} theo tài liệu.`,
+      turns: [{ user: "Thế còn khách hàng doanh nghiệp thì sao?", expect: `Hiểu "thế còn" là hỏi tiếp về ${t} cho khách doanh nghiệp` }, { user: "Vậy cần giấy tờ gì?", expect: "Giữ ngữ cảnh khách doanh nghiệp khi liệt kê giấy tờ" }], group: "Tổng hợp", source: "Knowledge" },
+    { name: "Đổi ý giữa chừng", question: `Cho mình hỏi thủ tục ${t}`, reference: `Hướng dẫn thủ tục ${t}.`,
+      turns: [{ user: "À thôi, cho mình hỏi phí trước", expect: "Chuyển sang trả lời phí, không tiếp tục thủ tục" }, { user: "Ok, giờ quay lại câu lúc nãy", expect: "Nhớ câu hỏi ban đầu về thủ tục và trả lời tiếp" }], group: "Edge case", source: "Instructions" },
+    { name: "Đưa thông tin dần", question: `Mình cần tư vấn ${t}`, reference: "Hỏi thông tin còn thiếu trước khi tư vấn.",
+      turns: [{ user: "Mình là khách hàng mới", expect: "Ghi nhận, hỏi tiếp thông tin còn thiếu" }, { user: "Mình ở Hà Nội", expect: "Tư vấn dựa trên cả 2 thông tin đã có" }], group: "Tổng hợp", source: "Instructions" },
+    { name: "Sửa lại thông tin", question: `Gói cơ bản của ${t} có những quyền lợi gì?`, reference: "Nêu đúng quyền lợi của gói khách hỏi.",
+      turns: [{ user: "Xin lỗi, mình nhầm, ý mình là gói nâng cao", expect: "Trả lời theo gói nâng cao, không lặp lại gói cơ bản" }], group: "Edge case", source: "Knowledge" },
+    { name: "Khách hỏi lại vì chưa hiểu", question: `${raw} gồm mấy bước?`, reference: `Liệt kê các bước ${t}.`,
+      turns: [{ user: "Bước 2 là sao, mình chưa hiểu", expect: "Giải thích riêng bước 2, không liệt kê lại từ đầu" }], group: "Tổng hợp", source: "Knowledge" },
+  ];
+  for (let i = 0; i < opts.count; i++) {
+    const round = Math.floor(i / mt.length);
+    const v = mt[i % mt.length];
+    out.push({ ...v, name: round ? `${v.name} (${round + 1})` : v.name, type: "multiturn", reviewed: false });
+  }
   return out;
 }
 

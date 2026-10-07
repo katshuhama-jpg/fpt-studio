@@ -15,7 +15,8 @@ import { agentGuardrailStore } from "@/components/configure/agentGuardrailStore"
 import { agentSkillStore } from "@/components/configure/agentSkillStore";
 import { agentConnectorStore } from "@/components/configure/agentConnectorStore";
 import {
-  evaluationStore, useEvaluationStore, generateCases, splitCounts, runStats, CASE_GROUPS, DEFAULT_DISTRIBUTION, TEMPLATE_METRICS,
+  evaluationStore, useEvaluationStore, generateCases, generateMultiturnCases, caseType,
+  TEST_TYPES, TEST_TYPE_LABEL, type TestType, type Turn, splitCounts, runStats, CASE_GROUPS, DEFAULT_DISTRIBUTION, TEMPLATE_METRICS,
   METRIC_GROUP_LABEL, passRuleText, KIND_LABEL, APPROVAL_LABEL, type ApprovalMode, type Metric, type CaseGroup, type CaseSource, type TestCase, type TestSet, type ToolMode, type SetMetric,
 } from "./evaluationStore";
 import { EmptyState, ThresholdBar, useEvalNav, fmtDateTime } from "./shared";
@@ -232,6 +233,11 @@ function defaultToolModes(agentId: string): Record<string, ToolMode> {
   return out;
 }
 
+const TYPE_CHIP: Record<TestType, string> = { qna: "chip-muted", multiturn: "chip-info" };
+export function TypeChip({ type }: { type: TestType }) {
+  return <span className={`chip ${TYPE_CHIP[type]} !py-0 !text-[10px] align-middle`}>{TEST_TYPE_LABEL[type].short}</span>;
+}
+
 /* ------------------------------------------------------------------ generate with AI */
 
 function GenerateSetDialog({ agentId, agentName, open, onOpenChange, onCreated }: { agentId: string; agentName: string; open: boolean; onOpenChange: (o: boolean) => void; onCreated: (id: string) => void }) {
@@ -240,23 +246,31 @@ function GenerateSetDialog({ agentId, agentName, open, onOpenChange, onCreated }
   const [desc, setDesc] = useState("");
   const [picked, setPicked] = useState<CaseSource[]>([]);
   const [counts, setCounts] = useState<Record<CaseGroup, number>>(() => splitCounts(50));
-  const total = Object.values(counts).reduce((a, b) => a + b, 0);
   const [lang, setLang] = useState("Tiếng Việt");
   const [busy, setBusy] = useState(false);
   const [touched, setTouched] = useState(false);
   const [advanced, setAdvanced] = useState(false);
+  const [types, setTypes] = useState<TestType[]>(["qna"]);
+  const [mtCount, setMtCount] = useState(5);
+  const qnaTotal = Object.values(counts).reduce((a, b) => a + b, 0);
+  const total = (types.includes("qna") ? qnaTotal : 0) + (types.includes("multiturn") ? mtCount : 0);
+  const toggleType = (t: TestType) => setTypes(v => (v.includes(t) ? v.filter(x => x !== t) : [...v, t]));
 
-  const reset = () => { setName(""); setDesc(""); setPicked(sources.filter(s => s.count > 0).map(s => s.id)); setCounts(splitCounts(50)); setBusy(false); setTouched(false); setAdvanced(false); };
+  const reset = () => { setName(""); setDesc(""); setPicked(sources.filter(s => s.count > 0).map(s => s.id)); setCounts(splitCounts(50)); setBusy(false); setTouched(false); setAdvanced(false); setTypes(["qna"]); setMtCount(5); };
   // Pre-tick every source the Agent actually has configured.
   useEffect(() => { if (open) reset(); }, [open, sources]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const submit = () => {
     setTouched(true);
-    if (!name.trim() || picked.length === 0 || total === 0) return;
+    if (!name.trim() || picked.length === 0 || total === 0 || types.length === 0) return;
     setBusy(true);
     setTimeout(() => {
       const set = evaluationStore.createSet(agentId, { name: name.trim(), description: desc.trim(), metrics: defaultSetMetrics(agentId, picked.includes("Connectors") || picked.includes("Skills")), runsPerCase: 1, toolModes: defaultToolModes(agentId) });
-      evaluationStore.addCases(set.id, generateCases({ agentName, total, sources: picked, distribution: DEFAULT_DISTRIBUTION, counts, topic: name }));
+      evaluationStore.addCases(set.id, [
+        ...(types.includes("qna") ? generateCases({ agentName, total: qnaTotal, sources: picked, distribution: DEFAULT_DISTRIBUTION, counts, topic: name }) : []),
+        ...(types.includes("multiturn") ? generateMultiturnCases({ topic: name, count: mtCount }) : []),
+      ]);
+      evaluationStore.ensureTypeMetrics(set.id, types);
       toast.success(`Đã tạo ${total} test case nháp - Duyệt đáp án mẫu trước khi chạy`);
       onOpenChange(false);
       onCreated(set.id);
@@ -313,7 +327,31 @@ function GenerateSetDialog({ agentId, agentName, open, onOpenChange, onCreated }
               )}
             </fieldset>
             <fieldset>
-              <legend className="text-sm font-medium mb-1.5">Số test case</legend>
+              <legend className="text-sm font-medium mb-1.5">Loại test</legend>
+              <div className="space-y-2">
+                {TEST_TYPES.map(tp => {
+                  const on = types.includes(tp);
+                  return (
+                    <div key={tp} className={`rounded-lg border px-3 py-2.5 transition-base ${on ? "border-primary bg-primary-soft" : "border-border"}`}>
+                      <div className="flex items-center gap-3">
+                        <label className={`flex items-start gap-2 flex-1 min-w-0 cursor-pointer`}>
+                          <input type="checkbox" className="mt-0.5 accent-[hsl(var(--primary))]" checked={on} onChange={() => toggleType(tp)} />
+                          <span>
+                            <span className="text-sm font-medium block">{TEST_TYPE_LABEL[tp].label}</span>
+                            <span className="text-xs text-muted-foreground">{TEST_TYPE_LABEL[tp].desc}</span>
+                          </span>
+                        </label>
+                        {on && tp === "qna" && <span className="text-sm font-semibold shrink-0">{qnaTotal} test</span>}
+                        {on && tp === "multiturn" && <Stepper value={mtCount} min={1} max={50} onChange={setMtCount} label="số test nhiều lượt" />}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {touched && types.length === 0 && <span className="text-xs text-destructive mt-1 block">Chọn ít nhất 1 loại test</span>}
+            </fieldset>
+            {types.includes("qna") && <fieldset>
+              <legend className="text-sm font-medium mb-1.5">Số câu hỏi đáp</legend>
               <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Số test case">
                 {SIZE_PRESETS.map(sp => {
                   const on = isPreset(counts, sp.n);
@@ -369,7 +407,7 @@ function GenerateSetDialog({ agentId, agentName, open, onOpenChange, onCreated }
                 )}
               </div>
               {touched && total === 0 && <span className="text-xs text-destructive mt-1 block">Chọn ít nhất 1 test case</span>}
-            </fieldset>
+            </fieldset>}
             <label className="block">
               <span className="text-sm font-medium">Ngôn ngữ</span>
               <select className="ds-input mt-1.5 w-full block" value={lang} onChange={e => setLang(e.target.value)}>
@@ -377,7 +415,7 @@ function GenerateSetDialog({ agentId, agentName, open, onOpenChange, onCreated }
               </select>
             </label>
             <div className="rounded-lg bg-surface-muted px-3 py-2.5 text-xs text-muted-foreground">
-              Bộ test mới dùng sẵn 4 chỉ số bắt buộc: Correctness, Faithfulness, Safety, Style. Bạn đổi được trong tab Cài đặt của bộ test.
+              Bộ test mới dùng sẵn 4 chỉ số bắt buộc: Correctness, Faithfulness, Safety, Style{types.includes("multiturn") ? ", Knowledge Retention" : ""}. Bạn đổi được trong tab Cài đặt của bộ test.
             </div>
           </div>
         )}
@@ -429,6 +467,7 @@ function TestSetDetail({ set, agentId, agentName, onBack }: { set: TestSet; agen
   const [toDelete, setToDelete] = useState<TestCase | null>(null);
   const [q, setQ] = useState("");
   const [group, setGroup] = useState<CaseGroup | "all">("all");
+  const [typeFilter, setTypeFilter] = useState<TestType | "all">("all");
   const [genMore, setGenMore] = useState(false);
   const [onlyDraft, setOnlyDraft] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
@@ -436,7 +475,9 @@ function TestSetDetail({ set, agentId, agentName, onBack }: { set: TestSet; agen
   const [bulkDelete, setBulkDelete] = useState(false);
   const cases = evaluationStore.cases(set.id);
   const unreviewed = evaluationStore.unreviewed(set.id);
-  const shown = cases.filter(c => (group === "all" || c.group === group) && (!q || c.question.toLowerCase().includes(q.toLowerCase())) && (!onlyDraft || c.reviewed === false));
+  const shown = cases.filter(c => (group === "all" || c.group === group) && (typeFilter === "all" || caseType(c) === typeFilter)
+    && (!q || `${c.name ?? ""} ${c.question}`.toLowerCase().includes(q.toLowerCase())) && (!onlyDraft || c.reviewed === false));
+  const typesInSet = TEST_TYPES.filter(tp => cases.some(c => caseType(c) === tp));
   const run = evaluationStore.latestRun(set.id);
 
   return (
@@ -475,6 +516,12 @@ function TestSetDetail({ set, agentId, agentName, onBack }: { set: TestSet; agen
               <HugeiconsIcon icon={Search01Icon} size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input className="ds-input !h-8 !pl-8 w-64" placeholder="Tìm câu hỏi" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm câu hỏi" />
             </div>
+            {typesInSet.length > 1 && (
+              <select className="ds-input !h-8 !w-auto !py-0 text-sm" value={typeFilter} onChange={e => setTypeFilter(e.target.value as TestType | "all")} aria-label="Lọc theo loại test">
+                <option value="all">Mọi loại test ({cases.length})</option>
+                {typesInSet.map(tp => <option key={tp} value={tp}>{TEST_TYPE_LABEL[tp].label} ({cases.filter(c => caseType(c) === tp).length})</option>)}
+              </select>
+            )}
             <div className="flex gap-1 flex-wrap">
               {(["all", ...CASE_GROUPS] as const).map(g => (
                 <button data-viewonly-allow key={g} onClick={() => setGroup(g)} className={`chip cursor-pointer ${group === g ? "chip-primary" : "chip-outline hover:bg-surface-muted"}`}>
@@ -531,7 +578,7 @@ function TestSetDetail({ set, agentId, agentName, onBack }: { set: TestSet; agen
                   <th className="text-left font-medium px-4 py-2.5">Đáp án mẫu</th>
                   <th className="text-left font-medium px-4 py-2.5">Nhóm</th>
                   <th className="text-left font-medium px-4 py-2.5">Nguồn</th>
-                  <th className="text-left font-medium px-4 py-2.5">Chỉ số</th>
+                  <th className="text-left font-medium px-4 py-2.5 whitespace-nowrap">Chỉ số</th>
                   <th className="px-4 py-2.5" />
                 </tr>
               </thead>
@@ -543,9 +590,10 @@ function TestSetDetail({ set, agentId, agentName, onBack }: { set: TestSet; agen
                         onChange={e => setSelected(e.target.checked ? [...selected, c.id] : selected.filter(x => x !== c.id))} />
                     </td>
                     <td className="px-4 py-3 align-top">
-                      {c.name && <div className="text-xs font-semibold text-muted-foreground mb-0.5">{c.name}</div>}
+                      {(c.name || caseType(c) !== "qna") && <div className="text-xs font-semibold text-muted-foreground mb-0.5 flex items-center gap-1.5">{caseType(c) !== "qna" && <TypeChip type={caseType(c)} />}{c.name}</div>}
                       <div className="leading-snug">{c.question}{c.reviewed === false && <span className="chip chip-warning !py-0 !text-[10px] ml-1.5 align-middle">Chưa duyệt</span>}</div>
                       {c.expectedTool && <code className="text-[11px] text-muted-foreground">Tool mong đợi: {c.expectedTool}</code>}
+                      {!!c.turns?.length && <div className="text-[11px] text-muted-foreground">+ {c.turns.length} lượt tiếp theo: "{c.turns[0].user}"{c.turns.length > 1 ? "…" : ""}</div>}
                     </td>
                     <td className="px-4 py-3 align-top text-muted-foreground"><div className="line-clamp-2">{c.reference || <span className="italic">Chưa có</span>}</div></td>
                     <td className="px-4 py-3 align-top whitespace-nowrap">{c.group}</td>
@@ -604,12 +652,16 @@ function TestSetDetail({ set, agentId, agentName, onBack }: { set: TestSet; agen
 
 function GenerateMoreDialog({ set, agentId, agentName, open, onOpenChange }: { set: TestSet; agentId: string; agentName: string; open: boolean; onOpenChange: (o: boolean) => void }) {
   const [n, setN] = useState(20);
+  const [type, setType] = useState<TestType>("qna");
   const [busy, setBusy] = useState(false);
   const go = () => {
     setBusy(true);
     setTimeout(() => {
       const sources = agentSources(agentId).filter(s => s.count > 0).map(s => s.id);
-      evaluationStore.addCases(set.id, generateCases({ agentName, total: n, sources, distribution: DEFAULT_DISTRIBUTION, topic: set.name }));
+      evaluationStore.addCases(set.id, type === "qna"
+        ? generateCases({ agentName, total: n, sources, distribution: DEFAULT_DISTRIBUTION, topic: set.name })
+        : generateMultiturnCases({ topic: set.name, count: n }));
+      evaluationStore.ensureTypeMetrics(set.id, [type]);
       setBusy(false); onOpenChange(false); toast.success(`Đã thêm ${n} test case`);
     }, 1200);
   };
@@ -617,6 +669,11 @@ function GenerateMoreDialog({ set, agentId, agentName, open, onOpenChange }: { s
     <Dialog open={open} onOpenChange={o => !busy && onOpenChange(o)}>
       <DialogContent className="sm:max-w-[420px]">
         <DialogHeader><DialogTitle>Sinh thêm test case bằng AI</DialogTitle><DialogDescription>AI tránh sinh trùng câu hỏi đã có trong bộ test.</DialogDescription></DialogHeader>
+        <label className="block"><span className="text-sm font-medium">Loại test</span>
+          <select className="ds-input mt-1.5 w-full" value={type} onChange={e => setType(e.target.value as TestType)}>
+            {TEST_TYPES.map(tp => <option key={tp} value={tp}>{TEST_TYPE_LABEL[tp].label}</option>)}
+          </select>
+          <span className="text-xs text-muted-foreground mt-1 block">{TEST_TYPE_LABEL[type].desc}</span></label>
         <label className="block"><span className="text-sm font-medium">Số test case</span>
           <input type="number" min={1} max={200} className="ds-input mt-1.5" value={n} onChange={e => setN(Math.max(1, Math.min(200, Number(e.target.value) || 1)))} /></label>
         <DialogFooter>
@@ -653,6 +710,8 @@ function CaseSheet({ set, agentId, editing, onClose }: { set: TestSet; agentId: 
   const [runs, setRuns] = useState(set.runsPerCase);
   const [approval, setApproval] = useState<ApprovalMode>("auto");
   const [toolModes, setToolModes] = useState<Record<string, ToolMode>>({});
+  const [type, setType] = useState<TestType>("qna");
+  const [turns, setTurns] = useState<Turn[]>([]);
   const [picker, setPicker] = useState(false);
   const [newMetric, setNewMetric] = useState<Metric | null>(null);
   // A metric created from this drawer is discarded if the Builder backs out without saving it.
@@ -662,6 +721,7 @@ function CaseSheet({ set, agentId, editing, onClose }: { set: TestSet; agentId: 
     setPreset(null); setName(init?.name ?? ""); setScenario(init?.scenario ?? ""); setQuestion(init?.question ?? ""); setReference(init?.reference ?? "");
     setTool(init?.expectedTool ?? ""); setGroup(init?.group ?? "Trích xuất đơn"); setOwnMetrics(init?.metrics ?? null);
     setRuns(init?.runsPerCase ?? set.runsPerCase); setApproval(init?.approval ?? "auto"); setToolModes(init?.toolModes ?? {}); setTouched(false);
+    setType(init ? caseType(init) : "qna"); setTurns(init?.turns ?? []);
   }, [editing]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const metrics = ownMetrics ?? set.metrics;
@@ -674,15 +734,21 @@ function CaseSheet({ set, agentId, editing, onClose }: { set: TestSet; agentId: 
     if (p.ref) setReference(p.ref);
   };
 
+  const cleanTurns = turns.filter(t => t.user.trim()).map(t => ({ user: t.user.trim(), expect: t.expect?.trim() || undefined }));
+  const turnsMissing = type === "multiturn" && cleanTurns.length === 0;
+
   const save = () => {
     setTouched(true);
-    if (!question.trim()) return;
+    if (!question.trim() || turnsMissing) return;
     const overridesTools = Object.keys(toolModes).length ? toolModes : undefined;
     const data = {
       name: name.trim() || undefined, scenario: scenario.trim() || undefined, question: question.trim(), reference: reference.trim() || undefined,
-      expectedTool: tool.trim() || undefined, group, reviewed: true, metrics: ownMetrics ?? undefined,
+      expectedTool: type === "qna" ? tool.trim() || undefined : undefined, group, reviewed: true, metrics: ownMetrics ?? undefined,
       runsPerCase: runs !== set.runsPerCase ? runs : undefined, approval: approval !== "auto" ? approval : undefined, toolModes: overridesTools,
+      type: type === "qna" ? undefined : type,
+      turns: type === "multiturn" && cleanTurns.length ? cleanTurns : undefined,
     };
+    if (type !== "qna") evaluationStore.ensureTypeMetrics(set.id, [type]);
     if (init) evaluationStore.updateCase(init.id, data);
     else evaluationStore.addCases(set.id, [{ ...data, source: "Thủ công" }]);
     toast.success(init ? "Đã lưu test" : "Đã thêm test");
@@ -696,13 +762,26 @@ function CaseSheet({ set, agentId, editing, onClose }: { set: TestSet; agentId: 
   return (
     <>
       <Sheet open={!!editing} onOpenChange={o => !o && onClose()}>
-        <SheetContent side="right" className="w-full sm:max-w-xl flex flex-col gap-0 p-0">
+        <SheetContent side="right" className="w-full sm:max-w-xl flex flex-col gap-0 p-0" onOpenAutoFocus={e => e.preventDefault()}>
           <SheetHeader className="px-6 py-4 border-b border-border text-left">
             <SheetTitle>{isNew ? "Thêm test" : "Sửa test"}</SheetTitle>
             <SheetDescription>Bộ test {set.name}</SheetDescription>
           </SheetHeader>
           <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
-            {isNew && <div>
+            <fieldset>
+              <legend className="text-sm font-medium mb-1.5">Loại test</legend>
+              <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Loại test">
+                {TEST_TYPES.map(tp => (
+                  <button key={tp} type="button" role="radio" aria-checked={type === tp} onClick={() => setType(tp)}
+                    className={`rounded-lg border px-3 py-2 text-left transition-base cursor-pointer ${type === tp ? "border-primary bg-primary-soft" : "border-border hover:bg-surface-muted"}`}>
+                    <div className="text-sm font-semibold">{TEST_TYPE_LABEL[tp].short}</div>
+                    <div className="text-[11px] text-muted-foreground leading-snug">{tp === "qna" ? "1 câu hỏi, 1 câu trả lời" : "Hỏi tiếp, đổi ý, sửa thông tin"}</div>
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+
+            {isNew && type === "qna" && <div>
               <div className="text-xs text-muted-foreground mb-1.5">Bắt đầu từ mẫu hoặc tự viết</div>
               <div className="flex flex-wrap gap-1.5">
                 {PRESETS.map(p => (
@@ -737,15 +816,21 @@ function CaseSheet({ set, agentId, editing, onClose }: { set: TestSet; agentId: 
               <textarea className="ds-textarea mt-1.5" rows={2} value={question} onChange={e => setQuestion(e.target.value)} placeholder="Viết đúng như người dùng sẽ hỏi" aria-invalid={touched && !question.trim()} />
               {touched && !question.trim() && <span className="text-xs text-destructive mt-1 block">Nhập câu hỏi mở đầu</span>}
             </label>
+
+            {type === "multiturn" && (
+              <TurnsEditor turns={turns} onChange={setTurns} title="Các lượt tiếp theo" required error={touched && turnsMissing}
+                hint="Người dùng nói lần lượt từng câu dưới đây. Ghi điều Nhân sự số phải làm ở mỗi lượt để chấm Knowledge Retention." />
+            )}
+
             <label className="block">
-              <span className="text-sm font-medium">Đáp án mẫu {needsRef && <span className="text-xs text-muted-foreground font-normal">- Cần cho Correctness</span>}</span>
+              <span className="text-sm font-medium">{type === "multiturn" ? "Đáp án mẫu cho câu mở đầu" : "Đáp án mẫu"} {needsRef && type === "qna" && <span className="text-xs text-muted-foreground font-normal">- Cần cho Correctness</span>}</span>
               <textarea className="ds-textarea mt-1.5" rows={3} value={reference} onChange={e => setReference(e.target.value)} placeholder="Ghi đủ các ý bắt buộc Nhân sự số phải trả lời" />
             </label>
             <div className="grid grid-cols-2 gap-3">
-              <label className="block">
+              {type === "qna" && <label className="block">
                 <span className="text-sm font-medium">Tool mong đợi {needsTool && <span className="text-xs text-muted-foreground font-normal">- Cần cho Tool Call</span>}</span>
                 <input className="ds-input mt-1.5 font-mono text-xs" value={tool} onChange={e => setTool(e.target.value)} placeholder="book_technician(date, address)" />
-              </label>
+              </label>}
               <label className="block">
                 <span className="text-sm font-medium">Nhóm câu hỏi</span>
                 <select className="ds-input mt-1.5" value={group} onChange={e => setGroup(e.target.value as CaseGroup)}>{CASE_GROUPS.map(g => <option key={g}>{g}</option>)}</select>
@@ -828,6 +913,30 @@ function CaseSheet({ set, agentId, editing, onClose }: { set: TestSet; agentId: 
         onClose={() => { if (newMetric && !savedNew.current) evaluationStore.deleteMetric(newMetric.id); savedNew.current = false; setNewMetric(null); }}
         onSaved={m => { savedNew.current = true; editMetrics([...metrics.filter(x => x.metricId !== m.id), { metricId: m.id, required: true }]); }} />
     </>
+  );
+}
+
+function TurnsEditor({ turns, onChange, title, hint, required, error }: { turns: Turn[]; onChange: (t: Turn[]) => void; title: string; hint: string; required?: boolean; error?: boolean }) {
+  const set = (i: number, patch: Partial<Turn>) => onChange(turns.map((t, j) => (j === i ? { ...t, ...patch } : t)));
+  return (
+    <section>
+      <h3 className="text-sm font-medium">{title} {required && <span className="text-destructive">*</span>}</h3>
+      <p className="text-xs text-muted-foreground mt-0.5 mb-2">{hint}</p>
+      <div className="space-y-2">
+        {turns.map((t, i) => (
+          <div key={i} className="rounded-lg border border-border p-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-muted-foreground">Lượt {i + 2}</span>
+              <button type="button" className="btn-ghost !px-1.5 !h-7 ml-auto" aria-label={`Xóa lượt ${i + 2}`} onClick={() => onChange(turns.filter((_, j) => j !== i))}><HugeiconsIcon icon={Delete02Icon} size={13} /></button>
+            </div>
+            <textarea className="ds-textarea" rows={2} value={t.user} onChange={e => set(i, { user: e.target.value })} placeholder="Người dùng nói, ví dụ: Thế còn thẻ ghi nợ thì sao?" aria-label={`Lượt ${i + 2} - Người dùng nói`} />
+            <input className="ds-input !h-8 text-sm" value={t.expect ?? ""} onChange={e => set(i, { expect: e.target.value })} placeholder="Nhân sự số cần: ví dụ hiểu là hỏi phí đóng thẻ ghi nợ" aria-label={`Lượt ${i + 2} - Nhân sự số cần`} />
+          </div>
+        ))}
+        <button type="button" className="btn-secondary !h-8 text-xs" onClick={() => onChange([...turns, { user: "", expect: "" }])}><HugeiconsIcon icon={Add01Icon} size={12} /> Thêm lượt</button>
+      </div>
+      {error && <span className="text-xs text-destructive mt-1 block">Thêm ít nhất 1 lượt tiếp theo</span>}
+    </section>
   );
 }
 

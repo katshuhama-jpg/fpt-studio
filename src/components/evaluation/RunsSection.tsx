@@ -6,10 +6,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { Switch } from "@/components/ui/switch";
 import {
   evaluationStore, useEvaluationStore, runStats, metricStats, cellStatus, caseStatus, METRIC_GROUP_LABEL, passRuleText,
-  CASE_GROUPS, OK_ANSWER, caseScore, casesRuns, type Run, type Metric, type MetricGroup, type CellStatus,
+  CASE_GROUPS, OK_ANSWER, caseScore, casesRuns, caseType, buildTranscript, type Msg, type Run, type Metric, type MetricGroup, type CellStatus,
 } from "./evaluationStore";
 import { EmptyState, ResultCell, StatusText, ThresholdBar, Delta, RequiredBadge, useEvalNav, fmtDateTime, fmtDuration, fmtNumber, TONE } from "./shared";
 import { RunDialog } from "./RunDialog";
+import { TypeChip } from "./TestSetsSection";
 
 export function RunsSection({ agentId, onRefineWithAI }: { agentId: string; onRefineWithAI: () => void }) {
   useEvaluationStore();
@@ -527,9 +528,9 @@ function TestView({ run, onOpen }: { run: Run; onOpen: (caseId: string) => void 
             <tr key={r.id} onClick={() => onOpen(r.id)} className="border-t border-border hover:bg-surface-muted/50 cursor-pointer transition-base">
               <td className="px-4 py-3"><StatusText status={r.status} /></td>
               <td className="px-4 py-3">
-                {r.c?.name && <div className="text-xs font-semibold text-muted-foreground">{r.c.name}</div>}
+                {(r.c?.name || (r.c && caseType(r.c) !== "qna")) && <div className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">{r.c && caseType(r.c) !== "qna" && <TypeChip type={caseType(r.c)} />}{r.c?.name}</div>}
                 <div className="leading-snug">{r.c?.question ?? "Test đã bị xóa"}</div>
-                <div className="text-xs text-muted-foreground">{r.c?.group}{r.n > 1 ? ` · ${r.n} lần chạy` : ""}</div>
+                <div className="text-xs text-muted-foreground">{r.c?.group}{r.c?.turns?.length ? ` · ${r.c.turns.length + 1} lượt` : ""}{r.n > 1 ? ` · ${r.n} lần chạy` : ""}</div>
               </td>
               <td className="px-4 py-3">
                 <div className="flex items-center gap-2">
@@ -549,6 +550,30 @@ function TestView({ run, onOpen }: { run: Run; onOpen: (caseId: string) => void 
   );
 }
 
+/** Chat transcript, one bubble per message, user turns numbered. */
+function Transcript({ msgs }: { msgs: Msg[] }) {
+  let userTurn = 0;
+  return (
+    <div className="space-y-3">
+      {msgs.map((m, i) => {
+        const user = m.role === "user";
+        if (user) userTurn++;
+        return (
+          <div key={i} className="flex gap-2.5">
+            <span className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${user ? "bg-surface-muted" : "bg-primary-soft text-primary"}`}><HugeiconsIcon icon={user ? UserIcon : Robot01Icon} size={14} /></span>
+            <div className="max-w-[85%]">
+              {user && <div className="text-[10px] text-muted-foreground mb-0.5">Lượt {userTurn}</div>}
+              {m.summary
+                ? <div className="rounded-xl rounded-tl-sm border border-dashed border-border px-3 py-2 text-sm text-muted-foreground"><span className="text-[11px] font-semibold block text-success">Đạt yêu cầu</span>{m.text}</div>
+                : <div className={`rounded-xl rounded-tl-sm px-3 py-2 text-sm ${user ? "bg-surface-muted" : "border border-border"}`}>{m.text}</div>}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /** Relevance "View Conversation": the exchange plus every check's verdict and reason. */
 function ConversationDrawer({ run, caseId, onClose, onEditCase, onRefineWithAI }: { run: Run; caseId: string | null; onClose: () => void; onEditCase: () => void; onRefineWithAI: () => void }) {
   const [rep, setRep] = useState(0);
@@ -563,6 +588,10 @@ function ConversationDrawer({ run, caseId, onClose, onEditCase, onRefineWithAI }
   const answer = repFailed && failing?.[1].answer ? failing[1].answer : (c?.reference ?? OK_ANSWER);
   const toolCall = cells.map(([, cell]) => cell.toolCall).find(Boolean) ?? c?.expectedTool;
   const set = evaluationStore.set(run.setId);
+  const type = c ? caseType(c) : "qna";
+  // Multi-turn: the recorded transcript of the failing repetition, else one built from the test script.
+  const recorded = repFailed ? cells.map(([, cell]) => cell).find(cell => cell.transcript && cellStatus(cell, run.runsPerCase) !== "pass")?.transcript : undefined;
+  const transcript: Msg[] | null = c && type !== "qna" ? recorded ?? buildTranscript(c, { firstAnswer: repFailed && failing?.[1].answer ? failing[1].answer : undefined }) : null;
   return (
     <Sheet open={!!caseId} onOpenChange={o => !o && onClose()}>
       <SheetContent side="right" className="w-full sm:max-w-xl flex flex-col gap-0 p-0">
@@ -588,7 +617,7 @@ function ConversationDrawer({ run, caseId, onClose, onEditCase, onRefineWithAI }
                 </div>
               )}
               {c.scenario && <div className="rounded-lg bg-surface-muted px-3 py-2 text-xs text-muted-foreground"><b className="text-foreground">Kịch bản:</b> {c.scenario}</div>}
-              <div className="space-y-3">
+              {transcript ? <Transcript msgs={transcript} /> : <div className="space-y-3">
                 <div className="flex gap-2.5">
                   <span className="w-7 h-7 rounded-full bg-surface-muted flex items-center justify-center shrink-0"><HugeiconsIcon icon={UserIcon} size={14} /></span>
                   <div className="rounded-xl rounded-tl-sm bg-surface-muted px-3 py-2 text-sm max-w-[85%]">{c.question}</div>
@@ -603,7 +632,7 @@ function ConversationDrawer({ run, caseId, onClose, onEditCase, onRefineWithAI }
                   <span className="w-7 h-7 rounded-full bg-primary-soft text-primary flex items-center justify-center shrink-0"><HugeiconsIcon icon={Robot01Icon} size={14} /></span>
                   <div className="rounded-xl rounded-tl-sm border border-border px-3 py-2 text-sm max-w-[85%]">{answer}</div>
                 </div>
-              </div>
+              </div>}
               <div>
                 <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">Kết quả chấm</div>
                 <div className="space-y-2">
