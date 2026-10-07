@@ -65,7 +65,7 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
   const hidden = params.get("panel") === "hidden";
 
   return (
-    <CollapsibleHistoryPanel hidden={hidden} width={476} emptyHint="Click a conversation in the list to view the full chat.">
+    <CollapsibleHistoryPanel hidden={hidden} width={476} isEmpty={!record} emptyHint="Click a conversation in the list to view the full chat.">
       {record && (
         <>
             {/* Conversation header — minimal, matches the real agents.fpt.ai chat-history panel:

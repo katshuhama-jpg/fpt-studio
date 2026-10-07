@@ -9,11 +9,13 @@ import { MessageCircle } from "lucide-react";
  * its table use the full content width). Both now share this instead.
  */
 export default function CollapsibleHistoryPanel({
-  hidden, width = 476, emptyHint, children,
+  hidden, width = 476, emptyHint, isEmpty, children,
 }: {
   hidden: boolean;
   width?: number;
   emptyHint: string;
+  /** Show the empty hint even when children are passed (e.g. a dialog that is always mounted). */
+  isEmpty?: boolean;
   children?: ReactNode;
 }) {
   return (
@@ -25,7 +27,8 @@ export default function CollapsibleHistoryPanel({
     >
       {/* Fixed-width inner frame so content doesn't reflow/wrap while the aside's width animates */}
       <div style={{ width }} className="h-full flex flex-col">
-        {children ?? (
+        {isEmpty && children}
+        {(isEmpty || children == null) ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
             <div className="w-12 h-12 rounded-xl bg-surface-muted flex items-center justify-center mb-3">
               <MessageCircle size={20} className="text-muted-foreground" />
@@ -33,7 +36,7 @@ export default function CollapsibleHistoryPanel({
             <p className="text-sm font-medium text-foreground mb-1">No conversation selected</p>
             <p className="text-xs text-muted-foreground max-w-[220px]">{emptyHint}</p>
           </div>
-        )}
+        ) : children}
       </div>
     </aside>
   );

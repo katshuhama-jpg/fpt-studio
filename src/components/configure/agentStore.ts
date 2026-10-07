@@ -49,7 +49,9 @@ You are a customer-care specialist at ABC Bank. Help customers 24/7 with product
   {
     id: "hr", name: "HR Onboarding Bot", emoji: "🤝", bg: "bg-accent-soft", accent: "bg-accent",
     status: "Draft", desc: "New-joiner onboarding, policy lookup and meeting scheduling.",
-    ownerId: "m-fsoft-coo",
+    // Shared with Kim Chi (Viewer) so the "Xem với vai trò" demo can show History without the
+    // Export permission.
+    ownerId: "m-fsoft-coo", sharedWith: ["m-plat-7"],
     model: "GPT-4o mini", convs: 412, success: 91, channels: ["Slack"], updated: "1d ago",
     instructions: `# HR Onboarding Assistant
 
