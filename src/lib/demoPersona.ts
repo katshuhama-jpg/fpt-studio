@@ -10,6 +10,9 @@ export interface DemoPersona { key: string; id: string; name: string; email: str
 export const DEMO_PERSONAS: DemoPersona[] = [
   { key: "nam", id: "m-fsoft-ceo", name: "Tran Nam", email: "tran.nam@fpt.com", initials: "TN", title: "Workspace Admin" },
   { key: "linh", id: "m-fsoft-coo", name: "Linh Phan", email: "linh.phan@fpt.com", initials: "LP", title: "Org Admin" },
+  // Viewer role — shows what a member without Build/Export rights sees (e.g. the disabled
+  // Export button on Insights → History).
+  { key: "chi", id: "m-plat-7", name: "Kim Chi", email: "kim.chi@fpt.com", initials: "KC", title: "Viewer" },
 ];
 
 const KEY = "demo_persona";

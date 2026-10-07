@@ -61,7 +61,7 @@ export default function GovernanceAuditLog() {
       <div className="mb-6">
         <h1 className="font-display text-3xl font-semibold tracking-tight mb-1">Audit Log</h1>
         <p className="text-sm text-muted-foreground">
-          Lịch sử toàn bộ hành động duyệt/từ chối/yêu cầu cập nhật - Theo người thực hiện, theo resource, lọc theo thời gian.
+          Lịch sử các hành động duyệt, từ chối, yêu cầu cập nhật và xuất dữ liệu hội thoại - Theo người thực hiện, theo resource, lọc theo thời gian.
         </p>
       </div>
 

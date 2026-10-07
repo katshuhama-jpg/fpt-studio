@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { X, Copy, Check, Waypoints, ClipboardList, ThumbsUp, ThumbsDown } from "lucide-react";
+import { X, Copy, Check, Waypoints, ClipboardList, ThumbsUp, ThumbsDown, ChevronUp, ChevronDown } from "lucide-react";
 import { format } from "date-fns";
 import { historyStore, type ConversationMessage } from "./historyStore";
 import { buildMessageAudit } from "./traceStore";
@@ -21,6 +21,25 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
   const [copied, setCopied] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [auditMessage, setAuditMessage] = useState<ConversationMessage | null>(null);
+
+  // Rated-bubble navigator: long conversations can hide the one disliked answer far down the
+  // thread, so the panel lets the Builder step through rated bubbles instead of scrolling.
+  const rated = record ? record.messages.filter(m => m.role === "agent" && m.feedback) : [];
+  const likes = rated.filter(m => m.feedback === "up").length;
+  const dislikes = rated.length - likes;
+  const [ratedIdx, setRatedIdx] = useState(-1);
+  const [focusId, setFocusId] = useState<string | null>(null);
+  useEffect(() => { setRatedIdx(-1); setFocusId(null); }, [record?.id]);
+  const goRated = (dir: 1 | -1) => {
+    if (rated.length === 0) return;
+    const idx = ratedIdx < 0 ? (dir === 1 ? 0 : rated.length - 1) : (ratedIdx + dir + rated.length) % rated.length;
+    const target = rated[idx];
+    setRatedIdx(idx);
+    setFocusId(target.id);
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    document.getElementById(`hist-msg-${target.id}`)?.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
+    window.setTimeout(() => setFocusId(id => (id === target.id ? null : id)), 1600);
+  };
 
   const closePanel = () => {
     const next = new URLSearchParams(params);
@@ -89,13 +108,51 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
               </div>
             </div>
 
+            {rated.length > 0 && (
+              <div className="px-4 py-2 border-b border-border shrink-0 flex items-center justify-between gap-2 bg-surface-muted/40">
+                <div className="flex items-center gap-3 text-xs tabular-nums" aria-label={`${likes} liked, ${dislikes} disliked messages`}>
+                  <span className={`inline-flex items-center gap-1 ${likes ? "text-[hsl(var(--success-strong))]" : "text-muted-foreground"}`}><ThumbsUp size={12} aria-hidden />{likes}</span>
+                  <span className={`inline-flex items-center gap-1 ${dislikes ? "text-destructive font-medium" : "text-muted-foreground"}`}><ThumbsDown size={12} aria-hidden />{dislikes}</span>
+                  <span className="text-muted-foreground">
+                    {ratedIdx >= 0 ? `Rated message ${ratedIdx + 1} of ${rated.length}` : `${rated.length} rated ${rated.length === 1 ? "message" : "messages"}`}
+                  </span>
+                </div>
+                <div className="flex items-center gap-0.5">
+                  <button
+                    type="button"
+                    onClick={() => goRated(-1)}
+                    aria-label="Previous rated message"
+                    title="Previous rated message"
+                    className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base focus-ring"
+                  >
+                    <ChevronUp size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => goRated(1)}
+                    aria-label="Next rated message"
+                    title="Next rated message"
+                    className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base focus-ring"
+                  >
+                    <ChevronDown size={15} />
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Messages — same bubble styling as PreviewPanel's chat view. Agent messages get an
                 Audit + Copy action row underneath, matching the real agents.fpt.ai chat-history
-                panel (that product also has thumbs up/down here — intentionally left out of this
-                prototype). Customer messages have nothing to audit, same as the real product. */}
+                panel, plus a read-only chip with the end user's own like/dislike (and reason).
+                Customer messages have nothing to audit, same as the real product. */}
             <div className="flex-1 overflow-y-auto p-3 space-y-3">
               {record.messages.map(m => (
-                <div key={m.id} className={`flex ${m.role === "customer" ? "justify-end" : "justify-start"}`}>
+                <div
+                  key={m.id}
+                  id={`hist-msg-${m.id}`}
+                  className={`flex rounded-xl transition-shadow duration-300 ${m.role === "customer" ? "justify-end" : "justify-start"} ${
+                    focusId === m.id ? "ring-2 ring-primary/40 ring-offset-2 ring-offset-surface" : ""
+                  }`}
+                >
                   {m.role === "agent" && (
                     <div className="w-6 h-6 rounded-full bg-primary-soft flex items-center justify-center text-sm mr-2 shrink-0 mt-0.5">🏦</div>
                   )}

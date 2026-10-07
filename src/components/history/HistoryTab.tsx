@@ -95,11 +95,6 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
 
   useEffect(() => { setPage(1); }, [query, channelFilter, timeFilter, customRange, feedbackFilter]);
 
-  // Land on the most recent conversation by default, instead of an empty "no conversation selected" state.
-  useEffect(() => {
-    if (!selectedId && allConversations.length > 0) selectConversation(allConversations[0].id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agentId, allConversations]);
 
   const timeBounds = (filter: TimeFilter): { from: number; to: number } | null => {
     const now = Date.now();
@@ -127,6 +122,21 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allConversations, query, channelFilter, timeFilter, customRange, feedbackFilter]);
+
+  // Keep the chat panel in step with the list: land on the most recent visible conversation by
+  // default, and when a filter hides the open one, switch to the first one still shown (or empty
+  // the panel if nothing matches) — the panel never shows a conversation that isn't in the list.
+  // The panel's open/closed state ("panel=hidden") is left as the Builder set it.
+  useEffect(() => {
+    const stillVisible = !!selectedId && visibleConversations.some(c => c.id === selectedId);
+    if (stillVisible) return;
+    const next = new URLSearchParams(params);
+    if (visibleConversations.length > 0) next.set("conversationId", visibleConversations[0].id);
+    else if (selectedId) next.delete("conversationId");
+    else return;
+    setParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agentId, visibleConversations, selectedId]);
 
   // Active filters in words — shown above the table and restated in the Export dialog so the
   // file always matches what the Builder thinks they're exporting.
@@ -210,6 +220,7 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
         conversations={visibleConversations}
         filterChips={filterChips}
         range={timeBounds(timeFilter)}
+        defaultDislikesOnly={feedbackFilter === "down"}
       />
 
       {!hasAnyConversations ? (
@@ -227,10 +238,10 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
       ) : (
         <>
           <div className="rounded-xl border border-border overflow-x-auto">
-            <div className="grid grid-cols-[60px,130px,130px,170px,1fr,1fr,140px,90px,90px,70px,100px,160px,50px] gap-5 px-6 py-2.5 bg-surface-muted section-eyebrow min-w-[1830px]">
-              <div>Turns</div><div>First Start Time</div><div>End time</div><div>Conversation ID</div>
+            <div className="grid grid-cols-[60px,100px,130px,130px,170px,1fr,1fr,140px,90px,90px,70px,160px,50px] gap-5 px-6 py-2.5 bg-surface-muted section-eyebrow min-w-[1830px]">
+              <div>Turns</div><div>Feedback</div><div>First Start Time</div><div>End time</div><div>Conversation ID</div>
               <div>First Input</div><div>Last Output</div><div>Channel</div>
-              <div>Latency</div><div>First Token</div><div>Tokens</div><div>Feedback</div><div>Last Error</div>
+              <div>Latency</div><div>First Token</div><div>Tokens</div><div>Last Error</div>
               <div className="text-center">Trace</div>
             </div>
             <div className="divide-y divide-border min-w-[1830px]">
@@ -241,7 +252,7 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
                 return (
                 <div
                   key={c.id}
-                  className={`relative w-full grid grid-cols-[60px,130px,130px,170px,1fr,1fr,140px,90px,90px,70px,100px,160px,50px] gap-5 px-6 py-3 items-center transition-base ${
+                  className={`relative w-full grid grid-cols-[60px,100px,130px,130px,170px,1fr,1fr,140px,90px,90px,70px,160px,50px] gap-5 px-6 py-3 items-center transition-base ${
                     c.id === selectedId ? "bg-primary-soft" : "hover:bg-surface-muted/50"
                   }`}
                 >
@@ -252,6 +263,19 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
                     className="absolute inset-0 text-left focus-ring rounded-md"
                   />
                   <div className="relative text-sm tabular-nums pointer-events-none">{stats.turns}</div>
+                  <div
+                    className="relative flex items-center gap-2.5 text-sm tabular-nums pointer-events-none"
+                    aria-label={`${stats.feedbackUp} ${stats.feedbackUp === 1 ? "like" : "likes"}, ${stats.feedbackDown} ${stats.feedbackDown === 1 ? "dislike" : "dislikes"}`}
+                  >
+                    {stats.feedbackUp + stats.feedbackDown === 0 ? (
+                      <span className="text-muted-foreground">-</span>
+                    ) : (
+                      <>
+                        <span className={`inline-flex items-center gap-1 ${stats.feedbackUp ? "text-[hsl(var(--success-strong))]" : "text-muted-foreground"}`}><ThumbsUp size={13} aria-hidden />{stats.feedbackUp}</span>
+                        <span className={`inline-flex items-center gap-1 ${stats.feedbackDown ? "text-destructive font-medium" : "text-muted-foreground"}`}><ThumbsDown size={13} aria-hidden />{stats.feedbackDown}</span>
+                      </>
+                    )}
+                  </div>
                   <div className="relative text-sm text-muted-foreground whitespace-nowrap pointer-events-none">{format(new Date(c.startedAt), "dd/MM/yyyy - HH:mm")}</div>
                   <div className="relative text-sm text-muted-foreground whitespace-nowrap pointer-events-none">{format(new Date(c.endedAt), "dd/MM/yyyy - HH:mm")}</div>
                   <div className="relative text-sm truncate pointer-events-none">{c.id}</div>
@@ -272,19 +296,6 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
                     </span>
                   </div>
                   <div className="relative text-sm text-muted-foreground tabular-nums pointer-events-none">{fmtCount(stats.tokens)}</div>
-                  <div
-                    className="relative flex items-center gap-2.5 text-sm tabular-nums pointer-events-none"
-                    aria-label={`${stats.feedbackUp} ${stats.feedbackUp === 1 ? "like" : "likes"}, ${stats.feedbackDown} ${stats.feedbackDown === 1 ? "dislike" : "dislikes"}`}
-                  >
-                    {stats.feedbackUp + stats.feedbackDown === 0 ? (
-                      <span className="text-muted-foreground">-</span>
-                    ) : (
-                      <>
-                        <span className={`inline-flex items-center gap-1 ${stats.feedbackUp ? "text-[hsl(var(--success-strong))]" : "text-muted-foreground"}`}><ThumbsUp size={13} aria-hidden />{stats.feedbackUp}</span>
-                        <span className={`inline-flex items-center gap-1 ${stats.feedbackDown ? "text-destructive font-medium" : "text-muted-foreground"}`}><ThumbsDown size={13} aria-hidden />{stats.feedbackDown}</span>
-                      </>
-                    )}
-                  </div>
                   <div className="relative text-sm truncate pointer-events-none" title={c.error}>
                     {c.error ? <span className="text-destructive">{c.error}</span> : <span className="text-muted-foreground">-</span>}
                   </div>

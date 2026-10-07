@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { ChevronDown, ThumbsUp, ThumbsDown, MessageSquareOff, MessagesSquare } from "lucide-react";
+import { ChevronDown, ThumbsUp, ThumbsDown, MessageSquareOff, MessagesSquare, type LucideIcon } from "lucide-react";
 import { FILTER_WIDTH } from "./TimeRangeFilter";
 import type { ConversationRecord } from "./historyStore";
 
 export type FeedbackFilter = "all" | "down" | "up" | "any" | "none";
 
-export const FEEDBACK_FILTERS: { id: FeedbackFilter; label: string; icon?: React.ComponentType<{ size?: number; className?: string }> }[] = [
+export const FEEDBACK_FILTERS: { id: FeedbackFilter; label: string; icon?: LucideIcon }[] = [
   { id: "all", label: "All feedback" },
   { id: "down", label: "Has dislike", icon: ThumbsDown },
   { id: "up", label: "Has like", icon: ThumbsUp },

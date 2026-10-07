@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -29,6 +29,18 @@ import { currentPersona } from "@/lib/demoPersona";
 
 export type ExportLevel = "conversation" | "message" | "rated";
 type ExportFormat = "xlsx" | "csv";
+/** For "Rated messages only": every rated bubble, or just the disliked ones. */
+export type RatedScope = "all" | "down";
+
+const isRated = (m: ConversationRecord["messages"][number], scope: RatedScope) =>
+  m.role === "agent" && !!m.feedback && (scope === "all" || m.feedback === "down");
+
+/** Vietnamese labels for the Audit log entry (the Audit log screen is in Vietnamese). */
+const LEVEL_VI: Record<ExportLevel, string> = {
+  conversation: "Mỗi hội thoại một dòng",
+  message: "Mỗi tin nhắn một dòng",
+  rated: "Tin nhắn được đánh giá",
+};
 
 const LEVELS: { id: ExportLevel; title: string; desc: string; slug: string }[] = [
   {
@@ -63,7 +75,7 @@ function turnLookup(c: ConversationRecord) {
   return { trace, byMsg };
 }
 
-function buildRows(convs: ConversationRecord[], level: ExportLevel, mask: boolean): (string | number)[][] {
+function buildRows(convs: ConversationRecord[], level: ExportLevel, mask: boolean, ratedScope: RatedScope): (string | number)[][] {
   const alias = new Map<string, string>();
   const who = (c: ConversationRecord) => {
     if (!mask) return { user: c.username, email: c.email ?? "" };
@@ -110,7 +122,7 @@ function buildRows(convs: ConversationRecord[], level: ExportLevel, mask: boolea
     const { byMsg } = turnLookup(c);
     const { user, email } = who(c);
     for (const m of c.messages) {
-      if (m.role !== "agent" || !m.feedback) continue;
+      if (!isRated(m, ratedScope)) continue;
       const pos = byMsg.get(m.id);
       rows.push([
         c.id, m.id, pos?.turn ?? "", pos?.bubble ?? "", m.feedback === "up" ? "Like" : "Dislike", m.feedbackComment ?? "",
@@ -121,17 +133,17 @@ function buildRows(convs: ConversationRecord[], level: ExportLevel, mask: boolea
   return rows;
 }
 
-export function countRows(convs: ConversationRecord[], level: ExportLevel) {
+export function countRows(convs: ConversationRecord[], level: ExportLevel, ratedScope: RatedScope = "all") {
   if (level === "conversation") return convs.length;
   if (level === "message") return convs.reduce((n, c) => n + c.messages.length, 0);
-  return convs.reduce((n, c) => n + c.messages.filter(m => m.role === "agent" && m.feedback).length, 0);
+  return convs.reduce((n, c) => n + c.messages.filter(m => isRated(m, ratedScope)).length, 0);
 }
 
 const slugify = (s: string) =>
   s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/gi, "d").replace(/[^a-zA-Z0-9]+/g, "-").replace(/(^-|-$)/g, "").toLowerCase();
 
 export function ExportHistoryDialog({
-  open, onOpenChange, agentId, conversations, filterChips, range,
+  open, onOpenChange, agentId, conversations, filterChips, range, defaultDislikesOnly = false,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -141,33 +153,40 @@ export function ExportHistoryDialog({
   filterChips: string[];
   /** Date span for the file name: the time filter's bounds, else the conversations' own span. */
   range: { from: number; to: number } | null;
+  /** True when the list is filtered to "Has dislike" — "Rated messages only" then starts on dislikes. */
+  defaultDislikesOnly?: boolean;
 }) {
   const [level, setLevel] = useState<ExportLevel>("conversation");
   const [fileFormat, setFileFormat] = useState<ExportFormat>("xlsx");
   const [mask, setMask] = useState(false);
+  const [ratedScope, setRatedScope] = useState<RatedScope>(defaultDislikesOnly ? "down" : "all");
+  useEffect(() => { if (open) setRatedScope(defaultDislikesOnly ? "down" : "all"); }, [open, defaultDislikesOnly]);
 
   const counts = useMemo(
-    () => Object.fromEntries(LEVELS.map(l => [l.id, countRows(conversations, l.id)])) as Record<ExportLevel, number>,
-    [conversations],
+    () => Object.fromEntries(LEVELS.map(l => [l.id, countRows(conversations, l.id, ratedScope)])) as Record<ExportLevel, number>,
+    [conversations, ratedScope],
   );
+  const likeCount = countRows(conversations, "rated", "all") - countRows(conversations, "rated", "down");
+  const dislikeCount = countRows(conversations, "rated", "down");
   const rowCount = counts[level];
   const agentName = getAgent(agentId).name;
 
   const doExport = () => {
     if (rowCount === 0) return;
-    const rows = buildRows(conversations, level, mask);
+    const rows = buildRows(conversations, level, mask, ratedScope);
     const span = range ?? (conversations.length
       ? { from: Math.min(...conversations.map(c => c.startedAt)), to: Math.max(...conversations.map(c => c.endedAt)) }
       : { from: Date.now(), to: Date.now() });
     const lvl = LEVELS.find(l => l.id === level)!;
-    const fileName = `${slugify(agentName)}_${lvl.slug}_${format(span.from, "yyyyMMdd")}-${format(span.to, "yyyyMMdd")}.${fileFormat}`;
+    const slug = level === "rated" && ratedScope === "down" ? "dislikes" : lvl.slug;
+    const fileName = `${slugify(agentName)}_${slug}_${format(span.from, "yyyyMMdd")}-${format(span.to, "yyyyMMdd")}.${fileFormat}`;
 
     const ws = XLSX.utils.aoa_to_sheet(rows);
     ws["!cols"] = (rows[0] as string[]).map(h => ({ wch: /Content|message|question|Reason|error/i.test(h) ? 60 : Math.max(12, h.length + 4) }));
     if (fileFormat === "xlsx") {
       ws["!freeze"] = { xSplit: 0, ySplit: 1 };
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, lvl.slug);
+      XLSX.utils.book_append_sheet(wb, ws, slug);
       XLSX.writeFile(wb, fileName);
     } else {
       // BOM so Excel opens Vietnamese text correctly.
@@ -188,7 +207,12 @@ export function ExportHistoryDialog({
       resourceType: "agent",
       resourceId: agentId,
       resourceName: agentName,
-      detail: `${lvl.title} · ${rowCount} rows · ${filterChips.length ? filterChips.join(" · ") : "No filters"}${mask ? " · Names and emails hidden" : ""}`,
+      detail: [
+        level === "rated" && ratedScope === "down" ? "Chỉ tin nhắn bị dislike" : LEVEL_VI[level],
+        `${rowCount} dòng`,
+        filterChips.length ? `Bộ lọc: ${filterChips.join(", ")}` : "Không lọc",
+        mask ? "Đã ẩn tên và email" : null,
+      ].filter(Boolean).join(" · "),
     });
 
     toast.success(`Exported ${rowCount} ${rowCount === 1 ? "row" : "rows"} to ${fileName}`);
@@ -243,6 +267,28 @@ export function ExportHistoryDialog({
                     <span className="text-xs text-muted-foreground tabular-nums shrink-0">{n} {n === 1 ? "row" : "rows"}</span>
                   </span>
                   <span className="block text-xs text-muted-foreground mt-0.5 leading-relaxed">{l.desc}</span>
+                  {l.id === "rated" && active && (likeCount + dislikeCount > 0) && (
+                    <span role="radiogroup" aria-label="Which ratings" className="mt-2 inline-flex items-center gap-1 bg-surface rounded-lg p-0.5 border border-border">
+                      {([
+                        { id: "all", label: `Likes and dislikes (${likeCount + dislikeCount})` },
+                        { id: "down", label: `Dislikes only (${dislikeCount})` },
+                      ] as const).map(o => (
+                        <button
+                          key={o.id}
+                          type="button"
+                          role="radio"
+                          aria-checked={ratedScope === o.id}
+                          onClick={e => { e.preventDefault(); setRatedScope(o.id); }}
+                          className={cn(
+                            "px-2.5 py-1 rounded-md text-xs font-medium transition-base focus-ring tabular-nums",
+                            ratedScope === o.id ? "bg-primary-soft text-primary" : "text-muted-foreground hover:text-foreground",
+                          )}
+                        >
+                          {o.label}
+                        </button>
+                      ))}
+                    </span>
+                  )}
                 </span>
               </label>
             );
@@ -277,7 +323,11 @@ export function ExportHistoryDialog({
 
         {rowCount === 0 && (
           <p className="text-xs text-muted-foreground">
-            {level === "rated" ? "No one has liked or disliked a message in these conversations yet." : "Nothing to export with these filters."}
+            {level === "rated"
+              ? ratedScope === "down" && likeCount > 0
+                ? "No disliked messages in these conversations. Switch to Likes and dislikes to export the liked ones."
+                : "No one has liked or disliked a message in these conversations yet."
+              : "Nothing to export with these filters."}
           </p>
         )}
 
