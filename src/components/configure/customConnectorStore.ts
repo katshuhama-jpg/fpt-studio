@@ -36,6 +36,12 @@ export interface CustomConnector {
   originAgentId?: string;
   createdAt: number;
   updatedAt: number;
+  /** Set when the resource was deleted from the Space library ("Xóa" on Space). The record is
+   * kept so Agents still linking it can show it as "Đã bị xóa" (and stay unpublishable until
+   * they detach it). `keptForAgentId`: created in that Agent, which keeps using it; every other
+   * Agent loses it. Unset `keptForAgentId`: gone for every Agent. Sharing it again (from the
+   * Agent that kept it) puts it back on the Space. */
+  deletedFromSpace?: { at: number; byId: string; byName: string; keptForAgentId?: string };
 }
 
 const STORE_KEY = "custom_connector_store_v1";
@@ -88,7 +94,7 @@ function seed() {
 export const customConnectorStore = {
   list(): CustomConnector[] {
     seed();
-    return [...store.values()].sort((a, b) => b.updatedAt - a.updatedAt);
+    return [...store.values()].filter(c => !c.deletedFromSpace).sort((a, b) => b.updatedAt - a.updatedAt);
   },
   get(id: string): CustomConnector | undefined {
     seed();
@@ -114,7 +120,14 @@ export const customConnectorStore = {
   updateSharing(id: string, sharing: Sharing) {
     const cur = store.get(id);
     if (!cur) return;
-    store.set(id, { ...cur, sharing, updatedAt: Date.now() });
+    store.set(id, { ...cur, sharing, deletedFromSpace: sharing.mode === "private" ? cur.deletedFromSpace : undefined, updatedAt: Date.now() });
+    persist();
+  },
+  /** "Xóa" on the Space library - see deletedFromSpace. */
+  removeFromSpace(id: string, by: { id: string; name: string }, keptForAgentId?: string) {
+    const cur = store.get(id);
+    if (!cur) return;
+    store.set(id, { ...cur, sharing: { mode: "private", people: [] }, deletedFromSpace: { at: Date.now(), byId: by.id, byName: by.name, keptForAgentId }, updatedAt: Date.now() });
     persist();
   },
   /** Records the Agent a resource was first created in (see originAgentId). */

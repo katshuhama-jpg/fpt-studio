@@ -15,6 +15,7 @@ import ShareKnowledgeBaseModal from "@/components/knowledge/ShareKnowledgeBaseMo
 import RetrievalScopeModal from "@/components/knowledge/RetrievalScopeModal";
 import { ACCESS_COPY, RETRIEVAL_COPY } from "@/components/knowledge/QueryScopeSection";
 import DeleteKnowledgeBaseDialog from "@/components/knowledge/DeleteKnowledgeBaseDialog";
+import { notifySpaceOwner, useSpaceActor } from "@/components/governance/spaceDelete";
 import { useGroupAccess } from "@/pages/organization/scopeAccess";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import {
@@ -97,8 +98,10 @@ function RowMenu({ kb, onOpen, onEdit, onShare, onRetrieval, onDelete, editBlock
   );
 }
 
-function KbCard({ kb, userId, access, onOpen, onEdit, onShare, onRetrieval, onDelete }: {
+function KbCard({ kb, userId, access, admin, onOpen, onEdit, onShare, onRetrieval, onDelete }: {
   kb: KnowledgeBase; userId: string; access: ReturnType<typeof useGroupAccess>;
+  /** Space Admin: may turn sharing off / delete anyone's knowledge base (the owner is notified). */
+  admin: boolean;
   onOpen: () => void; onEdit: () => void; onShare: () => void; onRetrieval: () => void; onDelete: () => void;
 }) {
   const viewOnly = isViewOnly(kb, userId);
@@ -112,11 +115,13 @@ function KbCard({ kb, userId, access, onOpen, onEdit, onShare, onRetrieval, onDe
     : viewOnly ? VIEW_ONLY : undefined;
   // Sharing (like deleting the KB itself) is reserved for the owner — an editor can change
   // content but not the KB's own access list, matching KnowledgeDetail.tsx's header menu.
-  const shareBlocked = !isOwner ? "Chỉ chủ sở hữu mới đổi được quyền của kho tri thức này."
+  const shareBlocked = !isOwner && !admin ? "Chỉ chủ sở hữu hoặc Admin của Space mới đổi được quyền của kho tri thức này."
+    : admin ? undefined
     : !access.hasPermission("publish") ? NO_ROLE_PERMISSION
     : !access.canAct("publish", accessible) ? NOT_OWNED_OR_SHARED
     : undefined;
-  const deleteBlocked = !isOwner ? "Chỉ chủ sở hữu mới có thể xóa kho tri thức này."
+  const deleteBlocked = !isOwner && !admin ? "Chỉ chủ sở hữu hoặc Admin của Space mới xóa được kho tri thức này."
+    : admin ? undefined
     : !access.hasPermission("delete") ? NO_ROLE_PERMISSION
     : !access.canAct("delete", accessible) ? NOT_OWNED_OR_SHARED
     : undefined;
@@ -133,7 +138,7 @@ function KbCard({ kb, userId, access, onOpen, onEdit, onShare, onRetrieval, onDe
           {kb.name}
         </Link>
       }
-      tags={ownershipTags({ ownerId: kb.ownerId, sharing: kb.sharing, userId })}
+      tags={ownershipTags({ ownerId: kb.ownerId, sharing: kb.sharing, userId, admin })}
       menu={<RowMenu kb={kb} onOpen={onOpen} onEdit={onEdit} onShare={onShare} onRetrieval={onRetrieval} onDelete={onDelete} editBlocked={editBlocked} shareBlocked={shareBlocked} deleteBlocked={deleteBlocked} />}
       description={kb.description}
       extra={<p className="text-xs text-muted-foreground">{relativeTime(kb.updatedAt)}</p>}
@@ -148,6 +153,7 @@ export default function KnowledgeList() {
   const navigate = useNavigate();
   const access = useGroupAccess("knowledge");
   const userId = access.userId;
+  const actor = useSpaceActor();
   const [params, setParams] = useSearchParams();
   const [loadState, setLoadState] = useState<"loading" | "error" | "ready">("loading");
   const [tick, setTick] = useState(0);
@@ -211,12 +217,12 @@ export default function KnowledgeList() {
   // all — View is only ever needed to see other people's KBs) never even sees KBs outside
   // what they own or were shared — not just on a filter tab, but in every count and list below.
   const visibleKbs = useMemo(
-    () => access.canSeeAll ? kbs : kbs.filter(kb => isAccessibleTo(kb, userId)),
-    [kbs, access.canSeeAll, userId],
+    () => access.canSeeAll || actor.isAdmin ? kbs : kbs.filter(kb => isAccessibleTo(kb, userId)),
+    [kbs, access.canSeeAll, actor.isAdmin, userId],
   );
 
   // Tags per KB (Của tôi / Được chia sẻ — no built-in KBs exist yet, so Hệ thống stays empty).
-  const tagsOf = (kb: KnowledgeBase) => ownershipTags({ ownerId: kb.ownerId, sharing: kb.sharing, userId });
+  const tagsOf = (kb: KnowledgeBase) => ownershipTags({ ownerId: kb.ownerId, sharing: kb.sharing, userId, admin: actor.isAdmin });
   const counts = useMemo(() => countByTab(visibleKbs, tagsOf), [visibleKbs, userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const tabFiltered = visibleKbs.filter(kb => matchesTab(tagsOf(kb), tab));
@@ -377,6 +383,7 @@ export default function KnowledgeList() {
               kb={kb}
               userId={userId}
               access={access}
+              admin={actor.isAdmin}
               onOpen={() => navigate(`/knowledge/${kb.id}`)}
               onEdit={() => setEditTarget(kb)}
               onShare={() => setShareTarget(kb)}
@@ -400,9 +407,11 @@ export default function KnowledgeList() {
           sharing={shareTarget.sharing}
           resourceOwnerId={shareTarget.ownerId}
           attachedAgentIds={shareTarget.attachedByAgentIds}
-          agentOnlyFor={shareTarget.agentOnlyFor ?? shareTarget.originAgentId}
-          originAgentName={shareTarget.originAgentId ? getAgent(shareTarget.originAgentId).name : undefined}
-          onSave={sharing => knowledgeBaseStore.updateSharing(shareTarget.id, sharing)}
+          agentOnlyFor={shareTarget.agentOnlyFor}
+          onSave={sharing => {
+            knowledgeBaseStore.updateSharing(shareTarget.id, sharing);
+            if (sharing.mode === "private" && shareTarget.sharing.mode !== "private") notifySpaceOwner("resource_unshared", actor, shareTarget, "kho tri thức", `/knowledge/${shareTarget.id}`);
+          }}
           onClose={() => { setShareTarget(null); refresh(); }}
         />
       )}

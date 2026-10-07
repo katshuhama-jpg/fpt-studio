@@ -1344,7 +1344,7 @@ function KnowledgeSourceRow({ icon, name, chip, revoked, onOpen, onRemove, remov
   icon: any; name: string; chip: React.ReactNode; onOpen: () => void; onRemove: () => void;
   /** Set when the resource's owner revoked this Agent's access: red row + "Đã bị thu hồi" chip,
    * and the menu keeps only open + remove (sharing actions no longer apply). */
-  revoked?: { ownerName: string; type: RevocableType };
+  revoked?: { ownerName: string; type: RevocableType; deletedBy?: string };
   /** Why the remove action is unavailable for this user (shown as a disabled item). */
   removeBlocked?: string;
   /** Owner-only "Chia sẻ" action (e.g. a knowledge item that exists only in this Agent). */
@@ -1369,7 +1369,7 @@ function KnowledgeSourceRow({ icon, name, chip, revoked, onOpen, onRemove, remov
    * in Console. */
   hideOpen?: boolean;
 }) {
-  if (revoked) { onScope = undefined; onShare = undefined; onRetrieval = undefined; chip = <RevokedChip ownerName={revoked.ownerName} type={revoked.type} />; }
+  if (revoked) { onScope = undefined; onShare = undefined; onRetrieval = undefined; chip = <RevokedChip ownerName={revoked.ownerName} type={revoked.type} deletedBy={revoked.deletedBy} />; }
   const rowClassName = `group flex ${twoLine ? "items-start" : "items-center"} gap-2 px-2.5 py-1.5 rounded-lg border ${revoked ? REVOKED_ROW_CLASS : "border-border bg-surface"} transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
     disabled || hideOpen ? "cursor-default" : "hover:bg-surface-muted cursor-pointer"
   }`;
@@ -1470,7 +1470,7 @@ function AgentKbCard({ icon, name, description, onOpen, menu, scope, revoked }: 
    * chosen items are gone from the knowledge base. */
   scope?: { label: string; empty: boolean };
   /** Linked knowledge base whose owner revoked this Agent's access. */
-  revoked?: { ownerName: string };
+  revoked?: { ownerName: string; deletedBy?: string };
 }) {
   return (
     <div
@@ -1490,7 +1490,7 @@ function AgentKbCard({ icon, name, description, onOpen, menu, scope, revoked }: 
         {description || <span className="italic">Chưa có mô tả</span>}
       </p>
       <div className={`flex items-center gap-2 mt-1 ${scope || revoked ? "justify-between" : "justify-end"}`}>
-        {revoked && <span onClick={e => e.stopPropagation()}><RevokedChip ownerName={revoked.ownerName} type="knowledge" /></span>}
+        {revoked && <span onClick={e => e.stopPropagation()}><RevokedChip ownerName={revoked.ownerName} type="knowledge" deletedBy={revoked.deletedBy} /></span>}
         {!revoked && scope && (
           scope.empty ? (
             <Tooltip delayDuration={200}>
@@ -1589,7 +1589,7 @@ function AgentKnowledgeGrid({ agentId }: { agentId: string }) {
         name={kb.name}
         description={kb.description}
         onOpen={onOpen}
-        revoked={!isOwn && isResourceRevoked(agentId, "knowledge", kb.id) ? { ownerName: kb.ownerName } : undefined}
+        revoked={!isOwn && isResourceRevoked(agentId, "knowledge", kb.id) ? { ownerName: kb.ownerName, deletedBy: kb.deletedFromSpace?.byName } : undefined}
         scope={!isOwn && PARTIAL_LINK_ENABLED ? scopeLabel(kb.id, knowledgeStore.getLinkScope(agentId, kb.id)) : undefined}
         menu={
           <AgentKbCardMenu
@@ -1708,12 +1708,11 @@ function AgentKnowledgeGrid({ agentId }: { agentId: string }) {
           sharing={shareKbTarget.sharing}
           resourceOwnerId={shareKbTarget.ownerId}
           attachedAgentIds={shareKbTarget.attachedByAgentIds}
-          agentOnlyFor={agentId}
+          agentOnlyFor={shareKbTarget.agentOnlyFor}
           onSave={sharing => {
-            // "Chỉ Agent này" keeps (or brings back) the knowledge base as this Agent's own;
-            // anything else opens it to the Space and it moves to "Đã liên kết".
-            if (sharing.mode === "private") knowledgeBaseStore.setAgentOnly(shareKbTarget.id, agentId);
-            else knowledgeBaseStore.updateSharing(shareKbTarget.id, sharing);
+            // Sharing an Agent-only knowledge base opens it to the Space ("Đã liên kết"). Turning
+            // sharing off on a Space one keeps it in the Space, unshared.
+            knowledgeBaseStore.updateSharing(shareKbTarget.id, sharing);
           }}
           onClose={() => { setShareKbTarget(null); refresh(); }}
         />
@@ -4777,8 +4776,8 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
     // it sits on the row itself rather than behind a click.
     const account = c.accountId ? sharedConnectorAccountStore.get(c.accountId) : undefined;
     const restricted = connectorActionStore.restrictedCount(agentId, c.id);
-    const revokedRes = customConnector && isResourceRevoked(agentId, "connector", customConnector.id) ? { ownerName: customConnector.ownerName, type: "connector" as const }
-      : apiTool && isResourceRevoked(agentId, "apiTool", apiTool.id) ? { ownerName: apiTool.ownerName, type: "apiTool" as const } : undefined;
+    const revokedRes = customConnector && isResourceRevoked(agentId, "connector", customConnector.id) ? { ownerName: customConnector.ownerName, type: "connector" as const, deletedBy: customConnector.deletedFromSpace?.byName }
+      : apiTool && isResourceRevoked(agentId, "apiTool", apiTool.id) ? { ownerName: apiTool.ownerName, type: "apiTool" as const, deletedBy: apiTool.deletedFromSpace?.byName } : undefined;
     return (
       <div
         key={c.id}
@@ -4798,7 +4797,7 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
           {restricted > 0 && (
             <span className="block text-[11px] text-muted-foreground truncate">{restricted} action bị giới hạn</span>
           )}
-          {revokedRes && <span className="block mt-1" onClick={e => e.stopPropagation()}><RevokedChip ownerName={revokedRes.ownerName} type={revokedRes.type} /></span>}
+          {revokedRes && <span className="block mt-1" onClick={e => e.stopPropagation()}><RevokedChip ownerName={revokedRes.ownerName} type={revokedRes.type} deletedBy={revokedRes.deletedBy} /></span>}
         </span>
         {/* Same "…" menu as every other resource row in the Agent: Xem chi tiết / Chia sẻ (owner)
           * / Gỡ liên kết (with a confirm). Detaching routes through toggleConnector so the
@@ -5041,18 +5040,15 @@ function SkillCardMenu({ onOpen, onEdit, onShare, onRemove, removeLabel }: {
 type SkillShareTarget = { skill: Skill; own: boolean };
 
 /** Applies a new sharing value from inside an Agent. Sharing an Agent-only skill moves it into
- * the Space library (still linked to this Agent); turning sharing off ("Chỉ Agent này") on a
- * shared one moves it back into this Agent. The modal already blocked the case where another
- * Agent still uses it. */
+ * the Space library (still linked to this Agent); turning sharing off on a Space skill keeps it
+ * in the Space, unshared. */
 function applySkillSharing(agentId: string, target: SkillShareTarget, sharing: SkillSharing) {
   if (target.own) {
     if (sharing.mode === "private") agentSkillStore.updateSharing(agentId, target.skill.id, sharing);
     else agentSkillStore.promoteToConsole(agentId, target.skill.id, sharing);
-  } else if (sharing.mode === "private" && !target.skill.attachedByAgentIds.some(id => id !== agentId)) {
-    agentSkillStore.demoteToAgent(agentId, target.skill.id);
   } else {
-    // Still linked by other Agents: keep the Space record (their link stays, shown as "Đã bị thu hồi"
-    // for Agents whose owner lost access) and only change who may use it.
+    // A Space skill stays in the Space even when sharing is turned off (only its owner and Admins
+    // see it); other people's Agents linking it show "Đã bị thu hồi".
     skillStore.updateSharing(target.skill.id, sharing);
   }
 }
@@ -5128,7 +5124,7 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
                     key={s.id}
                     icon={PuzzleIcon}
                     name={s.name}
-                    revoked={isResourceRevoked(agentId, "skill", s.id) ? { ownerName: s.ownerName, type: "skill" } : undefined}
+                    revoked={isResourceRevoked(agentId, "skill", s.id) ? { ownerName: s.ownerName, type: "skill", deletedBy: s.deletedFromSpace?.byName } : undefined}
                     chip={<div className="flex items-center gap-1 shrink-0"><SkillOwnershipTag skill={s} userId={currentUser.id} /></div>}
                     onOpen={() => setDetailTarget({ kind: "skill", id: s.id })}
                     onRemove={() => setDetachTarget({ id: s.id, name: s.name })}
@@ -5233,7 +5229,7 @@ function SkillsInner({ agentId, onRegisterAdd }: { agentId: string; onRegisterAd
           name={shareTarget.skill.name}
           ownerName={shareTarget.skill.ownerName}
           sharing={shareTarget.skill.sharing ?? { mode: "private", people: [] }}
-          agentOnlyFor={agentId}
+          agentOnlyFor={shareTarget.own ? agentId : undefined}
           resourceOwnerId={shareTarget.skill.ownerId}
           attachedAgentIds={shareTarget.own ? [] : shareTarget.skill.attachedByAgentIds}
           onSave={sharing => { applySkillSharing(agentId, shareTarget, sharing); refresh(); }}
@@ -5326,13 +5322,13 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
     .filter((kb): kb is NonNullable<typeof kb> => !!kb);
   const detachIsOwn = !!detachTarget && knowledgeBaseStore.get(detachTarget.id)?.agentOnlyFor === agentId;
 
-  type Row = { key: string; name: string; icon: any; revoked?: { ownerName: string; type: RevocableType }; open: () => void; remove: () => void; removeLabel?: string; removeBlocked?: string; share?: () => void; retrieval?: () => void; changeScope?: () => void; chip: React.ReactNode; disabled?: boolean; disabledReason?: string; href?: string; scope?: { label: string; empty: boolean } };
+  type Row = { key: string; name: string; icon: any; revoked?: { ownerName: string; type: RevocableType; deletedBy?: string }; open: () => void; remove: () => void; removeLabel?: string; removeBlocked?: string; share?: () => void; retrieval?: () => void; changeScope?: () => void; chip: React.ReactNode; disabled?: boolean; disabledReason?: string; href?: string; scope?: { label: string; empty: boolean } };
   const rows: Row[] = [
     ...attachedKbs.map(kb => ({
       key: `kb-${kb.id}`,
       name: kb.name,
       icon: ConnectIcon,
-      revoked: isResourceRevoked(agentId, "knowledge", kb.id) ? { ownerName: kb.ownerName, type: "knowledge" as const } : undefined,
+      revoked: isResourceRevoked(agentId, "knowledge", kb.id) ? { ownerName: kb.ownerName, type: "knowledge" as const, deletedBy: kb.deletedFromSpace?.byName } : undefined,
       href: `/knowledge/${kb.id}?viaAgent=${agentId}`,
       // Only a partial link shows its scope here; "Toàn bộ kho" is the normal case.
       scope: knowledgeStore.getLinkScope(agentId, kb.id).mode === "partial" ? scopeLabel(kb.id, knowledgeStore.getLinkScope(agentId, kb.id)) : undefined,
@@ -6865,8 +6861,6 @@ function applyGuardrailSharing(agentId: string, target: GuardrailShareTarget, sh
   if (target.own) {
     if (sharing.mode === "private") agentGuardrailStore.updateSharing(agentId, target.g.id, sharing);
     else agentGuardrailStore.promoteToConsole(agentId, target.g.id, sharing);
-  } else if (sharing.mode === "private" && !(target.g.attachedByAgentIds ?? []).some(id => id !== agentId)) {
-    agentGuardrailStore.demoteToAgent(agentId, target.g.id);
   } else {
     guardrailConsoleStore.updateSharing(target.g.id, sharing);
   }
@@ -6882,7 +6876,7 @@ function AgentGuardrailShareModal({ agentId, target, fallbackOwnerName, onClose,
       name={target.g.name}
       ownerName={target.g.ownerName ?? fallbackOwnerName}
       sharing={target.g.sharing ?? { mode: "private", people: [] }}
-      agentOnlyFor={agentId}
+      agentOnlyFor={target.own ? agentId : undefined}
       resourceOwnerId={target.g.ownerId}
       attachedAgentIds={target.own ? [] : target.g.attachedByAgentIds}
       onSave={sharing => { applyGuardrailSharing(agentId, target, sharing); onSaved(); }}
@@ -6950,7 +6944,7 @@ function GuardrailsAgentTab({ agentId }: { agentId: string }) {
         </div>
         <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 flex-1">{g.desc}</p>
         <div className="flex items-center justify-end gap-2 mt-1">
-          {revoked && <span className="mr-auto" onClick={e => e.stopPropagation()}><RevokedChip ownerName={g.ownerName ?? "Chủ sở hữu"} type="guardrail" /></span>}
+          {revoked && <span className="mr-auto" onClick={e => e.stopPropagation()}><RevokedChip ownerName={g.ownerName ?? "Chủ sở hữu"} type="guardrail" deletedBy={g.deletedFromSpace?.byName} /></span>}
           <GuardrailAgentItemRowMenu
             onView={openView}
             onEdit={opts.onEdit}
@@ -7224,7 +7218,7 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
         <div className="flex items-center justify-between gap-2">
           {/* No on/off state and no "N Agent" usage count in lists — the footer shows ownership/sharing tags only. */}
           <span className="flex items-center flex-wrap gap-x-1.5 gap-y-1 text-sm min-w-0">
-            {revoked ? <RevokedChip ownerName={s.ownerName} type="skill" /> : <SkillOwnershipTag skill={s} userId={accessUserId} />}
+            {revoked ? <RevokedChip ownerName={s.ownerName} type="skill" deletedBy={s.deletedFromSpace?.byName} /> : <SkillOwnershipTag skill={s} userId={accessUserId} />}
           </span>
           {menu}
         </div>
@@ -7399,7 +7393,7 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
           name={shareTarget.skill.name}
           ownerName={shareTarget.skill.ownerName}
           sharing={shareTarget.skill.sharing ?? { mode: "private", people: [] }}
-          agentOnlyFor={agentId}
+          agentOnlyFor={shareTarget.own ? agentId : undefined}
           resourceOwnerId={shareTarget.skill.ownerId}
           attachedAgentIds={shareTarget.own ? [] : shareTarget.skill.attachedByAgentIds}
           onSave={sharing => { applySkillSharing(agentId, shareTarget, sharing); refresh(); }}
@@ -7531,13 +7525,13 @@ function GuardrailsInner({ agentId, onRegisterAdd }: { agentId: string; onRegist
     .map(id => guardrailConsoleStore.get(id))
     .filter((g): g is Guardrail => !!g);
 
-  type Row = { key: string; name: string; icon: any; revoked?: { ownerName: string; type: RevocableType }; open: () => void; remove: () => void; share?: () => void; chip: React.ReactNode; href?: string };
+  type Row = { key: string; name: string; icon: any; revoked?: { ownerName: string; type: RevocableType; deletedBy?: string }; open: () => void; remove: () => void; share?: () => void; chip: React.ReactNode; href?: string };
   const rows: Row[] = [
     ...attachedGuardrails.map(g => ({
       key: `g-${g.id}`,
       name: g.name,
       icon: Shield01Icon,
-      revoked: isResourceRevoked(agentId, "guardrail", g.id) ? { ownerName: g.ownerName ?? "Chủ sở hữu", type: "guardrail" as const } : undefined,
+      revoked: isResourceRevoked(agentId, "guardrail", g.id) ? { ownerName: g.ownerName ?? "Chủ sở hữu", type: "guardrail" as const, deletedBy: g.deletedFromSpace?.byName } : undefined,
       open: () => setDetailTarget({ kind: "guardrail", id: g.id }),
       remove: () => setDetachTarget({ id: g.id, name: g.name }),
       share: g.ownerId === currentUser.id && !g.allAgents && !g.mandatory ? () => setShareTarget({ g, own: false }) : undefined,

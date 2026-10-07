@@ -23,7 +23,7 @@ export function useRevokedResources(agentId: string | undefined): RevokedResourc
 
 /** Red "Đã bị thu hồi" chip; hover explains who revoked it and what to do. Icon + text, so the
  * state never relies on color alone. */
-export function RevokedChip({ ownerName, type }: { ownerName: string; type: RevocableType }) {
+export function RevokedChip({ ownerName, type, deletedBy }: { ownerName: string; type: RevocableType; deletedBy?: string }) {
   return (
     <Tooltip delayDuration={200}>
       <TooltipTrigger asChild>
@@ -31,10 +31,10 @@ export function RevokedChip({ ownerName, type }: { ownerName: string; type: Revo
           tabIndex={0}
           className="inline-flex items-center gap-1 h-5 px-1.5 rounded-md bg-destructive/10 text-destructive text-[11px] font-semibold whitespace-nowrap cursor-help focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40"
         >
-          <AlertTriangle size={11} aria-hidden /> {REVOKED_COPY.chip}
+          <AlertTriangle size={11} aria-hidden /> {deletedBy ? REVOKED_COPY.chipDeleted : REVOKED_COPY.chip}
         </span>
       </TooltipTrigger>
-      <TooltipContent className="max-w-xs">{REVOKED_COPY.tooltip(ownerName, type)}</TooltipContent>
+      <TooltipContent className="max-w-xs">{deletedBy ? REVOKED_COPY.tooltipDeleted(deletedBy, type) : REVOKED_COPY.tooltip(ownerName, type)}</TooltipContent>
     </Tooltip>
   );
 }

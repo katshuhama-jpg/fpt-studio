@@ -57,7 +57,7 @@ export function chipParts(r: ResolvedRef): ChipParts {
       : error ? "border-destructive bg-destructive/5 text-muted-foreground" : "border-transparent bg-muted text-foreground",
   ].join(" ");
   const tip: ChipTip = revoked
-    ? { type: r.typeLabel, name: r.label, detail: REVOKED_COPY.tooltip(r.revokedBy ?? "Chủ sở hữu", r.revokedType ?? "skill"), status: REVOKED_COPY.chip, tone: "removed" }
+    ? { type: r.typeLabel, name: r.label, detail: r.deletedBy ? REVOKED_COPY.tooltipDeleted(r.deletedBy, r.revokedType ?? "skill") : REVOKED_COPY.tooltip(r.revokedBy ?? "Chủ sở hữu", r.revokedType ?? "skill"), status: r.deletedBy ? REVOKED_COPY.chipDeleted : REVOKED_COPY.chip, tone: "removed" }
     : r.status === "missing"
     ? { type: r.typeLabel, name: r.label, detail: "Tài nguyên này không còn gắn với Agent.", status: "Đã bị gỡ", tone: "removed" }
     : r.status === "restricted"

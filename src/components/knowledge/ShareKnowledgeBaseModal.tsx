@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import { agentsBlockingUnshare, agentsUsing, ResourceInUseDialog } from "@/components/governance/resourceInUseGuard";
 import type { AgentRecord } from "@/components/configure/agentStore";
 import {
@@ -17,7 +18,7 @@ import { REVOKED_COPY } from "@/components/governance/revokedResources";
  * Knowledge item's "Quyền" (S14), so both share the exact same sharing UI and copy instead of
  * drifting into two pickers. The caller owns persistence via onSave. */
 export default function ShareKnowledgeBaseModal({
-  open, onClose, name, ownerName, sharing: initialSharing, onSave, resourceOwnerId, attachedAgentIds, title = ACCESS_COPY.title, agentOnlyFor, originAgentName,
+  open, onClose, name, ownerName, sharing: initialSharing, onSave, resourceOwnerId, attachedAgentIds, title = ACCESS_COPY.title, agentOnlyFor: agentOnlyForProp, originAgentName,
 }: {
   open: boolean;
   onClose: () => void;
@@ -37,6 +38,12 @@ export default function ShareKnowledgeBaseModal({
   /** Opened from the Space library for a knowledge base created in an Agent: that Agent's name. */
   originAgentName?: string;
 }) {
+  // Only a resource that is still the Agent's own (never shared) is "Chỉ Agent này". Once a
+  // resource is on the Space, turning sharing off keeps it there (only its owner and Admins see it).
+  const agentOnlyFor = initialSharing.mode === "private" ? agentOnlyForProp : undefined;
+  // A Space Admin turning off someone else's resource: only its owner keeps linking it.
+  const { userId: viewerId } = useMyPermissions();
+  const onlyWho = resourceOwnerId && resourceOwnerId !== viewerId ? ownerName : "bạn";
   const [mode, setMode] = useState<SharingMode>(initialSharing.mode);
   const [people, setPeople] = useState(initialSharing.people);
   const [blockingAgents, setBlockingAgents] = useState<AgentRecord[]>([]);
@@ -128,7 +135,7 @@ export default function ShareKnowledgeBaseModal({
             {mode === "private" ? (
               <>
                 <AlertDialogTitle>Tắt chia sẻ?</AlertDialogTitle>
-                <AlertDialogDescription>{agentOnlyFor ? `Chỉ Agent ${originAgentName ? `"${originAgentName}"` : "này"} dùng được kho này.` : "Chỉ bạn liên kết được kho này vào Agent."} Người khác sẽ không liên kết được kho vào Agent của họ nữa.</AlertDialogDescription>
+                <AlertDialogDescription>{agentOnlyFor ? `Chỉ Agent ${originAgentName ? `"${originAgentName}"` : "này"} dùng được kho này.` : `Chỉ ${onlyWho} liên kết được kho này vào Agent.`} Người khác sẽ không liên kết được kho vào Agent của họ nữa.</AlertDialogDescription>
               </>
             ) : (
               <>

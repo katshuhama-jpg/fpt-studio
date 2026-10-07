@@ -2,7 +2,8 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import {
   ownershipTags, countByTab, matchesTab, OwnershipTabs, ownershipEmptyCopy, OwnershipTagList, CreatorLabel, isCreatorRedundant, type OwnershipTab,
 } from "@/components/governance/resourceOwnership";
-import { agentsUsing, ResourceInUseDialog } from "@/components/governance/resourceInUseGuard";
+import { SpaceDeleteDialog, canManageSpaceResource, deleteFromSpace, notifySpaceOwner, useSpaceActor } from "@/components/governance/spaceDelete";
+import { toast } from "sonner";
 import { useSearchParams } from "react-router-dom";
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Add01Icon, Delete01Icon, MoreVerticalIcon, PencilEdit01Icon, Search01Icon, Share08Icon, EyeIcon, UserMultipleIcon } from "@hugeicons/core-free-icons";
@@ -75,6 +76,7 @@ export default function WorkspaceGuardrails() {
     return { id: access.userId, name: me?.name ?? "Tran Nam", email: me?.email ?? "tran.nam@fpt.com" };
   }, [members, access.userId]);
   const canCreateGuardrail = can("guardrails.create");
+  const actor = useSpaceActor();
   const [params, setParams] = useSearchParams();
   const [tick, setTick] = useState(0);
   const refresh = () => setTick(t => t + 1);
@@ -110,11 +112,11 @@ export default function WorkspaceGuardrails() {
   // A role whose Guardrails View Scope is "Own & Shared" (or with no View permission at all)
   // only ever sees mandatory/all-agents compliance rules plus guardrails it created or that
   // were shared with it — not just on a filter tab, but in every count and list below.
-  const visibleGuardrails = access.canSeeAll ? items : items.filter(g => isGuardrailAccessible(g, access.userId));
+  const visibleGuardrails = access.canSeeAll || actor.isAdmin ? items : items.filter(g => isGuardrailAccessible(g, access.userId));
 
   // Mandatory compliance rules ship with the platform → "Hệ thống"; the rest are tagged
   // Của tôi / Được chia sẻ from the viewer's side (both at once for your own shared guardrail).
-  const tagsOf = (g: Guardrail) => ownershipTags({ system: g.mandatory, ownerId: g.ownerId, sharing: g.sharing, userId: access.userId });
+  const tagsOf = (g: Guardrail) => ownershipTags({ system: g.mandatory, ownerId: g.ownerId, sharing: g.sharing, userId: access.userId, admin: actor.isAdmin });
   const counts = useMemo(() => countByTab(visibleGuardrails, tagsOf), [visibleGuardrails, access.userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const tabFiltered = visibleGuardrails.filter(g => matchesTab(tagsOf(g), tab));
@@ -133,16 +135,13 @@ export default function WorkspaceGuardrails() {
     guardrailConsoleStore.update(id, g);
     refresh();
   };
-  const handleDelete = (id: string) => {
-    guardrailConsoleStore.remove(id);
-    refresh();
-  };
   const toggleEnabled = (id: string) => {
     guardrailConsoleStore.toggleEnabled(id);
     refresh();
   };
-  const handleShare = (id: string, sharing: Sharing) => {
-    agentGuardrailStore.applySpaceSharing(id, sharing);
+  const handleShare = (g: Guardrail, sharing: Sharing) => {
+    agentGuardrailStore.applySpaceSharing(g.id, sharing);
+    if (sharing.mode === "private" && g.sharing?.mode !== "private") notifySpaceOwner("resource_unshared", actor, g, "guardrail", `/guardrails?open=${g.id}`);
     refresh();
   };
 
@@ -165,48 +164,28 @@ export default function WorkspaceGuardrails() {
           sharing={shareItem.sharing ?? { mode: "private", people: [] }}
           resourceOwnerId={shareItem.ownerId}
           attachedAgentIds={shareItem.attachedByAgentIds}
-          agentOnlyFor={shareItem.originAgentId}
-          originAgentName={shareItem.originAgentId ? getAgent(shareItem.originAgentId).name : undefined}
-          onSave={sharing => handleShare(shareItem.id, sharing)}
+          onSave={sharing => handleShare(shareItem, sharing)}
           onClose={() => setShareItem(null)}
         />
       )}
 
 
-      <ResourceInUseDialog
-        open={!!deleteTarget && (deleteTarget.attachedByAgentIds.length > 0 || !!deleteTarget.allAgents)}
-        onClose={() => setDeleteTarget(null)}
-        title="Chưa thể xóa guardrail"
-        description={deleteTarget?.allAgents
-          ? "Guardrail đang áp dụng cho mọi Agent. Bỏ chọn \"Áp dụng cho mọi Agent\" trong Chỉnh sửa trước, sau đó bạn mới xóa được."
-          : "Guardrail vẫn đang được các Agent dưới đây sử dụng. Chủ sở hữu cần gỡ guardrail khỏi Agent trước, sau đó bạn mới xóa được."}
-        agents={agentsUsing(deleteTarget?.attachedByAgentIds)}
-      />
-      <AlertDialog open={!!deleteTarget && deleteTarget.attachedByAgentIds.length === 0 && !deleteTarget.allAgents} onOpenChange={v => !v && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Xóa guardrail "{deleteTarget?.name}"?</AlertDialogTitle>
-            <AlertDialogDescription>Guardrail sẽ bị xóa vĩnh viễn khỏi workspace. Hành động này không thể hoàn tác.</AlertDialogDescription>
-          </AlertDialogHeader>
-          {deleteTarget && deleteTarget.attachedByAgentIds.length > 0 && (
-            <div className="flex items-start gap-2.5 rounded-lg border border-destructive/25 bg-[hsl(var(--destructive-soft))] px-3.5 py-3">
-              <AlertTriangle size={14} className="shrink-0 mt-0.5 text-destructive" />
-              <p className="text-xs text-destructive leading-relaxed">
-                {deleteTarget.attachedByAgentIds.length} Agent đang dùng guardrail này và sẽ mất chính sách bảo vệ: {deleteTarget.attachedByAgentIds.map(id => getAgent(id).name).join(", ")}.
-              </p>
-            </div>
-          )}
-          <AlertDialogFooter>
-            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => { if (deleteTarget) handleDelete(deleteTarget.id); setDeleteTarget(null); }}
-            >
-              Xóa
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {deleteTarget && (
+        <SpaceDeleteDialog
+          open
+          noun="guardrail"
+          name={deleteTarget.name}
+          originAgentId={deleteTarget.originAgentId}
+          attachedAgentIds={deleteTarget.attachedByAgentIds}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={() => {
+            deleteFromSpace(guardrailConsoleStore, deleteTarget, actor);
+            notifySpaceOwner("resource_deleted", actor, deleteTarget, "guardrail", "/guardrails");
+            toast.success(`Đã xóa guardrail "${deleteTarget.name}" khỏi Space.`);
+            refresh();
+          }}
+        />
+      )}
 
       {/* Title + primary action share one row, exactly like Knowledge's header
           (KnowledgeList.tsx) — the button lives next to the H1, not down in the toolbar. */}
@@ -246,6 +225,8 @@ export default function WorkspaceGuardrails() {
         {filtered.length === 0 ? <EmptyRow copy={!query.trim() ? ownershipEmptyCopy(tab, "guardrail") : null} /> : filtered.map(g => {
           const hasOwner = !g.mandatory && !!g.ownerId && !!g.sharing;
           const isOwner = hasOwner && g.ownerId === access.userId;
+          // Owner, or a Space Admin (may turn sharing off / delete anyone's guardrail).
+          const manages = hasOwner && canManageSpaceResource(actor, g.ownerId);
           const accessible = isGuardrailAccessible(g, access.userId);
           // "Hệ thống" guardrails are view-only for everyone: no pause, edit or delete.
           const canPause = !g.mandatory && access.canAct("pause", accessible);
@@ -253,12 +234,15 @@ export default function WorkspaceGuardrails() {
           const editBlocked = editBlockedFor(g, access);
           const shareBlocked = !hasOwner ? undefined
             : g.allAgents ? "Guardrail đang áp dụng cho mọi Agent nên mọi người trong Space đều xem được. Bỏ \"Áp dụng cho mọi Agent\" trong Chỉnh sửa để đổi ai được dùng."
-            : !isOwner ? "Chỉ chủ sở hữu mới đổi được ai được dùng guardrail này."
+            : !manages ? "Chỉ chủ sở hữu hoặc Admin của Space mới đổi được ai được dùng guardrail này."
+            : actor.isAdmin ? undefined
             : !access.hasPermission("publish") ? NO_ROLE_PERMISSION
             : !access.canAct("publish", accessible) ? NOT_OWNED_OR_SHARED
             : undefined;
           const deleteBlocked = g.mandatory ? SYSTEM_READ_ONLY
-            : hasOwner && !isOwner ? "Chỉ chủ sở hữu mới có thể xóa guardrail này."
+            : g.allAgents ? "Guardrail đang áp dụng cho mọi Agent. Bỏ \"Áp dụng cho mọi Agent\" trong Chỉnh sửa trước khi xóa."
+            : hasOwner && !manages ? "Chỉ chủ sở hữu hoặc Admin của Space mới xóa được guardrail này."
+            : actor.isAdmin ? undefined
             : !access.hasPermission("delete") ? NO_ROLE_PERMISSION
             : !access.canAct("delete", accessible) ? NOT_OWNED_OR_SHARED
             : undefined;

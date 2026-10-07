@@ -16,7 +16,7 @@ import { agentCapabilityStore, AGENT_CAPABILITIES } from "./agentCapabilityStore
 import { knowledgeStore, OWN_KB_ID } from "@/components/knowledge/knowledgeStore";
 import { knowledgeBaseStore, CURRENT_USER, isAccessibleTo as isKbAccessibleTo } from "@/components/knowledge/knowledgeBaseStore";
 import { knowledgeDocumentStore, type KnowledgeDocument } from "@/components/knowledge/knowledgeDocumentStore";
-import { isResourceRevoked, type RevocableType } from "@/components/governance/revokedResources";
+import { deletedFromSpaceBy, isResourceRevoked, type RevocableType } from "@/components/governance/revokedResources";
 
 /* ───────────────────────── tokens ───────────────────────── */
 
@@ -137,6 +137,8 @@ export interface ResolvedRef {
   /** status "revoked" only: who revoked it, and which kind of resource (for the tooltip). */
   revokedBy?: string;
   revokedType?: RevocableType;
+  /** status "revoked" only: set when the resource was deleted from the Space (who deleted it). */
+  deletedBy?: string;
   /** Chip text. "Tài nguyên bị hạn chế" when the viewer may not see the resource. */
   label: string;
   typeLabel: string;
@@ -160,13 +162,14 @@ export function resolveRef(agentId: string, ref: ParsedRef): ResolvedRef {
   const missing = (): ResolvedRef => ({ ...base, status: "missing", label: fallbackLabel });
   const restricted = (): ResolvedRef => ({ ...base, status: "restricted", label: "Tài nguyên bị hạn chế" });
   const ok = (label: string, extra: Partial<ResolvedRef> = {}): ResolvedRef => ({ ...base, status: "ok", label, ...extra });
-  const revoked = (label: string, by: string, type: RevocableType): ResolvedRef => ({ ...base, status: "revoked", label, revokedBy: by, revokedType: type });
+  const revoked = (label: string, by: string, type: RevocableType, id: string): ResolvedRef =>
+    ({ ...base, status: "revoked", label, revokedBy: by, revokedType: type, deletedBy: deletedFromSpaceBy(type, id) });
 
   switch (ref.kind) {
     case "skill": {
       const linked = skillStore.get(ref.payload);
       if (linked && agentSkillStore.listAttachedConsoleSkillIds(agentId).includes(linked.id) && isResourceRevoked(agentId, "skill", linked.id)) {
-        return revoked(linked.name, linked.ownerName, "skill");
+        return revoked(linked.name, linked.ownerName, "skill", linked.id);
       }
       const e = skillEntries(agentId).find(x => x.skill.id === ref.payload);
       if (e) return ok(e.skill.name, { detail: e.skill.description, state: e.off ? "Đang tắt" : undefined });
@@ -184,7 +187,7 @@ export function resolveRef(agentId: string, ref: ParsedRef): ResolvedRef {
       const c = connectorEntry(agentId, ref.payload);
       if (!c) return missing();
       const rc = connectorRevokedBy(agentId, c.id);
-      if (rc) return revoked(c.name, rc, "connector");
+      if (rc) return revoked(c.name, rc, "connector", c.id.slice(CUSTOM_PREFIX.length));
       if (c.restricted) return restricted();
       return ok(c.name, { detail: `${actionsForConnector(c.id).length} tool`, state: c.unconnected ? "Chưa kết nối" : undefined });
     }
@@ -193,14 +196,14 @@ export function resolveRef(agentId: string, ref: ParsedRef): ResolvedRef {
       const c = connectorEntry(agentId, connectorId);
       if (!c || !action || !actionsForConnector(connectorId).includes(action)) return missing();
       const rc = connectorRevokedBy(agentId, c.id);
-      if (rc) return revoked(`${c.name} › ${action}`, rc, "connector");
+      if (rc) return revoked(`${c.name} › ${action}`, rc, "connector", c.id.slice(CUSTOM_PREFIX.length));
       if (c.restricted) return restricted();
       return ok(`${c.name} › ${action}`, { detail: `Tool của ${c.name}`, state: c.unconnected ? "Chưa kết nối" : undefined });
     }
     case "kb": {
       if (ref.payload === OWN_KB_ID) return ok("Cá nhân", { detail: "Tri thức riêng của Agent này" });
       const kb = knowledgeBaseStore.get(ref.payload);
-      if (kb && knowledgeStore.listAttachedConsoleKbIds(agentId).includes(kb.id) && isResourceRevoked(agentId, "knowledge", kb.id)) return revoked(kb.name, kb.ownerName, "knowledge");
+      if (kb && knowledgeStore.listAttachedConsoleKbIds(agentId).includes(kb.id) && isResourceRevoked(agentId, "knowledge", kb.id)) return revoked(kb.name, kb.ownerName, "knowledge", kb.id);
       if (kb && !isKbAccessibleTo(kb, CURRENT_USER.id)) return restricted();
       if (!kb || !knowledgeStore.listAttachedConsoleKbIds(agentId).includes(kb.id)) return missing();
       return ok(kb.name, { detail: kb.description, state: knowledgeStore.isKbActive(agentId, kb.id) ? undefined : "Đang tắt" });
@@ -211,7 +214,7 @@ export function resolveRef(agentId: string, ref: ParsedRef): ResolvedRef {
       const kb = knowledgeBaseStore.get(kbId);
       if (kb && knowledgeStore.listAttachedConsoleKbIds(agentId).includes(kbId) && isResourceRevoked(agentId, "knowledge", kbId)) {
         const d = knowledgeDocumentStore.list(kbId).find(x => x.id === docId);
-        return revoked(d?.name ?? fallbackLabel, kb.ownerName, "knowledge");
+        return revoked(d?.name ?? fallbackLabel, kb.ownerName, "knowledge", kbId);
       }
       if (kb && !isKbAccessibleTo(kb, CURRENT_USER.id)) return restricted();
       if (!kb || !knowledgeStore.listAttachedConsoleKbIds(agentId).includes(kbId)) return missing();
@@ -239,7 +242,7 @@ export function findBrokenRefs(agentId: string, text: string): BrokenRef[] {
     const r = resolveRef(agentId, seg.ref);
     if (r.status === "missing") out.push({ ref: r, reason: "Không còn gắn với Agent" });
     else if (r.status === "restricted") out.push({ ref: r, reason: "Không có quyền truy cập" });
-    else if (r.status === "revoked") out.push({ ref: r, reason: "Đã bị thu hồi quyền dùng" });
+    else if (r.status === "revoked") out.push({ ref: r, reason: r.deletedBy ? "Đã bị xóa khỏi Space" : "Đã bị thu hồi quyền dùng" });
   }
   return out;
 }

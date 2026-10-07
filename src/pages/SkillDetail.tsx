@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { agentsUsing, ResourceInUseDialog } from "@/components/governance/resourceInUseGuard";
+import { toast } from "sonner";
+import { SpaceDeleteDialog, canManageSpaceResource, deleteFromSpace, notifySpaceOwner, useSpaceActor } from "@/components/governance/spaceDelete";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ChevronLeft, MoreHorizontal, Puzzle } from "lucide-react";
 import {
@@ -30,6 +31,7 @@ export default function SkillDetail() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const access = useGroupAccess("skills");
+  const actor = useSpaceActor();
   const { tree } = useOrg();
   const members = useMemo(() => collectMembers(tree), [tree]);
   const currentUser = useMemo(() => {
@@ -65,7 +67,7 @@ export default function SkillDetail() {
 
   // A role whose Skills View Scope is "Own & Shared" (or with no View permission at all) can't
   // reach a skill it doesn't own and wasn't shared with just by typing its URL.
-  const viaAgentOnly = !access.canSeeAll && !isAccessibleTo(skill.sharing, skill.ownerId, access.userId);
+  const viaAgentOnly = !access.canSeeAll && !actor.isAdmin && !isAccessibleTo(skill.sharing, skill.ownerId, access.userId);
   // Agent context counts as inside the viewer's scope; they still need "View skills" or
   // "Build skills" (Build implies seeing what you edit — the default Builder role has no View).
   if (viaAgentOnly && (!agentCtx.allowed || !(access.hasPermission("view") || access.hasPermission("manage")))) {
@@ -86,8 +88,10 @@ export default function SkillDetail() {
   const accessible = isAccessibleTo(skill.sharing, skill.ownerId, access.userId) || (viaAgentOnly && agentCtx.allowed);
   const viewOnly = !isOwner && !viaAgentOnly && isViewOnly(skill.sharing, skill.ownerId, access.userId);
   const canEdit = access.canAct("manage", accessible) && !viewOnly;
-  const canShare = isOwner && access.canAct("publish", accessible);
-  const canDelete = isOwner && access.canAct("delete", accessible);
+  // Owner, or a Space Admin (may turn sharing off / delete anyone's skill - the owner is notified).
+  const manages = canManageSpaceResource(actor, skill.ownerId) && !skill.deletedFromSpace;
+  const canShare = manages && (actor.isAdmin || access.canAct("publish", accessible));
+  const canDelete = manages && (actor.isAdmin || access.canAct("delete", accessible));
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -147,7 +151,7 @@ export default function SkillDetail() {
                     >
                       Sửa
                     </button>
-                    {isOwner && (
+                    {manages && (
                       <button
                         disabled={!canShare}
                         title={!canShare ? "Chỉ chủ sở hữu mới đổi được ai được dùng skill này." : undefined}
@@ -157,7 +161,7 @@ export default function SkillDetail() {
                         Ai được dùng
                       </button>
                     )}
-                    {isOwner && (
+                    {manages && (
                       <div className="mt-1 pt-1 border-t border-border">
                         <button
                           disabled={!canDelete}
@@ -233,12 +237,10 @@ export default function SkillDetail() {
           sharing={skill.sharing}
           resourceOwnerId={skill.ownerId}
           attachedAgentIds={skill.attachedByAgentIds}
-          agentOnlyFor={skill.originAgentId}
-          originAgentName={skill.originAgentId ? getAgent(skill.originAgentId).name : undefined}
           onSave={(sharing: Sharing) => {
-            // Switch turned off: the skill goes back into the Agent it came from - open it there.
-            if (agentSkillStore.applySpaceSharing(skill.id, sharing)) navigate(`/agents/${skill.originAgentId}?tab=build&section=skills`);
-            else refresh();
+            agentSkillStore.applySpaceSharing(skill.id, sharing);
+            if (sharing.mode === "private" && skill.sharing.mode !== "private") notifySpaceOwner("resource_unshared", actor, skill, "skill", `/tools/${skill.id}`);
+            refresh();
           }}
           onClose={() => setShowShare(false)}
         />
@@ -251,30 +253,20 @@ export default function SkillDetail() {
         />
       )}
 
-      <ResourceInUseDialog
-        open={showDelete && skill.attachedByAgentIds.length > 0}
+      <SpaceDeleteDialog
+        open={showDelete}
+        noun="skill"
+        name={skill.name}
+        originAgentId={skill.originAgentId}
+        attachedAgentIds={skill.attachedByAgentIds}
         onClose={() => setShowDelete(false)}
-        title="Chưa thể xóa skill"
-        description={"Skill vẫn đang được các Agent dưới đây sử dụng. Chủ sở hữu cần gỡ skill khỏi Agent trước, sau đó bạn mới xóa được."}
-        agents={agentsUsing(skill.attachedByAgentIds)}
+        onConfirm={() => {
+          deleteFromSpace(skillStore, skill, actor);
+          notifySpaceOwner("resource_deleted", actor, skill, "skill", "/tools");
+          toast.success(`Đã xóa skill "${skill.name}" khỏi Space.`);
+          navigate("/tools");
+        }}
       />
-      <AlertDialog open={showDelete && skill.attachedByAgentIds.length === 0} onOpenChange={setShowDelete}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Xóa skill "{skill.name}"?</AlertDialogTitle>
-            <AlertDialogDescription>Skill sẽ bị xóa vĩnh viễn khỏi workspace. Hành động này không thể hoàn tác.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => { skillStore.remove(skill.id); setShowDelete(false); navigate("/tools"); }}
-            >
-              Xóa
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

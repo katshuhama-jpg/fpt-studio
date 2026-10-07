@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Bell, CheckCircle2, XCircle, Ban, Inbox, RotateCcw, ChevronRight, CheckCheck } from "lucide-react";
+import { Bell, CheckCircle2, XCircle, Ban, Inbox, RotateCcw, ChevronRight, CheckCheck, EyeOff, Trash2 } from "lucide-react";
 import { getAgent } from "@/components/configure/agentStore";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { governanceStore } from "@/components/governance/governanceStore";
@@ -44,6 +44,8 @@ const KIND_META: Record<NotificationKind, { icon: typeof Bell; tone: Tone; chip:
   request_revoked: { icon: Ban, tone: "danger", chip: "Đã thu hồi" },
   channel_revoked: { icon: Ban, tone: "danger", chip: "Đã tắt kênh" },
   regovern_required: { icon: RotateCcw, tone: "warning", chip: "Cần duyệt lại" },
+  resource_unshared: { icon: EyeOff, tone: "warning", chip: "Đã tắt chia sẻ" },
+  resource_deleted: { icon: Trash2, tone: "danger", chip: "Đã xóa khỏi Space" },
 };
 
 /** "Agent của bạn" / "Agent được chia sẻ với bạn" for outcomes; nothing extra for incoming. */
@@ -60,6 +62,7 @@ function resolvedLabel(n: AppNotification): string | null {
 
 function contextLabel(n: AppNotification, userId: string): string | null {
   if (n.kind === "request_submitted") return resolvedLabel(n);
+  if (n.kind === "resource_unshared" || n.kind === "resource_deleted") return "Tài nguyên của bạn";
   if (!n.resourceId) return null;
   if (n.resourceId.startsWith("ext-")) return "Agent của bạn";
   const a = getAgent(n.resourceId) as { ownerId?: string; sharedWith?: string[] } | undefined;

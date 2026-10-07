@@ -23,7 +23,10 @@ export type NotificationKind =
   | "channel_approved"
   | "channel_rejected"
   | "channel_revoked"
-  | "regovern_required";
+  | "regovern_required"
+  /** A Space Admin turned sharing off on / deleted someone's Space resource (to the owner). */
+  | "resource_unshared"
+  | "resource_deleted";
 
 export interface AppNotification {
   id: string;

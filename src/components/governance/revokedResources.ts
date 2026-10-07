@@ -10,6 +10,10 @@
 // "Lost access" is judged against the Agent's owner: the Agent keeps the resource while its owner
 // may still use it (owner of the resource, "Cả Space", or in the "Người cụ thể" list). A knowledge
 // base turned back into one Agent's own knowledge ("Chỉ Agent này") is lost to every other Agent.
+//
+// "Đã bị xóa" (07/10): the owner or a Space Admin deleted the resource from the Space library.
+// Every Agent still linking it shows it in red the same way - except the Agent it was created in
+// (deletedFromSpace.keptForAgentId), which keeps using it.
 import { getAgent } from "@/components/configure/agentStore";
 import { skillStore } from "@/components/configure/skillStore";
 import { agentSkillStore } from "@/components/configure/agentSkillStore";
@@ -32,10 +36,15 @@ export interface RevokedResource {
   id: string;
   name: string;
   ownerName: string;
+  /** Set when the resource was deleted from the Space (not just unshared): who deleted it. */
+  deletedBy?: string;
 }
 
 interface UsageSharing { mode: "private" | "all" | "specific"; people: { userId: string }[] }
-interface Revocable { ownerId?: string; ownerName?: string; sharing?: UsageSharing; agentOnlyFor?: string }
+interface Revocable {
+  ownerId?: string; ownerName?: string; sharing?: UsageSharing; agentOnlyFor?: string;
+  deletedFromSpace?: { byName: string; keptForAgentId?: string };
+}
 
 export function canUseShared(sharing: UsageSharing, resourceOwnerId: string, userId: string): boolean {
   if (userId === resourceOwnerId) return true;
@@ -50,7 +59,9 @@ function agentOwnerId(agentId: string): string {
 
 /** True when `agentId` links to this resource but its owner may no longer use it. */
 export function isRevokedFor(agentId: string, res: Revocable | undefined): boolean {
-  if (!res || !res.sharing || !res.ownerId) return false;
+  if (!res) return false;
+  if (res.deletedFromSpace) return res.deletedFromSpace.keptForAgentId !== agentId;
+  if (!res.sharing || !res.ownerId) return false;
   if (res.agentOnlyFor) return res.agentOnlyFor !== agentId;
   return !canUseShared(res.sharing, res.ownerId, agentOwnerId(agentId));
 }
@@ -78,7 +89,7 @@ export function listRevokedResources(agentId: string): RevokedResource[] {
   const push = (type: RevocableType, id: string) => {
     const res = get(type, id);
     if (!res || res.mandatory || !isRevokedFor(agentId, res)) return;
-    out.push({ type, id, name: res.name, ownerName: res.ownerName ?? "Chủ sở hữu" });
+    out.push({ type, id, name: res.name, ownerName: res.ownerName ?? "Chủ sở hữu", deletedBy: res.deletedFromSpace?.byName });
   };
   for (const id of agentSkillStore.listAttachedConsoleSkillIds(agentId)) push("skill", id);
   for (const id of knowledgeStore.listAttachedConsoleKbIds(agentId)) push("knowledge", id);
@@ -92,14 +103,22 @@ export function listRevokedResources(agentId: string): RevokedResource[] {
 
 const NOUN: Record<RevocableType, string> = { skill: "skill", knowledge: "kho tri thức", guardrail: "guardrail", connector: "kết nối", apiTool: "API Tool" };
 
+/** Who deleted this linked resource from the Space, when that's why it's red (else undefined). */
+export function deletedFromSpaceBy(type: RevocableType, id: string): string | undefined {
+  return get(type, id)?.deletedFromSpace?.byName;
+}
+
 export const REVOKED_COPY = {
   chip: "Đã bị thu hồi",
+  chipDeleted: "Đã bị xóa",
+  tooltipDeleted: (byName: string, type: RevocableType) =>
+    `${byName} đã xóa ${NOUN[type]} này khỏi Space. Gỡ khỏi Agent để publish được.`,
   tooltip: (ownerName: string, type: RevocableType) =>
     `${ownerName} đã thu hồi quyền dùng ${NOUN[type]} này. Gỡ khỏi Agent hoặc nhờ chủ sở hữu chia sẻ lại.`,
-  banner: (n: number) => `${n} thành phần đã bị thu hồi quyền dùng. Gỡ khỏi Agent để publish được.`,
-  checklist: (n: number) => `Gỡ ${n} thành phần đã bị thu hồi`,
+  banner: (n: number) => `${n} thành phần đã bị thu hồi hoặc xóa khỏi Space. Gỡ khỏi Agent để publish được.`,
+  checklist: (n: number) => `Gỡ ${n} thành phần đã bị thu hồi hoặc xóa`,
   publishBlocked: (items: { name: string }[]) =>
-    `Không thể publish - Agent đang dùng ${items.length} thành phần đã bị thu hồi quyền: ${items.map(i => i.name).join(", ")}. Gỡ thành phần này khỏi Agent trước khi publish.`,
+    `Không thể publish - Agent đang dùng ${items.length} thành phần đã bị thu hồi hoặc xóa khỏi Space: ${items.map(i => i.name).join(", ")}. Gỡ thành phần này khỏi Agent trước khi publish.`,
   /** Owner side: confirming a narrowing that takes the resource away from Agents using it. */
   confirmTitle: (it: string) => `Thu hồi quyền dùng ${it}?`,
   confirmBody: (n: number, it: string, noun: string) =>

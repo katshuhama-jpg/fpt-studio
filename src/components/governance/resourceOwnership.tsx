@@ -20,8 +20,10 @@ import { EyeOff, Info, ShieldCheck, User, Users } from "lucide-react";
  * "Của tôi" keeps meaning "the viewer created it" (card chips, inside an Agent).
  */
 
-/** "withMe" is filter-only (shared by someone else to the Space or to the viewer) - no chip. */
-export type OwnershipTag = "mine" | "shared" | "system" | "withMe";
+/** "withMe" is filter-only (shared by someone else to the Space or to the viewer) - no chip.
+ * "unshared": someone else's resource with sharing off - only a Space Admin sees it (chip
+ * "Chưa chia sẻ", under "Tất cả" only). */
+export type OwnershipTag = "mine" | "shared" | "system" | "withMe" | "unshared";
 export type OwnershipTab = "all" | "mine" | "shared" | "system";
 
 type SharingLike = { mode: string; people?: unknown[] } | undefined;
@@ -32,13 +34,16 @@ export function isShared(sharing: SharingLike): boolean {
   return sharing.mode === "specific" && (sharing.people?.length ?? 0) > 0;
 }
 
-export function ownershipTags({ system, ownerId, sharing, userId }: {
+export function ownershipTags({ system, ownerId, sharing, userId, admin }: {
   system?: boolean; ownerId?: string; sharing?: SharingLike; userId: string;
+  /** Viewer is a Space Admin - also sees other people's unshared resources. */
+  admin?: boolean;
 }): OwnershipTag[] {
   if (system) return ["system"];
   const tags: OwnershipTag[] = [];
   const mine = !!ownerId && ownerId === userId;
   if (mine) tags.push("mine");
+  else if (admin && !isShared(sharing)) return ["unshared"];
   if (isShared(sharing)) {
     tags.push("shared");
     const people = (sharing?.people ?? []) as { userId?: string }[];
@@ -62,6 +67,11 @@ export const OWNERSHIP_TABS: { key: OwnershipTab; label: string }[] = [
   { key: "system", label: "Hệ thống" },
 ];
 
+/** Sharing off: the owner's own (["mine"]) or, for a Space Admin, someone else's (["unshared"]). */
+export function isUnsharedTags(tags: OwnershipTag[]): boolean {
+  return tags.length === 1 && (tags[0] === "mine" || tags[0] === "unshared");
+}
+
 /** In the Space library at all: shared, or shipped by the platform. */
 function inSpace(tags: OwnershipTag[]): boolean {
   return tags.includes("shared") || tags.includes("system");
@@ -70,7 +80,7 @@ function inSpace(tags: OwnershipTag[]): boolean {
 export function matchesTab(tags: OwnershipTag[], tab: OwnershipTab): boolean {
   // The owner's own resource with "Chia sẻ lên Space" turned off: only its owner sees it, under
   // "Tất cả" (chip "Của tôi" without "Đã chia sẻ"), so it can be shared again.
-  if (tags.length === 1 && tags[0] === "mine") return tab === "all";
+  if (isUnsharedTags(tags)) return tab === "all";
   if (!inSpace(tags)) return false;
   if (tab === "all") return true;
   if (tab === "mine") return tags.includes("mine") && tags.includes("shared");
@@ -112,7 +122,7 @@ export function OwnershipTagList({ tags, className = "" }: { tags: OwnershipTag[
   return (
     <div className={`flex flex-wrap items-center gap-1.5 ${className}`}>
       {/* Owner's own resource with "Chia sẻ lên Space" off - only they see it in the library. */}
-      {tags.length === 1 && tags[0] === "mine" && (
+      {isUnsharedTags(tags) && (
         <span className="order-last inline-flex items-center gap-1 rounded-full px-2 py-[3px] text-xs font-medium leading-none whitespace-nowrap bg-surface-sunken text-muted-foreground">
           <EyeOff size={12} aria-hidden /> Chưa chia sẻ
         </span>

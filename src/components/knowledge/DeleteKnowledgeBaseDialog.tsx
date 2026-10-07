@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { agentsUsing, ResourceInUseDialog } from "@/components/governance/resourceInUseGuard";
+import { SpaceDeleteDialog, deleteFromSpace, keptAgentFor, notifySpaceOwner, useSpaceActor } from "@/components/governance/spaceDelete";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
@@ -16,6 +17,7 @@ export default function DeleteKnowledgeBaseDialog({
   onDeleted?: () => void;
 }) {
   const [typed, setTyped] = useState("");
+  const actor = useSpaceActor();
   const matches = typed.trim() === kb.name;
   // An Agent's own knowledge base is used by that Agent only - deleting it there is expected,
   // so only other Agents block the delete.
@@ -25,7 +27,10 @@ export default function DeleteKnowledgeBaseDialog({
   const confirmDelete = () => {
     if (!matches) return;
     if (kb.agentOnlyFor) knowledgeStore.deleteOwnKb(kb.agentOnlyFor, kb.id);
-    else knowledgeBaseStore.remove(kb.id);
+    else {
+      deleteFromSpace(knowledgeBaseStore, kb, actor);
+      notifySpaceOwner("resource_deleted", actor, kb, "kho tri thức", "/knowledge");
+    }
     onClose();
     onDeleted?.();
     toast.success(`Đã xóa kho tri thức "${kb.name}".`, {
@@ -33,6 +38,27 @@ export default function DeleteKnowledgeBaseDialog({
       duration: 10_000,
     });
   };
+
+  // Space knowledge base still linked by Agents, or created in an Agent that keeps it: deleting
+  // only takes it off the Space (see spaceDelete.tsx) - those Agents show "Đã bị xóa".
+  if (!kb.agentOnlyFor && (kb.attachedByAgentIds.length > 0 || keptAgentFor(kb.originAgentId, kb.attachedByAgentIds))) {
+    return (
+      <SpaceDeleteDialog
+        open={open}
+        noun="kho tri thức"
+        name={kb.name}
+        originAgentId={kb.originAgentId}
+        attachedAgentIds={kb.attachedByAgentIds}
+        onClose={onClose}
+        onConfirm={() => {
+          deleteFromSpace(knowledgeBaseStore, kb, actor);
+          notifySpaceOwner("resource_deleted", actor, kb, "kho tri thức", "/knowledge");
+          onDeleted?.();
+          toast.success(`Đã xóa kho tri thức "${kb.name}" khỏi Space.`);
+        }}
+      />
+    );
+  }
 
   if (blockingIds.length > 0) {
     return (

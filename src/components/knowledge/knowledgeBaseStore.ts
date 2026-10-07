@@ -84,6 +84,12 @@ export interface KnowledgeBase {
    * "Ai được dùng" popup still shows the "Chia sẻ lên Space" switch: turning it off moves the
    * resource back into that Agent. Unset for resources created in the Space library. */
   originAgentId?: string;
+  /** Set when the resource was deleted from the Space library ("Xóa" on Space). The record is
+   * kept so Agents still linking it can show it as "Đã bị xóa" (and stay unpublishable until
+   * they detach it). `keptForAgentId`: created in that Agent, which keeps using it; every other
+   * Agent loses it. Unset `keptForAgentId`: gone for every Agent. Sharing it again (from the
+   * Agent that kept it) puts it back on the Space. */
+  deletedFromSpace?: { at: number; byId: string; byName: string; keptForAgentId?: string };
   createdAt: number;
   updatedAt: number;
 }
@@ -230,7 +236,7 @@ function seed() {
 export const knowledgeBaseStore = {
   list(): KnowledgeBase[] {
     seed();
-    return [...store.values()].sort((a, b) => b.updatedAt - a.updatedAt).map(withStats);
+    return [...store.values()].filter(kb => !kb.deletedFromSpace).sort((a, b) => b.updatedAt - a.updatedAt).map(withStats);
   },
   get(id: string): KnowledgeBase | undefined {
     seed();
@@ -250,6 +256,13 @@ export const knowledgeBaseStore = {
   /** One Agent's own knowledge bases. */
   listAgentOnly(agentId: string): KnowledgeBase[] {
     return this.list().filter(kb => kb.agentOnlyFor === agentId);
+  },
+  /** "Xóa" on the Space library - see deletedFromSpace. */
+  removeFromSpace(id: string, by: { id: string; name: string }, keptForAgentId?: string) {
+    const cur = store.get(id);
+    if (!cur) return;
+    store.set(id, { ...cur, sharing: { mode: "private", people: [] }, deletedFromSpace: { at: Date.now(), byId: by.id, byName: by.name, keptForAgentId }, updatedAt: Date.now() });
+    persist();
   },
   /** "Chỉ Agent này" on a KB: it leaves the Space library and becomes this Agent's own. */
   setAgentOnly(id: string, agentId: string) {
@@ -288,11 +301,13 @@ export const knowledgeBaseStore = {
   updateSharing(id: string, sharing: Sharing) {
     const cur = store.get(id);
     if (!cur) return;
-    // Opening an Agent-only KB to people in the Space moves it into the Space library; turning
-    // sharing off (from the Space too) moves it back into the Agent it was created in.
+    // Opening an Agent-only KB to people in the Space moves it into the Space library. Turning
+    // sharing off keeps it in the Space (only its owner and Admins see it); sharing again also
+    // brings back a KB that was deleted from the Space.
     const originAgentId = cur.originAgentId ?? cur.agentOnlyFor;
-    const agentOnlyFor = sharing.mode === "private" ? (cur.agentOnlyFor ?? originAgentId) : undefined;
-    store.set(id, { ...cur, sharing, agentOnlyFor, originAgentId, updatedAt: Date.now() });
+    const agentOnlyFor = sharing.mode === "private" ? cur.agentOnlyFor : undefined;
+    const deletedFromSpace = sharing.mode === "private" ? cur.deletedFromSpace : undefined;
+    store.set(id, { ...cur, sharing, agentOnlyFor, originAgentId, deletedFromSpace, updatedAt: Date.now() });
     persist();
   },
   updateQuerySharing(id: string, querySharing: QuerySharing) {

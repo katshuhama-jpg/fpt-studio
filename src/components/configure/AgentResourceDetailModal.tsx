@@ -189,11 +189,10 @@ function ConsoleSkillDetail({ agentId, id, onClose, onChanged }: { agentId: stri
   if (sub === "share") return (
     <SkillShareModal
       open name={skill.name} ownerName={skill.ownerName} sharing={skill.sharing}
-      resourceOwnerId={skill.ownerId} attachedAgentIds={skill.attachedByAgentIds} agentOnlyFor={agentId}
+      resourceOwnerId={skill.ownerId} attachedAgentIds={skill.attachedByAgentIds}
       onSave={sharing => {
-        // "Chỉ Agent này" moves the skill back into this Agent (off the Space library).
-        if (sharing.mode === "private") { agentSkillStore.demoteToAgent(agentId, skill.id); onChanged(); onClose(); return; }
-        skillStore.updateSharing(skill.id, sharing); refresh();
+        // Turning sharing off keeps the skill in the Space, unshared.
+        skillStore.updateSharing(skill.id, sharing); refresh(); onChanged();
       }}
       onClose={() => setSub(null)}
     />
@@ -308,10 +307,9 @@ function ConsoleGuardrailDetail({ agentId, id, onClose, onChanged }: { agentId: 
   if (sub === "share") return (
     <GuardrailShareModal
       open name={g.name} ownerName={g.ownerName ?? currentUser.name} sharing={g.sharing ?? { mode: "all", people: [] }}
-      resourceOwnerId={g.ownerId} attachedAgentIds={g.attachedByAgentIds} agentOnlyFor={agentId}
+      resourceOwnerId={g.ownerId} attachedAgentIds={g.attachedByAgentIds}
       onSave={sharing => {
-        if (sharing.mode === "private") { agentGuardrailStore.demoteToAgent(agentId, g.id); onChanged(); onClose(); return; }
-        guardrailConsoleStore.updateSharing(g.id, sharing); refresh();
+        guardrailConsoleStore.updateSharing(g.id, sharing); refresh(); onChanged();
       }}
       onClose={() => setSub(null)}
     />
@@ -416,10 +414,9 @@ function KnowledgeBaseDetail({ agentId, id, onClose, onChanged }: { agentId: str
   if (sub === "share") return (
     <ShareKnowledgeBaseModal
       open name={kb.name} ownerName={kb.ownerName} sharing={kb.sharing}
-      resourceOwnerId={kb.ownerId} attachedAgentIds={kb.attachedByAgentIds} agentOnlyFor={agentId}
+      resourceOwnerId={kb.ownerId} attachedAgentIds={kb.attachedByAgentIds} agentOnlyFor={kb.agentOnlyFor}
       onSave={sharing => {
-        if (sharing.mode === "private") { knowledgeStore.unshareKb(agentId, kb.id); onChanged(); onClose(); return; }
-        knowledgeBaseStore.updateSharing(kb.id, sharing);
+        knowledgeBaseStore.updateSharing(kb.id, sharing); onChanged();
       }}
       onClose={() => { setSub(null); refresh(); }}
     />

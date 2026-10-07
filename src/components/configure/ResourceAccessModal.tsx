@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import { agentsBlockingUnshare, ResourceInUseDialog } from "@/components/governance/resourceInUseGuard";
 import type { AgentRecord } from "@/components/configure/agentStore";
 import {
@@ -22,7 +23,7 @@ export type PickerProps = { value: SharedPerson[]; onChange: (p: SharedPerson[])
  * copy and confirmations as Knowledge's popup (ShareKnowledgeBaseModal), worded for the resource.
  * `noun` is how the resource is named in sentences: "skill" / "guardrail" / "kết nối" / "API Tool". */
 export default function ResourceAccessModal({
-  open, onClose, name, ownerName, sharing: initialSharing, onSave, resourceOwnerId, attachedAgentIds, agentOnlyFor, originAgentName, noun, renderPicker,
+  open, onClose, name, ownerName, sharing: initialSharing, onSave, resourceOwnerId, attachedAgentIds, agentOnlyFor: agentOnlyForProp, originAgentName, noun, renderPicker,
 }: {
   open: boolean;
   onClose: () => void;
@@ -42,6 +43,12 @@ export default function ResourceAccessModal({
   renderPicker: (p: PickerProps) => ReactNode;
 }) {
   const it = `${noun} này`;
+  // Only a resource that is still the Agent's own (never shared) is "Chỉ Agent này". Once a
+  // resource is on the Space, turning sharing off keeps it there (only its owner and Admins see it).
+  const agentOnlyFor = initialSharing.mode === "private" ? agentOnlyForProp : undefined;
+  // A Space Admin turning off someone else's resource: only its owner keeps linking it.
+  const { userId: viewerId } = useMyPermissions();
+  const onlyWho = resourceOwnerId && resourceOwnerId !== viewerId ? ownerName : "bạn";
   const [mode, setMode] = useState<SharingMode>(initialSharing.mode);
   const [people, setPeople] = useState(initialSharing.people);
   const [blockingAgents, setBlockingAgents] = useState<AgentRecord[]>([]);
@@ -116,7 +123,7 @@ export default function ResourceAccessModal({
             {mode === "private" ? (
               <>
                 <AlertDialogTitle>Tắt chia sẻ?</AlertDialogTitle>
-                <AlertDialogDescription>{agentOnlyFor ? `Chỉ Agent ${originAgentName ? `"${originAgentName}"` : "này"} dùng được ${it}.` : `Chỉ bạn liên kết được ${it} vào Agent.`} Người khác sẽ không liên kết được vào Agent của họ nữa.</AlertDialogDescription>
+                <AlertDialogDescription>{agentOnlyFor ? `Chỉ Agent ${originAgentName ? `"${originAgentName}"` : "này"} dùng được ${it}.` : `Chỉ ${onlyWho} liên kết được ${it} vào Agent.`} Người khác sẽ không liên kết được vào Agent của họ nữa.</AlertDialogDescription>
               </>
             ) : (
               <>

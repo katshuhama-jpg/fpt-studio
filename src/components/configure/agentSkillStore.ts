@@ -150,17 +150,11 @@ export const agentSkillStore = {
     return { skillId: created.id };
   },
 
-  /** Space library "Ai được dùng" save. Turning the "Chia sẻ lên Space" switch off on a skill
-   * that was created in an Agent moves it back into that Agent - unless other Agents still link
-   * it, then it stays in the Space unshared (their link shows "Đã bị thu hồi"). Returns true when
-   * the skill left the Space library. */
+  /** Space library "Ai được dùng" save. Turning the "Chia sẻ lên Space" switch off keeps the skill
+   * in the Space, unshared - other people's Agents linking it show "Đã bị thu hồi". Always false
+   * (kept for callers that used to navigate when the skill left the library). */
   applySpaceSharing(skillId: string, sharing: Sharing): boolean {
-    const s = skillStore.get(skillId);
-    if (!s) return false;
-    if (sharing.mode === "private" && s.originAgentId && !s.attachedByAgentIds.some(id => id !== s.originAgentId)) {
-      this.demoteToAgent(s.originAgentId, skillId);
-      return true;
-    }
+    // Turning sharing off keeps the resource in the Space (only its owner and Admins see it).
     skillStore.updateSharing(skillId, sharing);
     return false;
   },

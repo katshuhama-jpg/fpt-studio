@@ -134,12 +134,7 @@ export const agentGuardrailStore = {
 
   /** Space library "Ai được dùng" save - same rule as agentSkillStore.applySpaceSharing. */
   applySpaceSharing(guardrailId: string, sharing: Sharing): boolean {
-    const g = guardrailConsoleStore.get(guardrailId);
-    if (!g) return false;
-    if (sharing.mode === "private" && g.originAgentId && !(g.attachedByAgentIds ?? []).some(id => id !== g.originAgentId)) {
-      this.demoteToAgent(g.originAgentId, guardrailId);
-      return true;
-    }
+    // Turning sharing off keeps the resource in the Space (only its owner and Admins see it).
     guardrailConsoleStore.updateSharing(guardrailId, sharing);
     return false;
   },

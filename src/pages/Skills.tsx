@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { agentsUsing, ResourceInUseDialog } from "@/components/governance/resourceInUseGuard";
+import { SpaceDeleteDialog, canManageSpaceResource, deleteFromSpace, notifySpaceOwner, useSpaceActor } from "@/components/governance/spaceDelete";
+import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { Puzzle, BookOpen, Plus, Search, LayoutGrid, List, MoreVertical, AlertTriangle } from "lucide-react";
 import {
@@ -108,6 +109,7 @@ export default function Skills() {
     return { id: access.userId, name: me?.name ?? "Tran Nam", email: me?.email ?? "tran.nam@fpt.com" };
   }, [members, access.userId]);
   const canCreateSkill = can("skills.create");
+  const actor = useSpaceActor();
 
   const [tick, setTick] = useState(0);
   const refresh = () => setTick(t => t + 1);
@@ -129,14 +131,14 @@ export default function Skills() {
   // A role whose Skills View Scope is "Own & Shared" (or with no View permission at all) only
   // ever sees skills it created or that were shared with it — not just on a filter tab, but in
   // every count and list below.
-  const visibleSkills = access.canSeeAll ? skills : skills.filter(s => isAccessibleTo(s.sharing, s.ownerId, access.userId));
+  const visibleSkills = access.canSeeAll || actor.isAdmin ? skills : skills.filter(s => isAccessibleTo(s.sharing, s.ownerId, access.userId));
 
   // One list for the library: Space skills (tagged Của tôi / Được chia sẻ) + the platform's
   // built-in skills (tagged Hệ thống). Tabs filter by tag, so a skill you own and shared shows
   // under both "Của tôi" and "Được chia sẻ".
   type Item = { kind: "space"; skill: Skill; tags: OwnershipTag[] } | { kind: "system"; skill: BuiltinSkill; tags: OwnershipTag[] };
   const items: Item[] = [
-    ...visibleSkills.map(s => ({ kind: "space" as const, skill: s, tags: ownershipTags({ ownerId: s.ownerId, sharing: s.sharing, userId: access.userId }) })),
+    ...visibleSkills.map(s => ({ kind: "space" as const, skill: s, tags: ownershipTags({ ownerId: s.ownerId, sharing: s.sharing, userId: access.userId, admin: actor.isAdmin }) })),
     ...VISIBLE_BUILTIN_SKILLS.map(b => ({ kind: "system" as const, skill: b, tags: ["system"] as OwnershipTag[] })),
   ];
   const counts = countByTab(items, i => i.tags);
@@ -157,11 +159,15 @@ export default function Skills() {
     const editBlocked = !access.hasPermission("manage") ? NO_ROLE_PERMISSION
       : !access.canAct("manage", accessible) ? NOT_OWNED_OR_SHARED
       : viewOnly ? VIEW_ONLY : undefined;
-    const shareBlocked = !isOwner ? "Chỉ chủ sở hữu mới đổi được ai được dùng skill này."
+    // Owner, or a Space Admin (who may turn sharing off / delete anyone's skill).
+    const manages = canManageSpaceResource(actor, s.ownerId);
+    const shareBlocked = !manages ? "Chỉ chủ sở hữu hoặc Admin của Space mới đổi được ai được dùng skill này."
+      : actor.isAdmin ? undefined
       : !access.hasPermission("publish") ? NO_ROLE_PERMISSION
       : !access.canAct("publish", accessible) ? NOT_OWNED_OR_SHARED
       : undefined;
-    const deleteBlocked = !isOwner ? "Chỉ chủ sở hữu mới có thể xóa skill này."
+    const deleteBlocked = !manages ? "Chỉ chủ sở hữu hoặc Admin của Space mới xóa được skill này."
+      : actor.isAdmin ? undefined
       : !access.hasPermission("delete") ? NO_ROLE_PERMISSION
       : !access.canAct("delete", accessible) ? NOT_OWNED_OR_SHARED
       : undefined;
@@ -375,49 +381,31 @@ export default function Skills() {
           sharing={shareTarget.sharing}
           resourceOwnerId={shareTarget.ownerId}
           attachedAgentIds={shareTarget.attachedByAgentIds}
-          agentOnlyFor={shareTarget.originAgentId}
-          originAgentName={shareTarget.originAgentId ? getAgent(shareTarget.originAgentId).name : undefined}
-          onSave={(sharing: Sharing) => { agentSkillStore.applySpaceSharing(shareTarget.id, sharing); refresh(); }}
+          onSave={(sharing: Sharing) => {
+            agentSkillStore.applySpaceSharing(shareTarget.id, sharing);
+            if (sharing.mode === "private" && shareTarget.sharing.mode !== "private") notifySpaceOwner("resource_unshared", actor, shareTarget, "skill", `/tools/${shareTarget.id}`);
+            refresh();
+          }}
           onClose={() => setShareTarget(null)}
         />
       )}
 
-      <ResourceInUseDialog
-        open={!!deleteTarget && deleteTarget.attachedByAgentIds.length > 0}
-        onClose={() => setDeleteTarget(null)}
-        title="Chưa thể xóa skill"
-        description={"Skill vẫn đang được các Agent dưới đây sử dụng. Chủ sở hữu cần gỡ skill khỏi Agent trước, sau đó bạn mới xóa được."}
-        agents={agentsUsing(deleteTarget?.attachedByAgentIds)}
-      />
-      <AlertDialog open={!!deleteTarget && deleteTarget.attachedByAgentIds.length === 0} onOpenChange={v => !v && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Xóa skill "{deleteTarget?.name}"?</AlertDialogTitle>
-            <AlertDialogDescription>Skill sẽ bị xóa vĩnh viễn khỏi workspace. Hành động này không thể hoàn tác.</AlertDialogDescription>
-          </AlertDialogHeader>
-          {deleteTarget && deleteTarget.attachedByAgentIds.length > 0 && (
-            <div className="flex items-start gap-2.5 rounded-lg border border-destructive/25 bg-[hsl(var(--destructive-soft))] px-3.5 py-3">
-              <AlertTriangle size={14} className="shrink-0 mt-0.5 text-destructive" />
-              <p className="text-xs text-destructive leading-relaxed">
-                {deleteTarget.attachedByAgentIds.length} Agent đang dùng skill này và sẽ mất khả năng này: {deleteTarget.attachedByAgentIds.map(id => getAgent(id).name).join(", ")}.
-              </p>
-            </div>
-          )}
-          <AlertDialogFooter>
-            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => {
-                if (deleteTarget) skillStore.remove(deleteTarget.id);
-                setDeleteTarget(null);
-                refresh();
-              }}
-            >
-              Xóa
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {deleteTarget && (
+        <SpaceDeleteDialog
+          open
+          noun="skill"
+          name={deleteTarget.name}
+          originAgentId={deleteTarget.originAgentId}
+          attachedAgentIds={deleteTarget.attachedByAgentIds}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={() => {
+            deleteFromSpace(skillStore, deleteTarget, actor);
+            notifySpaceOwner("resource_deleted", actor, deleteTarget, "skill", "/tools");
+            toast.success(`Đã xóa skill "${deleteTarget.name}" khỏi Space.`);
+            refresh();
+          }}
+        />
+      )}
     </div>
   );
 }

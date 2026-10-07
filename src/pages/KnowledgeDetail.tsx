@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { notifySpaceOwner, useSpaceActor } from "@/components/governance/spaceDelete";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ChevronLeft, MoreHorizontal, FileText, Globe, HelpCircle, Database,
@@ -99,6 +100,7 @@ export default function KnowledgeDetail() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const access = useGroupAccess("knowledge");
+  const actor = useSpaceActor();
   const [params, setParams] = useSearchParams();
   const rawTab = params.get("tab");
   const tab: Tab = VALID_TABS.includes(rawTab as Tab) ? (rawTab as Tab) : "documents";
@@ -178,7 +180,7 @@ export default function KnowledgeDetail() {
   // A role whose Knowledge View Scope is "Own & Shared" (or that has no View permission at
   // all) can't reach a KB it doesn't own and wasn't shared with just by typing its URL —
   // mirrors the not-found state above rather than silently rendering the KB's real content.
-  const viaAgentOnly = !access.canSeeAll && !isAccessibleTo(kb, access.userId);
+  const viaAgentOnly = !access.canSeeAll && !actor.isAdmin && !isAccessibleTo(kb, access.userId);
   if (viaAgentOnly && (!agentCtx.allowed || !(access.hasPermission("view") || access.hasPermission("manage")))) {
     return (
       <div className="flex flex-col h-full bg-background items-center justify-center text-center px-6">
@@ -203,7 +205,10 @@ export default function KnowledgeDetail() {
   const accessible = isAccessibleTo(kb, access.userId) || ((viaAgentOnly || viaOwningAgent) && agentCtx.allowed);
   const canEdit = access.canAct("manage", accessible) && !viewOnly;
   const canShare = isOwner && access.canAct("publish", accessible);
-  const canDeleteKb = isOwner && access.canAct("delete", accessible);
+  // "Ai được dùng" and "Xóa": owner, or a Space Admin on a Space knowledge base (the owner is notified).
+  const manages = (isOwner || (actor.isAdmin && !kb.agentOnlyFor)) && !kb.deletedFromSpace;
+  const canShareAccess = manages && (actor.isAdmin || access.canAct("publish", accessible));
+  const canDeleteKb = manages && (actor.isAdmin || access.canAct("delete", accessible));
   // Only say whether something is still being processed — no chunk counts or "% indexed".
   const busy = (s: string) => s === "pending" || s === "processing";
   const isProcessing = kb.type === "internal" && (
@@ -290,10 +295,10 @@ export default function KnowledgeDetail() {
                     >
                       Chỉnh sửa
                     </button>
-                    {isOwner && (
+                    {manages && (
                       <button
-                        disabled={!canShare}
-                        title={!canShare ? "Chỉ chủ sở hữu mới đổi được ai được dùng kho này." : undefined}
+                        disabled={!canShareAccess}
+                        title={!canShareAccess ? "Chỉ chủ sở hữu hoặc Admin của Space mới đổi được ai được dùng kho này." : undefined}
                         onClick={() => { setShowShare(true); setShowMenu(false); }}
                         className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted disabled:text-muted-foreground/50 disabled:cursor-not-allowed transition-base"
                       >
@@ -310,8 +315,8 @@ export default function KnowledgeDetail() {
                         {RETRIEVAL_COPY.menu}
                       </button>
                     )}
-                    {isOwner && <div className="mt-1 pt-1 border-t border-border">
-                      {isOwner && (
+                    {manages && <div className="mt-1 pt-1 border-t border-border">
+                      {manages && (
                         <button
                           disabled={!canDeleteKb}
                           title={!canDeleteKb ? "Bạn không có quyền xóa kho tri thức này." : undefined}
@@ -409,9 +414,11 @@ export default function KnowledgeDetail() {
           sharing={kb.sharing}
           resourceOwnerId={kb.ownerId}
           attachedAgentIds={kb.attachedByAgentIds}
-          agentOnlyFor={kb.agentOnlyFor ?? kb.originAgentId}
-          originAgentName={!viaOwningAgent && kb.originAgentId ? getAgent(kb.originAgentId).name : undefined}
-          onSave={sharing => knowledgeBaseStore.updateSharing(kb.id, sharing)}
+          agentOnlyFor={kb.agentOnlyFor}
+          onSave={sharing => {
+            knowledgeBaseStore.updateSharing(kb.id, sharing);
+            if (sharing.mode === "private" && kb.sharing.mode !== "private") notifySpaceOwner("resource_unshared", actor, kb, "kho tri thức", `/knowledge/${kb.id}`);
+          }}
           onClose={() => { setShowShare(false); refresh(); }}
         />
       )}

@@ -58,6 +58,12 @@ export interface CustomApiTool {
    * "Ai được dùng" popup still shows the "Chia sẻ lên Space" switch: turning it off moves the
    * resource back into that Agent. Unset for resources created in the Space library. */
   originAgentId?: string;
+  /** Set when the resource was deleted from the Space library ("Xóa" on Space). The record is
+   * kept so Agents still linking it can show it as "Đã bị xóa" (and stay unpublishable until
+   * they detach it). `keptForAgentId`: created in that Agent, which keeps using it; every other
+   * Agent loses it. Unset `keptForAgentId`: gone for every Agent. Sharing it again (from the
+   * Agent that kept it) puts it back on the Space. */
+  deletedFromSpace?: { at: number; byId: string; byName: string; keptForAgentId?: string };
 }
 
 export const DEFAULT_TIMEOUT_SEC = 30;
@@ -140,7 +146,7 @@ export const customApiToolStore = {
   /** Every tool in the Space (callers filter by access with listAccessible). */
   list(): CustomApiTool[] {
     seed();
-    return [...store.values()].map(normalize).sort((a, b) => b.updatedAt - a.updatedAt);
+    return [...store.values()].map(normalize).filter(t => !t.deletedFromSpace).sort((a, b) => b.updatedAt - a.updatedAt);
   },
   /** Tools this user may see in the library / attach to an Agent: own + shared to them. */
   listAccessible(userId: string): CustomApiTool[] {
@@ -197,7 +203,14 @@ export const customApiToolStore = {
   updateSharing(id: string, sharing: Sharing) {
     const cur = store.get(id);
     if (!cur) return;
-    store.set(id, { ...normalize(cur), sharing, updatedAt: Date.now() });
+    store.set(id, { ...normalize(cur), sharing, deletedFromSpace: sharing.mode === "private" ? cur.deletedFromSpace : undefined, updatedAt: Date.now() });
+    persist();
+  },
+  /** "Xóa" on the Space library - see deletedFromSpace. */
+  removeFromSpace(id: string, by: { id: string; name: string }, keptForAgentId?: string) {
+    const cur = store.get(id);
+    if (!cur) return;
+    store.set(id, { ...cur, sharing: { mode: "private", people: [] }, deletedFromSpace: { at: Date.now(), byId: by.id, byName: by.name, keptForAgentId }, updatedAt: Date.now() });
     persist();
   },
   /** Records the Agent a resource was first created in (see originAgentId). */

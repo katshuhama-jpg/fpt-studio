@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { agentsUsing, ResourceInUseDialog } from "@/components/governance/resourceInUseGuard";
+import { SpaceDeleteDialog, deleteFromSpace, notifySpaceOwner, useSpaceActor } from "@/components/governance/spaceDelete";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { Search, CheckCircle2, ChevronRight, ChevronDown, Plug, MoreVertical, AlertTriangle, X, Rocket, Globe, BarChart3, type LucideIcon } from "lucide-react";
@@ -181,6 +181,9 @@ export default function WorkspaceConnectors() {
   const [shareApiToolTarget, setShareApiToolTarget] = useState<CustomApiTool | null>(null);
   const { can } = useMyPermissions();
   const canCreateConnector = can("connectors.create");
+  // Owner, or a Space Admin (may turn sharing off / delete anyone's connector or API Tool).
+  const actor = useSpaceActor();
+  const manages = (ownerId?: string) => actor.isAdmin || ownerId === CURRENT_USER.id;
   const [editApiToolTarget, setEditApiToolTarget] = useState<CustomApiTool | null>(null);
   const [deleteApiToolTarget, setDeleteApiToolTarget] = useState<CustomApiTool | null>(null);
   const [customTab, setCustomTab] = useState<CustomTab>("all");
@@ -205,18 +208,18 @@ export default function WorkspaceConnectors() {
     [connectedIds],
   );
   const customConnectors = customConnectorStore.list();
-  const accessibleCustomConnectors = customConnectors.filter(c => isCustomConnectorAccessibleTo(c.sharing, c.ownerId, CURRENT_USER.id));
+  const accessibleCustomConnectors = actor.isAdmin ? customConnectors : customConnectors.filter(c => isCustomConnectorAccessibleTo(c.sharing, c.ownerId, CURRENT_USER.id));
   // Custom section = FPT's internal connector templates (tagged Hệ thống) + MCP connectors people
   // added (Của tôi / Được chia sẻ). Tabs filter by tag.
   type CustomItem =
     | { kind: "template"; t: ConnectorTemplateDef; tags: OwnershipTag[] }
     | { kind: "custom"; c: CustomConnector; tags: OwnershipTag[] }
     | { kind: "apitool"; a: CustomApiTool; tags: OwnershipTag[] };
-  const customApiTools = customApiToolStore.listAccessible(CURRENT_USER.id);
+  const customApiTools = actor.isAdmin ? customApiToolStore.list() : customApiToolStore.listAccessible(CURRENT_USER.id);
   const customItems: CustomItem[] = [
     ...CONNECTOR_TEMPLATES.map(t => ({ kind: "template" as const, t, tags: ["system"] as OwnershipTag[] })),
-    ...accessibleCustomConnectors.map(c => ({ kind: "custom" as const, c, tags: ownershipTags({ ownerId: c.ownerId, sharing: c.sharing, userId: CURRENT_USER.id }) })),
-    ...customApiTools.map(a => ({ kind: "apitool" as const, a, tags: ownershipTags({ ownerId: a.ownerId, sharing: a.sharing, userId: CURRENT_USER.id }) })),
+    ...accessibleCustomConnectors.map(c => ({ kind: "custom" as const, c, tags: ownershipTags({ ownerId: c.ownerId, sharing: c.sharing, userId: CURRENT_USER.id, admin: actor.isAdmin }) })),
+    ...customApiTools.map(a => ({ kind: "apitool" as const, a, tags: ownershipTags({ ownerId: a.ownerId, sharing: a.sharing, userId: CURRENT_USER.id, admin: actor.isAdmin }) })),
   ];
   const customTabCounts = countByTab(customItems, i => i.tags);
   const customFiltered = customItems.filter(i => matchesTab(i.tags, customTab));
@@ -390,8 +393,8 @@ export default function WorkspaceConnectors() {
                       tags={i.tags}
                       onOpen={() => setDetailApiToolId(a.id)}
                       onEdit={a.ownerId === CURRENT_USER.id ? () => setEditApiToolTarget(a) : undefined}
-                      onShare={a.ownerId === CURRENT_USER.id ? () => setShareApiToolTarget(a) : undefined}
-                      onDelete={() => setDeleteApiToolTarget(a)}
+                      onShare={manages(a.ownerId) ? () => setShareApiToolTarget(a) : undefined}
+                      onDelete={manages(a.ownerId) ? () => setDeleteApiToolTarget(a) : undefined}
                     />
                   );
                 }
@@ -405,9 +408,9 @@ export default function WorkspaceConnectors() {
                     isMine={isMine}
                     onOpen={() => setDetailConnectorId(c.id)}
                     onEdit={isMine ? () => setEditTarget(c) : undefined}
-                    onShare={isMine ? () => setShareTarget(c) : undefined}
+                    onShare={manages(c.ownerId) ? () => setShareTarget(c) : undefined}
                     onPublish={isMine ? () => setPublishTarget(c) : undefined}
-                    onDelete={() => setDeleteTarget(c)}
+                    onDelete={manages(c.ownerId) ? () => setDeleteTarget(c) : undefined}
                   />
                 );
               })}
@@ -443,9 +446,11 @@ export default function WorkspaceConnectors() {
           sharing={shareApiToolTarget.sharing}
           resourceOwnerId={shareApiToolTarget.ownerId}
           attachedAgentIds={shareApiToolTarget.attachedByAgentIds}
-          agentOnlyFor={shareApiToolTarget.originAgentId}
-          originAgentName={shareApiToolTarget.originAgentId ? getAgent(shareApiToolTarget.originAgentId).name : undefined}
-          onSave={sharing => { customApiToolStore.updateSharing(shareApiToolTarget.id, sharing); refresh(); }}
+          onSave={sharing => {
+            customApiToolStore.updateSharing(shareApiToolTarget.id, sharing);
+            if (sharing.mode === "private" && shareApiToolTarget.sharing.mode !== "private") notifySpaceOwner("resource_unshared", actor, shareApiToolTarget, "API Tool", "/connectors");
+            refresh();
+          }}
           onClose={() => setShareApiToolTarget(null)}
         />
       )}
@@ -495,70 +500,47 @@ export default function WorkspaceConnectors() {
           sharing={shareTarget.sharing}
           resourceOwnerId={shareTarget.ownerId}
           attachedAgentIds={shareTarget.attachedByAgentIds}
-          agentOnlyFor={shareTarget.originAgentId}
-          originAgentName={shareTarget.originAgentId ? getAgent(shareTarget.originAgentId).name : undefined}
-          onSave={sharing => { customConnectorStore.updateSharing(shareTarget.id, sharing); refresh(); }}
+          onSave={sharing => {
+            customConnectorStore.updateSharing(shareTarget.id, sharing);
+            if (sharing.mode === "private" && shareTarget.sharing.mode !== "private") notifySpaceOwner("resource_unshared", actor, shareTarget, "kết nối", "/connectors");
+            refresh();
+          }}
           onClose={() => setShareTarget(null)}
         />
       )}
 
-      <ResourceInUseDialog
-        open={!!deleteTarget && deleteTarget.attachedByAgentIds.length > 0}
-        onClose={() => setDeleteTarget(null)}
-        title="Chưa thể xóa connector"
-        description={"Connector vẫn đang được các Agent dưới đây sử dụng. Chủ sở hữu cần gỡ connector khỏi Agent trước, sau đó bạn mới xóa được."}
-        agents={agentsUsing(deleteTarget?.attachedByAgentIds)}
-      />
-      <AlertDialog open={!!deleteTarget && deleteTarget.attachedByAgentIds.length === 0} onOpenChange={v => !v && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Xóa custom connector "{deleteTarget?.name}"?</AlertDialogTitle>
-            <AlertDialogDescription>Custom connector sẽ bị xóa vĩnh viễn khỏi workspace. Hành động này không thể hoàn tác.</AlertDialogDescription>
-          </AlertDialogHeader>
-          {deleteTarget && deleteTarget.attachedByAgentIds.length > 0 && (
-            <div className="flex items-start gap-2.5 rounded-lg border border-destructive/25 bg-[hsl(var(--destructive-soft))] px-3.5 py-3">
-              <AlertTriangle size={14} className="shrink-0 mt-0.5 text-destructive" />
-              <p className="text-xs text-destructive leading-relaxed">
-                {deleteTarget.attachedByAgentIds.length} Agent đang dùng custom connector này và sẽ mất quyền truy cập các công cụ của nó: {deleteTarget.attachedByAgentIds.map(id => getAgent(id).name).join(", ")}.
-              </p>
-            </div>
-          )}
-          <AlertDialogFooter>
-            <AlertDialogCancel>Hủy bỏ</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => { if (deleteTarget) { customConnectorStore.remove(deleteTarget.id); refresh(); } setDeleteTarget(null); }}
-            >
-              Xóa
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <ResourceInUseDialog
-        open={!!deleteApiToolTarget && deleteApiToolTarget.attachedByAgentIds.length > 0}
-        onClose={() => setDeleteApiToolTarget(null)}
-        title="Chưa thể xóa API Tool"
-        description={"API Tool vẫn đang được các Agent dưới đây sử dụng. Chủ sở hữu cần gỡ API Tool khỏi Agent trước, sau đó bạn mới xóa được."}
-        agents={deleteApiToolTarget ? agentsUsing(deleteApiToolTarget.attachedByAgentIds) : []}
-      />
-      <AlertDialog open={!!deleteApiToolTarget && deleteApiToolTarget.attachedByAgentIds.length === 0} onOpenChange={v => !v && setDeleteApiToolTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Xóa API Tool "{deleteApiToolTarget?.name}"?</AlertDialogTitle>
-            <AlertDialogDescription>API Tool sẽ bị xóa vĩnh viễn khỏi workspace. Hành động này không thể hoàn tác.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Hủy bỏ</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => { if (deleteApiToolTarget) { customApiToolStore.remove(deleteApiToolTarget.id); refresh(); } setDeleteApiToolTarget(null); }}
-            >
-              Xóa
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {deleteTarget && (
+        <SpaceDeleteDialog
+          open
+          noun="kết nối"
+          name={deleteTarget.name}
+          originAgentId={deleteTarget.originAgentId}
+          attachedAgentIds={deleteTarget.attachedByAgentIds}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={() => {
+            deleteFromSpace(customConnectorStore, deleteTarget, actor);
+            notifySpaceOwner("resource_deleted", actor, deleteTarget, "kết nối", "/connectors");
+            toast.success(`Đã xóa kết nối "${deleteTarget.name}" khỏi Space.`);
+            refresh();
+          }}
+        />
+      )}
+      {deleteApiToolTarget && (
+        <SpaceDeleteDialog
+          open
+          noun="API Tool"
+          name={deleteApiToolTarget.name}
+          originAgentId={deleteApiToolTarget.originAgentId}
+          attachedAgentIds={deleteApiToolTarget.attachedByAgentIds}
+          onClose={() => setDeleteApiToolTarget(null)}
+          onConfirm={() => {
+            deleteFromSpace(customApiToolStore, deleteApiToolTarget, actor);
+            notifySpaceOwner("resource_deleted", actor, deleteApiToolTarget, "API Tool", "/connectors");
+            toast.success(`Đã xóa API Tool "${deleteApiToolTarget.name}" khỏi Space.`);
+            refresh();
+          }}
+        />
+      )}
 
       {detailTarget && (
         <ConnectorDetailModal
@@ -662,7 +644,7 @@ function MarketplaceConnectorCard({ connector: c, onConnect, onManage }: {
 
 /* ─── Custom Connector card + row menu ───────────────── */
 function CustomConnectorRowMenu({ onView, onEdit, onShare, onPublish, onToggleBlock, isBlocked, onDelete }: {
-  onView?: () => void; onEdit?: () => void; onShare?: () => void; onPublish?: () => void; onToggleBlock?: () => void; isBlocked?: boolean; onDelete: () => void;
+  onView?: () => void; onEdit?: () => void; onShare?: () => void; onPublish?: () => void; onToggleBlock?: () => void; isBlocked?: boolean; onDelete?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -705,9 +687,11 @@ function CustomConnectorRowMenu({ onView, onEdit, onShare, onPublish, onToggleBl
               {isBlocked ? "Bỏ chặn agent mới" : "Chặn dùng trong Agent mới"}
             </button>
           )}
-          <button onClick={() => { setOpen(false); onDelete(); }} className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-destructive/5 transition-base">
-            Xóa
-          </button>
+          {onDelete && (
+            <button onClick={() => { setOpen(false); onDelete(); }} className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-destructive/5 transition-base">
+              Xóa
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -715,7 +699,7 @@ function CustomConnectorRowMenu({ onView, onEdit, onShare, onPublish, onToggleBl
 }
 
 function CustomConnectorCard({ connector: c, tags, isMine, onOpen, onEdit, onShare, onPublish, onToggleBlock, onDelete }: {
-  connector: CustomConnector; tags: OwnershipTag[]; isMine: boolean; onOpen: () => void; onEdit?: () => void; onShare?: () => void; onPublish?: () => void; onToggleBlock?: () => void; onDelete: () => void;
+  connector: CustomConnector; tags: OwnershipTag[]; isMine: boolean; onOpen: () => void; onEdit?: () => void; onShare?: () => void; onPublish?: () => void; onToggleBlock?: () => void; onDelete?: () => void;
 }) {
   const openReq = governanceStore.getOpenRequestForResource("connector", c.id);
   const isApproved = governanceStore.isResourceApproved("connector", c.id);
@@ -803,7 +787,7 @@ const API_METHOD_CLASS: Record<HttpMethod, string> = {
 /** API Tool card — same "Phương án A" ResourceCard shell as a Custom Connector card, with a
  * method badge and the auth type. Menu: Xem chi tiết / Chỉnh sửa / Chia sẻ (owner) / Xóa. */
 function CustomApiToolCard({ tool: a, tags, onOpen, onEdit, onShare, onDelete }: {
-  tool: CustomApiTool; tags: OwnershipTag[]; onOpen: () => void; onEdit?: () => void; onShare?: () => void; onDelete: () => void;
+  tool: CustomApiTool; tags: OwnershipTag[]; onOpen: () => void; onEdit?: () => void; onShare?: () => void; onDelete?: () => void;
 }) {
   return (
     <ResourceCard
