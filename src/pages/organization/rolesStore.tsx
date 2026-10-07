@@ -39,7 +39,7 @@ const ADMIN_IDS = new Set(ALL_PERMISSION_IDS);
  * it creates them inside an Agent (Chỉ Agent này) and shares them up. In the libraries it only
  * sees and edits what was shared with it, so the 4 resource groups carry no "create". */
 const BUILDER_IDS = new Set([
-  "agents.create", "agents.publish", "agents.manage", "agents.pause", "agents.delete",
+  "agents.create", "agents.publish", "agents.manage", "agents.pause", "agents.delete", "agents.export",
   "knowledge.view", "knowledge.publish", "knowledge.manage", "knowledge.pause", "knowledge.delete",
   "skills.view", "skills.publish", "skills.manage", "skills.pause", "skills.delete",
   "guardrails.view", "guardrails.publish", "guardrails.manage", "guardrails.pause", "guardrails.delete",
@@ -59,7 +59,7 @@ const VIEWER_IDS = new Set([
 const BUILDER_SCOPE: ScopeMap = {
   ...defaultScope(),
   "knowledge.view": "own_shared", "skills.view": "own_shared", "guardrails.view": "own_shared", "connectors.view": "own_shared",
-  "agents.publish": "own_shared", "agents.manage": "own_shared", "agents.pause": "own_shared", "agents.delete": "own_shared",
+  "agents.publish": "own_shared", "agents.manage": "own_shared", "agents.pause": "own_shared", "agents.delete": "own_shared", "agents.export": "own_shared",
   "knowledge.publish": "own_shared", "knowledge.manage": "own_shared", "knowledge.pause": "own_shared", "knowledge.delete": "own_shared",
   "skills.publish": "own_shared", "skills.manage": "own_shared", "skills.pause": "own_shared", "skills.delete": "own_shared",
   "guardrails.publish": "own_shared", "guardrails.manage": "own_shared", "guardrails.pause": "own_shared", "guardrails.delete": "own_shared",

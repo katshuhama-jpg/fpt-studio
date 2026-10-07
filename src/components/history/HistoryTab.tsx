@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Search, ChevronLeft, ChevronRight, Waypoints, Clock, Zap } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, Waypoints, Clock, Zap, ThumbsUp, ThumbsDown, Download, X } from "lucide-react";
 import { format, startOfDay, endOfDay } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import { historyStore, CHANNEL_META, type ConversationRecord, type ConversationMessage } from "./historyStore";
 import { buildTrace } from "./traceStore";
 import ChannelLogo from "./ChannelLogo";
-import { TimeRangeFilter, type TimeFilter } from "./TimeRangeFilter";
+import { TimeRangeFilter, TIME_PRESETS, type TimeFilter } from "./TimeRangeFilter";
 import { ChannelFilterDropdown } from "./ChannelFilterDropdown";
+import { FeedbackFilterDropdown, FEEDBACK_FILTERS, matchesFeedback, type FeedbackFilter } from "./FeedbackFilterDropdown";
+import { ExportHistoryDialog } from "./ExportHistoryDialog";
+import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 
 // Above these, Latency / First Token are called out red — same red/green treatment LangSmith's
 // own Latency and First Token badges get on its Traces list — purely a display threshold for
@@ -81,12 +84,16 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
   const [channelFilter, setChannelFilter] = useState("all");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
   const [customRange, setCustomRange] = useState<DateRange | undefined>(undefined);
+  const [feedbackFilter, setFeedbackFilter] = useState<FeedbackFilter>("all");
+  const [exportOpen, setExportOpen] = useState(false);
   const [page, setPage] = useState(1);
+  const { can } = useMyPermissions();
+  const canExport = can("agents.export");
   const PAGE_SIZE = 8;
 
   const allConversations = useMemo(() => historyStore.list(agentId), [agentId]);
 
-  useEffect(() => { setPage(1); }, [query, channelFilter, timeFilter, customRange]);
+  useEffect(() => { setPage(1); }, [query, channelFilter, timeFilter, customRange, feedbackFilter]);
 
   // Land on the most recent conversation by default, instead of an empty "no conversation selected" state.
   useEffect(() => {
@@ -111,6 +118,7 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
     return allConversations
       .filter(c => channelFilter === "all" || c.channel === channelFilter)
       .filter(c => bounds === null || (c.endedAt >= bounds.from && c.endedAt <= bounds.to))
+      .filter(c => matchesFeedback(c, feedbackFilter))
       .filter(c => {
         if (!q) return true;
         if (c.id.toLowerCase().includes(q)) return true;
@@ -118,7 +126,21 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
         return c.messages.some(m => messageMatchesQuery(m, q));
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allConversations, query, channelFilter, timeFilter, customRange]);
+  }, [allConversations, query, channelFilter, timeFilter, customRange, feedbackFilter]);
+
+  // Active filters in words — shown above the table and restated in the Export dialog so the
+  // file always matches what the Builder thinks they're exporting.
+  const filterChips = [
+    query.trim() ? `Search: "${query.trim()}"` : null,
+    channelFilter !== "all" ? `Channel: ${CHANNEL_META[channelFilter as keyof typeof CHANNEL_META]?.label ?? channelFilter}` : null,
+    timeFilter === "custom" && customRange?.from && customRange?.to
+      ? `${format(customRange.from, "dd/MM/yyyy")} → ${format(customRange.to, "dd/MM/yyyy")}`
+      : timeFilter !== "all" ? TIME_PRESETS.find(t => t.id === timeFilter)?.name ?? null : null,
+    feedbackFilter !== "all" ? FEEDBACK_FILTERS.find(f => f.id === feedbackFilter)?.label ?? null : null,
+  ].filter((x): x is string => !!x);
+  const clearFilters = () => {
+    setQuery(""); setChannelFilter("all"); setTimeFilter("all"); setCustomRange(undefined); setFeedbackFilter("all");
+  };
 
   const totalPages = Math.max(1, Math.ceil(visibleConversations.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -140,7 +162,7 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
             className="h-9 w-full pl-8 pr-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base"
           />
         </div>
-        <div className="flex items-center gap-2 mt-2.5">
+        <div className="flex items-center gap-2 mt-2.5 flex-wrap">
           <ChannelFilterDropdown value={channelFilter} onChange={setChannelFilter} />
           <TimeRangeFilter
             value={timeFilter}
@@ -148,8 +170,47 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
             onPreset={v => { setTimeFilter(v); }}
             onApplyCustom={range => { setCustomRange(range); setTimeFilter("custom"); }}
           />
+          <FeedbackFilterDropdown value={feedbackFilter} onChange={setFeedbackFilter} />
+          <span className="flex-1" />
+          {/* Same Export button as External Agent → History, so both history screens match. */}
+          <span title={!canExport ? "You don't have permission to export conversations. Ask an Admin to grant \"Export conversation data\"." : visibleConversations.length === 0 ? "No conversations to export" : undefined}>
+            <button
+              type="button"
+              onClick={() => setExportOpen(true)}
+              disabled={!canExport || visibleConversations.length === 0}
+              className="h-9 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base disabled:opacity-50 disabled:cursor-not-allowed shrink-0 focus-ring"
+            >
+              <Download size={14} aria-hidden />
+              Export
+            </button>
+          </span>
         </div>
+        {hasAnyConversations && (
+          <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground flex-wrap" aria-live="polite">
+            <span className="tabular-nums">
+              {visibleConversations.length} of {allConversations.length} {allConversations.length === 1 ? "conversation" : "conversations"}
+            </span>
+            {filterChips.length > 0 && (
+              <>
+                <span aria-hidden>·</span>
+                {filterChips.map(f => <span key={f} className="chip chip-muted !h-5 !text-[11px]">{f}</span>)}
+                <button type="button" onClick={clearFilters} className="inline-flex items-center gap-0.5 text-primary hover:underline rounded-sm focus-ring">
+                  <X size={12} aria-hidden /> Clear filters
+                </button>
+              </>
+            )}
+          </div>
+        )}
       </div>
+
+      <ExportHistoryDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        agentId={agentId}
+        conversations={visibleConversations}
+        filterChips={filterChips}
+        range={timeBounds(timeFilter)}
+      />
 
       {!hasAnyConversations ? (
         <div className="rounded-2xl border border-dashed border-border bg-gradient-soft p-12 text-center">
@@ -160,18 +221,19 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
         </div>
       ) : visibleConversations.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border bg-surface/50 p-10 text-center">
-          <p className="text-sm text-muted-foreground">No conversations match your filters. Try a different channel, time range, or search term.</p>
+          <p className="text-sm text-muted-foreground">No conversations match your filters. Try a different channel, time range, feedback, or search term.</p>
+          <button type="button" onClick={clearFilters} className="mt-3 text-sm text-primary hover:underline rounded-sm focus-ring">Clear filters</button>
         </div>
       ) : (
         <>
           <div className="rounded-xl border border-border overflow-x-auto">
-            <div className="grid grid-cols-[60px,130px,130px,170px,1fr,1fr,140px,90px,90px,70px,160px,50px] gap-5 px-6 py-2.5 bg-surface-muted section-eyebrow min-w-[1710px]">
+            <div className="grid grid-cols-[60px,130px,130px,170px,1fr,1fr,140px,90px,90px,70px,100px,160px,50px] gap-5 px-6 py-2.5 bg-surface-muted section-eyebrow min-w-[1830px]">
               <div>Turns</div><div>First Start Time</div><div>End time</div><div>Conversation ID</div>
               <div>First Input</div><div>Last Output</div><div>Channel</div>
-              <div>Latency</div><div>First Token</div><div>Tokens</div><div>Last Error</div>
+              <div>Latency</div><div>First Token</div><div>Tokens</div><div>Feedback</div><div>Last Error</div>
               <div className="text-center">Trace</div>
             </div>
-            <div className="divide-y divide-border min-w-[1710px]">
+            <div className="divide-y divide-border min-w-[1830px]">
               {shownConversations.map((c: ConversationRecord) => {
                 const stats = rowStats(c);
                 const slowLatency = stats.latencyMs > SLOW_LATENCY_MS;
@@ -179,7 +241,7 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
                 return (
                 <div
                   key={c.id}
-                  className={`relative w-full grid grid-cols-[60px,130px,130px,170px,1fr,1fr,140px,90px,90px,70px,160px,50px] gap-5 px-6 py-3 items-center transition-base ${
+                  className={`relative w-full grid grid-cols-[60px,130px,130px,170px,1fr,1fr,140px,90px,90px,70px,100px,160px,50px] gap-5 px-6 py-3 items-center transition-base ${
                     c.id === selectedId ? "bg-primary-soft" : "hover:bg-surface-muted/50"
                   }`}
                 >
@@ -210,6 +272,19 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
                     </span>
                   </div>
                   <div className="relative text-sm text-muted-foreground tabular-nums pointer-events-none">{fmtCount(stats.tokens)}</div>
+                  <div
+                    className="relative flex items-center gap-2.5 text-sm tabular-nums pointer-events-none"
+                    aria-label={`${stats.feedbackUp} ${stats.feedbackUp === 1 ? "like" : "likes"}, ${stats.feedbackDown} ${stats.feedbackDown === 1 ? "dislike" : "dislikes"}`}
+                  >
+                    {stats.feedbackUp + stats.feedbackDown === 0 ? (
+                      <span className="text-muted-foreground">-</span>
+                    ) : (
+                      <>
+                        <span className={`inline-flex items-center gap-1 ${stats.feedbackUp ? "text-[hsl(var(--success-strong))]" : "text-muted-foreground"}`}><ThumbsUp size={13} aria-hidden />{stats.feedbackUp}</span>
+                        <span className={`inline-flex items-center gap-1 ${stats.feedbackDown ? "text-destructive font-medium" : "text-muted-foreground"}`}><ThumbsDown size={13} aria-hidden />{stats.feedbackDown}</span>
+                      </>
+                    )}
+                  </div>
                   <div className="relative text-sm truncate pointer-events-none" title={c.error}>
                     {c.error ? <span className="text-destructive">{c.error}</span> : <span className="text-muted-foreground">-</span>}
                   </div>

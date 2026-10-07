@@ -72,6 +72,9 @@ export interface ConversationMessage {
   content: string;
   at: number; // epoch ms
   feedback?: "up" | "down"; // only ever set on role: "agent"
+  /** The reason a user typed when rating this message — users rate individual agent bubbles,
+   * and a dislike usually comes with one. Exported in History → Export. */
+  feedbackComment?: string;
   /** Every tool/connector call this message's production involved, in order. Usually 0 or 1 —
    * an array (not a single optional call) because a real run can retry the same tool more than
    * once before succeeding (see CV-1035 below), and the real tracing spec traces each attempt
@@ -204,6 +207,7 @@ function buildMessages(
     role: "customer" | "agent";
     content: string;
     feedback?: "up" | "down";
+    feedbackComment?: string;
     toolCalls?: Omit<ToolCallInfo, "callId">[];
     guardrail?: ConversationMessage["guardrail"];
     hitl?: ConversationMessage["hitl"];
@@ -218,6 +222,7 @@ function buildMessages(
     content: t.content,
     at: startAt + i * 2 * MIN,
     feedback: t.feedback,
+    feedbackComment: t.feedbackComment,
     guardrail: t.guardrail,
     hitl: t.hitl,
     failure: t.failure,
@@ -536,7 +541,7 @@ function cskhSeed(now: number): Omit<ConversationRecord, "agentId">[] {
           },
         },
         { role: "customer", content: "That's annoying, nobody told me." },
-        { role: "agent", content: "I understand the frustration - I've waived this month's fee as a one-time courtesy and enabled low-balance alerts for you.", feedback: "down" },
+        { role: "agent", content: "I understand the frustration - I've waived this month's fee as a one-time courtesy and enabled low-balance alerts for you.", feedback: "down", feedbackComment: "Vẫn không giải thích vì sao tôi bị trừ phí." },
       ]),
     },
     {
@@ -718,6 +723,7 @@ function hrSeed(now: number): Omit<ConversationRecord, "agentId">[] {
         {
           role: "agent",
           content: "Welcome aboard! Let me pull up your onboarding checklist.",
+          feedback: "up",
           toolCalls: [{
             name: "get_onboarding_checklist",
             connector: "BambooHR",
@@ -752,6 +758,8 @@ function hrSeed(now: number): Omit<ConversationRecord, "agentId">[] {
         {
           role: "agent",
           content: "I've also booked your first 1:1 with your manager, Le Quoc Trung, for this Friday at 2pm.",
+          feedback: "down",
+          feedbackComment: "Tôi chưa đồng ý giờ này, sao tự đặt luôn?",
           toolCalls: [
             {
               name: "schedule_manager_meeting",
@@ -810,11 +818,15 @@ function hrSeed(now: number): Omit<ConversationRecord, "agentId">[] {
           role: "agent",
           content: "So annual leave works on a calendar-year basis and you started in March, which means your entitlement is prorated, and on top of that you carried over two days from last year that expire at the end of Q1, and you've already taken four days, so all things considered you have 9 days left, but keep in mind that public holidays don't count against that and sick leave is tracked separately.",
           failure: { reason: "Câu trả lời không theo cấu trúc bắt buộc trong Instructions (Tóm tắt → Bước tiếp theo)." },
+          feedback: "down",
+          feedbackComment: "Dài quá, đọc mãi mới thấy số ngày phép.",
         },
         { role: "customer", content: "Can you book 3 days off for me next week, Wednesday to Friday?" },
         {
           role: "agent",
           content: "Your manager declined this request - Those dates overlap with the sprint release. Would you like to pick different dates?",
+          feedback: "down",
+          feedbackComment: "Nên gợi ý luôn mấy ngày còn trống.",
           hitl: {
             situation: "tool_approval",
             action: "reject",
@@ -827,6 +839,7 @@ function hrSeed(now: number): Omit<ConversationRecord, "agentId">[] {
         {
           role: "agent",
           content: "Done - Your leave for next-next Wednesday to Friday is submitted and waiting for your manager's approval.",
+          feedback: "up",
           demoLatencyMs: 5400,
         },
       ]),

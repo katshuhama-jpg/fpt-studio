@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { X, Copy, Check, Waypoints, ClipboardList } from "lucide-react";
+import { X, Copy, Check, Waypoints, ClipboardList, ThumbsUp, ThumbsDown } from "lucide-react";
 import { format } from "date-fns";
 import { historyStore, type ConversationMessage } from "./historyStore";
 import { buildMessageAudit } from "./traceStore";
@@ -132,7 +132,26 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
                         >
                           {copiedMessageId === m.id ? <Check size={13} className="text-success" /> : <Copy size={13} />}
                         </button>
+                        {/* The end user's own rating of this one bubble — read-only here; users rate
+                            individual agent messages, so a single turn can carry several. */}
+                        {m.feedback && (
+                          <span
+                            className={`ml-1 inline-flex items-center gap-1 h-5 px-1.5 rounded-full text-[11px] font-medium ${
+                              m.feedback === "up"
+                                ? "bg-success/10 text-[hsl(var(--success-strong))]"
+                                : "bg-destructive/10 text-destructive"
+                            }`}
+                          >
+                            {m.feedback === "up" ? <ThumbsUp size={11} aria-hidden /> : <ThumbsDown size={11} aria-hidden />}
+                            {m.feedback === "up" ? "User liked this" : "User disliked this"}
+                          </span>
+                        )}
                       </div>
+                    )}
+                    {m.role === "agent" && m.feedbackComment && (
+                      <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground border-l-2 border-border pl-2">
+                        <span className="sr-only">User's reason: </span>“{m.feedbackComment}”
+                      </p>
                     )}
                   </div>
                 </div>

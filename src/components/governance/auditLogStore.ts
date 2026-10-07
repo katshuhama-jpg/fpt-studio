@@ -5,7 +5,7 @@
 import { loadMap, saveMap } from "@/lib/sessionPersist";
 import type { GovResourceType } from "./governanceStore";
 
-export type AuditAction = "submitted" | "approved" | "rejected" | "revoked" | "withdrawn" | "rolled_back" | "channel_off";
+export type AuditAction = "submitted" | "approved" | "rejected" | "revoked" | "withdrawn" | "rolled_back" | "channel_off" | "exported";
 
 export interface AuditEntry {
   id: string;
@@ -35,6 +35,7 @@ export const ACTION_LABEL: Record<AuditAction, string> = {
   withdrawn: "Đã rút yêu cầu",
   rolled_back: "Đã khôi phục phiên bản cũ",
   channel_off: "Đã tắt kênh ngoài",
+  exported: "Đã xuất dữ liệu hội thoại",
 };
 
 export interface AuditFilter {
