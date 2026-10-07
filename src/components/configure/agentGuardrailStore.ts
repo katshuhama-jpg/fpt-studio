@@ -126,9 +126,22 @@ export const agentGuardrailStore = {
       name: item.name, desc: item.desc, action: item.action, allAgents: item.allAgents,
       enabled: item.enabled, ownerId: item.ownerId!, ownerName: item.ownerName!, sharing,
     });
+    guardrailConsoleStore.setOriginAgent(created.id, agentId);
     this.remove(agentId, itemId);
     this.attachConsoleGuardrail(agentId, created.id);
     return { guardrailId: created.id };
+  },
+
+  /** Space library "Ai được dùng" save - same rule as agentSkillStore.applySpaceSharing. */
+  applySpaceSharing(guardrailId: string, sharing: Sharing): boolean {
+    const g = guardrailConsoleStore.get(guardrailId);
+    if (!g) return false;
+    if (sharing.mode === "private" && g.originAgentId && !(g.attachedByAgentIds ?? []).some(id => id !== g.originAgentId)) {
+      this.demoteToAgent(g.originAgentId, guardrailId);
+      return true;
+    }
+    guardrailConsoleStore.updateSharing(guardrailId, sharing);
+    return false;
   },
 
   /** Reverse of promoteToConsole — "Tắt chia sẻ" on a guardrail this Agent shared: moves it back

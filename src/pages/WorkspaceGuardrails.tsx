@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { AlertTriangle } from "lucide-react";
 import { getAgent } from "@/components/configure/agentStore";
+import { agentGuardrailStore } from "@/components/configure/agentGuardrailStore";
 
 /** True if `userId` can see this guardrail — always true for mandatory/all-agents compliance
  * rules, otherwise only if they created it, it's shared with every Console user, or it was
@@ -141,7 +142,7 @@ export default function WorkspaceGuardrails() {
     refresh();
   };
   const handleShare = (id: string, sharing: Sharing) => {
-    guardrailConsoleStore.updateSharing(id, sharing);
+    agentGuardrailStore.applySpaceSharing(id, sharing);
     refresh();
   };
 
@@ -164,6 +165,8 @@ export default function WorkspaceGuardrails() {
           sharing={shareItem.sharing ?? { mode: "private", people: [] }}
           resourceOwnerId={shareItem.ownerId}
           attachedAgentIds={shareItem.attachedByAgentIds}
+          agentOnlyFor={shareItem.originAgentId}
+          originAgentName={shareItem.originAgentId ? getAgent(shareItem.originAgentId).name : undefined}
           onSave={sharing => handleShare(shareItem.id, sharing)}
           onClose={() => setShareItem(null)}
         />

@@ -47,6 +47,10 @@ export interface Guardrail {
   attachedByAgentIds: string[];
   createdAt: number;
   updatedAt: number;
+  /** Agent this resource was created in. Kept after it is shared to the Space, so the Space
+   * "Ai được dùng" popup still shows the "Chia sẻ lên Space" switch: turning it off moves the
+   * resource back into that Agent. Unset for resources created in the Space library. */
+  originAgentId?: string;
 }
 
 type StoredGuardrail = Guardrail;
@@ -97,7 +101,7 @@ function seed() {
     attachedByAgentIds: ["cskh"], createdAt: now - 25 * DAY, updatedAt: now - 25 * DAY,
   });
   put({
-    id: "g-8", name: "Data retention notice", desc: "Remind customers of the data retention period whenever personal data is collected.",
+    id: "g-8", originAgentId: "cskh", name: "Data retention notice", desc: "Remind customers of the data retention period whenever personal data is collected.",
     action: "Custom response", mandatory: false, agents: [], enabled: true,
     ownerId: "m-fsoft-ceo", ownerName: "Tran Nam", sharing: { mode: "all", people: [] },
     attachedByAgentIds: [], createdAt: now - 10 * DAY, updatedAt: now - 10 * DAY,
@@ -151,6 +155,13 @@ export const guardrailConsoleStore = {
     const cur = store.get(id);
     if (!cur) return;
     store.set(id, { ...withAllAgentsSharing({ ...cur, sharing }), updatedAt: Date.now() });
+    persist();
+  },
+  /** Records the Agent a resource was first created in (see originAgentId). */
+  setOriginAgent(id: string, agentId: string) {
+    const cur = store.get(id);
+    if (!cur || cur.originAgentId) return;
+    store.set(id, { ...cur, originAgentId: agentId });
     persist();
   },
   // Pausing/resuming a guardrail is a status flip, not a content edit — it must NOT bump

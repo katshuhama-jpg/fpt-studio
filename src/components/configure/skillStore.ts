@@ -17,6 +17,10 @@ export interface Skill {
   /** Agent ids currently linked to this Console skill — same convention as Guardrail's
    * attachedByAgentIds, used to warn before deleting a skill still in use by an Agent. */
   attachedByAgentIds: string[];
+  /** Agent this resource was created in. Kept after it is shared to the Space, so the Space
+   * "Ai được dùng" popup still shows the "Chia sẻ lên Space" switch: turning it off moves the
+   * resource back into that Agent. Unset for resources created in the Space library. */
+  originAgentId?: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -225,7 +229,7 @@ Write the email and save as a draft - Never send without user confirmation.`,
   });
 
   put({
-    id: "weekly-digest", icon: "📊", iconBg: "hsl(38 92% 93%)", name: "weekly-digest",
+    id: "weekly-digest", originAgentId: "nightly-report", icon: "📊", iconBg: "hsl(38 92% 93%)", name: "weekly-digest",
     description: `Runs every Monday. Pulls activity across calendar, Slack, and email and emails the team a summary of last week's performance and highlights.`,
     ownerId: "m-fsoft-ceo", ownerName: "Tran Nam", sharing: { mode: "all", people: [] }, attachedByAgentIds: [],
     body: `# Weekly Digest
@@ -336,6 +340,13 @@ export const skillStore = {
     const cur = store.get(id);
     if (!cur) return;
     store.set(id, { ...cur, sharing, updatedAt: Date.now() });
+    persist();
+  },
+  /** Records the Agent a resource was first created in (see originAgentId). */
+  setOriginAgent(id: string, agentId: string) {
+    const cur = store.get(id);
+    if (!cur || cur.originAgentId) return;
+    store.set(id, { ...cur, originAgentId: agentId });
     persist();
   },
   /** Copies a skill for the current user. "Chỉ mình tôi" no longer exists (every workspace

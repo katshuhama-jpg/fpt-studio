@@ -14,6 +14,8 @@ export default function SkillShareModal(props: {
   resourceOwnerId?: string;
   attachedAgentIds?: string[];
   agentOnlyFor?: string;
+  /** Space library: name of the Agent the resource came from (labels the switch). */
+  originAgentName?: string;
 }) {
   return (
     <ResourceAccessModal

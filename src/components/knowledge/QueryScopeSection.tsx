@@ -191,6 +191,8 @@ export interface AccessCopy {
   allHelper: string; specificHelper: string; privateHelper: string;
   /** Inside an Agent: helper under the "Chia sẻ lên Space" switch while it is off. */
   shareOffHelper: string;
+  /** Space library, resource not created in an Agent: helper while the switch is off. */
+  ownerOffHelper: string;
 }
 /** Label of the switch that turns Space sharing on for a resource created inside an Agent. */
 export const SHARE_TO_SPACE_LABEL = "Chia sẻ lên Space";
@@ -204,12 +206,13 @@ export function resourceAccessCopy(noun: string): AccessCopy {
     specificHelper: `Chỉ người bạn chọn mới liên kết được ${noun} vào Agent.`,
     privateHelper: `Không chia sẻ. Chỉ Agent bạn đang chỉnh sửa dùng được ${noun}.`,
     shareOffHelper: `Đang tắt - Chỉ Agent này dùng được ${noun}.`,
+    ownerOffHelper: `Đang tắt - Chỉ bạn liên kết được ${noun} vào Agent.`,
   };
 }
 
 /** "Quyền truy cập" block — title, description, option cards and the member picker. Knowledge
  * copy by default; other resources pass `copy` (see resourceAccessCopy) and their own `picker`. */
-export function AccessScopeSection({ mode, people, onModeChange, onPeopleChange, submitAttempted, ownerRow, agentOnly = false, hideTitle = false, copy, picker }: {
+export function AccessScopeSection({ mode, people, onModeChange, onPeopleChange, submitAttempted, ownerRow, agentOnly = false, agentName, hideTitle = false, copy, picker }: {
   mode: SharingMode;
   people: SharedPerson[];
   onModeChange: (m: SharingMode) => void;
@@ -218,6 +221,8 @@ export function AccessScopeSection({ mode, people, onModeChange, onPeopleChange,
   ownerRow: { name: string; email: string };
   /** Inside an Agent, for knowledge that Agent owns — adds "Chỉ Agent này". */
   agentOnly?: boolean;
+  /** Space library, resource created in an Agent: names that Agent in the switch's "off" text. */
+  agentName?: string;
   /** Set inside a popup whose own title already says "Quyền truy cập". */
   hideTitle?: boolean;
   copy?: AccessCopy;
@@ -228,16 +233,20 @@ export function AccessScopeSection({ mode, people, onModeChange, onPeopleChange,
     ? ACCESS_OPTIONS.map(o => ({ ...o, helper: o.value === "all" ? copy.allHelper : copy.specificHelper }))
     : ACCESS_OPTIONS;
   const description = copy ? (agentOnly ? copy.agentDescription : copy.description) : (agentOnly ? ACCESS_COPY.agentDescription : ACCESS_COPY.description);
-  // Inside an Agent: sharing is a switch. Off = "private" (only this Agent uses it). On = the two
+  // Sharing is a switch everywhere. Off = "private": inside an Agent (or for a resource created in
+  // one) only that Agent uses it; in the Space library only the owner can link it. On = the two
   // Space options; switching off then on again brings back the option picked before.
-  const shared = !agentOnly || mode !== "private";
+  const shared = mode !== "private";
   const lastShared = useRef<SharingMode>(mode === "private" ? "all" : mode);
   if (mode !== "private") lastShared.current = mode;
-  const offHelper = copy?.shareOffHelper ?? "Đang tắt - Chỉ Agent này dùng được kho này.";
+  const baseOff = agentOnly
+    ? (copy?.shareOffHelper ?? "Đang tắt - Chỉ Agent này dùng được kho này.")
+    : (copy?.ownerOffHelper ?? "Đang tắt - Chỉ bạn liên kết được kho này vào Agent.");
+  const offHelper = agentName ? baseOff.replace("Chỉ Agent này", `Chỉ Agent "${agentName}"`) : baseOff;
   return (
     <div>
       <PermissionHeading title={copy?.title ?? ACCESS_COPY.title} description={description} hideTitle={hideTitle} audience="builders" />
-      {agentOnly && (
+      {(
         <label className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-3.5 py-3 mb-2 cursor-pointer">
           <span className="min-w-0">
             <span className="block text-sm font-semibold text-foreground">{SHARE_TO_SPACE_LABEL}</span>

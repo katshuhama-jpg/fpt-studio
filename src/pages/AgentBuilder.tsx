@@ -4953,8 +4953,8 @@ function ConnectorsInner({ agentId, onRegisterAdd, onChange }: { agentId: string
           onClose={() => setShowPicker(false)}
           mode={pickerMode}
           onChangeMode={() => { setShowPicker(false); setShowMenu(true); }}
-          onCreatedCustom={connector => toggleConnector(`${CUSTOM_CONNECTOR_PREFIX}${connector.id}`)}
-          onCreatedApiTool={tool => toggleConnector(`${API_TOOL_PREFIX}${tool.id}`)}
+          onCreatedCustom={connector => { customConnectorStore.setOriginAgent(connector.id, agentId); toggleConnector(`${CUSTOM_CONNECTOR_PREFIX}${connector.id}`); }}
+          onCreatedApiTool={tool => { customApiToolStore.setOriginAgent(tool.id, agentId); toggleConnector(`${API_TOOL_PREFIX}${tool.id}`); }}
         />
       )}
 

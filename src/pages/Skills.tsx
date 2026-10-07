@@ -12,6 +12,7 @@ import { useOrg } from "@/pages/organization/orgStore";
 import { collectMembers } from "@/pages/organization/orgData";
 import { skillStore, type Skill } from "@/components/configure/skillStore";
 import { getAgent } from "@/components/configure/agentStore";
+import { agentSkillStore } from "@/components/configure/agentSkillStore";
 import { isAccessibleTo, isViewOnly, type Sharing } from "@/components/configure/skillSharing";
 import CreateSkillModal, { type SkillFormData } from "@/components/configure/CreateSkillModal";
 import CreateSkillChoiceModal from "@/components/configure/CreateSkillChoiceModal";
@@ -374,7 +375,9 @@ export default function Skills() {
           sharing={shareTarget.sharing}
           resourceOwnerId={shareTarget.ownerId}
           attachedAgentIds={shareTarget.attachedByAgentIds}
-          onSave={(sharing: Sharing) => { skillStore.updateSharing(shareTarget.id, sharing); refresh(); }}
+          agentOnlyFor={shareTarget.originAgentId}
+          originAgentName={shareTarget.originAgentId ? getAgent(shareTarget.originAgentId).name : undefined}
+          onSave={(sharing: Sharing) => { agentSkillStore.applySpaceSharing(shareTarget.id, sharing); refresh(); }}
           onClose={() => setShareTarget(null)}
         />
       )}

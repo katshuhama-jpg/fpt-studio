@@ -41,7 +41,7 @@ export default function AddCustomConnectorModal({ editing, onClose, onCreated, o
     editing?.headers.length ? editing.headers.map(h => ({ ...h })) : [{ key: "", value: "" }],
   );
   const [revealed, setRevealed] = useState<Set<number>>(new Set());
-  const [sharingMode, setSharingMode] = useState<SharingMode>(!editing || editing.sharing.mode === "private" ? "all" : editing.sharing.mode);
+  const [sharingMode, setSharingMode] = useState<SharingMode>(!editing ? "all" : editing.sharing.mode);
   const [people, setPeople] = useState<SharedPerson[]>(editing?.sharing.people ?? []);
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [urlTouched, setUrlTouched] = useState(false);

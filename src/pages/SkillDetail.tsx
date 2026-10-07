@@ -14,6 +14,8 @@ import { skillStore } from "@/components/configure/skillStore";
 import { isAccessibleTo, isViewOnly, type Sharing } from "@/components/configure/skillSharing";
 import SkillOwnershipTag from "@/components/configure/SkillOwnershipTag";
 import CreateSkillModal, { type SkillFormData } from "@/components/configure/CreateSkillModal";
+import { getAgent } from "@/components/configure/agentStore";
+import { agentSkillStore } from "@/components/configure/agentSkillStore";
 import SkillShareModal from "@/components/configure/SkillShareModal";
 import RequestPublishModal from "@/components/governance/RequestPublishModal";
 import { governanceStore } from "@/components/governance/governanceStore";
@@ -231,7 +233,13 @@ export default function SkillDetail() {
           sharing={skill.sharing}
           resourceOwnerId={skill.ownerId}
           attachedAgentIds={skill.attachedByAgentIds}
-          onSave={(sharing: Sharing) => { skillStore.updateSharing(skill.id, sharing); refresh(); }}
+          agentOnlyFor={skill.originAgentId}
+          originAgentName={skill.originAgentId ? getAgent(skill.originAgentId).name : undefined}
+          onSave={(sharing: Sharing) => {
+            // Switch turned off: the skill goes back into the Agent it came from - open it there.
+            if (agentSkillStore.applySpaceSharing(skill.id, sharing)) navigate(`/agents/${skill.originAgentId}?tab=build&section=skills`);
+            else refresh();
+          }}
           onClose={() => setShowShare(false)}
         />
       )}

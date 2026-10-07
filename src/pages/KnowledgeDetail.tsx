@@ -409,7 +409,8 @@ export default function KnowledgeDetail() {
           sharing={kb.sharing}
           resourceOwnerId={kb.ownerId}
           attachedAgentIds={kb.attachedByAgentIds}
-          agentOnlyFor={kb.agentOnlyFor}
+          agentOnlyFor={kb.agentOnlyFor ?? kb.originAgentId}
+          originAgentName={!viaOwningAgent && kb.originAgentId ? getAgent(kb.originAgentId).name : undefined}
           onSave={sharing => knowledgeBaseStore.updateSharing(kb.id, sharing)}
           onClose={() => { setShowShare(false); refresh(); }}
         />

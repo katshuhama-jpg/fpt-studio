@@ -17,7 +17,7 @@ import { REVOKED_COPY } from "@/components/governance/revokedResources";
  * Knowledge item's "Quyền" (S14), so both share the exact same sharing UI and copy instead of
  * drifting into two pickers. The caller owns persistence via onSave. */
 export default function ShareKnowledgeBaseModal({
-  open, onClose, name, ownerName, sharing: initialSharing, onSave, resourceOwnerId, attachedAgentIds, title = ACCESS_COPY.title, agentOnlyFor,
+  open, onClose, name, ownerName, sharing: initialSharing, onSave, resourceOwnerId, attachedAgentIds, title = ACCESS_COPY.title, agentOnlyFor, originAgentName,
 }: {
   open: boolean;
   onClose: () => void;
@@ -34,8 +34,10 @@ export default function ShareKnowledgeBaseModal({
   /** Agent id when opened inside an Agent for a resource that Agent owns — adds the
    * "Chỉ Agent này" option (turning sharing off). */
   agentOnlyFor?: string;
+  /** Opened from the Space library for a knowledge base created in an Agent: that Agent's name. */
+  originAgentName?: string;
 }) {
-  const [mode, setMode] = useState<SharingMode>(initialSharing.mode === "private" && !agentOnlyFor ? "all" : initialSharing.mode);
+  const [mode, setMode] = useState<SharingMode>(initialSharing.mode);
   const [people, setPeople] = useState(initialSharing.people);
   const [blockingAgents, setBlockingAgents] = useState<AgentRecord[]>([]);
   const [showRevokeConfirm, setShowRevokeConfirm] = useState(false);
@@ -71,7 +73,10 @@ export default function ShareKnowledgeBaseModal({
     if (mode === "private") {
       // Turning sharing off: allowed, but every OTHER Agent using the knowledge base loses it -
       // confirm first (they show it as "Đã bị thu hồi").
-      const others = agentsUsing((attachedAgentIds ?? []).filter(id => id !== agentOnlyFor));
+      // Back to one Agent: every other Agent loses it. Space-only owner: other people's Agents do.
+      const others = agentOnlyFor
+        ? agentsUsing((attachedAgentIds ?? []).filter(id => id !== agentOnlyFor))
+        : agentsBlockingUnshare(attachedAgentIds, resourceOwnerId, { mode, people: [] });
       if (others.length > 0) { setBlockingAgents(others); return; }
       if (initialSharing.mode !== "private") { setShowRevokeConfirm(true); return; }
       applySave();
@@ -105,6 +110,7 @@ export default function ShareKnowledgeBaseModal({
               submitAttempted={submitAttempted}
               ownerRow={{ name: ownerName, email: "" }}
               agentOnly={!!agentOnlyFor}
+              agentName={originAgentName}
               hideTitle={title === ACCESS_COPY.title}
             />
           </div>
@@ -122,7 +128,7 @@ export default function ShareKnowledgeBaseModal({
             {mode === "private" ? (
               <>
                 <AlertDialogTitle>Tắt chia sẻ?</AlertDialogTitle>
-                <AlertDialogDescription>Chỉ Agent này dùng được kho này. Người khác sẽ không liên kết được kho vào Agent của họ nữa.</AlertDialogDescription>
+                <AlertDialogDescription>{agentOnlyFor ? `Chỉ Agent ${originAgentName ? `"${originAgentName}"` : "này"} dùng được kho này.` : "Chỉ bạn liên kết được kho này vào Agent."} Người khác sẽ không liên kết được kho vào Agent của họ nữa.</AlertDialogDescription>
               </>
             ) : (
               <>

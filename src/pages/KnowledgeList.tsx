@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { getAgent } from "@/components/configure/agentStore";
 import {
   Plus, ChevronDown, Search, MoreVertical, AlertTriangle, BookOpen, FolderKanban,
 } from "lucide-react";
@@ -399,6 +400,8 @@ export default function KnowledgeList() {
           sharing={shareTarget.sharing}
           resourceOwnerId={shareTarget.ownerId}
           attachedAgentIds={shareTarget.attachedByAgentIds}
+          agentOnlyFor={shareTarget.agentOnlyFor ?? shareTarget.originAgentId}
+          originAgentName={shareTarget.originAgentId ? getAgent(shareTarget.originAgentId).name : undefined}
           onSave={sharing => knowledgeBaseStore.updateSharing(shareTarget.id, sharing)}
           onClose={() => { setShareTarget(null); refresh(); }}
         />

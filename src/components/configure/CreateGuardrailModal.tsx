@@ -44,7 +44,7 @@ export default function CreateGuardrailModal({ onClose, onSubmit, initialData, c
   const [response, setResponse] = useState<ResponseKind>(actionToResponse(initialData?.action) ?? "auto");
   const [fixedText, setFixedText] = useState("");
   const [allAgents, setAllAgents] = useState(initialData?.allAgents ?? false);
-  const [sharingMode, setSharingMode] = useState<SharingMode>(!initialData ? (agentOnly ? "private" : "all") : initialData.sharing.mode === "private" ? "all" : initialData.sharing.mode);
+  const [sharingMode, setSharingMode] = useState<SharingMode>(!initialData ? (agentOnly ? "private" : "all") : initialData.sharing.mode);
   const [people, setPeople] = useState<SharedPerson[]>(initialData?.sharing?.people ?? []);
   const [submitAttempted, setSubmitAttempted] = useState(false);
 

@@ -30,6 +30,10 @@ export interface CustomConnector {
   /** Agent ids currently attaching this custom connector — drives the Delete warning
    * ("N Agent đang dùng custom connector này và sẽ mất..."). */
   attachedByAgentIds: string[];
+  /** Agent this resource was created in. Kept after it is shared to the Space, so the Space
+   * "Ai được dùng" popup still shows the "Chia sẻ lên Space" switch: turning it off moves the
+   * resource back into that Agent. Unset for resources created in the Space library. */
+  originAgentId?: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -59,7 +63,7 @@ function seed() {
 
   // Owned by current user — shared to all Console users
   put({
-    id: "cc-2", name: "finance-reporting-mcp", url: "https://mcp.finance.fpt.com/reports",
+    id: "cc-2", originAgentId: "nightly-report", name: "finance-reporting-mcp", url: "https://mcp.finance.fpt.com/reports",
     authType: "none", headers: [],
     ownerId: CURRENT_USER.id, ownerName: CURRENT_USER.name,
     sharing: { mode: "all", people: [] },
@@ -111,6 +115,13 @@ export const customConnectorStore = {
     const cur = store.get(id);
     if (!cur) return;
     store.set(id, { ...cur, sharing, updatedAt: Date.now() });
+    persist();
+  },
+  /** Records the Agent a resource was first created in (see originAgentId). */
+  setOriginAgent(id: string, agentId: string) {
+    const cur = store.get(id);
+    if (!cur || cur.originAgentId) return;
+    store.set(id, { ...cur, originAgentId: agentId });
     persist();
   },
   /** Edits an existing Custom Connector's connection details (Name/URL/Authentication). Sharing

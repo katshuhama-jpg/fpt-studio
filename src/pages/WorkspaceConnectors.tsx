@@ -443,6 +443,8 @@ export default function WorkspaceConnectors() {
           sharing={shareApiToolTarget.sharing}
           resourceOwnerId={shareApiToolTarget.ownerId}
           attachedAgentIds={shareApiToolTarget.attachedByAgentIds}
+          agentOnlyFor={shareApiToolTarget.originAgentId}
+          originAgentName={shareApiToolTarget.originAgentId ? getAgent(shareApiToolTarget.originAgentId).name : undefined}
           onSave={sharing => { customApiToolStore.updateSharing(shareApiToolTarget.id, sharing); refresh(); }}
           onClose={() => setShareApiToolTarget(null)}
         />
@@ -493,6 +495,8 @@ export default function WorkspaceConnectors() {
           sharing={shareTarget.sharing}
           resourceOwnerId={shareTarget.ownerId}
           attachedAgentIds={shareTarget.attachedByAgentIds}
+          agentOnlyFor={shareTarget.originAgentId}
+          originAgentName={shareTarget.originAgentId ? getAgent(shareTarget.originAgentId).name : undefined}
           onSave={sharing => { customConnectorStore.updateSharing(shareTarget.id, sharing); refresh(); }}
           onClose={() => setShareTarget(null)}
         />

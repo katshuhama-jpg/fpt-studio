@@ -14,6 +14,8 @@ export default function CustomConnectorShareModal(props: {
   resourceOwnerId?: string;
   attachedAgentIds?: string[];
   agentOnlyFor?: string;
+  /** Space library: name of the Agent the resource came from (labels the switch). */
+  originAgentName?: string;
   /** Kept for callers; the popup title is always "Quyền truy cập". */
   title?: string;
   /** "API Tool" when reused for an API Tool. */

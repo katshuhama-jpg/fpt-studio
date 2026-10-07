@@ -31,7 +31,7 @@ export default function CreateKnowledgeBaseModal({
   const isEdit = !!editingKb;
   const [name, setName] = useState(editingKb?.name ?? "");
   const [description, setDescription] = useState(editingKb?.description ?? "");
-  const [sharingMode, setSharingMode] = useState<SharingMode>(!editingKb ? (agentOnlyFor ? "private" : "all") : editingKb.sharing.mode === "private" && !editingKb.agentOnlyFor ? "all" : editingKb.sharing.mode);
+  const [sharingMode, setSharingMode] = useState<SharingMode>(!editingKb ? (agentOnlyFor ? "private" : "all") : editingKb.sharing.mode);
   const [people, setPeople] = useState(editingKb?.sharing.people ?? []);
   const [querySharing, setQuerySharing] = useState<QuerySharing>(editingKb?.querySharing ?? DEFAULT_QUERY_SHARING);
   const [nameTouched, setNameTouched] = useState(false);

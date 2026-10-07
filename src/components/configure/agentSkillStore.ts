@@ -144,9 +144,25 @@ export const agentSkillStore = {
       icon: item.icon, iconBg: item.iconBg,
       ownerId: item.ownerId, ownerName: item.ownerName, sharing,
     });
+    skillStore.setOriginAgent(created.id, agentId);
     this.remove(agentId, itemId);
     this.attachConsoleSkill(agentId, created.id);
     return { skillId: created.id };
+  },
+
+  /** Space library "Ai được dùng" save. Turning the "Chia sẻ lên Space" switch off on a skill
+   * that was created in an Agent moves it back into that Agent - unless other Agents still link
+   * it, then it stays in the Space unshared (their link shows "Đã bị thu hồi"). Returns true when
+   * the skill left the Space library. */
+  applySpaceSharing(skillId: string, sharing: Sharing): boolean {
+    const s = skillStore.get(skillId);
+    if (!s) return false;
+    if (sharing.mode === "private" && s.originAgentId && !s.attachedByAgentIds.some(id => id !== s.originAgentId)) {
+      this.demoteToAgent(s.originAgentId, skillId);
+      return true;
+    }
+    skillStore.updateSharing(skillId, sharing);
+    return false;
   },
 
   /** Reverse of promoteToConsole — "Tắt chia sẻ" on a skill this Agent shared: moves it back

@@ -80,6 +80,10 @@ export interface KnowledgeBase {
    * "Kho tri thức riêng của Agent" section and is hidden from the Space library and the
    * "Liên kết kho tri thức" popup. Cleared once "Ai được dùng" opens it to the Space. */
   agentOnlyFor?: string;
+  /** Agent this resource was created in. Kept after it is shared to the Space, so the Space
+   * "Ai được dùng" popup still shows the "Chia sẻ lên Space" switch: turning it off moves the
+   * resource back into that Agent. Unset for resources created in the Space library. */
+  originAgentId?: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -151,7 +155,7 @@ function seed() {
 
   // Owned by current user — shared with 3 specific people
   put({
-    id: "kb-3", name: "Tài liệu vận hành nội bộ",
+    id: "kb-3", originAgentId: "cskh", name: "Tài liệu vận hành nội bộ",
     description: "Quy trình vận hành, mẫu email và hướng dẫn xử lý sự cố nội bộ.",
     type: "internal", ownerId: CURRENT_USER.id, ownerName: CURRENT_USER.name,
     sharing: {
@@ -251,7 +255,7 @@ export const knowledgeBaseStore = {
   setAgentOnly(id: string, agentId: string) {
     const cur = store.get(id);
     if (!cur) return;
-    store.set(id, { ...cur, agentOnlyFor: agentId, sharing: { mode: "private", people: [] }, updatedAt: Date.now() });
+    store.set(id, { ...cur, agentOnlyFor: agentId, originAgentId: cur.originAgentId ?? agentId, sharing: { mode: "private", people: [] }, updatedAt: Date.now() });
     persist();
   },
   create(data: {
@@ -269,7 +273,7 @@ export const knowledgeBaseStore = {
       ownerId: CURRENT_USER.id, ownerName: CURRENT_USER.name, sharing: data.sharing,
       querySharing: data.querySharing ?? DEFAULT_QUERY_SHARING,
       apiEndpoint: data.apiEndpoint, hasApiKey: data.hasApiKey,
-      attachedByAgentIds: [], agentOnlyFor: data.agentOnlyFor, createdAt: now, updatedAt: now,
+      attachedByAgentIds: [], agentOnlyFor: data.agentOnlyFor, originAgentId: data.agentOnlyFor, createdAt: now, updatedAt: now,
     };
     store.set(id, kb);
     persist();
@@ -284,9 +288,11 @@ export const knowledgeBaseStore = {
   updateSharing(id: string, sharing: Sharing) {
     const cur = store.get(id);
     if (!cur) return;
-    // Opening an Agent-only KB to people in the Space moves it into the Space library.
-    const agentOnlyFor = sharing.mode === "private" ? cur.agentOnlyFor : undefined;
-    store.set(id, { ...cur, sharing, agentOnlyFor, updatedAt: Date.now() });
+    // Opening an Agent-only KB to people in the Space moves it into the Space library; turning
+    // sharing off (from the Space too) moves it back into the Agent it was created in.
+    const originAgentId = cur.originAgentId ?? cur.agentOnlyFor;
+    const agentOnlyFor = sharing.mode === "private" ? (cur.agentOnlyFor ?? originAgentId) : undefined;
+    store.set(id, { ...cur, sharing, agentOnlyFor, originAgentId, updatedAt: Date.now() });
     persist();
   },
   updateQuerySharing(id: string, querySharing: QuerySharing) {

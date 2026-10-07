@@ -1,5 +1,5 @@
 import type { KeyboardEvent, ReactNode } from "react";
-import { Info, ShieldCheck, User, Users } from "lucide-react";
+import { EyeOff, Info, ShieldCheck, User, Users } from "lucide-react";
 
 /**
  * Ownership tags + the shared "Phương án A" resource card used by every Space resource library
@@ -68,6 +68,9 @@ function inSpace(tags: OwnershipTag[]): boolean {
 }
 
 export function matchesTab(tags: OwnershipTag[], tab: OwnershipTab): boolean {
+  // The owner's own resource with "Chia sẻ lên Space" turned off: only its owner sees it, under
+  // "Tất cả" (chip "Của tôi" without "Đã chia sẻ"), so it can be shared again.
+  if (tags.length === 1 && tags[0] === "mine") return tab === "all";
   if (!inSpace(tags)) return false;
   if (tab === "all") return true;
   if (tab === "mine") return tags.includes("mine") && tags.includes("shared");
@@ -108,6 +111,12 @@ export function OwnershipTagList({ tags, className = "" }: { tags: OwnershipTag[
   if (tags.length === 0) return null;
   return (
     <div className={`flex flex-wrap items-center gap-1.5 ${className}`}>
+      {/* Owner's own resource with "Chia sẻ lên Space" off - only they see it in the library. */}
+      {tags.length === 1 && tags[0] === "mine" && (
+        <span className="order-last inline-flex items-center gap-1 rounded-full px-2 py-[3px] text-xs font-medium leading-none whitespace-nowrap bg-surface-sunken text-muted-foreground">
+          <EyeOff size={12} aria-hidden /> Chưa chia sẻ
+        </span>
+      )}
       {tags.filter(t => TAG_META[t]).map(t => {
         const m = TAG_META[t]!;
         const Icon = m.icon;

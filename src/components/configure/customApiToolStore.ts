@@ -54,6 +54,10 @@ export interface CustomApiTool {
   attachedByAgentIds: string[];
   createdAt: number;
   updatedAt: number;
+  /** Agent this resource was created in. Kept after it is shared to the Space, so the Space
+   * "Ai được dùng" popup still shows the "Chia sẻ lên Space" switch: turning it off moves the
+   * resource back into that Agent. Unset for resources created in the Space library. */
+  originAgentId?: string;
 }
 
 export const DEFAULT_TIMEOUT_SEC = 30;
@@ -194,6 +198,13 @@ export const customApiToolStore = {
     const cur = store.get(id);
     if (!cur) return;
     store.set(id, { ...normalize(cur), sharing, updatedAt: Date.now() });
+    persist();
+  },
+  /** Records the Agent a resource was first created in (see originAgentId). */
+  setOriginAgent(id: string, agentId: string) {
+    const cur = store.get(id);
+    if (!cur || cur.originAgentId) return;
+    store.set(id, { ...cur, originAgentId: agentId });
     persist();
   },
   addAttachingAgent(id: string, agentId: string) {
