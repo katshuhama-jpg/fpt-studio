@@ -189,14 +189,12 @@ export function isQueryScopeValid(v: QuerySharing): boolean {
 export interface AccessCopy {
   title: string; description: string; agentDescription: string;
   allHelper: string; specificHelper: string; privateHelper: string;
-  /** Inside an Agent: helper under the "Chia sẻ lên Space" switch while it is off. */
-  shareOffHelper: string;
-  /** Space library, resource not created in an Agent: helper while the switch is off. */
-  ownerOffHelper: string;
+  /** Fixed helper under the "Chia sẻ lên Space" switch - says what the switch does, the same
+   * whether it is on or off (the switch itself shows the state). */
+  switchHelper: string;
 }
 /** Label of the switch that turns Space sharing on for a resource created inside an Agent. */
 export const SHARE_TO_SPACE_LABEL = "Chia sẻ lên Space";
-const SHARE_ON_HELPER = "Đang bật - Chọn ai trong Space được dùng.";
 export function resourceAccessCopy(noun: string): AccessCopy {
   return {
     title: `Ai được dùng ${noun}`,
@@ -205,8 +203,7 @@ export function resourceAccessCopy(noun: string): AccessCopy {
     allHelper: `Mọi thành viên Space đều liên kết được ${noun} vào Agent.`,
     specificHelper: `Chỉ người bạn chọn mới liên kết được ${noun} vào Agent.`,
     privateHelper: `Không chia sẻ. Chỉ Agent bạn đang chỉnh sửa dùng được ${noun}.`,
-    shareOffHelper: `Đang tắt - Chỉ Agent này dùng được ${noun}.`,
-    ownerOffHelper: `Đang tắt - Chỉ bạn liên kết được ${noun} vào Agent.`,
+    switchHelper: `Bật để người khác trong Space liên kết được ${noun} vào Agent của họ.`,
   };
 }
 
@@ -221,7 +218,7 @@ export function AccessScopeSection({ mode, people, onModeChange, onPeopleChange,
   ownerRow: { name: string; email: string };
   /** Inside an Agent, for knowledge that Agent owns — adds "Chỉ Agent này". */
   agentOnly?: boolean;
-  /** Space library, resource created in an Agent: names that Agent in the switch's "off" text. */
+  /** Space library, resource created in an Agent: that Agent's name (the confirm dialog names it; the switch helper is fixed). */
   agentName?: string;
   /** Set inside a popup whose own title already says "Quyền truy cập". */
   hideTitle?: boolean;
@@ -239,10 +236,7 @@ export function AccessScopeSection({ mode, people, onModeChange, onPeopleChange,
   const shared = mode !== "private";
   const lastShared = useRef<SharingMode>(mode === "private" ? "all" : mode);
   if (mode !== "private") lastShared.current = mode;
-  const baseOff = agentOnly
-    ? (copy?.shareOffHelper ?? "Đang tắt - Chỉ Agent này dùng được kho này.")
-    : (copy?.ownerOffHelper ?? "Đang tắt - Chỉ bạn liên kết được kho này vào Agent.");
-  const offHelper = agentName ? baseOff.replace("Chỉ Agent này", `Chỉ Agent "${agentName}"`) : baseOff;
+  const switchHelper = copy?.switchHelper ?? "Bật để người khác trong Space liên kết được kho này vào Agent của họ.";
   return (
     <div>
       <PermissionHeading title={copy?.title ?? ACCESS_COPY.title} description={description} hideTitle={hideTitle} audience="builders" />
@@ -250,7 +244,7 @@ export function AccessScopeSection({ mode, people, onModeChange, onPeopleChange,
         <label className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-3.5 py-3 mb-2 cursor-pointer">
           <span className="min-w-0">
             <span className="block text-sm font-semibold text-foreground">{SHARE_TO_SPACE_LABEL}</span>
-            <span className="block text-xs text-muted-foreground mt-0.5">{shared ? SHARE_ON_HELPER : offHelper}</span>
+            <span className="block text-xs text-muted-foreground mt-0.5">{switchHelper}</span>
           </span>
           <Switch
             checked={shared}
