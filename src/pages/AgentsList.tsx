@@ -1,10 +1,13 @@
+import type React from "react";
 import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Add01Icon, Search01Icon, FilterIcon, MoreVerticalIcon, Chat01Icon, Activity01Icon,
-  SparklesIcon, Cancel01Icon, BoltIcon, TimeScheduleIcon,
+  SparklesIcon, Cancel01Icon, BoltIcon, TimeScheduleIcon, UserMultipleIcon,
 } from "@hugeicons/core-free-icons";
+import ShareAgentModal, { useCanShareAgent } from "@/components/configure/ShareAgentModal";
+import { useAgentShareVersion } from "@/components/configure/agentShareStore";
 import { useState, useMemo, useEffect } from "react";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import { useGroupAccess, isOwnedOrShared } from "@/pages/organization/scopeAccess";
@@ -225,6 +228,44 @@ function TemplateModal({ onClose }: { onClose: () => void }) {
 
 /* ─── Agent cards (R2) ──────────────────────────────────────────────── */
 
+/** "⋯" on a card — "Chia sẻ" for the Agent's owner or an Admin (see useCanShareAgent). Lives
+ * inside the card's <Link>, so every click stops the navigation. */
+function AgentCardMenu({ agentId }: { agentId: string }) {
+  const canShare = useCanShareAgent(agentId);
+  const [open, setOpen] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const stop = (e: React.SyntheticEvent) => { e.preventDefault(); e.stopPropagation(); };
+  if (!canShare) return null;
+  return (
+    <div className="relative" onClick={stop}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        aria-label="Thêm thao tác"
+        className={`${open ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100"} transition-base text-muted-foreground hover:text-foreground p-1 rounded-md hover:bg-surface-muted`}
+      >
+        <HugeiconsIcon icon={MoreVerticalIcon} size={14} />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full mt-1 z-20 w-40 rounded-lg border border-border bg-white shadow-elev py-1">
+            <button
+              onClick={() => { setOpen(false); setSharing(true); }}
+              className="w-full flex items-center gap-2 text-left px-3 py-1.5 text-sm text-foreground hover:bg-surface-muted"
+            >
+              <HugeiconsIcon icon={UserMultipleIcon} size={14} /> Chia sẻ
+            </button>
+          </div>
+        </>
+      )}
+      {sharing && createPortal(
+        <div onClick={e => e.stopPropagation()}><ShareAgentModal agentId={agentId} open onClose={() => setSharing(false)} /></div>,
+        document.body,
+      )}
+    </div>
+  );
+}
+
 function ConversationalCard({ a }: { a: typeof agents[number] }) {
   return (
     <Link
@@ -240,9 +281,7 @@ function ConversationalCard({ a }: { a: typeof agents[number] }) {
             <h3 className="font-semibold text-sm truncate mb-0.5">{a.name}</h3>
             <AgentVersionLines agentId={a.id} />
           </div>
-          <button className="opacity-0 group-hover:opacity-100 transition-base text-muted-foreground hover:text-foreground p-1">
-            <HugeiconsIcon icon={MoreVerticalIcon} size={14} />
-          </button>
+          <AgentCardMenu agentId={a.id} />
         </div>
 
         <p className="text-xs text-muted-foreground leading-relaxed mb-4 line-clamp-2 min-h-[32px]">{a.desc}</p>
@@ -307,9 +346,7 @@ function AutomationCard({ a }: { a: typeof agents[number] }) {
             <h3 className="font-semibold text-sm truncate mb-0.5">{a.name}</h3>
             <AgentVersionLines agentId={a.id} />
           </div>
-          <button className="opacity-0 group-hover:opacity-100 transition-base text-muted-foreground hover:text-foreground p-1">
-            <HugeiconsIcon icon={MoreVerticalIcon} size={14} />
-          </button>
+          <AgentCardMenu agentId={a.id} />
         </div>
 
         <p className="text-xs text-muted-foreground leading-relaxed mb-4 line-clamp-2 min-h-[32px]">{a.desc}</p>
@@ -382,6 +419,7 @@ export default function AgentsList() {
   const navigate = useNavigate();
   const { can } = useMyPermissions();
   const access = useGroupAccess("agents");
+  const shareVersion = useAgentShareVersion();
   const canCreateAgent = can("agents.create");
   const { tree: orgTree } = useOrg();
 
@@ -397,11 +435,11 @@ export default function AgentsList() {
   // that were shared with it, in every tab and count below — not just a "Shared with me" filter.
   const visibleAgents = useMemo(
     () => access.canSeeAll ? agents : agents.filter(a => isOwnedOrShared(a, access.userId)),
-    [access.canSeeAll, access.userId],
+    [access.canSeeAll, access.userId, shareVersion],
   );
   const sharedWithMe = useMemo(
     () => agents.filter(a => a.ownerId !== access.userId && isOwnedOrShared(a, access.userId)),
-    [access.userId],
+    [access.userId, shareVersion],
   );
 
   const [activeTab, setActiveTab] = useState<typeof tabs[number]>("All agents");

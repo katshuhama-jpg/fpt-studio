@@ -19,6 +19,8 @@ export interface AgentRecord {
    * with — the "Own & Shared" Scope enforcement in scopeAccess.ts reads these directly. */
   ownerId?: string;
   sharedWith?: string[];
+  /** Shared with everyone in the Space ("Cả Space") — see agentShareStore. */
+  sharedAll?: boolean;
 }
 
 export const AGENTS: AgentRecord[] = [

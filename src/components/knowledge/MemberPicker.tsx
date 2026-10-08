@@ -1,3 +1,4 @@
+import type React from "react";
 import { useMemo, useState } from "react";
 import { Search, X } from "lucide-react";
 import { useOrg } from "@/pages/organization/orgStore";
@@ -23,8 +24,10 @@ function Avatar({ name }: { name: string }) {
  * into slightly different pickers. Forked from organization/Members.tsx's
  * AddUserToRoleModal (chip typeahead) + RoleCell (inline access dropdown). */
 export default function MemberPicker({
-  value, onChange, ownerRow, excludeUserIds = [],
+  value, onChange, ownerRow, excludeUserIds = [], renderMeta,
 }: {
+  /** Optional right-side note per person (e.g. what their Role lets them do). */
+  renderMeta?: (userId: string) => React.ReactNode;
   value: SharedPerson[];
   onChange: (next: SharedPerson[]) => void;
   ownerRow?: { name: string; email: string };
@@ -100,6 +103,7 @@ export default function MemberPicker({
                 <div className="text-sm font-medium truncate">{p.name}</div>
                 <div className="text-xs text-muted-foreground truncate">{p.email}</div>
               </div>
+              {renderMeta?.(p.userId)}
               <button
                 type="button"
                 onClick={() => removePerson(p.userId)}

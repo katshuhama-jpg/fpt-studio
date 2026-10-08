@@ -106,6 +106,8 @@ import { resourceBlockStore } from "@/components/governance/resourceBlockStore";
 import { KnowledgeStatusPill } from "@/components/knowledge/knowledgeStatus";
 import AttachConsoleKnowledgeBaseModal from "@/components/knowledge/AttachConsoleKnowledgeBaseModal";
 import ShareKnowledgeBaseModal from "@/components/knowledge/ShareKnowledgeBaseModal";
+import ShareAgentModal, { useCanShareAgent } from "@/components/configure/ShareAgentModal";
+import { useAgentShareVersion } from "@/components/configure/agentShareStore";
 import ShareAgentItemModal from "@/components/knowledge/ShareAgentItemModal";
 import OrgSharePicker, { orgSelectionSummary } from "@/components/governance/OrgSharePicker";
 import { ACCESS_COPY, RETRIEVAL_COPY } from "@/components/knowledge/QueryScopeSection";
@@ -252,6 +254,9 @@ export default function AgentBuilder() {
   const [previewCollapsed, setPreviewCollapsed] = useState(false);
   const [publishTick, setPublishTick] = useState(0);
   const [showAgentMenu, setShowAgentMenu] = useState(false);
+  const [showShare, setShowShare] = useState(false);
+  useAgentShareVersion();
+  const canShareAgent = useCanShareAgent(id ?? "new");
   const [triggerTick, setTriggerTick] = useState(0);
   const [connectionTick, setConnectionTick] = useState(0);
   const kind = (() => { void publishTick; void triggerTick; return getAgentKind(id); })();
@@ -292,6 +297,9 @@ export default function AgentBuilder() {
   const existingAgent = id !== "new" ? AGENTS.find(a => a.id === id) : undefined;
   const canAccessAgent = !existingAgent || access.canSeeAll || isOwnedOrShared(existingAgent, access.userId);
   const canPublishAgent = canAccessAgent && access.canAct("publish", existingAgent ? isOwnedOrShared(existingAgent, access.userId) : true);
+  // Someone the Agent was shared with whose Role has no "Build agents" only views it.
+  const viewOnly = !!existingAgent && canAccessAgent && !access.canAct("manage", isOwnedOrShared(existingAgent, access.userId));
+  const lockContent = viewOnly && tab !== "insights";
 
   if (existingAgent && !canAccessAgent) {
     return (
@@ -325,6 +333,11 @@ export default function AgentBuilder() {
         <div className="flex items-center gap-2 min-w-[140px] max-w-[260px] shrink">
           <div className="w-7 h-7 rounded-md bg-surface-muted border border-border flex items-center justify-center text-base shrink-0">{agent.emoji}</div>
           <span className="font-semibold text-sm truncate">{agent.name}</span>
+          {viewOnly && (
+            <span title="Vai trò của bạn chỉ xem được Agent này." className="inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded bg-surface-muted text-muted-foreground border border-border shrink-0">
+              <HugeiconsIcon icon={EyeIcon} size={11} /> Chỉ xem
+            </span>
+          )}
           {kind === "automation" && (
             <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 shrink-0">
               <HugeiconsIcon icon={BoltIcon} size={10} /> Automation
@@ -365,15 +378,23 @@ export default function AgentBuilder() {
             onPublish={() => canPublishAgent && requestPublish()}
             onShowRejectBanner={() => { if (rejectedGovRequest) { governanceStore.restoreRejection(rejectedGovRequest.id); setRejectBannerTick(t => t + 1); } }}
           />
-          <button
+          {canShareAgent && (
+            <button
+              onClick={() => setShowShare(true)}
+              className="h-9 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base"
+            >
+              <HugeiconsIcon icon={UserMultipleIcon} size={14} /> Chia sẻ
+            </button>
+          )}
+          {!viewOnly && <button
             onClick={() => canPublishAgent && requestPublish()}
             disabled={!canPublishAgent || revokedAll.length > 0}
             title={!canPublishAgent ? "Bạn không có quyền publish agent này." : revokedAll.length > 0 ? REVOKED_COPY.publishBlocked(revokedAll) : undefined}
             className="btn-primary h-9 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <HugeiconsIcon icon={Rocket01Icon} size={13} /> Publish
-          </button>
-          <div className="relative">
+          </button>}
+          {!viewOnly && <div className="relative">
             <button
               onClick={() => setShowAgentMenu(o => !o)}
               className="h-9 w-9 rounded-lg hover:bg-surface-muted flex items-center justify-center text-muted-foreground transition-base"
@@ -399,9 +420,10 @@ export default function AgentBuilder() {
                 </div>
               </>
             )}
-          </div>
+          </div>}
         </div>
       </div>
+      {showShare && <ShareAgentModal agentId={id ?? "new"} open onClose={() => setShowShare(false)} />}
 
       <RefChipTooltip />
 
@@ -629,12 +651,12 @@ export default function AgentBuilder() {
                 );
               })()}
             </div>
-            <button
+            {!viewOnly && <button
               onClick={() => setBuildMode("ai")}
               className="w-full h-8 rounded-lg border border-border bg-surface text-muted-foreground hover:bg-surface-muted text-xs font-medium flex items-center justify-center gap-1.5 transition-base"
             >
               <HugeiconsIcon icon={ChevronLeftIcon} size={12} /> Collapse sidebar
-            </button>
+            </button>}
           </div>
           )}
         </aside>
@@ -661,8 +683,13 @@ export default function AgentBuilder() {
           />
         </div>
 
-        {/* Content + Preview */}
-        <div className="flex-1 flex overflow-hidden">
+        {/* Content + Preview — locked for a view-only member (Insights stays browsable). */}
+        <div
+          className={`flex-1 flex overflow-hidden ${lockContent ? "agent-view-only" : ""}`}
+          onBeforeInputCapture={e => { if (lockContent) e.preventDefault(); }}
+          onPasteCapture={e => { if (lockContent) e.preventDefault(); }}
+          onDropCapture={e => { if (lockContent) e.preventDefault(); }}
+        >
           <div className="flex-1 flex flex-col overflow-hidden">
 
             <div className="flex-1 overflow-y-auto bg-background">

@@ -11,12 +11,15 @@ export type ScopableVerb = "view" | "publish" | "manage" | "pause" | "delete";
 export interface Ownable {
   ownerId?: string;
   sharedWith?: string[];
+  /** Shared with the whole Space — everyone counts as "shared with". */
+  sharedAll?: boolean;
 }
 
 /** True if `userId` created this resource or it was explicitly shared with them. */
 export function isOwnedOrShared(resource: Ownable | undefined, userId: string): boolean {
   if (!resource || !userId) return false;
   if (resource.ownerId === userId) return true;
+  if (resource.sharedAll) return true;
   return !!resource.sharedWith?.includes(userId);
 }
 
