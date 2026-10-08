@@ -10,7 +10,7 @@ import { CURRENT_USER } from "@/components/knowledge/knowledgeBaseStore";
 import { isAccessibleTo, type Sharing } from "./customConnectorSharing";
 
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
-export type ApiAuthType = "none" | "api_key" | "bearer" | "basic" | "oauth2";
+export type ApiAuthType = "none" | "header";
 export type ApiParamLocation = "query" | "path" | "body";
 export type ApiParamType = "string" | "number" | "boolean" | "object" | "array";
 
@@ -27,14 +27,12 @@ export interface ApiParam {
   description: string;
 }
 
-/** One shape per auth type so each only carries the fields it needs — a `type: "basic"` tool
- * can never end up with a stray `apiKey` field left over from switching auth types in the form. */
+/** Authentication is just "no auth" or a set of request headers (Authorization: Bearer …,
+ * X-API-Key: …, Basic base64…) — every scheme this tool needs is expressible as a header, so
+ * there is one input instead of a form per scheme. Header values are masked after saving. */
 export type ApiAuthConfig =
   | { type: "none" }
-  | { type: "api_key"; headerName: string; apiKey: string }
-  | { type: "bearer"; token: string }
-  | { type: "basic"; username: string; password: string }
-  | { type: "oauth2"; clientId: string; clientSecret: string; tokenUrl: string };
+  | { type: "header"; headers: ApiHeader[] };
 
 export interface CustomApiTool {
   id: string;
@@ -70,26 +68,29 @@ export const DEFAULT_TIMEOUT_SEC = 30;
 
 export const AUTH_TYPE_LABEL: Record<ApiAuthType, string> = {
   none: "Không có",
-  api_key: "API Key",
-  bearer: "Bearer Token",
-  basic: "Basic Auth",
-  oauth2: "OAuth 2.0",
+  header: "Header",
 };
 
 export function defaultAuthConfig(type: ApiAuthType): ApiAuthConfig {
-  switch (type) {
-    case "api_key": return { type, headerName: "X-API-Key", apiKey: "" };
-    case "bearer": return { type, token: "" };
-    case "basic": return { type, username: "", password: "" };
-    case "oauth2": return { type, clientId: "", clientSecret: "", tokenUrl: "" };
-    default: return { type: "none" };
-  }
+  return type === "header" ? { type: "header", headers: [{ key: "", value: "" }] } : { type: "none" };
+}
+
+/** Older sessions stored API Key / Bearer / Basic / OAuth 2.0 configs; fold them into headers so
+ * nothing already saved breaks. (Basic and OAuth 2.0 carried no ready-made header value.) */
+function normalizeAuth(raw: any): ApiAuthConfig {
+  if (raw?.type === "header" && Array.isArray(raw.headers)) return raw;
+  if (raw?.type === "api_key") return { type: "header", headers: [{ key: raw.headerName || "X-API-Key", value: raw.apiKey ?? "" }] };
+  if (raw?.type === "bearer") return { type: "header", headers: [{ key: "Authorization", value: `Bearer ${raw.token ?? ""}` }] };
+  return { type: "none" };
 }
 
 const STORE_KEY = "custom_api_tool_store_v1";
 const SEEDED_KEY = "custom_api_tool_store_seeded_v1";
 const store = loadMap<string, CustomApiTool>(STORE_KEY);
 const persist = () => saveMap(STORE_KEY, store);
+for (const [id, t] of store) {
+  if (t.auth.type !== "none" && t.auth.type !== "header") store.set(id, { ...t, auth: normalizeAuth(t.auth) });
+}
 /** Older session records predate sharing/attachments — read them as a Space-library tool. */
 const normalize = (t: CustomApiTool): CustomApiTool => ({
   ...t,
@@ -110,7 +111,7 @@ function seed() {
     description: "Lấy trạng thái và chi tiết một đơn hàng theo mã đơn. Agent gọi khi khách hỏi \"đơn của tôi tới đâu rồi\".",
     method: "GET",
     url: "https://api.client.com/orders/{order_id}",
-    auth: { type: "api_key", headerName: "X-API-Key", apiKey: "sk_live_••••••••••••cd42" },
+    auth: { type: "header", headers: [{ key: "X-API-Key", value: "sk_live_••••••••••••cd42" }] },
     headers: [{ key: "Accept", value: "application/json" }],
     params: [
       { name: "order_id", type: "string", location: "path", required: true, description: "Mã đơn hàng, ví dụ ORD-20394." },
@@ -127,7 +128,7 @@ function seed() {
     description: "Tạo một ticket khiếu nại/hỗ trợ mới trong hệ thống CSKH. Agent gọi khi không tự xử lý được yêu cầu của khách và cần chuyển cho nhân viên.",
     method: "POST",
     url: "https://api.client.com/tickets",
-    auth: { type: "bearer", token: "••••••••••••••••" },
+    auth: { type: "header", headers: [{ key: "Authorization", value: "Bearer ••••••••••••••••" }] },
     headers: [{ key: "Content-Type", value: "application/json" }],
     params: [
       { name: "subject", type: "string", location: "body", required: true, description: "Tiêu đề ngắn gọn của ticket." },

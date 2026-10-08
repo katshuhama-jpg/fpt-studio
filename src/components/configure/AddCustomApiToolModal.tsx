@@ -23,7 +23,7 @@ const METHOD_CLASS: Record<HttpMethod, string> = {
   PATCH: "bg-purple-100 text-purple-700",
   DELETE: "bg-destructive/10 text-destructive",
 };
-const AUTH_TYPES: ApiAuthType[] = ["none", "api_key", "bearer", "basic", "oauth2"];
+const AUTH_TYPES: ApiAuthType[] = ["none", "header"];
 const PARAM_TYPES: ApiParamType[] = ["string", "number", "boolean", "object", "array"];
 const PARAM_LOCATIONS: { value: ApiParamLocation; label: string }[] = [
   { value: "query", label: "Query" },
@@ -120,7 +120,11 @@ export default function AddCustomApiToolModal({ editing, onClose, onCreated, onU
   const removeParam = (i: number) => setParams(ps => ps.filter((_, idx) => idx !== i));
 
   const buildData = () => ({
-    name: name.trim(), description: description.trim(), method, url: url.trim(), auth,
+    name: name.trim(), description: description.trim(), method, url: url.trim(),
+    // A Header auth with no named header is the same as no auth.
+    auth: auth.type === "header" && auth.headers.some(h => h.key.trim())
+      ? { type: "header" as const, headers: auth.headers.filter(h => h.key.trim()) }
+      : { type: "none" as const },
     headers: headers.filter(h => h.key.trim()), params: params.filter(p => p.name.trim()),
     timeoutSec,
   });
@@ -225,7 +229,7 @@ export default function AddCustomApiToolModal({ editing, onClose, onCreated, onU
           {/* Xác thực */}
           <div className="space-y-3">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Xác thực</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+            <div className="grid grid-cols-2 gap-1.5">
               {AUTH_TYPES.map(t => (
                 <button
                   key={t}
@@ -237,50 +241,21 @@ export default function AddCustomApiToolModal({ editing, onClose, onCreated, onU
                 </button>
               ))}
             </div>
-            {auth.type === "api_key" && (
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Tên header</label>
-                  <input value={auth.headerName} onChange={e => setAuth({ ...auth, headerName: e.target.value })} placeholder="X-API-Key" className={inputCls} />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">API Key</label>
-                  <SecretField value={auth.apiKey} onChange={v => setAuth({ ...auth, apiKey: v })} placeholder="••••••••" />
-                </div>
-              </div>
-            )}
-            {auth.type === "bearer" && (
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Token</label>
-                <SecretField value={auth.token} onChange={v => setAuth({ ...auth, token: v })} placeholder="••••••••" />
-              </div>
-            )}
-            {auth.type === "basic" && (
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Username</label>
-                  <input value={auth.username} onChange={e => setAuth({ ...auth, username: e.target.value })} className={inputCls} />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Password</label>
-                  <SecretField value={auth.password} onChange={v => setAuth({ ...auth, password: v })} placeholder="••••••••" />
-                </div>
-              </div>
-            )}
-            {auth.type === "oauth2" && (
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Client ID</label>
-                  <input value={auth.clientId} onChange={e => setAuth({ ...auth, clientId: e.target.value })} className={inputCls} />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground mb-1 block">Client Secret</label>
-                  <SecretField value={auth.clientSecret} onChange={v => setAuth({ ...auth, clientSecret: v })} placeholder="••••••••" />
-                </div>
-                <div className="col-span-2">
-                  <label className="text-xs text-muted-foreground mb-1 block">Token URL</label>
-                  <input value={auth.tokenUrl} onChange={e => setAuth({ ...auth, tokenUrl: e.target.value })} placeholder="https://auth.client.com/oauth/token" className={inputCls} />
-                </div>
+            {auth.type === "header" && (
+              <div className="space-y-2">
+                {auth.headers.map((h, i) => (
+                  <div key={i} className="flex items-center gap-1.5">
+                    <input value={h.key} onChange={e => setAuth({ ...auth, headers: auth.headers.map((x, j) => j === i ? { ...x, key: e.target.value } : x) })} placeholder="Authorization" className={`${inputCls} flex-1`} />
+                    <div className="flex-1"><SecretField value={h.value} onChange={v => setAuth({ ...auth, headers: auth.headers.map((x, j) => j === i ? { ...x, value: v } : x) })} placeholder="Bearer ••••••••" /></div>
+                    <button type="button" onClick={() => setAuth({ ...auth, headers: auth.headers.filter((_, j) => j !== i) })} className="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-muted hover:text-destructive transition-base">
+                      <HugeiconsIcon icon={Delete01Icon} size={13} />
+                    </button>
+                  </div>
+                ))}
+                <button type="button" onClick={() => setAuth({ ...auth, headers: [...auth.headers, { key: "", value: "" }] })} className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+                  <HugeiconsIcon icon={Add01Icon} size={12} /> Thêm header
+                </button>
+                <p className="text-xs text-muted-foreground">Ví dụ: Authorization: Bearer &lt;token&gt;, X-API-Key: &lt;key&gt;. Giá trị được ẩn sau khi lưu.</p>
               </div>
             )}
             {auth.type === "none" && <p className="text-xs text-muted-foreground">API này không yêu cầu xác thực.</p>}
