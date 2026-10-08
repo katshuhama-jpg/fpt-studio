@@ -56,7 +56,12 @@ export interface Guardrail {
    * they detach it). `keptForAgentId`: created in that Agent, which keeps using it; every other
    * Agent loses it. Unset `keptForAgentId`: gone for every Agent. Sharing it again (from the
    * Agent that kept it) puts it back on the Space. */
-  deletedFromSpace?: { at: number; byId: string; byName: string; keptForAgentId?: string };
+  deletedFromSpace?: {
+    at: number; byId: string; byName: string; keptForAgentId?: string;
+    /** "Gỡ khỏi Space" / "Chỉ Agent này": the resource went back into this Agent (other Agents
+     * linking it show "Không khả dụng - Đã được kéo về Agent …"). Unset: deleted for good. */
+    takenBackTo?: string;
+  };
 }
 
 type StoredGuardrail = Guardrail;
@@ -164,10 +169,10 @@ export const guardrailConsoleStore = {
     persist();
   },
   /** "Xóa" on the Space library - see deletedFromSpace. */
-  removeFromSpace(id: string, by: { id: string; name: string }, keptForAgentId?: string) {
+  removeFromSpace(id: string, by: { id: string; name: string }, keptForAgentId?: string, takenBackTo?: string) {
     const cur = store.get(id);
     if (!cur) return;
-    store.set(id, { ...cur, sharing: { mode: "private", people: [] }, deletedFromSpace: { at: Date.now(), byId: by.id, byName: by.name, keptForAgentId }, updatedAt: Date.now() });
+    store.set(id, { ...cur, sharing: { mode: "private", people: [] }, deletedFromSpace: { at: Date.now(), byId: by.id, byName: by.name, keptForAgentId, takenBackTo }, updatedAt: Date.now() });
     persist();
   },
   /** Records the Agent a resource was first created in (see originAgentId). */

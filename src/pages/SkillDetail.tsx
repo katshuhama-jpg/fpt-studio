@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { SpaceDeleteDialog, canManageSpaceResource, deleteFromSpace, notifySpaceOwner, useSpaceActor } from "@/components/governance/spaceDelete";
+import { isShared } from "@/components/governance/resourceOwnership";
+import { SpaceDeleteDialog, canManageSpaceResource, performSpaceDelete, spaceDeleteLabel, SpaceUnshareDialog, notifySpaceOwner, useSpaceActor } from "@/components/governance/spaceDelete";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ChevronLeft, MoreHorizontal, Puzzle } from "lucide-react";
 import {
@@ -52,6 +53,7 @@ export default function SkillDetail() {
   const [showShare, setShowShare] = useState(false);
   const [showPublish, setShowPublish] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const [showUnshare, setShowUnshare] = useState(false);
 
   if (!skill) {
     return (
@@ -162,6 +164,15 @@ export default function SkillDetail() {
                       </button>
                     )}
                     {manages && (
+                      <button
+                        disabled={!canShare}
+                        onClick={() => { if (isShared(skill.sharing)) setShowUnshare(true); else setShowShare(true); setShowMenu(false); }}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted disabled:text-muted-foreground/50 disabled:cursor-not-allowed transition-base"
+                      >
+                        {isShared(skill.sharing) ? "Tắt chia sẻ" : "Chia sẻ"}
+                      </button>
+                    )}
+                    {manages && (
                       <div className="mt-1 pt-1 border-t border-border">
                         <button
                           disabled={!canDelete}
@@ -169,7 +180,7 @@ export default function SkillDetail() {
                           onClick={() => { setShowDelete(true); setShowMenu(false); }}
                           className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] disabled:text-muted-foreground/50 disabled:cursor-not-allowed transition-base"
                         >
-                          Xóa
+                          {spaceDeleteLabel(skill)}
                         </button>
                       </div>
                     )}
@@ -253,6 +264,21 @@ export default function SkillDetail() {
         />
       )}
 
+      <SpaceUnshareDialog
+        open={showUnshare}
+        noun="skill"
+        name={skill.name}
+        ownerName={skill.ownerName}
+        ownerId={skill.ownerId}
+        attachedAgentIds={skill.attachedByAgentIds}
+        actor={actor}
+        onClose={() => setShowUnshare(false)}
+        onConfirm={() => {
+          agentSkillStore.applySpaceSharing(skill.id, { mode: "private", people: [] });
+          notifySpaceOwner("resource_unshared", actor, skill, "skill", `/tools/${skill.id}`);
+          refresh();
+        }}
+      />
       <SpaceDeleteDialog
         open={showDelete}
         noun="skill"
@@ -261,9 +287,7 @@ export default function SkillDetail() {
         attachedAgentIds={skill.attachedByAgentIds}
         onClose={() => setShowDelete(false)}
         onConfirm={() => {
-          deleteFromSpace(skillStore, skill, actor);
-          notifySpaceOwner("resource_deleted", actor, skill, "skill", "/tools");
-          toast.success(`Đã xóa skill "${skill.name}" khỏi Space.`);
+          performSpaceDelete("skill", skill, actor, "skill", "/tools");
           navigate("/tools");
         }}
       />

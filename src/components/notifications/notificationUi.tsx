@@ -45,7 +45,8 @@ const KIND_META: Record<NotificationKind, { icon: typeof Bell; tone: Tone; chip:
   channel_revoked: { icon: Ban, tone: "danger", chip: "Đã tắt kênh" },
   regovern_required: { icon: RotateCcw, tone: "warning", chip: "Cần duyệt lại" },
   resource_unshared: { icon: EyeOff, tone: "warning", chip: "Đã tắt chia sẻ" },
-  resource_deleted: { icon: Trash2, tone: "danger", chip: "Đã xóa khỏi Space" },
+  resource_deleted: { icon: Trash2, tone: "danger", chip: "Đã xóa" },
+  resource_removed: { icon: EyeOff, tone: "warning", chip: "Đã gỡ khỏi Space" },
 };
 
 /** "Agent của bạn" / "Agent được chia sẻ với bạn" for outcomes; nothing extra for incoming. */
@@ -62,7 +63,7 @@ function resolvedLabel(n: AppNotification): string | null {
 
 function contextLabel(n: AppNotification, userId: string): string | null {
   if (n.kind === "request_submitted") return resolvedLabel(n);
-  if (n.kind === "resource_unshared" || n.kind === "resource_deleted") return "Tài nguyên của bạn";
+  if (n.kind === "resource_unshared" || n.kind === "resource_deleted" || n.kind === "resource_removed") return "Tài nguyên của bạn";
   if (!n.resourceId) return null;
   if (n.resourceId.startsWith("ext-")) return "Agent của bạn";
   const a = getAgent(n.resourceId) as { ownerId?: string; sharedWith?: string[] } | undefined;

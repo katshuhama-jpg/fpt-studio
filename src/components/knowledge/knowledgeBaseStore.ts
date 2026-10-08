@@ -89,7 +89,12 @@ export interface KnowledgeBase {
    * they detach it). `keptForAgentId`: created in that Agent, which keeps using it; every other
    * Agent loses it. Unset `keptForAgentId`: gone for every Agent. Sharing it again (from the
    * Agent that kept it) puts it back on the Space. */
-  deletedFromSpace?: { at: number; byId: string; byName: string; keptForAgentId?: string };
+  deletedFromSpace?: {
+    at: number; byId: string; byName: string; keptForAgentId?: string;
+    /** "Gỡ khỏi Space" / "Chỉ Agent này": the resource went back into this Agent (other Agents
+     * linking it show "Không khả dụng - Đã được kéo về Agent …"). Unset: deleted for good. */
+    takenBackTo?: string;
+  };
   createdAt: number;
   updatedAt: number;
 }
@@ -236,7 +241,8 @@ function seed() {
 export const knowledgeBaseStore = {
   list(): KnowledgeBase[] {
     seed();
-    return [...store.values()].filter(kb => !kb.deletedFromSpace).sort((a, b) => b.updatedAt - a.updatedAt).map(withStats);
+    // A knowledge base taken back into its Agent stays that Agent's own (listAgentOnly).
+    return [...store.values()].filter(kb => !kb.deletedFromSpace || !!kb.agentOnlyFor).sort((a, b) => b.updatedAt - a.updatedAt).map(withStats);
   },
   get(id: string): KnowledgeBase | undefined {
     seed();
@@ -258,10 +264,10 @@ export const knowledgeBaseStore = {
     return this.list().filter(kb => kb.agentOnlyFor === agentId);
   },
   /** "Xóa" on the Space library - see deletedFromSpace. */
-  removeFromSpace(id: string, by: { id: string; name: string }, keptForAgentId?: string) {
+  removeFromSpace(id: string, by: { id: string; name: string }, keptForAgentId?: string, takenBackTo?: string) {
     const cur = store.get(id);
     if (!cur) return;
-    store.set(id, { ...cur, sharing: { mode: "private", people: [] }, deletedFromSpace: { at: Date.now(), byId: by.id, byName: by.name, keptForAgentId }, updatedAt: Date.now() });
+    store.set(id, { ...cur, sharing: { mode: "private", people: [] }, agentOnlyFor: keptForAgentId ?? cur.agentOnlyFor, deletedFromSpace: { at: Date.now(), byId: by.id, byName: by.name, keptForAgentId, takenBackTo: takenBackTo ?? keptForAgentId }, updatedAt: Date.now() });
     persist();
   },
   /** "Chỉ Agent này" on a KB: it leaves the Space library and becomes this Agent's own. */

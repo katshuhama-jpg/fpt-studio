@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
-import { agentsBlockingUnshare, ResourceInUseDialog } from "@/components/governance/resourceInUseGuard";
+import { agentsBlockingUnshare, agentsUsing, ResourceInUseDialog } from "@/components/governance/resourceInUseGuard";
 import type { AgentRecord } from "@/components/configure/agentStore";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -43,9 +43,11 @@ export default function ResourceAccessModal({
   renderPicker: (p: PickerProps) => ReactNode;
 }) {
   const it = `${noun} này`;
-  // Only a resource that is still the Agent's own (never shared) is "Chỉ Agent này". Once a
-  // resource is on the Space, turning sharing off keeps it there (only its owner and Admins see it).
-  const agentOnlyFor = initialSharing.mode === "private" ? agentOnlyForProp : undefined;
+  // Set only inside the Agent a resource was created in. There, turning sharing off on a Space
+  // resource takes it back into that Agent ("Chỉ Agent này"); elsewhere it stays in the Space,
+  // unshared (only its owner and Admins see it).
+  const agentOnlyFor = agentOnlyForProp;
+  const takingBack = !!agentOnlyFor && initialSharing.mode !== "private";
   // A Space Admin turning off someone else's resource: only its owner keeps linking it.
   const { userId: viewerId } = useMyPermissions();
   const onlyWho = resourceOwnerId && resourceOwnerId !== viewerId ? ownerName : "bạn";
@@ -73,7 +75,9 @@ export default function ResourceAccessModal({
     if (!canSubmit) return;
     if (mode === "private") {
       // Turning sharing off: allowed, but confirm when other people's Agents lose the resource.
-      const losing = agentsBlockingUnshare((attachedAgentIds ?? []).filter(id => id !== agentOnlyFor), resourceOwnerId, { mode, people: [] });
+      const losing = takingBack
+        ? agentsUsing((attachedAgentIds ?? []).filter(id => id !== agentOnlyFor))
+        : agentsBlockingUnshare(attachedAgentIds, resourceOwnerId, { mode, people: [] });
       if (losing.length > 0) { setBlockingAgents(losing); return; }
       if (initialSharing.mode !== "private") { setShowRevokeConfirm(true); return; }
       applySave();
@@ -145,11 +149,11 @@ export default function ResourceAccessModal({
       <ResourceInUseDialog
         open={blockingAgents.length > 0}
         onClose={() => setBlockingAgents([])}
-        title={REVOKED_COPY.confirmTitle(it)}
-        description={REVOKED_COPY.confirmBody(blockingAgents.length, it, noun)}
+        title={takingBack && mode === "private" ? REVOKED_COPY.takeBackTitle(it) : REVOKED_COPY.confirmTitle(it)}
+        description={takingBack && mode === "private" ? REVOKED_COPY.takeBackBody(blockingAgents.length, it, noun) : REVOKED_COPY.confirmBody(blockingAgents.length, it, noun)}
         agents={blockingAgents}
         onConfirm={() => { setBlockingAgents([]); applySave(); }}
-        confirmLabel={REVOKED_COPY.confirmAction}
+        confirmLabel={takingBack && mode === "private" ? REVOKED_COPY.takeBackAction : REVOKED_COPY.confirmAction}
       />
     </>
   );

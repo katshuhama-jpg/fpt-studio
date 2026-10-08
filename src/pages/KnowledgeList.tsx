@@ -15,11 +15,11 @@ import ShareKnowledgeBaseModal from "@/components/knowledge/ShareKnowledgeBaseMo
 import RetrievalScopeModal from "@/components/knowledge/RetrievalScopeModal";
 import { ACCESS_COPY, RETRIEVAL_COPY } from "@/components/knowledge/QueryScopeSection";
 import DeleteKnowledgeBaseDialog from "@/components/knowledge/DeleteKnowledgeBaseDialog";
-import { notifySpaceOwner, useSpaceActor } from "@/components/governance/spaceDelete";
+import { notifySpaceOwner, useSpaceActor, spaceDeleteLabel, SpaceUnshareDialog } from "@/components/governance/spaceDelete";
 import { useGroupAccess } from "@/pages/organization/scopeAccess";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import {
-  ownershipTags, countByTab, matchesTab, OwnershipTabs, ownershipEmptyCopy, ResourceCard, CardCreator, AgentCount, type OwnershipTab,
+  isShared, ownershipTags, countByTab, matchesTab, OwnershipTabs, ownershipEmptyCopy, ResourceCard, CardCreator, AgentCount, type OwnershipTab,
 } from "@/components/governance/resourceOwnership";
 
 type MainTab = OwnershipTab;
@@ -36,7 +36,8 @@ function relativeTime(ts: number): string {
   return `Cập nhật ${days} ngày trước`;
 }
 
-function RowMenu({ kb, onOpen, onEdit, onShare, onRetrieval, onDelete, editBlocked, shareBlocked, deleteBlocked }: {
+function RowMenu({ kb, onOpen, onEdit, onShare, onRetrieval, onDelete, onUnshare, editBlocked, shareBlocked, deleteBlocked }: {
+  onUnshare?: () => void;
   kb: KnowledgeBase;
   onOpen: () => void; onEdit: () => void; onShare: () => void; onRetrieval: () => void; onDelete: () => void;
   /** Set (with the reason to show as a tooltip) when the action is blocked — either by the
@@ -58,6 +59,10 @@ function RowMenu({ kb, onOpen, onEdit, onShare, onRetrieval, onDelete, editBlock
     { label: "Chỉnh sửa", onClick: onEdit, blocked: editBlocked },
     { label: ACCESS_COPY.menu, onClick: onShare, blocked: shareBlocked },
     { label: RETRIEVAL_COPY.menu, onClick: onRetrieval, blocked: shareBlocked },
+    // Quick on/off for sharing: "Tắt chia sẻ" asks once; "Chia sẻ" opens "Ai được dùng".
+    isShared(kb.sharing)
+      ? { label: "Tắt chia sẻ", onClick: onUnshare ?? onShare, blocked: shareBlocked }
+      : { label: "Chia sẻ", onClick: onShare, blocked: shareBlocked },
   ];
 
   const renderItem = (item: { label: string; onClick: () => void; blocked?: string }, danger?: boolean) => (
@@ -90,7 +95,7 @@ function RowMenu({ kb, onOpen, onEdit, onShare, onRetrieval, onDelete, editBlock
         <div className="absolute right-0 top-full mt-1 z-20 min-w-52 max-w-xs rounded-lg border border-border bg-white shadow-elev py-1">
           {safeItems.map(item => renderItem(item))}
           <div className="mt-1 pt-1 border-t border-border">
-            {renderItem({ label: "Xóa", onClick: onDelete, blocked: deleteBlocked }, true)}
+            {renderItem({ label: spaceDeleteLabel(kb), onClick: onDelete, blocked: deleteBlocked }, true)}
           </div>
         </div>
       )}
@@ -98,7 +103,8 @@ function RowMenu({ kb, onOpen, onEdit, onShare, onRetrieval, onDelete, editBlock
   );
 }
 
-function KbCard({ kb, userId, access, admin, onOpen, onEdit, onShare, onRetrieval, onDelete }: {
+function KbCard({ kb, userId, access, admin, onOpen, onEdit, onShare, onRetrieval, onDelete, onUnshare }: {
+  onUnshare: () => void;
   kb: KnowledgeBase; userId: string; access: ReturnType<typeof useGroupAccess>;
   /** Space Admin: may turn sharing off / delete anyone's knowledge base (the owner is notified). */
   admin: boolean;
@@ -139,7 +145,7 @@ function KbCard({ kb, userId, access, admin, onOpen, onEdit, onShare, onRetrieva
         </Link>
       }
       tags={ownershipTags({ ownerId: kb.ownerId, sharing: kb.sharing, userId, admin })}
-      menu={<RowMenu kb={kb} onOpen={onOpen} onEdit={onEdit} onShare={onShare} onRetrieval={onRetrieval} onDelete={onDelete} editBlocked={editBlocked} shareBlocked={shareBlocked} deleteBlocked={deleteBlocked} />}
+      menu={<RowMenu kb={kb} onOpen={onOpen} onEdit={onEdit} onShare={onShare} onRetrieval={onRetrieval} onDelete={onDelete} onUnshare={onUnshare} editBlocked={editBlocked} shareBlocked={shareBlocked} deleteBlocked={deleteBlocked} />}
       description={kb.description}
       extra={<p className="text-xs text-muted-foreground">{relativeTime(kb.updatedAt)}</p>}
       creator={<CardCreator displayName={isOwner ? "Bạn" : kb.ownerName} fullName={kb.ownerName} />}
@@ -175,6 +181,7 @@ export default function KnowledgeList() {
   const [shareTarget, setShareTarget] = useState<KnowledgeBase | null>(null);
   const [retrievalTarget, setRetrievalTarget] = useState<KnowledgeBase | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<KnowledgeBase | null>(null);
+  const [unshareTarget, setUnshareTarget] = useState<KnowledgeBase | null>(null);
   const addMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -389,6 +396,7 @@ export default function KnowledgeList() {
               onShare={() => setShareTarget(kb)}
               onRetrieval={() => setRetrievalTarget(kb)}
               onDelete={() => setDeleteTarget(kb)}
+              onUnshare={() => setUnshareTarget(kb)}
             />
           ))}
         </div>
@@ -421,6 +429,23 @@ export default function KnowledgeList() {
           value={retrievalTarget.querySharing}
           onSave={q => knowledgeBaseStore.updateQuerySharing(retrievalTarget.id, q)}
           onClose={() => { setRetrievalTarget(null); refresh(); }}
+        />
+      )}
+      {unshareTarget && (
+        <SpaceUnshareDialog
+          open
+          noun="kho tri thức"
+          name={unshareTarget.name}
+          ownerName={unshareTarget.ownerName}
+          ownerId={unshareTarget.ownerId}
+          attachedAgentIds={unshareTarget.attachedByAgentIds}
+          actor={actor}
+          onClose={() => setUnshareTarget(null)}
+          onConfirm={() => {
+            knowledgeBaseStore.updateSharing(unshareTarget.id, { mode: "private", people: [] });
+            notifySpaceOwner("resource_unshared", actor, unshareTarget, "kho tri thức", `/knowledge/${unshareTarget.id}`);
+            refresh();
+          }}
         />
       )}
       {deleteTarget && (

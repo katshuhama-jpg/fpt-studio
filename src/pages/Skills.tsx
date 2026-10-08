@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { SpaceDeleteDialog, canManageSpaceResource, deleteFromSpace, notifySpaceOwner, useSpaceActor } from "@/components/governance/spaceDelete";
+import { SpaceDeleteDialog, canManageSpaceResource, performSpaceDelete, spaceDeleteLabel, SpaceUnshareDialog, notifySpaceOwner, useSpaceActor } from "@/components/governance/spaceDelete";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { Puzzle, BookOpen, Plus, Search, LayoutGrid, List, MoreVertical, AlertTriangle } from "lucide-react";
@@ -22,7 +22,7 @@ import SkillShareModal from "@/components/configure/SkillShareModal";
 import { VISIBLE_BUILTIN_SKILLS, type BuiltinSkill } from "@/components/configure/builtinSkillStore";
 import { SystemResourceDetailModal } from "@/components/configure/AgentResourceDetailModal";
 import {
-  ownershipTags, countByTab, matchesTab, OwnershipTabs, ownershipEmptyCopy, OwnershipTagList, ResourceCard, ResourceIconTile, isCreatorRedundant,
+  isShared, ownershipTags, countByTab, matchesTab, OwnershipTabs, ownershipEmptyCopy, OwnershipTagList, ResourceCard, ResourceIconTile, isCreatorRedundant,
   CardCreator, AgentCount, type OwnershipTab, type OwnershipTag,
 } from "@/components/governance/resourceOwnership";
 
@@ -39,9 +39,9 @@ type MainTab = OwnershipTab;
  * disabled+tooltipped by whichever gate (ownership, sharing access level, or role Scope) blocks
  * it, so an owner sees the full action set, an edit-shared viewer sees Mở/Sửa only, and a
  * view-only viewer sees only Mở enabled. */
-function SkillRowMenu({ skill, onOpen, onEdit, onShare, onDelete, editBlocked, shareBlocked, deleteBlocked }: {
+function SkillRowMenu({ skill, onOpen, onEdit, onShare, onUnshare, onDelete, editBlocked, shareBlocked, deleteBlocked }: {
   skill: Skill;
-  onOpen: () => void; onEdit: () => void; onShare: () => void; onDelete: () => void;
+  onOpen: () => void; onEdit: () => void; onShare: () => void; onUnshare: () => void; onDelete: () => void;
   editBlocked?: string; shareBlocked?: string; deleteBlocked?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -58,6 +58,10 @@ function SkillRowMenu({ skill, onOpen, onEdit, onShare, onDelete, editBlocked, s
     { label: "Xem chi tiết", onClick: onOpen },
     { label: "Chỉnh sửa", onClick: onEdit, blocked: editBlocked },
     { label: "Ai được dùng", onClick: onShare, blocked: shareBlocked },
+    // Quick on/off for sharing: "Tắt chia sẻ" asks once; "Chia sẻ" opens "Ai được dùng".
+    isShared(skill.sharing)
+      ? { label: "Tắt chia sẻ", onClick: onUnshare, blocked: shareBlocked }
+      : { label: "Chia sẻ", onClick: onShare, blocked: shareBlocked },
   ];
 
   const renderItem = (item: { label: string; onClick: () => void; blocked?: string }, danger?: boolean) => (
@@ -90,7 +94,7 @@ function SkillRowMenu({ skill, onOpen, onEdit, onShare, onDelete, editBlocked, s
         <div className="absolute right-0 top-full mt-1 z-20 min-w-52 max-w-xs rounded-lg border border-border bg-white shadow-elev py-1">
           {safeItems.map(item => renderItem(item))}
           <div className="mt-1 pt-1 border-t border-border">
-            {renderItem({ label: "Xóa", onClick: onDelete, blocked: deleteBlocked }, true)}
+            {renderItem({ label: spaceDeleteLabel(skill), onClick: onDelete, blocked: deleteBlocked }, true)}
           </div>
         </div>
       )}
@@ -125,6 +129,7 @@ export default function Skills() {
   const [editTarget, setEditTarget] = useState<Skill | null>(null);
   const [shareTarget, setShareTarget] = useState<Skill | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Skill | null>(null);
+  const [unshareTarget, setUnshareTarget] = useState<Skill | null>(null);
 
   const openSkill = (s: Skill) => navigate(`/tools/${s.id}`);
 
@@ -177,6 +182,7 @@ export default function Skills() {
         onOpen={() => openSkill(s)}
         onEdit={() => setEditTarget(s)}
         onShare={() => setShareTarget(s)}
+        onUnshare={() => setUnshareTarget(s)}
         onDelete={() => setDeleteTarget(s)}
         editBlocked={editBlocked}
         shareBlocked={shareBlocked}
@@ -390,6 +396,23 @@ export default function Skills() {
         />
       )}
 
+      {unshareTarget && (
+        <SpaceUnshareDialog
+          open
+          noun="skill"
+          name={unshareTarget.name}
+          ownerName={unshareTarget.ownerName}
+          ownerId={unshareTarget.ownerId}
+          attachedAgentIds={unshareTarget.attachedByAgentIds}
+          actor={actor}
+          onClose={() => setUnshareTarget(null)}
+          onConfirm={() => {
+            agentSkillStore.applySpaceSharing(unshareTarget.id, { mode: "private", people: [] });
+            notifySpaceOwner("resource_unshared", actor, unshareTarget, "skill", `/tools/${unshareTarget.id}`);
+            refresh();
+          }}
+        />
+      )}
       {deleteTarget && (
         <SpaceDeleteDialog
           open
@@ -399,9 +422,7 @@ export default function Skills() {
           attachedAgentIds={deleteTarget.attachedByAgentIds}
           onClose={() => setDeleteTarget(null)}
           onConfirm={() => {
-            deleteFromSpace(skillStore, deleteTarget, actor);
-            notifySpaceOwner("resource_deleted", actor, deleteTarget, "skill", "/tools");
-            toast.success(`Đã xóa skill "${deleteTarget.name}" khỏi Space.`);
+            performSpaceDelete("skill", deleteTarget, actor, "skill", "/tools");
             refresh();
           }}
         />

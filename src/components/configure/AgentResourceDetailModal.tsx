@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { agentOnlyForIn, saveSharingInAgent } from "@/components/governance/spaceDelete";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useGroupAccess } from "@/pages/organization/scopeAccess";
@@ -189,10 +190,11 @@ function ConsoleSkillDetail({ agentId, id, onClose, onChanged }: { agentId: stri
   if (sub === "share") return (
     <SkillShareModal
       open name={skill.name} ownerName={skill.ownerName} sharing={skill.sharing}
-      resourceOwnerId={skill.ownerId} attachedAgentIds={skill.attachedByAgentIds}
+      resourceOwnerId={skill.ownerId} attachedAgentIds={skill.attachedByAgentIds} agentOnlyFor={agentOnlyForIn(skill, agentId)}
       onSave={sharing => {
-        // Turning sharing off keeps the skill in the Space, unshared.
-        skillStore.updateSharing(skill.id, sharing); refresh(); onChanged();
+        // In the Agent it came from, turning sharing off takes it back into that Agent.
+        saveSharingInAgent("skill", skill, agentId, sharing, s => skillStore.updateSharing(skill.id, s)); refresh(); onChanged();
+        if (sharing.mode === "private" && skill.originAgentId === agentId && skill.sharing.mode !== "private") onClose();
       }}
       onClose={() => setSub(null)}
     />
@@ -307,9 +309,10 @@ function ConsoleGuardrailDetail({ agentId, id, onClose, onChanged }: { agentId: 
   if (sub === "share") return (
     <GuardrailShareModal
       open name={g.name} ownerName={g.ownerName ?? currentUser.name} sharing={g.sharing ?? { mode: "all", people: [] }}
-      resourceOwnerId={g.ownerId} attachedAgentIds={g.attachedByAgentIds}
+      resourceOwnerId={g.ownerId} attachedAgentIds={g.attachedByAgentIds} agentOnlyFor={agentOnlyForIn(g, agentId)}
       onSave={sharing => {
-        guardrailConsoleStore.updateSharing(g.id, sharing); refresh(); onChanged();
+        saveSharingInAgent("guardrail", g, agentId, sharing, s => guardrailConsoleStore.updateSharing(g.id, s)); refresh(); onChanged();
+        if (sharing.mode === "private" && g.originAgentId === agentId && g.sharing?.mode !== "private") onClose();
       }}
       onClose={() => setSub(null)}
     />
@@ -414,9 +417,11 @@ function KnowledgeBaseDetail({ agentId, id, onClose, onChanged }: { agentId: str
   if (sub === "share") return (
     <ShareKnowledgeBaseModal
       open name={kb.name} ownerName={kb.ownerName} sharing={kb.sharing}
-      resourceOwnerId={kb.ownerId} attachedAgentIds={kb.attachedByAgentIds} agentOnlyFor={kb.agentOnlyFor}
+      resourceOwnerId={kb.ownerId} attachedAgentIds={kb.attachedByAgentIds} agentOnlyFor={kb.agentOnlyFor ?? agentOnlyForIn(kb, agentId)}
       onSave={sharing => {
-        knowledgeBaseStore.updateSharing(kb.id, sharing); onChanged();
+        if (kb.agentOnlyFor) knowledgeBaseStore.updateSharing(kb.id, sharing);
+        else saveSharingInAgent("knowledge", kb, agentId, sharing, s => knowledgeBaseStore.updateSharing(kb.id, s));
+        onChanged();
       }}
       onClose={() => { setSub(null); refresh(); }}
     />
@@ -497,8 +502,8 @@ function ConnectorDetail({ agentId, id, onClose, onChanged }: { agentId: string;
   if (sub === "share") return (
     <CustomConnectorShareModal
       open name={c.name} ownerName={c.ownerName} sharing={c.sharing}
-      resourceOwnerId={c.ownerId} attachedAgentIds={c.attachedByAgentIds} agentOnlyFor={agentId}
-      onSave={sharing => { customConnectorStore.updateSharing(c.id, sharing); refresh(); }}
+      resourceOwnerId={c.ownerId} attachedAgentIds={c.attachedByAgentIds} agentOnlyFor={agentOnlyForIn(c, agentId)}
+      onSave={sharing => { saveSharingInAgent("connector", c, agentId, sharing, s => customConnectorStore.updateSharing(c.id, s)); refresh(); onChanged(); }}
       onClose={() => setSub(null)}
     />
   );
@@ -536,8 +541,8 @@ function ApiToolDetail({ agentId, id, onClose, onChanged }: { agentId: string; i
   if (sub === "share") return (
     <CustomConnectorShareModal
       open noun="API Tool" name={a.name} ownerName={a.ownerName} sharing={a.sharing}
-      resourceOwnerId={a.ownerId} attachedAgentIds={a.attachedByAgentIds} agentOnlyFor={agentId}
-      onSave={sharing => { customApiToolStore.updateSharing(a.id, sharing); refresh(); }}
+      resourceOwnerId={a.ownerId} attachedAgentIds={a.attachedByAgentIds} agentOnlyFor={agentOnlyForIn(a, agentId)}
+      onSave={sharing => { saveSharingInAgent("apiTool", a, agentId, sharing, s => customApiToolStore.updateSharing(a.id, s)); refresh(); onChanged(); }}
       onClose={() => setSub(null)}
     />
   );

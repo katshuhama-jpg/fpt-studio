@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { agentsUsing, ResourceInUseDialog } from "@/components/governance/resourceInUseGuard";
-import { SpaceDeleteDialog, deleteFromSpace, keptAgentFor, notifySpaceOwner, useSpaceActor } from "@/components/governance/spaceDelete";
+import { SpaceDeleteDialog, performSpaceDelete, spaceDeleteLabel, SpaceUnshareDialog, keptAgentFor, notifySpaceOwner, useSpaceActor } from "@/components/governance/spaceDelete";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
@@ -26,17 +26,12 @@ export default function DeleteKnowledgeBaseDialog({
 
   const confirmDelete = () => {
     if (!matches) return;
-    if (kb.agentOnlyFor) knowledgeStore.deleteOwnKb(kb.agentOnlyFor, kb.id);
-    else {
-      deleteFromSpace(knowledgeBaseStore, kb, actor);
-      notifySpaceOwner("resource_deleted", actor, kb, "kho tri thức", "/knowledge");
-    }
+    if (kb.agentOnlyFor) {
+      knowledgeStore.deleteOwnKb(kb.agentOnlyFor, kb.id);
+      toast.success(`Đã xóa kho tri thức "${kb.name}".`);
+    } else performSpaceDelete("knowledge", kb, actor, "kho tri thức", "/knowledge");
     onClose();
     onDeleted?.();
-    toast.success(`Đã xóa kho tri thức "${kb.name}".`, {
-      action: { label: "Hoàn tác", onClick: () => { /* undo not persisted across the 10s window in this prototype */ } },
-      duration: 10_000,
-    });
   };
 
   // Space knowledge base still linked by Agents, or created in an Agent that keeps it: deleting
@@ -51,10 +46,8 @@ export default function DeleteKnowledgeBaseDialog({
         attachedAgentIds={kb.attachedByAgentIds}
         onClose={onClose}
         onConfirm={() => {
-          deleteFromSpace(knowledgeBaseStore, kb, actor);
-          notifySpaceOwner("resource_deleted", actor, kb, "kho tri thức", "/knowledge");
+          performSpaceDelete("knowledge", kb, actor, "kho tri thức", "/knowledge");
           onDeleted?.();
-          toast.success(`Đã xóa kho tri thức "${kb.name}" khỏi Space.`);
         }}
       />
     );

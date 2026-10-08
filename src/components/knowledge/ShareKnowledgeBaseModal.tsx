@@ -38,9 +38,11 @@ export default function ShareKnowledgeBaseModal({
   /** Opened from the Space library for a knowledge base created in an Agent: that Agent's name. */
   originAgentName?: string;
 }) {
-  // Only a resource that is still the Agent's own (never shared) is "Chỉ Agent này". Once a
-  // resource is on the Space, turning sharing off keeps it there (only its owner and Admins see it).
-  const agentOnlyFor = initialSharing.mode === "private" ? agentOnlyForProp : undefined;
+  // Set only inside the Agent a resource was created in. There, turning sharing off on a Space
+  // resource takes it back into that Agent ("Chỉ Agent này"); elsewhere it stays in the Space,
+  // unshared (only its owner and Admins see it).
+  const agentOnlyFor = agentOnlyForProp;
+  const takingBack = !!agentOnlyFor && initialSharing.mode !== "private";
   // A Space Admin turning off someone else's resource: only its owner keeps linking it.
   const { userId: viewerId } = useMyPermissions();
   const onlyWho = resourceOwnerId && resourceOwnerId !== viewerId ? ownerName : "bạn";
@@ -81,7 +83,7 @@ export default function ShareKnowledgeBaseModal({
       // Turning sharing off: allowed, but every OTHER Agent using the knowledge base loses it -
       // confirm first (they show it as "Đã bị thu hồi").
       // Back to one Agent: every other Agent loses it. Space-only owner: other people's Agents do.
-      const others = agentOnlyFor
+      const others = takingBack
         ? agentsUsing((attachedAgentIds ?? []).filter(id => id !== agentOnlyFor))
         : agentsBlockingUnshare(attachedAgentIds, resourceOwnerId, { mode, people: [] });
       if (others.length > 0) { setBlockingAgents(others); return; }
@@ -155,11 +157,11 @@ export default function ShareKnowledgeBaseModal({
       <ResourceInUseDialog
         open={blockingAgents.length > 0}
         onClose={() => setBlockingAgents([])}
-        title={REVOKED_COPY.confirmTitle("kho tri thức này")}
-        description={REVOKED_COPY.confirmBody(blockingAgents.length, "kho tri thức này", "kho tri thức")}
+        title={takingBack && mode === "private" ? REVOKED_COPY.takeBackTitle("kho tri thức này") : REVOKED_COPY.confirmTitle("kho tri thức này")}
+        description={takingBack && mode === "private" ? REVOKED_COPY.takeBackBody(blockingAgents.length, "kho tri thức này", "kho tri thức") : REVOKED_COPY.confirmBody(blockingAgents.length, "kho tri thức này", "kho tri thức")}
         agents={blockingAgents}
         onConfirm={() => { setBlockingAgents([]); applySave(); }}
-        confirmLabel={REVOKED_COPY.confirmAction}
+        confirmLabel={takingBack && mode === "private" ? REVOKED_COPY.takeBackAction : REVOKED_COPY.confirmAction}
       />
     </>
   );

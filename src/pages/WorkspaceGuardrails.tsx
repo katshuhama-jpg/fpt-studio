@@ -1,8 +1,8 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import {
-  ownershipTags, countByTab, matchesTab, OwnershipTabs, ownershipEmptyCopy, OwnershipTagList, CreatorLabel, isCreatorRedundant, type OwnershipTab,
+  isShared, ownershipTags, countByTab, matchesTab, OwnershipTabs, ownershipEmptyCopy, OwnershipTagList, CreatorLabel, isCreatorRedundant, type OwnershipTab,
 } from "@/components/governance/resourceOwnership";
-import { SpaceDeleteDialog, canManageSpaceResource, deleteFromSpace, notifySpaceOwner, useSpaceActor } from "@/components/governance/spaceDelete";
+import { SpaceDeleteDialog, canManageSpaceResource, performSpaceDelete, spaceDeleteLabel, SpaceUnshareDialog, notifySpaceOwner, useSpaceActor } from "@/components/governance/spaceDelete";
 import { toast } from "sonner";
 import { useSearchParams } from "react-router-dom";
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -88,6 +88,7 @@ export default function WorkspaceGuardrails() {
   const [viewItem, setViewItem] = useState<Guardrail | null>(null);
   const [shareItem, setShareItem] = useState<Guardrail | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Guardrail | null>(null);
+  const [unshareTarget, setUnshareTarget] = useState<Guardrail | null>(null);
   const [tab, setTab] = useState<MainTab>("all");
 
   // A guardrail linked to from elsewhere (e.g. an Agent's "Mở guardrail" row action) via
@@ -170,6 +171,19 @@ export default function WorkspaceGuardrails() {
       )}
 
 
+      {unshareTarget && (
+        <SpaceUnshareDialog
+          open
+          noun="guardrail"
+          name={unshareTarget.name}
+          ownerName={unshareTarget.ownerName}
+          ownerId={unshareTarget.ownerId}
+          attachedAgentIds={unshareTarget.attachedByAgentIds}
+          actor={actor}
+          onClose={() => setUnshareTarget(null)}
+          onConfirm={() => handleShare(unshareTarget, { mode: "private", people: [] })}
+        />
+      )}
       {deleteTarget && (
         <SpaceDeleteDialog
           open
@@ -179,9 +193,7 @@ export default function WorkspaceGuardrails() {
           attachedAgentIds={deleteTarget.attachedByAgentIds}
           onClose={() => setDeleteTarget(null)}
           onConfirm={() => {
-            deleteFromSpace(guardrailConsoleStore, deleteTarget, actor);
-            notifySpaceOwner("resource_deleted", actor, deleteTarget, "guardrail", "/guardrails");
-            toast.success(`Đã xóa guardrail "${deleteTarget.name}" khỏi Space.`);
+            performSpaceDelete("guardrail", deleteTarget, actor, "guardrail", "/guardrails");
             refresh();
           }}
         />
@@ -280,7 +292,10 @@ export default function WorkspaceGuardrails() {
                 onOpen={() => setViewItem(g)}
                 onEdit={() => setEditItem(g)}
                 onShare={hasOwner ? () => setShareItem(g) : undefined}
+                onToggleShare={hasOwner && !g.allAgents ? () => (isShared(g.sharing) ? setUnshareTarget(g) : setShareItem(g)) : undefined}
+                toggleShareLabel={isShared(g.sharing) ? "Tắt chia sẻ" : "Chia sẻ"}
                 onDelete={() => setDeleteTarget(g)}
+                deleteLabel={spaceDeleteLabel(g)}
                 editBlocked={editBlocked}
                 shareBlocked={shareBlocked}
                 deleteBlocked={deleteBlocked}
@@ -345,10 +360,14 @@ function ActionPill({ children }: { children: React.ReactNode }) {
  * role Scope) actually blocks it — never hidden outright, so an owner sees the full action set,
  * an edit-shared viewer sees Mở/Chỉnh sửa enabled, and a view-only viewer sees only Mở enabled. */
 function RowMenu({
-  onOpen, onEdit, onShare, onDelete,
+  onOpen, onEdit, onShare, onToggleShare, toggleShareLabel, onDelete, deleteLabel = "Xóa",
   editBlocked, shareBlocked, deleteBlocked,
 }: {
   onOpen: () => void; onEdit: () => void; onShare?: () => void; onDelete: () => void;
+  /** "Tắt chia sẻ" (asks once) or "Chia sẻ" (opens "Ai được dùng"). */
+  onToggleShare?: () => void; toggleShareLabel?: string;
+  /** "Gỡ khỏi Space" for a guardrail its Agent keeps, else "Xóa". */
+  deleteLabel?: string;
   editBlocked?: string; shareBlocked?: string; deleteBlocked?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -397,13 +416,23 @@ function RowMenu({
               <HugeiconsIcon icon={UserMultipleIcon} size={13} className="text-muted-foreground" /> Ai được dùng
             </button>
           )}
+          {onToggleShare && (
+            <button
+              disabled={!!shareBlocked}
+              title={shareBlocked}
+              onClick={() => { setOpen(false); onToggleShare(); }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-surface-muted transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+            >
+              <HugeiconsIcon icon={Share08Icon} size={13} className="text-muted-foreground" /> {toggleShareLabel}
+            </button>
+          )}
           <button
             disabled={!!deleteBlocked}
             title={deleteBlocked}
             onClick={() => { setOpen(false); onDelete(); }}
             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-destructive/5 transition-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
           >
-            <HugeiconsIcon icon={Delete01Icon} size={13} /> Xóa
+            <HugeiconsIcon icon={Delete01Icon} size={13} /> {deleteLabel}
           </button>
         </div>
       )}

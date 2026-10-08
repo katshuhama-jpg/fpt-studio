@@ -4,6 +4,7 @@
 import { loadMap, saveMap } from "@/lib/sessionPersist";
 import { skillStore, type Skill } from "./skillStore";
 import type { Sharing } from "./skillSharing";
+import { instructionDraftStore } from "./instructionDraftStore";
 
 const STORE_KEY = "agent_skill_store_v1";
 const ATTACHED_KEY = "agent_skill_attached_v1";
@@ -147,6 +148,7 @@ export const agentSkillStore = {
     skillStore.setOriginAgent(created.id, agentId);
     this.remove(agentId, itemId);
     this.attachConsoleSkill(agentId, created.id);
+    instructionDraftStore.remapRef(agentId, "skill", itemId, created.id);
     return { skillId: created.id };
   },
 
@@ -157,6 +159,24 @@ export const agentSkillStore = {
     // Turning sharing off keeps the resource in the Space (only its owner and Admins see it).
     skillStore.updateSharing(skillId, sharing);
     return false;
+  },
+
+  /** "Chỉ Agent này" (in the Agent it was created in) or "Gỡ khỏi Space" (Space library): the
+   * skill goes back into that Agent as its own. Other Agents still linking the Space record show
+   * it as "Không khả dụng - Đã được kéo về Agent …" until they detach it. */
+  takeBackToAgent(agentId: string, skillId: string, by: { id: string; name: string }): Skill | null {
+    const src = skillStore.get(skillId);
+    if (!src) return null;
+    const created = this.create(agentId, {
+      name: src.name, description: src.description, body: src.body,
+      ownerId: src.ownerId ?? "", ownerName: src.ownerName ?? "",
+      sharing: { mode: "private", people: [] },
+    });
+    instructionDraftStore.remapRef(agentId, "skill", skillId, created.id);
+    this.detachConsoleSkill(agentId, skillId);
+    if ((skillStore.get(skillId)?.attachedByAgentIds ?? []).length) skillStore.removeFromSpace(skillId, by, undefined, agentId);
+    else skillStore.remove(skillId);
+    return created;
   },
 
   /** Reverse of promoteToConsole — "Tắt chia sẻ" on a skill this Agent shared: moves it back

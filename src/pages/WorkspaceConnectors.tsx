@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { SpaceDeleteDialog, deleteFromSpace, notifySpaceOwner, useSpaceActor } from "@/components/governance/spaceDelete";
+import { SpaceDeleteDialog, performSpaceDelete, spaceDeleteLabel, SpaceUnshareDialog, notifySpaceOwner, useSpaceActor } from "@/components/governance/spaceDelete";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { Search, CheckCircle2, ChevronRight, ChevronDown, Plug, MoreVertical, AlertTriangle, X, Rocket, Globe, BarChart3, type LucideIcon } from "lucide-react";
@@ -23,7 +23,7 @@ import {
 import { ConnectorTemplateConnectModal, ConnectorTemplateManageModal } from "@/components/configure/ConnectorTemplateModals";
 import AgentResourceDetailModal from "@/components/configure/AgentResourceDetailModal";
 import {
-  ownershipTags, countByTab, matchesTab, OwnershipTabs, ownershipEmptyCopy, ResourceCard, ResourceIconTile, CardCreator, AgentCount,
+  isShared, ownershipTags, countByTab, matchesTab, OwnershipTabs, ownershipEmptyCopy, ResourceCard, ResourceIconTile, CardCreator, AgentCount,
   type OwnershipTab, type OwnershipTag,
 } from "@/components/governance/resourceOwnership";
 import {
@@ -186,6 +186,8 @@ export default function WorkspaceConnectors() {
   const manages = (ownerId?: string) => actor.isAdmin || ownerId === CURRENT_USER.id;
   const [editApiToolTarget, setEditApiToolTarget] = useState<CustomApiTool | null>(null);
   const [deleteApiToolTarget, setDeleteApiToolTarget] = useState<CustomApiTool | null>(null);
+  const [unshareTarget, setUnshareTarget] = useState<{ kind: "connector"; c: CustomConnector } | { kind: "apiTool"; a: CustomApiTool } | null>(null);
+  const unshareRes = unshareTarget ? (unshareTarget.kind === "connector" ? unshareTarget.c : unshareTarget.a) : null;
   const [customTab, setCustomTab] = useState<CustomTab>("all");
   // Clicking a custom connector card shows its details (same popup as in an Agent's Instructions).
   const [detailConnectorId, setDetailConnectorId] = useState<string | null>(null);
@@ -395,6 +397,7 @@ export default function WorkspaceConnectors() {
                       onEdit={a.ownerId === CURRENT_USER.id ? () => setEditApiToolTarget(a) : undefined}
                       onShare={manages(a.ownerId) ? () => setShareApiToolTarget(a) : undefined}
                       onDelete={manages(a.ownerId) ? () => setDeleteApiToolTarget(a) : undefined}
+                      onUnshare={() => setUnshareTarget({ kind: "apiTool", a })}
                     />
                   );
                 }
@@ -411,6 +414,7 @@ export default function WorkspaceConnectors() {
                     onShare={manages(c.ownerId) ? () => setShareTarget(c) : undefined}
                     onPublish={isMine ? () => setPublishTarget(c) : undefined}
                     onDelete={manages(c.ownerId) ? () => setDeleteTarget(c) : undefined}
+                    onUnshare={() => setUnshareTarget({ kind: "connector", c })}
                   />
                 );
               })}
@@ -509,6 +513,24 @@ export default function WorkspaceConnectors() {
         />
       )}
 
+      {unshareTarget && unshareRes && (
+        <SpaceUnshareDialog
+          open
+          noun={unshareTarget.kind === "connector" ? "kết nối" : "API Tool"}
+          name={unshareRes.name}
+          ownerName={unshareRes.ownerName}
+          ownerId={unshareRes.ownerId}
+          attachedAgentIds={unshareRes.attachedByAgentIds}
+          actor={actor}
+          onClose={() => setUnshareTarget(null)}
+          onConfirm={() => {
+            if (unshareTarget.kind === "connector") customConnectorStore.updateSharing(unshareRes.id, { mode: "private", people: [] });
+            else customApiToolStore.updateSharing(unshareRes.id, { mode: "private", people: [] });
+            notifySpaceOwner("resource_unshared", actor, unshareRes, unshareTarget.kind === "connector" ? "kết nối" : "API Tool", "/connectors");
+            refresh();
+          }}
+        />
+      )}
       {deleteTarget && (
         <SpaceDeleteDialog
           open
@@ -518,9 +540,7 @@ export default function WorkspaceConnectors() {
           attachedAgentIds={deleteTarget.attachedByAgentIds}
           onClose={() => setDeleteTarget(null)}
           onConfirm={() => {
-            deleteFromSpace(customConnectorStore, deleteTarget, actor);
-            notifySpaceOwner("resource_deleted", actor, deleteTarget, "kết nối", "/connectors");
-            toast.success(`Đã xóa kết nối "${deleteTarget.name}" khỏi Space.`);
+            performSpaceDelete("connector", deleteTarget, actor, "kết nối", "/connectors");
             refresh();
           }}
         />
@@ -534,9 +554,7 @@ export default function WorkspaceConnectors() {
           attachedAgentIds={deleteApiToolTarget.attachedByAgentIds}
           onClose={() => setDeleteApiToolTarget(null)}
           onConfirm={() => {
-            deleteFromSpace(customApiToolStore, deleteApiToolTarget, actor);
-            notifySpaceOwner("resource_deleted", actor, deleteApiToolTarget, "API Tool", "/connectors");
-            toast.success(`Đã xóa API Tool "${deleteApiToolTarget.name}" khỏi Space.`);
+            performSpaceDelete("apiTool", deleteApiToolTarget, actor, "API Tool", "/connectors");
             refresh();
           }}
         />
@@ -643,8 +661,12 @@ function MarketplaceConnectorCard({ connector: c, onConnect, onManage }: {
 }
 
 /* ─── Custom Connector card + row menu ───────────────── */
-function CustomConnectorRowMenu({ onView, onEdit, onShare, onPublish, onToggleBlock, isBlocked, onDelete }: {
+function CustomConnectorRowMenu({ onView, onEdit, onShare, onPublish, onToggleBlock, isBlocked, onDelete, onToggleShare, toggleShareLabel, deleteLabel = "Xóa" }: {
   onView?: () => void; onEdit?: () => void; onShare?: () => void; onPublish?: () => void; onToggleBlock?: () => void; isBlocked?: boolean; onDelete?: () => void;
+  /** "Tắt chia sẻ" (asks once) or "Chia sẻ" (opens "Ai được dùng"). */
+  onToggleShare?: () => void; toggleShareLabel?: string;
+  /** "Gỡ khỏi Space" when the Agent it came from keeps it, else "Xóa". */
+  deleteLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -677,6 +699,11 @@ function CustomConnectorRowMenu({ onView, onEdit, onShare, onPublish, onToggleBl
               Ai được dùng
             </button>
           )}
+          {onToggleShare && (
+            <button onClick={() => { setOpen(false); onToggleShare(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">
+              {toggleShareLabel}
+            </button>
+          )}
           {onPublish && (
             <button onClick={() => { setOpen(false); onPublish(); }} className="w-full text-left px-3 py-2 text-sm hover:bg-surface-muted transition-base">
               Publish
@@ -689,7 +716,7 @@ function CustomConnectorRowMenu({ onView, onEdit, onShare, onPublish, onToggleBl
           )}
           {onDelete && (
             <button onClick={() => { setOpen(false); onDelete(); }} className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-destructive/5 transition-base">
-              Xóa
+              {deleteLabel}
             </button>
           )}
         </div>
@@ -698,8 +725,8 @@ function CustomConnectorRowMenu({ onView, onEdit, onShare, onPublish, onToggleBl
   );
 }
 
-function CustomConnectorCard({ connector: c, tags, isMine, onOpen, onEdit, onShare, onPublish, onToggleBlock, onDelete }: {
-  connector: CustomConnector; tags: OwnershipTag[]; isMine: boolean; onOpen: () => void; onEdit?: () => void; onShare?: () => void; onPublish?: () => void; onToggleBlock?: () => void; onDelete?: () => void;
+function CustomConnectorCard({ connector: c, tags, isMine, onOpen, onEdit, onShare, onPublish, onToggleBlock, onDelete, onUnshare }: {
+  connector: CustomConnector; tags: OwnershipTag[]; isMine: boolean; onOpen: () => void; onEdit?: () => void; onShare?: () => void; onPublish?: () => void; onToggleBlock?: () => void; onDelete?: () => void; onUnshare?: () => void;
 }) {
   const openReq = governanceStore.getOpenRequestForResource("connector", c.id);
   const isApproved = governanceStore.isResourceApproved("connector", c.id);
@@ -709,7 +736,8 @@ function CustomConnectorCard({ connector: c, tags, isMine, onOpen, onEdit, onSha
       icon={<ResourceIconTile><Plug size={16} /></ResourceIconTile>}
       name={c.name}
       tags={tags}
-      menu={<CustomConnectorRowMenu onView={onOpen} onEdit={onEdit} onShare={onShare} onPublish={onPublish} onToggleBlock={onToggleBlock} isBlocked={isBlocked} onDelete={onDelete} />}
+      menu={<CustomConnectorRowMenu onView={onOpen} onEdit={onEdit} onShare={onShare} onPublish={onPublish} onToggleBlock={onToggleBlock} isBlocked={isBlocked} onDelete={onDelete}
+        onToggleShare={onShare ? (isShared(c.sharing) ? onUnshare : onShare) : undefined} toggleShareLabel={isShared(c.sharing) ? "Tắt chia sẻ" : "Chia sẻ"} deleteLabel={spaceDeleteLabel(c)} />}
       description={c.url}
       singleLineDescription
       onOpen={onOpen}
@@ -786,15 +814,16 @@ const API_METHOD_CLASS: Record<HttpMethod, string> = {
 
 /** API Tool card — same "Phương án A" ResourceCard shell as a Custom Connector card, with a
  * method badge and the auth type. Menu: Xem chi tiết / Chỉnh sửa / Chia sẻ (owner) / Xóa. */
-function CustomApiToolCard({ tool: a, tags, onOpen, onEdit, onShare, onDelete }: {
-  tool: CustomApiTool; tags: OwnershipTag[]; onOpen: () => void; onEdit?: () => void; onShare?: () => void; onDelete?: () => void;
+function CustomApiToolCard({ tool: a, tags, onOpen, onEdit, onShare, onDelete, onUnshare }: {
+  tool: CustomApiTool; tags: OwnershipTag[]; onOpen: () => void; onEdit?: () => void; onShare?: () => void; onDelete?: () => void; onUnshare?: () => void;
 }) {
   return (
     <ResourceCard
       icon={<ResourceIconTile><Globe size={16} /></ResourceIconTile>}
       name={a.name}
       tags={tags}
-      menu={<CustomConnectorRowMenu onView={onOpen} onEdit={onEdit} onShare={onShare} onDelete={onDelete} />}
+      menu={<CustomConnectorRowMenu onView={onOpen} onEdit={onEdit} onShare={onShare} onDelete={onDelete}
+        onToggleShare={onShare ? (isShared(a.sharing) ? onUnshare : onShare) : undefined} toggleShareLabel={isShared(a.sharing) ? "Tắt chia sẻ" : "Chia sẻ"} deleteLabel={spaceDeleteLabel(a)} />}
       description={a.description}
       onOpen={onOpen}
       extra={

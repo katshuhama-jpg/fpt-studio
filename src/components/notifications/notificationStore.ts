@@ -26,7 +26,9 @@ export type NotificationKind =
   | "regovern_required"
   /** A Space Admin turned sharing off on / deleted someone's Space resource (to the owner). */
   | "resource_unshared"
-  | "resource_deleted";
+  | "resource_deleted"
+  /** …or took it off the Space back into the Agent it came from ("Gỡ khỏi Space"). */
+  | "resource_removed";
 
 export interface AppNotification {
   id: string;

@@ -16,7 +16,7 @@ import { agentCapabilityStore, AGENT_CAPABILITIES } from "./agentCapabilityStore
 import { knowledgeStore, OWN_KB_ID } from "@/components/knowledge/knowledgeStore";
 import { knowledgeBaseStore, CURRENT_USER, isAccessibleTo as isKbAccessibleTo } from "@/components/knowledge/knowledgeBaseStore";
 import { knowledgeDocumentStore, type KnowledgeDocument } from "@/components/knowledge/knowledgeDocumentStore";
-import { deletedFromSpaceBy, isResourceRevoked, type RevocableType } from "@/components/governance/revokedResources";
+import { deletedFromSpaceBy, isResourceRevoked, unavailableReason, type RevocableType } from "@/components/governance/revokedResources";
 
 /* ───────────────────────── tokens ───────────────────────── */
 
@@ -139,6 +139,8 @@ export interface ResolvedRef {
   revokedType?: RevocableType;
   /** status "revoked" only: set when the resource was deleted from the Space (who deleted it). */
   deletedBy?: string;
+  /** status "revoked" only: the full "Không khả dụng" reason. */
+  reason?: string;
   /** Chip text. "Tài nguyên bị hạn chế" when the viewer may not see the resource. */
   label: string;
   typeLabel: string;
@@ -163,7 +165,7 @@ export function resolveRef(agentId: string, ref: ParsedRef): ResolvedRef {
   const restricted = (): ResolvedRef => ({ ...base, status: "restricted", label: "Tài nguyên bị hạn chế" });
   const ok = (label: string, extra: Partial<ResolvedRef> = {}): ResolvedRef => ({ ...base, status: "ok", label, ...extra });
   const revoked = (label: string, by: string, type: RevocableType, id: string): ResolvedRef =>
-    ({ ...base, status: "revoked", label, revokedBy: by, revokedType: type, deletedBy: deletedFromSpaceBy(type, id) });
+    ({ ...base, status: "revoked", label, revokedBy: by, revokedType: type, deletedBy: deletedFromSpaceBy(type, id), reason: unavailableReason(type, id) });
 
   switch (ref.kind) {
     case "skill": {
@@ -242,7 +244,7 @@ export function findBrokenRefs(agentId: string, text: string): BrokenRef[] {
     const r = resolveRef(agentId, seg.ref);
     if (r.status === "missing") out.push({ ref: r, reason: "Không còn gắn với Agent" });
     else if (r.status === "restricted") out.push({ ref: r, reason: "Không có quyền truy cập" });
-    else if (r.status === "revoked") out.push({ ref: r, reason: r.deletedBy ? "Đã bị xóa khỏi Space" : "Đã bị thu hồi quyền dùng" });
+    else if (r.status === "revoked") out.push({ ref: r, reason: "Không còn khả dụng" });
   }
   return out;
 }

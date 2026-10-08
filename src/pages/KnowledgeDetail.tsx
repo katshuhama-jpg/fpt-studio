@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { notifySpaceOwner, useSpaceActor } from "@/components/governance/spaceDelete";
+import { notifySpaceOwner, useSpaceActor, spaceDeleteLabel } from "@/components/governance/spaceDelete";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ChevronLeft, MoreHorizontal, FileText, Globe, HelpCircle, Database,
@@ -323,7 +323,7 @@ export default function KnowledgeDetail() {
                           onClick={() => { setShowDelete(true); setShowMenu(false); }}
                           className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-[hsl(var(--destructive-soft))] disabled:text-muted-foreground/50 disabled:cursor-not-allowed transition-base"
                         >
-                          Xóa
+                          {kb.agentOnlyFor ? "Xóa" : spaceDeleteLabel(kb)}
                         </button>
                       )}
                     </div>}
