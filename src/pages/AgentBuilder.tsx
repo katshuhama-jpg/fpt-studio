@@ -686,6 +686,16 @@ export default function AgentBuilder() {
         {/* Content + Preview — locked for a view-only member (Insights stays browsable). */}
         <div
           className={`flex-1 flex overflow-hidden ${lockContent ? "agent-view-only" : ""}`}
+          title={lockContent ? "Bạn chỉ xem được Agent này." : undefined}
+          onClickCapture={e => { if (lockContent) { e.preventDefault(); e.stopPropagation(); } }}
+          onPointerDownCapture={e => { if (lockContent) { e.preventDefault(); e.stopPropagation(); } }}
+          onMouseDownCapture={e => { if (lockContent) { e.preventDefault(); e.stopPropagation(); } }}
+          onKeyDownCapture={e => {
+            // Tab and scrolling keys still move around the page; anything that would act is dropped.
+            if (!lockContent) return;
+            const passThrough = ["Tab", "ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", "Shift"];
+            if (!passThrough.includes(e.key)) { e.preventDefault(); e.stopPropagation(); }
+          }}
           onBeforeInputCapture={e => { if (lockContent) e.preventDefault(); }}
           onPasteCapture={e => { if (lockContent) e.preventDefault(); }}
           onDropCapture={e => { if (lockContent) e.preventDefault(); }}

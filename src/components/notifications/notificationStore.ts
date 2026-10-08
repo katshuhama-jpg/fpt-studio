@@ -28,7 +28,9 @@ export type NotificationKind =
   | "resource_unshared"
   | "resource_deleted"
   /** …or took it off the Space back into the Agent it came from ("Gỡ khỏi Space"). */
-  | "resource_removed";
+  | "resource_removed"
+  /** Someone shared an Agent with you in the Console (to each newly added person). */
+  | "agent_shared";
 
 export interface AppNotification {
   id: string;

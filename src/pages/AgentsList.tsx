@@ -7,7 +7,7 @@ import {
   SparklesIcon, Cancel01Icon, BoltIcon, TimeScheduleIcon, UserMultipleIcon,
 } from "@hugeicons/core-free-icons";
 import ShareAgentModal, { useCanShareAgent } from "@/components/configure/ShareAgentModal";
-import { useAgentShareVersion } from "@/components/configure/agentShareStore";
+import { useAgentShareVersion, agentShareStore } from "@/components/configure/agentShareStore";
 import { useState, useMemo, useEffect } from "react";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import { useGroupAccess, isOwnedOrShared } from "@/pages/organization/scopeAccess";
@@ -26,7 +26,7 @@ import { agentModelStore } from "@/components/configure/agentModelStore";
 
 const tabs = ["All agents", "Published", "Draft", "Chờ duyệt", "Bị từ chối", "Shared with me"] as const;
 /** Display labels — "Published/Draft" read as "Đang live/Bản nháp" to match the card lines. */
-const TAB_LABEL: Partial<Record<typeof tabs[number], string>> = { Published: "Đang live", Draft: "Bản nháp" };
+const TAB_LABEL: Partial<Record<typeof tabs[number], string>> = { Published: "Đang live", Draft: "Bản nháp", "Shared with me": "Được chia sẻ" };
 const kindFilters = ["All", "Agents", "Automation Agents"] as const;
 
 const SUGGESTIONS = [
@@ -228,6 +228,18 @@ function TemplateModal({ onClose }: { onClose: () => void }) {
 
 /* ─── Agent cards (R2) ──────────────────────────────────────────────── */
 
+/** Owner/Admin-only hint that the Agent is shared in the Console, e.g. "Cả Space" or "2 người". */
+function AgentShareChip({ agentId }: { agentId: string }) {
+  const canShare = useCanShareAgent(agentId);
+  const s = agentShareStore.get(agentId);
+  if (!canShare || s.mode === "private") return null;
+  return (
+    <span title="Agent này đang được chia sẻ trong Console" className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary-soft text-primary text-[11px] font-medium whitespace-nowrap shrink-0">
+      <HugeiconsIcon icon={UserMultipleIcon} size={11} /> {s.mode === "all" ? "Cả Space" : `${s.people.length} người`}
+    </span>
+  );
+}
+
 /** "⋯" on a card — "Chia sẻ" for the Agent's owner or an Admin (see useCanShareAgent). Lives
  * inside the card's <Link>, so every click stops the navigation. */
 function AgentCardMenu({ agentId }: { agentId: string }) {
@@ -281,6 +293,7 @@ function ConversationalCard({ a }: { a: typeof agents[number] }) {
             <h3 className="font-semibold text-sm truncate mb-0.5">{a.name}</h3>
             <AgentVersionLines agentId={a.id} />
           </div>
+          <AgentShareChip agentId={a.id} />
           <AgentCardMenu agentId={a.id} />
         </div>
 
@@ -346,6 +359,7 @@ function AutomationCard({ a }: { a: typeof agents[number] }) {
             <h3 className="font-semibold text-sm truncate mb-0.5">{a.name}</h3>
             <AgentVersionLines agentId={a.id} />
           </div>
+          <AgentShareChip agentId={a.id} />
           <AgentCardMenu agentId={a.id} />
         </div>
 

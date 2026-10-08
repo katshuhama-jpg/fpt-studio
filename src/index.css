@@ -446,9 +446,10 @@
 .animate-fade-up { animation: fade-in-up 0.35s var(--ease-out) both; }
 .animate-pulse-soft { animation: pulse-soft 2s ease-in-out infinite; }
 
-/* View-only Agent (shared with a Role that can't Build): content can be read and scrolled,
-   but no control inside it reacts. */
-.agent-view-only :is(input, textarea, select, button, a, label, [role="button"], [role="switch"], [role="tab"], [contenteditable], [draggable="true"], .react-flow) {
-  pointer-events: none;
+/* View-only Agent (shared with a Role that can't Build): content can be read and scrolled; every
+   control is dimmed and AgentBuilder's capture handlers drop clicks, typing and key presses. */
+.agent-view-only :is(input, textarea, select, button, [role="button"], [role="switch"], [role="tab"], [contenteditable], .react-flow) {
+  opacity: 0.55;
+  cursor: not-allowed !important;
 }
 .agent-view-only [contenteditable] { -webkit-user-modify: read-only; }

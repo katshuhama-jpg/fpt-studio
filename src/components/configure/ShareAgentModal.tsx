@@ -18,6 +18,8 @@ import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import { useGroupAccess } from "@/pages/organization/scopeAccess";
 import { getAgent } from "./agentStore";
 import { agentShareStore } from "./agentShareStore";
+import { notificationStore } from "@/components/notifications/notificationStore";
+import { currentPersona } from "@/lib/demoPersona";
 
 const AGENT_SHARE_COPY: AccessCopy = {
   title: "Ai được vào Agent này",
@@ -81,7 +83,19 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
   const narrowing = (initial.mode === "all" && mode !== "all") || removedCount > 0;
 
   const apply = () => {
-    agentShareStore.set(agentId, { mode, people: mode === "specific" ? people.map(p => p.userId) : [] });
+    const nextPeople = mode === "specific" ? people.map(p => p.userId) : [];
+    agentShareStore.set(agentId, { mode, people: nextPeople });
+    // Tell each newly added person (not the whole Space — that would flood every bell).
+    const added = nextPeople.filter(id => !(initial.mode === "specific" && initial.people.includes(id)));
+    if (added.length) {
+      const actor = currentPersona();
+      notificationStore.push({
+        kind: "agent_shared", recipients: added, actorId: actor.id, actorName: actor.name,
+        title: `${actor.name} đã chia sẻ Agent ${agent.name} với bạn`,
+        segments: [[actor.name, true], [" đã chia sẻ Agent "], [agent.name, true], [" với bạn"]],
+        href: `/agents/${agentId}`, resourceId: agentId,
+      });
+    }
     toast.success("Đã lưu thay đổi.");
     onClose();
   };
@@ -109,6 +123,8 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
               submitAttempted={submitAttempted}
               ownerRow={{ name: owner?.name ?? "Bạn", email: owner?.email ?? "" }}
               copy={AGENT_SHARE_COPY}
+              defaultSharedMode="specific"
+              hideAudience
               picker={
                 <MemberPicker
                   value={people}
@@ -119,7 +135,7 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
                 />
               }
             />
-            <p className="text-xs text-muted-foreground mt-3">Chia sẻ chỉ cho phép vào Agent trong Console. Người dùng cuối trò chuyện với Agent được quyết định khi Publish.</p>
+            <p className="text-xs text-muted-foreground mt-3">Chia sẻ để cùng xây dựng Agent trong Console. Ai được trò chuyện với Agent sẽ chọn khi Publish.</p>
           </div>
           <DialogFooter>
             <button onClick={onClose} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Hủy bỏ</button>

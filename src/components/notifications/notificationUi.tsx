@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Bell, CheckCircle2, XCircle, Ban, Inbox, RotateCcw, ChevronRight, CheckCheck, EyeOff, Trash2 } from "lucide-react";
+import { Bell, CheckCircle2, XCircle, Ban, Inbox, RotateCcw, ChevronRight, CheckCheck, EyeOff, Trash2, Users } from "lucide-react";
 import { getAgent } from "@/components/configure/agentStore";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { governanceStore } from "@/components/governance/governanceStore";
@@ -47,6 +47,7 @@ const KIND_META: Record<NotificationKind, { icon: typeof Bell; tone: Tone; chip:
   resource_unshared: { icon: EyeOff, tone: "warning", chip: "Đã tắt chia sẻ" },
   resource_deleted: { icon: Trash2, tone: "danger", chip: "Đã xóa" },
   resource_removed: { icon: EyeOff, tone: "warning", chip: "Đã gỡ khỏi Space" },
+  agent_shared: { icon: Users, tone: "info", chip: "Chia sẻ" },
 };
 
 /** "Agent của bạn" / "Agent được chia sẻ với bạn" for outcomes; nothing extra for incoming. */

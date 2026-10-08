@@ -209,7 +209,11 @@ export function resourceAccessCopy(noun: string): AccessCopy {
 
 /** "Quyền truy cập" block — title, description, option cards and the member picker. Knowledge
  * copy by default; other resources pass `copy` (see resourceAccessCopy) and their own `picker`. */
-export function AccessScopeSection({ mode, people, onModeChange, onPeopleChange, submitAttempted, ownerRow, agentOnly = false, agentName, hideTitle = false, copy, picker }: {
+export function AccessScopeSection({ mode, people, onModeChange, onPeopleChange, submitAttempted, ownerRow, agentOnly = false, agentName, hideTitle = false, copy, picker, defaultSharedMode = "all", hideAudience = false }: {
+  /** Option picked when the switch is first turned on. */
+  defaultSharedMode?: Exclude<SharingMode, "private">;
+  /** Hide the "Áp dụng cho" tag (e.g. sharing an Agent, where people may only view). */
+  hideAudience?: boolean;
   mode: SharingMode;
   people: SharedPerson[];
   onModeChange: (m: SharingMode) => void;
@@ -234,12 +238,12 @@ export function AccessScopeSection({ mode, people, onModeChange, onPeopleChange,
   // one) only that Agent uses it; in the Space library only the owner can link it. On = the two
   // Space options; switching off then on again brings back the option picked before.
   const shared = mode !== "private";
-  const lastShared = useRef<SharingMode>(mode === "private" ? "all" : mode);
+  const lastShared = useRef<SharingMode>(mode === "private" ? defaultSharedMode : mode);
   if (mode !== "private") lastShared.current = mode;
   const switchHelper = copy?.switchHelper ?? "Bật để người khác trong Space liên kết được kho này vào Agent của họ.";
   return (
     <div>
-      <PermissionHeading title={copy?.title ?? ACCESS_COPY.title} description={description} hideTitle={hideTitle} audience="builders" />
+      <PermissionHeading title={copy?.title ?? ACCESS_COPY.title} description={description} hideTitle={hideTitle} audience={hideAudience ? undefined : "builders"} />
       {(
         <label className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-3.5 py-3 mb-2 cursor-pointer">
           <span className="min-w-0">

@@ -62,6 +62,11 @@ export default function MemberPicker({
           placeholder="Tìm theo tên hoặc email..."
           className="h-9 w-full pl-8 pr-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base"
         />
+        {q && candidates.length === 0 && (
+          <div className="absolute left-0 right-0 top-[calc(100%+4px)] bg-white rounded-lg ring-1 ring-border shadow-elev z-30 px-3 py-2.5 text-sm text-muted-foreground">
+            Không tìm thấy ai khớp với "{query.trim()}". Thử tên khác hoặc email.
+          </div>
+        )}
         {candidates.length > 0 && (
           <div className="absolute left-0 right-0 top-[calc(100%+4px)] max-h-56 overflow-y-auto bg-white rounded-lg ring-1 ring-border shadow-elev z-30 p-1">
             {candidates.map(m => (
