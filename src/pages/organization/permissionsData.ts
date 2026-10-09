@@ -48,9 +48,13 @@ export const featureGroups: FeatureGroup[] = [
       { id: `${id}.pause`, name: `Pause ${thing}`, desc: `Pause or resume a live ${singular} in the workspace without deleting it.` },
     ];
     permissions.push({ id: `${id}.delete`, name: `Delete ${thing}`, desc: `Permanently delete a live ${singular} from the workspace.` });
-    // Conversations can hold customers' names, emails and messages, so taking them out of the
-    // Console is its own permission rather than riding on View/Build.
+    // Conversations can hold customers' names, emails and messages, so viewing and exporting
+    // them are their own permissions rather than riding on View/Build — "View agent history"
+    // gates both the conversation list and the technical Trace (latency, tokens, tool-call
+    // payloads, errors) in Insights → History, since Trace is reached from that same screen and
+    // isn't meaningfully less sensitive than the list it's opened from.
     if (id === "agents") {
+      permissions.push({ id: "agents.history", name: "View agent history", desc: "See an agent's past conversations in Insights → History, including each conversation's full message content and its technical Trace (latency, tokens, tool-call payloads, errors)." });
       permissions.push({ id: "agents.export", name: "Export conversation data", desc: "Download an agent's conversation history and user feedback (likes, dislikes, reasons) as Excel or CSV from Insights → History. Every export is recorded in the Audit log." });
     }
     return { id, label, icon, section: "console" as Section, permissions };

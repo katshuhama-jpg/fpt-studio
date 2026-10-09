@@ -2,7 +2,7 @@ import { useMyPermissions } from "./useMyPermissions";
 import { SCOPABLE_GROUP_IDS, type ScopeValue } from "./rolesStore";
 
 export type ResourceGroupId = (typeof SCOPABLE_GROUP_IDS)[number];
-export type ScopableVerb = "view" | "publish" | "manage" | "pause" | "delete";
+export type ScopableVerb = "view" | "publish" | "manage" | "pause" | "delete" | "history";
 
 /** Minimal ownership shape for the resource groups that don't have a richer sharing model of
  * their own (Agents, Skills, Guardrails, Connectors) — "who created it" plus "who it was

@@ -6,7 +6,8 @@ import {
   Settings2, Waypoints, AlertTriangle, ShieldAlert, CheckCircle2, XCircle,
   UserCheck, Hourglass, Sparkles,
 } from "lucide-react";
-import { getAgent } from "@/components/configure/agentStore";
+import { AGENTS, getAgent } from "@/components/configure/agentStore";
+import { useGroupAccess, isOwnedOrShared } from "@/pages/organization/scopeAccess";
 import { historyStore } from "@/components/history/historyStore";
 import { buildTrace } from "@/components/history/traceStore";
 import { RefineWithAiTracePanel } from "@/components/history/RefineWithAiTracePanel";
@@ -310,6 +311,14 @@ export default function ConversationTrace() {
   // agent's trace, so the label must reflect whichever agent's conversation is actually open.
   const agentName = useMemo(() => getAgent(agentId).name, [agentId]);
 
+  // Trace is reached from Insights → History but also has its own direct URL
+  // (/agents/:id/trace/:conversationId), so "View agent history" is re-checked here too —
+  // otherwise someone without that permission could open a conversation's Trace just by typing
+  // or bookmarking the link, bypassing the History screen's own gate.
+  const access = useGroupAccess("agents");
+  const agentRecord = useMemo(() => AGENTS.find(a => a.id === agentId), [agentId]);
+  const canViewTrace = access.canAct("history", agentRecord ? isOwnedOrShared(agentRecord, access.userId) : true);
+
   // Highlight whichever turn is currently in view while scrolling the middle feed, same as
   // LangSmith's Turns list tracking the active turn — not just on click.
   useEffect(() => {
@@ -348,6 +357,17 @@ export default function ConversationTrace() {
   };
 
   const backToHistory = () => navigate(`/agents/${agentId}?tab=insights&section=history&conversationId=${conversationId}`);
+
+  if (!canViewTrace) {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background gap-3 px-6 text-center">
+        <p className="text-sm text-muted-foreground max-w-md">Bạn không có quyền xem lịch sử hội thoại của agent này. Liên hệ Admin nếu cần được cấp quyền "View agent history".</p>
+        <button onClick={() => navigate(`/agents/${agentId}`)} className="btn-primary h-9 px-4">
+          <ChevronLeft size={14} /> Về trang Agent
+        </button>
+      </div>
+    );
+  }
 
   if (!record || !trace) {
     return (

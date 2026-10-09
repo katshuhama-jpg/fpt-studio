@@ -394,11 +394,14 @@ function ConfirmDeleteRoleModal({
 }
 
 /* ─── Scope-neutral copy template for the View Permissions reference ─────
-   One small set of copy patterns (not 25 hand-written strings) keyed by the
-   permission's verb suffix (view/publish/manage/pause/delete), parameterized
-   by the group's resource wording. The base description never asserts a
-   Scope-specific behavior; the Scope line spells out both values explicitly. */
-type ScopableVerb = "view" | "publish" | "manage" | "pause" | "delete";
+   One small set of copy patterns (not 27 hand-written strings) keyed by the
+   permission's verb suffix (view/publish/manage/pause/delete/history/export),
+   parameterized by the group's resource wording. The base description never
+   asserts a Scope-specific behavior; the Scope line spells out both values
+   explicitly. history/export only ever occur on the "agents" group today, but
+   both are still driven by this same shared template rather than one-off copy,
+   same as every other scopable verb here. */
+type ScopableVerb = "view" | "publish" | "manage" | "pause" | "delete" | "history" | "export";
 type ResourceWords = { thing: string; singular: string };
 
 function scopeNeutralDesc(verb: ScopableVerb, r: ResourceWords): string {
@@ -408,6 +411,8 @@ function scopeNeutralDesc(verb: ScopableVerb, r: ResourceWords): string {
     case "manage": return `Edit the configuration of a live ${r.singular}.`;
     case "pause": return `Pause or resume a live ${r.singular} without deleting it.`;
     case "delete": return `Permanently delete a live ${r.singular}.`;
+    case "history": return `See the past conversations of a live ${r.singular}, including each conversation's full content and technical Trace.`;
+    case "export": return `Download the conversation history and user feedback of a live ${r.singular}, as Excel or CSV.`;
   }
 }
 
@@ -419,6 +424,8 @@ function scopeLineParts(verb: ScopableVerb, r: ResourceWords): { all: string; ow
     case "manage": return { all: `edit any ${r.singular} in the Console.`, ownShared };
     case "pause": return { all: `pause any ${r.singular} in the Console.`, ownShared };
     case "delete": return { all: `delete any ${r.singular} in the Console.`, ownShared };
+    case "history": return { all: `see conversation history for any ${r.singular} in the Console.`, ownShared };
+    case "export": return { all: `export conversation data for any ${r.singular} in the Console.`, ownShared };
   }
 }
 

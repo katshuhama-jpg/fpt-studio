@@ -300,6 +300,20 @@ export default function AgentBuilder() {
   // Someone the Agent was shared with whose Role has no "Build agents" only views it.
   const viewOnly = !!existingAgent && canAccessAgent && !access.canAct("manage", isOwnedOrShared(existingAgent, access.userId));
   const lockContent = viewOnly && tab !== "insights";
+  // "View agent history" gates Insights → History (the conversation list and its Trace) on top
+  // of just being able to open the Agent — e.g. Viewer can open an Agent shared with them
+  // without seeing that Agent's conversation history, since Viewer has no "agents.history" by
+  // default. A new, unsaved agent ("new") has no conversations yet, so this never applies there.
+  const canSeeHistory = canAccessAgent && (!existingAgent || access.canAct("history", isOwnedOrShared(existingAgent, access.userId)));
+
+  // A deep link straight to ?tab=insights&section=history (bookmarked, shared, or just an old
+  // tab) for someone without "View agent history" on this Agent must not leave the pane blank —
+  // send them to Performance instead, same as any other unknown/disallowed section falls back.
+  useEffect(() => {
+    if (tab !== "insights" || section !== "history" || canSeeHistory) return;
+    setParams({ tab: "insights", section: "performance" }, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, section, canSeeHistory]);
 
   if (existingAgent && !canAccessAgent) {
     return (
@@ -575,7 +589,7 @@ export default function AgentBuilder() {
                 <span className="flex-1 text-left truncate ml-2.5">{s.label}</span>
               </button>
             ))}
-            {tab === "insights" && INSIGHTS_SUBTABS.map(s => (
+            {tab === "insights" && INSIGHTS_SUBTABS.filter(s => s.id !== "history" || canSeeHistory).map(s => (
               <button
                 key={s.id}
                 onClick={() => setSection(s.id)}
@@ -717,7 +731,7 @@ export default function AgentBuilder() {
               {tab === "channels" && <DeployTab agentId={id} onViewTriggers={() => setParams({ tab: "build", section: "triggers" })} onViewVersions={() => setParams({ tab: "build", section: "versions" })} onOpenPublish={() => canPublishAgent && requestPublish()} />}
               {tab === "insights" && section === "performance" && <PerformanceTab />}
               {tab === "insights" && section === "quality" && <MonitorSection agentId={id ?? "new"} />}
-              {tab === "insights" && section === "history" && (
+              {tab === "insights" && section === "history" && canSeeHistory && (
                 kind === "automation"
                   ? <div className="p-8"><TriggerRunsTab agentId={id ?? "new"} /></div>
                   : <HistoryTab agentId={id ?? "new"} />
@@ -726,7 +740,7 @@ export default function AgentBuilder() {
           </div>
 
           {tab === "build" && section === "instructions" && !previewCollapsed && <PreviewPanel agentId={id ?? "new"} view={previewView} onViewChange={setPreviewView} onConnectionsChange={() => setConnectionTick(t => t + 1)} onClose={() => setPreviewCollapsed(true)} />}
-          {tab === "insights" && section === "history" && kind === "conversational" && <HistoryChatPanel agentId={id ?? "new"} />}
+          {tab === "insights" && section === "history" && canSeeHistory && kind === "conversational" && <HistoryChatPanel agentId={id ?? "new"} />}
         </div>
       </div>
     </div>
