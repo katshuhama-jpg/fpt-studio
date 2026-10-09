@@ -1,15 +1,15 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, type ReactNode } from "react";
 import { SpaceDeleteDialog, performSpaceDelete, spaceDeleteLabel, SpaceUnshareDialog, notifySpaceOwner, useSpaceActor } from "@/components/governance/spaceDelete";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
-import { Search, CheckCircle2, ChevronRight, ChevronDown, Plug, MoreVertical, AlertTriangle, X, Rocket, Globe, BarChart3, type LucideIcon } from "lucide-react";
+import { Search, CheckCircle2, ChevronRight, ChevronDown, Plug, MoreVertical, AlertTriangle, X, Rocket, Globe, BarChart3, Plus, Server, type LucideIcon } from "lucide-react";
 import RequestPublishModal from "@/components/governance/RequestPublishModal";
 import { governanceStore } from "@/components/governance/governanceStore";
 import { StatusBadge } from "@/components/governance/governanceUi";
 import { resourceBlockStore } from "@/components/governance/resourceBlockStore";
 import { useGroupAccess, isOwnedOrShared } from "@/pages/organization/scopeAccess";
 import { CURRENT_USER } from "@/components/knowledge/knowledgeBaseStore";
-import { customConnectorStore, type CustomConnector } from "@/components/configure/customConnectorStore";
+import { customConnectorStore, CONNECTOR_AUTH_LABEL, type CustomConnector } from "@/components/configure/customConnectorStore";
 import { isAccessibleTo as isCustomConnectorAccessibleTo } from "@/components/configure/customConnectorSharing";
 import AddCustomConnectorModal from "@/components/configure/AddCustomConnectorModal";
 import CustomConnectorShareModal from "@/components/configure/CustomConnectorShareModal";
@@ -17,14 +17,10 @@ import { customApiToolStore, AUTH_TYPE_LABEL, type CustomApiTool, type HttpMetho
 import AddCustomApiToolModal from "@/components/configure/AddCustomApiToolModal";
 import { getAgent } from "@/components/configure/agentStore";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
-import {
-  CONNECTOR_TEMPLATES, connectorTemplateStore, type ConnectorTemplateDef,
-} from "@/components/configure/connectorTemplateStore";
-import { ConnectorTemplateConnectModal, ConnectorTemplateManageModal } from "@/components/configure/ConnectorTemplateModals";
 import AgentResourceDetailModal from "@/components/configure/AgentResourceDetailModal";
 import {
-  isShared, ownershipTags, countByTab, matchesTab, OwnershipTabs, ownershipEmptyCopy, ResourceCard, ResourceIconTile, CardCreator, AgentCount,
-  type OwnershipTab, type OwnershipTag,
+  isShared, ownershipTags,
+  type OwnershipTag,
 } from "@/components/governance/resourceOwnership";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -40,10 +36,6 @@ type Tab = "all" | "connected" | "available";
  * connectors — the Marketplace tab below is entirely unrelated pre-built catalog and is untouched
  * by this split. */
 type Section = "marketplace" | "custom";
-/** Ownership filter for the Custom Connectors list — mirrors the Của tôi/Được chia sẻ split
- * already used for Skills, replacing per-card ownership pills that crowded the row and broke
- * layout on longer connector names (see CustomConnectorCard below). */
-type CustomTab = OwnershipTab;
 
 interface Connector {
   id: string;
@@ -147,11 +139,6 @@ const CONNECTORS: Connector[] = [
   },
 ];
 
-const AUTH_LABEL: Record<CustomConnector["authType"], string> = {
-  none: "Không xác thực",
-  static_headers: "Static Headers",
-};
-
 const MARKETPLACE_TABS: { key: Tab; label: string }[] = [
   { key: "all", label: "Tất cả" },
   { key: "connected", label: "Đã kết nối" },
@@ -188,15 +175,11 @@ export default function WorkspaceConnectors() {
   const [deleteApiToolTarget, setDeleteApiToolTarget] = useState<CustomApiTool | null>(null);
   const [unshareTarget, setUnshareTarget] = useState<{ kind: "connector"; c: CustomConnector } | { kind: "apiTool"; a: CustomApiTool } | null>(null);
   const unshareRes = unshareTarget ? (unshareTarget.kind === "connector" ? unshareTarget.c : unshareTarget.a) : null;
-  const [customTab, setCustomTab] = useState<CustomTab>("all");
+  const [customQuery, setCustomQuery] = useState("");
   // Clicking a custom connector card shows its details (same popup as in an Agent's Instructions).
   const [detailConnectorId, setDetailConnectorId] = useState<string | null>(null);
   const [detailApiToolId, setDetailApiToolId] = useState<string | null>(null);
 
-  // Connector Templates — internal FPT systems (FCI CRM/Member/Tickets) that moved out of
-  // Marketplace into Custom Connectors as pre-built templates (see connectorTemplateStore.ts).
-  const [connectTemplate, setConnectTemplate] = useState<ConnectorTemplateDef | null>(null);
-  const [manageTemplate, setManageTemplate] = useState<ConnectorTemplateDef | null>(null);
 
   // Marketplace connector cards — `connectedIds` is a session-local override on top of the
   // static seed array so "Kết nối" / "Ngắt kết nối" (from the detail modal) actually do
@@ -211,20 +194,21 @@ export default function WorkspaceConnectors() {
   );
   const customConnectors = customConnectorStore.list();
   const accessibleCustomConnectors = actor.isAdmin ? customConnectors : customConnectors.filter(c => isCustomConnectorAccessibleTo(c.sharing, c.ownerId, CURRENT_USER.id));
-  // Custom section = FPT's internal connector templates (tagged Hệ thống) + MCP connectors people
-  // added (Của tôi / Được chia sẻ). Tabs filter by tag.
+  // Custom section = MCP servers and API Tools people added themselves. The internal FCI toolkits
+  // live in the Marketplace tab only.
   type CustomItem =
-    | { kind: "template"; t: ConnectorTemplateDef; tags: OwnershipTag[] }
     | { kind: "custom"; c: CustomConnector; tags: OwnershipTag[] }
     | { kind: "apitool"; a: CustomApiTool; tags: OwnershipTag[] };
   const customApiTools = actor.isAdmin ? customApiToolStore.list() : customApiToolStore.listAccessible(CURRENT_USER.id);
   const customItems: CustomItem[] = [
-    ...CONNECTOR_TEMPLATES.map(t => ({ kind: "template" as const, t, tags: ["system"] as OwnershipTag[] })),
     ...accessibleCustomConnectors.map(c => ({ kind: "custom" as const, c, tags: ownershipTags({ ownerId: c.ownerId, sharing: c.sharing, userId: CURRENT_USER.id, admin: actor.isAdmin }) })),
     ...customApiTools.map(a => ({ kind: "apitool" as const, a, tags: ownershipTags({ ownerId: a.ownerId, sharing: a.sharing, userId: CURRENT_USER.id, admin: actor.isAdmin }) })),
   ];
-  const customTabCounts = countByTab(customItems, i => i.tags);
-  const customFiltered = customItems.filter(i => matchesTab(i.tags, customTab));
+  const cq = customQuery.trim().toLowerCase();
+  const customFiltered = !cq ? customItems : customItems.filter(i => {
+    const hay = i.kind === "custom" ? `${i.c.name} ${i.c.url}` : `${i.a.name} ${i.a.url} ${i.a.description}`;
+    return hay.toLowerCase().includes(cq);
+  });
 
   // Only an established connection is really "someone's resource" — browsing the catalog of
   // not-yet-connected services is never restricted. A role whose Connectors View Scope is
@@ -343,8 +327,18 @@ export default function WorkspaceConnectors() {
 
       {section === "custom" && (
         <div>
-          <div className="flex items-center justify-between gap-3 mb-5">
-            <p className="text-sm text-muted-foreground">Connector hệ thống nội bộ FPT dựng sẵn, thêm một MCP server, hoặc định nghĩa một API Tool để cấp công cụ cho Agent của bạn.</p>
+          {/* Toolbar: search (left) + add (right). No status filter pills on this tab. */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-5">
+            <div className="relative w-full md:w-[320px]">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={customQuery}
+                onChange={e => setCustomQuery(e.target.value)}
+                placeholder="Tìm Custom Connectors…"
+                aria-label="Tìm Custom Connectors"
+                className="h-10 w-full pl-9 pr-3 rounded-lg bg-surface-muted border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/30"
+              />
+            </div>
             <AddCustomConnectorMenu
               disabled={!canCreateConnector}
               disabledReason="Vai trò của bạn chưa có quyền tạo connector."
@@ -353,39 +347,25 @@ export default function WorkspaceConnectors() {
             />
           </div>
 
-          <div className="mb-5">
-            <OwnershipTabs tab={customTab} onChange={setCustomTab} counts={customTabCounts} noun="kết nối" />
-          </div>
-
-          {customFiltered.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-border bg-gradient-soft p-12 text-center">
-              <Plug size={22} className="mx-auto mb-3 text-muted-foreground" />
-              <p className="text-sm font-medium mb-1">{ownershipEmptyCopy(customTab, "kết nối")?.title ?? "Chưa có custom connector nào"}</p>
-              <p className="text-sm text-muted-foreground">{ownershipEmptyCopy(customTab, "kết nối")?.body ?? "Thêm một MCP server hoặc một API Tool để cấp công cụ cho Agent của bạn."}</p>
+          {customItems.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border min-h-[300px] flex flex-col items-center justify-center text-center px-6 py-10">
+              <div className="w-12 h-12 rounded-xl bg-surface-muted flex items-center justify-center mb-4">
+                <Server size={22} className="text-muted-foreground" />
+              </div>
+              <p className="text-base font-semibold mb-1">Chưa có Custom Connector nào</p>
+              <p className="text-sm text-muted-foreground max-w-[260px] mb-5">Thêm một MCP server để cấp thêm tool cho agent của bạn.</p>
+              <AddCustomConnectorMenu
+                disabled={!canCreateConnector}
+                disabledReason="Vai trò của bạn chưa có quyền tạo connector."
+                onPickMcp={() => canCreateConnector && setShowAddCustom(true)}
+                onPickApiTool={() => canCreateConnector && setShowAddApiTool(true)}
+              />
             </div>
+          ) : customFiltered.length === 0 ? (
+            <div className="py-20 text-center text-muted-foreground text-sm">Không tìm thấy connector nào.</div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {customFiltered.map(i => {
-                if (i.kind === "template") {
-                  const t = i.t;
-                  const connected = connectorTemplateStore.isConnected(t.id);
-                  const open = () => (connected ? setManageTemplate(t) : setConnectTemplate(t));
-                  return (
-                    <ResourceCard
-                      key={`tpl-${t.id}`}
-                      icon={<ResourceIconTile system><span className="text-sm font-semibold">{t.name.slice(0, 1)}</span></ResourceIconTile>}
-                      name={t.name}
-                      tags={i.tags}
-                      description={t.desc}
-                      extra={connected
-                        ? <p className="text-xs text-success font-medium flex items-center gap-1"><CheckCircle2 size={12} /> {connectorTemplateStore.listAccounts(t.id).length} credential đã kết nối</p>
-                        : <p className="text-xs text-muted-foreground">Chưa kết nối · điền credential để dùng</p>}
-                      creator={<CardCreator displayName="FPT AI Agents" system />}
-                      highlighted={connected}
-                      onOpen={open}
-                    />
-                  );
-                }
                 if (i.kind === "apitool") {
                   const a = i.a;
                   return (
@@ -572,21 +552,6 @@ export default function WorkspaceConnectors() {
         />
       )}
 
-      {connectTemplate && (
-        <ConnectorTemplateConnectModal
-          template={connectTemplate}
-          onClose={() => setConnectTemplate(null)}
-          onConnected={() => { setConnectTemplate(null); refresh(); }}
-        />
-      )}
-
-      {manageTemplate && (
-        <ConnectorTemplateManageModal
-          template={manageTemplate}
-          onClose={() => setManageTemplate(null)}
-          onChanged={refresh}
-        />
-      )}
     </div>
   );
 }
@@ -725,30 +690,52 @@ function CustomConnectorRowMenu({ onView, onEdit, onShare, onPublish, onToggleBl
   );
 }
 
-function CustomConnectorCard({ connector: c, tags, isMine, onOpen, onEdit, onShare, onPublish, onToggleBlock, onDelete, onUnshare }: {
+/** Shared shell for Custom tab cards — same layout as the Marketplace card (logo, badge, name,
+ * URL/description, separator, footer chip + "Quản lý"), plus the ⋮ menu with the owner actions. */
+function CustomCardShell({ icon, badge, name, description, mono, chip, extra, menu, onManage }: {
+  icon: ReactNode; badge: ReactNode; name: string; description: string; mono?: boolean;
+  chip: ReactNode; extra?: ReactNode; menu: ReactNode; onManage: () => void;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-white p-[18px] flex flex-col">
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <div className="w-11 h-11 rounded-xl border border-border bg-surface-muted flex items-center justify-center shrink-0 text-muted-foreground">{icon}</div>
+        <div className="flex items-center gap-1 shrink-0">{badge}{menu}</div>
+      </div>
+      <p className="text-sm font-semibold mb-1 truncate" title={name}>{name}</p>
+      <p className={`text-xs text-muted-foreground leading-relaxed min-h-[32px] mb-3 flex-1 ${mono ? "font-mono truncate" : "line-clamp-2"}`} title={description}>{description}</p>
+      <Separator className="mb-3" />
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 min-w-0 flex-wrap">{chip}{extra}</div>
+        <button onClick={onManage} className="btn-secondary shrink-0">Quản lý</button>
+      </div>
+    </div>
+  );
+}
+
+function CustomConnectorCard({ connector: c, isMine, onOpen, onEdit, onShare, onPublish, onToggleBlock, onDelete, onUnshare }: {
   connector: CustomConnector; tags: OwnershipTag[]; isMine: boolean; onOpen: () => void; onEdit?: () => void; onShare?: () => void; onPublish?: () => void; onToggleBlock?: () => void; onDelete?: () => void; onUnshare?: () => void;
 }) {
+  void isMine;
   const openReq = governanceStore.getOpenRequestForResource("connector", c.id);
   const isApproved = governanceStore.isResourceApproved("connector", c.id);
   const isBlocked = resourceBlockStore.isBlocked("connector", c.id);
+  // OAuth 2.1 servers still need someone to authorise them; the other kinds work as saved.
+  const needsAuth = c.authType === "oauth_auto" || c.authType === "oauth_manual";
   return (
-    <ResourceCard
-      icon={<ResourceIconTile><Plug size={16} /></ResourceIconTile>}
+    <CustomCardShell
+      icon={<Server size={20} />}
+      badge={needsAuth
+        ? <span className="chip chip-muted shrink-0"><span className="w-1.5 h-1.5 rounded-full bg-current" /> Chưa uỷ quyền</span>
+        : <span className="chip chip-success shrink-0"><CheckCircle2 size={12} /> Đã kết nối</span>}
       name={c.name}
-      tags={tags}
-      menu={<CustomConnectorRowMenu onView={onOpen} onEdit={onEdit} onShare={onShare} onPublish={onPublish} onToggleBlock={onToggleBlock} isBlocked={isBlocked} onDelete={onDelete}
-        onToggleShare={onShare ? (isShared(c.sharing) ? onUnshare : onShare) : undefined} toggleShareLabel={isShared(c.sharing) ? "Tắt chia sẻ" : "Chia sẻ"} deleteLabel={spaceDeleteLabel(c)} />}
       description={c.url}
-      singleLineDescription
-      onOpen={onOpen}
-      extra={
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-muted-foreground">{AUTH_LABEL[c.authType]}</span>
-          {(openReq || isApproved) && <StatusBadge status={openReq ? openReq.status : "approved"} />}
-        </div>
-      }
-      creator={<CardCreator displayName={isMine ? "Bạn" : c.ownerName} fullName={c.ownerName} />}
-      agents={<AgentCount count={c.attachedByAgentIds.length} />}
+      mono
+      chip={<span className="chip chip-muted text-[11px] px-2 py-0.5 shrink-0">{CONNECTOR_AUTH_LABEL[c.authType]}</span>}
+      extra={(openReq || isApproved) ? <StatusBadge status={openReq ? openReq.status : "approved"} /> : undefined}
+      menu={<CustomConnectorRowMenu onEdit={onEdit} onShare={onShare} onPublish={onPublish} onToggleBlock={onToggleBlock} isBlocked={isBlocked} onDelete={onDelete}
+        onToggleShare={onShare ? (isShared(c.sharing) ? onUnshare : onShare) : undefined} toggleShareLabel={isShared(c.sharing) ? "Tắt chia sẻ" : "Chia sẻ"} deleteLabel={spaceDeleteLabel(c)} />}
+      onManage={onOpen}
     />
   );
 }
@@ -760,7 +747,7 @@ function AddCustomConnectorMenu({ onPickMcp, onPickApiTool, disabled, disabledRe
 }) {
   const [open, setOpen] = useState(false);
   const options = [
-    { icon: Plug, label: "MCP server", sub: "Kết nối một MCP server có sẵn để cấp công cụ của nó cho Agent.", onPick: onPickMcp },
+    { icon: Server, label: "MCP tùy chỉnh", sub: "Kết nối một MCP server để cấp các tool của nó cho agent.", onPick: onPickMcp },
     { icon: Globe, label: "API Tool", sub: "Định nghĩa một REST API (URL, method, xác thực, tham số) để Agent gọi.", onPick: onPickApiTool },
   ];
   return (
@@ -772,13 +759,13 @@ function AddCustomConnectorMenu({ onPickMcp, onPickApiTool, disabled, disabledRe
         title={disabled ? disabledReason : undefined}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium transition-base flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="h-10 px-4 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium transition-base flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        + Thêm custom connector
+        <Plus size={15} /> Thêm custom connector
         <ChevronDown size={14} className={`transition-base ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div role="menu" className="absolute right-0 top-[calc(100%+6px)] z-30 w-80 bg-white rounded-2xl border border-border shadow-elev p-1.5 animate-fade-up">
+        <div role="menu" className="absolute right-0 top-[calc(100%+6px)] z-30 w-80 text-left bg-white rounded-2xl border border-border shadow-elev p-1.5 animate-fade-up">
           {options.map((o, i) => (
             <div key={o.label}>
               {i > 0 && <div className="h-px bg-border mx-2.5 my-1" />}
@@ -812,27 +799,23 @@ const API_METHOD_CLASS: Record<HttpMethod, string> = {
   DELETE: "bg-destructive/10 text-destructive",
 };
 
-/** API Tool card — same "Phương án A" ResourceCard shell as a Custom Connector card, with a
- * method badge and the auth type. Menu: Xem chi tiết / Chỉnh sửa / Chia sẻ (owner) / Xóa. */
-function CustomApiToolCard({ tool: a, tags, onOpen, onEdit, onShare, onDelete, onUnshare }: {
+/** API Tool card — same shell as a Custom Connector card, with the HTTP method as the chip. */
+function CustomApiToolCard({ tool: a, onOpen, onEdit, onShare, onDelete, onUnshare }: {
   tool: CustomApiTool; tags: OwnershipTag[]; onOpen: () => void; onEdit?: () => void; onShare?: () => void; onDelete?: () => void; onUnshare?: () => void;
 }) {
   return (
-    <ResourceCard
-      icon={<ResourceIconTile><Globe size={16} /></ResourceIconTile>}
+    <CustomCardShell
+      icon={<Globe size={20} />}
+      badge={<span className="chip chip-success shrink-0"><CheckCircle2 size={12} /> Sẵn sàng</span>}
       name={a.name}
-      tags={tags}
-      menu={<CustomConnectorRowMenu onView={onOpen} onEdit={onEdit} onShare={onShare} onDelete={onDelete}
+      description={a.description || a.url}
+      chip={<>
+        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${API_METHOD_CLASS[a.method]}`}>{a.method}</span>
+        <span className="chip chip-muted text-[11px] px-2 py-0.5 shrink-0">API Tool · {AUTH_TYPE_LABEL[a.auth.type]}</span>
+      </>}
+      menu={<CustomConnectorRowMenu onEdit={onEdit} onShare={onShare} onDelete={onDelete}
         onToggleShare={onShare ? (isShared(a.sharing) ? onUnshare : onShare) : undefined} toggleShareLabel={isShared(a.sharing) ? "Tắt chia sẻ" : "Chia sẻ"} deleteLabel={spaceDeleteLabel(a)} />}
-      description={a.description}
-      onOpen={onOpen}
-      extra={
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${API_METHOD_CLASS[a.method]}`}>{a.method}</span>
-          <span className="text-xs text-muted-foreground truncate">{AUTH_TYPE_LABEL[a.auth.type]}</span>
-        </div>
-      }
-      creator={<CardCreator displayName={a.ownerId === CURRENT_USER.id ? "Bạn" : a.ownerName} fullName={a.ownerName} />}
+      onManage={onOpen}
     />
   );
 }

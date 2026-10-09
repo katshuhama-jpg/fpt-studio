@@ -10,7 +10,18 @@ import { loadMap, saveMap } from "@/lib/sessionPersist";
 import { CURRENT_USER } from "@/components/knowledge/knowledgeBaseStore";
 import type { Sharing } from "./customConnectorSharing";
 
-export type ConnectorAuthType = "none" | "static_headers";
+export type ConnectorAuthType = "none" | "static_headers" | "oauth_auto" | "oauth_manual";
+
+/** OAuth 2.1 settings. "oauth_auto" discovers the endpoints from the server itself (RFC 9728 /
+ * RFC 8414) and registers a client (RFC 7591), so only the optional advanced fields apply;
+ * "oauth_manual" is for servers that publish neither, so the Builder pastes them in. */
+export interface ConnectorOAuth {
+  authorizeUrl?: string;
+  tokenUrl?: string;
+  clientId?: string;
+  clientSecret?: string;
+  scope?: string;
+}
 
 export interface ConnectorHeader {
   key: string;
@@ -24,6 +35,8 @@ export interface CustomConnector {
   authType: ConnectorAuthType;
   /** static_headers only */
   headers: ConnectorHeader[];
+  /** oauth_auto / oauth_manual only */
+  oauth?: ConnectorOAuth;
   ownerId: string;
   ownerName: string;
   sharing: Sharing;
@@ -48,6 +61,22 @@ export interface CustomConnector {
     takenBackTo?: string;
   };
 }
+
+function cleanOAuth(o?: ConnectorOAuth): ConnectorOAuth {
+  const out: ConnectorOAuth = {};
+  for (const k of ["authorizeUrl", "tokenUrl", "clientId", "clientSecret", "scope"] as const) {
+    const v = o?.[k]?.trim();
+    if (v) out[k] = v;
+  }
+  return out;
+}
+
+export const CONNECTOR_AUTH_LABEL: Record<ConnectorAuthType, string> = {
+  none: "Không xác thực",
+  static_headers: "Static Headers",
+  oauth_auto: "OAuth 2.1 (Auto)",
+  oauth_manual: "OAuth 2.1 (Manual)",
+};
 
 const STORE_KEY = "custom_connector_store_v1";
 const SEEDED_KEY = "custom_connector_store_seeded_v1";
@@ -109,12 +138,13 @@ export const customConnectorStore = {
     const n = name.trim().toLowerCase();
     return this.list().some(c => c.id !== excludeId && c.name.trim().toLowerCase() === n);
   },
-  create(data: { name: string; url: string; authType: ConnectorAuthType; headers: ConnectorHeader[]; sharing: Sharing }): CustomConnector {
+  create(data: { name: string; url: string; authType: ConnectorAuthType; headers: ConnectorHeader[]; oauth?: ConnectorOAuth; sharing: Sharing }): CustomConnector {
     const id = `cc-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
     const now = Date.now();
     const c: CustomConnector = {
       id, name: data.name.trim(), url: data.url.trim(), authType: data.authType,
       headers: data.authType === "static_headers" ? data.headers.filter(h => h.key.trim()) : [],
+      oauth: data.authType.startsWith("oauth") ? cleanOAuth(data.oauth) : undefined,
       ownerId: CURRENT_USER.id, ownerName: CURRENT_USER.name, sharing: data.sharing,
       attachedByAgentIds: [], createdAt: now, updatedAt: now,
     };
@@ -145,7 +175,7 @@ export const customConnectorStore = {
   /** Edits an existing Custom Connector's connection details (Name/URL/Authentication). Sharing
    * is intentionally left untouched here — that's still the separate "Chia sẻ" modal's job — so
    * editing connection details never accidentally changes who can see the connector. */
-  update(id: string, data: { name: string; url: string; authType: ConnectorAuthType; headers: ConnectorHeader[] }) {
+  update(id: string, data: { name: string; url: string; authType: ConnectorAuthType; headers: ConnectorHeader[]; oauth?: ConnectorOAuth }) {
     const cur = store.get(id);
     if (!cur) return;
     store.set(id, {
@@ -154,6 +184,7 @@ export const customConnectorStore = {
       url: data.url.trim(),
       authType: data.authType,
       headers: data.authType === "static_headers" ? data.headers.filter(h => h.key.trim()) : [],
+      oauth: data.authType.startsWith("oauth") ? cleanOAuth(data.oauth) : undefined,
       updatedAt: Date.now(),
     });
     persist();

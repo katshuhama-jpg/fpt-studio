@@ -77,8 +77,10 @@ export function ResourceContentSection({ type, id }: { type: ResourceReqType; id
         <Field label="Xác thực">
           {c.authType === "none" ? (
             <span className="inline-flex items-center gap-1.5 text-muted-foreground"><Globe size={13} /> Không cần xác thực</span>
-          ) : (
+          ) : c.authType === "static_headers" ? (
             <span className="inline-flex items-center gap-1.5"><KeyRound size={13} className="text-warning" /> Header tĩnh (static headers) - Có secret đi kèm</span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5"><KeyRound size={13} className="text-warning" /> {c.authType === "oauth_auto" ? "OAuth 2.1 (Auto) - tự tìm endpoint và đăng ký client" : `OAuth 2.1 (Manual) - Client ID ${c.oauth?.clientId ?? ""}`}</span>
           )}
         </Field>
         {c.authType === "static_headers" && c.headers.length > 0 && (

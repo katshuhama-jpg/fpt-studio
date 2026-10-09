@@ -17,7 +17,7 @@ import { agentGuardrailStore } from "@/components/configure/agentGuardrailStore"
 import { isAccessibleTo as isGuardrailAccessibleTo, isViewOnly as isGuardrailViewOnly } from "@/components/configure/guardrailSharing";
 import CreateGuardrailModal from "@/components/configure/CreateGuardrailModal";
 import GuardrailShareModal from "@/components/configure/GuardrailShareModal";
-import { customConnectorStore } from "@/components/configure/customConnectorStore";
+import { customConnectorStore, CONNECTOR_AUTH_LABEL } from "@/components/configure/customConnectorStore";
 import { isAccessibleTo as isConnectorAccessible, isViewOnly as isConnectorViewOnly } from "@/components/configure/customConnectorSharing";
 import AddCustomConnectorModal from "@/components/configure/AddCustomConnectorModal";
 import CustomConnectorShareModal from "@/components/configure/CustomConnectorShareModal";
@@ -520,7 +520,7 @@ function ConnectorDetail({ agentId, id, onClose, onChanged }: { agentId: string;
         { label: "Đang dùng trong", value: usedByLabel(c.attachedByAgentIds) },
       ]} />
       <Field label="URL"><p className="font-mono text-xs break-all">{c.url}</p></Field>
-      <Field label="Xác thực">{c.authType === "static_headers" ? `Static Headers (${c.headers.length} header)` : "Không xác thực"}</Field>
+      <Field label="Xác thực">{c.authType === "static_headers" ? `Static Headers (${c.headers.length} header)` : CONNECTOR_AUTH_LABEL[c.authType]}</Field>
     </Shell>
   );
 }
