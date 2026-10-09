@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
-  Add01Icon, Search01Icon, FilterIcon, MoreVerticalIcon, Chat01Icon, Activity01Icon,
+  Add01Icon, Search01Icon, FilterIcon, MoreVerticalIcon, Chat01Icon,
   SparklesIcon, Cancel01Icon, BoltIcon, TimeScheduleIcon, UserMultipleIcon,
 } from "@hugeicons/core-free-icons";
 import ShareAgentModal, { useCanShareAgent } from "@/components/configure/ShareAgentModal";
@@ -299,36 +299,18 @@ function ConversationalCard({ a }: { a: typeof agents[number] }) {
 
         <p className="text-xs text-muted-foreground leading-relaxed mb-4 line-clamp-2 min-h-[32px]">{a.desc}</p>
 
-        <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
-          <div className="flex items-center gap-1.5">
-            <HugeiconsIcon icon={Chat01Icon} size={12} className="text-muted-foreground" />
-            <span className="text-xs">
-              <b className="font-display">{a.convs.toLocaleString()}</b>
-              <span className="text-muted-foreground ml-1">convs</span>
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <HugeiconsIcon icon={Activity01Icon} size={12} className="text-muted-foreground" />
-            <span className="text-xs">
-              <b className="font-display">{a.success}%</b>
-              <span className="text-muted-foreground ml-1">resolved</span>
-            </span>
-          </div>
+        <div className="flex items-center gap-1.5 pt-3 border-t border-border">
+          <HugeiconsIcon icon={Chat01Icon} size={12} className="text-muted-foreground" />
+          <span className="text-xs">
+            <b className="font-display">{a.convs.toLocaleString()}</b>
+            <span className="text-muted-foreground ml-1">convs</span>
+          </span>
         </div>
 
         <div className="flex items-center gap-1.5 mt-3 text-xs text-muted-foreground">
           <span>Updated {a.updated}</span>
           <span>·</span>
           <span className="truncate">{agentModelStore.label(a.id)}</span>
-          {/* External channels actually live right now (agentPublishStore) — not the static seed list. */}
-          {(() => { const live = agentPublishStore.isPublished(a.id) ? agentPublishStore.get(a.id).channels : []; return live.length > 0 && (
-            <>
-              <span>·</span>
-              {live.map(c => (
-                <span key={c} className="px-1.5 py-0.5 rounded bg-surface-muted">{getChannelName(c)}</span>
-              ))}
-            </>
-          ); })()}
         </div>
       </div>
     </Link>
