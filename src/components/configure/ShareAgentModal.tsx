@@ -34,12 +34,15 @@ export function useCanShareAgent(agentId: string) {
   return access.hasPermission("publish") && access.scopeOf("publish") === "all";
 }
 
-type Level = "view" | "edit";
+type Level = "view" | "edit" | "none";
 /** Level labels and what each one allows - the same wording in the menu and the doc. */
 export const LEVEL_META: Record<Level, { label: string; helper: string; icon: LucideIcon }> = {
   edit: { label: "Chỉnh sửa", helper: "Sửa Agent, tài nguyên của Agent và publish.", icon: Pencil },
   view: { label: "Chỉ xem", helper: "Xem, chạy Evaluate và export lịch sử.", icon: Eye },
+  none: { label: "Không có quyền", helper: "Không mở được Agent này.", icon: Lock },
 };
+/** Who works on the Agent - the same three choices as "Ai được dùng" on a resource. */
+type Scope = "me" | "space" | "specific";
 
 function initialsOf(name: string) {
   const p = name.trim().split(/\s+/);
@@ -54,8 +57,9 @@ function Avatar({ name, icon }: { name?: string; icon?: React.ReactNode }) {
 }
 
 /** Chỉ xem / Chỉnh sửa dropdown (Drive-style). `value` null = mixed selection in the add step. */
-function LevelSelect({ value, onChange, onRemove, ariaLabel, variant = "text" }: {
+function LevelSelect({ value, onChange, onRemove, ariaLabel, variant = "text", levels = ["edit", "view"], removeLabel = "Xóa quyền" }: {
   value: Level | null; onChange: (v: Level) => void; onRemove?: () => void; ariaLabel: string;
+  levels?: Level[]; removeLabel?: string;
   /** "inline": icon + chevron sitting inside the add box, like OneDrive. */
   variant?: "text" | "inline";
 }) {
@@ -75,7 +79,7 @@ function LevelSelect({ value, onChange, onRemove, ariaLabel, variant = "text" }:
         )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72 p-1">
-        {(["edit", "view"] as const).map(l => { const LI = LEVEL_META[l].icon; return (
+        {levels.map(l => { const LI = LEVEL_META[l].icon; return (
           <DropdownMenuItem key={l} onSelect={() => onChange(l)} className="flex items-start gap-2.5 py-2 cursor-pointer">
             <span className="w-4 pt-0.5 shrink-0">{value === l && <Check size={14} className="text-primary" aria-hidden />}</span>
             <LI size={16} className="mt-0.5 text-muted-foreground shrink-0" aria-hidden />
@@ -88,7 +92,7 @@ function LevelSelect({ value, onChange, onRemove, ariaLabel, variant = "text" }:
         {onRemove && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={onRemove} className="text-destructive focus:text-destructive cursor-pointer py-2 pl-[52px]">Xóa quyền</DropdownMenuItem>
+            <DropdownMenuItem onSelect={onRemove} className={`${removeLabel === "Xóa quyền" ? "text-destructive focus:text-destructive" : ""} cursor-pointer py-2 pl-[52px]`}>{removeLabel}</DropdownMenuItem>
           </>
         )}
       </DropdownMenuContent>
@@ -104,15 +108,16 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
   const members = useMemo(() => collectMembers(tree), [tree]);
   const byId = useMemo(() => new Map(members.map(m => [m.id, m])), [members]);
   const owner = byId.get(agent.ownerId ?? "");
-  /** A person's default level: what their Role allows (Build agents → Chỉnh sửa). */
+  const iAmOwner = agent.ownerId === userId;
+  /** A person's default level when added by name: what their Role allows (Build agents → Chỉnh sửa). */
   const roleDefault = (id: string): Level => (roleCanBuild(byId.get(id)) ? "edit" : "view");
   /** Stored levels are explicit; older "role" entries are read as the Role default. */
   const asLevel = (m: AgentMember): Level => resolveLevel(m.level, roleCanBuild(byId.get(m.userId)));
 
   const [saved, setSaved] = useState(() => agentShareStore.get(agentId));
   const [people, setPeople] = useState<AgentMember[]>(() => saved.people.map(p => ({ userId: p.userId, level: asLevel(p) })));
-  const [general, setGeneral] = useState<AgentGeneralAccess>(saved.general);
-  const [generalLevel, setGeneralLevel] = useState<Level>(saved.generalLevel === "edit" ? "edit" : "view");
+  const [scope, setScope] = useState<Scope>(saved.general === "space" ? "space" : saved.people.length ? "specific" : "me");
+  const [generalLevel, setGeneralLevel] = useState<"view" | "edit">(saved.generalLevel === "edit" ? "edit" : "view");
   const [query, setQuery] = useState("");
   // Add step (Drive's second screen): people being added, one level for all, notify toggle.
   const [adding, setAdding] = useState<OrgMember[]>([]);
@@ -120,18 +125,30 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
   const [notify, setNotify] = useState(true);
   const [confirm, setConfirm] = useState<string | null>(null);
 
+  /** People shown for the current scope: "Người cụ thể" has no use for "Không có quyền". */
+  const shown = scope === "space" ? people : scope === "specific" ? people.filter(p => p.level !== "none") : [];
+
   const q = query.trim().toLowerCase();
-  const taken = new Set([agent.ownerId, userId, ...people.map(p => p.userId), ...adding.map(m => m.id)]);
+  const taken = new Set([agent.ownerId, userId, ...shown.map(p => p.userId), ...adding.map(m => m.id)]);
   const candidates = q
     ? members.filter(m => !taken.has(m.id) && (m.name.toLowerCase().includes(q) || (m.email ?? "").toLowerCase().includes(q))).slice(0, 8)
     : [];
 
-  // Untouched dropdown in the add step shows the shared Role default, or "Mặc định" when mixed.
-  const addDefaults = adding.map(m => roleDefault(m.id));
+  /** Under "Cả Space" someone is added to get a different level, so suggest the other one. */
+  const addDefault = (id: string): Level => (scope === "space" ? (generalLevel === "view" ? "edit" : "view") : roleDefault(id));
+  const addDefaults = adding.map(m => addDefault(m.id));
   const addLabelValue: Level | null = addLevel ?? (addDefaults.every(l => l === addDefaults[0]) ? addDefaults[0] ?? null : null);
+  const addLevels: Level[] = scope === "space" ? ["edit", "view", "none"] : ["edit", "view"];
 
   const pick = (m: OrgMember) => { setAdding(a => [...a, m]); setQuery(""); };
   const cancelAdd = () => { setAdding([]); setAddLevel(null); setQuery(""); };
+
+  /** What the current form stores for each scope. */
+  const toShare = (sc: Scope, ps: AgentMember[]) => ({
+    general: (sc === "space" ? "space" : "none") as AgentGeneralAccess,
+    generalLevel: generalLevel as AgentAccessLevel,
+    people: sc === "me" ? [] : sc === "specific" ? ps.filter(p => p.level !== "none") : ps,
+  });
 
   const persist = (next: { people: AgentMember[]; general: AgentGeneralAccess; generalLevel: AgentAccessLevel }, addedIds: string[]) => {
     agentShareStore.set(agentId, next);
@@ -149,34 +166,35 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
 
   /** Drive's "Send": adds everyone in the add step right away, then closes. */
   const sendAdd = () => {
-    const added = adding.map(m => ({ userId: m.id, level: addLevel ?? roleDefault(m.id) }));
-    const nextPeople = [...people, ...added];
-    persist({ people: nextPeople, general, generalLevel }, added.map(a => a.userId));
+    const added = adding.map(m => ({ userId: m.id, level: addLevel ?? addDefault(m.id) }));
+    const nextPeople = [...people.filter(p => !added.some(a => a.userId === p.userId)), ...added];
+    persist(toShare(scope, nextPeople), added.filter(a => a.level !== "none").map(a => a.userId));
     toast.success(added.length === 1 ? `Đã thêm ${adding[0].name} vào Agent.` : `Đã thêm ${added.length} nhân sự vào Agent.`);
     onClose();
   };
 
-  // Main screen: level changes, removals and "Quyền chung" are saved with "Lưu".
-  const rank = (l?: Level) => (l === "edit" ? 2 : l === "view" ? 1 : 0);
-  const removedOrLowered = saved.people.filter(p => {
-    const now = people.find(x => x.userId === p.userId);
-    return rank(now?.level as Level | undefined) < rank(asLevel(p));
-  }).length;
-  const spaceLowered = saved.general === "space" && (general === "none" || (saved.generalLevel === "edit" && generalLevel === "view"));
+  // Main screen: scope, levels and removals are saved with "Lưu". Warn when anyone ends up
+  // with less than they have now.
+  const rank = (l: Level | null) => (l === "edit" ? 2 : l === "view" ? 1 : 0);
+  const effective = (id: string, sh: { general: AgentGeneralAccess; generalLevel: AgentAccessLevel; people: AgentMember[] }): Level | null => {
+    const mine = sh.people.find(p => p.userId === id);
+    if (mine) return asLevel(mine);
+    return sh.general === "space" ? resolveLevel(sh.generalLevel, roleCanBuild(byId.get(id))) : null;
+  };
+  const next = toShare(scope, people);
+  const lowered = members.filter(m => m.id !== agent.ownerId && rank(effective(m.id, next)) < rank(effective(m.id, saved))).length;
 
   const applyMain = () => {
-    persist({ people, general, generalLevel }, []);
+    persist(next, []);
     toast.success("Đã lưu thay đổi.");
     onClose();
   };
   const saveMain = () => {
-    if (spaceLowered && general === "none") { setConfirm("Thành viên Space sẽ không còn mở được Agent này, trừ nhân sự có tên trong danh sách."); return; }
-    if (spaceLowered) { setConfirm("Thành viên Space sẽ chỉ còn quyền Chỉ xem, trừ người được cấp Chỉnh sửa riêng."); return; }
-    if (removedOrLowered > 0) { setConfirm(`${removedOrLowered} người sẽ mất quyền hoặc bị giảm quyền trên Agent này.`); return; }
+    if (lowered > 0) { setConfirm(`${lowered} người sẽ mất quyền hoặc bị giảm quyền trên Agent này.`); return; }
     applyMain();
   };
 
-  const searchBox = (
+  const searchBox = (placeholder: string) => (
     <div className="relative flex-1 min-w-0">
       {adding.length === 0 && <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden />}
       <div className="min-h-10 w-full rounded-lg border border-border bg-surface flex items-stretch focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-base">
@@ -191,12 +209,12 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
         <input
           autoFocus={adding.length > 0}
           value={query} onChange={e => setQuery(e.target.value)}
-          placeholder={adding.length ? "" : "Thêm người theo tên hoặc email"}
-          aria-label="Thêm người theo tên hoặc email"
+          placeholder={adding.length ? "" : placeholder}
+          aria-label={placeholder}
           className="flex-1 min-w-[120px] h-7 bg-transparent text-sm outline-none"
         />
       </div>
-      {adding.length > 0 && <LevelSelect variant="inline" value={addLabelValue} onChange={setAddLevel} ariaLabel="Quyền của người được thêm" />}
+      {adding.length > 0 && <LevelSelect variant="inline" value={addLabelValue} onChange={setAddLevel} levels={addLevels} ariaLabel="Quyền của người được thêm" />}
       </div>
       {q && (
         <div className="absolute left-0 right-0 top-[calc(100%+4px)] max-h-60 overflow-y-auto bg-white rounded-lg ring-1 ring-border shadow-elev z-30 p-1">
@@ -216,6 +234,29 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
     </div>
   );
 
+  const SCOPES: { id: Scope; label: string }[] = [
+    { id: "me", label: iAmOwner ? "Chỉ mình tôi" : "Chỉ chủ sở hữu" },
+    { id: "space", label: "Cả Space" },
+    { id: "specific", label: "Người cụ thể" },
+  ];
+  const scopeHelper: Record<Scope, string> = {
+    me: iAmOwner ? "Chỉ bạn và Space Admin mở được Agent này." : "Chỉ chủ sở hữu và Space Admin mở được Agent này.",
+    space: "Mọi thành viên Space mở được Agent này theo quyền chung bên dưới.",
+    specific: "Chỉ người bạn chọn mới mở được Agent này.",
+  };
+  const addPlaceholder = scope === "space" ? "Thêm người có quyền khác Cả Space" : "Thêm người theo tên hoặc email";
+
+  const ownerRow = (
+    <div className="flex items-center gap-3 py-2">
+      <Avatar name={owner?.name ?? "?"} />
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium truncate">{owner?.name ?? "Chủ sở hữu"}{owner?.id === userId ? " (bạn)" : ""}</span>
+        <span className="block text-xs text-muted-foreground truncate">{owner?.email}</span>
+      </span>
+      <span className="text-xs text-muted-foreground shrink-0 pr-1">Chủ sở hữu</span>
+    </div>
+  );
+
   return (
     <>
       <Dialog open={open} onOpenChange={v => !v && onClose()}>
@@ -225,11 +266,13 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <button type="button" aria-label="Quay lại" onClick={cancelAdd} className="w-8 h-8 -ml-1 rounded-lg hover:bg-surface-muted flex items-center justify-center"><ArrowLeft size={16} /></button>
-                  Thêm nhân sự vào "{agent.name}"
+                  {scope === "space" ? "Thêm quyền riêng" : `Thêm nhân sự vào "${agent.name}"`}
                 </DialogTitle>
-                <DialogDescription className="sr-only">Thêm nhân sự vào Agent</DialogDescription>
+                <DialogDescription className={scope === "space" ? "" : "sr-only"}>
+                  {scope === "space" ? `Quyền riêng thay cho quyền chung của Cả Space (${LEVEL_META[generalLevel].label}).` : "Thêm nhân sự vào Agent"}
+                </DialogDescription>
               </DialogHeader>
-              {searchBox}
+              {searchBox(addPlaceholder)}
               <label className="flex items-center gap-2 text-sm cursor-pointer w-fit">
                 <input type="checkbox" checked={notify} onChange={e => setNotify(e.target.checked)} className="w-4 h-4 accent-primary" />
                 Thông báo cho nhân sự được thêm
@@ -246,68 +289,59 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
                 <DialogDescription>Thêm người để cùng làm việc trên Agent trong Console.</DialogDescription>
               </DialogHeader>
 
-              {/* Everyone in the Space - the baseline, on top. */}
+              {/* Who works on the Agent - same three choices as "Ai được dùng" on a resource. */}
               <div>
-                <h3 className="text-sm font-semibold mb-2">Mọi người trong Space</h3>
+                <h3 className="text-sm font-semibold mb-2">Ai làm việc trên Agent này</h3>
+                <div role="radiogroup" aria-label="Ai làm việc trên Agent này" className="grid grid-cols-3 p-1 rounded-lg bg-surface-muted gap-1">
+                  {SCOPES.map(o => (
+                    <button key={o.id} type="button" role="radio" aria-checked={scope === o.id} onClick={() => setScope(o.id)}
+                      className={`h-8 rounded-md text-sm font-medium transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${scope === o.id ? "bg-white shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">{scopeHelper[scope]}</p>
+              </div>
+
+              {scope === "space" && (
                 <div className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5">
                   <Avatar icon={<Building2 size={15} />} />
                   <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-medium">Cả Space</span>
-                    <span className="block text-xs text-muted-foreground">Quyền của mọi thành viên Space trên Agent này.</span>
+                    <span className="block text-sm font-medium">Mọi thành viên Space</span>
+                    <span className="block text-xs text-muted-foreground">Quyền chung cho cả Space.</span>
                   </span>
-                  <DropdownMenu modal={false}>
-                    <DropdownMenuTrigger asChild>
-                      <button type="button" aria-label={`Quyền của mọi người trong Space: ${general === "space" ? LEVEL_META[generalLevel].label : "Không có quyền"}`} className="h-8 px-2.5 text-xs rounded-lg border border-border bg-white hover:bg-surface-muted font-medium flex items-center gap-1 whitespace-nowrap shrink-0 transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                        {general === "space" ? LEVEL_META[generalLevel].label : "Không có quyền"}<ChevronDown size={13} className="text-muted-foreground" aria-hidden />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-72 p-1">
-                      {(["edit", "view"] as const).map(l => { const LI = LEVEL_META[l].icon; const on = general === "space" && generalLevel === l; return (
-                        <DropdownMenuItem key={l} onSelect={() => { setGeneral("space"); setGeneralLevel(l); }} className="flex items-start gap-2.5 py-2 cursor-pointer">
-                          <span className="w-4 pt-0.5 shrink-0">{on && <Check size={14} className="text-primary" aria-hidden />}</span>
-                          <LI size={16} className="mt-0.5 text-muted-foreground shrink-0" aria-hidden />
-                          <span className="min-w-0"><span className="block text-sm font-medium">{LEVEL_META[l].label}</span><span className="block text-xs text-muted-foreground mt-0.5">{LEVEL_META[l].helper}</span></span>
-                        </DropdownMenuItem>
-                      ); })}
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onSelect={() => setGeneral("none")} className="flex items-start gap-2.5 py-2 cursor-pointer">
-                        <span className="w-4 pt-0.5 shrink-0">{general === "none" && <Check size={14} className="text-primary" aria-hidden />}</span>
-                        <Lock size={16} className="mt-0.5 text-muted-foreground shrink-0" aria-hidden />
-                        <span className="min-w-0"><span className="block text-sm font-medium">Không có quyền</span><span className="block text-xs text-muted-foreground mt-0.5">Chỉ nhân sự được thêm bên dưới mới mở được.</span></span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <LevelSelect value={generalLevel} onChange={l => setGeneralLevel(l as "view" | "edit")} ariaLabel="Quyền chung của Cả Space" />
                 </div>
-              </div>
+              )}
 
-              {/* Specific people - can be given more than the Space baseline. */}
               <div>
-                <h3 className="text-sm font-semibold mb-1">Nhân sự cụ thể</h3>
-                <p className="text-xs text-muted-foreground mb-2">Mặc định theo Vai trò của từng người. Ai thuộc cả hai nhóm sẽ nhận quyền cao hơn.</p>
-                {searchBox}
+                {scope === "space" && (
+                  <>
+                    <h3 className="text-sm font-semibold mb-1">Quyền riêng</h3>
+                    <p className="text-xs text-muted-foreground mb-2">Người có tên dưới đây nhận quyền riêng, thay cho quyền chung bên trên.</p>
+                  </>
+                )}
+                {scope === "specific" && <h3 className="text-sm font-semibold mb-2">Người được thêm</h3>}
+                {scope !== "me" && searchBox(addPlaceholder)}
                 <div className="max-h-64 overflow-y-auto -mx-1 px-1 mt-1">
-                  <div className="flex items-center gap-3 py-2">
-                    <Avatar name={owner?.name ?? "?"} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-medium truncate">{owner?.name ?? "Chủ sở hữu"}{owner?.id === userId ? " (bạn)" : ""}</span>
-                      <span className="block text-xs text-muted-foreground truncate">{owner?.email}</span>
-                    </span>
-                    <span className="text-xs text-muted-foreground shrink-0 pr-1">Chủ sở hữu</span>
-                  </div>
-                  {people.map(p => {
+                  {scope !== "space" && ownerRow}
+                  {shown.map(p => {
                     const m = byId.get(p.userId);
                     const name = m?.name ?? p.userId;
+                    const sameAsSpace = scope === "space" && p.level === generalLevel;
                     return (
                       <div key={p.userId} className="flex items-center gap-3 py-2">
                         <Avatar name={name} />
                         <span className="min-w-0 flex-1">
                           <span className="block text-sm font-medium truncate">{name}</span>
-                          <span className="block text-xs text-muted-foreground truncate">{m?.email}</span>
+                          <span className="block text-xs text-muted-foreground truncate">{sameAsSpace ? "Giống quyền chung - Có thể xóa." : m?.email}</span>
                         </span>
                         <LevelSelect
                           value={p.level as Level}
+                          levels={scope === "space" ? ["edit", "view", "none"] : ["edit", "view"]}
                           onChange={l => setPeople(ps => ps.map(x => x.userId === p.userId ? { ...x, level: l } : x))}
                           onRemove={() => setPeople(ps => ps.filter(x => x.userId !== p.userId))}
+                          removeLabel={scope === "space" ? "Dùng quyền chung" : "Xóa quyền"}
                           ariaLabel={`Quyền của ${name}`}
                         />
                       </div>

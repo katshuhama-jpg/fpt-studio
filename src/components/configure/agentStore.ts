@@ -21,6 +21,8 @@ export interface AgentRecord {
   sharedWith?: string[];
   /** Shared with everyone in the Space ("Cả Space") — see agentShareStore. */
   sharedAll?: boolean;
+  /** Left out of "Cả Space" by their own level ("none") - see agentShareStore. */
+  sharedExcept?: string[];
   /** Level per person in sharedWith ("role" | "view" | "edit") and for "Cả Space" - see agentShareStore. */
   shareLevels?: Record<string, string>;
   shareGeneralLevel?: string;

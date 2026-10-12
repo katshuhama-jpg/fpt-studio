@@ -11,13 +11,13 @@ import { DEFAULT_ROLE_ID } from "@/pages/organization/Members";
  * Each added person gets a level:
  *  - "role" (Thêm nhanh): follows their Role - "Build agents" → edit, otherwise view.
  *  - "view" / "edit" (Thêm nâng cao): picked by hand and overrides the Role, both ways.
- * "Quyền chung" can also open the Agent to the whole Space at one level. When someone gets a
- * level both ways, the higher one wins.
+ * "Cả Space" opens the Agent to the whole Space at one level; a person's own level ("Quyền riêng")
+ * always replaces it, higher or lower ("none" leaves them out).
  *
  * The state is mirrored onto the AgentRecord (sharedWith / sharedAll / shareLevels) so the
  * existing Scope checks (scopeAccess.isOwnedOrShared) keep working, and kept in sessionStorage so a
  * "Xem với vai trò" persona switch (which reloads the app) still sees it. */
-export type AgentAccessLevel = "role" | "view" | "edit";
+export type AgentAccessLevel = "role" | "view" | "edit" | "none";
 export type AgentGeneralAccess = "none" | "space";
 export interface AgentMember { userId: string; level: AgentAccessLevel }
 export interface AgentShare { general: AgentGeneralAccess; generalLevel: AgentAccessLevel; people: AgentMember[] }
@@ -41,7 +41,8 @@ for (const [id, s] of saved) {
 
 function apply(a: AgentRecord, s: AgentShare) {
   a.sharedAll = s.general === "space";
-  a.sharedWith = s.people.map(p => p.userId);
+  a.sharedWith = s.people.filter(p => p.level !== "none").map(p => p.userId);
+  a.sharedExcept = s.people.filter(p => p.level === "none").map(p => p.userId);
   a.shareLevels = Object.fromEntries(s.people.map(p => [p.userId, p.level]));
   a.shareGeneralLevel = s.generalLevel;
 }
@@ -53,7 +54,7 @@ export const agentShareStore = {
   get(id: string): AgentShare {
     const a = AGENTS.find(x => x.id === id);
     if (!a) return EMPTY;
-    const people = (a.sharedWith ?? []).map(userId => ({ userId, level: (a.shareLevels?.[userId] ?? "role") as AgentAccessLevel }));
+    const people = [...(a.sharedWith ?? []), ...(a.sharedExcept ?? [])].map(userId => ({ userId, level: (a.shareLevels?.[userId] ?? "role") as AgentAccessLevel }));
     return { general: a.sharedAll ? "space" : "none", generalLevel: (a.shareGeneralLevel ?? "role") as AgentAccessLevel, people };
   },
   set(id: string, s: AgentShare) {
@@ -78,20 +79,17 @@ export function memberById(id: string): OrgMember | undefined {
 }
 
 /** "role" turned into what it means for one person right now. */
-export function resolveLevel(level: AgentAccessLevel, roleCanBuild: boolean): "view" | "edit" {
+export function resolveLevel(level: AgentAccessLevel, roleCanBuild: boolean): "view" | "edit" | "none" {
   return level === "role" ? (roleCanBuild ? "edit" : "view") : level;
 }
 
-/** What `userId` gets on this Agent through sharing alone (null = not shared with them). The
- * person's own entry and "Cả Space" both count; the higher level wins. */
+/** What `userId` gets on this Agent through sharing alone (null = no access). A person's own
+ * level ("Quyền riêng") always replaces the "Cả Space" level - higher or lower, incl. "none". */
 export function shareLevelFor(agentId: string, userId: string, roleCanBuild: boolean): "view" | "edit" | null {
   const s = agentShareStore.get(agentId);
-  const levels: ("view" | "edit")[] = [];
   const mine = s.people.find(p => p.userId === userId);
-  if (mine) levels.push(resolveLevel(mine.level, roleCanBuild));
-  if (s.general === "space") levels.push(resolveLevel(s.generalLevel, roleCanBuild));
-  if (levels.length === 0) return null;
-  return levels.includes("edit") ? "edit" : "view";
+  const level = mine ? resolveLevel(mine.level, roleCanBuild) : s.general === "space" ? resolveLevel(s.generalLevel, roleCanBuild) : "none";
+  return level === "none" ? null : level;
 }
 
 /** The signed-in user's level on an Agent: "owner", "edit" / "view" when it's shared with them,
