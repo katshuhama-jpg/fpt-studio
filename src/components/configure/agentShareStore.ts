@@ -116,3 +116,17 @@ export function useRoleCanBuild() {
     return !!role?.permissionIds.has("agents.manage");
   };
 }
+
+/** True when the signed-in user reaches this Agent only because they were added to it (not its
+ * owner, not a Space Admin). Such a person never edits a resource that lives in the Space library,
+ * even at "Chỉnh sửa" - only the Agent's own resources ("Chỉ Agent này"). */
+export function useIsAgentCollaborator(agentId: string | null | undefined): boolean {
+  useAgentShareVersion();
+  const { userId, permissionIds, role } = useMyPermissions();
+  if (!agentId) return false;
+  const a = AGENTS.find(x => x.id === agentId);
+  if (!a || a.ownerId === userId) return false;
+  const canBuild = permissionIds.has("agents.manage");
+  if (canBuild && (role?.scope?.["agents.manage"] ?? "all") === "all") return false;
+  return shareLevelFor(agentId, userId, canBuild) !== null;
+}

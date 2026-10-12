@@ -1,3 +1,4 @@
+import { useIsAgentCollaborator } from "@/components/configure/agentShareStore";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { isShared } from "@/components/governance/resourceOwnership";
@@ -47,6 +48,7 @@ export default function SkillDetail() {
   // Opened from an Agent that uses this skill (?viaAgent=) — read-only access even when the
   // skill isn't shared with the viewer (see agentContextAccess.tsx).
   const agentCtx = useAgentContextAccess(skill?.attachedByAgentIds);
+  const viaAgentCollaborator = useIsAgentCollaborator(new URLSearchParams(window.location.search).get("viaAgent"));
 
   const [showMenu, setShowMenu] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
@@ -89,7 +91,8 @@ export default function SkillDetail() {
   // let their Role's "Build skills" decide editing (the per-person share access doesn't apply).
   const accessible = isAccessibleTo(skill.sharing, skill.ownerId, access.userId) || (viaAgentOnly && agentCtx.allowed);
   const viewOnly = !isOwner && !viaAgentOnly && isViewOnly(skill.sharing, skill.ownerId, access.userId);
-  const canEdit = access.canAct("manage", accessible) && !viewOnly;
+  // Opened from an Agent the viewer was only added to: a Space skill is view-and-use only.
+  const canEdit = viaAgentCollaborator && !isOwner && !actor.isAdmin ? false : access.canAct("manage", accessible) && !viewOnly;
   // Owner, or a Space Admin (may turn sharing off / delete anyone's skill - the owner is notified).
   const manages = canManageSpaceResource(actor, skill.ownerId) && !skill.deletedFromSpace;
   const canShare = manages && (actor.isAdmin || access.canAct("publish", accessible));

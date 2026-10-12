@@ -26,7 +26,7 @@ import { agentModelStore } from "@/components/configure/agentModelStore";
 
 const tabs = ["All agents", "Published", "Draft", "Chờ duyệt", "Bị từ chối", "Shared with me"] as const;
 /** Display labels — "Published/Draft" read as "Đang live/Bản nháp" to match the card lines. */
-const TAB_LABEL: Partial<Record<typeof tabs[number], string>> = { Published: "Đang live", Draft: "Bản nháp", "Shared with me": "Được chia sẻ" };
+const TAB_LABEL: Partial<Record<typeof tabs[number], string>> = { Published: "Đang live", Draft: "Bản nháp", "Shared with me": "Được thêm vào" };
 const kindFilters = ["All", "Agents", "Automation Agents"] as const;
 
 const SUGGESTIONS = [
@@ -234,7 +234,7 @@ function AgentShareChip({ agentId }: { agentId: string }) {
   const s = agentShareStore.get(agentId);
   if (!canShare || (s.general === "none" && s.people.length === 0)) return null;
   return (
-    <span title="Agent này đang được chia sẻ trong Console" className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary-soft text-primary text-[11px] font-medium whitespace-nowrap shrink-0">
+    <span title="Nhân sự đang làm việc trên Agent này" className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary-soft text-primary text-[11px] font-medium whitespace-nowrap shrink-0">
       <HugeiconsIcon icon={UserMultipleIcon} size={11} /> {s.general === "space" ? "Cả Space" : `${s.people.length} người`}
     </span>
   );
@@ -265,7 +265,7 @@ function AgentCardMenu({ agentId }: { agentId: string }) {
               onClick={() => { setOpen(false); setSharing(true); }}
               className="w-full flex items-center gap-2 text-left px-3 py-1.5 text-sm text-foreground hover:bg-surface-muted"
             >
-              <HugeiconsIcon icon={UserMultipleIcon} size={14} /> Chia sẻ
+              <HugeiconsIcon icon={UserMultipleIcon} size={14} /> Thêm nhân sự
             </button>
           </div>
         </>

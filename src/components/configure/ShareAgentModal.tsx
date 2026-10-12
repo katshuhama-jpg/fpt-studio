@@ -152,7 +152,7 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
     const added = adding.map(m => ({ userId: m.id, level: addLevel ?? roleDefault(m.id) }));
     const nextPeople = [...people, ...added];
     persist({ people: nextPeople, general, generalLevel }, added.map(a => a.userId));
-    toast.success(added.length === 1 ? `Đã thêm ${adding[0].name} vào Agent.` : `Đã thêm ${added.length} người vào Agent.`);
+    toast.success(added.length === 1 ? `Đã thêm ${adding[0].name} vào Agent.` : `Đã thêm ${added.length} nhân sự vào Agent.`);
     onClose();
   };
 
@@ -170,7 +170,7 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
     onClose();
   };
   const saveMain = () => {
-    if (spaceLowered && general === "none") { setConfirm("Thành viên Space sẽ không còn mở được Agent này, trừ người có tên trong danh sách."); return; }
+    if (spaceLowered && general === "none") { setConfirm("Thành viên Space sẽ không còn mở được Agent này, trừ nhân sự có tên trong danh sách."); return; }
     if (spaceLowered) { setConfirm("Thành viên Space sẽ chỉ còn quyền Chỉ xem, trừ người được cấp Chỉnh sửa riêng."); return; }
     if (removedOrLowered > 0) { setConfirm(`${removedOrLowered} người sẽ mất quyền hoặc bị giảm quyền trên Agent này.`); return; }
     applyMain();
@@ -225,14 +225,14 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <button type="button" aria-label="Quay lại" onClick={cancelAdd} className="w-8 h-8 -ml-1 rounded-lg hover:bg-surface-muted flex items-center justify-center"><ArrowLeft size={16} /></button>
-                  Chia sẻ "{agent.name}"
+                  Thêm nhân sự vào "{agent.name}"
                 </DialogTitle>
-                <DialogDescription className="sr-only">Thêm người vào Agent</DialogDescription>
+                <DialogDescription className="sr-only">Thêm nhân sự vào Agent</DialogDescription>
               </DialogHeader>
               {searchBox}
               <label className="flex items-center gap-2 text-sm cursor-pointer w-fit">
                 <input type="checkbox" checked={notify} onChange={e => setNotify(e.target.checked)} className="w-4 h-4 accent-primary" />
-                Thông báo cho người được thêm
+                Thông báo cho nhân sự được thêm
               </label>
               <DialogFooter>
                 <button onClick={cancelAdd} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Hủy bỏ</button>
@@ -242,15 +242,54 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
           ) : (
             <>
               <DialogHeader>
-                <DialogTitle>Chia sẻ "{agent.name}"</DialogTitle>
+                <DialogTitle>Nhân sự của "{agent.name}"</DialogTitle>
                 <DialogDescription>Thêm người để cùng làm việc trên Agent trong Console.</DialogDescription>
               </DialogHeader>
 
-              {searchBox}
-
+              {/* Everyone in the Space - the baseline, on top. */}
               <div>
-                <h3 className="text-sm font-semibold mb-1">Người có quyền truy cập</h3>
-                <div className="max-h-64 overflow-y-auto -mx-1 px-1">
+                <h3 className="text-sm font-semibold mb-2">Mọi người trong Space</h3>
+                <div className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5">
+                  <Avatar icon={general === "space" ? <Building2 size={15} /> : <Lock size={15} />} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium">Mọi thành viên Space</span>
+                    <span className="block text-xs text-muted-foreground">
+                      {general === "space"
+                        ? generalLevel === "edit" ? "Ai trong Space cũng sửa được Agent này." : "Ai trong Space cũng xem được Agent này."
+                        : "Chỉ nhân sự có tên bên dưới mới mở được Agent này."}
+                    </span>
+                  </span>
+                  <DropdownMenu modal={false}>
+                    <DropdownMenuTrigger asChild>
+                      <button type="button" aria-label={`Quyền của mọi người trong Space: ${general === "space" ? LEVEL_META[generalLevel].label : "Không có quyền"}`} className="h-8 px-2.5 text-xs rounded-lg border border-border bg-white hover:bg-surface-muted font-medium flex items-center gap-1 whitespace-nowrap shrink-0 transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                        {general === "space" ? LEVEL_META[generalLevel].label : "Không có quyền"}<ChevronDown size={13} className="text-muted-foreground" aria-hidden />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-72 p-1">
+                      {(["edit", "view"] as const).map(l => { const LI = LEVEL_META[l].icon; const on = general === "space" && generalLevel === l; return (
+                        <DropdownMenuItem key={l} onSelect={() => { setGeneral("space"); setGeneralLevel(l); }} className="flex items-start gap-2.5 py-2 cursor-pointer">
+                          <span className="w-4 pt-0.5 shrink-0">{on && <Check size={14} className="text-primary" aria-hidden />}</span>
+                          <LI size={16} className="mt-0.5 text-muted-foreground shrink-0" aria-hidden />
+                          <span className="min-w-0"><span className="block text-sm font-medium">{LEVEL_META[l].label}</span><span className="block text-xs text-muted-foreground mt-0.5">{LEVEL_META[l].helper}</span></span>
+                        </DropdownMenuItem>
+                      ); })}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onSelect={() => setGeneral("none")} className="flex items-start gap-2.5 py-2 cursor-pointer">
+                        <span className="w-4 pt-0.5 shrink-0">{general === "none" && <Check size={14} className="text-primary" aria-hidden />}</span>
+                        <Lock size={16} className="mt-0.5 text-muted-foreground shrink-0" aria-hidden />
+                        <span className="min-w-0"><span className="block text-sm font-medium">Không có quyền</span><span className="block text-xs text-muted-foreground mt-0.5">Chỉ nhân sự được thêm bên dưới mới mở được.</span></span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
+
+              {/* Specific people - can be given more than the Space baseline. */}
+              <div>
+                <h3 className="text-sm font-semibold mb-1">Nhân sự cụ thể</h3>
+                <p className="text-xs text-muted-foreground mb-2">{general === "space" ? "Người được thêm ở đây nhận mức cao hơn giữa quyền riêng và quyền của Space." : "Mặc định theo Vai trò của từng người, đổi được ở từng dòng."}</p>
+                {searchBox}
+                <div className="max-h-64 overflow-y-auto -mx-1 px-1 mt-1">
                   <div className="flex items-center gap-3 py-2">
                     <Avatar name={owner?.name ?? "?"} />
                     <span className="min-w-0 flex-1">
@@ -278,38 +317,6 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
                       </div>
                     );
                   })}
-                </div>
-              </div>
-
-              <div className="border-t border-border pt-4">
-                <h3 className="text-sm font-semibold mb-2">Quyền truy cập chung</h3>
-                <div className="flex items-center gap-3">
-                  <Avatar icon={general === "space" ? <Building2 size={15} /> : <Lock size={15} />} />
-                  <div className="min-w-0 flex-1">
-                    <DropdownMenu modal={false}>
-                      <DropdownMenuTrigger asChild>
-                        <button type="button" aria-label="Quyền truy cập chung" className="text-sm font-medium flex items-center gap-1 rounded-md hover:bg-surface-muted px-1 -mx-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                          {general === "space" ? "Cả Space" : "Hạn chế"}<ChevronDown size={13} className="text-muted-foreground" aria-hidden />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="w-64 p-1">
-                        <DropdownMenuItem onSelect={() => setGeneral("none")} className="flex items-start gap-2 py-2 cursor-pointer">
-                          <span className="w-4 pt-0.5">{general === "none" && <Check size={14} className="text-primary" aria-hidden />}</span>
-                          <span className="block text-sm font-medium">Hạn chế</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => setGeneral("space")} className="flex items-start gap-2 py-2 cursor-pointer">
-                          <span className="w-4 pt-0.5">{general === "space" && <Check size={14} className="text-primary" aria-hidden />}</span>
-                          <span className="block text-sm font-medium">Cả Space</span>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {general === "space"
-                        ? "Mọi thành viên Space mở được Agent này."
-                        : "Chỉ người có tên trong danh sách mới mở được Agent này."}
-                    </p>
-                  </div>
-                  {general === "space" && <LevelSelect value={generalLevel} onChange={setGeneralLevel} ariaLabel="Quyền của cả Space" />}
                 </div>
               </div>
 

@@ -107,7 +107,7 @@ import { KnowledgeStatusPill } from "@/components/knowledge/knowledgeStatus";
 import AttachConsoleKnowledgeBaseModal from "@/components/knowledge/AttachConsoleKnowledgeBaseModal";
 import ShareKnowledgeBaseModal from "@/components/knowledge/ShareKnowledgeBaseModal";
 import ShareAgentModal, { useCanShareAgent } from "@/components/configure/ShareAgentModal";
-import { useAgentShareVersion, useAgentAccessLevel } from "@/components/configure/agentShareStore";
+import { useAgentShareVersion, useAgentAccessLevel, useIsAgentCollaborator } from "@/components/configure/agentShareStore";
 import ShareAgentItemModal from "@/components/knowledge/ShareAgentItemModal";
 import OrgSharePicker, { orgSelectionSummary } from "@/components/governance/OrgSharePicker";
 import { ACCESS_COPY, RETRIEVAL_COPY } from "@/components/knowledge/QueryScopeSection";
@@ -404,7 +404,7 @@ export default function AgentBuilder() {
               onClick={() => setShowShare(true)}
               className="h-9 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base"
             >
-              <HugeiconsIcon icon={UserMultipleIcon} size={14} /> Chia sẻ
+              <HugeiconsIcon icon={UserMultipleIcon} size={14} /> Nhân sự
             </button>
           )}
           {!viewOnly && <button
@@ -1596,12 +1596,11 @@ const NO_AGENT_BUILD = "Bạn chưa có quyền chỉnh sửa Agent này.";
 function kbActionBlocks(kb: { ownerId: string; agentOnlyFor?: string; sharing?: { mode: string } }, kbAccess: ReturnType<typeof useGroupAccess>, agentLevel?: "owner" | "edit" | "view" | null) {
   const isOwner = kb.ownerId === KB_CURRENT_USER.id;
   const spaceAdmin = kbAccess.hasPermission("manage") && kbAccess.scopeOf("manage") === "all";
-  // Added to the Agent at "Chỉnh sửa": works on the Agent's knowledge like its owner, except a
-  // knowledge base shared with the whole Space (only its owner or a Space Admin edits that).
-  const sharedWithSpace = !kb.agentOnlyFor && kb.sharing?.mode === "all";
-  const collaborator = !isOwner && agentLevel === "edit";
-  const notMine = sharedWithSpace && !spaceAdmin
-    ? "Kho này đã chia sẻ cho cả Space - Chỉ chủ sở hữu hoặc Admin của Space sửa được."
+  // Added to the Agent at "Chỉnh sửa": edits the Agent's own knowledge bases ("Chỉ Agent này")
+  // like their owner. A knowledge base from the Space library is view-and-use only.
+  const collaborator = !isOwner && !spaceAdmin && agentLevel === "edit";
+  const notMine = !kb.agentOnlyFor && !spaceAdmin
+    ? "Kho tri thức của Space - Bạn chỉ xem và dùng được trong Agent này."
     : collaborator ? undefined : "Chỉ chủ sở hữu mới có thể sửa kho tri thức này.";
   return {
     edit: !isOwner ? notMine : !kbAccess.hasPermission("manage") ? "Vai trò của bạn chưa có quyền sửa kho tri thức." : undefined,
@@ -1622,6 +1621,7 @@ function AgentKnowledgeGrid({ agentId }: { agentId: string }) {
   const kbAccess = useGroupAccess("knowledge");
   const canBuildAgent = useCanBuildAgent(agentId);
   const agentLevelForKb = useAgentAccessLevel(agentId);
+  const kbCollaborator = useIsAgentCollaborator(agentId);
   const [tick, setTick] = useState(0);
   const refresh = () => setTick(t => t + 1);
   void tick;
@@ -5372,6 +5372,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
   const kbCanSeeAll = kbAccess.canSeeAll;
   const canBuildAgent = useCanBuildAgent(agentId);
   const agentLevelForKb = useAgentAccessLevel(agentId);
+  const kbCollaborator = useIsAgentCollaborator(agentId);
   const [tick, setTick] = useState(0);
   const [showMenu, setShowMenu] = useState(false);
   const [menuPos, setMenuPos] = useState<{top:number;left:number}>({top:0,left:0});
@@ -5430,7 +5431,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
       // Same Của tôi / Được chia sẻ pills as the Kho tri thức library (+ creator for someone
       // else's KB); a KB the viewer only reaches through this Agent keeps its own wording.
       chip: kb.ownerId !== KB_CURRENT_USER.id && !kbCanSeeAll && !isKbAccessibleTo(kb, KB_CURRENT_USER.id) ? (
-        <span className="chip chip-muted">{kbAccess.hasPermission("manage") ? "Sửa được qua Agent này" : "Chỉ xem trong Agent"} · {kb.ownerName}</span>
+        <span className="chip chip-muted">{kbAccess.hasPermission("manage") && !kbCollaborator ? "Sửa được qua Agent này" : "Chỉ xem trong Agent"} · {kb.ownerName}</span>
       ) : (() => {
         const tags = ownershipTags({ ownerId: kb.ownerId, sharing: kb.sharing, userId: KB_CURRENT_USER.id });
         return (
@@ -7242,6 +7243,7 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
   const { tree } = useOrg();
   const members = useMemo(() => collectMembers(tree), [tree]);
   const skillsAccess = useGroupAccess("skills");
+  const skillCollaborator = useIsAgentCollaborator(agentId);
   const accessUserId = skillsAccess.userId;
   const currentUser = useMemo(() => {
     const me = members.find(m => m.id === accessUserId);
@@ -7298,7 +7300,7 @@ function SkillsAgentTab({ agentId }: { agentId: string }) {
             * only (see agentContextAccess.tsx) — say so, and whose it is. */}
           {!revoked && s.ownerId && s.sharing && s.ownerId !== accessUserId && !skillsAccess.canSeeAll && !isSkillAccessibleTo(s.sharing, s.ownerId, accessUserId) && (
             <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-              <HugeiconsIcon icon={EyeIcon} size={12} className="shrink-0" /> {skillsAccess.hasPermission("manage") ? "Sửa được qua Agent này" : "Chỉ xem trong Agent"} · {s.ownerName}
+              <HugeiconsIcon icon={EyeIcon} size={12} className="shrink-0" /> {skillsAccess.hasPermission("manage") && !skillCollaborator ? "Sửa được qua Agent này" : "Chỉ xem trong Agent"} · {s.ownerName}
             </p>
           )}
         </div>

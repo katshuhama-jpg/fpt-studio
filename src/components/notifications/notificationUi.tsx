@@ -47,7 +47,7 @@ const KIND_META: Record<NotificationKind, { icon: typeof Bell; tone: Tone; chip:
   resource_unshared: { icon: EyeOff, tone: "warning", chip: "Đã tắt chia sẻ" },
   resource_deleted: { icon: Trash2, tone: "danger", chip: "Đã xóa" },
   resource_removed: { icon: EyeOff, tone: "warning", chip: "Đã gỡ khỏi Space" },
-  agent_shared: { icon: Users, tone: "info", chip: "Chia sẻ" },
+  agent_shared: { icon: Users, tone: "info", chip: "Được thêm" },
 };
 
 /** "Agent của bạn" / "Agent được chia sẻ với bạn" for outcomes; nothing extra for incoming. */
@@ -69,7 +69,7 @@ function contextLabel(n: AppNotification, userId: string): string | null {
   if (n.resourceId.startsWith("ext-")) return "Agent của bạn";
   const a = getAgent(n.resourceId) as { ownerId?: string; sharedWith?: string[] } | undefined;
   if (a?.ownerId === userId) return "Agent của bạn";
-  if (a?.sharedWith?.includes(userId)) return "Agent được chia sẻ với bạn";
+  if (a?.sharedWith?.includes(userId)) return "Agent bạn được thêm vào";
   return "Yêu cầu bạn đã gửi";
 }
 
