@@ -250,14 +250,10 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
               <div>
                 <h3 className="text-sm font-semibold mb-2">Mọi người trong Space</h3>
                 <div className="flex items-center gap-3 rounded-xl border border-border px-3 py-2.5">
-                  <Avatar icon={general === "space" ? <Building2 size={15} /> : <Lock size={15} />} />
+                  <Avatar icon={<Building2 size={15} />} />
                   <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-medium">Mọi thành viên Space</span>
-                    <span className="block text-xs text-muted-foreground">
-                      {general === "space"
-                        ? generalLevel === "edit" ? "Ai trong Space cũng sửa được Agent này." : "Ai trong Space cũng xem được Agent này."
-                        : "Chỉ nhân sự có tên bên dưới mới mở được Agent này."}
-                    </span>
+                    <span className="block text-sm font-medium">Cả Space</span>
+                    <span className="block text-xs text-muted-foreground">Quyền của mọi thành viên Space trên Agent này.</span>
                   </span>
                   <DropdownMenu modal={false}>
                     <DropdownMenuTrigger asChild>
@@ -287,7 +283,7 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
               {/* Specific people - can be given more than the Space baseline. */}
               <div>
                 <h3 className="text-sm font-semibold mb-1">Nhân sự cụ thể</h3>
-                <p className="text-xs text-muted-foreground mb-2">{general === "space" ? "Người được thêm ở đây nhận mức cao hơn giữa quyền riêng và quyền của Space." : "Mặc định theo Vai trò của từng người, đổi được ở từng dòng."}</p>
+                <p className="text-xs text-muted-foreground mb-2">Mặc định theo Vai trò của từng người. Ai thuộc cả hai nhóm sẽ nhận quyền cao hơn.</p>
                 {searchBox}
                 <div className="max-h-64 overflow-y-auto -mx-1 px-1 mt-1">
                   <div className="flex items-center gap-3 py-2">
