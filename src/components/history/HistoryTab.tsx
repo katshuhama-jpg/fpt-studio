@@ -1,3 +1,4 @@
+import { useAgentAccessLevel } from "@/components/configure/agentShareStore";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Search, ChevronLeft, ChevronRight, Waypoints, Clock, Zap, ThumbsUp, ThumbsDown, Download, X } from "lucide-react";
@@ -88,7 +89,9 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
   const [exportOpen, setExportOpen] = useState(false);
   const [page, setPage] = useState(1);
   const { can } = useMyPermissions();
-  const canExport = can("agents.export");
+  // "Chỉ xem" / "Chỉnh sửa" on this Agent includes exporting its history, whatever the Role says.
+  const shareLevel = useAgentAccessLevel(agentId);
+  const canExport = can("agents.export") || shareLevel === "view" || shareLevel === "edit";
   const PAGE_SIZE = 8;
 
   const allConversations = useMemo(() => historyStore.list(agentId), [agentId]);

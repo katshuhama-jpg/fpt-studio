@@ -147,7 +147,7 @@ function TestSetList({ agentId, agentName }: { agentId: string; agentName: strin
                 const gate = evaluationStore.gate(s.id);
                 const req = s.metrics.filter(m => m.required).length;
                 return (
-                  <tr key={s.id} className="border-t border-border hover:bg-surface-muted/50 cursor-pointer transition-base" onClick={() => go("test-sets", s.id)}>
+                  <tr key={s.id} data-viewonly-allow className="border-t border-border hover:bg-surface-muted/50 cursor-pointer transition-base" onClick={() => go("test-sets", s.id)}>
                     <td className="px-4 py-3">
                       <div className="font-medium">{s.name}</div>
                       <div className="text-xs text-muted-foreground truncate max-w-[280px]">{s.description || "Chưa có mô tả"}</div>
@@ -168,7 +168,7 @@ function TestSetList({ agentId, agentName }: { agentId: string; agentName: strin
                     <td className="px-4 py-3 text-xs text-muted-foreground">{fmtDateTime(s.updatedAt)}</td>
                     <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
-                        <button className="btn-secondary !h-8 !px-3 text-xs" onClick={() => setRunSet(s.id)} disabled={evaluationStore.cases(s.id).length === 0}>
+                        <button data-viewonly-allow className="btn-secondary !h-8 !px-3 text-xs" onClick={() => setRunSet(s.id)} disabled={evaluationStore.cases(s.id).length === 0}>
                           <HugeiconsIcon icon={PlayIcon} size={12} /> Chạy tất cả
                         </button>
                         <DropdownMenu>
@@ -441,15 +441,15 @@ function TestSetDetail({ set, agentId, agentName, onBack }: { set: TestSet; agen
 
   return (
     <div className="p-8 w-full space-y-5 animate-fade-up">
-      <button onClick={onBack} className="btn-ghost -ml-2"><HugeiconsIcon icon={ArrowLeft01Icon} size={14} /> Bộ test</button>
+      <button data-viewonly-allow onClick={onBack} className="btn-ghost -ml-2"><HugeiconsIcon icon={ArrowLeft01Icon} size={14} /> Bộ test</button>
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="font-display text-xl font-semibold">{set.name}</h2>
           <p className="text-sm text-muted-foreground mt-1">{set.description || "Chưa có mô tả"} · {cases.length} test case · Chạy {set.runsPerCase} lần mỗi test</p>
         </div>
         <div className="flex gap-2 shrink-0">
-          {run && <button className="btn-secondary" onClick={() => go("runs", run.id)}>Xem lượt chạy #{run.number}</button>}
-          <button className="btn-primary" onClick={() => { setRunIds(undefined); setRunOpen(true); }} disabled={cases.length === 0}><HugeiconsIcon icon={PlayIcon} size={14} /> Chạy tất cả</button>
+          {run && <button data-viewonly-allow className="btn-secondary" onClick={() => go("runs", run.id)}>Xem lượt chạy #{run.number}</button>}
+          <button data-viewonly-allow className="btn-primary" onClick={() => { setRunIds(undefined); setRunOpen(true); }} disabled={cases.length === 0}><HugeiconsIcon icon={PlayIcon} size={14} /> Chạy tất cả</button>
         </div>
       </div>
 
@@ -463,7 +463,7 @@ function TestSetDetail({ set, agentId, agentName, onBack }: { set: TestSet; agen
 
       <div className="flex gap-1 border-b border-border" role="tablist">
         {([["cases", `Test case (${cases.length})`], ["settings", "Cài đặt"]] as const).map(([id, label]) => (
-          <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
+          <button data-viewonly-allow key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
             className={`px-3 h-9 text-sm font-medium border-b-2 -mb-px transition-base cursor-pointer ${tab === id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>{label}</button>
         ))}
       </div>
@@ -477,12 +477,12 @@ function TestSetDetail({ set, agentId, agentName, onBack }: { set: TestSet; agen
             </div>
             <div className="flex gap-1 flex-wrap">
               {(["all", ...CASE_GROUPS] as const).map(g => (
-                <button key={g} onClick={() => setGroup(g)} className={`chip cursor-pointer ${group === g ? "chip-primary" : "chip-outline hover:bg-surface-muted"}`}>
+                <button data-viewonly-allow key={g} onClick={() => setGroup(g)} className={`chip cursor-pointer ${group === g ? "chip-primary" : "chip-outline hover:bg-surface-muted"}`}>
                   {g === "all" ? "Tất cả" : g} <span className="opacity-70">{g === "all" ? cases.length : cases.filter(c => c.group === g).length}</span>
                 </button>
               ))}
               {unreviewed.length > 0 && (
-                <button onClick={() => setOnlyDraft(v => !v)} aria-pressed={onlyDraft} className={`chip cursor-pointer ${onlyDraft ? "chip-warning" : "chip-outline hover:bg-surface-muted"}`}>
+                <button data-viewonly-allow onClick={() => setOnlyDraft(v => !v)} aria-pressed={onlyDraft} className={`chip cursor-pointer ${onlyDraft ? "chip-warning" : "chip-outline hover:bg-surface-muted"}`}>
                   Chưa duyệt <span className="opacity-70">{unreviewed.length}</span>
                 </button>
               )}
@@ -502,10 +502,10 @@ function TestSetDetail({ set, agentId, agentName, onBack }: { set: TestSet; agen
           {selected.length > 0 && (
             <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-primary-soft/60 text-sm" role="region" aria-label="Thao tác với test đã chọn">
               <b>Đã chọn {selected.length} test</b>
-              <button className="btn-ghost !h-7 text-xs" onClick={() => setSelected([])}>Bỏ chọn</button>
+              <button data-viewonly-allow className="btn-ghost !h-7 text-xs" onClick={() => setSelected([])}>Bỏ chọn</button>
               <div className="ml-auto flex gap-2">
                 <button className="btn-secondary !h-8 text-destructive" onClick={() => setBulkDelete(true)}><HugeiconsIcon icon={Delete02Icon} size={14} /> Xóa</button>
-                <button className="btn-primary !h-8" onClick={() => { setRunIds(selected); setRunOpen(true); }}><HugeiconsIcon icon={PlayIcon} size={14} /> Chạy {selected.length} test đã chọn</button>
+                <button data-viewonly-allow className="btn-primary !h-8" onClick={() => { setRunIds(selected); setRunOpen(true); }}><HugeiconsIcon icon={PlayIcon} size={14} /> Chạy {selected.length} test đã chọn</button>
               </div>
             </div>
           )}
@@ -538,7 +538,7 @@ function TestSetDetail({ set, agentId, agentName, onBack }: { set: TestSet; agen
               <tbody>
                 {shown.map(c => (
                   <tr key={c.id} onClick={() => setEditing(c)} className={`border-t border-border hover:bg-surface-muted/50 transition-base cursor-pointer ${selected.includes(c.id) ? "bg-primary-soft/40" : ""}`}>
-                    <td className="pl-4 pr-1 py-3 align-top" onClick={e => e.stopPropagation()}>
+                    <td data-viewonly-allow className="pl-4 pr-1 py-3 align-top" onClick={e => e.stopPropagation()}>
                       <input type="checkbox" aria-label={`Chọn test ${c.name || c.question}`} className="accent-[hsl(var(--primary))] cursor-pointer mt-1" checked={selected.includes(c.id)}
                         onChange={e => setSelected(e.target.checked ? [...selected, c.id] : selected.filter(x => x !== c.id))} />
                     </td>

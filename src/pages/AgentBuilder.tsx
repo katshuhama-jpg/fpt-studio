@@ -107,7 +107,7 @@ import { KnowledgeStatusPill } from "@/components/knowledge/knowledgeStatus";
 import AttachConsoleKnowledgeBaseModal from "@/components/knowledge/AttachConsoleKnowledgeBaseModal";
 import ShareKnowledgeBaseModal from "@/components/knowledge/ShareKnowledgeBaseModal";
 import ShareAgentModal, { useCanShareAgent } from "@/components/configure/ShareAgentModal";
-import { useAgentShareVersion } from "@/components/configure/agentShareStore";
+import { useAgentShareVersion, useAgentAccessLevel } from "@/components/configure/agentShareStore";
 import ShareAgentItemModal from "@/components/knowledge/ShareAgentItemModal";
 import OrgSharePicker, { orgSelectionSummary } from "@/components/governance/OrgSharePicker";
 import { ACCESS_COPY, RETRIEVAL_COPY } from "@/components/knowledge/QueryScopeSection";
@@ -296,15 +296,22 @@ export default function AgentBuilder() {
   // which has no Scope dimension.
   const existingAgent = id !== "new" ? AGENTS.find(a => a.id === id) : undefined;
   const canAccessAgent = !existingAgent || access.canSeeAll || isOwnedOrShared(existingAgent, access.userId);
-  const canPublishAgent = canAccessAgent && access.canAct("publish", existingAgent ? isOwnedOrShared(existingAgent, access.userId) : true);
-  // Someone the Agent was shared with whose Role has no "Build agents" only views it.
-  const viewOnly = !!existingAgent && canAccessAgent && !access.canAct("manage", isOwnedOrShared(existingAgent, access.userId));
+  // Level on this Agent: "Chỉnh sửa" (picked by hand or via Role) can edit and publish even when
+  // the Role alone couldn't; "Chỉ xem" reads it, runs Evaluate and exports history.
+  const accessLevel = useAgentAccessLevel(id ?? "new");
+  const canPublishAgent = canAccessAgent && (accessLevel === "edit" || access.canAct("publish", existingAgent ? isOwnedOrShared(existingAgent, access.userId) : true));
+  const viewOnly = !!existingAgent && canAccessAgent && (accessLevel === "view"
+    || (accessLevel === null && !access.canAct("manage", isOwnedOrShared(existingAgent, access.userId))));
   const lockContent = viewOnly && tab !== "insights";
+  /** In Evaluate, a view-only person may still run tests and read results - those controls carry
+   * data-viewonly-allow. */
+  const isAllowed = (t: EventTarget | null) => tab === "evaluate" && !!(t as HTMLElement | null)?.closest?.("[data-viewonly-allow]");
   // "View agent history" gates Insights → History (the conversation list and its Trace) on top
   // of just being able to open the Agent — e.g. Viewer can open an Agent shared with them
   // without seeing that Agent's conversation history, since Viewer has no "agents.history" by
   // default. A new, unsaved agent ("new") has no conversations yet, so this never applies there.
-  const canSeeHistory = canAccessAgent && (!existingAgent || access.canAct("history", isOwnedOrShared(existingAgent, access.userId)));
+  // Added to the Agent (Chỉ xem or Chỉnh sửa) always includes its conversation history.
+  const canSeeHistory = canAccessAgent && (!existingAgent || accessLevel === "view" || accessLevel === "edit" || access.canAct("history", isOwnedOrShared(existingAgent, access.userId)));
 
   // A deep link straight to ?tab=insights&section=history (bookmarked, shared, or just an old
   // tab) for someone without "View agent history" on this Agent must not leave the pane blank —
@@ -701,16 +708,16 @@ export default function AgentBuilder() {
         <div
           className={`flex-1 flex overflow-hidden ${lockContent ? "agent-view-only" : ""}`}
           title={lockContent ? "Bạn chỉ xem được Agent này." : undefined}
-          onClickCapture={e => { if (lockContent) { e.preventDefault(); e.stopPropagation(); } }}
-          onPointerDownCapture={e => { if (lockContent) { e.preventDefault(); e.stopPropagation(); } }}
-          onMouseDownCapture={e => { if (lockContent) { e.preventDefault(); e.stopPropagation(); } }}
+          onClickCapture={e => { if (lockContent && !isAllowed(e.target)) { e.preventDefault(); e.stopPropagation(); } }}
+          onPointerDownCapture={e => { if (lockContent && !isAllowed(e.target)) { e.preventDefault(); e.stopPropagation(); } }}
+          onMouseDownCapture={e => { if (lockContent && !isAllowed(e.target)) { e.preventDefault(); e.stopPropagation(); } }}
           onKeyDownCapture={e => {
             // Tab and scrolling keys still move around the page; anything that would act is dropped.
-            if (!lockContent) return;
+            if (!lockContent || isAllowed(e.target)) return;
             const passThrough = ["Tab", "ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", "Shift"];
             if (!passThrough.includes(e.key)) { e.preventDefault(); e.stopPropagation(); }
           }}
-          onBeforeInputCapture={e => { if (lockContent) e.preventDefault(); }}
+          onBeforeInputCapture={e => { if (lockContent && !isAllowed(e.target)) e.preventDefault(); }}
           onPasteCapture={e => { if (lockContent) e.preventDefault(); }}
           onDropCapture={e => { if (lockContent) e.preventDefault(); }}
         >
@@ -1586,23 +1593,35 @@ function KnowledgeTab({ agentId }: { agentId: string }) {
  *   their Role has Build / Publish / Delete for Knowledge.
  * Messages explain which of the two is missing. */
 const NO_AGENT_BUILD = "Bạn chưa có quyền chỉnh sửa Agent này.";
-function kbActionBlocks(kb: { ownerId: string }, kbAccess: ReturnType<typeof useGroupAccess>) {
+function kbActionBlocks(kb: { ownerId: string; agentOnlyFor?: string; sharing?: { mode: string } }, kbAccess: ReturnType<typeof useGroupAccess>, agentLevel?: "owner" | "edit" | "view" | null) {
   const isOwner = kb.ownerId === KB_CURRENT_USER.id;
+  const spaceAdmin = kbAccess.hasPermission("manage") && kbAccess.scopeOf("manage") === "all";
+  // Added to the Agent at "Chỉnh sửa": works on the Agent's knowledge like its owner, except a
+  // knowledge base shared with the whole Space (only its owner or a Space Admin edits that).
+  const sharedWithSpace = !kb.agentOnlyFor && kb.sharing?.mode === "all";
+  const collaborator = !isOwner && agentLevel === "edit";
+  const notMine = sharedWithSpace && !spaceAdmin
+    ? "Kho này đã chia sẻ cho cả Space - Chỉ chủ sở hữu hoặc Admin của Space sửa được."
+    : collaborator ? undefined : "Chỉ chủ sở hữu mới có thể sửa kho tri thức này.";
   return {
-    edit: !isOwner ? "Chỉ chủ sở hữu mới có thể đổi tên kho tri thức này." : !kbAccess.hasPermission("manage") ? "Vai trò của bạn chưa có quyền sửa kho tri thức." : undefined,
+    edit: !isOwner ? notMine : !kbAccess.hasPermission("manage") ? "Vai trò của bạn chưa có quyền sửa kho tri thức." : undefined,
     share: !isOwner ? "Chỉ chủ sở hữu mới đổi được quyền của kho tri thức này." : !kbAccess.hasPermission("publish") ? "Vai trò của bạn chưa có quyền đổi quyền kho tri thức." : undefined,
-    del: !isOwner ? "Chỉ chủ sở hữu mới xóa được kho tri thức này." : !kbAccess.hasPermission("delete") ? "Vai trò của bạn chưa có quyền xóa kho tri thức." : undefined,
+    del: !isOwner ? (collaborator && kb.agentOnlyFor ? undefined : "Chỉ chủ sở hữu mới xóa được kho tri thức này.") : !kbAccess.hasPermission("delete") ? "Vai trò của bạn chưa có quyền xóa kho tri thức." : undefined,
   };
 }
 function useCanBuildAgent(agentId: string) {
   const agentAccess = useGroupAccess("agents");
+  const level = useAgentAccessLevel(agentId);
   const rec = AGENTS.find(a => a.id === agentId);
-  return !rec || agentAccess.canAct("manage", isOwnedOrShared(rec, agentAccess.userId));
+  if (!rec || level === "owner" || level === "edit") return true;
+  if (level === "view") return false;
+  return agentAccess.canAct("manage", isOwnedOrShared(rec, agentAccess.userId));
 }
 
 function AgentKnowledgeGrid({ agentId }: { agentId: string }) {
   const kbAccess = useGroupAccess("knowledge");
   const canBuildAgent = useCanBuildAgent(agentId);
+  const agentLevelForKb = useAgentAccessLevel(agentId);
   const [tick, setTick] = useState(0);
   const refresh = () => setTick(t => t + 1);
   void tick;
@@ -1633,7 +1652,7 @@ function AgentKnowledgeGrid({ agentId }: { agentId: string }) {
 
   const renderCardFor = (kb: KnowledgeBase) => {
     const isOwn = kb.agentOnlyFor === agentId;
-    const blocks = kbActionBlocks(kb, kbAccess);
+    const blocks = kbActionBlocks(kb, kbAccess, agentLevelForKb);
     // Knowledge bases open in a new tab instead of navigating this one away from the Agent
     // Builder, so opening one never silently discards unsaved Instructions edits. Opened without
     // "noopener" so the new tab gets a copy of this session's data, then cut the opener link.
@@ -2799,7 +2818,8 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
 function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish }: { agentId: string; onViewTriggers?: () => void; onViewVersions?: () => void; onOpenPublish?: () => void }) {
   const access = useGroupAccess("agents");
   const ownedAgent = AGENTS.find(a => a.id === agentId);
-  const canPublishAgent = access.canAct("publish", ownedAgent ? isOwnedOrShared(ownedAgent, access.userId) : true);
+  const deployLevel = useAgentAccessLevel(agentId ?? "new");
+  const canPublishAgent = deployLevel === "edit" || access.canAct("publish", ownedAgent ? isOwnedOrShared(ownedAgent, access.userId) : true);
   const [tick, setTick] = useState(0);
   const refresh = () => setTick(t => t + 1);
   const [showPublish, setShowPublish] = useState(false);
@@ -5351,6 +5371,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
   const kbAccess = useGroupAccess("knowledge");
   const kbCanSeeAll = kbAccess.canSeeAll;
   const canBuildAgent = useCanBuildAgent(agentId);
+  const agentLevelForKb = useAgentAccessLevel(agentId);
   const [tick, setTick] = useState(0);
   const [showMenu, setShowMenu] = useState(false);
   const [menuPos, setMenuPos] = useState<{top:number;left:number}>({top:0,left:0});
@@ -5403,7 +5424,7 @@ function KnowledgeInner({ agentId, onRegisterAdd }: { agentId: string; onRegiste
       remove: () => setDetachTarget({ id: kb.id, name: kb.name }),
       // Own knowledge base: removing deletes it (owner + Delete). Linked: unlinking (Agent build).
       removeLabel: kb.agentOnlyFor === agentId ? "Xóa kho tri thức" : "Gỡ liên kết",
-      removeBlocked: kb.agentOnlyFor === agentId ? kbActionBlocks(kb, kbAccess).del : !canBuildAgent ? NO_AGENT_BUILD : undefined,
+      removeBlocked: kb.agentOnlyFor === agentId ? kbActionBlocks(kb, kbAccess, agentLevelForKb).del : !canBuildAgent ? NO_AGENT_BUILD : undefined,
       // Plain "Của tôi"/"Được chia sẻ" caption — no more granular Riêng tư/Chia sẻ · N/Dùng
       // chung pill, matching every other Knowledge screen in the product.
       // Same Của tôi / Được chia sẻ pills as the Kho tri thức library (+ creator for someone

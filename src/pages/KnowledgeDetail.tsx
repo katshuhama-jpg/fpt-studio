@@ -1,3 +1,4 @@
+import { useAgentAccessLevel } from "@/components/configure/agentShareStore";
 import { useEffect, useState } from "react";
 import { notifySpaceOwner, useSpaceActor, spaceDeleteLabel } from "@/components/governance/spaceDelete";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -111,6 +112,8 @@ export default function KnowledgeDetail() {
   const [tick, setTick] = useState(0);
   const [kb, setKb] = useState<KnowledgeBase | undefined>(undefined);
   const agentCtx = useAgentContextAccess(kb?.attachedByAgentIds);
+  // Opened from an Agent the viewer was added to: their level there decides editing.
+  const viaAgentLevel = useAgentAccessLevel(params.get("viaAgent") ?? "__none__");
   const [showMenu, setShowMenu] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showShare, setShowShare] = useState(false);
@@ -203,7 +206,14 @@ export default function KnowledgeDetail() {
   // editor (or anyone on a "Dùng chung" KB) can edit content but not the KB's own access/lifecycle.
   const isOwner = kb.ownerId === CURRENT_USER.id;
   const accessible = isAccessibleTo(kb, access.userId) || ((viaAgentOnly || viaOwningAgent) && agentCtx.allowed);
-  const canEdit = access.canAct("manage", accessible) && !viewOnly;
+  const viaAgentId = params.get("viaAgent");
+  // From an Agent: "Chỉnh sửa" there edits its knowledge, "Chỉ xem" reads only. A knowledge base
+  // shared with the whole Space is the exception - only its owner or a Space Admin edits it, since
+  // every Agent in the Space may depend on it.
+  const sharedWithSpace = !kb.agentOnlyFor && kb.sharing.mode === "all";
+  const canEdit = viaAgentId && (viaAgentLevel === "edit" || viaAgentLevel === "view") && !isOwner && !actor.isAdmin
+    ? viaAgentLevel === "edit" && !sharedWithSpace
+    : access.canAct("manage", accessible) && !viewOnly;
   const canShare = isOwner && access.canAct("publish", accessible);
   // "Ai được dùng" and "Xóa": owner, or a Space Admin on a Space knowledge base (the owner is notified).
   const manages = (isOwner || (actor.isAdmin && !kb.agentOnlyFor)) && !kb.deletedFromSpace;

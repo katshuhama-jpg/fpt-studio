@@ -21,6 +21,9 @@ export interface AgentRecord {
   sharedWith?: string[];
   /** Shared with everyone in the Space ("Cả Space") — see agentShareStore. */
   sharedAll?: boolean;
+  /** Level per person in sharedWith ("role" | "view" | "edit") and for "Cả Space" - see agentShareStore. */
+  shareLevels?: Record<string, string>;
+  shareGeneralLevel?: string;
 }
 
 export const AGENTS: AgentRecord[] = [

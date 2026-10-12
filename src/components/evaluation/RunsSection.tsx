@@ -30,7 +30,7 @@ function RunList({ agentId }: { agentId: string }) {
   const shown = runs.filter(r => setFilter === "all" || r.setId === setFilter);
 
   return (
-    <div className="p-8 w-full space-y-5 animate-fade-up">
+    <div data-viewonly-allow className="p-8 w-full space-y-5 animate-fade-up">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="font-display text-xl font-semibold">Lượt chạy</h2>
@@ -153,7 +153,7 @@ function RunDetail({ run, agentId, onRefineWithAI }: { run: Run; agentId: string
   const improve = prev ? run.caseIds.filter(id => prev.results[id] && caseStatus(prev, id) !== "pass" && caseStatus(run, id) === "pass") : [];
 
   return (
-    <div className="p-8 w-full space-y-5 animate-fade-up">
+    <div data-viewonly-allow className="p-8 w-full space-y-5 animate-fade-up">
       <button onClick={() => go("runs")} className="btn-ghost -ml-2"><HugeiconsIcon icon={ArrowLeft01Icon} size={14} /> Lượt chạy</button>
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>

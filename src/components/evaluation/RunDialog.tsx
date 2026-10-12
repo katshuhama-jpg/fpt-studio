@@ -55,7 +55,7 @@ export function RunDialog({ agentId, open, onOpenChange, presetSetId, presetCase
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[520px]">
+      <DialogContent data-viewonly-allow className="sm:max-w-[520px]">
         <DialogHeader>
           <DialogTitle>{presetCaseIds ? `Chạy ${presetCaseIds.length} test đã chọn` : "Chạy bộ test"}</DialogTitle>
           <DialogDescription>Agent trả lời từng test case, sau đó hệ thống chấm theo các chỉ số gắn với bộ test.</DialogDescription>

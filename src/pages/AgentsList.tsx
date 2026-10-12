@@ -232,10 +232,10 @@ function TemplateModal({ onClose }: { onClose: () => void }) {
 function AgentShareChip({ agentId }: { agentId: string }) {
   const canShare = useCanShareAgent(agentId);
   const s = agentShareStore.get(agentId);
-  if (!canShare || s.mode === "private") return null;
+  if (!canShare || (s.general === "none" && s.people.length === 0)) return null;
   return (
     <span title="Agent này đang được chia sẻ trong Console" className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary-soft text-primary text-[11px] font-medium whitespace-nowrap shrink-0">
-      <HugeiconsIcon icon={UserMultipleIcon} size={11} /> {s.mode === "all" ? "Cả Space" : `${s.people.length} người`}
+      <HugeiconsIcon icon={UserMultipleIcon} size={11} /> {s.general === "space" ? "Cả Space" : `${s.people.length} người`}
     </span>
   );
 }
