@@ -1,7 +1,7 @@
 import type React from "react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Building2, Check, ChevronDown, Eye, Lock, Pencil, Search, X, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Building2, Check, ChevronDown, Eye, Lock, Pencil, Search, UserCog, X, type LucideIcon } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -34,9 +34,10 @@ export function useCanShareAgent(agentId: string) {
   return access.hasPermission("publish") && access.scopeOf("publish") === "all";
 }
 
-type Level = "view" | "edit" | "none";
+type Level = "role" | "view" | "edit" | "none";
 /** Level labels and what each one allows - the same wording in the menu and the doc. */
 export const LEVEL_META: Record<Level, { label: string; helper: string; icon: LucideIcon }> = {
+  role: { label: "Theo Vai trò", helper: "Ai có quyền tạo Agent được Chỉnh sửa, còn lại Chỉ xem.", icon: UserCog },
   edit: { label: "Chỉnh sửa", helper: "Sửa Agent, tài nguyên của Agent và publish.", icon: Pencil },
   view: { label: "Chỉ xem", helper: "Xem, chạy Evaluate và export lịch sử.", icon: Eye },
   none: { label: "Không có quyền", helper: "Không mở được Agent này.", icon: Lock },
@@ -117,7 +118,7 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
   const [saved, setSaved] = useState(() => agentShareStore.get(agentId));
   const [people, setPeople] = useState<AgentMember[]>(() => saved.people.map(p => ({ userId: p.userId, level: asLevel(p) })));
   const [scope, setScope] = useState<Scope>(saved.general === "space" ? "space" : saved.people.length ? "specific" : "me");
-  const [generalLevel, setGeneralLevel] = useState<"view" | "edit">(saved.generalLevel === "edit" ? "edit" : "view");
+  const [generalLevel, setGeneralLevel] = useState<"role" | "view" | "edit">(saved.generalLevel === "edit" || saved.generalLevel === "view" ? saved.generalLevel : "role");
   const [query, setQuery] = useState("");
   // Add step (Drive's second screen): people being added, one level for all, notify toggle.
   const [adding, setAdding] = useState<OrgMember[]>([]);
@@ -135,7 +136,8 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
     : [];
 
   /** Under "Cả Space" someone is added to get a different level, so suggest the other one. */
-  const addDefault = (id: string): Level => (scope === "space" ? (generalLevel === "view" ? "edit" : "view") : roleDefault(id));
+  const spaceLevelOf = (id: string): Level => (generalLevel === "role" ? roleDefault(id) : generalLevel);
+  const addDefault = (id: string): Level => (scope === "space" ? (spaceLevelOf(id) === "view" ? "edit" : "view") : roleDefault(id));
   const addDefaults = adding.map(m => addDefault(m.id));
   const addLabelValue: Level | null = addLevel ?? (addDefaults.every(l => l === addDefaults[0]) ? addDefaults[0] ?? null : null);
   const addLevels: Level[] = scope === "space" ? ["edit", "view", "none"] : ["edit", "view"];
@@ -310,7 +312,7 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
                     <span className="block text-sm font-medium">Mọi thành viên Space</span>
                     <span className="block text-xs text-muted-foreground">Quyền chung cho cả Space.</span>
                   </span>
-                  <LevelSelect value={generalLevel} onChange={l => setGeneralLevel(l as "view" | "edit")} ariaLabel="Quyền chung của Cả Space" />
+                  <LevelSelect value={generalLevel} onChange={l => setGeneralLevel(l as "role" | "view" | "edit")} levels={["role", "edit", "view"]} ariaLabel="Quyền chung của Cả Space" />
                 </div>
               )}
 
@@ -328,7 +330,7 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
                   {shown.map(p => {
                     const m = byId.get(p.userId);
                     const name = m?.name ?? p.userId;
-                    const sameAsSpace = scope === "space" && p.level === generalLevel;
+                    const sameAsSpace = scope === "space" && p.level === spaceLevelOf(p.userId);
                     return (
                       <div key={p.userId} className="flex items-center gap-3 py-2">
                         <Avatar name={name} />
