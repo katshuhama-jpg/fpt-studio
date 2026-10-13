@@ -1,8 +1,8 @@
-// "Agent card (A2A)" - third block in Build > Cài đặt nâng cao, next to Sub-Agents and Starter
+// "Danh thiếp Agent" (Agent card, A2A) - third block in Build > Cài đặt nâng cao, next to Sub-Agents and Starter
 // Prompts. On/off per version (off by default): only a version published while it is on gets a
 // card, generated once at Publish. Phase 1: Agents in the enterprise Workspace can hand work to
 // this Agent. Skills follow the Agent's own (active) Skills; the Builder can hide some.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { IdIcon, PencilEdit01Icon, AiMagicIcon, ViewIcon, ViewOffSlashIcon, InformationCircleIcon } from "@hugeicons/core-free-icons";
@@ -27,9 +27,28 @@ function refineMock(text: string, ask: string, skills: Skill[]): string {
   const first = text.split(/(?<=\.)\s/)[0] ?? text;
   if (a.includes("ngắn") || a.includes("gọn")) return first.slice(0, AGENT_CARD_DESC_MAX);
   const when = skills.slice(0, 2).map(s => s.description.replace(/\.$/, "").toLowerCase()).join(" hoặc ");
-  const out = when ? `${first.replace(/\.$/, "")}. Giao việc khi cần ${when}.` : first;
+  const out = when ? `${first.replace(/\.$/, "")}. Nhờ Agent này khi cần ${when}.` : first;
   return out.slice(0, AGENT_CARD_DESC_MAX);
 }
+
+function promptFromUrl(): string {
+  try { return new URLSearchParams(window.location.search).get("agentPrompt") || ""; } catch { return ""; }
+}
+
+function activeSkills(agentId: string): Skill[] {
+  return [
+    ...agentSkillStore.listAttachedConsoleSkillIds(agentId).map(id => skillStore.get(id)).filter((s): s is Skill => !!s),
+    ...agentSkillStore.list(agentId),
+  ].filter(s => agentSkillStore.isActive(agentId, s.id));
+}
+
+agentCardStore.setResolver(agentId => {
+  const d = agentCardStore.getDraft(agentId);
+  return {
+    description: d.description ?? autoDescription(agentId, promptFromUrl()),
+    skills: activeSkills(agentId).filter(s => !d.hiddenSkillIds.includes(s.id)).map(s => ({ id: s.id, name: s.name })),
+  };
+});
 
 export default function AgentCardBlock({ agentId }: { agentId: string }) {
   const [params] = useSearchParams();
@@ -37,10 +56,7 @@ export default function AgentCardBlock({ agentId }: { agentId: string }) {
   const publish = agentPublishStore.get(agentId);
   const isLive = publish.placement !== null;
 
-  const skills: Skill[] = [
-    ...agentSkillStore.listAttachedConsoleSkillIds(agentId).map(id => skillStore.get(id)).filter((s): s is Skill => !!s),
-    ...agentSkillStore.list(agentId),
-  ].filter(s => agentSkillStore.isActive(agentId, s.id));
+  const skills = activeSkills(agentId);
   const visible = skills.filter(s => !draft.hiddenSkillIds.includes(s.id));
 
   const description = draft.description ?? autoDescription(agentId, params.get("agentPrompt") || "");
@@ -52,13 +68,18 @@ export default function AgentCardBlock({ agentId }: { agentId: string }) {
   const [refining, setRefining] = useState(false);
   const [proposal, setProposal] = useState<string | null>(null);
 
-  // Publish snapshots whatever the block shows right now.
+  // Publish was blocked for a missing description - open the editor right here.
+  const rootRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    agentCardStore.setResolved(agentId, { description, skills: visible.map(s => ({ id: s.id, name: s.name })) });
+    if (agentCardStore.consumeFocus(agentId)) {
+      setText(description); setMode("edit");
+      setEditError("Nhập phần giới thiệu để Publish khi danh thiếp đang bật.");
+      window.setTimeout(() => rootRef.current?.scrollIntoView({ block: "center", behavior: "smooth" }), 150);
+    }
   });
 
   const saveEdit = () => {
-    if (!text.trim()) { setEditError("Nhập mô tả để Agent khác biết khi nào giao việc cho Agent này."); return; }
+    if (!text.trim()) { setEditError("Nhập phần giới thiệu để Agent khác biết khi nào nên nhờ Agent này."); return; }
     agentCardStore.updateDraft(agentId, { description: text.trim() });
     setMode("view");
   };
@@ -70,40 +91,41 @@ export default function AgentCardBlock({ agentId }: { agentId: string }) {
   const closeAi = () => { setMode("view"); setAsk(""); setAskError(""); setProposal(null); };
 
   const versionLine = !isLive
-    ? "Agent chưa Publish. Card được tạo khi bạn Publish lần đầu."
+    ? "Agent chưa Publish. Danh thiếp được tạo khi bạn Publish lần đầu."
     : live && live.version === publish.version
-      ? `Bản live ${publish.version} đã có card.`
-      : `Bản live ${publish.version} chưa có card.`;
+      ? `Bản live ${publish.version} đã có danh thiếp.`
+      : `Bản live ${publish.version} chưa có danh thiếp.`;
 
   return (
-    <div className="rounded-xl border border-border bg-surface overflow-hidden">
+    <div ref={rootRef} className="rounded-xl border border-border bg-surface overflow-hidden">
       <div className="flex items-center gap-2 px-3.5 py-3">
         <HugeiconsIcon icon={IdIcon} size={16} className="text-foreground shrink-0" aria-hidden="true" />
-        <span className="text-sm font-semibold flex-1">Agent card (A2A)</span>
+        <span className="text-sm font-semibold flex-1">Danh thiếp Agent</span>
         <Switch
           checked={draft.enabled}
           onCheckedChange={v => agentCardStore.updateDraft(agentId, { enabled: v })}
-          aria-label="Bật Agent card"
+          aria-label="Bật danh thiếp Agent"
         />
       </div>
 
       <div className="px-3.5 pb-3.5 -mt-1">
         <p className="text-[13px] text-muted-foreground leading-relaxed">
-          Cho phép Agent khác trong Workspace doanh nghiệp giao việc cho Agent này. Agent khác đọc card để biết khi nào nên giao việc.
+          Danh thiếp cho các Agent khác biết Agent này làm được gì. Khi bật, các Agent mà người dùng cài cùng trong Workspace có thể nhờ Agent này xử lý việc phù hợp. Mặc định tắt.
         </p>
+        <p className="text-xs text-muted-foreground mt-1.5">Ví dụ: Agent Bán hàng nhờ Agent Pháp chế rà soát hợp đồng trước khi gửi khách.</p>
 
         {draft.enabled && (
           <>
             {/* Mô tả */}
             <div className="mt-3">
-              <div className="text-xs font-medium text-muted-foreground mb-1.5">Mô tả</div>
+              <div className="text-xs font-medium text-muted-foreground mb-1.5">Giới thiệu</div>
 
               {mode === "view" && (
                 description ? (
                   <p className="text-[13px] leading-relaxed rounded-lg bg-surface-muted px-3 py-2">{description}</p>
                 ) : (
                   <p className="text-[13px] leading-relaxed rounded-lg border border-dashed border-warning px-3 py-2 text-foreground">
-                    Thêm mô tả để Agent khác biết khi nào giao việc. Thiếu mô tả thì bản Publish tiếp theo sẽ không có card.
+                    Viết vài câu về việc Agent này làm để Agent khác biết khi nào nên nhờ. Cần có phần giới thiệu mới Publish được khi danh thiếp đang bật.
                   </p>
                 )
               )}
@@ -116,20 +138,20 @@ export default function AgentCardBlock({ agentId }: { agentId: string }) {
                     maxLength={AGENT_CARD_DESC_MAX}
                     value={text}
                     onChange={e => { setText(e.target.value); if (editError) setEditError(""); }}
-                    placeholder="Rà soát điều khoản hợp đồng và tra cứu văn bản pháp luật. Giao việc khi cần kiểm tra rủi ro pháp lý."
-                    aria-label="Mô tả Agent card"
+                    placeholder="Rà soát điều khoản hợp đồng và tra cứu văn bản pháp luật. Nhờ Agent này khi cần kiểm tra rủi ro pháp lý."
+                    aria-label="Giới thiệu trên danh thiếp"
                     aria-invalid={!!editError}
                     className={`w-full rounded-lg border bg-background px-3 py-2 text-[13px] leading-relaxed resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 ${editError ? "border-destructive" : "border-border"}`}
                   />
                   <div className="flex items-start gap-2 mt-1">
                     <span className={`text-xs flex-1 ${editError ? "text-destructive" : "text-muted-foreground"}`} role={editError ? "alert" : undefined}>
-                      {editError || "Viết việc Agent làm và khi nào nên giao việc."}
+                      {editError || "Viết việc Agent làm và khi nào nên nhờ Agent này."}
                     </span>
                     <span className="text-xs text-muted-foreground tabular-nums">{text.length}/{AGENT_CARD_DESC_MAX}</span>
                   </div>
                   <div className="flex justify-end gap-2 mt-2">
                     <button onClick={() => { setMode("view"); setEditError(""); }} className="h-8 px-3 rounded-md border border-border text-xs font-medium hover:bg-surface-muted transition-base">Huỷ</button>
-                    <button onClick={saveEdit} className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-base">Lưu mô tả</button>
+                    <button onClick={saveEdit} className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-base">Lưu</button>
                   </div>
                 </div>
               )}
@@ -145,7 +167,7 @@ export default function AgentCardBlock({ agentId }: { agentId: string }) {
                         onChange={e => { setAsk(e.target.value); if (askError) setAskError(""); }}
                         onKeyDown={e => { if (e.key === "Enter") runRefine(); }}
                         placeholder={description ? "Ngắn hơn, nhấn mạnh rà soát hợp đồng" : "Agent rà soát hợp đồng cho Ban Pháp chế"}
-                        aria-label="Bạn muốn chỉnh mô tả thế nào"
+                        aria-label="Bạn muốn chỉnh phần giới thiệu thế nào"
                         aria-invalid={!!askError}
                         className={`w-full h-9 rounded-md border bg-background px-3 text-[13px] focus:outline-none focus:ring-2 focus:ring-primary/30 ${askError ? "border-destructive" : "border-border"}`}
                       />
@@ -153,7 +175,7 @@ export default function AgentCardBlock({ agentId }: { agentId: string }) {
                       <div className="flex justify-end gap-2 mt-2">
                         <button onClick={closeAi} className="h-8 px-3 rounded-md border border-border text-xs font-medium hover:bg-surface-muted transition-base">Huỷ</button>
                         <button onClick={runRefine} disabled={refining} className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-base disabled:opacity-60">
-                          {refining ? "Đang chỉnh..." : description ? "Chỉnh mô tả" : "Tạo mô tả"}
+                          {refining ? "Đang chỉnh..." : description ? "Chỉnh" : "Tạo"}
                         </button>
                       </div>
                     </>
@@ -179,7 +201,7 @@ export default function AgentCardBlock({ agentId }: { agentId: string }) {
                     onClick={() => { setText(description); setMode("edit"); }}
                     className="h-8 px-2.5 rounded-md border border-border text-xs font-medium inline-flex items-center gap-1.5 hover:bg-surface-muted transition-base"
                   >
-                    <HugeiconsIcon icon={PencilEdit01Icon} size={13} aria-hidden="true" /> {description ? "Sửa" : "Viết mô tả"}
+                    <HugeiconsIcon icon={PencilEdit01Icon} size={13} aria-hidden="true" /> {description ? "Sửa" : "Viết giới thiệu"}
                   </button>
                   <button
                     onClick={() => setMode("ai")}
@@ -194,7 +216,7 @@ export default function AgentCardBlock({ agentId }: { agentId: string }) {
             {/* Skill */}
             <div className="mt-4">
               <div className="text-xs font-medium text-muted-foreground mb-1.5">
-                Skill hiển thị{skills.length > 0 && <span className="tabular-nums"> · {visible.length}/{skills.length}</span>}
+                Skill hiện trên danh thiếp{skills.length > 0 && <span className="tabular-nums"> · {visible.length}/{skills.length}</span>}
               </div>
               {skills.length === 0 ? (
                 <p className="text-[13px] text-muted-foreground leading-relaxed">
@@ -209,12 +231,12 @@ export default function AgentCardBlock({ agentId }: { agentId: string }) {
                         <span className="text-sm shrink-0" aria-hidden="true">{s.icon || "🧩"}</span>
                         <div className="flex-1 min-w-0">
                           <div className={`text-[13px] font-medium truncate ${hidden ? "text-muted-foreground line-through" : ""}`}>{s.name}</div>
-                          <div className="text-xs text-muted-foreground truncate">{hidden ? "Đang ẩn khỏi card" : s.description}</div>
+                          <div className="text-xs text-muted-foreground truncate">{hidden ? "Đang ẩn khỏi danh thiếp" : s.description}</div>
                         </div>
                         <button
                           onClick={() => agentCardStore.toggleSkill(agentId, s.id)}
-                          aria-label={hidden ? `Hiện Skill ${s.name} trên card` : `Ẩn Skill ${s.name} khỏi card`}
-                          title={hidden ? "Hiện trên card" : "Ẩn khỏi card"}
+                          aria-label={hidden ? `Hiện Skill ${s.name} trên danh thiếp` : `Ẩn Skill ${s.name} khỏi danh thiếp`}
+                          title={hidden ? "Hiện trên danh thiếp" : "Ẩn khỏi danh thiếp"}
                           className="w-9 h-9 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-base shrink-0"
                         >
                           <HugeiconsIcon icon={hidden ? ViewOffSlashIcon : ViewIcon} size={15} />
@@ -223,7 +245,7 @@ export default function AgentCardBlock({ agentId }: { agentId: string }) {
                     );
                   })}
                   {visible.length === 0 && (
-                    <p className="text-xs text-foreground mt-1">Bạn đang ẩn hết Skill. Agent khác sẽ chỉ dựa vào mô tả để giao việc.</p>
+                    <p className="text-xs text-foreground mt-1">Bạn đang ẩn hết Skill. Agent khác sẽ chỉ dựa vào phần giới thiệu để nhờ việc.</p>
                   )}
                 </div>
               )}
@@ -235,7 +257,7 @@ export default function AgentCardBlock({ agentId }: { agentId: string }) {
         <div className="mt-3 pt-2.5 border-t border-border flex gap-2 text-xs text-muted-foreground leading-relaxed">
           <HugeiconsIcon icon={InformationCircleIcon} size={13} className="shrink-0 mt-0.5" aria-hidden="true" />
           <span>
-            Ai được giao việc cho Agent này: <span className="text-foreground font-medium">Agent trong Workspace doanh nghiệp</span>.{" "}
+            Ai được nhờ Agent này: <span className="text-foreground font-medium">Các Agent người dùng đã cài cùng trong Workspace</span>.{" "}
             Thay đổi có hiệu lực từ lần Publish tiếp theo. {versionLine}
           </span>
         </div>

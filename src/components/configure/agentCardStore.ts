@@ -5,7 +5,7 @@
 import { useEffect, useState } from "react";
 import { loadMap, saveMap } from "@/lib/sessionPersist";
 
-export const AGENT_CARD_DESC_MAX = 300;
+export const AGENT_CARD_DESC_MAX = 500;
 
 export type AgentCardDraft = {
   enabled: boolean;
@@ -23,7 +23,8 @@ const DRAFT_KEY = "agent_card_draft_v1";
 const LIVE_KEY = "agent_card_live_v1";
 const drafts = loadMap<string, AgentCardDraft>(DRAFT_KEY);
 const live = loadMap<string, LiveAgentCard>(LIVE_KEY);
-const resolvedNow = new Map<string, AgentCardResolved>();
+let resolver: ((agentId: string) => AgentCardResolved) | null = null;
+let focusFor: string | null = null;
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach(l => l());
 
@@ -58,17 +59,34 @@ export const agentCardStore = {
       : [...cur.hiddenSkillIds, skillId];
     this.updateDraft(agentId, { hiddenSkillIds: hidden });
   },
-  /** The block reports what the card would look like right now, so Publish can snapshot it. */
-  setResolved(agentId: string, r: AgentCardResolved) {
-    resolvedNow.set(agentId, r);
+  /** AgentCardBlock registers how a card resolves (auto description, visible Skills) so
+   * Publish can snapshot it even when the block isn't on screen. */
+  setResolver(fn: (agentId: string) => AgentCardResolved) {
+    resolver = fn;
   },
+  resolve(agentId: string): AgentCardResolved | null {
+    return resolver ? resolver(agentId) : null;
+  },
+  /** On + no description = Publish is blocked. */
+  isMissingDescription(agentId: string): boolean {
+    const d = this.getDraft(agentId);
+    return d.enabled && !(this.resolve(agentId)?.description ?? "").trim();
+  },
+  /** Ask the Build panel to open the card and start editing its description. */
+  requestFocus(agentId: string) { focusFor = agentId; emit(); },
+  consumeFocus(agentId: string): boolean {
+    if (focusFor !== agentId) return false;
+    focusFor = null;
+    return true;
+  },
+  peekFocus(agentId: string): boolean { return focusFor === agentId; },
   getLive(agentId: string): LiveAgentCard | undefined {
     return live.get(agentId);
   },
   /** Called by agentPublishStore on every real release. */
   onPublish(agentId: string, version: string) {
     const d = this.getDraft(agentId);
-    const r = resolvedNow.get(agentId);
+    const r = this.resolve(agentId);
     if (d.enabled && r && r.description.trim()) {
       live.set(agentId, { ...r, version, publishedAt: Date.now() });
     } else {

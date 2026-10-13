@@ -129,6 +129,7 @@ import { formatVersion } from "@/components/knowledge/formatVersion";
 import { CategoryChips } from "@/components/knowledge/FaqCellDisplays";
 import { Switch } from "@/components/ui/switch";
 import AgentCardBlock from "@/components/configure/AgentCardBlock";
+import { agentCardStore, useAgentCard } from "@/components/configure/agentCardStore";
 import SyncSettingsModal from "@/components/knowledge/SyncSettingsModal";
 import ManageSitemapsModal from "@/components/knowledge/ManageSitemapsModal";
 import { knowledgeSettingsStore, shortCadenceMulti } from "@/components/knowledge/knowledgeSettingsStore";
@@ -238,6 +239,8 @@ export default function AgentBuilder() {
   // Publish first checks the Instructions for references that no longer resolve (see
   // instructionRefs.ts); the Builder may still publish anyway.
   const [brokenRefs, setBrokenRefs] = useState<BrokenRef[] | null>(null);
+  // Agent card (A2A) on but no description - Publish waits until it has one.
+  const [cardMissingDesc, setCardMissingDesc] = useState(false);
   // Space resources whose owner revoked this Agent's access - block publishing until detached.
   const revokedAll = useRevokedResources(id ?? "new");
   const revokedCountFor = (sectionId: string) => revokedAll.filter(r =>
@@ -247,6 +250,7 @@ export default function AgentBuilder() {
     const aid = id ?? "new";
     const revokedNow = listRevokedResources(aid);
     if (revokedNow.length > 0) { toast.error(REVOKED_COPY.publishBlocked(revokedNow)); return; }
+    if (agentCardStore.isMissingDescription(aid)) { setCardMissingDesc(true); return; }
     const text = instructionDraftStore.get(aid) ?? (params.get("agentPrompt") || getAgent(aid).instructions);
     const broken = findBrokenRefs(aid, text);
     if (broken.length > 0) setBrokenRefs(broken); else setShowPublish(true);
@@ -448,6 +452,28 @@ export default function AgentBuilder() {
       {showShare && <ShareAgentModal agentId={id ?? "new"} open onClose={() => setShowShare(false)} />}
 
       <RefChipTooltip />
+
+      <AlertDialog open={cardMissingDesc} onOpenChange={v => !v && setCardMissingDesc(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Danh thiếp Agent cần có phần giới thiệu</AlertDialogTitle>
+            <AlertDialogDescription>
+              Danh thiếp đang bật nhưng chưa có phần giới thiệu. Viết vài câu về việc Agent này làm để Publish, hoặc tắt danh thiếp rồi Publish.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Để sau</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              const aid = id ?? "new";
+              setCardMissingDesc(false);
+              setPreviewCollapsed(false);
+              setPreviewView("config");
+              setParams({ tab: "build", section: "instructions" });
+              agentCardStore.requestFocus(aid);
+            }}>Viết giới thiệu</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {brokenRefs && (
         <BrokenRefsDialog
@@ -3428,7 +3454,9 @@ function NewConfigPanel({ agentId, model, onModelChange, onConnectionsChange }: 
   const { can } = useMyPermissions();
   const canManageSubAgents = can("agents.manage");
   const [open, setOpen] = useState<Record<string, boolean>>({ connectors: true, skills: true, knowledge: true, guardrails: true, triggers: true, "sub-agents": true, "starter-prompts": true });
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(() => agentCardStore.peekFocus(agentId));
+  useAgentCard(agentId);
+  useEffect(() => { if (agentCardStore.peekFocus(agentId) && !showAdvanced) setShowAdvanced(true); });
   const guardrailsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
   const skillsAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
   const knowledgeAddRef = useRef<((pos:{top:number;left:number}) => void) | null>(null);
@@ -3496,7 +3524,7 @@ function NewConfigPanel({ agentId, model, onModelChange, onConnectionsChange }: 
       ),
     },
     {
-      id: "agent-card", icon: UserCheck01Icon, label: "Agent card (A2A)",
+      id: "agent-card", icon: UserCheck01Icon, label: "Danh thiếp Agent",
       content: <AgentCardBlock agentId={agentId} />,
     },
     {
