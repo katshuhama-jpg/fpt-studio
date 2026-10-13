@@ -7,6 +7,10 @@ import { useSearchParams } from "react-router-dom";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { IdIcon, PencilEdit01Icon, AiMagicIcon, ViewIcon, ViewOffSlashIcon, ArrowDown01Icon } from "@hugeicons/core-free-icons";
 import { Switch } from "@/components/ui/switch";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { getAgent, AGENTS } from "./agentStore";
 import { agentSkillStore } from "./agentSkillStore";
 import { skillStore, type Skill } from "./skillStore";
@@ -15,7 +19,7 @@ import { agentCardStore, useAgentCard, AGENT_CARD_DESC_MAX } from "./agentCardSt
 /** What the system writes when the Builder hasn't: the Agent's own description (Agents built
  * with AI always have one), or the prompt the Agent was generated from. Manual Agents start empty. */
 function autoDescription(agentId: string, prompt: string): string {
-  const a = AGENTS.find(x => x.id === agentId) ? getAgent(agentId) : null;
+  const a = AGENTS.find(x => x.id === agentId) || agentId.startsWith("ext-") ? getAgent(agentId) : null;
   const base = (a?.desc || prompt || "").trim();
   return base.slice(0, AGENT_CARD_DESC_MAX);
 }
@@ -51,7 +55,7 @@ agentCardStore.setResolver(agentId => {
 
 const SKILL_PREVIEW = 3;
 
-export default function AgentCardBlock({ agentId }: { agentId: string }) {
+export default function AgentCardBlock({ agentId, external = false }: { agentId: string; external?: boolean }) {
   const [params] = useSearchParams();
   const { draft } = useAgentCard(agentId);
 
@@ -207,8 +211,8 @@ export default function AgentCardBlock({ agentId }: { agentId: string }) {
               )}
             </div>
 
-            {/* Skill */}
-            <div className="mt-4">
+            {/* Skill - External Agents declare their own, so there's no list to show here. */}
+            {!external && <div className="mt-4">
               <div className="text-xs font-medium text-muted-foreground mb-1.5">
                 Skill trên danh thiếp{skills.length > 0 && <span className="tabular-nums"> · {visible.length}/{skills.length}</span>}
               </div>
@@ -256,11 +260,29 @@ export default function AgentCardBlock({ agentId }: { agentId: string }) {
                   )}
                 </div>
               )}
-            </div>
+            </div>}
           </>
         )}
 
       </div>
     </div>
+  );
+}
+
+/** Publish is blocked while the card is on without a Giới thiệu. Shared by internal and External Agents. */
+export function AgentCardMissingDialog({ open, onClose, onWrite }: { open: boolean; onClose: () => void; onWrite: () => void }) {
+  return (
+    <AlertDialog open={open} onOpenChange={v => !v && onClose()}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Danh thiếp chưa có giới thiệu</AlertDialogTitle>
+          <AlertDialogDescription>Thêm giới thiệu hoặc tắt danh thiếp để Publish.</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Để sau</AlertDialogCancel>
+          <AlertDialogAction onClick={onWrite}>Viết giới thiệu</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

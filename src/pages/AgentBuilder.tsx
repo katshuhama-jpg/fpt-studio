@@ -128,7 +128,7 @@ import KnowledgeSharingChip from "@/components/knowledge/KnowledgeSharingChip";
 import { formatVersion } from "@/components/knowledge/formatVersion";
 import { CategoryChips } from "@/components/knowledge/FaqCellDisplays";
 import { Switch } from "@/components/ui/switch";
-import AgentCardBlock from "@/components/configure/AgentCardBlock";
+import AgentCardBlock, { AgentCardMissingDialog } from "@/components/configure/AgentCardBlock";
 import { agentCardStore, useAgentCard } from "@/components/configure/agentCardStore";
 import SyncSettingsModal from "@/components/knowledge/SyncSettingsModal";
 import ManageSitemapsModal from "@/components/knowledge/ManageSitemapsModal";
@@ -453,27 +453,17 @@ export default function AgentBuilder() {
 
       <RefChipTooltip />
 
-      <AlertDialog open={cardMissingDesc} onOpenChange={v => !v && setCardMissingDesc(false)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Danh thiếp chưa có giới thiệu</AlertDialogTitle>
-            <AlertDialogDescription>
-              Thêm giới thiệu hoặc tắt danh thiếp để Publish.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Để sau</AlertDialogCancel>
-            <AlertDialogAction onClick={() => {
-              const aid = id ?? "new";
-              setCardMissingDesc(false);
-              setPreviewCollapsed(false);
-              setPreviewView("config");
-              setParams({ tab: "build", section: "instructions" });
-              agentCardStore.requestFocus(aid);
-            }}>Viết giới thiệu</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <AgentCardMissingDialog
+        open={cardMissingDesc}
+        onClose={() => setCardMissingDesc(false)}
+        onWrite={() => {
+          setCardMissingDesc(false);
+          setPreviewCollapsed(false);
+          setPreviewView("config");
+          setParams({ tab: "build", section: "instructions" });
+          agentCardStore.requestFocus(id ?? "new");
+        }}
+      />
 
       {brokenRefs && (
         <BrokenRefsDialog

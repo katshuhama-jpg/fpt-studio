@@ -28,6 +28,8 @@ import ExternalAgentChannelsTab from "@/components/external-agents/ExternalAgent
 import ExternalAgentInsightsTab from "@/components/external-agents/ExternalAgentInsightsTab";
 import ExternalAgentTestTab from "@/components/external-agents/ExternalAgentTestTab";
 import { toast } from "sonner";
+import AgentCardBlock, { AgentCardMissingDialog } from "@/components/configure/AgentCardBlock";
+import { agentCardStore } from "@/components/configure/agentCardStore";
 
 type Tab = "build" | "test" | "channels" | "insights";
 const VALID_TABS: Tab[] = ["build", "test", "channels", "insights"];
@@ -120,6 +122,12 @@ export default function ExternalAgentDetail() {
   const [showMenu, setShowMenu] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
+  // Danh thiếp Agent on without a Giới thiệu blocks Publish (same rule as internal Agents).
+  const [cardMissingDesc, setCardMissingDesc] = useState(false);
+  const requestPublish = () => {
+    if (agentCardStore.isMissingDescription(id ?? "")) { setCardMissingDesc(true); return; }
+    setShowPublishModal(true);
+  };
   const [showPause, setShowPause] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [showReject, setShowReject] = useState(false);
@@ -161,7 +169,7 @@ export default function ExternalAgentDetail() {
   // opening the Publish modal here via a one-shot ?openPublish=1 query param.
   useEffect(() => {
     if (params.get("openPublish") === "1") {
-      setShowPublishModal(true);
+      requestPublish();
       setParams(prev => {
         const next = new URLSearchParams(prev);
         next.delete("openPublish");
@@ -273,13 +281,13 @@ export default function ExternalAgentDetail() {
             onChanged={govChanged}
             onOpenVersions={() => setParams({ tab: "build", section: "versions" })}
             onOpenVersion={v => setParams({ tab: "build", section: "versions", v })}
-            onPublish={() => validationPassed && setShowPublishModal(true)}
+            onPublish={() => validationPassed && requestPublish()}
             onShowRejectBanner={() => { if (rejectedReq) { governanceStore.restoreRejection(rejectedReq.id); setRejectTick(t => t + 1); } }}
           />
           <button
             disabled={!validationPassed || agent.status === "paused"}
             title={!validationPassed ? "Kiểm tra kết nối trước khi publish." : agent.status === "paused" ? "Resume Agent trước khi publish." : undefined}
-            onClick={() => setShowPublishModal(true)}
+            onClick={() => requestPublish()}
             className="btn-primary h-9 whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <HugeiconsIcon icon={Rocket01Icon} size={13} /> Publish
@@ -403,7 +411,7 @@ export default function ExternalAgentDetail() {
             </aside>
           {section === "versions" ? (
             <div className="flex-1 overflow-y-auto">
-              <AgentVersionsPanel key={govTick} agentId={agent.id} agentName={agent.name} onPublish={() => setShowPublishModal(true)} onChanged={govChanged} />
+              <AgentVersionsPanel key={govTick} agentId={agent.id} agentName={agent.name} onPublish={() => requestPublish()} onChanged={govChanged} />
             </div>
           ) : (
           <div className="flex-1 overflow-y-auto p-4 sm:p-8">
@@ -464,7 +472,7 @@ export default function ExternalAgentDetail() {
                     </p>
                     <button
                       type="button"
-                      onClick={() => setShowPublishModal(true)}
+                      onClick={() => requestPublish()}
                       className="mt-1.5 text-sm font-semibold text-warning hover:underline"
                     >
                       Submit for approval
@@ -487,7 +495,7 @@ export default function ExternalAgentDetail() {
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0 self-center">
                     <button onClick={() => rejectedReq.version && setParams({ tab: "build", section: "versions", v: rejectedReq.version })} className="h-8 px-3 rounded-lg text-xs font-medium hover:bg-surface-muted">Xem chi tiết</button>
-                    <button onClick={() => setShowPublishModal(true)} className="h-8 px-3 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium">Sửa &amp; gửi lại</button>
+                    <button onClick={() => requestPublish()} className="h-8 px-3 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium">Sửa &amp; gửi lại</button>
                     <button onClick={() => { governanceStore.dismissRejection(rejectedReq.id); setRejectTick(t => t + 1); }} aria-label="Ẩn thông báo" title="Ẩn thông báo" className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-surface-muted flex items-center justify-center">
                       <HugeiconsIcon icon={Cancel01Icon} size={15} />
                     </button>
@@ -628,6 +636,8 @@ export default function ExternalAgentDetail() {
                   </table>
                 </div>
               </div>
+
+              <AgentCardBlock agentId={agent.id} external />
             </div>
           </div>
           )}
@@ -639,6 +649,16 @@ export default function ExternalAgentDetail() {
         {tab === "insights" && <ExternalAgentInsightsTab agentId={agent.id} />}
       </div>
 
+      <AgentCardMissingDialog
+        open={cardMissingDesc}
+        onClose={() => setCardMissingDesc(false)}
+        onWrite={() => {
+          setCardMissingDesc(false);
+          setParams({ tab: "build" });
+          agentCardStore.requestFocus(id ?? "");
+        }}
+      />
+
       <ConnectExternalAgentModal
         open={showEdit}
         existing={agent}
@@ -647,7 +667,7 @@ export default function ExternalAgentDetail() {
           setShowEdit(false);
           if (unpublished) setJustUnpublished(true);
           refresh();
-          if (openPublish) setShowPublishModal(true);
+          if (openPublish) requestPublish();
         }}
       />
 
