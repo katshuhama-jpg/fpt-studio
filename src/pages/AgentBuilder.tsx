@@ -332,7 +332,7 @@ export default function AgentBuilder() {
           <Link to="/agents" className="text-sm text-muted-foreground hover:text-foreground transition-base">Agents</Link>
         </div>
         <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
-          <p className="text-sm text-muted-foreground max-w-md mb-4">Bạn không có quyền truy cập agent này. Liên hệ chủ sở hữu nếu cần được chia sẻ quyền truy cập.</p>
+          <p className="text-sm text-muted-foreground max-w-md mb-4">Bạn chưa được thêm vào Agent này. Liên hệ chủ sở hữu Agent để được thêm.</p>
           <Link to="/agents" className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base flex items-center">
             Về danh sách Agent
           </Link>

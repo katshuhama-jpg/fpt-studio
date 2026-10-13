@@ -115,6 +115,16 @@ export function useRoleCanBuild() {
   };
 }
 
+/** Space Admin = Build agents across the whole Console. They always edit every Agent, so a
+ * per-Agent level can't limit them - the popup leaves them out of the people picker. */
+export function useIsSpaceAdmin() {
+  const { roles } = useRoles();
+  return (member?: { roleId?: string }) => {
+    const role = roles.find(r => r.id === (member?.roleId ?? DEFAULT_ROLE_ID));
+    return !!role?.permissionIds.has("agents.manage") && (role.scope?.["agents.manage"] ?? "all") === "all";
+  };
+}
+
 /** True when the signed-in user reaches this Agent only because they were added to it (not its
  * owner, not a Space Admin). Such a person never edits a resource that lives in the Space library,
  * even at "Chỉnh sửa" - only the Agent's own resources ("Chỉ Agent này"). */
