@@ -27,7 +27,7 @@ function refineMock(text: string, ask: string, skills: Skill[]): string {
   const first = text.split(/(?<=\.)\s/)[0] ?? text;
   if (a.includes("ngắn") || a.includes("gọn")) return first.slice(0, AGENT_CARD_DESC_MAX);
   const when = skills.slice(0, 2).map(s => s.description.replace(/\.$/, "").toLowerCase()).join(" hoặc ");
-  const out = when ? `${first.replace(/\.$/, "")}. Nhờ Agent này khi cần ${when}.` : first;
+  const out = when ? `${first.replace(/\.$/, "")}. Giao việc khi cần ${when}.` : first;
   return out.slice(0, AGENT_CARD_DESC_MAX);
 }
 
@@ -110,9 +110,9 @@ export default function AgentCardBlock({ agentId }: { agentId: string }) {
 
       <div className="px-3.5 pb-3.5 -mt-1">
         <p className="text-[13px] text-muted-foreground leading-relaxed">
-          Giúp Agent khác trong Workspace biết Agent này làm gì để nhờ việc.
+          Giúp Agent khác trong Workspace biết Agent này làm gì để phối hợp xử lý công việc.
         </p>
-        <p className="text-xs text-muted-foreground mt-1">Ví dụ: Agent Bán hàng nhờ Agent Pháp chế rà soát hợp đồng.</p>
+        <p className="text-xs text-muted-foreground mt-1">Ví dụ: Agent Bán hàng chuyển hợp đồng sang Agent Pháp chế để rà soát.</p>
 
         {draft.enabled && (
           <>
@@ -145,7 +145,7 @@ export default function AgentCardBlock({ agentId }: { agentId: string }) {
                   />
                   <div className="flex items-start gap-2 mt-1">
                     <span className={`text-xs flex-1 ${editError ? "text-destructive" : "text-muted-foreground"}`} role={editError ? "alert" : undefined}>
-                      {editError || "Agent này làm gì, khi nào nên nhờ."}
+                      {editError || "Agent này làm gì, khi nào nên giao việc."}
                     </span>
                     <span className="text-xs text-muted-foreground tabular-nums">{text.length}/{AGENT_CARD_DESC_MAX}</span>
                   </div>
