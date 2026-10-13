@@ -5,12 +5,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { IdIcon, PencilEdit01Icon, AiMagicIcon, ViewIcon, ViewOffSlashIcon, InformationCircleIcon } from "@hugeicons/core-free-icons";
+import { IdIcon, PencilEdit01Icon, AiMagicIcon, ViewIcon, ViewOffSlashIcon } from "@hugeicons/core-free-icons";
 import { Switch } from "@/components/ui/switch";
 import { getAgent, AGENTS } from "./agentStore";
 import { agentSkillStore } from "./agentSkillStore";
 import { skillStore, type Skill } from "./skillStore";
-import { agentPublishStore } from "./agentPublishStore";
 import { agentCardStore, useAgentCard, AGENT_CARD_DESC_MAX } from "./agentCardStore";
 
 /** What the system writes when the Builder hasn't: the Agent's own description (Agents built
@@ -52,9 +51,7 @@ agentCardStore.setResolver(agentId => {
 
 export default function AgentCardBlock({ agentId }: { agentId: string }) {
   const [params] = useSearchParams();
-  const { draft, live } = useAgentCard(agentId);
-  const publish = agentPublishStore.get(agentId);
-  const isLive = publish.placement !== null;
+  const { draft } = useAgentCard(agentId);
 
   const skills = activeSkills(agentId);
   const visible = skills.filter(s => !draft.hiddenSkillIds.includes(s.id));
@@ -90,11 +87,6 @@ export default function AgentCardBlock({ agentId }: { agentId: string }) {
   };
   const closeAi = () => { setMode("view"); setAsk(""); setAskError(""); setProposal(null); };
 
-  const versionLine = !isLive
-    ? "Áp dụng khi Publish lần đầu."
-    : live && live.version === publish.version
-      ? `Áp dụng từ lần Publish tới. Bản live ${publish.version}: Có danh thiếp.`
-      : `Áp dụng từ lần Publish tới. Bản live ${publish.version}: Chưa có danh thiếp.`;
 
   return (
     <div ref={rootRef} className="rounded-xl border border-border bg-surface overflow-hidden">
@@ -230,8 +222,11 @@ export default function AgentCardBlock({ agentId }: { agentId: string }) {
                       <div key={s.id} className="flex items-center gap-2 pl-2.5 pr-1 py-1 rounded-lg border border-border">
                         <span className="text-sm shrink-0" aria-hidden="true">{s.icon || "🧩"}</span>
                         <div className="flex-1 min-w-0">
-                          <div className={`text-[13px] font-medium truncate ${hidden ? "text-muted-foreground line-through" : ""}`}>{s.name}</div>
-                          <div className="text-xs text-muted-foreground truncate">{hidden ? "Đã ẩn" : s.description}</div>
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className={`text-[13px] font-medium truncate ${hidden ? "text-muted-foreground" : ""}`}>{s.name}</span>
+                            {hidden && <span className="shrink-0 text-[11px] px-1.5 py-0.5 rounded bg-surface-muted text-muted-foreground">Đã ẩn</span>}
+                          </div>
+                          <div className="text-xs text-muted-foreground truncate">{s.description}</div>
                         </div>
                         <button
                           onClick={() => agentCardStore.toggleSkill(agentId, s.id)}
@@ -253,13 +248,6 @@ export default function AgentCardBlock({ agentId }: { agentId: string }) {
           </>
         )}
 
-        {/* Ai được giao việc + version */}
-        <div className="mt-3 pt-2.5 border-t border-border flex gap-2 text-xs text-muted-foreground leading-relaxed">
-          <HugeiconsIcon icon={InformationCircleIcon} size={13} className="shrink-0 mt-0.5" aria-hidden="true" />
-          <span>
-            {versionLine}
-          </span>
-        </div>
       </div>
     </div>
   );
