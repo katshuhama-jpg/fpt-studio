@@ -456,9 +456,9 @@ export default function AgentBuilder() {
       <AlertDialog open={cardMissingDesc} onOpenChange={v => !v && setCardMissingDesc(false)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Danh thiếp Agent cần có phần giới thiệu</AlertDialogTitle>
+            <AlertDialogTitle>Danh thiếp chưa có giới thiệu</AlertDialogTitle>
             <AlertDialogDescription>
-              Danh thiếp đang bật nhưng chưa có phần giới thiệu. Viết vài câu về việc Agent này làm để Publish, hoặc tắt danh thiếp rồi Publish.
+              Thêm giới thiệu hoặc tắt danh thiếp để Publish.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
