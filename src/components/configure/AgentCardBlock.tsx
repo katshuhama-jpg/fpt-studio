@@ -107,7 +107,6 @@ export default function AgentCardBlock({ agentId }: { agentId: string }) {
         <p className="text-[13px] text-muted-foreground leading-relaxed">
           Giúp Agent khác trong Workspace biết Agent này làm gì để phối hợp xử lý công việc.
         </p>
-        <p className="text-xs text-muted-foreground mt-1">Ví dụ: Agent Bán hàng chuyển hợp đồng sang Agent Pháp chế để rà soát.</p>
 
         {draft.enabled && (
           <>
