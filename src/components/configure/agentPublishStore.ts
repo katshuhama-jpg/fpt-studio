@@ -6,6 +6,7 @@
 // count, not stored here, so removing the last trigger instantly reopens the Workspace
 // placement. Mutations survive a page reload and client-side navigation within the session.
 import { loadMap, saveMap, loadSet, saveSet } from "@/lib/sessionPersist";
+import { agentCardStore } from "./agentCardStore";
 
 export type Placement = "workspace" | "automation" | null;
 
@@ -168,6 +169,7 @@ export const agentPublishStore = {
       log.push({ version, at: Date.now(), audience: next.audience, scopeSummary: next.scopeSummary, groupId: next.groupId, groupMemberIds: next.groupMemberIds, channels: [...channels], via: extra?.via ?? "direct", byName: extra?.byName });
       releaseLog.set(agentId, log);
       persistReleases();
+      agentCardStore.onPublish(agentId, version);
     }
   },
   /** Every version that has been live for this Agent, oldest first. */

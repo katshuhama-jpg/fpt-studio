@@ -54,6 +54,25 @@ if (typeof sessionStorage !== "undefined" && !sessionStorage.getItem(SLASH_DEMO_
   persistAttached();
 }
 
+// Demo seed for the Legal Agent (Agent card A2A): three Agent-only skills, so the card's
+// "Skill hiển thị" list has something to show and hide.
+const LEGAL_SEEDED_KEY = "agent_skill_legal_seeded_v1";
+if (typeof sessionStorage !== "undefined" && !sessionStorage.getItem(LEGAL_SEEDED_KEY)) {
+  sessionStorage.setItem(LEGAL_SEEDED_KEY, "1");
+  const now = Date.now();
+  const mk = (id: string, name: string, description: string, icon: string, iconBg: string): Skill => ({
+    id, name, description, body: `# ${name}\n\n${description}`, icon, iconBg,
+    ownerId: "m-fsoft-ceo", ownerName: "Tran Nam", sharing: { mode: "private", people: [] },
+    attachedByAgentIds: [], createdAt: now, updatedAt: now,
+  });
+  for (const sk of [
+    mk("askill-legal-contract", "ra-soat-hop-dong", "Rà soát điều khoản hợp đồng, chỉ ra điều khoản rủi ro.", "📄", "hsl(231 90% 93%)"),
+    mk("askill-legal-law", "tra-cuu-van-ban-phap-luat", "Tra cứu văn bản pháp luật và trích dẫn căn cứ.", "⚖️", "hsl(160 60% 92%)"),
+    mk("askill-legal-email", "soan-email-noi-bo", "Soạn email nội bộ gửi Ban Pháp chế.", "✉️", "hsl(38 92% 93%)"),
+  ]) store.set(k("legal-review", sk.id), sk);
+  persist();
+}
+
 export const agentSkillStore = {
   list(agentId: string): Skill[] {
     const prefix = `${agentId}:`;

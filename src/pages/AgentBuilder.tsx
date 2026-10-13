@@ -128,6 +128,7 @@ import KnowledgeSharingChip from "@/components/knowledge/KnowledgeSharingChip";
 import { formatVersion } from "@/components/knowledge/formatVersion";
 import { CategoryChips } from "@/components/knowledge/FaqCellDisplays";
 import { Switch } from "@/components/ui/switch";
+import AgentCardBlock from "@/components/configure/AgentCardBlock";
 import SyncSettingsModal from "@/components/knowledge/SyncSettingsModal";
 import ManageSitemapsModal from "@/components/knowledge/ManageSitemapsModal";
 import { knowledgeSettingsStore, shortCadenceMulti } from "@/components/knowledge/knowledgeSettingsStore";
@@ -3493,6 +3494,10 @@ function NewConfigPanel({ agentId, model, onModelChange, onConnectionsChange }: 
       content: (
         <StarterPromptsInner onRegisterAdd={(fn) => { starterPromptsAddRef.current = fn; }} />
       ),
+    },
+    {
+      id: "agent-card", icon: UserCheck01Icon, label: "Agent card (A2A)",
+      content: <AgentCardBlock agentId={agentId} />,
     },
     {
       id: "capabilities", icon: BoltIcon, label: "Agent capabilities",
