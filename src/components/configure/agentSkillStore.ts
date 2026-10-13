@@ -56,7 +56,7 @@ if (typeof sessionStorage !== "undefined" && !sessionStorage.getItem(SLASH_DEMO_
 
 // Demo seed for the Legal Agent (Agent card A2A): three Agent-only skills, so the card's
 // "Skill hiển thị" list has something to show and hide.
-const LEGAL_SEEDED_KEY = "agent_skill_legal_seeded_v1";
+const LEGAL_SEEDED_KEY = "agent_skill_legal_seeded_v2";
 if (typeof sessionStorage !== "undefined" && !sessionStorage.getItem(LEGAL_SEEDED_KEY)) {
   sessionStorage.setItem(LEGAL_SEEDED_KEY, "1");
   const now = Date.now();
@@ -69,6 +69,11 @@ if (typeof sessionStorage !== "undefined" && !sessionStorage.getItem(LEGAL_SEEDE
     mk("askill-legal-contract", "ra-soat-hop-dong", "Rà soát điều khoản hợp đồng, chỉ ra điều khoản rủi ro.", "📄", "hsl(231 90% 93%)"),
     mk("askill-legal-law", "tra-cuu-van-ban-phap-luat", "Tra cứu văn bản pháp luật và trích dẫn căn cứ.", "⚖️", "hsl(160 60% 92%)"),
     mk("askill-legal-email", "soan-email-noi-bo", "Soạn email nội bộ gửi Ban Pháp chế.", "✉️", "hsl(38 92% 93%)"),
+    mk("askill-legal-clause", "gan-dieu-khoan-chuan", "Gắn bộ điều khoản chuẩn vào báo giá, hợp đồng.", "📎", "hsl(231 90% 93%)"),
+    mk("askill-legal-nda", "soan-nda", "Soạn thoả thuận bảo mật theo mẫu công ty.", "🔒", "hsl(160 60% 92%)"),
+    mk("askill-legal-compare", "so-sanh-phien-ban-hop-dong", "So sánh hai phiên bản hợp đồng, chỉ ra điểm khác.", "🔍", "hsl(38 92% 93%)"),
+    mk("askill-legal-deadline", "theo-doi-han-hop-dong", "Nhắc hạn gia hạn, hết hạn hợp đồng.", "⏰", "hsl(231 90% 93%)"),
+    mk("askill-legal-summary", "tom-tat-hop-dong", "Tóm tắt hợp đồng dài thành các ý chính.", "📝", "hsl(160 60% 92%)"),
   ]) store.set(k("legal-review", sk.id), sk);
   persist();
 }

@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { IdIcon, PencilEdit01Icon, AiMagicIcon, ViewIcon, ViewOffSlashIcon } from "@hugeicons/core-free-icons";
+import { IdIcon, PencilEdit01Icon, AiMagicIcon, ViewIcon, ViewOffSlashIcon, ArrowDown01Icon } from "@hugeicons/core-free-icons";
 import { Switch } from "@/components/ui/switch";
 import { getAgent, AGENTS } from "./agentStore";
 import { agentSkillStore } from "./agentSkillStore";
@@ -49,6 +49,8 @@ agentCardStore.setResolver(agentId => {
   };
 });
 
+const SKILL_PREVIEW = 3;
+
 export default function AgentCardBlock({ agentId }: { agentId: string }) {
   const [params] = useSearchParams();
   const { draft } = useAgentCard(agentId);
@@ -64,6 +66,7 @@ export default function AgentCardBlock({ agentId }: { agentId: string }) {
   const [askError, setAskError] = useState("");
   const [refining, setRefining] = useState(false);
   const [proposal, setProposal] = useState<string | null>(null);
+  const [showAllSkills, setShowAllSkills] = useState(false);
 
   // Publish was blocked for a missing description - open the editor right here.
   const rootRef = useRef<HTMLDivElement>(null);
@@ -216,7 +219,7 @@ export default function AgentCardBlock({ agentId }: { agentId: string }) {
                 </p>
               ) : (
                 <div className="space-y-1">
-                  {skills.map(s => {
+                  {(showAllSkills ? skills : skills.slice(0, SKILL_PREVIEW)).map(s => {
                     const hidden = draft.hiddenSkillIds.includes(s.id);
                     return (
                       <div key={s.id} className="flex items-center gap-2 pl-2.5 pr-1 py-1 rounded-lg border border-border">
@@ -239,6 +242,16 @@ export default function AgentCardBlock({ agentId }: { agentId: string }) {
                       </div>
                     );
                   })}
+                  {skills.length > SKILL_PREVIEW && (
+                    <button
+                      onClick={() => setShowAllSkills(v => !v)}
+                      aria-expanded={showAllSkills}
+                      className="w-full h-9 rounded-lg text-xs font-medium text-primary inline-flex items-center justify-center gap-1 hover:bg-surface-muted transition-base"
+                    >
+                      {showAllSkills ? "Thu gọn" : `Xem thêm ${skills.length - SKILL_PREVIEW} Skill`}
+                      <HugeiconsIcon icon={ArrowDown01Icon} size={13} className={`transition-transform ${showAllSkills ? "rotate-180" : ""}`} aria-hidden="true" />
+                    </button>
+                  )}
                   {visible.length === 0 && (
                     <p className="text-xs text-foreground mt-1">Đã ẩn hết Skill.</p>
                   )}
