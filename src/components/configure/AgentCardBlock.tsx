@@ -248,7 +248,7 @@ export default function AgentCardBlock({ agentId }: { agentId: string }) {
                       aria-expanded={showAllSkills}
                       className="w-full h-9 rounded-lg text-xs font-medium text-primary inline-flex items-center justify-center gap-1 hover:bg-surface-muted transition-base"
                     >
-                      {showAllSkills ? "Thu gọn" : `Xem thêm ${skills.length - SKILL_PREVIEW} Skill`}
+                      {showAllSkills ? "Thu gọn" : "Xem tất cả"}
                       <HugeiconsIcon icon={ArrowDown01Icon} size={13} className={`transition-transform ${showAllSkills ? "rotate-180" : ""}`} aria-hidden="true" />
                     </button>
                   )}
