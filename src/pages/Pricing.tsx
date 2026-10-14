@@ -1,5 +1,5 @@
-import { Fragment, useState } from "react";
-import { Check, Minus, HelpCircle, ChevronDown, ArrowLeft } from "lucide-react";
+import { Fragment } from "react";
+import { Check, Minus, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { getAllTenants, getCurrentTenantId, TENANTS } from "@/lib/spaceStore";
 
@@ -118,13 +118,6 @@ const SECTIONS: { title: string; rows: { label: string; values: [Cell, Cell, Cel
   },
 ];
 
-const FAQS = [
-  { q: "Credit là gì và được tính thế nào?", a: "Credit là đơn vị đo mức dùng AI. Tham khảo: 1 lượt trao đổi với AI tốn khoảng 0,75 credit, 1 trang tài liệu quét tốn khoảng 10 credit. Hạn mức dùng chung cho cả công ty - Bạn tự quyết dùng cho chat, xử lý tài liệu hay trợ lý tự động." },
-  { q: "Dùng hết credit trong tháng thì sao?", a: "Gói Team và Business có thể mua thêm với giá 150 ₫ / credit. Gói Enterprise mua thêm theo hợp đồng. Gói Free dùng lại từ đầu tháng sau." },
-  { q: "Giá đã gồm VAT chưa?", a: "Chưa. Giá niêm yết bằng VND và chưa gồm VAT." },
-  { q: "Làm sao để đăng ký hoặc đổi gói?", a: "Liên hệ đội kinh doanh FPT AI qua hotline 1900 638 399 hoặc email ai.agents.support@fpt.com. Đăng ký trực tuyến sẽ có trong thời gian tới." },
-  { q: "Gói Enterprise được báo giá thế nào?", a: "Giá Enterprise tính theo số người dùng, hạn mức và hình thức triển khai. Đội kinh doanh sẽ gửi báo giá riêng sau khi trao đổi nhu cầu." },
-];
 
 const fmt = (n: number) => n.toLocaleString("vi-VN") + " ₫";
 
@@ -136,7 +129,6 @@ function CellValue({ v }: { v: Cell }) {
 
 /** Nội dung bảng giá - hiển thị trong trang PlansPage */
 function PlansContent() {
-  const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   const tenant = getAllTenants().find(t => t.id === getCurrentTenantId()) ?? TENANTS[0];
   const currentPlan = (PLANS.find(p => p.id === tenant.plan)?.id ?? "Free") as PlanId;
@@ -257,37 +249,6 @@ function PlansContent() {
         </div>
       </section>
 
-      {/* FAQ */}
-      <section aria-labelledby="faq-title" className="grid grid-cols-1 lg:grid-cols-[280px,1fr] gap-6">
-        <div>
-          <h2 id="faq-title" className="font-display text-base font-semibold flex items-center gap-2">
-            <HelpCircle size={16} className="text-primary" aria-hidden /> Câu hỏi thường gặp
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">Về credit, thanh toán và cách đăng ký.</p>
-        </div>
-        <div className="rounded-xl bg-surface border border-border divide-y divide-border">
-          {FAQS.map((f, i) => {
-            const open = openFaq === i;
-            return (
-              <div key={f.q}>
-                <button
-                  type="button"
-                  aria-expanded={open}
-                  aria-controls={`faq-${i}`}
-                  onClick={() => setOpenFaq(open ? null : i)}
-                  className="w-full flex items-center justify-between gap-4 px-5 py-3.5 text-left text-sm font-medium hover:bg-surface-muted transition-base focus-ring rounded-xl"
-                >
-                  {f.q}
-                  <ChevronDown size={16} className={`text-muted-foreground shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`} aria-hidden />
-                </button>
-                <div id={`faq-${i}`} hidden={!open} className="px-5 pb-4 -mt-1 text-sm text-muted-foreground leading-relaxed max-w-[68ch]">
-                  {f.a}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
 
     </div>
   );
