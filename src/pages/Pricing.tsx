@@ -1,14 +1,11 @@
-import { Fragment, useEffect, useState } from "react";
-import { Check, Minus, Tag, Phone, Mail, Info, Loader2, HelpCircle, ChevronDown, Headset } from "lucide-react";
-import { toast } from "sonner";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Fragment, useState } from "react";
+import { Check, Minus, Tag, HelpCircle, ChevronDown } from "lucide-react";
 import { getAllTenants, getCurrentTenantId, TENANTS } from "@/lib/spaceStore";
 
 /**
  * Bảng giá FPT AI Agents EOS (phương án A: thẻ gói + bảng so sánh).
  * Nguồn số liệu: EOS_gia_von_chot_v2.xlsx, sheet "Goi_ban_external" - chỉ phần gửi khách.
- * Phase này: xem gói + để lại thông tin nhận tư vấn. Nút đăng ký / đổi gói để sẵn, mở ở phase sau.
+ * Phase này chỉ hiển thị các gói. Đăng ký / đổi gói làm ở phase sau.
  */
 
 type PlanId = "Free" | "Team" | "Business" | "Enterprise";
@@ -18,23 +15,43 @@ type Billing = "monthly" | "yearly";
 interface Plan {
   id: PlanId;
   rank: number;
+  range: string;
   audience: string;
   monthly: number | null;
   yearly: number | null;
   perUser: number | null;
-  highlights: string[];
+  /** "Mọi thứ trong <gói trước>, thêm:" - null với gói thấp nhất */
+  includesFrom: PlanId | null;
+  features: string[];
 }
 
 const PLANS: Plan[] = [
-  { id: "Free", rank: 0, audience: "Cho cá nhân dùng thử", monthly: 0, yearly: 0, perUser: null,
-    highlights: ["1 người dùng", "300 credit mỗi tháng", "Tạo tối đa 2 trợ lý AI", "Dữ liệu lưu tại Việt Nam"] },
-  { id: "Team", rank: 1, audience: "Cho nhóm nhỏ bắt đầu làm việc cùng AI", monthly: 9_225_000, yearly: 110_700_000, perUser: 369_000,
-    highlights: ["25 người dùng", "55.000 credit mỗi tháng", "Kết nối ERP, CRM, MCP", "Đưa trợ lý lên website công ty"] },
-  { id: "Business", rank: 2, audience: "Cho phòng ban vận hành bằng trợ lý AI", monthly: 34_900_000, yearly: 418_800_000, perUser: 349_000,
-    highlights: ["100 người dùng", "220.000 credit mỗi tháng", "Hỏi đáp trên kho tài liệu nội bộ", "Đưa trợ lý lên Zalo, Facebook, Teams"] },
-  { id: "Enterprise", rank: 3, audience: "Cho toàn doanh nghiệp, theo quy mô", monthly: null, yearly: null, perUser: null,
-    highlights: ["Từ 1.000 người dùng", "Hạn mức theo nhu cầu", "Trợ lý chạy trọn quy trình", "Quản lý tài khoản riêng"] },
+  { id: "Free", rank: 0, range: "1 người", audience: "Cho cá nhân dùng thử", monthly: 0, yearly: 0, perUser: null, includesFrom: null,
+    features: ["Hỏi đáp, soạn thảo, tóm tắt, dịch thuật", "Model AI phổ biến: OpenAI, Gemini, DeepSeek", "Tạo tối đa 2 trợ lý AI", "300 credit mỗi tháng", "Dữ liệu lưu tại Việt Nam"] },
+  { id: "Team", rank: 1, range: "25 người", audience: "Cho nhóm nhỏ bắt đầu làm việc cùng AI", monthly: 9_225_000, yearly: 110_700_000, perUser: 369_000, includesFrom: "Free",
+    features: ["Model AI của FPT hiểu tiếng Việt, đọc ảnh, giọng nói", "Đọc Word, Excel, PDF, bản scan, ảnh chụp", "Tự ghi chép và tóm tắt cuộc họp", "Kết nối ERP, CRM, MCP", "Đưa trợ lý lên website công ty", "55.000 credit mỗi tháng, 3 GB / người"] },
+  { id: "Business", rank: 2, range: "100 người", audience: "Cho phòng ban vận hành bằng trợ lý AI", monthly: 34_900_000, yearly: 418_800_000, perUser: 349_000, includesFrom: "Team",
+    features: ["Hỏi đáp trên kho tài liệu nội bộ, có dẫn nguồn", "Đưa trợ lý lên Zalo, Facebook, Microsoft Teams", "Trợ lý trả lời qua tổng đài và email", "Hạn mức theo người, phòng ban", "Nhật ký phục vụ kiểm toán nội bộ", "220.000 credit mỗi tháng, cam kết 99,95%"] },
+  { id: "Enterprise", rank: 3, range: "Từ 1.000 người", audience: "Cho toàn doanh nghiệp, theo quy mô", monthly: null, yearly: null, perUser: null, includesFrom: "Business",
+    features: ["Trợ lý chạy trọn quy trình, chuyển người duyệt", "Trợ lý nhớ ngữ cảnh qua nhiều ngày", "Chạy ngay trong phần mềm nghiệp vụ", "Phê duyệt theo mức độ rủi ro", "Model AI riêng có sẵn", "Cam kết 99,99%, quản lý tài khoản riêng"] },
 ];
+
+/** Đầu thẻ đậm dần theo cấp gói: Free xám nhạt, Team xanh nhạt, Business xanh thương hiệu, Enterprise nền tối */
+const TIER: Record<PlanId, { band: string; muted: string; pill: string; inset: string }> = {
+  Free:       { band: "bg-surface-muted text-foreground",          muted: "text-muted-foreground",        pill: "bg-surface text-muted-foreground",       inset: "bg-surface" },
+  Team:       { band: "bg-primary-soft text-foreground",           muted: "text-muted-foreground",        pill: "bg-surface text-primary",                inset: "bg-surface" },
+  Business:   { band: "bg-primary text-primary-foreground",        muted: "text-primary-foreground/75",   pill: "bg-white/15 text-primary-foreground",    inset: "bg-white/10" },
+  Enterprise: { band: "bg-foreground text-background",             muted: "text-background/70",           pill: "bg-white/10 text-background",            inset: "bg-white/10" },
+};
+
+/** Hình vẽ nét cho từng gói: 1 người, bàn làm việc nhóm, tòa nhà phòng ban, khu văn phòng */
+function PlanIllustration({ id }: { id: PlanId }) {
+  const common = { width: 44, height: 44, viewBox: "0 0 52 52", fill: "none", stroke: "currentColor", strokeWidth: 1.6, strokeLinejoin: "round" as const, strokeLinecap: "round" as const, "aria-hidden": true };
+  if (id === "Free") return (<svg {...common}><circle cx="26" cy="17" r="7" /><path d="M12 44c1.5-8 7-12 14-12s12.5 4 14 12" /></svg>);
+  if (id === "Team") return (<svg {...common}><circle cx="15" cy="14" r="5" /><circle cx="37" cy="14" r="5" /><circle cx="26" cy="11" r="5" /><path d="M6 30h40v5H6zM10 35v11M42 35v11" /><path d="M8 30c1-5 4-8 7-8M44 30c-1-5-4-8-7-8M18 30c1-6 4-9 8-9s7 3 8 9" /></svg>);
+  if (id === "Business") return (<svg {...common}><path d="M10 46V12l18-6v40M28 18l14 5v23M6 46h40" /><path d="M15 16h3M15 22h3M15 28h3M15 34h3M21 16h3M21 22h3M21 28h3M21 34h3M33 27h4M33 33h4M33 39h4" /></svg>);
+  return (<svg {...common}><path d="M4 46h44M8 46V22h12v24M20 46V8h14v38M34 46V18h10v28" /><path d="M24 14h6M24 20h6M24 26h6M24 32h6M12 28h4M12 34h4M38 24h3M38 30h3M38 36h3M24 40h6v6h-6z" /></svg>);
+}
 
 const SECTIONS: { title: string; rows: { label: string; values: [Cell, Cell, Cell, Cell] }[] }[] = [
   {
@@ -108,7 +125,7 @@ const FAQS = [
   { q: "Dùng hết credit trong tháng thì sao?", a: "Gói Team và Business có thể mua thêm với giá 150 ₫ / credit. Gói Enterprise mua thêm theo hợp đồng. Gói Free dùng lại từ đầu tháng sau." },
   { q: "Trả theo năm có khác theo tháng không?", a: "Giá theo năm bằng 12 tháng của giá theo tháng, thanh toán một lần cho cả năm." },
   { q: "Giá đã gồm VAT chưa?", a: "Chưa. Giá niêm yết bằng VND và chưa gồm VAT." },
-  { q: "Làm sao để đăng ký hoặc đổi gói?", a: "Đăng ký trực tuyến sắp ra mắt. Trong lúc chờ, bạn để lại thông tin qua nút Nhận tư vấn, đội kinh doanh FPT AI sẽ liên hệ và kích hoạt gói cho doanh nghiệp." },
+  { q: "Làm sao để đăng ký hoặc đổi gói?", a: "Liên hệ đội kinh doanh FPT AI qua hotline 1900 638 399 hoặc email ai.agents.support@fpt.com. Đăng ký trực tuyến sẽ có trong thời gian tới." },
   { q: "Gói Enterprise được báo giá thế nào?", a: "Giá Enterprise tính theo số người dùng, hạn mức và hình thức triển khai. Đội kinh doanh sẽ gửi báo giá riêng sau khi trao đổi nhu cầu." },
 ];
 
@@ -120,38 +137,12 @@ function CellValue({ v }: { v: Cell }) {
   return <span className="text-sm text-foreground">{v}</span>;
 }
 
-function SoonButton({ label, variant }: { label: string; variant: "primary" | "secondary" }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        {/* Nút disabled không nhận focus - bọc span để tooltip vẫn mở được bằng bàn phím */}
-        <span tabIndex={0} className="block rounded-[8px] focus-ring">
-          <button
-            type="button"
-            disabled
-            aria-disabled="true"
-            className={`${variant === "primary" ? "btn-primary" : "btn-secondary"} w-full justify-center whitespace-nowrap opacity-50 cursor-not-allowed pointer-events-none`}
-          >
-            {label}
-            <span className={`text-[10px] font-semibold uppercase tracking-wide rounded px-1.5 py-0.5 ${variant === "primary" ? "bg-white/20" : "bg-surface-muted"}`}>Sắp có</span>
-          </button>
-        </span>
-      </TooltipTrigger>
-      <TooltipContent className="max-w-[240px] text-xs leading-relaxed">
-        Đăng ký trực tuyến sắp ra mắt. Trong lúc chờ, hãy chọn Nhận tư vấn để được kích hoạt gói.
-      </TooltipContent>
-    </Tooltip>
-  );
-}
-
 export default function Pricing() {
   const [billing, setBilling] = useState<Billing>("monthly");
-  const [contactPlan, setContactPlan] = useState<PlanId | null>(null);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   const tenant = getAllTenants().find(t => t.id === getCurrentTenantId()) ?? TENANTS[0];
   const currentPlan = (PLANS.find(p => p.id === tenant.plan)?.id ?? "Free") as PlanId;
-  const currentRank = PLANS.find(p => p.id === currentPlan)!.rank;
 
   return (
     <div className="px-8 py-8 w-full max-w-[1200px] mx-auto animate-fade-up space-y-8">
@@ -196,64 +187,50 @@ export default function Pricing() {
         {PLANS.map(p => {
           const isCurrent = p.id === currentPlan;
           const amount = billing === "monthly" ? p.monthly : p.yearly;
+          const t = TIER[p.id];
           return (
             <section
               key={p.id}
               aria-label={`Gói ${p.id}`}
-              className={`relative rounded-xl bg-surface border p-5 flex flex-col ${isCurrent ? "border-primary ring-2 ring-primary/15" : "border-border"}`}
+              className={`rounded-2xl bg-surface border border-border overflow-hidden flex flex-col ${isCurrent ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}`}
             >
-              <div className="flex items-center justify-between gap-2 h-6">
-                <h2 className="font-display text-base font-semibold">{p.id}</h2>
-                {isCurrent && <span className="chip chip-primary !py-0.5">Gói đang dùng</span>}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">{p.audience}</p>
-
-              <div className="mt-5 min-h-[60px]">
-                {amount === null ? (
-                  <>
-                    <div className="font-display text-2xl font-semibold">Liên hệ</div>
-                    <div className="text-xs text-muted-foreground mt-1">Báo giá theo quy mô doanh nghiệp</div>
-                  </>
-                ) : amount === 0 ? (
-                  <>
-                    <div className="font-display text-2xl font-semibold">0 ₫</div>
-                    <div className="text-xs text-muted-foreground mt-1">Miễn phí, không giới hạn thời gian</div>
-                  </>
-                ) : (
-                  <>
-                    <div className="font-display text-2xl font-semibold tabular-nums">
-                      {fmt(amount)}
-                      <span className="text-sm font-normal text-muted-foreground"> / {billing === "monthly" ? "tháng" : "năm"}</span>
-                    </div>
-                    {p.perUser != null && (
-                      <div className="text-xs text-muted-foreground mt-1 tabular-nums">Tương đương {fmt(p.perUser)} / người / tháng</div>
-                    )}
-                  </>
-                )}
+              {/* Đầu thẻ theo cấp gói */}
+              <div className={`${t.band} p-5 flex flex-col gap-4`}>
+                <div className="flex items-start justify-between gap-2 h-11">
+                  <PlanIllustration id={p.id} />
+                  <span className={`${t.pill} rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap`}>
+                    {isCurrent ? "Gói đang dùng" : p.range}
+                  </span>
+                </div>
+                <div>
+                  <h2 className="font-display text-xl font-semibold tracking-tight !text-current">{p.id}</h2>
+                  <p className={`text-xs ${t.muted} mt-0.5 min-h-[2rem] leading-4`}>{p.audience}</p>
+                </div>
+                <div className={`${t.inset} rounded-xl px-4 py-3`}>
+                  <div className="font-display text-2xl font-semibold tabular-nums whitespace-nowrap leading-8">
+                    {amount === null ? "Liên hệ" : fmt(amount)}
+                  </div>
+                  <div className={`text-xs ${t.muted} h-4 leading-4 truncate`}>
+                    {amount === null ? "Báo giá theo quy mô" : amount === 0 ? "Miễn phí" : billing === "monthly" ? "Mỗi tháng" : "Mỗi năm"}
+                  </div>
+                  <div className={`text-xs ${t.muted} h-4 leading-4 truncate tabular-nums`}>
+                    {p.perUser != null ? `≈ ${fmt(p.perUser)} / người / tháng` : amount === 0 ? "Không giới hạn thời gian" : "\u00A0"}
+                  </div>
+                </div>
               </div>
 
-              <ul className="mt-5 pt-5 border-t border-border space-y-2.5 flex-1">
-                {p.highlights.map(h => (
-                  <li key={h} className="flex items-start gap-2 text-sm">
-                    <Check size={15} className="text-primary mt-0.5 shrink-0" aria-hidden /> {h}
-                  </li>
-                ))}
-              </ul>
-
-              <div className="mt-6 space-y-2">
-                {isCurrent ? (
-                  <button type="button" disabled className="btn-secondary w-full justify-center opacity-70 cursor-default">Gói đang dùng</button>
-                ) : p.id === "Enterprise" ? (
-                  <button type="button" onClick={() => setContactPlan(p.id)} className="btn-primary w-full justify-center focus-ring">Nhận báo giá</button>
-                ) : (
-                  <>
-                    <SoonButton label={p.rank > currentRank ? "Nâng cấp" : "Đổi gói"} variant={p.rank > currentRank ? "primary" : "secondary"} />
-                    {p.id !== "Free" ? (
-                      <button type="button" onClick={() => setContactPlan(p.id)} className="btn-ghost w-full justify-center focus-ring">Nhận tư vấn</button>
-                    ) : <div className="h-8" aria-hidden />}
-                  </>
-                )}
-                {(isCurrent || (!isCurrent && p.id === "Enterprise")) && <div className="h-8" aria-hidden />}
+              {/* Tính năng: chỉ nêu điểm khác so với gói trước */}
+              <div className="p-5 flex flex-col flex-1 gap-5">
+                <div className="flex-1">
+                  <p className="text-sm font-semibold mb-3">{p.includesFrom ? `Mọi thứ trong ${p.includesFrom}, thêm:` : "Gồm:"}</p>
+                  <ul className="space-y-2.5">
+                    {p.features.map(f => (
+                      <li key={f} className="flex items-start gap-2 text-sm leading-5">
+                        <Check size={15} className="text-primary mt-0.5 shrink-0" aria-hidden /> {f}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
             </section>
           );
@@ -337,129 +314,6 @@ export default function Pricing() {
         </div>
       </section>
 
-      {/* Contact band */}
-      <section className="rounded-xl border border-border bg-surface-muted px-6 py-5 flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-start gap-3">
-          <Headset size={20} className="text-primary mt-0.5 shrink-0" aria-hidden />
-          <div>
-            <p className="text-sm font-medium text-foreground">Chưa chắc gói nào phù hợp?</p>
-            <p className="text-sm text-muted-foreground mt-0.5">Đội kinh doanh FPT AI tư vấn miễn phí theo nhu cầu của doanh nghiệp bạn.</p>
-          </div>
-        </div>
-        <button type="button" onClick={() => setContactPlan(currentPlan === "Enterprise" ? "Enterprise" : "Business")} className="btn-secondary focus-ring">Nhận tư vấn</button>
-      </section>
-
-      <ContactDialog
-        plan={contactPlan}
-        onPlanChange={setContactPlan}
-        onClose={() => setContactPlan(null)}
-        defaultCompany={tenant.name}
-      />
     </div>
-  );
-}
-
-const PHONE_RE = /^(0|\+84)\d{9,10}$/;
-
-function ContactDialog({ plan, onPlanChange, onClose, defaultCompany }: {
-  plan: PlanId | null; onPlanChange: (p: PlanId) => void; onClose: () => void; defaultCompany: string;
-}) {
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [company, setCompany] = useState(defaultCompany);
-  const [users, setUsers] = useState("");
-  const [note, setNote] = useState("");
-  const [touched, setTouched] = useState<Record<string, boolean>>({});
-  const [sending, setSending] = useState(false);
-
-  useEffect(() => { if (plan) { setTouched({}); setCompany(c => c || defaultCompany); } }, [plan, defaultCompany]);
-
-  const phoneClean = phone.replace(/[\s.]/g, "");
-  const errors = {
-    name: !name.trim() ? "Nhập họ tên để đội kinh doanh biết cách xưng hô." : "",
-    phone: !phoneClean ? "Nhập số điện thoại để được gọi lại." : !PHONE_RE.test(phoneClean) ? "Số điện thoại chưa đúng - Ví dụ: 0912 345 678." : "",
-    company: !company.trim() ? "Nhập tên doanh nghiệp." : "",
-  };
-  const valid = !errors.name && !errors.phone && !errors.company;
-
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setTouched({ name: true, phone: true, company: true });
-    if (!valid) return;
-    setSending(true);
-    window.setTimeout(() => {
-      setSending(false);
-      toast.success("Đã gửi yêu cầu tư vấn", { description: "Đội kinh doanh FPT AI sẽ gọi lại cho bạn trong 1 ngày làm việc." });
-      setName(""); setPhone(""); setUsers(""); setNote("");
-      onClose();
-    }, 500);
-  };
-
-  const fieldCls = (err: string, key: string) =>
-    `ds-input ${touched[key] && err ? "!border-destructive" : ""}`;
-
-  return (
-    <Dialog open={plan !== null} onOpenChange={o => { if (!o) onClose(); }}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>{plan === "Enterprise" ? "Nhận báo giá gói Enterprise" : "Nhận tư vấn gói dịch vụ"}</DialogTitle>
-          <DialogDescription>Để lại thông tin, đội kinh doanh FPT AI sẽ gọi lại trong 1 ngày làm việc.</DialogDescription>
-        </DialogHeader>
-
-        <form id="contact-form" onSubmit={submit} noValidate className="space-y-4 py-1">
-          <div>
-            <label htmlFor="ct-plan" className="text-sm font-medium mb-1.5 block">Gói quan tâm</label>
-            <select id="ct-plan" value={plan ?? "Business"} onChange={e => onPlanChange(e.target.value as PlanId)} className="ds-input">
-              {PLANS.filter(p => p.id !== "Free").map(p => <option key={p.id} value={p.id}>{p.id}</option>)}
-            </select>
-          </div>
-          <div>
-            <label htmlFor="ct-name" className="text-sm font-medium mb-1.5 block">Họ tên <span className="text-destructive">*</span></label>
-            <input id="ct-name" value={name} maxLength={80} onChange={e => setName(e.target.value)} onBlur={() => setTouched(t => ({ ...t, name: true }))}
-              aria-invalid={!!(touched.name && errors.name)} aria-describedby="ct-name-err" className={fieldCls(errors.name, "name")} placeholder="Nguyễn Văn An" />
-            {touched.name && errors.name && <p id="ct-name-err" className="text-xs text-destructive mt-1.5">{errors.name}</p>}
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="ct-phone" className="text-sm font-medium mb-1.5 block">Số điện thoại <span className="text-destructive">*</span></label>
-              <input id="ct-phone" inputMode="tel" value={phone} maxLength={16} onChange={e => setPhone(e.target.value)} onBlur={() => setTouched(t => ({ ...t, phone: true }))}
-                aria-invalid={!!(touched.phone && errors.phone)} aria-describedby="ct-phone-err" className={fieldCls(errors.phone, "phone")} placeholder="0912 345 678" />
-              {touched.phone && errors.phone && <p id="ct-phone-err" className="text-xs text-destructive mt-1.5">{errors.phone}</p>}
-            </div>
-            <div>
-              <label htmlFor="ct-users" className="text-sm font-medium mb-1.5 block">Số người dùng dự kiến</label>
-              <input id="ct-users" inputMode="numeric" value={users} maxLength={6} onChange={e => setUsers(e.target.value.replace(/\D/g, ""))} className="ds-input" placeholder="100" />
-            </div>
-          </div>
-          <div>
-            <label htmlFor="ct-company" className="text-sm font-medium mb-1.5 block">Doanh nghiệp <span className="text-destructive">*</span></label>
-            <input id="ct-company" value={company} maxLength={120} onChange={e => setCompany(e.target.value)} onBlur={() => setTouched(t => ({ ...t, company: true }))}
-              aria-invalid={!!(touched.company && errors.company)} aria-describedby="ct-company-err" className={fieldCls(errors.company, "company")} />
-            {touched.company && errors.company && <p id="ct-company-err" className="text-xs text-destructive mt-1.5">{errors.company}</p>}
-          </div>
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label htmlFor="ct-note" className="text-sm font-medium">Nhu cầu</label>
-              <span className="text-xs text-muted-foreground tabular-nums">{note.length}/500</span>
-            </div>
-            <textarea id="ct-note" value={note} maxLength={500} onChange={e => setNote(e.target.value)} rows={3} className="ds-textarea resize-none"
-              placeholder="Ví dụ: Cần trợ lý trả lời khách hàng trên Zalo cho phòng CSKH 50 người" />
-          </div>
-        </form>
-
-        <div className="rounded-lg bg-surface-muted p-3 text-xs text-muted-foreground flex flex-wrap gap-x-5 gap-y-1">
-          <span className="inline-flex items-center gap-1.5"><Info size={12} aria-hidden /> Hoặc liên hệ trực tiếp:</span>
-          <span className="inline-flex items-center gap-1.5 select-all"><Phone size={12} aria-hidden /> 1900 638 399</span>
-          <span className="inline-flex items-center gap-1.5 select-all"><Mail size={12} aria-hidden /> ai.agents.support@fpt.com</span>
-        </div>
-
-        <DialogFooter>
-          <button type="button" onClick={onClose} className="btn-secondary">Đóng</button>
-          <button type="submit" form="contact-form" disabled={sending} className="btn-primary disabled:opacity-60">
-            {sending ? <><Loader2 size={14} className="animate-spin" aria-hidden /> Đang gửi...</> : "Gửi yêu cầu"}
-          </button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
