@@ -46,6 +46,7 @@ import GovernanceRequestDetail from "./pages/GovernanceRequestDetail";
 import GovernanceLibraryRequestDetail from "./pages/GovernanceLibraryRequestDetail";
 import GovernanceAuditLog from "./pages/GovernanceAuditLog";
 import Notifications from "./pages/Notifications";
+import PlansPage from "./pages/Pricing";
 import NotFound from "./pages/NotFound.tsx";
 import Login from "./pages/Login";
 import Onboarding from "./pages/Onboarding";
@@ -139,6 +140,7 @@ const App = () => (
               <Route path="/external-agents/:id" element={<ExternalAgentDetail />} />
             </Route>
             <Route path="/inventor" element={<RequireAuth><Inventor /></RequireAuth>} />
+            <Route path="/plans" element={<RequireAuth><PlansPage /></RequireAuth>} />
             <Route path="/connectors/custom/toolkits/new" element={<RequireAuth><CreateToolkit /></RequireAuth>} />
             <Route path="/agents/:id/tools/new" element={<RequireAuth><ToolBuilder /></RequireAuth>} />
             <Route path="/agents/:id/tools/:toolId" element={<RequireAuth><ToolBuilder /></RequireAuth>} />

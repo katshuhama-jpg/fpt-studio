@@ -1,6 +1,6 @@
 import { Fragment, useState } from "react";
-import { Check, Minus, HelpCircle, ChevronDown } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { Check, Minus, HelpCircle, ChevronDown, ArrowLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { getAllTenants, getCurrentTenantId, TENANTS } from "@/lib/spaceStore";
 
 /**
@@ -135,7 +135,7 @@ function CellValue({ v }: { v: Cell }) {
   return <span className="text-sm text-foreground">{v}</span>;
 }
 
-/** Nội dung bảng giá - hiển thị trong PlansModal (mở từ menu tài khoản) */
+/** Nội dung bảng giá - hiển thị trong trang PlansPage */
 function PlansContent() {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
@@ -295,21 +295,24 @@ function PlansContent() {
 }
 
 /**
- * Modal toàn màn hình cho Gói dịch vụ (giống modal Upgrade của Claude): phủ lên trang đang xem,
- * đóng là quay lại đúng chỗ cũ - không điều hướng sang trang khác, không kéo theo sidebar.
+ * Trang Gói dịch vụ (/plans): trang riêng, không có sidebar của workspace - mở từ menu tài khoản.
+ * Thanh trên cùng có nút quay lại trang trước.
  */
-export function PlansModal({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+export default function PlansPage() {
+  const navigate = useNavigate();
+  const goBack = () => (window.history.length > 1 ? navigate(-1) : navigate("/"));
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-none w-[calc(100vw-48px)] h-[calc(100vh-48px)] p-0 gap-0 flex flex-col overflow-hidden sm:rounded-2xl">
-        <div className="h-14 shrink-0 border-b border-border px-6 flex items-center">
-          <DialogTitle className="text-base font-semibold">Gói dịch vụ</DialogTitle>
-          <DialogDescription className="sr-only">Danh sách các gói dịch vụ FPT AI Agents EOS và gói doanh nghiệp đang dùng</DialogDescription>
-        </div>
-        <div className="flex-1 overflow-y-auto bg-background">
-          <PlansContent />
-        </div>
-      </DialogContent>
-    </Dialog>
+    <div className="h-screen w-full flex flex-col bg-background">
+      <header className="h-14 shrink-0 border-b border-border bg-surface px-6 flex items-center gap-3">
+        <button type="button" onClick={goBack} className="btn-ghost focus-ring" aria-label="Quay lại trang trước">
+          <ArrowLeft size={16} aria-hidden /> Quay lại
+        </button>
+        <span className="h-5 w-px bg-border" aria-hidden />
+        <h1 className="text-sm font-semibold">Gói dịch vụ</h1>
+      </header>
+      <main className="flex-1 overflow-y-auto">
+        <PlansContent />
+      </main>
+    </div>
   );
 }
