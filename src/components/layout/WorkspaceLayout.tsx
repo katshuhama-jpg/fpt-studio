@@ -5,7 +5,7 @@ import {
   Puzzle, ChevronsLeft, ChevronsRight, Search, Bell, Plus,
   ChevronRight, LifeBuoy, KeyRound, LogOut, User, ChevronDown, ChevronsUpDown,
   Check, Building2, Sparkles, Shield, FileText, Rocket,
-  Network, Workflow, Users, Cpu, UsersRound, ClipboardList, History, Lock, Library, ShieldCheck,
+  Network, Workflow, Users, Cpu, UsersRound, ClipboardList, History, Lock, Library, ShieldCheck, Tag,
 } from "lucide-react";
 import { useOrg } from "@/pages/organization/orgStore";
 import { governanceStore } from "@/components/governance/governanceStore";
@@ -74,6 +74,7 @@ const groups: Group[] = [
 ];
 
 const utilityItems: Item[] = [
+  { to: "/pricing", label: "Bảng giá", icon: Tag },
   { to: "/help", label: "Help Center", icon: LifeBuoy },
 ];
 
@@ -164,7 +165,7 @@ export default function WorkspaceLayout() {
     );
   }
 
-  const BREADCRUMB_LABELS: Record<string, string> = { tools: "Skills", notifications: "Thông báo" };
+  const BREADCRUMB_LABELS: Record<string, string> = { tools: "Skills", notifications: "Thông báo", pricing: "Bảng giá" };
   const persona = currentPersona();
   const ORG_BREADCRUMB_LABELS: Record<string, string> = { "": "General", structure: "Structure" };
   let breadcrumbLabel: string;
@@ -296,6 +297,15 @@ export default function WorkspaceLayout() {
                 <ShieldCheck size={14} className="text-muted-foreground shrink-0" />
                 <span className="flex-1 min-w-0 text-left truncate">Super Admin: Kết nối Org</span>
                 <ChevronRight size={12} className="text-muted-foreground shrink-0" />
+              </NavLink>
+              <NavLink
+                to="/pricing"
+                onClick={() => setUserMenu(false)}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-surface-muted transition-base"
+              >
+                <Tag size={14} className="text-muted-foreground shrink-0" />
+                <span className="flex-1 min-w-0 text-left truncate">Gói dịch vụ và bảng giá</span>
+                <span className="text-xs text-muted-foreground">{currentTenant.plan}</span>
               </NavLink>
               <NavLink
                 to="/api-keys"
