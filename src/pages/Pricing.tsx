@@ -10,7 +10,6 @@ import { getAllTenants, getCurrentTenantId, TENANTS } from "@/lib/spaceStore";
 
 type PlanId = "Free" | "Team" | "Business" | "Enterprise";
 type Cell = boolean | string; // true = có, false = không có, string = giá trị cụ thể
-type Billing = "monthly" | "yearly";
 
 interface Plan {
   id: PlanId;
@@ -18,7 +17,6 @@ interface Plan {
   range: string;
   audience: string;
   monthly: number | null;
-  yearly: number | null;
   perUser: number | null;
   /** "Mọi thứ trong <gói trước>, thêm:" - null với gói thấp nhất */
   includesFrom: PlanId | null;
@@ -26,13 +24,13 @@ interface Plan {
 }
 
 const PLANS: Plan[] = [
-  { id: "Free", rank: 0, range: "1 người", audience: "Cho cá nhân dùng thử", monthly: 0, yearly: 0, perUser: null, includesFrom: null,
+  { id: "Free", rank: 0, range: "1 người", audience: "Cho cá nhân dùng thử", monthly: 0, perUser: null, includesFrom: null,
     features: ["Hỏi đáp, soạn thảo, tóm tắt, dịch thuật", "Model AI phổ biến: OpenAI, Gemini, DeepSeek", "Tạo tối đa 2 trợ lý AI", "300 credit mỗi tháng", "Dữ liệu lưu tại Việt Nam"] },
-  { id: "Team", rank: 1, range: "25 người", audience: "Cho nhóm nhỏ bắt đầu làm việc cùng AI", monthly: 9_225_000, yearly: 110_700_000, perUser: 369_000, includesFrom: "Free",
+  { id: "Team", rank: 1, range: "25 người", audience: "Cho nhóm nhỏ bắt đầu làm việc cùng AI", monthly: 9_225_000, perUser: 369_000, includesFrom: "Free",
     features: ["Model AI của FPT hiểu tiếng Việt, đọc ảnh, giọng nói", "Đọc Word, Excel, PDF, bản scan, ảnh chụp", "Tự ghi chép và tóm tắt cuộc họp", "Kết nối ERP, CRM, MCP", "Đưa trợ lý lên website công ty", "55.000 credit mỗi tháng, 3 GB / người"] },
-  { id: "Business", rank: 2, range: "100 người", audience: "Cho phòng ban vận hành bằng trợ lý AI", monthly: 34_900_000, yearly: 418_800_000, perUser: 349_000, includesFrom: "Team",
+  { id: "Business", rank: 2, range: "100 người", audience: "Cho phòng ban vận hành bằng trợ lý AI", monthly: 34_900_000, perUser: 349_000, includesFrom: "Team",
     features: ["Hỏi đáp trên kho tài liệu nội bộ, có dẫn nguồn", "Đưa trợ lý lên Zalo, Facebook, Microsoft Teams", "Trợ lý trả lời qua tổng đài và email", "Hạn mức theo người, phòng ban", "Nhật ký phục vụ kiểm toán nội bộ", "220.000 credit mỗi tháng, cam kết 99,95%"] },
-  { id: "Enterprise", rank: 3, range: "Từ 1.000 người", audience: "Cho toàn doanh nghiệp, theo quy mô", monthly: null, yearly: null, perUser: null, includesFrom: "Business",
+  { id: "Enterprise", rank: 3, range: "Từ 1.000 người", audience: "Cho toàn doanh nghiệp, theo quy mô", monthly: null, perUser: null, includesFrom: "Business",
     features: ["Trợ lý chạy trọn quy trình, chuyển người duyệt", "Trợ lý nhớ ngữ cảnh qua nhiều ngày", "Chạy ngay trong phần mềm nghiệp vụ", "Phê duyệt theo mức độ rủi ro", "Model AI riêng có sẵn", "Cam kết 99,99%, quản lý tài khoản riêng"] },
 ];
 
@@ -123,7 +121,6 @@ const SECTIONS: { title: string; rows: { label: string; values: [Cell, Cell, Cel
 const FAQS = [
   { q: "Credit là gì và được tính thế nào?", a: "Credit là đơn vị đo mức dùng AI. Tham khảo: 1 lượt trao đổi với AI tốn khoảng 0,75 credit, 1 trang tài liệu quét tốn khoảng 10 credit. Hạn mức dùng chung cho cả công ty - Bạn tự quyết dùng cho chat, xử lý tài liệu hay trợ lý tự động." },
   { q: "Dùng hết credit trong tháng thì sao?", a: "Gói Team và Business có thể mua thêm với giá 150 ₫ / credit. Gói Enterprise mua thêm theo hợp đồng. Gói Free dùng lại từ đầu tháng sau." },
-  { q: "Trả theo năm có khác theo tháng không?", a: "Giá theo năm bằng 12 tháng của giá theo tháng, thanh toán một lần cho cả năm." },
   { q: "Giá đã gồm VAT chưa?", a: "Chưa. Giá niêm yết bằng VND và chưa gồm VAT." },
   { q: "Làm sao để đăng ký hoặc đổi gói?", a: "Liên hệ đội kinh doanh FPT AI qua hotline 1900 638 399 hoặc email ai.agents.support@fpt.com. Đăng ký trực tuyến sẽ có trong thời gian tới." },
   { q: "Gói Enterprise được báo giá thế nào?", a: "Giá Enterprise tính theo số người dùng, hạn mức và hình thức triển khai. Đội kinh doanh sẽ gửi báo giá riêng sau khi trao đổi nhu cầu." },
@@ -138,7 +135,6 @@ function CellValue({ v }: { v: Cell }) {
 }
 
 export default function Pricing() {
-  const [billing, setBilling] = useState<Billing>("monthly");
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   const tenant = getAllTenants().find(t => t.id === getCurrentTenantId()) ?? TENANTS[0];
@@ -155,7 +151,7 @@ export default function Pricing() {
           <div className="min-w-0">
             <h1 className="font-display text-xl font-semibold">Gói dịch vụ và bảng giá</h1>
             <p className="text-sm text-muted-foreground mt-0.5 max-w-[640px]">
-              Chọn gói theo số người dùng và mức dùng AI của doanh nghiệp. Gói cao hơn có đủ tính năng của gói thấp hơn.
+              Chọn gói theo số người dùng và mức dùng AI của doanh nghiệp. Gói cao hơn có đủ tính năng của gói thấp hơn. Giá theo tháng, bằng VND, chưa gồm VAT.
             </p>
             <p className="text-sm text-muted-foreground mt-2 flex items-center gap-2 flex-wrap">
               <span>{tenant.name} đang dùng</span>
@@ -163,30 +159,13 @@ export default function Pricing() {
             </p>
           </div>
         </div>
-
-        <div className="flex flex-col items-end gap-1.5">
-          <div role="group" aria-label="Chu kỳ thanh toán" className="inline-flex p-1 rounded-lg bg-surface-muted">
-            {([["monthly", "Theo tháng"], ["yearly", "Theo năm"]] as const).map(([k, label]) => (
-              <button
-                key={k}
-                type="button"
-                aria-pressed={billing === k}
-                onClick={() => setBilling(k)}
-                className={`h-8 px-3 rounded-md text-sm transition-base focus-ring ${billing === k ? "bg-surface shadow-sm font-medium text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <span className="text-xs text-muted-foreground">Giá bằng VND, chưa gồm VAT</span>
-        </div>
       </div>
 
       {/* Plan cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-stretch">
         {PLANS.map(p => {
           const isCurrent = p.id === currentPlan;
-          const amount = billing === "monthly" ? p.monthly : p.yearly;
+          const amount = p.monthly;
           const t = TIER[p.id];
           return (
             <section
@@ -211,7 +190,7 @@ export default function Pricing() {
                     {amount === null ? "Liên hệ" : fmt(amount)}
                   </div>
                   <div className={`text-xs ${t.muted} h-4 leading-4 truncate`}>
-                    {amount === null ? "Báo giá theo quy mô" : amount === 0 ? "Miễn phí" : billing === "monthly" ? "Mỗi tháng" : "Mỗi năm"}
+                    {amount === null ? "Báo giá theo quy mô" : amount === 0 ? "Miễn phí" : "Mỗi tháng"}
                   </div>
                   <div className={`text-xs ${t.muted} h-4 leading-4 truncate tabular-nums`}>
                     {p.perUser != null ? `≈ ${fmt(p.perUser)} / người / tháng` : amount === 0 ? "Không giới hạn thời gian" : "\u00A0"}
