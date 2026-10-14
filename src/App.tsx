@@ -46,7 +46,6 @@ import GovernanceRequestDetail from "./pages/GovernanceRequestDetail";
 import GovernanceLibraryRequestDetail from "./pages/GovernanceLibraryRequestDetail";
 import GovernanceAuditLog from "./pages/GovernanceAuditLog";
 import Notifications from "./pages/Notifications";
-import Pricing from "./pages/Pricing";
 import NotFound from "./pages/NotFound.tsx";
 import Login from "./pages/Login";
 import Onboarding from "./pages/Onboarding";
@@ -166,7 +165,6 @@ const App = () => (
               <Route path="/governance/library-requests/:id" element={<GovernanceLibraryRequestDetail />} />
               <Route path="/governance/audit-log" element={<GovernanceAuditLog />} />
               <Route path="/notifications" element={<Notifications />} />
-              <Route path="/pricing" element={<Pricing />} />
               <Route path="/models" element={<PlaceholderPage title="Models" />} />
               <Route path="/api-keys" element={<PlaceholderPage title="API Keys" />} />
               <Route path="/docs" element={<PlaceholderPage title="Document Center" />} />

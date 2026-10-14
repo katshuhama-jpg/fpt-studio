@@ -11,6 +11,7 @@ import { useOrg } from "@/pages/organization/orgStore";
 import { governanceStore } from "@/components/governance/governanceStore";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import { NotificationBell } from "@/components/notifications/notificationUi";
+import { PlansModal } from "@/pages/Pricing";
 import { DEMO_PERSONAS, currentPersona, switchPersona } from "@/lib/demoPersona";
 import { TENANTS, getAllTenants, getCurrentTenantId, setCurrentTenantId } from "@/lib/spaceStore";
 
@@ -92,6 +93,7 @@ export default function WorkspaceLayout() {
   // this only changes the first-visit default, not what's reachable.
   const [open, setOpen] = useState<Record<string, boolean>>({ build: true, resources: false, governance: false });
   const [userMenu, setUserMenu] = useState(false);
+  const [plansOpen, setPlansOpen] = useState(false);
   const [tenantId, setTenantIdState] = useState(getCurrentTenantId());
   // Persist so other routes (e.g. the Agent Publish modal) can read which Space is active
   // without this layout's local state being threaded down to them.
@@ -163,7 +165,7 @@ export default function WorkspaceLayout() {
     );
   }
 
-  const BREADCRUMB_LABELS: Record<string, string> = { tools: "Skills", notifications: "Thông báo", pricing: "Gói dịch vụ" };
+  const BREADCRUMB_LABELS: Record<string, string> = { tools: "Skills", notifications: "Thông báo" };
   const persona = currentPersona();
   const ORG_BREADCRUMB_LABELS: Record<string, string> = { "": "General", structure: "Structure" };
   let breadcrumbLabel: string;
@@ -274,15 +276,14 @@ export default function WorkspaceLayout() {
               <div className="border-t border-border" />
 
               {/* Gói dịch vụ: cho biết Space đang dùng gói nào và mở trang danh sách gói */}
-              <NavLink
-                to="/pricing"
-                onClick={() => setUserMenu(false)}
+              <button
+                type="button"
+                onClick={() => { setUserMenu(false); setPlansOpen(true); }}
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-surface-muted transition-base"
               >
                 <CircleArrowUp size={14} className="text-muted-foreground shrink-0" />
                 <span className="flex-1 min-w-0 text-left truncate">{currentTenant.plan === "Enterprise" ? "Xem các gói" : "Nâng cấp gói"}</span>
-                <ChevronRight size={12} className="text-muted-foreground shrink-0" />
-              </NavLink>
+              </button>
               <div className="border-t border-border" />
               {/* Org management — moved here from the top switcher (that's now purely
                   the workspace/Console picker above). */}
@@ -385,6 +386,7 @@ export default function WorkspaceLayout() {
           )}
         </div>
       </aside>
+      <PlansModal open={plansOpen} onOpenChange={setPlansOpen} />
 
       {/* ============ Main ============ */}
       <div className="flex-1 flex flex-col overflow-hidden">

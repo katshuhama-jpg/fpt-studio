@@ -1,5 +1,6 @@
 import { Fragment, useState } from "react";
-import { Check, Minus, Tag, HelpCircle, ChevronDown } from "lucide-react";
+import { Check, Minus, HelpCircle, ChevronDown } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { getAllTenants, getCurrentTenantId, TENANTS } from "@/lib/spaceStore";
 
 /**
@@ -134,31 +135,27 @@ function CellValue({ v }: { v: Cell }) {
   return <span className="text-sm text-foreground">{v}</span>;
 }
 
-export default function Pricing() {
+/** Nội dung bảng giá - hiển thị trong PlansModal (mở từ menu tài khoản) */
+function PlansContent() {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   const tenant = getAllTenants().find(t => t.id === getCurrentTenantId()) ?? TENANTS[0];
   const currentPlan = (PLANS.find(p => p.id === tenant.plan)?.id ?? "Free") as PlanId;
 
   return (
-    <div className="px-8 py-8 w-full max-w-[1200px] mx-auto animate-fade-up space-y-8">
+    <div className="px-8 pt-8 pb-12 w-full max-w-[1200px] mx-auto space-y-8">
       {/* Header */}
       <div className="flex items-end justify-between gap-6 flex-wrap">
-        <div className="flex items-start gap-3 min-w-0">
-          <div className="w-11 h-11 rounded-xl bg-primary-soft flex items-center justify-center shrink-0">
-            <Tag size={20} className="text-primary" aria-hidden />
-          </div>
-          <div className="min-w-0">
-            <h1 className="font-display text-xl font-semibold">Gói dịch vụ và bảng giá</h1>
-            <p className="text-sm text-muted-foreground mt-0.5 max-w-[640px]">
-              Chọn gói theo số người dùng và mức dùng AI của doanh nghiệp. Gói cao hơn có đủ tính năng của gói thấp hơn. Giá theo tháng, bằng VND, chưa gồm VAT.
-            </p>
-            <p className="text-sm text-muted-foreground mt-2 flex items-center gap-2 flex-wrap">
-              <span>{tenant.name} đang dùng</span>
-              <span className="chip chip-primary !py-0.5">Gói {currentPlan}</span>
-            </p>
-          </div>
+        <div className="min-w-0">
+          <h2 className="font-display text-3xl font-semibold tracking-tight">Chọn gói phù hợp với doanh nghiệp</h2>
+          <p className="text-sm text-muted-foreground mt-2 max-w-[640px]">
+            Gói cao hơn có đủ tính năng của gói thấp hơn. Giá theo tháng, bằng VND, chưa gồm VAT.
+          </p>
         </div>
+        <p className="text-sm text-muted-foreground flex items-center gap-2 flex-wrap">
+          <span>{tenant.name} đang dùng</span>
+          <span className="chip chip-primary !py-0.5">Gói {currentPlan}</span>
+        </p>
       </div>
 
       {/* Plan cards */}
@@ -294,5 +291,25 @@ export default function Pricing() {
       </section>
 
     </div>
+  );
+}
+
+/**
+ * Modal toàn màn hình cho Gói dịch vụ (giống modal Upgrade của Claude): phủ lên trang đang xem,
+ * đóng là quay lại đúng chỗ cũ - không điều hướng sang trang khác, không kéo theo sidebar.
+ */
+export function PlansModal({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-none w-[calc(100vw-48px)] h-[calc(100vh-48px)] p-0 gap-0 flex flex-col overflow-hidden sm:rounded-2xl">
+        <div className="h-14 shrink-0 border-b border-border px-6 flex items-center">
+          <DialogTitle className="text-base font-semibold">Gói dịch vụ</DialogTitle>
+          <DialogDescription className="sr-only">Danh sách các gói dịch vụ FPT AI Agents EOS và gói doanh nghiệp đang dùng</DialogDescription>
+        </div>
+        <div className="flex-1 overflow-y-auto bg-background">
+          <PlansContent />
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
