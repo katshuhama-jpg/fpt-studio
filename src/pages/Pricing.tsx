@@ -28,11 +28,11 @@ const PLANS: Plan[] = [
   { id: "Free", rank: 0, range: "1 người", audience: "Cho cá nhân dùng thử", monthly: 0, perUser: null, includesFrom: null,
     features: ["Hỏi đáp, soạn thảo, tóm tắt, dịch thuật", "Model AI phổ biến: OpenAI, Gemini, DeepSeek", "Tạo tối đa 2 trợ lý AI", "300 credit mỗi tháng", "Dữ liệu lưu tại Việt Nam"] },
   { id: "Team", rank: 1, range: "25 người", audience: "Cho nhóm nhỏ bắt đầu làm việc cùng AI", monthly: 9_225_000, perUser: 369_000, includesFrom: "Free",
-    features: ["Model AI của FPT hiểu tiếng Việt, đọc ảnh, giọng nói", "Đọc Word, Excel, PDF, bản scan, ảnh chụp", "Tự ghi chép và tóm tắt cuộc họp", "Kết nối ERP, CRM, MCP", "Đưa trợ lý lên website công ty", "55.000 credit mỗi tháng, 3 GB / người"] },
+    features: ["Model AI của FPT hiểu tiếng Việt, đọc ảnh, giọng nói", "Đọc Word, Excel, PDF, bản scan, ảnh chụp", "Tự ghi chép và tóm tắt cuộc họp", "Kết nối hệ thống nội bộ qua API, MCP hoặc app tích hợp sẵn", "Đưa trợ lý lên website và mobile app của công ty", "55.000 credit mỗi tháng cho cả Space", "3 GB lưu trữ mỗi người"] },
   { id: "Business", rank: 2, range: "100 người", audience: "Cho phòng ban vận hành bằng trợ lý AI", monthly: 34_900_000, perUser: 349_000, includesFrom: "Team",
-    features: ["Hỏi đáp trên kho tài liệu nội bộ, có dẫn nguồn", "Đưa trợ lý lên Zalo, Facebook, Microsoft Teams", "Trợ lý trả lời qua tổng đài và email", "Hạn mức theo người, phòng ban", "Nhật ký phục vụ kiểm toán nội bộ", "220.000 credit mỗi tháng, cam kết 99,95%"] },
+    features: ["Hỏi đáp trên kho tài liệu nội bộ, có dẫn nguồn", "Đưa trợ lý lên các kênh khách hàng đang dùng: Zalo, Facebook, Microsoft Teams, Line, Viber,...", "Hạn mức theo người, phòng ban", "Nhật ký phục vụ kiểm toán nội bộ", "220.000 credit mỗi tháng cho cả Space", "Cam kết hoạt động 99,95%"] },
   { id: "Enterprise", rank: 3, range: "Từ 1.000 người", audience: "Cho toàn doanh nghiệp, theo quy mô", monthly: null, perUser: null, includesFrom: "Business",
-    features: ["Trợ lý chạy trọn quy trình, chuyển người duyệt", "Trợ lý nhớ ngữ cảnh qua nhiều ngày", "Chạy ngay trong phần mềm nghiệp vụ", "Phê duyệt theo mức độ rủi ro", "Model AI riêng có sẵn", "Cam kết 99,99%, quản lý tài khoản riêng"] },
+    features: ["Trợ lý chạy trọn quy trình, chuyển người duyệt", "Trợ lý nhớ ngữ cảnh qua nhiều ngày", "Quản trị tổ chức nhiều cấp: Phân quyền theo phòng ban, duyệt trước khi phát hành trợ lý", "Phê duyệt theo mức độ rủi ro", "Model AI riêng có sẵn", "Cam kết 99,99%, quản lý tài khoản riêng"] },
 ];
 
 /** Đầu thẻ đậm dần theo cấp gói: Free xám nhạt, Team xanh nhạt, Business xanh thương hiệu, Enterprise nền tối */
@@ -57,7 +57,7 @@ const SECTIONS: { title: string; rows: { label: string; values: [Cell, Cell, Cel
     title: "Quy mô sử dụng",
     rows: [
       { label: "Số người dùng đã bao gồm", values: ["1", "25", "100", "Từ 1.000"] },
-      { label: "Hạn mức dùng AI mỗi tháng (credit)", values: ["300", "55.000", "220.000", "Theo nhu cầu"] },
+      { label: "Hạn mức dùng AI mỗi tháng cho cả Space (credit)", values: ["300", "55.000", "220.000", "Theo nhu cầu"] },
       { label: "Tương đương số lượt trao đổi với AI", values: ["400", "73.333", "293.333", "Theo nhu cầu"] },
       { label: "Hoặc số trang tài liệu quét", values: ["30", "5.500", "22.000", "Theo nhu cầu"] },
       { label: "Mua thêm credit khi dùng hết (₫ / credit)", values: [false, "150", "150", "Theo hợp đồng"] },
@@ -77,7 +77,6 @@ const SECTIONS: { title: string; rows: { label: string; values: [Cell, Cell, Cel
       { label: "Lưu dự án và kết quả làm việc chung cho cả nhóm", values: [false, true, true, true] },
       { label: "Dùng trợ lý dựng sẵn theo vai trò, phòng ban", values: [false, true, true, true] },
       { label: "Trợ lý nhớ ngữ cảnh công việc qua nhiều ngày", values: [false, false, false, true] },
-      { label: "Trợ lý chạy ngay trong phần mềm nghiệp vụ đang dùng", values: [false, false, false, true] },
     ],
   },
   {
@@ -85,13 +84,12 @@ const SECTIONS: { title: string; rows: { label: string; values: [Cell, Cell, Cel
     rows: [
       { label: "Tự tạo trợ lý cho quy trình của mình, không cần lập trình", values: ["Giới hạn", true, true, true] },
       { label: "Đóng gói thao tác hay dùng thành kỹ năng chung cho cả nhóm", values: [false, true, true, true] },
-      { label: "Kết nối hệ thống công ty: ERP, CRM, MCP", values: [false, true, true, true] },
-      { label: "Đưa trợ lý lên website công ty", values: [false, true, true, true] },
+      { label: "Kết nối hệ thống nội bộ doanh nghiệp qua API, MCP hoặc app tích hợp sẵn", values: [false, true, true, true] },
+      { label: "Đưa trợ lý lên website và mobile app của công ty", values: [false, true, true, true] },
       { label: "Hồ sơ và hành trình khách hàng cơ bản cho sales, CSKH", values: [false, true, true, true] },
       { label: "Hỏi đáp trên kho tài liệu nội bộ, trả lời có dẫn nguồn", values: [false, false, true, true] },
       { label: "Nạp tài liệu hàng loạt từ thư mục hoặc DB, có quản lý phiên bản", values: [false, false, true, true] },
-      { label: "Đưa trợ lý lên Zalo, Facebook, Microsoft Teams", values: [false, false, true, true] },
-      { label: "Trợ lý trả lời qua tổng đài và email", values: [false, false, true, true] },
+      { label: "Đưa trợ lý lên các kênh khách hàng đang dùng: Zalo, Facebook, Microsoft Teams, Line, Viber,...", values: [false, false, true, true] },
       { label: "Chấm điểm chất lượng hội thoại, thử A/B trước khi triển khai", values: [false, false, true, true] },
       { label: "Quản lý phiên bản, theo dõi chi phí và chất lượng từng trợ lý", values: [false, false, true, true] },
       { label: "Trợ lý chạy trọn quy trình, tự phân việc, chuyển người duyệt khi cần", values: [false, false, false, true] },
@@ -104,6 +102,7 @@ const SECTIONS: { title: string; rows: { label: string; values: [Cell, Cell, Cel
     title: "Quản trị, an toàn và cam kết",
     rows: [
       { label: "Trang quản trị: Thêm, bớt người dùng và phân quyền", values: [false, "Cơ bản", true, true] },
+      { label: "Quản trị tổ chức nhiều cấp: Phân quyền theo phòng ban, duyệt trước khi phát hành trợ lý", values: [false, false, false, true] },
       { label: "Dữ liệu lưu tại Việt Nam, hợp đồng theo luật Việt Nam", values: [true, true, true, true] },
       { label: "Đặt hạn mức theo người, phòng ban và xem ai dùng bao nhiêu", values: [false, false, true, true] },
       { label: "Tự chọn model phù hợp từng việc để tiết kiệm chi phí", values: [false, false, true, true] },
