@@ -43,7 +43,7 @@ export function PendingRequestPill({ req, onChanged }: { req: GovRequest; onChan
         <PopoverContent align="end" className="w-80 p-0">
           <div className="px-4 py-3 border-b border-border">
             <p className="text-sm font-semibold">Yêu cầu {req.version} đang chờ duyệt</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Org/Unit Admin sẽ duyệt trước khi Agent tới người dùng.</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Admin sẽ duyệt trước khi Agent tới người dùng.</p>
           </div>
           <div className="px-4 py-3 space-y-2.5 text-sm">
             <div className="flex items-start justify-between gap-3">

@@ -5,12 +5,18 @@ import { getAgent } from "@/components/configure/agentStore";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { governanceStore } from "@/components/governance/governanceStore";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
+import { useAgentReviewScope } from "@/components/governance/agentReviewScope";
 import { notificationStore, relativeTimeVi, type AppNotification, type NotificationKind, type Viewer } from "./notificationStore";
 
 /** Live list for the signed-in user; re-renders on any notification change. */
 export function useNotifications() {
   const { userId, can } = useMyPermissions();
-  const viewer: Viewer = useMemo(() => ({ userId, canReviewAgents: can("requests.review-agents") }), [userId, can]);
+  const { inScope, isUnitAdmin } = useAgentReviewScope();
+  const viewer: Viewer = useMemo(() => ({
+    userId,
+    canReviewAgents: can("requests.review-agents") || isUnitAdmin,
+    canReviewRequest: (requestId: string) => { const r = governanceStore.get(requestId); return !!r && inScope(r); },
+  }), [userId, can, inScope, isUnitAdmin]);
   const [tick, setTick] = useState(0);
   useEffect(() => {
     governanceStore.list(); // make sure the governance seed (which seeds notifications) has run

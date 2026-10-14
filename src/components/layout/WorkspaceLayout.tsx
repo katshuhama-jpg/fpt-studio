@@ -13,6 +13,7 @@ import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import { NotificationBell } from "@/components/notifications/notificationUi";
 import { DEMO_PERSONAS, currentPersona, switchPersona } from "@/lib/demoPersona";
 import { TENANTS, getAllTenants, getCurrentTenantId, setCurrentTenantId } from "@/lib/spaceStore";
+import { useAgentReviewScope } from "@/components/governance/agentReviewScope";
 
 const APP_VERSION = "0.58.5";
 import { useEffect, useState } from "react";
@@ -128,14 +129,17 @@ export default function WorkspaceLayout() {
   // Re-read on every route change so approving/rejecting a request and navigating back
   // updates the sidebar badge without needing a manual refresh. Each queue gets its own count
   // now that they're separate pages.
-  const pendingAgentRequestCount = governanceStore.pendingCount("agent");
+  // Agent queue + badge follow review scope: Space Admin sees all, a Unit Admin only requests to
+  // their unit or below (agentReviewScope.ts).
+  const agentReview = useAgentReviewScope();
+  const pendingAgentRequestCount = governanceStore.list().filter(r => r.status === "pending" && agentReview.inScope(r)).length;
   const pendingResourceRequestCount = governanceStore.pendingCount("resource");
   // Review queues are only for roles that can review them (Roles → Publish requests).
   const { can: canPerm } = useMyPermissions();
   const groupsWithBadges: Group[] = groups.map(g => g.id !== "governance" ? g : {
     ...g,
     items: g.items.filter(it =>
-      (it.to !== "/governance/requests" || canPerm("requests.review-agents")) &&
+      (it.to !== "/governance/requests" || agentReview.canOpenQueue) &&
       (it.to !== "/governance/library-requests" || canPerm("requests.review-resources"))
     ).map(it => {
       if (it.to === "/governance/requests" && pendingAgentRequestCount > 0) it = { ...it, badge: String(pendingAgentRequestCount) };

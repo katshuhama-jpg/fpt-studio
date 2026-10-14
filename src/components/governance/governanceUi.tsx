@@ -110,8 +110,8 @@ const SHARE_STATUS_STYLE: Record<ResourceShareStatus, string> = {
   private: "bg-surface-muted text-muted-foreground border-border",
 };
 const SHARE_STATUS_LABEL: Record<ResourceShareStatus, string> = {
-  shared: "Đã dùng chung trong Tenant Library",
-  pending_review: "Đang chờ Tenant Admin duyệt dùng chung",
+  shared: "Đã dùng chung trong Thư viện Space",
+  pending_review: "Đang chờ Space Admin duyệt dùng chung",
   private: "Riêng tư - Chỉ dùng trong Agent này",
 };
 
@@ -202,6 +202,7 @@ export function AgentGovBadge({ agentId }: { agentId: string }) {
 export function AgentVersionLines({ agentId }: { agentId: string }) {
   const pub = agentPublishStore.get(agentId);
   const live = pub.placement !== null;
+  const removed = !live && agentPublishStore.lifecycle(agentId) === "removed";
   const g = agentGovState(agentId);
   return (
     <div className="flex flex-col gap-0.5 text-xs">
@@ -209,7 +210,9 @@ export function AgentVersionLines({ agentId }: { agentId: string }) {
         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${live ? "bg-success" : "bg-muted-foreground/60"}`} aria-hidden />
         {live
           ? <><span className="font-medium text-success">Live</span><span className="font-mono text-[11px] text-foreground/80">{pub.version}</span></>
-          : <span className="text-muted-foreground">Bản nháp · chưa publish</span>}
+          : removed
+            ? <span className="text-muted-foreground">Đã gỡ · Live lần cuối <span className="font-mono text-[11px]">{pub.version}</span></span>
+            : <span className="text-muted-foreground">Bản nháp · chưa publish</span>}
       </span>
       {g && (
         <span className="flex items-center gap-1.5 min-w-0">

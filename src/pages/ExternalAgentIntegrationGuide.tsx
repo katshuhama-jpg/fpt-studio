@@ -294,7 +294,7 @@ export default function ExternalAgentIntegrationGuide() {
               rows={[
                 ["agentId", "String", "Every request", "Stable for the life of the connection", "Which agent config to run"],
                 ["userId", "String, may be absent", "RunRequest", "Stable per platform user", "Per-user credentials and personalization"],
-                ["workspaceId", "String", "Every request", "Stable for the life of the workspace", "Tenant isolation"],
+                ["workspaceId", "String", "Every request", "Stable for the life of the workspace", "Workspace isolation"],
                 ["threadId", "String", "RunRequest", "Stable for the life of the conversation", "Your agent's own conversation state"],
                 ["runId", "String", "RunRequest", "New per turn, including resumes", "Idempotency - re-running must return the cached result"],
               ]}
@@ -328,7 +328,7 @@ export default function ExternalAgentIntegrationGuide() {
                 ["runId", "Required", "Idempotency key for this turn."],
                 ["threadId", "Required", "Which conversation this turn belongs to."],
                 ["agentId", "Required", "Which agent configuration to run."],
-                ["workspaceId", "Required", "Tenant this request belongs to."],
+                ["workspaceId", "Required", "Workspace this request belongs to."],
                 ["userId", "Optional", "The platform user behind this turn, if any."],
                 ["input", "Required on a normal turn", "The user's Message for this turn."],
                 ["attachments", "Optional", "Files the user sent with this turn."],

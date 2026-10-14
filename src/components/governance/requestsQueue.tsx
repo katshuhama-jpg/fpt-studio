@@ -9,6 +9,7 @@ import {
   type GovRequestStatus, type GovResourceType, type GovRequest,
 } from "@/components/governance/governanceStore";
 import { StatusBadge, ResourceTypePill, RequestAvatar, initials, formatDateTime } from "@/components/governance/governanceUi";
+import { useAgentReviewScope } from "@/components/governance/agentReviewScope";
 
 /** Shared table/list building blocks for the 2 separate Requests pages — GovernanceRequests.tsx
  * (Agent, Org/Unit Admin) and GovernanceLibraryRequests.tsx (Resource, Tenant Admin). These used
@@ -161,9 +162,13 @@ export function RequestsQueuePage({ scope, title, intro, note }: { scope: Scope;
   const [typeFilter, setTypeFilter] = useState<"all" | GovResourceType>("all");
   const [query, setQuery] = useState("");
 
+  // Agent queue: only requests this viewer may decide — Space Admin sees all, a Unit Admin only
+  // those published to their unit or a unit below it (agentReviewScope.ts). Out-of-scope requests
+  // are hidden, not shown read-only.
+  const { inScope } = useAgentReviewScope();
   const scopedAll = useMemo(
-    () => all.filter(r => scope === "agent" ? r.resourceType === "agent" : r.resourceType !== "agent"),
-    [all, scope],
+    () => all.filter(r => scope === "agent" ? inScope(r) : r.resourceType !== "agent"),
+    [all, scope, inScope],
   );
 
   const counts = useMemo(() => ({
@@ -274,7 +279,7 @@ export function RequestsQueuePage({ scope, title, intro, note }: { scope: Scope;
         actionList.length === 0 && resolvedList.length === 0 ? (
           <EmptyState
             title={scope === "agent" ? "Chưa có Agent nào chờ duyệt publish" : "Chưa có Resource nào chờ duyệt dùng chung"}
-            hint={scope === "agent" ? "Yêu cầu publish Agent tới Org/Unit sẽ xuất hiện ở đây." : "Yêu cầu đưa Knowledge/Skill/Guardrails/Connector vào Tenant Library sẽ xuất hiện ở đây."}
+            hint={scope === "agent" ? "Yêu cầu publish Agent tới đơn vị bạn quản lý sẽ xuất hiện ở đây." : "Yêu cầu đưa Knowledge/Skill/Guardrails/Connector vào Thư viện Space sẽ xuất hiện ở đây."}
           />
         ) : (
           <div className="space-y-6">

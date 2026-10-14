@@ -5,7 +5,7 @@ export default function GovernanceLibraryRequests() {
     <RequestsQueuePage
       scope="resource"
       title="Resource Requests"
-      intro="Duyệt yêu cầu đưa Knowledge, Skill, Guardrails và Connector vào Tenant Library để dùng chung."
+      intro="Duyệt yêu cầu đưa Knowledge, Skill, Guardrails và Connector vào Thư viện Space để dùng chung."
       note="Không ảnh hưởng đến các Agent đang dùng resource này - Agent vẫn tiếp tục publish và hoạt động bình thường."
     />
   );

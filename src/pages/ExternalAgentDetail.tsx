@@ -273,6 +273,7 @@ export default function ExternalAgentDetail() {
         <div className="flex items-center gap-2 flex-wrap">
           {agent.status === "paused" && <StatusBadge status={agent.status} />}
           <AgentStatusCluster
+            agentId={id}
             publishState={publishState}
             isAutomation={false}
             pending={pendingReq}

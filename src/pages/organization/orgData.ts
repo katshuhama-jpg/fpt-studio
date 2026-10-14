@@ -175,6 +175,8 @@ const CORP_IT_TITLES = ["IT Manager", "System Administrator", "IT Support"];
 const orgTreeSeed: OrgUnit = {
   id: "fpt",
   name: "FPT Corporation",
+  // Unit Admin of the root = "Org Admin" - by inheritance decides Agent requests for every unit.
+  unitAdmins: [{ memberId: "m-chair" }],
   members: [
     { id: "m-chair", name: "Truong Gia Binh", role: "Chairman", initials: "TB", roleId: "admin" },
     makeLeader("fpt-ceo", "Group CEO"),
@@ -187,6 +189,8 @@ const orgTreeSeed: OrgUnit = {
     {
       id: "fsoft",
       name: "FPT Software",
+      // Linh Phan - decides requests to FPT Software and every unit below it.
+      unitAdmins: [{ memberId: "m-fsoft-coo" }],
       members: [
         { id: "m-fsoft-ceo", name: "Tran Nam", role: "CEO", initials: "TN", roleId: "admin" },
         { id: "m-fsoft-coo", name: "Linh Phan", role: "COO", initials: "LP", roleId: "admin" },
@@ -201,6 +205,8 @@ const orgTreeSeed: OrgUnit = {
             {
               id: "fsoft-vn-platform",
               name: "Platform Engineering",
+              // Mai Hoang (Builder role, no review permission) - Unit Admin of this team only: sees only requests published here.
+              unitAdmins: [{ memberId: "m-plat-1" }],
               members: [
                 { id: "m-plat-1", name: "Mai Hoang", role: "Engineering Manager", initials: "MH", roleId: "builder" },
                 { id: "m-plat-2", name: "Huy Le", role: "Senior Engineer", initials: "HL", roleId: "builder" },
@@ -492,6 +498,8 @@ const orgTreeSeed: OrgUnit = {
         {
           id: "corp-legal",
           name: "Legal & Compliance",
+          // Legal lead - decides requests to Ban Pháp chế.
+          unitAdmins: [{ memberId: "corp-legal-1" }],
           members: makeTeam("corp-legal", 5, LEGAL_TITLES),
           units: [],
         },

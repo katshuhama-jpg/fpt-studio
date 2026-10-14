@@ -191,6 +191,15 @@ export const agentPublishStore = {
     store.set(agentId, { ...cur, placement: null, channels: [] });
     persist();
   },
+  /** The Agent's own state for users (independent of any publish request):
+   *   - "draft": no version has ever reached users (incl. a first request pending / rejected);
+   *   - "live": users are on `version`;
+   *   - "removed" (Đã gỡ): it was live before - Builder unpublished it or an Admin revoked it with
+   *     no earlier approved version to fall back to. `version` keeps the last live version. */
+  lifecycle(agentId: string): "draft" | "live" | "removed" {
+    if (this.get(agentId).placement !== null) return "live";
+    return this.releases(agentId).length > 0 ? "removed" : "draft";
+  },
   isPublished(agentId: string): boolean {
     seedAgent(agentId);
     const s = store.get(agentId);

@@ -24,9 +24,9 @@ import { agentModelStore } from "@/components/configure/agentModelStore";
 
 /* ─── Data ─────────────────────────────────────────────────────────────── */
 
-const tabs = ["All agents", "Published", "Draft", "Chờ duyệt", "Bị từ chối", "Shared with me"] as const;
+const tabs = ["All agents", "Published", "Draft", "Removed", "Chờ duyệt", "Bị từ chối", "Shared with me"] as const;
 /** Display labels — "Published/Draft" read as "Đang live/Bản nháp" to match the card lines. */
-const TAB_LABEL: Partial<Record<typeof tabs[number], string>> = { Published: "Đang live", Draft: "Bản nháp", "Shared with me": "Được thêm vào" };
+const TAB_LABEL: Partial<Record<typeof tabs[number], string>> = { Published: "Đang live", Draft: "Bản nháp", Removed: "Đã gỡ", "Shared with me": "Được thêm vào" };
 const kindFilters = ["All", "Agents", "Automation Agents"] as const;
 
 const SUGGESTIONS = [
@@ -53,8 +53,9 @@ function relativeTime(ts: number): string {
 
 /** Live state comes from agentPublishStore for every Agent — the same source the card's version
  * lines and the Agent page use, so the "Published" tab never disagrees with what a card shows. */
-function agentTabStatus(a: typeof agents[number]): "Published" | "Draft" {
-  return agentPublishStore.isPublished(a.id) ? "Published" : "Draft";
+function agentTabStatus(a: typeof agents[number]): "Published" | "Draft" | "Removed" {
+  const s = agentPublishStore.lifecycle(a.id);
+  return s === "live" ? "Published" : s === "removed" ? "Removed" : "Draft";
 }
 
 /* ─── Template data ─────────────────────────────────────────────────── */
@@ -283,7 +284,7 @@ function ConversationalCard({ a }: { a: typeof agents[number] }) {
 function AutomationCard({ a }: { a: typeof agents[number] }) {
   const published = agentPublishStore.isPublished(a.id);
   const channels = agentPublishStore.get(a.id).channels;
-  const badgeLabel = published ? "PUBLISHED" : "DRAFT";
+  const badgeLabel = published ? "PUBLISHED" : agentPublishStore.lifecycle(a.id) === "removed" ? "ĐÃ GỠ" : "DRAFT";
   const badgeClass = published ? "bg-primary-soft text-primary" : "bg-surface-muted text-muted-foreground";
   const triggers = triggerStore.list(a.id);
   const lastRun = runsStore.list(a.id)[0]?.startedAt ?? null;
@@ -410,6 +411,7 @@ export default function AgentsList() {
     "All agents": visibleAgents.length,
     "Published": visibleAgents.filter(a => agentTabStatus(a) === "Published").length,
     "Draft": visibleAgents.filter(a => agentTabStatus(a) === "Draft").length,
+    "Removed": visibleAgents.filter(a => agentTabStatus(a) === "Removed").length,
     "Chờ duyệt": visibleAgents.filter(a => agentGovState(a.id)?.state === "pending").length,
     "Bị từ chối": visibleAgents.filter(a => agentGovState(a.id)?.state === "rejected").length,
     "Shared with me": sharedWithMe.length,
@@ -542,7 +544,7 @@ export default function AgentsList() {
 
       {/* ── Tabs + search toolbar ─────────────────────────────────────── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3 border-b border-border pb-3">
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-wrap">
           {tabs.map(t => (
             <button
               key={t}

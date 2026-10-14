@@ -393,6 +393,7 @@ export default function AgentBuilder() {
 
         <div className="flex items-center gap-2">
           <AgentStatusCluster
+            agentId={id}
             publishState={publishState}
             isAutomation={kind === "automation"}
             pending={openGovRequest}
@@ -2873,7 +2874,7 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish }: {
       note: `Bật kênh ${getChannelName(id)} cho bản đang live ${servingVersion}.`,
       resourceRefs: listAgentResourceRefs(agentId),
     });
-    toast.success(`Đã gửi yêu cầu bật ${getChannelName(id)}. Kênh sẽ hoạt động khi Org/Unit Admin duyệt.`);
+    toast.success(`Đã gửi yêu cầu bật ${getChannelName(id)}. Kênh sẽ hoạt động khi Admin duyệt.`);
     refresh();
   };
   const turnChannelOff = (id: string) => {
@@ -3100,7 +3101,7 @@ function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish }: {
             </AlertDialogTitle>
             <AlertDialogDescription>
               {channelConfirm?.mode === "on"
-                ? `Kênh ngoài đưa Agent ra ngoài Agent Workspace nên cần Org/Unit Admin duyệt trước khi hoạt động. Bản live ${servingVersion} và phạm vi Workspace giữ nguyên.`
+                ? `Kênh ngoài đưa Agent ra ngoài Agent Workspace nên cần Admin duyệt trước khi hoạt động. Bản live ${servingVersion} và phạm vi Workspace giữ nguyên.`
                 : `Agent sẽ ngừng nhận tin nhắn từ kênh này ngay. Muốn bật lại sẽ cần gửi duyệt.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -4396,7 +4397,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
         : [{ kind: "community", name: "Cộng đồng FPT AI Agent" }],
       ...(!keepScope && effectiveAudience === "org" && orgReviewers ? { reviewUnits: orgReviewers.units, reviewMode: orgReviewers.mode } : {}),
     });
-    toast.success(`Đã gửi yêu cầu duyệt ${versionName}. Agent sẽ được publish khi Org/Unit Admin duyệt - Theo dõi trạng thái ngay trên trang này.`);
+    toast.success(`Đã gửi yêu cầu duyệt ${versionName}. Agent sẽ được publish khi Admin duyệt - Theo dõi trạng thái ngay trên trang này.`);
     onPublished?.();
     onClose();
   };
@@ -4413,7 +4414,7 @@ export function PublishModal({ agentId, agentName, onClose, onPublished, onManag
             <h2 className="font-display text-lg font-semibold">Publish "{agentName}"</h2>
             <p className="text-sm text-muted-foreground mt-0.5">
               {requiresReview
-                ? `Gửi yêu cầu duyệt ${versionName} tới Org/Unit Admin trước khi publish.`
+                ? `Gửi yêu cầu duyệt ${versionName} tới Admin trước khi publish.`
                 : current.placement === null
                   ? `Publish sẽ tạo ${versionName}.`
                   : `Publish sẽ tạo ${versionName} và thay bản đang live.`}

@@ -92,8 +92,8 @@ export const featureGroups: FeatureGroup[] = [
     icon: Shield,
     section: "governance",
     permissions: [
-      { id: "requests.review-agents", name: "Review Agent publish requests", desc: "See the Agent Requests queue and approve, reject, or revoke an Agent's publish to users. Whoever holds this permission can decide any request in scope, including their own." },
-      { id: "requests.review-resources", name: "Review Resource sharing requests", desc: "See the Resource Requests queue and approve, reject, or revoke sharing a Knowledge, Skill, Guardrail or Connector into the Tenant Library." },
+      { id: "requests.review-agents", name: "Review Agent publish requests", desc: "Space Admin: see every Agent request in the Space and approve, reject, or revoke an Agent's publish to users, including their own. Unit Admins (Organization → Structure) decide only requests published to their unit or a unit below it, without needing this permission." },
+      { id: "requests.review-resources", name: "Review Resource sharing requests", desc: "See the Resource Requests queue and approve, reject, or revoke sharing a Knowledge, Skill, Guardrail or Connector into the Space Library." },
     ],
   },
 

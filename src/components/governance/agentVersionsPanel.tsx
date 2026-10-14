@@ -364,7 +364,7 @@ function VersionDetailSheet({ row, liveVersion, onClose, onPublish, onRollback, 
               </div>
               <SheetDescription className="text-xs">
                 {row.status === "live" && "Người dùng đang dùng phiên bản này."}
-                {row.status === "pending" && <>Đang chờ Org/Unit Admin duyệt.{liveVersion ? <> Người dùng vẫn dùng <span className="font-mono">{liveVersion}</span> cho tới khi bản này được duyệt.</> : ""}</>}
+                {row.status === "pending" && <>Đang chờ Admin duyệt.{liveVersion ? <> Người dùng vẫn dùng <span className="font-mono">{liveVersion}</span> cho tới khi bản này được duyệt.</> : ""}</>}
                 {row.status === "rejected" && "Chưa được duyệt - Sửa theo góp ý bên dưới rồi gửi lại."}
                 {row.status === "withdrawn" && "Yêu cầu đã được rút, bản này chưa từng tới người dùng."}
                 {row.status === "revoked" && "Đã bị thu hồi - Người dùng không còn dùng bản này."}

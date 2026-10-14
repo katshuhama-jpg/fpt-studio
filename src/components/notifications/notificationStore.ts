@@ -60,11 +60,14 @@ const persist = () => {
   try { window.dispatchEvent(new Event(EVT)); } catch { /* ssr */ }
 };
 
-export interface Viewer { userId: string; canReviewAgents: boolean }
+/** `canReviewRequest` narrows the REVIEWERS token to requests in this viewer's review scope —
+ * Space Admin: every Agent request; Unit Admin: only those to their unit or below. */
+export interface Viewer { userId: string; canReviewAgents: boolean; canReviewRequest?: (requestId: string) => boolean }
 
 const visibleTo = (n: AppNotification, v: Viewer) =>
   n.actorId !== v.userId &&
-  (n.recipients.includes(v.userId) || (v.canReviewAgents && n.recipients.includes(REVIEWERS)));
+  (n.recipients.includes(v.userId) || (n.recipients.includes(REVIEWERS) &&
+    (n.requestId && v.canReviewRequest ? v.canReviewRequest(n.requestId) : v.canReviewAgents)));
 
 export const notificationStore = {
   EVT,

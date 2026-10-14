@@ -60,7 +60,7 @@ export default function General() {
 
   return (
     <div className="px-8 py-8 max-w-[760px] mx-auto animate-fade-up space-y-6">
-      <PageHeader title="General" desc="Thông tin doanh nghiệp/tổ chức - Hiển thị cho mọi thành viên. Org Admin và Space (Tenant) Admin có thể chỉnh sửa." />
+      <PageHeader title="General" desc="Thông tin doanh nghiệp/tổ chức - Hiển thị cho mọi thành viên. Org Admin và Space Admin có thể chỉnh sửa." />
 
       <Card>
         <div className="flex items-center gap-4 mb-6">

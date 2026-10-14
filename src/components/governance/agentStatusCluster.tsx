@@ -15,7 +15,7 @@ import {
 import { toast } from "sonner";
 import { governanceStore, channelLabel, workspaceTargetsOf, type GovRequest } from "./governanceStore";
 import { formatDateTime } from "./governanceUi";
-import type { AgentPublishState } from "../configure/agentPublishStore";
+import { agentPublishStore, type AgentPublishState } from "../configure/agentPublishStore";
 import { CURRENT_USER } from "@/components/knowledge/knowledgeBaseStore";
 
 type Tone = "live" | "pending" | "rejected" | "draft" | "automation";
@@ -121,10 +121,12 @@ function scopeText(req: GovRequest): string {
   return t.map(x => x.name).join(", ") || req.scopeSummary || "-";
 }
 
-export function AgentStatusCluster({ publishState, isAutomation, pending, rejected, rejectBannerVisible, onChanged, onOpenVersions, onOpenVersion, onPublish, onShowRejectBanner }: {
+export function AgentStatusCluster({ agentId, publishState, isAutomation, pending, rejected, rejectBannerVisible, onChanged, onOpenVersions, onOpenVersion, onPublish, onShowRejectBanner }: {
   /** Opens Build › Phiên bản with this version's detail sheet. */
   onOpenVersion: (version: string) => void;
   rejectBannerVisible?: boolean;
+  /** Used to tell "never live" (Bản nháp) from "was live, now removed" (Đã gỡ). */
+  agentId?: string;
   publishState: AgentPublishState;
   isAutomation: boolean;
   pending?: GovRequest;
@@ -136,6 +138,8 @@ export function AgentStatusCluster({ publishState, isAutomation, pending, reject
 }) {
   const [confirmWithdraw, setConfirmWithdraw] = useState(false);
   const published = publishState.placement !== null;
+  // Was live before, now off for users (Builder unpublished / Admin revoked to nothing).
+  const removed = !published && !!agentId && agentPublishStore.lifecycle(agentId) === "removed";
   const isRequester = pending?.requesterId === CURRENT_USER.id;
 
   const withdraw = () => {
@@ -177,12 +181,14 @@ export function AgentStatusCluster({ publishState, isAutomation, pending, reject
             </div>
           </Segment>
         ) : (
-          <Segment tone="draft" label="Bản nháp" aria="Chưa publish. Bấm để xem chi tiết.">
+          <Segment tone="draft" label={removed ? "Đã gỡ" : "Bản nháp"} aria={removed ? "Đã gỡ. Bấm để xem chi tiết." : "Chưa publish. Bấm để xem chi tiết."}>
             <Header
               icon={<Pencil size={16} />}
               iconBox="bg-surface-muted text-muted-foreground"
-              title="Agent chưa publish"
-              sub="Chưa ai dùng được Agent này. Publish để chia sẻ - Phạm vi rộng sẽ cần Org/Unit Admin duyệt."
+              title={removed ? "Agent đã gỡ" : "Agent chưa publish"}
+              sub={removed
+                ? <>Người dùng không còn dùng được Agent này (bản live cuối: <span className="font-mono">{publishState.version}</span>). Publish lại để chia sẻ - Phạm vi rộng sẽ cần Admin duyệt.</>
+                : "Chưa ai dùng được Agent này. Publish để chia sẻ - Phạm vi rộng sẽ cần Admin duyệt."}
             />
             <div className="px-4 py-3 border-t border-border bg-surface-muted/40 flex justify-end">
               <button onClick={onPublish} className="h-8 px-3 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium flex items-center gap-1.5 cursor-pointer transition-colors">
@@ -205,7 +211,7 @@ export function AgentStatusCluster({ publishState, isAutomation, pending, reject
                 ? <>Thành viên đã được duyệt vẫn dùng <span className="font-mono text-foreground">{publishState.version}</span>; {pending.addedMemberNames.join(", ")} chỉ dùng được sau khi duyệt.</>
                 : published
                 ? <>Người dùng vẫn dùng <span className="font-mono text-foreground">{publishState.version}</span> cho tới khi bản này được duyệt.</>
-                : "Agent sẽ tới người dùng khi Org/Unit Admin duyệt."}
+                : "Agent sẽ tới người dùng khi Admin duyệt."}
             />
             <ReviewSteps />
             <dl className="px-4 pb-3 border-t border-border pt-2">

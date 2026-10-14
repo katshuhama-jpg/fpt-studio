@@ -40,7 +40,7 @@ export default function ExternalAgentChannelsTab({ agent, onRefresh, onViewVersi
       note: `Bật kênh ${getChannelName(id)} cho bản đang live ${pub.version}.`,
       externalSnap: externalSnapOf(agent.id),
     });
-    toast.success(`Đã gửi yêu cầu bật ${getChannelName(id)}. Kênh sẽ hoạt động khi Org/Unit Admin duyệt.`);
+    toast.success(`Đã gửi yêu cầu bật ${getChannelName(id)}. Kênh sẽ hoạt động khi Admin duyệt.`);
     refresh();
   };
   const turnOff = (id: string) => {
@@ -128,7 +128,7 @@ export default function ExternalAgentChannelsTab({ agent, onRefresh, onViewVersi
             <AlertDialogTitle>{confirm?.mode === "on" ? `Gửi yêu cầu bật ${confirm ? getChannelName(confirm.id) : ""}?` : `Tắt ${confirm ? getChannelName(confirm.id) : ""}?`}</AlertDialogTitle>
             <AlertDialogDescription>
               {confirm?.mode === "on"
-                ? `Kênh ngoài đưa Agent ra ngoài Agent Workspace nên cần Org/Unit Admin duyệt trước khi hoạt động. Bản live ${pub.version} và phạm vi Workspace giữ nguyên.`
+                ? `Kênh ngoài đưa Agent ra ngoài Agent Workspace nên cần Admin duyệt trước khi hoạt động. Bản live ${pub.version} và phạm vi Workspace giữ nguyên.`
                 : "Agent sẽ ngừng nhận tin nhắn từ kênh này ngay. Muốn bật lại sẽ cần gửi duyệt."}
             </AlertDialogDescription>
           </AlertDialogHeader>
