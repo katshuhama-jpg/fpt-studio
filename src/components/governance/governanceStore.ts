@@ -406,7 +406,8 @@ export function workspaceTargetsOf(req: GovRequest): WorkspaceTarget[] {
 
 function seed() {
   seedPolicyAssistant();
-  if (seededOnce()) return;
+  // After the main seed on a fresh session (its notificationStore.reset would wipe this one's bell entry).
+  if (seededOnce()) { seedPlatformRequest(); return; }
   markSeeded();
   const t = now();
 
@@ -795,6 +796,7 @@ function seed() {
     }
   }
   notificationStore.reset(seeded);
+  seedPlatformRequest();
 }
 
 
@@ -854,6 +856,37 @@ function seedPolicyAssistant() {
   // Live config = what was approved → a new publish without edits reads "Không thay đổi".
   const snap = buildSnapshot("agent", "policy-assistant");
   if (snap) { liveSnapshots.set(snapshotKey("agent", "policy-assistant"), { ...snap, capturedAt: t - 5 * DAY }); persistLive(); }
+}
+
+/** Pending first-publish request scoped to ONE team (Platform Engineering) - the demo case for a
+ * Unit Admin's narrow queue: Mai Hoang (Unit Admin of Platform Engineering only) sees exactly
+ * this request; Unit Admins of FPT Software / FPT Corporation see it by inheritance; Space Admins
+ * see it as always. Own seed flag, same reason as seedPolicyAssistant. */
+const PLATFORM_SEEDED_KEY = "governance_seed_platform_request_v1";
+function seedPlatformRequest() {
+  try { if (sessionStorage.getItem(PLATFORM_SEEDED_KEY) === "1") return; sessionStorage.setItem(PLATFORM_SEEDED_KEY, "1"); } catch { return; }
+  const t = now();
+  const at = t - 2 * HOUR;
+  const r: GovRequest = {
+    id: "req-1009", changeStateAtSubmit: "new", resourceType: "agent", resourceId: "release-notes", resourceName: "Trợ lý Release Note",
+    resourceIcon: "📝", requesterId: "m-plat-2", requesterName: "Huy Le",
+    audience: "org", channels: [], subAgents: [], version: "v1.0.0",
+    scopeSummary: "Platform Engineering (12 người)",
+    workspaceTargets: [{ kind: "department", name: "Platform Engineering", members: 12 }],
+    reviewUnits: [{ id: "fsoft-vn-platform", name: "Platform Engineering" }], reviewMode: "single",
+    starterPrompts: ["Soạn release note sprint 42", "Nhóm các ticket này theo loại thay đổi"],
+    note: "Dùng nội bộ team Platform để soạn release note cuối sprint.",
+    status: "pending", submittedAt: at, updatedAt: at,
+    history: [{ id: `h-${seq++}`, at, action: "submitted", actorId: "m-plat-2", actorName: "Huy Le" }],
+  };
+  store.set(r.id, r);
+  persist();
+  auditLogStore.log({
+    actorId: "m-plat-2", actorName: "Huy Le", action: "submitted", resourceType: "agent", resourceId: r.resourceId,
+    resourceName: r.resourceName, requestId: r.id, at, detail: auditDetail(r),
+  });
+  const n = buildNotification(r, "submitted", "m-plat-2", "Huy Le");
+  if (n) notificationStore.push({ ...n, at });
 }
 
 /* ───────────────────────── notifications ───────────────────────── */

@@ -249,6 +249,26 @@ Bạn là trợ lý nội bộ giúp nhân viên tra cứu nội quy công ty, c
 - Trường hợp đặc thù (kỷ luật, tranh chấp) → chuyển cho HRBP phụ trách`,
   },
   {
+    // Platform Engineering's own Agent - its first publish request (v1.0.0 to Platform
+    // Engineering, governanceStore req-1009) is pending, so Mai Hoang (Unit Admin of that team
+    // only, no Space-wide review permission) has a request in her Agent Requests queue.
+    id: "release-notes", name: "Trợ lý Release Note", emoji: "📝", bg: "bg-accent-soft", accent: "bg-accent",
+    status: "Draft", desc: "Soạn release note từ danh sách ticket Jira đã đóng trong sprint, theo mẫu chuẩn của team Platform.",
+    ownerId: "m-plat-2", sharedWith: ["m-plat-1", "m-fsoft-ceo", "m-fsoft-coo"],
+    model: "DeepSeek V4 Flash", convs: 0, success: 0, channels: [], updated: "2h ago",
+    instructions: `# Trợ lý Release Note
+
+Bạn giúp team Platform Engineering soạn release note cuối sprint.
+
+## Cách làm
+- Nhận danh sách ticket Jira đã đóng, nhóm theo Tính năng mới / Cải tiến / Sửa lỗi
+- Viết mỗi mục 1 câu, ngôn ngữ người dùng cuối hiểu được, không dùng mã ticket trong câu
+
+## Giới hạn
+- Không đưa ticket bảo mật (nhãn security) vào release note công khai
+- Thiếu thông tin ticket → hỏi lại người dùng, không tự suy đoán`,
+  },
+  {
     id: "nightly-report", name: "Nightly Sales Report", emoji: "📊", bg: "bg-indigo-50", accent: "bg-indigo-500",
     status: "Draft",
     ownerId: "m-fsoft-ceo",

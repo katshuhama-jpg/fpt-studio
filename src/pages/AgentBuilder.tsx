@@ -259,6 +259,8 @@ export default function AgentBuilder() {
   const [previewCollapsed, setPreviewCollapsed] = useState(false);
   const [publishTick, setPublishTick] = useState(0);
   const [showAgentMenu, setShowAgentMenu] = useState(false);
+  // "Gỡ publish" is destructive (users lose the Agent right away) - always confirm first.
+  const [confirmUnpublish, setConfirmUnpublish] = useState(false);
   const [showShare, setShowShare] = useState(false);
   useAgentShareVersion();
   const canShareAgent = useCanShareAgent(id ?? "new");
@@ -436,13 +438,12 @@ export default function AgentBuilder() {
                     disabled={!published || !canPublishAgent}
                     title={!canPublishAgent ? "Bạn không có quyền publish agent này." : undefined}
                     onClick={() => {
-                      agentPublishStore.unpublish(id);
-                      setPublishTick(t => t + 1);
                       setShowAgentMenu(false);
+                      setConfirmUnpublish(true);
                     }}
                     className="w-full text-left px-3 py-1.5 text-xs text-foreground hover:bg-surface-muted disabled:text-muted-foreground/50 disabled:cursor-not-allowed"
                   >
-                    Unpublish agent
+                    Gỡ publish
                   </button>
                 </div>
               </>
@@ -451,6 +452,31 @@ export default function AgentBuilder() {
         </div>
       </div>
       {showShare && <ShareAgentModal agentId={id ?? "new"} open onClose={() => setShowShare(false)} />}
+
+      <AlertDialog open={confirmUnpublish} onOpenChange={setConfirmUnpublish}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Gỡ publish "{agent.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Người dùng sẽ không dùng được Agent này nữa (đang live {publishState.version}) và Agent chuyển sang Đã gỡ. Muốn dùng lại, bạn publish lại hoặc khôi phục một bản đã được duyệt trong Phiên bản.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-primary text-primary-foreground hover:bg-primary/90">Hủy bỏ</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                agentPublishStore.unpublish(id);
+                setPublishTick(t => t + 1);
+                setConfirmUnpublish(false);
+                toast.success(`Đã gỡ publish "${agent.name}". Người dùng không còn dùng được Agent này.`);
+              }}
+            >
+              Gỡ publish
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <RefChipTooltip />
 
