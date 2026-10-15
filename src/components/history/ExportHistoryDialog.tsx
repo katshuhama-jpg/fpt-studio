@@ -46,32 +46,24 @@ export const MAX_EXPORT_DAYS = 90;
 const isRated = (m: ConversationRecord["messages"][number], scope: RatedScope) =>
   m.role === "agent" && !!m.feedback && (scope === "all" || m.feedback === "down");
 
-const LEVELS: { id: ExportLevel; title: string; desc: Record<ExportSource, string>; slug: string }[] = [
+// Title = what the Admin gets, desc = one plain sentence on what each row is and what it's for.
+const LEVELS: { id: ExportLevel; title: string; desc: string; slug: string }[] = [
   {
     id: "conversation",
-    title: "Mỗi cuộc trò chuyện một dòng",
-    desc: {
-      agent: "Thời gian, kênh, người dùng, số lượt, độ trễ, tokens, số like và dislike. Phù hợp để báo cáo.",
-      external: "Thời gian, kênh, người dùng, số lượt, số like và dislike. Phù hợp để báo cáo.",
-    },
+    title: "Danh sách cuộc trò chuyện",
+    desc: "Mỗi dòng là một cuộc trò chuyện, kèm số like và dislike. Dùng để làm báo cáo.",
     slug: "hoi-thoai",
   },
   {
     id: "message",
-    title: "Mỗi tin nhắn một dòng",
-    desc: {
-      agent: "Toàn bộ tin nhắn của người dùng và Agent, kèm Tool đã gọi, like/dislike và comment. Phù hợp để lưu trữ và audit.",
-      external: "Toàn bộ tin nhắn của người dùng và Agent, kèm like/dislike và comment. Phù hợp để lưu trữ và audit.",
-    },
+    title: "Toàn bộ tin nhắn",
+    desc: "Mỗi dòng là một tin nhắn, đủ nội dung của người dùng và Agent. Dùng để lưu trữ hoặc audit.",
     slug: "tin-nhan",
   },
   {
     id: "rated",
-    title: "Chỉ tin nhắn được đánh giá",
-    desc: {
-      agent: "Mỗi câu trả lời được like hoặc dislike, kèm câu hỏi ngay trước đó và comment của người dùng. Phù hợp để tìm câu trả lời cần sửa.",
-      external: "Mỗi câu trả lời được like hoặc dislike, kèm câu hỏi ngay trước đó và comment của người dùng. Phù hợp để tìm câu trả lời cần sửa.",
-    },
+    title: "Câu trả lời được đánh giá",
+    desc: "Chỉ các câu trả lời người dùng đã like hoặc dislike, kèm câu hỏi và comment. Dùng để tìm chỗ cần sửa Agent.",
     slug: "phan-hoi",
   },
 ];
@@ -238,7 +230,7 @@ export function ExportHistoryDialog({
       resourceId: agentId,
       resourceName: source === "external" ? `${agentName} (External Agent)` : agentName,
       detail: [
-        level === "rated" && ratedScope === "down" ? "Chỉ tin nhắn bị dislike" : lvl.title,
+        level === "rated" && ratedScope === "down" ? "Câu trả lời bị dislike" : lvl.title,
         `${rowCount} dòng`,
         `Bộ lọc: ${filterChips.join(", ")}`,
         fileFormat === "xlsx" ? "Excel" : "CSV",
@@ -255,7 +247,7 @@ export function ExportHistoryDialog({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Xuất dữ liệu hội thoại</DialogTitle>
-          <DialogDescription>Xuất đúng {conversations.length} cuộc trò chuyện đang hiển thị theo bộ lọc.</DialogDescription>
+          <DialogDescription>Xuất {conversations.length} cuộc trò chuyện đang hiện trong danh sách.</DialogDescription>
         </DialogHeader>
 
         {/* What's included */}
@@ -269,15 +261,15 @@ export function ExportHistoryDialog({
             <AlertTriangle size={14} className="shrink-0 mt-px" aria-hidden />
             <span>
               {days === null
-                ? "Mỗi lần xuất tối đa 90 ngày - Chọn khoảng thời gian ở bộ lọc Thời gian rồi xuất lại."
-                : `Khoảng đã chọn dài ${days} ngày - Mỗi lần xuất tối đa 90 ngày, hãy thu hẹp bộ lọc Thời gian.`}
+                ? "Mỗi lần chỉ xuất được tối đa 90 ngày - Hãy chọn khoảng thời gian trong bộ lọc."
+                : `Khoảng đã chọn dài ${days} ngày - Mỗi lần chỉ xuất được tối đa 90 ngày, hãy rút ngắn khoảng thời gian.`}
             </span>
           </div>
         )}
 
         {/* Level */}
         <fieldset className="space-y-2">
-          <legend className="text-sm font-medium mb-2">Nội dung xuất</legend>
+          <legend className="text-sm font-medium mb-2">Bạn muốn xuất gì?</legend>
           {LEVELS.map(l => {
             const n = counts[l.id];
             const active = level === l.id;
@@ -302,7 +294,7 @@ export function ExportHistoryDialog({
                     <span className="text-sm font-medium">{l.title}</span>
                     <span className="text-xs text-muted-foreground tabular-nums shrink-0">{n} dòng</span>
                   </span>
-                  <span className="block text-xs text-muted-foreground mt-0.5 leading-relaxed">{l.desc[source]}</span>
+                  <span className="block text-xs text-muted-foreground mt-0.5 leading-relaxed">{l.desc}</span>
                   {l.id === "rated" && active && (likeCount + dislikeCount > 0) && (
                     <span role="radiogroup" aria-label="Loại đánh giá" className="mt-2 inline-flex items-center gap-1 bg-surface rounded-lg p-0.5 border border-border">
                       {([
@@ -361,9 +353,9 @@ export function ExportHistoryDialog({
           <p className="text-xs text-muted-foreground">
             {level === "rated"
               ? ratedScope === "down" && likeCount > 0
-                ? "Không có tin nhắn bị dislike. Chọn Like và dislike để xuất các tin nhắn được like."
-                : "Chưa có tin nhắn nào được like hoặc dislike trong các cuộc trò chuyện này."
-              : "Không có dữ liệu để xuất với bộ lọc này."}
+                ? "Chưa có câu trả lời nào bị dislike. Chọn Like và dislike để xuất các câu được like."
+                : "Chưa có câu trả lời nào được like hoặc dislike trong các cuộc trò chuyện này."
+              : "Không có dữ liệu nào khớp bộ lọc để xuất."}
           </p>
         )}
 
