@@ -412,7 +412,7 @@ export default function AgentBuilder() {
               onClick={() => setShowShare(true)}
               className="h-9 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base"
             >
-              <HugeiconsIcon icon={UserMultipleIcon} size={14} /> Nhân sự
+              <HugeiconsIcon icon={UserCheck01Icon} size={14} /> Cấp quyền
             </button>
           )}
           {!viewOnly && <button

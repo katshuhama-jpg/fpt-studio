@@ -217,7 +217,7 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
     const one = adding.length === 1 ? adding[0].name : null;
     const message = addingOnlyNone
       ? (one ? `Đã cập nhật quyền của ${one}.` : `Đã cập nhật quyền của ${added.length} người.`)
-      : (one ? `Đã thêm ${one} vào Agent.` : `Đã thêm ${added.length} nhân sự vào Agent.`);
+      : (one ? `Đã cấp quyền cho ${one}.` : `Đã cấp quyền cho ${added.length} người.`);
     commit(toShare(scope, nextPeople), added.filter(a => a.level !== "none").map(a => a.userId), message);
   };
   const saveMain = () => commit(next, [], "Đã lưu thay đổi.");
@@ -226,7 +226,7 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
   const requestClose = () => {
     if (!dirty) { onClose(); return; }
     setConfirm({
-      title: "Bỏ thay đổi chưa lưu?", body: "Thay đổi về nhân sự của Agent này sẽ không được lưu.",
+      title: "Bỏ thay đổi chưa lưu?", body: "Thay đổi về quyền trên Agent này sẽ không được lưu.",
       action: "Bỏ thay đổi", cancel: "Tiếp tục chỉnh sửa", destructive: true, onOk: onClose,
     });
   };
@@ -312,35 +312,35 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2 pr-6">
                   <button type="button" aria-label="Quay lại" onClick={cancelAdd} className="w-8 h-8 -ml-1 rounded-lg hover:bg-surface-muted flex items-center justify-center"><ArrowLeft size={16} /></button>
-                  {scope === "space" ? "Thêm quyền riêng" : `Thêm nhân sự vào "${agent.name}"`}
+                  {scope === "space" ? "Thêm quyền riêng" : `Cấp quyền trên "${agent.name}"`}
                 </DialogTitle>
                 <DialogDescription className={scope === "space" ? "" : "sr-only"}>
-                  {scope === "space" ? `Quyền riêng thay cho quyền chung của Cả Space (${LEVEL_META[generalLevel].label}).` : "Thêm nhân sự vào Agent"}
+                  {scope === "space" ? `Quyền riêng thay cho quyền chung của Cả Space (${LEVEL_META[generalLevel].label}).` : "Chọn quyền cho người được thêm"}
                 </DialogDescription>
               </DialogHeader>
               {searchBox(addPlaceholder)}
               {!addingOnlyNone && (
                 <label className="flex items-center gap-2 text-sm cursor-pointer w-fit">
                   <input type="checkbox" checked={notify} onChange={e => setNotify(e.target.checked)} className="w-4 h-4 accent-primary" />
-                  Thông báo cho nhân sự được thêm
+                  Thông báo cho người được cấp quyền
                 </label>
               )}
               <DialogFooter>
                 <button onClick={cancelAdd} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Hủy bỏ</button>
-                <button onClick={sendAdd} className="btn-primary h-9 justify-center">{addingOnlyNone ? "Lưu" : "Thêm"}</button>
+                <button onClick={sendAdd} className="btn-primary h-9 justify-center">{addingOnlyNone ? "Lưu" : "Cấp quyền"}</button>
               </DialogFooter>
             </>
           ) : (
             <>
               <DialogHeader>
-                <DialogTitle className="pr-6">Nhân sự của "{agent.name}"</DialogTitle>
-                <DialogDescription>Thêm người để cùng làm việc trên Agent trong Console.</DialogDescription>
+                <DialogTitle className="pr-6">Cấp quyền trên "{agent.name}"</DialogTitle>
+                <DialogDescription>Chọn ai được xem hoặc chỉnh sửa Agent này trong Console.</DialogDescription>
               </DialogHeader>
 
               {/* Who works on the Agent - same three choices as "Ai được dùng" on a resource. */}
               <div>
-                <h3 className="text-sm font-semibold mb-2">Ai làm việc trên Agent này</h3>
-                <div role="radiogroup" aria-label="Ai làm việc trên Agent này" className="grid grid-cols-3 p-1 rounded-lg bg-surface-muted gap-1">
+                <h3 className="text-sm font-semibold mb-2">Ai có quyền trên Agent này</h3>
+                <div role="radiogroup" aria-label="Ai có quyền trên Agent này" className="grid grid-cols-3 p-1 rounded-lg bg-surface-muted gap-1">
                   {SCOPES.map(o => (
                     <button key={o.id} type="button" role="radio" aria-checked={scope === o.id} onClick={() => setScope(o.id)}
                       className={`h-8 px-1 rounded-md text-xs sm:text-sm font-medium truncate transition-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${scope === o.id ? "bg-white shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
