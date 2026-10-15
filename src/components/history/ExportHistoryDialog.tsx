@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, differenceInCalendarDays } from "date-fns";
 import { Download, AlertTriangle, ShieldCheck } from "lucide-react";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -9,61 +9,75 @@ import {
 import { cn } from "@/lib/utils";
 import { CHANNEL_META, type ConversationRecord } from "./historyStore";
 import { buildTrace } from "./traceStore";
-import { getAgent } from "@/components/configure/agentStore";
 import { auditLogStore } from "@/components/governance/auditLogStore";
 import { currentPersona } from "@/lib/demoPersona";
 
 /**
- * Export for Agent → Insights → History. Always exports exactly the conversations in the
- * current filtered view (search, channel, time, feedback) — the dialog restates those filters so
- * nobody sends a customer "last 7 days on Zalo" when they meant "everything".
+ * Export for Agent → Insights → History and External Agent → History. Always exports exactly
+ * the conversations in the current filtered view (search, channel, time, feedback) - the dialog
+ * restates those filters so nobody sends a customer "last 7 days on Zalo" when they meant
+ * something else.
  *
- * Three levels, one per job the export is for (decided 07/10/2026 — see
- * claude/BRAINSTORM_Export_History_Feedback.md):
+ * Rules (confirmed with Tyler 15/10/2026):
+ * - Space Admin only (Role holding "Export conversation data", always Space-wide). Callers hide
+ *   the button for everyone else.
+ * - At most 90 days per export: the time filter must be a range of 90 days or less ("Mọi thời
+ *   gian" is blocked). Nothing is cut silently - the Admin narrows the filter.
+ * - "Ẩn tên và email" is on by default.
+ * - Users can leave a comment on a like as well as a dislike.
+ *
+ * Three levels, one per job the export is for:
  * - conversation → reports for the customer,
  * - message      → audit / archive,
- * - rated        → Builder finding answers to fix. Users rate individual agent bubbles, so each
- *                  liked/disliked bubble is its own row, with the turn and bubble position.
+ * - rated        → finding answers to fix. Users rate individual agent bubbles, so each rated
+ *                  bubble is its own row, with the turn and bubble position.
  * Every export is written to the Governance audit log.
  */
 
 export type ExportLevel = "conversation" | "message" | "rated";
 type ExportFormat = "xlsx" | "csv";
-/** For "Rated messages only": every rated bubble, or just the disliked ones. */
+/** For "Chỉ tin nhắn được đánh giá": every rated bubble, or just the disliked ones. */
 export type RatedScope = "all" | "down";
+/** External Agents report no latency, tokens, errors or tool calls - those columns are left out. */
+export type ExportSource = "agent" | "external";
+
+export const MAX_EXPORT_DAYS = 90;
 
 const isRated = (m: ConversationRecord["messages"][number], scope: RatedScope) =>
   m.role === "agent" && !!m.feedback && (scope === "all" || m.feedback === "down");
 
-/** Vietnamese labels for the Audit log entry (the Audit log screen is in Vietnamese). */
-const LEVEL_VI: Record<ExportLevel, string> = {
-  conversation: "Mỗi hội thoại một dòng",
-  message: "Mỗi tin nhắn một dòng",
-  rated: "Tin nhắn được đánh giá",
-};
-
-const LEVELS: { id: ExportLevel; title: string; desc: string; slug: string }[] = [
+const LEVELS: { id: ExportLevel; title: string; desc: Record<ExportSource, string>; slug: string }[] = [
   {
     id: "conversation",
-    title: "One row per conversation",
-    desc: "Dates, channel, user, turns, latency, tokens, likes and dislikes. Best for reports.",
-    slug: "conversations",
+    title: "Mỗi cuộc trò chuyện một dòng",
+    desc: {
+      agent: "Thời gian, kênh, người dùng, số lượt, độ trễ, tokens, số like và dislike. Phù hợp để báo cáo.",
+      external: "Thời gian, kênh, người dùng, số lượt, số like và dislike. Phù hợp để báo cáo.",
+    },
+    slug: "hoi-thoai",
   },
   {
     id: "message",
-    title: "One row per message",
-    desc: "Every customer and agent message, with tool calls and feedback. Best for audits.",
-    slug: "messages",
+    title: "Mỗi tin nhắn một dòng",
+    desc: {
+      agent: "Toàn bộ tin nhắn của người dùng và Agent, kèm Tool đã gọi, like/dislike và comment. Phù hợp để lưu trữ và audit.",
+      external: "Toàn bộ tin nhắn của người dùng và Agent, kèm like/dislike và comment. Phù hợp để lưu trữ và audit.",
+    },
+    slug: "tin-nhan",
   },
   {
     id: "rated",
-    title: "Rated messages only",
-    desc: "Each agent message a user liked or disliked, with the question before it and the user's reason. Best for finding answers to fix.",
-    slug: "feedback",
+    title: "Chỉ tin nhắn được đánh giá",
+    desc: {
+      agent: "Mỗi câu trả lời được like hoặc dislike, kèm câu hỏi ngay trước đó và comment của người dùng. Phù hợp để tìm câu trả lời cần sửa.",
+      external: "Mỗi câu trả lời được like hoặc dislike, kèm câu hỏi ngay trước đó và comment của người dùng. Phù hợp để tìm câu trả lời cần sửa.",
+    },
+    slug: "phan-hoi",
   },
 ];
 
 const fmt = (ms: number) => format(new Date(ms), "dd/MM/yyyy HH:mm");
+const ratingVi = (f?: "up" | "down") => (f === "up" ? "Like" : f === "down" ? "Dislike" : "");
 
 function turnLookup(c: ConversationRecord) {
   const trace = buildTrace(c);
@@ -75,48 +89,54 @@ function turnLookup(c: ConversationRecord) {
   return { trace, byMsg };
 }
 
-function buildRows(convs: ConversationRecord[], level: ExportLevel, mask: boolean, ratedScope: RatedScope): (string | number)[][] {
+function buildRows(convs: ConversationRecord[], level: ExportLevel, mask: boolean, ratedScope: RatedScope, source: ExportSource): (string | number)[][] {
   const alias = new Map<string, string>();
   const who = (c: ConversationRecord) => {
     if (!mask) return { user: c.username, email: c.email ?? "" };
-    if (!alias.has(c.username)) alias.set(c.username, `User ${alias.size + 1}`);
+    if (!alias.has(c.username)) alias.set(c.username, `Người dùng ${alias.size + 1}`);
     return { user: alias.get(c.username)!, email: "" };
   };
+  const internal = source === "agent";
 
   if (level === "conversation") {
-    const header = ["Conversation ID", "Started", "Ended", "Channel", "User", "Email", "Turns", "Messages", "Latency P50 (s)", "Tokens", "Likes", "Dislikes", "Last error"];
+    const header = [
+      "ID cuộc trò chuyện", "Bắt đầu", "Kết thúc", "Kênh", "Người dùng", "Email", "Số lượt", "Số tin nhắn",
+      ...(internal ? ["Độ trễ P50 (giây)", "Tokens"] : []), "Số like", "Số dislike", ...(internal ? ["Lỗi gần nhất"] : []),
+    ];
     return [header, ...convs.map(c => {
       const t = buildTrace(c);
       const { user, email } = who(c);
       const tokens = t.totals.tokensIn + t.totals.tokensCacheRead + t.totals.tokensOut + t.totals.tokensReasoning;
       return [
-        c.id, fmt(c.startedAt), fmt(c.endedAt), CHANNEL_META[c.channel].label, user, email,
-        t.turns.length, c.messages.length, +(t.totals.p50LatencyMs / 1000).toFixed(2), tokens,
+        c.id, fmt(c.startedAt), fmt(c.endedAt), CHANNEL_META[c.channel].label, user, email, t.turns.length, c.messages.length,
+        ...(internal ? [+(t.totals.p50LatencyMs / 1000).toFixed(2), tokens] : []),
         c.messages.filter(m => m.feedback === "up").length, c.messages.filter(m => m.feedback === "down").length,
-        c.error ?? "",
+        ...(internal ? [c.error ?? ""] : []),
       ];
     })];
   }
 
   if (level === "message") {
-    const header = ["Conversation ID", "Message ID", "Turn", "Role", "Time", "Content", "Tool calls", "Feedback", "Feedback reason", "Channel", "User", "Email"];
+    const header = [
+      "ID cuộc trò chuyện", "ID tin nhắn", "Lượt", "Vai trò", "Thời gian", "Nội dung", ...(internal ? ["Tool đã gọi"] : []),
+      "Đánh giá", "Comment", "Kênh", "Người dùng", "Email",
+    ];
     const rows: (string | number)[][] = [header];
     for (const c of convs) {
       const { byMsg } = turnLookup(c);
       const { user, email } = who(c);
       for (const m of c.messages) {
         rows.push([
-          c.id, m.id, byMsg.get(m.id)?.turn ?? "", m.role === "agent" ? "Agent" : "Customer", fmt(m.at), m.content,
-          (m.toolCalls ?? []).map(tc => `${tc.name} (${tc.status === "failed" ? "failed" : "ok"})`).join("; "),
-          m.feedback === "up" ? "Like" : m.feedback === "down" ? "Dislike" : "",
-          m.feedbackComment ?? "", CHANNEL_META[c.channel].label, user, email,
+          c.id, m.id, byMsg.get(m.id)?.turn ?? "", m.role === "agent" ? "Agent" : "Người dùng", fmt(m.at), m.content,
+          ...(internal ? [(m.toolCalls ?? []).map(tc => `${tc.name} (${tc.status === "failed" ? "lỗi" : "ok"})`).join("; ")] : []),
+          ratingVi(m.feedback), m.feedbackComment ?? "", CHANNEL_META[c.channel].label, user, email,
         ]);
       }
     }
     return rows;
   }
 
-  const header = ["Conversation ID", "Message ID", "Turn", "Message in turn", "Rating", "Reason", "Customer question", "Agent message", "Rated message time", "Channel", "User", "Email"];
+  const header = ["ID cuộc trò chuyện", "ID tin nhắn", "Lượt", "Thứ tự trong lượt", "Đánh giá", "Comment", "Câu hỏi của người dùng", "Câu trả lời của Agent", "Thời gian", "Kênh", "Người dùng", "Email"];
   const rows: (string | number)[][] = [header];
   for (const c of convs) {
     const { byMsg } = turnLookup(c);
@@ -125,7 +145,7 @@ function buildRows(convs: ConversationRecord[], level: ExportLevel, mask: boolea
       if (!isRated(m, ratedScope)) continue;
       const pos = byMsg.get(m.id);
       rows.push([
-        c.id, m.id, pos?.turn ?? "", pos?.bubble ?? "", m.feedback === "up" ? "Like" : "Dislike", m.feedbackComment ?? "",
+        c.id, m.id, pos?.turn ?? "", pos?.bubble ?? "", ratingVi(m.feedback), m.feedbackComment ?? "",
         pos?.question ?? "", m.content, fmt(m.at), CHANNEL_META[c.channel].label, user, email,
       ]);
     }
@@ -139,28 +159,39 @@ export function countRows(convs: ConversationRecord[], level: ExportLevel, rated
   return convs.reduce((n, c) => n + c.messages.filter(m => isRated(m, ratedScope)).length, 0);
 }
 
+/** Calendar days covered by the time filter, or null for "Mọi thời gian". */
+export function rangeDays(range: { from: number; to: number } | null) {
+  return range ? differenceInCalendarDays(range.to, range.from) + 1 : null;
+}
+
 const slugify = (s: string) =>
   s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/gi, "d").replace(/[^a-zA-Z0-9]+/g, "-").replace(/(^-|-$)/g, "").toLowerCase();
 
 export function ExportHistoryDialog({
-  open, onOpenChange, agentId, conversations, filterChips, range, defaultDislikesOnly = false,
+  open, onOpenChange, agentId, agentName, source = "agent", conversations, filterChips, range, defaultDislikesOnly = false,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   agentId: string;
+  agentName: string;
+  source?: ExportSource;
   conversations: ConversationRecord[];
-  /** Human-readable active filters, e.g. ["Channel: Zalo", "Last 7 days"]. Empty = no filters. */
+  /** Human-readable active filters, e.g. ["Kênh: Zalo", "7 ngày qua"]. Empty = no filters. */
   filterChips: string[];
-  /** Date span for the file name: the time filter's bounds, else the conversations' own span. */
+  /** The time filter's bounds - null for "Mọi thời gian", which is over the 90-day limit. */
   range: { from: number; to: number } | null;
-  /** True when the list is filtered to "Has dislike" — "Rated messages only" then starts on dislikes. */
+  /** True when the list is filtered to "Có dislike" - "Chỉ tin nhắn được đánh giá" then starts on dislikes. */
   defaultDislikesOnly?: boolean;
 }) {
   const [level, setLevel] = useState<ExportLevel>("conversation");
   const [fileFormat, setFileFormat] = useState<ExportFormat>("xlsx");
-  const [mask, setMask] = useState(false);
+  const [mask, setMask] = useState(true);
   const [ratedScope, setRatedScope] = useState<RatedScope>(defaultDislikesOnly ? "down" : "all");
-  useEffect(() => { if (open) setRatedScope(defaultDislikesOnly ? "down" : "all"); }, [open, defaultDislikesOnly]);
+  useEffect(() => {
+    if (!open) return;
+    setRatedScope(defaultDislikesOnly ? "down" : "all");
+    setMask(true);
+  }, [open, defaultDislikesOnly]);
 
   const counts = useMemo(
     () => Object.fromEntries(LEVELS.map(l => [l.id, countRows(conversations, l.id, ratedScope)])) as Record<ExportLevel, number>,
@@ -169,20 +200,19 @@ export function ExportHistoryDialog({
   const likeCount = countRows(conversations, "rated", "all") - countRows(conversations, "rated", "down");
   const dislikeCount = countRows(conversations, "rated", "down");
   const rowCount = counts[level];
-  const agentName = getAgent(agentId).name;
+  const days = rangeDays(range);
+  const overLimit = days === null || days > MAX_EXPORT_DAYS;
+  const canSubmit = rowCount > 0 && !overLimit;
 
   const doExport = () => {
-    if (rowCount === 0) return;
-    const rows = buildRows(conversations, level, mask, ratedScope);
-    const span = range ?? (conversations.length
-      ? { from: Math.min(...conversations.map(c => c.startedAt)), to: Math.max(...conversations.map(c => c.endedAt)) }
-      : { from: Date.now(), to: Date.now() });
+    if (!canSubmit || !range) return;
+    const rows = buildRows(conversations, level, mask, ratedScope, source);
     const lvl = LEVELS.find(l => l.id === level)!;
-    const slug = level === "rated" && ratedScope === "down" ? "dislikes" : lvl.slug;
-    const fileName = `${slugify(agentName)}_${slug}_${format(span.from, "yyyyMMdd")}-${format(span.to, "yyyyMMdd")}.${fileFormat}`;
+    const slug = level === "rated" && ratedScope === "down" ? "dislike" : lvl.slug;
+    const fileName = `${slugify(agentName)}_${slug}_${format(range.from, "yyyyMMdd")}-${format(range.to, "yyyyMMdd")}.${fileFormat}`;
 
     const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws["!cols"] = (rows[0] as string[]).map(h => ({ wch: /Content|message|question|Reason|error/i.test(h) ? 60 : Math.max(12, h.length + 4) }));
+    ws["!cols"] = (rows[0] as string[]).map(h => ({ wch: /Nội dung|Câu hỏi|Câu trả lời|Comment|Lỗi/.test(h) ? 60 : Math.max(12, h.length + 4) }));
     if (fileFormat === "xlsx") {
       ws["!freeze"] = { xSplit: 0, ySplit: 1 };
       const wb = XLSX.utils.book_new();
@@ -206,16 +236,17 @@ export function ExportHistoryDialog({
       action: "exported",
       resourceType: "agent",
       resourceId: agentId,
-      resourceName: agentName,
+      resourceName: source === "external" ? `${agentName} (External Agent)` : agentName,
       detail: [
-        level === "rated" && ratedScope === "down" ? "Chỉ tin nhắn bị dislike" : LEVEL_VI[level],
+        level === "rated" && ratedScope === "down" ? "Chỉ tin nhắn bị dislike" : lvl.title,
         `${rowCount} dòng`,
-        filterChips.length ? `Bộ lọc: ${filterChips.join(", ")}` : "Không lọc",
-        mask ? "Đã ẩn tên và email" : null,
-      ].filter(Boolean).join(" · "),
+        `Bộ lọc: ${filterChips.join(", ")}`,
+        fileFormat === "xlsx" ? "Excel" : "CSV",
+        mask ? "Đã ẩn tên và email" : "Có tên và email",
+      ].join(" · "),
     });
 
-    toast.success(`Exported ${rowCount} ${rowCount === 1 ? "row" : "rows"} to ${fileName}`);
+    toast.success(`Đã xuất ${rowCount} dòng vào ${fileName}`);
     onOpenChange(false);
   };
 
@@ -223,25 +254,30 @@ export function ExportHistoryDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Export conversations</DialogTitle>
-          <DialogDescription>Exports exactly the {conversations.length} {conversations.length === 1 ? "conversation" : "conversations"} in your current view.</DialogDescription>
+          <DialogTitle>Xuất dữ liệu hội thoại</DialogTitle>
+          <DialogDescription>Xuất đúng {conversations.length} cuộc trò chuyện đang hiển thị theo bộ lọc.</DialogDescription>
         </DialogHeader>
 
         {/* What's included */}
-        {filterChips.length > 0 ? (
+        {filterChips.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {filterChips.map(f => <span key={f} className="chip chip-muted !h-6 !text-xs">{f}</span>)}
           </div>
-        ) : (
-          <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning-soft px-3 py-2 text-xs text-[hsl(var(--warning-strong))]">
+        )}
+        {overLimit && (
+          <div role="alert" className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning-soft px-3 py-2 text-xs text-[hsl(var(--warning-strong))]">
             <AlertTriangle size={14} className="shrink-0 mt-px" aria-hidden />
-            No filters applied — this exports every conversation for this agent.
+            <span>
+              {days === null
+                ? "Mỗi lần xuất tối đa 90 ngày - Chọn khoảng thời gian ở bộ lọc Thời gian rồi xuất lại."
+                : `Khoảng đã chọn dài ${days} ngày - Mỗi lần xuất tối đa 90 ngày, hãy thu hẹp bộ lọc Thời gian.`}
+            </span>
           </div>
         )}
 
         {/* Level */}
         <fieldset className="space-y-2">
-          <legend className="text-sm font-medium mb-2">What to export</legend>
+          <legend className="text-sm font-medium mb-2">Nội dung xuất</legend>
           {LEVELS.map(l => {
             const n = counts[l.id];
             const active = level === l.id;
@@ -264,14 +300,14 @@ export function ExportHistoryDialog({
                 <span className="flex-1 min-w-0">
                   <span className="flex items-center justify-between gap-2">
                     <span className="text-sm font-medium">{l.title}</span>
-                    <span className="text-xs text-muted-foreground tabular-nums shrink-0">{n} {n === 1 ? "row" : "rows"}</span>
+                    <span className="text-xs text-muted-foreground tabular-nums shrink-0">{n} dòng</span>
                   </span>
-                  <span className="block text-xs text-muted-foreground mt-0.5 leading-relaxed">{l.desc}</span>
+                  <span className="block text-xs text-muted-foreground mt-0.5 leading-relaxed">{l.desc[source]}</span>
                   {l.id === "rated" && active && (likeCount + dislikeCount > 0) && (
-                    <span role="radiogroup" aria-label="Which ratings" className="mt-2 inline-flex items-center gap-1 bg-surface rounded-lg p-0.5 border border-border">
+                    <span role="radiogroup" aria-label="Loại đánh giá" className="mt-2 inline-flex items-center gap-1 bg-surface rounded-lg p-0.5 border border-border">
                       {([
-                        { id: "all", label: `Likes and dislikes (${likeCount + dislikeCount})` },
-                        { id: "down", label: `Dislikes only (${dislikeCount})` },
+                        { id: "all", label: `Like và dislike (${likeCount + dislikeCount})` },
+                        { id: "down", label: `Chỉ dislike (${dislikeCount})` },
                       ] as const).map(o => (
                         <button
                           key={o.id}
@@ -298,7 +334,7 @@ export function ExportHistoryDialog({
         {/* Format + privacy */}
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
           <fieldset className="flex items-center gap-1 bg-surface-muted rounded-lg p-0.5 border border-border">
-            <legend className="sr-only">File format</legend>
+            <legend className="sr-only">Định dạng file</legend>
             {([
               { id: "xlsx", label: "Excel (.xlsx)" },
               { id: "csv", label: "CSV" },
@@ -317,35 +353,35 @@ export function ExportHistoryDialog({
           </fieldset>
           <label className="flex items-center gap-2 text-sm cursor-pointer">
             <input type="checkbox" checked={mask} onChange={e => setMask(e.target.checked)} className="h-4 w-4 accent-[hsl(var(--primary))]" />
-            Hide names and emails
+            Ẩn tên và email
           </label>
         </div>
 
-        {rowCount === 0 && (
+        {!overLimit && rowCount === 0 && (
           <p className="text-xs text-muted-foreground">
             {level === "rated"
               ? ratedScope === "down" && likeCount > 0
-                ? "No disliked messages in these conversations. Switch to Likes and dislikes to export the liked ones."
-                : "No one has liked or disliked a message in these conversations yet."
-              : "Nothing to export with these filters."}
+                ? "Không có tin nhắn bị dislike. Chọn Like và dislike để xuất các tin nhắn được like."
+                : "Chưa có tin nhắn nào được like hoặc dislike trong các cuộc trò chuyện này."
+              : "Không có dữ liệu để xuất với bộ lọc này."}
           </p>
         )}
 
         <DialogFooter className="items-center sm:justify-between gap-3">
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <ShieldCheck size={13} aria-hidden /> Recorded in the Audit log
+            <ShieldCheck size={13} aria-hidden /> Được ghi vào Audit log
           </span>
           <div className="flex gap-2">
             <button type="button" onClick={() => onOpenChange(false)} className="h-9 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm transition-base focus-ring">
-              Cancel
+              Hủy
             </button>
             <button
               type="button"
               onClick={doExport}
-              disabled={rowCount === 0}
+              disabled={!canSubmit}
               className="h-9 px-3 rounded-lg bg-primary text-primary-foreground hover:bg-primary-glow text-sm font-medium flex items-center gap-1.5 transition-base disabled:opacity-50 disabled:cursor-not-allowed focus-ring"
             >
-              <Download size={14} aria-hidden /> Export {rowCount} {rowCount === 1 ? "row" : "rows"}
+              <Download size={14} aria-hidden /> Xuất {rowCount} dòng
             </button>
           </div>
         </DialogFooter>

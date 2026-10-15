@@ -72,8 +72,8 @@ export interface ConversationMessage {
   content: string;
   at: number; // epoch ms
   feedback?: "up" | "down"; // only ever set on role: "agent"
-  /** The reason a user typed when rating this message — users rate individual agent bubbles,
-   * and a dislike usually comes with one. Exported in History → Export. */
+  /** The comment a user typed when rating this message - users rate individual agent bubbles,
+   * and can leave a comment on a like as well as a dislike. Exported in History → Export. */
   feedbackComment?: string;
   /** Every tool/connector call this message's production involved, in order. Usually 0 or 1 —
    * an array (not a single optional call) because a real run can retry the same tool more than
@@ -724,6 +724,7 @@ function hrSeed(now: number): Omit<ConversationRecord, "agentId">[] {
           role: "agent",
           content: "Welcome aboard! Let me pull up your onboarding checklist.",
           feedback: "up",
+          feedbackComment: "Rõ ràng, đúng thứ mình cần ngày đầu.",
           toolCalls: [{
             name: "get_onboarding_checklist",
             connector: "BambooHR",
@@ -840,6 +841,7 @@ function hrSeed(now: number): Omit<ConversationRecord, "agentId">[] {
           role: "agent",
           content: "Done - Your leave for next-next Wednesday to Friday is submitted and waiting for your manager's approval.",
           feedback: "up",
+          feedbackComment: "Đặt nhanh, không phải vào HRM.",
           demoLatencyMs: 5400,
         },
       ]),

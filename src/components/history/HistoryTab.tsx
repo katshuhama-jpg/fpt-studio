@@ -1,4 +1,3 @@
-import { useAgentAccessLevel } from "@/components/configure/agentShareStore";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Search, ChevronLeft, ChevronRight, Waypoints, Clock, Zap, ThumbsUp, ThumbsDown, Download, X } from "lucide-react";
@@ -11,6 +10,7 @@ import { TimeRangeFilter, TIME_PRESETS, type TimeFilter } from "./TimeRangeFilte
 import { ChannelFilterDropdown } from "./ChannelFilterDropdown";
 import { FeedbackFilterDropdown, FEEDBACK_FILTERS, matchesFeedback, type FeedbackFilter } from "./FeedbackFilterDropdown";
 import { ExportHistoryDialog } from "./ExportHistoryDialog";
+import { getAgent } from "@/components/configure/agentStore";
 import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 
 // Above these, Latency / First Token are called out red — same red/green treatment LangSmith's
@@ -89,9 +89,9 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
   const [exportOpen, setExportOpen] = useState(false);
   const [page, setPage] = useState(1);
   const { can } = useMyPermissions();
-  // "Chỉ xem" / "Chỉnh sửa" on this Agent includes exporting its history, whatever the Role says.
-  const shareLevel = useAgentAccessLevel(agentId);
-  const canExport = can("agents.export") || shareLevel === "view" || shareLevel === "edit";
+  // Only a Space Admin (a Role holding "Export conversation data", always Space-wide) exports.
+  // Sharing an Agent never grants it. Without it the Export button isn't shown at all.
+  const canExport = can("agents.export");
   const PAGE_SIZE = 8;
 
   const allConversations = useMemo(() => historyStore.list(agentId), [agentId]);
@@ -144,8 +144,8 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
   // Active filters in words — shown above the table and restated in the Export dialog so the
   // file always matches what the Builder thinks they're exporting.
   const filterChips = [
-    query.trim() ? `Search: "${query.trim()}"` : null,
-    channelFilter !== "all" ? `Channel: ${CHANNEL_META[channelFilter as keyof typeof CHANNEL_META]?.label ?? channelFilter}` : null,
+    query.trim() ? `Từ khoá: "${query.trim()}"` : null,
+    channelFilter !== "all" ? `Kênh: ${CHANNEL_META[channelFilter as keyof typeof CHANNEL_META]?.label ?? channelFilter}` : null,
     timeFilter === "custom" && customRange?.from && customRange?.to
       ? `${format(customRange.from, "dd/MM/yyyy")} → ${format(customRange.to, "dd/MM/yyyy")}`
       : timeFilter !== "all" ? TIME_PRESETS.find(t => t.id === timeFilter)?.name ?? null : null,
@@ -164,14 +164,32 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
   return (
     <div className="p-8 w-full animate-fade-up">
       <div className="mb-5">
-        <h2 className="font-display text-xl font-semibold">History</h2>
-        <p className="text-xs text-muted-foreground mt-0.5">See past conversations between this agent and its users.</p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="font-display text-xl font-semibold">Lịch sử hội thoại</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Xem lại các cuộc trò chuyện giữa Agent này và người dùng.</p>
+          </div>
+          {/* Same Export button as External Agent → History. Space Admin only - hidden otherwise. */}
+          {canExport && (
+            <span title={visibleConversations.length === 0 ? "Không có cuộc trò chuyện nào để xuất" : undefined}>
+              <button
+                type="button"
+                onClick={() => setExportOpen(true)}
+                disabled={visibleConversations.length === 0}
+                className="h-9 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base disabled:opacity-50 disabled:cursor-not-allowed shrink-0 focus-ring"
+              >
+                <Download size={14} aria-hidden />
+                Xuất dữ liệu
+              </button>
+            </span>
+          )}
+        </div>
         <div className="relative mt-4">
           <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Search by content, sender name, conversation ID, or message ID"
+            placeholder="Tìm theo nội dung, tên người gửi, ID cuộc trò chuyện hoặc ID tin nhắn"
             className="h-9 w-full pl-8 pr-3 rounded-lg border border-border bg-surface text-sm outline-none focus:border-primary transition-base"
           />
         </div>
@@ -184,31 +202,18 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
             onApplyCustom={range => { setCustomRange(range); setTimeFilter("custom"); }}
           />
           <FeedbackFilterDropdown value={feedbackFilter} onChange={setFeedbackFilter} />
-          <span className="flex-1" />
-          {/* Same Export button as External Agent → History, so both history screens match. */}
-          <span title={!canExport ? "You don't have permission to export conversations. Ask an Admin to grant \"Export conversation data\"." : visibleConversations.length === 0 ? "No conversations to export" : undefined}>
-            <button
-              type="button"
-              onClick={() => setExportOpen(true)}
-              disabled={!canExport || visibleConversations.length === 0}
-              className="h-9 px-3 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium flex items-center gap-1.5 transition-base disabled:opacity-50 disabled:cursor-not-allowed shrink-0 focus-ring"
-            >
-              <Download size={14} aria-hidden />
-              Export
-            </button>
-          </span>
         </div>
         {hasAnyConversations && (
           <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground flex-wrap" aria-live="polite">
             <span className="tabular-nums">
-              {visibleConversations.length} of {allConversations.length} {allConversations.length === 1 ? "conversation" : "conversations"}
+              {visibleConversations.length}/{allConversations.length} cuộc trò chuyện
             </span>
             {filterChips.length > 0 && (
               <>
                 <span aria-hidden>·</span>
                 {filterChips.map(f => <span key={f} className="chip chip-muted !h-5 !text-[11px]">{f}</span>)}
                 <button type="button" onClick={clearFilters} className="inline-flex items-center gap-0.5 text-primary hover:underline rounded-sm focus-ring">
-                  <X size={12} aria-hidden /> Clear filters
+                  <X size={12} aria-hidden /> Xoá bộ lọc
                 </button>
               </>
             )}
@@ -220,6 +225,7 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
         open={exportOpen}
         onOpenChange={setExportOpen}
         agentId={agentId}
+        agentName={getAgent(agentId).name}
         conversations={visibleConversations}
         filterChips={filterChips}
         range={timeBounds(timeFilter)}
@@ -228,23 +234,23 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
 
       {!hasAnyConversations ? (
         <div className="rounded-2xl border border-dashed border-border bg-gradient-soft p-12 text-center">
-          <h3 className="font-display text-lg font-semibold mb-1.5">No conversations yet</h3>
+          <h3 className="font-display text-lg font-semibold mb-1.5">Chưa có cuộc trò chuyện nào</h3>
           <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            Once people start chatting with this agent, their conversations will show up here.
+            Khi người dùng bắt đầu trò chuyện với Agent này, các cuộc trò chuyện sẽ hiện ở đây.
           </p>
         </div>
       ) : visibleConversations.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border bg-surface/50 p-10 text-center">
-          <p className="text-sm text-muted-foreground">No conversations match your filters. Try a different channel, time range, feedback, or search term.</p>
-          <button type="button" onClick={clearFilters} className="mt-3 text-sm text-primary hover:underline rounded-sm focus-ring">Clear filters</button>
+          <p className="text-sm text-muted-foreground">Không có cuộc trò chuyện nào khớp bộ lọc. Thử đổi kênh, thời gian, phản hồi hoặc từ khoá.</p>
+          <button type="button" onClick={clearFilters} className="mt-3 text-sm text-primary hover:underline rounded-sm focus-ring">Xoá bộ lọc</button>
         </div>
       ) : (
         <>
           <div className="rounded-xl border border-border overflow-x-auto">
             <div className="grid grid-cols-[60px,100px,130px,130px,170px,1fr,1fr,140px,90px,90px,70px,160px,50px] gap-5 px-6 py-2.5 bg-surface-muted section-eyebrow min-w-[1830px]">
-              <div>Turns</div><div>Feedback</div><div>First Start Time</div><div>End time</div><div>Conversation ID</div>
-              <div>First Input</div><div>Last Output</div><div>Channel</div>
-              <div>Latency</div><div>First Token</div><div>Tokens</div><div>Last Error</div>
+              <div>Lượt</div><div>Phản hồi</div><div>Bắt đầu</div><div>Kết thúc</div><div>ID cuộc trò chuyện</div>
+              <div>Câu hỏi đầu</div><div>Trả lời cuối</div><div>Kênh</div>
+              <div>Độ trễ</div><div>Token đầu</div><div>Tokens</div><div>Lỗi gần nhất</div>
               <div className="text-center">Trace</div>
             </div>
             <div className="divide-y divide-border min-w-[1830px]">
@@ -262,13 +268,13 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
                   <button
                     type="button"
                     onClick={() => selectConversation(c.id)}
-                    aria-label={`View conversation ${c.id}`}
+                    aria-label={`Xem cuộc trò chuyện ${c.id}`}
                     className="absolute inset-0 text-left focus-ring rounded-md"
                   />
                   <div className="relative text-sm tabular-nums pointer-events-none">{stats.turns}</div>
                   <div
                     className="relative flex items-center gap-2.5 text-sm tabular-nums pointer-events-none"
-                    aria-label={`${stats.feedbackUp} ${stats.feedbackUp === 1 ? "like" : "likes"}, ${stats.feedbackDown} ${stats.feedbackDown === 1 ? "dislike" : "dislikes"}`}
+                    aria-label={`${stats.feedbackUp} like, ${stats.feedbackDown} dislike`}
                   >
                     {stats.feedbackUp + stats.feedbackDown === 0 ? (
                       <span className="text-muted-foreground">-</span>
@@ -306,8 +312,8 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
                     <button
                       type="button"
                       onClick={e => { e.stopPropagation(); navigate(`/agents/${agentId}/trace/${c.id}`); }}
-                      title="View trace"
-                      aria-label={`View trace for conversation ${c.id}`}
+                      title="Xem trace"
+                      aria-label={`Xem trace của cuộc trò chuyện ${c.id}`}
                       className="h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-muted hover:text-primary transition-base focus-ring"
                     >
                       <Waypoints size={15} />
@@ -321,14 +327,14 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
 
           {totalPages > 1 && (
             <div className="flex items-center justify-between mt-3">
-              <span className="text-xs text-muted-foreground">Page {currentPage}/{totalPages}</span>
+              <span className="text-xs text-muted-foreground">Trang {currentPage}/{totalPages}</span>
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
                   className="h-8 w-8 flex items-center justify-center rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base disabled:opacity-40 disabled:cursor-not-allowed"
-                  aria-label="Previous page"
+                  aria-label="Trang trước"
                 >
                   <ChevronLeft size={14} />
                 </button>
@@ -337,7 +343,7 @@ export default function HistoryTab({ agentId }: { agentId: string }) {
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
                   className="h-8 w-8 flex items-center justify-center rounded-lg border border-border bg-surface hover:bg-surface-muted transition-base disabled:opacity-40 disabled:cursor-not-allowed"
-                  aria-label="Next page"
+                  aria-label="Trang sau"
                 >
                   <ChevronRight size={14} />
                 </button>

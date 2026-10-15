@@ -6,16 +6,16 @@ import type { ConversationRecord } from "./historyStore";
 export type FeedbackFilter = "all" | "down" | "up" | "any" | "none";
 
 export const FEEDBACK_FILTERS: { id: FeedbackFilter; label: string; icon?: LucideIcon }[] = [
-  { id: "all", label: "All feedback" },
-  { id: "down", label: "Has dislike", icon: ThumbsDown },
-  { id: "up", label: "Has like", icon: ThumbsUp },
-  { id: "any", label: "Has any feedback", icon: MessagesSquare },
-  { id: "none", label: "No feedback", icon: MessageSquareOff },
+  { id: "all", label: "Tất cả phản hồi" },
+  { id: "down", label: "Có dislike", icon: ThumbsDown },
+  { id: "up", label: "Có like", icon: ThumbsUp },
+  { id: "any", label: "Có phản hồi", icon: MessagesSquare },
+  { id: "none", label: "Chưa có phản hồi", icon: MessageSquareOff },
 ];
 
 /** Users rate individual agent messages (bubbles), so a conversation matches "Has dislike" as
  * soon as any one of its agent messages was disliked. */
-export function matchesFeedback(c: ConversationRecord, f: FeedbackFilter): boolean {
+export function matchesFeedback(c: { messages: { role: string; feedback?: "up" | "down" }[] }, f: FeedbackFilter): boolean {
   if (f === "all") return true;
   const rated = c.messages.filter(m => m.role === "agent" && m.feedback);
   if (f === "none") return rated.length === 0;
@@ -35,7 +35,7 @@ export function FeedbackFilterDropdown({ value, onChange }: { value: FeedbackFil
         type="button"
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-label={`Feedback filter: ${selected.label}`}
+        aria-label={`Lọc phản hồi: ${selected.label}`}
         onClick={() => setOpen(v => !v)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         className={`h-9 ${FILTER_WIDTH} flex items-center gap-2 px-3 rounded-lg border border-border bg-surface text-sm hover:bg-surface-muted transition-base focus-ring`}

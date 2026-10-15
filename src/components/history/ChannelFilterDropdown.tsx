@@ -20,7 +20,7 @@ export function ChannelFilterDropdown({ value, onChange }: { value: string; onCh
         className={`h-9 ${FILTER_WIDTH} flex items-center gap-2 px-3 rounded-lg border border-border bg-surface text-sm hover:bg-surface-muted transition-base`}
       >
         {selected && <ChannelLogo channel={selected.id} size={18} />}
-        <span className="flex-1 min-w-0 truncate text-left">{selected ? selected.label : "All channels"}</span>
+        <span className="flex-1 min-w-0 truncate text-left">{selected ? selected.label : "Tất cả kênh"}</span>
         <ChevronDown size={12} className={`text-muted-foreground shrink-0 transition-base ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
@@ -30,7 +30,7 @@ export function ChannelFilterDropdown({ value, onChange }: { value: string; onCh
             onClick={() => { onChange("all"); setOpen(false); }}
             className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-base hover:bg-surface-muted ${value === "all" ? "text-primary font-medium bg-primary-soft" : "text-foreground"}`}
           >
-            All channels
+            Tất cả kênh
           </button>
           {options.map(o => (
             <button

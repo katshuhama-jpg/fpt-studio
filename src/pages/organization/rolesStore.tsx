@@ -12,6 +12,9 @@ export type ScopeMap = Record<string, ScopeValue>;
 /** True for View/Publish/Build/Pause/Delete on one of the 5 publishable resource groups —
  * false for Create (always personal-only) and for every Governance/Org-management permission. */
 export function isScopablePermission(permId: string): boolean {
+  // Exporting conversation data is Space-wide only (Space Admin) - it can't be limited to own
+  // or shared Agents, so the Role editor never offers a Scope for it.
+  if (permId === "agents.export") return false;
   const groupId = permId.split(".")[0];
   return (SCOPABLE_GROUP_IDS as readonly string[]).includes(groupId) && !permId.endsWith(".create");
 }
@@ -39,7 +42,7 @@ const ADMIN_IDS = new Set(ALL_PERMISSION_IDS);
  * it creates them inside an Agent (Chỉ Agent này) and shares them up. In the libraries it only
  * sees and edits what was shared with it, so the 4 resource groups carry no "create". */
 const BUILDER_IDS = new Set([
-  "agents.create", "agents.publish", "agents.manage", "agents.pause", "agents.delete", "agents.history", "agents.export",
+  "agents.create", "agents.publish", "agents.manage", "agents.pause", "agents.delete", "agents.history",
   "knowledge.view", "knowledge.publish", "knowledge.manage", "knowledge.pause", "knowledge.delete",
   "skills.view", "skills.publish", "skills.manage", "skills.pause", "skills.delete",
   "guardrails.view", "guardrails.publish", "guardrails.manage", "guardrails.pause", "guardrails.delete",
@@ -59,7 +62,7 @@ const VIEWER_IDS = new Set([
 const BUILDER_SCOPE: ScopeMap = {
   ...defaultScope(),
   "knowledge.view": "own_shared", "skills.view": "own_shared", "guardrails.view": "own_shared", "connectors.view": "own_shared",
-  "agents.publish": "own_shared", "agents.manage": "own_shared", "agents.pause": "own_shared", "agents.delete": "own_shared", "agents.history": "own_shared", "agents.export": "own_shared",
+  "agents.publish": "own_shared", "agents.manage": "own_shared", "agents.pause": "own_shared", "agents.delete": "own_shared", "agents.history": "own_shared",
   "knowledge.publish": "own_shared", "knowledge.manage": "own_shared", "knowledge.pause": "own_shared", "knowledge.delete": "own_shared",
   "skills.publish": "own_shared", "skills.manage": "own_shared", "skills.pause": "own_shared", "skills.delete": "own_shared",
   "guardrails.publish": "own_shared", "guardrails.manage": "own_shared", "guardrails.pause": "own_shared", "guardrails.delete": "own_shared",

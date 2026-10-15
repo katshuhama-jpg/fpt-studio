@@ -55,7 +55,7 @@ export const featureGroups: FeatureGroup[] = [
     // isn't meaningfully less sensitive than the list it's opened from.
     if (id === "agents") {
       permissions.push({ id: "agents.history", name: "View agent history", desc: "See an agent's past conversations in Insights → History, including each conversation's full message content and its technical Trace (latency, tokens, tool-call payloads, errors)." });
-      permissions.push({ id: "agents.export", name: "Export conversation data", desc: "Download an agent's conversation history and user feedback (likes, dislikes, reasons) as Excel or CSV from Insights → History. Every export is recorded in the Audit log." });
+      permissions.push({ id: "agents.export", name: "Export conversation data", desc: "Space Admin only - Download the conversation history and user feedback (likes, dislikes, comments) of any agent or External Agent in the Space as Excel or CSV, up to 90 days per export. Always applies to the whole Space. Every export is recorded in the Audit log." });
     }
     return { id, label, icon, section: "console" as Section, permissions };
   }),

@@ -10,6 +10,10 @@ export interface ConversationMessage {
   role: "user" | "agent";
   content: string;
   at: number;
+  /** Like/dislike the user gave this agent reply, if any - External Agents collect feedback the
+   * same way as internal Agents (per agent message, optional comment on both like and dislike). */
+  feedback?: "up" | "down";
+  feedbackComment?: string;
 }
 
 export interface ExternalConversation {
@@ -46,7 +50,7 @@ function pseudoUlid(seed: string): string {
   return out;
 }
 
-interface Turn { user: string; agent: string; }
+interface Turn { user: string; agent: string; feedback?: "up" | "down"; comment?: string }
 
 /** Spaces messages 2 minutes apart, ending at `endedAt`. */
 function buildMessages(seedKey: string, endedAt: number, turns: Turn[]): ConversationMessage[] {
@@ -55,7 +59,7 @@ function buildMessages(seedKey: string, endedAt: number, turns: Turn[]): Convers
   turns.forEach((t, i) => {
     const at = startAt + i * 2 * MIN;
     out.push({ id: pseudoUlid(`${seedKey}-u${i + 1}`), role: "user", content: t.user, at });
-    out.push({ id: pseudoUlid(`${seedKey}-a${i + 1}`), role: "agent", content: t.agent, at: at + 30_000 });
+    out.push({ id: pseudoUlid(`${seedKey}-a${i + 1}`), role: "agent", content: t.agent, at: at + 30_000, feedback: t.feedback, feedbackComment: t.comment });
   });
   return out;
 }
@@ -112,15 +116,15 @@ function flightAssistantSpecs(now: number): SeedSpec[] {
     {
       key: "EXT1-CV-01", channel: "web", username: "Nguyen Van An", email: "nguyen.van.an@gmail.com", endedAt: t[0],
       turns: [
-        { user: "What's the status of my booking VN5521?", agent: "Booking VN5521 is confirmed - Hanoi to Da Nang, departing tomorrow at 09:15." },
+        { user: "What's the status of my booking VN5521?", agent: "Booking VN5521 is confirmed - Hanoi to Da Nang, departing tomorrow at 09:15.", feedback: "up" },
       ],
     },
     {
       key: "EXT1-CV-02", channel: "zalo", username: "Tran Thi Bich", email: "tran.thi.bich@gmail.com", endedAt: t[1],
       turns: [
-        { user: "I need a flight from Ho Chi Minh City to Hanoi next Wednesday, one way.", agent: "I found three options - The cheapest is Vietjet at 07:40 for 1,150,000 VND. Would you like me to book it?" },
+        { user: "I need a flight from Ho Chi Minh City to Hanoi next Wednesday, one way.", agent: "I found three options - The cheapest is Vietjet at 07:40 for 1,150,000 VND. Would you like me to book it?", feedback: "down", comment: "Chưa hỏi mình muốn bay giờ nào đã gợi ý chuyến sáng sớm." },
         { user: "Is there anything in the afternoon instead?", agent: "Yes, Vietnam Airlines has a 14:20 departure for 1,320,000 VND." },
-        { user: "Book the afternoon one please.", agent: "Booked - Confirmation code VN7734, e-ticket sent to your email." },
+        { user: "Book the afternoon one please.", agent: "Booked - Confirmation code VN7734, e-ticket sent to your email.", feedback: "up", comment: "Nhanh gọn, có vé qua email luôn." },
         { user: "Perfect, thanks.", agent: "You're welcome - Have a great trip!" },
       ],
     },
@@ -134,7 +138,7 @@ function flightAssistantSpecs(now: number): SeedSpec[] {
         { user: "That works, book it.", agent: "Booked - Confirmation code VN5540. Next, Hanoi to Da Nang on the 8th - I have a 09:00 flight for 980,000 VND." },
         { user: "Book that one too.", agent: "Done - Confirmation code VN5541. Last leg, Da Nang to Ho Chi Minh City on the 11th - There's a 16:30 departure for 1,100,000 VND." },
         { user: "Yes, book it as well.", agent: "All three legs are booked - VN5540, VN5541, VN5542." },
-        { user: "Can you also select window seats for all three flights?", agent: "Sure - I've assigned window seats on each leg where available; the Da Nang to Ho Chi Minh City flight only had aisle left." },
+        { user: "Can you also select window seats for all three flights?", agent: "Sure - I've assigned window seats on each leg where available; the Da Nang to Ho Chi Minh City flight only had aisle left.", feedback: "down", comment: "Nên hỏi trước khi tự đổi sang ghế lối đi." },
         { user: "That's fine, aisle works for that one.", agent: "Understood, keeping the aisle seat for the final leg." },
         { user: "What's the baggage allowance across all three?", agent: "Each leg includes 23kg checked baggage, since they're separate domestic fares." },
         { user: "I'll be carrying camera equipment, can I add extra just for the Hanoi to Da Nang leg?", agent: "Yes, I can add 15kg extra to that leg for 280,000 VND." },

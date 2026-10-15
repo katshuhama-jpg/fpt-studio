@@ -65,7 +65,7 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
   const hidden = params.get("panel") === "hidden";
 
   return (
-    <CollapsibleHistoryPanel hidden={hidden} width={476} isEmpty={!record} emptyHint="Click a conversation in the list to view the full chat.">
+    <CollapsibleHistoryPanel hidden={hidden} width={476} isEmpty={!record} emptyHint="Chọn một cuộc trò chuyện trong danh sách để xem toàn bộ nội dung.">
       {record && (
         <>
             {/* Conversation header — minimal, matches the real agents.fpt.ai chat-history panel:
@@ -74,14 +74,14 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
             <div className="px-4 py-3.5 border-b border-border shrink-0">
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold leading-tight text-foreground truncate">Conversation details</div>
+                  <div className="text-sm font-semibold leading-tight text-foreground truncate">Chi tiết cuộc trò chuyện</div>
                   <div className="flex items-center gap-1 mt-1.5 min-w-0">
                     <span className="text-[10px] text-muted-foreground truncate">{record.id}</span>
                     <button
                       type="button"
                       onClick={copyId}
-                      aria-label="Copy conversation ID"
-                      title="Copy conversation ID"
+                      aria-label="Sao chép ID cuộc trò chuyện"
+                      title="Sao chép ID cuộc trò chuyện"
                       className="h-5 w-5 shrink-0 flex items-center justify-center rounded text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base"
                     >
                       {copied ? <Check size={11} className="text-success" /> : <Copy size={11} />}
@@ -94,12 +94,12 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
                     onClick={() => navigate(`/agents/${agentId}/trace/${record.id}`)}
                     className="h-7 px-2 flex items-center gap-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:bg-surface-muted hover:text-primary transition-base"
                   >
-                    <Waypoints size={13} /> View trace
+                    <Waypoints size={13} /> Xem trace
                   </button>
                   <button
                     type="button"
                     onClick={closePanel}
-                    aria-label="Close conversation"
+                    aria-label="Đóng cuộc trò chuyện"
                     className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base"
                   >
                     <X size={16} />
@@ -110,19 +110,19 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
 
             {rated.length > 0 && (
               <div className="px-4 py-2 border-b border-border shrink-0 flex items-center justify-between gap-2 bg-surface-muted/40">
-                <div className="flex items-center gap-3 text-xs tabular-nums" aria-label={`${likes} liked, ${dislikes} disliked messages`}>
+                <div className="flex items-center gap-3 text-xs tabular-nums" aria-label={`${likes} tin nhắn được like, ${dislikes} tin nhắn bị dislike`}>
                   <span className={`inline-flex items-center gap-1 ${likes ? "text-[hsl(var(--success-strong))]" : "text-muted-foreground"}`}><ThumbsUp size={12} aria-hidden />{likes}</span>
                   <span className={`inline-flex items-center gap-1 ${dislikes ? "text-destructive font-medium" : "text-muted-foreground"}`}><ThumbsDown size={12} aria-hidden />{dislikes}</span>
                   <span className="text-muted-foreground">
-                    {ratedIdx >= 0 ? `Rated message ${ratedIdx + 1} of ${rated.length}` : `${rated.length} rated ${rated.length === 1 ? "message" : "messages"}`}
+                    {ratedIdx >= 0 ? `Tin nhắn được đánh giá ${ratedIdx + 1}/${rated.length}` : `${rated.length} tin nhắn được đánh giá`}
                   </span>
                 </div>
                 <div className="flex items-center gap-0.5">
                   <button
                     type="button"
                     onClick={() => goRated(-1)}
-                    aria-label="Previous rated message"
-                    title="Previous rated message"
+                    aria-label="Tin nhắn được đánh giá trước"
+                    title="Tin nhắn được đánh giá trước"
                     className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base focus-ring"
                   >
                     <ChevronUp size={15} />
@@ -130,8 +130,8 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
                   <button
                     type="button"
                     onClick={() => goRated(1)}
-                    aria-label="Next rated message"
-                    title="Next rated message"
+                    aria-label="Tin nhắn được đánh giá tiếp theo"
+                    title="Tin nhắn được đánh giá tiếp theo"
                     className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base focus-ring"
                   >
                     <ChevronDown size={15} />
@@ -183,8 +183,8 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
                         <button
                           type="button"
                           onClick={() => copyMessage(m)}
-                          title="Copy"
-                          aria-label="Copy message"
+                          title="Sao chép"
+                          aria-label="Sao chép tin nhắn"
                           className="h-6 w-6 flex items-center justify-center rounded-md text-muted-foreground hover:bg-surface-muted hover:text-foreground transition-base"
                         >
                           {copiedMessageId === m.id ? <Check size={13} className="text-success" /> : <Copy size={13} />}
@@ -200,14 +200,14 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
                             }`}
                           >
                             {m.feedback === "up" ? <ThumbsUp size={11} aria-hidden /> : <ThumbsDown size={11} aria-hidden />}
-                            {m.feedback === "up" ? "User liked this" : "User disliked this"}
+                            {m.feedback === "up" ? "Người dùng đã like" : "Người dùng đã dislike"}
                           </span>
                         )}
                       </div>
                     )}
                     {m.role === "agent" && m.feedbackComment && (
                       <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground border-l-2 border-border pl-2">
-                        <span className="sr-only">User's reason: </span>“{m.feedbackComment}”
+                        <span className="sr-only">Comment của người dùng: </span>“{m.feedbackComment}”
                       </p>
                     )}
                   </div>
@@ -218,7 +218,7 @@ export default function HistoryChatPanel({ agentId }: { agentId: string }) {
             {/* Read-only footer — same slot as PreviewPanel's input, disabled since this conversation already ended */}
             <div className="p-3 border-t border-border shrink-0">
               <div className="flex items-center gap-2 bg-surface-muted/60 rounded-xl border border-border px-3 py-2 opacity-60">
-                <span className="flex-1 text-sm text-muted-foreground">This conversation has ended</span>
+                <span className="flex-1 text-sm text-muted-foreground">Cuộc trò chuyện đã kết thúc</span>
               </div>
             </div>
           </>

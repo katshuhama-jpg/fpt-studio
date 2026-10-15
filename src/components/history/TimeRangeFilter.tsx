@@ -11,10 +11,10 @@ export const FILTER_WIDTH = "w-[225px]";
 
 export type TimeFilter = "all" | "today" | "7d" | "30d" | "custom";
 export const TIME_PRESETS: { id: TimeFilter; name: string }[] = [
-  { id: "all", name: "All time" },
-  { id: "today", name: "Today" },
-  { id: "7d", name: "Last 7 days" },
-  { id: "30d", name: "Last 30 days" },
+  { id: "all", name: "Mọi thời gian" },
+  { id: "today", name: "Hôm nay" },
+  { id: "7d", name: "7 ngày qua" },
+  { id: "30d", name: "30 ngày qua" },
 ];
 
 /** Time filter — presets, plus a Custom option that opens a two-month range calendar. */
@@ -32,7 +32,7 @@ export function TimeRangeFilter({
   const label =
     value === "custom" && customRange?.from && customRange?.to
       ? `${format(customRange.from, "dd/MM/yyyy")} → ${format(customRange.to, "dd/MM/yyyy")}`
-      : TIME_PRESETS.find(o => o.id === value)?.name ?? "All time";
+      : TIME_PRESETS.find(o => o.id === value)?.name ?? "Mọi thời gian";
 
   return (
     <Popover open={open} onOpenChange={v => { setOpen(v); if (v) setDraftRange(customRange); }}>
@@ -63,7 +63,7 @@ export function TimeRangeFilter({
             ))}
             <div className="h-px bg-border my-1" />
             <div className={`text-left px-3 py-2 rounded-lg text-sm ${value === "custom" ? "bg-primary-soft text-primary font-medium" : "text-muted-foreground"}`}>
-              Custom range
+              Tùy chọn khoảng ngày
             </div>
           </div>
           <div className="p-3">
@@ -76,9 +76,9 @@ export function TimeRangeFilter({
             />
             <div className="flex items-center justify-between gap-3 px-1 pb-1">
               <div className="text-xs text-muted-foreground whitespace-nowrap">
-                {draftRange?.from ? format(draftRange.from, "dd/MM/yyyy") : "Start date"}
+                {draftRange?.from ? format(draftRange.from, "dd/MM/yyyy") : "Từ ngày"}
                 {" → "}
-                {draftRange?.to ? format(draftRange.to, "dd/MM/yyyy") : "End date"}
+                {draftRange?.to ? format(draftRange.to, "dd/MM/yyyy") : "Đến ngày"}
               </div>
               <button
                 type="button"
@@ -86,7 +86,7 @@ export function TimeRangeFilter({
                 onClick={() => { if (draftRange?.from && draftRange?.to) { onApplyCustom(draftRange); setOpen(false); } }}
                 className="btn-primary h-8 px-3 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                Apply
+                Áp dụng
               </button>
             </div>
           </div>
