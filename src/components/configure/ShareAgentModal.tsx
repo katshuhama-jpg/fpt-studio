@@ -1,7 +1,7 @@
 import type React from "react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Building2, Check, ChevronDown, Eye, Lock, Pencil, Search, UserCog, X, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Building2, Check, ChevronDown, Eye, Lock, Pencil, Search, UserCog, X, type LucideIcon } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -229,6 +229,19 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
   const sameAsGeneral = scope === "space" ? adding.filter(m => (addLevel ?? addDefault(m.id)) === spaceLevelOf(m.id)) : [];
   const added = addedAll.filter(a => !sameAsGeneral.some(m => m.id === a.userId));
   const addBlocked = adding.length > 0 && added.length === 0;
+  const sameIds = new Set(sameAsGeneral.map(m => m.id));
+  const levelName = (m: OrgMember) => LEVEL_META[spaceLevelOf(m.id)].label;
+  /** Names who adds nothing and what happens to them - never just a count. */
+  const sameNotice = (() => {
+    const n = sameAsGeneral;
+    if (!n.length) return "";
+    if (addBlocked) return n.length === 1
+      ? `${n[0].name} đã có ${levelName(n[0])} từ quyền chung - Hãy chọn mức khác.`
+      : "Mọi người đã có quyền này từ quyền chung - Hãy chọn mức khác.";
+    return n.length === 1
+      ? `${n[0].name} đã có ${levelName(n[0])} từ quyền chung nên sẽ không được thêm. Đổi mức hoặc bỏ ${n[0].name}.`
+      : `${n.map(m => m.name).join(", ")} đã có quyền này từ quyền chung nên sẽ không được thêm. Đổi mức hoặc bỏ họ khỏi danh sách.`;
+  })();
   const addingOnlyNone = added.length > 0 && added.every(a => a.level === "none");
   /** Drive's "Send": saves the people in the add step right away, then closes. */
   const sendAdd = () => {
@@ -264,7 +277,9 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
       <div className="min-h-10 w-full rounded-lg border border-border bg-surface flex items-stretch focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-base">
       <div className={`flex-1 min-w-0 flex flex-wrap items-center gap-1.5 ${adding.length ? "px-2 py-1.5" : "pl-9 pr-3"}`}>
         {adding.map(m => (
-          <span key={m.id} className="inline-flex items-center gap-1.5 h-7 pl-1 pr-1.5 rounded-full border border-border bg-white text-xs font-medium">
+          <span key={m.id} title={sameIds.has(m.id) ? `${m.name} đã có ${levelName(m)} từ quyền chung.` : undefined}
+            className={`inline-flex items-center gap-1.5 h-7 pl-1 pr-1.5 rounded-full border bg-white text-xs font-medium ${sameIds.has(m.id) ? "border-amber-500" : "border-border"}`}>
+            {sameIds.has(m.id) && <AlertTriangle size={12} className="text-amber-600 ml-0.5" aria-label="Trùng quyền chung" />}
             <span className="w-5 h-5 rounded-full bg-primary-soft text-primary text-[10px] font-semibold flex items-center justify-center" aria-hidden>{initialsOf(m.name)}</span>
             {m.email ?? m.name}
             <button type="button" aria-label={`Bỏ ${m.name}`} onClick={() => setAdding(a => a.filter(x => x.id !== m.id))} className="text-muted-foreground hover:text-foreground"><X size={12} /></button>
@@ -340,8 +355,9 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
               </DialogHeader>
               {searchBox(addPlaceholder)}
               {sameAsGeneral.length > 0 && (
-                <p className="text-xs text-amber-700 -mt-1" role="status">
-                  {sameAsGeneral.length === 1 ? `${sameAsGeneral[0].name} đã` : `${sameAsGeneral.length} người đã`} có quyền này từ quyền chung - Hãy chọn mức khác.
+                <p className="text-xs text-amber-700 -mt-1 flex items-start gap-1.5" role="status">
+                  <AlertTriangle size={13} className="mt-0.5 shrink-0" aria-hidden />
+                  <span>{sameNotice}</span>
                 </p>
               )}
               {!addingOnlyNone && !addBlocked && (
