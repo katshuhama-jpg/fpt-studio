@@ -36,9 +36,12 @@ export default function OrgSharePicker({ tree, selection, onToggleUnit, onToggle
             </button>
           ) : <span className="w-4 shrink-0" />}
           <input
-            type="checkbox" checked={checked} disabled={ancestorSelected}
+            type="checkbox" checked={checked} disabled={ancestorSelected || (countAll(unit) === 0 && !checked)}
             onChange={() => onToggleUnit(unit)}
-            className="w-4 h-4 rounded accent-primary shrink-0"
+            // Publish keeps a fixed list of people (TOVA-6290) - a unit with nobody in it reaches no one.
+            title={countAll(unit) === 0 ? "Phòng ban chưa có thành viên nên không chọn được." : undefined}
+            aria-label={countAll(unit) === 0 ? `${unit.name} - Chưa có thành viên` : undefined}
+            className="w-4 h-4 rounded accent-primary shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
           />
           <HugeiconsIcon icon={Building02Icon} size={13} className="text-muted-foreground shrink-0" />
           <span className="text-sm font-medium flex-1 truncate">{unit.name}</span>
