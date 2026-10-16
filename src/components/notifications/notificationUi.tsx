@@ -53,7 +53,8 @@ const KIND_META: Record<NotificationKind, { icon: typeof Bell; tone: Tone; chip:
   resource_unshared: { icon: EyeOff, tone: "warning", chip: "Đã tắt chia sẻ" },
   resource_deleted: { icon: Trash2, tone: "danger", chip: "Đã xóa" },
   resource_removed: { icon: EyeOff, tone: "warning", chip: "Đã gỡ khỏi Space" },
-  agent_shared: { icon: Users, tone: "info", chip: "Được thêm" },
+  agent_shared: { icon: Users, tone: "info", chip: "Được cấp quyền" },
+  agent_access_changed: { icon: Users, tone: "info", chip: "Đổi quyền" },
 };
 
 /** "Agent của bạn" / "Agent được chia sẻ với bạn" for outcomes; nothing extra for incoming. */
@@ -71,11 +72,12 @@ function resolvedLabel(n: AppNotification): string | null {
 function contextLabel(n: AppNotification, userId: string): string | null {
   if (n.kind === "request_submitted") return resolvedLabel(n);
   if (n.kind === "resource_unshared" || n.kind === "resource_deleted" || n.kind === "resource_removed") return "Tài nguyên của bạn";
+  if (n.kind === "agent_shared" || n.kind === "agent_access_changed") return "Agent bạn được cấp quyền";
   if (!n.resourceId) return null;
   if (n.resourceId.startsWith("ext-")) return "Agent của bạn";
   const a = getAgent(n.resourceId) as { ownerId?: string; sharedWith?: string[] } | undefined;
   if (a?.ownerId === userId) return "Agent của bạn";
-  if (a?.sharedWith?.includes(userId)) return "Agent bạn được thêm vào";
+  if (a?.sharedWith?.includes(userId)) return "Agent bạn được cấp quyền";
   return "Yêu cầu bạn đã gửi";
 }
 
@@ -99,7 +101,7 @@ export function NotificationItem({ n, viewer, onOpen, compact }: { n: AppNotific
       </span>
       <span className="flex-1 min-w-0">
         <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-          <span className={`px-1.5 py-px rounded font-medium ${resolved ? "bg-surface-muted text-muted-foreground" : tone.chip}`}>{meta.chip}</span>
+          <span className={`px-1.5 py-px rounded font-medium whitespace-nowrap shrink-0 ${resolved ? "bg-surface-muted text-muted-foreground" : tone.chip}`}>{meta.chip}</span>
           {ctx && <span className="truncate">{ctx}</span>}
           <span aria-hidden>·</span>
           <span className="shrink-0">{relativeTimeVi(n.at)}</span>

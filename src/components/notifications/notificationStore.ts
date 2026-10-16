@@ -29,8 +29,10 @@ export type NotificationKind =
   | "resource_deleted"
   /** …or took it off the Space back into the Agent it came from ("Gỡ khỏi Space"). */
   | "resource_removed"
-  /** Someone shared an Agent with you in the Console (to each newly added person). */
-  | "agent_shared";
+  /** Someone gave you access to an Agent in the Console ("… đã cấp quyền <Mức> cho bạn …"). */
+  | "agent_shared"
+  /** Your own level on an Agent was raised on the Cấp quyền main screen. */
+  | "agent_access_changed";
 
 export interface AppNotification {
   id: string;

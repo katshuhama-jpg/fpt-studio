@@ -180,7 +180,7 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
       });
     }
     if (raisedIds.length) notificationStore.push({
-      ...base, recipients: raisedIds,
+      ...base, kind: "agent_access_changed", recipients: raisedIds,
       title: `${actor.name} đã thay đổi quyền của bạn trên Agent ${agent.name}`,
       segments: [[actor.name, true], [" đã thay đổi quyền của bạn trên Agent "], [agent.name, true]],
     });

@@ -407,7 +407,7 @@ export function workspaceTargetsOf(req: GovRequest): WorkspaceTarget[] {
 function seed() {
   seedPolicyAssistant();
   // After the main seed on a fresh session (its notificationStore.reset would wipe this one's bell entry).
-  if (seededOnce()) { seedPlatformRequest(); return; }
+  if (seededOnce()) { seedPlatformRequest(); seedShareNotifications(); return; }
   markSeeded();
   const t = now();
 
@@ -797,6 +797,7 @@ function seed() {
   }
   notificationStore.reset(seeded);
   seedPlatformRequest();
+  seedShareNotifications();
 }
 
 
@@ -887,6 +888,24 @@ function seedPlatformRequest() {
   });
   const n = buildNotification(r, "submitted", "m-plat-2", "Huy Le");
   if (n) notificationStore.push({ ...n, at });
+}
+
+/** Demo bell entries for Cấp quyền Agent (wiki "Cấp quyền Agent", BR-10), matching the seeded
+ * shares: Kim Chi (Viewer) was given Chỉ xem on HR Onboarding Bot by Linh Phan; Mai Hoang was
+ * given Chỉ xem on Trợ lý Release Note by Huy Le, then raised to Chỉnh sửa. Own seed flag so a
+ * session that already ran the main seed still gets them. */
+const SHARE_SEEDED_KEY = "share_seed_notifications_v1";
+function seedShareNotifications() {
+  try { if (sessionStorage.getItem(SHARE_SEEDED_KEY) === "1") return; sessionStorage.setItem(SHARE_SEEDED_KEY, "1"); } catch { return; }
+  const t = now();
+  const one = (kind: "agent_shared" | "agent_access_changed", actorId: string, actorName: string, to: string, agentId: string, agentName: string, text: string, at: number) =>
+    notificationStore.push({
+      kind, actorId, actorName, recipients: [to], href: `/agents/${agentId}`, resourceId: agentId, at,
+      title: `${actorName}${text}${agentName}`, segments: [[actorName, true], [text], [agentName, true]],
+    });
+  one("agent_shared", "m-fsoft-coo", "Linh Phan", "m-plat-7", "hr", "HR Onboarding Bot", " đã cấp quyền Chỉ xem cho bạn trên Agent ", t - 1 * DAY);
+  one("agent_shared", "m-plat-2", "Huy Le", "m-plat-1", "release-notes", "Trợ lý Release Note", " đã cấp quyền Chỉ xem cho bạn trên Agent ", t - 2 * DAY);
+  one("agent_access_changed", "m-plat-2", "Huy Le", "m-plat-1", "release-notes", "Trợ lý Release Note", " đã thay đổi quyền của bạn trên Agent ", t - 3 * HOUR);
 }
 
 /* ───────────────────────── notifications ───────────────────────── */
