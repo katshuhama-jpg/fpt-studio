@@ -233,7 +233,7 @@ function TemplateModal({ onClose }: { onClose: () => void }) {
 function AgentShareChip({ agentId }: { agentId: string }) {
   const canShare = useCanShareAgent(agentId);
   const s = agentShareStore.get(agentId);
-  const named = s.people.filter(p => p.level !== "none").length;
+  const named = s.people.filter(p => p.mode !== "none").length;
   if (!canShare || (s.general === "none" && named === 0)) return null;
   return (
     <span title="Số người được cấp quyền trên Nhân sự số này" className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary-soft text-primary text-[11px] font-medium whitespace-nowrap shrink-0">

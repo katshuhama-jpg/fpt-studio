@@ -894,7 +894,7 @@ function seedPlatformRequest() {
  * shares: Kim Chi (Viewer) was given Chỉ xem on HR Onboarding Bot by Linh Phan; Mai Hoang was
  * given Chỉ xem on Trợ lý Release Note by Huy Le, then raised to Chỉnh sửa. Own seed flag so a
  * session that already ran the main seed still gets them. */
-const SHARE_SEEDED_KEY = "share_seed_notifications_v1";
+const SHARE_SEEDED_KEY = "share_seed_notifications_v2";
 function seedShareNotifications() {
   try { if (sessionStorage.getItem(SHARE_SEEDED_KEY) === "1") return; sessionStorage.setItem(SHARE_SEEDED_KEY, "1"); } catch { return; }
   const t = now();
@@ -903,8 +903,8 @@ function seedShareNotifications() {
       kind, actorId, actorName, recipients: [to], href: `/agents/${agentId}`, resourceId: agentId, at,
       title: `${actorName}${text}${agentName}`, segments: [[actorName, true], [text], [agentName, true]],
     });
-  one("agent_shared", "m-fsoft-coo", "Linh Phan", "m-plat-7", "hr", "HR Onboarding Bot", " đã cấp quyền Chỉ xem cho bạn trên Nhân sự số ", t - 1 * DAY);
-  one("agent_shared", "m-plat-2", "Huy Le", "m-plat-1", "release-notes", "Trợ lý Release Note", " đã cấp quyền Chỉ xem cho bạn trên Nhân sự số ", t - 2 * DAY);
+  one("agent_shared", "m-fsoft-coo", "Linh Phan", "m-plat-7", "hr", "HR Onboarding Bot", " đã cấp quyền cho bạn trên Nhân sự số ", t - 1 * DAY);
+  one("agent_shared", "m-plat-2", "Huy Le", "m-plat-1", "release-notes", "Trợ lý Release Note", " đã cấp quyền cho bạn trên Nhân sự số ", t - 2 * DAY);
   one("agent_access_changed", "m-plat-2", "Huy Le", "m-plat-1", "release-notes", "Trợ lý Release Note", " đã thay đổi quyền của bạn trên Nhân sự số ", t - 3 * HOUR);
 }
 

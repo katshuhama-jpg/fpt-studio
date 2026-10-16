@@ -6,32 +6,49 @@ import { useMyPermissions } from "@/pages/organization/useMyPermissions";
 import { useRoles } from "@/pages/organization/rolesStore";
 import { DEFAULT_ROLE_ID } from "@/pages/organization/Members";
 
-/** Who works on an Agent besides its owner - separate from Publish (who chats with it).
+/** Who works on a Nhân sự số besides its owner - separate from Publish (who chats with it).
  *
- * Each added person gets a level:
- *  - "role" (Thêm nhanh): follows their Role - "Build agents" → edit, otherwise view.
- *  - "view" / "edit" (Thêm nâng cao): picked by hand and overrides the Role, both ways.
- * "Cả Space" opens the Agent to the whole Space at one level; a person's own level ("Quyền riêng")
- * always replaces it, higher or lower ("none" leaves them out).
+ * Confirmed with Tyler 16/10: every person (and the Cả Space general access) is either
+ *  - "role"   (Theo Vai trò): the permissions their Role grants on Agents, following the Role live;
+ *  - "custom" (Tuỳ chỉnh):    a fixed set ticked by hand, may go beyond the Role;
+ *  - "none"   (Gỡ quyền under Cả Space): left out of the Space-wide access.
+ * Ticking a set equal to the Role turns back into "role"; any difference makes it "custom".
+ * A person's own entry ("Quyền riêng") always replaces the Cả Space access.
  *
- * The state is mirrored onto the AgentRecord (sharedWith / sharedAll / shareLevels) so the
- * existing Scope checks (scopeAccess.isOwnedOrShared) keep working, and kept in sessionStorage so a
- * "Xem với vai trò" persona switch (which reloads the app) still sees it. */
-export type AgentAccessLevel = "role" | "view" | "edit" | "none";
-export type AgentGeneralAccess = "none" | "space";
-export interface AgentMember { userId: string; level: AgentAccessLevel }
-export interface AgentShare { general: AgentGeneralAccess; generalLevel: AgentAccessLevel; people: AgentMember[] }
+ * Mirrored onto the AgentRecord (sharedWith / sharedAll / sharedExcept) so Scope checks
+ * (scopeAccess.isOwnedOrShared) keep working; kept in sessionStorage so a persona switch
+ * (which reloads the app) still sees it. */
+export type AgentPerm = "view" | "history" | "build" | "publish" | "pause" | "delete" | "share";
+export const AGENT_PERMS: { id: AgentPerm; name: string; desc: string; need?: AgentPerm[] }[] = [
+  { id: "view", name: "Xem Nhân sự số", desc: "Mở, xem cấu hình, chạy Evaluate." },
+  { id: "history", name: "Xem lịch sử hội thoại", desc: "Insights › History và Trace.", need: ["view"] },
+  { id: "build", name: "Build", desc: "Sửa Instructions, Skill, Knowledge, Channels.", need: ["view"] },
+  { id: "publish", name: "Publish / Gỡ publish", desc: "Gửi yêu cầu duyệt, gỡ bản đang live.", need: ["build"] },
+  { id: "pause", name: "Tạm dừng", desc: "Tạm dừng hoặc chạy lại bản đang live.", need: ["view"] },
+  { id: "delete", name: "Xóa", desc: "Xóa hẳn Nhân sự số.", need: ["build"] },
+  { id: "share", name: "Cấp quyền tiếp", desc: "Mở popup Cấp quyền, thêm người khác.", need: ["view"] },
+];
+export const ALL_AGENT_PERMS = AGENT_PERMS.map(p => p.id);
 
-const EMPTY: AgentShare = { general: "none", generalLevel: "role", people: [] };
-const KEY = "agent_share_v2";
+export type AgentShareMode = "role" | "custom" | "none";
+export interface AgentMember { userId: string; mode: AgentShareMode; perms?: AgentPerm[] }
+export type AgentGeneralAccess = "none" | "space";
+export interface AgentShare { general: AgentGeneralAccess; generalMode: "role" | "custom"; generalPerms?: AgentPerm[]; people: AgentMember[] }
+
+const EMPTY: AgentShare = { general: "none", generalMode: "role", people: [] };
+const KEY = "agent_share_v3";
 const saved = loadMap<string, AgentShare>(KEY);
 
-// One-time carry-over from v1 ({ mode, people: string[] }) so a demo already set up keeps working.
-for (const [id, old] of loadMap<string, { mode: string; people: string[] }>("agent_share_v1")) {
+// One-time carry-over from v2 ({ generalLevel, people: { level } }) so a demo already set up keeps working.
+const V2: Record<string, AgentPerm[]> = { view: ["view", "history"], edit: ["view", "history", "build", "publish", "pause"] };
+const fromV2 = (level: string): Pick<AgentMember, "mode" | "perms"> =>
+  level === "none" ? { mode: "none" } : V2[level] ? { mode: "custom", perms: V2[level] } : { mode: "role" };
+for (const [id, old] of loadMap<string, { general: AgentGeneralAccess; generalLevel: string; people: { userId: string; level: string }[] }>("agent_share_v2")) {
   if (saved.has(id)) continue;
+  const g = fromV2(old.generalLevel);
   saved.set(id, {
-    general: old.mode === "all" ? "space" : "none", generalLevel: "role",
-    people: old.mode === "specific" ? old.people.map(userId => ({ userId, level: "role" as const })) : [],
+    general: old.general, generalMode: g.mode === "custom" ? "custom" : "role", generalPerms: g.perms,
+    people: old.people.map(p => ({ userId: p.userId, ...fromV2(p.level) })),
   });
 }
 for (const [id, s] of saved) {
@@ -41,10 +58,8 @@ for (const [id, s] of saved) {
 
 function apply(a: AgentRecord, s: AgentShare) {
   a.sharedAll = s.general === "space";
-  a.sharedWith = s.people.filter(p => p.level !== "none").map(p => p.userId);
-  a.sharedExcept = s.people.filter(p => p.level === "none").map(p => p.userId);
-  a.shareLevels = Object.fromEntries(s.people.map(p => [p.userId, p.level]));
-  a.shareGeneralLevel = s.generalLevel;
+  a.sharedWith = s.people.filter(p => p.mode !== "none").map(p => p.userId);
+  a.sharedExcept = s.people.filter(p => p.mode === "none").map(p => p.userId);
 }
 
 let version = 0;
@@ -52,10 +67,15 @@ const listeners = new Set<() => void>();
 
 export const agentShareStore = {
   get(id: string): AgentShare {
+    const s = saved.get(id);
+    if (s) return s;
     const a = AGENTS.find(x => x.id === id);
     if (!a) return EMPTY;
-    const people = [...(a.sharedWith ?? []), ...(a.sharedExcept ?? [])].map(userId => ({ userId, level: (a.shareLevels?.[userId] ?? "role") as AgentAccessLevel }));
-    return { general: a.sharedAll ? "space" : "none", generalLevel: (a.shareGeneralLevel ?? "role") as AgentAccessLevel, people };
+    // Seeded Agents: people shared by name follow their Role.
+    return {
+      general: a.sharedAll ? "space" : "none", generalMode: "role",
+      people: [...(a.sharedWith ?? []).map(userId => ({ userId, mode: "role" as const })), ...(a.sharedExcept ?? []).map(userId => ({ userId, mode: "none" as const }))],
+    };
   },
   set(id: string, s: AgentShare) {
     const a = AGENTS.find(x => x.id === id);
@@ -78,45 +98,70 @@ export function memberById(id: string): OrgMember | undefined {
   return collectMembers(orgTree).find(m => m.id === id);
 }
 
-/** "role" turned into what it means for one person right now. */
-export function resolveLevel(level: AgentAccessLevel, roleCanBuild: boolean): "view" | "edit" | "none" {
-  return level === "role" ? (roleCanBuild ? "edit" : "view") : level;
+/** What a Role grants on one Nhân sự số shared with its member, read live from Roles. Being
+ * added always lets you open it; "Cấp quyền tiếp" never comes from a Role. */
+export function rolePerms(permissionIds: Set<string> | undefined): AgentPerm[] {
+  const has = (p: string) => !!permissionIds?.has(p);
+  const out: AgentPerm[] = ["view"];
+  if (has("agents.history")) out.push("history");
+  if (has("agents.manage")) out.push("build");
+  if (has("agents.manage") && has("agents.publish")) out.push("publish");
+  if (has("agents.pause")) out.push("pause");
+  if (has("agents.manage") && has("agents.delete")) out.push("delete");
+  return ALL_AGENT_PERMS.filter(p => out.includes(p));
 }
 
-/** What `userId` gets on this Agent through sharing alone (null = no access). A person's own
- * level ("Quyền riêng") always replaces the "Cả Space" level - higher or lower, incl. "none". */
-export function shareLevelFor(agentId: string, userId: string, roleCanBuild: boolean): "view" | "edit" | null {
+/** Adds a permission with everything it needs, or removes it with everything that needs it. */
+export function togglePerm(set: AgentPerm[], id: AgentPerm, on: boolean): AgentPerm[] {
+  const s = new Set(set);
+  const add = (x: AgentPerm) => { s.add(x); (AGENT_PERMS.find(p => p.id === x)?.need ?? []).forEach(add); };
+  const drop = (x: AgentPerm) => { s.delete(x); AGENT_PERMS.filter(p => p.need?.includes(x)).forEach(p => drop(p.id)); };
+  if (on) add(id); else drop(id);
+  return ALL_AGENT_PERMS.filter(p => s.has(p));
+}
+export const samePerms = (a: AgentPerm[], b: AgentPerm[]) => a.length === b.length && a.every(x => b.includes(x));
+
+/** What `userId` gets on this Agent through sharing alone (empty = no access). */
+export function sharePermsFor(agentId: string, userId: string, roleSet: AgentPerm[]): AgentPerm[] {
   const s = agentShareStore.get(agentId);
   const mine = s.people.find(p => p.userId === userId);
-  const level = mine ? resolveLevel(mine.level, roleCanBuild) : s.general === "space" ? resolveLevel(s.generalLevel, roleCanBuild) : "none";
-  return level === "none" ? null : level;
+  if (mine) return mine.mode === "none" ? [] : mine.mode === "role" ? roleSet : (mine.perms ?? []);
+  if (s.general !== "space") return [];
+  return s.generalMode === "role" ? roleSet : (s.generalPerms ?? []);
 }
 
-/** The signed-in user's level on an Agent: "owner", "edit" / "view" when it's shared with them,
- * or null. Space Admins (Build agents across the whole Console) count as "edit" everywhere. */
-export function useAgentAccessLevel(agentId: string): "owner" | "edit" | "view" | null {
+/** The signed-in user's permissions on an Agent. Owner and Space Admins (Build agents across the
+ * whole Space) hold every permission. `null` = no access. */
+export function useAgentPerms(agentId: string): { owner: boolean; perms: Set<AgentPerm> } | null {
   useAgentShareVersion();
   const { userId, permissionIds, role } = useMyPermissions();
   const a = AGENTS.find(x => x.id === agentId);
-  if (!a) return "owner"; // new / unsaved Agent - the creator
-  if (a.ownerId === userId) return "owner";
-  const canBuild = permissionIds.has("agents.manage");
-  const viaShare = shareLevelFor(agentId, userId, canBuild);
-  if (canBuild && (role?.scope?.["agents.manage"] ?? "all") === "all") return "edit";
-  return viaShare;
+  if (!a || a.ownerId === userId) return { owner: true, perms: new Set(ALL_AGENT_PERMS) };
+  if (permissionIds.has("agents.manage") && (role?.scope?.["agents.manage"] ?? "all") === "all") return { owner: false, perms: new Set(ALL_AGENT_PERMS) };
+  const p = sharePermsFor(agentId, userId, rolePerms(permissionIds));
+  return p.length ? { owner: false, perms: new Set(p) } : null;
 }
 
-/** Role-based ability of any member (for the "Theo Vai trò" hint next to each person). */
-export function useRoleCanBuild() {
+/** Coarse level kept for the many screens that only ask "can edit / can view": "edit" = has Build. */
+export function useAgentAccessLevel(agentId: string): "owner" | "edit" | "view" | null {
+  const r = useAgentPerms(agentId);
+  if (!r) return null;
+  if (r.owner) return "owner";
+  return r.perms.has("build") ? "edit" : "view";
+}
+
+/** A member's Role-based permissions on Agents (for "Theo Vai trò" and the auto switch). */
+export function useRolePermsOf() {
   const { roles } = useRoles();
-  return (member?: { roleId?: string }) => {
-    const role = roles.find(r => r.id === (member?.roleId ?? DEFAULT_ROLE_ID));
-    return !!role?.permissionIds.has("agents.manage");
-  };
+  return (member?: { roleId?: string }) => rolePerms(roles.find(r => r.id === (member?.roleId ?? DEFAULT_ROLE_ID))?.permissionIds);
+}
+export function useRoleNameOf() {
+  const { roles } = useRoles();
+  return (member?: { roleId?: string }) => roles.find(r => r.id === (member?.roleId ?? DEFAULT_ROLE_ID))?.name ?? "";
 }
 
-/** Space Admin = Build agents across the whole Console. They always edit every Agent, so a
- * per-Agent level can't limit them - the popup leaves them out of the people picker. */
+/** Space Admin = Build agents across the whole Space. They always hold every permission, so a
+ * per-Agent setting can't limit them - the popup leaves them out of the people picker. */
 export function useIsSpaceAdmin() {
   const { roles } = useRoles();
   return (member?: { roleId?: string }) => {
@@ -127,14 +172,11 @@ export function useIsSpaceAdmin() {
 
 /** True when the signed-in user reaches this Agent only because they were added to it (not its
  * owner, not a Space Admin). Such a person never edits a resource that lives in the Space library,
- * even at "Chỉnh sửa" - only the Agent's own resources ("Chỉ Agent này"). */
+ * even with Build - only the Agent's own resources ("Chỉ Nhân sự số này"). */
 export function useIsAgentCollaborator(agentId: string | null | undefined): boolean {
-  useAgentShareVersion();
-  const { userId, permissionIds, role } = useMyPermissions();
-  if (!agentId) return false;
-  const a = AGENTS.find(x => x.id === agentId);
-  if (!a || a.ownerId === userId) return false;
-  const canBuild = permissionIds.has("agents.manage");
-  if (canBuild && (role?.scope?.["agents.manage"] ?? "all") === "all") return false;
-  return shareLevelFor(agentId, userId, canBuild) !== null;
+  const r = useAgentPerms(agentId ?? "__none__");
+  const { permissionIds, role } = useMyPermissions();
+  const spaceAdmin = permissionIds.has("agents.manage") && (role?.scope?.["agents.manage"] ?? "all") === "all";
+  if (!agentId || !AGENTS.find(a => a.id === agentId)) return false;
+  return !!r && !r.owner && !spaceAdmin;
 }

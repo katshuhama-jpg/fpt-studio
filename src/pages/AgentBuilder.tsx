@@ -107,7 +107,7 @@ import { KnowledgeStatusPill } from "@/components/knowledge/knowledgeStatus";
 import AttachConsoleKnowledgeBaseModal from "@/components/knowledge/AttachConsoleKnowledgeBaseModal";
 import ShareKnowledgeBaseModal from "@/components/knowledge/ShareKnowledgeBaseModal";
 import ShareAgentModal, { useCanShareAgent } from "@/components/configure/ShareAgentModal";
-import { useAgentShareVersion, useAgentAccessLevel, useIsAgentCollaborator } from "@/components/configure/agentShareStore";
+import { useAgentShareVersion, useAgentAccessLevel, useAgentPerms, useIsAgentCollaborator } from "@/components/configure/agentShareStore";
 import ShareAgentItemModal from "@/components/knowledge/ShareAgentItemModal";
 import OrgSharePicker, { orgSelectionSummary } from "@/components/governance/OrgSharePicker";
 import { ACCESS_COPY, RETRIEVAL_COPY } from "@/components/knowledge/QueryScopeSection";
@@ -305,10 +305,14 @@ export default function AgentBuilder() {
   const canAccessAgent = !existingAgent || access.canSeeAll || isOwnedOrShared(existingAgent, access.userId);
   // Level on this Agent: "Chỉnh sửa" (picked by hand or via Role) can edit and publish even when
   // the Role alone couldn't; "Chỉ xem" reads it, runs Evaluate and exports history.
+  // People added to the Agent get exactly the permissions set in Cấp quyền (Theo Vai trò or Tuỳ
+  // chỉnh, may go beyond the Role); the owner keeps going by their Role.
   const accessLevel = useAgentAccessLevel(id ?? "new");
-  const canPublishAgent = canAccessAgent && (accessLevel === "edit" || access.canAct("publish", existingAgent ? isOwnedOrShared(existingAgent, access.userId) : true));
-  const viewOnly = !!existingAgent && canAccessAgent && (accessLevel === "view"
-    || (accessLevel === null && !access.canAct("manage", isOwnedOrShared(existingAgent, access.userId))));
+  const agentPerms = useAgentPerms(id ?? "new");
+  const sharedPerms = agentPerms && !agentPerms.owner ? agentPerms.perms : null;
+  const canPublishAgent = canAccessAgent && (sharedPerms ? sharedPerms.has("publish") : access.canAct("publish", existingAgent ? isOwnedOrShared(existingAgent, access.userId) : true));
+  const viewOnly = !!existingAgent && canAccessAgent && (sharedPerms ? !sharedPerms.has("build")
+    : accessLevel === null && !access.canAct("manage", isOwnedOrShared(existingAgent, access.userId)));
   const lockContent = viewOnly && tab !== "insights";
   /** In Evaluate, a view-only person may still run tests and read results - those controls carry
    * data-viewonly-allow. */
@@ -318,7 +322,7 @@ export default function AgentBuilder() {
   // without seeing that Agent's conversation history, since Viewer has no "agents.history" by
   // default. A new, unsaved agent ("new") has no conversations yet, so this never applies there.
   // Added to the Agent (Chỉ xem or Chỉnh sửa) always includes its conversation history.
-  const canSeeHistory = canAccessAgent && (!existingAgent || accessLevel === "view" || accessLevel === "edit" || access.canAct("history", isOwnedOrShared(existingAgent, access.userId)));
+  const canSeeHistory = canAccessAgent && (!existingAgent || (sharedPerms ? sharedPerms.has("history") : access.canAct("history", isOwnedOrShared(existingAgent, access.userId))));
 
   // A deep link straight to ?tab=insights&section=history (bookmarked, shared, or just an old
   // tab) for someone without "View agent history" on this Agent must not leave the pane blank —
@@ -2862,8 +2866,8 @@ function WebWidgetConfigModal({ onClose }: { onClose: () => void }) {
 function DeployTab({ agentId, onViewTriggers, onViewVersions, onOpenPublish }: { agentId: string; onViewTriggers?: () => void; onViewVersions?: () => void; onOpenPublish?: () => void }) {
   const access = useGroupAccess("agents");
   const ownedAgent = AGENTS.find(a => a.id === agentId);
-  const deployLevel = useAgentAccessLevel(agentId ?? "new");
-  const canPublishAgent = deployLevel === "edit" || access.canAct("publish", ownedAgent ? isOwnedOrShared(ownedAgent, access.userId) : true);
+  const deployPerms = useAgentPerms(agentId ?? "new");
+  const canPublishAgent = deployPerms && !deployPerms.owner ? deployPerms.perms.has("publish") : access.canAct("publish", ownedAgent ? isOwnedOrShared(ownedAgent, access.userId) : true);
   const [tick, setTick] = useState(0);
   const refresh = () => setTick(t => t + 1);
   const [showPublish, setShowPublish] = useState(false);
