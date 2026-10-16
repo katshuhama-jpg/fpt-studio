@@ -411,13 +411,13 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
                     <div className="-ml-11">
                       <PermList id="add-perms" perms={addListPerms} allowed={allowed}
                         rolePerms={adding.length === 1 ? firstRole : undefined}
-                        hint={addMode === "custom"
+                        hint={effAddMode === "custom"
                           ? (adding.length > 1 ? `Áp cho cả ${adding.length} người. Ai trùng Vai trò của mình sẽ tự về Theo Vai trò.` : customHint(roleNameOf(byId.get(adding[0].id))))
                           : adding.length > 1 ? "Mỗi người nhận quyền theo Vai trò của mình. Đổi một quyền sẽ chuyển sang Tuỳ chỉnh và áp cho tất cả." : roleHint(roleNameOf(byId.get(adding[0].id)))}
                         onToggle={(p, on) => {
                           const nx = togglePerm(addListPerms, p, on);
                           setAddPerms(nx.length ? nx : ["view"]);
-                          setAddMode(adding.length === 1 && samePerms(nx, firstRole) ? "role" : "custom");
+                          setAddMode(adding.length === 1 && samePerms(nx, firstRole) && within(firstRole) ? "role" : "custom");
                         }} />
                     </div>
                   )}
