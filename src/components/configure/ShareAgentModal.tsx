@@ -39,7 +39,7 @@ type Level = "role" | "view" | "edit" | "none";
 export const LEVEL_META: Record<Level, { label: string; helper: string; icon: LucideIcon }> = {
   role: { label: "Theo Vai trò", helper: "Ai có quyền tạo Agent được Chỉnh sửa, còn lại Chỉ xem.", icon: UserCog },
   edit: { label: "Chỉnh sửa", helper: "Sửa Agent, tài nguyên của Agent và publish.", icon: Pencil },
-  view: { label: "Chỉ xem", helper: "Xem, chạy Evaluate và export lịch sử.", icon: Eye },
+  view: { label: "Chỉ xem", helper: "Xem Agent, lịch sử hội thoại và chạy Evaluate.", icon: Eye },
   none: { label: "Không có quyền", helper: "Không mở được Agent này.", icon: Lock },
 };
 /** Who works on the Agent - the same three choices as "Ai được dùng" on a resource. */
