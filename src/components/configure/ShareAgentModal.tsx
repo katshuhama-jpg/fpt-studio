@@ -1,7 +1,7 @@
 import type React from "react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, ArrowLeft, Building2, Check, ChevronDown, Eye, Lock, Pencil, Search, UserCog, X, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Building2, Check, ChevronDown, Eye, Lock, Pencil, Search, UserCog, X, type LucideIcon } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
@@ -228,24 +228,12 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
   /** Under Cả Space, a level equal to what the person already gets from it adds nothing. */
   const sameAsGeneral = scope === "space" ? adding.filter(m => (addLevel ?? addDefault(m.id)) === spaceLevelOf(m.id)) : [];
   const added = addedAll.filter(a => !sameAsGeneral.some(m => m.id === a.userId));
-  const addBlocked = adding.length > 0 && added.length === 0;
-  const sameIds = new Set(sameAsGeneral.map(m => m.id));
-  const levelName = (m: OrgMember) => LEVEL_META[spaceLevelOf(m.id)].label;
-  /** Names who adds nothing and what happens to them - never just a count. */
-  const sameNotice = (() => {
-    const n = sameAsGeneral;
-    if (!n.length) return "";
-    if (addBlocked) return n.length === 1
-      ? `${n[0].name} đã có ${levelName(n[0])} từ quyền chung - Hãy chọn mức khác.`
-      : "Mọi người đã có quyền này từ quyền chung - Hãy chọn mức khác.";
-    if (n.length === 1) return `${n[0].name} đã có ${levelName(n[0])} từ quyền chung, sẽ không được thêm.`;
-    const who = n.length === 2 ? `${n[0].name}, ${n[1].name}` : `${n[0].name} và ${n.length - 1} người khác`;
-    return `${who} đã có quyền này từ quyền chung, sẽ không được thêm.`;
-  })();
+  /** Everyone added already has that level from Cả Space: nothing to save. */
+  const addNoop = adding.length > 0 && added.length === 0;
   const addingOnlyNone = added.length > 0 && added.every(a => a.level === "none");
   /** Drive's "Send": saves the people in the add step right away, then closes. */
   const sendAdd = () => {
-    if (addBlocked) return;
+    if (addNoop) { onClose(); return; }
     const nextPeople = [...people.filter(p => !added.some(a => a.userId === p.userId)), ...added];
     const one = added.length === 1 ? (byId.get(added[0].userId)?.name ?? "") : null;
     const message = addingOnlyNone
@@ -277,9 +265,7 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
       <div className="min-h-10 w-full rounded-lg border border-border bg-surface flex items-stretch focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-base">
       <div className={`flex-1 min-w-0 flex flex-wrap items-center gap-1.5 ${adding.length ? "px-2 py-1.5" : "pl-9 pr-3"}`}>
         {adding.map(m => (
-          <span key={m.id} title={sameIds.has(m.id) ? `${m.name} đã có ${levelName(m)} từ quyền chung.` : undefined}
-            className={`inline-flex items-center gap-1.5 h-7 pl-1 pr-1.5 rounded-full border bg-white text-xs font-medium ${sameIds.has(m.id) ? "border-amber-500" : "border-border"}`}>
-            {sameIds.has(m.id) && <AlertTriangle size={12} className="text-amber-600 ml-0.5" aria-label="Trùng quyền chung" />}
+          <span key={m.id} className="inline-flex items-center gap-1.5 h-7 pl-1 pr-1.5 rounded-full border border-border bg-white text-xs font-medium">
             <span className="w-5 h-5 rounded-full bg-primary-soft text-primary text-[10px] font-semibold flex items-center justify-center" aria-hidden>{initialsOf(m.name)}</span>
             {m.email ?? m.name}
             <button type="button" aria-label={`Bỏ ${m.name}`} onClick={() => setAdding(a => a.filter(x => x.id !== m.id))} className="text-muted-foreground hover:text-foreground"><X size={12} /></button>
@@ -354,13 +340,7 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
                 </DialogDescription>
               </DialogHeader>
               {searchBox(addPlaceholder)}
-              {sameAsGeneral.length > 0 && (
-                <p className="text-xs text-amber-700 -mt-1 flex items-center gap-1.5 min-w-0" role="status" title={sameNotice}>
-                  <AlertTriangle size={13} className="shrink-0" aria-hidden />
-                  <span className="truncate">{sameNotice}</span>
-                </p>
-              )}
-              {!addingOnlyNone && !addBlocked && (
+              {!addingOnlyNone && (
                 <label className="flex items-center gap-2 text-sm cursor-pointer w-fit">
                   <input type="checkbox" checked={notify} onChange={e => setNotify(e.target.checked)} className="w-4 h-4 accent-primary" />
                   Thông báo cho người được cấp quyền
@@ -368,7 +348,7 @@ export default function ShareAgentModal({ agentId, open, onClose }: { agentId: s
               )}
               <DialogFooter>
                 <button onClick={cancelAdd} className="h-9 px-4 rounded-lg border border-border bg-surface hover:bg-surface-muted text-sm font-medium transition-base">Hủy bỏ</button>
-                <button onClick={sendAdd} disabled={addBlocked} className="btn-primary h-9 justify-center disabled:opacity-40 disabled:cursor-not-allowed">{addingOnlyNone ? "Lưu" : "Cấp quyền"}</button>
+                <button onClick={sendAdd} className="btn-primary h-9 justify-center">{addingOnlyNone ? "Lưu" : "Cấp quyền"}</button>
               </DialogFooter>
             </>
           ) : (
